@@ -40,12 +40,15 @@ import javafx.scene.input.KeyCombination;
 import org.example.navigation.NavigationManager;
 import org.example.theme.ThemeManager;
 import org.example.util.ClockService;
+import org.example.util.PlatformUiSupport;
 
 import java.util.List;
 import java.util.Locale;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.example.service.SessionService;
 import org.example.service.UserService;
@@ -60,6 +63,7 @@ public class DashboardController {
 
     /** Periodically refreshes the unread badge while the main shell is open. */
     private Timeline notificationRefresh;
+    private final AtomicBoolean indicatorRefreshRunning = new AtomicBoolean();
 
 
     public Button btnRunImport;
@@ -111,6 +115,8 @@ public class DashboardController {
     /** Shared footer populated from values maintained in Settings. */
     @FXML
     private Label lblCompanyFooter;
+    @FXML private VBox sidebarRoot;
+    @FXML private HBox topBar;
 
     @FXML
     private TextField txtSearch;
@@ -143,10 +149,7 @@ public class DashboardController {
             selectMenu(btnDashboard);
         }
         updateThemeButton();
-        refreshNotificationBadge();
-        refreshEmailBadge();
-        refreshWhatsappBadge();
-        refreshReminderBadge();
+        refreshShellIndicatorsAsync();
         if (SessionService.current() != null) {
             menuUser.setText(SessionService.current().getFullName());
             if (lblSidebarUser != null) lblSidebarUser.setText(SessionService.current().getFullName());
@@ -154,16 +157,75 @@ public class DashboardController {
         Platform.runLater(this::bindShellControls);
         applyRolePermissions();
         notificationRefresh = new Timeline(
-            new KeyFrame(Duration.seconds(2), event -> {
-                refreshNotificationBadge();
-                refreshEmailBadge();
-                refreshWhatsappBadge();
-                refreshReminderBadge();
+            new KeyFrame(Duration.seconds(15), event -> {
+                refreshShellIndicatorsAsync();
                 refreshCompanyFooter();
             }));
         notificationRefresh.setCycleCount(Timeline.INDEFINITE);
         notificationRefresh.play();
 
+    }
+
+
+    /** Keeps the shared shell readable with macOS font metrics and Retina scaling. */
+    private void installResponsiveShellSizing() {
+        if (contentPane.getScene() == null) return;
+        Runnable resize = () -> {
+            double width = contentPane.getScene().getWidth();
+            double searchWidth = Math.max(190, Math.min(390, width * (PlatformUiSupport.isMac() ? 0.17 : 0.20)));
+            txtSearch.setPrefWidth(searchWidth);
+            if (sidebarRoot != null) sidebarRoot.setPrefWidth(width < 1250 ? 178 : PlatformUiSupport.isMac() ? 198 : 215);
+            if (menuUser != null) {
+                menuUser.setMaxWidth(width < 1400 ? 135 : 175);
+                PlatformUiSupport.configureTextOverflow(menuUser);
+            }
+            if (lblCompanyFooter != null) PlatformUiSupport.configureTextOverflow(lblCompanyFooter);
+        };
+        contentPane.getScene().widthProperty().addListener((obs, oldValue, newValue) -> resize.run());
+        contentPane.getScene().heightProperty().addListener((obs, oldValue, newValue) -> resize.run());
+        resize.run();
+    }
+
+    /** Reads all four shell counters off the JavaFX thread in one SQLite round-trip. */
+    private void refreshShellIndicatorsAsync() {
+        if (!indicatorRefreshRunning.compareAndSet(false, true)) return;
+        CompletableFuture.supplyAsync(() -> {
+            int notifications = 0, email = 0, whatsapp = 0, reminders = 0;
+            String sql = "SELECT " +
+                "(SELECT COUNT(*) FROM notifications WHERE COALESCE(is_read,0)=0)," +
+                "(SELECT COUNT(*) FROM communication_log WHERE channel='EMAIL' AND COALESCE(is_read,0)=0)," +
+                "(SELECT COUNT(*) FROM communication_log WHERE channel='WHATSAPP' AND COALESCE(is_read,0)=0)," +
+                "(SELECT COUNT(*) FROM reminder_register WHERE status IN ('OPEN','SNOOZED'))";
+            try (java.sql.Connection connection = org.example.database.DatabaseManager.getConnection();
+                 java.sql.Statement statement = connection.createStatement();
+                 java.sql.ResultSet result = statement.executeQuery(sql)) {
+                if (result.next()) {
+                    notifications = result.getInt(1); email = result.getInt(2);
+                    whatsapp = result.getInt(3); reminders = result.getInt(4);
+                }
+            } catch (Exception ignored) {
+                // A missing optional table must never freeze or close the shell.
+            }
+            return new int[]{notifications, email, whatsapp, reminders};
+        }).whenComplete((counts, error) -> Platform.runLater(() -> {
+            try {
+                if (counts != null) {
+                    applyBadge(lblNotificationBadge, counts[0]);
+                    applyBadge(lblEmailBadge, counts[1]);
+                    applyBadge(lblWhatsappBadge, counts[2]);
+                    applyBadge(lblReminderBadge, counts[3]);
+                }
+            } finally {
+                indicatorRefreshRunning.set(false);
+            }
+        }));
+    }
+
+    private void applyBadge(Label badge, int count) {
+        if (badge == null) return;
+        badge.setText(count > 99 ? "99+" : Integer.toString(count));
+        badge.setVisible(count > 0);
+        badge.setManaged(count > 0);
     }
 
     /** Refreshes the shell footer from the current company configuration. */
@@ -201,6 +263,8 @@ public class DashboardController {
 
     private void bindShellControls() {
         if (contentPane.getScene() == null) return;
+        PlatformUiSupport.installResponsiveClasses(contentPane.getScene());
+        installResponsiveShellSizing();
         contentPane.getScene().getAccelerators().put(
             new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN),
             () -> { txtSearch.requestFocus(); txtSearch.selectAll(); });

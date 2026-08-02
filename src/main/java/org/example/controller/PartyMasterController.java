@@ -17,6 +17,7 @@ import org.example.service.ItemSpreadsheetService;
 import org.example.service.NotificationService;
 import org.example.service.PartyService;
 import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 import org.example.navigation.NavigationManager;
 
 import java.io.File;
@@ -152,12 +153,10 @@ public abstract class PartyMasterController {
             PartyDialogController controller = loader.getController();
             controller.configure(partyType(), party);
             Stage stage = new Stage();
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setTitle((party == null ? "Add " : "Edit ") + displayName());
+            PlatformUiSupport.configureDialogStage(stage, tableParties, (party == null ? "Add " : "Edit ") + displayName(), false);
             Scene scene = new Scene(root);
             ThemeManager.applyTheme(scene);
             stage.setScene(scene);
-            stage.setResizable(false);
             stage.showAndWait();
             load();
         } catch (Exception exception) {

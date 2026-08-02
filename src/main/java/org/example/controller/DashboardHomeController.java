@@ -16,6 +16,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.StackPane;
+import javafx.scene.CacheHint;
 import org.example.database.DatabaseManager;
 import org.example.navigation.NavigationManager;
 import org.example.service.NotificationService;
@@ -62,12 +63,23 @@ public class DashboardHomeController {
         installKpiIcons();
         installQuickActionIcons();
         installDashboardHeaderIcons();
+        enableChartCaching();
         if (cmbPeriod != null) {
             cmbPeriod.getItems().setAll("This Month", "This Quarter", "This Year", "All Time");
             cmbPeriod.setValue("This Month");
             cmbPeriod.valueProperty().addListener((obs, oldValue, value) -> reload());
         }
         reload();
+    }
+
+    /** Reduces repeated chart rasterisation on Retina displays. */
+    private void enableChartCaching() {
+        for (Node node : new Node[]{trendChart, customerChart, comparisonChart}) {
+            if (node != null) {
+                node.setCache(true);
+                node.setCacheHint(CacheHint.SPEED);
+            }
+        }
     }
 
     /** Installs vector KPI symbols so no platform-dependent emoji can disappear. */

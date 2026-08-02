@@ -16,6 +16,7 @@ import org.example.service.ItemService;
 import org.example.service.ItemSpreadsheetService;
 import org.example.service.NotificationService;
 import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 import org.example.util.IconFactory;
 import org.example.navigation.NavigationManager;
 
@@ -206,11 +207,10 @@ public class ItemMasterController {
             ItemDialogController controller = loader.getController();
             if (item != null) controller.setItem(item);
             Stage stage = new Stage();
-            stage.setTitle(item == null ? "Add New Item" : "Edit Item");
+            PlatformUiSupport.configureDialogStage(stage, tableItems, item == null ? "Add New Item" : "Edit Item", false);
             Scene scene = new Scene(root);
             ThemeManager.applyTheme(scene);
             stage.setScene(scene);
-            stage.setResizable(false);
             stage.showAndWait();
             loadItems();
         } catch (Exception e) {

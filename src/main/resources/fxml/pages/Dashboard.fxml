@@ -9,7 +9,7 @@
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.DashboardController" styleClass="erp-shell">
     <left>
-        <VBox prefWidth="215" styleClass="erp-sidebar">
+        <VBox fx:id="sidebarRoot" prefWidth="215" minWidth="175" maxWidth="235" styleClass="erp-sidebar">
             <padding><Insets top="18" right="12" bottom="18" left="12"/></padding>
 
             <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="sidebar-scroll">
@@ -40,7 +40,7 @@
     </left>
     <top>
         <!-- The header is intentionally identical for every ERP page. -->
-        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="erp-topbar">
+        <HBox fx:id="topBar" spacing="10" alignment="CENTER_LEFT" styleClass="erp-topbar">
             <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
             <Button contentDisplay="GRAPHIC_ONLY" styleClass="top-icon,toolbar-menu">
                 <tooltip><Tooltip text="Toggle navigation menu"/></tooltip>
@@ -54,7 +54,7 @@
                 <Label fx:id="lblClock" styleClass="shell-clock-text"/>
                 <Circle radius="4" styleClass="shell-clock-live"/>
             </HBox>
-            <TextField fx:id="txtSearch" promptText="Search invoices, parties, items, payments... (Ctrl + K)" prefWidth="390" onAction="#search" styleClass="erp-global-search"/>
+            <TextField fx:id="txtSearch" promptText="Search invoices, parties, items, payments... (Ctrl + K)" prefWidth="390" minWidth="190" maxWidth="390" HBox.hgrow="SOMETIMES" onAction="#search" styleClass="erp-global-search"/>
             <Button text="New Sale" onAction="#createSale" styleClass="top-add"/>
             <!-- iPhone-style switch located next to notifications and email. -->
             <ToggleButton fx:id="btnTheme" text="Light" onAction="#toggleTheme" styleClass="theme-switch"/>
@@ -90,7 +90,7 @@
         <!-- Company identity footer is shared by every page hosted inside this shell. -->
         <HBox alignment="CENTER" styleClass="erp-company-footer">
             <padding><Insets top="7" right="16" bottom="7" left="16"/></padding>
-            <Label fx:id="lblCompanyFooter" wrapText="true" textAlignment="CENTER" styleClass="erp-company-footer-text"/>
+            <Label fx:id="lblCompanyFooter" wrapText="false" maxWidth="Infinity" textAlignment="CENTER" styleClass="erp-company-footer-text" HBox.hgrow="ALWAYS"/>
         </HBox>
     </bottom>
 </BorderPane>

@@ -18,6 +18,7 @@ import org.example.database.DatabaseManager;
 import org.example.model.Lookup;
 import org.example.service.LookupService;
 import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 
 import java.io.IOException;
 import java.net.URL;
@@ -1013,23 +1014,14 @@ public class MasterDataController {
 
         Stage stage = new Stage();
 
-        stage.initModality(Modality.APPLICATION_MODAL);
-        stage.setTitle(title);
+        PlatformUiSupport.configureDialogStage(stage, tblLookup, title, false);
 
         Scene scene = new Scene(root);
         ThemeManager.applyTheme(scene);
 
         stage.setScene(scene);
         stage.sizeToScene();
-        stage.setResizable(false);
 
-        if (tblLookup.getScene() != null
-            && tblLookup.getScene().getWindow() != null) {
-
-            stage.initOwner(
-                tblLookup.getScene().getWindow()
-            );
-        }
 
         return stage;
     }

@@ -6,7 +6,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
-import javafx.beans.property.*;import javafx.collections.FXCollections;import javafx.fxml.FXML;import javafx.geometry.Pos;import javafx.scene.chart.PieChart;import javafx.scene.control.*;import javafx.stage.FileChooser;import javafx.stage.Modality;import javafx.stage.Stage;import org.apache.poi.ss.usermodel.*;import org.apache.poi.xssf.usermodel.XSSFWorkbook;import org.example.database.DatabaseManager;import org.example.model.Item;import org.example.service.*;import org.example.theme.ThemeManager;import java.io.*;import java.sql.*;import java.text.NumberFormat;import java.time.LocalDate;import java.util.*;
+import javafx.beans.property.*;import javafx.collections.FXCollections;import javafx.fxml.FXML;import javafx.geometry.Pos;import javafx.scene.chart.PieChart;import javafx.scene.control.*;import javafx.stage.FileChooser;import javafx.stage.Modality;import javafx.stage.Stage;import org.apache.poi.ss.usermodel.*;import org.apache.poi.xssf.usermodel.XSSFWorkbook;import org.example.database.DatabaseManager;import org.example.model.Item;import org.example.service.*;import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;import java.io.*;import java.sql.*;import java.text.NumberFormat;import java.time.LocalDate;import java.util.*;
 public class InventoryController {
  @FXML private TextField txtSearch;@FXML private ComboBox<String>cmbCategory,cmbStatus;@FXML private TableView<Item>tableItems;@FXML private TableColumn<Item,String>colCode,colDescription,colCategory,colHsn,colUnit,colStatus;@FXML private TableColumn<Item,Double>colStock,colReserved,colAvailable,colMinimum,colValue;@FXML private TableColumn<Item,Void>colActions;@FXML private Label lblTotalItems,lblInStock,lblLowStock,lblOutStock,lblStockValue,lblSelectedItem,lblSelectedDetail;@FXML private PieChart categoryChart;
  private final ItemService service=new ItemService();private final NumberFormat money=NumberFormat.getCurrencyInstance(new Locale("en","IN"));private List<Item>all=List.of();private Item selected;
@@ -39,13 +40,10 @@ public class InventoryController {
    ItemDialogController controller=loader.getController();
    if(item!=null)controller.setItem(item);
    Stage stage=new Stage();
-   stage.initOwner(tableItems.getScene().getWindow());
-   stage.initModality(Modality.APPLICATION_MODAL);
-   stage.setTitle(item==null?"Add Item":"Edit Item");
+   PlatformUiSupport.configureDialogStage(stage, tableItems, item==null?"Add Item":"Edit Item", false);
    Scene scene=new Scene(root);
    ThemeManager.applyTheme(scene);
    stage.setScene(scene);
-   stage.setResizable(false);
    stage.showAndWait();
    refresh();
   }catch(Exception e){error(e);}
