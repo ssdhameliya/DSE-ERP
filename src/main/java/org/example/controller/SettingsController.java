@@ -16,7 +16,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
+import javafx.stage.DirectoryChooser;
 import org.example.config.ConfigManager;
+import org.example.config.WorkspaceManager;
 import org.example.service.EmailService;
 import org.example.service.NotificationService;
 import org.example.update.UpdateDialogs;
@@ -24,6 +26,7 @@ import org.example.update.UpdateService;
 import org.example.update.BuildInfo;
 
 import java.io.File;
+import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -224,6 +227,14 @@ public class SettingsController {
     @FXML private Label lblLastChecked;
 
     /* =========================================================
+       WORKSPACE & STORAGE
+       ========================================================= */
+    @FXML private HBox navWorkspace;
+    @FXML private VBox panelWorkspace;
+    @FXML private Label lblWorkspacePath;
+    @FXML private Label lblWorkspaceStatus;
+
+    /* =========================================================
        CONFIGURATION KEYS
        ========================================================= */
 
@@ -246,6 +257,7 @@ public class SettingsController {
         configureChoiceFields();
         loadSettings();
         refreshAllAssetPreviews();
+        refreshWorkspacePanel();
 
         showCompany();
     }
@@ -925,6 +937,7 @@ public class SettingsController {
             navInvoice,
             navNotifications,
             navEmail,
+            navWorkspace,
             navUpdates
         };
 
@@ -963,6 +976,7 @@ public class SettingsController {
             panelInvoice,
             panelNotifications,
             panelEmail,
+            panelWorkspace,
             panelUpdates
         };
 
@@ -1023,6 +1037,53 @@ public class SettingsController {
             navEmail,
             panelEmail
         );
+    }
+
+
+    @FXML
+    private void showWorkspace() {
+        selectSection(navWorkspace, panelWorkspace);
+        refreshWorkspacePanel();
+    }
+
+    @FXML
+    private void openWorkspaceFolder() {
+        try {
+            Desktop.getDesktop().open(WorkspaceManager.getWorkspaceRoot().toFile());
+        } catch (Exception exception) {
+            showError("The workspace folder could not be opened: " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void moveWorkspace() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Choose New DSE ERP Workspace");
+        File selected = chooser.showDialog(panelWorkspace.getScene().getWindow());
+        if (selected == null) return;
+        try {
+            WorkspaceManager.stageMove(selected.toPath());
+            lblWorkspaceStatus.setText("Move scheduled. Close and reopen DSE ERP to copy and verify the workspace. The current workspace will be retained as a recovery copy.");
+            lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
+            lblWorkspaceStatus.getStyleClass().add("workspace-status-warning");
+            new Alert(Alert.AlertType.INFORMATION,
+                    "The workspace move is scheduled for the next application start.\n\n" +
+                    "DSE ERP will copy the data while SQLite is closed, verify the destination, and retain the current workspace as a safety copy.",
+                    ButtonType.OK).showAndWait();
+        } catch (Exception exception) {
+            showError("The workspace move could not be scheduled: " + exception.getMessage());
+        }
+    }
+
+    private void refreshWorkspacePanel() {
+        if (lblWorkspacePath == null || lblWorkspaceStatus == null) return;
+        lblWorkspacePath.setText(WorkspaceManager.getWorkspaceRoot().toString());
+        boolean pending = WorkspaceManager.hasPendingMove();
+        lblWorkspaceStatus.setText(pending
+                ? "A workspace move is pending and will run before the database opens on the next start."
+                : "Workspace is available and writable. Application updates do not replace this folder.");
+        lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
+        lblWorkspaceStatus.getStyleClass().add(pending ? "workspace-status-warning" : "workspace-status-ok");
     }
 
     @FXML
