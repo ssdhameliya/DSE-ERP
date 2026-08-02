@@ -13,7 +13,7 @@ import java.util.concurrent.*;
 import java.util.function.DoubleConsumer;
 
 public final class UpdateService {
-    public static final String DEFAULT_VERSION="2.0.0";
+    public static final String DEFAULT_VERSION="2.1.2";
     public static final String DEFAULT_GITHUB_OWNER="ssdhameliya";
     public static final String DEFAULT_GITHUB_REPOSITORY="DSE-ERP";
     private final GitHubReleaseClient releases=new GitHubReleaseClient();
@@ -51,11 +51,13 @@ public final class UpdateService {
 
     public Path createPreUpdateBackup() throws Exception {return BackupManager.createBackup("Before-Update","PRE_UPDATE");}
 
-    public void launchInstaller(Path installer) throws Exception {
-        String os=System.getProperty("os.name","").toLowerCase(Locale.ROOT);
-        if(os.contains("win")){new ProcessBuilder("cmd","/c","start","\"DSE ERP Update\"",installer.toAbsolutePath().toString()).start();return;}
-        if(os.contains("mac")){new ProcessBuilder("open",installer.toAbsolutePath().toString()).start();return;}
-        if(Desktop.isDesktopSupported())Desktop.getDesktop().open(installer.toFile());else throw new IllegalStateException("Automatic installer launch is not supported on this operating system.");
+    public UpdateInstallerLauncher.LaunchResult launchInstaller(Path installer, String targetVersion) throws Exception {
+        return UpdateInstallerLauncher.launch(installer, targetVersion);
+    }
+
+    /** Backwards-compatible entry point used by offline updates. */
+    public UpdateInstallerLauncher.LaunchResult launchInstaller(Path installer) throws Exception {
+        return launchInstaller(installer, "offline");
     }
 
     public void openRelease(UpdateRelease release) throws Exception {if(Desktop.isDesktopSupported())Desktop.getDesktop().browse(release.htmlUrl());}

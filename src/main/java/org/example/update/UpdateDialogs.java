@@ -103,12 +103,12 @@ public final class UpdateDialogs {
             Path installer = task.getValue();
             Alert ready = new Alert(Alert.AlertType.CONFIRMATION);
             ready.initOwner(owner); ready.setTitle("Update Ready to Install"); ready.setHeaderText("DSE ERP " + release.version() + " is ready");
-            ready.setContentText("A verified installer and safety backup are ready. The ERP will close after opening the installer.\n\nInstaller: " + installer.getFileName());
-            ButtonType install = new ButtonType("Install Now", ButtonBar.ButtonData.OK_DONE);
+            ready.setContentText("A verified installer and safety backup are ready. DSE ERP will close, install the update automatically, and restart.\n\nInstaller: " + installer.getFileName());
+            ButtonType install = new ButtonType("Install & Restart", ButtonBar.ButtonData.OK_DONE);
             ready.getButtonTypes().setAll(ButtonType.CANCEL, install);
             ready.showAndWait().ifPresent(b -> {
                 if (b == install) try {
-                    service.launchInstaller(installer);
+                    service.launchInstaller(installer, release.version().toString());
                     UpdateHistoryStore.append(release.version().toString(), ConfigManager.get("update.channel", "STABLE"), "INSTALLER_STARTED", installer.toString());
                     Platform.exit();
                 } catch (Exception ex) { error(owner, "Unable to start installer", rootMessage(ex)); }
@@ -142,7 +142,7 @@ public final class UpdateDialogs {
                 UpdateService service = new UpdateService(); Path file = service.verifyOfflinePackage(selected.toPath(), checksum.trim()); Path backup = service.createPreUpdateBackup();
                 UpdateHistoryStore.append("OFFLINE", "OFFLINE", "READY", "Installer=" + file.getFileName() + "; Backup=" + backup.getFileName());
                 Alert ready = new Alert(Alert.AlertType.CONFIRMATION, "The package is ready and a safety backup was created. Open the installer now?", ButtonType.CANCEL, ButtonType.OK); ready.initOwner(owner); ready.setHeaderText("Offline update package verified");
-                if (ready.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) { service.launchInstaller(file); Platform.exit(); }
+                if (ready.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) { service.launchInstaller(file, "offline"); Platform.exit(); }
             } catch (Exception ex) { error(owner, "Offline update failed", rootMessage(ex)); }
         });
     }

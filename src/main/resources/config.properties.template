@@ -35,3 +35,6 @@ update.github.repository=DSE-ERP
 update.channel=STABLE
 update.checkAtStartup=true
 update.downloadInBackground=false
+
+# Update installation mode: AUTOMATIC uses a detached helper and falls back to the normal installer if required.
+update.installMode=AUTOMATIC

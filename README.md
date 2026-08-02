@@ -82,3 +82,7 @@ Do not commit customer databases, runtime configuration, SMTP app passwords, sig
 ## Repository
 
 https://github.com/ssdhameliya/DSE-ERP
+
+## Additional documentation
+
+- Phase 2 automatic install-and-restart updater: `docs/PHASE-2-AUTOMATIC-UPDATER.md`
