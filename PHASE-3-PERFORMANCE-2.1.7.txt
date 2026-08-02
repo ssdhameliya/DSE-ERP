@@ -1,0 +1,24 @@
+DSE ERP 2.1.7 - Phase 3 Performance
+
+Implemented:
+- Removed the nested duplicate CSS/enhancement navigation pass.
+- Added ScreenLifecycle for explicit cached-screen show/hide behavior.
+- Added UiTaskExecutor: bounded daemon background pool with latest-task cancellation.
+- Added FxDebouncer for search and filter controls.
+- Added navigation cache hit/miss logging.
+- Added in-memory performance statistics and 2 MB log rotation.
+- Made TableView optimization idempotent and added a consistent empty state.
+- Preserved v2.1.6 dashboard loading, semantic UI, dialog ownership, macOS sizing,
+  navigation cache, Retina/HiDPI handling, and multi-monitor behavior.
+
+Version:
+- pom.xml: 2.1.7
+- app-version.properties: 2.1.7
+
+Runtime verification required:
+1. mvn clean install
+2. mvn javafx:run
+3. Navigate repeatedly between Dashboard, Sales, Purchase, Inventory, Reports.
+4. Verify first-load icons in light/dark themes.
+5. Verify warning/confirmation/quotation dialogs on macOS.
+6. Review <workspace>/Config/performance.log for cache hits and timings.

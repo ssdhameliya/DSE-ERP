@@ -6,6 +6,7 @@ import javafx.scene.layout.StackPane;
 import javafx.application.Platform;
 import org.example.util.ProfessionalUiEnhancer;
 import org.example.util.ModernDialog;
+import org.example.util.PerformanceMonitor;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -23,6 +24,7 @@ public class NavigationManager {
     private final StackPane contentPane;
     private static final AtomicBoolean NAVIGATION_IN_PROGRESS = new AtomicBoolean(false);
     private String currentPage;
+    private CachedPage currentCachedPage;
     private final Map<String, CachedPage> pageCache = new LinkedHashMap<>(16, 0.75f, true);
     private static final int MAX_CACHED_PAGES = 8;
     private static final java.util.Set<String> NON_CACHEABLE = java.util.Set.of(
@@ -54,7 +56,7 @@ public class NavigationManager {
         }
         if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) return false;
         String timingKey = "navigation:" + fxml;
-        org.example.util.PerformanceMonitor.start(timingKey);
+        PerformanceMonitor.start(timingKey);
         contentPane.getStyleClass().add("navigation-loading");
         try {
             URL url = getClass().getResource(fxml);
@@ -72,24 +74,30 @@ public class NavigationManager {
                 if (cacheable) cache(fxml, cached);
             }
 
+            if (currentCachedPage != null && currentCachedPage != cached) {
+                notifyHidden(currentCachedPage.controller());
+            }
             contentPane.getChildren().setAll(cached.node());
-            // JavaFX creates skins lazily. A first CSS/layout pass followed by an
-            // idempotent enhancement guarantees icons and table headers are visible
-            // on the first navigation, not only after a theme switch.
-            Node attachedPage = cached.node();
+            // One deferred CSS/enhancement pass is enough after scene attachment.
+            // The previous nested passes recalculated the full scene graph multiple
+            // times and were particularly expensive on Retina displays.
+            CachedPage attached = cached;
+            Node attachedPage = attached.node();
             Platform.runLater(() -> {
                 attachedPage.applyCss();
-                attachedPage.autosize();
                 ProfessionalUiEnhancer.enhance(attachedPage);
-                Platform.runLater(() -> {
-                    attachedPage.applyCss();
-                    ProfessionalUiEnhancer.enhance(attachedPage);
-                });
+                notifyShown(attached.controller(), reused);
             });
-            // initialize() has already populated a newly loaded controller. Refresh only
-            // when returning to a cached screen, avoiding duplicate database work.
-            if (reused && !fxml.equals(currentPage)) refreshController(cached.controller());
+            // Legacy controllers still receive their existing refresh method until
+            // they opt into ScreenLifecycle.
+            if (reused && !fxml.equals(currentPage)
+                    && !(cached.controller() instanceof ScreenLifecycle)) {
+                refreshController(cached.controller());
+            }
+            currentCachedPage = cached;
             currentPage = fxml;
+            PerformanceMonitor.event("navigation-cache", fxml + " | " + (reused ? "hit" : "miss")
+                + " | size=" + pageCache.size());
             return true;
         } catch (Throwable error) {
             error.printStackTrace();
@@ -99,7 +107,7 @@ public class NavigationManager {
             return false;
         } finally {
             contentPane.getStyleClass().remove("navigation-loading");
-            org.example.util.PerformanceMonitor.finish(timingKey);
+            PerformanceMonitor.finish(timingKey);
             NAVIGATION_IN_PROGRESS.set(false);
         }
     }
@@ -114,6 +122,18 @@ public class NavigationManager {
                 continue;
             }
             pageCache.remove(eldest);
+        }
+    }
+
+    private static void notifyShown(Object controller, boolean reused) {
+        if (controller instanceof ScreenLifecycle lifecycle) {
+            lifecycle.onScreenShown(reused);
+        }
+    }
+
+    private static void notifyHidden(Object controller) {
+        if (controller instanceof ScreenLifecycle lifecycle) {
+            lifecycle.onScreenHidden();
         }
     }
 
@@ -148,7 +168,13 @@ public class NavigationManager {
         if (fxml != null) pageCache.remove(fxml);
     }
 
-    public void clearCache() { pageCache.clear(); }
+    public void clearCache() {
+        if (currentCachedPage != null) notifyHidden(currentCachedPage.controller());
+        pageCache.clear();
+        currentCachedPage = null;
+    }
+
+    public int getCachedPageCount() { return pageCache.size(); }
 
     private record CachedPage(Node node, Object controller) {}
 

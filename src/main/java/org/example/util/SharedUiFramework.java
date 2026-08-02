@@ -29,7 +29,7 @@ public final class SharedUiFramework {
 
     private static void apply(Node node) {
         IconFactory.decorate(node);
-        if (node.getParent() == null || !Boolean.TRUE.equals(node.getProperties().get("erp.tables.optimized"))) {
+        if (!Boolean.TRUE.equals(node.getProperties().get("erp.tables.optimized"))) {
             TablePerformanceOptimizer.apply(node);
             node.getProperties().put("erp.tables.optimized", true);
         }
