@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedTextInputDialog;
+
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -15,6 +17,7 @@ import org.example.service.NotificationService;
 import org.example.service.ReturnWorkflowService;
 import org.example.util.IconFactory;
 import org.example.util.TableSelectionSupport;
+import org.example.util.SemanticTableCells;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -49,7 +52,7 @@ public class PurchaseReturnsController {
         cStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().status()));
         cRefundStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().refundStatus()));
         for (TableColumn<Row, Number> column : List.of(cTotal, cRefund)) column.setCellFactory(x -> moneyCell());
-        cStatus.setCellFactory(x -> statusCell("return")); cRefundStatus.setCellFactory(x -> statusCell("payment"));
+        cStatus.setCellFactory(x -> SemanticTableCells.status("return")); cRefundStatus.setCellFactory(x -> SemanticTableCells.status("refund"));
         cStatus.setGraphic(IconFactory.icon("return")); cRefundStatus.setGraphic(IconFactory.icon("payment"));
         installSelection(); installActions(); installRows();
         dpFrom.setValue(LocalDate.now().minusDays(7)); dpTo.setValue(LocalDate.now());
@@ -144,14 +147,14 @@ public class PurchaseReturnsController {
     private void attach(Row row) { FileChooser chooser = new FileChooser(); File file = chooser.showOpenDialog(table.getScene().getWindow()); if (file != null) update(row.no(), "attachment_path", file.getAbsolutePath()); }
     private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",InvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
     private String partyEmail(String returnNo) throws SQLException { try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement("SELECT COALESCE(pm.email,'') FROM return_register rr LEFT JOIN party_master pm ON pm.id=rr.party_id WHERE rr.return_no=? LIMIT 1")){p.setString(1,returnNo);try(ResultSet r=p.executeQuery()){return r.next()?safe(r.getString(1)):"";}} }
-    private void recordRefund(Row row) { TextInputDialog dialog = new TextInputDialog(String.valueOf(Math.max(0, row.total() - row.refund()))); dialog.setHeaderText("Refund amount - " + row.no()); dialog.showAndWait().ifPresent(value -> { try { ReturnWorkflowService.recordRefund(row.no(),Double.parseDouble(value)); NotificationService.add(row.no()+" refund recorded."); load(); } catch (Exception e) { error(e); } }); }
+    private void recordRefund(Row row) { TextInputDialog dialog = new OwnedTextInputDialog(String.valueOf(Math.max(0, row.total() - row.refund()))); dialog.setHeaderText("Refund amount - " + row.no()); dialog.showAndWait().ifPresent(value -> { try { ReturnWorkflowService.recordRefund(row.no(),Double.parseDouble(value)); NotificationService.add(row.no()+" refund recorded."); load(); } catch (Exception e) { error(e); } }); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(),false); NotificationService.add(row.no()+" cancelled."); load(); } catch(Exception e){error(e);} }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " and reverse every returned item?")) return; try { ReturnWorkflowService.delete(row.no(),false); load(); } catch (Exception e) { error(e); } }
     private void update(String no, String column, String value) { if (!Set.of("reason", "notes", "attachment_path", "status").contains(column)) return; try (Connection c = DatabaseManager.getConnection(); PreparedStatement p = c.prepareStatement("UPDATE return_register SET " + column + "=?,updated_at=datetime('now') WHERE return_no=?")) { p.setString(1, value); p.setString(2, no); p.executeUpdate(); load(); } catch (Exception e) { error(e); } }
 
     @FXML private void export() { FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Purchase_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv")); File file = chooser.showSaveDialog(table.getScene().getWindow()); if (file == null) return; try (PrintWriter out = new PrintWriter(file)) { out.println("Return No,Date,Purchase No,Supplier,Total,Refund,Status,Refund Status"); for (Row r : table.getItems()) out.printf("%s,%s,%s,%s,%.2f,%.2f,%s,%s%n", r.no(), r.date(), r.invoice(), csv(r.supplier()), r.total(), r.refund(), r.status(), r.refundStatus()); } catch (Exception e) { error(e); } }
 
-    private Optional<String> input(String title, String label) { TextInputDialog d = new TextInputDialog(); d.setHeaderText(title); d.setContentText(label); return d.showAndWait(); }
+    private Optional<String> input(String title, String label) { TextInputDialog d = new OwnedTextInputDialog(); d.setHeaderText(title); d.setContentText(label); return d.showAndWait(); }
     private LocalDate parse(String value) { try { return LocalDate.parse(value); } catch (Exception e) { return LocalDate.MIN; } }
     private String safe(String value) { return value == null ? "" : value; }
     private String csv(String value) { return '"' + safe(value).replace("\"", "\"\"") + '"'; }

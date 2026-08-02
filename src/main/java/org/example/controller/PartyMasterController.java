@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+
 
 import org.example.util.IconFactory;
 import javafx.fxml.FXML;
@@ -120,7 +122,7 @@ public abstract class PartyMasterController {
             warning("Select a " + displayName().toLowerCase() + " to delete.");
             return;
         }
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, "Delete '" + party.getName() + "'? This cannot be undone.", ButtonType.YES, ButtonType.NO);
+        Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION, "Delete '" + party.getName() + "'? This cannot be undone.", ButtonType.YES, ButtonType.NO);
         confirmation.setHeaderText("Confirm deletion");
         if (confirmation.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
             service.delete(party.getId());
@@ -172,13 +174,13 @@ public abstract class PartyMasterController {
     }
 
     private void warning(String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING, message);
+        Alert alert = new OwnedAlert(Alert.AlertType.WARNING, message);
         alert.setHeaderText(null);
         alert.showAndWait();
     }
 
     private void error(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, message);
+        Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message);
         alert.setHeaderText(null);
         alert.showAndWait();
     }
@@ -202,7 +204,7 @@ public abstract class PartyMasterController {
             ItemSpreadsheetService spreadsheetService = new ItemSpreadsheetService();
             spreadsheetService.exportparties(service.getByType(partyType()), path);
 
-            new Alert(Alert.AlertType.INFORMATION,
+            new OwnedAlert(Alert.AlertType.INFORMATION,
                 displayName() + " master exported to:\n" + path).showAndWait();
         } catch (Exception ex) {
             error("Could not export the workbook: " + ex.getMessage());

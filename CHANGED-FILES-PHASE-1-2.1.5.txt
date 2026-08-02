@@ -1,0 +1,15 @@
+pom.xml
+src/main/resources/app-version.properties
+src/main/resources/css/light-theme.css
+src/main/resources/css/dark-theme.css
+src/main/java/org/example/util/ProfessionalUiEnhancer.java
+src/main/java/org/example/util/UiActionIcons.java
+src/main/java/org/example/util/SharedUiFramework.java
+src/main/java/org/example/util/SemanticIconManager.java
+src/main/java/org/example/util/ActionMenuBuilder.java
+src/main/java/org/example/util/ToolbarBuilder.java
+src/main/java/org/example/util/FilterBarBuilder.java
+src/main/java/org/example/util/KpiCardBuilder.java
+src/main/java/org/example/util/DialogBuilder.java
+src/main/java/org/example/util/StatusBadgeFactory.java
+PHASE-1-SHARED-UI-FRAMEWORK-2.1.5.txt

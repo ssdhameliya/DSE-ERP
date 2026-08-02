@@ -1,5 +1,7 @@
 package org.example.update;
 
+import org.example.util.OwnedAlert;
+
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.stage.Window;
@@ -16,7 +18,7 @@ public final class UpdateLifecycle {
             if (!previous.isBlank() && SemanticVersion.parse(buildVersion).compareTo(SemanticVersion.parse(previous)) > 0) {
                 UpdateHistoryStore.append(buildVersion, ConfigManager.get("update.channel", "STABLE"), "SUCCESS", "Upgraded from " + previous + "; database schema " + migration.fromVersion() + " → " + migration.toVersion());
                 Platform.runLater(() -> {
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION);
                     if (owner != null) alert.initOwner(owner);
                     alert.setHeaderText("Update completed successfully");
                     alert.setContentText("DSE ERP " + buildVersion + " is installed.\nDatabase schema: " + migration.toVersion());

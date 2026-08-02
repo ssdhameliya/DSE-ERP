@@ -1,5 +1,9 @@
 package org.example.controller;
 
+import org.example.util.OwnedChoiceDialog;
+
+import org.example.util.OwnedAlert;
+
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -553,7 +557,7 @@ public class PurchaseController {
             if(email){if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())throw new IllegalStateException("Supplier email is missing");EmailService.send(full.getSupplier().getEmail(),"Purchase "+full.getInvoiceNo(),"Please find the purchase document attached.",InvoicePdfService.purchase(full));purchaseService.markEmailSent(full.getId());}
 
 
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.INFORMATION,
                 "Purchase saved successfully"
             ).showAndWait();
@@ -569,7 +573,7 @@ public class PurchaseController {
         }
         catch(Exception e){
 
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.ERROR,
                 e.getMessage()
             ).showAndWait();
@@ -681,7 +685,7 @@ public class PurchaseController {
     private void saveMetadata(Purchase p)throws Exception{try(Connection c=DatabaseManager.getConnection();PreparedStatement q=c.prepareStatement("UPDATE purchase_header SET due_date=?,delivery_date=?,document_status=?,warehouse=?,payment_terms=?,currency=?,reference_no=?,gst_treatment=?,transporter=?,lr_awb_no=?,discount_type=?,discount_amount=?,attachment_path=?,created_by=COALESCE(created_by,'Admin'),updated_at=datetime('now') WHERE invoice_no=?")){q.setString(1,str(p.getDueDate()));q.setString(2,str(p.getDeliveryDate()));q.setString(3,p.getDocumentStatus());q.setString(4,p.getWarehouse());q.setString(5,p.getPaymentTerms());q.setString(6,p.getCurrency());q.setString(7,p.getReferenceNo());q.setString(8,p.getGstTreatment());q.setString(9,p.getTransporter());q.setString(10,p.getLrAwbNo());q.setString(11,p.getDiscountType());q.setDouble(12,p.getDiscountAmount());q.setString(13,p.getAttachmentPath());q.setString(14,p.getInvoiceNo());q.executeUpdate();}}
     @FXML private void chooseAttachment(){FileChooser f=new FileChooser();attachment=f.showOpenDialog(tableLines.getScene().getWindow());if(attachment!=null)lblAttachment.setText(attachment.getName());}
     @FXML private void clearLines(){tableLines.getItems().clear();recalculate();}
-    @FXML private void preview(){new Alert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}
+    @FXML private void preview(){new OwnedAlert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}
     public void prepareDuplicate(){editingPurchase=null;txtInvoiceNo.setText(purchaseService.nextInvoiceNo());}
     private double parse(String v){try{return v==null||v.isBlank()?0:Double.parseDouble(v);}catch(Exception e){return 0;}}private String str(LocalDate d){return d==null?null:d.toString();}
 
@@ -774,7 +778,7 @@ public class PurchaseController {
             cmbSupplier.getItems().setAll(partyService.getByType("SUPPLIER"));
             if (selected != null) cmbSupplier.getSelectionModel().select(selected);
         } catch (Exception ex) {
-            new Alert(Alert.AlertType.ERROR, "Unable to open supplier form: " + ex.getMessage(), ButtonType.OK).showAndWait();
+            new OwnedAlert(Alert.AlertType.ERROR, "Unable to open supplier form: " + ex.getMessage(), ButtonType.OK).showAndWait();
         }
     }
 
@@ -811,12 +815,12 @@ public class PurchaseController {
     private void selectFromPo(){
         List<Purchase> drafts=purchaseService.getAll().stream().filter(p->"DRAFT".equalsIgnoreCase(p.getDocumentStatus())).toList();
         if(drafts.isEmpty()){warn("No draft purchase orders are available. Save a purchase as Draft first.");return;}
-        ChoiceDialog<Purchase> dialog=new ChoiceDialog<>(drafts.getFirst(),drafts);dialog.setTitle("Select Purchase Order");dialog.setHeaderText("Choose a draft purchase order to load");dialog.setContentText("Purchase order:");dialog.showAndWait().ifPresent(p->loadPurchase(purchaseService.getByInvoice(p.getInvoiceNo())));
+        ChoiceDialog<Purchase> dialog=new OwnedChoiceDialog<>(drafts.getFirst(),drafts);dialog.setTitle("Select Purchase Order");dialog.setHeaderText("Choose a draft purchase order to load");dialog.setContentText("Purchase order:");dialog.showAndWait().ifPresent(p->loadPurchase(purchaseService.getByInvoice(p.getInvoiceNo())));
     }
 
     private void importPurchaseItems(){
         FileChooser chooser=new FileChooser();chooser.setTitle("Import Purchase Items");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV File","*.csv"));File file=chooser.showOpenDialog(tableLines.getScene().getWindow());if(file==null)return;
-        try{int count=0;for(String row:Files.readAllLines(file.toPath())){if(row.isBlank()||row.toLowerCase().startsWith("item"))continue;String[]v=row.split(",");if(v.length<3)throw new IllegalArgumentException("CSV columns must be: item_code,quantity,rate,gst_percent");Item item=cmbItem.getItems().stream().filter(i->i.getItemCode().equalsIgnoreCase(v[0].trim())).findFirst().orElseThrow(()->new IllegalArgumentException("Unknown item code: "+v[0]));double q=Double.parseDouble(v[1].trim()),rate=Double.parseDouble(v[2].trim()),gst=v.length>3?Double.parseDouble(v[3].trim()):item.getGst();PurchaseLine line=new PurchaseLine();line.setItemCode(item.getItemCode());line.setItemDescription(item.getItemCode()+" - "+item.getDescription());line.setQuantity(q);line.setRate(rate);line.setGstPercent(gst);recalculateLine(line);tableLines.getItems().add(line);count++;}recalculate();new Alert(Alert.AlertType.INFORMATION,count+" purchase item(s) imported.").showAndWait();}catch(Exception e){new Alert(Alert.AlertType.ERROR,"Could not import items: "+e.getMessage()).showAndWait();}
+        try{int count=0;for(String row:Files.readAllLines(file.toPath())){if(row.isBlank()||row.toLowerCase().startsWith("item"))continue;String[]v=row.split(",");if(v.length<3)throw new IllegalArgumentException("CSV columns must be: item_code,quantity,rate,gst_percent");Item item=cmbItem.getItems().stream().filter(i->i.getItemCode().equalsIgnoreCase(v[0].trim())).findFirst().orElseThrow(()->new IllegalArgumentException("Unknown item code: "+v[0]));double q=Double.parseDouble(v[1].trim()),rate=Double.parseDouble(v[2].trim()),gst=v.length>3?Double.parseDouble(v[3].trim()):item.getGst();PurchaseLine line=new PurchaseLine();line.setItemCode(item.getItemCode());line.setItemDescription(item.getItemCode()+" - "+item.getDescription());line.setQuantity(q);line.setRate(rate);line.setGstPercent(gst);recalculateLine(line);tableLines.getItems().add(line);count++;}recalculate();new OwnedAlert(Alert.AlertType.INFORMATION,count+" purchase item(s) imported.").showAndWait();}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,"Could not import items: "+e.getMessage()).showAndWait();}
     }
 
 
@@ -875,7 +879,7 @@ public class PurchaseController {
 
     private void warn(String msg){
 
-        new Alert(
+        new OwnedAlert(
             Alert.AlertType.WARNING,
             msg
         ).showAndWait();

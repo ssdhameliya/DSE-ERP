@@ -1,5 +1,8 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+import org.example.util.OwnedDialog;
+
 
 
 import javafx.fxml.FXML;
@@ -559,12 +562,12 @@ public class DashboardController {
     private void search() {
         String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim();
         if (query.isEmpty()) {
-            new Alert(Alert.AlertType.INFORMATION,
+            new OwnedAlert(Alert.AlertType.INFORMATION,
                 "Enter a document number, party, item, payment, return, quotation or master value.").showAndWait();
             return;
         }
         List<SearchResult> results = new GlobalSearchService().search(query);
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("ERP Search");
         dialog.setHeaderText(results.isEmpty() ? "No results for '" + query + "'"
             : results.size() + " result(s) for '" + query + "'");
@@ -613,7 +616,7 @@ public class DashboardController {
 
     @FXML
     private void showNotifications() {
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.initStyle(StageStyle.TRANSPARENT);
         if (btnNotifications != null && btnNotifications.getScene() != null
                 && btnNotifications.getScene().getWindow() != null) {
@@ -810,7 +813,7 @@ public class DashboardController {
             return;
         }
 
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Change Password");
         dialog.setHeaderText("Set a new password");
 
@@ -830,17 +833,17 @@ public class DashboardController {
         dialog.showAndWait().filter(button -> button == ButtonType.OK).ifPresent(button -> {
             String password = newPassword.getText();
             if (password.isBlank()) {
-                new Alert(Alert.AlertType.WARNING, "Password cannot be empty.").showAndWait();
+                new OwnedAlert(Alert.AlertType.WARNING, "Password cannot be empty.").showAndWait();
                 return;
             }
             if (!password.equals(confirmPassword.getText())) {
-                new Alert(Alert.AlertType.WARNING, "The passwords do not match.").showAndWait();
+                new OwnedAlert(Alert.AlertType.WARNING, "The passwords do not match.").showAndWait();
                 return;
             }
 
             new UserService().changePassword(SessionService.current().getId(), password);
             NotificationService.add("Your account password was changed.");
-            new Alert(Alert.AlertType.INFORMATION, "Password changed successfully.").showAndWait();
+            new OwnedAlert(Alert.AlertType.INFORMATION, "Password changed successfully.").showAndWait();
         });
     }
 

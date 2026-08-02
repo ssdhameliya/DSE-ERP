@@ -74,7 +74,7 @@ public final class ModernDialog {
         ButtonType... buttons
     ) {
         Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.initStyle(StageStyle.TRANSPARENT);
+        dialog.initStyle(PlatformUiSupport.isMac() ? StageStyle.UTILITY : StageStyle.TRANSPARENT);
         if (owner != null && owner.getScene() != null && owner.getScene().getWindow() != null) {
             dialog.initOwner(owner.getScene().getWindow());
             dialog.initModality(Modality.WINDOW_MODAL);

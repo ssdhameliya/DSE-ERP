@@ -31,7 +31,7 @@ public final class ProfessionalUiEnhancer {
     /** Enhances every supported control below the supplied page root. */
     public static void enhance(Node root) {
         walk(root);
-        IconFactory.decorate(root);
+        SharedUiFramework.install(root);
     }
 
     private static void walk(Node node) {

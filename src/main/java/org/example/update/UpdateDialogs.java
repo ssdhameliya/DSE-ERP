@@ -1,5 +1,9 @@
 package org.example.update;
 
+import org.example.util.OwnedAlert;
+import org.example.util.OwnedDialog;
+import org.example.util.OwnedTextInputDialog;
+
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -101,7 +105,7 @@ public final class UpdateDialogs {
         task.setOnSucceeded(e -> {
             dialog.close();
             Path installer = task.getValue();
-            Alert ready = new Alert(Alert.AlertType.CONFIRMATION);
+            Alert ready = new OwnedAlert(Alert.AlertType.CONFIRMATION);
             ready.initOwner(owner); ready.setTitle("Update Ready to Install"); ready.setHeaderText("DSE ERP " + release.version() + " is ready");
             ready.setContentText("A verified installer and safety backup are ready. DSE ERP will close, install the update automatically, and restart.\n\nInstaller: " + installer.getFileName());
             ButtonType install = new ButtonType("Install & Restart", ButtonBar.ButtonData.OK_DONE);
@@ -136,12 +140,12 @@ public final class UpdateDialogs {
         FileChooser chooser = new FileChooser(); chooser.setTitle("Select DSE ERP Update Package");
         chooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Installer packages", "*.exe", "*.msi", "*.dmg", "*.pkg"), new FileChooser.ExtensionFilter("All files", "*.*"));
         java.io.File selected = chooser.showOpenDialog(owner); if (selected == null) return;
-        TextInputDialog checksumDialog = new TextInputDialog(); checksumDialog.initOwner(owner); checksumDialog.setTitle("Verify Offline Update"); checksumDialog.setHeaderText("Optional SHA-256 checksum"); checksumDialog.setContentText("Paste the published SHA-256 checksum, or leave blank only for a trusted local package:");
+        TextInputDialog checksumDialog = new OwnedTextInputDialog(); checksumDialog.initOwner(owner); checksumDialog.setTitle("Verify Offline Update"); checksumDialog.setHeaderText("Optional SHA-256 checksum"); checksumDialog.setContentText("Paste the published SHA-256 checksum, or leave blank only for a trusted local package:");
         checksumDialog.showAndWait().ifPresent(checksum -> {
             try {
                 UpdateService service = new UpdateService(); Path file = service.verifyOfflinePackage(selected.toPath(), checksum.trim()); Path backup = service.createPreUpdateBackup();
                 UpdateHistoryStore.append("OFFLINE", "OFFLINE", "READY", "Installer=" + file.getFileName() + "; Backup=" + backup.getFileName());
-                Alert ready = new Alert(Alert.AlertType.CONFIRMATION, "The package is ready and a safety backup was created. Open the installer now?", ButtonType.CANCEL, ButtonType.OK); ready.initOwner(owner); ready.setHeaderText("Offline update package verified");
+                Alert ready = new OwnedAlert(Alert.AlertType.CONFIRMATION, "The package is ready and a safety backup was created. Open the installer now?", ButtonType.CANCEL, ButtonType.OK); ready.initOwner(owner); ready.setHeaderText("Offline update package verified");
                 if (ready.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) { service.launchInstaller(file, "offline"); Platform.exit(); }
             } catch (Exception ex) { error(owner, "Offline update failed", rootMessage(ex)); }
         });
@@ -164,9 +168,9 @@ public final class UpdateDialogs {
     }
 
     private static <T> TableColumn<T,String> column(String title, java.util.function.Function<T,String> getter) { TableColumn<T,String> c=new TableColumn<>(title); c.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(getter.apply(v.getValue()))); return c; }
-    private static <T> Dialog<T> baseDialog(Window owner, String title, javafx.scene.Node content, double width, double height) { Dialog<T> d=new Dialog<>(); if(owner!=null)d.initOwner(owner); d.setTitle(title); d.getDialogPane().setContent(content); d.getDialogPane().setPrefSize(width,height); d.getDialogPane().getStyleClass().add("update-dialog"); return d; }
-    private static void info(Window owner,String header,String message){Alert a=new Alert(Alert.AlertType.INFORMATION,message,ButtonType.OK);if(owner!=null)a.initOwner(owner);a.setHeaderText(header);a.showAndWait();}
-    private static void error(Window owner,String header,String message){Alert a=new Alert(Alert.AlertType.ERROR,message,ButtonType.OK);if(owner!=null)a.initOwner(owner);a.setHeaderText(header);a.showAndWait();}
+    private static <T> Dialog<T> baseDialog(Window owner, String title, javafx.scene.Node content, double width, double height) { Dialog<T> d=new OwnedDialog<>(); if(owner!=null)d.initOwner(owner); d.setTitle(title); d.getDialogPane().setContent(content); d.getDialogPane().setPrefSize(width,height); d.getDialogPane().getStyleClass().add("update-dialog"); return d; }
+    private static void info(Window owner,String header,String message){Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,message,ButtonType.OK);if(owner!=null)a.initOwner(owner);a.setHeaderText(header);a.showAndWait();}
+    private static void error(Window owner,String header,String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message,ButtonType.OK);if(owner!=null)a.initOwner(owner);a.setHeaderText(header);a.showAndWait();}
     private static String safeBackupCount() { try { return BackupManager.countValidBackups() + " valid backup(s)"; } catch (Exception e) { return "Unavailable: " + rootMessage(e); } }
     private static String rootMessage(Throwable t){if(t==null)return "Unknown error";while(t.getCause()!=null)t=t.getCause();return t.getMessage()==null?t.getClass().getSimpleName():t.getMessage();}
     private static String humanSize(long bytes){if(bytes<=0)return "Unknown";double value=bytes;String[] units={"B","KB","MB","GB"};int i=0;while(value>=1024&&i<units.length-1){value/=1024;i++;}return String.format(Locale.ROOT,"%.1f %s",value,units[i]);}

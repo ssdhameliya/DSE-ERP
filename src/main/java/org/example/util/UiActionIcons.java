@@ -11,7 +11,7 @@ public final class UiActionIcons {
         if (button == null || semantic == null || semantic.isBlank()) return;
         button.getProperties().put("erp.icon.semantic", semantic);
         button.getProperties().put("erp.icon.explicit", true);
-        button.setGraphic(IconFactory.compactIcon(semantic, 15));
+        button.setGraphic(SemanticIconManager.compact(semantic, 15));
         button.setContentDisplay(ContentDisplay.LEFT);
         button.setGraphicTextGap(7);
     }

@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+
 import javafx.beans.property.SimpleStringProperty;
 import javafx.concurrent.Task;
 import javafx.application.Platform;
@@ -342,7 +344,7 @@ public class BackupRestoreController {
         if (row == null) return;
         backupTable.getSelectionModel().select(row);
 
-        Alert confirmation = new Alert(
+        Alert confirmation = new OwnedAlert(
                 Alert.AlertType.CONFIRMATION,
                 "Stage " + row.name() + " for restore?\n\n"
                         + "The active database will not be replaced now. The restore will be applied safely "
@@ -361,7 +363,7 @@ public class BackupRestoreController {
                 },
                 ignored -> {
                     NotificationService.add("Database restore staged from " + row.name());
-                    Alert staged = new Alert(
+                    Alert staged = new OwnedAlert(
                             Alert.AlertType.INFORMATION,
                             "The restore has been staged safely.\n\n"
                                     + "Close DSE ERP and start it again. A verified safety backup of the current "
@@ -436,7 +438,7 @@ public class BackupRestoreController {
                         return;
                     }
                     setStatus("Validation passed: " + row.name());
-                    Alert alert = new Alert(
+                    Alert alert = new OwnedAlert(
                             Alert.AlertType.INFORMATION,
                             validation.message() + "\n\nCompatibility: " + validation.compatibility()
                     );
@@ -449,7 +451,7 @@ public class BackupRestoreController {
     private void deleteRow(BackupRow row) {
         if (row == null) return;
 
-        Alert confirmation = new Alert(
+        Alert confirmation = new OwnedAlert(
                 Alert.AlertType.CONFIRMATION,
                 "Move " + row.name() + " to the backup recycle folder?\n\n"
                         + "Deleted backups are retained for seven days before permanent cleanup.",
@@ -542,7 +544,7 @@ public class BackupRestoreController {
     private void showDetails(BackupRow row) {
         if (row == null) return;
 
-        Alert details = new Alert(Alert.AlertType.INFORMATION);
+        Alert details = new OwnedAlert(Alert.AlertType.INFORMATION);
         details.setHeaderText(row.name());
         details.setContentText(
                 "Created: " + row.created() + "\n"
@@ -721,13 +723,13 @@ public class BackupRestoreController {
     }
 
     private void showWarning(String message) {
-        Alert warning = new Alert(Alert.AlertType.WARNING, message);
+        Alert warning = new OwnedAlert(Alert.AlertType.WARNING, message);
         warning.setHeaderText("Backup & Restore");
         warning.showAndWait();
     }
 
     private void showError(Exception exception) {
-        Alert error = new Alert(
+        Alert error = new OwnedAlert(
                 Alert.AlertType.ERROR,
                 "Backup operation failed.\n\n" + exception.getMessage()
         );

@@ -1,5 +1,8 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+import org.example.util.OwnedTextInputDialog;
+
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -404,7 +407,7 @@ public class SalesController {
             cmbCustomer.getItems().setAll(partyService.getByType("CUSTOMER"));
             if (selected != null) cmbCustomer.getSelectionModel().select(selected);
         } catch (Exception ex) {
-            new Alert(Alert.AlertType.ERROR,
+            new OwnedAlert(Alert.AlertType.ERROR,
                 "Unable to open customer form: " + ex.getMessage(), ButtonType.OK).showAndWait();
         }
     }
@@ -668,7 +671,7 @@ public class SalesController {
 
             }
 
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.INFORMATION,
                 "Sales saved successfully"
             ).showAndWait();
@@ -679,7 +682,7 @@ public class SalesController {
         }
         catch (Exception e) {
 
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.ERROR,
                 e.getMessage()
             ).showAndWait();
@@ -864,10 +867,10 @@ public class SalesController {
 
     private double number(TextField field){try{return field==null||field.getText()==null||field.getText().isBlank()?0:Double.parseDouble(field.getText().replace(",",""));}catch(Exception e){return 0;}}
 
-    @FXML private void addMultipleItems(){new Alert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
-    @FXML private void scanBarcode(){TextInputDialog d=new TextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->cmbItem.getItems().stream().filter(i->i.getItemCode().equalsIgnoreCase(code.trim())).findFirst().ifPresentOrElse(cmbItem::setValue,()->warn("Item code not found")));}
+    @FXML private void addMultipleItems(){new OwnedAlert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
+    @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->cmbItem.getItems().stream().filter(i->i.getItemCode().equalsIgnoreCase(code.trim())).findFirst().ifPresentOrElse(cmbItem::setValue,()->warn("Item code not found")));}
     @FXML private void attachFile(){javafx.stage.FileChooser c=new javafx.stage.FileChooser();java.io.File f=c.showOpenDialog(tableLines.getScene().getWindow());if(f!=null)txtAttachment.setText(f.getAbsolutePath());}
-    @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new Alert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
+    @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
     @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}
 
 
@@ -877,7 +880,7 @@ public class SalesController {
 
     private void warn(String msg) {
 
-        new Alert(
+        new OwnedAlert(
             Alert.AlertType.WARNING,
             msg
         ).showAndWait();

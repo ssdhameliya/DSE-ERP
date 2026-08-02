@@ -1,5 +1,8 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+import org.example.util.OwnedTextInputDialog;
+
 
 import org.example.util.IconFactory;
 import javafx.application.Platform;
@@ -591,7 +594,7 @@ public class MasterDataController {
         boolean isNewCategory = oldName == null;
 
         TextInputDialog dialog =
-            new TextInputDialog(
+            new OwnedTextInputDialog(
                 isNewCategory ? "" : oldName
             );
 
@@ -778,7 +781,7 @@ public class MasterDataController {
             return;
         }
 
-        Alert confirmation = new Alert(
+        Alert confirmation = new OwnedAlert(
             Alert.AlertType.CONFIRMATION,
             "Delete category '"
                 + selectedCategory
@@ -1076,7 +1079,7 @@ public class MasterDataController {
             return;
         }
 
-        Alert confirmation = new Alert(
+        Alert confirmation = new OwnedAlert(
             Alert.AlertType.CONFIRMATION,
             "Delete '"
                 + selectedLookup.getLookupValue()
@@ -1167,7 +1170,7 @@ public class MasterDataController {
 
     private void showWarning(String message) {
 
-        Alert alert = new Alert(
+        Alert alert = new OwnedAlert(
             Alert.AlertType.WARNING,
             message,
             ButtonType.OK
@@ -1180,7 +1183,7 @@ public class MasterDataController {
 
     private void showError(String message) {
 
-        Alert alert = new Alert(
+        Alert alert = new OwnedAlert(
             Alert.AlertType.ERROR,
             message,
             ButtonType.OK

@@ -1,5 +1,8 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+import org.example.util.OwnedDialog;
+
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -247,7 +250,7 @@ public class ReminderCenterController {
     }
 
     private void openEditor(ReminderRow row) {
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle(row == null ? "Add Reminder" : "Edit Reminder");
         dialog.setHeaderText(row == null
                 ? "Create a business follow-up"
@@ -356,7 +359,7 @@ public class ReminderCenterController {
         }
 
         DatePicker picker = new DatePicker(LocalDate.now().plusDays(1));
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Snooze Reminder");
         dialog.setHeaderText(row.title.get());
         dialog.getDialogPane().setContent(
@@ -700,7 +703,7 @@ public class ReminderCenterController {
     }
 
     private boolean confirm(String message) {
-        return new Alert(
+        return new OwnedAlert(
                 Alert.AlertType.CONFIRMATION,
                 message,
                 ButtonType.YES,
@@ -709,12 +712,12 @@ public class ReminderCenterController {
     }
 
     private void warning(String message) {
-        new Alert(Alert.AlertType.WARNING, message).showAndWait();
+        new OwnedAlert(Alert.AlertType.WARNING, message).showAndWait();
     }
 
     private void error(String title, Exception exception) {
         exception.printStackTrace();
-        new Alert(
+        new OwnedAlert(
                 Alert.AlertType.ERROR,
                 title + ".\n\n" + exception.getMessage()
         ).showAndWait();

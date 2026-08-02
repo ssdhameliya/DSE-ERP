@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -1531,7 +1533,7 @@ public class ImportController {
                 task.getException();
 
             Alert alert =
-                new Alert(
+                new OwnedAlert(
                     Alert.AlertType.ERROR
                 );
 
@@ -1714,7 +1716,7 @@ public class ImportController {
     ) {
 
         Alert alert =
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.INFORMATION
             );
 
@@ -1931,7 +1933,7 @@ public class ImportController {
             workbook.write(output);
 
             Alert alert =
-                new Alert(
+                new OwnedAlert(
                     Alert.AlertType.INFORMATION,
                     "Template saved to:\n"
                         + target.getAbsolutePath(),
@@ -1947,7 +1949,7 @@ public class ImportController {
         } catch (Exception exception) {
 
             Alert alert =
-                new Alert(
+                new OwnedAlert(
                     Alert.AlertType.ERROR,
                     "Could not create template: "
                         + safeMessage(exception),
@@ -2131,7 +2133,7 @@ public class ImportController {
     private void showImportGuide() {
 
         Alert alert =
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.INFORMATION
             );
 
@@ -2167,7 +2169,7 @@ public class ImportController {
     ) {
 
         Alert alert =
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.WARNING,
                 message,
                 ButtonType.OK

@@ -1,4 +1,6 @@
 package org.example.controller;
+
+import org.example.util.OwnedAlert;
 import javafx.application.Platform;import javafx.beans.property.SimpleStringProperty;import javafx.fxml.*;import javafx.scene.*;import javafx.scene.control.*;import javafx.scene.layout.StackPane;import org.example.dao.SalesDAO;import org.example.model.*;import org.example.navigation.NavigationManager;import org.example.service.*;import org.example.util.IconFactory;import java.awt.Desktop;import java.nio.file.Path;import java.time.format.DateTimeFormatter;
 public class SalesDetailController{
  @FXML private Label invoiceNo,status,customer,contact,invoiceDate,dueDate,total,paid,balance,subtotal,tax,grand,notes;@FXML private TableView<SalesLine> items;@FXML private TableColumn<SalesLine,String> cItem,cCode,cQty,cUnit,cRate,cTax,cAmount;private Sales sale;
@@ -8,7 +10,7 @@ public class SalesDetailController{
  @FXML private void edit(){try{FXMLLoader l=new FXMLLoader(getClass().getResource("/fxml/pages/Sale.fxml"));Parent r=l.load();((SalesController)l.getController()).loadSale(sale);StackPane pane=(StackPane)items.getScene().lookup("#contentPane");pane.getChildren().setAll(r);}catch(Exception e){error(e);}}
  @FXML private void whatsapp(){try{String phone=n(sale.getCustomer().getPhone()).replaceAll("\\D","");if(phone.length()==10)phone="91"+phone;if(phone.isBlank())throw new IllegalStateException("Customer mobile number is missing. Update it in Customer Master.");Path pdf=InvoicePdfService.sales(sale);WhatsappService.openWhatsappWithMessage(phone,PaymentMessageService.salesMessage(sale),pdf,PaymentMessageService.configuredQrPath());info("WhatsApp is ready. The invoice and configured UPI QR are on the clipboard for attachment.");}catch(Exception e){error(e);}}
  @FXML private void recordPayment(){SalesScreenContext.select(sale.getInvoiceNo());NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml");}@FXML private void history(){SalesScreenContext.select(sale.getInvoiceNo());NavigationManager.getInstance().loadPage("/fxml/pages/PaymentHistory.fxml");}@FXML private void back(){NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");}@FXML private void pdf(){try{Path p=InvoicePdfService.sales(sale);Desktop.getDesktop().open(p.toFile());}catch(Exception e){error(e);}}
- private void info(String s){new Alert(Alert.AlertType.INFORMATION,s).showAndWait();}private void error(Exception e){new Alert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}private String m(double v){return String.format("₹ %,.2f",v);}private String n(String s){return s==null?"":s;}
+ private void info(String s){new OwnedAlert(Alert.AlertType.INFORMATION,s).showAndWait();}private void error(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}private String m(double v){return String.format("₹ %,.2f",v);}private String n(String s){return s==null?"":s;}
 
 
     private void configureExplicitTableHeaderIcons() {

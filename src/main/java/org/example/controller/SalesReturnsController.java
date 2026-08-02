@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedTextInputDialog;
+
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -15,6 +17,7 @@ import org.example.service.NotificationService;
 import org.example.service.ReturnWorkflowService;
 import org.example.util.IconFactory;
 import org.example.util.TableSelectionSupport;
+import org.example.util.SemanticTableCells;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -54,8 +57,8 @@ public class SalesReturnsController {
                 super.updateItem(value, empty); setText(empty ? null : money(value.doubleValue())); setAlignment(Pos.CENTER_RIGHT);
             }
         });
-        status.setCellFactory(column -> statusCell("return"));
-        refundStatus.setCellFactory(column -> statusCell("payment"));
+        status.setCellFactory(column -> SemanticTableCells.status("return"));
+        refundStatus.setCellFactory(column -> SemanticTableCells.status("refund"));
         status.setGraphic(IconFactory.icon("return"));
         refundStatus.setGraphic(IconFactory.icon("payment"));
         installSelection();
@@ -202,7 +205,7 @@ public class SalesReturnsController {
         catch (Exception e) { error(e); }
     }
 
-    private Optional<String> input(String initial,String title,String label){TextInputDialog dialog=new TextInputDialog(initial);dialog.setHeaderText(title);dialog.setContentText(label);return dialog.showAndWait();}
+    private Optional<String> input(String initial,String title,String label){TextInputDialog dialog=new OwnedTextInputDialog(initial);dialog.setHeaderText(title);dialog.setContentText(label);return dialog.showAndWait();}
     private LocalDate parse(String value) { try { return LocalDate.parse(value); } catch (Exception e) { return LocalDate.MIN; } }
     private String csv(String value) { return '"' + safe(value).replace("\"", "\"\"") + '"'; }
     private String money(double value) { return String.format("₹ %,.2f", value); }

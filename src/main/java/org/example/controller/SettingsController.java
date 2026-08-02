@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -1066,7 +1068,7 @@ public class SettingsController {
             lblWorkspaceStatus.setText("Move scheduled. Close and reopen DSE ERP to copy and verify the workspace. The current workspace will be retained as a recovery copy.");
             lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
             lblWorkspaceStatus.getStyleClass().add("workspace-status-warning");
-            new Alert(Alert.AlertType.INFORMATION,
+            new OwnedAlert(Alert.AlertType.INFORMATION,
                     "The workspace move is scheduled for the next application start.\n\n" +
                     "DSE ERP will copy the data while SQLite is closed, verify the destination, and retain the current workspace as a safety copy.",
                     ButtonType.OK).showAndWait();
@@ -1133,7 +1135,7 @@ public class SettingsController {
             );
         }
 
-        new Alert(
+        new OwnedAlert(
             Alert.AlertType.INFORMATION,
             "Settings saved successfully.",
             ButtonType.OK
@@ -1410,7 +1412,7 @@ public class SettingsController {
                 "Your DSE ERP email configuration is working correctly."
             );
 
-            new Alert(
+            new OwnedAlert(
                 Alert.AlertType.INFORMATION,
                 "Test email sent successfully to "
                     + recipient
@@ -1546,7 +1548,7 @@ public class SettingsController {
 
     private void warn(String message) {
 
-        new Alert(
+        new OwnedAlert(
             Alert.AlertType.WARNING,
             message,
             ButtonType.OK
@@ -1555,7 +1557,7 @@ public class SettingsController {
 
     private void showError(String message) {
 
-        new Alert(
+        new OwnedAlert(
             Alert.AlertType.ERROR,
             message == null
                 ? "An unexpected error occurred."

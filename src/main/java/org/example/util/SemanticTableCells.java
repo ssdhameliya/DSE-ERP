@@ -58,6 +58,8 @@ public final class SemanticTableCells {
             case "payment" -> state == State.SUCCESS ? "payment" : state == State.WARNING ? "reminder" : "warning";
             case "document" -> state == State.SUCCESS ? "complete" : state == State.WARNING ? "document" : "warning";
             case "account" -> normalized.contains("lock") ? "lock" : state == State.SUCCESS ? "user" : "warning";
+            case "return" -> state == State.SUCCESS ? "return-complete" : state == State.WARNING ? "return" : "warning";
+            case "refund" -> state == State.SUCCESS ? "payment" : state == State.WARNING ? "reminder" : "warning";
             case "priority" -> state == State.DANGER ? "warning" : state == State.WARNING ? "reminder" : "status";
             case "channel" -> normalized.contains("whatsapp") ? "whatsapp" : normalized.contains("email") ? "email" : "communication";
             default -> state == State.SUCCESS ? "complete" : state == State.WARNING ? "reminder" : state == State.DANGER ? "warning" : "status";

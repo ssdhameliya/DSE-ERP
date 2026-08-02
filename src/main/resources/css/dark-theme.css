@@ -4527,3 +4527,14 @@ TABLE ACTION BUTTONS
 }
 .payment-summary-list, .stock-summary-list { -fx-padding: 2px; }
 .erp-status-content .label { -fx-text-overrun: ellipsis; }
+
+/* === DSE ERP 2.1.5 Shared UI Framework Phase 1 ========================== */
+.erp-toolbar, .erp-filter-bar { -fx-alignment: CENTER_LEFT; -fx-spacing: 8; }
+.erp-toolbar-separator { -fx-padding: 0 4 0 4; }
+.erp-action-menu > .arrow-button { -fx-padding: 0; -fx-opacity: 0; -fx-max-width: 0; }
+.erp-status-badge { -fx-padding: 4 8; -fx-background-radius: 10; -fx-font-weight: 700; }
+.erp-kpi-card { -fx-padding: 14; -fx-spacing: 8; -fx-background-radius: 14; -fx-border-radius: 14; -fx-background-color: #172033; -fx-border-color: #334155; }
+.erp-kpi-title { -fx-text-fill: #94a3b8; -fx-font-size: 12px; -fx-font-weight: 700; }
+.erp-kpi-value { -fx-text-fill: #f8fafc; -fx-font-size: 22px; -fx-font-weight: 800; }
+.compact-shell .erp-toolbar, .compact-shell .erp-filter-bar { -fx-spacing: 6; }
+.small-display .erp-kpi-card { -fx-padding: 10; }

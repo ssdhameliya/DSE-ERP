@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
@@ -108,7 +110,7 @@ public class ItemDialogController {
                     "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
             closeDialog();
         } catch (Exception ex) {
-            Alert alert = new Alert(Alert.AlertType.ERROR, ex.getMessage());
+            Alert alert = new OwnedAlert(Alert.AlertType.ERROR, ex.getMessage());
             alert.setHeaderText("Item could not be saved");
             alert.showAndWait();
         }

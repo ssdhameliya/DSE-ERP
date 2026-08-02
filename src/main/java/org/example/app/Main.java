@@ -1,5 +1,7 @@
 package org.example.app;
 
+import org.example.util.OwnedAlert;
+
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -37,7 +39,7 @@ public class Main extends Application {
         BackupManager.RestoreResult restoreResult = BackupManager.applyPendingRestoreIfPresent();
         if (restoreResult.attempted() && !restoreResult.applied()) {
             if (restoreResult.failure() != null) restoreResult.failure().printStackTrace();
-            new Alert(Alert.AlertType.ERROR,
+            new OwnedAlert(Alert.AlertType.ERROR,
                     restoreResult.message() + "\n\nThe ERP will continue using the preserved database.")
                     .showAndWait();
         }
@@ -46,7 +48,7 @@ public class Main extends Application {
             BackupManager.ensureApplicationMetadata();
         } catch (Exception exception) {
             exception.printStackTrace();
-            new Alert(Alert.AlertType.ERROR,
+            new OwnedAlert(Alert.AlertType.ERROR,
                     "Database initialization failed: " + exception.getMessage()).showAndWait();
         }
         finishStartup(stage);
@@ -55,7 +57,7 @@ public class Main extends Application {
                 String safety = restoreResult.safetyBackup() == null
                         ? "No previous database existed."
                         : "Safety backup: " + restoreResult.safetyBackup();
-                Alert alert = new Alert(Alert.AlertType.INFORMATION,
+                Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION,
                         "The staged database restore was applied successfully.\n\n" + safety);
                 alert.setHeaderText("Database restore completed");
                 alert.show();

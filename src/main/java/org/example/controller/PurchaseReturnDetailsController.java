@@ -1,5 +1,8 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+import org.example.util.OwnedTextInputDialog;
+
 
 import org.example.util.IconFactory;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -137,7 +140,7 @@ public class PurchaseReturnDetailsController {
 
     @FXML
     private void edit() {
-        TextInputDialog dialog = new TextInputDialog(notes.getText());
+        TextInputDialog dialog = new OwnedTextInputDialog(notes.getText());
         dialog.setHeaderText("Notes / Remarks");
         dialog.showAndWait().ifPresent(value -> {
             update("notes", value);
@@ -158,7 +161,7 @@ public class PurchaseReturnDetailsController {
     /** Records the refund and derives PENDING, PARTIAL or REFUNDED from amounts. */
     @FXML
     private void refund() {
-        TextInputDialog dialog = new TextInputDialog(total.getText().replaceAll("[^0-9.]", ""));
+        TextInputDialog dialog = new OwnedTextInputDialog(total.getText().replaceAll("[^0-9.]", ""));
         dialog.setHeaderText("Refund amount");
         dialog.showAndWait().ifPresent(value -> {
             try {
@@ -211,7 +214,7 @@ public class PurchaseReturnDetailsController {
     private String fallback(String value,String defaultValue){String result=text(value).trim();return result.isEmpty()?defaultValue:result;}
 
     private void showError(Exception exception) {
-        new Alert(Alert.AlertType.ERROR,
+        new OwnedAlert(Alert.AlertType.ERROR,
             exception.getMessage() == null ? "Operation failed." : exception.getMessage())
             .showAndWait();
     }

@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+
 
 import org.example.util.IconFactory;
 import javafx.beans.property.SimpleStringProperty;
@@ -94,9 +96,9 @@ public class ReportsController {
     @FXML private void viewAllSales(){navigate("/fxml/pages/SalesList.fxml");}
     @FXML private void viewAllPurchases(){navigate("/fxml/pages/PurchaseList.fxml");}
     private void navigate(String page){StackPane content=(StackPane)dpFrom.getScene().lookup("#contentPane");if(content!=null)new NavigationManager(content).loadPage(page);}
-    private void export(String title,String name,String ext,boolean pdf){FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,ext));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();String suffix=pdf?".pdf":".xlsx";if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);try{if(pdf)reportService.exportPdf(path,dpFrom.getValue(),dpTo.getValue());else reportService.exportExcel(path,dpFrom.getValue(),dpTo.getValue());new Alert(Alert.AlertType.INFORMATION,"Report created successfully:\n"+path).showAndWait();}catch(Exception e){error("Could not create report: "+e.getMessage());}}
+    private void export(String title,String name,String ext,boolean pdf){FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,ext));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();String suffix=pdf?".pdf":".xlsx";if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);try{if(pdf)reportService.exportPdf(path,dpFrom.getValue(),dpTo.getValue());else reportService.exportExcel(path,dpFrom.getValue(),dpTo.getValue());new OwnedAlert(Alert.AlertType.INFORMATION,"Report created successfully:\n"+path).showAndWait();}catch(Exception e){error("Could not create report: "+e.getMessage());}}
     private String money(double n){return "₹ "+String.format("%,.2f",n);}private double number(String sql,String... values){try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement(sql)){for(int i=0;i<values.length;i++)p.setString(i+1,values[i]);try(ResultSet r=p.executeQuery()){return r.next()?r.getDouble(1):0;}}catch(SQLException e){return 0;}}
-    private void error(String message){Alert a=new Alert(Alert.AlertType.ERROR,message);a.setHeaderText("Reporting error");a.showAndWait();}
+    private void error(String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message);a.setHeaderText("Reporting error");a.showAndWait();}
 
     private void configureIcons() {
         btnRefresh.setGraphic(IconFactory.icon("refresh", 16));

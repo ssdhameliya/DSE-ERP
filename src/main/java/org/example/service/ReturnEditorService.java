@@ -1,5 +1,8 @@
 package org.example.service;
 
+import org.example.util.OwnedAlert;
+import org.example.util.OwnedDialog;
+
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -81,7 +84,7 @@ public final class ReturnEditorService {
             return Optional.empty();
         }
 
-        Dialog<ButtonType> dialog = new Dialog<>();
+        Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.initOwner(owner);
         dialog.setTitle(type == Type.SALES ? "Create Sales Return" : "Create Purchase Return");
         dialog.setHeaderText("Return items from invoice " + invoiceNo);
@@ -406,7 +409,7 @@ public final class ReturnEditorService {
     }
 
     private static void warning(String message) {
-        new Alert(Alert.AlertType.WARNING, message).showAndWait();
+        new OwnedAlert(Alert.AlertType.WARNING, message).showAndWait();
     }
 
     /** Mutable row model used by the editable return table. */

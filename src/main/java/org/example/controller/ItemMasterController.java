@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.OwnedAlert;
+
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -220,7 +222,7 @@ public class ItemMasterController {
 
     private void deleteItem(Item selected) {
         if (selected == null) { showWarning("Select an item to delete."); return; }
-        Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION,
+        Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
             "Delete item '" + selected.getDescription() + "'? This cannot be undone.",
             ButtonType.YES, ButtonType.NO);
         confirmation.setHeaderText("Confirm deletion");
@@ -262,7 +264,7 @@ public class ItemMasterController {
         if (!path.toString().toLowerCase(Locale.ROOT).endsWith(".xlsx")) path = Path.of(path + ".xlsx");
         try {
             spreadsheetService.exportItems(service.getAll(), path);
-            new Alert(Alert.AlertType.INFORMATION, "Item master exported to:\n" + path).showAndWait();
+            new OwnedAlert(Alert.AlertType.INFORMATION, "Item master exported to:\n" + path).showAndWait();
         } catch (Exception ex) {
             showError("Could not export the workbook: " + ex.getMessage());
         }
@@ -286,13 +288,13 @@ public class ItemMasterController {
     }
 
     private void showWarning(String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING, message);
+        Alert alert = new OwnedAlert(Alert.AlertType.WARNING, message);
         alert.setHeaderText(null);
         alert.showAndWait();
     }
 
     private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, message);
+        Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message);
         alert.setHeaderText(null);
         alert.showAndWait();
     }
