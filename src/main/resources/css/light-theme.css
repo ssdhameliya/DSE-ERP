@@ -5206,3 +5206,17 @@ SECTION TITLES
 .erp-kpi-value { -fx-text-fill: #0f172a; -fx-font-size: 22px; -fx-font-weight: 800; }
 .compact-shell .erp-toolbar, .compact-shell .erp-filter-bar { -fx-spacing: 6; }
 .small-display .erp-kpi-card { -fx-padding: 10; }
+
+/* v2.1.6 Phase 2: loading feedback, navigation state and guaranteed dashboard shortcuts. */
+.erp-loading-overlay { -fx-background-color: rgba(5, 15, 30, 0.58); -fx-alignment: center; }
+.erp-loading-card { -fx-padding: 24 30; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-width: 1; }
+.erp-loading-title { -fx-font-size: 16px; -fx-font-weight: 800; }
+.erp-loading-subtitle { -fx-font-size: 12px; -fx-opacity: .78; -fx-text-alignment: center; }
+.navigation-loading { -fx-cursor: wait; }
+.dashboard-single-page .premium-quick-action { -fx-min-width: 88; -fx-pref-width: 96; -fx-max-width: 120; -fx-min-height: 70; -fx-pref-height: 78; -fx-max-height: 86; -fx-opacity: 1; }
+.dashboard-single-page .premium-quick-action .erp-action-glyph { -fx-icon-size: 22px; }
+.compact-layout .dashboard-single-page .premium-quick-action { -fx-min-width: 76; -fx-pref-width: 84; -fx-min-height: 64; -fx-pref-height: 70; -fx-font-size: 10px; }
+
+.erp-loading-card { -fx-background-color:#ffffff; -fx-border-color:#cbd5e1; -fx-effect:dropshadow(gaussian,rgba(15,23,42,.18),24,.15,0,8); }
+.erp-loading-title { -fx-text-fill:#0f172a; }
+.erp-loading-subtitle { -fx-text-fill:#475569; }

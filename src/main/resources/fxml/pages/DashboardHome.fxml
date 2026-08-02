@@ -4,7 +4,8 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardHomeController" spacing="10" styleClass="dashboard-premium,dashboard-single-page">
+<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardHomeController" fx:id="dashboardRoot">
+<VBox fx:id="dashboardContent" spacing="10" styleClass="dashboard-premium,dashboard-single-page">
     <padding><Insets top="12" right="16" bottom="12" left="16"/></padding>
 
     <HBox alignment="CENTER_LEFT" spacing="14" styleClass="dashboard-page-header">
@@ -123,7 +124,7 @@
 
         <VBox spacing="12" styleClass="premium-dashboard-card" GridPane.columnIndex="2">
             <Label text="Quick Shortcuts" styleClass="premium-card-title"/>
-            <TilePane hgap="10" vgap="10" prefColumns="3" prefTileWidth="118" prefTileHeight="94" VBox.vgrow="ALWAYS">
+            <TilePane hgap="10" vgap="10" prefColumns="4" prefTileWidth="96" prefTileHeight="78" VBox.vgrow="ALWAYS">
                 <Button fx:id="quickSale" text="New Sale" wrapText="true" onAction="#newSale" styleClass="premium-quick-action,quick-sale"/>
                 <Button fx:id="quickPurchase" text="Create Purchase" wrapText="true" onAction="#newPurchase" styleClass="premium-quick-action,quick-purchase"/>
                 <Button fx:id="quickCustomer" text="Add Customer" wrapText="true" onAction="#addCustomer" styleClass="premium-quick-action,quick-customer"/>
@@ -141,3 +142,11 @@
     <TableView fx:id="recentTable" visible="false" managed="false"><columns><TableColumn fx:id="colNumber" text="Invoice No."/><TableColumn fx:id="colDate" text="Date"/><TableColumn fx:id="colParty" text="Customer / Supplier"/><TableColumn fx:id="colAmount" text="Amount"/><TableColumn fx:id="colType" text="Type"/></columns></TableView>
     <Label fx:id="lblProductsNote" visible="false" managed="false"/><Label fx:id="lblCustomers" visible="false" managed="false"/><Label fx:id="lblProducts" visible="false" managed="false"/><Label fx:id="lblOrders" visible="false" managed="false"/>
 </VBox>
+<StackPane fx:id="loadingOverlay" visible="false" managed="false" styleClass="erp-loading-overlay">
+    <VBox alignment="CENTER" spacing="12" maxWidth="360" styleClass="erp-loading-card">
+        <ProgressIndicator fx:id="loadingProgress" progress="-1" prefWidth="48" prefHeight="48"/>
+        <Label fx:id="loadingMessage" text="Loading dashboard data…" styleClass="erp-loading-title"/>
+        <Label text="The ERP remains responsive while data is prepared." wrapText="true" styleClass="erp-loading-subtitle"/>
+    </VBox>
+</StackPane>
+</StackPane>

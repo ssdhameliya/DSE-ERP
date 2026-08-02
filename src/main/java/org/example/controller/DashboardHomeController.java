@@ -15,6 +15,9 @@ import org.example.util.IconFactory;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.ProgressIndicator;
+import javafx.concurrent.Task;
+import javafx.application.Platform;
 import javafx.scene.layout.StackPane;
 import javafx.scene.CacheHint;
 import org.example.database.DatabaseManager;
@@ -31,6 +34,7 @@ import java.util.Locale;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DashboardHomeController {
     private String fallbackPeriod = "This Month";
@@ -52,6 +56,11 @@ public class DashboardHomeController {
     @FXML private TableView<ActivityRow> recentTable;
     @FXML private TableColumn<ActivityRow, String> colType, colNumber, colParty, colDate, colAmount;
     @FXML private StackPane salesKpiIcon, purchaseKpiIcon, receivableKpiIcon, payableKpiIcon, cashKpiIcon, lowStockKpiIcon, dashboardTitleIcon;
+    @FXML private StackPane dashboardRoot, loadingOverlay;
+    @FXML private Node dashboardContent;
+    @FXML private Label loadingMessage;
+    @FXML private ProgressIndicator loadingProgress;
+    private final AtomicBoolean dashboardLoadRunning = new AtomicBoolean();
     @FXML private Button quickSale, quickPurchase, quickQuotation, quickPayment,
         quickCustomer, quickSupplier, quickBank, quickExpense, refreshDashboardButton;
 
@@ -69,6 +78,7 @@ public class DashboardHomeController {
             cmbPeriod.setValue("This Month");
             cmbPeriod.valueProperty().addListener((obs, oldValue, value) -> reload());
         }
+        ensureQuickActionsVisible();
         reload();
     }
 
@@ -118,8 +128,13 @@ public class DashboardHomeController {
 
     private void setButtonIcon(Button button, String icon) {
         if (button == null) return;
-        button.setGraphic(IconFactory.icon(icon, 28));
+        button.setGraphic(IconFactory.compactIcon(icon, 24));
         button.setContentDisplay(javafx.scene.control.ContentDisplay.TOP);
+        button.setGraphicTextGap(6);
+        button.setVisible(true);
+        button.setManaged(true);
+        button.getProperties().put("erp-icon-preserve", true);
+        button.getProperties().put("erp.icon.semantic", icon);
     }
 
     /** Cycles the shared dashboard reporting period and reloads all database widgets. */
@@ -142,17 +157,97 @@ public class DashboardHomeController {
     @FXML private void viewRecentInvoices() { openFromNode(recentTable, "/fxml/pages/SalesList.fxml"); }
 
     private void reload() {
-        if (lblTrendPeriod != null) lblTrendPeriod.setText(selectedPeriod());
-        if (lblComparisonPeriod != null) lblComparisonPeriod.setText(selectedPeriod());
-        loadSummary();
-        configureTable();
-        loadRecentActivity();
-        loadTrend();
-        loadCustomerMix();
-        loadDashboardLists();
-        loadLiveActivities();
-        loadComparison();
+        if (!dashboardLoadRunning.compareAndSet(false, true)) return;
+        showLoading("Loading dashboard data…");
+        String period = selectedPeriod();
+        Task<DashboardSnapshot> task = new Task<>() {
+            @Override protected DashboardSnapshot call() { return querySnapshot(period); }
+        };
+        task.setOnSucceeded(event -> {
+            try { applySnapshot(task.getValue()); }
+            finally { dashboardLoadRunning.set(false); hideLoading(); }
+        });
+        task.setOnFailed(event -> {
+            dashboardLoadRunning.set(false); hideLoading();
+            org.example.util.ModernDialog.error(dashboardRoot, "Dashboard could not refresh",
+                "The ERP remains available", task.getException() == null ? "Unknown dashboard error" : task.getException().getMessage());
+        });
+        Thread thread = new Thread(task, "dse-dashboard-loader");
+        thread.setDaemon(true);
+        thread.start();
     }
+
+    private void showLoading(String message) {
+        if (loadingMessage != null) loadingMessage.setText(message);
+        if (loadingOverlay != null) { loadingOverlay.setManaged(true); loadingOverlay.setVisible(true); loadingOverlay.toFront(); }
+        if (dashboardContent != null) dashboardContent.setDisable(true);
+    }
+
+    private void hideLoading() {
+        if (loadingOverlay != null) { loadingOverlay.setVisible(false); loadingOverlay.setManaged(false); }
+        if (dashboardContent != null) dashboardContent.setDisable(false);
+        ensureQuickActionsVisible();
+    }
+
+    private void ensureQuickActionsVisible() {
+        for (Button button : new Button[]{quickSale, quickPurchase, quickQuotation, quickPayment, quickCustomer, quickSupplier, quickBank, quickExpense}) {
+            if (button == null) continue;
+            button.setVisible(true); button.setManaged(true); button.setMinHeight(70);
+            if (button.getGraphic() == null) installQuickActionIcons();
+        }
+    }
+
+    private DashboardSnapshot querySnapshot(String period) {
+        org.example.util.PerformanceMonitor.start("dashboard:" + period);
+        try {
+            String salesCondition = periodCondition(period, "invoice_date");
+            long products = count("SELECT COUNT(*) FROM item_master");
+            long customers = count("SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active,1)=1");
+            long invoices = count("SELECT COUNT(*) FROM sales_header WHERE " + salesCondition);
+            long purchases = count("SELECT COUNT(*) FROM purchase_header WHERE " + periodCondition(period, "invoice_date"));
+            long lowStock = count("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)");
+            double salesValue = number("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE " + salesCondition);
+            double purchaseValue = number("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE " + periodCondition(period, "invoice_date"));
+            double receivables = number("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header");
+            double payables = number("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM purchase_header");
+            long openReceivables = count("SELECT COUNT(*) FROM sales_header WHERE total_amount>COALESCE(paid_amount,0)");
+            long openPayables = count("SELECT COUNT(*) FROM purchase_header WHERE total_amount>COALESCE(paid_amount,0)");
+            double received = number("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header");
+            double paid = number("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header");
+            double expenses = number("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
+            return new DashboardSnapshot(period, products, customers, invoices, purchases, lowStock, salesValue, purchaseValue, receivables, payables, openReceivables, openPayables, received-paid-expenses);
+        } finally { org.example.util.PerformanceMonitor.finish("dashboard:" + period); }
+    }
+
+    private void applySnapshot(DashboardSnapshot d) {
+        if (lblTrendPeriod != null) lblTrendPeriod.setText(d.period());
+        if (lblComparisonPeriod != null) lblComparisonPeriod.setText(d.period());
+        lblSalesValue.setText(money(d.salesValue())); lblPurchaseValue.setText(money(d.purchaseValue()));
+        lblStockValue.setText(money(d.receivables())); lblLowStock.setText(money(d.payables())); lblCash.setText(money(d.cash()));
+        if (lblLowStockValue != null) lblLowStockValue.setText(String.valueOf(d.lowStock()));
+        if (lblLowStockNote != null) lblLowStockNote.setText(d.lowStock()==0 ? "Stock levels healthy" : d.lowStock()+" item"+plural(d.lowStock())+" need attention");
+        if (lblTrendSales != null) lblTrendSales.setText(money(d.salesValue()));
+        lblSalesNote.setText(d.invoices()+" sales invoice"+plural(d.invoices()));
+        lblPurchaseNote.setText(d.purchases()+" purchase invoice"+plural(d.purchases()));
+        lblReceivableNote.setText(d.openReceivables()+" open sales invoice"+plural(d.openReceivables()));
+        lblStockNote.setText(d.openPayables()+" open purchase invoice"+plural(d.openPayables()));
+        if (lblProductsNote != null) lblProductsNote.setText(d.products()+" active catalog item"+plural(d.products()));
+        if (lblCustomers != null) lblCustomers.setText(String.valueOf(d.customers()));
+        if (lblProducts != null) lblProducts.setText(String.valueOf(d.products()));
+        if (lblOrders != null) lblOrders.setText(String.valueOf(d.invoices()));
+        configureTable(); loadRecentActivity(); loadTrend(); loadCustomerMix(); loadDashboardLists(); loadLiveActivities(); loadComparison();
+    }
+
+    private String periodCondition(String period, String column) {
+        return switch (period) {
+            case "This Month" -> "date(" + column + ") >= date('now','start of month')";
+            case "This Quarter" -> "date(" + column + ") >= date('now','start of month','-' || ((cast(strftime('%m','now') as integer)-1)%3) || ' months')";
+            case "This Year" -> "date(" + column + ") >= date('now','start of year')";
+            default -> "1=1";
+        };
+    }
+
+    private record DashboardSnapshot(String period,long products,long customers,long invoices,long purchases,long lowStock,double salesValue,double purchaseValue,double receivables,double payables,long openReceivables,long openPayables,double cash) {}
 
     private String selectedPeriod() {
         return cmbPeriod == null || cmbPeriod.getValue() == null ? fallbackPeriod : cmbPeriod.getValue();

@@ -53,6 +53,9 @@ public class NavigationManager {
             return true;
         }
         if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) return false;
+        String timingKey = "navigation:" + fxml;
+        org.example.util.PerformanceMonitor.start(timingKey);
+        contentPane.getStyleClass().add("navigation-loading");
         try {
             URL url = getClass().getResource(fxml);
             if (url == null) {
@@ -95,6 +98,8 @@ public class NavigationManager {
                 "The ERP remains open", "Unable to open this screen.\n\n" + rootMessage(error));
             return false;
         } finally {
+            contentPane.getStyleClass().remove("navigation-loading");
+            org.example.util.PerformanceMonitor.finish(timingKey);
             NAVIGATION_IN_PROGRESS.set(false);
         }
     }

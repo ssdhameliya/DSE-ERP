@@ -29,6 +29,10 @@ public final class SharedUiFramework {
 
     private static void apply(Node node) {
         IconFactory.decorate(node);
+        if (node.getParent() == null || !Boolean.TRUE.equals(node.getProperties().get("erp.tables.optimized"))) {
+            TablePerformanceOptimizer.apply(node);
+            node.getProperties().put("erp.tables.optimized", true);
+        }
         if (node instanceof ButtonBase button && button.getTooltip() == null
                 && button.getText() != null && !button.getText().isBlank()) {
             button.setTooltip(new Tooltip(button.getText()));

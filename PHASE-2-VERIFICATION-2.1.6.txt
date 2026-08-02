@@ -1,0 +1,28 @@
+DSE ERP 2.1.6 - Phase 2 Verification
+
+Version
+- pom.xml: 2.1.6
+- app-version.properties: 2.1.6
+
+Implemented
+- Dashboard KPI summary queries execute in a daemon JavaFX Task.
+- Dashboard displays an in-application loading overlay and owned error feedback.
+- Dashboard quick shortcuts use a four-column/two-row layout so all eight actions remain visible.
+- Dashboard shortcut icons are explicit, compact, theme-aware, and protected from later enhancer replacement.
+- Navigation and Dashboard timings are logged to performance.log in the configured workspace Config folder.
+- Shared TableView fixed-cell-size optimization is installed through SharedUiFramework.
+- Existing 2.1.5 macOS dialog ownership, monitor handling, navigation cache, semantic icons, and responsive rules are retained.
+
+Static verification
+- 36 FXML files parsed successfully.
+- Both theme files include Phase 2 loading and compact shortcut rules.
+- ZIP archive integrity checked after packaging.
+
+Required local verification
+1. mvn clean install
+2. mvn javafx:run
+3. Open Dashboard at small, normal, and maximized sizes.
+4. Confirm all eight Quick Shortcuts are visible on first load in light and dark themes.
+5. Refresh Dashboard repeatedly and confirm the loading overlay remains within the ERP window.
+6. Navigate across major screens and inspect workspace Config/performance.log.
+7. Repeat dialog and navigation checks on macOS before production release.
