@@ -1,8 +1,0 @@
-DSE ERP 2.0.1
-
-- Finalized GitHub Releases update defaults for ssdhameliya/DSE-ERP.
-- Preserved automatic startup update checks and manual Settings checks.
-- Preserved platform-aware Windows/macOS installer selection.
-- Preserved mandatory SHA-256 verification and pre-update database backup.
-- Restored the missing VBox import in UserAccessController.
-- Preserved executable permissions for both macOS packaging scripts.

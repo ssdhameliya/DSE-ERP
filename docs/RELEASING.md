@@ -5,10 +5,10 @@
 Set the Maven project version in `pom.xml`, for example:
 
 ```xml
-<version>2.0.1</version>
+<version>2.1.1</version>
 ```
 
-`app-version.properties` and the default update configuration are filtered from the Maven version during the build.
+The release tag must exactly match that value with a leading `v`.
 
 ## 2. Verify locally
 
@@ -19,26 +19,26 @@ mvn clean verify
 For Windows installer testing:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-windows.ps1 -Version 2.0.1
+.\scripts\package-windows.ps1 -Version 2.1.1
 ```
 
 For macOS installer testing:
 
 ```bash
-./scripts/package-macos.sh 2.0.1
+./scripts/package-macos.sh 2.1.1
 ```
 
-## 3. Commit and tag
+## 3. Commit before tagging
 
 ```bash
 git add .
-git commit -m "Release DSE ERP 2.0.1"
+git commit -m "Release DSE ERP 2.1.1"
 git push origin main
-git tag v2.0.1
-git push origin v2.0.1
+git tag v2.1.1
+git push origin v2.1.1
 ```
 
-The tag must match the version in `pom.xml`.
+Do not create the tag before the matching `pom.xml` change has been committed and pushed.
 
 ## 4. GitHub Actions output
 
@@ -49,11 +49,11 @@ The release workflow publishes:
 - `DSE-ERP-<version>-macOS-x86_64.dmg`
 - `checksums.txt`
 
-## 5. Signing later
+## 5. Signing
 
-Unsigned installers are suitable for internal testing but can trigger Windows SmartScreen or macOS Gatekeeper warnings. Production public releases should eventually use:
+Unsigned installers are suitable for internal testing but can trigger Windows SmartScreen or macOS Gatekeeper warnings. Public production releases should eventually use:
 
 - A Windows code-signing certificate
 - An Apple Developer ID certificate and Apple notarization
 
-Store signing credentials only as encrypted GitHub Actions secrets. Never commit certificates, private keys, or passwords.
+Store credentials only as encrypted GitHub Actions secrets. Never commit certificates, private keys, passwords, or app-specific passwords.

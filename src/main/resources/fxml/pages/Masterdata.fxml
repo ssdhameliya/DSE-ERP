@@ -8,7 +8,7 @@
 <BorderPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.MasterDataController"
-            styleClass="master-page master-data-premium"
+            styleClass="master-page,master-data-premium"
             prefWidth="1450"
             prefHeight="900">
 

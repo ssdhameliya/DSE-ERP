@@ -7,22 +7,22 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 public final class ConfigManager {
-
-    private static final Path CONFIG_FOLDER_PATH = resolveAppDataFolder();
-    private static final Path CONFIG_FILE_PATH = CONFIG_FOLDER_PATH.resolve("config.properties");
     private static final Properties properties = new Properties();
 
     private ConfigManager() {}
 
     public static synchronized void load() {
+        if (!WorkspaceManager.isConfigured()) {
+            throw new IllegalStateException("Workspace must be selected before loading configuration.");
+        }
+        Path configFolder = WorkspaceManager.getConfigurationFolder();
+        Path configFile = configFolder.resolve("config.properties");
         try {
-            Files.createDirectories(CONFIG_FOLDER_PATH);
-
-            File file = CONFIG_FILE_PATH.toFile();
-            if (file.exists()) {
-                try (FileInputStream fis = new FileInputStream(file)) {
-                    properties.clear();
-                    properties.load(fis);
+            Files.createDirectories(configFolder);
+            properties.clear();
+            if (Files.isRegularFile(configFile)) {
+                try (InputStream input = Files.newInputStream(configFile)) {
+                    properties.load(input);
                 }
             } else {
                 try (InputStream defaults = ConfigManager.class.getResourceAsStream("/config.properties")) {
@@ -32,21 +32,23 @@ public final class ConfigManager {
                 properties.remove("db.url");
                 save();
             }
-
-            System.out.println("Config File : " + file.getAbsolutePath());
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to load ERP configuration", e);
+            System.out.println("Workspace   : " + WorkspaceManager.getWorkspaceRoot());
+            System.out.println("Config File : " + configFile);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to load ERP configuration", exception);
         }
     }
 
     public static synchronized void save() {
+        Path configFolder = WorkspaceManager.getConfigurationFolder();
+        Path configFile = configFolder.resolve("config.properties");
         try {
-            Files.createDirectories(CONFIG_FOLDER_PATH);
-            try (FileOutputStream fos = new FileOutputStream(CONFIG_FILE_PATH.toFile())) {
-                properties.store(fos, "JavaApp ERP Configuration");
+            Files.createDirectories(configFolder);
+            try (OutputStream output = Files.newOutputStream(configFile)) {
+                properties.store(output, "DSE ERP Configuration");
             }
-        } catch (IOException e) {
-            throw new IllegalStateException("Unable to save ERP configuration", e);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to save ERP configuration", exception);
         }
     }
 
@@ -55,12 +57,12 @@ public final class ConfigManager {
     }
 
     public static synchronized void set(String key, String value) {
-        if (value == null) {
-            properties.remove(key);
-        } else {
-            properties.setProperty(key, value);
-        }
+        if (value == null) properties.remove(key); else properties.setProperty(key, value);
         save();
+    }
+
+    public static synchronized void setWithoutSaving(String key, String value) {
+        if (value == null) properties.remove(key); else properties.setProperty(key, value);
     }
 
     public static synchronized void remove(String key) {
@@ -69,25 +71,19 @@ public final class ConfigManager {
     }
 
     public static String getDbUrl() {
-        return get("db.url", "jdbc:sqlite:" + CONFIG_FOLDER_PATH.resolve("JavaAppERP.db"));
+        return get("db.url", "jdbc:sqlite:" + WorkspaceManager.getDatabaseFolder().resolve("JavaAppERP.db"));
     }
 
-    /**
-     * Resolves the actual file used by the configured SQLite JDBC URL.
-     * This keeps Backup & Restore aligned with DatabaseManager even when db.url is customized.
-     */
     public static Path getDatabasePath() {
         String url = getDbUrl();
         final String prefix = "jdbc:sqlite:";
         if (url == null || !url.startsWith(prefix)) {
             throw new IllegalStateException("Only SQLite database URLs are supported: " + url);
         }
-
         String value = url.substring(prefix.length()).trim();
         if (value.isBlank() || value.equals(":memory:")) {
             throw new IllegalStateException("Backup & Restore requires a file-based SQLite database.");
         }
-
         try {
             Path path;
             if (value.startsWith("file:")) {
@@ -100,37 +96,17 @@ public final class ConfigManager {
                 if (query >= 0) value = value.substring(0, query);
                 path = Path.of(value);
             }
-
-            if (!path.isAbsolute()) {
-                path = Path.of(System.getProperty("user.dir")).resolve(path);
-            }
+            if (!path.isAbsolute()) path = WorkspaceManager.getWorkspaceRoot().resolve(path);
             return path.toAbsolutePath().normalize();
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to resolve SQLite database path from: " + url, exception);
         }
     }
 
-    public static Path getConfigFolder() {
-        return CONFIG_FOLDER_PATH;
-    }
-
-    public static Path getBackupFolder() {
-        return CONFIG_FOLDER_PATH.resolve("Backups");
-    }
-
-    public static Path getPendingRestoreFile() {
-        return CONFIG_FOLDER_PATH.resolve("restore-pending.db");
-    }
-
-    public static Path getBackupTrashFolder() {
-        return getBackupFolder().resolve(".trash");
-    }
-
-    private static Path resolveAppDataFolder() {
-        String appData = System.getenv("APPDATA");
-        Path base = appData == null || appData.isBlank()
-                ? Path.of(System.getProperty("user.home"), ".dse-erp")
-                : Path.of(appData, "DSE ERP");
-        return base.toAbsolutePath().normalize();
-    }
+    /** Existing callers use this as the common ERP data root. */
+    public static Path getConfigFolder() { return WorkspaceManager.getWorkspaceRoot(); }
+    public static Path getConfigurationFolder() { return WorkspaceManager.getConfigurationFolder(); }
+    public static Path getBackupFolder() { return WorkspaceManager.getBackupFolder(); }
+    public static Path getPendingRestoreFile() { return WorkspaceManager.getTempFolder().resolve("restore-pending.db"); }
+    public static Path getBackupTrashFolder() { return getBackupFolder().resolve(".trash"); }
 }

@@ -11,6 +11,7 @@ DSE ERP is an open-source JavaFX desktop ERP application by **DS Engineers**. It
 - PDF/Excel exports and email/WhatsApp-assisted communication
 - Production-safe backup and staged restore
 - GitHub Releases update checking
+- First-run workspace setup and movable business-data storage
 
 ## Requirements for development
 
@@ -29,19 +30,20 @@ Run during development:
 mvn javafx:run
 ```
 
+On Windows, `build.bat` performs the same verification and `Run DSE ERP.bat` launches the packaged JAR after a successful build.
+
 ## Native installers
 
 Windows PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\package-windows.ps1 -Version 2.0.0
+.\scripts\package-windows.ps1 -Version 2.1.0
 ```
 
 macOS Terminal:
 
 ```bash
-chmod +x scripts/package-macos.sh
-./scripts/package-macos.sh 2.0.0
+./scripts/package-macos.sh 2.1.0
 ```
 
 The generated packages are written to:
@@ -51,14 +53,14 @@ The generated packages are written to:
 
 ## Automated releases
 
-Pushing a semantic-version tag starts the GitHub Actions release workflow:
+After committing a matching version in `pom.xml`, push a semantic-version tag:
 
 ```bash
-git tag v2.0.0
-git push origin v2.0.0
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
-The workflow builds:
+GitHub Actions builds:
 
 - Windows x64 EXE
 - macOS Apple Silicon DMG
@@ -67,15 +69,16 @@ The workflow builds:
 
 Release assets are published to GitHub Releases automatically.
 
-## Application data
+## Application data and workspace
 
-Business data is stored outside the installed application so updates do not overwrite it.
+Business data is stored outside the installed application so updates do not overwrite it. New installations use a setup wizard to select a workspace, which may be on another internal drive or external SSD.
 
-- Windows: `%APPDATA%\DSE ERP\`
-- macOS: `~/Library/Application Support/DSE ERP/` or the location configured by the application
+See [`docs/WORKSPACE.md`](docs/WORKSPACE.md) for the folder structure, migration behavior, and backup recommendations.
 
-Always keep off-device backups in addition to local backups.
+## Security
+
+Do not commit customer databases, runtime configuration, SMTP app passwords, signing certificates, or private keys. Runtime data is excluded by `.gitignore`.
 
 ## Repository
 
-`https://github.com/ssdhameliya/DSE-ERP`
+https://github.com/ssdhameliya/DSE-ERP

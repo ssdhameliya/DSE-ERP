@@ -1,6 +1,7 @@
 package org.example.util;
 
 import javafx.fxml.FXMLLoader;
+import org.example.controller.SetupWizardController;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -20,10 +21,28 @@ public class SceneManager {
     public static void initialize(Stage stage) {
 
         primaryStage = stage;
-        primaryStage.setTitle("JavaApp ERP");
+        primaryStage.setTitle("DSE ERP");
         primaryStage.setMinWidth(1200);
         primaryStage.setMinHeight(700);
 
+    }
+
+
+    public static void showSetupWizard(Runnable onCompleted) {
+        try {
+            var url = SceneManager.class.getResource("/fxml/pages/SetupWizard.fxml");
+            FXMLLoader loader = new FXMLLoader(url);
+            Parent root = loader.load();
+            SetupWizardController controller = loader.getController();
+            controller.setOnCompleted(onCompleted);
+            Scene scene = new Scene(root, 1280, 820);
+            ThemeManager.applyTheme(scene);
+            primaryStage.setScene(scene);
+            primaryStage.centerOnScreen();
+            primaryStage.show();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to open first-run setup.", exception);
+        }
     }
 
     /** Opens authentication before the permission-aware application shell. */

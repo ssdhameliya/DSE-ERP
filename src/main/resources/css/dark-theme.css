@@ -4310,3 +4310,34 @@ TABLE ACTION BUTTONS
 .update-dialog .text-area, .update-dialog .text-area .content { -fx-background-color: #14283f; -fx-text-fill: #dce9f9; }
 .update-badge { -fx-background-color: #16834e; -fx-text-fill: white; -fx-background-radius: 999; -fx-padding: 5 11; -fx-font-weight: bold; }
 .update-release-title { -fx-font-size: 25px; -fx-font-weight: bold; -fx-text-fill: white; }
+
+/* =========================================================
+   FIRST-RUN SETUP & WORKSPACE
+   ========================================================= */
+.setup-page { -fx-background-color: #081321; }
+.setup-brand-panel { -fx-background-color: linear-gradient(to bottom, #081426, #10213d 62%, #263d72); -fx-padding: 34 28; }
+.setup-logo { -fx-min-width: 76; -fx-pref-width: 76; -fx-min-height: 76; -fx-pref-height: 76; -fx-background-color: rgba(111,86,255,.23); -fx-background-radius: 22; -fx-border-color: rgba(159,143,255,.62); -fx-border-radius: 22; }
+.setup-logo .label { -fx-text-fill: #b0a4ff; -fx-font-size: 34px; -fx-font-weight: bold; }
+.setup-brand-title { -fx-text-fill: #f7f9ff; -fx-font-size: 29px; -fx-font-weight: bold; }
+.setup-brand-subtitle { -fx-text-fill: #91a6c5; -fx-font-size: 12px; }
+.setup-feature { -fx-text-fill: #d7e3f6; -fx-font-size: 13px; }
+.setup-content { -fx-background-color: #0b1727; }
+.setup-step { -fx-text-fill: #9a8cff; -fx-font-size: 12px; -fx-font-weight: bold; }
+.setup-title { -fx-text-fill: #f4f7ff; -fx-font-size: 27px; -fx-font-weight: bold; }
+.setup-description { -fx-text-fill: #8fa4c1; -fx-font-size: 13px; }
+.setup-card { -fx-background-color: #102238; -fx-background-radius: 18; -fx-border-color: #28425f; -fx-border-radius: 18; -fx-padding: 28; -fx-effect: dropshadow(gaussian, rgba(0,0,0,.32), 24, .12, 0, 8); }
+.setup-section-title { -fx-text-fill: #e8effb; -fx-font-size: 17px; -fx-font-weight: bold; }
+.setup-field-label { -fx-text-fill: #b8c7dc; -fx-font-size: 12px; -fx-font-weight: bold; }
+.setup-help { -fx-text-fill: #8fa2bd; -fx-font-size: 12px; }
+.setup-card .text-field, .setup-card .password-field { -fx-background-color: #0c1b2e; -fx-text-fill: #edf4ff; -fx-prompt-text-fill: #667c99; -fx-border-color: #315070; -fx-border-radius: 9; -fx-background-radius: 9; -fx-padding: 10 12; -fx-pref-height: 40; }
+.setup-card .text-field:focused, .setup-card .password-field:focused { -fx-border-color: #786cff; -fx-background-color: #10243c; }
+.setup-folder-preview, .setup-summary { -fx-background-color: #132b49; -fx-background-radius: 12; -fx-border-color: #315376; -fx-border-radius: 12; -fx-padding: 15; }
+.setup-summary { -fx-text-fill: #d6e4f7; -fx-font-size: 13px; }
+.setup-primary-button { -fx-background-color: linear-gradient(to right, #5b4ce1, #2879ee); -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 10 18; }
+.setup-secondary-button { -fx-background-color: #162b45; -fx-text-fill: #d9e5f6; -fx-border-color: #365473; -fx-border-radius: 10; -fx-background-radius: 10; -fx-padding: 10 16; }
+.setup-error { -fx-text-fill: #ff7181; -fx-font-weight: bold; }
+.setup-progress { -fx-text-fill: #6fa6ff; -fx-font-weight: bold; }
+.workspace-path-value { -fx-text-fill: #e5eefb; -fx-font-size: 14px; -fx-font-weight: bold; -fx-background-color: #0c1c30; -fx-background-radius: 9; -fx-padding: 12; }
+.workspace-status-ok { -fx-text-fill: #55d99a; }
+.workspace-status-warning { -fx-text-fill: #ffbd5b; }
+.workspace-folder-card { -fx-background-color: #10243b; -fx-background-radius: 12; -fx-border-color: #2b4967; -fx-border-radius: 12; -fx-padding: 16; }
