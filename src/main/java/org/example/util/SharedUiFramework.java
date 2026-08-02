@@ -16,6 +16,7 @@ public final class SharedUiFramework {
     private SharedUiFramework() {}
 
     public static void install(Node root) {
+        FxThreadWatchdog.install();
         if (root == null) return;
         apply(root);
         if (!Boolean.TRUE.equals(root.getProperties().get(INSTALLED))) {

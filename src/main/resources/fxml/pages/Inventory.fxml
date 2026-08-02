@@ -23,7 +23,7 @@
     <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-surface,entity-toolbar"><padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
         <TextField fx:id="txtSearch" promptText="Search item code, name, HSN or location..." HBox.hgrow="ALWAYS" styleClass="entity-search"/>
         <ComboBox fx:id="cmbCategory" promptText="All categories" prefWidth="170"/><ComboBox fx:id="cmbStatus" prefWidth="150"/>
-        <Button text="Refresh" onAction="#refresh"/><Button text="Export Excel" onAction="#exportExcel" styleClass="secondary-button"/>
+        <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh"/><Button text="Export Excel" onAction="#exportExcel" styleClass="secondary-button"/>
     </HBox>
 
     <SplitPane dividerPositions="0.76" VBox.vgrow="ALWAYS" styleClass="register-split,inventory-split"><items>
