@@ -1,0 +1,19 @@
+DSE ERP 2.1.3 - macOS navigation and UI correction
+
+Implemented:
+- Reuses up to 10 loaded navigation pages instead of rebuilding FXML on every click.
+- Runs one ProfessionalUiEnhancer pass per newly loaded page (removed duplicate deferred pass).
+- Removed the navigation "Screen ready" toast.
+- Refreshes cached data controllers through refresh/loadData/loadItems hooks where available.
+- Adds cache invalidation methods for screens that must be rebuilt.
+- Collapses top-bar controls progressively at compact window sizes so controls remain visible.
+- Uses an owned UTILITY style for shared macOS dialog stages and keeps them centred over the ERP shell.
+- Reduces expensive TableView/ScrollPane rendering effects on macOS.
+
+Verification performed in packaging environment:
+- Dashboard.fxml parsed successfully as XML.
+- Source/package structure and modified-file parity checked.
+
+Not performed here:
+- Maven compilation, because Maven is not installed in the packaging environment.
+- Runtime visual verification on a physical Mac. Run the IntelliJ package on macOS before merging.

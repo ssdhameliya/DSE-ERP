@@ -347,7 +347,7 @@ public final class ProfessionalUiEnhancer {
             String colour = state.equals("positive") ? "#16a34a"
                 : state.equals("negative") ? "#dc2626"
                 : state.equals("warning") ? "#d97706" : "#2563eb";
-            HBox content = new HBox(6, IconFactory.statusIcon(semantic, colour), label);
+            HBox content = new HBox(6, IconFactory.compactIcon(semantic, 15), label);
             content.setAlignment(Pos.CENTER_LEFT);
             content.getStyleClass().add("erp-status-content");
             setText(null);

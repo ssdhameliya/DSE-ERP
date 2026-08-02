@@ -176,7 +176,7 @@
                     <TableColumn fx:id="colStatus" text="Status" prefWidth="115"/>
                     <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="125"/>
                     <TableColumn fx:id="colActions"
-                                 text="Action"
+                                 text="Actions"
                                  prefWidth="92"
                                  minWidth="92"
                                  maxWidth="92"

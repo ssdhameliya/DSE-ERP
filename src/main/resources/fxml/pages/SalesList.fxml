@@ -142,7 +142,7 @@
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="115"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="75"/>
                 <TableColumn fx:id="colWhatsapp" text="WhatsApp" prefWidth="85"/>
-                <TableColumn fx:id="colAction" text="" prefWidth="58" minWidth="54" maxWidth="62"/>
+                <TableColumn fx:id="colAction" text="Actions" prefWidth="58" minWidth="54" maxWidth="62"/>
               </columns>
             </TableView>
 

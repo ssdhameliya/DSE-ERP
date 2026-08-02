@@ -217,7 +217,7 @@
                         <TableColumn fx:id="colSize" text="Size" prefWidth="100"/>
                         <TableColumn fx:id="colStatus" text="Status" prefWidth="130"/>
                         <TableColumn fx:id="colSource" text="Source" prefWidth="120"/>
-                        <TableColumn fx:id="colActions" text="" prefWidth="92" sortable="false" resizable="false"/>
+                        <TableColumn fx:id="colActions" text="Actions" prefWidth="92" sortable="false" resizable="false"/>
                     </columns>
                 </TableView>
 

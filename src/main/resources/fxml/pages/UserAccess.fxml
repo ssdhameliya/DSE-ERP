@@ -68,7 +68,7 @@
                     <TableColumn fx:id="colStatus" text="Status" prefWidth="82"/>
                     <TableColumn fx:id="colLastLogin" text="Last Login" prefWidth="125"/>
                     <TableColumn fx:id="colMfa" text="MFA" prefWidth="60"/>
-                    <TableColumn fx:id="colActions" text="" prefWidth="75"/>
+                    <TableColumn fx:id="colActions" text="Actions" prefWidth="75"/>
                 </columns>
             </TableView>
             <HBox spacing="8" alignment="CENTER_RIGHT" styleClass="user-access-bottom-actions">
@@ -99,7 +99,7 @@
                                     <TableColumn fx:id="colRoleDescription" text="Description" prefWidth="230"/>
                                     <TableColumn fx:id="colRoleUsers" text="Users" prefWidth="55"/>
                                     <TableColumn fx:id="colRoleStatus" text="Status" prefWidth="72"/>
-                                    <TableColumn fx:id="colRoleActions" text="" prefWidth="70"/>
+                                    <TableColumn fx:id="colRoleActions" text="Actions" prefWidth="70"/>
                                 </columns>
                             </TableView>
                             <Label text="Role Permissions Overview" styleClass="section-title,user-role-overview-title"/>
@@ -119,7 +119,7 @@
                             <TableView fx:id="permissionTable" editable="true" VBox.vgrow="ALWAYS" styleClass="user-access-permission-table">
                                 <columns>
                                     <TableColumn fx:id="colPermissionModule" text="Module" prefWidth="100"/>
-                                    <TableColumn fx:id="colPermissionAction" text="Permission" prefWidth="105"/>
+                                    <TableColumn fx:id="colPermissionAction" text="Actions" prefWidth="105"/>
                                     <TableColumn fx:id="colPermissionDescription" text="Description" prefWidth="245"/>
                                     <TableColumn fx:id="colPermissionAllowed" text="Allowed" prefWidth="70" editable="true"/>
                                 </columns>
