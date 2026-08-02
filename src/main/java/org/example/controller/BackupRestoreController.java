@@ -191,7 +191,7 @@ public class BackupRestoreController {
 
     private TableCell<BackupRow, Void> createActionCell() {
         return new TableCell<>() {
-            private final MenuButton actions = new MenuButton("⋮");
+            private final MenuButton actions = new MenuButton();
             private BackupRow currentRow;
 
             private final MenuItem viewDetails = menuItem("View Details", "view", () -> showDetails(currentRow));

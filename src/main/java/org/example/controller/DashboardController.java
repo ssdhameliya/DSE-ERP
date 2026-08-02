@@ -172,9 +172,9 @@ public class DashboardController {
         if (contentPane.getScene() == null) return;
         Runnable resize = () -> {
             double width = contentPane.getScene().getWidth();
-            double searchWidth = Math.max(190, Math.min(390, width * (PlatformUiSupport.isMac() ? 0.17 : 0.20)));
+            double searchWidth = Math.max(150, Math.min(390, width * (PlatformUiSupport.isMac() ? 0.17 : 0.20)));
             txtSearch.setPrefWidth(searchWidth);
-            if (sidebarRoot != null) sidebarRoot.setPrefWidth(width < 1250 ? 178 : PlatformUiSupport.isMac() ? 198 : 215);
+            if (sidebarRoot != null) sidebarRoot.setPrefWidth(width < 1050 ? 164 : width < 1250 ? 178 : PlatformUiSupport.isMac() ? 198 : 215);
             if (menuUser != null) {
                 menuUser.setMaxWidth(width < 1400 ? 135 : 175);
                 PlatformUiSupport.configureTextOverflow(menuUser);
@@ -292,6 +292,7 @@ public class DashboardController {
     private void applyIcon(Button button) {
         String text = button.getText() == null ? "" : button.getText().toLowerCase(Locale.ROOT);
         String icon = text.contains("dashboard") ? "dashboard"
+            : text.contains("quotation") ? "quotation"
             : text.contains("import") ? "import"
             : text.contains("sale") ? "sale"
             : text.contains("purchase") ? "purchase"

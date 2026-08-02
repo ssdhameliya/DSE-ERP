@@ -29,6 +29,7 @@ import javafx.application.Platform;
 import javafx.scene.Node;
 import org.example.util.IconFactory;
 import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 import java.nio.file.Files;
 
 import java.time.LocalDate;
@@ -764,9 +765,7 @@ public class PurchaseController {
             Parent root = loader.load();
             loader.<PartyDialogController>getController().configure("SUPPLIER", null);
             Stage dialog = new Stage();
-            dialog.initOwner(cmbSupplier.getScene().getWindow());
-            dialog.initModality(Modality.WINDOW_MODAL);
-            dialog.setTitle("Add Supplier");
+            PlatformUiSupport.configureDialogStage(dialog, cmbSupplier, "Add Supplier", true);
             Scene scene = new Scene(root);
             ThemeManager.applyTheme(scene);
             dialog.setScene(scene);

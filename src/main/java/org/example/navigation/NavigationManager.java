@@ -6,10 +6,11 @@ import javafx.scene.layout.StackPane;
 import javafx.application.Platform;
 import org.example.util.ProfessionalUiEnhancer;
 import org.example.util.ModernDialog;
-import org.example.util.ToastManager;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -22,6 +23,13 @@ public class NavigationManager {
     private final StackPane contentPane;
     private static final AtomicBoolean NAVIGATION_IN_PROGRESS = new AtomicBoolean(false);
     private String currentPage;
+    private final Map<String, CachedPage> pageCache = new LinkedHashMap<>(16, 0.75f, true);
+    private static final int MAX_CACHED_PAGES = 8;
+    private static final java.util.Set<String> NON_CACHEABLE = java.util.Set.of(
+        "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/Registration.fxml",
+        "/fxml/pages/SetupWizard.fxml", "/fxml/pages/Import.fxml", "/fxml/pages/Settings.fxml",
+        "/fxml/pages/BackupRestore.fxml", "/fxml/pages/EmailSettings.fxml"
+    );
 
     public NavigationManager(StackPane contentPane) {
         this.contentPane = contentPane;
@@ -50,19 +58,35 @@ public class NavigationManager {
             if (url == null) {
                 throw new IllegalStateException("Application screen was not found: " + fxml);
             }
-            FXMLLoader loader = new FXMLLoader(url);
-            Node page = loader.load();
-            contentPane.getChildren().setAll(page);
+            boolean cacheable = !NON_CACHEABLE.contains(fxml);
+            CachedPage cached = cacheable ? pageCache.get(fxml) : null;
+            boolean reused = cached != null;
+            if (!reused) {
+                FXMLLoader loader = new FXMLLoader(url);
+                Node page = loader.load();
+                ProfessionalUiEnhancer.enhance(page);
+                cached = new CachedPage(page, loader.getController());
+                if (cacheable) cache(fxml, cached);
+            }
 
-            // Enhance once the page belongs to the live scene graph. Table header
-            // graphics and Ikonli glyphs can be lost when they are created before
-            // the TableView skin exists (most visible when the application starts
-            // directly in light mode). The deferred pass runs after CSS/skin creation.
-            ProfessionalUiEnhancer.enhance(page);
-            Platform.runLater(() -> ProfessionalUiEnhancer.enhance(page));
-
+            contentPane.getChildren().setAll(cached.node());
+            // JavaFX creates skins lazily. A first CSS/layout pass followed by an
+            // idempotent enhancement guarantees icons and table headers are visible
+            // on the first navigation, not only after a theme switch.
+            Node attachedPage = cached.node();
+            Platform.runLater(() -> {
+                attachedPage.applyCss();
+                attachedPage.autosize();
+                ProfessionalUiEnhancer.enhance(attachedPage);
+                Platform.runLater(() -> {
+                    attachedPage.applyCss();
+                    ProfessionalUiEnhancer.enhance(attachedPage);
+                });
+            });
+            // initialize() has already populated a newly loaded controller. Refresh only
+            // when returning to a cached screen, avoiding duplicate database work.
+            if (reused && !fxml.equals(currentPage)) refreshController(cached.controller());
             currentPage = fxml;
-            ToastManager.info(page, "Screen ready", screenName(fxml) + " opened successfully.");
             return true;
         } catch (Throwable error) {
             error.printStackTrace();
@@ -74,6 +98,54 @@ public class NavigationManager {
             NAVIGATION_IN_PROGRESS.set(false);
         }
     }
+
+    private void cache(String fxml, CachedPage page) {
+        pageCache.put(fxml, page);
+        while (pageCache.size() > MAX_CACHED_PAGES) {
+            String eldest = pageCache.keySet().iterator().next();
+            if (eldest.equals(currentPage) && pageCache.size() > 1) {
+                CachedPage keep = pageCache.remove(eldest);
+                pageCache.put(eldest, keep);
+                continue;
+            }
+            pageCache.remove(eldest);
+        }
+    }
+
+    private static void refreshController(Object controller) {
+        if (controller == null) return;
+        for (String methodName : new String[]{"refresh", "loadData", "loadItems"}) {
+            try {
+                java.lang.reflect.Method method = findNoArgMethod(controller.getClass(), methodName);
+                if (method == null) continue;
+                method.setAccessible(true);
+                method.invoke(controller);
+                return;
+            } catch (ReflectiveOperationException error) {
+                throw new IllegalStateException("Could not refresh " + controller.getClass().getSimpleName(), error);
+            }
+        }
+    }
+
+    private static java.lang.reflect.Method findNoArgMethod(Class<?> type, String name) {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                java.lang.reflect.Method method = current.getDeclaredMethod(name);
+                return method.getParameterCount() == 0 ? method : null;
+            } catch (NoSuchMethodException ignored) {
+                // Continue through inherited controller classes.
+            }
+        }
+        return null;
+    }
+
+    public void invalidate(String fxml) {
+        if (fxml != null) pageCache.remove(fxml);
+    }
+
+    public void clearCache() { pageCache.clear(); }
+
+    private record CachedPage(Node node, Object controller) {}
 
     public String getCurrentPage() { return currentPage; }
 

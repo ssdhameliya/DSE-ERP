@@ -28,6 +28,7 @@ import org.example.service.PartyService;
 import org.example.service.SalesService;
 import org.example.util.IconFactory;
 import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -394,9 +395,7 @@ public class SalesController {
             Parent root = loader.load();
             loader.<PartyDialogController>getController().configure("CUSTOMER", null);
             Stage dialog = new Stage();
-            dialog.initOwner(cmbCustomer.getScene().getWindow());
-            dialog.initModality(Modality.WINDOW_MODAL);
-            dialog.setTitle("Add Customer");
+            PlatformUiSupport.configureDialogStage(dialog, cmbCustomer, "Add Customer", true);
             Scene scene = new Scene(root);
             ThemeManager.applyTheme(scene);
             dialog.setScene(scene);

@@ -46,7 +46,7 @@
       <TableColumn fx:id="cRefund" text="Refund Amount (₹)" prefWidth="130"/>
       <TableColumn fx:id="cStatus" text="Return Status" prefWidth="125"/>
       <TableColumn fx:id="cRefundStatus" text="Refund Status" prefWidth="125"/>
-      <TableColumn fx:id="cAction" text="Actions" prefWidth="90"/>
+      <TableColumn fx:id="cAction" text="" prefWidth="90"/>
     </columns>
   </TableView>
   <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to view • Right-click for actions" styleClass="muted-text"/></HBox>

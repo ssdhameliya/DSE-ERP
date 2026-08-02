@@ -81,14 +81,14 @@ public class PurchaseReturnsController {
 
     private void installActions() {
         cAction.setCellFactory(column -> new TableCell<>() {
-            final MenuButton menu = new MenuButton("Actions");
+            final MenuButton menu = new MenuButton();
             {
                 add("View Details", "view", e -> view(row())); add("Edit Return", "edit", e -> edit(row()));
                 add("Print / PDF", "print", e -> view(row())); add("Send Email", "email", e -> email(row()));
                 add("View Original Purchase", "purchase", e -> original(row())); add("Record Refund", "payment", e -> recordRefund(row()));
                 add("Attach Document", "attachment", e -> attach(row())); add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row())); add("Delete Return", "delete", e -> delete(row()));
-                menu.getStyleClass().add("row-actions");
+                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);menu.setTooltip(new Tooltip("Actions"));
             }
             private Row row() { return getTableView().getItems().get(getIndex()); }
             private void add(String name, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) { MenuItem item = new MenuItem(name, IconFactory.icon(icon)); item.setOnAction(handler); menu.getItems().add(item); }

@@ -273,9 +273,10 @@ public final class ProfessionalUiEnhancer {
         if (key.contains("supplier") || key.contains("vendor")) return "supplier";
         if (key.contains("customer supplier") || key.equals("party") || key.contains("party name")
             || key.contains("received from")) return "customer";
+        if (key.equals("user") || key.contains("username") || key.contains("created by")
+            || key.contains("updated by") || key.contains("employee") || key.contains("assignee")) return "user";
         if (key.contains("customer") || key.contains("sales person") || key.contains("salesperson")
-            || key.equals("user") || key.contains("username") || key.contains("full name")
-            || key.contains("created by") || key.contains("employee") || key.contains("assignee")) return "customer";
+            || key.contains("full name")) return "customer";
         if (key.contains("address") || key.contains("location") || key.contains("branch")
             || key.contains("department") || key.contains("city") || key.contains("state")) return "location";
 
@@ -295,16 +296,20 @@ public final class ProfessionalUiEnhancer {
         if (key.contains("qty") || key.contains("quantity") || key.contains("stock")
             || key.contains("unit") || key.contains("available") || key.contains("reserved")
             || key.contains("size") || key.contains("in stock")) return "quantity";
-        if (key.contains("category") || key.contains("brand") || key.equals("type")) return "master";
+        if (key.equals("type") || key.contains("movement type") || key.contains("transaction type")) return "category";
+        if (key.contains("category") || key.contains("brand")) return "master";
 
         if (key.contains("amount") || value.equals("paid") || key.startsWith("paid ") || key.contains(" paid ")
             || key.contains("balance") || key.contains("rate") || key.contains("price")
             || key.contains("total") || key.contains("opening balance") || key.contains("allocate")
             || key.contains("receivable") || key.contains("payable")) return "currency";
         if (key.contains("reason") || key.contains("note") || key.contains("remark")
-            || key.contains("description") || key.contains("subject") || key.equals("value")) return "document";
+            || key.contains("description") || key.contains("subject")) return "notes";
+        if (key.equals("value")) return "master";
+        if (key.equals("user") || key.contains("created by") || key.contains("updated by")) return "user";
 
-        return "document";
+        // Unknown headings should not all receive the same document icon.
+        return null;
     }
 
     /** Default icon-plus-label renderer for status columns without custom logic. */
@@ -325,9 +330,19 @@ public final class ProfessionalUiEnhancer {
             }
             String value = String.valueOf(item).trim();
             String state = state(value);
-            String semantic = state.equals("positive") ? "complete"
-                : state.equals("negative") ? "error"
-                : columnSemantic == null ? "warning" : columnSemantic;
+            String semantic;
+            if ("email".equals(columnSemantic)) semantic = "email";
+            else if ("whatsapp".equals(columnSemantic)) semantic = "whatsapp";
+            else if ("reminder".equals(columnSemantic)) semantic = "reminder";
+            else if ("document".equals(columnSemantic) || "status".equals(columnSemantic)) {
+                semantic = state.equals("positive") ? "complete"
+                    : state.equals("negative") ? "error"
+                    : state.equals("warning") ? "status" : "document";
+            } else {
+                semantic = state.equals("positive") ? "complete"
+                    : state.equals("negative") ? "error"
+                    : columnSemantic == null ? "warning" : columnSemantic;
+            }
             Label label = new Label(value);
             String colour = state.equals("positive") ? "#16a34a"
                 : state.equals("negative") ? "#dc2626"

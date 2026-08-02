@@ -22,8 +22,7 @@ public class SceneManager {
 
         primaryStage = stage;
         primaryStage.setTitle("DSE ERP");
-        primaryStage.setMinWidth(1200);
-        primaryStage.setMinHeight(700);
+        WindowUtilsFx.applyAdaptiveMinimums(primaryStage, javafx.stage.Screen.getPrimary().getVisualBounds());
 
     }
 
@@ -35,10 +34,12 @@ public class SceneManager {
             Parent root = loader.load();
             SetupWizardController controller = loader.getController();
             controller.setOnCompleted(onCompleted);
-            Scene scene = new Scene(root, 1280, 820);
+            javafx.geometry.Rectangle2D usable = javafx.stage.Screen.getPrimary().getVisualBounds();
+            Scene scene = new Scene(root, Math.min(1280, usable.getWidth()), Math.min(820, usable.getHeight()));
             ThemeManager.applyTheme(scene);
+            PlatformUiSupport.installResponsiveClasses(scene);
             primaryStage.setScene(scene);
-            primaryStage.centerOnScreen();
+            if (!primaryStage.isShowing()) primaryStage.centerOnScreen();
             primaryStage.show();
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to open first-run setup.", exception);
@@ -75,14 +76,16 @@ public class SceneManager {
 
             Parent root = loader.load();
 
-            Scene scene = new Scene(root, 1440, 900);
+            javafx.geometry.Rectangle2D usable = WindowUtilsFx.visualBoundsFor(primaryStage);
+            double width = Math.min(Math.max(primaryStage.getWidth(), 960), usable.getWidth());
+            double height = Math.min(Math.max(primaryStage.getHeight(), 640), usable.getHeight());
+            Scene scene = new Scene(root, width, height);
 
             ThemeManager.applyTheme(scene);
 
+            PlatformUiSupport.installResponsiveClasses(scene);
             primaryStage.setScene(scene);
-
-            primaryStage.centerOnScreen();
-
+            if (!primaryStage.isShowing()) primaryStage.centerOnScreen();
             primaryStage.show();
 
         } catch (Exception e) {

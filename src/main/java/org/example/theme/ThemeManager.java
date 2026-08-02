@@ -2,6 +2,11 @@ package org.example.theme;
 
 import javafx.scene.Scene;
 import javafx.stage.Window;
+import javafx.stage.Stage;
+import javafx.scene.control.DialogPane;
+import javafx.application.Platform;
+import org.example.util.PlatformUiSupport;
+import org.example.util.WindowUtilsFx;
 import javafx.collections.ListChangeListener;
 import org.example.config.ConfigManager;
 import org.example.util.ProfessionalUiEnhancer;
@@ -50,7 +55,13 @@ public final class ThemeManager {
         // only the icon decorator. This keeps row numbers, table-header icons,
         // button graphics, full-width tables and default dates stable after
         // every navigation and in every dialog.
-        if (scene.getRoot() != null) ProfessionalUiEnhancer.enhance(scene.getRoot());
+        if (scene.getRoot() != null) {
+            PlatformUiSupport.installResponsiveClasses(scene);
+            ProfessionalUiEnhancer.enhance(scene.getRoot());
+            if (scene.getRoot() instanceof DialogPane pane && !pane.getStyleClass().contains("erp-modern-dialog")) {
+                pane.getStyleClass().add("erp-modern-dialog");
+            }
+        }
 
     }
 
@@ -60,7 +71,14 @@ public final class ThemeManager {
         Window.getWindows().addListener((ListChangeListener<Window>) change -> {
             while (change.next()) if (change.wasAdded()) for (Window window : change.getAddedSubList()) {
                 window.showingProperty().addListener((o, oldValue, showing) -> {
-                    if (showing && window.getScene() != null) applyTheme(window.getScene());
+                    if (showing && window.getScene() != null) {
+                        applyTheme(window.getScene());
+                        Platform.runLater(() -> {
+                            if (window instanceof Stage stage) {
+                                WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
+                            }
+                        });
+                    }
                 });
                 if (window.getScene() != null) applyTheme(window.getScene());
             }

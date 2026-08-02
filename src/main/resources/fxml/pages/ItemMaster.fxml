@@ -46,7 +46,7 @@
                 <TableColumn fx:id="colMinimumStock" text="Min Stock" prefWidth="85"/>
                 <TableColumn fx:id="colLocation" text="Location" prefWidth="110"/>
                 <TableColumn fx:id="colRemarks" text="Remarks" prefWidth="180"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="120"/>
+                <TableColumn fx:id="colAction" text="" prefWidth="120"/>
             </columns>
         </TableView>
         <HBox alignment="CENTER_RIGHT" styleClass="table-footer,entity-table-footer">

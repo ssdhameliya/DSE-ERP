@@ -403,12 +403,14 @@ public class ReminderCenterController {
 
     private TableCell<ReminderRow, Void> actionCell() {
         return new TableCell<>() {
-            private final MenuButton actions = new MenuButton("⋮");
+            private final MenuButton actions = new MenuButton();
             private ReminderRow currentRow;
 
             {
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Reminder actions"));
+                actions.setGraphic(IconFactory.compactIcon("actions", 16));
+                actions.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
                 actions.getStyleClass().addAll("reminder-action-button", "reminder-three-dot-button");
                 setAlignment(Pos.CENTER);
 

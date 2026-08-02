@@ -16,11 +16,11 @@
   </HBox>
 
   <HBox spacing="12">
-    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Total Returns"/><Label fx:id="total" styleClass="money-strong"/><Label text="All returns"/></VBox>
-    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="This Month"/><Label fx:id="month" styleClass="money-strong"/><Label text="Current period"/></VBox>
-    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Pending Returns"/><Label fx:id="pending" styleClass="money-strong"/><Label text="Awaiting action"/></VBox>
-    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Approved Returns"/><Label fx:id="approved" styleClass="money-strong"/><Label text="Approved / completed"/></VBox>
-    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="money-strong"/><Label text="Processed refunds"/></VBox>
+    <VBox styleClass="return-kpi,kpi-with-icon,kpi-return" HBox.hgrow="ALWAYS"><Label text="↩" styleClass="kpi-semantic-icon,kpi-icon-return"/><Label text="Total Returns"/><Label fx:id="total" styleClass="money-strong"/><Label text="All returns"/></VBox>
+    <VBox styleClass="return-kpi,kpi-with-icon,kpi-calendar" HBox.hgrow="ALWAYS"><Label text="◷" styleClass="kpi-semantic-icon,kpi-icon-calendar"/><Label text="This Month"/><Label fx:id="month" styleClass="money-strong"/><Label text="Current period"/></VBox>
+    <VBox styleClass="return-kpi,kpi-with-icon,kpi-warning" HBox.hgrow="ALWAYS"><Label text="!" styleClass="kpi-semantic-icon,kpi-icon-warning"/><Label text="Pending Returns"/><Label fx:id="pending" styleClass="money-strong"/><Label text="Awaiting action"/></VBox>
+    <VBox styleClass="return-kpi,kpi-with-icon,kpi-complete" HBox.hgrow="ALWAYS"><Label text="✓" styleClass="kpi-semantic-icon,kpi-icon-complete"/><Label text="Approved Returns"/><Label fx:id="approved" styleClass="money-strong"/><Label text="Approved / completed"/></VBox>
+    <VBox styleClass="return-kpi,kpi-with-icon,kpi-payment" HBox.hgrow="ALWAYS"><Label text="₹" styleClass="kpi-semantic-icon,kpi-icon-payment"/><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="money-strong"/><Label text="Processed refunds"/></VBox>
   </HBox>
 
   <VBox spacing="10" styleClass="filter-surface">
@@ -49,7 +49,7 @@
       <TableColumn fx:id="reason" text="Reason" prefWidth="170"/>
       <TableColumn fx:id="status" text="Return Status" prefWidth="125"/>
       <TableColumn fx:id="refundStatus" text="Refund Status" prefWidth="125"/>
-      <TableColumn fx:id="action" text="Actions" prefWidth="90"/>
+      <TableColumn fx:id="action" text="" prefWidth="90"/>
     </columns>
   </TableView>
   <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to view • Right-click for actions" styleClass="muted-text"/></HBox>

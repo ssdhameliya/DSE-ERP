@@ -1,14 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-
-<ScrollPane xmlns="http://javafx.com/javafx/21"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.controller.SalesController"
-            fitToWidth="true"
-            hbarPolicy="NEVER"
-            styleClass="clean-scroll,sales-entry-scroll">
+<ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesController" fitToWidth="true" hbarPolicy="NEVER" styleClass="clean-scroll,sales-entry-scroll">
     <content>
         <VBox fx:id="salesEntryRoot" spacing="16" styleClass="purchase-page,sales-flow-page,sales-entry-page">
             <padding>
@@ -91,6 +85,8 @@
                             <TextField fx:id="txtReference"/>
                             <TextField fx:id="txtAttachment"/>
                             <TextArea fx:id="txtInvoiceMessage" text="Thank you for your business."/>
+                            <TextArea fx:id="txtRemarks" visible="false" managed="false"/>
+                            <TextArea fx:id="txtDeliveryAddress" visible="false" managed="false"/>
                         </VBox>
 
                         <HBox spacing="10" alignment="CENTER_LEFT" styleClass="sales-entry-line-toolbar">
@@ -103,7 +99,7 @@
                             <Button text="Remove" onAction="#removeLine" styleClass="sales-entry-remove-button"/>
                         </HBox>
 
-                        <TableView fx:id="tableLines" prefHeight="330" minHeight="275" VBox.vgrow="ALWAYS" styleClass="sales-entry-table">
+                        <TableView fx:id="tableLines" prefHeight="520" minHeight="360" VBox.vgrow="ALWAYS" styleClass="sales-entry-table">
                             <columns>
                                 <TableColumn fx:id="colItem" text="Item Name *" prefWidth="360"/>
                                 <TableColumn fx:id="colQuantity" text="Qty" prefWidth="100"/>
@@ -118,24 +114,7 @@
                         </TableView>
                     </VBox>
 
-                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card">
-                        <Label text="Other Information" styleClass="flow-title,sales-entry-section-title"/>
-                        <GridPane hgap="18" vgap="12">
-                            <columnConstraints>
-                                <ColumnConstraints percentWidth="50"/>
-                                <ColumnConstraints percentWidth="50"/>
-                            </columnConstraints>
-                            <VBox spacing="6">
-                                <Label text="Internal Notes"/>
-                                <TextArea fx:id="txtRemarks" prefRowCount="3" promptText="Call before delivery."/>
-                            </VBox>
-                            <VBox spacing="6" GridPane.columnIndex="1">
-                                <Label text="Delivery Address"/>
-                                <TextArea fx:id="txtDeliveryAddress" prefRowCount="3" promptText="Customer delivery address"/>
-                            </VBox>
-                        </GridPane>
                     </VBox>
-                </VBox>
 
                 <VBox spacing="14" prefWidth="320" minWidth="300" maxWidth="350">
                     <VBox spacing="13" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-summary-card">

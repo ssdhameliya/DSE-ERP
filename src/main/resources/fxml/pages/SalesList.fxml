@@ -123,7 +123,7 @@
               <Button fx:id="btnCustomRange" text="Custom Range" onAction="#focusCustomRange" styleClass="sales-range-button,sales-custom-range-button"/>
             </HBox>
 
-            <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" styleClass="sales-filter-chips"/>
+            <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" visible="false" managed="false" styleClass="sales-filter-chips"/>
           </VBox>
 
           <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
@@ -142,7 +142,7 @@
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="115"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="75"/>
                 <TableColumn fx:id="colWhatsapp" text="WhatsApp" prefWidth="85"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="118"/>
+                <TableColumn fx:id="colAction" text="" prefWidth="58" minWidth="54" maxWidth="62"/>
               </columns>
             </TableView>
 

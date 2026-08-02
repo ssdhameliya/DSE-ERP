@@ -130,41 +130,31 @@ public class ItemMasterController {
             return cell;
         });
 
-        // Action column (Edit / Delete)
+        // Compact icon-only action menu. Full labels remain inside the menu.
         colAction.setCellFactory(tc -> new TableCell<>() {
-            private final Button btnEdit =
-                new Button("✏");
-
-
-            private final Button btnDelete =
-                new Button("🗑");
-
-
-
-
-
+            private final MenuButton actions = new MenuButton();
             {
-                btnEdit.setText("Edit"); btnEdit.setGraphic(IconFactory.icon("edit"));
-                btnDelete.setText("Delete"); btnDelete.setGraphic(IconFactory.icon("delete"));
-                btnEdit.getStyleClass().add("small-button");
-                btnDelete.getStyleClass().add("small-button-danger");
-                btnEdit.setOnAction(e -> {
-                    Item item = getTableView().getItems().get(getIndex());
-                    openItemDialog(item);
-                });
-                btnEdit.setTooltip(new Tooltip("Edit Item"));
-                btnDelete.setOnAction(e -> {
-                    Item item = getTableView().getItems().get(getIndex());
-                    deleteItem(item);
+                actions.getStyleClass().add("table-action-menu");
+                actions.setGraphic(IconFactory.compactIcon("actions", 16));
+                actions.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                actions.setTooltip(new Tooltip("Item actions"));
 
-                });
-                btnDelete.setTooltip(new Tooltip("Delete Item"));
+                MenuItem edit = new MenuItem("Edit Item", IconFactory.compactIcon("edit", 16));
+                edit.setOnAction(e -> openItemDialog(currentItem()));
+                MenuItem delete = new MenuItem("Delete Item", IconFactory.compactIcon("delete", 16));
+                delete.setOnAction(e -> deleteItem(currentItem()));
+                actions.getItems().addAll(edit, delete);
             }
 
-            @Override protected void updateItem(Void v, boolean empty) {
-                super.updateItem(v, empty);
-                if (empty) setGraphic(null);
-                else setGraphic(new HBox(6, btnEdit, btnDelete));
+            private Item currentItem() {
+                int index = getIndex();
+                return index >= 0 && index < getTableView().getItems().size()
+                    ? getTableView().getItems().get(index) : null;
+            }
+
+            @Override protected void updateItem(Void value, boolean empty) {
+                super.updateItem(value, empty);
+                setGraphic(empty ? null : actions);
             }
         });
 

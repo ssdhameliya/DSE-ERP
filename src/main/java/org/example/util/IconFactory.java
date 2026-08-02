@@ -4,6 +4,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
@@ -63,7 +64,7 @@ public final class IconFactory {
         // A floppy-disk is meaningful on a Save button, but it looked like a
         // tiny square when reused for a completed row. Status cells therefore
         // use an unambiguous check-circle while retaining their business colour.
-        if ("save".equals(semantic) || "sent".equals(semantic)) semantic = "complete";
+        if ("save".equals(semantic)) semantic = "complete";
         FontIcon glyph = new FontIcon(literal(semantic));
         glyph.setIconSize(15);
         glyph.setStyle("-fx-icon-color: " + color + ";");
@@ -94,9 +95,8 @@ public final class IconFactory {
         if (node instanceof ButtonBase button) {
             String semantic = semantic(button.getText());
             String originalText = clean(button.getText());
-            // Every visible action receives a stable graphic. A generic action
-            // glyph is preferable to an inconsistent blank button.
-            if (semantic == null && !originalText.isBlank()) semantic = "more";
+            // Never guess with a generic cog. Unknown labels keep their existing
+            // graphic/text until an explicit semantic mapping is added.
             if (semantic != null) {
                 button.setText(clean(button.getText()));
                 boolean sidebar = isInside(button, "erp-sidebar");
@@ -125,6 +125,17 @@ public final class IconFactory {
             }
         }
         if (node instanceof MenuButton menu) {
+            if (isTableActionMenu(menu)) {
+                String tooltipText = clean(menu.getText());
+                if (tooltipText.isBlank()) tooltipText = "Actions";
+                menu.setText("");
+                menu.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                menu.setGraphic(actionIcon("actions", 16));
+                menu.setMinWidth(42);
+                menu.setPrefWidth(46);
+                menu.setMaxWidth(50);
+                if (menu.getTooltip() == null) menu.setTooltip(new Tooltip(tooltipText));
+            }
             decorateMenuItems(menu);
             if (!Boolean.TRUE.equals(menu.getProperties().get("erp.icons.bound"))) {
                 menu.getProperties().put("erp.icons.bound", true);
@@ -138,10 +149,20 @@ public final class IconFactory {
         }
     }
 
+
+    private static boolean isTableActionMenu(MenuButton menu) {
+        if (menu == null) return false;
+        String styles = String.join(" ", menu.getStyleClass()).toLowerCase(Locale.ROOT);
+        String text = clean(menu.getText()).toLowerCase(Locale.ROOT);
+        return styles.contains("row-actions") || styles.contains("table-action")
+            || styles.contains("user-action-menu") || text.equals("actions")
+            || text.equals("⋮") || text.equals("...");
+    }
+
     private static void decorateMenuItems(MenuButton menu) {
         for (MenuItem item : menu.getItems()) {
             String semantic = semantic(item.getText());
-            if (semantic == null) semantic = "more";
+            if (semantic == null) continue;
             item.setText(clean(item.getText()));
             if (item.getGraphic() == null || Boolean.TRUE.equals(item.getProperties().get("erp.icon.decorated"))) {
                 item.setGraphic(actionIcon(semantic, 16));
@@ -277,6 +298,7 @@ public final class IconFactory {
             case "cart" -> "sale";
             case "users" -> "user";
             case "box" -> "item";
+            case "stock" -> "inventory";
             case "upload" -> "import";
             case "check" -> "complete";
             case "close" -> "cancel";
@@ -360,7 +382,15 @@ public final class IconFactory {
             case "location" -> "fas-map-marker-alt";
             case "warning" -> "fas-exclamation-circle";
             case "confirmation" -> "fas-question-circle";
-            case "sent" -> "fas-check-circle";
+            case "sent" -> "fas-paper-plane";
+            case "history" -> "fas-history";
+            case "adjust" -> "fas-sliders-h";
+            case "workspace" -> "fas-folder-open";
+            case "bank" -> "fas-university";
+            case "delivery" -> "fas-truck";
+            case "update" -> "fas-cloud-download-alt";
+            case "permission" -> "fas-user-shield";
+            case "select" -> "fas-hand-pointer";
             default -> "fas-question-circle";
         };
     }
@@ -373,7 +403,8 @@ public final class IconFactory {
             case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print" -> "purple";
             case "report", "delete", "error", "cancel", "pdf" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
-            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "first", "previous", "next", "last" -> "blue";
+            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "first", "previous", "next", "last", "history", "workspace", "select" -> "blue";
+            case "adjust", "bank", "delivery", "update", "permission" -> "purple";
             default -> "indigo";
         };
     }
@@ -383,8 +414,27 @@ public final class IconFactory {
         String value = text == null ? "" : text.toLowerCase(Locale.ROOT).trim();
         if (value.isBlank()) return null;
         if (value.contains("dashboard")) return "dashboard";
+        if (value.equals("today") || value.equals("yesterday") || value.contains("days")
+            || value.contains("month") || value.contains("custom range")) return "calendar";
+        if (value.contains("dark")) return "moon";
+        if (value.contains("light")) return "sun";
+        if (value.contains("logout") || value.contains("sign out")) return "lock";
+        if (value.contains("continue")) return "next";
+        if (value.contains("guide") || value.contains("help")) return "document";
+        if (value.contains("map column") || value.contains("mapping")) return "settings";
+        if (value.contains("system health")) return "validate";
+        if (value.contains("offline package") || value.contains("install update")) return "update";
         if (value.equals("menu")) return "menu";
         if (value.contains("notification")) return "notification";
+        if (value.contains("workspace")) return "workspace";
+        if (value.contains("bank") || value.contains("upi")) return "bank";
+        if (value.contains("delivery")) return "delivery";
+        if (value.contains("application update") || value.contains("check update") || value.equals("update")) return "update";
+        if (value.contains("permission")) return "permission";
+        if (value.contains("role")) return "role";
+        if (value.contains("history")) return "history";
+        if (value.contains("adjust")) return "adjust";
+        if (value.equals("ok") || value.equals("yes") || value.equals("confirm")) return "complete";
         if (value.contains("reopen")) return "reopen";
         if (value.contains("snooze")) return "snooze";
         if (value.contains("reminder")) return "reminder";

@@ -57,7 +57,7 @@
                            prefHeight="40"
                            HBox.hgrow="ALWAYS"/>
 
-                <Button text="+ Add Lookup"
+                <Button text="Add Lookup"
                         onAction="#addLookup"
                         styleClass="primary-button"/>
 
@@ -130,7 +130,7 @@
             </GridPane>
 
             <!-- Search Categories -->
-            <TextField promptText="Search Categories..."/>
+            <TextField fx:id="txtCategorySearch" promptText="Search Categories..."/>
 
             <!-- Category List -->
             <ListView fx:id="lstTypes"
@@ -139,7 +139,7 @@
             <!-- Category Actions -->
             <VBox spacing="10">
 
-                <Button text="+ Add Category"
+                <Button text="Add Category"
                         onAction="#addCategory"
                         maxWidth="Infinity"
                         styleClass="primary-button"/>
@@ -190,6 +190,7 @@
                           HBox.hgrow="ALWAYS"
                           styleClass="kpi-card">
 
+                        <StackPane fx:id="kpiCategoriesIcon" styleClass="master-kpi-icon"/>
                         <Label text="Categories"
                                styleClass="kpi-title"/>
 
@@ -204,6 +205,7 @@
                           HBox.hgrow="ALWAYS"
                           styleClass="kpi-card">
 
+                        <StackPane fx:id="kpiValuesIcon" styleClass="master-kpi-icon"/>
                         <Label text="Lookup Values"
                                styleClass="kpi-title"/>
 
@@ -218,6 +220,7 @@
                           HBox.hgrow="ALWAYS"
                           styleClass="kpi-card">
 
+                        <StackPane fx:id="kpiSelectedIcon" styleClass="master-kpi-icon"/>
                         <Label text="Selected Category"
                                styleClass="kpi-title"/>
 
@@ -232,6 +235,7 @@
                           HBox.hgrow="ALWAYS"
                           styleClass="kpi-card">
 
+                        <StackPane fx:id="kpiStatusIcon" styleClass="master-kpi-icon"/>
                         <Label text="System Status"
                                styleClass="kpi-title"/>
 
@@ -449,12 +453,12 @@
                     <Label text="Quick Actions"
                            styleClass="summary-title"/>
 
-                    <Button text="+ Add Lookup"
+                    <Button text="Add Lookup"
                             onAction="#addLookup"
                             maxWidth="Infinity"
                             styleClass="primary-button"/>
 
-                    <Button text="+ Add Category"
+                    <Button text="Add Category"
                             onAction="#addCategory"
                             maxWidth="Infinity"
                             styleClass="secondary-button"/>

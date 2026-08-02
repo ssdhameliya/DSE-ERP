@@ -16,6 +16,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.StageStyle;
+import javafx.stage.Stage;
 import org.example.theme.ThemeManager;
 
 import java.util.Optional;
@@ -119,8 +120,12 @@ public final class ModernDialog {
             if (scene != null) {
                 scene.setFill(Color.TRANSPARENT);
                 ThemeManager.applyTheme(scene);
+                PlatformUiSupport.installResponsiveClasses(scene);
             }
             styleButtons(pane, semantic);
+            if (pane.getScene() != null && pane.getScene().getWindow() instanceof Stage stage) {
+                WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
+            }
         });
         return dialog.showAndWait();
     }

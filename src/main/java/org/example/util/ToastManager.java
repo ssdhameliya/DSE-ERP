@@ -72,6 +72,9 @@ public final class ToastManager {
             Label heading = new Label(title == null ? type.name() : title);
             heading.getStyleClass().add("erp-toast-title");
             Label body = new Label(message == null ? "" : message);
+            double available = Math.max(240, owner.getWidth() - 48);
+            double toastWidth = Math.min(420, available);
+            body.setMaxWidth(Math.max(180, toastWidth - 82));
             body.setWrapText(true);
             body.getStyleClass().add("erp-toast-message");
             VBox copy = new VBox(2, heading, body);
@@ -79,7 +82,10 @@ public final class ToastManager {
             toast.setAlignment(Pos.CENTER_LEFT);
             toast.getStyleClass().addAll("erp-toast", "erp-toast-" + type.name().toLowerCase());
             toast.setOpacity(0);
+            toast.setMaxWidth(toastWidth);
+            toast.setPrefWidth(toastWidth);
             stack.getChildren().add(0, toast);
+            while (stack.getChildren().size() > 4) stack.getChildren().remove(stack.getChildren().size() - 1);
             if (!popup.isShowing()) popup.show(owner);
             relocate();
 
@@ -103,8 +109,12 @@ public final class ToastManager {
 
         private void relocate() {
             if (!popup.isShowing()) return;
-            popup.setX(owner.getX() + owner.getWidth() - Math.max(390, stack.prefWidth(-1)) - 24);
-            popup.setY(owner.getY() + 82);
+            double margin = owner.getWidth() < 900 ? 12 : 24;
+            double width = Math.min(420, Math.max(240, owner.getWidth() - margin * 2));
+            stack.setPrefWidth(width);
+            stack.setMaxWidth(width);
+            popup.setX(Math.max(owner.getX() + margin, owner.getX() + owner.getWidth() - width - margin));
+            popup.setY(owner.getY() + (owner.getHeight() < 700 ? 58 : 82));
         }
     }
 }

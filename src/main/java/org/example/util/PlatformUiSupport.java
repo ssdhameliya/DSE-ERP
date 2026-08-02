@@ -8,6 +8,7 @@ import javafx.scene.control.Labeled;
 import javafx.scene.control.OverrunStyle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.stage.Window;
 
 import java.util.Locale;
@@ -39,16 +40,26 @@ public final class PlatformUiSupport {
         Node root = scene.getRoot();
         addOnce(root, isMac() ? "platform-macos" : isWindows() ? "platform-windows" : "platform-other");
 
-        ChangeListener<Number> listener = (observable, oldValue, newValue) -> updateSizeClasses(scene);
-        scene.widthProperty().addListener(listener);
-        scene.heightProperty().addListener(listener);
+        if (!Boolean.TRUE.equals(scene.getProperties().putIfAbsent("dse.responsive.installed", Boolean.TRUE))) {
+            ChangeListener<Number> listener = (observable, oldValue, newValue) -> updateSizeClasses(scene);
+            scene.widthProperty().addListener(listener);
+            scene.heightProperty().addListener(listener);
+        }
         updateSizeClasses(scene);
     }
 
     private static void updateSizeClasses(Scene scene) {
         Node root = scene.getRoot();
-        toggle(root, "compact-shell", scene.getWidth() < 1500 || scene.getHeight() < 850);
-        toggle(root, "ultra-compact-shell", scene.getWidth() < 1220 || scene.getHeight() < 720);
+        boolean compact = scene.getWidth() < 1500 || scene.getHeight() < 850;
+        boolean ultraCompact = scene.getWidth() < 1220 || scene.getHeight() < 720;
+        boolean smallDisplay = scene.getWidth() < 1050 || scene.getHeight() < 650;
+        toggle(root, "compact-shell", compact);
+        toggle(root, "ultra-compact-shell", ultraCompact);
+        toggle(root, "small-display", smallDisplay);
+        setVisibleManaged(root.lookup("#shellClockCard"), !compact);
+        setVisibleManaged(root.lookup("#shellSearch"), !ultraCompact);
+        setVisibleManaged(root.lookup("#shellNewSale"), !ultraCompact);
+        setVisibleManaged(root.lookup("#shellTheme"), !ultraCompact);
     }
 
     public static void configureTextOverflow(Labeled labeled) {
@@ -64,6 +75,7 @@ public final class PlatformUiSupport {
      */
     public static void configureDialogStage(Stage stage, Node ownerNode, String title, boolean resizable) {
         if (stage == null) return;
+        if (isMac()) stage.initStyle(StageStyle.UTILITY);
         Window owner = ownerNode != null && ownerNode.getScene() != null
             ? ownerNode.getScene().getWindow() : null;
         if (owner != null) {
@@ -76,7 +88,7 @@ public final class PlatformUiSupport {
         stage.setResizable(resizable);
         stage.setOnShown(event -> Platform.runLater(() -> {
             installResponsiveClasses(stage.getScene());
-            centreOverOwner(stage, owner);
+            WindowUtilsFx.fitDialogToOwnerScreen(stage, owner);
         }));
     }
 
@@ -87,6 +99,12 @@ public final class PlatformUiSupport {
         }
         stage.setX(owner.getX() + Math.max(0, (owner.getWidth() - stage.getWidth()) / 2));
         stage.setY(owner.getY() + Math.max(0, (owner.getHeight() - stage.getHeight()) / 2));
+    }
+
+    private static void setVisibleManaged(Node node, boolean visible) {
+        if (node == null) return;
+        node.setVisible(visible);
+        node.setManaged(visible);
     }
 
     private static void addOnce(Node node, String styleClass) {

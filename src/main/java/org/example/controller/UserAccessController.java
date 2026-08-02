@@ -20,6 +20,7 @@ import org.example.database.DatabaseManager;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
 import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 import org.example.util.IconFactory;
 
 import java.sql.*;
@@ -128,7 +129,7 @@ public class UserAccessController {
     private void edit(UserRow row){if(row!=null)openUserDialog(row.id);}
     private void openUserDialog(Integer userId){
         try{FXMLLoader loader=new FXMLLoader(getClass().getResource("/fxml/pages/UserDialog.fxml"));Parent root=loader.load();UserDialogController controller=loader.getController();if(userId!=null)controller.editUser(userId);
-            Stage stage=new Stage();stage.initOwner(table.getScene().getWindow());stage.initModality(Modality.WINDOW_MODAL);stage.setTitle(userId==null?"Add New User":"Edit User");Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.setMinWidth(860);stage.setMinHeight(620);stage.showAndWait();refresh();}
+            Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage, table, userId==null?"Add New User":"Edit User", true);Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.setMinWidth(860);stage.setMinHeight(620);stage.showAndWait();refresh();}
         catch(Exception e){error("User form could not be opened",e);}
     }
     @FXML private void resetSelected(){resetPassword(table.getSelectionModel().getSelectedItem());}

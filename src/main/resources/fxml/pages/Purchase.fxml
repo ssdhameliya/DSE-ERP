@@ -20,7 +20,7 @@
             </columnConstraints>
             <VBox spacing="4">
               <Label text="Supplier *"/>
-              <HBox spacing="6"><ComboBox fx:id="cmbSupplier" maxWidth="Infinity" HBox.hgrow="ALWAYS"/><Button text="＋" onAction="#addSupplier"/></HBox>
+              <HBox spacing="6"><ComboBox fx:id="cmbSupplier" maxWidth="Infinity" HBox.hgrow="ALWAYS"/><Button text="" onAction="#addSupplier" styleClass="icon-only-button,supplier-icon-button" accessibleText="Add Supplier"/></HBox>
             </VBox>
             <VBox spacing="4" GridPane.columnIndex="1"><Label text="Purchase No."/><TextField fx:id="txtInvoiceNo" editable="false" promptText="Auto Generate"/></VBox>
             <VBox spacing="4" GridPane.columnIndex="2"><Label text="Purchase Date *"/><DatePicker fx:id="dpInvoiceDate" maxWidth="Infinity"/></VBox>
@@ -43,12 +43,12 @@
         </VBox>
         <VBox spacing="10" styleClass="purchase-card" VBox.vgrow="ALWAYS">
           <Label text="Purchase Items" styleClass="purchase-section-title"/>
-          <HBox spacing="7"><ComboBox fx:id="cmbItem" promptText="Select item" HBox.hgrow="ALWAYS"/><TextField fx:id="txtQuantity" promptText="Qty" prefWidth="85"/><TextField fx:id="txtRate" promptText="Rate" prefWidth="110"/><TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100"/><TextField fx:id="txtGST" promptText="Tax %" prefWidth="85"/><Button fx:id="btnAddLine" text="＋ Add Item" onAction="#addLine"/><Button text="Cancel Edit" onAction="#cancelEdit"/><Button text="Delete" onAction="#removeLine" styleClass="danger-button"/></HBox>
-          <TableView fx:id="tableLines" prefHeight="340" VBox.vgrow="ALWAYS">
+          <HBox spacing="7"><ComboBox fx:id="cmbItem" promptText="Select item" HBox.hgrow="ALWAYS"/><TextField fx:id="txtQuantity" promptText="Qty" prefWidth="85"/><TextField fx:id="txtRate" promptText="Rate" prefWidth="110"/><TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100"/><TextField fx:id="txtGST" promptText="Tax %" prefWidth="85"/><Button fx:id="btnAddLine" text="Add Item" onAction="#addLine"/><Button text="Cancel Edit" onAction="#cancelEdit"/><Button text="Delete" onAction="#removeLine" styleClass="danger-button"/></HBox>
+          <TableView fx:id="tableLines" prefHeight="520" minHeight="380" VBox.vgrow="ALWAYS">
             <columns><TableColumn text="#" prefWidth="45"/><TableColumn fx:id="colItem" text="Item Name *" prefWidth="360"/><TableColumn fx:id="colQuantity" text="Qty" prefWidth="100"/><TableColumn fx:id="colRate" text="Rate (₹)" prefWidth="125"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="100"/><TableColumn fx:id="colDiscountAmount" text="Discount" prefWidth="115"/><TableColumn fx:id="colGst" text="Tax (%)" prefWidth="90"/><TableColumn fx:id="colNetAmount" text="Taxable" prefWidth="150"/><TableColumn fx:id="colGstAmount" text="Tax" prefWidth="130"/><TableColumn fx:id="colTotal" text="Amount (₹)" prefWidth="160"/></columns>
           </TableView>
         </VBox>
-        <VBox spacing="10" styleClass="purchase-card"><Label text="Attachments" styleClass="purchase-section-title"/><Button text="☁  Drag &amp; drop files here or click to browse&#10;Supported: PDF, JPG, PNG (Max size: 5MB)" wrapText="true" onAction="#chooseAttachment" styleClass="attachment-button" maxWidth="Infinity"/><Label fx:id="lblAttachment" text="No document selected" styleClass="muted-text"/></VBox>
+        <Label fx:id="lblAttachment" text="No document selected" visible="false" managed="false"/>
       </VBox>
       <VBox spacing="14" prefWidth="315">
         <HBox spacing="8" alignment="CENTER_RIGHT"><Button text="Save as Draft" onAction="#saveDraft"/><MenuButton text="Save &amp; Print" styleClass="purchase-primary"><items><MenuItem text="Save" onAction="#savePurchase"/><MenuItem text="Save &amp; Print" onAction="#saveAndPrint"/><MenuItem text="Save as Draft" onAction="#saveDraft"/><MenuItem text="Save &amp; Email" onAction="#saveAndEmail"/><SeparatorMenuItem/><MenuItem text="Preview" onAction="#preview"/><MenuItem text="Cancel" onAction="#cancel"/></items></MenuButton></HBox>

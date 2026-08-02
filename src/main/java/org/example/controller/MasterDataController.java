@@ -9,6 +9,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
 import javafx.scene.chart.PieChart;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -49,9 +50,17 @@ public class MasterDataController {
     @FXML
     private TextField txtSearch;
 
+    @FXML
+    private TextField txtCategorySearch;
+
     /* =========================================================
        DASHBOARD
        ========================================================= */
+
+    @FXML private StackPane kpiCategoriesIcon;
+    @FXML private StackPane kpiValuesIcon;
+    @FXML private StackPane kpiSelectedIcon;
+    @FXML private StackPane kpiStatusIcon;
 
     @FXML
     private Label lblDashboardCategoryCount;
@@ -115,6 +124,7 @@ public class MasterDataController {
 
     @FXML
     public void initialize() {
+        configureKpiIcons();
         configureExplicitTableHeaderIcons();
 
         configureTableColumns();
@@ -132,6 +142,14 @@ public class MasterDataController {
             clearTable();
             setStatus("No master categories found.");
         }
+    }
+
+
+    private void configureKpiIcons() {
+        if (kpiCategoriesIcon != null) kpiCategoriesIcon.getChildren().setAll(IconFactory.icon("category", 24));
+        if (kpiValuesIcon != null) kpiValuesIcon.getChildren().setAll(IconFactory.icon("master", 24));
+        if (kpiSelectedIcon != null) kpiSelectedIcon.getChildren().setAll(IconFactory.icon("select", 24));
+        if (kpiStatusIcon != null) kpiStatusIcon.getChildren().setAll(IconFactory.icon("complete", 24));
     }
 
     private void configureTableColumns() {
@@ -168,6 +186,23 @@ public class MasterDataController {
 
         txtSearch.textProperty()
             .addListener((observable, oldValue, newValue) -> loadTable());
+
+        if (txtCategorySearch != null) {
+            txtCategorySearch.textProperty().addListener((observable, oldValue, newValue) -> filterCategories(newValue));
+        }
+    }
+
+    private final List<String> allCategories = new ArrayList<>();
+
+    private void filterCategories(String query) {
+        String value = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        String selected = lstTypes.getSelectionModel().getSelectedItem();
+        List<String> filtered = allCategories.stream()
+            .filter(category -> value.isBlank() || category.toLowerCase(Locale.ROOT).contains(value))
+            .toList();
+        lstTypes.setItems(FXCollections.observableArrayList(filtered));
+        if (selected != null && filtered.contains(selected)) lstTypes.getSelectionModel().select(selected);
+        else if (!filtered.isEmpty()) lstTypes.getSelectionModel().selectFirst();
     }
 
     private void configureTableInteractions() {
@@ -256,9 +291,8 @@ public class MasterDataController {
                 categories.add(resultSet.getString("category_name"));
             }
 
-            lstTypes.setItems(
-                FXCollections.observableArrayList(categories)
-            );
+            allCategories.clear(); allCategories.addAll(categories);
+            filterCategories(txtCategorySearch == null ? "" : txtCategorySearch.getText());
 
             updateCategoryCounts(categories.size());
             loadCategoryChart();

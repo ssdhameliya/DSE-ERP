@@ -17,6 +17,7 @@ import javafx.stage.Stage;
 import org.example.database.DatabaseManager;
 import org.example.service.NotificationService;
 import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -77,9 +78,7 @@ public class OperationsController {
         try {
             Parent root = FXMLLoader.load(getClass().getResource("/fxml/pages/UserDialog.fxml"));
             Stage stage = new Stage();
-            stage.initOwner(tabs.getScene().getWindow());
-            stage.initModality(Modality.WINDOW_MODAL);
-            stage.setTitle("Add User");
+            PlatformUiSupport.configureDialogStage(stage, tabs, "Add User", true);
             Scene scene = new Scene(root);
             ThemeManager.applyTheme(scene);
             stage.setScene(scene);
