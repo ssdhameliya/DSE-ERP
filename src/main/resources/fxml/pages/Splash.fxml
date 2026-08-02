@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Startup splash: product identity, loading status and progress indicator. -->
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.controller.SplashController"
+>
+
+    <center>
+
+        <VBox alignment="CENTER"
+              spacing="25">
+
+            <Label text="⚙"
+                   styleClass="logo"/>
+
+            <Label text="JavaApp ERP"
+                   styleClass="title"/>
+
+            <Label text="Engineering Business Suite"
+                   styleClass="subtitle"/>
+
+            <ProgressBar fx:id="progressBar"
+                         prefWidth="350"/>
+
+            <Label fx:id="lblStatus"
+                   text="Initializing Application..."
+                   styleClass="status"/>
+
+        </VBox>
+
+    </center>
+
+    <padding>
+        <Insets top="40" right="40" bottom="40" left="40"/>
+    </padding>
+
+</BorderPane>

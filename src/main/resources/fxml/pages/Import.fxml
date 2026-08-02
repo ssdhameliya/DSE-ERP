@@ -1,0 +1,596 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.geometry.Orientation?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.ImportController"
+            styleClass="import-page">
+
+    <!-- =====================================================
+         PAGE HEADER
+         ===================================================== -->
+
+    <top>
+
+        <HBox alignment="CENTER_LEFT"
+              spacing="14"
+              styleClass="import-page-header">
+
+            <padding>
+                <Insets top="14"
+                        right="20"
+                        bottom="10"
+                        left="20"/>
+            </padding>
+
+            <StackPane minWidth="38"
+                       minHeight="38"
+                       prefWidth="38"
+                       prefHeight="38"
+                       styleClass="import-header-icon-box">
+
+                <SVGPath
+                    content="M5 2h7l4 4v12H5V2zm2 2v12h7V7h-3V4H7zm1 6h5v1.5H8V10zm0 3h5v1.5H8V13z"
+                    styleClass="import-header-icon"/>
+
+            </StackPane>
+
+            <VBox spacing="3"
+                  HBox.hgrow="ALWAYS">
+
+                <Label text="Data Import"
+                       styleClass="screen-title"/>
+
+                <Label text="Import ERP master and transaction data from the supplied Excel templates"
+                       wrapText="true"
+                       styleClass="screen-subtitle"/>
+
+            </VBox>
+
+            <Button fx:id="btnImportGuide"
+                    text="Import Guide"
+                    onAction="#showImportGuide"
+                    styleClass="import-guide-button">
+
+                <graphic>
+
+                    <SVGPath
+                        content="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 13.2a1.1 1.1 0 1 1 0-2.2 1.1 1.1 0 0 1 0 2.2zM8.9 11v-.6c0-1 .45-1.55 1.25-2.1.7-.48 1.05-.83 1.05-1.45 0-.72-.52-1.17-1.3-1.17-.77 0-1.3.42-1.55 1.2L6.9 6.35C7.35 4.95 8.45 4.1 10 4.1c1.8 0 3.05 1.05 3.05 2.67 0 1.27-.62 1.95-1.65 2.65-.62.42-.88.73-.88 1.25V11H8.9z"
+                        styleClass="import-button-icon"/>
+
+                </graphic>
+
+            </Button>
+
+        </HBox>
+
+    </top>
+
+    <!-- =====================================================
+         SCROLLABLE CONTENT
+         ===================================================== -->
+
+    <center>
+
+        <ScrollPane fitToWidth="true"
+                    hbarPolicy="NEVER"
+                    vbarPolicy="AS_NEEDED"
+                    pannable="true"
+                    styleClass="import-main-scroll">
+
+            <content>
+
+                <VBox spacing="9"
+                      fillWidth="true"
+                      styleClass="import-workspace">
+
+                    <padding>
+                        <Insets top="4"
+                                right="20"
+                                bottom="18"
+                                left="20"/>
+                    </padding>
+
+                    <!-- =================================================
+                         COMPACT FILE UPLOAD AREA
+                         ================================================= -->
+
+                    <VBox fx:id="dropZone"
+                          alignment="CENTER"
+                          spacing="5"
+                          minHeight="88"
+                          prefHeight="92"
+                          maxHeight="100"
+                          maxWidth="Infinity"
+                          styleClass="import-drop-zone"
+                          onDragOver="#onDragOver"
+                          onDragEntered="#onDragEntered"
+                          onDragExited="#onDragExited"
+                          onDragDropped="#onDragDropped">
+
+                        <HBox alignment="CENTER"
+                              spacing="14">
+
+                            <StackPane minWidth="40"
+                                       minHeight="40"
+                                       prefWidth="40"
+                                       prefHeight="40"
+                                       styleClass="import-upload-icon-box">
+
+                                <Label fx:id="lblDropIcon"
+                                       text=""
+                                       styleClass="drop-icon"/>
+
+                            </StackPane>
+
+                            <VBox spacing="2"
+                                  alignment="CENTER_LEFT">
+
+                                <Label text="Drag and drop an Excel file here"
+                                       styleClass="drop-title"/>
+
+                                <Label text="Supported formats: .xlsx and .xls"
+                                       styleClass="drop-hint"/>
+
+                            </VBox>
+
+                            <Button fx:id="btnChooseFile"
+                                    text="Choose Excel File"
+                                    onAction="#onChooseImportFile"
+                                    styleClass="primary-action,import-file-button"/>
+
+                        </HBox>
+
+                        <HBox alignment="CENTER"
+                              spacing="8"
+                              styleClass="import-selected-file-row">
+
+                            <SVGPath
+                                content="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 11.2L5.8 10l1.15-1.15L9 10.9l4.1-4.1L14.25 8 9 13.2z"
+                                styleClass="import-file-success-icon"/>
+
+                            <Label fx:id="lblChosenFile"
+                                   text="No file selected"
+                                   styleClass="selected-file"/>
+
+                            <Button text="Change file"
+                                    onAction="#onChooseImportFile"
+                                    styleClass="import-link-button"/>
+
+                        </HBox>
+
+                    </VBox>
+
+                    <!-- =================================================
+                         IMPORT DESTINATION
+                         ================================================= -->
+
+                    <HBox spacing="12"
+                          alignment="CENTER_LEFT"
+                          maxWidth="Infinity"
+                          styleClass="import-options">
+
+                        <Label text="Import into"
+                               styleClass="field-label"/>
+
+                        <ComboBox fx:id="cmbImportModule"
+                                  prefWidth="250"
+                                  minWidth="220"/>
+
+                        <TextField fx:id="txtImportNote"
+                                   promptText="Optional import note"
+                                   HBox.hgrow="ALWAYS"/>
+
+                    </HBox>
+
+                    <!-- =================================================
+                         SAMPLE IMPORT TEMPLATES
+                         ================================================= -->
+
+                    <VBox spacing="9"
+                          maxWidth="Infinity"
+                          styleClass="import-card,import-template-card">
+
+                        <VBox spacing="3">
+
+                            <Label text="Sample Import Templates"
+                                   styleClass="import-section-title"/>
+
+                            <Label text="Download the matching workbook, keep its header row unchanged, complete the rows and import it above."
+                                   wrapText="true"
+                                   styleClass="import-section-description"/>
+
+                        </VBox>
+
+                        <FlowPane hgap="8"
+                                  vgap="8"
+                                  prefWrapLength="1100">
+
+                            <Button text="Item Master"
+                                    onAction="#downloadItemTemplate"
+                                    styleClass="import-template-button,template-item">
+
+                                <graphic>
+
+                                    <SVGPath
+                                        content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 2h2v2H7V7zm4 0h2v2h-2V7zM7 11h2v2H7v-2zm4 0h2v2h-2v-2z"
+                                        styleClass="import-template-icon"/>
+
+                                </graphic>
+
+                            </Button>
+
+                            <Button text="Customers / CRM"
+                                    onAction="#downloadCustomerTemplate"
+                                    styleClass="import-template-button,template-customer">
+
+                                <graphic>
+
+                                    <SVGPath
+                                        content="M10 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM3 18c0-4 2.8-6 7-6s7 2 7 6H3z"
+                                        styleClass="import-template-icon"/>
+
+                                </graphic>
+
+                            </Button>
+
+                            <Button text="Suppliers / HRM"
+                                    onAction="#downloadSupplierTemplate"
+                                    styleClass="import-template-button,template-supplier">
+
+                                <graphic>
+
+                                    <SVGPath
+                                        content="M4 3h12v5h2v9H2V8h2V3zm2 2v10h8V5H6zm-2 5v5h2v-5H4zm10 0v5h2v-5h-2z"
+                                        styleClass="import-template-icon"/>
+
+                                </graphic>
+
+                            </Button>
+
+                            <Button text="Sales"
+                                    onAction="#downloadSalesTemplate"
+                                    styleClass="import-template-button,template-sales">
+
+                                <graphic>
+
+                                    <SVGPath
+                                        content="M3 4h2l2 8h8l2-6H7.5L7 4H3zm5 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
+                                        styleClass="import-template-icon"/>
+
+                                </graphic>
+
+                            </Button>
+
+                            <Button text="Purchases"
+                                    onAction="#downloadPurchaseTemplate"
+                                    styleClass="import-template-button,template-purchase">
+
+                                <graphic>
+
+                                    <SVGPath
+                                        content="M2 5h16v2H2V5zm2 4h12v8H4V9zm2 2v4h8v-4H6z"
+                                        styleClass="import-template-icon"/>
+
+                                </graphic>
+
+                            </Button>
+
+                            <Button text="Master Categories &amp; Values"
+                                    onAction="#downloadMasterTemplate"
+                                    styleClass="import-template-button,template-master">
+
+                                <graphic>
+
+                                    <SVGPath
+                                        content="M3 3h6v6H3V3zm8 0h6v6h-6V3zM3 11h6v6H3v-6zm8 0h6v6h-6v-6z"
+                                        styleClass="import-template-icon"/>
+
+                                </graphic>
+
+                            </Button>
+
+                        </FlowPane>
+
+                    </VBox>
+
+                    <!-- =================================================
+                         RESIZABLE COLUMN MAPPING AND DATA PREVIEW
+                         ================================================= -->
+
+                    <SplitPane orientation="VERTICAL"
+                               dividerPositions="0.52"
+                               minHeight="580"
+                               prefHeight="680"
+                               maxHeight="Infinity"
+                               VBox.vgrow="ALWAYS"
+                               styleClass="import-workspace-split">
+
+                        <items>
+
+                            <!-- =========================================
+                                 COLUMN MAPPING
+                                 ========================================= -->
+
+                            <VBox spacing="0"
+                                  minHeight="270"
+                                  prefHeight="340"
+                                  maxHeight="Infinity"
+                                  styleClass="import-card,import-data-section">
+
+                                <HBox alignment="CENTER_LEFT"
+                                      spacing="10"
+                                      styleClass="import-section-header">
+
+                                    <SVGPath
+                                        content="M3 4h14v3H3V4zm0 5h6v3H3V9zm8 0h6v3h-6V9zm-8 5h9v3H3v-3zm11 0h3v3h-3v-3z"
+                                        styleClass="import-section-icon"/>
+
+                                    <VBox spacing="2"
+                                          HBox.hgrow="ALWAYS">
+
+                                        <Label text="Column Mapping"
+                                               styleClass="import-section-title"/>
+
+                                        <Label text="Map Excel columns to the correct ERP fields before importing."
+                                               styleClass="import-section-description"/>
+
+                                    </VBox>
+
+                                    <Label text="Columns adapt to the selected import template"
+                                           styleClass="import-auto-fit-label"/>
+
+                                    <Button fx:id="btnAutoMap"
+                                            text="Auto Map Columns"
+                                            onAction="#autoMapColumns"
+                                            styleClass="import-small-action">
+
+                                        <graphic>
+
+                                            <SVGPath
+                                                content="M4 3h2v3H3V4a1 1 0 0 1 1-1zm10 0h2a1 1 0 0 1 1 1v2h-3V3zM3 14h3v3H4a1 1 0 0 1-1-1v-2zm11 0h3v2a1 1 0 0 1-1 1h-2v-3zM8 5h4v2H8V5zm0 4h4v2H8V9zm0 4h4v2H8v-2z"
+                                                styleClass="import-button-icon"/>
+
+                                        </graphic>
+
+                                    </Button>
+
+                                </HBox>
+
+                                <Separator/>
+
+                                <ScrollPane fx:id="mappingScrollPane"
+                                            fitToWidth="true"
+                                            hbarPolicy="AS_NEEDED"
+                                            vbarPolicy="AS_NEEDED"
+                                            pannable="true"
+                                            minHeight="205"
+                                            prefViewportHeight="260"
+                                            maxHeight="Infinity"
+                                            VBox.vgrow="ALWAYS"
+                                            styleClass="import-inner-scroll">
+
+                                    <content>
+
+                                        <GridPane fx:id="gridMapping"
+                                                  hgap="0"
+                                                  vgap="0"
+                                                  minWidth="950"
+                                                  maxWidth="Infinity"
+                                                  styleClass="import-mapping-grid">
+
+                                            <padding>
+                                                <Insets top="0"
+                                                        right="0"
+                                                        bottom="0"
+                                                        left="0"/>
+                                            </padding>
+
+                                        </GridPane>
+
+                                    </content>
+
+                                </ScrollPane>
+
+                                <HBox alignment="CENTER_LEFT"
+                                      spacing="10"
+                                      styleClass="import-section-footer">
+
+                                    <Label fx:id="lblMappingCount"
+                                           text="0 of 0 fields mapped"
+                                           styleClass="import-success-text"/>
+
+                                    <Region HBox.hgrow="ALWAYS"/>
+
+                                    <Button fx:id="btnResetMapping"
+                                            text="Reset Mapping"
+                                            onAction="#resetMapping"
+                                            styleClass="import-link-button">
+
+                                        <graphic>
+
+                                            <SVGPath
+                                                content="M10 3a7 7 0 1 1-6.4 4.2L2 6.5V2h4.5L5 3.5A5 5 0 1 0 10 5V3z"
+                                                styleClass="import-button-icon"/>
+
+                                        </graphic>
+
+                                    </Button>
+
+                                </HBox>
+
+                            </VBox>
+
+                            <!-- =========================================
+                                 DATA PREVIEW
+                                 ========================================= -->
+
+                            <VBox spacing="0"
+                                  minHeight="250"
+                                  prefHeight="320"
+                                  maxHeight="Infinity"
+                                  styleClass="import-card,import-data-section">
+
+                                <HBox alignment="CENTER_LEFT"
+                                      spacing="10"
+                                      styleClass="import-section-header">
+
+                                    <SVGPath
+                                        content="M3 3h14v14H3V3zm2 2v2h10V5H5zm0 4v6h10V9H5zm2 1h2v4H7v-4zm4 0h2v4h-2v-4z"
+                                        styleClass="import-section-icon"/>
+
+                                    <VBox spacing="2"
+                                          HBox.hgrow="ALWAYS">
+
+                                        <Label text="Data Preview"
+                                               styleClass="import-section-title"/>
+
+                                        <Label text="First 50 rows from the selected workbook"
+                                               styleClass="import-section-description"/>
+
+                                    </VBox>
+
+                                    <Label text="Columns automatically resize for the selected template"
+                                           styleClass="import-auto-fit-label"/>
+
+                                    <Label fx:id="lblPreviewCount"
+                                           text="0 rows"
+                                           styleClass="import-preview-count"/>
+
+                                </HBox>
+
+                                <Separator/>
+
+                                <TableView fx:id="tblPreview"
+                                           editable="false"
+                                           minHeight="190"
+                                           prefHeight="255"
+                                           maxHeight="Infinity"
+                                           VBox.vgrow="ALWAYS"
+                                           styleClass="import-preview-table">
+
+                                    <placeholder>
+
+                                        <VBox alignment="CENTER"
+                                              spacing="8">
+
+                                            <SVGPath
+                                                content="M5 2h7l4 4v12H5V2zm2 2v12h7V7h-3V4H7z"
+                                                styleClass="import-placeholder-icon"/>
+
+                                            <Label text="Select an Excel file to preview its data"
+                                                   styleClass="muted-label"/>
+
+                                        </VBox>
+
+                                    </placeholder>
+
+                                </TableView>
+
+                                <HBox alignment="CENTER_LEFT"
+                                      spacing="10"
+                                      styleClass="import-section-footer">
+
+                                    <Label fx:id="lblPreviewStatus"
+                                           text="No preview loaded"
+                                           styleClass="import-preview-status"/>
+
+                                    <Region HBox.hgrow="ALWAYS"/>
+
+                                    <Label text="Scroll horizontally to view wide templates."
+                                           styleClass="muted-label"/>
+
+                                </HBox>
+
+                            </VBox>
+
+                        </items>
+
+                    </SplitPane>
+
+                    <!-- =================================================
+                         IMPORT PROGRESS
+                         ================================================= -->
+
+                    <VBox fx:id="progressContainer"
+                          spacing="6"
+                          visible="false"
+                          managed="false"
+                          maxWidth="Infinity"
+                          styleClass="import-progress-card">
+
+                        <HBox alignment="CENTER_LEFT">
+
+                            <Label fx:id="lblProgressStatus"
+                                   text="Importing data..."
+                                   styleClass="field-label"/>
+
+                            <Region HBox.hgrow="ALWAYS"/>
+
+                            <Label fx:id="lblProgressPercent"
+                                   text="0%"
+                                   styleClass="import-preview-count"/>
+
+                        </HBox>
+
+                        <ProgressBar fx:id="progressBar"
+                                     maxWidth="Infinity"
+                                     progress="0"/>
+
+                    </VBox>
+
+                    <!-- =================================================
+                         BOTTOM ACTIONS
+                         ================================================= -->
+
+                    <HBox spacing="12"
+                          alignment="CENTER_RIGHT"
+                          maxWidth="Infinity"
+                          styleClass="import-bottom-actions">
+
+                        <CheckBox fx:id="chkDryRun"
+                                  text="Validate only (do not save)"/>
+
+                        <Region HBox.hgrow="ALWAYS"/>
+
+                        <Label fx:id="lblReadyStatus"
+                               text="Choose an Excel file to begin"
+                               styleClass="muted-label"/>
+
+                        <Button fx:id="btnRunImport"
+                                text="Import Data"
+                                onAction="#onRunImport"
+                                disable="true"
+                                styleClass="primary-action,import-run-button"/>
+
+                    </HBox>
+
+                </VBox>
+
+            </content>
+
+        </ScrollPane>
+
+    </center>
+
+</BorderPane>

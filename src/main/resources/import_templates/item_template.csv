@@ -1,0 +1,2 @@
+item_code,description,category,brand,material,size,unit,hsn,gst,discount_percent,purchase_price,selling_price,opening_stock,minimum_stock,location,remarks
+ITEM001,Example Item,Valve,L&T,SS304,1",Nos,841290,18,5,100.0,120.0,10,2,Warehouse A,Sample remark

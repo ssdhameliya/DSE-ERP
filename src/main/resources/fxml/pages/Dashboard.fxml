@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Circle?>
+<?import javafx.scene.shape.SVGPath?>
+
+<!-- Shared ERP shell: module navigation, global toolbar and page host. -->
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.DashboardController" styleClass="erp-shell">
+    <left>
+        <VBox prefWidth="215" styleClass="erp-sidebar">
+            <padding><Insets top="18" right="12" bottom="18" left="12"/></padding>
+
+            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="sidebar-scroll">
+              <content><VBox spacing="1">
+            <Button fx:id="btnDashboard" text="Dashboard" onAction="#openDashboard" maxWidth="Infinity"/>
+            <VBox styleClass="nav-group"><Button fx:id="btnSales" text="Sales" onAction="#openSales" maxWidth="Infinity" styleClass="nav-parent"/>
+                <VBox spacing="1" styleClass="nav-children"><Button text="Sales Register" onAction="#openSales" maxWidth="Infinity"/><Button text="Create Sale" onAction="#createSale" maxWidth="Infinity"/><Button text="Sales Return" onAction="#openReturns" maxWidth="Infinity"/><Button fx:id="btnQuotation" text="Quotations" onAction="#openQuotations" maxWidth="Infinity"/></VBox>
+            </VBox>
+            <VBox styleClass="nav-group"><Button fx:id="btnPurchase" text="Purchase" onAction="#openPurchase" maxWidth="Infinity" styleClass="nav-parent"/>
+                <VBox spacing="1" styleClass="nav-children"><Button text="Purchase Register" onAction="#openPurchase" maxWidth="Infinity"/><Button text="Create Purchase" onAction="#createPurchase" maxWidth="Infinity"/><Button text="Purchase Return" onAction="#openPurchaseReturns" maxWidth="Infinity"/></VBox>
+            </VBox>
+            <Button fx:id="btnItem" text="Item Master" onAction="#openItemMaster" maxWidth="Infinity"/>
+            <Button fx:id="btnMasters" text="Masters" onAction="#openMasters" maxWidth="Infinity"/>
+            <Button fx:id="btnInventory" text="Inventory" onAction="#openInventory" maxWidth="Infinity"/>
+            <Button fx:id="btnCustomer" text="CRM / Customers" onAction="#openCustomers" maxWidth="Infinity"/>
+            <Button fx:id="btnSupplier" text="HRM / Suppliers" onAction="#openSupplier" maxWidth="Infinity"/>
+            <Button fx:id="btnReports" text="Reports" onAction="#openReports" maxWidth="Infinity"/>
+            <Button fx:id="btnReminders" text="Reminders" onAction="#openReminderCenter" maxWidth="Infinity"/>
+            <Button fx:id="btnUserAccess" text="User Access" onAction="#openUserAccess" maxWidth="Infinity"/>
+            <Button text="Communication" onAction="#openCommunication" maxWidth="Infinity"/>
+            <Button fx:id="btnSettings" text="Settings" onAction="#openSettings" maxWidth="Infinity"/>
+            <Button fx:id="btnBackup" text="Backup &amp; Restore" onAction="#openBackup" maxWidth="Infinity"/>
+            <Button fx:id="btnImport" text="Data Import" onAction="#openImport" maxWidth="Infinity"/>
+            <Button fx:id="btnOperations" text="Operations" onAction="#openOperations" visible="false" managed="false"/>
+              </VBox></content>
+            </ScrollPane>
+        </VBox>
+    </left>
+    <top>
+        <!-- The header is intentionally identical for every ERP page. -->
+        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="erp-topbar">
+            <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
+            <Button contentDisplay="GRAPHIC_ONLY" styleClass="top-icon,toolbar-menu">
+                <tooltip><Tooltip text="Toggle navigation menu"/></tooltip>
+            </Button>
+            <VBox><Label fx:id="lblPageTitle" text="Dashboard" styleClass="erp-page-title"/><Label fx:id="lblBreadcrumb" text="Welcome back, Admin!" styleClass="erp-breadcrumb"/></VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <!-- Live workstation date/time shown before global search on every module. -->
+            <HBox alignment="CENTER_LEFT" spacing="8" styleClass="shell-clock-card">
+                <SVGPath content="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm1 4v4.2l2.8 1.7-.8 1.3L9.5 11V6H11z"
+                         styleClass="shell-clock-icon"/>
+                <Label fx:id="lblClock" styleClass="shell-clock-text"/>
+                <Circle radius="4" styleClass="shell-clock-live"/>
+            </HBox>
+            <TextField fx:id="txtSearch" promptText="Search invoices, parties, items, payments... (Ctrl + K)" prefWidth="390" onAction="#search" styleClass="erp-global-search"/>
+            <Button text="New Sale" onAction="#createSale" styleClass="top-add"/>
+            <!-- iPhone-style switch located next to notifications and email. -->
+            <ToggleButton fx:id="btnTheme" text="Light" onAction="#toggleTheme" styleClass="theme-switch"/>
+            <StackPane styleClass="notification-button-wrap">
+                <Button fx:id="btnReminderTop" contentDisplay="GRAPHIC_ONLY" onAction="#openReminderCenter" styleClass="top-icon">
+                    <tooltip><Tooltip text="Reminder Center"/></tooltip>
+                </Button>
+                <Label fx:id="lblReminderBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
+            <StackPane styleClass="notification-button-wrap">
+                <Button fx:id="btnNotifications" contentDisplay="GRAPHIC_ONLY" onAction="#showNotifications" styleClass="top-icon">
+                    <tooltip><Tooltip text="Notifications"/></tooltip>
+                </Button>
+                <Label fx:id="lblNotificationBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
+            <StackPane styleClass="notification-button-wrap">
+                <Button fx:id="btnEmailCenter" contentDisplay="GRAPHIC_ONLY" onAction="#openEmailCenter" styleClass="top-icon">
+                    <tooltip><Tooltip text="Email centre"/></tooltip>
+                </Button>
+                <Label fx:id="lblEmailBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
+            <StackPane styleClass="notification-button-wrap">
+                <Button fx:id="btnWhatsappCenter" contentDisplay="GRAPHIC_ONLY" onAction="#openWhatsappCenter" styleClass="top-icon">
+                    <tooltip><Tooltip text="WhatsApp activity"/></tooltip>
+                </Button>
+                <Label fx:id="lblWhatsappBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
+            <MenuButton fx:id="menuUser" text="Administrator" styleClass="top-user"><items><MenuItem text="Change Password" onAction="#changePassword"/><SeparatorMenuItem/><MenuItem text="Logout" onAction="#logout"/></items></MenuButton>
+        </HBox>
+    </top>
+    <center><StackPane fx:id="contentPane" styleClass="erp-content"/></center>
+    <bottom>
+        <!-- Company identity footer is shared by every page hosted inside this shell. -->
+        <HBox alignment="CENTER" styleClass="erp-company-footer">
+            <padding><Insets top="7" right="16" bottom="7" left="16"/></padding>
+            <Label fx:id="lblCompanyFooter" wrapText="true" textAlignment="CENTER" styleClass="erp-company-footer-text"/>
+        </HBox>
+    </bottom>
+</BorderPane>

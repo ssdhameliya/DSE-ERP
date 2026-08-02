@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!-- Sales Return Register: database KPIs, date/status filters and transactional actions. -->
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.example.controller.SalesReturnsController"
+      spacing="14" styleClass="register-page">
+  <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+
+  <HBox alignment="CENTER_LEFT">
+    <VBox><Label text="Sales Return Register" styleClass="screen-title"/><Label text="Manage customer returns, approvals and refunds" styleClass="screen-subtitle"/></VBox>
+    <Region HBox.hgrow="ALWAYS"/>
+    <Button text="＋ Create Sales Return" onAction="#create" styleClass="primary-action"/>
+  </HBox>
+
+  <HBox spacing="12">
+    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Total Returns"/><Label fx:id="total" styleClass="money-strong"/><Label text="All returns"/></VBox>
+    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="This Month"/><Label fx:id="month" styleClass="money-strong"/><Label text="Current period"/></VBox>
+    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Pending Returns"/><Label fx:id="pending" styleClass="money-strong"/><Label text="Awaiting action"/></VBox>
+    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Approved Returns"/><Label fx:id="approved" styleClass="money-strong"/><Label text="Approved / completed"/></VBox>
+    <VBox styleClass="return-kpi" HBox.hgrow="ALWAYS"><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="money-strong"/><Label text="Processed refunds"/></VBox>
+  </HBox>
+
+  <VBox spacing="10" styleClass="filter-surface">
+    <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
+    <HBox spacing="10" alignment="CENTER_LEFT">
+      <TextField fx:id="search" promptText="Search return, invoice or customer..." HBox.hgrow="ALWAYS"/>
+      <ComboBox fx:id="customerFilter" promptText="All Customers" prefWidth="190"/>
+      <DatePicker fx:id="dpFrom" prefWidth="145"/>
+      <DatePicker fx:id="dpTo" prefWidth="145"/>
+      <ComboBox fx:id="statusFilter" promptText="All Status" prefWidth="150"/>
+      <Button text="Apply Filters" onAction="#filter"/>
+      <Button text="Reset" onAction="#reset" styleClass="secondary-button"/>
+      <Button text="Refresh" onAction="#refresh"/>
+      <Button text="Export" onAction="#export" styleClass="secondary-button"/>
+    </HBox>
+  </VBox>
+
+  <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table">
+    <columns>
+      <TableColumn text="" prefWidth="42"/>
+      <TableColumn fx:id="no" text="Return No." prefWidth="145"/>
+      <TableColumn fx:id="date" text="Return Date" prefWidth="100"/>
+      <TableColumn fx:id="invoice" text="Original Invoice" prefWidth="135"/>
+      <TableColumn fx:id="customer" text="Customer" prefWidth="165"/>
+      <TableColumn fx:id="amount" text="Amount (₹)" prefWidth="110"/>
+      <TableColumn fx:id="reason" text="Reason" prefWidth="170"/>
+      <TableColumn fx:id="status" text="Return Status" prefWidth="125"/>
+      <TableColumn fx:id="refundStatus" text="Refund Status" prefWidth="125"/>
+      <TableColumn fx:id="action" text="Actions" prefWidth="90"/>
+    </columns>
+  </TableView>
+  <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to view • Right-click for actions" styleClass="muted-text"/></HBox>
+</VBox>

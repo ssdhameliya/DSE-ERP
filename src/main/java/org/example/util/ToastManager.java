@@ -1,0 +1,110 @@
+package org.example.util;
+
+import javafx.animation.FadeTransition;
+import javafx.animation.PauseTransition;
+import javafx.application.Platform;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Popup;
+import javafx.stage.Window;
+import javafx.util.Duration;
+
+import java.util.Map;
+import java.util.WeakHashMap;
+
+/** Non-blocking, theme-aware feedback stacked at the top-right of the ERP. */
+public final class ToastManager {
+    public enum Type { SUCCESS, INFO, WARNING, ERROR }
+
+    private static final Map<Window, Host> HOSTS = new WeakHashMap<>();
+
+    private ToastManager() {}
+
+    public static void success(Node owner, String title, String message) { show(owner, Type.SUCCESS, title, message); }
+    public static void info(Node owner, String title, String message) { show(owner, Type.INFO, title, message); }
+    public static void warning(Node owner, String title, String message) { show(owner, Type.WARNING, title, message); }
+    public static void error(Node owner, String title, String message) { show(owner, Type.ERROR, title, message); }
+
+    public static void show(Node owner, Type type, String title, String message) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> show(owner, type, title, message));
+            return;
+        }
+        if (owner == null || owner.getScene() == null || owner.getScene().getWindow() == null) return;
+        Window window = owner.getScene().getWindow();
+        Host host = HOSTS.computeIfAbsent(window, ignored -> new Host(window, owner.getScene()));
+        host.add(type, title, message);
+    }
+
+    private static final class Host {
+        private final Window owner;
+        private final Popup popup = new Popup();
+        private final VBox stack = new VBox(10);
+
+        private Host(Window owner, Scene sourceScene) {
+            this.owner = owner;
+            stack.setAlignment(Pos.TOP_RIGHT);
+            stack.setMouseTransparent(false);
+            popup.getContent().add(stack);
+            popup.setAutoFix(true);
+            popup.setAutoHide(false);
+            owner.xProperty().addListener((o, a, b) -> relocate());
+            owner.yProperty().addListener((o, a, b) -> relocate());
+            owner.widthProperty().addListener((o, a, b) -> relocate());
+            owner.showingProperty().addListener((o, a, showing) -> { if (!showing) popup.hide(); });
+            popup.setOnShown(event -> {
+                if (stack.getScene() != null) stack.getScene().getStylesheets().setAll(sourceScene.getStylesheets());
+                Platform.runLater(this::relocate);
+            });
+        }
+
+        private void add(Type type, String title, String message) {
+            String semantic = switch (type) {
+                case SUCCESS -> "complete";
+                case INFO -> "notification";
+                case WARNING -> "warning";
+                case ERROR -> "error";
+            };
+            Label heading = new Label(title == null ? type.name() : title);
+            heading.getStyleClass().add("erp-toast-title");
+            Label body = new Label(message == null ? "" : message);
+            body.setWrapText(true);
+            body.getStyleClass().add("erp-toast-message");
+            VBox copy = new VBox(2, heading, body);
+            HBox toast = new HBox(11, IconFactory.icon(semantic, 22), copy);
+            toast.setAlignment(Pos.CENTER_LEFT);
+            toast.getStyleClass().addAll("erp-toast", "erp-toast-" + type.name().toLowerCase());
+            toast.setOpacity(0);
+            stack.getChildren().add(0, toast);
+            if (!popup.isShowing()) popup.show(owner);
+            relocate();
+
+            FadeTransition fadeIn = new FadeTransition(Duration.millis(180), toast);
+            fadeIn.setToValue(1);
+            fadeIn.play();
+            PauseTransition pause = new PauseTransition(Duration.seconds(type == Type.ERROR ? 7 : 4));
+            pause.setOnFinished(event -> remove(toast));
+            pause.play();
+        }
+
+        private void remove(Node toast) {
+            FadeTransition fade = new FadeTransition(Duration.millis(220), toast);
+            fade.setToValue(0);
+            fade.setOnFinished(event -> {
+                stack.getChildren().remove(toast);
+                if (stack.getChildren().isEmpty()) popup.hide();
+            });
+            fade.play();
+        }
+
+        private void relocate() {
+            if (!popup.isShowing()) return;
+            popup.setX(owner.getX() + owner.getWidth() - Math.max(390, stack.prefWidth(-1)) - 24);
+            popup.setY(owner.getY() + 82);
+        }
+    }
+}

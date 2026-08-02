@@ -1,0 +1,36 @@
+# Maven / Java
+target/
+*.class
+*.jar
+*.log
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime and customer data
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+/config.properties
+Backups/
+Logs/
+Reports/
+Downloads/
+
+# Packaging output
+*.exe
+*.msi
+*.dmg
+*.pkg
+*.app/

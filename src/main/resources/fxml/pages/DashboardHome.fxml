@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardHomeController" spacing="10" styleClass="dashboard-premium,dashboard-single-page">
+    <padding><Insets top="12" right="16" bottom="12" left="16"/></padding>
+
+    <HBox alignment="CENTER_LEFT" spacing="14" styleClass="dashboard-page-header">
+        <StackPane fx:id="dashboardTitleIcon" styleClass="dashboard-title-icon"/>
+        <VBox spacing="3">
+            <Label text="Dashboard" styleClass="dashboard-page-title"/>
+            <Label text="Welcome back. Here is what is happening across your business." styleClass="dashboard-page-subtitle"/>
+        </VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="refreshDashboardButton" text="Refresh Dashboard" onAction="#refreshDashboard" styleClass="dashboard-refresh-button"/>
+    </HBox>
+
+    <GridPane hgap="10" vgap="10" styleClass="dashboard-kpi-grid">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+        </columnConstraints>
+
+        <VBox spacing="10" styleClass="premium-kpi,kpi-sales" GridPane.columnIndex="0">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="salesKpiIcon" styleClass="premium-kpi-icon,icon-sales"/>
+                <VBox spacing="3"><Label text="Total Sales" styleClass="premium-kpi-caption"/><Label fx:id="lblSalesValue" styleClass="premium-kpi-value"/></VBox>
+            </HBox>
+            <HBox><Label fx:id="lblSalesNote" styleClass="premium-kpi-note"/><Region HBox.hgrow="ALWAYS"/><Label text="↗" styleClass="premium-kpi-trend,trend-green"/></HBox>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-kpi,kpi-purchase" GridPane.columnIndex="1">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="purchaseKpiIcon" styleClass="premium-kpi-icon,icon-purchase"/>
+                <VBox spacing="3"><Label text="Total Purchases" styleClass="premium-kpi-caption"/><Label fx:id="lblPurchaseValue" styleClass="premium-kpi-value"/></VBox>
+            </HBox>
+            <HBox><Label fx:id="lblPurchaseNote" styleClass="premium-kpi-note"/><Region HBox.hgrow="ALWAYS"/><Label text="↗" styleClass="premium-kpi-trend,trend-blue"/></HBox>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-kpi,kpi-receivable" GridPane.columnIndex="2">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="receivableKpiIcon" styleClass="premium-kpi-icon,icon-receivable"/>
+                <VBox spacing="3"><Label text="Pending Receivables" styleClass="premium-kpi-caption"/><Label fx:id="lblStockValue" styleClass="premium-kpi-value"/></VBox>
+            </HBox>
+            <HBox><Label fx:id="lblReceivableNote" styleClass="premium-kpi-note"/><Region HBox.hgrow="ALWAYS"/><Label text="!" styleClass="premium-kpi-trend,trend-orange"/></HBox>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-kpi,kpi-payable" GridPane.columnIndex="3">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="payableKpiIcon" styleClass="premium-kpi-icon,icon-payable"/>
+                <VBox spacing="3"><Label text="Pending Payables" styleClass="premium-kpi-caption"/><Label fx:id="lblLowStock" styleClass="premium-kpi-value"/></VBox>
+            </HBox>
+            <HBox><Label fx:id="lblStockNote" styleClass="premium-kpi-note"/><Region HBox.hgrow="ALWAYS"/><Label text="!" styleClass="premium-kpi-trend,trend-red"/></HBox>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-kpi,kpi-cash" GridPane.columnIndex="4">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="cashKpiIcon" styleClass="premium-kpi-icon,icon-cash"/>
+                <VBox spacing="3"><Label text="Cash in Hand" styleClass="premium-kpi-caption"/><Label fx:id="lblCash" styleClass="premium-kpi-value"/></VBox>
+            </HBox>
+            <HBox><Label text="Received less paid and expenses" styleClass="premium-kpi-note"/><Region HBox.hgrow="ALWAYS"/><Label text="₹" styleClass="premium-kpi-trend,trend-green"/></HBox>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-kpi,kpi-stock" GridPane.columnIndex="5">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="lowStockKpiIcon" styleClass="premium-kpi-icon,icon-stock"/>
+                <VBox spacing="3"><Label text="Low Stock Items" styleClass="premium-kpi-caption"/><Label fx:id="lblLowStockValue" styleClass="premium-kpi-value"/></VBox>
+            </HBox>
+            <HBox><Label fx:id="lblLowStockNote" text="Requires attention" styleClass="premium-kpi-note"/><Region HBox.hgrow="ALWAYS"/><Label text="!" styleClass="premium-kpi-trend,trend-red"/></HBox>
+        </VBox>
+    </GridPane>
+
+    <GridPane hgap="10" vgap="10">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="33" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+        </columnConstraints>
+
+        <VBox spacing="10" styleClass="premium-dashboard-card" GridPane.columnIndex="0">
+            <HBox alignment="CENTER_LEFT"><Label text="Sales Overview" styleClass="premium-card-title"/><Region HBox.hgrow="ALWAYS"/><Button text="This Month" onAction="#cyclePeriod" styleClass="premium-period-button"/></HBox>
+            <LineChart fx:id="trendChart" animated="false" createSymbols="true" legendVisible="false" prefHeight="250" VBox.vgrow="ALWAYS" styleClass="premium-line-chart"><xAxis><CategoryAxis/></xAxis><yAxis><NumberAxis forceZeroInRange="false"/></yAxis></LineChart>
+            <HBox spacing="24" styleClass="chart-summary-strip">
+                <VBox><Label text="Sales" styleClass="chart-summary-label"/><Label fx:id="lblTrendSales" text="Live database data" styleClass="chart-summary-value,summary-blue"/></VBox>
+                <VBox><Label text="Period" styleClass="chart-summary-label"/><Label fx:id="lblTrendPeriod" text="This Month" styleClass="chart-summary-value"/></VBox>
+            </HBox>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-dashboard-card" GridPane.columnIndex="1">
+            <Label text="Sales by Customer" styleClass="premium-card-title"/>
+            <PieChart fx:id="customerChart" labelsVisible="false" legendVisible="true" prefHeight="300" VBox.vgrow="ALWAYS" styleClass="premium-pie-chart"/>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-dashboard-card" GridPane.columnIndex="2">
+            <HBox alignment="CENTER_LEFT"><Label text="Recent Activities" styleClass="premium-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Live" styleClass="live-badge"/></HBox>
+            <ListView fx:id="activityList" prefHeight="300" VBox.vgrow="ALWAYS" styleClass="premium-dashboard-list,activity-feed"/>
+        </VBox>
+    </GridPane>
+
+    <GridPane hgap="10" vgap="10">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="29" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="37" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="34" hgrow="ALWAYS"/>
+        </columnConstraints>
+
+        <VBox spacing="10" styleClass="premium-dashboard-card" GridPane.columnIndex="0">
+            <HBox alignment="CENTER_LEFT"><Label text="Top Customers" styleClass="premium-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewTopCustomers" styleClass="dashboard-link"/></HBox>
+            <ListView fx:id="topCustomerList" prefHeight="230" VBox.vgrow="ALWAYS" styleClass="premium-dashboard-list,ranked-list"/>
+        </VBox>
+
+        <VBox spacing="10" styleClass="premium-dashboard-card" GridPane.columnIndex="1">
+            <HBox alignment="CENTER_LEFT"><Label text="Sales vs Purchases" styleClass="premium-card-title"/><Region HBox.hgrow="ALWAYS"/><Button text="This Month" onAction="#cyclePeriod" styleClass="premium-period-button"/></HBox>
+            <BarChart fx:id="comparisonChart" animated="false" prefHeight="230" VBox.vgrow="ALWAYS" legendVisible="true" barGap="5" categoryGap="18" styleClass="premium-bar-chart"><xAxis><CategoryAxis/></xAxis><yAxis><NumberAxis/></yAxis></BarChart>
+            <HBox alignment="CENTER" spacing="28"><Label fx:id="lblComparisonPeriod" text="This Month" styleClass="comparison-period"/></HBox>
+        </VBox>
+
+        <VBox spacing="12" styleClass="premium-dashboard-card" GridPane.columnIndex="2">
+            <Label text="Quick Shortcuts" styleClass="premium-card-title"/>
+            <TilePane hgap="10" vgap="10" prefColumns="3" prefTileWidth="118" prefTileHeight="94" VBox.vgrow="ALWAYS">
+                <Button fx:id="quickSale" text="New Sale" wrapText="true" onAction="#newSale" styleClass="premium-quick-action,quick-sale"/>
+                <Button fx:id="quickPurchase" text="Create Purchase" wrapText="true" onAction="#newPurchase" styleClass="premium-quick-action,quick-purchase"/>
+                <Button fx:id="quickCustomer" text="Add Customer" wrapText="true" onAction="#addCustomer" styleClass="premium-quick-action,quick-customer"/>
+                <Button fx:id="quickQuotation" text="Quotation" wrapText="true" onAction="#newQuotation" styleClass="premium-quick-action,quick-quotation"/>
+                <Button fx:id="quickPayment" text="Add Payment" wrapText="true" onAction="#addPayment" styleClass="premium-quick-action,quick-payment"/>
+                <Button fx:id="quickSupplier" text="Add Supplier" wrapText="true" onAction="#addSupplier" styleClass="premium-quick-action,quick-supplier"/>
+                <Button fx:id="quickBank" text="Bank Entry" wrapText="true" onAction="#bankEntry" styleClass="premium-quick-action,quick-bank"/>
+                <Button fx:id="quickExpense" text="Expense Entry" wrapText="true" onAction="#expenseEntry" styleClass="premium-quick-action,quick-expense"/>
+            </TilePane>
+        </VBox>
+    </GridPane>
+
+    <!-- Existing database-backed widgets retained for controller compatibility. -->
+    <ListView fx:id="agingList" visible="false" managed="false"/>
+    <TableView fx:id="recentTable" visible="false" managed="false"><columns><TableColumn fx:id="colNumber" text="Invoice No."/><TableColumn fx:id="colDate" text="Date"/><TableColumn fx:id="colParty" text="Customer / Supplier"/><TableColumn fx:id="colAmount" text="Amount"/><TableColumn fx:id="colType" text="Type"/></columns></TableView>
+    <Label fx:id="lblProductsNote" visible="false" managed="false"/><Label fx:id="lblCustomers" visible="false" managed="false"/><Label fx:id="lblProducts" visible="false" managed="false"/><Label fx:id="lblOrders" visible="false" managed="false"/>
+</VBox>

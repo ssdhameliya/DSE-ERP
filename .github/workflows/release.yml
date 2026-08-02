@@ -1,0 +1,156 @@
+name: Build Native Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
+            TAG="v${VERSION}"
+          fi
+          VERSION="${TAG#v}"
+          POM_VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
+          if [[ "$VERSION" != "$POM_VERSION" ]]; then
+            echo "Tag version $VERSION does not match pom.xml version $POM_VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Run tests
+        run: mvn -B -ntp clean verify
+
+  windows:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Ensure WiX Toolset is available
+        shell: pwsh
+        run: |
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            choco install wixtoolset --yes --no-progress
+            $wix = Get-ChildItem 'C:\Program Files (x86)' -Directory -Filter 'WiX Toolset v3*' | Sort-Object Name -Descending | Select-Object -First 1
+            if ($wix) { $wixBin = Join-Path $wix.FullName 'bin'; $wixBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
+          }
+      - name: Build Windows EXE
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -Version '${{ needs.validate.outputs.version }}'
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: target/windows-installer/*
+          if-no-files-found: error
+          retention-days: 7
+
+  macos-arm64:
+    needs: validate
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          architecture: aarch64
+          cache: maven
+      - name: Build macOS Apple Silicon DMG
+        run: ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
+      - name: Upload macOS Apple Silicon package
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: target/macos-installer/*
+          if-no-files-found: error
+          retention-days: 7
+
+  macos-intel:
+    needs: validate
+    runs-on: macos-15-intel
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          architecture: x64
+          cache: maven
+      - name: Build macOS Intel DMG
+        run: ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
+      - name: Upload macOS Intel package
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-intel
+          path: target/macos-installer/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: [validate, windows, macos-arm64, macos-intel]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download built installers
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create combined checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts
+          rm -f checksums*.txt
+          sha256sum DSE-ERP-* > checksums.txt
+          ls -lah
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create '${{ needs.validate.outputs.tag }}' artifacts/* \
+            --repo '${{ github.repository }}' \
+            --title 'DSE ERP ${{ needs.validate.outputs.version }}' \
+            --generate-notes \
+            --verify-tag

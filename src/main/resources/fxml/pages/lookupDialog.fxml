@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.controller.LookupDialogController"
+            prefWidth="720" prefHeight="540" styleClass="entity-dialog,premium-entity-dialog,lookup-dialog">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="entity-dialog-header,premium-dialog-header">
+            <StackPane fx:id="headerIconHolder" minWidth="44" minHeight="44" prefWidth="44" prefHeight="44"
+                       styleClass="dialog-title-icon,lookup-title-icon"/>
+            <VBox spacing="3">
+                <Label fx:id="lblTitle" text="Add Master" styleClass="entity-dialog-title"/>
+                <Label fx:id="lblSubtitle" text="Maintain a reusable dropdown value" styleClass="entity-dialog-subtitle"/>
+            </VBox>
+        </HBox>
+    </top>
+    <center>
+        <VBox spacing="12" styleClass="premium-dialog-content">
+            <Label text="Master Information" styleClass="dialog-section-title"/>
+            <GridPane hgap="18" vgap="8" styleClass="premium-form-grid">
+                <columnConstraints>
+                    <ColumnConstraints minWidth="145" prefWidth="145"/>
+                    <ColumnConstraints minWidth="420" hgrow="ALWAYS"/>
+                </columnConstraints>
+                <Label text="Code *" styleClass="field-label" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <VBox spacing="5" GridPane.rowIndex="0" GridPane.columnIndex="1">
+                    <TextField fx:id="txtCode" editable="false" promptText="Auto generated" styleClass="readonly-field"/>
+                    <Label fx:id="errCode" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+
+                <Label text="Value *" styleClass="field-label" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <VBox spacing="5" GridPane.rowIndex="1" GridPane.columnIndex="1">
+                    <TextField fx:id="txtValue" promptText="Enter a meaningful value"/>
+                    <Label fx:id="errValue" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+
+                <Label text="Description" styleClass="field-label" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <TextArea fx:id="txtDescription" promptText="Describe where this value is used (optional)"
+                          prefRowCount="3" wrapText="true" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                <Label text="Display Order" styleClass="field-label" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <Spinner fx:id="spnOrder" editable="true" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                <Label text="Availability" styleClass="field-label" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                <CheckBox fx:id="chkActive" text="Active in application dropdowns" selected="true"
+                          GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+            </GridPane>
+        </VBox>
+    </center>
+    <bottom>
+        <HBox spacing="12" alignment="CENTER_RIGHT" styleClass="entity-dialog-actions,premium-dialog-actions">
+            <Button fx:id="btnCancel" text="Cancel" onAction="#cancel" styleClass="secondary-button" cancelButton="true"/>
+            <Button fx:id="btnSave" text="Save Master" onAction="#save" styleClass="primary-button" defaultButton="true"/>
+        </HBox>
+    </bottom>
+</BorderPane>

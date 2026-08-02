@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml"
+            fx:controller="org.example.controller.PartyDialogController"
+            prefWidth="820" prefHeight="610" styleClass="entity-dialog,premium-entity-dialog">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="entity-dialog-header,premium-dialog-header">
+            <StackPane fx:id="headerIconHolder" minWidth="44" minHeight="44" prefWidth="44" prefHeight="44"
+                       styleClass="dialog-title-icon"/>
+            <VBox spacing="3">
+                <Label fx:id="lblTitle" styleClass="entity-dialog-title"/>
+                <Label fx:id="lblSubtitle" text="Maintain contact, tax and opening balance information"
+                       styleClass="entity-dialog-subtitle"/>
+            </VBox>
+        </HBox>
+    </top>
+    <center>
+        <VBox spacing="14" styleClass="premium-dialog-content">
+            <Label text="Basic Information" styleClass="dialog-section-title"/>
+            <GridPane hgap="18" vgap="8" styleClass="premium-form-grid">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                </columnConstraints>
+
+                <VBox spacing="5" GridPane.rowIndex="0" GridPane.columnIndex="0">
+                    <Label text="Code" styleClass="field-label"/>
+                    <TextField fx:id="txtCode" editable="false" promptText="Auto generated" styleClass="readonly-field"/>
+                </VBox>
+                <VBox spacing="5" GridPane.rowIndex="0" GridPane.columnIndex="1">
+                    <Label text="Name *" styleClass="field-label"/>
+                    <TextField fx:id="txtName" promptText="Enter name"/>
+                    <Label fx:id="errName" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+
+                <VBox spacing="5" GridPane.rowIndex="1" GridPane.columnIndex="0">
+                    <Label text="Contact Person" styleClass="field-label"/>
+                    <TextField fx:id="txtContact" promptText="Enter contact person"/>
+                </VBox>
+                <VBox spacing="5" GridPane.rowIndex="1" GridPane.columnIndex="1">
+                    <Label text="Phone *" styleClass="field-label"/>
+                    <TextField fx:id="txtPhone" promptText="Enter phone number"/>
+                    <Label fx:id="errPhone" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+
+                <VBox spacing="5" GridPane.rowIndex="2" GridPane.columnIndex="0">
+                    <Label text="Email" styleClass="field-label"/>
+                    <TextField fx:id="txtEmail" promptText="Enter email address"/>
+                    <Label fx:id="errEmail" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+                <VBox spacing="5" GridPane.rowIndex="2" GridPane.columnIndex="1">
+                    <Label text="GSTIN" styleClass="field-label"/>
+                    <TextField fx:id="txtGstin" promptText="Enter GSTIN (optional)"/>
+                    <Label fx:id="errGstin" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+
+                <VBox spacing="5" GridPane.rowIndex="3" GridPane.columnIndex="0">
+                    <Label text="Address *" styleClass="field-label"/>
+                    <TextArea fx:id="txtAddress" promptText="Enter complete address" prefRowCount="3" wrapText="true"/>
+                    <Label fx:id="errAddress" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+                <VBox spacing="5" GridPane.rowIndex="3" GridPane.columnIndex="1">
+                    <Label text="Opening Balance" styleClass="field-label"/>
+                    <TextField fx:id="txtOpeningBalance" promptText="0.00" styleClass="numeric-field"/>
+                    <Label text="Opening amount is optional" styleClass="field-help"/>
+                    <Label fx:id="errOpeningBalance" managed="false" visible="false" styleClass="validation-message"/>
+                </VBox>
+
+                <VBox spacing="5" GridPane.rowIndex="4" GridPane.columnIndex="0">
+                    <Label text="Status" styleClass="field-label"/>
+                    <CheckBox fx:id="chkActive" text="Active in application" selected="true"/>
+                </VBox>
+            </GridPane>
+        </VBox>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="12" styleClass="entity-dialog-actions,premium-dialog-actions">
+            <Button fx:id="btnCancel" text="Cancel" onAction="#cancel" styleClass="secondary-button" cancelButton="true"/>
+            <Button fx:id="btnSave" text="Save" onAction="#save" styleClass="primary-button" defaultButton="true"/>
+        </HBox>
+    </bottom>
+</BorderPane>

@@ -1,0 +1,14 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+
+[*.java]
+indent_style = space
+indent_size = 4
+
+[*.{fxml,xml,css,properties}]
+indent_style = space
+indent_size = 4

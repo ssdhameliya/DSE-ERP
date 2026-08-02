@@ -1,0 +1,355 @@
+package org.example.controller;
+
+import javafx.beans.property.SimpleStringProperty;
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.scene.Node;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.PieChart;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.XYChart;
+import javafx.scene.control.Label;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Button;
+import org.example.util.IconFactory;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.layout.StackPane;
+import org.example.database.DatabaseManager;
+import org.example.navigation.NavigationManager;
+import org.example.service.NotificationService;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+
+public class DashboardHomeController {
+    private String fallbackPeriod = "This Month";
+    public DashboardHomeController() {
+        // JavaFX creates the controller before injecting the FXML controls.
+    }
+    @FXML private Label lblSalesValue, lblPurchaseValue, lblStockValue, lblLowStock;
+    @FXML private Label lblSalesNote, lblPurchaseNote, lblProductsNote, lblStockNote;
+    @FXML private Label lblReceivableNote;
+    @FXML private Label lblCustomers, lblProducts, lblOrders;
+    @FXML private Label lblCash;
+    @FXML private Label lblLowStockValue, lblLowStockNote, lblTrendSales;
+    @FXML private Label lblTrendPeriod, lblComparisonPeriod;
+    @FXML private ComboBox<String> cmbPeriod;
+    @FXML private ListView<String> topCustomerList, agingList, activityList;
+    @FXML private LineChart<String, Number> trendChart;
+    @FXML private PieChart customerChart;
+    @FXML private BarChart<String, Number> comparisonChart;
+    @FXML private TableView<ActivityRow> recentTable;
+    @FXML private TableColumn<ActivityRow, String> colType, colNumber, colParty, colDate, colAmount;
+    @FXML private StackPane salesKpiIcon, purchaseKpiIcon, receivableKpiIcon, payableKpiIcon, cashKpiIcon, lowStockKpiIcon, dashboardTitleIcon;
+    @FXML private Button quickSale, quickPurchase, quickQuotation, quickPayment,
+        quickCustomer, quickSupplier, quickBank, quickExpense, refreshDashboardButton;
+
+    private final NumberFormat currency = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
+
+    @FXML
+    public void initialize() {
+        configureExplicitTableHeaderIcons();
+        installKpiIcons();
+        installQuickActionIcons();
+        installDashboardHeaderIcons();
+        if (cmbPeriod != null) {
+            cmbPeriod.getItems().setAll("This Month", "This Quarter", "This Year", "All Time");
+            cmbPeriod.setValue("This Month");
+            cmbPeriod.valueProperty().addListener((obs, oldValue, value) -> reload());
+        }
+        reload();
+    }
+
+    /** Installs vector KPI symbols so no platform-dependent emoji can disappear. */
+    private void installKpiIcons() {
+        setIcon(salesKpiIcon, "report");
+        setIcon(purchaseKpiIcon, "purchase");
+        setIcon(receivableKpiIcon, "payment");
+        setIcon(payableKpiIcon, "document");
+        setIcon(cashKpiIcon, "payment");
+        setIcon(lowStockKpiIcon, "item");
+    }
+
+    private void setIcon(StackPane target, String icon) {
+        if (target != null) target.getChildren().setAll(IconFactory.icon(icon, 28));
+    }
+
+    private void installDashboardHeaderIcons() {
+        setIcon(dashboardTitleIcon, "dashboard");
+        if (refreshDashboardButton != null) {
+            refreshDashboardButton.setGraphic(IconFactory.icon("refresh", 16));
+            refreshDashboardButton.getProperties().put("erp-icon-preserve", true);
+        }
+    }
+
+    /** Gives every quick action a meaningful, theme-aware vector icon. */
+    private void installQuickActionIcons() {
+        setButtonIcon(quickSale, "sale");
+        setButtonIcon(quickPurchase, "purchase");
+        setButtonIcon(quickQuotation, "quotation");
+        setButtonIcon(quickPayment, "payment");
+        setButtonIcon(quickCustomer, "customer");
+        setButtonIcon(quickSupplier, "supplier");
+        setButtonIcon(quickBank, "payment");
+        setButtonIcon(quickExpense, "document");
+    }
+
+    private void setButtonIcon(Button button, String icon) {
+        if (button == null) return;
+        button.setGraphic(IconFactory.icon(icon, 28));
+        button.setContentDisplay(javafx.scene.control.ContentDisplay.TOP);
+    }
+
+    /** Cycles the shared dashboard reporting period and reloads all database widgets. */
+
+    @FXML
+    private void refreshDashboard() {
+        reload();
+    }
+
+    @FXML private void cyclePeriod(ActionEvent event) {
+        String[] periods = {"This Month", "This Quarter", "This Year", "All Time"};
+        int index = java.util.Arrays.asList(periods).indexOf(fallbackPeriod);
+        fallbackPeriod = periods[(index + 1) % periods.length];
+        if (event.getSource() instanceof Button button) button.setText(fallbackPeriod);
+        if (cmbPeriod != null) cmbPeriod.setValue(fallbackPeriod); else reload();
+    }
+
+    @FXML private void viewTopCustomers() { openFromNode(topCustomerList, "/fxml/pages/Customer.fxml"); }
+    @FXML private void viewReceivables() { openFromNode(agingList, "/fxml/pages/SalesList.fxml"); }
+    @FXML private void viewRecentInvoices() { openFromNode(recentTable, "/fxml/pages/SalesList.fxml"); }
+
+    private void reload() {
+        if (lblTrendPeriod != null) lblTrendPeriod.setText(selectedPeriod());
+        if (lblComparisonPeriod != null) lblComparisonPeriod.setText(selectedPeriod());
+        loadSummary();
+        configureTable();
+        loadRecentActivity();
+        loadTrend();
+        loadCustomerMix();
+        loadDashboardLists();
+        loadLiveActivities();
+        loadComparison();
+    }
+
+    private String selectedPeriod() {
+        return cmbPeriod == null || cmbPeriod.getValue() == null ? fallbackPeriod : cmbPeriod.getValue();
+    }
+
+    private String periodCondition(String column) {
+        return switch (selectedPeriod()) {
+            case "This Month" -> "date(" + column + ") >= date('now','start of month')";
+            case "This Quarter" -> "date(" + column + ") >= date('now','start of month','-' || ((cast(strftime('%m','now') as integer)-1)%3) || ' months')";
+            case "This Year" -> "date(" + column + ") >= date('now','start of year')";
+            default -> "1=1";
+        };
+    }
+
+    private void loadSummary() {
+        long products = count("SELECT COUNT(*) FROM item_master");
+        long customers = count("SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active,1)=1");
+        long invoices = count("SELECT COUNT(*) FROM sales_header WHERE " + periodCondition("invoice_date"));
+        long purchases = count("SELECT COUNT(*) FROM purchase_header WHERE " + periodCondition("invoice_date"));
+        long lowStock = count("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)");
+        double salesValue = number("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE " + periodCondition("invoice_date"));
+        double purchaseValue = number("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE " + periodCondition("invoice_date"));
+        double receivables = number("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header");
+        double payables = number("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM purchase_header");
+        long openReceivables = count("SELECT COUNT(*) FROM sales_header WHERE total_amount>COALESCE(paid_amount,0)");
+        long openPayables = count("SELECT COUNT(*) FROM purchase_header WHERE total_amount>COALESCE(paid_amount,0)");
+        double received = number("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header");
+        double paid = number("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header");
+        double expenses = number("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
+
+        lblSalesValue.setText(money(salesValue));
+        lblPurchaseValue.setText(money(purchaseValue));
+        lblStockValue.setText(money(receivables));
+        lblLowStock.setText(money(payables));
+        lblCash.setText(money(received - paid - expenses));
+        if (lblLowStockValue != null) lblLowStockValue.setText(String.valueOf(lowStock));
+        if (lblLowStockNote != null) lblLowStockNote.setText(lowStock == 0 ? "Stock levels healthy" : lowStock + " item" + plural(lowStock) + " need attention");
+        if (lblTrendSales != null) lblTrendSales.setText(money(salesValue));
+        lblSalesNote.setText(invoices + " sales invoice" + plural(invoices));
+        lblPurchaseNote.setText(purchases + " purchase invoice" + plural(purchases));
+        lblReceivableNote.setText(openReceivables + " open sales invoice" + plural(openReceivables));
+        lblProductsNote.setText(products + " active catalog item" + plural(products));
+        lblStockNote.setText(openPayables + " open purchase invoice" + plural(openPayables));
+        lblCustomers.setText(String.valueOf(customers));
+        lblProducts.setText(String.valueOf(products));
+        lblOrders.setText(String.valueOf(invoices));
+    }
+
+    private String plural(long value) { return value == 1 ? "" : "s"; }
+
+    private void configureTable() {
+        colType.setCellValueFactory(row -> row.getValue().type);
+        colNumber.setCellValueFactory(row -> row.getValue().number);
+        colParty.setCellValueFactory(row -> row.getValue().party);
+        colDate.setCellValueFactory(row -> row.getValue().date);
+        colAmount.setCellValueFactory(row -> row.getValue().amount);
+        recentTable.setPlaceholder(new Label("No transactions recorded yet"));
+    }
+
+    private void loadRecentActivity() {
+        String sql = """
+            SELECT * FROM (
+              SELECT 'Sale' type, s.invoice_no doc_no, p.name party, s.invoice_date doc_date, s.total_amount amount
+              FROM sales_header s JOIN party_master p ON p.id=s.customer_id
+              UNION ALL
+              SELECT 'Purchase', h.invoice_no, p.name, h.invoice_date, h.total_amount
+              FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id
+            ) ORDER BY doc_date DESC, doc_no DESC LIMIT 8
+            """;
+        List<ActivityRow> rows = new ArrayList<>();
+        try (Connection con = DatabaseManager.getConnection(); Statement st = con.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) rows.add(new ActivityRow(rs.getString("type"), rs.getString("doc_no"), rs.getString("party"), rs.getString("doc_date"), money(rs.getDouble("amount"))));
+        } catch (Exception ignored) { }
+        recentTable.getItems().setAll(rows);
+        // Do not inject sample transactions: the dashboard must reflect only persisted data.
+        if (false && rows.isEmpty()) recentTable.getItems().setAll(
+            new ActivityRow("Partial","INV-2024-0186","ABC Pvt Ltd","28/05/2024","₹ 1,24,000"),
+            new ActivityRow("Paid","INV-2024-0185","XYZ Industries","27/05/2024","₹ 75,000"),
+            new ActivityRow("Unpaid","INV-2024-0184","LMN Enterprises","26/05/2024","₹ 98,000"),
+            new ActivityRow("Partial","INV-2024-0183","PQR Traders","25/05/2024","₹ 1,45,000"));
+    }
+
+    private void loadTrend() {
+        XYChart.Series<String, Number> sales = new XYChart.Series<>();
+        sales.setName("Sales");
+        String sql = "SELECT invoice_date period, SUM(total_amount) amount " +
+            "FROM sales_header WHERE invoice_date IS NOT NULL " +
+            "AND TRIM(invoice_date) <> '' AND " + periodCondition("invoice_date") +
+            " GROUP BY invoice_date ORDER BY invoice_date";
+        try (Connection con = DatabaseManager.getConnection();
+             Statement st = con.createStatement();
+            ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                String period = rs.getString("period");
+                if (period != null && !period.isBlank()) {
+                    sales.getData().add(new XYChart.Data<>(period, rs.getDouble("amount")));
+                }
+            }
+        } catch (Exception error) {
+            error.printStackTrace();
+        }
+        trendChart.getData().setAll(sales);
+        trendChart.setTitle(sales.getData().isEmpty() ? "No sales for " + selectedPeriod() : null);
+    }
+
+    private void loadCustomerMix() {
+        String sql = """
+            SELECT p.name, SUM(s.total_amount) amount FROM sales_header s
+            JOIN party_master p ON p.id=s.customer_id GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5
+            """;
+        List<PieChart.Data> data = new ArrayList<>();
+        try (Connection con = DatabaseManager.getConnection(); Statement st = con.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) data.add(new PieChart.Data(rs.getString("name"), rs.getDouble("amount")));
+        } catch (Exception ignored) { }
+        customerChart.getData().setAll(data);
+    }
+
+    private void loadDashboardLists() {
+        List<String> customers = new ArrayList<>();
+        String customerSql = "SELECT p.name, COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE " + periodCondition("s.invoice_date") + " GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5";
+        try (Connection c=DatabaseManager.getConnection(); Statement st=c.createStatement(); ResultSet rs=st.executeQuery(customerSql)) {
+            while(rs.next()) customers.add(String.format("%-28s %s", rs.getString(1), money(rs.getDouble(2))));
+        } catch (Exception ignored) { }
+        if (customers.isEmpty()) customers.add("No customer sales for " + selectedPeriod().toLowerCase(Locale.ROOT));
+        topCustomerList.getItems().setAll(customers);
+        agingList.getItems().setAll("●  Overdue (> 30 Days)                              ₹ 4,25,000","●  21 - 30 Days                                           ₹ 2,35,000","●  11 - 20 Days                                           ₹ 1,35,000","●  1 - 10 Days                                             ₹ 3,75,000","●  Not Due                                                   ₹ 7,05,000");
+        activityList.getItems().setAll("▤  Sales Invoice INV-2024-0186 created                  10:30 AM","●  Payment received from ABC Pvt Ltd                        11:45 AM","▤  Purchase Bill PUR-2024-0008 created                   01:15 PM","♧  Payment reminder sent to XYZ Industries             03:20 PM","▣  Quotation QT-2024-0067 accepted                         04:45 PM");
+        // Replace legacy placeholder ageing values with current open-balance data.
+        agingList.getItems().setAll(
+            ageing("Overdue (> 30 Days)", "due_date < date('now','-30 day')"),
+            ageing("21 - 30 Days", "due_date BETWEEN date('now','-30 day') AND date('now','-21 day')"),
+            ageing("11 - 20 Days", "due_date BETWEEN date('now','-20 day') AND date('now','-11 day')"),
+            ageing("1 - 10 Days", "due_date BETWEEN date('now','-10 day') AND date('now','-1 day')"),
+            ageing("Not Due", "due_date IS NULL OR due_date >= date('now')"));
+    }
+
+    /** Replaces placeholder activity content with the latest persisted notifications. */
+    private void loadLiveActivities() {
+        List<String> activities = new ArrayList<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM, hh:mm a");
+        for (NotificationService.NotificationItem entry : NotificationService.findRecent(5)) {
+            String created = Instant.ofEpochMilli(entry.createdAt())
+                .atZone(ZoneId.systemDefault()).format(formatter);
+            activities.add(entry.message() + "    " + created);
+        }
+        if (activities.isEmpty()) activities.add("No recent application activity");
+        activityList.getItems().setAll(activities);
+    }
+
+    /** Builds the sales-vs-purchase graph from the database rather than sample data. */
+    private void loadComparison() {
+        XYChart.Series<String,Number> sales = new XYChart.Series<>(); sales.setName("Sales");
+        XYChart.Series<String,Number> purchases = new XYChart.Series<>(); purchases.setName("Purchase");
+        String sql = "SELECT day,SUM(sales),SUM(purchases) FROM (" +
+            "SELECT invoice_date day,total_amount sales,0 purchases FROM sales_header WHERE " + periodCondition("invoice_date") +
+            " UNION ALL SELECT invoice_date,0,total_amount FROM purchase_header WHERE " + periodCondition("invoice_date") +
+            ") GROUP BY day ORDER BY day";
+        try (Connection c=DatabaseManager.getConnection(); Statement s=c.createStatement(); ResultSet r=s.executeQuery(sql)) {
+            while(r.next()) { sales.getData().add(new XYChart.Data<>(r.getString(1),r.getDouble(2))); purchases.getData().add(new XYChart.Data<>(r.getString(1),r.getDouble(3))); }
+        } catch (Exception ignored) { }
+        comparisonChart.getData().setAll(sales,purchases);
+    }
+
+    /** Formats one live receivable-ageing bucket. */
+    private String ageing(String label, String dueCondition) {
+        double amount = number("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE COALESCE(total_amount-paid_amount,0)>0 AND (" + dueCondition + ")");
+        return "•  " + label + "    " + money(amount);
+    }
+
+    @FXML private void newSale(ActionEvent event) { open(event, "/fxml/pages/Sale.fxml"); }
+    @FXML private void newPurchase(ActionEvent event) { open(event, "/fxml/pages/Purchase.fxml"); }
+    @FXML private void newQuotation(ActionEvent event) { open(event, "/fxml/pages/Quotations.fxml"); }
+    @FXML private void addPayment(ActionEvent event) { open(event, "/fxml/pages/SalesList.fxml"); }
+    @FXML private void addCustomer(ActionEvent event) { open(event, "/fxml/pages/Customer.fxml"); }
+    @FXML private void addSupplier(ActionEvent event) { open(event, "/fxml/pages/Suppliers.fxml"); }
+    @FXML private void bankEntry(ActionEvent event) { open(event, "/fxml/pages/Operations.fxml"); }
+    @FXML private void expenseEntry(ActionEvent event) { open(event, "/fxml/pages/Operations.fxml"); }
+    @FXML private void openItems(ActionEvent event) { open(event, "/fxml/pages/ItemMaster.fxml"); }
+    @FXML private void openImport(ActionEvent event) { open(event, "/fxml/pages/Import.fxml"); }
+
+    private void open(ActionEvent event, String fxml) {
+        Node source = (Node) event.getSource();
+        StackPane content = (StackPane) source.getScene().lookup("#contentPane");
+        if (content != null) new NavigationManager(content).loadPage(fxml);
+    }
+    private void openFromNode(Node source,String fxml){StackPane content=(StackPane)source.getScene().lookup("#contentPane");if(content!=null)new NavigationManager(content).loadPage(fxml);}
+
+    private long count(String sql) { return (long) number(sql); }
+    private double number(String sql) {
+        try (Connection con = DatabaseManager.getConnection(); Statement st = con.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            return rs.next() ? rs.getDouble(1) : 0;
+        } catch (Exception ignored) { return 0; }
+    }
+    private String money(double value) { return currency.format(value).replace("₹", "₹ "); }
+
+    public static final class ActivityRow {
+        final SimpleStringProperty type, number, party, date, amount;
+        ActivityRow(String type, String number, String party, String date, String amount) {
+            this.type = new SimpleStringProperty(type); this.number = new SimpleStringProperty(number);
+            this.party = new SimpleStringProperty(party); this.date = new SimpleStringProperty(date); this.amount = new SimpleStringProperty(amount);
+        }
+    }
+
+
+    private void configureExplicitTableHeaderIcons() {
+        IconFactory.applyTableHeaderIcon(colType, "status");
+        IconFactory.applyTableHeaderIcon(colNumber, "document");
+        IconFactory.applyTableHeaderIcon(colParty, "customer");
+        IconFactory.applyTableHeaderIcon(colDate, "calendar");
+        IconFactory.applyTableHeaderIcon(colAmount, "currency");
+    }
+}

@@ -1,0 +1,241 @@
+package org.example.controller;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.*;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
+import org.example.model.Item;
+import org.example.service.ItemService;
+import org.example.service.LookupService;
+import org.example.service.NotificationService;
+import org.example.util.IconFactory;
+
+public class ItemDialogController {
+    @FXML private TextField txtItemCode, txtDescription, txtSize, txtHSN, txtPurchasePrice,
+            txtSellingPrice, txtOpeningStock, txtMinimumStock, txtLocation;
+    @FXML private TextArea txtRemarks;
+    @FXML private ComboBox<String> cmbCategory, cmbMaterial, cmbUnit, cmbBrand, cmbGST, cmbDiscount;
+    @FXML private Button btnSave, btnCancel;
+    @FXML private Label lblTitle, lblSubtitle;
+    @FXML private Label errDescription, errCategory, errUnit, errGst, errDiscount, errSellingPrice,
+            errPurchasePrice, errOpeningStock, errMinimumStock;
+    @FXML private StackPane headerIconHolder;
+
+    private final LookupService lookupService = new LookupService();
+    private final ItemService service = new ItemService();
+    private Item editingItem;
+
+    @FXML
+    public void initialize() {
+        loadDropdowns();
+        txtItemCode.setText(generateItemCode());
+        txtPurchasePrice.setText("0.00");
+        txtSellingPrice.setText("0.00");
+        txtOpeningStock.setText("0.00");
+        txtMinimumStock.setText("0.00");
+
+        btnSave.setGraphic(IconFactory.icon("save"));
+        btnCancel.setGraphic(IconFactory.icon("cancel"));
+        headerIconHolder.getChildren().setAll(IconFactory.icon("item", 24));
+        installLiveValidation();
+    }
+
+    private void loadDropdowns() {
+        cmbCategory.getItems().setAll(lookupService.getValues("CATEGORY"));
+        cmbMaterial.getItems().setAll(lookupService.getValues("MATERIAL"));
+        cmbUnit.getItems().setAll(lookupService.getValues("UNIT"));
+        cmbBrand.getItems().setAll(lookupService.getValues("BRAND"));
+        cmbGST.getItems().setAll(lookupService.getValues("GST"));
+        cmbDiscount.getItems().setAll(lookupService.getValues("DISCOUNT"));
+        if (!cmbDiscount.getItems().isEmpty()) cmbDiscount.getSelectionModel().selectFirst();
+    }
+
+    private String generateItemCode() { return "ITM" + System.currentTimeMillis(); }
+
+    public void setItem(Item item) {
+        this.editingItem = item;
+        lblTitle.setText("Edit Item");
+        lblSubtitle.setText("Update item information");
+        btnSave.setText("Update Item");
+
+        txtItemCode.setText(safe(item.getItemCode()));
+        txtDescription.setText(safe(item.getDescription()));
+        cmbCategory.setValue(item.getCategory());
+        cmbBrand.setValue(item.getBrand());
+        cmbMaterial.setValue(item.getMaterial());
+        txtSize.setText(safe(item.getSize()));
+        cmbUnit.setValue(item.getUnit());
+        txtHSN.setText(safe(item.getHsn()));
+        cmbGST.setValue(formatLookup(item.getGst()));
+        cmbDiscount.setValue(formatLookup(item.getDiscountPercent()));
+        txtPurchasePrice.setText(String.valueOf(item.getPurchasePrice()));
+        txtSellingPrice.setText(String.valueOf(item.getSellingPrice()));
+        txtOpeningStock.setText(String.valueOf(item.getOpeningStock()));
+        txtMinimumStock.setText(String.valueOf(item.getMinimumStock()));
+        txtLocation.setText(safe(item.getLocation()));
+        txtRemarks.setText(safe(item.getRemarks()));
+    }
+
+    @FXML
+    private void saveItem() {
+        if (!validateForm()) return;
+
+        try {
+            Item item = editingItem == null ? new Item() : editingItem;
+            item.setItemCode(txtItemCode.getText().trim());
+            item.setDescription(txtDescription.getText().trim());
+            item.setCategory(cmbCategory.getValue());
+            item.setBrand(cmbBrand.getValue());
+            item.setMaterial(cmbMaterial.getValue());
+            item.setSize(txtSize.getText().trim());
+            item.setUnit(cmbUnit.getValue());
+            item.setHsn(txtHSN.getText().trim());
+            item.setGst(parseLookupDouble(cmbGST));
+            item.setDiscountPercent(parseLookupDouble(cmbDiscount));
+            item.setPurchasePrice(parseFieldDouble(txtPurchasePrice));
+            item.setSellingPrice(parseFieldDouble(txtSellingPrice));
+            item.setOpeningStock(parseFieldDouble(txtOpeningStock));
+            item.setMinimumStock(parseFieldDouble(txtMinimumStock));
+            item.setLocation(txtLocation.getText().trim());
+            item.setRemarks(txtRemarks.getText().trim());
+
+            boolean created = editingItem == null;
+            if (created) service.save(item); else service.update(item);
+
+            NotificationService.createNotification(
+                    created ? "Item created" : "Item updated",
+                    item.getItemCode() + " - " + item.getDescription(),
+                    "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
+            closeDialog();
+        } catch (Exception ex) {
+            Alert alert = new Alert(Alert.AlertType.ERROR, ex.getMessage());
+            alert.setHeaderText("Item could not be saved");
+            alert.showAndWait();
+        }
+    }
+
+    private boolean validateForm() {
+        clearAllErrors();
+        boolean valid = true;
+
+        if (txtDescription.getText() == null || txtDescription.getText().isBlank()) {
+            showError(txtDescription, errDescription, "Description is required.");
+            valid = false;
+        }
+        if (cmbCategory.getValue() == null || cmbCategory.getValue().isBlank()) {
+            showError(cmbCategory, errCategory, "Please select a category.");
+            valid = false;
+        }
+        if (cmbUnit.getValue() == null || cmbUnit.getValue().isBlank()) {
+            showError(cmbUnit, errUnit, "Please select a unit.");
+            valid = false;
+        }
+        if (cmbGST.getValue() == null || cmbGST.getValue().isBlank()) {
+            showError(cmbGST, errGst, "Please select GST %.");
+            valid = false;
+        } else {
+            double gst = parseLookupDouble(cmbGST);
+            if (gst < 0 || gst > 100) {
+                showError(cmbGST, errGst, "GST must be between 0 and 100.");
+                valid = false;
+            }
+        }
+
+        if (cmbDiscount.getValue() == null || cmbDiscount.getValue().isBlank()) {
+            showError(cmbDiscount, errDiscount, "Please select discount %.");
+            valid = false;
+        } else {
+            double discount = parseLookupDouble(cmbDiscount);
+            if (discount < 0 || discount > 100) {
+                showError(cmbDiscount, errDiscount, "Discount must be between 0 and 100.");
+                valid = false;
+            }
+        }
+
+        valid &= validateNumber(txtSellingPrice, errSellingPrice, "Selling price", true);
+        valid &= validateNumber(txtPurchasePrice, errPurchasePrice, "Purchase price", false);
+        valid &= validateNumber(txtOpeningStock, errOpeningStock, "Opening stock", true);
+        valid &= validateNumber(txtMinimumStock, errMinimumStock, "Minimum stock", false);
+        return valid;
+    }
+
+    private boolean validateNumber(TextField field, Label errorLabel, String label, boolean required) {
+        String text = field.getText() == null ? "" : field.getText().trim();
+        if (required && text.isBlank()) {
+            showError(field, errorLabel, label + " is required.");
+            return false;
+        }
+        if (text.isBlank()) return true;
+        try {
+            double value = Double.parseDouble(text);
+            if (value < 0) {
+                showError(field, errorLabel, label + " cannot be negative.");
+                return false;
+            }
+            return true;
+        } catch (NumberFormatException ex) {
+            showError(field, errorLabel, "Enter a valid " + label.toLowerCase() + ".");
+            return false;
+        }
+    }
+
+    private void installLiveValidation() {
+        txtDescription.textProperty().addListener((o, a, b) -> clearError(txtDescription, errDescription));
+        cmbCategory.valueProperty().addListener((o, a, b) -> clearError(cmbCategory, errCategory));
+        cmbUnit.valueProperty().addListener((o, a, b) -> clearError(cmbUnit, errUnit));
+        cmbGST.valueProperty().addListener((o, a, b) -> clearError(cmbGST, errGst));
+        cmbDiscount.valueProperty().addListener((o, a, b) -> clearError(cmbDiscount, errDiscount));
+        txtSellingPrice.textProperty().addListener((o, a, b) -> clearError(txtSellingPrice, errSellingPrice));
+        txtPurchasePrice.textProperty().addListener((o, a, b) -> clearError(txtPurchasePrice, errPurchasePrice));
+        txtOpeningStock.textProperty().addListener((o, a, b) -> clearError(txtOpeningStock, errOpeningStock));
+        txtMinimumStock.textProperty().addListener((o, a, b) -> clearError(txtMinimumStock, errMinimumStock));
+    }
+
+    private void showError(Control control, Label label, String message) {
+        if (!control.getStyleClass().contains("validation-error")) control.getStyleClass().add("validation-error");
+        label.setText(message);
+        label.setVisible(true);
+        label.setManaged(true);
+        if (!control.isFocused()) control.requestFocus();
+    }
+
+    private void clearError(Control control, Label label) {
+        control.getStyleClass().remove("validation-error");
+        label.setText("");
+        label.setVisible(false);
+        label.setManaged(false);
+    }
+
+    private void clearAllErrors() {
+        clearError(txtDescription, errDescription);
+        clearError(cmbCategory, errCategory);
+        clearError(cmbUnit, errUnit);
+        clearError(cmbGST, errGst);
+        clearError(cmbDiscount, errDiscount);
+        clearError(txtSellingPrice, errSellingPrice);
+        clearError(txtPurchasePrice, errPurchasePrice);
+        clearError(txtOpeningStock, errOpeningStock);
+        clearError(txtMinimumStock, errMinimumStock);
+    }
+
+    private double parseFieldDouble(TextField field) {
+        String text = field.getText() == null ? "" : field.getText().trim();
+        return text.isBlank() ? 0 : Double.parseDouble(text);
+    }
+
+    private double parseLookupDouble(ComboBox<String> box) {
+        if (box == null || box.getValue() == null || box.getValue().isBlank()) return 0;
+        try { return Double.parseDouble(box.getValue().replace("%", "").trim()); }
+        catch (NumberFormatException ignored) { return 0; }
+    }
+
+    private String formatLookup(double value) {
+        if (Math.rint(value) == value) return String.valueOf((int) value);
+        return String.valueOf(value);
+    }
+
+    @FXML
+    private void closeDialog() { ((Stage) txtItemCode.getScene().getWindow()).close(); }
+
+    private String safe(String value) { return value == null ? "" : value; }
+}

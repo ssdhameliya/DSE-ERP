@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.chart.*?>
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ReportsController" spacing="10" styleClass="reports-content,reports-single-page">
+   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="reports-header">
+    <VBox spacing="3"><Label text="Reports Dashboard" styleClass="page-title"/><Label text="Real-time insights and business analytics" styleClass="page-subtitle"/></VBox>
+    <Region HBox.hgrow="ALWAYS"/>
+    <DatePicker fx:id="dpFrom" styleClass="report-date"/><Label text="to" styleClass="page-subtitle"/><DatePicker fx:id="dpTo" styleClass="report-date"/>
+    <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
+    <MenuButton fx:id="btnExport" text="Export" styleClass="primary-button"><items><MenuItem fx:id="miExcel" text="Export Excel" onAction="#exportExcel"/><MenuItem fx:id="miPdf" text="Export PDF" onAction="#exportPdf"/></items></MenuButton>
+   </HBox>
+   <GridPane hgap="12" vgap="12" styleClass="report-kpi-grid">
+    <columnConstraints><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/></columnConstraints>
+    <VBox GridPane.columnIndex="0" styleClass="report-kpi-card,kpi-sales"><Label text="Total Sales"/><Label fx:id="lblSales" styleClass="kpi-value"/><Label text="Selected period" styleClass="page-subtitle"/></VBox>
+    <VBox GridPane.columnIndex="1" styleClass="report-kpi-card,kpi-purchase"><Label text="Total Purchases"/><Label fx:id="lblPurchase" styleClass="kpi-value"/><Label text="Selected period" styleClass="page-subtitle"/></VBox>
+    <VBox GridPane.columnIndex="2" styleClass="report-kpi-card,kpi-profit"><Label text="Gross Profit"/><Label fx:id="lblProfit" styleClass="kpi-value"/><Label text="Sales less purchases" styleClass="page-subtitle"/></VBox>
+    <VBox GridPane.columnIndex="3" styleClass="report-kpi-card,kpi-receivable"><Label text="Receivables"/><Label fx:id="lblReceivables" styleClass="kpi-value"/><Label text="Outstanding sales" styleClass="page-subtitle"/></VBox>
+    <VBox GridPane.columnIndex="4" styleClass="report-kpi-card,kpi-stock"><Label text="Stock Value"/><Label fx:id="lblStock" styleClass="kpi-value"/><Label fx:id="lblLowStock" styleClass="page-subtitle"/></VBox>
+    <VBox GridPane.columnIndex="5" styleClass="report-kpi-card,kpi-customer"><Label text="Total Customers"/><Label fx:id="lblCustomers" styleClass="kpi-value"/><Label text="Active customers" styleClass="page-subtitle"/></VBox>
+   </GridPane>
+   <HBox spacing="10" alignment="CENTER_LEFT" styleClass="report-filter-card"><ComboBox fx:id="cmbReportType" prefWidth="190"/><ComboBox fx:id="cmbParty" prefWidth="230"/><ComboBox fx:id="cmbItem" prefWidth="210"/><ComboBox fx:id="cmbSalesPerson" prefWidth="190"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnApply" text="Apply Filters" onAction="#refresh" styleClass="primary-button"/><Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="secondary-button"/></HBox>
+   <GridPane hgap="10" vgap="10" styleClass="report-chart-row,reports-grow-row" VBox.vgrow="ALWAYS"><columnConstraints><ColumnConstraints percentWidth="30"/><ColumnConstraints percentWidth="30"/><ColumnConstraints percentWidth="40"/></columnConstraints>
+    <VBox GridPane.columnIndex="0" styleClass="report-card"><Label text="Sales Trend" styleClass="section-title"/><LineChart fx:id="chartTrend" animated="false" createSymbols="true" VBox.vgrow="ALWAYS"><xAxis><CategoryAxis/></xAxis><yAxis><NumberAxis/></yAxis></LineChart></VBox>
+    <VBox GridPane.columnIndex="1" styleClass="report-card"><Label text="Top 5 Items by Sales" styleClass="section-title"/><PieChart fx:id="chartItems" labelsVisible="true" VBox.vgrow="ALWAYS"/></VBox>
+    <VBox GridPane.columnIndex="2" styleClass="report-card"><Label text="Sales by Customer" styleClass="section-title"/><BarChart fx:id="chartCustomers" animated="false" legendVisible="false" VBox.vgrow="ALWAYS"><xAxis><CategoryAxis/></xAxis><yAxis><NumberAxis/></yAxis></BarChart></VBox>
+   </GridPane>
+   <GridPane hgap="10" vgap="10" styleClass="report-table-row,reports-grow-row" VBox.vgrow="ALWAYS"><columnConstraints><ColumnConstraints percentWidth="40"/><ColumnConstraints percentWidth="40"/><ColumnConstraints percentWidth="20"/></columnConstraints>
+    <VBox GridPane.columnIndex="0" styleClass="report-card"><HBox><Label text="Recent Sales Invoices" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnViewSales" text="View All" onAction="#viewAllSales" styleClass="link-button"/></HBox><TableView fx:id="tblSales" VBox.vgrow="ALWAYS" styleClass="report-table"><columns><TableColumn fx:id="colSaleNo" text="Invoice No."/><TableColumn fx:id="colSaleDate" text="Date"/><TableColumn fx:id="colSaleParty" text="Customer"/><TableColumn fx:id="colSaleAmount" text="Amount"/><TableColumn fx:id="colSaleStatus" text="Status"/></columns></TableView></VBox>
+    <VBox GridPane.columnIndex="1" styleClass="report-card"><HBox><Label text="Recent Purchase Invoices" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnViewPurchases" text="View All" onAction="#viewAllPurchases" styleClass="link-button"/></HBox><TableView fx:id="tblPurchases" VBox.vgrow="ALWAYS" styleClass="report-table"><columns><TableColumn fx:id="colPurchaseNo" text="Invoice No."/><TableColumn fx:id="colPurchaseDate" text="Date"/><TableColumn fx:id="colPurchaseParty" text="Supplier"/><TableColumn fx:id="colPurchaseAmount" text="Amount"/><TableColumn fx:id="colPurchaseStatus" text="Status"/></columns></TableView></VBox>
+    <VBox GridPane.columnIndex="2" styleClass="report-card"><Label text="Payment Summary" styleClass="section-title"/><ListView fx:id="paymentSummary" VBox.vgrow="ALWAYS" styleClass="summary-list"/></VBox>
+   </GridPane>
+   <GridPane hgap="10" vgap="10" styleClass="report-bottom-row,reports-bottom-fill" VBox.vgrow="ALWAYS"><columnConstraints><ColumnConstraints percentWidth="30"/><ColumnConstraints percentWidth="40"/><ColumnConstraints percentWidth="30"/></columnConstraints>
+    <VBox GridPane.columnIndex="0" styleClass="report-card"><Label text="Sales vs Purchase" styleClass="section-title"/><PieChart fx:id="chartComparison" labelsVisible="true" VBox.vgrow="ALWAYS"/></VBox>
+    <VBox GridPane.columnIndex="1" styleClass="report-card"><Label text="Profit Margin" styleClass="section-title"/><Label fx:id="lblMargin" text="0.00%" styleClass="report-big-value"/><ProgressBar fx:id="profitProgress" maxWidth="Infinity"/><Label text="Profit margin for selected period" styleClass="page-subtitle"/></VBox>
+    <VBox GridPane.columnIndex="2" styleClass="report-card"><Label text="Stock Overview" styleClass="section-title"/><ListView fx:id="stockSummary" VBox.vgrow="ALWAYS" styleClass="summary-list"/></VBox>
+   </GridPane>
+</VBox>

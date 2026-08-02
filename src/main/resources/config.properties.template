@@ -1,0 +1,28 @@
+# config.properties.template
+# Runtime configuration is created under %APPDATA%\DSE ERP\config.properties.
+
+# Company & email
+company.email=
+company.name=
+company.phone=
+
+# Theme (LIGHT or DARK)
+theme=LIGHT
+
+# Database URL (example for local SQLite)
+# Optional database override. Leave absent to use %APPDATA%\DSE ERP\JavaAppERP.db
+
+# SMTP (used for sending reminders and notifications)
+smtp.host=
+smtp.port=587
+smtp.email=
+smtp.appPassword=
+
+# Payment / Bank details (placeholders)
+payment.bankName=
+payment.accountNumber=
+payment.ifsc=
+payment.upi=
+
+# WhatsApp settings: default sender phone (international format without +)
+whatsapp.senderPhone=

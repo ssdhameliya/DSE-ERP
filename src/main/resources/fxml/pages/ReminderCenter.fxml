@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!--
+    Premium Reminder Center.
+    Existing fx:id values and action-handler names are preserved so the screen
+    continues to use the same database and reminder workflows.
+-->
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.example.controller.ReminderCenterController"
+      spacing="18"
+      styleClass="register-page,reminder-center-page">
+
+    <padding>
+        <Insets top="22" right="22" bottom="22" left="22"/>
+    </padding>
+
+    <!-- Page heading -->
+    <HBox alignment="CENTER_LEFT" spacing="14" styleClass="reminder-page-header">
+        <VBox spacing="4">
+            <Label text="Reminder Center" styleClass="page-heading,reminder-page-title"/>
+            <Label text="Manage follow-ups, payment reminders and important business tasks."
+                   styleClass="muted-label,reminder-page-subtitle"/>
+        </VBox>
+
+        <Region HBox.hgrow="ALWAYS"/>
+
+        <Button text="Refresh"
+                onAction="#refresh"
+                styleClass="reminder-secondary-button"/>
+        <Button text="Add Reminder"
+                onAction="#addReminder"
+                styleClass="primary-button,reminder-primary-button"/>
+    </HBox>
+
+    <!-- Summary cards -->
+    <HBox spacing="14" styleClass="reminder-metrics-row">
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-open" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+                <VBox spacing="3">
+                    <Label text="OPEN REMINDERS" styleClass="metric-title,reminder-metric-title"/>
+                    <Label fx:id="lblOpen" text="0" styleClass="metric-value,reminder-metric-value"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <StackPane fx:id="openMetricIcon"
+                           styleClass="reminder-metric-icon,reminder-open-icon"/>
+            </HBox>
+            <Label text="Active items requiring attention" styleClass="reminder-metric-note"/>
+        </VBox>
+
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-overdue" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+                <VBox spacing="3">
+                    <Label text="OVERDUE" styleClass="metric-title,reminder-metric-title"/>
+                    <Label fx:id="lblOverdue" text="0" styleClass="metric-value,reminder-metric-value"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <StackPane fx:id="overdueMetricIcon"
+                           styleClass="reminder-metric-icon,reminder-overdue-icon"/>
+            </HBox>
+            <Label text="Past due and still incomplete" styleClass="reminder-metric-note"/>
+        </VBox>
+
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-today" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+                <VBox spacing="3">
+                    <Label text="DUE TODAY" styleClass="metric-title,reminder-metric-title"/>
+                    <Label fx:id="lblDueToday" text="0" styleClass="metric-value,reminder-metric-value"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <StackPane fx:id="todayMetricIcon"
+                           styleClass="reminder-metric-icon,reminder-today-icon"/>
+            </HBox>
+            <Label text="Scheduled for the current day" styleClass="reminder-metric-note"/>
+        </VBox>
+
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-upcoming" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT">
+                <VBox spacing="3">
+                    <Label text="NEXT 7 DAYS" styleClass="metric-title,reminder-metric-title"/>
+                    <Label fx:id="lblUpcoming" text="0" styleClass="metric-value,reminder-metric-value"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <StackPane fx:id="upcomingMetricIcon"
+                           styleClass="reminder-metric-icon,reminder-upcoming-icon"/>
+            </HBox>
+            <Label text="Upcoming workload at a glance" styleClass="reminder-metric-note"/>
+        </VBox>
+    </HBox>
+
+    <!-- Filters -->
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="reminder-filter-bar">
+        <TextField fx:id="txtSearch"
+                   promptText="Search title, reference or notes..."
+                   HBox.hgrow="ALWAYS"
+                   styleClass="reminder-search-field"/>
+
+        <ComboBox fx:id="cmbStatus"
+                  prefWidth="160"
+                  promptText="Status"
+                  styleClass="reminder-filter-control"/>
+
+        <ComboBox fx:id="cmbPriority"
+                  prefWidth="160"
+                  promptText="Priority"
+                  styleClass="reminder-filter-control"/>
+
+        <ComboBox fx:id="cmbPeriod"
+                  prefWidth="160"
+                  promptText="Date range"
+                  styleClass="reminder-filter-control"/>
+
+        <Button text="Clear"
+                onAction="#clearFilters"
+                styleClass="reminder-clear-button"/>
+    </HBox>
+
+    <!-- Main workspace -->
+    <SplitPane dividerPositions="0.73"
+               VBox.vgrow="ALWAYS"
+               styleClass="reminder-workspace">
+
+        <!-- Table card -->
+        <VBox spacing="12" styleClass="reminder-table-card">
+            <HBox alignment="CENTER_LEFT">
+                <VBox spacing="2">
+                    <Label text="Reminders" styleClass="section-title,reminder-section-title"/>
+                    <Label text="Double-click a row to edit, or use the Action menu."
+                           styleClass="reminder-section-caption"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="lblResultCount" text="0 reminders" styleClass="reminder-result-count"/>
+            </HBox>
+
+            <TableView fx:id="table"
+                       VBox.vgrow="ALWAYS"
+                       styleClass="professional-table,reminder-table">
+                <placeholder>
+                    <VBox alignment="CENTER" spacing="10" styleClass="reminder-empty-state">
+                        <StackPane fx:id="emptyStateIcon"
+                                   styleClass="reminder-empty-icon"/>
+                        <Label text="No reminders found" styleClass="reminder-empty-title"/>
+                        <Label text="Create a reminder or change the filters to see matching records."
+                               wrapText="true"
+                               textAlignment="CENTER"
+                               styleClass="reminder-empty-description"/>
+                        <Button text="Create Reminder"
+                                onAction="#addReminder"
+                                styleClass="primary-button,reminder-empty-button"/>
+                    </VBox>
+                </placeholder>
+
+                <columns>
+                    <TableColumn fx:id="colTitle" text="Reminder" prefWidth="270"/>
+                    <TableColumn fx:id="colReference" text="Reference" prefWidth="145"/>
+                    <TableColumn fx:id="colDue" text="Due Date" prefWidth="125"/>
+                    <TableColumn fx:id="colPriority" text="Priority" prefWidth="105"/>
+                    <TableColumn fx:id="colStatus" text="Status" prefWidth="115"/>
+                    <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="125"/>
+                    <TableColumn fx:id="colActions"
+                                 text="Action"
+                                 prefWidth="92"
+                                 minWidth="92"
+                                 maxWidth="92"
+                                 sortable="false"
+                                 resizable="false"/>
+                </columns>
+            </TableView>
+        </VBox>
+
+        <!-- Details card -->
+        <ScrollPane fitToWidth="true"
+                    hbarPolicy="NEVER"
+                    styleClass="reminder-detail-scroll">
+            <content>
+                <VBox spacing="16" styleClass="detail-drawer,reminder-detail-panel">
+                    <HBox alignment="CENTER_LEFT">
+                        <VBox spacing="3">
+                            <Label text="Reminder Details" styleClass="section-title,reminder-section-title"/>
+                            <Label text="Review the selected reminder before taking action."
+                                   styleClass="reminder-section-caption"/>
+                        </VBox>
+                    </HBox>
+
+                    <VBox spacing="5" styleClass="reminder-detail-heading-card">
+                        <Label fx:id="lblDetailTitle"
+                               text="Select a reminder"
+                               wrapText="true"
+                               styleClass="metric-value,reminder-detail-title"/>
+                        <Label text="Selected reminder information"
+                               styleClass="reminder-detail-kicker"/>
+                    </VBox>
+
+                    <Separator styleClass="reminder-detail-separator"/>
+
+                    <GridPane hgap="14" vgap="13" styleClass="reminder-detail-grid">
+                        <columnConstraints>
+                            <ColumnConstraints minWidth="88" prefWidth="96"/>
+                            <ColumnConstraints hgrow="ALWAYS"/>
+                        </columnConstraints>
+
+                        <Label text="Reference" styleClass="metric-title,reminder-detail-label"/>
+                        <Label fx:id="lblDetailReference"
+                               GridPane.columnIndex="1"
+                               wrapText="true"
+                               styleClass="reminder-detail-value"/>
+
+                        <Label text="Due Date" GridPane.rowIndex="1"
+                               styleClass="metric-title,reminder-detail-label"/>
+                        <Label fx:id="lblDetailDue"
+                               GridPane.rowIndex="1"
+                               GridPane.columnIndex="1"
+                               styleClass="reminder-detail-value"/>
+
+                        <Label text="Priority" GridPane.rowIndex="2"
+                               styleClass="metric-title,reminder-detail-label"/>
+                        <Label fx:id="lblDetailPriority"
+                               GridPane.rowIndex="2"
+                               GridPane.columnIndex="1"
+                               styleClass="reminder-detail-badge"/>
+
+                        <Label text="Status" GridPane.rowIndex="3"
+                               styleClass="metric-title,reminder-detail-label"/>
+                        <Label fx:id="lblDetailStatus"
+                               GridPane.rowIndex="3"
+                               GridPane.columnIndex="1"
+                               styleClass="reminder-detail-badge"/>
+                    </GridPane>
+
+                    <VBox spacing="7">
+                        <Label text="Notes" styleClass="metric-title,reminder-detail-label"/>
+                        <Label fx:id="lblDetailNotes"
+                               wrapText="true"
+                               minHeight="88"
+                               styleClass="reminder-notes-box"/>
+                    </VBox>
+
+                    <Region minHeight="10" VBox.vgrow="ALWAYS"/>
+
+                    <VBox spacing="9" styleClass="reminder-detail-actions">
+                        <HBox spacing="9">
+                            <Button text="Edit Reminder"
+                                    onAction="#editSelected"
+                                    HBox.hgrow="ALWAYS"
+                                    maxWidth="Infinity"
+                                    styleClass="reminder-secondary-button,reminder-edit-button"/>
+                            <Button text="Mark Complete"
+                                    onAction="#completeSelected"
+                                    HBox.hgrow="ALWAYS"
+                                    maxWidth="Infinity"
+                                    styleClass="primary-button,reminder-complete-button"/>
+                        </HBox>
+
+                        <MenuButton fx:id="detailMoreActions"
+                                    text="More Actions"
+                                    maxWidth="Infinity"
+                                    styleClass="reminder-secondary-button,reminder-more-actions"/>
+                    </VBox>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </SplitPane>
+</VBox>

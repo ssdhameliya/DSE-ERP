@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.RegistrationController" styleClass="auth-page">
+
+    <left>
+        <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
+            <StackPane styleClass="auth-logo-badge"><Label text="◆" styleClass="auth-logo-mark"/></StackPane>
+            <Label text="JavaApp ERP" styleClass="auth-brand-title"/>
+            <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
+            <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle"/>
+            <Label text="Precision in Engineering
+Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
+            <Region VBox.vgrow="ALWAYS"/>
+            <Label text="Version 2.0.0" styleClass="auth-version"/>
+        </VBox>
+    </left>
+
+    <center><StackPane styleClass="auth-content"><VBox maxWidth="760" spacing="12" alignment="CENTER" styleClass="auth-card">
+        <StackPane styleClass="auth-section-icon"><Label text="+"/></StackPane>
+        <Label text="Create New Account" styleClass="auth-title"/>
+        <Label text="New accounts receive USER access. Email verification is required." styleClass="auth-description"/>
+        <GridPane hgap="14" vgap="7" maxWidth="680">
+            <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
+            <VBox spacing="4" GridPane.columnIndex="0"><Label text="Full name *" styleClass="auth-field-label"/><TextField fx:id="txtName" promptText="Full name" styleClass="auth-input"/><Label fx:id="lblNameError" managed="false" visible="false" styleClass="field-error"/></VBox>
+            <VBox spacing="4" GridPane.columnIndex="1"><Label text="Username *" styleClass="auth-field-label"/><TextField fx:id="txtUsername" promptText="Username" styleClass="auth-input"/><Label fx:id="lblUsernameError" managed="false" visible="false" styleClass="field-error"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnSpan="2"><Label text="Email address *" styleClass="auth-field-label"/><TextField fx:id="txtEmail" promptText="Email address" styleClass="auth-input"/><Label fx:id="lblEmailError" managed="false" visible="false" styleClass="field-error"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnIndex="0"><Label text="Password *" styleClass="auth-field-label"/><PasswordField fx:id="txtPassword" promptText="Minimum 6 characters" styleClass="auth-input"/><Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnIndex="1"><Label text="Confirm password *" styleClass="auth-field-label"/><PasswordField fx:id="txtConfirm" promptText="Confirm password" styleClass="auth-input"/><Label fx:id="lblConfirmError" managed="false" visible="false" styleClass="field-error"/></VBox>
+        </GridPane>
+        <Button fx:id="btnSendOtp" text="Send email OTP" onAction="#sendOtp" maxWidth="300" styleClass="auth-secondary-button,auth-email-button"/>
+        <VBox spacing="4" maxWidth="680"><Label text="Verification code *" styleClass="auth-field-label"/><TextField fx:id="txtOtp" promptText="Enter OTP" styleClass="auth-input"/><Label fx:id="lblOtpError" managed="false" visible="false" styleClass="field-error"/></VBox>
+        <Button fx:id="btnCreate" text="Create verified account" onAction="#register" maxWidth="380" styleClass="auth-primary-button"/>
+        <Button fx:id="btnBack" text="Back to login" onAction="#back" maxWidth="220" styleClass="auth-secondary-button"/>
+        <Label fx:id="lblMessage" wrapText="true" maxWidth="680" styleClass="auth-message"/>
+    </VBox></StackPane></center>
+
+    <bottom>
+        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="auth-footer">
+            <padding><Insets top="9" right="18" bottom="9" left="18"/></padding>
+            <Label text="DS Engineers" styleClass="auth-footer-strong"/>
+            <Label text="•"/><Label text="Phone: 9099839193"/>
+            <Label text="•"/><Label text="Email: jatindhameliya1989@gmail.com"/>
+            <Label text="•"/><Label text="Website: www.company.com"/>
+            <Label text="•"/><Label text="GSTIN: BEEPD4909N123456"/>
+            <Label text="•"/><Label text="Address: H-52 darshan Villa society, New Naroda, Ahmedabad - 382346" HBox.hgrow="ALWAYS"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="lblClock" text="00:00:00" styleClass="auth-footer-clock"/>
+        </HBox>
+    </bottom>
+</BorderPane>
