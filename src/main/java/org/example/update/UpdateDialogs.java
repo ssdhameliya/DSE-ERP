@@ -157,7 +157,7 @@ public final class UpdateDialogs {
                 {"Java Runtime", System.getProperty("java.version")},
                 {"Operating System", System.getProperty("os.name") + " " + System.getProperty("os.version") + " (" + System.getProperty("os.arch") + ")"},
                 {"Update Platform", PlatformPackage.current().name()},
-                {"Update Repository", ConfigManager.get("update.github.owner", "") + "/" + ConfigManager.get("update.github.repository", "")}
+                {"Update Repository", ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER) + "/" + ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY)}
         };
         for (int i=0;i<rows.length;i++) { Label key=new Label(rows[i][0]); key.getStyleClass().add("settings-form-label"); grid.add(key,0,i); Label value=new Label(rows[i][1]); value.setWrapText(true); grid.add(value,1,i); }
         Dialog<Void> dialog = baseDialog(owner, "System Health", grid, 760, 470); dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE); dialog.showAndWait();

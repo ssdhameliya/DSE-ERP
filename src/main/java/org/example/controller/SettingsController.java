@@ -20,6 +20,7 @@ import org.example.config.ConfigManager;
 import org.example.service.EmailService;
 import org.example.service.NotificationService;
 import org.example.update.UpdateDialogs;
+import org.example.update.UpdateService;
 import org.example.update.BuildInfo;
 
 import java.io.File;
@@ -472,8 +473,8 @@ public class SettingsController {
                 )
             )
         );
-        txtGitHubOwner.setText(ConfigManager.get("update.github.owner", ""));
-        txtGitHubRepository.setText(ConfigManager.get("update.github.repository", ""));
+        txtGitHubOwner.setText(ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER));
+        txtGitHubRepository.setText(ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY));
         selectComboValue(cmbUpdateChannel, ConfigManager.get("update.channel", "STABLE"));
         chkUpdateAtStartup.setSelected(Boolean.parseBoolean(ConfigManager.get("update.checkAtStartup", "true")));
         chkDownloadInBackground.setSelected(Boolean.parseBoolean(ConfigManager.get("update.downloadInBackground", "false")));

@@ -26,3 +26,10 @@ payment.upi=
 
 # WhatsApp settings: default sender phone (international format without +)
 whatsapp.senderPhone=
+
+# Application updates (GitHub Releases)
+update.github.owner=ssdhameliya
+update.github.repository=DSE-ERP
+update.channel=STABLE
+update.checkAtStartup=true
+update.downloadInBackground=false

@@ -14,12 +14,14 @@ import java.util.function.DoubleConsumer;
 
 public final class UpdateService {
     public static final String DEFAULT_VERSION="2.0.0";
+    public static final String DEFAULT_GITHUB_OWNER="ssdhameliya";
+    public static final String DEFAULT_GITHUB_REPOSITORY="DSE-ERP";
     private final GitHubReleaseClient releases=new GitHubReleaseClient();
     private final HttpClient http=HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(20)).build();
 
     public String currentVersion(){return BuildInfo.version();}
     public UpdateRelease check() throws Exception {
-        String owner=ConfigManager.get("update.github.owner","").trim(); String repo=ConfigManager.get("update.github.repository","").trim();
+        String owner=ConfigManager.get("update.github.owner",DEFAULT_GITHUB_OWNER).trim(); String repo=ConfigManager.get("update.github.repository",DEFAULT_GITHUB_REPOSITORY).trim();
         boolean beta="BETA".equalsIgnoreCase(ConfigManager.get("update.channel","STABLE"));
         return releases.latest(owner,repo,beta);
     }
