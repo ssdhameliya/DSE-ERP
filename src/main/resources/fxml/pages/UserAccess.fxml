@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserAccessController" spacing="10" styleClass="user-access-page,user-access-v2,approved-ui,approved-screen,approved-screen-user-access">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserAccessController" spacing="10" styleClass="user-access-page,user-access-v2,approved-ui,approved-screen,approved-screen-user-access,erp-screen-root">
     <padding><Insets top="14" right="16" bottom="12" left="16"/></padding>
 
     <HBox alignment="CENTER_LEFT" spacing="10" styleClass="user-access-header,approved-section-header">

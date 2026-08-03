@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<!-- Startup splash: product identity, loading status and progress indicator. --><?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.SplashController" styleClass="approved-ui,approved-screen,approved-screen-splash">
+<!-- Startup splash: product identity, loading status and progress indicator. --><?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.SplashController" styleClass="approved-ui,approved-screen,approved-screen-splash,erp-screen-root">
 
     <center>
 

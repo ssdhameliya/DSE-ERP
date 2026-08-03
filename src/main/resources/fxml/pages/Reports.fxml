@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.scene.control.*?><?import javafx.scene.layout.*?><?import javafx.scene.chart.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ReportsController" spacing="10" styleClass="reports-content,reports-single-page,approved-ui,approved-screen,approved-screen-reports">
+<?import javafx.scene.control.*?><?import javafx.scene.layout.*?><?import javafx.scene.chart.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ReportsController" spacing="10" styleClass="reports-content,reports-single-page,approved-ui,approved-screen,approved-screen-reports,erp-screen-root">
    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="reports-header,approved-section-header">
     <VBox spacing="3"><Label text="Reports Dashboard" styleClass="page-title"/><Label text="Real-time insights and business analytics" styleClass="page-subtitle"/></VBox>
     <Region HBox.hgrow="ALWAYS"/>

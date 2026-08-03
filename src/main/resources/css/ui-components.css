@@ -1,0 +1,30 @@
+/* DSE ERP 2.1.12 — shared component behavior. Colors remain in theme files. */
+.erp-screen-root { -fx-focus-traversable: false; }
+
+.page-header, .screen-header, .approved-page-header,
+.card, .panel-card, .table-card, .kpi-card, .metric-card, .stat-card,
+.filter-bar, .toolbar, .page-toolbar {
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+}
+
+.primary-button, .btn-primary, .save-button, .save-print-button { -fx-cursor: hand; }
+.secondary-button, .btn-secondary { -fx-cursor: hand; }
+.danger-button, .btn-danger { -fx-cursor: hand; }
+.icon-button, .table-action-button { -fx-content-display: GRAPHIC_ONLY; -fx-alignment: CENTER; }
+
+.status-badge, .status-pill, .erp-status-summary {
+    -fx-padding: 4 9 4 9;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.table-view .table-row-cell:empty .table-cell { -fx-border-width: 0; }
+.table-view .table-row-cell .table-cell { -fx-alignment: CENTER_LEFT; }
+.table-view .virtual-flow .scroll-bar:vertical { -fx-pref-width: 12; }
+.table-view .virtual-flow .scroll-bar:horizontal { -fx-pref-height: 12; }
+
+.context-menu .menu-item { -fx-cursor: hand; }
+.tooltip { -fx-font-size: 11px; -fx-padding: 6 8; }

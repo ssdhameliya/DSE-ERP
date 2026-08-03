@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserDialogController" prefWidth="920" prefHeight="680" styleClass="user-account-dialog,approved-ui,approved-screen,approved-screen-user-dialog">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserDialogController" prefWidth="920" prefHeight="680" styleClass="user-account-dialog,approved-ui,approved-screen,approved-screen-user-dialog,erp-screen-root">
  <left><VBox prefWidth="275" alignment="CENTER" spacing="16" styleClass="user-dialog-brand">
    <Label text="◈" styleClass="user-dialog-logo"/><Label text="DSE ERP 2.0" styleClass="title"/>
    <Label text="USER ACCESS" styleClass="metric-title"/><Label text="Create and maintain secure application accounts with database-backed roles." wrapText="true" textAlignment="CENTER" styleClass="subtitle" maxWidth="210"/>

@@ -1,0 +1,89 @@
+/* DSE ERP 2.1.12 — shared geometry contract.
+   Theme files must not override these dimensions. */
+.erp-screen-root {
+    -fx-font-family: "Inter", "Segoe UI", "SF Pro Text", system;
+}
+
+.page-header, .screen-header, .approved-page-header {
+    -fx-padding: 16 20 16 20;
+    -fx-spacing: 12;
+    -fx-alignment: CENTER_LEFT;
+    -fx-min-height: 76;
+}
+.page-title, .screen-title { -fx-font-size: 22px; -fx-font-weight: 700; }
+.page-subtitle, .screen-subtitle { -fx-font-size: 12px; }
+
+.kpi-row, .kpi-container, .stats-row {
+    -fx-spacing: 12;
+    -fx-alignment: CENTER_LEFT;
+}
+.kpi-card, .metric-card, .stat-card, .dashboard-kpi-card,
+.inventory-kpi-card, .return-kpi-card, .report-kpi-card, .user-kpi-card {
+    -fx-padding: 14 16 14 16;
+    -fx-spacing: 6;
+    -fx-min-height: 94;
+    -fx-pref-height: 104;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+.kpi-icon, .metric-icon, .stat-icon {
+    -fx-min-width: 36; -fx-pref-width: 36; -fx-max-width: 36;
+    -fx-min-height: 36; -fx-pref-height: 36; -fx-max-height: 36;
+    -fx-alignment: CENTER;
+}
+.kpi-value, .metric-value, .stat-value { -fx-font-size: 20px; -fx-font-weight: 700; }
+
+.filter-bar, .toolbar, .page-toolbar, .action-bar {
+    -fx-padding: 10 12 10 12;
+    -fx-spacing: 8;
+    -fx-alignment: CENTER_LEFT;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+}
+
+.button, .menu-button, .split-menu-button {
+    -fx-min-height: 34;
+    -fx-pref-height: 36;
+    -fx-padding: 7 12 7 12;
+    -fx-graphic-text-gap: 7;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+.text-field, .password-field, .combo-box-base, .date-picker {
+    -fx-min-height: 34;
+    -fx-pref-height: 36;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+.table-view {
+    -fx-fixed-cell-size: 38;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+.table-view .column-header-background { -fx-min-height: 40; -fx-pref-height: 40; }
+.table-view .column-header, .table-view .filler { -fx-size: 40; }
+.table-view .column-header .label { -fx-padding: 0 8 0 8; -fx-alignment: CENTER_LEFT; }
+.table-view .table-cell { -fx-padding: 0 8 0 8; }
+.table-placeholder, .empty-state { -fx-padding: 24; -fx-alignment: CENTER; }
+
+.context-menu { -fx-padding: 6; -fx-background-radius: 10; -fx-border-radius: 10; }
+.context-menu .menu-item { -fx-min-height: 34; -fx-pref-height: 34; -fx-padding: 7 12 7 12; }
+.context-menu .menu-item .label { -fx-padding: 0 6 0 6; }
+
+.dialog-pane, .app-dialog, .modern-dialog {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+.dialog-pane .header-panel, .app-dialog .header-panel { -fx-padding: 14 18 14 18; }
+.dialog-pane .content, .app-dialog .content { -fx-padding: 14 18 14 18; }
+.dialog-pane .button-bar, .app-dialog .button-bar { -fx-padding: 10 18 14 18; }
+
+.sidebar-scroll, .sidebar-scroll-pane {
+    -fx-fit-to-width: true;
+    -fx-pannable: true;
+}
+
+.compact-ui .page-header, .compact-ui .screen-header { -fx-padding: 12 16; -fx-min-height: 64; }
+.compact-ui .kpi-card, .compact-ui .metric-card, .compact-ui .stat-card { -fx-min-height: 82; -fx-pref-height: 90; }
+.compact-ui .table-view { -fx-fixed-cell-size: 34; }

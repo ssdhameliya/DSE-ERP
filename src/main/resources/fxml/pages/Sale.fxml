@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesController" fitToWidth="true" hbarPolicy="NEVER" styleClass="clean-scroll,sales-entry-scroll,approved-ui,approved-screen,approved-screen-sale">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesController" fitToWidth="true" hbarPolicy="NEVER" styleClass="clean-scroll,sales-entry-scroll,approved-ui,approved-screen,approved-screen-sale,erp-screen-root">
     <content>
         <VBox fx:id="salesEntryRoot" spacing="16" styleClass="purchase-page,sales-flow-page,sales-entry-page">
             <padding>

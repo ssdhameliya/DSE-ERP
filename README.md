@@ -37,13 +37,13 @@ On Windows, `build.bat` performs the same verification and `Run DSE ERP.bat` lau
 Windows PowerShell:
 
 ```powershell
-.\scripts\package-windows.ps1 -Version 2.1.0
+.\scripts\package-windows.ps1 -Version 2.1.12
 ```
 
 macOS Terminal:
 
 ```bash
-./scripts/package-macos.sh 2.1.0
+./scripts/package-macos.sh 2.1.12
 ```
 
 The generated packages are written to:
@@ -56,8 +56,8 @@ The generated packages are written to:
 After committing a matching version in `pom.xml`, push a semantic-version tag:
 
 ```bash
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.1.12
+git push origin v2.1.12
 ```
 
 GitHub Actions builds:

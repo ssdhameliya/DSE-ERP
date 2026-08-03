@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LookupDialogController" prefWidth="720" prefHeight="540" styleClass="entity-dialog,premium-entity-dialog,lookup-dialog,approved-ui,approved-screen,approved-screen-lookup-dialog">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LookupDialogController" prefWidth="720" prefHeight="540" styleClass="entity-dialog,premium-entity-dialog,lookup-dialog,approved-ui,approved-screen,approved-screen-lookup-dialog,erp-screen-root">
     <top>
         <HBox alignment="CENTER_LEFT" spacing="14" styleClass="entity-dialog-header,premium-dialog-header,approved-section-header">
             <StackPane fx:id="headerIconHolder" minWidth="44" minHeight="44" prefWidth="44" prefHeight="44" styleClass="dialog-title-icon,lookup-title-icon"/>

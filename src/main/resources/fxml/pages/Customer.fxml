@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.CustomerController" spacing="14" styleClass="register-page,master-entity-page,customer-master-premium,approved-ui,approved-screen,approved-screen-customer">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.CustomerController" spacing="14" styleClass="register-page,master-entity-page,customer-master-premium,approved-ui,approved-screen,approved-screen-customer,erp-screen-root">
     <padding><Insets top="18" right="18" bottom="14" left="18"/></padding>
     <HBox alignment="CENTER_LEFT" styleClass="entity-page-header,approved-section-header">
         <VBox spacing="3"><Label text="Customers Master" styleClass="screen-title"/><Label text="Manage customer contacts, tax details and opening balances" styleClass="screen-subtitle"/></VBox>

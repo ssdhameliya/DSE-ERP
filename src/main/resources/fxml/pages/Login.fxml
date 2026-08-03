@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LoginController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-login">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LoginController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-login,erp-screen-root">
 
     <left>
         <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">

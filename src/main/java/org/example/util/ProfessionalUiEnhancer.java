@@ -2,11 +2,8 @@ package org.example.util;
 
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ButtonBase;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.DialogPane;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
@@ -17,7 +14,6 @@ import javafx.geometry.Pos;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 
-import java.time.LocalDate;
 import java.util.Locale;
 
 /**
@@ -30,14 +26,13 @@ public final class ProfessionalUiEnhancer {
 
     /** Enhances every supported control below the supplied page root. */
     public static void enhance(Node root) {
+        if (root == null || Boolean.TRUE.equals(root.getProperties().get("erp-ui-enhanced"))) return;
+        root.getProperties().put("erp-ui-enhanced", true);
         walk(root);
         SharedUiFramework.install(root);
     }
 
     private static void walk(Node node) {
-        if (node instanceof DatePicker picker && picker.getValue() == null) {
-            picker.setValue(LocalDate.now());
-        }
         if (node instanceof TableView<?> table) enhanceTable(table);
         if (node instanceof DialogPane pane) enhanceDialog(pane);
         if (node instanceof Parent parent) {
@@ -84,7 +79,7 @@ public final class ProfessionalUiEnhancer {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void enhanceTable(TableView table) {
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         if (!table.getStyleClass().contains("erp-full-width-table")) {
             table.getStyleClass().add("erp-full-width-table");
         }
@@ -138,34 +133,9 @@ public final class ProfessionalUiEnhancer {
             }
         }
 
-        if (!Boolean.TRUE.equals(table.getProperties().get("erp-row-menu"))) {
-            table.getProperties().put("erp-row-menu", true);
-            javafx.util.Callback<TableView, TableRow> existingFactory = table.getRowFactory();
-            table.setRowFactory(view -> {
-                TableRow row = existingFactory == null ? new TableRow() : existingFactory.call((TableView) view);
-                MenuItem open = new MenuItem("Open / Edit", IconFactory.compactIcon("edit", 16));
-                open.setOnAction(event -> {
-                    table.getSelectionModel().select(row.getIndex());
-                    fireNamedAction(table, "edit", "view", "open");
-                });
-                MenuItem add = new MenuItem("Add New", IconFactory.compactIcon("add", 16));
-                add.setOnAction(event -> fireNamedAction(table, "add", "new", "create"));
-                MenuItem delete = new MenuItem("Delete", IconFactory.compactIcon("delete", 16));
-                delete.setOnAction(event -> {
-                    table.getSelectionModel().select(row.getIndex());
-                    fireNamedAction(table, "delete", "remove");
-                });
-                MenuItem select = new MenuItem("Select Row", IconFactory.compactIcon("view", 16));
-                select.setOnAction(event -> table.getSelectionModel().select(row.getIndex()));
-                MenuItem clear = new MenuItem("Clear Selection", IconFactory.compactIcon("cancel", 16));
-                clear.setOnAction(event -> table.getSelectionModel().clearSelection());
-                ContextMenu menu = new ContextMenu(add, open, delete,
-                    new javafx.scene.control.SeparatorMenuItem(), select, clear);
-                row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty())
-                    .then((ContextMenu) null).otherwise(menu));
-                return row;
-            });
-        }
+        // Row context menus are owned by each controller. A global menu caused
+        // duplicate/overlapping actions, especially on macOS.
+
     }
 
     /**

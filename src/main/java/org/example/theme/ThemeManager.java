@@ -9,7 +9,6 @@ import org.example.util.PlatformUiSupport;
 import org.example.util.WindowUtilsFx;
 import javafx.collections.ListChangeListener;
 import org.example.config.ConfigManager;
-import org.example.util.ProfessionalUiEnhancer;
 
 public final class ThemeManager {
 
@@ -30,8 +29,10 @@ public final class ThemeManager {
     public static void applyTheme(Scene scene) {
         installWindowHook();
 
-        // Exactly one application stylesheet is active. Page and component
-        // rules live inside the selected theme to prevent hidden overrides.
+        // Shared geometry and component behavior are theme-neutral and are
+        // installed exactly once. Light/Dark stylesheets only provide colors.
+        addOnce(scene, "/css/ui-layout.css");
+        addOnce(scene, "/css/ui-components.css");
         scene.getStylesheets().removeIf(css ->
             css.contains("light-theme.css") || css.contains("dark-theme.css"));
 
@@ -51,18 +52,22 @@ public final class ThemeManager {
 
         }
 
-        // Theme switches and popup windows must run the complete enhancer, not
-        // only the icon decorator. This keeps row numbers, table-header icons,
-        // button graphics, full-width tables and default dates stable after
-        // every navigation and in every dialog.
+        // Theme switches must not rebuild tables, icons or page structure.
+        // Only responsive classes and the active color palette are refreshed.
         if (scene.getRoot() != null) {
             PlatformUiSupport.installResponsiveClasses(scene);
-            ProfessionalUiEnhancer.enhance(scene.getRoot());
-            if (scene.getRoot() instanceof DialogPane pane && !pane.getStyleClass().contains("erp-modern-dialog")) {
+            if (scene.getRoot() instanceof DialogPane pane
+                    && !pane.getStyleClass().contains("erp-modern-dialog")
+                    && !pane.getStyleClass().contains("app-dialog")) {
                 pane.getStyleClass().add("erp-modern-dialog");
             }
         }
 
+    }
+
+    private static void addOnce(Scene scene, String resource) {
+        String url = ThemeManager.class.getResource(resource).toExternalForm();
+        if (!scene.getStylesheets().contains(url)) scene.getStylesheets().add(url);
     }
 
     private static synchronized void installWindowHook() {
