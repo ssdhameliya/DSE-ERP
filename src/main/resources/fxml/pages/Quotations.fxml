@@ -1,49 +1,44 @@
 <?xml version='1.0' encoding='UTF-8'?>
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.chart.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationController" styleClass="register-page,quotation-register-page">
+<?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationController" styleClass="register-page,quotation-register-page,approved-ui,approved-screen,approved-screen-quotations">
 
     <top>
         <VBox spacing="14" styleClass="quotation-register-top">
-            <padding><Insets top="18" right="20" bottom="14" left="20" /></padding>
+            <padding><Insets top="18" right="20" bottom="14" left="20"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="12">
-                <StackPane fx:id="pageIcon" styleClass="quotation-page-icon" />
+                <StackPane fx:id="pageIcon" styleClass="quotation-page-icon"/>
                 <VBox spacing="2">
-                    <Label text="Quotation Register" styleClass="screen-title" />
-                    <Label text="Manage all quotations, follow-ups, conversion and customer communication" styleClass="screen-subtitle" />
+                    <Label text="Quotation Register" styleClass="screen-title,approved-page-title"/>
+                    <Label text="Manage all quotations, follow-ups, conversion and customer communication" styleClass="screen-subtitle,approved-page-subtitle"/>
                 </VBox>
-                <Region HBox.hgrow="ALWAYS" />
-                <Button fx:id="btnNewQuotation" text="New Quotation (F2)" onAction="#newQuotation" styleClass="quotation-primary-button" />
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnNewQuotation" text="New Quotation (F2)" onAction="#newQuotation" styleClass="quotation-primary-button,approved-button,approved-primary-button"/>
             </HBox>
 
             <HBox spacing="12" styleClass="quotation-metric-row">
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-total" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="totalMetricIcon" styleClass="quotation-metric-icon,total-quotation-icon" />
-                    <VBox spacing="4"><Label text="Total Quotations" styleClass="metric-label" /><Label fx:id="lblTotalValue" styleClass="metric-value" /><Label fx:id="lblTotalCount" styleClass="metric-note" /></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-total,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="totalMetricIcon" styleClass="quotation-metric-icon,total-quotation-icon"/>
+                    <VBox spacing="4"><Label text="Total Quotations" styleClass="metric-label"/><Label fx:id="lblTotalValue" styleClass="metric-value"/><Label fx:id="lblTotalCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-pending" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="pendingMetricIcon" styleClass="quotation-metric-icon,pending-quotation-icon" />
-                    <VBox spacing="4"><Label text="Pending Quotations" styleClass="metric-label" /><Label fx:id="lblPendingValue" styleClass="metric-value" /><Label fx:id="lblPendingCount" styleClass="metric-note" /></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-pending,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="pendingMetricIcon" styleClass="quotation-metric-icon,pending-quotation-icon"/>
+                    <VBox spacing="4"><Label text="Pending Quotations" styleClass="metric-label"/><Label fx:id="lblPendingValue" styleClass="metric-value"/><Label fx:id="lblPendingCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-accepted" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="acceptedMetricIcon" styleClass="quotation-metric-icon,accepted-quotation-icon" />
-                    <VBox spacing="4"><Label text="Accepted Quotations" styleClass="metric-label" /><Label fx:id="lblAcceptedValue" styleClass="metric-value" /><Label fx:id="lblAcceptedCount" styleClass="metric-note" /></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-accepted,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="acceptedMetricIcon" styleClass="quotation-metric-icon,accepted-quotation-icon"/>
+                    <VBox spacing="4"><Label text="Accepted Quotations" styleClass="metric-label"/><Label fx:id="lblAcceptedValue" styleClass="metric-value"/><Label fx:id="lblAcceptedCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-expired" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="expiredMetricIcon" styleClass="quotation-metric-icon,expired-quotation-icon" />
-                    <VBox spacing="4"><Label text="Expired Quotations" styleClass="metric-label" /><Label fx:id="lblExpiredValue" styleClass="metric-value" /><Label fx:id="lblExpiredCount" styleClass="metric-note" /></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-expired,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="expiredMetricIcon" styleClass="quotation-metric-icon,expired-quotation-icon"/>
+                    <VBox spacing="4"><Label text="Expired Quotations" styleClass="metric-label"/><Label fx:id="lblExpiredValue" styleClass="metric-value"/><Label fx:id="lblExpiredCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-conversion" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="conversionMetricIcon" styleClass="quotation-metric-icon,conversion-quotation-icon" />
-                    <VBox spacing="4"><Label text="Conversion Rate" styleClass="metric-label" /><Label fx:id="lblConversion" styleClass="metric-value" /><Label text="Accepted / total" styleClass="metric-note" /></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-conversion,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="conversionMetricIcon" styleClass="quotation-metric-icon,conversion-quotation-icon"/>
+                    <VBox spacing="4"><Label text="Conversion Rate" styleClass="metric-label"/><Label fx:id="lblConversion" styleClass="metric-value"/><Label text="Accepted / total" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-average" HBox.hgrow="ALWAYS">
-                    <StackPane fx:id="averageMetricIcon" styleClass="quotation-metric-icon,average-quotation-icon" />
-                    <VBox spacing="4"><Label text="Average Value" styleClass="metric-label" /><Label fx:id="lblAverage" styleClass="metric-value" /><Label text="All quotations" styleClass="metric-note" /></VBox>
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-average,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                    <StackPane fx:id="averageMetricIcon" styleClass="quotation-metric-icon,average-quotation-icon"/>
+                    <VBox spacing="4"><Label text="Average Value" styleClass="metric-label"/><Label fx:id="lblAverage" styleClass="metric-value"/><Label text="All quotations" styleClass="metric-note"/></VBox>
                 </HBox>
             </HBox>
         </VBox>
@@ -53,100 +48,100 @@
         <SplitPane fx:id="mainSplit" dividerPositions="0.80" styleClass="quotation-register-split">
             <items>
                 <VBox spacing="12" styleClass="quotation-register-workspace">
-                    <VBox spacing="12" styleClass="quotation-filter-card">
-                        <padding><Insets top="14" right="14" bottom="14" left="14" /></padding>
+                    <VBox spacing="12" styleClass="quotation-filter-card,approved-filter-bar,approved-surface">
+                        <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
                         <HBox spacing="10" alignment="CENTER_LEFT">
-                            <TextField fx:id="txtSearch" promptText="Search quotation, customer, mobile or GSTIN..." HBox.hgrow="ALWAYS" />
-                            <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced" styleClass="quotation-toolbar-button" visible="false" managed="false" />
-                            <MenuButton fx:id="savedViewsMenu" text="Saved Views" styleClass="quotation-saved-view-button" visible="false" managed="false" />
-                            <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="quotation-toolbar-button" />
-                            <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="quotation-toolbar-button" />
+                            <TextField fx:id="txtSearch" promptText="Search quotation, customer, mobile or GSTIN..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+                            <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced" styleClass="quotation-toolbar-button" visible="false" managed="false"/>
+                            <MenuButton fx:id="savedViewsMenu" text="Saved Views" styleClass="quotation-saved-view-button,approved-menu-button" visible="false" managed="false"/>
+                            <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="quotation-toolbar-button,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="quotation-toolbar-button,approved-button,approved-secondary-button"/>
                         </HBox>
 
-                        <GridPane fx:id="advancedFilters" hgap="12" vgap="10" styleClass="quotation-filter-grid">
+                        <GridPane fx:id="advancedFilters" hgap="12" vgap="10" styleClass="quotation-filter-grid,approved-filter-bar">
                             <columnConstraints>
-                                <ColumnConstraints percentWidth="16.66" /><ColumnConstraints percentWidth="16.66" /><ColumnConstraints percentWidth="16.66" />
-                                <ColumnConstraints percentWidth="16.66" /><ColumnConstraints percentWidth="16.66" /><ColumnConstraints percentWidth="16.70" />
+                                <ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/>
+                                <ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.70"/>
                             </columnConstraints>
-                            <VBox spacing="4" GridPane.rowIndex="0" GridPane.columnIndex="0"><Label text="Quotation No." styleClass="filter-label" /><TextField fx:id="txtNumber" promptText="Quotation no." /></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0"><Label text="Customer" styleClass="filter-label" /><ComboBox fx:id="cmbCustomer" maxWidth="Infinity" /></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="2" GridPane.rowIndex="0"><Label text="From Date" styleClass="filter-label" /><DatePicker fx:id="dpFrom" maxWidth="Infinity" /></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="3" GridPane.rowIndex="0"><Label text="To Date" styleClass="filter-label" /><DatePicker fx:id="dpTo" maxWidth="Infinity" /></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="4" GridPane.rowIndex="0"><Label text="Status" styleClass="filter-label" /><ComboBox fx:id="cmbStatus" maxWidth="Infinity" /></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="5" visible="false" managed="false"><Label text="Valid Upto" styleClass="filter-label" /><DatePicker fx:id="dpValid" maxWidth="Infinity" promptText="Any date" visible="false" managed="false" /></VBox>
+                            <VBox spacing="4" GridPane.rowIndex="0" GridPane.columnIndex="0"><Label text="Quotation No." styleClass="filter-label"/><TextField fx:id="txtNumber" promptText="Quotation no." styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0"><Label text="Customer" styleClass="filter-label"/><ComboBox fx:id="cmbCustomer" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="2" GridPane.rowIndex="0"><Label text="From Date" styleClass="filter-label"/><DatePicker fx:id="dpFrom" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="3" GridPane.rowIndex="0"><Label text="To Date" styleClass="filter-label"/><DatePicker fx:id="dpTo" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="4" GridPane.rowIndex="0"><Label text="Status" styleClass="filter-label"/><ComboBox fx:id="cmbStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="5" visible="false" managed="false"><Label text="Valid Upto" styleClass="filter-label"/><DatePicker fx:id="dpValid" maxWidth="Infinity" promptText="Any date" visible="false" managed="false" styleClass="approved-input"/></VBox>
 
-                            <VBox spacing="4" GridPane.rowIndex="1" visible="false" managed="false"><Label text="Sales Person" styleClass="filter-label" /><ComboBox fx:id="cmbSalesperson" maxWidth="Infinity" visible="false" managed="false" /></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1" visible="false" managed="false"><Label text="Amount From" styleClass="filter-label" /><TextField fx:id="txtAmountFrom" promptText="Min Amount" visible="false" managed="false" /></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2" visible="false" managed="false"><Label text="Amount To" styleClass="filter-label" /><TextField fx:id="txtAmountTo" promptText="Max Amount" visible="false" managed="false" /></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3" visible="false" managed="false"><Label text="Follow Up" styleClass="filter-label" /><ComboBox fx:id="cmbFollowUp" maxWidth="Infinity" visible="false" managed="false" /></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="4" visible="false" managed="false"><Label text="Source" styleClass="filter-label" /><ComboBox fx:id="cmbSource" maxWidth="Infinity" visible="false" managed="false" /></VBox>
+                            <VBox spacing="4" GridPane.rowIndex="1" visible="false" managed="false"><Label text="Sales Person" styleClass="filter-label"/><ComboBox fx:id="cmbSalesperson" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1" visible="false" managed="false"><Label text="Amount From" styleClass="filter-label"/><TextField fx:id="txtAmountFrom" promptText="Min Amount" visible="false" managed="false" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2" visible="false" managed="false"><Label text="Amount To" styleClass="filter-label"/><TextField fx:id="txtAmountTo" promptText="Max Amount" visible="false" managed="false" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3" visible="false" managed="false"><Label text="Follow Up" styleClass="filter-label"/><ComboBox fx:id="cmbFollowUp" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="4" visible="false" managed="false"><Label text="Source" styleClass="filter-label"/><ComboBox fx:id="cmbSource" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input"/></VBox>
                             <HBox spacing="8" alignment="BOTTOM_RIGHT" GridPane.rowIndex="0" GridPane.columnIndex="5">
-                                <Button fx:id="btnSaveView" text="Save View" onAction="#saveCurrentView" styleClass="quotation-save-view-button" visible="false" managed="false" />
-                                <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" styleClass="quotation-apply-button" />
+                                <Button fx:id="btnSaveView" text="Save View" onAction="#saveCurrentView" styleClass="quotation-save-view-button,approved-button,approved-primary-button" visible="false" managed="false"/>
+                                <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" styleClass="quotation-apply-button,approved-button,approved-primary-button"/>
                             </HBox>
                         </GridPane>
                         <HBox spacing="8" alignment="CENTER_LEFT" styleClass="quick-date-row">
-                            <Button fx:id="btnTodayRange" text="Today" onAction="#showToday" styleClass="quick-range-button" />
-                            <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="quick-range-button" />
-                            <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="quick-range-button" />
-                            <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="quick-range-button" />
-                            <Button fx:id="btnCustomRange" text="Custom Range" onAction="#showCustomRange" styleClass="quick-range-button,quick-range-custom" />
+                            <Button fx:id="btnTodayRange" text="Today" onAction="#showToday" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnCustomRange" text="Custom Range" onAction="#showCustomRange" styleClass="quick-range-button,quick-range-custom,approved-button,approved-secondary-button"/>
                         </HBox>
-                        <FlowPane fx:id="activeFilterChips" hgap="6" vgap="5" visible="false" managed="false" />
+                        <FlowPane fx:id="activeFilterChips" hgap="6" vgap="5" visible="false" managed="false"/>
                     </VBox>
 
-                    <VBox spacing="0" styleClass="quotation-table-card" VBox.vgrow="ALWAYS">
-                        <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table" minHeight="420">
+                    <VBox spacing="0" styleClass="quotation-table-card,approved-surface" VBox.vgrow="ALWAYS">
+                        <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table,approved-table" minHeight="420">
                             <columns>
-                                <TableColumn fx:id="colNo" text="Quotation No." prefWidth="130" />
-                                <TableColumn fx:id="colDate" text="Date" prefWidth="95" />
-                                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="175" />
-                                <TableColumn fx:id="colAmount" text="Amount" prefWidth="110" />
-                                <TableColumn fx:id="colValid" text="Valid Upto" prefWidth="105" />
-                                <TableColumn fx:id="colStatus" text="Status" prefWidth="95" />
-                                <TableColumn fx:id="colFollowUp" text="Follow Up" prefWidth="105" />
-                                <TableColumn fx:id="colConverted" text="Converted To" prefWidth="115" />
-                                <TableColumn fx:id="colSalesperson" text="Sales Person" prefWidth="120" />
-                                <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="100" />
-                                <TableColumn fx:id="colActions" text="Actions" prefWidth="88" sortable="false" />
+                                <TableColumn fx:id="colNo" text="Quotation No." prefWidth="130" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colDate" text="Date" prefWidth="95" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="175" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colAmount" text="Amount" prefWidth="110" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colValid" text="Valid Upto" prefWidth="105" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colStatus" text="Status" prefWidth="95" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colFollowUp" text="Follow Up" prefWidth="105" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colConverted" text="Converted To" prefWidth="115" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colSalesperson" text="Sales Person" prefWidth="120" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="100" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colActions" text="Actions" prefWidth="88" sortable="false" styleClass="approved-table-column"/>
                             </columns>
                         </TableView>
 
                         <HBox spacing="10" alignment="CENTER_LEFT" styleClass="quotation-export-bar">
-                            <padding><Insets top="12" right="14" bottom="12" left="14" /></padding>
-                            <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportExcel" styleClass="quotation-export-button" />
-                            <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="quotation-export-button" />
-                            <Region HBox.hgrow="ALWAYS" />
-                            <Label fx:id="lblFilteredSummary" styleClass="quotation-filtered-summary" />
+                            <padding><Insets top="12" right="14" bottom="12" left="14"/></padding>
+                            <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportExcel" styleClass="quotation-export-button,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="quotation-export-button,approved-button,approved-secondary-button"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Label fx:id="lblFilteredSummary" styleClass="quotation-filtered-summary"/>
                         </HBox>
                     </VBox>
                 </VBox>
 
                 <VBox fx:id="detailDrawer" spacing="11" styleClass="detail-drawer,quotation-detail-drawer">
-                    <padding><Insets top="16" right="14" bottom="16" left="14" /></padding>
-                    <HBox><Label text="Quotation Details" styleClass="drawer-title" /><Region HBox.hgrow="ALWAYS" /><Button text="×" onAction="#closeDetails" styleClass="icon-button" /></HBox>
-                    <Label fx:id="lblDetailNo" styleClass="drawer-document" />
-                    <HBox spacing="8"><Label fx:id="lblDetailDate" /><Label fx:id="lblDetailStatus" styleClass="status-pill" /></HBox>
-                    <Separator /><Label fx:id="lblDetailCustomer" styleClass="drawer-customer" /><Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text" /><Separator />
+                    <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
+                    <HBox><Label text="Quotation Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="×" onAction="#closeDetails" styleClass="icon-button,approved-button,approved-secondary-button"/></HBox>
+                    <Label fx:id="lblDetailNo" styleClass="drawer-document"/>
+                    <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>
+                    <Separator/><Label fx:id="lblDetailCustomer" styleClass="drawer-customer"/><Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text"/><Separator/>
                     <GridPane hgap="12" vgap="8">
-                        <Label text="Quotation Amount" /><Label fx:id="lblDetailAmount" GridPane.columnIndex="1" styleClass="drawer-money" />
-                        <Label text="Discount" GridPane.rowIndex="1" /><Label fx:id="lblDetailDiscount" GridPane.rowIndex="1" GridPane.columnIndex="1" />
-                        <Label text="Valid Upto" GridPane.rowIndex="2" /><Label fx:id="lblDetailValid" GridPane.rowIndex="2" GridPane.columnIndex="1" />
-                        <Label text="Follow Up" GridPane.rowIndex="3" /><Label fx:id="lblDetailFollow" GridPane.rowIndex="3" GridPane.columnIndex="1" />
-                        <Label text="Converted To" GridPane.rowIndex="4" /><Label fx:id="lblDetailConverted" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+                        <Label text="Quotation Amount"/><Label fx:id="lblDetailAmount" GridPane.columnIndex="1" styleClass="drawer-money"/>
+                        <Label text="Discount" GridPane.rowIndex="1"/><Label fx:id="lblDetailDiscount" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                        <Label text="Valid Upto" GridPane.rowIndex="2"/><Label fx:id="lblDetailValid" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                        <Label text="Follow Up" GridPane.rowIndex="3"/><Label fx:id="lblDetailFollow" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                        <Label text="Converted To" GridPane.rowIndex="4"/><Label fx:id="lblDetailConverted" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
                     </GridPane>
-                    <Label text="Quick Actions" styleClass="drawer-section" />
+                    <Label text="Quick Actions" styleClass="drawer-section"/>
                     <GridPane hgap="7" vgap="7">
-                        <Button text="Edit" onAction="#editSelected" maxWidth="Infinity" />
-                        <Button text="PDF" onAction="#pdfSelected" GridPane.columnIndex="1" maxWidth="Infinity" />
-                        <Button text="Email" onAction="#emailSelected" GridPane.rowIndex="1" maxWidth="Infinity" />
-                        <Button text="WhatsApp" onAction="#whatsappSelected" GridPane.rowIndex="1" GridPane.columnIndex="1" maxWidth="Infinity" />
-                        <Button text="Convert to Sale" onAction="#convertSelected" GridPane.rowIndex="2" maxWidth="Infinity" />
-                        <Button text="Follow Up" onAction="#followUpSelected" GridPane.rowIndex="2" GridPane.columnIndex="1" maxWidth="Infinity" />
+                        <Button text="Edit" onAction="#editSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                        <Button text="PDF" onAction="#pdfSelected" GridPane.columnIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                        <Button text="Email" onAction="#emailSelected" GridPane.rowIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                        <Button text="WhatsApp" onAction="#whatsappSelected" GridPane.rowIndex="1" GridPane.columnIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                        <Button text="Convert to Sale" onAction="#convertSelected" GridPane.rowIndex="2" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                        <Button text="Follow Up" onAction="#followUpSelected" GridPane.rowIndex="2" GridPane.columnIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     </GridPane>
-                    <Label text="Notes" styleClass="drawer-section" /><TextArea fx:id="txtDetailNotes" prefRowCount="4" wrapText="true" /><Button text="Save Notes" onAction="#saveNotes" styleClass="secondary-button" />
-                    <Region VBox.vgrow="ALWAYS" /><Button text="Close" onAction="#closeDetails" styleClass="secondary-button" maxWidth="Infinity" />
+                    <Label text="Notes" styleClass="drawer-section"/><TextArea fx:id="txtDetailNotes" prefRowCount="4" wrapText="true" styleClass="approved-input"/><Button text="Save Notes" onAction="#saveNotes" styleClass="secondary-button,approved-button,approved-primary-button"/>
+                    <Region VBox.vgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="secondary-button,approved-button,approved-secondary-button" maxWidth="Infinity"/>
                 </VBox>
             </items>
         </SplitPane>

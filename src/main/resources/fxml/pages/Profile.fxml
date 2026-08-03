@@ -1,11 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="org.example.controller.ProfileController" spacing="18" styleClass="mock-page" style="-fx-padding:30;">
-    <Label text="My Profile" styleClass="screen-title"/>
-    <Label text="Manage your account information" styleClass="screen-subtitle"/>
-    <GridPane hgap="28" vgap="18" styleClass="flow-card">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ProfileController" spacing="18" styleClass="mock-page,approved-ui,approved-screen,approved-screen-profile" style="-fx-padding:30;">
+    <Label text="My Profile" styleClass="screen-title,approved-page-title"/>
+    <Label text="Manage your account information" styleClass="screen-subtitle,approved-page-subtitle"/>
+    <GridPane hgap="28" vgap="18" styleClass="flow-card,approved-surface">
     <Label text="Full name" style="-fx-font-weight:bold;"/>
     <Label fx:id="lblName" GridPane.columnIndex="1"/>
     <Label text="Username" style="-fx-font-weight:bold;" GridPane.rowIndex="1"/>

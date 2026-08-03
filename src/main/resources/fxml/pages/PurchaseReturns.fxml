@@ -1,52 +1,45 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-
-<!-- Purchase Return Register: supplier returns, refunds, documents and actions. -->
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="org.example.controller.PurchaseReturnsController"
-      spacing="14" styleClass="register-page">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Purchase Return Register: supplier returns, refunds, documents and actions. --><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.PurchaseReturnsController" spacing="14" styleClass="register-page,approved-ui,approved-screen,approved-screen-purchase-returns">
   <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
   <HBox alignment="CENTER_LEFT">
-    <VBox><Label text="Purchase Return Register" styleClass="screen-title"/><Label text="Manage supplier returns, debit notes and refunds" styleClass="screen-subtitle"/></VBox>
+    <VBox><Label text="Purchase Return Register" styleClass="screen-title,approved-page-title"/><Label text="Manage supplier returns, debit notes and refunds" styleClass="screen-subtitle,approved-page-subtitle"/></VBox>
     <Region HBox.hgrow="ALWAYS"/>
-    <Button text="＋ Create Purchase Return" onAction="#create" styleClass="primary-action"/>
+    <Button text="＋ Create Purchase Return" onAction="#create" styleClass="primary-action,approved-button,approved-primary-button"/>
   </HBox>
   <HBox spacing="12">
-    <VBox styleClass="purchase-kpi" HBox.hgrow="ALWAYS"><Label text="Total Returns"/><Label fx:id="total" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Total Returns"/><Label fx:id="total" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
     <!-- Mirrors the Sales Return month KPI and uses the active database rows. -->
-    <VBox styleClass="purchase-kpi" HBox.hgrow="ALWAYS"><Label text="This Month"/><Label fx:id="monthCount" styleClass="purchase-kpi-value"/><Label text="Returns this month"/></VBox>
-    <VBox styleClass="purchase-kpi" HBox.hgrow="ALWAYS"><Label text="Return Count"/><Label fx:id="count" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
-    <VBox styleClass="purchase-kpi" HBox.hgrow="ALWAYS"><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="purchase-kpi-value"/><Label text="Processed"/></VBox>
-    <VBox styleClass="purchase-kpi" HBox.hgrow="ALWAYS"><Label text="Average Return"/><Label fx:id="average" styleClass="purchase-kpi-value"/><Label text="Per return"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="This Month"/><Label fx:id="monthCount" styleClass="purchase-kpi-value"/><Label text="Returns this month"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Return Count"/><Label fx:id="count" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="purchase-kpi-value"/><Label text="Processed"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Average Return"/><Label fx:id="average" styleClass="purchase-kpi-value"/><Label text="Per return"/></VBox>
   </HBox>
-  <VBox spacing="10" styleClass="filter-surface">
+  <VBox spacing="10" styleClass="filter-surface,approved-filter-bar">
     <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
     <HBox spacing="10" alignment="CENTER_LEFT">
-      <TextField fx:id="search" promptText="Search return, purchase or supplier..." HBox.hgrow="ALWAYS"/>
-      <ComboBox fx:id="supplier" prefWidth="190"/>
-      <DatePicker fx:id="dpFrom" prefWidth="145"/>
-      <DatePicker fx:id="dpTo" prefWidth="145"/>
-      <ComboBox fx:id="status" prefWidth="150"/>
-      <Button text="Apply Filters" onAction="#filter"/>
-      <Button text="Reset" onAction="#reset" styleClass="secondary-button"/>
-      <Button text="Refresh" onAction="#load"/>
-      <Button text="Export" onAction="#export" styleClass="secondary-button"/>
+      <TextField fx:id="search" promptText="Search return, purchase or supplier..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+      <ComboBox fx:id="supplier" prefWidth="190" styleClass="approved-input"/>
+      <DatePicker fx:id="dpFrom" prefWidth="145" styleClass="approved-input"/>
+      <DatePicker fx:id="dpTo" prefWidth="145" styleClass="approved-input"/>
+      <ComboBox fx:id="status" prefWidth="150" styleClass="approved-input"/>
+      <Button text="Apply Filters" onAction="#filter" styleClass="approved-button,approved-primary-button"/>
+      <Button text="Reset" onAction="#reset" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+      <Button text="Refresh" onAction="#load" styleClass="approved-button,approved-secondary-button"/>
+      <Button text="Export" onAction="#export" styleClass="secondary-button,approved-button,approved-secondary-button"/>
     </HBox>
   </VBox>
-  <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table">
+  <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,approved-table">
     <columns>
-      <TableColumn text="" prefWidth="42"/>
-      <TableColumn fx:id="cNo" text="Return No." prefWidth="150"/>
-      <TableColumn fx:id="cDate" text="Return Date" prefWidth="100"/>
-      <TableColumn fx:id="cInvoice" text="Purchase No." prefWidth="135"/>
-      <TableColumn fx:id="cSupplier" text="Supplier" prefWidth="180"/>
-      <TableColumn fx:id="cTotal" text="Total Amount (₹)" prefWidth="125"/>
-      <TableColumn fx:id="cRefund" text="Refund Amount (₹)" prefWidth="130"/>
-      <TableColumn fx:id="cStatus" text="Return Status" prefWidth="125"/>
-      <TableColumn fx:id="cRefundStatus" text="Refund Status" prefWidth="125"/>
-      <TableColumn fx:id="cAction" text="Actions" prefWidth="90"/>
+      <TableColumn text="" prefWidth="42" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cNo" text="Return No." prefWidth="150" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cDate" text="Return Date" prefWidth="100" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cInvoice" text="Purchase No." prefWidth="135" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cSupplier" text="Supplier" prefWidth="180" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cTotal" text="Total Amount (₹)" prefWidth="125" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cRefund" text="Refund Amount (₹)" prefWidth="130" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cStatus" text="Return Status" prefWidth="125" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cRefundStatus" text="Refund Status" prefWidth="125" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cAction" text="Actions" prefWidth="90" styleClass="approved-table-column"/>
     </columns>
   </TableView>
   <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to view • Right-click for actions" styleClass="muted-text"/></HBox>

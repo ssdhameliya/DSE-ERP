@@ -1,52 +1,47 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="org.example.controller.ItemMasterController"
-      spacing="14" styleClass="register-page,master-entity-page,item-master-premium">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.ItemMasterController" spacing="14" styleClass="register-page,master-entity-page,item-master-premium,approved-ui,approved-screen,approved-screen-item-master">
     <padding><Insets top="18" right="18" bottom="14" left="18"/></padding>
-    <HBox alignment="CENTER_LEFT" styleClass="entity-page-header">
+    <HBox alignment="CENTER_LEFT" styleClass="entity-page-header,approved-section-header">
         <VBox spacing="3">
-            <Label text="Items Master" styleClass="screen-title"/>
-            <Label text="Manage product codes, tax, pricing and reorder settings" styleClass="screen-subtitle"/>
+            <Label text="Items Master" styleClass="screen-title,approved-page-title"/>
+            <Label text="Manage product codes, tax, pricing and reorder settings" styleClass="screen-subtitle,approved-page-subtitle"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="New Item" onAction="#newItem" styleClass="primary-action,entity-create-button"/>
+        <Button text="New Item" onAction="#newItem" styleClass="primary-action,entity-create-button,approved-button,approved-primary-button"/>
     </HBox>
 
-    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-surface,entity-toolbar">
+    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-surface,entity-toolbar,approved-filter-bar,approved-toolbar">
         <padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
-        <TextField fx:id="txtSearch" promptText="Search item code, name, category or brand..." HBox.hgrow="ALWAYS" styleClass="entity-search"/>
-        <Button text="Edit" onAction="#editItem" styleClass="secondary-button"/>
-        <Button text="Delete" onAction="#deleteItem" styleClass="danger-button"/>
-        <Button text="Refresh" onAction="#refresh"/>
+        <TextField fx:id="txtSearch" promptText="Search item code, name, category or brand..." HBox.hgrow="ALWAYS" styleClass="entity-search,approved-input"/>
+        <Button text="Edit" onAction="#editItem" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+        <Button text="Delete" onAction="#deleteItem" styleClass="danger-button,approved-button,approved-danger-button"/>
+        <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
         <Separator orientation="VERTICAL" prefHeight="28"/>
-        <Button text="Import Excel" onAction="#importItems" styleClass="secondary-button"/>
-        <Button text="Export Excel" onAction="#exportItems" styleClass="secondary-button"/>
+        <Button text="Import Excel" onAction="#importItems" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+        <Button text="Export Excel" onAction="#exportItems" styleClass="secondary-button,approved-button,approved-secondary-button"/>
     </HBox>
 
-    <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="entity-table-card">
-        <TableView fx:id="tableItems" VBox.vgrow="ALWAYS" styleClass="professional-table,entity-table">
+    <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="entity-table-card,approved-surface">
+        <TableView fx:id="tableItems" VBox.vgrow="ALWAYS" styleClass="professional-table,entity-table,approved-table">
             <placeholder><VBox alignment="CENTER" spacing="8" styleClass="premium-empty-state"><Label text="No items found" styleClass="empty-state-title"/><Label text="Create a new item or adjust the current search." styleClass="muted-text"/></VBox></placeholder>
             <columns>
-                <TableColumn fx:id="colCode" text="Item Code" prefWidth="110"/>
-                <TableColumn fx:id="colDescription" text="Item Name" prefWidth="220"/>
-                <TableColumn fx:id="colCategory" text="Category" prefWidth="110"/>
-                <TableColumn fx:id="colBrand" text="Brand" prefWidth="100"/>
-                <TableColumn fx:id="colMaterial" text="Material" prefWidth="100"/>
-                <TableColumn fx:id="colSize" text="Size" prefWidth="80"/>
-                <TableColumn fx:id="colUnit" text="Unit" prefWidth="70"/>
-                <TableColumn fx:id="colHsn" text="HSN/SAC" prefWidth="95"/>
-                <TableColumn fx:id="colGst" text="GST %" prefWidth="70"/>
-                <TableColumn fx:id="colDiscount" text="Discount %" prefWidth="90"/>
-                <TableColumn fx:id="colPurchasePrice" text="Purchase Price" prefWidth="105"/>
-                <TableColumn fx:id="colSellingPrice" text="Selling Price" prefWidth="105"/>
-                <TableColumn fx:id="colOpeningStock" text="In Stock" prefWidth="85"/>
-                <TableColumn fx:id="colMinimumStock" text="Min Stock" prefWidth="85"/>
-                <TableColumn fx:id="colLocation" text="Location" prefWidth="110"/>
-                <TableColumn fx:id="colRemarks" text="Remarks" prefWidth="180"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="120"/>
+                <TableColumn fx:id="colCode" text="Item Code" prefWidth="110" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDescription" text="Item Name" prefWidth="220" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colCategory" text="Category" prefWidth="110" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colBrand" text="Brand" prefWidth="100" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMaterial" text="Material" prefWidth="100" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colSize" text="Size" prefWidth="80" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colUnit" text="Unit" prefWidth="70" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colHsn" text="HSN/SAC" prefWidth="95" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colGst" text="GST %" prefWidth="70" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDiscount" text="Discount %" prefWidth="90" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colPurchasePrice" text="Purchase Price" prefWidth="105" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colSellingPrice" text="Selling Price" prefWidth="105" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colOpeningStock" text="In Stock" prefWidth="85" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMinimumStock" text="Min Stock" prefWidth="85" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colLocation" text="Location" prefWidth="110" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colRemarks" text="Remarks" prefWidth="180" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colAction" text="Actions" prefWidth="120" styleClass="approved-table-column"/>
             </columns>
         </TableView>
         <HBox alignment="CENTER_RIGHT" styleClass="table-footer,entity-table-footer">

@@ -5220,3 +5220,72 @@ SECTION TITLES
 .erp-loading-card { -fx-background-color:#ffffff; -fx-border-color:#cbd5e1; -fx-effect:dropshadow(gaussian,rgba(15,23,42,.18),24,.15,0,8); }
 .erp-loading-title { -fx-text-fill:#0f172a; }
 .erp-loading-subtitle { -fx-text-fill:#475569; }
+
+/* ===== Approved v2.1.9 UI system: premium, chart-free and macOS responsive ===== */
+.approved-ui, .approved-page-scroll, .approved-page { -fx-background-color: #f6f8fc; }
+.approved-page-scroll { -fx-background-insets: 0; -fx-padding: 0; }
+.approved-page-scroll > .viewport { -fx-background-color: #f6f8fc; }
+.approved-page-header { -fx-padding: 2 0 4 0; }
+.approved-page-title { -fx-font-size: 27px; -fx-font-weight: 800; -fx-text-fill: #10213e; }
+.approved-page-subtitle, .approved-body-text { -fx-font-size: 13px; -fx-text-fill: #65738c; }
+.approved-title-icon { -fx-min-width: 48; -fx-min-height: 48; -fx-max-width: 48; -fx-max-height: 48; -fx-background-color: #eaf2ff; -fx-background-radius: 14; }
+.approved-kpi { -fx-padding: 16; -fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #dfe7f4; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,35,70,.07), 12, 0.12, 0, 3); }
+.approved-kpi-icon { -fx-min-width: 42; -fx-min-height: 42; -fx-max-width: 42; -fx-max-height: 42; -fx-background-radius: 13; -fx-background-color: #edf4ff; }
+.approved-kpi-caption { -fx-font-size: 12px; -fx-font-weight: 700; -fx-text-fill: #53627a; }
+.approved-kpi-value { -fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #112240; }
+.approved-kpi-note { -fx-font-size: 11px; -fx-text-fill: #70809a; }
+.kpi-sales { -fx-background-color: linear-gradient(to bottom right,#ffffff,#eef5ff); }
+.kpi-purchase { -fx-background-color: linear-gradient(to bottom right,#ffffff,#effbf3); }
+.kpi-receivable { -fx-background-color: linear-gradient(to bottom right,#ffffff,#f5f0ff); }
+.kpi-payable { -fx-background-color: linear-gradient(to bottom right,#ffffff,#fff7eb); }
+.kpi-cash { -fx-background-color: linear-gradient(to bottom right,#ffffff,#eefbf9); }
+.kpi-stock { -fx-background-color: linear-gradient(to bottom right,#ffffff,#fff0f2); }
+.approved-card, .approved-surface { -fx-padding: 16; -fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #dfe7f4; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,35,70,.055), 10, 0.1, 0, 2); }
+.approved-card-title { -fx-font-size: 15px; -fx-font-weight: 800; -fx-text-fill: #142746; }
+.approved-link { -fx-text-fill: #1769ff; -fx-font-weight: 700; -fx-cursor: hand; }
+.approved-live-badge, .status-success { -fx-text-fill: #0b9a4a; -fx-font-weight: 800; }
+.approved-highlight-strip { -fx-padding: 13 16; -fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #dfe7f4; -fx-border-radius: 14; }
+.approved-highlight { -fx-padding: 4 18; -fx-border-color: transparent #e5ebf5 transparent transparent; }
+.approved-highlight-label { -fx-font-size: 11px; -fx-text-fill: #75839a; }
+.approved-highlight-value { -fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: #152949; }
+.approved-button { -fx-cursor: hand; -fx-font-weight: 700; -fx-background-radius: 9; -fx-border-radius: 9; -fx-min-height: 36; }
+.approved-primary-button { -fx-background-color: #1769ff; -fx-text-fill: white; -fx-border-color: #1769ff; }
+.approved-primary-button:hover { -fx-background-color: #0d57de; }
+.approved-secondary-button { -fx-background-color: white; -fx-text-fill: #244269; -fx-border-color: #cfd9e9; }
+.approved-secondary-button:hover { -fx-background-color: #f0f5ff; -fx-border-color: #8fb1eb; }
+.approved-danger-button { -fx-background-color: #fff0f2; -fx-text-fill: #d9253e; -fx-border-color: #ffc8d0; }
+.approved-quick-action { -fx-min-height: 72; -fx-content-display: top; -fx-background-color: #f8faff; -fx-border-color: #dbe5f5; -fx-text-fill: #23456f; -fx-font-weight: 700; -fx-background-radius: 12; -fx-border-radius: 12; }
+.approved-quick-action:hover { -fx-background-color: #eaf2ff; -fx-border-color: #8bb2f5; }
+.approved-input { -fx-background-color: white; -fx-border-color: #ccd8e9; -fx-border-radius: 8; -fx-background-radius: 8; -fx-min-height: 36; }
+.approved-table { -fx-background-color: transparent; -fx-border-color: #dfe7f4; -fx-border-radius: 12; -fx-background-radius: 12; }
+.approved-table .column-header-background { -fx-background-color: #f2f6fc; -fx-background-radius: 12 12 0 0; }
+.approved-table .column-header, .approved-table .filler { -fx-background-color: transparent; -fx-size: 42; -fx-border-color: transparent transparent #dfe7f4 transparent; }
+.approved-table .table-row-cell { -fx-background-color: white; -fx-border-color: transparent transparent #edf1f7 transparent; -fx-cell-size: 42; }
+.approved-table .table-row-cell:hover { -fx-background-color: #f2f7ff; }
+.approved-list { -fx-background-color: transparent; -fx-border-color: transparent; }
+.approved-list .list-cell { -fx-background-color: transparent; -fx-padding: 10 8; -fx-border-color: transparent transparent #edf1f7 transparent; }
+.dashboard-chart-free .chart { -fx-visibility: hidden; }
+.root.platform-mac .approved-card, .root.platform-mac .approved-kpi, .platform-mac .approved-card, .platform-mac .approved-kpi { -fx-effect: none; }
+.root.platform-mac .approved-button, .platform-mac .approved-button { -fx-background-insets: 0; }
+
+/* === v2.1.9 all-screen approved release ================================= */
+.approved-screen { -fx-background-color:#f6f8fc; }
+.approved-screen .approved-section-header { -fx-padding:12 16; -fx-background-color:#ffffff; -fx-background-radius:12; -fx-border-color:#dfe7f4; -fx-border-radius:12; }
+.approved-filter-bar, .approved-toolbar { -fx-padding:10 12; -fx-spacing:8; -fx-alignment:center-left; -fx-background-color:#ffffff; -fx-background-radius:12; -fx-border-color:#dfe7f4; -fx-border-radius:12; }
+.approved-menu-button { -fx-background-color:#ffffff; -fx-border-color:#cfd9e9; -fx-background-radius:9; -fx-border-radius:9; -fx-min-height:34; -fx-font-weight:700; }
+.approved-row-action { -fx-min-width:34; -fx-pref-width:34; -fx-max-width:34; -fx-padding:0; -fx-content-display:graphic-only; }
+.approved-row-action > .arrow-button { -fx-padding:0; -fx-opacity:0; -fx-max-width:0; }
+.approved-icon-button { -fx-min-width:36; -fx-pref-width:36; -fx-max-width:36; -fx-padding:0; }
+.approved-status { -fx-padding:4 9; -fx-background-radius:999; -fx-font-size:11px; -fx-font-weight:800; }
+.approved-status-success { -fx-background-color:#e8f8ef; -fx-text-fill:#098746; }
+.approved-status-warning { -fx-background-color:#fff5dd; -fx-text-fill:#b66a00; }
+.approved-status-danger { -fx-background-color:#ffeaee; -fx-text-fill:#cf263f; }
+.approved-table .table-cell { -fx-padding:0 10; -fx-alignment:center-left; -fx-text-overrun:ellipsis; }
+.approved-table .column-header .label { -fx-font-weight:800; -fx-text-fill:#405573; -fx-alignment:center-left; }
+.approved-table .table-row-cell:selected { -fx-background-color:#e7f0ff; -fx-text-background-color:#12345d; }
+.approved-input:focused { -fx-border-color:#4d8cff; -fx-effect:dropshadow(gaussian,rgba(23,105,255,.15),8,.1,0,0); }
+.approved-surface { -fx-background-color:#ffffff; -fx-border-color:#dfe7f4; -fx-background-radius:14; -fx-border-radius:14; }
+.approved-screen .scroll-pane, .approved-screen .scroll-pane > .viewport { -fx-background-color:transparent; }
+.compact-layout .approved-filter-bar, .compact-layout .approved-toolbar { -fx-padding:8; -fx-spacing:6; }
+.small-display .approved-kpi, .small-display .approved-surface, .small-display .approved-card { -fx-padding:10; }
+.platform-mac .approved-surface, .platform-mac .approved-section-header, .platform-mac .approved-filter-bar, .platform-mac .approved-toolbar { -fx-effect:none; }

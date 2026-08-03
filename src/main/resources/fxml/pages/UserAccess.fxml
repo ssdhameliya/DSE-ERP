@@ -1,42 +1,37 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="org.example.controller.UserAccessController"
-      spacing="10" styleClass="user-access-page,user-access-v2">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserAccessController" spacing="10" styleClass="user-access-page,user-access-v2,approved-ui,approved-screen,approved-screen-user-access">
     <padding><Insets top="14" right="16" bottom="12" left="16"/></padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="user-access-header">
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="user-access-header,approved-section-header">
         <VBox spacing="2">
             <Label text="User Access &amp; Permissions" styleClass="page-heading,user-access-title"/>
             <Label text="Manage users, roles and system access permissions" styleClass="muted-label"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="Add New User" onAction="#addUser" styleClass="primary-button,user-access-add-user"/>
-        <Button text="Manage Roles" onAction="#manageRoles" styleClass="user-access-header-button"/>
-        <Button text="Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-header-button,user-access-permission-button"/>
+        <Button text="Add New User" onAction="#addUser" styleClass="primary-button,user-access-add-user,approved-button,approved-primary-button"/>
+        <Button text="Manage Roles" onAction="#manageRoles" styleClass="user-access-header-button,approved-button,approved-secondary-button"/>
+        <Button text="Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-header-button,user-access-permission-button,approved-button,approved-secondary-button"/>
     </HBox>
 
-    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="user-access-search-row">
-        <TextField fx:id="txtSearch" promptText="Search users by name, email, username, department or branch..." HBox.hgrow="ALWAYS"/>
+    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="user-access-search-row,approved-filter-bar">
+        <TextField fx:id="txtSearch" promptText="Search users by name, email, username, department or branch..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
     </HBox>
 
-    <HBox spacing="10" styleClass="user-access-kpi-row">
-        <VBox styleClass="user-kpi,user-kpi-purple" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-purple"><Label text="👥"/></StackPane><VBox><Label text="Total Users" styleClass="metric-title"/><Label fx:id="lblTotal" text="0" styleClass="metric-value"/><Label text="All system users" styleClass="muted-label"/></VBox></HBox>
+    <HBox spacing="10" styleClass="user-access-kpi-row,approved-kpi">
+        <VBox styleClass="user-kpi,user-kpi-purple,approved-kpi" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-purple,approved-kpi"><Label text="👥"/></StackPane><VBox><Label text="Total Users" styleClass="metric-title"/><Label fx:id="lblTotal" text="0" styleClass="metric-value"/><Label text="All system users" styleClass="muted-label"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-green" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-green"><Label text="●"/></StackPane><VBox><Label text="Active Users" styleClass="metric-title"/><Label fx:id="lblActive" text="0" styleClass="metric-value"/><Label text="Currently active" styleClass="muted-label,user-success-text"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-green,approved-kpi" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-green,approved-kpi"><Label text="●"/></StackPane><VBox><Label text="Active Users" styleClass="metric-title"/><Label fx:id="lblActive" text="0" styleClass="metric-value"/><Label text="Currently active" styleClass="muted-label,user-success-text"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-blue" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-blue"><Label text="▦"/></StackPane><VBox><Label text="Roles" styleClass="metric-title"/><Label fx:id="lblRoles" text="0" styleClass="metric-value"/><Label text="System roles" styleClass="muted-label"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-blue,approved-kpi" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-blue,approved-kpi"><Label text="▦"/></StackPane><VBox><Label text="Roles" styleClass="metric-title"/><Label fx:id="lblRoles" text="0" styleClass="metric-value"/><Label text="System roles" styleClass="muted-label"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-red" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-red"><Label text="🔒"/></StackPane><VBox><Label text="Locked Accounts" styleClass="metric-title"/><Label fx:id="lblLocked" text="0" styleClass="metric-value"/><Label text="Temporarily locked" styleClass="muted-label,user-danger-text"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-red,approved-kpi" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-red,approved-kpi"><Label text="🔒"/></StackPane><VBox><Label text="Locked Accounts" styleClass="metric-title"/><Label fx:id="lblLocked" text="0" styleClass="metric-value"/><Label text="Temporarily locked" styleClass="muted-label,user-danger-text"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-cyan" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-cyan"><Label text="↗"/></StackPane><VBox><Label text="Login Activity (Today)" styleClass="metric-title"/><Label fx:id="lblLogins" text="0" styleClass="metric-value"/><Label text="Successful logins" styleClass="muted-label"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-cyan,approved-kpi" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-cyan,approved-kpi"><Label text="↗"/></StackPane><VBox><Label text="Login Activity (Today)" styleClass="metric-title"/><Label fx:id="lblLogins" text="0" styleClass="metric-value"/><Label text="Successful logins" styleClass="muted-label"/></VBox></HBox>
         </VBox>
     </HBox>
 
@@ -46,39 +41,39 @@
             <ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
         </columnConstraints>
 
-        <VBox spacing="9" styleClass="user-access-card,user-access-users-card" GridPane.columnIndex="0">
+        <VBox spacing="9" styleClass="user-access-card,user-access-users-card,approved-surface" GridPane.columnIndex="0">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="1"><Label text="Users" styleClass="section-title"/><Label text="Manage and monitor all system users" styleClass="muted-label"/></VBox>
                 <Region HBox.hgrow="ALWAYS"/>
             </HBox>
             <HBox spacing="8">
-                <ComboBox fx:id="cmbRole" promptText="All Roles" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
-                <ComboBox fx:id="cmbStatus" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
-                <ComboBox fx:id="cmbBranch" promptText="All Branches" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
-                <Button text="Refresh" onAction="#refresh" styleClass="user-access-refresh"/>
+                <ComboBox fx:id="cmbRole" promptText="All Roles" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-input"/>
+                <ComboBox fx:id="cmbStatus" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-input"/>
+                <ComboBox fx:id="cmbBranch" promptText="All Branches" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-input"/>
+                <Button text="Refresh" onAction="#refresh" styleClass="user-access-refresh,approved-button,approved-secondary-button"/>
             </HBox>
-            <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="user-access-user-table">
+            <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="user-access-user-table,approved-table">
                 <columns>
-                    <TableColumn fx:id="colUser" text="User" prefWidth="135"/>
-                    <TableColumn fx:id="colEmail" text="Email / Username" prefWidth="185"/>
-                    <TableColumn fx:id="colRole" text="Role" prefWidth="80"/>
-                    <TableColumn fx:id="colDepartment" text="Department" prefWidth="90"/>
-                    <TableColumn fx:id="colAccess" text="Access" prefWidth="90"/>
-                    <TableColumn fx:id="colBranch" text="Branch" prefWidth="80"/>
-                    <TableColumn fx:id="colStatus" text="Status" prefWidth="82"/>
-                    <TableColumn fx:id="colLastLogin" text="Last Login" prefWidth="125"/>
-                    <TableColumn fx:id="colMfa" text="MFA" prefWidth="60"/>
-                    <TableColumn fx:id="colActions" text="Actions" prefWidth="75"/>
+                    <TableColumn fx:id="colUser" text="User" prefWidth="135" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colEmail" text="Email / Username" prefWidth="185" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colRole" text="Role" prefWidth="80" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colDepartment" text="Department" prefWidth="90" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colAccess" text="Access" prefWidth="90" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colBranch" text="Branch" prefWidth="80" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colStatus" text="Status" prefWidth="82" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colLastLogin" text="Last Login" prefWidth="125" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colMfa" text="MFA" prefWidth="60" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colActions" text="Actions" prefWidth="75" styleClass="approved-table-column"/>
                 </columns>
             </TableView>
             <HBox spacing="8" alignment="CENTER_RIGHT" styleClass="user-access-bottom-actions">
-                <Button text="Edit Selected" onAction="#editSelected"/>
-                <Button text="Reset Password" onAction="#resetSelected"/>
-                <Button text="Add New User" onAction="#addUser" styleClass="primary-button"/>
+                <Button text="Edit Selected" onAction="#editSelected" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Reset Password" onAction="#resetSelected" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Add New User" onAction="#addUser" styleClass="primary-button,approved-button,approved-primary-button"/>
             </HBox>
         </VBox>
 
-        <VBox spacing="8" styleClass="user-access-card,user-access-role-card" GridPane.columnIndex="1">
+        <VBox spacing="8" styleClass="user-access-card,user-access-role-card,approved-surface" GridPane.columnIndex="1">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="1"><Label text="Roles &amp; Permissions" styleClass="section-title"/><Label text="Manage dynamic roles and their database permissions" styleClass="muted-label"/></VBox>
             </HBox>
@@ -89,44 +84,44 @@
                             <HBox alignment="CENTER_LEFT">
                                 <VBox spacing="1"><Label text="System Roles" styleClass="section-title"/><Label text="Create, edit and manage user roles" styleClass="muted-label"/></VBox>
                                 <Region HBox.hgrow="ALWAYS"/>
-                                <Button text="Add Role" onAction="#addRole" styleClass="primary-button"/>
-                                <Button text="Edit" onAction="#editRole"/>
-                                <Button text="Delete" onAction="#deleteRole" styleClass="danger-button"/>
+                                <Button text="Add Role" onAction="#addRole" styleClass="primary-button,approved-button,approved-primary-button"/>
+                                <Button text="Edit" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/>
+                                <Button text="Delete" onAction="#deleteRole" styleClass="danger-button,approved-button,approved-danger-button"/>
                             </HBox>
-                            <TableView fx:id="roleTable" prefHeight="235" VBox.vgrow="ALWAYS" styleClass="user-access-role-table">
+                            <TableView fx:id="roleTable" prefHeight="235" VBox.vgrow="ALWAYS" styleClass="user-access-role-table,approved-table">
                                 <columns>
-                                    <TableColumn fx:id="colRoleName" text="Role Name" prefWidth="100"/>
-                                    <TableColumn fx:id="colRoleDescription" text="Description" prefWidth="230"/>
-                                    <TableColumn fx:id="colRoleUsers" text="Users" prefWidth="55"/>
-                                    <TableColumn fx:id="colRoleStatus" text="Status" prefWidth="72"/>
-                                    <TableColumn fx:id="colRoleActions" text="Actions" prefWidth="70"/>
+                                    <TableColumn fx:id="colRoleName" text="Role Name" prefWidth="100" styleClass="approved-table-column"/>
+                                    <TableColumn fx:id="colRoleDescription" text="Description" prefWidth="230" styleClass="approved-table-column"/>
+                                    <TableColumn fx:id="colRoleUsers" text="Users" prefWidth="55" styleClass="approved-table-column"/>
+                                    <TableColumn fx:id="colRoleStatus" text="Status" prefWidth="72" styleClass="approved-table-column"/>
+                                    <TableColumn fx:id="colRoleActions" text="Actions" prefWidth="70" styleClass="approved-table-column"/>
                                 </columns>
                             </TableView>
                             <Label text="Role Permissions Overview" styleClass="section-title,user-role-overview-title"/>
                             <Label text="Select a role and open Permission Matrix to view or change its current access." wrapText="true" styleClass="user-role-overview-hint"/>
                             <HBox spacing="8" alignment="CENTER_RIGHT">
-                                <Button text="Open Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-permission-button"/>
+                                <Button text="Open Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-permission-button,approved-button,approved-secondary-button"/>
                             </HBox>
                         </VBox>
                     </Tab>
                     <Tab fx:id="tabPermissions" text="Permission Matrix">
                         <VBox spacing="8">
-                            <HBox alignment="CENTER_LEFT" spacing="8" styleClass="permission-role-toolbar">
+                            <HBox alignment="CENTER_LEFT" spacing="8" styleClass="permission-role-toolbar,approved-toolbar">
                                 <Label text="Select Role"/>
-                                <ComboBox fx:id="cmbPermissionRole" prefWidth="180"/>
+                                <ComboBox fx:id="cmbPermissionRole" prefWidth="180" styleClass="approved-input"/>
                                 <Label fx:id="lblRoleHint" text="Select a role to review permissions" styleClass="muted-label" HBox.hgrow="ALWAYS"/>
                             </HBox>
-                            <TableView fx:id="permissionTable" editable="true" VBox.vgrow="ALWAYS" styleClass="user-access-permission-table">
+                            <TableView fx:id="permissionTable" editable="true" VBox.vgrow="ALWAYS" styleClass="user-access-permission-table,approved-table">
                                 <columns>
-                                    <TableColumn fx:id="colPermissionModule" text="Module" prefWidth="100"/>
-                                    <TableColumn fx:id="colPermissionAction" text="Actions" prefWidth="105"/>
-                                    <TableColumn fx:id="colPermissionDescription" text="Description" prefWidth="245"/>
-                                    <TableColumn fx:id="colPermissionAllowed" text="Allowed" prefWidth="70" editable="true"/>
+                                    <TableColumn fx:id="colPermissionModule" text="Module" prefWidth="100" styleClass="approved-table-column"/>
+                                    <TableColumn fx:id="colPermissionAction" text="Actions" prefWidth="105" styleClass="approved-table-column"/>
+                                    <TableColumn fx:id="colPermissionDescription" text="Description" prefWidth="245" styleClass="approved-table-column"/>
+                                    <TableColumn fx:id="colPermissionAllowed" text="Allowed" prefWidth="70" editable="true" styleClass="approved-table-column"/>
                                 </columns>
                             </TableView>
                             <HBox spacing="8" alignment="CENTER_RIGHT">
-                                <Button text="Reset Changes" onAction="#resetPermissions"/>
-                                <Button text="Save Permissions" onAction="#savePermissions" styleClass="primary-button"/>
+                                <Button text="Reset Changes" onAction="#resetPermissions" styleClass="approved-button,approved-secondary-button"/>
+                                <Button text="Save Permissions" onAction="#savePermissions" styleClass="primary-button,approved-button,approved-primary-button"/>
                             </HBox>
                         </VBox>
                     </Tab>

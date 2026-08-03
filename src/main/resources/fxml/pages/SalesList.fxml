@@ -1,11 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.chart.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.controller.SalesListController"
-            styleClass="register-page,sales-register-page">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesListController" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-sales-list">
   <top>
     <VBox spacing="14" styleClass="sales-register-top">
       <padding><Insets top="18" right="18" bottom="14" left="18"/></padding>
@@ -13,15 +7,15 @@
       <HBox alignment="CENTER_LEFT" spacing="12">
         <StackPane fx:id="salesTitleIcon" styleClass="sales-title-icon"/>
         <VBox spacing="3">
-          <Label text="Sales Register" styleClass="screen-title,sales-screen-title"/>
-          <Label text="Manage all sales invoices, collections and customer communication" styleClass="screen-subtitle"/>
+          <Label text="Sales Register" styleClass="screen-title,sales-screen-title,approved-page-title"/>
+          <Label text="Manage all sales invoices, collections and customer communication" styleClass="screen-subtitle,approved-page-subtitle"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button fx:id="btnNewSale" text="New Sale (F2)" onAction="#newSale" styleClass="primary-action,sales-new-button"/>
+        <Button fx:id="btnNewSale" text="New Sale (F2)" onAction="#newSale" styleClass="primary-action,sales-new-button,approved-button,approved-primary-button"/>
       </HBox>
 
       <HBox spacing="12" styleClass="sales-metric-row">
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-total,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
           <StackPane fx:id="totalSalesIcon" styleClass="sales-metric-icon,total-sales-icon"/>
           <VBox spacing="4">
             <Label text="Total Sales" styleClass="metric-label"/>
@@ -29,7 +23,7 @@
             <Label fx:id="lblInvoiceCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-today" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-today,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
           <StackPane fx:id="todaySalesIcon" styleClass="sales-metric-icon,today-sales-icon"/>
           <VBox spacing="4">
             <Label text="Today's Sales" styleClass="metric-label"/>
@@ -37,7 +31,7 @@
             <Label fx:id="lblTodayCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-pending" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-pending,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
           <StackPane fx:id="pendingSalesIcon" styleClass="sales-metric-icon,pending-sales-icon"/>
           <VBox spacing="4">
             <Label text="Pending Receivables" styleClass="metric-label"/>
@@ -45,7 +39,7 @@
             <Label fx:id="lblPendingCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-overdue" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-overdue,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
           <StackPane fx:id="overdueSalesIcon" styleClass="sales-metric-icon,overdue-sales-icon"/>
           <VBox spacing="4">
             <Label text="Overdue Receivables" styleClass="metric-label"/>
@@ -53,7 +47,7 @@
             <Label fx:id="lblOverdueCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-due" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-due,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
           <StackPane fx:id="dueSoonIcon" styleClass="sales-metric-icon,due-sales-icon"/>
           <VBox spacing="4">
             <Label text="Due in 7 Days" styleClass="metric-label"/>
@@ -61,7 +55,7 @@
             <Label fx:id="lblDueSoonCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-email" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-email,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
           <StackPane fx:id="emailRateIcon" styleClass="sales-metric-icon,email-sales-icon"/>
           <VBox spacing="4">
             <Label text="Email Sent %" styleClass="metric-label"/>
@@ -79,17 +73,17 @@
         <VBox spacing="12" styleClass="register-workspace,sales-register-workspace">
           <padding><Insets top="0" right="18" bottom="14" left="18"/></padding>
 
-          <VBox spacing="10" styleClass="filter-surface,sales-filter-surface">
+          <VBox spacing="10" styleClass="filter-surface,sales-filter-surface,approved-filter-bar">
             <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
             <HBox spacing="9" alignment="CENTER_LEFT">
-              <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="360" HBox.hgrow="ALWAYS"/>
+              <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="360" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
               <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced"/>
-              <MenuButton text="Saved Views" fx:id="savedViewsMenu"/>
-              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="secondary-button,sales-toolbar-button"/>
-              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refresh" styleClass="secondary-button,sales-toolbar-button"/>
+              <MenuButton text="Saved Views" fx:id="savedViewsMenu" styleClass="approved-menu-button"/>
+              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="secondary-button,sales-toolbar-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refresh" styleClass="secondary-button,sales-toolbar-button,approved-button,approved-secondary-button"/>
             </HBox>
 
-            <GridPane fx:id="advancedFilters" hgap="12" vgap="9" styleClass="sales-filter-grid">
+            <GridPane fx:id="advancedFilters" hgap="12" vgap="9" styleClass="sales-filter-grid,approved-filter-bar">
               <columnConstraints>
                 <ColumnConstraints percentWidth="16.66"/>
                 <ColumnConstraints percentWidth="16.66"/>
@@ -98,51 +92,51 @@
                 <ColumnConstraints percentWidth="16.66"/>
                 <ColumnConstraints percentWidth="16.7"/>
               </columnConstraints>
-              <VBox spacing="4"><Label text="Invoice No." styleClass="filter-label"/><TextField fx:id="txtInvoice" promptText="Enter invoice no."/></VBox>
-              <VBox spacing="4" GridPane.columnIndex="1"><Label text="Customer" styleClass="filter-label"/><ComboBox fx:id="cmbCustomer" promptText="All customers" maxWidth="Infinity"/></VBox>
-              <VBox spacing="4" GridPane.columnIndex="2"><Label text="From Date" styleClass="filter-label"/><DatePicker fx:id="dpFrom" maxWidth="Infinity"/></VBox>
-              <VBox spacing="4" GridPane.columnIndex="3"><Label text="To Date" styleClass="filter-label"/><DatePicker fx:id="dpTo" maxWidth="Infinity"/></VBox>
-              <VBox spacing="4" GridPane.columnIndex="4"><Label text="Amount From" styleClass="filter-label"/><TextField fx:id="txtAmountFrom" promptText="Min amount"/></VBox>
-              <VBox spacing="4" GridPane.columnIndex="5"><Label text="Amount To" styleClass="filter-label"/><TextField fx:id="txtAmountTo" promptText="Max amount"/></VBox>
-              <VBox spacing="4" GridPane.rowIndex="1"><Label text="Payment Status" styleClass="filter-label"/><ComboBox fx:id="cmbPaymentStatus" maxWidth="Infinity"/></VBox>
-              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="Payment Due" styleClass="filter-label"/><ComboBox fx:id="cmbPaymentDue" maxWidth="Infinity"/></VBox>
-              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2"><Label text="Email Status" styleClass="filter-label"/><ComboBox fx:id="cmbMailStatus" maxWidth="Infinity"/></VBox>
-              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3"><Label text="WhatsApp Status" styleClass="filter-label"/><ComboBox fx:id="cmbWhatsappStatus" maxWidth="Infinity"/></VBox>
-              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="4"><Label text="Invoice Type" styleClass="filter-label"/><ComboBox fx:id="cmbInvoiceType" maxWidth="Infinity"/></VBox>
+              <VBox spacing="4"><Label text="Invoice No." styleClass="filter-label"/><TextField fx:id="txtInvoice" promptText="Enter invoice no." styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.columnIndex="1"><Label text="Customer" styleClass="filter-label"/><ComboBox fx:id="cmbCustomer" promptText="All customers" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.columnIndex="2"><Label text="From Date" styleClass="filter-label"/><DatePicker fx:id="dpFrom" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.columnIndex="3"><Label text="To Date" styleClass="filter-label"/><DatePicker fx:id="dpTo" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.columnIndex="4"><Label text="Amount From" styleClass="filter-label"/><TextField fx:id="txtAmountFrom" promptText="Min amount" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.columnIndex="5"><Label text="Amount To" styleClass="filter-label"/><TextField fx:id="txtAmountTo" promptText="Max amount" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.rowIndex="1"><Label text="Payment Status" styleClass="filter-label"/><ComboBox fx:id="cmbPaymentStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="Payment Due" styleClass="filter-label"/><ComboBox fx:id="cmbPaymentDue" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2"><Label text="Email Status" styleClass="filter-label"/><ComboBox fx:id="cmbMailStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3"><Label text="WhatsApp Status" styleClass="filter-label"/><ComboBox fx:id="cmbWhatsappStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="4"><Label text="Invoice Type" styleClass="filter-label"/><ComboBox fx:id="cmbInvoiceType" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <HBox spacing="8" alignment="BOTTOM_RIGHT" GridPane.rowIndex="1" GridPane.columnIndex="5">
-                <Button text="Save View" onAction="#saveCurrentView" styleClass="secondary-button"/>
-                <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" styleClass="primary-action,sales-apply-button"/>
+                <Button text="Save View" onAction="#saveCurrentView" styleClass="secondary-button,approved-button,approved-primary-button"/>
+                <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" styleClass="primary-action,sales-apply-button,approved-button,approved-primary-button"/>
               </HBox>
             </GridPane>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="sales-quick-range-row">
-              <Button fx:id="btnTodayRange" text="Today" onAction="#showToday" styleClass="sales-range-button"/>
-              <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="sales-range-button"/>
-              <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="sales-range-button"/>
-              <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="sales-range-button"/>
-              <Button fx:id="btnCustomRange" text="Custom Range" onAction="#focusCustomRange" styleClass="sales-range-button,sales-custom-range-button"/>
+              <Button fx:id="btnTodayRange" text="Today" onAction="#showToday" styleClass="sales-range-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="sales-range-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="sales-range-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="sales-range-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnCustomRange" text="Custom Range" onAction="#focusCustomRange" styleClass="sales-range-button,sales-custom-range-button,approved-button,approved-secondary-button"/>
             </HBox>
 
-            <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" visible="false" managed="false" styleClass="sales-filter-chips"/>
+            <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" visible="false" managed="false" styleClass="sales-filter-chips,approved-filter-bar"/>
           </VBox>
 
-          <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
-            <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table">
+          <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card,approved-surface">
+            <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,approved-table">
               <columns>
-                <TableColumn fx:id="colSelect" text="" prefWidth="44"/>
-                <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="125"/>
-                <TableColumn fx:id="colDate" text="Date" prefWidth="92"/>
-                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="155"/>
-                <TableColumn fx:id="colMobile" text="Mobile" prefWidth="110"/>
-                <TableColumn fx:id="colGstin" text="GSTIN" prefWidth="135"/>
-                <TableColumn fx:id="colTotal" text="Amount" prefWidth="105"/>
-                <TableColumn fx:id="colPaid" text="Paid" prefWidth="100"/>
-                <TableColumn fx:id="colBalance" text="Balance" prefWidth="100"/>
-                <TableColumn fx:id="colDue" text="Payment Due" prefWidth="120"/>
-                <TableColumn fx:id="colStatus" text="Document Status" prefWidth="115"/>
-                <TableColumn fx:id="colMail" text="Email" prefWidth="75"/>
-                <TableColumn fx:id="colWhatsapp" text="WhatsApp" prefWidth="85"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="58" minWidth="54" maxWidth="62"/>
+                <TableColumn fx:id="colSelect" text="" prefWidth="44" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="125" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDate" text="Date" prefWidth="92" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="155" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMobile" text="Mobile" prefWidth="110" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colGstin" text="GSTIN" prefWidth="135" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colTotal" text="Amount" prefWidth="105" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colPaid" text="Paid" prefWidth="100" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colBalance" text="Balance" prefWidth="100" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDue" text="Payment Due" prefWidth="120" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colStatus" text="Document Status" prefWidth="115" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMail" text="Email" prefWidth="75" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colWhatsapp" text="WhatsApp" prefWidth="85" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colAction" text="Actions" prefWidth="58" minWidth="54" maxWidth="62" styleClass="approved-table-column"/>
               </columns>
             </TableView>
 
@@ -151,31 +145,31 @@
               <Label fx:id="lblPageInfo" styleClass="muted-text"/>
               <Region HBox.hgrow="ALWAYS"/>
               <Label text="Rows per page:" styleClass="sales-page-label"/>
-              <ComboBox fx:id="cmbPageSize" prefWidth="75"/>
-              <Button text="|‹" onAction="#firstPage" styleClass="pager-button"/>
-              <Button text="‹" onAction="#previousPage" styleClass="pager-button"/>
+              <ComboBox fx:id="cmbPageSize" prefWidth="75" styleClass="approved-input"/>
+              <Button text="|‹" onAction="#firstPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
+              <Button text="‹" onAction="#previousPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
               <Label fx:id="lblPageNumber" styleClass="page-number"/>
-              <Button text="›" onAction="#nextPage" styleClass="pager-button"/>
-              <Button text="›|" onAction="#lastPage" styleClass="pager-button"/>
+              <Button text="›" onAction="#nextPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
+              <Button text="›|" onAction="#lastPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
             </HBox>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="export-bar,sales-export-bar">
               <padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
-              <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportSale" styleClass="secondary-button,sales-export-button"/>
-              <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="secondary-button,sales-export-button"/>
-              <Button fx:id="btnPrintRegister" text="Print" onAction="#printRegister" styleClass="secondary-button,sales-export-button"/>
+              <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportSale" styleClass="secondary-button,sales-export-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="secondary-button,sales-export-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnPrintRegister" text="Print" onAction="#printRegister" styleClass="secondary-button,sales-export-button,approved-button,approved-secondary-button"/>
               <Region HBox.hgrow="ALWAYS"/>
               <HBox spacing="0" styleClass="sales-summary-strip">
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block">
-                  <Label text="Total Amount" styleClass="summary-caption"/>
+                  <Label text="Total Amount" styleClass="summary-caption,approved-page-subtitle"/>
                   <Label fx:id="lblFooterTotal" styleClass="summary-amount"/>
                 </VBox>
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block">
-                  <Label text="Total Paid" styleClass="summary-caption"/>
+                  <Label text="Total Paid" styleClass="summary-caption,approved-page-subtitle"/>
                   <Label fx:id="lblFooterPaid" styleClass="summary-paid"/>
                 </VBox>
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block,last-summary-block">
-                  <Label text="Total Balance" styleClass="summary-caption"/>
+                  <Label text="Total Balance" styleClass="summary-caption,approved-page-subtitle"/>
                   <Label fx:id="lblFooterBalance" styleClass="summary-balance"/>
                 </VBox>
               </HBox>
@@ -185,9 +179,9 @@
 
         <VBox fx:id="detailDrawer" spacing="12" styleClass="detail-drawer">
           <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
-          <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="×" onAction="#closeDetails" styleClass="icon-button"/></HBox>
+          <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="×" onAction="#closeDetails" styleClass="icon-button,approved-button,approved-secondary-button"/></HBox>
           <Label fx:id="lblDetailInvoice" styleClass="drawer-document"/>
-          <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill"/></HBox>
+          <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>
           <Separator/>
           <Label text="Customer" styleClass="drawer-section"/>
           <Label fx:id="lblDetailCustomer" styleClass="drawer-customer"/>
@@ -201,13 +195,13 @@
           </GridPane>
           <Separator/>
           <Label text="Notes / Remarks" styleClass="drawer-section"/>
-          <TextArea fx:id="txtDetailNotes" prefRowCount="5" wrapText="true"/>
-          <Button text="Save Notes" onAction="#saveSelectedNotes" maxWidth="Infinity"/>
+          <TextArea fx:id="txtDetailNotes" prefRowCount="5" wrapText="true" styleClass="approved-input"/>
+          <Button text="Save Notes" onAction="#saveSelectedNotes" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
           <Separator/>
-          <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity"/>
-          <Button text="Send WhatsApp" onAction="#whatsappSelected" maxWidth="Infinity"/>
-          <Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity"/>
-          <Button text="Send Reminder" onAction="#remindSelected" maxWidth="Infinity"/>
+          <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+          <Button text="Send WhatsApp" onAction="#whatsappSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+          <Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+          <Button text="Send Reminder" onAction="#remindSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
           <Region VBox.vgrow="ALWAYS"/>
           <PieChart fx:id="dueChart" visible="false" managed="false"/>
           <BarChart fx:id="customerChart" visible="false" managed="false"><xAxis><NumberAxis/></xAxis><yAxis><CategoryAxis/></yAxis></BarChart>

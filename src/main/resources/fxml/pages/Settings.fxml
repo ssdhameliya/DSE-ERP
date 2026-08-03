@@ -1,72 +1,41 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.shape.SVGPath?>
-
-<BorderPane xmlns="http://javafx.com/javafx/21"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.controller.SettingsController"
-            styleClass="settings-page-shell">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.image.ImageView?><?import javafx.scene.layout.*?><?import javafx.scene.shape.SVGPath?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SettingsController" styleClass="settings-page-shell,approved-ui,approved-screen,approved-screen-settings">
 
     <!-- =====================================================
          HEADER
          ===================================================== -->
 
     <top>
-        <HBox alignment="CENTER_LEFT"
-              spacing="12"
-              styleClass="page-heading">
+        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading">
 
             <padding>
-                <Insets top="20"
-                        right="28"
-                        bottom="16"
-                        left="28"/>
+                <Insets top="20" right="28" bottom="16" left="28"/>
             </padding>
 
-            <StackPane minWidth="48" prefWidth="48" maxWidth="48"
-                       minHeight="48" prefHeight="48" maxHeight="48"
-                       styleClass="settings-page-icon-box">
-                <SVGPath content="M8.8 2h2.4l.5 2a6.8 6.8 0 0 1 1.5.9l2-.6 1.2 2.1-1.5 1.4c.1.5.1 1 0 1.5l1.5 1.4-1.2 2.1-2-.6c-.5.4-1 .7-1.5.9l-.5 2H8.8l-.5-2a6.8 6.8 0 0 1-1.5-.9l-2 .6-1.2-2.1 1.5-1.4a6 6 0 0 1 0-1.5L3.6 6.4l1.2-2.1 2 .6c.5-.4 1-.7 1.5-.9l.5-2zM10 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"
-                         styleClass="settings-page-icon-svg"/>
+            <StackPane minWidth="48" prefWidth="48" maxWidth="48" minHeight="48" prefHeight="48" maxHeight="48" styleClass="settings-page-icon-box">
+                <SVGPath content="M8.8 2h2.4l.5 2a6.8 6.8 0 0 1 1.5.9l2-.6 1.2 2.1-1.5 1.4c.1.5.1 1 0 1.5l1.5 1.4-1.2 2.1-2-.6c-.5.4-1 .7-1.5.9l-.5 2H8.8l-.5-2a6.8 6.8 0 0 1-1.5-.9l-2 .6-1.2-2.1 1.5-1.4a6 6 0 0 1 0-1.5L3.6 6.4l1.2-2.1 2 .6c.5-.4 1-.7 1.5-.9l.5-2zM10 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" styleClass="settings-page-icon-svg"/>
             </StackPane>
 
-            <VBox spacing="4"
-                  HBox.hgrow="ALWAYS">
+            <VBox spacing="4" HBox.hgrow="ALWAYS">
 
-                <Label text="Settings"
-                       styleClass="settings-page-title"/>
+                <Label text="Settings" styleClass="settings-page-title,approved-page-title"/>
 
-                <Label text="Company configuration, payments, invoices, notifications and email delivery"
-                       wrapText="true"
-                       styleClass="settings-page-description"/>
+                <Label text="Company configuration, payments, invoices, notifications and email delivery" wrapText="true" styleClass="settings-page-description,approved-page-subtitle"/>
 
             </VBox>
 
-            <Button text="Test Email"
-                    onAction="#testEmail"
-                    styleClass="settings-action-button,settings-secondary-button">
+            <Button text="Test Email" onAction="#testEmail" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button">
 
                 <graphic>
-                    <SVGPath
-                        content="M2 4h16v12H2V4zm2 2v.3l6 4.2 6-4.2V6H4zm12 8V8.7l-5.4 3.8a1 1 0 0 1-1.2 0L4 8.7V14h12z"
-                        styleClass="settings-button-icon"/>
+                    <SVGPath content="M2 4h16v12H2V4zm2 2v.3l6 4.2 6-4.2V6H4zm12 8V8.7l-5.4 3.8a1 1 0 0 1-1.2 0L4 8.7V14h12z" styleClass="settings-button-icon"/>
                 </graphic>
 
             </Button>
 
-            <Button text="Save Settings"
-                    onAction="#save"
-                    defaultButton="true"
-                    styleClass="settings-action-button,settings-primary-button">
+            <Button text="Save Settings" onAction="#save" defaultButton="true" styleClass="settings-action-button,settings-primary-button,approved-button,approved-primary-button">
 
                 <graphic>
-                    <SVGPath
-                        content="M3 2h11l3 3v12H3V2zm2 2v4h8V4H5zm1 8v3h8v-3H6z"
-                        styleClass="settings-button-icon"/>
+                    <SVGPath content="M3 2h11l3 3v12H3V2zm2 2v4h8V4H5zm1 8v3h8v-3H6z" styleClass="settings-button-icon"/>
                 </graphic>
 
             </Button>
@@ -80,142 +49,94 @@
 
     <center>
 
-        <HBox spacing="18"
-              alignment="TOP_LEFT"
-              styleClass="settings-content">
+        <HBox spacing="18" alignment="TOP_LEFT" styleClass="settings-content">
 
             <padding>
-                <Insets top="8"
-                        right="28"
-                        bottom="28"
-                        left="28"/>
+                <Insets top="8" right="28" bottom="28" left="28"/>
             </padding>
 
             <!-- =================================================
                  LEFT NAVIGATION
                  ================================================= -->
 
-            <VBox prefWidth="255"
-                  minWidth="235"
-                  spacing="5"
-                  styleClass="settings-navigation-card">
+            <VBox prefWidth="255" minWidth="235" spacing="5" styleClass="settings-navigation-card,approved-surface">
 
                 <!-- COMPANY -->
 
-                <HBox fx:id="navCompany"
-                      onMouseClicked="#showCompany"
-                      alignment="CENTER_LEFT"
-                      spacing="12"
-                      styleClass="settings-navigation-item,settings-navigation-item-selected">
+                <HBox fx:id="navCompany" onMouseClicked="#showCompany" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item,settings-navigation-item-selected">
 
                     <StackPane styleClass="settings-navigation-icon-box,settings-icon-company">
-                        <SVGPath
-                            content="M3 4h14v13H3V4zm3 3h2v2H6V7zm4 0h2v2h-2V7zm4 0h1v2h-1V7zM6 11h2v2H6v-2zm4 0h2v2h-2v-2zm4 0h1v2h-1v-2z"
-                            styleClass="settings-navigation-svg"/>
+                        <SVGPath content="M3 4h14v13H3V4zm3 3h2v2H6V7zm4 0h2v2h-2V7zm4 0h1v2h-1V7zM6 11h2v2H6v-2zm4 0h2v2h-2v-2zm4 0h1v2h-1v-2z" styleClass="settings-navigation-svg"/>
                     </StackPane>
 
                     <VBox>
-                        <Label text="Company &amp; Billing"
-                               styleClass="settings-navigation-title"/>
+                        <Label text="Company &amp; Billing" styleClass="settings-navigation-title"/>
 
-                        <Label text="Business and contact details"
-                               styleClass="settings-navigation-description"/>
+                        <Label text="Business and contact details" styleClass="settings-navigation-description,approved-page-subtitle"/>
                     </VBox>
 
                 </HBox>
 
                 <!-- PAYMENT -->
 
-                <HBox fx:id="navPayment"
-                      onMouseClicked="#showPayment"
-                      alignment="CENTER_LEFT"
-                      spacing="12"
-                      styleClass="settings-navigation-item">
+                <HBox fx:id="navPayment" onMouseClicked="#showPayment" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
 
                     <StackPane styleClass="settings-navigation-icon-box,settings-icon-payment">
-                        <SVGPath
-                            content="M2 5h16v11H2V5zm0 3h16M5 12h4"
-                            styleClass="settings-navigation-svg"/>
+                        <SVGPath content="M2 5h16v11H2V5zm0 3h16M5 12h4" styleClass="settings-navigation-svg"/>
                     </StackPane>
 
                     <VBox>
-                        <Label text="Payment &amp; Bank"
-                               styleClass="settings-navigation-title"/>
+                        <Label text="Payment &amp; Bank" styleClass="settings-navigation-title"/>
 
-                        <Label text="Bank and UPI details"
-                               styleClass="settings-navigation-description"/>
+                        <Label text="Bank and UPI details" styleClass="settings-navigation-description,approved-page-subtitle"/>
                     </VBox>
 
                 </HBox>
 
                 <!-- INVOICE -->
 
-                <HBox fx:id="navInvoice"
-                      onMouseClicked="#showInvoice"
-                      alignment="CENTER_LEFT"
-                      spacing="12"
-                      styleClass="settings-navigation-item">
+                <HBox fx:id="navInvoice" onMouseClicked="#showInvoice" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
 
                     <StackPane styleClass="settings-navigation-icon-box,settings-icon-invoice">
-                        <SVGPath
-                            content="M5 2h8l4 4v12H5V2zm8 0v5h5M8 10h6M8 13h6M8 16h4"
-                            styleClass="settings-navigation-svg"/>
+                        <SVGPath content="M5 2h8l4 4v12H5V2zm8 0v5h5M8 10h6M8 13h6M8 16h4" styleClass="settings-navigation-svg"/>
                     </StackPane>
 
                     <VBox>
-                        <Label text="Invoice &amp; Delivery"
-                               styleClass="settings-navigation-title"/>
+                        <Label text="Invoice &amp; Delivery" styleClass="settings-navigation-title"/>
 
-                        <Label text="Identity, address and terms"
-                               styleClass="settings-navigation-description"/>
+                        <Label text="Identity, address and terms" styleClass="settings-navigation-description,approved-page-subtitle"/>
                     </VBox>
 
                 </HBox>
 
                 <!-- NOTIFICATIONS -->
 
-                <HBox fx:id="navNotifications"
-                      onMouseClicked="#showNotifications"
-                      alignment="CENTER_LEFT"
-                      spacing="12"
-                      styleClass="settings-navigation-item">
+                <HBox fx:id="navNotifications" onMouseClicked="#showNotifications" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
 
                     <StackPane styleClass="settings-navigation-icon-box,settings-icon-notification">
-                        <SVGPath
-                            content="M5 14h10l-1.5-2.5V8a3.5 3.5 0 0 0-7 0v3.5L5 14zm3.5 2h3"
-                            styleClass="settings-navigation-svg"/>
+                        <SVGPath content="M5 14h10l-1.5-2.5V8a3.5 3.5 0 0 0-7 0v3.5L5 14zm3.5 2h3" styleClass="settings-navigation-svg"/>
                     </StackPane>
 
                     <VBox>
-                        <Label text="Notifications"
-                               styleClass="settings-navigation-title"/>
+                        <Label text="Notifications" styleClass="settings-navigation-title"/>
 
-                        <Label text="Application activity alerts"
-                               styleClass="settings-navigation-description"/>
+                        <Label text="Application activity alerts" styleClass="settings-navigation-description,approved-page-subtitle"/>
                     </VBox>
 
                 </HBox>
 
                 <!-- EMAIL -->
 
-                <HBox fx:id="navEmail"
-                      onMouseClicked="#showEmail"
-                      alignment="CENTER_LEFT"
-                      spacing="12"
-                      styleClass="settings-navigation-item">
+                <HBox fx:id="navEmail" onMouseClicked="#showEmail" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
 
                     <StackPane styleClass="settings-navigation-icon-box,settings-icon-email">
-                        <SVGPath
-                            content="M2 4h16v12H2V4zm2 2l6 4.5L16 6"
-                            styleClass="settings-navigation-svg"/>
+                        <SVGPath content="M2 4h16v12H2V4zm2 2l6 4.5L16 6" styleClass="settings-navigation-svg"/>
                     </StackPane>
 
                     <VBox>
-                        <Label text="Email &amp; App Preferences"
-                               styleClass="settings-navigation-title"/>
+                        <Label text="Email &amp; App Preferences" styleClass="settings-navigation-title"/>
 
-                        <Label text="SMTP and delivery setup"
-                               styleClass="settings-navigation-description"/>
+                        <Label text="SMTP and delivery setup" styleClass="settings-navigation-description,approved-page-subtitle"/>
                     </VBox>
 
                 </HBox>
@@ -223,47 +144,35 @@
 
 
                 <!-- WORKSPACE & STORAGE -->
-                <HBox fx:id="navWorkspace"
-                      onMouseClicked="#showWorkspace"
-                      alignment="CENTER_LEFT" spacing="12"
-                      styleClass="settings-navigation-item">
+                <HBox fx:id="navWorkspace" onMouseClicked="#showWorkspace" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
                     <StackPane styleClass="settings-navigation-icon-box,settings-icon-workspace">
                         <SVGPath content="M2 5h7l2 2h7v10H2V5zm2 4h12" styleClass="settings-navigation-svg"/>
                     </StackPane>
                     <VBox>
                         <Label text="Workspace &amp; Storage" styleClass="settings-navigation-title"/>
-                        <Label text="Database, backups and files" styleClass="settings-navigation-description"/>
+                        <Label text="Database, backups and files" styleClass="settings-navigation-description,approved-page-subtitle"/>
                     </VBox>
                 </HBox>
 
                 <!-- APPLICATION UPDATES -->
 
-                <HBox fx:id="navUpdates"
-                      onMouseClicked="#showUpdates"
-                      alignment="CENTER_LEFT"
-                      spacing="12"
-                      styleClass="settings-navigation-item">
+                <HBox fx:id="navUpdates" onMouseClicked="#showUpdates" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
                     <StackPane styleClass="settings-navigation-icon-box,settings-icon-update">
-                        <SVGPath content="M10 2a8 8 0 1 0 7.5 5.2h-2.2A6 6 0 1 1 10 4V1l4 3-4 3V4z"
-                                 styleClass="settings-navigation-svg"/>
+                        <SVGPath content="M10 2a8 8 0 1 0 7.5 5.2h-2.2A6 6 0 1 1 10 4V1l4 3-4 3V4z" styleClass="settings-navigation-svg"/>
                     </StackPane>
                     <VBox>
                         <Label text="Application Updates" styleClass="settings-navigation-title"/>
-                        <Label text="GitHub Releases and update history" styleClass="settings-navigation-description"/>
+                        <Label text="GitHub Releases and update history" styleClass="settings-navigation-description,approved-page-subtitle"/>
                     </VBox>
                 </HBox>
 
                 <Region VBox.vgrow="ALWAYS"/>
 
-                <VBox spacing="6"
-                      styleClass="settings-security-note">
+                <VBox spacing="6" styleClass="settings-security-note">
 
-                    <Label text="Security reminder"
-                           styleClass="settings-navigation-title"/>
+                    <Label text="Security reminder" styleClass="settings-navigation-title"/>
 
-                    <Label text="Use an email app password. Never enter your normal mailbox password."
-                           wrapText="true"
-                           styleClass="settings-security-text"/>
+                    <Label text="Use an email app password. Never enter your normal mailbox password." wrapText="true" styleClass="settings-security-text"/>
 
                 </VBox>
 
@@ -273,143 +182,94 @@
                  PANEL HOST
                  ================================================= -->
 
-            <ScrollPane fitToWidth="true"
-                        hbarPolicy="NEVER"
-                        vbarPolicy="AS_NEEDED"
-                        HBox.hgrow="ALWAYS"
-                        styleClass="clean-scroll,settings-panel-scroll">
+            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" HBox.hgrow="ALWAYS" styleClass="clean-scroll,settings-panel-scroll">
 
                 <content>
 
-                    <StackPane maxWidth="Infinity"
-                               styleClass="settings-panel-host">
+                    <StackPane maxWidth="Infinity" styleClass="settings-panel-host,approved-surface">
 
                         <!-- =============================================
                              COMPANY & BILLING
                              ============================================= -->
 
-                        <VBox fx:id="panelCompany"
-                              spacing="20"
-                              maxWidth="Infinity"
-                              styleClass="settings-card">
+                        <VBox fx:id="panelCompany" spacing="20" maxWidth="Infinity" styleClass="settings-card,approved-surface">
 
                             <VBox spacing="3">
 
-                                <Label text="Company &amp; Billing"
-                                       styleClass="settings-section-title"/>
+                                <Label text="Company &amp; Billing" styleClass="settings-section-title"/>
 
-                                <Label text="Business identity, primary contact details and document branding"
-                                       wrapText="true"
-                                       styleClass="settings-section-description"/>
+                                <Label text="Business identity, primary contact details and document branding" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
 
                             </VBox>
 
-                            <GridPane hgap="18"
-                                      vgap="15">
+                            <GridPane hgap="18" vgap="15">
 
                                 <columnConstraints>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                 </columnConstraints>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
-                                    <Label text="Company Name"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Company Name" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtCompanyName"
-                                               promptText="Enter company name"/>
+                                    <TextField fx:id="txtCompanyName" promptText="Enter company name" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
-                                    <Label text="Phone"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Phone" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtPhone"
-                                               promptText="Enter phone number"/>
+                                    <TextField fx:id="txtPhone" promptText="Enter phone number" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
-                                    <Label text="Company Email"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Company Email" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtEmail"
-                                               promptText="company@example.com"/>
+                                    <TextField fx:id="txtEmail" promptText="company@example.com" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
 
-                                    <Label text="GSTIN"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="GSTIN" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtGstin"
-                                               promptText="Enter GSTIN"/>
+                                    <TextField fx:id="txtGstin" promptText="Enter GSTIN" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="2">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="2">
 
-                                    <Label text="PAN"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="PAN" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtCompanyPan"
-                                               promptText="Enter PAN"/>
+                                    <TextField fx:id="txtCompanyPan" promptText="Enter PAN" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="2">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="2">
 
-                                    <Label text="Business Type"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Business Type" styleClass="settings-form-label"/>
 
-                                    <ComboBox fx:id="cmbBusinessType"
-                                              promptText="Select business type"
-                                              maxWidth="Infinity"/>
+                                    <ComboBox fx:id="cmbBusinessType" promptText="Select business type" maxWidth="Infinity" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="3">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="3">
 
-                                    <Label text="Industry"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Industry" styleClass="settings-form-label"/>
 
-                                    <ComboBox fx:id="cmbIndustry"
-                                              promptText="Select industry"
-                                              maxWidth="Infinity"/>
+                                    <ComboBox fx:id="cmbIndustry" promptText="Select industry" maxWidth="Infinity" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="3">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="3">
 
-                                    <Label text="Financial Year Start"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Financial Year Start" styleClass="settings-form-label"/>
 
-                                    <DatePicker fx:id="dpFinancialYearStart"
-                                                promptText="Select date"
-                                                maxWidth="Infinity"/>
+                                    <DatePicker fx:id="dpFinancialYearStart" promptText="Select date" maxWidth="Infinity" styleClass="approved-input"/>
 
                                 </VBox>
 
@@ -421,66 +281,39 @@
 
                             <VBox spacing="12">
 
-                                <Label text="Document Branding"
-                                       styleClass="settings-subsection-title"/>
+                                <Label text="Document Branding" styleClass="settings-subsection-title"/>
 
-                                <Label text="These images are used on quotations, invoices, returns and other generated PDFs."
-                                       wrapText="true"
-                                       styleClass="settings-help-text"/>
+                                <Label text="These images are used on quotations, invoices, returns and other generated PDFs." wrapText="true" styleClass="settings-help-text"/>
 
-                                <HBox spacing="16"
-                                      alignment="TOP_LEFT">
+                                <HBox spacing="16" alignment="TOP_LEFT">
 
                                     <!-- COMPANY LOGO -->
 
-                                    <VBox spacing="9"
-                                          HBox.hgrow="ALWAYS"
-                                          styleClass="settings-asset-card">
+                                    <VBox spacing="9" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,approved-surface">
 
-                                        <Label text="Company Logo"
-                                               styleClass="settings-form-label"/>
+                                        <Label text="Company Logo" styleClass="settings-form-label"/>
 
-                                        <StackPane minHeight="145"
-                                                   prefHeight="145"
-                                                   maxWidth="Infinity"
-                                                   styleClass="settings-image-preview">
+                                        <StackPane minHeight="145" prefHeight="145" maxWidth="Infinity" styleClass="settings-image-preview">
 
-                                            <ImageView fx:id="imgCompanyLogo"
-                                                       fitWidth="220"
-                                                       fitHeight="120"
-                                                       preserveRatio="true"
-                                                       smooth="true"/>
+                                            <ImageView fx:id="imgCompanyLogo" fitWidth="220" fitHeight="120" preserveRatio="true" smooth="true"/>
 
-                                            <VBox fx:id="placeholderCompanyLogo"
-                                                  alignment="CENTER"
-                                                  spacing="8">
+                                            <VBox fx:id="placeholderCompanyLogo" alignment="CENTER" spacing="8">
 
-                                                <SVGPath
-                                                    content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z"
-                                                    styleClass="settings-placeholder-icon"/>
+                                                <SVGPath content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z" styleClass="settings-placeholder-icon"/>
 
-                                                <Label text="No logo selected"
-                                                       styleClass="settings-help-text"/>
+                                                <Label text="No logo selected" styleClass="settings-help-text"/>
 
                                             </VBox>
 
                                         </StackPane>
 
-                                        <Label fx:id="lblLogoFile"
-                                               text="No image selected"
-                                               maxWidth="Infinity"
-                                               textOverrun="CENTER_ELLIPSIS"
-                                               styleClass="settings-asset-filename"/>
+                                        <Label fx:id="lblLogoFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
 
                                         <HBox spacing="8">
 
-                                            <Button text="Upload / Change"
-                                                    onAction="#uploadCompanyLogo"
-                                                    styleClass="settings-secondary-button"/>
+                                            <Button text="Upload / Change" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
 
-                                            <Button text="Remove"
-                                                    onAction="#removeCompanyLogo"
-                                                    styleClass="settings-remove-button"/>
+                                            <Button text="Remove" onAction="#removeCompanyLogo" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
                                         </HBox>
 
@@ -488,54 +321,31 @@
 
                                     <!-- SIGNATURE -->
 
-                                    <VBox spacing="9"
-                                          HBox.hgrow="ALWAYS"
-                                          styleClass="settings-asset-card">
+                                    <VBox spacing="9" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,approved-surface">
 
-                                        <Label text="Authorized Signature"
-                                               styleClass="settings-form-label"/>
+                                        <Label text="Authorized Signature" styleClass="settings-form-label"/>
 
-                                        <StackPane minHeight="145"
-                                                   prefHeight="145"
-                                                   maxWidth="Infinity"
-                                                   styleClass="settings-image-preview">
+                                        <StackPane minHeight="145" prefHeight="145" maxWidth="Infinity" styleClass="settings-image-preview">
 
-                                            <ImageView fx:id="imgSignature"
-                                                       fitWidth="220"
-                                                       fitHeight="110"
-                                                       preserveRatio="true"
-                                                       smooth="true"/>
+                                            <ImageView fx:id="imgSignature" fitWidth="220" fitHeight="110" preserveRatio="true" smooth="true"/>
 
-                                            <VBox fx:id="placeholderSignature"
-                                                  alignment="CENTER"
-                                                  spacing="8">
+                                            <VBox fx:id="placeholderSignature" alignment="CENTER" spacing="8">
 
-                                                <SVGPath
-                                                    content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14"
-                                                    styleClass="settings-placeholder-icon"/>
+                                                <SVGPath content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14" styleClass="settings-placeholder-icon"/>
 
-                                                <Label text="No signature selected"
-                                                       styleClass="settings-help-text"/>
+                                                <Label text="No signature selected" styleClass="settings-help-text"/>
 
                                             </VBox>
 
                                         </StackPane>
 
-                                        <Label fx:id="lblSignatureFile"
-                                               text="No image selected"
-                                               maxWidth="Infinity"
-                                               textOverrun="CENTER_ELLIPSIS"
-                                               styleClass="settings-asset-filename"/>
+                                        <Label fx:id="lblSignatureFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
 
                                         <HBox spacing="8">
 
-                                            <Button text="Upload / Change"
-                                                    onAction="#uploadSignature"
-                                                    styleClass="settings-secondary-button"/>
+                                            <Button text="Upload / Change" onAction="#uploadSignature" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
 
-                                            <Button text="Remove"
-                                                    onAction="#removeSignature"
-                                                    styleClass="settings-remove-button"/>
+                                            <Button text="Remove" onAction="#removeSignature" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
                                         </HBox>
 
@@ -551,103 +361,68 @@
                              PAYMENT & BANK
                              ============================================= -->
 
-                        <VBox fx:id="panelPayment"
-                              visible="false"
-                              managed="false"
-                              spacing="20"
-                              maxWidth="Infinity"
-                              styleClass="settings-card">
+                        <VBox fx:id="panelPayment" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card,approved-surface">
 
                             <VBox spacing="3">
 
-                                <Label text="Payment &amp; Bank"
-                                       styleClass="settings-section-title"/>
+                                <Label text="Payment &amp; Bank" styleClass="settings-section-title"/>
 
-                                <Label text="Details used on invoices, payment messages and UPI/GPay links"
-                                       wrapText="true"
-                                       styleClass="settings-section-description"/>
+                                <Label text="Details used on invoices, payment messages and UPI/GPay links" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
 
                             </VBox>
 
-                            <GridPane hgap="18"
-                                      vgap="15">
+                            <GridPane hgap="18" vgap="15">
 
                                 <columnConstraints>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                 </columnConstraints>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
-                                    <Label text="UPI ID"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="UPI ID" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtUpiId"
-                                               promptText="company@bank"/>
+                                    <TextField fx:id="txtUpiId" promptText="company@bank" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
-                                    <Label text="Account Holder Name"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Account Holder Name" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtAccountHolder"
-                                               promptText="Enter account holder"/>
+                                    <TextField fx:id="txtAccountHolder" promptText="Enter account holder" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
-                                    <Label text="Bank Name"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Bank Name" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtBankName"
-                                               promptText="Enter bank name"/>
+                                    <TextField fx:id="txtBankName" promptText="Enter bank name" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
 
-                                    <Label text="Account Number"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Account Number" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtAccountNumber"
-                                               promptText="Enter account number"/>
+                                    <TextField fx:id="txtAccountNumber" promptText="Enter account number" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="2">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="2">
 
-                                    <Label text="IFSC Code"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="IFSC Code" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtIfsc"
-                                               promptText="Example: IDFB0010123"/>
+                                    <TextField fx:id="txtIfsc" promptText="Example: IDFB0010123" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="2">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="2">
 
-                                    <Label text="Branch"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Branch" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtBranch"
-                                               promptText="Enter branch name"/>
+                                    <TextField fx:id="txtBranch" promptText="Enter branch name" styleClass="approved-input"/>
 
                                 </VBox>
 
@@ -659,76 +434,45 @@
 
                             <VBox spacing="10">
 
-                                <Label text="UPI Payment QR Code"
-                                       styleClass="settings-subsection-title"/>
+                                <Label text="UPI Payment QR Code" styleClass="settings-subsection-title"/>
 
-                                <HBox spacing="16"
-                                      alignment="TOP_LEFT">
+                                <HBox spacing="16" alignment="TOP_LEFT">
 
-                                    <VBox spacing="9"
-                                          minWidth="280"
-                                          prefWidth="320"
-                                          styleClass="settings-asset-card">
+                                    <VBox spacing="9" minWidth="280" prefWidth="320" styleClass="settings-asset-card,approved-surface">
 
-                                        <StackPane minHeight="230"
-                                                   prefHeight="230"
-                                                   styleClass="settings-image-preview,settings-qr-preview">
+                                        <StackPane minHeight="230" prefHeight="230" styleClass="settings-image-preview,settings-qr-preview">
 
-                                            <ImageView fx:id="imgPaymentQr"
-                                                       fitWidth="205"
-                                                       fitHeight="205"
-                                                       preserveRatio="true"
-                                                       smooth="true"/>
+                                            <ImageView fx:id="imgPaymentQr" fitWidth="205" fitHeight="205" preserveRatio="true" smooth="true"/>
 
-                                            <VBox fx:id="placeholderPaymentQr"
-                                                  alignment="CENTER"
-                                                  spacing="8">
+                                            <VBox fx:id="placeholderPaymentQr" alignment="CENTER" spacing="8">
 
-                                                <SVGPath
-                                                    content="M2 2h6v6H2V2zm2 2v2h2V4H4zm8-2h6v6h-6V2zm2 2v2h2V4h-2zM2 12h6v6H2v-6zm2 2v2h2v-2H4zm8-2h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z"
-                                                    styleClass="settings-placeholder-icon"/>
+                                                <SVGPath content="M2 2h6v6H2V2zm2 2v2h2V4H4zm8-2h6v6h-6V2zm2 2v2h2V4h-2zM2 12h6v6H2v-6zm2 2v2h2v-2H4zm8-2h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2zm4 0h2v2h-2v-2z" styleClass="settings-placeholder-icon"/>
 
-                                                <Label text="No QR image selected"
-                                                       styleClass="settings-help-text"/>
+                                                <Label text="No QR image selected" styleClass="settings-help-text"/>
 
                                             </VBox>
 
                                         </StackPane>
 
-                                        <Label fx:id="lblQrFile"
-                                               text="No image selected"
-                                               maxWidth="Infinity"
-                                               textOverrun="CENTER_ELLIPSIS"
-                                               styleClass="settings-asset-filename"/>
+                                        <Label fx:id="lblQrFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
 
                                         <HBox spacing="8">
 
-                                            <Button text="Upload / Change"
-                                                    onAction="#uploadPaymentQr"
-                                                    styleClass="settings-secondary-button"/>
+                                            <Button text="Upload / Change" onAction="#uploadPaymentQr" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
 
-                                            <Button text="Remove"
-                                                    onAction="#removePaymentQr"
-                                                    styleClass="settings-remove-button"/>
+                                            <Button text="Remove" onAction="#removePaymentQr" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
                                         </HBox>
 
                                     </VBox>
 
-                                    <VBox spacing="10"
-                                          HBox.hgrow="ALWAYS"
-                                          styleClass="settings-information-card">
+                                    <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="settings-information-card,approved-surface">
 
-                                        <Label text="How the payment QR is used"
-                                               styleClass="settings-form-label"/>
+                                        <Label text="How the payment QR is used" styleClass="settings-form-label"/>
 
-                                        <Label text="The selected QR image is printed beside your bank details on sales invoices, quotations, receipts and return documents."
-                                               wrapText="true"
-                                               styleClass="settings-information-text"/>
+                                        <Label text="The selected QR image is printed beside your bank details on sales invoices, quotations, receipts and return documents." wrapText="true" styleClass="settings-information-text"/>
 
-                                        <Label text="When no QR image is uploaded, the application may generate a QR code automatically from the configured UPI ID."
-                                               wrapText="true"
-                                               styleClass="settings-information-text"/>
+                                        <Label text="When no QR image is uploaded, the application may generate a QR code automatically from the configured UPI ID." wrapText="true" styleClass="settings-information-text"/>
 
                                     </VBox>
 
@@ -742,145 +486,92 @@
                              INVOICE & DELIVERY
                              ============================================= -->
 
-                        <VBox fx:id="panelInvoice"
-                              visible="false"
-                              managed="false"
-                              spacing="20"
-                              maxWidth="Infinity"
-                              styleClass="settings-card">
+                        <VBox fx:id="panelInvoice" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card,approved-surface">
 
                             <VBox spacing="3">
 
-                                <Label text="Invoice &amp; Delivery"
-                                       styleClass="settings-section-title"/>
+                                <Label text="Invoice &amp; Delivery" styleClass="settings-section-title"/>
 
-                                <Label text="Company address, invoice identity, regional formatting and delivery defaults"
-                                       wrapText="true"
-                                       styleClass="settings-section-description"/>
+                                <Label text="Company address, invoice identity, regional formatting and delivery defaults" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
 
                             </VBox>
 
-                            <GridPane hgap="18"
-                                      vgap="15">
+                            <GridPane hgap="18" vgap="15">
 
                                 <columnConstraints>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                 </columnConstraints>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
-                                    <Label text="Company Address"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Company Address" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtCompanyAddress"
-                                              prefRowCount="3"
-                                              wrapText="true"/>
+                                    <TextArea fx:id="txtCompanyAddress" prefRowCount="3" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
-                                    <Label text="Default Ship-to Address"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Default Ship-to Address" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtShipAddress"
-                                              prefRowCount="3"
-                                              wrapText="true"/>
+                                    <TextArea fx:id="txtShipAddress" prefRowCount="3" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
-                                    <Label text="State / Place of Supply"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="State / Place of Supply" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtCompanyState"
-                                               promptText="Gujarat (24)"/>
+                                    <TextField fx:id="txtCompanyState" promptText="Gujarat (24)" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
 
-                                    <Label text="Currency"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Currency" styleClass="settings-form-label"/>
 
-                                    <ComboBox fx:id="cmbCurrency"
-                                              promptText="Select currency"
-                                              maxWidth="Infinity"/>
+                                    <ComboBox fx:id="cmbCurrency" promptText="Select currency" maxWidth="Infinity" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="2">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="2">
 
-                                    <Label text="Time Zone"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Time Zone" styleClass="settings-form-label"/>
 
-                                    <ComboBox fx:id="cmbTimeZone"
-                                              promptText="Select time zone"
-                                              maxWidth="Infinity"/>
+                                    <ComboBox fx:id="cmbTimeZone" promptText="Select time zone" maxWidth="Infinity" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="2">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="2">
 
-                                    <Label text="Date Format"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Date Format" styleClass="settings-form-label"/>
 
-                                    <ComboBox fx:id="cmbDateFormat"
-                                              promptText="Select date format"
-                                              maxWidth="Infinity"/>
+                                    <ComboBox fx:id="cmbDateFormat" promptText="Select date format" maxWidth="Infinity" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="3">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="3">
 
-                                    <Label text="Website"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Website" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtCompanyWebsite"
-                                               promptText="www.company.com"/>
+                                    <TextField fx:id="txtCompanyWebsite" promptText="www.company.com" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="3">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="3">
 
-                                    <Label text="Business Tagline"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Business Tagline" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtCompanyTagline"
-                                               promptText="Enter business tagline"/>
+                                    <TextField fx:id="txtCompanyTagline" promptText="Enter business tagline" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnSpan="2"
-                                      GridPane.rowIndex="4">
+                                <VBox spacing="7" GridPane.columnSpan="2" GridPane.rowIndex="4">
 
-                                    <Label text="Invoice Terms"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Invoice Terms" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtInvoiceTerms"
-                                              prefRowCount="5"
-                                              wrapText="true"/>
+                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="5" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
@@ -892,36 +583,21 @@
                              NOTIFICATIONS
                              ============================================= -->
 
-                        <VBox fx:id="panelNotifications"
-                              visible="false"
-                              managed="false"
-                              spacing="18"
-                              maxWidth="Infinity"
-                              styleClass="settings-card">
+                        <VBox fx:id="panelNotifications" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,approved-surface">
 
                             <VBox spacing="3">
 
-                                <Label text="Notifications"
-                                       styleClass="settings-section-title"/>
+                                <Label text="Notifications" styleClass="settings-section-title"/>
 
-                                <Label text="Control whether application activity appears in the notification centre"
-                                       wrapText="true"
-                                       styleClass="settings-section-description"/>
+                                <Label text="Control whether application activity appears in the notification centre" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
 
                             </VBox>
 
-                            <VBox spacing="14"
-                                  styleClass="settings-information-card">
+                            <VBox spacing="14" styleClass="settings-information-card,approved-surface">
 
-                                <CheckBox fx:id="chkNotifications"
-                                          text="Show and keep application notifications"
-                                          selected="true"
-                                          wrapText="true"
-                                          styleClass="settings-notification-check"/>
+                                <CheckBox fx:id="chkNotifications" text="Show and keep application notifications" selected="true" wrapText="true" styleClass="settings-notification-check"/>
 
-                                <Label text="Sales, purchases, imports, payments and communication events will be recorded when enabled."
-                                       wrapText="true"
-                                       styleClass="settings-information-text"/>
+                                <Label text="Sales, purchases, imports, payments and communication events will be recorded when enabled." wrapText="true" styleClass="settings-information-text"/>
 
                             </VBox>
 
@@ -931,93 +607,62 @@
                              EMAIL
                              ============================================= -->
 
-                        <VBox fx:id="panelEmail"
-                              visible="false"
-                              managed="false"
-                              spacing="18"
-                              maxWidth="Infinity"
-                              styleClass="settings-card">
+                        <VBox fx:id="panelEmail" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,approved-surface">
 
                             <VBox spacing="3">
 
-                                <Label text="Email &amp; App Preferences"
-                                       styleClass="settings-section-title"/>
+                                <Label text="Email &amp; App Preferences" styleClass="settings-section-title"/>
 
-                                <Label text="SMTP delivery configuration for invoices, receipts and OTP messages"
-                                       wrapText="true"
-                                       styleClass="settings-section-description"/>
+                                <Label text="SMTP delivery configuration for invoices, receipts and OTP messages" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
 
                             </VBox>
 
-                            <GridPane hgap="18"
-                                      vgap="15">
+                            <GridPane hgap="18" vgap="15">
 
                                 <columnConstraints>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
-                                    <ColumnConstraints percentWidth="50"
-                                                       hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                 </columnConstraints>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
-                                    <Label text="Sending Email Address"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Sending Email Address" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtSmtpEmail"
-                                               promptText="name@example.com"/>
+                                    <TextField fx:id="txtSmtpEmail" promptText="name@example.com" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="0">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
-                                    <Label text="Email App Password"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="Email App Password" styleClass="settings-form-label"/>
 
-                                    <PasswordField fx:id="txtSmtpPassword"
-                                                   promptText="App password"/>
+                                    <PasswordField fx:id="txtSmtpPassword" promptText="App password" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="0"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
-                                    <Label text="SMTP Host"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="SMTP Host" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtSmtpHost"
-                                               promptText="Automatic or smtp.gmail.com"/>
+                                    <TextField fx:id="txtSmtpHost" promptText="Automatic or smtp.gmail.com" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7"
-                                      GridPane.columnIndex="1"
-                                      GridPane.rowIndex="1">
+                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
 
-                                    <Label text="SMTP Port"
-                                           styleClass="settings-form-label"/>
+                                    <Label text="SMTP Port" styleClass="settings-form-label"/>
 
-                                    <TextField fx:id="txtSmtpPort"
-                                               promptText="587"/>
+                                    <TextField fx:id="txtSmtpPort" promptText="587" styleClass="approved-input"/>
 
                                 </VBox>
 
                             </GridPane>
 
-                            <VBox spacing="7"
-                                  styleClass="settings-security-note">
+                            <VBox spacing="7" styleClass="settings-security-note">
 
-                                <Label text="Email security"
-                                       styleClass="settings-form-label"/>
+                                <Label text="Email security" styleClass="settings-form-label"/>
 
-                                <Label text="Use an app password supplied by your email provider, not your normal mailbox password."
-                                       wrapText="true"
-                                       styleClass="settings-help-text"/>
+                                <Label text="Use an app password supplied by your email provider, not your normal mailbox password." wrapText="true" styleClass="settings-help-text"/>
 
                             </VBox>
 
@@ -1027,39 +672,34 @@
                         <!-- =============================================
                              WORKSPACE & STORAGE
                              ============================================= -->
-                        <VBox fx:id="panelWorkspace" visible="false" managed="false"
-                              spacing="18" maxWidth="Infinity"
-                              styleClass="settings-card,workspace-settings-panel">
+                        <VBox fx:id="panelWorkspace" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,workspace-settings-panel,approved-surface">
                             <VBox spacing="3">
                                 <Label text="Workspace &amp; Storage" styleClass="settings-section-title"/>
-                                <Label text="All business data is kept outside the installed application in one portable workspace."
-                                       wrapText="true" styleClass="settings-section-description"/>
+                                <Label text="All business data is kept outside the installed application in one portable workspace." wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
                             </VBox>
-                            <VBox spacing="10" styleClass="settings-information-card">
+                            <VBox spacing="10" styleClass="settings-information-card,approved-surface">
                                 <Label text="Current Workspace" styleClass="settings-subsection-title"/>
                                 <Label fx:id="lblWorkspacePath" text="Workspace path" wrapText="true" styleClass="workspace-path-value"/>
-                                <Label fx:id="lblWorkspaceStatus" wrapText="true" styleClass="workspace-status-ok"/>
+                                <Label fx:id="lblWorkspaceStatus" wrapText="true" styleClass="workspace-status-ok,approved-status"/>
                             </VBox>
                             <GridPane hgap="14" vgap="14">
                                 <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                                <VBox spacing="7" styleClass="workspace-folder-card">
+                                <VBox spacing="7" styleClass="workspace-folder-card,approved-surface">
                                     <Label text="Database &amp; Configuration" styleClass="settings-form-label"/>
-                                    <Label text="Database/JavaAppERP.db
-Config/config.properties" wrapText="true" styleClass="settings-help-text"/>
+                                    <Label text="Database/JavaAppERP.db Config/config.properties" wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
-                                <VBox spacing="7" GridPane.columnIndex="1" styleClass="workspace-folder-card">
+                                <VBox spacing="7" GridPane.columnIndex="1" styleClass="workspace-folder-card,approved-surface">
                                     <Label text="Recovery &amp; Documents" styleClass="settings-form-label"/>
                                     <Label text="Backups • Reports • Attachments • Imports • Exports • Logs" wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
                             </GridPane>
                             <VBox spacing="7" styleClass="settings-security-note">
                                 <Label text="Moving the workspace safely" styleClass="settings-form-label"/>
-                                <Label text="A move is applied on the next start before SQLite opens. The original folder is retained, so you always have a recovery copy."
-                                       wrapText="true" styleClass="settings-help-text"/>
+                                <Label text="A move is applied on the next start before SQLite opens. The original folder is retained, so you always have a recovery copy." wrapText="true" styleClass="settings-help-text"/>
                             </VBox>
                             <FlowPane hgap="10" vgap="10">
-                                <Button text="Open Workspace" onAction="#openWorkspaceFolder" styleClass="settings-action-button,settings-secondary-button"/>
-                                <Button text="Move Workspace" onAction="#moveWorkspace" styleClass="settings-action-button,settings-primary-button"/>
+                                <Button text="Open Workspace" onAction="#openWorkspaceFolder" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
+                                <Button text="Move Workspace" onAction="#moveWorkspace" styleClass="settings-action-button,settings-primary-button,approved-button,approved-secondary-button"/>
                             </FlowPane>
                         </VBox>
 
@@ -1067,38 +707,32 @@ Config/config.properties" wrapText="true" styleClass="settings-help-text"/>
                              APPLICATION UPDATES
                              ============================================= -->
 
-                        <VBox fx:id="panelUpdates"
-                              visible="false"
-                              managed="false"
-                              spacing="18"
-                              maxWidth="Infinity"
-                              styleClass="settings-card,update-settings-panel">
+                        <VBox fx:id="panelUpdates" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,update-settings-panel,approved-surface">
 
                             <VBox spacing="3">
                                 <Label text="Application Updates" styleClass="settings-section-title"/>
-                                <Label text="Check GitHub Releases, prepare verified installers and protect the database before updating"
-                                       wrapText="true" styleClass="settings-section-description"/>
+                                <Label text="Check GitHub Releases, prepare verified installers and protect the database before updating" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
                             </VBox>
 
                             <HBox spacing="14">
-                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card,approved-surface">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
                                     <Label fx:id="lblCurrentVersion" text="2.0.0" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
-                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card,approved-surface">
                                     <Label text="Latest Version" styleClass="settings-form-label"/>
                                     <Label fx:id="lblLatestVersion" text="Check GitHub Releases" styleClass="update-version-value"/>
                                     <Label text="Selected release channel" styleClass="settings-help-text"/>
                                 </VBox>
-                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card,approved-surface">
                                     <Label text="Last Checked" styleClass="settings-form-label"/>
                                     <Label fx:id="lblLastChecked" text="Never" wrapText="true" styleClass="update-version-value-small"/>
                                     <Label text="Automatic checks run at most twice daily" styleClass="settings-help-text"/>
                                 </VBox>
                             </HBox>
 
-                            <VBox spacing="14" styleClass="settings-information-card">
+                            <VBox spacing="14" styleClass="settings-information-card,approved-surface">
                                 <Label text="GitHub Release Source" styleClass="settings-subsection-title"/>
                                 <GridPane hgap="18" vgap="14">
                                     <columnConstraints>
@@ -1107,36 +741,34 @@ Config/config.properties" wrapText="true" styleClass="settings-help-text"/>
                                     </columnConstraints>
                                     <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
                                         <Label text="Repository Owner" styleClass="settings-form-label"/>
-                                        <TextField fx:id="txtGitHubOwner" promptText="GitHub account or organisation"/>
+                                        <TextField fx:id="txtGitHubOwner" promptText="GitHub account or organisation" styleClass="approved-input"/>
                                     </VBox>
                                     <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
                                         <Label text="Repository Name" styleClass="settings-form-label"/>
-                                        <TextField fx:id="txtGitHubRepository" promptText="Example: dse-erp"/>
+                                        <TextField fx:id="txtGitHubRepository" promptText="Example: dse-erp" styleClass="approved-input"/>
                                     </VBox>
                                     <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
                                         <Label text="Update Channel" styleClass="settings-form-label"/>
-                                        <ComboBox fx:id="cmbUpdateChannel" maxWidth="Infinity"/>
+                                        <ComboBox fx:id="cmbUpdateChannel" maxWidth="Infinity" styleClass="approved-input"/>
                                     </VBox>
                                     <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
                                         <Label text="Platform" styleClass="settings-form-label"/>
-                                        <Label text="Windows EXE/MSI or macOS DMG/PKG is selected automatically"
-                                               wrapText="true" styleClass="settings-help-text"/>
+                                        <Label text="Windows EXE/MSI or macOS DMG/PKG is selected automatically" wrapText="true" styleClass="settings-help-text"/>
                                     </VBox>
                                 </GridPane>
                             </VBox>
 
-                            <VBox spacing="10" styleClass="settings-information-card">
+                            <VBox spacing="10" styleClass="settings-information-card,approved-surface">
                                 <CheckBox fx:id="chkUpdateAtStartup" text="Check automatically at startup" selected="true"/>
                                 <CheckBox fx:id="chkDownloadInBackground" text="Allow background downloads after approval"/>
-                                <Label text="Every online installer must have a matching SHA-256 entry in checksums.txt. A consistent SQLite safety backup is created before the installer starts."
-                                       wrapText="true" styleClass="settings-help-text"/>
+                                <Label text="Every online installer must have a matching SHA-256 entry in checksums.txt. A consistent SQLite safety backup is created before the installer starts." wrapText="true" styleClass="settings-help-text"/>
                             </VBox>
 
                             <FlowPane hgap="10" vgap="10">
-                                <Button text="Check for Updates" onAction="#checkForUpdates" styleClass="settings-action-button,settings-primary-button"/>
-                                <Button text="View Update History" onAction="#viewUpdateHistory" styleClass="settings-action-button,settings-secondary-button"/>
-                                <Button text="Install Offline Package" onAction="#installOfflineUpdate" styleClass="settings-action-button,settings-secondary-button"/>
-                                <Button text="System Health" onAction="#showSystemHealth" styleClass="settings-action-button,settings-secondary-button"/>
+                                <Button text="Check for Updates" onAction="#checkForUpdates" styleClass="settings-action-button,settings-primary-button,approved-button,approved-secondary-button"/>
+                                <Button text="View Update History" onAction="#viewUpdateHistory" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
+                                <Button text="Install Offline Package" onAction="#installOfflineUpdate" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
+                                <Button text="System Health" onAction="#showSystemHealth" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
                             </FlowPane>
 
                         </VBox>

@@ -1,31 +1,27 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.EmailSettingsController" styleClass="auth-page">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.EmailSettingsController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-email-settings">
 
     <left>
-        <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
+        <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel,approved-surface">
             <StackPane styleClass="auth-logo-badge"><Label text="◆" styleClass="auth-logo-mark"/></StackPane>
             <Label text="JavaApp ERP" styleClass="auth-brand-title"/>
             <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
-            <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle"/>
-            <Label text="Precision in Engineering
-Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
+            <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle,approved-page-subtitle"/>
+            <Label text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
             <Label text="Version 2.0.0" styleClass="auth-version"/>
         </VBox>
     </left>
 
-    <center><StackPane styleClass="auth-content"><VBox maxWidth="680" spacing="14" alignment="CENTER" styleClass="auth-card">
-        <StackPane styleClass="auth-section-icon"><Label text="✉"/></StackPane>
+    <center><StackPane styleClass="auth-content"><VBox maxWidth="680" spacing="14" alignment="CENTER" styleClass="auth-card,approved-surface">
+        <StackPane styleClass="auth-section-icon,approved-surface"><Label text="✉"/></StackPane>
         <Label text="Yahoo Email Setup" styleClass="auth-title"/>
-        <Label text="Required for secure OTP sign-in and optional invoice emails." styleClass="auth-description"/>
-        <VBox spacing="5" maxWidth="600"><Label text="Yahoo email address *" styleClass="auth-field-label"/><TextField fx:id="txtSmtpEmail" promptText="name@yahoo.com" styleClass="auth-input"/><Label fx:id="lblEmailError" managed="false" visible="false" styleClass="field-error"/></VBox>
-        <VBox spacing="5" maxWidth="600"><Label text="Yahoo app password *" styleClass="auth-field-label"/><PasswordField fx:id="txtSmtpPassword" promptText="Yahoo app password" styleClass="auth-input"/><Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/></VBox>
+        <Label text="Required for secure OTP sign-in and optional invoice emails." styleClass="auth-description,approved-page-subtitle"/>
+        <VBox spacing="5" maxWidth="600"><Label text="Yahoo email address *" styleClass="auth-field-label"/><TextField fx:id="txtSmtpEmail" promptText="name@yahoo.com" styleClass="auth-input,approved-input"/><Label fx:id="lblEmailError" managed="false" visible="false" styleClass="field-error"/></VBox>
+        <VBox spacing="5" maxWidth="600"><Label text="Yahoo app password *" styleClass="auth-field-label"/><PasswordField fx:id="txtSmtpPassword" promptText="Yahoo app password" styleClass="auth-input,approved-input"/><Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/></VBox>
         <HBox spacing="12" maxWidth="600" alignment="CENTER_LEFT" styleClass="auth-info-box"><Label text="i" styleClass="auth-info-icon"/><Label text="Create this in Yahoo Account Security → Generate app password. Your normal Yahoo password will not work." wrapText="true" HBox.hgrow="ALWAYS"/></HBox>
-        <Button fx:id="btnSave" text="Save Email Settings" onAction="#save" maxWidth="360" styleClass="auth-primary-button"/>
-        <Button fx:id="btnBack" text="Back to login" onAction="#back" maxWidth="220" styleClass="auth-secondary-button"/>
+        <Button fx:id="btnSave" text="Save Email Settings" onAction="#save" maxWidth="360" styleClass="auth-primary-button,approved-button,approved-primary-button"/>
+        <Button fx:id="btnBack" text="Back to login" onAction="#back" maxWidth="220" styleClass="auth-secondary-button,approved-button,approved-primary-button"/>
         <Label fx:id="lblMessage" wrapText="true" maxWidth="600" styleClass="auth-message"/>
     </VBox></StackPane></center>
 

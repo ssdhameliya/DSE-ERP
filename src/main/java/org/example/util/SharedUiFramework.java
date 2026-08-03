@@ -19,12 +19,11 @@ public final class SharedUiFramework {
         FxThreadWatchdog.install();
         if (root == null) return;
         apply(root);
+        ApprovedUiSystem.install(root);
         if (!Boolean.TRUE.equals(root.getProperties().get(INSTALLED))) {
             root.getProperties().put(INSTALLED, true);
-            root.sceneProperty().addListener((obs, oldScene, newScene) -> {
-                if (newScene != null) Platform.runLater(() -> apply(root));
-            });
-            Platform.runLater(() -> apply(root));
+            // One deferred pass is enough for controls whose skins are created after attachment.
+            Platform.runLater(() -> IconFactory.decorate(root));
         }
     }
 

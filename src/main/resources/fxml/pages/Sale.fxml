@@ -1,29 +1,26 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesController" fitToWidth="true" hbarPolicy="NEVER" styleClass="clean-scroll,sales-entry-scroll">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesController" fitToWidth="true" hbarPolicy="NEVER" styleClass="clean-scroll,sales-entry-scroll,approved-ui,approved-screen,approved-screen-sale">
     <content>
         <VBox fx:id="salesEntryRoot" spacing="16" styleClass="purchase-page,sales-flow-page,sales-entry-page">
             <padding>
                 <Insets top="20" right="20" bottom="22" left="20"/>
             </padding>
 
-            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-header">
+            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-header,approved-section-header">
                 <StackPane styleClass="sales-entry-title-icon">
                     <Label text=""/>
                 </StackPane>
                 <VBox spacing="3">
-                    <Label text="Create Sale Invoice" styleClass="sales-entry-page-title"/>
-                    <Label text="Create a new sale invoice for your customer" styleClass="sales-entry-page-subtitle"/>
+                    <Label text="Create Sale Invoice" styleClass="sales-entry-page-title,approved-page-title"/>
+                    <Label text="Create a new sale invoice for your customer" styleClass="sales-entry-page-subtitle,approved-page-subtitle"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button text="Back to Sales" onAction="#cancel" styleClass="sales-entry-back-button"/>
+                <Button text="Back to Sales" onAction="#cancel" styleClass="sales-entry-back-button,approved-button,approved-secondary-button"/>
             </HBox>
 
             <HBox spacing="16" alignment="TOP_LEFT">
                 <VBox spacing="14" HBox.hgrow="ALWAYS">
-                    <VBox spacing="14" styleClass="purchase-card,flow-card,sales-entry-card">
+                    <VBox spacing="14" styleClass="purchase-card,flow-card,sales-entry-card,approved-surface">
                         <Label text="Customer &amp; Invoice Details" styleClass="flow-title,sales-entry-section-title"/>
                         <GridPane hgap="16" vgap="13">
                             <columnConstraints>
@@ -36,80 +33,80 @@
                             <VBox spacing="6">
                                 <Label text="Customer *"/>
                                 <HBox spacing="7">
-                                    <ComboBox fx:id="cmbCustomer" promptText="Select customer..." maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
-                                    <Button text="Add Customer" onAction="#addCustomer" styleClass="sales-entry-icon-button"/>
+                                    <ComboBox fx:id="cmbCustomer" promptText="Select customer..." maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+                                    <Button text="Add Customer" onAction="#addCustomer" styleClass="sales-entry-icon-button,approved-button,approved-primary-button"/>
                                 </HBox>
                             </VBox>
 
                             <VBox spacing="6" GridPane.columnIndex="1">
                                 <Label text="Invoice No."/>
-                                <TextField fx:id="txtInvoiceNo" editable="false"/>
+                                <TextField fx:id="txtInvoiceNo" editable="false" styleClass="approved-input"/>
                             </VBox>
 
                             <VBox spacing="6" GridPane.columnIndex="2">
                                 <Label text="Invoice Date *"/>
-                                <DatePicker fx:id="dpInvoiceDate" maxWidth="Infinity"/>
+                                <DatePicker fx:id="dpInvoiceDate" maxWidth="Infinity" styleClass="approved-input"/>
                             </VBox>
 
                             <VBox spacing="6" GridPane.columnIndex="3">
                                 <Label text="Due Date"/>
-                                <DatePicker fx:id="dpDueDate" maxWidth="Infinity"/>
+                                <DatePicker fx:id="dpDueDate" maxWidth="Infinity" styleClass="approved-input"/>
                             </VBox>
 
                             <VBox spacing="6" GridPane.rowIndex="1">
                                 <Label text="Billing Address"/>
-                                <ComboBox fx:id="cmbBillingAddress" promptText="Select billing address..." maxWidth="Infinity"/>
+                                <ComboBox fx:id="cmbBillingAddress" promptText="Select billing address..." maxWidth="Infinity" styleClass="approved-input"/>
                             </VBox>
-                            <TextArea fx:id="txtBillingAddress" visible="false" managed="false"/>
+                            <TextArea fx:id="txtBillingAddress" visible="false" managed="false" styleClass="approved-input"/>
                             <Label fx:id="lblInvoiceDisplay" visible="false" managed="false" GridPane.rowIndex="1"/>
-                            <ComboBox fx:id="cmbSalesPerson" visible="false" managed="false" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                            <ComboBox fx:id="cmbSalesPerson" visible="false" managed="false" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="approved-input"/>
 
                             <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnIndex="1">
                                 <Label text="Payment Terms"/>
-                                <ComboBox fx:id="cmbPaymentTerms" maxWidth="Infinity"/>
+                                <ComboBox fx:id="cmbPaymentTerms" maxWidth="Infinity" styleClass="approved-input"/>
                             </VBox>
 
                             <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnIndex="2" GridPane.columnSpan="2">
                                 <Label text="Delivery Status"/>
-                                <ComboBox fx:id="cmbDeliveryStatus" maxWidth="Infinity"/>
+                                <ComboBox fx:id="cmbDeliveryStatus" maxWidth="Infinity" styleClass="approved-input"/>
                             </VBox>
                         </GridPane>
                     </VBox>
 
-                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-items-card" VBox.vgrow="ALWAYS">
+                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-items-card,approved-surface" VBox.vgrow="ALWAYS">
                         <Label text="Invoice Items" styleClass="flow-title,sales-entry-section-title"/>
 
                         <VBox visible="false" managed="false">
-                            <TextField fx:id="txtOtherCharges" text="0"/>
-                            <TextField fx:id="txtTransport" text="0"/>
-                            <TextField fx:id="txtReference"/>
-                            <TextField fx:id="txtAttachment"/>
-                            <TextArea fx:id="txtInvoiceMessage" text="Thank you for your business."/>
-                            <TextArea fx:id="txtRemarks" visible="false" managed="false"/>
-                            <TextArea fx:id="txtDeliveryAddress" visible="false" managed="false"/>
+                            <TextField fx:id="txtOtherCharges" text="0" styleClass="approved-input"/>
+                            <TextField fx:id="txtTransport" text="0" styleClass="approved-input"/>
+                            <TextField fx:id="txtReference" styleClass="approved-input"/>
+                            <TextField fx:id="txtAttachment" styleClass="approved-input"/>
+                            <TextArea fx:id="txtInvoiceMessage" text="Thank you for your business." styleClass="approved-input"/>
+                            <TextArea fx:id="txtRemarks" visible="false" managed="false" styleClass="approved-input"/>
+                            <TextArea fx:id="txtDeliveryAddress" visible="false" managed="false" styleClass="approved-input"/>
                         </VBox>
 
-                        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="sales-entry-line-toolbar">
-                            <ComboBox fx:id="cmbItem" promptText="Select item..." HBox.hgrow="ALWAYS"/>
-                            <TextField fx:id="txtQuantity" promptText="Qty" prefWidth="90"/>
-                            <TextField fx:id="txtRate" promptText="Rate (₹)" prefWidth="120"/>
-                            <TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="105"/>
-                            <TextField fx:id="txtGST" promptText="Tax %" prefWidth="90"/>
-                            <Button fx:id="btnAddLine" text="Add Item" onAction="#addLine" styleClass="sales-entry-add-button"/>
-                            <Button text="Remove" onAction="#removeLine" styleClass="sales-entry-remove-button"/>
+                        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="sales-entry-line-toolbar,approved-toolbar">
+                            <ComboBox fx:id="cmbItem" promptText="Select item..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+                            <TextField fx:id="txtQuantity" promptText="Qty" prefWidth="90" styleClass="approved-input"/>
+                            <TextField fx:id="txtRate" promptText="Rate (₹)" prefWidth="120" styleClass="approved-input"/>
+                            <TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="105" styleClass="approved-input"/>
+                            <TextField fx:id="txtGST" promptText="Tax %" prefWidth="90" styleClass="approved-input"/>
+                            <Button fx:id="btnAddLine" text="Add Item" onAction="#addLine" styleClass="sales-entry-add-button,approved-button,approved-primary-button"/>
+                            <Button text="Remove" onAction="#removeLine" styleClass="sales-entry-remove-button,approved-button,approved-danger-button"/>
                         </HBox>
 
-                        <TableView fx:id="tableLines" prefHeight="520" minHeight="360" VBox.vgrow="ALWAYS" styleClass="sales-entry-table">
+                        <TableView fx:id="tableLines" prefHeight="520" minHeight="360" VBox.vgrow="ALWAYS" styleClass="sales-entry-table,approved-table">
                             <columns>
-                                <TableColumn fx:id="colItem" text="Item Name *" prefWidth="360"/>
-                                <TableColumn fx:id="colQuantity" text="Qty" prefWidth="100"/>
-                                <TableColumn fx:id="colRate" text="Rate (₹)" prefWidth="125"/>
-                                <TableColumn fx:id="colDiscount" text="Discount %" prefWidth="100"/>
-                                <TableColumn fx:id="colDiscountAmount" text="Discount (₹)" prefWidth="125"/>
-                                <TableColumn fx:id="colGst" text="Tax %" prefWidth="90"/>
-                                <TableColumn fx:id="colNetAmount" text="Taxable (₹)" prefWidth="150"/>
-                                <TableColumn fx:id="colGstAmount" text="Tax Amount (₹)" prefWidth="150"/>
-                                <TableColumn fx:id="colTotal" text="Amount (₹)" prefWidth="170"/>
+                                <TableColumn fx:id="colItem" text="Item Name *" prefWidth="360" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colQuantity" text="Qty" prefWidth="100" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colRate" text="Rate (₹)" prefWidth="125" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colDiscount" text="Discount %" prefWidth="100" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colDiscountAmount" text="Discount (₹)" prefWidth="125" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colGst" text="Tax %" prefWidth="90" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colNetAmount" text="Taxable (₹)" prefWidth="150" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colGstAmount" text="Tax Amount (₹)" prefWidth="150" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colTotal" text="Amount (₹)" prefWidth="170" styleClass="approved-table-column"/>
                             </columns>
                         </TableView>
                     </VBox>
@@ -117,7 +114,7 @@
                     </VBox>
 
                 <VBox spacing="14" prefWidth="320" minWidth="300" maxWidth="350">
-                    <VBox spacing="13" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-summary-card">
+                    <VBox spacing="13" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-summary-card,approved-surface">
                         <Label text="Invoice Summary" styleClass="flow-title,sales-entry-section-title"/>
                         <HBox>
                             <Label text="Sub Total"/>
@@ -142,27 +139,27 @@
                         </HBox>
                     </VBox>
 
-                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card">
+                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card,approved-surface">
                         <Label text="Quick Actions" styleClass="flow-title,sales-entry-section-title"/>
                         <GridPane hgap="10" vgap="10">
                             <columnConstraints>
                                 <ColumnConstraints percentWidth="50"/>
                                 <ColumnConstraints percentWidth="50"/>
                             </columnConstraints>
-                            <Button text="Preview" onAction="#preview" maxWidth="Infinity"/>
-                            <Button text="Download PDF" onAction="#preview" GridPane.columnIndex="1" maxWidth="Infinity"/>
-                            <Button text="Send Email" onAction="#preview" GridPane.rowIndex="1" maxWidth="Infinity"/>
-                            <Button text="Send WhatsApp" onAction="#preview" GridPane.rowIndex="1" GridPane.columnIndex="1" maxWidth="Infinity"/>
+                            <Button text="Preview" onAction="#preview" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                            <Button text="Download PDF" onAction="#preview" GridPane.columnIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                            <Button text="Send Email" onAction="#preview" GridPane.rowIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                            <Button text="Send WhatsApp" onAction="#preview" GridPane.rowIndex="1" GridPane.columnIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
                         </GridPane>
                     </VBox>
 
-                    <VBox spacing="10" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-document-card">
+                    <VBox spacing="10" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-document-card,approved-surface">
                         <Label text="Document Actions" styleClass="flow-title,sales-entry-section-title"/>
                         <HBox spacing="9">
-                            <Button text="Cancel" onAction="#cancel" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="sales-entry-cancel-button"/>
-                            <Button text="Save as Draft" onAction="#saveDraft" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+                            <Button text="Cancel" onAction="#cancel" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="sales-entry-cancel-button,approved-button,approved-secondary-button"/>
+                            <Button text="Save as Draft" onAction="#saveDraft" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
                         </HBox>
-                        <Button fx:id="btnSaveSale" text="Save &amp; Print" onAction="#saveSale" maxWidth="Infinity" styleClass="sales-entry-save-button"/>
+                        <Button fx:id="btnSaveSale" text="Save &amp; Print" onAction="#saveSale" maxWidth="Infinity" styleClass="sales-entry-save-button,approved-button,approved-primary-button"/>
                     </VBox>
                 </VBox>
             </HBox>

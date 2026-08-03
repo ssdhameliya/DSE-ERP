@@ -1,0 +1,16 @@
+DSE ERP v2.1.9 Approved UI cumulative source
+
+Completed checks:
+- 36/36 FXML files parsed successfully.
+- 142 project Java classes indexed.
+- Zero unresolved internal org.example imports.
+- pom.xml project version confirmed as 2.1.9.
+- app-version.properties confirmed as 2.1.9.
+- Dashboard chart nodes and chart data methods removed.
+- Approved UI system installed once per root to reduce repeated macOS CSS/layout work.
+
+Required local release checks:
+1. mvn clean install
+2. mvn javafx:run
+3. Test Dashboard, Sales, Purchase, Returns, Inventory, Masters, Reports, Settings and dialogs.
+4. Test light/dark theme and small/maximized window sizes on Windows and macOS.

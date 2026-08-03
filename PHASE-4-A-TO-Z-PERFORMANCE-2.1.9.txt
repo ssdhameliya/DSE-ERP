@@ -1,0 +1,25 @@
+DSE ERP 2.1.9 - A-to-Z Performance Release
+
+Implemented:
+- bounded latest-result-wins background executor
+- report dashboard fully asynchronous data bundle
+- asynchronous report filters and exports
+- cached-screen refresh policy
+- JavaFX pulse stall watchdog logging
+- task queue and active task observability
+- cancellation of stale report tasks
+- performance log integration and existing rotation
+- version 2.1.9 in pom.xml and app-version.properties
+
+Preserved:
+- v2.1.7 navigation/cache improvements
+- macOS owned dialogs and multi-monitor behavior
+- shared semantic UI and dashboard fixes
+- all existing business functionality
+
+Runtime verification required:
+- mvn clean install
+- mvn javafx:run
+- Reports refresh/filter/export
+- repeated navigation and performance.log review
+- Windows and macOS smoke tests

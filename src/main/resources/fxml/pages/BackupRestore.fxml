@@ -1,26 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.MenuButton?>
-<?import javafx.scene.control.Spinner?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.ColumnConstraints?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Priority?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.VBox?>
-
-<BorderPane xmlns="http://javafx.com/javafx/21"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.controller.BackupRestoreController"
-            styleClass="register-page,backup-restore-page">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.Button?><?import javafx.scene.control.ComboBox?><?import javafx.scene.control.Label?><?import javafx.scene.control.MenuButton?><?import javafx.scene.control.Spinner?><?import javafx.scene.control.TableColumn?><?import javafx.scene.control.TableView?><?import javafx.scene.layout.BorderPane?><?import javafx.scene.layout.ColumnConstraints?><?import javafx.scene.layout.GridPane?><?import javafx.scene.layout.HBox?><?import javafx.scene.layout.Priority?><?import javafx.scene.layout.Region?><?import javafx.scene.layout.StackPane?><?import javafx.scene.layout.VBox?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.BackupRestoreController" styleClass="register-page,backup-restore-page,approved-ui,approved-screen,approved-screen-backup-restore">
 
     <center>
         <VBox spacing="18" styleClass="backup-page-content">
@@ -29,25 +8,19 @@
             </padding>
 
             <!-- Header -->
-            <HBox alignment="CENTER_LEFT" spacing="14" styleClass="backup-page-header">
-                <StackPane fx:id="headerIconHolder" styleClass="backup-header-icon"/>
+            <HBox alignment="CENTER_LEFT" spacing="14" styleClass="backup-page-header,approved-section-header">
+                <StackPane fx:id="headerIconHolder" styleClass="backup-header-icon,approved-section-header"/>
 
                 <VBox spacing="3">
-                    <Label text="Backup &amp; Restore" styleClass="page-heading,backup-page-title"/>
-                    <Label text="Protect your database, settings, users, reminders and communication history."
-                           wrapText="true"
-                           styleClass="muted-label,backup-page-subtitle"/>
+                    <Label text="Backup &amp; Restore" styleClass="page-heading,backup-page-title,approved-page-title"/>
+                    <Label text="Protect your database, settings, users, reminders and communication history." wrapText="true" styleClass="muted-label,backup-page-subtitle,approved-page-subtitle"/>
                 </VBox>
 
                 <Region HBox.hgrow="ALWAYS"/>
 
-                <Button text="Refresh"
-                        onAction="#refresh"
-                        styleClass="backup-secondary-button"/>
+                <Button text="Refresh" onAction="#refresh" styleClass="backup-secondary-button,approved-button,approved-secondary-button"/>
 
-                <Button text="Create Backup Now"
-                        onAction="#createBackup"
-                        styleClass="primary-button,backup-primary-button"/>
+                <Button text="Create Backup Now" onAction="#createBackup" styleClass="primary-button,backup-primary-button,approved-button,approved-primary-button"/>
             </HBox>
 
             <!-- KPI cards -->
@@ -59,7 +32,7 @@
                     <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
                 </columnConstraints>
 
-                <VBox spacing="8" styleClass="backup-metric-card" GridPane.columnIndex="0">
+                <VBox spacing="8" styleClass="backup-metric-card,approved-kpi,approved-surface" GridPane.columnIndex="0">
                     <HBox alignment="CENTER_LEFT">
                         <VBox spacing="3">
                             <Label text="DATABASE SIZE" styleClass="backup-metric-label"/>
@@ -68,10 +41,10 @@
                         <Region HBox.hgrow="ALWAYS"/>
                         <StackPane fx:id="databaseSizeIconHolder" styleClass="backup-metric-icon,backup-icon-blue"/>
                     </HBox>
-                    <Label fx:id="lblDatabaseHealth" text="Checking database…" styleClass="backup-metric-caption"/>
+                    <Label fx:id="lblDatabaseHealth" text="Checking database…" styleClass="backup-metric-caption,approved-page-subtitle"/>
                 </VBox>
 
-                <VBox spacing="8" styleClass="backup-metric-card" GridPane.columnIndex="1">
+                <VBox spacing="8" styleClass="backup-metric-card,approved-kpi,approved-surface" GridPane.columnIndex="1">
                     <HBox alignment="CENTER_LEFT">
                         <VBox spacing="3">
                             <Label text="AVAILABLE BACKUPS" styleClass="backup-metric-label"/>
@@ -80,10 +53,10 @@
                         <Region HBox.hgrow="ALWAYS"/>
                         <StackPane fx:id="backupCountIconHolder" styleClass="backup-metric-icon,backup-icon-indigo"/>
                     </HBox>
-                    <Label fx:id="lblBackupCountCaption" text="No backups available" styleClass="backup-metric-caption"/>
+                    <Label fx:id="lblBackupCountCaption" text="No backups available" styleClass="backup-metric-caption,approved-page-subtitle"/>
                 </VBox>
 
-                <VBox spacing="8" styleClass="backup-metric-card" GridPane.columnIndex="2">
+                <VBox spacing="8" styleClass="backup-metric-card,approved-kpi,approved-surface" GridPane.columnIndex="2">
                     <HBox alignment="CENTER_LEFT">
                         <VBox spacing="3">
                             <Label text="LATEST BACKUP" styleClass="backup-metric-label"/>
@@ -92,10 +65,10 @@
                         <Region HBox.hgrow="ALWAYS"/>
                         <StackPane fx:id="lastBackupIconHolder" styleClass="backup-metric-icon,backup-icon-green"/>
                     </HBox>
-                    <Label fx:id="lblLastBackupCaption" text="Create your first backup" styleClass="backup-metric-caption"/>
+                    <Label fx:id="lblLastBackupCaption" text="Create your first backup" styleClass="backup-metric-caption,approved-page-subtitle"/>
                 </VBox>
 
-                <VBox spacing="8" styleClass="backup-metric-card" GridPane.columnIndex="3">
+                <VBox spacing="8" styleClass="backup-metric-card,approved-kpi,approved-surface" GridPane.columnIndex="3">
                     <HBox alignment="CENTER_LEFT">
                         <VBox spacing="3">
                             <Label text="RETENTION" styleClass="backup-metric-label"/>
@@ -104,7 +77,7 @@
                         <Region HBox.hgrow="ALWAYS"/>
                         <StackPane fx:id="retentionIconHolder" styleClass="backup-metric-icon,backup-icon-orange"/>
                     </HBox>
-                    <Label fx:id="lblScheduleSummary" text="Manual backup schedule" styleClass="backup-metric-caption"/>
+                    <Label fx:id="lblScheduleSummary" text="Manual backup schedule" styleClass="backup-metric-caption,approved-page-subtitle"/>
                 </VBox>
             </GridPane>
 
@@ -115,14 +88,12 @@
                     <ColumnConstraints percentWidth="52" hgrow="ALWAYS"/>
                 </columnConstraints>
 
-                <VBox spacing="14" styleClass="backup-section-card" GridPane.columnIndex="0">
+                <VBox spacing="14" styleClass="backup-section-card,approved-surface" GridPane.columnIndex="0">
                     <HBox alignment="CENTER_LEFT" spacing="10">
-                        <StackPane fx:id="scheduleIconHolder" styleClass="backup-section-icon"/>
+                        <StackPane fx:id="scheduleIconHolder" styleClass="backup-section-icon,approved-surface"/>
                         <VBox spacing="2">
                             <Label text="Backup Schedule" styleClass="backup-section-title"/>
-                            <Label text="Choose how often the ERP should request a backup."
-                                   wrapText="true"
-                                   styleClass="backup-section-description"/>
+                            <Label text="Choose how often the ERP should request a backup." wrapText="true" styleClass="backup-section-description,approved-page-subtitle"/>
                         </VBox>
                     </HBox>
 
@@ -135,13 +106,10 @@
                         <Label text="Frequency" styleClass="backup-field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
                         <Label text="Keep backups for" styleClass="backup-field-label" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
-                        <ComboBox fx:id="cmbSchedule"
-                                  maxWidth="Infinity"
-                                  GridPane.columnIndex="0"
-                                  GridPane.rowIndex="1"/>
+                        <ComboBox fx:id="cmbSchedule" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-input"/>
 
                         <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="1">
-                            <Spinner fx:id="spRetention" prefWidth="110"/>
+                            <Spinner fx:id="spRetention" prefWidth="110" styleClass="approved-input"/>
                             <Label text="days" styleClass="backup-inline-label"/>
                         </HBox>
                     </GridPane>
@@ -150,88 +118,68 @@
                         <StackPane fx:id="nextBackupIconHolder"/>
                         <Label fx:id="lblNextBackup" text="Scheduled backups are checked at startup and hourly while the ERP is running." wrapText="true" styleClass="backup-info-text"/>
                         <Region HBox.hgrow="ALWAYS"/>
-                        <Button text="Save Schedule"
-                                onAction="#saveSettings"
-                                styleClass="primary-button,backup-compact-primary"/>
+                        <Button text="Save Schedule" onAction="#saveSettings" styleClass="primary-button,backup-compact-primary,approved-button,approved-primary-button"/>
                     </HBox>
                 </VBox>
 
-                <VBox spacing="12"
-                      styleClass="backup-section-card,backup-restore-card"
-                      onDragOver="#dragOver"
-                      onDragDropped="#dropBackup"
-                      GridPane.columnIndex="1">
+                <VBox spacing="12" styleClass="backup-section-card,backup-restore-card,approved-surface" onDragOver="#dragOver" onDragDropped="#dropBackup" GridPane.columnIndex="1">
                     <HBox alignment="CENTER_LEFT" spacing="10">
-                        <StackPane fx:id="restoreIconHolder" styleClass="backup-section-icon"/>
+                        <StackPane fx:id="restoreIconHolder" styleClass="backup-section-icon,approved-surface"/>
                         <VBox spacing="2">
                             <Label text="Import or Restore" styleClass="backup-section-title"/>
-                            <Label text="Import a validated SQLite backup into the managed backup history."
-                                   wrapText="true"
-                                   styleClass="backup-section-description"/>
+                            <Label text="Import a validated SQLite backup into the managed backup history." wrapText="true" styleClass="backup-section-description,approved-page-subtitle"/>
                         </VBox>
                     </HBox>
 
                     <VBox alignment="CENTER" spacing="7" styleClass="backup-drop-zone" VBox.vgrow="ALWAYS">
                         <StackPane fx:id="dropZoneIconHolder" styleClass="backup-drop-icon"/>
                         <Label text="Drop a .db backup file here" styleClass="backup-drop-title"/>
-                        <Label text="or choose a file from your computer" styleClass="backup-drop-description"/>
-                        <Button text="Choose Backup File"
-                                onAction="#browseBackup"
-                                styleClass="backup-secondary-button"/>
+                        <Label text="or choose a file from your computer" styleClass="backup-drop-description,approved-page-subtitle"/>
+                        <Button text="Choose Backup File" onAction="#browseBackup" styleClass="backup-secondary-button,approved-button,approved-secondary-button"/>
                     </VBox>
 
                     <HBox alignment="CENTER_LEFT" spacing="8" styleClass="backup-safety-note">
                         <StackPane fx:id="safetyIconHolder"/>
-                        <Label text="Restore is staged safely and applied on the next startup after a verified safety backup is created."
-                               wrapText="true"
-                               styleClass="backup-safety-text"/>
+                        <Label text="Restore is staged safely and applied on the next startup after a verified safety backup is created." wrapText="true" styleClass="backup-safety-text"/>
                         <Region HBox.hgrow="ALWAYS"/>
-                        <Button fx:id="btnRestoreSelected"
-                                text="Stage Restore"
-                                onAction="#restoreBackup"
-                                disable="true"
-                                styleClass="backup-warning-button"/>
+                        <Button fx:id="btnRestoreSelected" text="Stage Restore" onAction="#restoreBackup" disable="true" styleClass="backup-warning-button,approved-button,approved-primary-button"/>
                     </HBox>
                 </VBox>
             </GridPane>
 
             <!-- Backup history -->
-            <VBox spacing="12" styleClass="backup-section-card,backup-history-card" VBox.vgrow="ALWAYS">
+            <VBox spacing="12" styleClass="backup-section-card,backup-history-card,approved-surface" VBox.vgrow="ALWAYS">
                 <HBox alignment="CENTER_LEFT" spacing="10">
                     <VBox spacing="2">
                         <Label text="Backup History" styleClass="backup-section-title"/>
-                        <Label text="Review, validate and manage available database backups."
-                               styleClass="backup-section-description"/>
+                        <Label text="Review, validate and manage available database backups." styleClass="backup-section-description,approved-page-subtitle"/>
                     </VBox>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Label fx:id="lblHistoryCount" text="0 backups" styleClass="backup-history-count"/>
                 </HBox>
 
-                <TableView fx:id="backupTable"
-                           VBox.vgrow="ALWAYS"
-                           minHeight="260"
-                           styleClass="backup-history-table">
+                <TableView fx:id="backupTable" VBox.vgrow="ALWAYS" minHeight="260" styleClass="backup-history-table,approved-table">
                     <columns>
-                        <TableColumn fx:id="colBackupName" text="Backup Name" prefWidth="330"/>
-                        <TableColumn fx:id="colCreated" text="Date &amp; Time" prefWidth="190"/>
-                        <TableColumn fx:id="colSize" text="Size" prefWidth="100"/>
-                        <TableColumn fx:id="colStatus" text="Status" prefWidth="130"/>
-                        <TableColumn fx:id="colSource" text="Source" prefWidth="120"/>
-                        <TableColumn fx:id="colActions" text="Actions" prefWidth="92" sortable="false" resizable="false"/>
+                        <TableColumn fx:id="colBackupName" text="Backup Name" prefWidth="330" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colCreated" text="Date &amp; Time" prefWidth="190" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colSize" text="Size" prefWidth="100" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colStatus" text="Status" prefWidth="130" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colSource" text="Source" prefWidth="120" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colActions" text="Actions" prefWidth="92" sortable="false" resizable="false" styleClass="approved-table-column"/>
                     </columns>
                 </TableView>
 
                 <HBox alignment="CENTER_LEFT" spacing="10" styleClass="backup-location-bar">
                     <Label text="Database Location" styleClass="backup-location-label"/>
                     <Label fx:id="lblDatabase" maxWidth="Infinity" wrapText="false" styleClass="backup-location-value" HBox.hgrow="ALWAYS"/>
-                    <Button text="Open Folder" onAction="#openDatabaseFolder" styleClass="backup-secondary-button"/>
-                    <Button text="Copy Path" onAction="#copyDatabasePath" styleClass="backup-secondary-button"/>
+                    <Button text="Open Folder" onAction="#openDatabaseFolder" styleClass="backup-secondary-button,approved-button,approved-secondary-button"/>
+                    <Button text="Copy Path" onAction="#copyDatabasePath" styleClass="backup-secondary-button,approved-button,approved-secondary-button"/>
                 </HBox>
             </VBox>
 
             <HBox alignment="CENTER_LEFT" spacing="8" styleClass="backup-status-bar">
                 <StackPane fx:id="statusIconHolder"/>
-                <Label fx:id="lblStatus" text="Ready" wrapText="true" styleClass="muted-label,backup-status-text"/>
+                <Label fx:id="lblStatus" text="Ready" wrapText="true" styleClass="muted-label,backup-status-text,approved-status"/>
             </HBox>
         </VBox>
     </center>

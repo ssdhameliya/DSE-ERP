@@ -4552,3 +4552,62 @@ TABLE ACTION BUTTONS
 .erp-loading-card { -fx-background-color:#142438; -fx-border-color:#3b516d; }
 .erp-loading-title { -fx-text-fill:#f8fafc; }
 .erp-loading-subtitle { -fx-text-fill:#bfdbfe; }
+
+/* ===== Approved v2.1.9 dark UI system ===== */
+.approved-ui, .approved-page-scroll, .approved-page { -fx-background-color: #071525; }
+.approved-page-scroll > .viewport { -fx-background-color: #071525; }
+.approved-page-title { -fx-font-size: 27px; -fx-font-weight: 800; -fx-text-fill: #f5f8ff; }
+.approved-page-subtitle, .approved-body-text { -fx-font-size: 13px; -fx-text-fill: #8fa3bd; }
+.approved-title-icon { -fx-min-width: 48; -fx-min-height: 48; -fx-max-width: 48; -fx-max-height: 48; -fx-background-color: #17335a; -fx-background-radius: 14; }
+.approved-kpi, .approved-card, .approved-surface, .approved-highlight-strip { -fx-background-color: #102238; -fx-background-radius: 14; -fx-border-color: #29425f; -fx-border-radius: 14; -fx-effect: none; }
+.approved-kpi { -fx-padding: 16; }
+.approved-kpi-icon { -fx-min-width: 42; -fx-min-height: 42; -fx-max-width: 42; -fx-max-height: 42; -fx-background-radius: 13; -fx-background-color: #193a65; }
+.approved-kpi-caption, .approved-highlight-label { -fx-font-size: 12px; -fx-font-weight: 700; -fx-text-fill: #9db0c8; }
+.approved-kpi-value, .approved-highlight-value { -fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #ffffff; }
+.approved-kpi-note { -fx-font-size: 11px; -fx-text-fill: #8298b3; }
+.approved-card { -fx-padding: 16; }
+.approved-card-title { -fx-font-size: 15px; -fx-font-weight: 800; -fx-text-fill: #f4f7fd; }
+.approved-link { -fx-text-fill: #67a6ff; -fx-font-weight: 700; -fx-cursor: hand; }
+.approved-highlight-strip { -fx-padding: 13 16; }
+.approved-highlight { -fx-padding: 4 18; -fx-border-color: transparent #29425f transparent transparent; }
+.approved-button { -fx-cursor: hand; -fx-font-weight: 700; -fx-background-radius: 9; -fx-border-radius: 9; -fx-min-height: 36; }
+.approved-primary-button { -fx-background-color: #1769ff; -fx-text-fill: white; -fx-border-color: #4387ff; }
+.approved-secondary-button { -fx-background-color: #132a44; -fx-text-fill: #eaf2ff; -fx-border-color: #385574; }
+.approved-secondary-button:hover { -fx-background-color: #193553; }
+.approved-danger-button { -fx-background-color: #4a1e2a; -fx-text-fill: #ff8a9b; -fx-border-color: #763443; }
+.approved-quick-action { -fx-min-height: 72; -fx-content-display: top; -fx-background-color: #132a44; -fx-border-color: #385574; -fx-text-fill: #eaf2ff; -fx-font-weight: 700; -fx-background-radius: 12; -fx-border-radius: 12; }
+.approved-quick-action:hover { -fx-background-color: #1b3a5c; }
+.approved-input { -fx-background-color: #132a44; -fx-text-fill: #eef5ff; -fx-prompt-text-fill: #7f93ad; -fx-border-color: #385574; -fx-border-radius: 8; -fx-background-radius: 8; -fx-min-height: 36; }
+.approved-table { -fx-background-color: transparent; -fx-border-color: #29425f; -fx-border-radius: 12; -fx-background-radius: 12; }
+.approved-table .column-header-background { -fx-background-color: #1a304b; -fx-background-radius: 12 12 0 0; }
+.approved-table .column-header, .approved-table .filler { -fx-background-color: transparent; -fx-size: 42; -fx-border-color: transparent transparent #385574 transparent; }
+.approved-table .table-row-cell { -fx-background-color: #102238; -fx-text-background-color: #eef5ff; -fx-border-color: transparent transparent #263e59 transparent; -fx-cell-size: 42; }
+.approved-table .table-row-cell:hover { -fx-background-color: #17304d; }
+.approved-list { -fx-background-color: transparent; -fx-border-color: transparent; }
+.approved-list .list-cell { -fx-background-color: transparent; -fx-text-fill: #eaf2ff; -fx-padding: 10 8; -fx-border-color: transparent transparent #263e59 transparent; }
+.dashboard-chart-free .chart { -fx-visibility: hidden; }
+
+/* === v2.1.9 all-screen approved dark release ============================ */
+.approved-screen { -fx-background-color:#071525; }
+.approved-screen .approved-section-header, .approved-filter-bar, .approved-toolbar { -fx-padding:10 12; -fx-spacing:8; -fx-alignment:center-left; -fx-background-color:#102238; -fx-background-radius:12; -fx-border-color:#29425f; -fx-border-radius:12; }
+.approved-menu-button { -fx-background-color:#132a44; -fx-text-fill:#eaf2ff; -fx-border-color:#385574; -fx-background-radius:9; -fx-border-radius:9; -fx-min-height:34; -fx-font-weight:700; }
+.approved-row-action { -fx-min-width:34; -fx-pref-width:34; -fx-max-width:34; -fx-padding:0; -fx-content-display:graphic-only; }
+.approved-row-action > .arrow-button { -fx-padding:0; -fx-opacity:0; -fx-max-width:0; }
+.approved-icon-button { -fx-min-width:36; -fx-pref-width:36; -fx-max-width:36; -fx-padding:0; }
+.approved-status { -fx-padding:4 9; -fx-background-radius:999; -fx-font-size:11px; -fx-font-weight:800; }
+.approved-status-success { -fx-background-color:#153c2d; -fx-text-fill:#64e49e; }
+.approved-status-warning { -fx-background-color:#49381c; -fx-text-fill:#ffd27b; }
+.approved-status-danger { -fx-background-color:#4a1e2a; -fx-text-fill:#ff8fa0; }
+.approved-table .table-cell { -fx-padding:0 10; -fx-alignment:center-left; -fx-text-overrun:ellipsis; }
+.approved-table .column-header .label { -fx-font-weight:800; -fx-text-fill:#c9d8eb; -fx-alignment:center-left; }
+.approved-table .table-row-cell:selected { -fx-background-color:#1d4773; -fx-text-background-color:#ffffff; }
+.approved-input:focused { -fx-border-color:#67a6ff; -fx-effect:none; }
+.approved-surface { -fx-background-color:#102238; -fx-border-color:#29425f; -fx-background-radius:14; -fx-border-radius:14; }
+.approved-screen .scroll-pane, .approved-screen .scroll-pane > .viewport { -fx-background-color:transparent; }
+.compact-layout .approved-filter-bar, .compact-layout .approved-toolbar { -fx-padding:8; -fx-spacing:6; }
+.small-display .approved-kpi, .small-display .approved-surface, .small-display .approved-card { -fx-padding:10; }
+
+
+/* v2.1.9 approved UI dark-mode parity */
+.approved-page-header { -fx-padding: 2 0 4 0; }
+.approved-live-badge { -fx-text-fill: #42d982; -fx-font-weight: 800; }

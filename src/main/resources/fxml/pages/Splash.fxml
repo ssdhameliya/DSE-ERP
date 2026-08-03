@@ -1,35 +1,19 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- Startup splash: product identity, loading status and progress indicator. -->
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-
-<BorderPane xmlns="http://javafx.com/javafx/21"
-            xmlns:fx="http://javafx.com/fxml"
-            fx:controller="org.example.controller.SplashController"
->
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Startup splash: product identity, loading status and progress indicator. --><?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.SplashController" styleClass="approved-ui,approved-screen,approved-screen-splash">
 
     <center>
 
-        <VBox alignment="CENTER"
-              spacing="25">
+        <VBox alignment="CENTER" spacing="25">
 
-            <Label text="⚙"
-                   styleClass="logo"/>
+            <Label text="⚙" styleClass="logo"/>
 
-            <Label text="JavaApp ERP"
-                   styleClass="title"/>
+            <Label text="JavaApp ERP" styleClass="title"/>
 
-            <Label text="Engineering Business Suite"
-                   styleClass="subtitle"/>
+            <Label text="Engineering Business Suite" styleClass="subtitle,approved-page-subtitle"/>
 
-            <ProgressBar fx:id="progressBar"
-                         prefWidth="350"/>
+            <ProgressBar fx:id="progressBar" prefWidth="350"/>
 
-            <Label fx:id="lblStatus"
-                   text="Initializing Application..."
-                   styleClass="status"/>
+            <Label fx:id="lblStatus" text="Initializing Application..." styleClass="status,approved-status"/>
 
         </VBox>
 

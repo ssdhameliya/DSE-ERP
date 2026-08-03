@@ -1,14 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="org.example.controller.SetupWizardController" styleClass="setup-page">
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SetupWizardController" styleClass="setup-page,approved-ui,approved-screen,approved-screen-setup-wizard">
     <left>
-        <VBox prefWidth="350" minWidth="320" spacing="18" alignment="CENTER" styleClass="setup-brand-panel">
+        <VBox prefWidth="350" minWidth="320" spacing="18" alignment="CENTER" styleClass="setup-brand-panel,approved-surface">
             <StackPane styleClass="setup-logo"><Label text="◆"/></StackPane>
             <Label text="DSE ERP" styleClass="setup-brand-title"/>
-            <Label text="Professional Business Workspace" styleClass="setup-brand-subtitle"/>
+            <Label text="Professional Business Workspace" styleClass="setup-brand-subtitle,approved-page-subtitle"/>
             <Separator maxWidth="120"/>
             <VBox spacing="14" maxWidth="260">
                 <Label text="✓ Business data outside the installed app" wrapText="true" styleClass="setup-feature"/>
@@ -17,7 +13,7 @@
                 <Label text="✓ Safe application updates" wrapText="true" styleClass="setup-feature"/>
             </VBox>
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Windows • macOS • SQLite" styleClass="setup-brand-subtitle"/>
+            <Label text="Windows • macOS • SQLite" styleClass="setup-brand-subtitle,approved-page-subtitle"/>
         </VBox>
     </left>
     <center>
@@ -25,15 +21,15 @@
             <padding><Insets top="34" right="44" bottom="28" left="44"/></padding>
             <Label fx:id="lblStep" text="Step 1 of 5" styleClass="setup-step"/>
             <Label fx:id="lblTitle" text="Choose your workspace" styleClass="setup-title"/>
-            <Label fx:id="lblDescription" wrapText="true" styleClass="setup-description"/>
+            <Label fx:id="lblDescription" wrapText="true" styleClass="setup-description,approved-page-subtitle"/>
             <Separator/>
-            <StackPane VBox.vgrow="ALWAYS" styleClass="setup-card">
+            <StackPane VBox.vgrow="ALWAYS" styleClass="setup-card,approved-surface">
                 <StackPane fx:id="stepWorkspace">
                     <VBox spacing="18" maxWidth="720" alignment="CENTER_LEFT">
                         <Label text="Business Data Workspace" styleClass="setup-section-title"/>
                         <Label text="Select a reliable internal drive, secondary drive, network-synchronised folder, or external SSD. Avoid temporary folders and removable drives that are not always connected." wrapText="true" styleClass="setup-help"/>
                         <Label text="Workspace location *" styleClass="setup-field-label"/>
-                        <HBox spacing="10"><TextField fx:id="txtWorkspace" HBox.hgrow="ALWAYS"/><Button fx:id="btnBrowse" text="Browse" onAction="#browseWorkspace" styleClass="setup-secondary-button"/></HBox>
+                        <HBox spacing="10"><TextField fx:id="txtWorkspace" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button fx:id="btnBrowse" text="Browse" onAction="#browseWorkspace" styleClass="setup-secondary-button,approved-button,approved-secondary-button"/></HBox>
                         <VBox spacing="8" styleClass="setup-folder-preview">
                             <Label text="DSE ERP will create:" styleClass="setup-field-label"/>
                             <Label text="Database  •  Config  •  Backups  •  Reports  •  Imports  •  Exports  •  Attachments  •  Templates  •  Logs" wrapText="true" styleClass="setup-help"/>
@@ -43,11 +39,11 @@
                 <StackPane fx:id="stepCompany" visible="false" managed="false">
                     <GridPane hgap="16" vgap="14" maxWidth="720">
                         <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                        <VBox spacing="6"><Label text="Company name *" styleClass="setup-field-label"/><TextField fx:id="txtCompanyName" promptText="DS Engineers"/></VBox>
-                        <VBox spacing="6" GridPane.columnIndex="1"><Label text="Phone" styleClass="setup-field-label"/><TextField fx:id="txtPhone" promptText="Business phone"/></VBox>
-                        <VBox spacing="6" GridPane.rowIndex="1"><Label text="Company email" styleClass="setup-field-label"/><TextField fx:id="txtCompanyEmail" promptText="accounts@company.com"/></VBox>
-                        <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="GSTIN / Tax ID" styleClass="setup-field-label"/><TextField fx:id="txtGstin" promptText="Optional"/></VBox>
-                        <VBox spacing="6" GridPane.rowIndex="2" GridPane.columnSpan="2"><Label text="Business address" styleClass="setup-field-label"/><TextField fx:id="txtAddress" promptText="Full address used on documents"/></VBox>
+                        <VBox spacing="6"><Label text="Company name *" styleClass="setup-field-label"/><TextField fx:id="txtCompanyName" promptText="DS Engineers" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.columnIndex="1"><Label text="Phone" styleClass="setup-field-label"/><TextField fx:id="txtPhone" promptText="Business phone" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.rowIndex="1"><Label text="Company email" styleClass="setup-field-label"/><TextField fx:id="txtCompanyEmail" promptText="accounts@company.com" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="GSTIN / Tax ID" styleClass="setup-field-label"/><TextField fx:id="txtGstin" promptText="Optional" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.rowIndex="2" GridPane.columnSpan="2"><Label text="Business address" styleClass="setup-field-label"/><TextField fx:id="txtAddress" promptText="Full address used on documents" styleClass="approved-input"/></VBox>
                     </GridPane>
                 </StackPane>
                 <StackPane fx:id="stepEmail" visible="false" managed="false">
@@ -56,21 +52,21 @@
                         <Label text="For Yahoo, use your Yahoo App Password—not your normal mailbox password." wrapText="true" styleClass="setup-help"/>
                         <GridPane hgap="16" vgap="14">
                             <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                            <VBox spacing="6"><Label text="Sending email" styleClass="setup-field-label"/><TextField fx:id="txtSmtpEmail"/></VBox>
-                            <VBox spacing="6" GridPane.columnIndex="1"><Label text="App password" styleClass="setup-field-label"/><PasswordField fx:id="txtSmtpPassword"/></VBox>
-                            <VBox spacing="6" GridPane.rowIndex="1"><Label text="SMTP host" styleClass="setup-field-label"/><TextField fx:id="txtSmtpHost"/></VBox>
-                            <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="SMTP port" styleClass="setup-field-label"/><TextField fx:id="txtSmtpPort"/></VBox>
+                            <VBox spacing="6"><Label text="Sending email" styleClass="setup-field-label"/><TextField fx:id="txtSmtpEmail" styleClass="approved-input"/></VBox>
+                            <VBox spacing="6" GridPane.columnIndex="1"><Label text="App password" styleClass="setup-field-label"/><PasswordField fx:id="txtSmtpPassword" styleClass="approved-input"/></VBox>
+                            <VBox spacing="6" GridPane.rowIndex="1"><Label text="SMTP host" styleClass="setup-field-label"/><TextField fx:id="txtSmtpHost" styleClass="approved-input"/></VBox>
+                            <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="SMTP port" styleClass="setup-field-label"/><TextField fx:id="txtSmtpPort" styleClass="approved-input"/></VBox>
                         </GridPane>
                     </VBox>
                 </StackPane>
                 <StackPane fx:id="stepAdmin" visible="false" managed="false">
                     <GridPane hgap="16" vgap="14" maxWidth="720">
                         <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                        <VBox spacing="6"><Label text="Full name *" styleClass="setup-field-label"/><TextField fx:id="txtAdminName"/></VBox>
-                        <VBox spacing="6" GridPane.columnIndex="1"><Label text="Username *" styleClass="setup-field-label"/><TextField fx:id="txtAdminUsername"/></VBox>
-                        <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnSpan="2"><Label text="Email address *" styleClass="setup-field-label"/><TextField fx:id="txtAdminEmail"/></VBox>
-                        <VBox spacing="6" GridPane.rowIndex="2"><Label text="Password *" styleClass="setup-field-label"/><PasswordField fx:id="txtAdminPassword" promptText="Minimum 6 characters"/></VBox>
-                        <VBox spacing="6" GridPane.rowIndex="2" GridPane.columnIndex="1"><Label text="Confirm password *" styleClass="setup-field-label"/><PasswordField fx:id="txtAdminConfirm"/></VBox>
+                        <VBox spacing="6"><Label text="Full name *" styleClass="setup-field-label"/><TextField fx:id="txtAdminName" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.columnIndex="1"><Label text="Username *" styleClass="setup-field-label"/><TextField fx:id="txtAdminUsername" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.rowIndex="1" GridPane.columnSpan="2"><Label text="Email address *" styleClass="setup-field-label"/><TextField fx:id="txtAdminEmail" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.rowIndex="2"><Label text="Password *" styleClass="setup-field-label"/><PasswordField fx:id="txtAdminPassword" promptText="Minimum 6 characters" styleClass="approved-input"/></VBox>
+                        <VBox spacing="6" GridPane.rowIndex="2" GridPane.columnIndex="1"><Label text="Confirm password *" styleClass="setup-field-label"/><PasswordField fx:id="txtAdminConfirm" styleClass="approved-input"/></VBox>
                     </GridPane>
                 </StackPane>
                 <StackPane fx:id="stepFinish" visible="false" managed="false">
@@ -78,7 +74,7 @@
                 </StackPane>
             </StackPane>
             <Label fx:id="lblError" wrapText="true"/>
-            <HBox spacing="10" alignment="CENTER_RIGHT"><Button fx:id="btnBack" text="Back" onAction="#previous" styleClass="setup-secondary-button"/><Button fx:id="btnNext" text="Continue" onAction="#next" defaultButton="true" styleClass="setup-primary-button"/></HBox>
+            <HBox spacing="10" alignment="CENTER_RIGHT"><Button fx:id="btnBack" text="Back" onAction="#previous" styleClass="setup-secondary-button,approved-button,approved-secondary-button"/><Button fx:id="btnNext" text="Continue" onAction="#next" defaultButton="true" styleClass="setup-primary-button,approved-button,approved-primary-button"/></HBox>
         </VBox>
     </center>
 </BorderPane>

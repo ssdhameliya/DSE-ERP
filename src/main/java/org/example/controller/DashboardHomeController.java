@@ -4,10 +4,6 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.chart.LineChart;
-import javafx.scene.chart.PieChart;
-import javafx.scene.chart.BarChart;
-import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
@@ -19,7 +15,6 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.concurrent.Task;
 import javafx.application.Platform;
 import javafx.scene.layout.StackPane;
-import javafx.scene.CacheHint;
 import org.example.database.DatabaseManager;
 import org.example.navigation.NavigationManager;
 import org.example.service.NotificationService;
@@ -50,9 +45,6 @@ public class DashboardHomeController {
     @FXML private Label lblTrendPeriod, lblComparisonPeriod;
     @FXML private ComboBox<String> cmbPeriod;
     @FXML private ListView<String> topCustomerList, agingList, activityList;
-    @FXML private LineChart<String, Number> trendChart;
-    @FXML private PieChart customerChart;
-    @FXML private BarChart<String, Number> comparisonChart;
     @FXML private TableView<ActivityRow> recentTable;
     @FXML private TableColumn<ActivityRow, String> colType, colNumber, colParty, colDate, colAmount;
     @FXML private StackPane salesKpiIcon, purchaseKpiIcon, receivableKpiIcon, payableKpiIcon, cashKpiIcon, lowStockKpiIcon, dashboardTitleIcon;
@@ -72,7 +64,6 @@ public class DashboardHomeController {
         installKpiIcons();
         installQuickActionIcons();
         installDashboardHeaderIcons();
-        enableChartCaching();
         if (cmbPeriod != null) {
             cmbPeriod.getItems().setAll("This Month", "This Quarter", "This Year", "All Time");
             cmbPeriod.setValue("This Month");
@@ -80,16 +71,6 @@ public class DashboardHomeController {
         }
         ensureQuickActionsVisible();
         reload();
-    }
-
-    /** Reduces repeated chart rasterisation on Retina displays. */
-    private void enableChartCaching() {
-        for (Node node : new Node[]{trendChart, customerChart, comparisonChart}) {
-            if (node != null) {
-                node.setCache(true);
-                node.setCacheHint(CacheHint.SPEED);
-            }
-        }
     }
 
     /** Installs vector KPI symbols so no platform-dependent emoji can disappear. */
@@ -235,7 +216,7 @@ public class DashboardHomeController {
         if (lblCustomers != null) lblCustomers.setText(String.valueOf(d.customers()));
         if (lblProducts != null) lblProducts.setText(String.valueOf(d.products()));
         if (lblOrders != null) lblOrders.setText(String.valueOf(d.invoices()));
-        configureTable(); loadRecentActivity(); loadTrend(); loadCustomerMix(); loadDashboardLists(); loadLiveActivities(); loadComparison();
+        configureTable(); loadRecentActivity(); loadDashboardLists(); loadLiveActivities();
     }
 
     private String periodCondition(String period, String column) {
@@ -330,41 +311,6 @@ public class DashboardHomeController {
             new ActivityRow("Partial","INV-2024-0183","PQR Traders","25/05/2024","₹ 1,45,000"));
     }
 
-    private void loadTrend() {
-        XYChart.Series<String, Number> sales = new XYChart.Series<>();
-        sales.setName("Sales");
-        String sql = "SELECT invoice_date period, SUM(total_amount) amount " +
-            "FROM sales_header WHERE invoice_date IS NOT NULL " +
-            "AND TRIM(invoice_date) <> '' AND " + periodCondition("invoice_date") +
-            " GROUP BY invoice_date ORDER BY invoice_date";
-        try (Connection con = DatabaseManager.getConnection();
-             Statement st = con.createStatement();
-            ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                String period = rs.getString("period");
-                if (period != null && !period.isBlank()) {
-                    sales.getData().add(new XYChart.Data<>(period, rs.getDouble("amount")));
-                }
-            }
-        } catch (Exception error) {
-            error.printStackTrace();
-        }
-        trendChart.getData().setAll(sales);
-        trendChart.setTitle(sales.getData().isEmpty() ? "No sales for " + selectedPeriod() : null);
-    }
-
-    private void loadCustomerMix() {
-        String sql = """
-            SELECT p.name, SUM(s.total_amount) amount FROM sales_header s
-            JOIN party_master p ON p.id=s.customer_id GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5
-            """;
-        List<PieChart.Data> data = new ArrayList<>();
-        try (Connection con = DatabaseManager.getConnection(); Statement st = con.createStatement(); ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) data.add(new PieChart.Data(rs.getString("name"), rs.getDouble("amount")));
-        } catch (Exception ignored) { }
-        customerChart.getData().setAll(data);
-    }
-
     private void loadDashboardLists() {
         List<String> customers = new ArrayList<>();
         String customerSql = "SELECT p.name, COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE " + periodCondition("s.invoice_date") + " GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5";
@@ -398,19 +344,6 @@ public class DashboardHomeController {
     }
 
     /** Builds the sales-vs-purchase graph from the database rather than sample data. */
-    private void loadComparison() {
-        XYChart.Series<String,Number> sales = new XYChart.Series<>(); sales.setName("Sales");
-        XYChart.Series<String,Number> purchases = new XYChart.Series<>(); purchases.setName("Purchase");
-        String sql = "SELECT day,SUM(sales),SUM(purchases) FROM (" +
-            "SELECT invoice_date day,total_amount sales,0 purchases FROM sales_header WHERE " + periodCondition("invoice_date") +
-            " UNION ALL SELECT invoice_date,0,total_amount FROM purchase_header WHERE " + periodCondition("invoice_date") +
-            ") GROUP BY day ORDER BY day";
-        try (Connection c=DatabaseManager.getConnection(); Statement s=c.createStatement(); ResultSet r=s.executeQuery(sql)) {
-            while(r.next()) { sales.getData().add(new XYChart.Data<>(r.getString(1),r.getDouble(2))); purchases.getData().add(new XYChart.Data<>(r.getString(1),r.getDouble(3))); }
-        } catch (Exception ignored) { }
-        comparisonChart.getData().setAll(sales,purchases);
-    }
-
     /** Formats one live receivable-ageing bucket. */
     private String ageing(String label, String dueCondition) {
         double amount = number("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE COALESCE(total_amount-paid_amount,0)>0 AND (" + dueCondition + ")");
