@@ -41,7 +41,7 @@ public class DashboardHomeController {
     @FXML private Label lblReceivableNote;
     @FXML private Label lblCustomers, lblProducts, lblOrders;
     @FXML private Label lblCash;
-    @FXML private Label lblLowStockValue, lblLowStockNote, lblTrendSales;
+    @FXML private Label lblLowStockValue, lblLowStockNote, lblTrendSales, lblReminderCount, lblReminderSummary;
     @FXML private Label lblTrendPeriod, lblComparisonPeriod;
     @FXML private ComboBox<String> cmbPeriod;
     @FXML private ListView<String> topCustomerList, agingList, activityList;
@@ -136,6 +136,7 @@ public class DashboardHomeController {
     @FXML private void viewTopCustomers() { openFromNode(topCustomerList, "/fxml/pages/Customer.fxml"); }
     @FXML private void viewReceivables() { openFromNode(agingList, "/fxml/pages/SalesList.fxml"); }
     @FXML private void viewRecentInvoices() { openFromNode(recentTable, "/fxml/pages/SalesList.fxml"); }
+    @FXML private void viewReminders() { openFromNode(activityList, "/fxml/pages/ReminderCenter.fxml"); }
 
     private void reload() {
         if (!dashboardLoadRunning.compareAndSet(false, true)) return;
@@ -196,7 +197,9 @@ public class DashboardHomeController {
             double received = number("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header");
             double paid = number("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header");
             double expenses = number("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
-            return new DashboardSnapshot(period, products, customers, invoices, purchases, lowStock, salesValue, purchaseValue, receivables, payables, openReceivables, openPayables, received-paid-expenses);
+            long openReminders = count("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')");
+            long overdueReminders = count("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND due_date IS NOT NULL AND date(due_date) < date('now')");
+            return new DashboardSnapshot(period, products, customers, invoices, purchases, lowStock, salesValue, purchaseValue, receivables, payables, openReceivables, openPayables, received-paid-expenses, openReminders, overdueReminders);
         } finally { org.example.util.PerformanceMonitor.finish("dashboard:" + period); }
     }
 
@@ -216,6 +219,10 @@ public class DashboardHomeController {
         if (lblCustomers != null) lblCustomers.setText(String.valueOf(d.customers()));
         if (lblProducts != null) lblProducts.setText(String.valueOf(d.products()));
         if (lblOrders != null) lblOrders.setText(String.valueOf(d.invoices()));
+        if (lblReminderCount != null) lblReminderCount.setText(String.valueOf(d.openReminders()));
+        if (lblReminderSummary != null) lblReminderSummary.setText(d.overdueReminders() > 0
+            ? d.overdueReminders() + " overdue reminder" + plural(d.overdueReminders())
+            : "No overdue reminders");
         configureTable(); loadRecentActivity(); loadDashboardLists(); loadLiveActivities();
     }
 
@@ -228,7 +235,7 @@ public class DashboardHomeController {
         };
     }
 
-    private record DashboardSnapshot(String period,long products,long customers,long invoices,long purchases,long lowStock,double salesValue,double purchaseValue,double receivables,double payables,long openReceivables,long openPayables,double cash) {}
+    private record DashboardSnapshot(String period,long products,long customers,long invoices,long purchases,long lowStock,double salesValue,double purchaseValue,double receivables,double payables,long openReceivables,long openPayables,double cash,long openReminders,long overdueReminders) {}
 
     private String selectedPeriod() {
         return cmbPeriod == null || cmbPeriod.getValue() == null ? fallbackPeriod : cmbPeriod.getValue();

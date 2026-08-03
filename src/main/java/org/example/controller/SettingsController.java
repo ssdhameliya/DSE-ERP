@@ -5,6 +5,7 @@ import org.example.util.OwnedAlert;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -26,6 +27,7 @@ import org.example.service.NotificationService;
 import org.example.update.UpdateDialogs;
 import org.example.update.UpdateService;
 import org.example.update.BuildInfo;
+import org.example.util.IconFactory;
 
 import java.io.File;
 import java.awt.Desktop;
@@ -43,6 +45,8 @@ import java.util.List;
  * Company, Payment, Invoice, Notifications and Email.
  */
 public class SettingsController {
+
+    @FXML private Button btnCheckUpdates;
 
     /* =========================================================
        COMPANY FIELDS
@@ -255,6 +259,7 @@ public class SettingsController {
 
     @FXML
     public void initialize() {
+        if (btnCheckUpdates != null) { btnCheckUpdates.setGraphic(IconFactory.icon("update", 16)); btnCheckUpdates.getProperties().put("erp-icon-preserve", true); }
 
         configureChoiceFields();
         loadSettings();

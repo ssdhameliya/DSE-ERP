@@ -72,7 +72,24 @@ public class InventoryController implements ScreenLifecycle {
 private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final MenuButton m=new MenuButton();{MenuItem a=new MenuItem("Adjust Stock",IconFactory.compactIcon("adjust",16)),h=new MenuItem("View History",IconFactory.compactIcon("history",16));a.setOnAction(e->adjust(getTableView().getItems().get(getIndex())));h.setOnAction(e->history(getTableView().getItems().get(getIndex())));m.getItems().addAll(a,h);m.getStyleClass().add("row-actions");m.setGraphic(IconFactory.compactIcon("actions",16));m.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);m.setTooltip(new Tooltip("Actions"));}protected void updateItem(Void v,boolean e){super.updateItem(v,e);setGraphic(e?null:m);}});}
  @FXML public void refresh(){
   btnRefresh.setDisable(true);
-  UiTaskExecutor.submitLatest("inventory-load",service::getAll,rows->{all=rows;cmbCategory.getItems().setAll("All Categories");cmbCategory.getItems().addAll(all.stream().map(Item::getCategory).filter(Objects::nonNull).distinct().sorted().toList());if(cmbCategory.getValue()==null)cmbCategory.setValue("All Categories");lblTotalItems.setText(String.valueOf(all.size()));lblInStock.setText(String.valueOf(all.stream().filter(i->i.getOpeningStock()>i.getMinimumStock()).count()));lblLowStock.setText(String.valueOf(all.stream().filter(i->i.getOpeningStock()>0&&i.getOpeningStock()<=i.getMinimumStock()).count()));lblOutStock.setText(String.valueOf(all.stream().filter(i->i.getOpeningStock()<=0).count()));lblStockValue.setText(money.format(all.stream().mapToDouble(i->i.getOpeningStock()*i.getPurchasePrice()).sum()));Map<String,Double>cat=new HashMap<>();for(Item i:all)cat.merge(s(i.getCategory()).isBlank()?"Other":i.getCategory(),i.getOpeningStock()*i.getPurchasePrice(),Double::sum);categoryChart.getData().setAll(cat.entrySet().stream().sorted(Map.Entry.<String,Double>comparingByValue().reversed()).limit(7).map(e->new PieChart.Data(e.getKey(),e.getValue())).toList());filter();btnRefresh.setDisable(false);ScreenRefreshPolicy.markRefreshed("inventory");},error->{btnRefresh.setDisable(false);this.error(error instanceof Exception e ? e : new RuntimeException(error));});
+  try{
+   List<Item> rows=service.getAll();all=rows==null?List.of():List.copyOf(rows);
+   cmbCategory.getItems().setAll("All Categories");
+   cmbCategory.getItems().addAll(all.stream().map(Item::getCategory).filter(Objects::nonNull).distinct().sorted().toList());
+   if(cmbCategory.getValue()==null)cmbCategory.setValue("All Categories");
+   lblTotalItems.setText(String.valueOf(all.size()));
+   lblInStock.setText(String.valueOf(all.stream().filter(i->i.getOpeningStock()>i.getMinimumStock()).count()));
+   lblLowStock.setText(String.valueOf(all.stream().filter(i->i.getOpeningStock()>0&&i.getOpeningStock()<=i.getMinimumStock()).count()));
+   lblOutStock.setText(String.valueOf(all.stream().filter(i->i.getOpeningStock()<=0).count()));
+   lblStockValue.setText(money.format(all.stream().mapToDouble(i->i.getOpeningStock()*i.getPurchasePrice()).sum()));
+   if(categoryChart!=null){
+    categoryChart.setAnimated(false);
+    if(org.example.util.PlatformUiSupport.isMac()){categoryChart.getData().clear();categoryChart.setVisible(false);categoryChart.setManaged(false);}
+    else{Map<String,Double>cat=new HashMap<>();for(Item i:all)cat.merge(s(i.getCategory()).isBlank()?"Other":i.getCategory(),i.getOpeningStock()*i.getPurchasePrice(),Double::sum);categoryChart.getData().setAll(cat.entrySet().stream().sorted(Map.Entry.<String,Double>comparingByValue().reversed()).limit(7).map(e->new PieChart.Data(e.getKey(),e.getValue())).toList());}
+   }
+   filter();ScreenRefreshPolicy.markRefreshed("inventory");
+  }catch(Throwable failure){all=List.of();filter();error(failure instanceof Exception e?e:new RuntimeException(failure));}
+  finally{btnRefresh.setDisable(false);}
  }
  private void filter(){String q=s(txtSearch.getText()).toLowerCase();String cat=cmbCategory.getValue(),st=cmbStatus.getValue();tableItems.getItems().setAll(all.stream().filter(i->q.isBlank()||(i.getItemCode()+i.getDescription()+s(i.getHsn())+s(i.getLocation())).toLowerCase().contains(q)).filter(i->cat==null||cat.startsWith("All")||cat.equals(i.getCategory())).filter(i->st==null||st.startsWith("All")||st.equals(status(i))).toList());}
  private String status(Item i){return i.getOpeningStock()<=0?"Out of Stock":i.getOpeningStock()<=i.getMinimumStock()?"Low Stock":"In Stock";}private void showSelected(Item i){selected=i;if(i==null){lblSelectedItem.setText("No item selected");lblSelectedDetail.setText("");return;}lblSelectedItem.setText(i.getItemCode()+" • "+i.getDescription());lblSelectedDetail.setText("Category: "+s(i.getCategory())+"\nLocation: "+s(i.getLocation())+"\nIn stock: "+i.getOpeningStock()+" "+s(i.getUnit())+"\nReserved: "+i.getReservedStock()+"\nAvailable: "+i.getAvailableStock()+"\nMinimum: "+i.getMinimumStock());}

@@ -43,6 +43,7 @@ import java.io.File;
 
 
 public class PurchaseController {
+    @FXML private Button btnAddSupplier;
 
 
     @FXML
@@ -161,6 +162,7 @@ public class PurchaseController {
 
     @FXML
     public void initialize(){
+        if (btnAddSupplier != null) { btnAddSupplier.setGraphic(IconFactory.compactIcon("supplier", 20)); btnAddSupplier.getProperties().put("erp-icon-preserve", true); }
         configureExplicitTableHeaderIcons();
 
 

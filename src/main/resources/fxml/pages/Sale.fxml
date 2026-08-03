@@ -34,7 +34,7 @@
                                 <Label text="Customer *"/>
                                 <HBox spacing="7">
                                     <ComboBox fx:id="cmbCustomer" promptText="Select customer..." maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
-                                    <Button text="Add Customer" onAction="#addCustomer" styleClass="sales-entry-icon-button,approved-button,approved-primary-button"/>
+                                    <Button fx:id="btnAddCustomer" text="Add Customer" onAction="#addCustomer" styleClass="sales-entry-icon-button,approved-button,approved-primary-button"/>
                                 </HBox>
                             </VBox>
 

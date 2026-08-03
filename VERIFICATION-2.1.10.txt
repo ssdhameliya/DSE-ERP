@@ -1,0 +1,8 @@
+DSE ERP 2.1.10 verification
+
+- 36 FXML files parsed successfully.
+- Internal org.example imports resolved against 142 Java source files.
+- Changed Java sources passed brace and javac syntax-pattern checks.
+- pom.xml and app-version.properties are 2.1.10.
+- Both Light and Dark theme resources are included.
+- Full Maven dependency compilation must be run in the user's normal Maven environment.

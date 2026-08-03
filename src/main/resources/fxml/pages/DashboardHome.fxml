@@ -58,7 +58,14 @@
                             <Button fx:id="quickExpense" text="Expense Entry" onAction="#expenseEntry" styleClass="approved-quick-action,approved-button,approved-secondary-button"/>
                         </TilePane>
                     </VBox>
-                    <VBox spacing="10" prefWidth="350" styleClass="approved-card,approved-surface"><Label text="Performance-first Dashboard" styleClass="approved-card-title"/><Label text="Charts were removed to reduce JavaFX rendering, CSS and pulse pressure on macOS. All business information remains available through lightweight KPI cards, summaries and lists." wrapText="true" styleClass="approved-body-text"/><Label fx:id="lblTrendSales" visible="false" managed="false"/><Label fx:id="lblTrendPeriod" visible="false" managed="false"/><Label fx:id="lblComparisonPeriod" visible="false" managed="false"/><Label fx:id="lblProductsNote" visible="false" managed="false"/></VBox>
+                    <VBox spacing="10" prefWidth="350" styleClass="approved-card,approved-surface,reminder-dashboard-card">
+                        <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Reminders" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewReminders" styleClass="approved-link"/></HBox>
+                        <Label fx:id="lblReminderCount" text="0" styleClass="approved-kpi-value"/>
+                        <Label fx:id="lblReminderSummary" text="No overdue reminders" wrapText="true" styleClass="approved-body-text"/>
+                        <Label text="Open Reminder Center to review, complete or snooze business follow-ups." wrapText="true" styleClass="approved-page-subtitle"/>
+                        <Button text="Open Reminder Center" onAction="#viewReminders" styleClass="approved-button,approved-primary-button"/>
+                        <Label fx:id="lblTrendSales" visible="false" managed="false"/><Label fx:id="lblTrendPeriod" visible="false" managed="false"/><Label fx:id="lblComparisonPeriod" visible="false" managed="false"/><Label fx:id="lblProductsNote" visible="false" managed="false"/>
+                    </VBox>
                 </HBox>
 
                 <TableView fx:id="recentTable" visible="false" managed="false" styleClass="approved-table"><columns><TableColumn fx:id="colNumber" text="Invoice No." styleClass="approved-table-column"/><TableColumn fx:id="colDate" text="Date" styleClass="approved-table-column"/><TableColumn fx:id="colParty" text="Customer / Supplier" styleClass="approved-table-column"/><TableColumn fx:id="colAmount" text="Amount" styleClass="approved-table-column"/><TableColumn fx:id="colType" text="Type" styleClass="approved-table-column"/></columns></TableView>

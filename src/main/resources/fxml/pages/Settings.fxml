@@ -765,7 +765,7 @@
                             </VBox>
 
                             <FlowPane hgap="10" vgap="10">
-                                <Button text="Check for Updates" onAction="#checkForUpdates" styleClass="settings-action-button,settings-primary-button,approved-button,approved-secondary-button"/>
+                                <Button fx:id="btnCheckUpdates" text="Check for Updates" onAction="#checkForUpdates" styleClass="settings-action-button,settings-primary-button,approved-button,approved-secondary-button"/>
                                 <Button text="View Update History" onAction="#viewUpdateHistory" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
                                 <Button text="Install Offline Package" onAction="#installOfflineUpdate" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
                                 <Button text="System Health" onAction="#showSystemHealth" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>

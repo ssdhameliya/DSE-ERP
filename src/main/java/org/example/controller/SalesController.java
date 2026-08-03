@@ -37,6 +37,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 public class SalesController {
+    @FXML private Button btnAddCustomer;
 
     @FXML
     private VBox salesEntryRoot;
@@ -158,6 +159,7 @@ public class SalesController {
 
     @FXML
     public void initialize() {
+        if (btnAddCustomer != null) { btnAddCustomer.setGraphic(IconFactory.compactIcon("customer", 20)); btnAddCustomer.getProperties().put("erp-icon-preserve", true); }
         tableLines.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         configureExplicitTableHeaderIcons();
 

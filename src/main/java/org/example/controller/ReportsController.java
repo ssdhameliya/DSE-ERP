@@ -39,6 +39,7 @@ public class ReportsController implements ScreenLifecycle {
     private volatile boolean loaded;
 
     @FXML public void initialize(){
+        configureMacPerformanceMode();
         configureExplicitTableHeaderIcons(); configureIcons(); configureStatusCells();
         dpFrom.setValue(LocalDate.now().withDayOfMonth(1)); dpTo.setValue(LocalDate.now());
         cmbReportType.getItems().setAll("All Reports","Sales","Purchase","Inventory","Payments"); cmbReportType.getSelectionModel().selectFirst();
@@ -60,7 +61,9 @@ public class ReportsController implements ScreenLifecycle {
         if(dpFrom.getValue()==null||dpTo.getValue()==null||dpFrom.getValue().isAfter(dpTo.getValue())){error("Choose a valid reporting date range.");return;}
         String from=dpFrom.getValue().toString(),to=dpTo.getValue().toString();
         setBusy(true);
-        UiTaskExecutor.submitLatest(TASK_KEY, () -> loadReport(from,to), data -> { applyReport(data); loaded=true; ScreenRefreshPolicy.markRefreshed("reports"); setBusy(false); }, failure -> { setBusy(false); error("Could not load report data: "+failure.getMessage()); });
+        try{ReportData data=loadReport(from,to);applyReport(data);loaded=true;ScreenRefreshPolicy.markRefreshed("reports");}
+        catch(Exception failure){error("Could not load report data: "+failure.getMessage());}
+        finally{setBusy(false);}
     }
     private ReportData loadReport(String from,String to) throws SQLException {
         PerformanceMonitor.start("reports-query-bundle");
@@ -87,10 +90,10 @@ public class ReportsController implements ScreenLifecycle {
         lblSales.setText(money(d.sales()));lblPurchase.setText(money(d.purchase()));lblProfit.setText(money(d.profit()));lblReceivables.setText(money(d.receivables()));lblStock.setText(money(d.stock()));
         lblLowStock.setText(d.low()+" low-stock items");lblCustomers.setText(String.valueOf(d.customers()));
         double margin=d.sales()==0?0:(d.profit()/d.sales())*100;lblMargin.setText(String.format("%.2f%%",margin));profitProgress.setProgress(Math.max(0,Math.min(1,margin/100)));
-        XYChart.Series<String,Number> trend=new XYChart.Series<>();trend.setName("Sales");d.trend().forEach(p->trend.getData().add(new XYChart.Data<>(p.label(),p.value())));chartTrend.getData().setAll(trend);
-        XYChart.Series<String,Number> customers=new XYChart.Series<>();customers.setName("Sales by customer");d.customerPoints().forEach(p->customers.getData().add(new XYChart.Data<>(p.label(),p.value())));chartCustomers.getData().setAll(customers);
-        chartItems.setData(FXCollections.observableArrayList(d.itemPoints().stream().map(p->new PieChart.Data(p.label(),p.value())).toList()));
-        chartComparison.setData(FXCollections.observableArrayList(new PieChart.Data("Sales",d.sales()),new PieChart.Data("Purchases",d.purchase())));
+        XYChart.Series<String,Number> trend=new XYChart.Series<>();trend.setName("Sales");d.trend().forEach(p->trend.getData().add(new XYChart.Data<>(p.label(),p.value())));if(chartTrend!=null&&chartTrend.isManaged())chartTrend.getData().setAll(trend);
+        XYChart.Series<String,Number> customers=new XYChart.Series<>();customers.setName("Sales by customer");d.customerPoints().forEach(p->customers.getData().add(new XYChart.Data<>(p.label(),p.value())));if(chartCustomers!=null&&chartCustomers.isManaged())chartCustomers.getData().setAll(customers);
+        if(chartItems!=null&&chartItems.isManaged())chartItems.setData(FXCollections.observableArrayList(d.itemPoints().stream().map(p->new PieChart.Data(p.label(),p.value())).toList()));
+        if(chartComparison!=null&&chartComparison.isManaged())chartComparison.setData(FXCollections.observableArrayList(new PieChart.Data("Sales",d.sales()),new PieChart.Data("Purchases",d.purchase())));
         tblSales.getItems().setAll(d.salesRows());tblPurchases.getItems().setAll(d.purchaseRows());
         paymentSummary.getItems().setAll("Total Receivables     "+money(d.receivables()),"Received Amount      "+money(d.salesPaid()),"Total Payables        "+money(d.payables()),"Paid Amount           "+money(d.purchasesPaid()));
         stockSummary.getItems().setAll("Total Items           "+d.items(),"Low Stock Items       "+d.low(),"Out of Stock          "+d.out(),"Stock Value           "+money(d.stock()));
@@ -114,4 +117,11 @@ public class ReportsController implements ScreenLifecycle {
     private record FilterData(List<String> parties,List<String> items,List<String> salespeople){}
     private record Point(String label,double value){}
     private record ReportData(double sales,double purchase,double profit,double receivables,double stock,long low,long customers,List<Point> trend,List<Point> customerPoints,List<Point> itemPoints,List<String[]> salesRows,List<String[]> purchaseRows,double salesPaid,double payables,double purchasesPaid,long items,long out){}
+
+    private void configureMacPerformanceMode(){
+        if(chartTrend!=null)chartTrend.setAnimated(false);if(chartCustomers!=null)chartCustomers.setAnimated(false);if(chartItems!=null)chartItems.setAnimated(false);if(chartComparison!=null)chartComparison.setAnimated(false);
+        if(org.example.util.PlatformUiSupport.isMac()){
+            for(javafx.scene.Node chart:new javafx.scene.Node[]{chartTrend,chartCustomers,chartItems,chartComparison})if(chart!=null){chart.setVisible(false);chart.setManaged(false);}
+        }
+    }
 }

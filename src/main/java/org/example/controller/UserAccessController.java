@@ -33,6 +33,7 @@ import java.util.*;
 
 /** Premium database-backed user, role and permission administration. */
 public class UserAccessController {
+    @FXML private Label iconTotalUsers, iconActiveUsers, iconRoles, iconLocked, iconLogins;
     @FXML private Label lblTotal,lblActive,lblRoles,lblLocked,lblLogins,lblRoleHint;
     @FXML private TextField txtSearch;
     @FXML private ComboBox<String> cmbRole,cmbStatus,cmbBranch,cmbPermissionRole;
@@ -58,6 +59,7 @@ public class UserAccessController {
     private FilteredList<UserRow> filtered;
 
     @FXML public void initialize(){
+        installKpiIcons();
         configureUserTable(); configureRoleTable(); configurePermissionTable(); configureIcons();
         cmbStatus.getItems().setAll("All Statuses","Active","Inactive","Locked"); cmbStatus.setValue("All Statuses");
         filtered=new FilteredList<>(users,r->true); table.setItems(filtered); roleTable.setItems(roles); permissionTable.setItems(permissions);
@@ -168,4 +170,9 @@ public class UserAccessController {
     public static final class RoleRow{final int id;final SimpleStringProperty name,description,status;final SimpleIntegerProperty users;final boolean active;RoleRow(ResultSet r)throws SQLException{id=r.getInt("id");name=new SimpleStringProperty(r.getString("role_name"));description=new SimpleStringProperty(blank(r.getString("description"),"No description"));users=new SimpleIntegerProperty(r.getInt("user_count"));active=r.getInt("active")==1;status=new SimpleStringProperty(active?"Active":"Inactive");}}
     public static final class PermissionRow{final int id;final SimpleStringProperty module,action,description;final SimpleBooleanProperty allowed;PermissionRow(ResultSet r,boolean admin)throws SQLException{id=r.getInt("id");module=new SimpleStringProperty(r.getString("module_name"));action=new SimpleStringProperty(r.getString("action_name"));description=new SimpleStringProperty(blank(r.getString("description"),"—"));allowed=new SimpleBooleanProperty(admin||r.getInt("allowed")==1);}}
     private static String blank(String v,String fallback){return v==null||v.isBlank()?fallback:v;}
+
+    private void installKpiIcons(){
+        setKpiIcon(iconTotalUsers,"users");setKpiIcon(iconActiveUsers,"complete");setKpiIcon(iconRoles,"role");setKpiIcon(iconLocked,"lock");setKpiIcon(iconLogins,"login");
+    }
+    private void setKpiIcon(Label label,String semantic){if(label!=null){label.setText("");label.setGraphic(IconFactory.compactIcon(semantic,24));label.getProperties().put("erp-icon-preserve",true);}}
 }

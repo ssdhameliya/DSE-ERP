@@ -385,6 +385,12 @@ public class DashboardController {
             btnSettings.getStyleClass().remove("menu-selected");
     }
 
+    private String currentUserName() {
+        var user = SessionService.current();
+        if (user == null || user.getFullName() == null || user.getFullName().isBlank()) return "User";
+        return user.getFullName().trim();
+    }
+
     private void openPage(Button button,
                           String pageTitle,
                           String fxmlPath) {
@@ -394,7 +400,7 @@ public class DashboardController {
             lblPageTitle.setText(pageTitle);
             if (lblBreadcrumb != null) {
                 lblBreadcrumb.setText(pageTitle.equals("Dashboard")
-                    ? "Welcome back, Admin!"
+                    ? "Welcome back, " + currentUserName() + "!"
                     : "ERP  >  " + pageTitle);
             }
         }

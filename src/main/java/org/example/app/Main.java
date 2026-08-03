@@ -6,6 +6,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import org.example.backup.BackupManager;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
@@ -23,6 +24,8 @@ public class Main extends Application {
     private ScheduledExecutorService backupScheduler;
 
     @Override public void start(Stage stage) {
+        stage.initStyle(StageStyle.DECORATED);
+        stage.setResizable(true);
         WorkspaceManager.initialize();
         SceneManager.initialize(stage);
         WindowUtilsFx.apply(stage, 1200, 800);

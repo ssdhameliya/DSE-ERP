@@ -7,12 +7,12 @@
     <Button text="＋ Create Purchase Return" onAction="#create" styleClass="primary-action,approved-button,approved-primary-button"/>
   </HBox>
   <HBox spacing="12">
-    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Total Returns"/><Label fx:id="total" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><StackPane fx:id="iconTotal" styleClass="approved-kpi-icon"/><Label text="Total Returns"/><Label fx:id="total" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
     <!-- Mirrors the Sales Return month KPI and uses the active database rows. -->
-    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="This Month"/><Label fx:id="monthCount" styleClass="purchase-kpi-value"/><Label text="Returns this month"/></VBox>
-    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Return Count"/><Label fx:id="count" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
-    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="purchase-kpi-value"/><Label text="Processed"/></VBox>
-    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><Label text="Average Return"/><Label fx:id="average" styleClass="purchase-kpi-value"/><Label text="Per return"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><StackPane fx:id="iconMonth" styleClass="approved-kpi-icon"/><Label text="This Month"/><Label fx:id="monthCount" styleClass="purchase-kpi-value"/><Label text="Returns this month"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><StackPane fx:id="iconCount" styleClass="approved-kpi-icon"/><Label text="Return Count"/><Label fx:id="count" styleClass="purchase-kpi-value"/><Label text="All Time"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><StackPane fx:id="iconRefund" styleClass="approved-kpi-icon"/><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="purchase-kpi-value"/><Label text="Processed"/></VBox>
+    <VBox styleClass="purchase-kpi,approved-kpi" HBox.hgrow="ALWAYS"><StackPane fx:id="iconAverage" styleClass="approved-kpi-icon"/><Label text="Average Return"/><Label fx:id="average" styleClass="purchase-kpi-value"/><Label text="Per return"/></VBox>
   </HBox>
   <VBox spacing="10" styleClass="filter-surface,approved-filter-bar">
     <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>

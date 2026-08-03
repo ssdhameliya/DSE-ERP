@@ -13,7 +13,7 @@
             </columnConstraints>
             <VBox spacing="4">
               <Label text="Supplier *"/>
-              <HBox spacing="6"><ComboBox fx:id="cmbSupplier" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button text="" onAction="#addSupplier" styleClass="icon-only-button,supplier-icon-button,approved-button,approved-secondary-button,approved-icon-button" accessibleText="Add Supplier"/></HBox>
+              <HBox spacing="6"><ComboBox fx:id="cmbSupplier" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button fx:id="btnAddSupplier" text="" onAction="#addSupplier" styleClass="icon-only-button,supplier-icon-button,approved-button,approved-secondary-button,approved-icon-button" accessibleText="Add Supplier"/></HBox>
             </VBox>
             <VBox spacing="4" GridPane.columnIndex="1"><Label text="Purchase No."/><TextField fx:id="txtInvoiceNo" editable="false" promptText="Auto Generate" styleClass="approved-input"/></VBox>
             <VBox spacing="4" GridPane.columnIndex="2"><Label text="Purchase Date *"/><DatePicker fx:id="dpInvoiceDate" maxWidth="Infinity" styleClass="approved-input"/></VBox>

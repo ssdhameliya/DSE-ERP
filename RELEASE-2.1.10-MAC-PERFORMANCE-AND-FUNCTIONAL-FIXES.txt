@@ -1,0 +1,19 @@
+DSE ERP 2.1.10
+
+Corrective release based on Windows and macOS performance logs.
+
+Implemented:
+- Real logged-in user greeting on Dashboard.
+- Reminder dashboard card and Reminder Center navigation.
+- Channel-specific Email and WhatsApp Communication Center navigation, including cached screens.
+- Purchase Register data/KPI restoration with zero-value fallbacks and unrestricted initial date filters.
+- Inventory data/KPI restoration with deterministic UI application.
+- Restored Add Customer and Add Supplier icons.
+- Restored Settings Check for Updates icon.
+- Rebuilt User Access KPI icons without platform emoji.
+- macOS native decorated/resizable primary Stage to preserve minimize.
+- Cached pages no longer receive repeated applyCss/full enhancement passes.
+- Reports/Inventory chart animation disabled; heavy charts hidden on macOS.
+- Version updated in pom.xml and app-version.properties.
+
+Both light and dark themes remain included. Existing business handlers and database schema are preserved.

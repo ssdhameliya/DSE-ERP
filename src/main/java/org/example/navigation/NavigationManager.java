@@ -78,16 +78,10 @@ public class NavigationManager {
                 notifyHidden(currentCachedPage.controller());
             }
             contentPane.getChildren().setAll(cached.node());
-            // One deferred CSS/enhancement pass is enough after scene attachment.
-            // The previous nested passes recalculated the full scene graph multiple
-            // times and were particularly expensive on Retina displays.
-            CachedPage attached = cached;
-            Node attachedPage = attached.node();
-            Platform.runLater(() -> {
-                attachedPage.applyCss();
-                ProfessionalUiEnhancer.enhance(attachedPage);
-                notifyShown(attached.controller(), reused);
-            });
+            // New pages are enhanced once before attachment. Cached pages are reused
+            // without another full CSS/layout/enhancement traversal. This is critical
+            // for macOS Retina responsiveness and also benefits Windows.
+            notifyShown(cached.controller(), reused);
             // Legacy controllers still receive their existing refresh method until
             // they opt into ScreenLifecycle.
             if (reused && !fxml.equals(currentPage)

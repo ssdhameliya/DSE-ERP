@@ -8,6 +8,7 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.database.DatabaseManager;
 import org.example.navigation.NavigationManager;
@@ -32,6 +33,7 @@ public class PurchaseReturnsController {
                       double total, double refund, String status, String refundStatus) {}
 
     @FXML private Label total, count, monthCount, refund, average, pageInfo;
+    @FXML private StackPane iconTotal,iconMonth,iconCount,iconRefund,iconAverage;
     @FXML private TextField search;
     @FXML private ComboBox<String> supplier, status;
     @FXML private DatePicker dpFrom, dpTo;
@@ -42,6 +44,7 @@ public class PurchaseReturnsController {
     private List<Row> all = List.of();
 
     @FXML public void initialize() {
+        installKpiIcons();
         configureExplicitTableHeaderIcons();
         cNo.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().no()));
         cDate.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().date()));
@@ -175,4 +178,7 @@ public class PurchaseReturnsController {
         IconFactory.applyTableHeaderIcon(cRefundStatus, "status");
         IconFactory.applyTableHeaderIcon(cAction, "actions");
     }
+
+    private void installKpiIcons(){setKpi(iconTotal,"return");setKpi(iconMonth,"calendar");setKpi(iconCount,"document");setKpi(iconRefund,"payment");setKpi(iconAverage,"currency");}
+    private void setKpi(StackPane pane,String semantic){if(pane!=null)pane.getChildren().setAll(IconFactory.compactIcon(semantic,22));}
 }
