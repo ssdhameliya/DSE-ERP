@@ -19,7 +19,6 @@ public final class SharedUiFramework {
         FxThreadWatchdog.install();
         if (root == null) return;
         apply(root);
-        ApprovedUiSystem.install(root);
         if (!Boolean.TRUE.equals(root.getProperties().get(INSTALLED))) {
             root.getProperties().put(INSTALLED, true);
             // One deferred pass is enough for controls whose skins are created after attachment.

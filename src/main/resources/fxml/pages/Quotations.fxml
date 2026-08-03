@@ -8,35 +8,35 @@
             <HBox alignment="CENTER_LEFT" spacing="12">
                 <StackPane fx:id="pageIcon" styleClass="quotation-page-icon"/>
                 <VBox spacing="2">
-                    <Label text="Quotation Register" styleClass="screen-title,approved-page-title"/>
-                    <Label text="Manage all quotations, follow-ups, conversion and customer communication" styleClass="screen-subtitle,approved-page-subtitle"/>
+                    <Label text="Quotation Register" styleClass="screen-title"/>
+                    <Label text="Manage all quotations, follow-ups, conversion and customer communication" styleClass="screen-subtitle"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button fx:id="btnNewQuotation" text="New Quotation (F2)" onAction="#newQuotation" styleClass="quotation-primary-button,approved-button,approved-primary-button"/>
+                <Button fx:id="btnNewQuotation" text="New Quotation (F2)" onAction="#newQuotation" styleClass="quotation-primary-button"/>
             </HBox>
 
             <HBox spacing="12" styleClass="quotation-metric-row">
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-total,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-total" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="totalMetricIcon" styleClass="quotation-metric-icon,total-quotation-icon"/>
                     <VBox spacing="4"><Label text="Total Quotations" styleClass="metric-label"/><Label fx:id="lblTotalValue" styleClass="metric-value"/><Label fx:id="lblTotalCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-pending,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-pending" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="pendingMetricIcon" styleClass="quotation-metric-icon,pending-quotation-icon"/>
                     <VBox spacing="4"><Label text="Pending Quotations" styleClass="metric-label"/><Label fx:id="lblPendingValue" styleClass="metric-value"/><Label fx:id="lblPendingCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-accepted,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-accepted" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="acceptedMetricIcon" styleClass="quotation-metric-icon,accepted-quotation-icon"/>
                     <VBox spacing="4"><Label text="Accepted Quotations" styleClass="metric-label"/><Label fx:id="lblAcceptedValue" styleClass="metric-value"/><Label fx:id="lblAcceptedCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-expired,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-expired" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="expiredMetricIcon" styleClass="quotation-metric-icon,expired-quotation-icon"/>
                     <VBox spacing="4"><Label text="Expired Quotations" styleClass="metric-label"/><Label fx:id="lblExpiredValue" styleClass="metric-value"/><Label fx:id="lblExpiredCount" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-conversion,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-conversion" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="conversionMetricIcon" styleClass="quotation-metric-icon,conversion-quotation-icon"/>
                     <VBox spacing="4"><Label text="Conversion Rate" styleClass="metric-label"/><Label fx:id="lblConversion" styleClass="metric-value"/><Label text="Accepted / total" styleClass="metric-note"/></VBox>
                 </HBox>
-                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-average,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+                <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-average" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="averageMetricIcon" styleClass="quotation-metric-icon,average-quotation-icon"/>
                     <VBox spacing="4"><Label text="Average Value" styleClass="metric-label"/><Label fx:id="lblAverage" styleClass="metric-value"/><Label text="All quotations" styleClass="metric-note"/></VBox>
                 </HBox>
@@ -48,7 +48,7 @@
         <SplitPane fx:id="mainSplit" dividerPositions="0.80" styleClass="quotation-register-split">
             <items>
                 <VBox spacing="12" styleClass="quotation-register-workspace">
-                    <VBox spacing="12" styleClass="quotation-filter-card,approved-filter-bar,approved-surface">
+                    <VBox spacing="12" styleClass="quotation-filter-card,approved-filter-bar">
                         <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
                         <HBox spacing="10" alignment="CENTER_LEFT">
@@ -91,8 +91,8 @@
                         <FlowPane fx:id="activeFilterChips" hgap="6" vgap="5" visible="false" managed="false"/>
                     </VBox>
 
-                    <VBox spacing="0" styleClass="quotation-table-card,approved-surface" VBox.vgrow="ALWAYS">
-                        <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table,approved-table" minHeight="420">
+                    <VBox spacing="0" styleClass="quotation-table-card" VBox.vgrow="ALWAYS">
+                        <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table" minHeight="420">
                             <columns>
                                 <TableColumn fx:id="colNo" text="Quotation No." prefWidth="130" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colDate" text="Date" prefWidth="95" styleClass="approved-table-column"/>
@@ -140,8 +140,8 @@
                         <Button text="Convert to Sale" onAction="#convertSelected" GridPane.rowIndex="2" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                         <Button text="Follow Up" onAction="#followUpSelected" GridPane.rowIndex="2" GridPane.columnIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     </GridPane>
-                    <Label text="Notes" styleClass="drawer-section"/><TextArea fx:id="txtDetailNotes" prefRowCount="4" wrapText="true" styleClass="approved-input"/><Button text="Save Notes" onAction="#saveNotes" styleClass="secondary-button,approved-button,approved-primary-button"/>
-                    <Region VBox.vgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="secondary-button,approved-button,approved-secondary-button" maxWidth="Infinity"/>
+                    <Label text="Notes" styleClass="drawer-section"/><TextArea fx:id="txtDetailNotes" prefRowCount="4" wrapText="true" styleClass="approved-input"/><Button text="Save Notes" onAction="#saveNotes" styleClass="secondary-button"/>
+                    <Region VBox.vgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="secondary-button" maxWidth="Infinity"/>
                 </VBox>
             </items>
         </SplitPane>

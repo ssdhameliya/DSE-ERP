@@ -12,19 +12,19 @@
     <!-- Page heading -->
     <HBox alignment="CENTER_LEFT" spacing="14" styleClass="reminder-page-header,approved-section-header">
         <VBox spacing="4">
-            <Label text="Reminder Center" styleClass="page-heading,reminder-page-title,approved-page-title"/>
-            <Label text="Manage follow-ups, payment reminders and important business tasks." styleClass="muted-label,reminder-page-subtitle,approved-page-subtitle"/>
+            <Label text="Reminder Center" styleClass="page-heading,reminder-page-title"/>
+            <Label text="Manage follow-ups, payment reminders and important business tasks." styleClass="muted-label,reminder-page-subtitle"/>
         </VBox>
 
         <Region HBox.hgrow="ALWAYS"/>
 
-        <Button text="Refresh" onAction="#refresh" styleClass="reminder-secondary-button,approved-button,approved-secondary-button"/>
-        <Button text="Add Reminder" onAction="#addReminder" styleClass="primary-button,reminder-primary-button,approved-button,approved-primary-button"/>
+        <Button text="Refresh" onAction="#refresh" styleClass="reminder-secondary-button"/>
+        <Button text="Add Reminder" onAction="#addReminder" styleClass="primary-button,reminder-primary-button"/>
     </HBox>
 
     <!-- Summary cards -->
     <HBox spacing="14" styleClass="reminder-metrics-row">
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-open,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-open" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="OPEN REMINDERS" styleClass="metric-title,reminder-metric-title"/>
@@ -36,7 +36,7 @@
             <Label text="Active items requiring attention" styleClass="reminder-metric-note"/>
         </VBox>
 
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-overdue,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-overdue" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="OVERDUE" styleClass="metric-title,reminder-metric-title"/>
@@ -48,7 +48,7 @@
             <Label text="Past due and still incomplete" styleClass="reminder-metric-note"/>
         </VBox>
 
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-today,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-today" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="DUE TODAY" styleClass="metric-title,reminder-metric-title"/>
@@ -60,7 +60,7 @@
             <Label text="Scheduled for the current day" styleClass="reminder-metric-note"/>
         </VBox>
 
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-upcoming,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-upcoming" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="NEXT 7 DAYS" styleClass="metric-title,reminder-metric-title"/>
@@ -75,7 +75,7 @@
 
     <!-- Filters -->
     <HBox alignment="CENTER_LEFT" spacing="10" styleClass="reminder-filter-bar,approved-filter-bar">
-        <TextField fx:id="txtSearch" promptText="Search title, reference or notes..." HBox.hgrow="ALWAYS" styleClass="reminder-search-field,approved-input"/>
+        <TextField fx:id="txtSearch" promptText="Search title, reference or notes..." HBox.hgrow="ALWAYS" styleClass="reminder-search-field"/>
 
         <ComboBox fx:id="cmbStatus" prefWidth="160" promptText="Status" styleClass="reminder-filter-control,approved-input"/>
 
@@ -90,23 +90,23 @@
     <SplitPane dividerPositions="0.73" VBox.vgrow="ALWAYS" styleClass="reminder-workspace">
 
         <!-- Table card -->
-        <VBox spacing="12" styleClass="reminder-table-card,approved-surface">
+        <VBox spacing="12" styleClass="reminder-table-card">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="2">
                     <Label text="Reminders" styleClass="section-title,reminder-section-title"/>
-                    <Label text="Double-click a row to edit, or use the Action menu." styleClass="reminder-section-caption,approved-page-subtitle"/>
+                    <Label text="Double-click a row to edit, or use the Action menu." styleClass="reminder-section-caption"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label fx:id="lblResultCount" text="0 reminders" styleClass="reminder-result-count"/>
             </HBox>
 
-            <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,reminder-table,approved-table">
+            <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,reminder-table">
                 <placeholder>
                     <VBox alignment="CENTER" spacing="10" styleClass="reminder-empty-state">
                         <StackPane fx:id="emptyStateIcon" styleClass="reminder-empty-icon"/>
                         <Label text="No reminders found" styleClass="reminder-empty-title"/>
-                        <Label text="Create a reminder or change the filters to see matching records." wrapText="true" textAlignment="CENTER" styleClass="reminder-empty-description,approved-page-subtitle"/>
-                        <Button text="Create Reminder" onAction="#addReminder" styleClass="primary-button,reminder-empty-button,approved-button,approved-primary-button"/>
+                        <Label text="Create a reminder or change the filters to see matching records." wrapText="true" textAlignment="CENTER" styleClass="reminder-empty-description"/>
+                        <Button text="Create Reminder" onAction="#addReminder" styleClass="primary-button,reminder-empty-button"/>
                     </VBox>
                 </placeholder>
 
@@ -125,15 +125,15 @@
         <!-- Details card -->
         <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="reminder-detail-scroll">
             <content>
-                <VBox spacing="16" styleClass="detail-drawer,reminder-detail-panel,approved-surface">
+                <VBox spacing="16" styleClass="detail-drawer,reminder-detail-panel">
                     <HBox alignment="CENTER_LEFT">
                         <VBox spacing="3">
                             <Label text="Reminder Details" styleClass="section-title,reminder-section-title"/>
-                            <Label text="Review the selected reminder before taking action." styleClass="reminder-section-caption,approved-page-subtitle"/>
+                            <Label text="Review the selected reminder before taking action." styleClass="reminder-section-caption"/>
                         </VBox>
                     </HBox>
 
-                    <VBox spacing="5" styleClass="reminder-detail-heading-card,approved-surface">
+                    <VBox spacing="5" styleClass="reminder-detail-heading-card">
                         <Label fx:id="lblDetailTitle" text="Select a reminder" wrapText="true" styleClass="metric-value,reminder-detail-title"/>
                         <Label text="Selected reminder information" styleClass="reminder-detail-kicker"/>
                     </VBox>
@@ -168,8 +168,8 @@
 
                     <VBox spacing="9" styleClass="reminder-detail-actions">
                         <HBox spacing="9">
-                            <Button text="Edit Reminder" onAction="#editSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-edit-button,approved-button,approved-secondary-button"/>
-                            <Button text="Mark Complete" onAction="#completeSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="primary-button,reminder-complete-button,approved-button,approved-secondary-button"/>
+                            <Button text="Edit Reminder" onAction="#editSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-edit-button"/>
+                            <Button text="Mark Complete" onAction="#completeSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="primary-button,reminder-complete-button"/>
                         </HBox>
 
                         <MenuButton fx:id="detailMoreActions" text="More Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>

@@ -12,7 +12,7 @@
         <Button text="Create Refund" onAction="#refund" styleClass="purchase-primary,approved-button,approved-primary-button"/>
       </HBox>
       <HBox spacing="14">
-        <VBox spacing="12" styleClass="purchase-card,approved-surface" HBox.hgrow="ALWAYS">
+        <VBox spacing="12" styleClass="purchase-card" HBox.hgrow="ALWAYS">
           <HBox spacing="10"><Label fx:id="no" styleClass="purchase-section-title"/><Label fx:id="status" styleClass="pill-success"/></HBox>
           <GridPane hgap="28" vgap="10">
             <Label text="Return Date"/><Label fx:id="date" GridPane.columnIndex="1"/>
@@ -27,11 +27,11 @@
             <Label text="Currency" GridPane.rowIndex="5"/><Label fx:id="currency" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
           </GridPane>
         </VBox>
-        <VBox spacing="12" styleClass="purchase-card,approved-surface" prefWidth="300">
+        <VBox spacing="12" styleClass="purchase-card" prefWidth="300">
           <Label text="Summary" styleClass="purchase-section-title"/><Label text="Refund Amount"/><Label fx:id="refund" styleClass="purchase-total"/>
         </VBox>
       </HBox>
-      <VBox spacing="10" styleClass="purchase-card,approved-surface">
+      <VBox spacing="10" styleClass="purchase-card">
         <Label text="Return Items" styleClass="purchase-section-title"/>
         <TableView fx:id="table" prefHeight="280" styleClass="approved-table">
           <columns>
@@ -47,8 +47,8 @@
         </TableView>
       </VBox>
       <HBox spacing="14">
-        <VBox spacing="8" styleClass="purchase-card,approved-surface" HBox.hgrow="ALWAYS"><Label text="Attachments" styleClass="purchase-section-title"/><Label fx:id="attachment" text="No attachment" wrapText="true"/></VBox>
-        <VBox spacing="8" styleClass="purchase-card,approved-surface" HBox.hgrow="ALWAYS"><Label text="Notes / Remarks" styleClass="purchase-section-title"/><Label fx:id="notes" wrapText="true"/></VBox>
+        <VBox spacing="8" styleClass="purchase-card" HBox.hgrow="ALWAYS"><Label text="Attachments" styleClass="purchase-section-title"/><Label fx:id="attachment" text="No attachment" wrapText="true"/></VBox>
+        <VBox spacing="8" styleClass="purchase-card" HBox.hgrow="ALWAYS"><Label text="Notes / Remarks" styleClass="purchase-section-title"/><Label fx:id="notes" wrapText="true"/></VBox>
       </HBox>
     </VBox>
   </content>

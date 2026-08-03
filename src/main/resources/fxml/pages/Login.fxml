@@ -2,11 +2,11 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LoginController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-login">
 
     <left>
-        <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel,approved-surface">
+        <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
             <StackPane styleClass="auth-logo-badge"><Label text="◆" styleClass="auth-logo-mark"/></StackPane>
             <Label text="JavaApp ERP" styleClass="auth-brand-title"/>
             <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
-            <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle,approved-page-subtitle"/>
+            <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle"/>
             <Label text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
             <Label text="Version 2.0.0" styleClass="auth-version"/>
@@ -15,24 +15,24 @@
 
     <center>
         <StackPane styleClass="auth-content">
-            <VBox maxWidth="720" spacing="14" alignment="CENTER" styleClass="auth-card,approved-surface">
+            <VBox maxWidth="720" spacing="14" alignment="CENTER" styleClass="auth-card">
                 <Label text="Welcome Back" styleClass="auth-eyebrow"/>
                 <Label text="Sign in to your account" styleClass="auth-title"/>
-                <Label text="Please enter your credentials to continue" styleClass="auth-description,approved-page-subtitle"/>
+                <Label text="Please enter your credentials to continue" styleClass="auth-description"/>
 
                 <VBox spacing="5" maxWidth="620">
                     <Label text="Email or username *" styleClass="auth-field-label"/>
-                    <TextField fx:id="txtUsername" promptText="Email or username" prefHeight="44" styleClass="auth-input,approved-input"/>
+                    <TextField fx:id="txtUsername" promptText="Email or username" prefHeight="44" styleClass="auth-input"/>
                     <Label fx:id="lblUsernameError" managed="false" visible="false" styleClass="field-error"/>
                 </VBox>
                 <VBox spacing="5" maxWidth="620">
                     <Label text="Password *" styleClass="auth-field-label"/>
-                    <PasswordField fx:id="txtPassword" promptText="Password" prefHeight="44" styleClass="auth-input,approved-input"/>
+                    <PasswordField fx:id="txtPassword" promptText="Password" prefHeight="44" styleClass="auth-input"/>
                     <Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/>
                 </VBox>
                 <VBox spacing="5" maxWidth="620">
                     <Label text="Email verification code" styleClass="auth-field-label"/>
-                    <TextField fx:id="txtOtp" promptText="Enter verification code after it is sent" prefHeight="44" styleClass="auth-input,approved-input"/>
+                    <TextField fx:id="txtOtp" promptText="Enter verification code after it is sent" prefHeight="44" styleClass="auth-input"/>
                     <Label fx:id="lblOtpError" managed="false" visible="false" styleClass="field-error"/>
                 </VBox>
 
@@ -42,10 +42,10 @@
                     <ToggleButton fx:id="btnTheme" text="Dark Mode" onAction="#toggleTheme" styleClass="auth-theme-button"/>
                 </HBox>
 
-                <Button fx:id="btnLogin" text="LOGIN / VERIFY OTP" onAction="#login" maxWidth="360" prefHeight="46" styleClass="auth-primary-button,approved-button,approved-primary-button"/>
+                <Button fx:id="btnLogin" text="LOGIN / VERIFY OTP" onAction="#login" maxWidth="360" prefHeight="46" styleClass="auth-primary-button"/>
                 <HBox alignment="CENTER" spacing="12" maxWidth="620"><Region HBox.hgrow="ALWAYS" styleClass="auth-divider"/><Label text="OR" styleClass="auth-or"/><Region HBox.hgrow="ALWAYS" styleClass="auth-divider"/></HBox>
-                <Button fx:id="btnRegister" text="Create a new User account" onAction="#register" maxWidth="360" styleClass="auth-secondary-button,approved-button,approved-primary-button"/>
-                <Button fx:id="btnEmailSettings" text="Configure Email / OTP Settings" onAction="#openEmailSettings" maxWidth="360" styleClass="auth-secondary-button,auth-email-button,approved-button,approved-secondary-button"/>
+                <Button fx:id="btnRegister" text="Create a new User account" onAction="#register" maxWidth="360" styleClass="auth-secondary-button"/>
+                <Button fx:id="btnEmailSettings" text="Configure Email / OTP Settings" onAction="#openEmailSettings" maxWidth="360" styleClass="auth-secondary-button,auth-email-button"/>
                 <Label fx:id="lblMessage" wrapText="true" maxWidth="620" styleClass="auth-message"/>
             </VBox>
         </StackPane>

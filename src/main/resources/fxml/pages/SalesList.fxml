@@ -7,15 +7,15 @@
       <HBox alignment="CENTER_LEFT" spacing="12">
         <StackPane fx:id="salesTitleIcon" styleClass="sales-title-icon"/>
         <VBox spacing="3">
-          <Label text="Sales Register" styleClass="screen-title,sales-screen-title,approved-page-title"/>
-          <Label text="Manage all sales invoices, collections and customer communication" styleClass="screen-subtitle,approved-page-subtitle"/>
+          <Label text="Sales Register" styleClass="screen-title,sales-screen-title"/>
+          <Label text="Manage all sales invoices, collections and customer communication" styleClass="screen-subtitle"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button fx:id="btnNewSale" text="New Sale (F2)" onAction="#newSale" styleClass="primary-action,sales-new-button,approved-button,approved-primary-button"/>
+        <Button fx:id="btnNewSale" text="New Sale (F2)" onAction="#newSale" styleClass="primary-action,sales-new-button"/>
       </HBox>
 
       <HBox spacing="12" styleClass="sales-metric-row">
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-total,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS">
           <StackPane fx:id="totalSalesIcon" styleClass="sales-metric-icon,total-sales-icon"/>
           <VBox spacing="4">
             <Label text="Total Sales" styleClass="metric-label"/>
@@ -23,7 +23,7 @@
             <Label fx:id="lblInvoiceCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-today,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-today" HBox.hgrow="ALWAYS">
           <StackPane fx:id="todaySalesIcon" styleClass="sales-metric-icon,today-sales-icon"/>
           <VBox spacing="4">
             <Label text="Today's Sales" styleClass="metric-label"/>
@@ -31,7 +31,7 @@
             <Label fx:id="lblTodayCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-pending,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-pending" HBox.hgrow="ALWAYS">
           <StackPane fx:id="pendingSalesIcon" styleClass="sales-metric-icon,pending-sales-icon"/>
           <VBox spacing="4">
             <Label text="Pending Receivables" styleClass="metric-label"/>
@@ -39,7 +39,7 @@
             <Label fx:id="lblPendingCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-overdue,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-overdue" HBox.hgrow="ALWAYS">
           <StackPane fx:id="overdueSalesIcon" styleClass="sales-metric-icon,overdue-sales-icon"/>
           <VBox spacing="4">
             <Label text="Overdue Receivables" styleClass="metric-label"/>
@@ -47,7 +47,7 @@
             <Label fx:id="lblOverdueCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-due,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-due" HBox.hgrow="ALWAYS">
           <StackPane fx:id="dueSoonIcon" styleClass="sales-metric-icon,due-sales-icon"/>
           <VBox spacing="4">
             <Label text="Due in 7 Days" styleClass="metric-label"/>
@@ -55,7 +55,7 @@
             <Label fx:id="lblDueSoonCount" styleClass="metric-note"/>
           </VBox>
         </HBox>
-        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-email,approved-kpi,approved-surface" HBox.hgrow="ALWAYS">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-email" HBox.hgrow="ALWAYS">
           <StackPane fx:id="emailRateIcon" styleClass="sales-metric-icon,email-sales-icon"/>
           <VBox spacing="4">
             <Label text="Email Sent %" styleClass="metric-label"/>
@@ -79,8 +79,8 @@
               <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="360" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
               <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced"/>
               <MenuButton text="Saved Views" fx:id="savedViewsMenu" styleClass="approved-menu-button"/>
-              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="secondary-button,sales-toolbar-button,approved-button,approved-secondary-button"/>
-              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refresh" styleClass="secondary-button,sales-toolbar-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="secondary-button,sales-toolbar-button"/>
+              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refresh" styleClass="secondary-button,sales-toolbar-button"/>
             </HBox>
 
             <GridPane fx:id="advancedFilters" hgap="12" vgap="9" styleClass="sales-filter-grid,approved-filter-bar">
@@ -104,8 +104,8 @@
               <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3"><Label text="WhatsApp Status" styleClass="filter-label"/><ComboBox fx:id="cmbWhatsappStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="4"><Label text="Invoice Type" styleClass="filter-label"/><ComboBox fx:id="cmbInvoiceType" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <HBox spacing="8" alignment="BOTTOM_RIGHT" GridPane.rowIndex="1" GridPane.columnIndex="5">
-                <Button text="Save View" onAction="#saveCurrentView" styleClass="secondary-button,approved-button,approved-primary-button"/>
-                <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" styleClass="primary-action,sales-apply-button,approved-button,approved-primary-button"/>
+                <Button text="Save View" onAction="#saveCurrentView" styleClass="secondary-button"/>
+                <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" styleClass="primary-action,sales-apply-button"/>
               </HBox>
             </GridPane>
 
@@ -120,8 +120,8 @@
             <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" visible="false" managed="false" styleClass="sales-filter-chips,approved-filter-bar"/>
           </VBox>
 
-          <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card,approved-surface">
-            <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,approved-table">
+          <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
+            <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table">
               <columns>
                 <TableColumn fx:id="colSelect" text="" prefWidth="44" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="125" styleClass="approved-table-column"/>
@@ -155,21 +155,21 @@
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="export-bar,sales-export-bar">
               <padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
-              <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportSale" styleClass="secondary-button,sales-export-button,approved-button,approved-secondary-button"/>
-              <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="secondary-button,sales-export-button,approved-button,approved-secondary-button"/>
-              <Button fx:id="btnPrintRegister" text="Print" onAction="#printRegister" styleClass="secondary-button,sales-export-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportSale" styleClass="secondary-button,sales-export-button"/>
+              <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="secondary-button,sales-export-button"/>
+              <Button fx:id="btnPrintRegister" text="Print" onAction="#printRegister" styleClass="secondary-button,sales-export-button"/>
               <Region HBox.hgrow="ALWAYS"/>
               <HBox spacing="0" styleClass="sales-summary-strip">
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block">
-                  <Label text="Total Amount" styleClass="summary-caption,approved-page-subtitle"/>
+                  <Label text="Total Amount" styleClass="summary-caption"/>
                   <Label fx:id="lblFooterTotal" styleClass="summary-amount"/>
                 </VBox>
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block">
-                  <Label text="Total Paid" styleClass="summary-caption,approved-page-subtitle"/>
+                  <Label text="Total Paid" styleClass="summary-caption"/>
                   <Label fx:id="lblFooterPaid" styleClass="summary-paid"/>
                 </VBox>
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block,last-summary-block">
-                  <Label text="Total Balance" styleClass="summary-caption,approved-page-subtitle"/>
+                  <Label text="Total Balance" styleClass="summary-caption"/>
                   <Label fx:id="lblFooterBalance" styleClass="summary-balance"/>
                 </VBox>
               </HBox>

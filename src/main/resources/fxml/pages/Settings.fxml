@@ -18,13 +18,13 @@
 
             <VBox spacing="4" HBox.hgrow="ALWAYS">
 
-                <Label text="Settings" styleClass="settings-page-title,approved-page-title"/>
+                <Label text="Settings" styleClass="settings-page-title"/>
 
-                <Label text="Company configuration, payments, invoices, notifications and email delivery" wrapText="true" styleClass="settings-page-description,approved-page-subtitle"/>
+                <Label text="Company configuration, payments, invoices, notifications and email delivery" wrapText="true" styleClass="settings-page-description"/>
 
             </VBox>
 
-            <Button text="Test Email" onAction="#testEmail" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button">
+            <Button text="Test Email" onAction="#testEmail" styleClass="settings-action-button,settings-secondary-button">
 
                 <graphic>
                     <SVGPath content="M2 4h16v12H2V4zm2 2v.3l6 4.2 6-4.2V6H4zm12 8V8.7l-5.4 3.8a1 1 0 0 1-1.2 0L4 8.7V14h12z" styleClass="settings-button-icon"/>
@@ -32,7 +32,7 @@
 
             </Button>
 
-            <Button text="Save Settings" onAction="#save" defaultButton="true" styleClass="settings-action-button,settings-primary-button,approved-button,approved-primary-button">
+            <Button text="Save Settings" onAction="#save" defaultButton="true" styleClass="settings-action-button,settings-primary-button">
 
                 <graphic>
                     <SVGPath content="M3 2h11l3 3v12H3V2zm2 2v4h8V4H5zm1 8v3h8v-3H6z" styleClass="settings-button-icon"/>
@@ -59,7 +59,7 @@
                  LEFT NAVIGATION
                  ================================================= -->
 
-            <VBox prefWidth="255" minWidth="235" spacing="5" styleClass="settings-navigation-card,approved-surface">
+            <VBox prefWidth="255" minWidth="235" spacing="5" styleClass="settings-navigation-card">
 
                 <!-- COMPANY -->
 
@@ -72,7 +72,7 @@
                     <VBox>
                         <Label text="Company &amp; Billing" styleClass="settings-navigation-title"/>
 
-                        <Label text="Business and contact details" styleClass="settings-navigation-description,approved-page-subtitle"/>
+                        <Label text="Business and contact details" styleClass="settings-navigation-description"/>
                     </VBox>
 
                 </HBox>
@@ -88,7 +88,7 @@
                     <VBox>
                         <Label text="Payment &amp; Bank" styleClass="settings-navigation-title"/>
 
-                        <Label text="Bank and UPI details" styleClass="settings-navigation-description,approved-page-subtitle"/>
+                        <Label text="Bank and UPI details" styleClass="settings-navigation-description"/>
                     </VBox>
 
                 </HBox>
@@ -104,7 +104,7 @@
                     <VBox>
                         <Label text="Invoice &amp; Delivery" styleClass="settings-navigation-title"/>
 
-                        <Label text="Identity, address and terms" styleClass="settings-navigation-description,approved-page-subtitle"/>
+                        <Label text="Identity, address and terms" styleClass="settings-navigation-description"/>
                     </VBox>
 
                 </HBox>
@@ -120,7 +120,7 @@
                     <VBox>
                         <Label text="Notifications" styleClass="settings-navigation-title"/>
 
-                        <Label text="Application activity alerts" styleClass="settings-navigation-description,approved-page-subtitle"/>
+                        <Label text="Application activity alerts" styleClass="settings-navigation-description"/>
                     </VBox>
 
                 </HBox>
@@ -136,7 +136,7 @@
                     <VBox>
                         <Label text="Email &amp; App Preferences" styleClass="settings-navigation-title"/>
 
-                        <Label text="SMTP and delivery setup" styleClass="settings-navigation-description,approved-page-subtitle"/>
+                        <Label text="SMTP and delivery setup" styleClass="settings-navigation-description"/>
                     </VBox>
 
                 </HBox>
@@ -150,7 +150,7 @@
                     </StackPane>
                     <VBox>
                         <Label text="Workspace &amp; Storage" styleClass="settings-navigation-title"/>
-                        <Label text="Database, backups and files" styleClass="settings-navigation-description,approved-page-subtitle"/>
+                        <Label text="Database, backups and files" styleClass="settings-navigation-description"/>
                     </VBox>
                 </HBox>
 
@@ -162,7 +162,7 @@
                     </StackPane>
                     <VBox>
                         <Label text="Application Updates" styleClass="settings-navigation-title"/>
-                        <Label text="GitHub Releases and update history" styleClass="settings-navigation-description,approved-page-subtitle"/>
+                        <Label text="GitHub Releases and update history" styleClass="settings-navigation-description"/>
                     </VBox>
                 </HBox>
 
@@ -186,19 +186,19 @@
 
                 <content>
 
-                    <StackPane maxWidth="Infinity" styleClass="settings-panel-host,approved-surface">
+                    <StackPane maxWidth="Infinity" styleClass="settings-panel-host">
 
                         <!-- =============================================
                              COMPANY & BILLING
                              ============================================= -->
 
-                        <VBox fx:id="panelCompany" spacing="20" maxWidth="Infinity" styleClass="settings-card,approved-surface">
+                        <VBox fx:id="panelCompany" spacing="20" maxWidth="Infinity" styleClass="settings-card">
 
                             <VBox spacing="3">
 
                                 <Label text="Company &amp; Billing" styleClass="settings-section-title"/>
 
-                                <Label text="Business identity, primary contact details and document branding" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
+                                <Label text="Business identity, primary contact details and document branding" wrapText="true" styleClass="settings-section-description"/>
 
                             </VBox>
 
@@ -289,7 +289,7 @@
 
                                     <!-- COMPANY LOGO -->
 
-                                    <VBox spacing="9" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,approved-surface">
+                                    <VBox spacing="9" HBox.hgrow="ALWAYS" styleClass="settings-asset-card">
 
                                         <Label text="Company Logo" styleClass="settings-form-label"/>
 
@@ -311,7 +311,7 @@
 
                                         <HBox spacing="8">
 
-                                            <Button text="Upload / Change" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
+                                            <Button text="Upload / Change" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button"/>
 
                                             <Button text="Remove" onAction="#removeCompanyLogo" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
@@ -321,7 +321,7 @@
 
                                     <!-- SIGNATURE -->
 
-                                    <VBox spacing="9" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,approved-surface">
+                                    <VBox spacing="9" HBox.hgrow="ALWAYS" styleClass="settings-asset-card">
 
                                         <Label text="Authorized Signature" styleClass="settings-form-label"/>
 
@@ -343,7 +343,7 @@
 
                                         <HBox spacing="8">
 
-                                            <Button text="Upload / Change" onAction="#uploadSignature" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
+                                            <Button text="Upload / Change" onAction="#uploadSignature" styleClass="settings-secondary-button"/>
 
                                             <Button text="Remove" onAction="#removeSignature" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
@@ -361,13 +361,13 @@
                              PAYMENT & BANK
                              ============================================= -->
 
-                        <VBox fx:id="panelPayment" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card,approved-surface">
+                        <VBox fx:id="panelPayment" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card">
 
                             <VBox spacing="3">
 
                                 <Label text="Payment &amp; Bank" styleClass="settings-section-title"/>
 
-                                <Label text="Details used on invoices, payment messages and UPI/GPay links" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
+                                <Label text="Details used on invoices, payment messages and UPI/GPay links" wrapText="true" styleClass="settings-section-description"/>
 
                             </VBox>
 
@@ -438,7 +438,7 @@
 
                                 <HBox spacing="16" alignment="TOP_LEFT">
 
-                                    <VBox spacing="9" minWidth="280" prefWidth="320" styleClass="settings-asset-card,approved-surface">
+                                    <VBox spacing="9" minWidth="280" prefWidth="320" styleClass="settings-asset-card">
 
                                         <StackPane minHeight="230" prefHeight="230" styleClass="settings-image-preview,settings-qr-preview">
 
@@ -458,7 +458,7 @@
 
                                         <HBox spacing="8">
 
-                                            <Button text="Upload / Change" onAction="#uploadPaymentQr" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
+                                            <Button text="Upload / Change" onAction="#uploadPaymentQr" styleClass="settings-secondary-button"/>
 
                                             <Button text="Remove" onAction="#removePaymentQr" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
@@ -466,7 +466,7 @@
 
                                     </VBox>
 
-                                    <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="settings-information-card,approved-surface">
+                                    <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="settings-information-card">
 
                                         <Label text="How the payment QR is used" styleClass="settings-form-label"/>
 
@@ -486,13 +486,13 @@
                              INVOICE & DELIVERY
                              ============================================= -->
 
-                        <VBox fx:id="panelInvoice" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card,approved-surface">
+                        <VBox fx:id="panelInvoice" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card">
 
                             <VBox spacing="3">
 
                                 <Label text="Invoice &amp; Delivery" styleClass="settings-section-title"/>
 
-                                <Label text="Company address, invoice identity, regional formatting and delivery defaults" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
+                                <Label text="Company address, invoice identity, regional formatting and delivery defaults" wrapText="true" styleClass="settings-section-description"/>
 
                             </VBox>
 
@@ -583,17 +583,17 @@
                              NOTIFICATIONS
                              ============================================= -->
 
-                        <VBox fx:id="panelNotifications" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,approved-surface">
+                        <VBox fx:id="panelNotifications" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card">
 
                             <VBox spacing="3">
 
                                 <Label text="Notifications" styleClass="settings-section-title"/>
 
-                                <Label text="Control whether application activity appears in the notification centre" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
+                                <Label text="Control whether application activity appears in the notification centre" wrapText="true" styleClass="settings-section-description"/>
 
                             </VBox>
 
-                            <VBox spacing="14" styleClass="settings-information-card,approved-surface">
+                            <VBox spacing="14" styleClass="settings-information-card">
 
                                 <CheckBox fx:id="chkNotifications" text="Show and keep application notifications" selected="true" wrapText="true" styleClass="settings-notification-check"/>
 
@@ -607,13 +607,13 @@
                              EMAIL
                              ============================================= -->
 
-                        <VBox fx:id="panelEmail" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,approved-surface">
+                        <VBox fx:id="panelEmail" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card">
 
                             <VBox spacing="3">
 
                                 <Label text="Email &amp; App Preferences" styleClass="settings-section-title"/>
 
-                                <Label text="SMTP delivery configuration for invoices, receipts and OTP messages" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
+                                <Label text="SMTP delivery configuration for invoices, receipts and OTP messages" wrapText="true" styleClass="settings-section-description"/>
 
                             </VBox>
 
@@ -672,23 +672,23 @@
                         <!-- =============================================
                              WORKSPACE & STORAGE
                              ============================================= -->
-                        <VBox fx:id="panelWorkspace" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,workspace-settings-panel,approved-surface">
+                        <VBox fx:id="panelWorkspace" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,workspace-settings-panel">
                             <VBox spacing="3">
                                 <Label text="Workspace &amp; Storage" styleClass="settings-section-title"/>
-                                <Label text="All business data is kept outside the installed application in one portable workspace." wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
+                                <Label text="All business data is kept outside the installed application in one portable workspace." wrapText="true" styleClass="settings-section-description"/>
                             </VBox>
-                            <VBox spacing="10" styleClass="settings-information-card,approved-surface">
+                            <VBox spacing="10" styleClass="settings-information-card">
                                 <Label text="Current Workspace" styleClass="settings-subsection-title"/>
                                 <Label fx:id="lblWorkspacePath" text="Workspace path" wrapText="true" styleClass="workspace-path-value"/>
                                 <Label fx:id="lblWorkspaceStatus" wrapText="true" styleClass="workspace-status-ok,approved-status"/>
                             </VBox>
                             <GridPane hgap="14" vgap="14">
                                 <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                                <VBox spacing="7" styleClass="workspace-folder-card,approved-surface">
+                                <VBox spacing="7" styleClass="workspace-folder-card">
                                     <Label text="Database &amp; Configuration" styleClass="settings-form-label"/>
                                     <Label text="Database/JavaAppERP.db Config/config.properties" wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
-                                <VBox spacing="7" GridPane.columnIndex="1" styleClass="workspace-folder-card,approved-surface">
+                                <VBox spacing="7" GridPane.columnIndex="1" styleClass="workspace-folder-card">
                                     <Label text="Recovery &amp; Documents" styleClass="settings-form-label"/>
                                     <Label text="Backups • Reports • Attachments • Imports • Exports • Logs" wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
@@ -698,8 +698,8 @@
                                 <Label text="A move is applied on the next start before SQLite opens. The original folder is retained, so you always have a recovery copy." wrapText="true" styleClass="settings-help-text"/>
                             </VBox>
                             <FlowPane hgap="10" vgap="10">
-                                <Button text="Open Workspace" onAction="#openWorkspaceFolder" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
-                                <Button text="Move Workspace" onAction="#moveWorkspace" styleClass="settings-action-button,settings-primary-button,approved-button,approved-secondary-button"/>
+                                <Button text="Open Workspace" onAction="#openWorkspaceFolder" styleClass="settings-action-button,settings-secondary-button"/>
+                                <Button text="Move Workspace" onAction="#moveWorkspace" styleClass="settings-action-button,settings-primary-button"/>
                             </FlowPane>
                         </VBox>
 
@@ -707,32 +707,32 @@
                              APPLICATION UPDATES
                              ============================================= -->
 
-                        <VBox fx:id="panelUpdates" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,update-settings-panel,approved-surface">
+                        <VBox fx:id="panelUpdates" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,update-settings-panel">
 
                             <VBox spacing="3">
                                 <Label text="Application Updates" styleClass="settings-section-title"/>
-                                <Label text="Check GitHub Releases, prepare verified installers and protect the database before updating" wrapText="true" styleClass="settings-section-description,approved-page-subtitle"/>
+                                <Label text="Check GitHub Releases, prepare verified installers and protect the database before updating" wrapText="true" styleClass="settings-section-description"/>
                             </VBox>
 
                             <HBox spacing="14">
-                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card,approved-surface">
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
                                     <Label fx:id="lblCurrentVersion" text="2.0.0" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
-                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card,approved-surface">
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Latest Version" styleClass="settings-form-label"/>
                                     <Label fx:id="lblLatestVersion" text="Check GitHub Releases" styleClass="update-version-value"/>
                                     <Label text="Selected release channel" styleClass="settings-help-text"/>
                                 </VBox>
-                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card,approved-surface">
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Last Checked" styleClass="settings-form-label"/>
                                     <Label fx:id="lblLastChecked" text="Never" wrapText="true" styleClass="update-version-value-small"/>
                                     <Label text="Automatic checks run at most twice daily" styleClass="settings-help-text"/>
                                 </VBox>
                             </HBox>
 
-                            <VBox spacing="14" styleClass="settings-information-card,approved-surface">
+                            <VBox spacing="14" styleClass="settings-information-card">
                                 <Label text="GitHub Release Source" styleClass="settings-subsection-title"/>
                                 <GridPane hgap="18" vgap="14">
                                     <columnConstraints>
@@ -758,17 +758,17 @@
                                 </GridPane>
                             </VBox>
 
-                            <VBox spacing="10" styleClass="settings-information-card,approved-surface">
+                            <VBox spacing="10" styleClass="settings-information-card">
                                 <CheckBox fx:id="chkUpdateAtStartup" text="Check automatically at startup" selected="true"/>
                                 <CheckBox fx:id="chkDownloadInBackground" text="Allow background downloads after approval"/>
                                 <Label text="Every online installer must have a matching SHA-256 entry in checksums.txt. A consistent SQLite safety backup is created before the installer starts." wrapText="true" styleClass="settings-help-text"/>
                             </VBox>
 
                             <FlowPane hgap="10" vgap="10">
-                                <Button fx:id="btnCheckUpdates" text="Check for Updates" onAction="#checkForUpdates" styleClass="settings-action-button,settings-primary-button,approved-button,approved-secondary-button"/>
-                                <Button text="View Update History" onAction="#viewUpdateHistory" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
-                                <Button text="Install Offline Package" onAction="#installOfflineUpdate" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
-                                <Button text="System Health" onAction="#showSystemHealth" styleClass="settings-action-button,settings-secondary-button,approved-button,approved-secondary-button"/>
+                                <Button fx:id="btnCheckUpdates" text="Check for Updates" onAction="#checkForUpdates" styleClass="settings-action-button,settings-primary-button"/>
+                                <Button text="View Update History" onAction="#viewUpdateHistory" styleClass="settings-action-button,settings-secondary-button"/>
+                                <Button text="Install Offline Package" onAction="#installOfflineUpdate" styleClass="settings-action-button,settings-secondary-button"/>
+                                <Button text="System Health" onAction="#showSystemHealth" styleClass="settings-action-button,settings-secondary-button"/>
                             </FlowPane>
 
                         </VBox>

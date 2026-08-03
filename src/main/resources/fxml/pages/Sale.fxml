@@ -11,8 +11,8 @@
                     <Label text=""/>
                 </StackPane>
                 <VBox spacing="3">
-                    <Label text="Create Sale Invoice" styleClass="sales-entry-page-title,approved-page-title"/>
-                    <Label text="Create a new sale invoice for your customer" styleClass="sales-entry-page-subtitle,approved-page-subtitle"/>
+                    <Label text="Create Sale Invoice" styleClass="sales-entry-page-title"/>
+                    <Label text="Create a new sale invoice for your customer" styleClass="sales-entry-page-subtitle"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Button text="Back to Sales" onAction="#cancel" styleClass="sales-entry-back-button,approved-button,approved-secondary-button"/>
@@ -20,7 +20,7 @@
 
             <HBox spacing="16" alignment="TOP_LEFT">
                 <VBox spacing="14" HBox.hgrow="ALWAYS">
-                    <VBox spacing="14" styleClass="purchase-card,flow-card,sales-entry-card,approved-surface">
+                    <VBox spacing="14" styleClass="purchase-card,flow-card,sales-entry-card">
                         <Label text="Customer &amp; Invoice Details" styleClass="flow-title,sales-entry-section-title"/>
                         <GridPane hgap="16" vgap="13">
                             <columnConstraints>
@@ -73,7 +73,7 @@
                         </GridPane>
                     </VBox>
 
-                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-items-card,approved-surface" VBox.vgrow="ALWAYS">
+                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-items-card" VBox.vgrow="ALWAYS">
                         <Label text="Invoice Items" styleClass="flow-title,sales-entry-section-title"/>
 
                         <VBox visible="false" managed="false">
@@ -114,7 +114,7 @@
                     </VBox>
 
                 <VBox spacing="14" prefWidth="320" minWidth="300" maxWidth="350">
-                    <VBox spacing="13" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-summary-card,approved-surface">
+                    <VBox spacing="13" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-summary-card">
                         <Label text="Invoice Summary" styleClass="flow-title,sales-entry-section-title"/>
                         <HBox>
                             <Label text="Sub Total"/>
@@ -139,7 +139,7 @@
                         </HBox>
                     </VBox>
 
-                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card,approved-surface">
+                    <VBox spacing="12" styleClass="purchase-card,flow-card,sales-entry-card">
                         <Label text="Quick Actions" styleClass="flow-title,sales-entry-section-title"/>
                         <GridPane hgap="10" vgap="10">
                             <columnConstraints>
@@ -153,7 +153,7 @@
                         </GridPane>
                     </VBox>
 
-                    <VBox spacing="10" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-document-card,approved-surface">
+                    <VBox spacing="10" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-document-card">
                         <Label text="Document Actions" styleClass="flow-title,sales-entry-section-title"/>
                         <HBox spacing="9">
                             <Button text="Cancel" onAction="#cancel" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="sales-entry-cancel-button,approved-button,approved-secondary-button"/>

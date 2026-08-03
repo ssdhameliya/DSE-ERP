@@ -8,7 +8,7 @@
             <Label text="Manage users, roles and system access permissions" styleClass="muted-label"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="Add New User" onAction="#addUser" styleClass="primary-button,user-access-add-user,approved-button,approved-primary-button"/>
+        <Button text="Add New User" onAction="#addUser" styleClass="primary-button,user-access-add-user"/>
         <Button text="Manage Roles" onAction="#manageRoles" styleClass="user-access-header-button,approved-button,approved-secondary-button"/>
         <Button text="Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-header-button,user-access-permission-button,approved-button,approved-secondary-button"/>
     </HBox>
@@ -17,21 +17,21 @@
         <TextField fx:id="txtSearch" promptText="Search users by name, email, username, department or branch..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
     </HBox>
 
-    <HBox spacing="10" styleClass="user-access-kpi-row,approved-kpi">
-        <VBox styleClass="user-kpi,user-kpi-purple,approved-kpi" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-purple,approved-kpi"><Label fx:id="iconTotalUsers"/></StackPane><VBox><Label text="Total Users" styleClass="metric-title"/><Label fx:id="lblTotal" text="0" styleClass="metric-value"/><Label text="All system users" styleClass="muted-label"/></VBox></HBox>
+    <HBox spacing="10" styleClass="user-access-kpi-row">
+        <VBox styleClass="user-kpi,user-kpi-purple" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-purple"><Label fx:id="iconTotalUsers"/></StackPane><VBox><Label text="Total Users" styleClass="metric-title"/><Label fx:id="lblTotal" text="0" styleClass="metric-value"/><Label text="All system users" styleClass="muted-label"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-green,approved-kpi" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-green,approved-kpi"><Label fx:id="iconActiveUsers"/></StackPane><VBox><Label text="Active Users" styleClass="metric-title"/><Label fx:id="lblActive" text="0" styleClass="metric-value"/><Label text="Currently active" styleClass="muted-label,user-success-text"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-green" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-green"><Label fx:id="iconActiveUsers"/></StackPane><VBox><Label text="Active Users" styleClass="metric-title"/><Label fx:id="lblActive" text="0" styleClass="metric-value"/><Label text="Currently active" styleClass="muted-label,user-success-text"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-blue,approved-kpi" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-blue,approved-kpi"><Label fx:id="iconRoles"/></StackPane><VBox><Label text="Roles" styleClass="metric-title"/><Label fx:id="lblRoles" text="0" styleClass="metric-value"/><Label text="System roles" styleClass="muted-label"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-blue" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-blue"><Label fx:id="iconRoles"/></StackPane><VBox><Label text="Roles" styleClass="metric-title"/><Label fx:id="lblRoles" text="0" styleClass="metric-value"/><Label text="System roles" styleClass="muted-label"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-red,approved-kpi" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-red,approved-kpi"><Label fx:id="iconLocked"/></StackPane><VBox><Label text="Locked Accounts" styleClass="metric-title"/><Label fx:id="lblLocked" text="0" styleClass="metric-value"/><Label text="Temporarily locked" styleClass="muted-label,user-danger-text"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-red" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-red"><Label fx:id="iconLocked"/></StackPane><VBox><Label text="Locked Accounts" styleClass="metric-title"/><Label fx:id="lblLocked" text="0" styleClass="metric-value"/><Label text="Temporarily locked" styleClass="muted-label,user-danger-text"/></VBox></HBox>
         </VBox>
-        <VBox styleClass="user-kpi,user-kpi-cyan,approved-kpi" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-cyan,approved-kpi"><Label fx:id="iconLogins"/></StackPane><VBox><Label text="Login Activity (Today)" styleClass="metric-title"/><Label fx:id="lblLogins" text="0" styleClass="metric-value"/><Label text="Successful logins" styleClass="muted-label"/></VBox></HBox>
+        <VBox styleClass="user-kpi,user-kpi-cyan" HBox.hgrow="ALWAYS">
+            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-cyan"><Label fx:id="iconLogins"/></StackPane><VBox><Label text="Login Activity (Today)" styleClass="metric-title"/><Label fx:id="lblLogins" text="0" styleClass="metric-value"/><Label text="Successful logins" styleClass="muted-label"/></VBox></HBox>
         </VBox>
     </HBox>
 
@@ -41,7 +41,7 @@
             <ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
         </columnConstraints>
 
-        <VBox spacing="9" styleClass="user-access-card,user-access-users-card,approved-surface" GridPane.columnIndex="0">
+        <VBox spacing="9" styleClass="user-access-card,user-access-users-card" GridPane.columnIndex="0">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="1"><Label text="Users" styleClass="section-title"/><Label text="Manage and monitor all system users" styleClass="muted-label"/></VBox>
                 <Region HBox.hgrow="ALWAYS"/>
@@ -69,11 +69,11 @@
             <HBox spacing="8" alignment="CENTER_RIGHT" styleClass="user-access-bottom-actions">
                 <Button text="Edit Selected" onAction="#editSelected" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Reset Password" onAction="#resetSelected" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Add New User" onAction="#addUser" styleClass="primary-button,approved-button,approved-primary-button"/>
+                <Button text="Add New User" onAction="#addUser" styleClass="primary-button"/>
             </HBox>
         </VBox>
 
-        <VBox spacing="8" styleClass="user-access-card,user-access-role-card,approved-surface" GridPane.columnIndex="1">
+        <VBox spacing="8" styleClass="user-access-card,user-access-role-card" GridPane.columnIndex="1">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="1"><Label text="Roles &amp; Permissions" styleClass="section-title"/><Label text="Manage dynamic roles and their database permissions" styleClass="muted-label"/></VBox>
             </HBox>
@@ -84,9 +84,9 @@
                             <HBox alignment="CENTER_LEFT">
                                 <VBox spacing="1"><Label text="System Roles" styleClass="section-title"/><Label text="Create, edit and manage user roles" styleClass="muted-label"/></VBox>
                                 <Region HBox.hgrow="ALWAYS"/>
-                                <Button text="Add Role" onAction="#addRole" styleClass="primary-button,approved-button,approved-primary-button"/>
+                                <Button text="Add Role" onAction="#addRole" styleClass="primary-button"/>
                                 <Button text="Edit" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/>
-                                <Button text="Delete" onAction="#deleteRole" styleClass="danger-button,approved-button,approved-danger-button"/>
+                                <Button text="Delete" onAction="#deleteRole" styleClass="danger-button"/>
                             </HBox>
                             <TableView fx:id="roleTable" prefHeight="235" VBox.vgrow="ALWAYS" styleClass="user-access-role-table,approved-table">
                                 <columns>
@@ -121,7 +121,7 @@
                             </TableView>
                             <HBox spacing="8" alignment="CENTER_RIGHT">
                                 <Button text="Reset Changes" onAction="#resetPermissions" styleClass="approved-button,approved-secondary-button"/>
-                                <Button text="Save Permissions" onAction="#savePermissions" styleClass="primary-button,approved-button,approved-primary-button"/>
+                                <Button text="Save Permissions" onAction="#savePermissions" styleClass="primary-button"/>
                             </HBox>
                         </VBox>
                     </Tab>

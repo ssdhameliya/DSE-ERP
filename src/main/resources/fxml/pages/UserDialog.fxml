@@ -2,10 +2,10 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserDialogController" prefWidth="920" prefHeight="680" styleClass="user-account-dialog,approved-ui,approved-screen,approved-screen-user-dialog">
  <left><VBox prefWidth="275" alignment="CENTER" spacing="16" styleClass="user-dialog-brand">
    <Label text="◈" styleClass="user-dialog-logo"/><Label text="DSE ERP 2.0" styleClass="title"/>
-   <Label text="USER ACCESS" styleClass="metric-title"/><Label text="Create and maintain secure application accounts with database-backed roles." wrapText="true" textAlignment="CENTER" styleClass="subtitle,approved-page-subtitle" maxWidth="210"/>
+   <Label text="USER ACCESS" styleClass="metric-title"/><Label text="Create and maintain secure application accounts with database-backed roles." wrapText="true" textAlignment="CENTER" styleClass="subtitle" maxWidth="210"/>
  </VBox></left>
  <center><VBox spacing="15" styleClass="user-dialog-form"><padding><Insets top="26" right="34" bottom="24" left="34"/></padding>
-   <HBox alignment="CENTER_LEFT"><VBox><Label fx:id="lblTitle" text="Add New User" styleClass="login-title"/><Label fx:id="lblSubtitle" text="Account identity, credentials and role assignment" styleClass="entity-dialog-subtitle,approved-page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="×" onAction="#cancel" styleClass="dialog-close-button,approved-button,approved-secondary-button"/></HBox>
+   <HBox alignment="CENTER_LEFT"><VBox><Label fx:id="lblTitle" text="Add New User" styleClass="login-title"/><Label fx:id="lblSubtitle" text="Account identity, credentials and role assignment" styleClass="entity-dialog-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="×" onAction="#cancel" styleClass="dialog-close-button"/></HBox>
    <Separator/>
    <GridPane hgap="16" vgap="9"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
      <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="0"><Label text="Full Name *"/><TextField fx:id="txtFullName" promptText="Enter full name" styleClass="approved-input"/></VBox>
@@ -20,6 +20,6 @@
      <VBox spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="4"><Label text="Account Security"/><HBox spacing="14"><CheckBox fx:id="chkActive" text="Active"/><CheckBox fx:id="chkLocked" text="Locked"/><CheckBox fx:id="chkMfa" text="MFA"/></HBox></VBox>
    </GridPane>
    <Region VBox.vgrow="ALWAYS"/><Label fx:id="lblMessage" wrapText="true"/>
-   <HBox spacing="12" alignment="CENTER_RIGHT"><Button fx:id="btnCancel" text="Cancel" onAction="#cancel" styleClass="secondary-button,approved-button,approved-secondary-button"/><Button fx:id="btnSave" text="Create User" onAction="#save" styleClass="primary-button,approved-button,approved-primary-button" defaultButton="true"/></HBox>
+   <HBox spacing="12" alignment="CENTER_RIGHT"><Button fx:id="btnCancel" text="Cancel" onAction="#cancel" styleClass="secondary-button"/><Button fx:id="btnSave" text="Create User" onAction="#save" styleClass="primary-button" defaultButton="true"/></HBox>
  </VBox></center>
 </BorderPane>

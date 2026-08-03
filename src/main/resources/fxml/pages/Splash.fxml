@@ -9,7 +9,7 @@
 
             <Label text="JavaApp ERP" styleClass="title"/>
 
-            <Label text="Engineering Business Suite" styleClass="subtitle,approved-page-subtitle"/>
+            <Label text="Engineering Business Suite" styleClass="subtitle"/>
 
             <ProgressBar fx:id="progressBar" prefWidth="350"/>
 

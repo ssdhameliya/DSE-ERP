@@ -17,15 +17,15 @@
 
                 <VBox spacing="4">
 
-                    <Label text="Master Data Management" styleClass="page-title,approved-page-title"/>
+                    <Label text="Master Data Management" styleClass="page-title"/>
 
-                    <Label text="Manage lookup categories and master records" styleClass="page-subtitle,approved-page-subtitle"/>
+                    <Label text="Manage lookup categories and master records" styleClass="page-subtitle"/>
 
                 </VBox>
 
                 <Region HBox.hgrow="ALWAYS"/>
 
-                <Button text="Refresh" onAction="#refresh" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+                <Button text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
 
             </HBox>
 
@@ -34,9 +34,9 @@
 
                 <TextField fx:id="txtSearch" promptText="Search categories or lookup values..." prefHeight="40" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
 
-                <Button text="Add Lookup" onAction="#addLookup" styleClass="primary-button,approved-button,approved-primary-button"/>
+                <Button text="Add Lookup" onAction="#addLookup" styleClass="primary-button"/>
 
-                <Button text="Export" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+                <Button text="Export" styleClass="secondary-button"/>
 
             </HBox>
 
@@ -66,7 +66,7 @@
                     <ColumnConstraints percentWidth="50"/>
                 </columnConstraints>
 
-                <VBox spacing="4" styleClass="sidebar-stat-card,approved-kpi" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                <VBox spacing="4" styleClass="sidebar-stat-card" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
                     <Label text="Categories" styleClass="stat-title"/>
 
@@ -74,7 +74,7 @@
 
                 </VBox>
 
-                <VBox spacing="4" styleClass="sidebar-stat-card,approved-kpi" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                <VBox spacing="4" styleClass="sidebar-stat-card" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
                     <Label text="Values" styleClass="stat-title"/>
 
@@ -93,11 +93,11 @@
             <!-- Category Actions -->
             <VBox spacing="10">
 
-                <Button text="Add Category" onAction="#addCategory" maxWidth="Infinity" styleClass="primary-button,approved-button,approved-primary-button"/>
+                <Button text="Add Category" onAction="#addCategory" maxWidth="Infinity" styleClass="primary-button"/>
 
-                <Button text="Rename Category" onAction="#renameCategory" maxWidth="Infinity" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+                <Button text="Rename Category" onAction="#renameCategory" maxWidth="Infinity" styleClass="secondary-button"/>
 
-                <Button text="Delete Category" onAction="#deleteCategory" maxWidth="Infinity" styleClass="danger-button,approved-button,approved-danger-button"/>
+                <Button text="Delete Category" onAction="#deleteCategory" maxWidth="Infinity" styleClass="danger-button"/>
 
             </VBox>
 
@@ -127,9 +127,9 @@
                 <HBox spacing="18">
 
                     <!-- Total Categories -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card,approved-kpi,approved-surface">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
 
-                        <StackPane fx:id="kpiCategoriesIcon" styleClass="master-kpi-icon,approved-kpi"/>
+                        <StackPane fx:id="kpiCategoriesIcon" styleClass="master-kpi-icon"/>
                         <Label text="Categories" styleClass="kpi-title"/>
 
                         <Label fx:id="lblDashboardCategoryCount" text="0" styleClass="kpi-value"/>
@@ -137,9 +137,9 @@
                     </VBox>
 
                     <!-- Total Values -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card,approved-kpi,approved-surface">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
 
-                        <StackPane fx:id="kpiValuesIcon" styleClass="master-kpi-icon,approved-kpi"/>
+                        <StackPane fx:id="kpiValuesIcon" styleClass="master-kpi-icon"/>
                         <Label text="Lookup Values" styleClass="kpi-title"/>
 
                         <Label fx:id="lblDashboardValueCount" text="0" styleClass="kpi-value"/>
@@ -147,9 +147,9 @@
                     </VBox>
 
                     <!-- Selected Category -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card,approved-kpi,approved-surface">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
 
-                        <StackPane fx:id="kpiSelectedIcon" styleClass="master-kpi-icon,approved-kpi"/>
+                        <StackPane fx:id="kpiSelectedIcon" styleClass="master-kpi-icon"/>
                         <Label text="Selected Category" styleClass="kpi-title"/>
 
                         <Label fx:id="lblSelectedCategory" text="-" styleClass="kpi-value-small"/>
@@ -157,9 +157,9 @@
                     </VBox>
 
                     <!-- Status -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card,approved-kpi,approved-surface">
+                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
 
-                        <StackPane fx:id="kpiStatusIcon" styleClass="master-kpi-icon,approved-kpi"/>
+                        <StackPane fx:id="kpiStatusIcon" styleClass="master-kpi-icon"/>
                         <Label text="System Status" styleClass="kpi-title"/>
 
                         <Label text="READY" styleClass="status-active,approved-status"/>
@@ -176,13 +176,13 @@
 
                     <Region HBox.hgrow="ALWAYS"/>
 
-                    <Button text="+ Add" onAction="#addLookup" styleClass="primary-button,approved-button,approved-primary-button"/>
+                    <Button text="+ Add" onAction="#addLookup" styleClass="primary-button"/>
 
-                    <Button text="Edit" onAction="#editLookup" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+                    <Button text="Edit" onAction="#editLookup" styleClass="secondary-button"/>
 
-                    <Button text="Delete" onAction="#deleteLookup" styleClass="danger-button,approved-button,approved-danger-button"/>
+                    <Button text="Delete" onAction="#deleteLookup" styleClass="danger-button"/>
 
-                    <Button text="Refresh" onAction="#refresh" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+                    <Button text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
 
                 </HBox>
 
@@ -190,7 +190,7 @@
                 <!-- TABLE CARD -->
                 <!-- ========================================================= -->
 
-                <VBox spacing="12" VBox.vgrow="ALWAYS" styleClass="table-card,approved-surface">
+                <VBox spacing="12" VBox.vgrow="ALWAYS" styleClass="table-card">
 
                     <!-- Table Header -->
                     <HBox alignment="CENTER_LEFT">
@@ -214,7 +214,7 @@
 
                                 <Label text="No Records Found" styleClass="empty-title"/>
 
-                                <Label text="Create a lookup value using the Add button." styleClass="empty-subtitle,approved-page-subtitle"/>
+                                <Label text="Create a lookup value using the Add button." styleClass="empty-subtitle"/>
 
                             </VBox>
 
@@ -277,7 +277,7 @@
             <!-- ANALYTICS PANEL -->
             <!-- ========================================================= -->
 
-            <VBox prefWidth="320" spacing="18" styleClass="analytics-panel,approved-surface">
+            <VBox prefWidth="320" spacing="18" styleClass="analytics-panel">
 
                 <!-- Title -->
 
@@ -289,7 +289,7 @@
 
                 <!-- Summary -->
 
-                <VBox spacing="12" styleClass="summary-card,approved-surface">
+                <VBox spacing="12" styleClass="summary-card">
 
                     <Label text="Summary" styleClass="summary-title"/>
 
@@ -320,21 +320,21 @@
 
                 <!-- Quick Actions -->
 
-                <VBox spacing="10" styleClass="summary-card,approved-surface">
+                <VBox spacing="10" styleClass="summary-card">
 
                     <Label text="Quick Actions" styleClass="summary-title"/>
 
-                    <Button text="Add Lookup" onAction="#addLookup" maxWidth="Infinity" styleClass="primary-button,approved-button,approved-primary-button"/>
+                    <Button text="Add Lookup" onAction="#addLookup" maxWidth="Infinity" styleClass="primary-button"/>
 
-                    <Button text="Add Category" onAction="#addCategory" maxWidth="Infinity" styleClass="secondary-button,approved-button,approved-primary-button"/>
+                    <Button text="Add Category" onAction="#addCategory" maxWidth="Infinity" styleClass="secondary-button"/>
 
-                    <Button text="Refresh" onAction="#refresh" maxWidth="Infinity" styleClass="secondary-button,approved-button,approved-secondary-button"/>
+                    <Button text="Refresh" onAction="#refresh" maxWidth="Infinity" styleClass="secondary-button"/>
 
                 </VBox>
 
                 <!-- Tips -->
 
-                <VBox spacing="8" styleClass="summary-card,approved-surface" VBox.vgrow="ALWAYS">
+                <VBox spacing="8" styleClass="summary-card" VBox.vgrow="ALWAYS">
 
                     <Label text="Tips" styleClass="summary-title"/>
 
