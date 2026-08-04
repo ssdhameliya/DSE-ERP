@@ -28,6 +28,8 @@ import org.example.update.UpdateDialogs;
 import org.example.update.UpdateService;
 import org.example.update.BuildInfo;
 import org.example.util.IconFactory;
+import org.example.util.PerformanceMonitor;
+import javafx.application.Platform;
 
 import java.io.File;
 import java.awt.Desktop;
@@ -272,10 +274,14 @@ public class SettingsController {
 
         configureChoiceFields();
         loadSettings();
-        refreshAllAssetPreviews();
-        refreshWorkspacePanel();
-
         showCompany();
+        Platform.runLater(() -> {
+            long started=System.nanoTime();
+            refreshAllAssetPreviews();
+            refreshWorkspacePanel();
+            long ms=(System.nanoTime()-started)/1_000_000L;
+            if(ms>=20)PerformanceMonitor.event("controller-phase","settings-deferred-init | "+ms+" ms");
+        });
     }
 
     private void configureChoiceFields() {

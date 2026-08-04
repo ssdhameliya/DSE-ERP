@@ -46,7 +46,7 @@ public class ReportsController implements ScreenLifecycle {
         cmbReportType.getItems().setAll("All Reports","Sales","Purchase","Inventory","Payments"); cmbReportType.getSelectionModel().selectFirst();
         setCell(colSaleNo,0);setCell(colSaleDate,1);setCell(colSaleParty,2);setCell(colSaleAmount,3);setCell(colSaleStatus,4);
         setCell(colPurchaseNo,0);setCell(colPurchaseDate,1);setCell(colPurchaseParty,2);setCell(colPurchaseAmount,3);setCell(colPurchaseStatus,4);
-        applyFilters(readFilters()); configureReportTables(); refresh();
+        loadFiltersAsync(); configureReportTables(); refresh();
     }
     private void setCell(TableColumn<String[],String> column,int index){column.setCellValueFactory(v->new SimpleStringProperty(v.getValue()[index]));}
     private void loadFiltersAsync(){
@@ -62,9 +62,15 @@ public class ReportsController implements ScreenLifecycle {
         if(dpFrom.getValue()==null||dpTo.getValue()==null||dpFrom.getValue().isAfter(dpTo.getValue())){error("Choose a valid reporting date range.");return;}
         String from=dpFrom.getValue().toString(),to=dpTo.getValue().toString();
         setBusy(true);
-        try{ReportData data=loadReport(from,to);applyReport(data);loaded=true;ScreenRefreshPolicy.markRefreshed("reports");}
-        catch(Exception failure){error("Could not load report data: "+failure.getMessage());}
-        finally{setBusy(false);}
+        UiTaskExecutor.submitLatest(TASK_KEY, () -> loadReport(from,to), data -> {
+            long started=System.nanoTime();
+            applyReportCore(data);
+            loaded=true; ScreenRefreshPolicy.markRefreshed("reports"); setBusy(false);
+            logUiPhase("reports-core-apply", started);
+            javafx.application.Platform.runLater(() -> {
+                long chartStarted=System.nanoTime(); applyCharts(data); logUiPhase("reports-chart-apply", chartStarted);
+            });
+        }, failure -> { setBusy(false); error("Could not load report data: "+failure.getMessage()); });
     }
     private ReportData loadReport(String from,String to) throws SQLException {
         PerformanceMonitor.start("reports-query-bundle");
@@ -87,18 +93,22 @@ public class ReportsController implements ScreenLifecycle {
             return new ReportData(sales,purchase,profit,receivables,stock,low,customers,trend,customerPoints,itemPoints,salesRows,purchaseRows,salesPaid,payables,purchasesPaid,items,out);
         } finally { PerformanceMonitor.finish("reports-query-bundle"); }
     }
-    private void applyReport(ReportData d){
+    private void applyReportCore(ReportData d){
+
         lblSales.setText(money(d.sales()));lblPurchase.setText(money(d.purchase()));lblProfit.setText(money(d.profit()));lblReceivables.setText(money(d.receivables()));lblStock.setText(money(d.stock()));
         lblLowStock.setText(d.low()+" low-stock items");lblCustomers.setText(String.valueOf(d.customers()));
         double margin=d.sales()==0?0:(d.profit()/d.sales())*100;lblMargin.setText(String.format("%.2f%%",margin));profitProgress.setProgress(Math.max(0,Math.min(1,margin/100)));
-        XYChart.Series<String,Number> trend=new XYChart.Series<>();trend.setName("Sales");d.trend().forEach(p->trend.getData().add(new XYChart.Data<>(p.label(),p.value())));if(chartTrend!=null&&chartTrend.isManaged())chartTrend.getData().setAll(trend);
-        XYChart.Series<String,Number> customers=new XYChart.Series<>();customers.setName("Sales by customer");d.customerPoints().forEach(p->customers.getData().add(new XYChart.Data<>(p.label(),p.value())));if(chartCustomers!=null&&chartCustomers.isManaged())chartCustomers.getData().setAll(customers);
-        if(chartItems!=null&&chartItems.isManaged())chartItems.setData(FXCollections.observableArrayList(d.itemPoints().stream().map(p->new PieChart.Data(p.label(),p.value())).toList()));
-        if(chartComparison!=null&&chartComparison.isManaged())chartComparison.setData(FXCollections.observableArrayList(new PieChart.Data("Sales",d.sales()),new PieChart.Data("Purchases",d.purchase())));
         tblSales.getItems().setAll(d.salesRows());tblPurchases.getItems().setAll(d.purchaseRows());
         paymentSummary.getItems().setAll("Total Receivables     "+money(d.receivables()),"Received Amount      "+money(d.salesPaid()),"Total Payables        "+money(d.payables()),"Paid Amount           "+money(d.purchasesPaid()));
         stockSummary.getItems().setAll("Total Items           "+d.items(),"Low Stock Items       "+d.low(),"Out of Stock          "+d.out(),"Stock Value           "+money(d.stock()));
     }
+    private void applyCharts(ReportData d){
+        XYChart.Series<String,Number> trend=new XYChart.Series<>();trend.setName("Sales");d.trend().forEach(p->trend.getData().add(new XYChart.Data<>(p.label(),p.value())));if(chartTrend!=null&&chartTrend.isManaged())chartTrend.getData().setAll(trend);
+        XYChart.Series<String,Number> customers=new XYChart.Series<>();customers.setName("Sales by customer");d.customerPoints().forEach(p->customers.getData().add(new XYChart.Data<>(p.label(),p.value())));if(chartCustomers!=null&&chartCustomers.isManaged())chartCustomers.getData().setAll(customers);
+        if(chartItems!=null&&chartItems.isManaged())chartItems.setData(FXCollections.observableArrayList(d.itemPoints().stream().map(p->new PieChart.Data(p.label(),p.value())).toList()));
+        if(chartComparison!=null&&chartComparison.isManaged())chartComparison.setData(FXCollections.observableArrayList(new PieChart.Data("Sales",d.sales()),new PieChart.Data("Purchases",d.purchase())));
+    }
+    private void logUiPhase(String name,long started){long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)PerformanceMonitor.event("controller-phase",name+" | "+ms+" ms");}
     private void setBusy(boolean busy){btnRefresh.setDisable(busy);btnApply.setDisable(busy);btnReset.setDisable(busy);tblSales.setDisable(busy);tblPurchases.setDisable(busy);}
     private List<Point> queryPoints(String sql,String from,String to)throws SQLException{List<Point> out=new ArrayList<>();try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement(sql)){p.setString(1,from);p.setString(2,to);try(ResultSet r=p.executeQuery()){while(r.next())out.add(new Point(Objects.toString(r.getString(1),"—"),r.getDouble(2)));}}return out;}
     private List<String[]> queryRows(String sql,String from,String to)throws SQLException{List<String[]> out=new ArrayList<>();try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement(sql)){p.setString(1,from);p.setString(2,to);try(ResultSet r=p.executeQuery()){while(r.next())out.add(new String[]{r.getString(1),r.getString(2),Objects.toString(r.getString(3),"—"),money(r.getDouble(4)),r.getString(5)});}}return out;}
@@ -108,7 +118,7 @@ public class ReportsController implements ScreenLifecycle {
     @Override public void onScreenHidden(){ UiTaskExecutor.cancelPrefix("reports-"); }
     @FXML private void exportPdf(){export("PDF Report","business-report.pdf","*.pdf",true);}@FXML private void exportExcel(){export("Excel Report","business-report.xlsx","*.xlsx",false);}
     @FXML private void viewAllSales(){navigate("/fxml/pages/SalesList.fxml");}@FXML private void viewAllPurchases(){navigate("/fxml/pages/PurchaseList.fxml");}
-    private void navigate(String page){StackPane content=(StackPane)dpFrom.getScene().lookup("#contentPane");if(content!=null)new NavigationManager(content).loadPage(page);}
+    private void navigate(String page){StackPane content=(StackPane)dpFrom.getScene().lookup("#contentPane");if(content!=null)NavigationManager.forPane(content).loadPage(page);}
     private void export(String title,String name,String ext,boolean pdf){FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,ext));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();String suffix=pdf?".pdf":".xlsx";if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitLatest("reports-export",()->{if(pdf)reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());else reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());return target;},done->new OwnedAlert(Alert.AlertType.INFORMATION,"Report created successfully:\n"+done).showAndWait(),e->error("Could not create report: "+e.getMessage()));}
     private String money(double n){return "₹ "+String.format("%,.2f",n);}private void error(String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message);a.setHeaderText("Reporting error");a.showAndWait();}
     private void configureReportTables(){

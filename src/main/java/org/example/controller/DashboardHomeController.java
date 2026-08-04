@@ -381,9 +381,9 @@ public class DashboardHomeController {
     private void open(ActionEvent event, String fxml) {
         Node source = (Node) event.getSource();
         StackPane content = (StackPane) source.getScene().lookup("#contentPane");
-        if (content != null) new NavigationManager(content).loadPage(fxml);
+        if (content != null) NavigationManager.forPane(content).loadPage(fxml);
     }
-    private void openFromNode(Node source,String fxml){StackPane content=(StackPane)source.getScene().lookup("#contentPane");if(content!=null)new NavigationManager(content).loadPage(fxml);}
+    private void openFromNode(Node source,String fxml){StackPane content=(StackPane)source.getScene().lookup("#contentPane");if(content!=null)NavigationManager.forPane(content).loadPage(fxml);}
 
     private long count(String sql) { return (long) number(sql); }
     private double number(String sql) {

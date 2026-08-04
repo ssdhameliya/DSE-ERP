@@ -30,6 +30,11 @@ import org.example.database.DatabaseManager;
 import org.example.model.Sales;
 import org.example.model.SalesLine;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
+import org.example.util.UiTaskExecutor;
+import org.example.util.PerformanceMonitor;
+import org.example.util.PlatformUiSupport;
+import org.example.util.ScreenRefreshPolicy;
 import org.example.service.*;
 import org.example.util.IconFactory;
 import org.example.util.TableSelectionSupport;
@@ -47,7 +52,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Predicate;
 
-public class SalesListController {
+public class SalesListController implements ScreenLifecycle {
     @FXML private Label lblTotalSales,lblInvoiceCount,lblTodaySales,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblDueSoon,lblDueSoonCount,lblEmailRate;
     @FXML private StackPane salesTitleIcon,totalSalesIcon,todaySalesIcon,pendingSalesIcon,overdueSalesIcon,dueSoonIcon,emailRateIcon;
     @FXML private Button btnNewSale,btnResetFilters,btnRefreshSales,btnApplyFilters,btnExportExcel,btnExportPdf,btnPrintRegister;
@@ -90,7 +95,6 @@ public class SalesListController {
         detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1.0);
         tableSales.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null)showDetails(b);});
         txtSearch.textProperty().addListener((o,a,b)->applyFilters());
-        refresh();
     }
 
 
@@ -220,9 +224,15 @@ public class SalesListController {
     }
 
     @FXML public void refresh(){
-        allSales=new ArrayList<>(service.getAll());
+        UiTaskExecutor.submitLatest("sales-register-load", () -> new ArrayList<>(service.getAll()), this::applyLoadedSales, this::error);
+    }
+    private void applyLoadedSales(ArrayList<Sales> loaded){
+        long started=System.nanoTime();
+        allSales=loaded;
         cmbCustomer.getItems().setAll("All customers");cmbCustomer.getItems().addAll(allSales.stream().map(s->s.getCustomer().getName()).filter(Objects::nonNull).distinct().sorted().toList());if(cmbCustomer.getValue()==null)cmbCustomer.setValue("All customers");
-        loadSavedViews();updateMetrics();applyFilters();updateCharts();
+        loadSavedViews();updateMetrics();applyFilters();
+        if(!PlatformUiSupport.isMac()) javafx.application.Platform.runLater(this::updateCharts);
+        long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)PerformanceMonitor.event("controller-phase","sales-register-apply | "+ms+" ms");
     }
 
     @FXML public void applyFilters(){
@@ -242,11 +252,16 @@ public class SalesListController {
     private void updateFooter(){lblFooterTotal.setText(money(sum(filteredSales,Sales::getTotalAmount)));lblFooterPaid.setText(money(sum(filteredSales,Sales::getPaidAmount)));lblFooterBalance.setText(money(sum(filteredSales,Sales::getBalanceAmount)));}
 
     private void updateCharts(){
-        if(dueChart==null||customerChart==null||salesChart==null)return;
+        if(PlatformUiSupport.isMac()||dueChart==null||customerChart==null||salesChart==null)return;
         Map<String,Double> buckets=new LinkedHashMap<>();buckets.put("Due Today",0d);buckets.put("1-7 Days",0d);buckets.put("8-30 Days",0d);buckets.put("Over 30 Days",0d);for(Sales s:allSales)if(s.getBalanceAmount()>0&&s.getDueDate()!=null){long d=java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(),s.getDueDate());String k=d<=0?"Due Today":d<=7?"1-7 Days":d<=30?"8-30 Days":"Over 30 Days";buckets.merge(k,s.getBalanceAmount(),Double::sum);}dueChart.getData().setAll(buckets.entrySet().stream().filter(e->e.getValue()>0).map(e->new PieChart.Data(e.getKey(),e.getValue())).toList());
         Map<String,Double> customers=new HashMap<>();for(Sales s:allSales){String customerName=s.getCustomer()==null?null:s.getCustomer().getName();if(customerName==null||customerName.isBlank())customerName="Unknown Customer";customers.merge(customerName,s.getTotalAmount(),Double::sum);}XYChart.Series<Number,String> cs=new XYChart.Series<>();customers.entrySet().stream().sorted(Map.Entry.<String,Double>comparingByValue().reversed()).limit(5).forEach(e->cs.getData().add(new XYChart.Data<>(e.getValue(),e.getKey())));customerChart.getData().setAll(cs);
         Map<String,Double> months=new TreeMap<>();for(Sales s:allSales)months.merge(s.getInvoiceDate().toString().substring(0,7),s.getTotalAmount(),Double::sum);XYChart.Series<String,Number> ss=new XYChart.Series<>();months.entrySet().stream().skip(Math.max(0,months.size()-7)).forEach(e->ss.getData().add(new XYChart.Data<>(e.getKey(),e.getValue())));salesChart.getData().setAll(ss);
     }
+
+    @Override public void onScreenShown(boolean reusedFromCache){
+        if(allSales.isEmpty() || ScreenRefreshPolicy.shouldRefresh("sales-register", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) refresh();
+    }
+    @Override public void onScreenHidden(){UiTaskExecutor.cancel("sales-register-load");}
 
     private void showDetails(Sales sale){selected=sale;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.78);lblDetailInvoice.setText(sale.getInvoiceNo());lblDetailDate.setText(sale.getInvoiceDate().format(dateFormat));lblDetailStatus.setText(sale.getPaymentStatus());lblDetailCustomer.setText(sale.getCustomer().getName());lblDetailContact.setText(safe(sale.getCustomer().getPhone())+"\n"+safe(sale.getCustomer().getEmail())+"\n"+safe(sale.getCustomer().getGstin()));lblDetailAmount.setText(money(sale.getTotalAmount()));lblDetailPaid.setText(money(sale.getPaidAmount()));lblDetailBalance.setText(money(sale.getBalanceAmount()));lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(dateFormat)+" • "+dueLabel(sale));txtDetailNotes.setText(sale.getNotes());}
     @FXML private void closeDetails(){selected=null;detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1);tableSales.getSelectionModel().clearSelection();}
@@ -273,7 +288,7 @@ public class SalesListController {
     private void loadSavedViews(){savedViewsMenu.getItems().clear();try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement("SELECT view_name,filter_json FROM saved_filter WHERE screen_key='SALES_REGISTER' AND (user_id=? OR user_id IS NULL) ORDER BY view_name")){if(SessionService.current()==null)p.setNull(1,Types.INTEGER);else p.setInt(1,SessionService.current().getId());try(ResultSet r=p.executeQuery()){while(r.next()){String name=r.getString(1),data=r.getString(2);MenuItem i=new MenuItem(name);i.setOnAction(e->applySaved(data));savedViewsMenu.getItems().add(i);}}}catch(Exception ignored){}if(savedViewsMenu.getItems().isEmpty())savedViewsMenu.getItems().add(new MenuItem("No saved views"));}
     private void applySaved(String data){String[]x=data.split("\\|",-1);if(x.length<11)return;txtInvoice.setText(x[0]);cmbCustomer.setValue(x[1]);dpFrom.setValue(date(x[2]));dpTo.setValue(date(x[3]));cmbPaymentStatus.setValue(x[4]);cmbPaymentDue.setValue(x[5]);cmbMailStatus.setValue(x[6]);cmbWhatsappStatus.setValue(x[7]);cmbInvoiceType.setValue(x[8]);txtAmountFrom.setText(x[9]);txtAmountTo.setText(x[10]);applyFilters();}
 
-    @FXML private void newSale(){StackPane pane=(StackPane)tableSales.getScene().lookup("#contentPane");if(pane!=null)new NavigationManager(pane).loadPage("/fxml/pages/Sale.fxml");}
+    @FXML private void newSale(){StackPane pane=(StackPane)tableSales.getScene().lookup("#contentPane");if(pane!=null)NavigationManager.forPane(pane).loadPage("/fxml/pages/Sale.fxml");}
     private void edit(Sales sale){try{FXMLLoader loader=new FXMLLoader(getClass().getResource("/fxml/pages/Sale.fxml"));Parent root=loader.load();((SalesController)loader.getController()).loadSale(service.getByInvoice(sale.getInvoiceNo()));StackPane pane=(StackPane)tableSales.getScene().lookup("#contentPane");pane.getChildren().setAll(root);}catch(Exception e){error(e);}}
     private void openPdf(Sales sale){try{Path p=InvoicePdfService.sales(service.getByInvoice(sale.getInvoiceNo()));java.awt.Desktop.getDesktop().open(p.toFile());log("SALE",sale.getId(),"PDF_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
     private void sendEmail(Sales sale){String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=InvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.config.ConfigManager.get("company.name","DSE ERP"),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}

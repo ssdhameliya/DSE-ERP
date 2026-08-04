@@ -8,12 +8,16 @@ import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.LongAdder;
+import java.lang.management.ManagementFactory;
+import java.lang.management.GarbageCollectorMXBean;
 
 /** Lightweight production timing used by navigation and background screen loads. */
 public final class PerformanceMonitor {
     private static final ConcurrentMap<String, Long> STARTS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Stats> STATS = new ConcurrentHashMap<>();
     private static final long MAX_LOG_BYTES = 2L * 1024L * 1024L;
+    private static volatile long lastGcCount = totalGcCount();
+    private static volatile long lastGcTime = totalGcTime();
 
     private PerformanceMonitor() { }
 
@@ -34,6 +38,14 @@ public final class PerformanceMonitor {
     public static void event(String category, String detail) {
         if (category != null) log(category, detail == null ? "" : detail);
     }
+
+    public static void sampleGc(String reason) {
+        long count=totalGcCount(), time=totalGcTime();
+        long dc=count-lastGcCount, dt=time-lastGcTime; lastGcCount=count; lastGcTime=time;
+        if(dc>0||dt>0) event("gc", "reason="+reason+" | collections="+dc+" | time="+dt+" ms");
+    }
+    private static long totalGcCount(){long n=0;for(GarbageCollectorMXBean b:ManagementFactory.getGarbageCollectorMXBeans())if(b.getCollectionCount()>0)n+=b.getCollectionCount();return n;}
+    private static long totalGcTime(){long n=0;for(GarbageCollectorMXBean b:ManagementFactory.getGarbageCollectorMXBeans())if(b.getCollectionTime()>0)n+=b.getCollectionTime();return n;}
 
     public static Snapshot snapshot(String operation) {
         Stats stats = STATS.get(operation);

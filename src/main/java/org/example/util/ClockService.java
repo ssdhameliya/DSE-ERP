@@ -33,6 +33,7 @@ public final class ClockService {
     }
 
     private static void updateAll() {
+        long started=System.nanoTime();
         String value = LocalDateTime.now().format(FORMATTER);
         for (WeakReference<Label> reference : LABELS) {
             Label label = reference.get();
@@ -41,6 +42,8 @@ public final class ClockService {
             }
         }
         LABELS.removeIf(reference -> reference.get() == null);
+        long millis=(System.nanoTime()-started)/1_000_000L;
+        if(millis>=20)PerformanceMonitor.event("recurring-task","clock-update | "+millis+" ms | labels="+LABELS.size());
     }
 
     private static void update(Label label) {

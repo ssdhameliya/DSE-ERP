@@ -44,6 +44,14 @@ public class NavigationManager {
         return instance;
     }
 
+    /** Reuses the shell navigation manager so feature screens cannot accidentally
+     * replace the shared cache by constructing a second manager. */
+    public static NavigationManager forPane(StackPane pane) {
+        if (pane == null) return instance;
+        NavigationManager current = instance;
+        return current != null && current.contentPane == pane ? current : new NavigationManager(pane);
+    }
+
     /**
      * Loads a page atomically so controller failures or rapid repeated menu
      * clicks cannot close the application shell.
@@ -92,7 +100,9 @@ public class NavigationManager {
             // New pages are enhanced once before attachment. Cached pages are reused
             // without another full CSS/layout/enhancement traversal. This is critical
             // for macOS Retina responsiveness and also benefits Windows.
+            long lifecycleStarted=System.nanoTime();
             notifyShown(cached.controller(), reused);
+            logPhase(fxml, "controller-shown", lifecycleStarted);
             // Legacy controllers still receive their existing refresh method until
             // they opt into ScreenLifecycle.
             if (reused && !fxml.equals(currentPage)
@@ -107,6 +117,7 @@ public class NavigationManager {
             currentPage = fxml;
             PerformanceMonitor.event("navigation-cache", fxml + " | " + (reused ? "hit" : "miss")
                 + " | size=" + pageCache.size());
+            PerformanceMonitor.sampleGc("navigation:"+fxml);
             return true;
         } catch (Throwable error) {
             error.printStackTrace();

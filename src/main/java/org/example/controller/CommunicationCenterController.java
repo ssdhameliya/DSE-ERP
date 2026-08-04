@@ -17,6 +17,8 @@ import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
 import java.sql.*;
 import java.util.*;
+import org.example.util.UiTaskExecutor;
+import org.example.util.PerformanceMonitor;
 
 public class CommunicationCenterController implements ScreenLifecycle {
     @FXML private Label lblTotal,lblSuccess,lblFailed,lblChannels;
@@ -30,7 +32,20 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private void installKpiIcons(){setKpiIcon(communicationTotalIcon,"communication");setKpiIcon(communicationSuccessIcon,"complete");setKpiIcon(communicationFailedIcon,"error");setKpiIcon(communicationChannelIcon,"email");}
     private void setKpiIcon(StackPane pane,String semantic){if(pane!=null)pane.getChildren().setAll(IconFactory.compactIcon(semantic,22));}
 
-    @FXML public void refresh(){List<Row>x=new ArrayList<>();try(Connection c=DatabaseManager.getConnection();Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT * FROM communication_log ORDER BY id DESC")){while(r.next())x.add(new Row(r.getString("created_at"),r.getString("entity_type")+" #"+r.getInt("entity_id"),r.getString("channel"),r.getString("recipient"),r.getString("subject"),r.getString("status"),r.getString("error_message"),r.getString("created_by")));}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}all=x;lblTotal.setText(String.valueOf(x.size()));lblSuccess.setText(String.valueOf(x.stream().filter(r->!r.status.get().equals("FAILED")).count()));lblFailed.setText(String.valueOf(x.stream().filter(r->r.status.get().equals("FAILED")).count()));long email=x.stream().filter(r->r.channel.get().equals("EMAIL")).count();lblChannels.setText(email+" / "+(x.size()-email));filter();}
+    @FXML public void refresh(){
+        UiTaskExecutor.submitLatest("communication-load", this::readRows, this::applyRows, error -> new OwnedAlert(Alert.AlertType.ERROR,error.getMessage()).showAndWait());
+    }
+    private List<Row> readRows() throws Exception {
+        List<Row>x=new ArrayList<>();
+        try(Connection c=DatabaseManager.getConnection();Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT * FROM communication_log ORDER BY id DESC")){
+            while(r.next())x.add(new Row(r.getString("created_at"),r.getString("entity_type")+" #"+r.getInt("entity_id"),r.getString("channel"),r.getString("recipient"),r.getString("subject"),r.getString("status"),r.getString("error_message"),r.getString("created_by")));
+        }
+        return x;
+    }
+    private void applyRows(List<Row> x){
+        long started=System.nanoTime(); all=x;lblTotal.setText(String.valueOf(x.size()));lblSuccess.setText(String.valueOf(x.stream().filter(r->!r.status.get().equals("FAILED")).count()));lblFailed.setText(String.valueOf(x.stream().filter(r->r.status.get().equals("FAILED")).count()));long email=x.stream().filter(r->r.channel.get().equals("EMAIL")).count();lblChannels.setText(email+" / "+(x.size()-email));filter();
+        long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)PerformanceMonitor.event("controller-phase","communication-apply | "+ms+" ms");
+    }
     private void filter(){String q=txtSearch.getText()==null?"":txtSearch.getText().toLowerCase();table.getItems().setAll(all.stream().filter(r->q.isBlank()||(r.entity.get()+r.recipient.get()+r.subject.get()).toLowerCase().contains(q)).filter(r->cmbChannel.getValue().startsWith("All")||r.channel.get().equals(cmbChannel.getValue())).filter(r->cmbStatus.getValue().startsWith("All")||r.status.get().equals(cmbStatus.getValue())).toList());}
 
     private void configureActions(){
@@ -66,7 +81,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
         String requested=CommunicationScreenContext.take();
         if(requested!=null)applyRequestedChannel(requested);
     }
-    @Override public void onScreenHidden(){}
+    @Override public void onScreenHidden(){UiTaskExecutor.cancel("communication-load");}
 
     private void configureExplicitTableHeaderIcons() {
         IconFactory.applyTableHeaderIcon(colTime, "calendar");

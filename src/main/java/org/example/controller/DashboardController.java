@@ -43,6 +43,7 @@ import javafx.scene.input.KeyCombination;
 import org.example.navigation.NavigationManager;
 import org.example.theme.ThemeManager;
 import org.example.util.ClockService;
+import org.example.util.PerformanceMonitor;
 import org.example.util.PlatformUiSupport;
 
 import java.util.List;
@@ -164,7 +165,7 @@ public class DashboardController {
         Platform.runLater(this::bindShellControls);
         applyRolePermissions();
         notificationRefresh = new Timeline(
-            new KeyFrame(Duration.seconds(30), event -> refreshShellIndicatorsAsync()));
+            new KeyFrame(Duration.seconds(60), event -> { PerformanceMonitor.event("recurring-task", "shell-indicators"); refreshShellIndicatorsAsync(); }));
         notificationRefresh.setCycleCount(Timeline.INDEFINITE);
         notificationRefresh.play();
 
