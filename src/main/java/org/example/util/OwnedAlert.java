@@ -3,6 +3,7 @@ package org.example.util;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Modality;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
@@ -15,6 +16,17 @@ public class OwnedAlert extends Alert {
         super(alertType, contentText, buttons); prepare();
     }
     private void prepare() {
+        String semantic = switch (getAlertType()) {
+            case CONFIRMATION -> "question";
+            case WARNING -> "warning";
+            case ERROR -> "error";
+            case INFORMATION -> "info";
+            default -> "info";
+        };
+        StackPane semanticGraphic = new StackPane(SemanticIconManager.compact(semantic, 24));
+        semanticGraphic.getStyleClass().addAll("alert-semantic-icon", "alert-semantic-" + semantic);
+        getDialogPane().setGraphic(semanticGraphic);
+        getDialogPane().getStyleClass().add("semantic-alert-" + semantic);
         Window owner = DialogOwnerResolver.resolve();
         if (PlatformUiSupport.isMac()) initStyle(StageStyle.UTILITY);
         if (owner != null) { initOwner(owner); initModality(Modality.WINDOW_MODAL); }

@@ -74,11 +74,24 @@ public class UserAccessController {
         colDepartment.setCellValueFactory(v->v.getValue().department); colAccess.setCellValueFactory(v->v.getValue().access); colBranch.setCellValueFactory(v->v.getValue().branch);
         colStatus.setCellValueFactory(v->v.getValue().status); colLastLogin.setCellValueFactory(v->v.getValue().lastLogin); colMfa.setCellValueFactory(v->v.getValue().mfa);
         colActions.setCellFactory(c->userActionCell());
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        colUser.setMinWidth(82); colUser.setPrefWidth(95);
+        colEmail.setMinWidth(135); colEmail.setPrefWidth(170);
+        colRole.setMinWidth(68); colRole.setPrefWidth(78);
+        colDepartment.setMinWidth(72); colDepartment.setPrefWidth(88);
+        colAccess.setMinWidth(72); colAccess.setPrefWidth(82);
+        colBranch.setMinWidth(62); colBranch.setPrefWidth(72);
+        colStatus.setMinWidth(72); colStatus.setPrefWidth(82);
+        colLastLogin.setMinWidth(98); colLastLogin.setPrefWidth(112);
+        colMfa.setMinWidth(48); colMfa.setPrefWidth(56);
+        colActions.setMinWidth(58); colActions.setPrefWidth(64);
         table.setRowFactory(tv->{ TableRow<UserRow> row=new TableRow<>(); row.setOnMouseClicked(e->{if(!row.isEmpty()&&e.getButton()==MouseButton.PRIMARY&&e.getClickCount()==2)edit(row.getItem());}); return row;});
     }
     private void configureRoleTable(){
         colRoleName.setCellValueFactory(v->v.getValue().name); colRoleDescription.setCellValueFactory(v->v.getValue().description);
         colRoleUsers.setCellValueFactory(v->v.getValue().users); colRoleStatus.setCellValueFactory(v->v.getValue().status); colRoleActions.setCellFactory(c->roleActionCell());
+        roleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78); colRoleActions.setMinWidth(70);
         roleTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null){cmbPermissionRole.setValue(b.name.get());lblRoleHint.setText(b.description.get());}});
     }
     private void configurePermissionTable(){

@@ -226,7 +226,6 @@
 
                                 <items>
 
-                                    <MenuItem text="Add Lookup" onAction="#addLookup"/>
 
                                     <MenuItem text="Edit Lookup" onAction="#editLookup"/>
 

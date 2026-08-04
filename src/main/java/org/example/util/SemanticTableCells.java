@@ -22,6 +22,7 @@ public final class SemanticTableCells {
                 setGraphic(null);
                 setAlignment(Pos.CENTER_LEFT);
                 getStyleClass().removeAll("pill-success", "pill-warning", "pill-danger", "pill-neutral");
+                if (!getStyleClass().contains("semantic-register-cell")) getStyleClass().add("semantic-register-cell");
                 if (empty || value == null || value.isBlank()) return;
 
                 State state = classify(value);
@@ -40,6 +41,7 @@ public final class SemanticTableCells {
                 setGraphic(null);
                 setAlignment(Pos.CENTER_LEFT);
                 getStyleClass().removeAll("pill-success", "pill-warning", "pill-danger", "pill-neutral");
+                if (!getStyleClass().contains("semantic-register-cell")) getStyleClass().add("semantic-register-cell");
                 if (empty || value == null || value.isBlank()) return;
                 String normalized = value.trim().toLowerCase(Locale.ROOT);
                 boolean paid = normalized.equals("paid") || normalized.startsWith("paid ");

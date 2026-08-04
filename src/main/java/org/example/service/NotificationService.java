@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.database.DatabaseManager;
+import org.example.config.ConfigManager;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -50,6 +51,7 @@ public final class NotificationService {
     /** Stores a notification that can optionally navigate to a related screen. */
     public static void createNotification(String title, String message, String severity,
                                           String targetFxml, String referenceNo) {
+        if (!isAllowed(title, message, targetFxml)) return;
         String insert = "INSERT INTO notifications(title,message,severity,is_read,target_fxml,reference_no,created_at) VALUES(?,?,?,?,?,?,?)";
         try (Connection con = DatabaseManager.getConnection(); PreparedStatement ps = con.prepareStatement(insert)) {
             ps.setString(1, title);
@@ -63,6 +65,23 @@ public final class NotificationService {
         } catch (SQLException ex) {
             ex.printStackTrace();
         }
+    }
+
+
+    private static boolean isAllowed(String title, String message, String targetFxml) {
+        if (!Boolean.parseBoolean(ConfigManager.get("notifications.enabled", "true"))) return false;
+        String text = ((title == null ? "" : title) + " " + (message == null ? "" : message) + " " + (targetFxml == null ? "" : targetFxml)).toLowerCase();
+        String category;
+        if (text.contains("quotation")) category = "quotations";
+        else if (text.contains("return") || text.contains("refund")) category = "returns";
+        else if (text.contains("payment") || text.contains("paid") || text.contains("receipt")) category = "payments";
+        else if (text.contains("stock") || text.contains("inventory") || text.contains("item")) category = "inventory";
+        else if (text.contains("reminder") || text.contains("follow-up") || text.contains("follow up")) category = "reminders";
+        else if (text.contains("email") || text.contains("whatsapp") || text.contains("communication")) category = "communication";
+        else if (text.contains("backup") || text.contains("restore") || text.contains("import") || text.contains("update")) category = "system";
+        else if (text.contains("purchase") || text.contains("supplier")) category = "purchases";
+        else category = "sales";
+        return Boolean.parseBoolean(ConfigManager.get("notifications.category." + category, "true"));
     }
 
     /** Returns the newest notification rows for the notification center. */

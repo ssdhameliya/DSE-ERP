@@ -62,7 +62,7 @@ public class ReminderCenterController {
         cmbPriority.getItems().setAll("All Priorities", "LOW", "NORMAL", "HIGH", "URGENT");
         cmbPeriod.getItems().setAll("All Dates", "Overdue", "Due Today", "Next 7 Days", "Next 30 Days");
 
-        cmbStatus.setValue("OPEN");
+        cmbStatus.setValue("All Statuses");
         cmbPriority.setValue("All Priorities");
         cmbPeriod.setValue("All Dates");
     }
@@ -232,7 +232,7 @@ public class ReminderCenterController {
     @FXML
     private void clearFilters() {
         txtSearch.clear();
-        cmbStatus.setValue("OPEN");
+        cmbStatus.setValue("All Statuses");
         cmbPriority.setValue("All Priorities");
         cmbPeriod.setValue("All Dates");
         applyFilters();

@@ -1,8 +1,0 @@
-src/main/resources/fxml/pages/DashboardHome.fxml
-src/main/java/org/example/controller/DashboardHomeController.java
-src/main/java/org/example/util/ApprovedUiSystem.java
-src/main/java/org/example/util/SharedUiFramework.java
-src/main/resources/css/light-theme.css
-src/main/resources/css/dark-theme.css
-APPROVED-UI-IMPLEMENTATION-2.1.9.md
-docs/approved-ui/*

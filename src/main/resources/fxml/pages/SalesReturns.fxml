@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Sales Return Register: database KPIs, date/status filters and transactional actions. --><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesReturnsController" spacing="14" styleClass="register-page,approved-ui,approved-screen,approved-screen-sales-returns,erp-screen-root">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Sales Return Register: database KPIs, date/status filters and transactional actions. --><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesReturnsController" spacing="14" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-sales-returns,erp-screen-root">
   <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
 
   <HBox alignment="CENTER_LEFT">
@@ -8,12 +8,12 @@
     <Button text="＋ Create Sales Return" onAction="#create" styleClass="primary-action"/>
   </HBox>
 
-  <HBox spacing="12">
-    <VBox styleClass="return-kpi,kpi-with-icon,kpi-return" HBox.hgrow="ALWAYS"><Label text="↩" styleClass="kpi-semantic-icon,kpi-icon-return"/><Label text="Total Returns"/><Label fx:id="total" styleClass="money-strong"/><Label text="All returns"/></VBox>
-    <VBox styleClass="return-kpi,kpi-with-icon,kpi-calendar" HBox.hgrow="ALWAYS"><Label text="◷" styleClass="kpi-semantic-icon,kpi-icon-calendar"/><Label text="This Month"/><Label fx:id="month" styleClass="money-strong"/><Label text="Current period"/></VBox>
-    <VBox styleClass="return-kpi,kpi-with-icon,kpi-warning" HBox.hgrow="ALWAYS"><Label text="!" styleClass="kpi-semantic-icon,kpi-icon-warning"/><Label text="Pending Returns"/><Label fx:id="pending" styleClass="money-strong"/><Label text="Awaiting action"/></VBox>
-    <VBox styleClass="return-kpi,kpi-with-icon,kpi-complete" HBox.hgrow="ALWAYS"><Label text="✓" styleClass="kpi-semantic-icon,kpi-icon-complete"/><Label text="Approved Returns"/><Label fx:id="approved" styleClass="money-strong"/><Label text="Approved / completed"/></VBox>
-    <VBox styleClass="return-kpi,kpi-with-icon,kpi-payment" HBox.hgrow="ALWAYS"><Label text="₹" styleClass="kpi-semantic-icon,kpi-icon-payment"/><Label text="Refunded Amount"/><Label fx:id="refund" styleClass="money-strong"/><Label text="Processed refunds"/></VBox>
+  <HBox spacing="12" styleClass="return-kpi-row">
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="↩" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Total Returns" styleClass="metric-label"/><Label fx:id="total" styleClass="metric-value"/><Label text="All returns" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-today" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="◷" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="This Month" styleClass="metric-label"/><Label fx:id="month" styleClass="metric-value"/><Label text="Current period" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-pending" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="!" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Pending Returns" styleClass="metric-label"/><Label fx:id="pending" styleClass="metric-value"/><Label text="Awaiting action" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-email" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="✓" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Approved Returns" styleClass="metric-label"/><Label fx:id="approved" styleClass="metric-value"/><Label text="Approved / completed" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-due" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="₹" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Refunded Amount" styleClass="metric-label"/><Label fx:id="refund" styleClass="metric-value"/><Label text="Processed refunds" styleClass="metric-note"/></VBox></HBox>
   </HBox>
 
   <VBox spacing="10" styleClass="filter-surface,approved-filter-bar">

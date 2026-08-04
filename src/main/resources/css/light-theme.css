@@ -5289,3 +5289,126 @@ SECTION TITLES
 .compact-layout .approved-filter-bar, .compact-layout .approved-toolbar { -fx-padding:8; -fx-spacing:6; }
 .small-display .approved-kpi, .small-display .approved-surface, .small-display .approved-card { -fx-padding:10; }
 .platform-mac .approved-surface, .platform-mac .approved-section-header, .platform-mac .approved-filter-bar, .platform-mac .approved-toolbar { -fx-effect:none; }
+
+/* v2.1.13 focused KPI/table/report stabilization */
+.dashboard-executive .sales-metric-card, .reports-single-page .sales-metric-card {
+    -fx-min-height: 98px; -fx-pref-height: 98px; -fx-padding: 13 14; -fx-spacing: 12;
+    -fx-background-radius: 14; -fx-border-radius: 14; -fx-border-width: 1;
+}
+.dashboard-executive .sales-metric-icon, .reports-single-page .sales-metric-icon {
+    -fx-min-width: 44px; -fx-pref-width: 44px; -fx-max-width: 44px;
+    -fx-min-height: 44px; -fx-pref-height: 44px; -fx-max-height: 44px; -fx-background-radius: 12;
+}
+.dashboard-executive .metric-value, .reports-single-page .metric-value { -fx-font-size: 18px; -fx-font-weight: 800; }
+.dashboard-executive .metric-label, .reports-single-page .metric-label { -fx-font-weight: 700; }
+.reports-single-page .report-kpi-grid { -fx-min-height: 110px; -fx-pref-height: 110px; -fx-max-height: 110px; }
+.reports-single-page .report-kpi-card { -fx-min-height: 98px; -fx-pref-height: 98px; -fx-max-height: 98px; -fx-padding: 13 14; }
+.reports-single-page .report-filter-card .combo-box { -fx-min-height: 38px; -fx-pref-height: 38px; }
+.reports-single-page .summary-list .list-cell { -fx-padding: 9 12; }
+.reports-single-page .chart-title, .reports-single-page .chart-legend { -fx-font-size: 11px; }
+.quotation-register-split > .split-pane-divider { -fx-padding: 0 1 0 1; }
+.user-access-user-table .column-header .label, .user-access-role-table .column-header .label { -fx-font-size: 11px; }
+
+/* v2.1.13 final focused stabilization: dashboard/returns/user-access/reports */
+.dashboard-mini-kpi-row { -fx-alignment: center-left; }
+.dashboard-mini-kpi {
+    -fx-padding: 12 14 12 14;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+    -fx-cursor: hand;
+    -fx-min-height: 82;
+}
+.dashboard-mini-kpi-icon, .return-kpi-icon {
+    -fx-min-width: 42; -fx-pref-width: 42; -fx-max-width: 42;
+    -fx-min-height: 42; -fx-pref-height: 42; -fx-max-height: 42;
+    -fx-background-radius: 11;
+}
+.dashboard-mini-kpi-icon .ikonli-font-icon { -fx-icon-size: 22px; }
+.dashboard-mini-customer { -fx-border-color: #7357d8; -fx-background-color: rgba(115,87,216,0.10); }
+.dashboard-mini-customer .dashboard-mini-kpi-icon { -fx-background-color: rgba(115,87,216,0.28); }
+.dashboard-mini-items { -fx-border-color: #d99014; -fx-background-color: rgba(217,144,20,0.10); }
+.dashboard-mini-items .dashboard-mini-kpi-icon { -fx-background-color: rgba(217,144,20,0.28); }
+.dashboard-mini-sales { -fx-border-color: #198f63; -fx-background-color: rgba(25,143,99,0.10); }
+.dashboard-mini-sales .dashboard-mini-kpi-icon { -fx-background-color: rgba(25,143,99,0.28); }
+.dashboard-mini-purchases { -fx-border-color: #2f79c8; -fx-background-color: rgba(47,121,200,0.10); }
+.dashboard-mini-purchases .dashboard-mini-kpi-icon { -fx-background-color: rgba(47,121,200,0.28); }
+.return-kpi-row { -fx-alignment: center-left; }
+.return-kpi-card { -fx-padding: 14 16 14 16; -fx-background-radius: 12; -fx-border-radius: 12; -fx-min-height: 108; }
+.return-kpi-symbol { -fx-font-size: 20px; -fx-font-weight: bold; }
+.reports-export-button { -fx-min-width: 128; -fx-pref-width: 136; -fx-content-display: left; -fx-graphic-text-gap: 8; }
+.approved-screen-user-access .table-view .column-header .label { -fx-padding: 0 2 0 2; }
+
+
+/* v2.1.13 final semantic KPI fix */
+.dashboard-executive .kpi-payable,
+.dashboard-executive .kpi-cash,
+.return-kpi-card,
+.reports-single-page .report-kpi-card {
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-padding: 14 16 14 16;
+    -fx-min-height: 104;
+    -fx-alignment: center-left;
+}
+.dashboard-executive .kpi-payable { -fx-background-color: rgba(117,72,210,0.18); -fx-border-color: rgba(167,120,255,0.62); }
+.dashboard-executive .kpi-cash { -fx-background-color: rgba(14,148,136,0.18); -fx-border-color: rgba(45,212,191,0.58); }
+.dashboard-executive .kpi-cash.cash-negative { -fx-background-color: rgba(190,45,70,0.19); -fx-border-color: rgba(251,113,133,0.62); }
+.dashboard-executive .kpi-payable .sales-metric-icon { -fx-background-color: rgba(139,92,246,0.28); }
+.dashboard-executive .kpi-cash .sales-metric-icon { -fx-background-color: rgba(20,184,166,0.28); }
+.dashboard-executive .kpi-cash.cash-negative .sales-metric-icon { -fx-background-color: rgba(244,63,94,0.30); }
+.dashboard-executive .kpi-payable .metric-value { -fx-text-fill: #c4a7ff; }
+.dashboard-executive .kpi-cash .metric-value { -fx-text-fill: #5eead4; }
+.dashboard-executive .kpi-cash.cash-negative .metric-value { -fx-text-fill: #fda4af; }
+.return-kpi-row { -fx-spacing: 12; }
+.return-kpi-card.sales-metric-total { -fx-background-color: rgba(111,76,255,0.17); -fx-border-color: rgba(155,120,255,0.60); }
+.return-kpi-card.sales-metric-today { -fx-background-color: rgba(16,185,129,0.15); -fx-border-color: rgba(52,211,153,0.55); }
+.return-kpi-card.sales-metric-pending { -fx-background-color: rgba(245,158,11,0.16); -fx-border-color: rgba(251,191,36,0.58); }
+.return-kpi-card.sales-metric-email { -fx-background-color: rgba(13,148,136,0.16); -fx-border-color: rgba(45,212,191,0.55); }
+.return-kpi-card.sales-metric-due { -fx-background-color: rgba(59,130,246,0.16); -fx-border-color: rgba(96,165,250,0.58); }
+.return-kpi-card .sales-metric-icon { -fx-min-width: 46; -fx-pref-width: 46; -fx-max-width: 46; -fx-min-height: 46; -fx-pref-height: 46; -fx-max-height: 46; -fx-background-radius: 14; -fx-alignment: center; }
+.return-kpi-card.sales-metric-total .sales-metric-icon { -fx-background-color: rgba(124,58,237,0.30); }
+.return-kpi-card.sales-metric-today .sales-metric-icon { -fx-background-color: rgba(5,150,105,0.30); }
+.return-kpi-card.sales-metric-pending .sales-metric-icon { -fx-background-color: rgba(217,119,6,0.32); }
+.return-kpi-card.sales-metric-email .sales-metric-icon { -fx-background-color: rgba(13,148,136,0.30); }
+.return-kpi-card.sales-metric-due .sales-metric-icon { -fx-background-color: rgba(37,99,235,0.30); }
+.return-kpi-card .metric-label { -fx-font-size: 12px; -fx-font-weight: 700; }
+.return-kpi-card .metric-value { -fx-font-size: 21px; -fx-font-weight: 800; }
+.return-kpi-card .metric-note { -fx-font-size: 11px; }
+.return-kpi-symbol { -fx-font-size: 20px; -fx-font-weight: 800; }
+.reports-export-button { -fx-min-width: 146; -fx-pref-width: 154; -fx-max-width: 170; -fx-padding: 8 16 8 14; }
+.reports-export-button > .label { -fx-padding: 0 8 0 4; }
+.settings-notification-grid { -fx-hgap: 16; -fx-vgap: 10; }
+.settings-notification-category { -fx-padding: 10 12; -fx-background-radius: 9; -fx-border-radius: 9; }
+
+/* v2.1.13 shared KPI system — Sales Register visual standard */
+.standard-kpi-row { -fx-alignment: center-left; }
+.standard-kpi-card { -fx-min-height: 100px; -fx-pref-height: 100px; -fx-padding: 14 16; -fx-background-radius: 13px; -fx-border-radius: 13px; -fx-border-width: 1px; -fx-background-color: white; -fx-border-color: #d7e2ef; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.08), 8, 0.15, 0, 2); }
+.standard-kpi-card:hover { -fx-translate-y: -2px; }
+.standard-kpi-card .standard-kpi-icon { -fx-min-width: 44px; -fx-pref-width: 44px; -fx-max-width: 44px; -fx-min-height: 44px; -fx-pref-height: 44px; -fx-max-height: 44px; -fx-background-radius: 12px; -fx-alignment: center; }
+.standard-kpi-card .metric-label, .standard-kpi-card .metric-title { -fx-font-size: 12px; -fx-font-weight: 700; -fx-text-fill: #334155; }
+.standard-kpi-card .metric-value { -fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #0f172a; }
+.standard-kpi-card .metric-note, .standard-kpi-card .metric-caption, .standard-kpi-card .reminder-metric-note { -fx-font-size: 11px; -fx-text-fill: #64748b; }
+.standard-kpi-card.kpi-blue { -fx-background-color: #f5f9ff; -fx-border-color: #b9d4f5; } .standard-kpi-card.kpi-blue .standard-kpi-icon { -fx-background-color: #dbeafe; }
+.standard-kpi-card.kpi-green { -fx-background-color: #f1fbf6; -fx-border-color: #b8e4ca; } .standard-kpi-card.kpi-green .standard-kpi-icon { -fx-background-color: #d1fae5; }
+.standard-kpi-card.kpi-orange { -fx-background-color: #fff8eb; -fx-border-color: #f3d28b; } .standard-kpi-card.kpi-orange .standard-kpi-icon { -fx-background-color: #fef3c7; }
+.standard-kpi-card.kpi-red { -fx-background-color: #fff3f5; -fx-border-color: #f1bec7; } .standard-kpi-card.kpi-red .standard-kpi-icon { -fx-background-color: #ffe4e6; }
+.standard-kpi-card.kpi-purple { -fx-background-color: #f7f3ff; -fx-border-color: #d6c5f7; } .standard-kpi-card.kpi-purple .standard-kpi-icon { -fx-background-color: #ede9fe; }
+
+
+/* v2.1.13 final focused UI corrections */
+.reports-header { -fx-padding: 6 12 6 12; -fx-alignment: CENTER_LEFT; }
+.reports-title-block { -fx-padding: 0 0 0 2; }
+.reports-header-subtitle { -fx-translate-y: 0; -fx-padding: 0; }
+.semantic-register-cell.pill-success,
+.semantic-register-cell.pill-warning,
+.semantic-register-cell.pill-danger,
+.semantic-register-cell.pill-neutral { -fx-background-color: transparent; -fx-background-radius: 0; -fx-padding: 0 6; -fx-alignment: CENTER_LEFT; }
+.alert-semantic-icon { -fx-min-width: 48px; -fx-min-height: 48px; -fx-pref-width: 48px; -fx-pref-height: 48px; -fx-max-width: 48px; -fx-max-height: 48px; -fx-background-radius: 24px; -fx-alignment: CENTER; }
+.alert-semantic-question { -fx-background-color: rgba(59,130,246,0.24); -fx-border-color: #60a5fa; -fx-border-radius: 24px; }
+.alert-semantic-info { -fx-background-color: rgba(14,165,233,0.24); -fx-border-color: #38bdf8; -fx-border-radius: 24px; }
+.alert-semantic-warning { -fx-background-color: rgba(245,158,11,0.25); -fx-border-color: #fbbf24; -fx-border-radius: 24px; }
+.alert-semantic-error { -fx-background-color: rgba(239,68,68,0.24); -fx-border-color: #fb7185; -fx-border-radius: 24px; }
+.backup-page-scroll { -fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0; }
+.backup-page-scroll > .viewport { -fx-background-color: transparent; }
+.backup-page-scroll .scroll-bar:vertical { -fx-pref-width: 12px; -fx-opacity: 1; }

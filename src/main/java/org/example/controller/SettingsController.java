@@ -151,6 +151,15 @@ public class SettingsController {
 
     @FXML
     private CheckBox chkNotifications;
+    @FXML private CheckBox chkNotifySales;
+    @FXML private CheckBox chkNotifyPurchases;
+    @FXML private CheckBox chkNotifyQuotations;
+    @FXML private CheckBox chkNotifyReturns;
+    @FXML private CheckBox chkNotifyPayments;
+    @FXML private CheckBox chkNotifyInventory;
+    @FXML private CheckBox chkNotifyReminders;
+    @FXML private CheckBox chkNotifyCommunication;
+    @FXML private CheckBox chkNotifySystem;
 
     /* =========================================================
        IMAGE PREVIEWS
@@ -492,6 +501,17 @@ public class SettingsController {
                 )
             )
         );
+        loadNotificationCategory(chkNotifySales, "sales");
+        loadNotificationCategory(chkNotifyPurchases, "purchases");
+        loadNotificationCategory(chkNotifyQuotations, "quotations");
+        loadNotificationCategory(chkNotifyReturns, "returns");
+        loadNotificationCategory(chkNotifyPayments, "payments");
+        loadNotificationCategory(chkNotifyInventory, "inventory");
+        loadNotificationCategory(chkNotifyReminders, "reminders");
+        loadNotificationCategory(chkNotifyCommunication, "communication");
+        loadNotificationCategory(chkNotifySystem, "system");
+        chkNotifications.selectedProperty().addListener((obs, oldValue, enabled) -> setNotificationCategoriesDisabled(!enabled));
+        setNotificationCategoriesDisabled(!chkNotifications.isSelected());
         txtGitHubOwner.setText(ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER));
         txtGitHubRepository.setText(ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY));
         selectComboValue(cmbUpdateChannel, ConfigManager.get("update.channel", "STABLE"));
@@ -1366,10 +1386,30 @@ public class SettingsController {
 
         ConfigManager.set(
             "notifications.enabled",
-            Boolean.toString(
-                chkNotifications.isSelected()
-            )
+            Boolean.toString(chkNotifications.isSelected())
         );
+        saveNotificationCategory(chkNotifySales, "sales");
+        saveNotificationCategory(chkNotifyPurchases, "purchases");
+        saveNotificationCategory(chkNotifyQuotations, "quotations");
+        saveNotificationCategory(chkNotifyReturns, "returns");
+        saveNotificationCategory(chkNotifyPayments, "payments");
+        saveNotificationCategory(chkNotifyInventory, "inventory");
+        saveNotificationCategory(chkNotifyReminders, "reminders");
+        saveNotificationCategory(chkNotifyCommunication, "communication");
+        saveNotificationCategory(chkNotifySystem, "system");
+    }
+
+    private void loadNotificationCategory(CheckBox box, String category) {
+        if (box != null) box.setSelected(Boolean.parseBoolean(ConfigManager.get("notifications.category." + category, "true")));
+    }
+
+    private void saveNotificationCategory(CheckBox box, String category) {
+        if (box != null) ConfigManager.set("notifications.category." + category, Boolean.toString(box.isSelected()));
+    }
+
+    private void setNotificationCategoriesDisabled(boolean disabled) {
+        CheckBox[] boxes = {chkNotifySales, chkNotifyPurchases, chkNotifyQuotations, chkNotifyReturns, chkNotifyPayments, chkNotifyInventory, chkNotifyReminders, chkNotifyCommunication, chkNotifySystem};
+        for (CheckBox box : boxes) if (box != null) box.setDisable(disabled);
     }
 
     private String valueOrEmpty(

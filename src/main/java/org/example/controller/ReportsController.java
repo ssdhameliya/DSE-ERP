@@ -22,6 +22,7 @@ import java.util.*;
 public class ReportsController implements ScreenLifecycle {
     private static final String TASK_KEY = "reports-load";
     @FXML private Label lblPurchase,lblSales,lblStock,lblLowStock,lblProfit,lblReceivables,lblCustomers,lblMargin;
+    @FXML private StackPane reportSalesIcon,reportPurchaseIcon,reportProfitIcon,reportReceivableIcon,reportStockIcon,reportCustomerIcon;
     @FXML private DatePicker dpFrom,dpTo;
     @FXML private ComboBox<String> cmbReportType,cmbParty,cmbItem,cmbSalesPerson;
     @FXML private LineChart<String,Number> chartTrend;
@@ -45,7 +46,7 @@ public class ReportsController implements ScreenLifecycle {
         cmbReportType.getItems().setAll("All Reports","Sales","Purchase","Inventory","Payments"); cmbReportType.getSelectionModel().selectFirst();
         setCell(colSaleNo,0);setCell(colSaleDate,1);setCell(colSaleParty,2);setCell(colSaleAmount,3);setCell(colSaleStatus,4);
         setCell(colPurchaseNo,0);setCell(colPurchaseDate,1);setCell(colPurchaseParty,2);setCell(colPurchaseAmount,3);setCell(colPurchaseStatus,4);
-        loadFiltersAsync(); refresh();
+        applyFilters(readFilters()); configureReportTables(); refresh();
     }
     private void setCell(TableColumn<String[],String> column,int index){column.setCellValueFactory(v->new SimpleStringProperty(v.getValue()[index]));}
     private void loadFiltersAsync(){
@@ -110,7 +111,17 @@ public class ReportsController implements ScreenLifecycle {
     private void navigate(String page){StackPane content=(StackPane)dpFrom.getScene().lookup("#contentPane");if(content!=null)new NavigationManager(content).loadPage(page);}
     private void export(String title,String name,String ext,boolean pdf){FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,ext));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();String suffix=pdf?".pdf":".xlsx";if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitLatest("reports-export",()->{if(pdf)reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());else reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());return target;},done->new OwnedAlert(Alert.AlertType.INFORMATION,"Report created successfully:\n"+done).showAndWait(),e->error("Could not create report: "+e.getMessage()));}
     private String money(double n){return "₹ "+String.format("%,.2f",n);}private void error(String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message);a.setHeaderText("Reporting error");a.showAndWait();}
-    private void configureIcons(){btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));}
+    private void configureReportTables(){
+        tblSales.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        tblPurchases.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        colSaleNo.setMinWidth(110); colSaleDate.setMinWidth(95); colSaleParty.setMinWidth(135); colSaleAmount.setMinWidth(105); colSaleStatus.setMinWidth(100);
+        colPurchaseNo.setMinWidth(110); colPurchaseDate.setMinWidth(95); colPurchaseParty.setMinWidth(135); colPurchaseAmount.setMinWidth(105); colPurchaseStatus.setMinWidth(100);
+    }
+    private void configureIcons(){btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));
+        reportSalesIcon.getChildren().setAll(IconFactory.icon("sales",22)); reportPurchaseIcon.getChildren().setAll(IconFactory.icon("purchase",22));
+        reportProfitIcon.getChildren().setAll(IconFactory.icon("chart",22)); reportReceivableIcon.getChildren().setAll(IconFactory.icon("payment",22));
+        reportStockIcon.getChildren().setAll(IconFactory.icon("inventory",22)); reportCustomerIcon.getChildren().setAll(IconFactory.icon("customer",22));
+    }
     private void configureStatusCells(){statusCell(colSaleStatus);statusCell(colPurchaseStatus);}
     private void statusCell(TableColumn<String[],String> column){column.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);getStyleClass().removeAll("report-status-paid","report-status-pending","report-status-other");if(empty||value==null){setText(null);setGraphic(null);return;}setText(value);String v=value.toUpperCase(Locale.ROOT);getStyleClass().add(v.contains("PAID")||v.contains("COMPLETED")?"report-status-paid":v.contains("PENDING")?"report-status-pending":"report-status-other");}});}
     private void configureExplicitTableHeaderIcons(){IconFactory.applyTableHeaderIcon(colSaleNo,"document");IconFactory.applyTableHeaderIcon(colSaleDate,"calendar");IconFactory.applyTableHeaderIcon(colSaleParty,"customer");IconFactory.applyTableHeaderIcon(colSaleAmount,"currency");IconFactory.applyTableHeaderIcon(colSaleStatus,"status");IconFactory.applyTableHeaderIcon(colPurchaseNo,"document");IconFactory.applyTableHeaderIcon(colPurchaseDate,"calendar");IconFactory.applyTableHeaderIcon(colPurchaseParty,"supplier");IconFactory.applyTableHeaderIcon(colPurchaseAmount,"currency");IconFactory.applyTableHeaderIcon(colPurchaseStatus,"status");}

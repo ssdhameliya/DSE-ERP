@@ -216,7 +216,7 @@ public final class PaymentMessageService {
     }
 
     private static String money(double amount) {
-        return "\u20B9" + String.format(new Locale("en", "IN"), "%,.2f", amount);
+        return "\u20B9" + String.format(Locale.of("en", "IN"), "%,.2f", amount);
     }
 
     private static String quantity(double value) {

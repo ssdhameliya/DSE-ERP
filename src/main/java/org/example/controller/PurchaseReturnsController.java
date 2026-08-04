@@ -108,7 +108,7 @@ public class PurchaseReturnsController {
             MenuItem add = new MenuItem("Add Purchase Return", IconFactory.icon("add")); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.icon("edit")); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem delete = new MenuItem("Delete Return", IconFactory.icon("delete")); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
-            ContextMenu menu = new ContextMenu(add, edit, delete); row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu)); return row;
+            ContextMenu menu = new ContextMenu(edit, delete); row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu)); return row;
         });
     }
 

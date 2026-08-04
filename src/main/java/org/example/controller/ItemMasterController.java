@@ -11,6 +11,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.example.model.Item;
@@ -32,7 +33,8 @@ public class ItemMasterController {
 
     @FXML private TextField txtSearch;
     @FXML private TableView<Item> tableItems;
-    @FXML private Label lblRecordCount;
+    @FXML private Label lblRecordCount,lblKpiTotal,lblKpiCategories,lblKpiLowStock,lblKpiValue;
+    @FXML private StackPane itemTotalIcon,itemCategoryIcon,itemLowIcon,itemValueIcon;
 
 
     @FXML private TableColumn<Item, String> colCode;
@@ -59,7 +61,7 @@ public class ItemMasterController {
 
     @FXML
     public void initialize() {
-        configureExplicitTableHeaderIcons();
+        installKpiIcons();configureExplicitTableHeaderIcons();
         // Column bindings
 
         colCode.setCellValueFactory(new PropertyValueFactory<>("itemCode"));
@@ -180,7 +182,7 @@ public class ItemMasterController {
             delete.setOnAction(event -> { if (!row.isEmpty()) deleteItem(row.getItem()); });
             MenuItem clear = new MenuItem("Clear Selection", IconFactory.icon("cancel"));
             clear.setOnAction(event -> tableItems.getSelectionModel().clearSelection());
-            ContextMenu context = new ContextMenu(add, edit, delete, new SeparatorMenuItem(), clear);
+            ContextMenu context = new ContextMenu(edit, delete, new SeparatorMenuItem(), clear);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty())
                 .then((ContextMenu) null).otherwise(context));
             return row;
@@ -282,9 +284,30 @@ public class ItemMasterController {
                     || (item.getBrand() != null && item.getBrand().toLowerCase(Locale.ROOT).contains(query)))
                 .toList());
             lblRecordCount.setText("Showing " + items.size() + " Record" + (items.size() == 1 ? "" : "s"));
+            updateKpis(list);
         } catch (Exception e) {
             showError("Could not load items: " + e.getMessage());
         }
+    }
+
+    private void installKpiIcons() {
+        setKpiIcon(itemTotalIcon, "item"); setKpiIcon(itemCategoryIcon, "category");
+        setKpiIcon(itemLowIcon, "reminder"); setKpiIcon(itemValueIcon, "currency");
+    }
+
+    private void setKpiIcon(StackPane pane, String semantic) {
+        if (pane != null) pane.getChildren().setAll(IconFactory.compactIcon(semantic, 22));
+    }
+
+    private void updateKpis(List<Item> source) {
+        if (source == null) source = List.of();
+        long categories = source.stream().map(Item::getCategory).filter(v -> v != null && !v.isBlank()).distinct().count();
+        long lowStock = source.stream().filter(i -> i.getOpeningStock() <= i.getMinimumStock()).count();
+        double value = source.stream().mapToDouble(i -> i.getOpeningStock() * i.getPurchasePrice()).sum();
+        lblKpiTotal.setText(String.valueOf(source.size()));
+        lblKpiCategories.setText(String.valueOf(categories));
+        lblKpiLowStock.setText(String.valueOf(lowStock));
+        lblKpiValue.setText("₹ " + String.format(Locale.of("en", "IN"), "%,.2f", value));
     }
 
     private void showWarning(String message) {

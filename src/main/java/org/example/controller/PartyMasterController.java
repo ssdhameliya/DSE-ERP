@@ -68,12 +68,11 @@ public abstract class PartyMasterController {
     private void configureTableInteractions() {
         tableParties.setRowFactory(table -> {
             TableRow<Party> row = new TableRow<>();
-            MenuItem add = new MenuItem("＋ Add " + displayName());
-            MenuItem edit = new MenuItem("✎ Edit " + displayName());
-            MenuItem delete = new MenuItem("🗑 Delete " + displayName());
-            ContextMenu menu = new ContextMenu(add, edit, delete);
-
-            add.setOnAction(event -> newParty());
+            MenuItem edit = new MenuItem("Edit " + displayName());
+            MenuItem delete = new MenuItem("Delete " + displayName());
+            edit.setGraphic(IconFactory.compactIcon("edit",15));
+            delete.setGraphic(IconFactory.compactIcon("delete",15));
+            ContextMenu menu = new ContextMenu(edit, delete);
             edit.setOnAction(event -> { selectRow(row); editParty(); });
             delete.setOnAction(event -> { selectRow(row); deleteParty(); });
 

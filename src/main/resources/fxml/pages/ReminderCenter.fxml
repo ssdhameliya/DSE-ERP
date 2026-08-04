@@ -24,50 +24,50 @@
 
     <!-- Summary cards -->
     <HBox spacing="14" styleClass="reminder-metrics-row">
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-open" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="standard-kpi-card,kpi-blue,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="OPEN REMINDERS" styleClass="metric-title,reminder-metric-title"/>
                     <Label fx:id="lblOpen" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <StackPane fx:id="openMetricIcon" styleClass="reminder-metric-icon,reminder-open-icon"/>
+                <StackPane fx:id="openMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Active items requiring attention" styleClass="reminder-metric-note"/>
         </VBox>
 
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-overdue" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="standard-kpi-card,kpi-red,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="OVERDUE" styleClass="metric-title,reminder-metric-title"/>
                     <Label fx:id="lblOverdue" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <StackPane fx:id="overdueMetricIcon" styleClass="reminder-metric-icon,reminder-overdue-icon"/>
+                <StackPane fx:id="overdueMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Past due and still incomplete" styleClass="reminder-metric-note"/>
         </VBox>
 
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-today" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="standard-kpi-card,kpi-green,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="DUE TODAY" styleClass="metric-title,reminder-metric-title"/>
                     <Label fx:id="lblDueToday" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <StackPane fx:id="todayMetricIcon" styleClass="reminder-metric-icon,reminder-today-icon"/>
+                <StackPane fx:id="todayMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Scheduled for the current day" styleClass="reminder-metric-note"/>
         </VBox>
 
-        <VBox spacing="8" styleClass="metric-card,reminder-metric-card,reminder-metric-upcoming" HBox.hgrow="ALWAYS">
+        <VBox spacing="8" styleClass="standard-kpi-card,kpi-orange,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
                     <Label text="NEXT 7 DAYS" styleClass="metric-title,reminder-metric-title"/>
                     <Label fx:id="lblUpcoming" text="0" styleClass="metric-value,reminder-metric-value"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <StackPane fx:id="upcomingMetricIcon" styleClass="reminder-metric-icon,reminder-upcoming-icon"/>
+                <StackPane fx:id="upcomingMetricIcon" styleClass="standard-kpi-icon,reminder-metric-icon"/>
             </HBox>
             <Label text="Upcoming workload at a glance" styleClass="reminder-metric-note"/>
         </VBox>
@@ -172,7 +172,7 @@
                             <Button text="Mark Complete" onAction="#completeSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="primary-button,reminder-complete-button"/>
                         </HBox>
 
-                        <MenuButton fx:id="detailMoreActions" text="More Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
+                        <MenuButton fx:id="detailMoreActions" text="Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
                     </VBox>
                 </VBox>
             </content>

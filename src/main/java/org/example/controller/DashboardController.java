@@ -142,6 +142,7 @@ public class DashboardController {
     public void initialize() {
 
         ClockService.start(lblClock);
+        if (lblClock != null) lblClock.textProperty().addListener((obs, oldValue, newValue) -> refreshCompanyFooter());
         refreshCompanyFooter();
 
 
@@ -157,6 +158,7 @@ public class DashboardController {
             menuUser.setText(SessionService.current().getFullName());
             if (lblSidebarUser != null) lblSidebarUser.setText(SessionService.current().getFullName());
         }
+        configureProfileMenuIcons();
         Platform.runLater(this::bindShellControls);
         applyRolePermissions();
         notificationRefresh = new Timeline(
@@ -246,7 +248,8 @@ public class DashboardController {
         if (!website.isBlank()) details.add("Website: " + website);
         if (!gstin.isBlank()) details.add("GSTIN: " + gstin);
         if (!address.isBlank()) details.add("Address: " + address.replaceAll("[\\r\\n]+", ", "));
-        lblCompanyFooter.setText(company + (details.isEmpty() ? "" : "   •   " + String.join("   •   ", details)));
+        String liveClock = lblClock == null || lblClock.getText() == null || lblClock.getText().isBlank() ? "" : "   •   Live: " + lblClock.getText();
+        lblCompanyFooter.setText(company + (details.isEmpty() ? "" : "   •   " + String.join("   •   ", details)) + liveClock);
     }
 
     /** Disables protected navigation modules when the signed-in role lacks VIEW access. */
@@ -808,10 +811,26 @@ public class DashboardController {
         lblReminderBadge.setManaged(count > 0);
     }
 
+
+    private void configureProfileMenuIcons() {
+        if (menuUser == null) return;
+        String[] icons = {"user","settings","backup","reminder","users","import",null,"lock",null,"logout"};
+        int index = 0;
+        for (javafx.scene.control.MenuItem item : menuUser.getItems()) {
+            if (item instanceof javafx.scene.control.SeparatorMenuItem) { index++; continue; }
+            String semantic = index < icons.length ? icons[index] : "document";
+            if (semantic != null) item.setGraphic(IconFactory.compactIcon(semantic, 15));
+            index++;
+        }
+    }
+
     @FXML
     private void showProfile() {
         openPage(null, "My Profile", "/fxml/pages/Profile.fxml");
     }
+
+    @FXML private void openBackupRestore() { openPage(null, "Backup & Restore", "/fxml/pages/BackupRestore.fxml"); }
+    @FXML private void openDataImport() { openPage(null, "Data Import", "/fxml/pages/Import.fxml"); }
 
     @FXML
     private void changePassword() {

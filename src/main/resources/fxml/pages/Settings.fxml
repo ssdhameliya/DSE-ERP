@@ -597,7 +597,20 @@
 
                                 <CheckBox fx:id="chkNotifications" text="Show and keep application notifications" selected="true" wrapText="true" styleClass="settings-notification-check"/>
 
-                                <Label text="Sales, purchases, imports, payments and communication events will be recorded when enabled." wrapText="true" styleClass="settings-information-text"/>
+                                <Label text="Choose which activity categories may create notification-centre records and toast messages." wrapText="true" styleClass="settings-information-text"/>
+
+                                <GridPane hgap="16" vgap="10" styleClass="settings-notification-grid">
+                                    <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
+                                    <CheckBox fx:id="chkNotifySales" text="Sales and invoices" selected="true" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifyPurchases" text="Purchases and supplier invoices" selected="true" GridPane.columnIndex="1" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifyQuotations" text="Quotations and follow-ups" selected="true" GridPane.rowIndex="1" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifyReturns" text="Sales and purchase returns" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifyPayments" text="Payments and refunds" selected="true" GridPane.rowIndex="2" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifyInventory" text="Inventory and low stock" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifyReminders" text="Reminders" selected="true" GridPane.rowIndex="3" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifyCommunication" text="Email and WhatsApp" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="3" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifySystem" text="Imports, backups and updates" selected="true" GridPane.rowIndex="4" styleClass="settings-notification-category"/>
+                                </GridPane>
 
                             </VBox>
 

@@ -1,4 +1,4 @@
-/* DSE ERP 2.1.12 — shared component behavior. Colors remain in theme files. */
+/* DSE ERP 2.1.13 — shared component behavior. Colors remain in theme files. */
 .erp-screen-root { -fx-focus-traversable: false; }
 
 .page-header, .screen-header, .approved-page-header,
@@ -28,3 +28,87 @@
 
 .context-menu .menu-item { -fx-cursor: hand; }
 .tooltip { -fx-font-size: 11px; -fx-padding: 6 8; }
+
+/* v2.1.13 stabilization */
+.communication-resend-button { -fx-min-width: 96px; -fx-pref-width: 96px; -fx-padding: 7px 12px; }
+.notification-preference-grid { -fx-padding: 14px; -fx-hgap: 18px; -fx-vgap: 10px; }
+.report-kpi-card { -fx-min-height: 104px; -fx-pref-height: 112px; -fx-padding: 12px 14px; -fx-spacing: 5px; }
+.report-kpi-card .kpi-value { -fx-font-size: 18px; }
+.erp-table-header-label { -fx-text-overrun: CLIP; }
+.approved-highlight { -fx-cursor: hand; }
+
+
+/* v2.1.13 frozen-scope stabilization */
+.button, .menu-button { -fx-min-height: 34px; -fx-content-display: LEFT; }
+.button > .text, .menu-button > .label > .text { -fx-text-overrun: CLIP; }
+.page-header .button, .screen-header .button, .toolbar .button, .filter-bar .button { -fx-min-width: 88px; }
+.row-actions { -fx-min-width: 38px; -fx-pref-width: 38px; -fx-max-width: 38px; -fx-content-display: GRAPHIC_ONLY; }
+.context-menu .menu-item { -fx-min-width: 190px; -fx-padding: 9px 14px; }
+.dialog-pane > .graphic-container { -fx-padding: 12px 8px 8px 16px; }
+#paymentSummary, #stockSummary { -fx-fixed-cell-size: 30px; -fx-min-height: 132px; -fx-pref-height: 132px; }
+#paymentSummary .list-cell, #stockSummary .list-cell { -fx-padding: 7px 10px; -fx-text-overrun: CLIP; }
+.report-kpi-card { -fx-min-height: 116px; -fx-pref-height: 116px; }
+.erp-company-footer { -fx-min-height: 34px; -fx-pref-height: 34px; }
+.erp-company-footer-text { -fx-text-overrun: CLIP; }
+
+/* v2.1.13 focused KPI/table/report stabilization */
+.dashboard-executive .sales-metric-card, .reports-single-page .sales-metric-card {
+    -fx-min-height: 98px; -fx-pref-height: 98px; -fx-padding: 13 14; -fx-spacing: 12;
+    -fx-background-radius: 14; -fx-border-radius: 14; -fx-border-width: 1;
+}
+.dashboard-executive .sales-metric-icon, .reports-single-page .sales-metric-icon {
+    -fx-min-width: 44px; -fx-pref-width: 44px; -fx-max-width: 44px;
+    -fx-min-height: 44px; -fx-pref-height: 44px; -fx-max-height: 44px; -fx-background-radius: 12;
+}
+.dashboard-executive .metric-value, .reports-single-page .metric-value { -fx-font-size: 18px; -fx-font-weight: 800; }
+.dashboard-executive .metric-label, .reports-single-page .metric-label { -fx-font-weight: 700; }
+.reports-single-page .report-kpi-grid { -fx-min-height: 110px; -fx-pref-height: 110px; -fx-max-height: 110px; }
+.reports-single-page .report-kpi-card { -fx-min-height: 98px; -fx-pref-height: 98px; -fx-max-height: 98px; -fx-padding: 13 14; }
+.reports-single-page .report-filter-card .combo-box { -fx-min-height: 38px; -fx-pref-height: 38px; }
+.reports-single-page .summary-list .list-cell { -fx-padding: 9 12; }
+.reports-single-page .chart-title, .reports-single-page .chart-legend { -fx-font-size: 11px; }
+.quotation-register-split > .split-pane-divider { -fx-padding: 0 1 0 1; }
+.user-access-user-table .column-header .label, .user-access-role-table .column-header .label { -fx-font-size: 11px; }
+
+
+/* v2.1.13 final semantic KPI fix */
+.dashboard-executive .kpi-payable,
+.dashboard-executive .kpi-cash,
+.return-kpi-card,
+.reports-single-page .report-kpi-card {
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-padding: 14 16 14 16;
+    -fx-min-height: 104;
+    -fx-alignment: center-left;
+}
+.dashboard-executive .kpi-payable { -fx-background-color: rgba(117,72,210,0.18); -fx-border-color: rgba(167,120,255,0.62); }
+.dashboard-executive .kpi-cash { -fx-background-color: rgba(14,148,136,0.18); -fx-border-color: rgba(45,212,191,0.58); }
+.dashboard-executive .kpi-cash.cash-negative { -fx-background-color: rgba(190,45,70,0.19); -fx-border-color: rgba(251,113,133,0.62); }
+.dashboard-executive .kpi-payable .sales-metric-icon { -fx-background-color: rgba(139,92,246,0.28); }
+.dashboard-executive .kpi-cash .sales-metric-icon { -fx-background-color: rgba(20,184,166,0.28); }
+.dashboard-executive .kpi-cash.cash-negative .sales-metric-icon { -fx-background-color: rgba(244,63,94,0.30); }
+.dashboard-executive .kpi-payable .metric-value { -fx-text-fill: #c4a7ff; }
+.dashboard-executive .kpi-cash .metric-value { -fx-text-fill: #5eead4; }
+.dashboard-executive .kpi-cash.cash-negative .metric-value { -fx-text-fill: #fda4af; }
+.return-kpi-row { -fx-spacing: 12; }
+.return-kpi-card.sales-metric-total { -fx-background-color: rgba(111,76,255,0.17); -fx-border-color: rgba(155,120,255,0.60); }
+.return-kpi-card.sales-metric-today { -fx-background-color: rgba(16,185,129,0.15); -fx-border-color: rgba(52,211,153,0.55); }
+.return-kpi-card.sales-metric-pending { -fx-background-color: rgba(245,158,11,0.16); -fx-border-color: rgba(251,191,36,0.58); }
+.return-kpi-card.sales-metric-email { -fx-background-color: rgba(13,148,136,0.16); -fx-border-color: rgba(45,212,191,0.55); }
+.return-kpi-card.sales-metric-due { -fx-background-color: rgba(59,130,246,0.16); -fx-border-color: rgba(96,165,250,0.58); }
+.return-kpi-card .sales-metric-icon { -fx-min-width: 46; -fx-pref-width: 46; -fx-max-width: 46; -fx-min-height: 46; -fx-pref-height: 46; -fx-max-height: 46; -fx-background-radius: 14; -fx-alignment: center; }
+.return-kpi-card.sales-metric-total .sales-metric-icon { -fx-background-color: rgba(124,58,237,0.30); }
+.return-kpi-card.sales-metric-today .sales-metric-icon { -fx-background-color: rgba(5,150,105,0.30); }
+.return-kpi-card.sales-metric-pending .sales-metric-icon { -fx-background-color: rgba(217,119,6,0.32); }
+.return-kpi-card.sales-metric-email .sales-metric-icon { -fx-background-color: rgba(13,148,136,0.30); }
+.return-kpi-card.sales-metric-due .sales-metric-icon { -fx-background-color: rgba(37,99,235,0.30); }
+.return-kpi-card .metric-label { -fx-font-size: 12px; -fx-font-weight: 700; }
+.return-kpi-card .metric-value { -fx-font-size: 21px; -fx-font-weight: 800; }
+.return-kpi-card .metric-note { -fx-font-size: 11px; }
+.return-kpi-symbol { -fx-font-size: 20px; -fx-font-weight: 800; }
+.reports-export-button { -fx-min-width: 146; -fx-pref-width: 154; -fx-max-width: 170; -fx-padding: 8 16 8 14; }
+.reports-export-button > .label { -fx-padding: 0 8 0 4; }
+.settings-notification-grid { -fx-hgap: 16; -fx-vgap: 10; }
+.settings-notification-category { -fx-padding: 10 12; -fx-background-radius: 9; -fx-border-radius: 9; }

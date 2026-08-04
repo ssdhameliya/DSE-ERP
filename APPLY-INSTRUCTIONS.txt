@@ -1,1 +1,0 @@
-Apply this file over the same path in DSE ERP 2.1.3, then compile and test Create/Edit Quotation in both themes.

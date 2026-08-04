@@ -6,12 +6,12 @@
         <Region HBox.hgrow="ALWAYS"/><Button text="Stock Adjustment" onAction="#adjustStock" styleClass="primary-action,entity-create-button"/>
     </HBox>
 
-    <HBox spacing="12" styleClass="inventory-metrics">
-        <VBox styleClass="metric-card,metric-blue,inventory-kpi" HBox.hgrow="ALWAYS"><Label text="Total Items" styleClass="metric-label"/><Label fx:id="lblTotalItems" styleClass="metric-value"/><Label text="Inventory records" styleClass="metric-caption"/></VBox>
-        <VBox styleClass="metric-card,metric-green,inventory-kpi" HBox.hgrow="ALWAYS"><Label text="In Stock" styleClass="metric-label"/><Label fx:id="lblInStock" styleClass="metric-value"/><Label text="Healthy stock levels" styleClass="metric-caption"/></VBox>
-        <VBox styleClass="metric-card,metric-orange,inventory-kpi" HBox.hgrow="ALWAYS"><Label text="Low Stock" styleClass="metric-label"/><Label fx:id="lblLowStock" styleClass="metric-value"/><Label text="Needs attention" styleClass="metric-caption"/></VBox>
-        <VBox styleClass="metric-card,metric-red,inventory-kpi" HBox.hgrow="ALWAYS"><Label text="Out of Stock" styleClass="metric-label"/><Label fx:id="lblOutStock" styleClass="metric-value"/><Label text="Unavailable items" styleClass="metric-caption"/></VBox>
-        <VBox styleClass="metric-card,metric-purple,inventory-kpi" HBox.hgrow="ALWAYS"><Label text="Stock Value" styleClass="metric-label"/><Label fx:id="lblStockValue" styleClass="metric-value"/><Label text="Current purchase valuation" styleClass="metric-caption"/></VBox>
+    <HBox spacing="12" styleClass="standard-kpi-row,inventory-metrics">
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-blue" HBox.hgrow="ALWAYS"><StackPane fx:id="inventoryTotalIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Total Items" styleClass="metric-label"/><Label fx:id="lblTotalItems" styleClass="metric-value"/><Label text="Inventory records" styleClass="metric-note"/></VBox></HBox>
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-green" HBox.hgrow="ALWAYS"><StackPane fx:id="inventoryStockIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="In Stock" styleClass="metric-label"/><Label fx:id="lblInStock" styleClass="metric-value"/><Label text="Healthy stock levels" styleClass="metric-note"/></VBox></HBox>
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-orange" HBox.hgrow="ALWAYS"><StackPane fx:id="inventoryLowIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Low Stock" styleClass="metric-label"/><Label fx:id="lblLowStock" styleClass="metric-value"/><Label text="Needs attention" styleClass="metric-note"/></VBox></HBox>
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-red" HBox.hgrow="ALWAYS"><StackPane fx:id="inventoryOutIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Out of Stock" styleClass="metric-label"/><Label fx:id="lblOutStock" styleClass="metric-value"/><Label text="Unavailable items" styleClass="metric-note"/></VBox></HBox>
+        <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-purple" HBox.hgrow="ALWAYS"><StackPane fx:id="inventoryValueIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Stock Value" styleClass="metric-label"/><Label fx:id="lblStockValue" styleClass="metric-value"/><Label text="Current purchase valuation" styleClass="metric-note"/></VBox></HBox>
     </HBox>
 
     <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-surface,entity-toolbar,approved-filter-bar,approved-toolbar"><padding><Insets top="11" right="12" bottom="11" left="12"/></padding>

@@ -183,6 +183,7 @@ public final class ProfessionalUiEnhancer {
                     column.getStyleClass().add("erp-icon-table-column");
                 }
                 column.getProperties().put("erp-header-semantic", semantic);
+                applyResponsiveWidth(column, heading, semantic);
             }
 
             // Do not replace factories installed by business controllers. This
@@ -192,6 +193,23 @@ public final class ProfessionalUiEnhancer {
                 column.setCellFactory(ignored -> new SemanticStatusCell(semantic));
             }
         }
+    }
+
+
+    @SuppressWarnings("rawtypes")
+    private static void applyResponsiveWidth(TableColumn column,String heading,String semantic){
+        String h=heading==null?"":heading.toLowerCase(Locale.ROOT);
+        double min;
+        if("actions".equals(semantic)) min=76;
+        else if("quantity".equals(semantic)) min=62;
+        else if("status".equals(semantic)||"email".equals(semantic)||"whatsapp".equals(semantic)) min=108;
+        else if("calendar".equals(semantic)||"reminder".equals(semantic)) min=112;
+        else if("currency".equals(semantic)||h.contains("amount")||h.contains("balance")||h.contains("paid")) min=118;
+        else if("phone".equals(semantic)) min=118;
+        else if("customer".equals(semantic)||"supplier".equals(semantic)||h.contains("description")||h.contains("subject")) min=145;
+        else min=92;
+        if(column.getMinWidth()<min)column.setMinWidth(min);
+        if(column.getPrefWidth()<min)column.setPrefWidth(min);
     }
 
     /** Builds a stable icon-and-label header that survives JavaFX skin rebuilds. */

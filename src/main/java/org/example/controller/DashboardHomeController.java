@@ -39,7 +39,7 @@ public class DashboardHomeController {
     @FXML private Label lblSalesValue, lblPurchaseValue, lblStockValue, lblLowStock;
     @FXML private Label lblSalesNote, lblPurchaseNote, lblProductsNote, lblStockNote;
     @FXML private Label lblReceivableNote;
-    @FXML private Label lblCustomers, lblProducts, lblOrders;
+    @FXML private Label lblCustomers, lblProducts, lblOrders, lblPurchases;
     @FXML private Label lblCash;
     @FXML private Label lblLowStockValue, lblLowStockNote, lblTrendSales, lblReminderCount, lblReminderSummary;
     @FXML private Label lblTrendPeriod, lblComparisonPeriod;
@@ -47,7 +47,7 @@ public class DashboardHomeController {
     @FXML private ListView<String> topCustomerList, agingList, activityList;
     @FXML private TableView<ActivityRow> recentTable;
     @FXML private TableColumn<ActivityRow, String> colType, colNumber, colParty, colDate, colAmount;
-    @FXML private StackPane salesKpiIcon, purchaseKpiIcon, receivableKpiIcon, payableKpiIcon, cashKpiIcon, lowStockKpiIcon, dashboardTitleIcon;
+    @FXML private StackPane salesKpiIcon, purchaseKpiIcon, receivableKpiIcon, payableKpiIcon, cashKpiIcon, lowStockKpiIcon, dashboardTitleIcon, customersMiniIcon, itemsMiniIcon, salesMiniIcon, purchasesMiniIcon;
     @FXML private StackPane dashboardRoot, loadingOverlay;
     @FXML private Node dashboardContent;
     @FXML private Label loadingMessage;
@@ -56,7 +56,7 @@ public class DashboardHomeController {
     @FXML private Button quickSale, quickPurchase, quickQuotation, quickPayment,
         quickCustomer, quickSupplier, quickBank, quickExpense, refreshDashboardButton;
 
-    private final NumberFormat currency = NumberFormat.getCurrencyInstance(new Locale("en", "IN"));
+    private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("en", "IN"));
 
     @FXML
     public void initialize() {
@@ -81,6 +81,10 @@ public class DashboardHomeController {
         setIcon(payableKpiIcon, "document");
         setIcon(cashKpiIcon, "payment");
         setIcon(lowStockKpiIcon, "item");
+        setIcon(customersMiniIcon, "customer");
+        setIcon(itemsMiniIcon, "item");
+        setIcon(salesMiniIcon, "sales");
+        setIcon(purchasesMiniIcon, "purchase");
     }
 
     private void setIcon(StackPane target, String icon) {
@@ -134,6 +138,10 @@ public class DashboardHomeController {
     }
 
     @FXML private void viewTopCustomers() { openFromNode(topCustomerList, "/fxml/pages/Customer.fxml"); }
+    @FXML private void viewCustomers() { openFromNode(lblCustomers, "/fxml/pages/Customer.fxml"); }
+    @FXML private void viewItems() { openFromNode(lblProducts, "/fxml/pages/ItemMaster.fxml"); }
+    @FXML private void viewSalesInvoices() { openFromNode(lblOrders, "/fxml/pages/SalesList.fxml"); }
+    @FXML private void viewPurchaseInvoices() { openFromNode(lblPurchases, "/fxml/pages/PurchaseList.fxml"); }
     @FXML private void viewReceivables() { openFromNode(agingList, "/fxml/pages/SalesList.fxml"); }
     @FXML private void viewRecentInvoices() { openFromNode(recentTable, "/fxml/pages/SalesList.fxml"); }
     @FXML private void viewReminders() { openFromNode(activityList, "/fxml/pages/ReminderCenter.fxml"); }
@@ -219,6 +227,7 @@ public class DashboardHomeController {
         if (lblCustomers != null) lblCustomers.setText(String.valueOf(d.customers()));
         if (lblProducts != null) lblProducts.setText(String.valueOf(d.products()));
         if (lblOrders != null) lblOrders.setText(String.valueOf(d.invoices()));
+        if (lblPurchases != null) lblPurchases.setText(String.valueOf(d.purchases()));
         if (lblReminderCount != null) lblReminderCount.setText(String.valueOf(d.openReminders()));
         if (lblReminderSummary != null) lblReminderSummary.setText(d.overdueReminders() > 0
             ? d.overdueReminders() + " overdue reminder" + plural(d.overdueReminders())
@@ -282,6 +291,7 @@ public class DashboardHomeController {
         lblCustomers.setText(String.valueOf(customers));
         lblProducts.setText(String.valueOf(products));
         lblOrders.setText(String.valueOf(invoices));
+        if (lblPurchases != null) lblPurchases.setText(String.valueOf(purchases));
     }
 
     private String plural(long value) { return value == 1 ? "" : "s"; }

@@ -110,7 +110,7 @@ public class SalesReturnsController {
             MenuItem add = new MenuItem("Add Sales Return", IconFactory.icon("add")); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.icon("edit")); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem remove = new MenuItem("Delete Return", IconFactory.icon("delete")); remove.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
-            ContextMenu menu = new ContextMenu(add, edit, remove);
+            ContextMenu menu = new ContextMenu(edit, remove);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu));
             return row;
         });
