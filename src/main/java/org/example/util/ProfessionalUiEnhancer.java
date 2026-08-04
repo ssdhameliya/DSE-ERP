@@ -79,7 +79,7 @@ public final class ProfessionalUiEnhancer {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void enhanceTable(TableView table) {
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        applyTableProfile(table);
         if (!table.getStyleClass().contains("erp-full-width-table")) {
             table.getStyleClass().add("erp-full-width-table");
         }
@@ -138,6 +138,20 @@ public final class ProfessionalUiEnhancer {
 
     }
 
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void applyTableProfile(TableView table) {
+        if (Boolean.TRUE.equals(table.getProperties().get("erp-preserve-resize-policy"))) return;
+        String styles = String.join(" ", table.getStyleClass()).toLowerCase(Locale.ROOT);
+        if (styles.contains("line-item") || styles.contains("dialog-table") || styles.contains("compact-table")) {
+            table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+            table.getProperties().put("erp-table-profile", "compact");
+        } else {
+            table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+            table.getProperties().put("erp-table-profile", "responsive");
+        }
+    }
+
     /**
      * Re-applies table headers after the control is attached and after JavaFX creates
      * or replaces its skin. This is intentionally idempotent and fixes the startup
@@ -156,9 +170,6 @@ public final class ProfessionalUiEnhancer {
         table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
             if (newSkin != null) refresh.run();
         });
-        table.parentProperty().addListener((obs, oldParent, newParent) -> {
-            if (newParent != null) refresh.run();
-        });
     }
 
     /** Recursively applies the same icon vocabulary to leaf and grouped headers. */
@@ -172,10 +183,12 @@ public final class ProfessionalUiEnhancer {
             String columnId = column.getId() == null ? "" : column.getId().trim();
             String semantic = headerSemantic(heading, columnId);
             if (semantic != null && !Boolean.TRUE.equals(column.getProperties().get("erp-header-preserve"))) {
-                // Rebuild the complete icon+label graphic on every enhancement pass.
-                // JavaFX can recreate TableHeaderRow nodes during initial CSS, theme
-                // changes and skin installation. Reusing an old graphic is the cause
-                // of missing icons on first light-mode load and stale/same icons later.
+                String signature = heading + "|" + semantic;
+                if (signature.equals(column.getProperties().get("erp-header-signature")) && column.getGraphic() != null) {
+                    applyResponsiveWidth(column, heading, semantic);
+                    continue;
+                }
+                column.getProperties().put("erp-header-signature", signature);
                 column.getProperties().put("erp-header-label", heading);
                 column.setText("");
                 column.setGraphic(tableHeader(heading, semantic));

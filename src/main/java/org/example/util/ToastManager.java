@@ -34,9 +34,21 @@ public final class ToastManager {
             Platform.runLater(() -> show(owner, type, title, message));
             return;
         }
-        if (owner == null || owner.getScene() == null || owner.getScene().getWindow() == null) return;
-        Window window = owner.getScene().getWindow();
-        Host host = HOSTS.computeIfAbsent(window, ignored -> new Host(window, owner.getScene()));
+        Window window = DialogOwnerResolver.resolve(owner);
+        if (window == null) {
+            Platform.runLater(() -> {
+                Window retryWindow = DialogOwnerResolver.resolve();
+                if (retryWindow != null) showForWindow(retryWindow, type, title, message);
+            });
+            return;
+        }
+        showForWindow(window, type, title, message);
+    }
+
+    private static void showForWindow(Window window, Type type, String title, String message) {
+        Scene sourceScene = window.getScene();
+        if (sourceScene == null) return;
+        Host host = HOSTS.computeIfAbsent(window, ignored -> new Host(window, sourceScene));
         host.add(type, title, message);
     }
 

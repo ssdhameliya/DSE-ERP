@@ -5,7 +5,7 @@
   <HBox alignment="CENTER_LEFT">
     <VBox><Label text="Sales Return Register" styleClass="screen-title"/><Label text="Manage customer returns, approvals and refunds" styleClass="screen-subtitle"/></VBox>
     <Region HBox.hgrow="ALWAYS"/>
-    <Button text="＋ Create Sales Return" onAction="#create" styleClass="primary-action"/>
+    <Button text="Create Sales Return" onAction="#create" styleClass="primary-action"/>
   </HBox>
 
   <HBox spacing="12" styleClass="return-kpi-row">

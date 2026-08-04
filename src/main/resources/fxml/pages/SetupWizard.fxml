@@ -7,10 +7,10 @@
             <Label text="Professional Business Workspace" styleClass="setup-brand-subtitle"/>
             <Separator maxWidth="120"/>
             <VBox spacing="14" maxWidth="260">
-                <Label text="✓ Business data outside the installed app" wrapText="true" styleClass="setup-feature"/>
-                <Label text="✓ Choose another drive or external SSD" wrapText="true" styleClass="setup-feature"/>
-                <Label text="✓ One workspace for database, backups and reports" wrapText="true" styleClass="setup-feature"/>
-                <Label text="✓ Safe application updates" wrapText="true" styleClass="setup-feature"/>
+                <Label text="Business data outside the installed app" wrapText="true" styleClass="setup-feature"/>
+                <Label text="Choose another drive or external SSD" wrapText="true" styleClass="setup-feature"/>
+                <Label text="One workspace for database, backups and reports" wrapText="true" styleClass="setup-feature"/>
+                <Label text="Safe application updates" wrapText="true" styleClass="setup-feature"/>
             </VBox>
             <Region VBox.vgrow="ALWAYS"/>
             <Label text="Windows • macOS • SQLite" styleClass="setup-brand-subtitle"/>

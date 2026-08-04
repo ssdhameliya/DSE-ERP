@@ -36,7 +36,7 @@
 
                 <Button text="Add Lookup" onAction="#addLookup" styleClass="primary-button"/>
 
-                <Button text="Export" styleClass="secondary-button"/>
+                <Button text="Export" onAction="#exportLookup" styleClass="secondary-button"/>
 
             </HBox>
 

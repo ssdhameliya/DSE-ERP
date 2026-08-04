@@ -18,6 +18,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.FileChooser;
 import org.example.database.DatabaseManager;
 import org.example.model.Lookup;
 import org.example.service.LookupService;
@@ -25,6 +26,10 @@ import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 
 import java.io.IOException;
+import java.io.BufferedWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.net.URL;
 import java.sql.*;
 import java.util.ArrayList;
@@ -1200,4 +1205,30 @@ public class MasterDataController {
         IconFactory.applyTableHeaderIcon(colValue, "item");
         IconFactory.applyTableHeaderIcon(colDescription, "document");
     }
+    @FXML
+    private void exportLookup() {
+        FileChooser chooser = new FileChooser();
+        String category = lstTypes.getSelectionModel().getSelectedItem();
+        chooser.setInitialFileName((category == null ? "Master_Data" : category.replaceAll("[^A-Za-z0-9_-]", "_")) + ".csv");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV File", "*.csv"));
+        java.io.File selected = chooser.showSaveDialog(tblLookup.getScene().getWindow());
+        if (selected == null) return;
+        try (BufferedWriter writer = Files.newBufferedWriter(selected.toPath(), StandardCharsets.UTF_8)) {
+            writer.write("Code,Value,Description");
+            writer.newLine();
+            for (Lookup row : tblLookup.getItems()) {
+                writer.write(csv(row.getLookupCode()) + "," + csv(row.getLookupValue()) + "," + csv(row.getDescription()));
+                writer.newLine();
+            }
+            setStatus("Master data exported successfully.");
+        } catch (IOException ex) {
+            new OwnedAlert(Alert.AlertType.ERROR, "Unable to export master data: " + ex.getMessage()).showAndWait();
+        }
+    }
+
+    private String csv(String value) {
+        String safe = value == null ? "" : value.replace("\"", "\"\"");
+        return "\"" + safe + "\"";
+    }
+
 }

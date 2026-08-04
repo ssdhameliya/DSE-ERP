@@ -44,6 +44,12 @@ public final class DialogActionStyler {
 
     public static String semanticFor(ButtonType type, String label, String fallbackSemantic) {
         String value = label == null ? "" : label.toLowerCase(Locale.ROOT).trim();
+        String fallback = fallbackSemantic == null ? "" : fallbackSemantic.toLowerCase(Locale.ROOT).trim();
+        // Destructive/warning dialog context must override generic labels such as Yes/OK/Confirm.
+        if ((fallback.equals("delete") || fallback.equals("danger"))
+                && (value.equals("yes") || value.equals("ok") || value.contains("confirm") || value.contains("continue"))) return "delete";
+        if (fallback.equals("restore")
+                && (value.equals("yes") || value.equals("ok") || value.contains("confirm") || value.contains("continue"))) return "restore";
         if (value.contains("save") && value.contains("print")) return "print";
         if (value.contains("draft")) return "document";
         if (value.contains("install") || value.contains("update")) return "update";

@@ -17,6 +17,11 @@ import java.util.List;
  */
 public final class NotificationService {
 
+    public enum Category {
+        SALES, PURCHASES, QUOTATIONS, RETURNS, PAYMENTS, INVENTORY,
+        REMINDERS, COMMUNICATION, BACKUP, UPDATE, SECURITY, SYSTEM
+    }
+
     /** Immutable row displayed by the notification center. */
     public record NotificationItem(long id, String title, String message, String severity,
                                    boolean read, String targetFxml, String referenceNo,
@@ -51,7 +56,12 @@ public final class NotificationService {
     /** Stores a notification that can optionally navigate to a related screen. */
     public static void createNotification(String title, String message, String severity,
                                           String targetFxml, String referenceNo) {
-        if (!isAllowed(title, message, targetFxml)) return;
+        createNotification(inferCategory(title, message, targetFxml), title, message, severity, targetFxml, referenceNo);
+    }
+
+    public static void createNotification(Category category, String title, String message, String severity,
+                                          String targetFxml, String referenceNo) {
+        if (!isAllowed(category, severity)) return;
         String insert = "INSERT INTO notifications(title,message,severity,is_read,target_fxml,reference_no,created_at) VALUES(?,?,?,?,?,?,?)";
         try (Connection con = DatabaseManager.getConnection(); PreparedStatement ps = con.prepareStatement(insert)) {
             ps.setString(1, title);
@@ -68,20 +78,39 @@ public final class NotificationService {
     }
 
 
-    private static boolean isAllowed(String title, String message, String targetFxml) {
+    private static boolean isAllowed(Category category, String severity) {
+        String normalizedSeverity = severity == null ? "INFO" : severity.trim().toUpperCase();
+        if (normalizedSeverity.equals("ERROR") || normalizedSeverity.equals("CRITICAL") || normalizedSeverity.equals("FATAL")) {
+            return true;
+        }
         if (!Boolean.parseBoolean(ConfigManager.get("notifications.enabled", "true"))) return false;
+        String key = switch (category == null ? Category.SYSTEM : category) {
+            case SALES -> "sales";
+            case PURCHASES -> "purchases";
+            case QUOTATIONS -> "quotations";
+            case RETURNS -> "returns";
+            case PAYMENTS -> "payments";
+            case INVENTORY -> "inventory";
+            case REMINDERS -> "reminders";
+            case COMMUNICATION -> "communication";
+            case BACKUP, UPDATE, SECURITY, SYSTEM -> "system";
+        };
+        return Boolean.parseBoolean(ConfigManager.get("notifications.category." + key, "true"));
+    }
+
+    private static Category inferCategory(String title, String message, String targetFxml) {
         String text = ((title == null ? "" : title) + " " + (message == null ? "" : message) + " " + (targetFxml == null ? "" : targetFxml)).toLowerCase();
-        String category;
-        if (text.contains("quotation")) category = "quotations";
-        else if (text.contains("return") || text.contains("refund")) category = "returns";
-        else if (text.contains("payment") || text.contains("paid") || text.contains("receipt")) category = "payments";
-        else if (text.contains("stock") || text.contains("inventory") || text.contains("item")) category = "inventory";
-        else if (text.contains("reminder") || text.contains("follow-up") || text.contains("follow up")) category = "reminders";
-        else if (text.contains("email") || text.contains("whatsapp") || text.contains("communication")) category = "communication";
-        else if (text.contains("backup") || text.contains("restore") || text.contains("import") || text.contains("update")) category = "system";
-        else if (text.contains("purchase") || text.contains("supplier")) category = "purchases";
-        else category = "sales";
-        return Boolean.parseBoolean(ConfigManager.get("notifications.category." + category, "true"));
+        if (text.contains("quotation")) return Category.QUOTATIONS;
+        if (text.contains("return") || text.contains("refund")) return Category.RETURNS;
+        if (text.contains("payment") || text.contains("paid") || text.contains("receipt")) return Category.PAYMENTS;
+        if (text.contains("stock") || text.contains("inventory") || text.contains("item")) return Category.INVENTORY;
+        if (text.contains("reminder") || text.contains("follow-up") || text.contains("follow up")) return Category.REMINDERS;
+        if (text.contains("email") || text.contains("whatsapp") || text.contains("communication")) return Category.COMMUNICATION;
+        if (text.contains("backup") || text.contains("restore")) return Category.BACKUP;
+        if (text.contains("update")) return Category.UPDATE;
+        if (text.contains("security") || text.contains("login") || text.contains("password")) return Category.SECURITY;
+        if (text.contains("purchase") || text.contains("supplier")) return Category.PURCHASES;
+        return Category.SALES;
     }
 
     /** Returns the newest notification rows for the notification center. */
