@@ -4743,3 +4743,11 @@ TABLE ACTION BUTTONS
 .dialog-action-danger { -fx-background-color: #dc2626; -fx-text-fill: white; }
 .dialog-action-neutral { -fx-background-color: #334155; -fx-text-fill: #e2e8f0; -fx-border-color: #475569; -fx-border-radius: 8px; }
 .dialog-action-button:hover { -fx-opacity: 0.90; }
+
+/* v3.0.0 chart-free Reports and compact Email Settings */
+.report-responsive-value { -fx-font-size: 16px; }
+.report-static-summary { -fx-fixed-cell-size: 35px; -fx-background-insets: 0; }
+.report-static-summary .scroll-bar:vertical, .report-static-summary .scroll-bar:horizontal { -fx-opacity: 0; -fx-pref-width: 0; -fx-pref-height: 0; }
+.settings-email-compact { -fx-max-width: 1100px; }
+.settings-subcard { -fx-padding: 16; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-width: 1; }
+.erp-toast { -fx-padding: 12 14 12 14; }

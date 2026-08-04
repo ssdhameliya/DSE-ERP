@@ -620,71 +620,23 @@
                              EMAIL
                              ============================================= -->
 
-                        <VBox fx:id="panelEmail" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card">
-
-                            <VBox spacing="3">
-
-                                <Label text="Email &amp; App Preferences" styleClass="settings-section-title"/>
-
-                                <Label text="SMTP delivery configuration for invoices, receipts and OTP messages" wrapText="true" styleClass="settings-section-description"/>
-
+                        <VBox fx:id="panelEmail" visible="false" managed="false" spacing="16" maxWidth="Infinity" styleClass="settings-card,settings-email-compact">
+                            <VBox spacing="3"><Label text="Email &amp; App Preferences" styleClass="settings-section-title"/><Label text="SMTP delivery configuration for invoices, receipts and system messages" wrapText="true" styleClass="settings-section-description"/></VBox>
+                            <VBox spacing="12" styleClass="settings-subcard">
+                                <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Email Account" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Configuration is stored securely in your workspace" styleClass="page-subtitle"/></HBox>
+                                <GridPane hgap="18" vgap="14"><columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
+                                    <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0"><Label text="Sending Email Address" styleClass="settings-form-label"/><TextField fx:id="txtSmtpEmail" promptText="name@example.com" styleClass="approved-input"/></VBox>
+                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0"><Label text="Email App Password" styleClass="settings-form-label"/><PasswordField fx:id="txtSmtpPassword" promptText="Provider app password" styleClass="approved-input"/></VBox>
+                                    <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1"><Label text="SMTP Host" styleClass="settings-form-label"/><TextField fx:id="txtSmtpHost" promptText="Automatic, smtp.mail.yahoo.com, smtp.gmail.com..." styleClass="approved-input"/></VBox>
+                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1"><Label text="SMTP Port" styleClass="settings-form-label"/><TextField fx:id="txtSmtpPort" promptText="587" styleClass="approved-input"/></VBox>
+                                </GridPane>
                             </VBox>
-
-                            <GridPane hgap="18" vgap="15">
-
-                                <columnConstraints>
-                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
-                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
-                                </columnConstraints>
-
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
-
-                                    <Label text="Sending Email Address" styleClass="settings-form-label"/>
-
-                                    <TextField fx:id="txtSmtpEmail" promptText="name@example.com" styleClass="approved-input"/>
-
-                                </VBox>
-
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
-
-                                    <Label text="Email App Password" styleClass="settings-form-label"/>
-
-                                    <PasswordField fx:id="txtSmtpPassword" promptText="App password" styleClass="approved-input"/>
-
-                                </VBox>
-
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
-
-                                    <Label text="SMTP Host" styleClass="settings-form-label"/>
-
-                                    <TextField fx:id="txtSmtpHost" promptText="Automatic or smtp.gmail.com" styleClass="approved-input"/>
-
-                                </VBox>
-
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
-
-                                    <Label text="SMTP Port" styleClass="settings-form-label"/>
-
-                                    <TextField fx:id="txtSmtpPort" promptText="587" styleClass="approved-input"/>
-
-                                </VBox>
-
+                            <GridPane hgap="14" vgap="14"><columnConstraints><ColumnConstraints percentWidth="55"/><ColumnConstraints percentWidth="45"/></columnConstraints>
+                                <VBox GridPane.columnIndex="0" spacing="8" styleClass="settings-subcard"><Label text="Connection guidance" styleClass="section-title"/><Label text="Use an app password supplied by your email provider. Yahoo, Gmail and Microsoft accounts may require two-step verification before an app password can be created." wrapText="true" styleClass="settings-section-description"/><Label text="Use Test Email in the page header to verify the current configuration before saving." wrapText="true" styleClass="page-subtitle"/></VBox>
+                                <VBox GridPane.columnIndex="1" spacing="8" styleClass="settings-security-note"><Label text="Email security" styleClass="settings-navigation-title"/><Label text="Never enter your normal mailbox password. DSE ERP stores the configured app password in the selected workspace." wrapText="true" styleClass="settings-security-text"/></VBox>
                             </GridPane>
-
-                            <VBox spacing="7" styleClass="settings-security-note">
-
-                                <Label text="Email security" styleClass="settings-form-label"/>
-
-                                <Label text="Use an app password supplied by your email provider, not your normal mailbox password." wrapText="true" styleClass="settings-help-text"/>
-
-                            </VBox>
-
                         </VBox>
 
-
-                        <!-- =============================================
-                             WORKSPACE & STORAGE
-                             ============================================= -->
                         <VBox fx:id="panelWorkspace" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,workspace-settings-panel">
                             <VBox spacing="3">
                                 <Label text="Workspace &amp; Storage" styleClass="settings-section-title"/>
