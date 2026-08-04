@@ -275,13 +275,22 @@ public class SettingsController {
         configureChoiceFields();
         loadSettings();
         showCompany();
-        Platform.runLater(() -> {
+        javafx.animation.PauseTransition deferredSettings = new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
+        deferredSettings.setOnFinished(event -> {
             long started=System.nanoTime();
-            refreshAllAssetPreviews();
             refreshWorkspacePanel();
-            long ms=(System.nanoTime()-started)/1_000_000L;
-            if(ms>=20)PerformanceMonitor.event("controller-phase","settings-deferred-init | "+ms+" ms");
+            long workspaceMs=(System.nanoTime()-started)/1_000_000L;
+            if(workspaceMs>=20)PerformanceMonitor.event("controller-phase","settings-workspace-init | "+workspaceMs+" ms");
+            javafx.animation.PauseTransition previews = new javafx.animation.PauseTransition(javafx.util.Duration.millis(250));
+            previews.setOnFinished(previewEvent -> {
+                long previewStarted=System.nanoTime();
+                refreshAllAssetPreviews();
+                long previewMs=(System.nanoTime()-previewStarted)/1_000_000L;
+                if(previewMs>=20)PerformanceMonitor.event("controller-phase","settings-preview-init | "+previewMs+" ms");
+            });
+            previews.play();
         });
+        deferredSettings.play();
     }
 
     private void configureChoiceFields() {

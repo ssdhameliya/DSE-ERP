@@ -212,6 +212,7 @@ public class DashboardHomeController {
     }
 
     private void applySnapshot(DashboardSnapshot d) {
+        long applyStarted = System.nanoTime();
         if (lblTrendPeriod != null) lblTrendPeriod.setText(d.period());
         if (lblComparisonPeriod != null) lblComparisonPeriod.setText(d.period());
         lblSalesValue.setText(money(d.salesValue())); lblPurchaseValue.setText(money(d.purchaseValue()));
@@ -232,8 +233,86 @@ public class DashboardHomeController {
         if (lblReminderSummary != null) lblReminderSummary.setText(d.overdueReminders() > 0
             ? d.overdueReminders() + " overdue reminder" + plural(d.overdueReminders())
             : "No overdue reminders");
-        configureTable(); loadRecentActivity(); loadDashboardLists(); loadLiveActivities();
+        configureTable();
+        loadSecondaryPanelsAsync();
+        long applyMs = (System.nanoTime() - applyStarted) / 1_000_000L;
+        if (applyMs >= 15) org.example.util.PerformanceMonitor.event("controller-phase", "dashboard-primary-apply | " + applyMs + " ms");
     }
+
+    private void loadSecondaryPanelsAsync() {
+        org.example.util.UiTaskExecutor.submitLatest("dashboard-secondary", this::querySecondaryPanels, this::applySecondaryPanels,
+            failure -> org.example.util.PerformanceMonitor.event("dashboard-secondary-error", String.valueOf(failure.getMessage())));
+    }
+
+    private SecondaryPanels querySecondaryPanels() {
+        long started = System.nanoTime();
+        List<ActivityRow> recent = queryRecentActivityRows();
+        List<String> customers = queryTopCustomers();
+        List<String> ageing = queryAgeingRows();
+        List<String> activities = queryLiveActivities();
+        long ms = (System.nanoTime() - started) / 1_000_000L;
+        if (ms >= 20) org.example.util.PerformanceMonitor.event("controller-phase", "dashboard-secondary-query | " + ms + " ms");
+        return new SecondaryPanels(recent, customers, ageing, activities);
+    }
+
+    private void applySecondaryPanels(SecondaryPanels data) {
+        long started = System.nanoTime();
+        recentTable.getItems().setAll(data.recent());
+        topCustomerList.getItems().setAll(data.customers());
+        agingList.getItems().setAll(data.ageing());
+        activityList.getItems().setAll(data.activities());
+        long ms = (System.nanoTime() - started) / 1_000_000L;
+        if (ms >= 15) org.example.util.PerformanceMonitor.event("controller-phase", "dashboard-secondary-apply | " + ms + " ms");
+    }
+
+    private List<ActivityRow> queryRecentActivityRows() {
+        String sql = """
+            SELECT * FROM (
+              SELECT 'Sale' type, s.invoice_no doc_no, p.name party, s.invoice_date doc_date, s.total_amount amount
+              FROM sales_header s JOIN party_master p ON p.id=s.customer_id
+              UNION ALL
+              SELECT 'Purchase', h.invoice_no, p.name, h.invoice_date, h.total_amount
+              FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id
+            ) ORDER BY doc_date DESC, doc_no DESC LIMIT 8
+            """;
+        List<ActivityRow> rows = new ArrayList<>();
+        try (Connection con = DatabaseManager.getConnection(); Statement st = con.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) rows.add(new ActivityRow(rs.getString("type"), rs.getString("doc_no"), rs.getString("party"), rs.getString("doc_date"), money(rs.getDouble("amount"))));
+        } catch (Exception ignored) { }
+        return rows;
+    }
+
+    private List<String> queryTopCustomers() {
+        List<String> customers = new ArrayList<>();
+        String sql = "SELECT p.name, COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE " + periodCondition("s.invoice_date") + " GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5";
+        try (Connection c=DatabaseManager.getConnection(); Statement st=c.createStatement(); ResultSet rs=st.executeQuery(sql)) {
+            while(rs.next()) customers.add(String.format("%-28s %s", rs.getString(1), money(rs.getDouble(2))));
+        } catch (Exception ignored) { }
+        if (customers.isEmpty()) customers.add("No customer sales for " + selectedPeriod().toLowerCase(Locale.ROOT));
+        return customers;
+    }
+
+    private List<String> queryAgeingRows() {
+        return List.of(
+            ageing("Overdue (> 30 Days)", "due_date < date('now','-30 day')"),
+            ageing("21 - 30 Days", "due_date BETWEEN date('now','-30 day') AND date('now','-21 day')"),
+            ageing("11 - 20 Days", "due_date BETWEEN date('now','-20 day') AND date('now','-11 day')"),
+            ageing("1 - 10 Days", "due_date BETWEEN date('now','-10 day') AND date('now','-1 day')"),
+            ageing("Not Due", "due_date IS NULL OR due_date >= date('now')"));
+    }
+
+    private List<String> queryLiveActivities() {
+        List<String> activities = new ArrayList<>();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM, hh:mm a");
+        for (NotificationService.NotificationItem entry : NotificationService.findRecent(5)) {
+            String created = Instant.ofEpochMilli(entry.createdAt()).atZone(ZoneId.systemDefault()).format(formatter);
+            activities.add(entry.message() + "    " + created);
+        }
+        if (activities.isEmpty()) activities.add("No recent application activity");
+        return activities;
+    }
+
+    private record SecondaryPanels(List<ActivityRow> recent, List<String> customers, List<String> ageing, List<String> activities) {}
 
     private String periodCondition(String period, String column) {
         return switch (period) {

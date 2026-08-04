@@ -25,9 +25,12 @@ public class NavigationManager {
 
     private final StackPane contentPane;
     private static final AtomicBoolean NAVIGATION_IN_PROGRESS = new AtomicBoolean(false);
-    private String currentPage;
-    private CachedPage currentCachedPage;
-    private final Map<String, CachedPage> pageCache = new LinkedHashMap<>(16, 0.75f, true);
+    // Shared across all manager objects. Some legacy controllers still construct a
+    // NavigationManager directly; static state prevents those objects from creating
+    // isolated caches on macOS and other platforms.
+    private static String currentPage;
+    private static CachedPage currentCachedPage;
+    private static final Map<String, CachedPage> pageCache = new LinkedHashMap<>(16, 0.75f, true);
     private static final int MAX_CACHED_PAGES = 12;
     private static final java.util.Set<String> NON_CACHEABLE = java.util.Set.of(
         "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/Registration.fxml",
@@ -37,7 +40,9 @@ public class NavigationManager {
 
     public NavigationManager(StackPane contentPane) {
         this.contentPane = contentPane;
-        instance = this;
+        if (instance == null || instance.contentPane == null || instance.contentPane.getScene() == null) {
+            instance = this;
+        }
     }
 
     public static NavigationManager getInstance() {
@@ -47,9 +52,16 @@ public class NavigationManager {
     /** Reuses the shell navigation manager so feature screens cannot accidentally
      * replace the shared cache by constructing a second manager. */
     public static NavigationManager forPane(StackPane pane) {
-        if (pane == null) return instance;
         NavigationManager current = instance;
-        return current != null && current.contentPane == pane ? current : new NavigationManager(pane);
+        if (current != null) {
+            if (pane != null && current.contentPane != pane) {
+                PerformanceMonitor.event("navigation-manager", "reused-shared-cache | requested-pane="
+                    + Integer.toHexString(System.identityHashCode(pane)) + " | active-pane="
+                    + Integer.toHexString(System.identityHashCode(current.contentPane)));
+            }
+            return current;
+        }
+        return pane == null ? null : new NavigationManager(pane);
     }
 
     /**
