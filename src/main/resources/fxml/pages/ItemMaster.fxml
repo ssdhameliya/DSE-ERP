@@ -29,7 +29,7 @@
     </HBox>
 
     <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="entity-table-card">
-        <TableView fx:id="tableItems" VBox.vgrow="ALWAYS" styleClass="professional-table,entity-table">
+        <TableView fx:id="tableItems" VBox.vgrow="ALWAYS" styleClass="professional-table,entity-table,erp-table-profile-master">
             <placeholder><VBox alignment="CENTER" spacing="8" styleClass="premium-empty-state"><Label text="No items found" styleClass="empty-state-title"/><Label text="Create a new item or adjust the current search." styleClass="muted-text"/></VBox></placeholder>
             <columns>
                 <TableColumn fx:id="colCode" text="Item Code" prefWidth="110" styleClass="approved-table-column"/>

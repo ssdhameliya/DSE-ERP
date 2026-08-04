@@ -93,7 +93,7 @@ public final class IconFactory {
         }
 
         if (node instanceof ButtonBase button) {
-            String semantic = semantic(button.getText());
+            String semantic = semantic(button);
             String originalText = clean(button.getText());
             // Never guess with a generic cog. Unknown labels keep their existing
             // graphic/text until an explicit semantic mapping is added.
@@ -416,6 +416,20 @@ public final class IconFactory {
     }
 
     /** Maps user-facing labels to semantic icons without touching their actions. */
+
+    /** Resolves action semantics from label, fx:id and style classes. */
+    private static String semantic(ButtonBase button) {
+        String byText = semantic(button.getText());
+        if (byText != null) return byText;
+        String id = button.getId() == null ? "" : button.getId();
+        String styles = String.join(" ", button.getStyleClass());
+        String byMetadata = semantic(id + " " + styles);
+        if (byMetadata != null) return byMetadata;
+        if (button instanceof MenuButton) return "actions";
+        String text = clean(button.getText());
+        return text.isBlank() ? null : "document";
+    }
+
     private static String semantic(String text) {
         String value = text == null ? "" : text.toLowerCase(Locale.ROOT).trim();
         if (value.isBlank()) return null;

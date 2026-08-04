@@ -52,7 +52,7 @@
                 <ComboBox fx:id="cmbBranch" promptText="All Branches" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-input"/>
                 <Button text="Refresh" onAction="#refresh" styleClass="user-access-refresh,approved-button,approved-secondary-button"/>
             </HBox>
-            <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="user-access-user-table,approved-table">
+            <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="user-access-user-table,approved-table,erp-table-profile-administration">
                 <columns>
                     <TableColumn fx:id="colUser" text="User" prefWidth="135" styleClass="approved-table-column"/>
                     <TableColumn fx:id="colEmail" text="Email / Username" prefWidth="185" styleClass="approved-table-column"/>
@@ -88,7 +88,7 @@
                                 <Button text="Edit" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/>
                                 <Button text="Delete" onAction="#deleteRole" styleClass="danger-button"/>
                             </HBox>
-                            <TableView fx:id="roleTable" prefHeight="235" VBox.vgrow="ALWAYS" styleClass="user-access-role-table,approved-table">
+                            <TableView fx:id="roleTable" prefHeight="235" VBox.vgrow="ALWAYS" styleClass="user-access-role-table,approved-table,erp-table-profile-administration">
                                 <columns>
                                     <TableColumn fx:id="colRoleName" text="Role Name" prefWidth="100" styleClass="approved-table-column"/>
                                     <TableColumn fx:id="colRoleDescription" text="Description" prefWidth="230" styleClass="approved-table-column"/>
@@ -111,7 +111,7 @@
                                 <ComboBox fx:id="cmbPermissionRole" prefWidth="180" styleClass="approved-input"/>
                                 <Label fx:id="lblRoleHint" text="Select a role to review permissions" styleClass="muted-label" HBox.hgrow="ALWAYS"/>
                             </HBox>
-                            <TableView fx:id="permissionTable" editable="true" VBox.vgrow="ALWAYS" styleClass="user-access-permission-table,approved-table">
+                            <TableView fx:id="permissionTable" editable="true" VBox.vgrow="ALWAYS" styleClass="user-access-permission-table,approved-table,erp-table-profile-administration">
                                 <columns>
                                     <TableColumn fx:id="colPermissionModule" text="Module" prefWidth="100" styleClass="approved-table-column"/>
                                     <TableColumn fx:id="colPermissionAction" text="Actions" prefWidth="105" styleClass="approved-table-column"/>

@@ -160,7 +160,7 @@
                     <Label fx:id="lblHistoryCount" text="0 backups" styleClass="backup-history-count"/>
                 </HBox>
 
-                <TableView fx:id="backupTable" VBox.vgrow="ALWAYS" minHeight="260" styleClass="backup-history-table,approved-table">
+                <TableView fx:id="backupTable" VBox.vgrow="ALWAYS" minHeight="260" styleClass="backup-history-table,approved-table,erp-table-profile-history">
                     <columns>
                         <TableColumn fx:id="colBackupName" text="Backup Name" prefWidth="330" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colCreated" text="Date &amp; Time" prefWidth="190" styleClass="approved-table-column"/>

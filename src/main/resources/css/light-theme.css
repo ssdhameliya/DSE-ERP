@@ -5429,3 +5429,27 @@ SECTION TITLES
 .settings-email-compact { -fx-max-width: 1100px; }
 .settings-subcard { -fx-padding: 16; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-width: 1; }
 .erp-toast { -fx-padding: 12 14 12 14; }
+
+
+/* v3.0.1 application-wide table and action icon consistency */
+.table-view .column-header .erp-table-header-content {
+    -fx-alignment: CENTER-LEFT;
+    -fx-spacing: 6px;
+    -fx-padding: 0 4px 0 2px;
+}
+.table-view .column-header .erp-table-header-label {
+    -fx-font-weight: 700;
+    -fx-text-overrun: ELLIPSIS;
+}
+.erp-table-profile-register, .erp-table-profile-master,
+.erp-table-profile-history, .erp-table-profile-administration,
+.erp-table-profile-import { -fx-fixed-cell-size: 42px; }
+.erp-table-profile-summary, .erp-table-profile-detail,
+.erp-table-profile-dialog, .erp-table-profile-line-item { -fx-fixed-cell-size: 40px; }
+.erp-action-button {
+    -fx-content-display: LEFT;
+    -fx-graphic-text-gap: 8px;
+    -fx-min-height: 34px;
+    -fx-padding: 7px 12px;
+}
+.erp-action-button.erp-button-icon { -fx-padding: 7px; -fx-min-width: 36px; }

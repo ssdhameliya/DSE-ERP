@@ -33,7 +33,7 @@
       </HBox>
       <VBox spacing="10" styleClass="purchase-card">
         <Label text="Return Items" styleClass="purchase-section-title"/>
-        <TableView fx:id="table" prefHeight="280" styleClass="approved-table">
+        <TableView fx:id="table" prefHeight="280" styleClass="approved-table,erp-table-profile-detail">
           <columns>
             <TableColumn fx:id="cName" text="Item Name" prefWidth="260" styleClass="approved-table-column"/>
             <TableColumn fx:id="cCode" text="Item Code" styleClass="approved-table-column"/>

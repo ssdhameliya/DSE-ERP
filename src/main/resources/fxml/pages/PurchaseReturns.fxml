@@ -27,7 +27,7 @@
       <Button text="Export" onAction="#export" styleClass="secondary-button"/>
     </HBox>
   </VBox>
-  <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table">
+  <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register">
     <columns>
       <TableColumn text="" prefWidth="42" styleClass="approved-table-column"/>
       <TableColumn fx:id="cNo" text="Return No." prefWidth="150" styleClass="approved-table-column"/>

@@ -121,7 +121,7 @@
           </VBox>
 
           <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
-            <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table">
+            <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,erp-table-profile-register">
               <columns>
                 <TableColumn fx:id="colSelect" text="" prefWidth="44" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="125" styleClass="approved-table-column"/>

@@ -36,8 +36,26 @@ public final class ProfessionalUiEnhancer {
         if (node instanceof TableView<?> table) enhanceTable(table);
         if (node instanceof DialogPane pane) enhanceDialog(pane);
         if (node instanceof Parent parent) {
+            installDynamicChildEnhancement(parent);
             for (Node child : parent.getChildrenUnmodifiable()) walk(child);
         }
+    }
+
+
+    /** Enhances controls added after FXML loading, including dynamic dialog tables and action buttons. */
+    private static void installDynamicChildEnhancement(Parent parent) {
+        if (Boolean.TRUE.equals(parent.getProperties().get("erp-dynamic-child-listener"))) return;
+        parent.getProperties().put("erp-dynamic-child-listener", true);
+        parent.getChildrenUnmodifiable().addListener((ListChangeListener<Node>) change -> {
+            while (change.next()) {
+                if (!change.wasAdded()) continue;
+                for (Node added : change.getAddedSubList()) {
+                    walk(added);
+                    IconFactory.decorate(added);
+                    TablePerformanceOptimizer.apply(added);
+                }
+            }
+        });
     }
 
     /**
@@ -142,14 +160,45 @@ public final class ProfessionalUiEnhancer {
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void applyTableProfile(TableView table) {
         if (Boolean.TRUE.equals(table.getProperties().get("erp-preserve-resize-policy"))) return;
-        String styles = String.join(" ", table.getStyleClass()).toLowerCase(Locale.ROOT);
-        if (styles.contains("line-item") || styles.contains("dialog-table") || styles.contains("compact-table")) {
-            table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-            table.getProperties().put("erp-table-profile", "compact");
-        } else {
-            table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-            table.getProperties().put("erp-table-profile", "responsive");
+        String profile = detectTableProfile(table);
+        table.getProperties().put("erp-table-profile", profile);
+        String profileClass = "erp-table-profile-" + profile;
+        if (!table.getStyleClass().contains(profileClass)) table.getStyleClass().add(profileClass);
+
+        int columns = table.getColumns().size();
+        switch (profile) {
+            case "import", "permission" -> table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+            case "register" -> table.setColumnResizePolicy(columns >= 9
+                ? TableView.UNCONSTRAINED_RESIZE_POLICY
+                : TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+            case "master", "history", "administration" -> table.setColumnResizePolicy(columns >= 8
+                ? TableView.UNCONSTRAINED_RESIZE_POLICY
+                : TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+            case "line-item", "detail", "dialog" ->
+                table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+            default -> table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         }
+    }
+
+    private static String detectTableProfile(TableView<?> table) {
+        String styles = String.join(" ", table.getStyleClass()).toLowerCase(Locale.ROOT);
+        String id = table.getId() == null ? "" : table.getId().toLowerCase(Locale.ROOT);
+        String key = styles + " " + id;
+        if (key.contains("import-preview")) return "import";
+        if (key.contains("permission")) return "permission";
+        if (key.contains("role-table") || key.contains("user-access") || key.contains("user-table")) return "administration";
+        if (key.contains("report-table") || key.contains("dashboard") || key.contains("summary-table")) return "summary";
+        if (key.contains("line-item") || key.contains("tablelines") || key.contains("entry-table")) return "line-item";
+        if (key.contains("detail") || id.equals("items")) return "detail";
+        if (key.contains("dialog-table") || key.contains("compact-table")) return "dialog";
+        if (key.contains("history") || key.contains("communication") || key.contains("backup")
+            || key.contains("reminder") || key.contains("update")) return "history";
+        if (key.contains("entity") || key.contains("master") || key.contains("inventory")
+            || key.contains("customer") || key.contains("supplier") || key.contains("item")) return "master";
+        if (key.contains("register") || key.contains("sales") || key.contains("purchase")
+            || key.contains("quotation") || key.contains("return") || key.contains("payment")
+            || key.contains("operation")) return "register";
+        return table.getColumns().size() >= 9 ? "register" : "responsive";
     }
 
     /**
@@ -183,6 +232,7 @@ public final class ProfessionalUiEnhancer {
                 : column.getText() == null ? "" : column.getText().trim();
             String columnId = column.getId() == null ? "" : column.getId().trim();
             String semantic = headerSemantic(heading, columnId);
+            if (semantic == null && !heading.isBlank()) semantic = fallbackHeaderSemantic(heading, columnId);
             if (semantic != null && !Boolean.TRUE.equals(column.getProperties().get("erp-header-preserve"))) {
                 String signature = heading + "|" + semantic;
                 if (signature.equals(column.getProperties().get("erp-header-signature")) && column.getGraphic() != null) {
@@ -204,26 +254,36 @@ public final class ProfessionalUiEnhancer {
             // renderer is only for ordinary string status columns.
             if (isStatusHeading(heading)
                 && column.getCellFactory() == TableColumn.DEFAULT_CELL_FACTORY) {
-                column.setCellFactory(ignored -> new SemanticStatusCell(semantic));
+                final String statusSemantic = semantic;
+                column.setCellFactory(ignored -> new SemanticStatusCell(statusSemantic));
             }
         }
     }
 
 
     @SuppressWarnings("rawtypes")
-    private static void applyResponsiveWidth(TableColumn column,String heading,String semantic){
-        String h=heading==null?"":heading.toLowerCase(Locale.ROOT);
+    private static void applyResponsiveWidth(TableColumn column, String heading, String semantic) {
+        String h = heading == null ? "" : heading.toLowerCase(Locale.ROOT);
+        TableView<?> table = column.getTableView();
+        String profile = table == null ? "responsive"
+            : String.valueOf(table.getProperties().getOrDefault("erp-table-profile", "responsive"));
         double min;
-        if("actions".equals(semantic)) min=76;
-        else if("quantity".equals(semantic)) min=62;
-        else if("status".equals(semantic)||"email".equals(semantic)||"whatsapp".equals(semantic)) min=108;
-        else if("calendar".equals(semantic)||"reminder".equals(semantic)) min=112;
-        else if("currency".equals(semantic)||h.contains("amount")||h.contains("balance")||h.contains("paid")) min=118;
-        else if("phone".equals(semantic)) min=118;
-        else if("customer".equals(semantic)||"supplier".equals(semantic)||h.contains("description")||h.contains("subject")) min=145;
-        else min=92;
-        if(column.getMinWidth()<min)column.setMinWidth(min);
-        if(column.getPrefWidth()<min)column.setPrefWidth(min);
+        if ("actions".equals(semantic)) min = 92;
+        else if ("quantity".equals(semantic) && (h.equals("no.") || h.equals("#") || h.equals("qty"))) min = 68;
+        else if ("status".equals(semantic) || "email".equals(semantic) || "whatsapp".equals(semantic)) min = 116;
+        else if ("calendar".equals(semantic) || "reminder".equals(semantic)) min = 118;
+        else if ("currency".equals(semantic) || h.contains("amount") || h.contains("balance") || h.contains("paid")) min = 126;
+        else if ("phone".equals(semantic)) min = 122;
+        else if ("customer".equals(semantic) || "supplier".equals(semantic) || h.contains("description")
+            || h.contains("subject") || h.contains("address") || h.contains("error")) min = 160;
+        else min = 104;
+
+        if ("summary".equals(profile)) min = Math.min(min, 132);
+        if ("dialog".equals(profile) || "detail".equals(profile)) min = Math.min(min, 118);
+        if (column.getMinWidth() < min) column.setMinWidth(min);
+        if (column.getPrefWidth() < min) column.setPrefWidth(min);
+        if ("actions".equals(semantic)) { column.setMaxWidth(120); column.setSortable(false); }
+        if (h.equals("no.") || h.equals("#")) column.setMaxWidth(72);
     }
 
     /** Builds a stable icon-and-label header that survives JavaFX skin rebuilds. */
@@ -312,6 +372,22 @@ public final class ProfessionalUiEnhancer {
 
         // Unknown headings should not all receive the same document icon.
         return null;
+    }
+
+
+    /** Ensures every visible table heading receives a stable, colourful semantic icon. */
+    private static String fallbackHeaderSemantic(String heading, String columnId) {
+        String key = ((heading == null ? "" : heading) + " " + (columnId == null ? "" : columnId))
+            .toLowerCase(Locale.ROOT);
+        if (key.contains("version")) return "update";
+        if (key.contains("path") || key.contains("folder")) return "folder";
+        if (key.contains("host") || key.contains("port") || key.contains("provider")) return "settings";
+        if (key.contains("module") || key.contains("feature")) return "master";
+        if (key.contains("read") || key.contains("create") || key.contains("update") || key.contains("delete")) return "permission";
+        if (key.contains("frequency") || key.contains("schedule")) return "calendar";
+        if (key.contains("method") || key.contains("mode")) return "category";
+        if (key.contains("name") || key.contains("title")) return "document";
+        return "document";
     }
 
     /** Default icon-plus-label renderer for status columns without custom logic. */

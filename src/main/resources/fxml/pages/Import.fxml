@@ -293,7 +293,7 @@
 
                                 <Separator/>
 
-                                <TableView fx:id="tblPreview" editable="false" minHeight="190" prefHeight="255" maxHeight="Infinity" VBox.vgrow="ALWAYS" styleClass="import-preview-table,approved-table">
+                                <TableView fx:id="tblPreview" editable="false" minHeight="190" prefHeight="255" maxHeight="Infinity" VBox.vgrow="ALWAYS" styleClass="import-preview-table,approved-table,erp-table-profile-import">
 
                                     <placeholder>
 

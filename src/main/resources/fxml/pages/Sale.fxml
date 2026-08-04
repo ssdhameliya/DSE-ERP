@@ -96,7 +96,7 @@
                             <Button text="Remove" onAction="#removeLine" styleClass="sales-entry-remove-button,approved-button,approved-danger-button"/>
                         </HBox>
 
-                        <TableView fx:id="tableLines" prefHeight="520" minHeight="360" VBox.vgrow="ALWAYS" styleClass="sales-entry-table,approved-table">
+                        <TableView fx:id="tableLines" prefHeight="520" minHeight="360" VBox.vgrow="ALWAYS" styleClass="sales-entry-table,approved-table,erp-table-profile-line-item">
                             <columns>
                                 <TableColumn fx:id="colItem" text="Item Name *" prefWidth="360" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colQuantity" text="Qty" prefWidth="100" styleClass="approved-table-column"/>
