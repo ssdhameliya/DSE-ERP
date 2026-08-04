@@ -5453,3 +5453,18 @@ SECTION TITLES
     -fx-padding: 7px 12px;
 }
 .erp-action-button.erp-button-icon { -fx-padding: 7px; -fx-min-width: 36px; }
+
+
+/* DSE ERP v3.0.2 responsive full-view and icon consistency */
+.erp-screen-root { -fx-max-width: infinity; -fx-max-height: infinity; }
+.erp-full-width-table { -fx-max-width: infinity; -fx-max-height: infinity; }
+.erp-full-width-table .column-header .label { -fx-text-overrun: clip; }
+.report-table-row > .report-card, .report-bottom-row > .report-card { -fx-max-height: infinity; }
+.reports-header { -fx-padding: 6 12 6 12; }
+.reports-title-block .page-title { -fx-font-size: 22px; }
+.erp-action-glyph { -fx-opacity: 1.0; }
+.button, .menu-button, .toggle-button { -fx-graphic-text-gap: 7; }
+@media (max-width: 1450px) {
+  .button, .menu-button, .toggle-button { -fx-padding: 7 10 7 10; }
+  .metric-value, .kpi-value { -fx-font-size: 17px; }
+}

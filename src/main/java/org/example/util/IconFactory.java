@@ -95,8 +95,12 @@ public final class IconFactory {
         if (node instanceof ButtonBase button) {
             String semantic = semantic(button);
             String originalText = clean(button.getText());
-            // Never guess with a generic cog. Unknown labels keep their existing
-            // graphic/text until an explicit semantic mapping is added.
+            // v3.0.2 guarantees a visible semantic graphic on every actionable
+            // ButtonBase. Explicit mappings remain preferred; uncommon controls
+            // receive a neutral document/action fallback rather than no icon.
+            if (semantic == null && !Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))) {
+                semantic = originalText.isBlank() ? "actions" : "document";
+            }
             if (semantic != null) {
                 button.setText(clean(button.getText()));
                 boolean sidebar = isInside(button, "erp-sidebar");

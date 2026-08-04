@@ -10,6 +10,8 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.Priority;
 import javafx.geometry.Pos;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -101,6 +103,10 @@ public final class ProfessionalUiEnhancer {
         if (!table.getStyleClass().contains("erp-full-width-table")) {
             table.getStyleClass().add("erp-full-width-table");
         }
+        table.setMaxWidth(Double.MAX_VALUE);
+        table.setMaxHeight(Double.MAX_VALUE);
+        if (table.getParent() instanceof VBox) VBox.setVgrow(table, Priority.ALWAYS);
+        if (table.getParent() instanceof HBox) HBox.setHgrow(table, Priority.ALWAYS);
 
         decorateColumns(table.getColumns());
         installHeaderLifecycleRefresh(table);
