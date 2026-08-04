@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.chart.PieChart?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.MasterDataController" styleClass="master-page,master-data-premium,approved-ui,approved-screen,approved-screen-masterdata,erp-screen-root" prefWidth="1450" prefHeight="900">
+<?import javafx.geometry.Insets?><?import javafx.scene.chart.PieChart?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.MasterDataController" styleClass="master-page,master-data-premium,approved-ui,approved-screen,approved-screen-masterdata,erp-screen-root" prefWidth="1450" prefHeight="900">
 
     <!-- ========================================================= -->
     <!-- HEADER -->

@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.InventoryController" spacing="14" styleClass="register-page,inventory-premium-page,approved-ui,approved-screen,approved-screen-inventory,erp-screen-root">
+<?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.InventoryController" spacing="14" styleClass="register-page,inventory-premium-page,approved-ui,approved-screen,approved-screen-inventory,erp-screen-root">
     <padding><Insets top="18" right="18" bottom="14" left="18"/></padding>
     <HBox alignment="CENTER_LEFT" styleClass="entity-page-header,approved-section-header">
         <VBox spacing="3"><Label text="Stock Register" styleClass="screen-title"/><Label text="Track inventory levels, reservations, valuation and stock movement" styleClass="screen-subtitle"/></VBox>

@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationController" styleClass="register-page,quotation-register-page,approved-ui,approved-screen,approved-screen-quotations,erp-screen-root">
+<?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationController" styleClass="register-page,quotation-register-page,approved-ui,approved-screen,approved-screen-quotations,erp-screen-root">
 
     <top>
         <VBox spacing="14" styleClass="quotation-register-top">

@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ProfileController" spacing="18" styleClass="mock-page,approved-ui,approved-screen,approved-screen-profile,erp-screen-root" style="-fx-padding:30;">
+<?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ProfileController" spacing="18" styleClass="mock-page,approved-ui,approved-screen,approved-screen-profile,erp-screen-root" style="-fx-padding:30;">
     <Label text="My Profile" styleClass="screen-title"/>
     <Label text="Manage your account information" styleClass="screen-subtitle"/>
     <GridPane hgap="28" vgap="18" styleClass="flow-card">

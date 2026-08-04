@@ -1,6 +1,6 @@
 # DSE ERP
 
-DSE ERP is an open-source JavaFX desktop ERP application by **DS Engineers**. It targets Windows and macOS and uses Java 21, JavaFX, Maven, and SQLite.
+DSE ERP is an open-source JavaFX desktop ERP application by **DS Engineers**. It targets Windows and macOS and uses JDK 25, JavaFX 25, Maven, and SQLite.
 
 ## Main modules
 
@@ -15,7 +15,7 @@ DSE ERP is an open-source JavaFX desktop ERP application by **DS Engineers**. It
 
 ## Requirements for development
 
-- JDK 21
+- JDK 25
 - Maven 3.9 or newer
 
 ## Build and test

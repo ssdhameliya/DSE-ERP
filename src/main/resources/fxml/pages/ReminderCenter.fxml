@@ -3,7 +3,7 @@
     Premium Reminder Center.
     Existing fx:id values and action-handler names are preserved so the screen
     continues to use the same database and reminder workflows.
---><VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.ReminderCenterController" spacing="18" styleClass="register-page,reminder-center-page,approved-ui,approved-screen,approved-screen-reminder-center,erp-screen-root">
+--><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.ReminderCenterController" spacing="18" styleClass="register-page,reminder-center-page,approved-ui,approved-screen,approved-screen-reminder-center,erp-screen-root">
 
     <padding>
         <Insets top="22" right="22" bottom="22" left="22"/>

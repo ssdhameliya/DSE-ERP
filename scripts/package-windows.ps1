@@ -38,7 +38,6 @@ $CommonArgs = @(
     '--input', $Input,
     '--main-jar', 'DSE_Final.jar',
     '--main-class', 'org.example.app.Launcher',
-    '--java-options', '--enable-preview',
     '--java-options', '-Dfile.encoding=UTF-8'
 )
 if (Test-Path $Icon) { $CommonArgs += @('--icon', $Icon) }

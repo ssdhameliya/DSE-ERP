@@ -50,7 +50,6 @@ COMMON=(
   --input "$INPUT"
   --main-jar "DSE_Final.jar"
   --main-class "org.example.app.Launcher"
-  --java-options "--enable-preview"
   --java-options "-Dfile.encoding=UTF-8"
   --mac-package-identifier "com.dsengineers.dseerp"
   --mac-package-name "DSE ERP"
