@@ -20,6 +20,7 @@ public class OwnedTextInputDialog extends TextInputDialog {
                 ThemeManager.applyTheme(getDialogPane().getScene());
                 PlatformUiSupport.installResponsiveClasses(getDialogPane().getScene());
             }
+            DialogActionStyler.style(getDialogPane());
         }));
     }
 }

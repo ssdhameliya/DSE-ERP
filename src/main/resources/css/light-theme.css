@@ -5412,3 +5412,12 @@ SECTION TITLES
 .backup-page-scroll { -fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0; }
 .backup-page-scroll > .viewport { -fx-background-color: transparent; }
 .backup-page-scroll .scroll-bar:vertical { -fx-pref-width: 12px; -fx-opacity: 1; }
+
+/* v2.1.14 shared semantic dialog action buttons */
+.dialog-action-button { -fx-min-height: 36px; -fx-padding: 8px 14px; -fx-background-radius: 8px; -fx-font-weight: 700; -fx-graphic-text-gap: 8px; }
+.dialog-action-primary { -fx-background-color: #2563eb; -fx-text-fill: white; }
+.dialog-action-success { -fx-background-color: #16a34a; -fx-text-fill: white; }
+.dialog-action-warning { -fx-background-color: #d97706; -fx-text-fill: white; }
+.dialog-action-danger { -fx-background-color: #dc2626; -fx-text-fill: white; }
+.dialog-action-neutral { -fx-background-color: #e2e8f0; -fx-text-fill: #334155; -fx-border-color: #cbd5e1; -fx-border-radius: 8px; }
+.dialog-action-button:hover { -fx-opacity: 0.90; }

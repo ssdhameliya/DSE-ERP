@@ -135,12 +135,7 @@ public final class ModernDialog {
             Node button = pane.lookupButton(type);
             if (button == null) continue;
             button.getStyleClass().add("modern-dialog-button");
-            // Buttons remain consistently blue; semantic meaning is carried by
-            // the coloured icon and dialog accent rather than button colour.
-            button.getStyleClass().removeAll(
-                "modern-dialog-cancel", "modern-dialog-danger",
-                "modern-dialog-warning-action", "modern-dialog-success-action"
-            );
         }
+        DialogActionStyler.style(pane, semantic);
     }
 }

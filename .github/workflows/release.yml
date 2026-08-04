@@ -93,8 +93,12 @@ jobs:
           java-version: '21'
           architecture: aarch64
           cache: maven
+      - name: Validate macOS packaging script
+        shell: zsh {0}
+        run: zsh -n ./scripts/package-macos.sh
       - name: Build macOS Apple Silicon DMG
-        run: ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
+        shell: zsh {0}
+        run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
       - name: Upload macOS Apple Silicon package
         uses: actions/upload-artifact@v4
         with:
@@ -116,8 +120,12 @@ jobs:
           java-version: '21'
           architecture: x64
           cache: maven
+      - name: Validate macOS packaging script
+        shell: zsh {0}
+        run: zsh -n ./scripts/package-macos.sh
       - name: Build macOS Intel DMG
-        run: ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
+        shell: zsh {0}
+        run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
       - name: Upload macOS Intel package
         uses: actions/upload-artifact@v4
         with:

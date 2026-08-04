@@ -391,6 +391,11 @@ public final class IconFactory {
             case "update" -> "fas-cloud-download-alt";
             case "permission" -> "fas-user-shield";
             case "select" -> "fas-hand-pointer";
+            case "login" -> "fas-sign-in-alt";
+            case "register" -> "fas-user-plus";
+            case "test" -> "fas-vial";
+            case "draft" -> "fas-file-signature";
+            case "restart" -> "fas-redo";
             default -> "fas-question-circle";
         };
     }
@@ -404,7 +409,8 @@ public final class IconFactory {
             case "report", "delete", "error", "cancel", "pdf" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
             case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "first", "previous", "next", "last", "history", "workspace", "select" -> "blue";
-            case "adjust", "bank", "delivery", "update", "permission" -> "purple";
+            case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart" -> "purple";
+            case "login", "test" -> "blue";
             default -> "indigo";
         };
     }
@@ -419,6 +425,14 @@ public final class IconFactory {
         if (value.contains("dark")) return "moon";
         if (value.contains("light")) return "sun";
         if (value.contains("logout") || value.contains("sign out")) return "lock";
+        if (value.contains("login") || value.contains("sign in")) return "login";
+        if (value.contains("register") || value.contains("create account")) return "register";
+        if (value.contains("resend otp")) return "refresh";
+        if (value.contains("test connection") || value.contains("test email")) return "test";
+        if (value.contains("install") && value.contains("restart")) return "restart";
+        if (value.contains("save") && value.contains("print")) return "print";
+        if (value.contains("save") && value.contains("draft")) return "draft";
+        if (value.contains("send") && value.contains("receipt")) return "email";
         if (value.contains("continue")) return "next";
         if (value.contains("guide") || value.contains("help")) return "document";
         if (value.contains("map column") || value.contains("mapping")) return "settings";
