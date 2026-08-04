@@ -5,30 +5,42 @@ import javafx.animation.Timeline;
 import javafx.scene.control.Label;
 import javafx.util.Duration;
 
+import java.lang.ref.WeakReference;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
+/** One shared clock pulse for every visible application clock label. */
 public final class ClockService {
-
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy  |  hh:mm:ss a");
+    private static final List<WeakReference<Label>> LABELS = new CopyOnWriteArrayList<>();
+    private static Timeline timeline;
 
-    private ClockService() {
+    private ClockService() { }
+
+    public static synchronized void start(Label label) {
+        if (label == null) return;
+        boolean registered = LABELS.stream().map(WeakReference::get).anyMatch(existing -> existing == label);
+        if (!registered) LABELS.add(new WeakReference<>(label));
+        update(label);
+        if (timeline == null) {
+            timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> updateAll()));
+            timeline.setCycleCount(Timeline.INDEFINITE);
+            timeline.play();
+        }
     }
 
-    public static void start(Label label) {
-
-        update(label);
-
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.seconds(1), e -> update(label))
-        );
-
-        timeline.setCycleCount(Timeline.INDEFINITE);
-        timeline.play();
-
-        // Prevent garbage collection
-        label.getProperties().put("clockTimeline", timeline);
+    private static void updateAll() {
+        String value = LocalDateTime.now().format(FORMATTER);
+        for (WeakReference<Label> reference : LABELS) {
+            Label label = reference.get();
+            if (label != null && (label.getScene() != null || label.isVisible())) {
+                label.setText(value);
+            }
+        }
+        LABELS.removeIf(reference -> reference.get() == null);
     }
 
     private static void update(Label label) {

@@ -15,6 +15,7 @@ import org.example.update.UpdateLifecycle;
 import org.example.update.UpdateStartupChecker;
 import org.example.util.SceneManager;
 import org.example.util.WindowUtilsFx;
+import org.example.util.PerformanceMonitor;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -76,6 +77,12 @@ public class Main extends Application {
 
     private void finishStartup(Stage stage) {
         stage.show();
+        PerformanceMonitor.event("runtime",
+            "os=" + System.getProperty("os.name")
+                + " | arch=" + System.getProperty("os.arch")
+                + " | java=" + System.getProperty("java.version")
+                + " | javafx=" + System.getProperty("javafx.version")
+                + " | scale=" + stage.getOutputScaleX() + "x" + stage.getOutputScaleY());
         UpdateLifecycle.afterDatabaseInitialization(stage);
         if (stage.getScene() == null) SceneManager.showLogin();
         startBackupScheduler();

@@ -142,7 +142,9 @@ public class DashboardController {
     public void initialize() {
 
         ClockService.start(lblClock);
-        if (lblClock != null) lblClock.textProperty().addListener((obs, oldValue, newValue) -> refreshCompanyFooter());
+        // Company details do not change every second. Refreshing the complete
+        // footer from the clock listener caused repeated ConfigManager reads and
+        // layout pulses, especially on macOS Retina displays.
         refreshCompanyFooter();
 
 
@@ -162,10 +164,7 @@ public class DashboardController {
         Platform.runLater(this::bindShellControls);
         applyRolePermissions();
         notificationRefresh = new Timeline(
-            new KeyFrame(Duration.seconds(15), event -> {
-                refreshShellIndicatorsAsync();
-                refreshCompanyFooter();
-            }));
+            new KeyFrame(Duration.seconds(30), event -> refreshShellIndicatorsAsync()));
         notificationRefresh.setCycleCount(Timeline.INDEFINITE);
         notificationRefresh.play();
 

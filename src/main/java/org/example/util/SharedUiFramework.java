@@ -1,6 +1,5 @@
 package org.example.util;
 
-import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.ButtonBase;
@@ -21,8 +20,6 @@ public final class SharedUiFramework {
         apply(root);
         if (!Boolean.TRUE.equals(root.getProperties().get(INSTALLED))) {
             root.getProperties().put(INSTALLED, true);
-            // One deferred pass is enough for controls whose skins are created after attachment.
-            Platform.runLater(() -> IconFactory.decorate(root));
         }
     }
 

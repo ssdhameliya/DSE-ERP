@@ -162,13 +162,14 @@ public final class ProfessionalUiEnhancer {
         if (Boolean.TRUE.equals(table.getProperties().get("erp-header-lifecycle"))) return;
         table.getProperties().put("erp-header-lifecycle", true);
 
-        Runnable refresh = () -> Platform.runLater(() -> decorateColumns(table.getColumns()));
-
-        table.sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene != null) refresh.run();
-        });
+        // Column graphics do not depend on a Scene. A single skin callback is
+        // sufficient for JavaFX-created header nodes and avoids two deferred
+        // full-column traversals for every navigation.
         table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
-            if (newSkin != null) refresh.run();
+            if (newSkin != null && !Boolean.TRUE.equals(table.getProperties().get("erp-header-skin-pass"))) {
+                table.getProperties().put("erp-header-skin-pass", true);
+                Platform.runLater(() -> decorateColumns(table.getColumns()));
+            }
         });
     }
 

@@ -7,6 +7,7 @@ import javafx.application.Platform;
 import org.example.util.ProfessionalUiEnhancer;
 import org.example.util.ModernDialog;
 import org.example.util.PerformanceMonitor;
+import org.example.util.ScreenRefreshPolicy;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
+import java.time.Duration;
 
 public class NavigationManager {
 
@@ -26,11 +28,11 @@ public class NavigationManager {
     private String currentPage;
     private CachedPage currentCachedPage;
     private final Map<String, CachedPage> pageCache = new LinkedHashMap<>(16, 0.75f, true);
-    private static final int MAX_CACHED_PAGES = 8;
+    private static final int MAX_CACHED_PAGES = 12;
     private static final java.util.Set<String> NON_CACHEABLE = java.util.Set.of(
         "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/Registration.fxml",
-        "/fxml/pages/SetupWizard.fxml", "/fxml/pages/Import.fxml", "/fxml/pages/Settings.fxml",
-        "/fxml/pages/BackupRestore.fxml", "/fxml/pages/EmailSettings.fxml"
+        "/fxml/pages/SetupWizard.fxml", "/fxml/pages/Import.fxml",
+        "/fxml/pages/EmailSettings.fxml"
     );
 
     public NavigationManager(StackPane contentPane) {
@@ -67,17 +69,26 @@ public class NavigationManager {
             CachedPage cached = cacheable ? pageCache.get(fxml) : null;
             boolean reused = cached != null;
             if (!reused) {
+                long loadStarted = System.nanoTime();
                 FXMLLoader loader = new FXMLLoader(url);
                 Node page = loader.load();
+                logPhase(fxml, "fxml-load", loadStarted);
+
+                long enhanceStarted = System.nanoTime();
                 ProfessionalUiEnhancer.enhance(page);
+                logPhase(fxml, "ui-enhance", enhanceStarted);
+
                 cached = new CachedPage(page, loader.getController());
+                ScreenRefreshPolicy.markRefreshed(fxml);
                 if (cacheable) cache(fxml, cached);
             }
 
             if (currentCachedPage != null && currentCachedPage != cached) {
                 notifyHidden(currentCachedPage.controller());
             }
+            long attachStarted = System.nanoTime();
             contentPane.getChildren().setAll(cached.node());
+            logPhase(fxml, "scene-attach", attachStarted);
             // New pages are enhanced once before attachment. Cached pages are reused
             // without another full CSS/layout/enhancement traversal. This is critical
             // for macOS Retina responsiveness and also benefits Windows.
@@ -85,8 +96,12 @@ public class NavigationManager {
             // Legacy controllers still receive their existing refresh method until
             // they opt into ScreenLifecycle.
             if (reused && !fxml.equals(currentPage)
-                    && !(cached.controller() instanceof ScreenLifecycle)) {
+                    && !(cached.controller() instanceof ScreenLifecycle)
+                    && ScreenRefreshPolicy.shouldRefresh(fxml, ScreenRefreshPolicy.Mode.WHEN_STALE, Duration.ofSeconds(60))) {
+                long refreshStarted = System.nanoTime();
                 refreshController(cached.controller());
+                ScreenRefreshPolicy.markRefreshed(fxml);
+                logPhase(fxml, "legacy-refresh", refreshStarted);
             }
             currentCachedPage = cached;
             currentPage = fxml;
@@ -159,16 +174,34 @@ public class NavigationManager {
     }
 
     public void invalidate(String fxml) {
-        if (fxml != null) pageCache.remove(fxml);
+        if (fxml != null) {
+            pageCache.remove(fxml);
+            ScreenRefreshPolicy.invalidate(fxml);
+            PerformanceMonitor.event("navigation-cache-invalidate", fxml);
+        }
     }
 
     public void clearCache() {
+        clearCache("unspecified");
+    }
+
+    public void clearCache(String reason) {
         if (currentCachedPage != null) notifyHidden(currentCachedPage.controller());
+        int removed = pageCache.size();
         pageCache.clear();
+        ScreenRefreshPolicy.invalidateAll();
         currentCachedPage = null;
+        PerformanceMonitor.event("navigation-cache-clear", "reason=" + reason + " | removed=" + removed);
     }
 
     public int getCachedPageCount() { return pageCache.size(); }
+
+    private static void logPhase(String fxml, String phase, long startedNanos) {
+        long millis = (System.nanoTime() - startedNanos) / 1_000_000L;
+        if (millis >= 25) {
+            PerformanceMonitor.event("navigation-phase", fxml + " | " + phase + " | " + millis + " ms");
+        }
+    }
 
     private record CachedPage(Node node, Object controller) {}
 
