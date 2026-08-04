@@ -27,8 +27,32 @@ public class CommunicationCenterController implements ScreenLifecycle {
     @FXML private TableView<Row> table; @FXML private TableColumn<Row,String> colTime,colEntity,colChannel,colRecipient,colSubject,colStatus,colError,colUser; @FXML private TableColumn<Row,Void> colActions;
     private List<Row> all=List.of();
     @FXML public void initialize(){
-        installKpiIcons();table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-        configureExplicitTableHeaderIcons();colTime.setCellValueFactory(v->v.getValue().time);colEntity.setCellValueFactory(v->v.getValue().entity);colChannel.setCellValueFactory(v->v.getValue().channel);colRecipient.setCellValueFactory(v->v.getValue().recipient);colSubject.setCellValueFactory(v->v.getValue().subject);colStatus.setCellValueFactory(v->v.getValue().status);colError.setCellValueFactory(v->v.getValue().error);colUser.setCellValueFactory(v->v.getValue().user);configureActions();cmbChannel.getItems().setAll("All Channels","EMAIL","WHATSAPP");String requested=CommunicationScreenContext.take();applyRequestedChannel(requested);cmbStatus.getItems().setAll("All Statuses","SENT","FAILED");cmbStatus.setValue("All Statuses");txtSearch.textProperty().addListener((o,a,b)->filter());cmbChannel.valueProperty().addListener((o,a,b)->filter());cmbStatus.valueProperty().addListener((o,a,b)->filter());refresh();}
+        installKpiIcons();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        configureExplicitTableHeaderIcons();
+        colTime.setCellValueFactory(v->v.getValue().time);
+        colEntity.setCellValueFactory(v->v.getValue().entity);
+        colChannel.setCellValueFactory(v->v.getValue().channel);
+        colRecipient.setCellValueFactory(v->v.getValue().recipient);
+        colSubject.setCellValueFactory(v->v.getValue().subject);
+        colStatus.setCellValueFactory(v->v.getValue().status);
+        colError.setCellValueFactory(v->v.getValue().error);
+        colUser.setCellValueFactory(v->v.getValue().user);
+        configureActions();
+
+        // Configure both filters completely before any listener or filter pass runs.
+        // Previously the requested channel triggered filter() while cmbStatus was still null,
+        // which aborted controller initialization when the top Email/WhatsApp shortcut was used.
+        cmbChannel.getItems().setAll("All Channels","EMAIL","WHATSAPP");
+        cmbChannel.setValue("All Channels");
+        cmbStatus.getItems().setAll("All Statuses","SENT","FAILED");
+        cmbStatus.setValue("All Statuses");
+
+        txtSearch.textProperty().addListener((o,a,b)->filter());
+        cmbChannel.valueProperty().addListener((o,a,b)->filter());
+        cmbStatus.valueProperty().addListener((o,a,b)->filter());
+        refresh();
+    }
     private void installKpiIcons(){setKpiIcon(communicationTotalIcon,"communication");setKpiIcon(communicationSuccessIcon,"complete");setKpiIcon(communicationFailedIcon,"error");setKpiIcon(communicationChannelIcon,"email");}
     private void setKpiIcon(StackPane pane,String semantic){if(pane!=null)pane.getChildren().setAll(IconFactory.compactIcon(semantic,22));}
 
@@ -46,7 +70,16 @@ public class CommunicationCenterController implements ScreenLifecycle {
         long started=System.nanoTime(); all=x;lblTotal.setText(String.valueOf(x.size()));lblSuccess.setText(String.valueOf(x.stream().filter(r->!r.status.get().equals("FAILED")).count()));lblFailed.setText(String.valueOf(x.stream().filter(r->r.status.get().equals("FAILED")).count()));long email=x.stream().filter(r->r.channel.get().equals("EMAIL")).count();lblChannels.setText(email+" / "+(x.size()-email));filter();
         long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)PerformanceMonitor.event("controller-phase","communication-apply | "+ms+" ms");
     }
-    private void filter(){String q=txtSearch.getText()==null?"":txtSearch.getText().toLowerCase();table.getItems().setAll(all.stream().filter(r->q.isBlank()||(r.entity.get()+r.recipient.get()+r.subject.get()).toLowerCase().contains(q)).filter(r->cmbChannel.getValue().startsWith("All")||r.channel.get().equals(cmbChannel.getValue())).filter(r->cmbStatus.getValue().startsWith("All")||r.status.get().equals(cmbStatus.getValue())).toList());}
+    private void filter(){
+        String q=txtSearch==null||txtSearch.getText()==null?"":txtSearch.getText().trim().toLowerCase(Locale.ROOT);
+        String channel=cmbChannel==null||cmbChannel.getValue()==null?"All Channels":cmbChannel.getValue();
+        String status=cmbStatus==null||cmbStatus.getValue()==null?"All Statuses":cmbStatus.getValue();
+        table.getItems().setAll(all.stream()
+            .filter(r->q.isBlank()||(r.entity.get()+" "+r.recipient.get()+" "+r.subject.get()).toLowerCase(Locale.ROOT).contains(q))
+            .filter(r->channel.startsWith("All")||r.channel.get().equalsIgnoreCase(channel))
+            .filter(r->status.startsWith("All")||r.status.get().equalsIgnoreCase(status))
+            .toList());
+    }
 
     private void configureActions(){
         if(colActions==null)return;
@@ -79,7 +112,9 @@ public class CommunicationCenterController implements ScreenLifecycle {
     }
     @Override public void onScreenShown(boolean reusedFromCache){
         String requested=CommunicationScreenContext.take();
-        if(requested!=null)applyRequestedChannel(requested);
+        applyRequestedChannel(requested);
+        PerformanceMonitor.event("controller-phase","communication-channel-apply | channel="+(requested==null?"ALL":requested));
+        if(all.isEmpty())refresh();
     }
     @Override public void onScreenHidden(){UiTaskExecutor.cancel("communication-load");}
 

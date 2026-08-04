@@ -38,6 +38,7 @@ public class ReportsController implements ScreenLifecycle {
     @FXML private MenuItem miExcel,miPdf;
     private final BusinessReportService reportService=new BusinessReportService();
     private volatile boolean loaded;
+    private volatile boolean loadRequested;
 
     @FXML public void initialize(){
         configureMacPerformanceMode();
@@ -46,31 +47,33 @@ public class ReportsController implements ScreenLifecycle {
         cmbReportType.getItems().setAll("All Reports","Sales","Purchase","Inventory","Payments"); cmbReportType.getSelectionModel().selectFirst();
         setCell(colSaleNo,0);setCell(colSaleDate,1);setCell(colSaleParty,2);setCell(colSaleAmount,3);setCell(colSaleStatus,4);
         setCell(colPurchaseNo,0);setCell(colPurchaseDate,1);setCell(colPurchaseParty,2);setCell(colPurchaseAmount,3);setCell(colPurchaseStatus,4);
-        loadFiltersAsync(); configureReportTables(); refresh();
+        loadFiltersAsync(); configureReportTables(); requestRefresh();
     }
     private void setCell(TableColumn<String[],String> column,int index){column.setCellValueFactory(v->new SimpleStringProperty(v.getValue()[index]));}
     private void loadFiltersAsync(){
         UiTaskExecutor.submitLatest("reports-filters", this::readFilters, this::applyFilters, error -> PerformanceMonitor.event("reports-filters-error", error.getMessage()));
     }
     private FilterData readFilters(){ return new FilterData(list("SELECT name FROM party_master WHERE COALESCE(is_active,1)=1 ORDER BY name"), list("SELECT description FROM item_master WHERE COALESCE(is_active,1)=1 ORDER BY description"), list("SELECT DISTINCT salesperson FROM sales_header WHERE COALESCE(salesperson,'')<>'' ORDER BY salesperson")); }
-    private void applyFilters(FilterData data){ setOptions(cmbParty,"All Customers / Suppliers",data.parties()); setOptions(cmbItem,"All Items",data.items()); setOptions(cmbSalesPerson,"All Sales Persons",data.salespeople()); }
+    private void applyFilters(FilterData data){ long started=System.nanoTime(); setOptions(cmbParty,"All Customers / Suppliers",data.parties()); setOptions(cmbItem,"All Items",data.items()); setOptions(cmbSalesPerson,"All Sales Persons",data.salespeople()); PerformanceMonitor.event("controller-phase","reports-filter-apply | "+((System.nanoTime()-started)/1_000_000L)+" ms"); }
     private void setOptions(ComboBox<String> box,String all,List<String> values){box.getItems().setAll(all);box.getItems().addAll(values);box.getSelectionModel().selectFirst();}
     private List<String> list(String sql){List<String> out=new ArrayList<>();try(Connection c=DatabaseManager.getConnection();Statement s=c.createStatement();ResultSet r=s.executeQuery(sql)){while(r.next())out.add(r.getString(1));}catch(SQLException e){PerformanceMonitor.event("report-filter-query",e.getMessage());}return out;}
 
     @FXML private void resetFilters(){cmbReportType.getSelectionModel().selectFirst();cmbParty.getSelectionModel().selectFirst();cmbItem.getSelectionModel().selectFirst();cmbSalesPerson.getSelectionModel().selectFirst();dpFrom.setValue(LocalDate.now().withDayOfMonth(1));dpTo.setValue(LocalDate.now());refresh();}
-    @FXML private void refresh(){
+    @FXML private void refresh(){ requestRefresh(); }
+    private void requestRefresh(){
         if(dpFrom.getValue()==null||dpTo.getValue()==null||dpFrom.getValue().isAfter(dpTo.getValue())){error("Choose a valid reporting date range.");return;}
         String from=dpFrom.getValue().toString(),to=dpTo.getValue().toString();
+        loadRequested=true;
         setBusy(true);
         UiTaskExecutor.submitLatest(TASK_KEY, () -> loadReport(from,to), data -> {
             long started=System.nanoTime();
             applyReportCore(data);
-            loaded=true; ScreenRefreshPolicy.markRefreshed("reports"); setBusy(false);
+            loaded=true; loadRequested=false; ScreenRefreshPolicy.markRefreshed("reports"); setBusy(false);
             logUiPhase("reports-core-apply", started);
             javafx.application.Platform.runLater(() -> {
                 long chartStarted=System.nanoTime(); applyCharts(data); logUiPhase("reports-chart-apply", chartStarted);
             });
-        }, failure -> { setBusy(false); error("Could not load report data: "+failure.getMessage()); });
+        }, failure -> { loadRequested=false; setBusy(false); error("Could not load report data: "+failure.getMessage()); });
     }
     private ReportData loadReport(String from,String to) throws SQLException {
         PerformanceMonitor.start("reports-query-bundle");
@@ -114,8 +117,8 @@ public class ReportsController implements ScreenLifecycle {
     private List<String[]> queryRows(String sql,String from,String to)throws SQLException{List<String[]> out=new ArrayList<>();try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement(sql)){p.setString(1,from);p.setString(2,to);try(ResultSet r=p.executeQuery()){while(r.next())out.add(new String[]{r.getString(1),r.getString(2),Objects.toString(r.getString(3),"—"),money(r.getDouble(4)),r.getString(5)});}}return out;}
     private double number(String sql,String... values)throws SQLException{try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement(sql)){for(int i=0;i<values.length;i++)p.setString(i+1,values[i]);try(ResultSet r=p.executeQuery()){return r.next()?r.getDouble(1):0;}}}
 
-    @Override public void onScreenShown(boolean reusedFromCache){ if(!loaded || ScreenRefreshPolicy.shouldRefresh("reports", ScreenRefreshPolicy.Mode.WHEN_STALE)) refresh(); }
-    @Override public void onScreenHidden(){ UiTaskExecutor.cancelPrefix("reports-"); }
+    @Override public void onScreenShown(boolean reusedFromCache){ if(!loadRequested && (!loaded || ScreenRefreshPolicy.shouldRefresh("reports", ScreenRefreshPolicy.Mode.WHEN_STALE))) requestRefresh(); }
+    @Override public void onScreenHidden(){ loadRequested=false; UiTaskExecutor.cancelPrefix("reports-"); }
     @FXML private void exportPdf(){export("PDF Report","business-report.pdf","*.pdf",true);}@FXML private void exportExcel(){export("Excel Report","business-report.xlsx","*.xlsx",false);}
     @FXML private void viewAllSales(){navigate("/fxml/pages/SalesList.fxml");}@FXML private void viewAllPurchases(){navigate("/fxml/pages/PurchaseList.fxml");}
     private void navigate(String page){StackPane content=(StackPane)dpFrom.getScene().lookup("#contentPane");if(content!=null)NavigationManager.forPane(content).loadPage(page);}

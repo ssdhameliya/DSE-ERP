@@ -12,6 +12,7 @@ import org.example.util.ScreenRefreshPolicy;
 import org.example.navigation.ScreenLifecycle;
 import org.example.util.FxDebouncer;
 import org.example.util.UiTaskExecutor;
+import org.example.util.PerformanceMonitor;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
 import com.itextpdf.layout.element.Table;
@@ -64,16 +65,23 @@ public class PurchaseListController implements ScreenLifecycle{
  });}
  @FXML public void refresh(){
   btnRefresh.setDisable(true);
-  try{
-   List<Purchase> rows=service.getAll();
-   all=rows==null?List.of():List.copyOf(rows);
-   whatsappState.clear();whatsappState.putAll(readWhatsappState());
-   cmbSupplier.getItems().setAll("All Suppliers");
-   cmbSupplier.getItems().addAll(all.stream().map(Purchase::getSupplier).filter(Objects::nonNull).map(p->p.getName()).filter(Objects::nonNull).map(String::trim).filter(name->!name.isBlank()).distinct().sorted(String.CASE_INSENSITIVE_ORDER).toList());
-   if(cmbSupplier.getValue()==null||cmbSupplier.getValue().startsWith("All"))cmbSupplier.setValue("All Suppliers");
-   metrics();filter();ScreenRefreshPolicy.markRefreshed("purchase-register");
-  }catch(Throwable failure){all=List.of();filtered=List.of();metrics();renderPage();this.error(failure);}
-  finally{btnRefresh.setDisable(false);}
+  UiTaskExecutor.submitLatest("purchase-register-load",
+   () -> {
+    List<Purchase> rows=service.getAll();
+    return new PurchaseLoad(rows==null?List.of():List.copyOf(rows),readWhatsappState());
+   },
+   this::applyPurchaseLoad,
+   failure -> {btnRefresh.setDisable(false);this.error(failure);});
+ }
+ private void applyPurchaseLoad(PurchaseLoad loaded){
+  long started=System.nanoTime();
+  all=loaded.rows();
+  whatsappState.clear();whatsappState.putAll(loaded.whatsapp());
+  cmbSupplier.getItems().setAll("All Suppliers");
+  cmbSupplier.getItems().addAll(all.stream().map(Purchase::getSupplier).filter(Objects::nonNull).map(p->p.getName()).filter(Objects::nonNull).map(String::trim).filter(name->!name.isBlank()).distinct().sorted(String.CASE_INSENSITIVE_ORDER).toList());
+  if(cmbSupplier.getValue()==null||cmbSupplier.getValue().startsWith("All"))cmbSupplier.setValue("All Suppliers");
+  metrics();filter();ScreenRefreshPolicy.markRefreshed("purchase-register");btnRefresh.setDisable(false);
+  long ms=(System.nanoTime()-started)/1_000_000L;PerformanceMonitor.event("controller-phase","purchase-register-apply | "+ms+" ms | rows="+all.size());
  }
  private Map<Integer,Boolean> readWhatsappState(){Map<Integer,Boolean> state=new HashMap<>();try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement("SELECT entity_id,MAX(CASE WHEN status='SENT' THEN 1 ELSE 0 END) FROM communication_log WHERE entity_type='PURCHASE' AND channel='WHATSAPP' GROUP BY entity_id");ResultSet r=p.executeQuery()){while(r.next())state.put(r.getInt(1),r.getInt(2)==1);}catch(SQLException ignored){}return state;}
  private void metrics(){double total=all.stream().mapToDouble(Purchase::getTotalAmount).sum(),paid=all.stream().mapToDouble(Purchase::getPaidAmount).sum(),items=all.stream().mapToDouble(Purchase::getQuantity).sum();long suppliers=all.stream().map(Purchase::getSupplier).filter(Objects::nonNull).map(p->p.getId()).distinct().count();lblTotal.setText(fmt(total));lblTotalCount.setText("All Time");lblToday.setText(String.valueOf(all.size()));lblTodayCount.setText("All Time");lblPending.setText(String.valueOf(suppliers));lblPendingCount.setText("All Time");lblOverdue.setText(String.valueOf((long)items));lblOverdueCount.setText("All Time");lblPaid.setText(fmt(paid));}
