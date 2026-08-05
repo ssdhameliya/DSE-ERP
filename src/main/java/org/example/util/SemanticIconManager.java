@@ -24,6 +24,10 @@ public final class SemanticIconManager {
         return IconFactory.icon(semantic, size);
     }
 
+    public static void apply(ButtonBase button, ButtonAction action) {
+        UiActionIcons.apply(button, action);
+    }
+
     public static void apply(ButtonBase button, String semantic) {
         UiActionIcons.apply(button, semantic);
     }

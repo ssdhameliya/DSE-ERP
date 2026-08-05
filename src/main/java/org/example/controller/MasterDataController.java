@@ -5,6 +5,8 @@ import org.example.util.OwnedTextInputDialog;
 
 
 import org.example.util.IconFactory;
+import org.example.util.UiActionIcons;
+import org.example.util.ButtonAction;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -13,6 +15,10 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
+import javafx.geometry.Pos;
 import javafx.scene.chart.PieChart;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -60,6 +66,24 @@ public class MasterDataController {
 
     @FXML
     private TextField txtCategorySearch;
+
+    @FXML private StackPane categoryPanelIcon;
+    @FXML private StackPane lookupValuesIcon;
+    @FXML private StackPane analyticsIcon;
+
+    @FXML private Button btnHeaderRefresh;
+    @FXML private Button btnHeaderAddLookup;
+    @FXML private Button btnHeaderExport;
+    @FXML private Button btnAddCategory;
+    @FXML private Button btnRenameCategory;
+    @FXML private Button btnDeleteCategory;
+    @FXML private Button btnAddLookup;
+    @FXML private Button btnEditLookup;
+    @FXML private Button btnDeleteLookup;
+    @FXML private Button btnRefreshLookup;
+    @FXML private Button btnQuickAddLookup;
+    @FXML private Button btnQuickAddCategory;
+    @FXML private Button btnQuickRefresh;
 
     /* =========================================================
        DASHBOARD
@@ -133,6 +157,9 @@ public class MasterDataController {
     @FXML
     public void initialize() {
         configureKpiIcons();
+        configureSectionIcons();
+        configureActionIcons();
+        configureCategoryListCells();
         configureExplicitTableHeaderIcons();
 
         configureTableColumns();
@@ -153,11 +180,92 @@ public class MasterDataController {
     }
 
 
+
+    /**
+     * Premium category navigation used only by the Master Data content page.
+     * It is presentation-only and does not alter category values or database logic.
+     */
+    private void configureCategoryListCells() {
+        if (lstTypes == null) return;
+
+        lstTypes.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(String category, boolean empty) {
+                super.updateItem(category, empty);
+
+                if (empty || category == null || category.isBlank()) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+
+                String semantic = categorySemantic(category);
+                Label name = new Label(category);
+                name.getStyleClass().add("master-category-name");
+
+                Region spacer = new Region();
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+
+                Label state = new Label("●");
+                state.getStyleClass().add("master-category-state");
+
+                HBox content = new HBox(10, IconFactory.icon(semantic, 18), name, spacer, state);
+                content.setAlignment(Pos.CENTER_LEFT);
+                content.getStyleClass().add("master-category-cell-content");
+
+                setText(null);
+                setGraphic(content);
+                setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+            }
+        });
+    }
+
+    private String categorySemantic(String category) {
+        String value = category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
+        return switch (value) {
+            case "BRAND" -> "tag";
+            case "CATEGORY" -> "category";
+            case "GST", "TAX", "TAXES" -> "percent";
+            case "MATERIAL" -> "inventory";
+            case "UNIT", "UOM" -> "measure";
+            case "DISCOUNT" -> "discount";
+            case "PAYMENT TERMS" -> "payment";
+            case "WAREHOUSE" -> "warehouse";
+            case "STATUS" -> "complete";
+            default -> "master";
+        };
+    }
+
     private void configureKpiIcons() {
         if (kpiCategoriesIcon != null) kpiCategoriesIcon.getChildren().setAll(IconFactory.icon("category", 24));
         if (kpiValuesIcon != null) kpiValuesIcon.getChildren().setAll(IconFactory.icon("master", 24));
         if (kpiSelectedIcon != null) kpiSelectedIcon.getChildren().setAll(IconFactory.icon("select", 24));
         if (kpiStatusIcon != null) kpiStatusIcon.getChildren().setAll(IconFactory.icon("complete", 24));
+    }
+
+    private void configureSectionIcons() {
+        if (categoryPanelIcon != null) categoryPanelIcon.getChildren().setAll(IconFactory.icon("category", 18));
+        if (lookupValuesIcon != null) lookupValuesIcon.getChildren().setAll(IconFactory.icon("master", 18));
+        if (analyticsIcon != null) analyticsIcon.getChildren().setAll(IconFactory.icon("analytics", 18));
+    }
+
+    private void configureActionIcons() {
+        UiActionIcons.apply(btnHeaderRefresh, ButtonAction.REFRESH);
+        UiActionIcons.apply(btnHeaderAddLookup, ButtonAction.ADD);
+        UiActionIcons.apply(btnHeaderExport, ButtonAction.EXPORT);
+
+        UiActionIcons.apply(btnAddCategory, ButtonAction.ADD);
+        UiActionIcons.apply(btnRenameCategory, ButtonAction.EDIT);
+        UiActionIcons.apply(btnDeleteCategory, ButtonAction.DELETE);
+
+        UiActionIcons.apply(btnAddLookup, ButtonAction.ADD);
+        UiActionIcons.apply(btnEditLookup, ButtonAction.EDIT);
+        UiActionIcons.apply(btnDeleteLookup, ButtonAction.DELETE);
+        UiActionIcons.apply(btnRefreshLookup, ButtonAction.REFRESH);
+
+        UiActionIcons.apply(btnQuickAddLookup, ButtonAction.ADD);
+        UiActionIcons.apply(btnQuickAddCategory, ButtonAction.ADD);
+        UiActionIcons.apply(btnQuickRefresh, ButtonAction.REFRESH);
     }
 
     private void configureTableColumns() {

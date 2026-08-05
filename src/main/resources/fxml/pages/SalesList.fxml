@@ -123,7 +123,6 @@
           <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
             <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,erp-table-profile-register">
               <columns>
-                <TableColumn fx:id="colSelect" text="" prefWidth="44" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="125" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colDate" text="Date" prefWidth="92" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colCustomer" text="Customer" prefWidth="155" styleClass="approved-table-column"/>
@@ -142,7 +141,7 @@
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="table-footer,sales-table-footer">
               <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
-              <Label fx:id="lblPageInfo" styleClass="muted-text"/>
+              <Label fx:id="lblPageInfo" styleClass="muted-text,register-record-count"/>
               <Region HBox.hgrow="ALWAYS"/>
               <Label text="Rows per page:" styleClass="sales-page-label"/>
               <ComboBox fx:id="cmbPageSize" prefWidth="75" styleClass="approved-input"/>
@@ -162,15 +161,15 @@
               <HBox spacing="0" styleClass="sales-summary-strip">
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block">
                   <Label text="Total Amount" styleClass="summary-caption"/>
-                  <Label fx:id="lblFooterTotal" styleClass="summary-amount"/>
+                  <Label fx:id="lblFooterTotal" styleClass="register-total-value,register-total-sales,summary-amount"/>
                 </VBox>
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block">
                   <Label text="Total Paid" styleClass="summary-caption"/>
-                  <Label fx:id="lblFooterPaid" styleClass="summary-paid"/>
+                  <Label fx:id="lblFooterPaid" styleClass="register-total-value,register-total-paid,summary-paid"/>
                 </VBox>
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block,last-summary-block">
                   <Label text="Total Balance" styleClass="summary-caption"/>
-                  <Label fx:id="lblFooterBalance" styleClass="summary-balance"/>
+                  <Label fx:id="lblFooterBalance" styleClass="register-total-value,register-total-balance,summary-balance"/>
                 </VBox>
               </HBox>
             </HBox>

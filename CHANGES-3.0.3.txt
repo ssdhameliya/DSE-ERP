@@ -1,0 +1,33 @@
+DSE ERP 3.0.3 - Corrected UI Release
+
+TABLEVIEW CORRECTIONS
+- Removed the global forced constrained resize policy that compressed wide register tables.
+- Restored profile-based resizing:
+  * simple tables fit the viewport;
+  * detail/line-item tables flex the final column;
+  * wide register, master, history, administration, import and permission tables retain readable columns and horizontal access when required.
+- Removed CSS that hid horizontal scrollbars while table content overflowed.
+- Kept full-value hover tooltips for genuinely clipped text cells.
+- Preserved compact row-number, selection and action columns.
+
+BUTTON AND ICON CORRECTIONS
+- Global semantic icon decoration remains active for all JavaFX ButtonBase controls.
+- Added explicit login, registration, email-settings and theme-toggle icon assignments.
+- Restored the login dark/light mode icon and updates it immediately when the theme changes.
+- Added deterministic icons for First, Previous, Next and Last pagination controls.
+- Improved semantic mapping for Configure/Manage, Follow Up, Expense and Convert-to-Sale actions.
+- Preserved every existing onAction handler and business workflow.
+
+LOGIN
+- Corrected the visible login version label to 3.0.3.
+
+RELEASE SAFETY
+- This corrected package supersedes the earlier internal 3.0.3 UI package.
+
+ADAPTIVE TABLE WIDTH FILL
+- Applies only inside TableView controls; surrounding screens, panels, filters, cards and pagination are unchanged.
+- Uses existing preferred widths as readable baselines.
+- When a table has unused space on the right, distributes only the surplus across flexible business-data columns.
+- Keeps row-number, selection and action columns compact.
+- When the viewport is narrower than the readable baselines, restores those widths and retains horizontal scrolling where required.
+- Excludes import-preview and permission-matrix tables because they own specialized dynamic sizing.

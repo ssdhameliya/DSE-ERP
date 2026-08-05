@@ -1,383 +1,251 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.chart.PieChart?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.MasterDataController" styleClass="master-page,master-data-premium,approved-ui,approved-screen,approved-screen-masterdata,erp-screen-root" prefWidth="1450" prefHeight="900">
+<?xml version="1.0" encoding="UTF-8"?>
 
-    <!-- ========================================================= -->
-    <!-- HEADER -->
-    <!-- ========================================================= -->
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.MasterDataController"
+            styleClass="master-page,master-data-premium,master-data-redesign,approved-ui,approved-screen,approved-screen-masterdata,erp-screen-root"
+            prefWidth="1450" prefHeight="900">
+
     <top>
+        <VBox spacing="16" styleClass="page-header,master-modern-header,approved-section-header">
+            <padding><Insets top="18" right="24" bottom="16" left="24"/></padding>
 
-        <VBox spacing="18" styleClass="page-header,approved-section-header">
-
-            <padding>
-                <Insets top="18" right="25" bottom="18" left="25"/>
-            </padding>
-
-            <!-- Title Row -->
-            <HBox alignment="CENTER_LEFT">
-
+            <HBox alignment="CENTER_LEFT" spacing="12">
                 <VBox spacing="4">
-
                     <Label text="Master Data Management" styleClass="page-title"/>
-
                     <Label text="Manage lookup categories and master records" styleClass="page-subtitle"/>
-
                 </VBox>
-
                 <Region HBox.hgrow="ALWAYS"/>
-
-                <Button text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
-
+                <Button fx:id="btnHeaderRefresh" text="Refresh" onAction="#refresh"
+                        styleClass="secondary-button,master-action-button"/>
             </HBox>
 
-            <!-- Search & Actions -->
             <HBox spacing="12" alignment="CENTER_LEFT">
-
-                <TextField fx:id="txtSearch" promptText="Search categories or lookup values..." prefHeight="40" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
-
-                <Button text="Add Lookup" onAction="#addLookup" styleClass="primary-button"/>
-
-                <Button text="Export" onAction="#exportLookup" styleClass="secondary-button"/>
-
+                <TextField fx:id="txtSearch"
+                           promptText="Search categories or lookup values..."
+                           prefHeight="42"
+                           HBox.hgrow="ALWAYS"
+                           styleClass="approved-input,master-search-field"/>
+                <Button fx:id="btnHeaderAddLookup" text="Add Lookup" onAction="#addLookup"
+                        styleClass="primary-button,master-action-button"/>
+                <Button fx:id="btnHeaderExport" text="Export" onAction="#exportLookup"
+                        styleClass="secondary-button,master-action-button"/>
             </HBox>
-
         </VBox>
-
     </top>
 
-    <!-- ========================================================= -->
-    <!-- LEFT SIDEBAR -->
-    <!-- ========================================================= -->
     <left>
+        <VBox prefWidth="285" minWidth="260" maxWidth="320" spacing="14"
+              styleClass="sidebar,master-category-panel">
+            <padding><Insets top="18" right="16" bottom="18" left="16"/></padding>
 
-        <VBox prefWidth="300" spacing="18" styleClass="sidebar">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="categoryPanelIcon" styleClass="master-panel-title-icon"/>
+                <Label text="Lookup Categories" styleClass="sidebar-title"/>
+            </HBox>
 
-            <padding>
-                <Insets top="20" right="18" bottom="20" left="18"/>
-            </padding>
+            <TextField fx:id="txtCategorySearch"
+                       promptText="Search Categories..."
+                       styleClass="approved-input,master-category-search"/>
 
-            <!-- Sidebar Title -->
-            <Label text="Lookup Categories" styleClass="sidebar-title"/>
+            <ListView fx:id="lstTypes"
+                      VBox.vgrow="ALWAYS"
+                      styleClass="approved-list,master-category-list"/>
 
-            <!-- Category Statistics -->
-            <GridPane hgap="10" vgap="12">
-
-                <columnConstraints>
-                    <ColumnConstraints percentWidth="50"/>
-                    <ColumnConstraints percentWidth="50"/>
-                </columnConstraints>
-
-                <VBox spacing="4" styleClass="sidebar-stat-card" GridPane.columnIndex="0" GridPane.rowIndex="0">
-
-                    <Label text="Categories" styleClass="stat-title"/>
-
-                    <Label fx:id="lblCategoryCount" text="0" styleClass="stat-value"/>
-
-                </VBox>
-
-                <VBox spacing="4" styleClass="sidebar-stat-card" GridPane.columnIndex="1" GridPane.rowIndex="0">
-
-                    <Label text="Values" styleClass="stat-title"/>
-
-                    <Label fx:id="lblValueCount" text="0" styleClass="stat-value"/>
-
-                </VBox>
-
-            </GridPane>
-
-            <!-- Search Categories -->
-            <TextField fx:id="txtCategorySearch" promptText="Search Categories..." styleClass="approved-input"/>
-
-            <!-- Category List -->
-            <ListView fx:id="lstTypes" VBox.vgrow="ALWAYS" styleClass="approved-list"/>
-
-            <!-- Category Actions -->
-            <VBox spacing="10">
-
-                <Button text="Add Category" onAction="#addCategory" maxWidth="Infinity" styleClass="primary-button"/>
-
-                <Button text="Rename Category" onAction="#renameCategory" maxWidth="Infinity" styleClass="secondary-button"/>
-
-                <Button text="Delete Category" onAction="#deleteCategory" maxWidth="Infinity" styleClass="danger-button"/>
-
+            <VBox spacing="9" styleClass="master-category-actions">
+                <Button fx:id="btnAddCategory" text="Add Category" onAction="#addCategory"
+                        maxWidth="Infinity" styleClass="primary-button,master-action-button"/>
+                <Button fx:id="btnRenameCategory" text="Rename Category" onAction="#renameCategory"
+                        maxWidth="Infinity" styleClass="secondary-button,master-action-button"/>
+                <Button fx:id="btnDeleteCategory" text="Delete Category" onAction="#deleteCategory"
+                        maxWidth="Infinity" styleClass="danger-button,master-action-button"/>
             </VBox>
-
         </VBox>
-
     </left>
 
-    <!-- ========================================================= -->
-    <!-- CENTER CONTENT -->
-    <!-- ========================================================= -->
     <center>
+        <HBox spacing="18">
+            <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
 
-        <HBox spacing="20">
-
-            <padding>
-                <Insets top="20" right="20" bottom="20" left="20"/>
-            </padding>
-
-            <!-- ========================================================= -->
-            <!-- MAIN CONTENT -->
-            <!-- ========================================================= -->
-
-            <VBox spacing="18" HBox.hgrow="ALWAYS">
-
-                <!-- ================= KPI DASHBOARD ================= -->
-
-                <HBox spacing="18">
-
-                    <!-- Total Categories -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
-
-                        <StackPane fx:id="kpiCategoriesIcon" styleClass="master-kpi-icon"/>
-                        <Label text="Categories" styleClass="kpi-title"/>
-
+            <VBox spacing="16" HBox.hgrow="ALWAYS">
+                <HBox spacing="14" styleClass="master-kpi-row">
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-blue">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiCategoriesIcon" styleClass="master-kpi-icon"/>
+                            <Label text="Categories" styleClass="kpi-title"/>
+                        </HBox>
                         <Label fx:id="lblDashboardCategoryCount" text="0" styleClass="kpi-value"/>
-
+                        <Label text="Total Categories" styleClass="master-kpi-caption"/>
                     </VBox>
 
-                    <!-- Total Values -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
-
-                        <StackPane fx:id="kpiValuesIcon" styleClass="master-kpi-icon"/>
-                        <Label text="Lookup Values" styleClass="kpi-title"/>
-
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-green">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiValuesIcon" styleClass="master-kpi-icon"/>
+                            <Label text="Lookup Values" styleClass="kpi-title"/>
+                        </HBox>
                         <Label fx:id="lblDashboardValueCount" text="0" styleClass="kpi-value"/>
-
+                        <Label text="Total Values" styleClass="master-kpi-caption"/>
                     </VBox>
 
-                    <!-- Selected Category -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
-
-                        <StackPane fx:id="kpiSelectedIcon" styleClass="master-kpi-icon"/>
-                        <Label text="Selected Category" styleClass="kpi-title"/>
-
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-purple">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiSelectedIcon" styleClass="master-kpi-icon"/>
+                            <Label text="Selected" styleClass="kpi-title"/>
+                        </HBox>
                         <Label fx:id="lblSelectedCategory" text="-" styleClass="kpi-value-small"/>
-
+                        <Label text="Active Category" styleClass="master-kpi-caption"/>
                     </VBox>
 
-                    <!-- Status -->
-                    <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="kpi-card">
-
-                        <StackPane fx:id="kpiStatusIcon" styleClass="master-kpi-icon"/>
-                        <Label text="System Status" styleClass="kpi-title"/>
-
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-amber">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiStatusIcon" styleClass="master-kpi-icon"/>
+                            <Label text="System Status" styleClass="kpi-title"/>
+                        </HBox>
                         <Label text="READY" styleClass="status-active,approved-status"/>
-
+                        <Label text="Database Connected" styleClass="master-kpi-caption"/>
                     </VBox>
-
                 </HBox>
 
-                <!-- ================= TABLE TOOLBAR ================= -->
-
-                <HBox spacing="12" alignment="CENTER_LEFT">
-
-                    <Label text="Lookup Values" styleClass="section-title"/>
-
+                <HBox spacing="10" alignment="CENTER_LEFT" styleClass="master-table-toolbar">
+                    <HBox alignment="CENTER_LEFT" spacing="9">
+                        <StackPane fx:id="lookupValuesIcon" styleClass="master-section-icon"/>
+                        <Label text="Lookup Values" styleClass="section-title"/>
+                    </HBox>
                     <Region HBox.hgrow="ALWAYS"/>
-
-                    <Button text="+ Add" onAction="#addLookup" styleClass="primary-button"/>
-
-                    <Button text="Edit" onAction="#editLookup" styleClass="secondary-button"/>
-
-                    <Button text="Delete" onAction="#deleteLookup" styleClass="danger-button"/>
-
-                    <Button text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
-
+                    <Button fx:id="btnAddLookup" text="Add" onAction="#addLookup"
+                            styleClass="primary-button,master-action-button"/>
+                    <Button fx:id="btnEditLookup" text="Edit" onAction="#editLookup"
+                            styleClass="secondary-button,master-action-button"/>
+                    <Button fx:id="btnDeleteLookup" text="Delete" onAction="#deleteLookup"
+                            styleClass="danger-button,master-action-button"/>
+                    <Button fx:id="btnRefreshLookup" text="Refresh" onAction="#refresh"
+                            styleClass="secondary-button,master-action-button"/>
                 </HBox>
 
-                <!-- ========================================================= -->
-                <!-- TABLE CARD -->
-                <!-- ========================================================= -->
-
-                <VBox spacing="12" VBox.vgrow="ALWAYS" styleClass="table-card">
-
-                    <!-- Table Header -->
+                <VBox spacing="10" VBox.vgrow="ALWAYS"
+                      styleClass="table-card,master-table-card">
                     <HBox alignment="CENTER_LEFT">
-
                         <Label text="Master Records" styleClass="table-title"/>
-
                         <Region HBox.hgrow="ALWAYS"/>
-
                         <Label text="Double-click a row to edit" styleClass="table-hint"/>
-
                     </HBox>
 
-                    <!-- Table -->
-
-                    <TableView fx:id="tblLookup" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-master">
-
-
+                    <TableView fx:id="tblLookup"
+                               VBox.vgrow="ALWAYS"
+                               styleClass="approved-table,erp-table-profile-master,master-records-table">
                         <placeholder>
-
-                            <VBox alignment="CENTER" spacing="12">
-
+                            <VBox alignment="CENTER" spacing="10">
                                 <Label text="No Records Found" styleClass="empty-title"/>
-
-                                <Label text="Create a lookup value using the Add button." styleClass="empty-subtitle"/>
-
+                                <Label text="Create a lookup value using the Add button."
+                                       styleClass="empty-subtitle"/>
                             </VBox>
-
                         </placeholder>
-
                         <contextMenu>
-
                             <ContextMenu>
-
                                 <items>
-
-
                                     <MenuItem text="Edit Lookup" onAction="#editLookup"/>
-
                                     <SeparatorMenuItem/>
-
                                     <MenuItem text="Delete Lookup" onAction="#deleteLookup"/>
-
                                     <SeparatorMenuItem/>
-
                                     <MenuItem text="Refresh" onAction="#refresh"/>
-
                                 </items>
-
                             </ContextMenu>
-
                         </contextMenu>
-
-
                         <columns>
-
-                            <TableColumn fx:id="colCode" text="Code" prefWidth="150" styleClass="approved-table-column"/>
-
-                            <TableColumn fx:id="colValue" text="Value" prefWidth="280" styleClass="approved-table-column"/>
-
-                            <TableColumn fx:id="colDescription" text="Description" prefWidth="550" styleClass="approved-table-column"/>
-
+                            <TableColumn fx:id="colCode" text="Code" prefWidth="155"
+                                         styleClass="approved-table-column"/>
+                            <TableColumn fx:id="colValue" text="Value" prefWidth="260"
+                                         styleClass="approved-table-column"/>
+                            <TableColumn fx:id="colDescription" text="Description" prefWidth="520"
+                                         styleClass="approved-table-column"/>
                         </columns>
-
                     </TableView>
 
-                    <!-- Footer -->
-
-                    <HBox alignment="CENTER_LEFT" spacing="15">
-
+                    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="master-table-footer">
                         <Label fx:id="lblRecordCount" text="0 Records" styleClass="table-footer"/>
-
                         <Region HBox.hgrow="ALWAYS"/>
-
                         <Pagination fx:id="pagination" pageCount="1"/>
-
                     </HBox>
-
                 </VBox>
-
             </VBox>
 
-            <!-- ========================================================= -->
-            <!-- ANALYTICS PANEL -->
-            <!-- ========================================================= -->
+            <VBox prefWidth="305" minWidth="285" maxWidth="330" spacing="14"
+                  styleClass="analytics-panel,master-insights-panel">
+                <HBox alignment="CENTER_LEFT" spacing="9">
+                    <StackPane fx:id="analyticsIcon" styleClass="master-section-icon"/>
+                    <Label text="Analytics" styleClass="section-title"/>
+                </HBox>
 
-            <VBox prefWidth="320" spacing="18" styleClass="analytics-panel">
+                <VBox spacing="8" styleClass="summary-card,master-side-card,master-chart-card">
+                    <PieChart fx:id="categoryPieChart"
+                              prefHeight="210"
+                              labelsVisible="false"
+                              legendVisible="true"
+                              title="Category Distribution"/>
+                </VBox>
 
-                <!-- Title -->
-
-                <Label text="Analytics" styleClass="section-title"/>
-
-                <!-- Category Distribution -->
-
-                <PieChart fx:id="categoryPieChart" prefHeight="220" labelsVisible="false" legendVisible="true" title="Category Distribution"/>
-
-                <!-- Summary -->
-
-                <VBox spacing="12" styleClass="summary-card">
-
+                <VBox spacing="10" styleClass="summary-card,master-side-card">
                     <Label text="Summary" styleClass="summary-title"/>
-
-                    <GridPane hgap="10" vgap="12">
-
+                    <GridPane hgap="10" vgap="10">
                         <columnConstraints>
-
                             <ColumnConstraints percentWidth="60"/>
-
                             <ColumnConstraints percentWidth="40"/>
-
                         </columnConstraints>
-
                         <Label text="Categories"/>
-                        <Label fx:id="lblSummaryCategoryCount" GridPane.columnIndex="1"/>
-
+                        <Label fx:id="lblSummaryCategoryCount" GridPane.columnIndex="1"
+                               styleClass="master-summary-value"/>
                         <Label text="Values" GridPane.rowIndex="1"/>
-
-                        <Label fx:id="lblSummaryValueCount" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-
+                        <Label fx:id="lblSummaryValueCount" GridPane.columnIndex="1" GridPane.rowIndex="1"
+                               styleClass="master-summary-value"/>
                         <Label text="Selected" GridPane.rowIndex="2"/>
-
-                        <Label fx:id="lblSummarySelectedCategory" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-
+                        <Label fx:id="lblSummarySelectedCategory" GridPane.columnIndex="1" GridPane.rowIndex="2"
+                               styleClass="master-summary-value"/>
                     </GridPane>
-
                 </VBox>
 
-                <!-- Quick Actions -->
-
-                <VBox spacing="10" styleClass="summary-card">
-
+                <VBox spacing="9" styleClass="summary-card,master-side-card">
                     <Label text="Quick Actions" styleClass="summary-title"/>
-
-                    <Button text="Add Lookup" onAction="#addLookup" maxWidth="Infinity" styleClass="primary-button"/>
-
-                    <Button text="Add Category" onAction="#addCategory" maxWidth="Infinity" styleClass="secondary-button"/>
-
-                    <Button text="Refresh" onAction="#refresh" maxWidth="Infinity" styleClass="secondary-button"/>
-
+                    <Button fx:id="btnQuickAddLookup" text="Add Lookup" onAction="#addLookup"
+                            maxWidth="Infinity" styleClass="primary-button,master-action-button"/>
+                    <Button fx:id="btnQuickAddCategory" text="Add Category" onAction="#addCategory"
+                            maxWidth="Infinity" styleClass="secondary-button,master-action-button"/>
+                    <Button fx:id="btnQuickRefresh" text="Refresh" onAction="#refresh"
+                            maxWidth="Infinity" styleClass="secondary-button,master-action-button"/>
                 </VBox>
 
-                <!-- Tips -->
-
-                <VBox spacing="8" styleClass="summary-card" VBox.vgrow="ALWAYS">
-
+                <VBox spacing="7" styleClass="summary-card,master-side-card,master-tips-card"
+                      VBox.vgrow="ALWAYS">
                     <Label text="Tips" styleClass="summary-title"/>
-
-                    <Label wrapText="true" styleClass="tip-text" text="• Keep category names unique."/>
-
-                    <Label wrapText="true" styleClass="tip-text" text="• Use short, meaningful lookup codes."/>
-
-                    <Label wrapText="true" styleClass="tip-text" text="• Avoid duplicate lookup values."/>
-
-                    <Label wrapText="true" styleClass="tip-text" text="• Refresh after bulk changes."/>
-
+                    <Label wrapText="true" styleClass="tip-text"
+                           text="• Keep category names unique."/>
+                    <Label wrapText="true" styleClass="tip-text"
+                           text="• Use short, meaningful lookup codes."/>
+                    <Label wrapText="true" styleClass="tip-text"
+                           text="• Avoid duplicate lookup values."/>
+                    <Label wrapText="true" styleClass="tip-text"
+                           text="• Refresh after bulk changes."/>
                 </VBox>
-
             </VBox>
-
         </HBox>
-
     </center>
 
-    <!-- ========================================================= -->
-    <!-- FOOTER -->
-    <!-- ========================================================= -->
     <bottom>
-
         <HBox alignment="CENTER_LEFT" spacing="15" styleClass="status-bar">
-
-            <padding>
-
-                <Insets top="8" right="15" bottom="8" left="15"/>
-
-            </padding>
-
+            <padding><Insets top="8" right="15" bottom="8" left="15"/></padding>
             <Label text="Ready" fx:id="lblStatus"/>
-
             <Separator orientation="VERTICAL"/>
-
             <Label text="Master Data Module"/>
-
             <Region HBox.hgrow="ALWAYS"/>
-
             <Label text="F1 Help"/>
-
         </HBox>
-
     </bottom>
-
 </BorderPane>

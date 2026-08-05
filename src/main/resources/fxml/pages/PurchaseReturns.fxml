@@ -29,7 +29,6 @@
   </VBox>
   <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register">
     <columns>
-      <TableColumn text="" prefWidth="42" styleClass="approved-table-column"/>
       <TableColumn fx:id="cNo" text="Return No." prefWidth="150" styleClass="approved-table-column"/>
       <TableColumn fx:id="cDate" text="Return Date" prefWidth="100" styleClass="approved-table-column"/>
       <TableColumn fx:id="cInvoice" text="Purchase No." prefWidth="135" styleClass="approved-table-column"/>
@@ -41,5 +40,5 @@
       <TableColumn fx:id="cAction" text="Actions" prefWidth="90" styleClass="approved-table-column"/>
     </columns>
   </TableView>
-  <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to view • Right-click for actions" styleClass="muted-text"/></HBox>
+  <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo" styleClass="register-record-count"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to view • Right-click for actions" styleClass="muted-text"/></HBox>
 </VBox>

@@ -9,7 +9,8 @@ import org.example.service.SessionService;
 import org.example.service.UserService;
 import org.example.theme.ThemeManager;
 import org.example.util.ClockService;
-import org.example.util.IconFactory;
+import org.example.util.ButtonAction;
+import org.example.util.UiActionIcons;
 import org.example.util.SceneManager;
 
 public class LoginController {
@@ -25,15 +26,26 @@ public class LoginController {
     @FXML public void initialize() {
         ClockService.start(lblClock);
         txtOtp.setDisable(true);
-        btnLogin.setGraphic(IconFactory.icon("login"));
-        btnRegister.setGraphic(IconFactory.icon("add"));
-        btnEmailSettings.setGraphic(IconFactory.icon("email"));
+        UiActionIcons.apply(btnLogin, ButtonAction.LOGIN);
+        UiActionIcons.apply(btnRegister, ButtonAction.ADD);
+        UiActionIcons.apply(btnEmailSettings, ButtonAction.EMAIL);
+        refreshThemeButton();
         installLiveClear(txtUsername, lblUsernameError);
         installLiveClear(txtPassword, lblPasswordError);
         installLiveClear(txtOtp, lblOtpError);
     }
 
-    @FXML private void toggleTheme() { ThemeManager.toggle(btnTheme.getScene()); }
+    @FXML private void toggleTheme() {
+        ThemeManager.toggle(btnTheme.getScene());
+        refreshThemeButton();
+    }
+
+    private void refreshThemeButton() {
+        boolean dark = ThemeManager.getCurrentTheme() == ThemeManager.Theme.DARK;
+        btnTheme.setText(dark ? "Light Mode" : "Dark Mode");
+        UiActionIcons.apply(btnTheme, dark ? "sun" : "moon",
+                dark ? "Switch to light mode" : "Switch to dark mode");
+    }
 
     @FXML private void login() {
         clearErrors();

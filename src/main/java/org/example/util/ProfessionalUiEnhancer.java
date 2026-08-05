@@ -8,12 +8,15 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
 import javafx.geometry.Pos;
 import javafx.application.Platform;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.text.Text;
 import javafx.collections.ListChangeListener;
 
 import java.util.Locale;
@@ -110,6 +113,8 @@ public final class ProfessionalUiEnhancer {
 
         decorateColumns(table.getColumns());
         installHeaderLifecycleRefresh(table);
+        installCellValueTooltips(table);
+        installAdaptiveColumnFill(table);
 
         // Controllers add a number of business columns after FXML loading.
         // Keep header decoration live so those columns receive the exact same
@@ -117,7 +122,11 @@ public final class ProfessionalUiEnhancer {
         if (!Boolean.TRUE.equals(table.getProperties().get("erp-column-listener"))) {
             table.getProperties().put("erp-column-listener", true);
             table.getColumns().addListener((ListChangeListener<TableColumn>) change ->
-                Platform.runLater(() -> decorateColumns(table.getColumns())));
+                Platform.runLater(() -> {
+                    decorateColumns(table.getColumns());
+                    captureAdaptiveBaselines(table, true);
+                    resizeColumnsToUseAvailableWidth(table);
+                }));
         }
 
         if (!table.getColumns().isEmpty()) {
@@ -160,6 +169,246 @@ public final class ProfessionalUiEnhancer {
         // Row context menus are owned by each controller. A global menu caused
         // duplicate/overlapping actions, especially on macOS.
 
+    }
+
+
+    /**
+     * Uses otherwise-empty space inside the TableView without changing any
+     * surrounding screen layout. Existing preferred widths remain the readable
+     * baseline. When the table is wider than those baselines, the surplus is
+     * distributed across ordinary data columns. When it is narrower, baseline
+     * widths are restored and JavaFX may show a horizontal scrollbar.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void installAdaptiveColumnFill(TableView table) {
+        if (Boolean.TRUE.equals(table.getProperties().get("erp-adaptive-column-fill"))) return;
+        if (Boolean.TRUE.equals(table.getProperties().get("erp-preserve-resize-policy"))) return;
+
+        String profile = String.valueOf(
+            table.getProperties().getOrDefault("erp-table-profile", "responsive")
+        );
+        // Imported spreadsheets and permission matrices own dynamic/specialized
+        // sizing and must not be altered by the shared register-table behavior.
+        if ("import".equals(profile) || "permission".equals(profile)) return;
+
+        table.getProperties().put("erp-adaptive-column-fill", true);
+        captureAdaptiveBaselines(table, false);
+
+        table.widthProperty().addListener((obs, oldWidth, newWidth) ->
+            resizeColumnsToUseAvailableWidth(table)
+        );
+        table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+            if (newSkin != null) {
+                captureAdaptiveBaselines(table, false);
+                resizeColumnsToUseAvailableWidth(table);
+            }
+        });
+
+        resizeColumnsToUseAvailableWidth(table);
+    }
+
+    /**
+     * Captures each visible leaf column's normal preferred width. Baselines are
+     * intentionally independent of later adaptive expansion so repeated window
+     * resizes never compound column widths.
+     */
+    @SuppressWarnings("rawtypes")
+    private static void captureAdaptiveBaselines(TableView table, boolean includeNewColumns) {
+        for (Object value : table.getVisibleLeafColumns()) {
+            TableColumn column = (TableColumn) value;
+            if (!includeNewColumns
+                && column.getProperties().containsKey("erp-adaptive-base-pref")) {
+                continue;
+            }
+            if (!column.getProperties().containsKey("erp-adaptive-base-pref")) {
+                double baseline = Math.max(column.getMinWidth(), column.getPrefWidth());
+                column.getProperties().put("erp-adaptive-base-pref", baseline);
+            }
+        }
+    }
+
+    /**
+     * Expands only columns inside the table. It never resizes the TableView,
+     * SplitPane, parent containers, filters, cards, pagination, or the screen.
+     */
+    @SuppressWarnings("rawtypes")
+    private static void resizeColumnsToUseAvailableWidth(TableView table) {
+        if (table.getWidth() <= 1 || table.getVisibleLeafColumns().isEmpty()) return;
+
+        captureAdaptiveBaselines(table, false);
+
+        java.util.List<TableColumn> visible = new java.util.ArrayList<>();
+        java.util.List<TableColumn> flexible = new java.util.ArrayList<>();
+        double baselineTotal = 0;
+
+        for (Object value : table.getVisibleLeafColumns()) {
+            TableColumn column = (TableColumn) value;
+            if (!column.isVisible()) continue;
+
+            Object stored = column.getProperties().get("erp-adaptive-base-pref");
+            double baseline = stored instanceof Number number
+                ? number.doubleValue()
+                : Math.max(column.getMinWidth(), column.getPrefWidth());
+            baseline = Math.max(column.getMinWidth(), baseline);
+
+            visible.add(column);
+            baselineTotal += baseline;
+            if (isAdaptiveFlexibleColumn(column)) flexible.add(column);
+        }
+
+        if (visible.isEmpty()) return;
+
+        // A small allowance prevents a one-pixel rounding overflow from creating
+        // a horizontal scrollbar when the columns otherwise fit exactly.
+        double available = Math.max(0, table.getWidth() - 3);
+
+        // Restore readable baseline widths whenever the viewport is too narrow.
+        // UNCONSTRAINED profiles can then expose a real horizontal scrollbar.
+        if (available <= baselineTotal || flexible.isEmpty()) {
+            for (TableColumn column : visible) {
+                Number stored = (Number) column.getProperties().get("erp-adaptive-base-pref");
+                if (stored != null) column.setPrefWidth(
+                    Math.max(column.getMinWidth(), stored.doubleValue())
+                );
+            }
+            return;
+        }
+
+        double extra = available - baselineTotal;
+        double totalWeight = 0;
+        for (TableColumn column : flexible) {
+            totalWeight += adaptiveColumnWeight(column);
+        }
+
+        for (TableColumn column : visible) {
+            Number stored = (Number) column.getProperties().get("erp-adaptive-base-pref");
+            if (stored == null) continue;
+            double baseline = Math.max(column.getMinWidth(), stored.doubleValue());
+
+            if (!flexible.contains(column)) {
+                column.setPrefWidth(baseline);
+                continue;
+            }
+
+            double share = totalWeight <= 0
+                ? extra / flexible.size()
+                : extra * adaptiveColumnWeight(column) / totalWeight;
+            column.setPrefWidth(Math.min(column.getMaxWidth(), baseline + share));
+        }
+    }
+
+    /** Keeps utility columns compact while allowing business data to absorb space. */
+    @SuppressWarnings("rawtypes")
+    private static boolean isAdaptiveFlexibleColumn(TableColumn column) {
+        String heading = adaptiveHeading(column);
+        String semantic = String.valueOf(
+            column.getProperties().getOrDefault("erp-header-semantic", "")
+        ).toLowerCase(Locale.ROOT);
+
+        if ("actions".equals(semantic)) return false;
+        if (heading.equals("#") || heading.equals("no.") || heading.equals("no")
+            || heading.equals("select") || heading.equals("✓")) return false;
+        if (column.getMaxWidth() <= 150) return false;
+        return column.isResizable();
+    }
+
+    /** Gives descriptive fields more of the available surplus than numeric fields. */
+    @SuppressWarnings("rawtypes")
+    private static double adaptiveColumnWeight(TableColumn column) {
+        String heading = adaptiveHeading(column);
+        String semantic = String.valueOf(
+            column.getProperties().getOrDefault("erp-header-semantic", "")
+        ).toLowerCase(Locale.ROOT);
+
+        if ("customer".equals(semantic) || "supplier".equals(semantic)
+            || heading.contains("description") || heading.contains("address")
+            || heading.contains("subject") || heading.contains("name")) return 1.8;
+        if ("document".equals(semantic) || "status".equals(semantic)
+            || "email".equals(semantic) || "whatsapp".equals(semantic)
+            || "reminder".equals(semantic)) return 1.25;
+        if ("currency".equals(semantic) || "calendar".equals(semantic)
+            || "quantity".equals(semantic)) return 0.85;
+        return 1.0;
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static String adaptiveHeading(TableColumn column) {
+        Object stored = column.getProperties().get("erp-header-label");
+        String heading = stored instanceof String value ? value : column.getText();
+        return heading == null ? "" : heading.trim().toLowerCase(Locale.ROOT);
+    }
+
+
+    /**
+     * Shows the complete value when a normal text cell is visually clipped.
+     * This keeps columns stable on hover and does not replace controller-owned
+     * cell factories, graphics, editors, context menus, or business handlers.
+     */
+    @SuppressWarnings("rawtypes")
+    private static void installCellValueTooltips(TableView table) {
+        if (Boolean.TRUE.equals(table.getProperties().get("erp-cell-tooltips"))) return;
+        table.getProperties().put("erp-cell-tooltips", true);
+
+        table.addEventFilter(MouseEvent.MOUSE_MOVED, event -> {
+            TableCell cell = findTableCell(event.getPickResult().getIntersectedNode());
+            Object previous = table.getProperties().put("erp-hovered-table-cell", cell);
+            if (previous instanceof TableCell previousCell && previousCell != cell) {
+                clearManagedTooltip(previousCell);
+            }
+            if (cell == null || cell.isEmpty()) return;
+
+            String value = cell.getText();
+            if (value == null || value.isBlank()) {
+                clearManagedTooltip(cell);
+                return;
+            }
+
+            Text measurement = new Text(value);
+            measurement.setFont(cell.getFont());
+            double availableWidth = Math.max(0, cell.getWidth() - 18);
+            boolean clipped = measurement.getLayoutBounds().getWidth() > availableWidth;
+
+            if (clipped) {
+                Tooltip tooltip = managedTooltip(cell);
+                tooltip.setText(value);
+                tooltip.setWrapText(true);
+                tooltip.setMaxWidth(460);
+                cell.setTooltip(tooltip);
+            } else {
+                clearManagedTooltip(cell);
+            }
+        });
+
+        table.addEventFilter(MouseEvent.MOUSE_EXITED, event -> {
+            Object previous = table.getProperties().remove("erp-hovered-table-cell");
+            if (previous instanceof TableCell previousCell) {
+                clearManagedTooltip(previousCell);
+            }
+        });
+    }
+
+    @SuppressWarnings("rawtypes")
+    private static TableCell findTableCell(Node node) {
+        Node current = node;
+        while (current != null && !(current instanceof TableCell)) {
+            current = current.getParent();
+        }
+        return current instanceof TableCell cell ? cell : null;
+    }
+
+    private static Tooltip managedTooltip(TableCell<?, ?> cell) {
+        Object existing = cell.getProperties().get("erp-managed-cell-tooltip");
+        if (existing instanceof Tooltip tooltip) return tooltip;
+        Tooltip tooltip = new Tooltip();
+        cell.getProperties().put("erp-managed-cell-tooltip", tooltip);
+        return tooltip;
+    }
+
+    private static void clearManagedTooltip(TableCell<?, ?> cell) {
+        Object managed = cell.getProperties().get("erp-managed-cell-tooltip");
+        if (managed != null && cell.getTooltip() == managed) {
+            cell.setTooltip(null);
+        }
     }
 
 

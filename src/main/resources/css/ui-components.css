@@ -136,3 +136,35 @@
     -fx-padding: 7px 12px;
 }
 .erp-action-button.erp-button-icon { -fx-padding: 7px; -fx-min-width: 36px; }
+
+
+/* v3.0.3 consistent semantic action buttons */
+.button .erp-action-glyph {
+    -fx-icon-size: 16px;
+}
+
+.button {
+    -fx-graphic-text-gap: 7px;
+}
+
+.button.erp-button-primary,
+.button.erp-button-secondary,
+.button.erp-button-success,
+.button.erp-button-warning,
+.button.erp-button-danger {
+    -fx-min-height: 34px;
+    -fx-pref-height: 36px;
+    -fx-padding: 7px 13px;
+}
+
+.button.erp-button-icon,
+.table-cell .button,
+.table-cell .menu-button {
+    -fx-min-width: 32px;
+    -fx-pref-width: 34px;
+    -fx-max-width: 38px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 34px;
+    -fx-max-height: 38px;
+    -fx-padding: 5px;
+}

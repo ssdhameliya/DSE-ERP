@@ -5455,7 +5455,7 @@ SECTION TITLES
 .erp-action-button.erp-button-icon { -fx-padding: 7px; -fx-min-width: 36px; }
 
 
-/* DSE ERP v3.0.2 responsive full-view and icon consistency */
+/* DSE ERP v3.0.3 responsive full-view and icon consistency */
 .erp-screen-root { -fx-max-width: infinity; -fx-max-height: infinity; }
 .erp-full-width-table { -fx-max-width: infinity; -fx-max-height: infinity; }
 .erp-full-width-table .column-header .label { -fx-text-overrun: clip; }
@@ -5468,3 +5468,459 @@ SECTION TITLES
   .button, .menu-button, .toggle-button { -fx-padding: 7 10 7 10; }
   .metric-value, .kpi-value { -fx-font-size: 17px; }
 }
+
+
+/* v3.0.3 consistent semantic action buttons */
+.button .erp-action-glyph {
+    -fx-icon-size: 16px;
+}
+
+.button {
+    -fx-graphic-text-gap: 7px;
+}
+
+.button.erp-button-primary,
+.button.erp-button-secondary,
+.button.erp-button-success,
+.button.erp-button-warning,
+.button.erp-button-danger {
+    -fx-min-height: 34px;
+    -fx-pref-height: 36px;
+    -fx-padding: 7px 13px;
+}
+
+.button.erp-button-icon,
+.table-cell .button,
+.table-cell .menu-button {
+    -fx-min-width: 32px;
+    -fx-pref-width: 34px;
+    -fx-max-width: 38px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 34px;
+    -fx-max-height: 38px;
+    -fx-padding: 5px;
+}
+
+
+/* ================================================================
+   MASTER DATA CONTENT REDESIGN — v3.0.3 (light theme)
+   ================================================================ */
+.master-data-redesign {
+    -fx-background-color: #f4f7fc;
+}
+.master-data-redesign .master-modern-header {
+    -fx-background-color: linear-gradient(to right, #ffffff, #f5f8fd);
+    -fx-border-color: transparent transparent #dbe4f1 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.master-data-redesign .master-category-panel,
+.master-data-redesign .master-table-card,
+.master-data-redesign .master-insights-panel,
+.master-data-redesign .master-side-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 14;
+    -fx-border-color: #d8e2f0;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(34,56,90,0.12), 18, 0.10, 0, 5);
+}
+.master-data-redesign .master-category-panel { -fx-padding: 20 16 18 16; }
+.master-data-redesign .master-kpi-card {
+    -fx-min-height: 118;
+    -fx-pref-height: 118;
+    -fx-padding: 18;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(34,56,90,0.10), 14, 0.08, 0, 4);
+}
+.master-data-redesign .master-kpi-blue { -fx-background-color: linear-gradient(to bottom right, #e8f1ff, #f5f8ff); -fx-border-color: #8bb4f5; }
+.master-data-redesign .master-kpi-green { -fx-background-color: linear-gradient(to bottom right, #e4f8f0, #f4fbf8); -fx-border-color: #77c9aa; }
+.master-data-redesign .master-kpi-purple { -fx-background-color: linear-gradient(to bottom right, #eee9ff, #f8f6ff); -fx-border-color: #ad9ae7; }
+.master-data-redesign .master-kpi-amber { -fx-background-color: linear-gradient(to bottom right, #fff2dc, #fffaf1); -fx-border-color: #e8b866; }
+.master-data-redesign .master-kpi-card .kpi-title { -fx-text-fill: #52647d; -fx-font-size: 12px; -fx-font-weight: 700; }
+.master-data-redesign .master-kpi-card .kpi-value,
+.master-data-redesign .master-kpi-card .kpi-value-small { -fx-text-fill: #17243a; -fx-font-size: 22px; -fx-font-weight: 800; }
+.master-data-redesign .master-category-list { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 3 0 3 0; }
+.master-data-redesign .master-category-list .list-cell { -fx-background-color: transparent; -fx-padding: 5 3 5 3; }
+.master-data-redesign .master-category-list .list-cell .master-category-cell-content {
+    -fx-background-color: #f7f9fd;
+    -fx-background-radius: 10;
+    -fx-border-color: #d9e3f0;
+    -fx-border-radius: 10;
+    -fx-padding: 8 10 8 9;
+}
+.master-data-redesign .master-category-list .list-cell:hover .master-category-cell-content { -fx-background-color: #edf3fc; -fx-border-color: #9db8dc; }
+.master-data-redesign .master-category-list .list-cell:selected .master-category-cell-content { -fx-background-color: linear-gradient(to right, #3f72e8, #6549df); -fx-border-color: #5577ed; }
+.master-data-redesign .master-category-name { -fx-text-fill: #24344b; -fx-font-size: 12px; -fx-font-weight: 700; }
+.master-data-redesign .master-category-list .list-cell:selected .master-category-name { -fx-text-fill: white; }
+.master-data-redesign .master-category-state { -fx-text-fill: #22a866; -fx-font-size: 13px; }
+.master-data-redesign .master-table-card { -fx-padding: 14; }
+.master-data-redesign .master-table-card .table-view { -fx-background-color: #ffffff; -fx-border-color: #d7e1ee; -fx-border-radius: 10; -fx-background-radius: 10; }
+.master-data-redesign .master-table-card .column-header-background { -fx-background-color: linear-gradient(to bottom, #eef4fb, #e5edf8); -fx-background-radius: 9 9 0 0; }
+.master-data-redesign .master-table-card .column-header { -fx-background-color: transparent; -fx-border-color: transparent #d7e2ef #d7e2ef transparent; -fx-padding: 10 8; }
+.master-data-redesign .master-table-card .table-row-cell { -fx-background-color: #ffffff; -fx-border-color: transparent transparent #e1e8f2 transparent; -fx-cell-size: 46px; }
+.master-data-redesign .master-table-card .table-row-cell:odd { -fx-background-color: #f8fafd; }
+.master-data-redesign .master-table-card .table-row-cell:hover { -fx-background-color: #edf4ff; }
+.master-data-redesign .master-table-card .table-row-cell:selected { -fx-background-color: #dceaff; }
+.master-data-redesign .master-insights-panel { -fx-padding: 16; }
+.master-data-redesign .master-side-card { -fx-padding: 14; }
+.master-data-redesign .master-side-card .summary-title { -fx-text-fill: #17243a; -fx-font-size: 14px; -fx-font-weight: 800; }
+
+
+/* =====================================================================
+   DSE ERP 3.0.3 — Approved Master Data content refresh (light theme)
+   Scope: Masterdata.fxml only. Application shell/sidebar/footer unchanged.
+   ===================================================================== */
+.approved-screen-masterdata {
+    -fx-background-color: transparent;
+}
+
+.approved-screen-masterdata .master-modern-header,
+.approved-screen-masterdata .master-category-panel,
+.approved-screen-masterdata .master-insights-panel,
+.approved-screen-masterdata .master-table-card {
+    -fx-background-color: linear-gradient(to bottom right, #ffffff, #f8fafc);
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-border-color: rgba(100, 116, 139, 0.22);
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.12), 16, 0.12, 0, 5);
+}
+
+.approved-screen-masterdata .page-title,
+.approved-screen-masterdata .sidebar-title,
+.approved-screen-masterdata .section-title,
+.approved-screen-masterdata .table-title,
+.approved-screen-masterdata .summary-title {
+    -fx-text-fill: #0f172a;
+    -fx-font-weight: 800;
+}
+
+.approved-screen-masterdata .page-subtitle,
+.approved-screen-masterdata .table-hint,
+.approved-screen-masterdata .master-kpi-caption {
+    -fx-text-fill: #64748b;
+}
+
+.approved-screen-masterdata .master-panel-title-icon,
+.approved-screen-masterdata .master-section-icon {
+    -fx-min-width: 31;
+    -fx-pref-width: 31;
+    -fx-max-width: 31;
+    -fx-min-height: 31;
+    -fx-pref-height: 31;
+    -fx-max-height: 31;
+    -fx-background-color: rgba(37, 99, 235, 0.12);
+    -fx-background-radius: 9;
+    -fx-alignment: center;
+}
+
+.approved-screen-masterdata .master-category-list {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 5 2 5 2;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell .master-category-cell-content {
+    -fx-background-color: #f8fafc;
+    -fx-background-radius: 11;
+    -fx-border-radius: 11;
+    -fx-border-color: #e2e8f0;
+    -fx-padding: 10 12 10 12;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell:hover .master-category-cell-content {
+    -fx-background-color: #eff6ff;
+    -fx-border-color: #93c5fd;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell:selected .master-category-cell-content {
+    -fx-background-color: linear-gradient(to right, #2563eb, #4f46e5);
+    -fx-border-color: #1d4ed8;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.22), 10, 0.16, 0, 3);
+}
+
+.approved-screen-masterdata .master-category-name {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #1e293b;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell:selected .master-category-name {
+    -fx-text-fill: white;
+}
+
+.approved-screen-masterdata .master-category-state {
+    -fx-text-fill: #16a34a;
+}
+
+.approved-screen-masterdata .master-kpi-card {
+    -fx-padding: 15 17 14 17;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-min-height: 118;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.13), 12, 0.12, 0, 4);
+}
+.approved-screen-masterdata .master-kpi-blue {
+    -fx-background-color: linear-gradient(to bottom right, #dbeafe, #bfdbfe);
+    -fx-border-color: #60a5fa;
+}
+.approved-screen-masterdata .master-kpi-green {
+    -fx-background-color: linear-gradient(to bottom right, #d1fae5, #a7f3d0);
+    -fx-border-color: #34d399;
+}
+.approved-screen-masterdata .master-kpi-purple {
+    -fx-background-color: linear-gradient(to bottom right, #ede9fe, #ddd6fe);
+    -fx-border-color: #a78bfa;
+}
+.approved-screen-masterdata .master-kpi-amber {
+    -fx-background-color: linear-gradient(to bottom right, #fef3c7, #fde68a);
+    -fx-border-color: #f59e0b;
+}
+
+.approved-screen-masterdata .master-kpi-blue .kpi-title,
+.approved-screen-masterdata .master-kpi-blue .kpi-value,
+.approved-screen-masterdata .master-kpi-blue .master-kpi-caption { -fx-text-fill: #1e3a8a; }
+.approved-screen-masterdata .master-kpi-green .kpi-title,
+.approved-screen-masterdata .master-kpi-green .kpi-value,
+.approved-screen-masterdata .master-kpi-green .master-kpi-caption { -fx-text-fill: #065f46; }
+.approved-screen-masterdata .master-kpi-purple .kpi-title,
+.approved-screen-masterdata .master-kpi-purple .kpi-value-small,
+.approved-screen-masterdata .master-kpi-purple .master-kpi-caption { -fx-text-fill: #5b21b6; }
+.approved-screen-masterdata .master-kpi-amber .kpi-title,
+.approved-screen-masterdata .master-kpi-amber .master-kpi-caption { -fx-text-fill: #92400e; }
+
+.approved-screen-masterdata .master-action-button {
+    -fx-min-height: 36;
+    -fx-pref-height: 36;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-font-weight: 700;
+    -fx-graphic-text-gap: 8;
+}
+
+.approved-screen-masterdata .master-table-card {
+    -fx-padding: 15 15 12 15;
+}
+
+.approved-screen-masterdata .master-records-table {
+    -fx-background-color: white;
+    -fx-border-color: #dbe3ef;
+    -fx-border-radius: 11;
+    -fx-background-radius: 11;
+    -fx-fixed-cell-size: 46;
+}
+
+.approved-screen-masterdata .master-records-table .column-header-background {
+    -fx-background-color: linear-gradient(to right, #e0e7ff, #dbeafe);
+    -fx-background-radius: 10 10 0 0;
+}
+
+.approved-screen-masterdata .master-records-table .column-header,
+.approved-screen-masterdata .master-records-table .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent #bfdbfe transparent;
+    -fx-size: 44;
+}
+
+.approved-screen-masterdata .master-records-table .column-header .label {
+    -fx-text-fill: #1e3a8a;
+    -fx-font-weight: 800;
+}
+
+.approved-screen-masterdata .master-records-table .table-row-cell {
+    -fx-background-color: white;
+    -fx-border-color: transparent transparent #edf2f7 transparent;
+}
+.approved-screen-masterdata .master-records-table .table-row-cell:odd {
+    -fx-background-color: #f8fafc;
+}
+.approved-screen-masterdata .master-records-table .table-row-cell:hover {
+    -fx-background-color: #eff6ff;
+}
+.approved-screen-masterdata .master-records-table .table-row-cell:selected {
+    -fx-background-color: #dbeafe;
+}
+
+.approved-screen-masterdata .master-side-card {
+    -fx-background-color: #f8fafc;
+    -fx-background-radius: 13;
+    -fx-border-radius: 13;
+    -fx-border-color: #e2e8f0;
+    -fx-padding: 13;
+}
+
+.approved-screen-masterdata .master-summary-value {
+    -fx-text-fill: #2563eb;
+    -fx-font-weight: 800;
+    -fx-alignment: center-right;
+}
+
+.approved-screen-masterdata .tip-text {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 11.5px;
+}
+
+/* ===== Create Sale Invoice: compact no-scroll workspace ===== */
+.sales-entry-fixed-root {
+    -fx-background-color: #f5f8fd;
+    -fx-font-family: "Segoe UI", "Inter", sans-serif;
+}
+
+.sales-entry-fixed-root .sales-entry-card {
+    -fx-padding: 12px;
+}
+
+.sales-entry-customer-card {
+    -fx-border-color: #29445f;
+    -fx-background-color: linear-gradient(to bottom right, #ffffff, #f8fbff);
+}
+
+.sales-entry-items-card {
+    -fx-border-color: #165c72;
+    -fx-background-color: linear-gradient(to bottom right, #ffffff, #f4fbff);
+}
+
+.sales-entry-section-customer {
+    -fx-text-fill: #4c1d95;
+}
+
+.sales-entry-section-items {
+    -fx-text-fill: #0e7490;
+}
+
+.sales-entry-section-summary {
+    -fx-text-fill: #6d28d9;
+}
+
+.sales-entry-section-quick {
+    -fx-text-fill: #a16207;
+}
+
+.sales-entry-section-document {
+    -fx-text-fill: #be123c;
+}
+
+.sales-entry-field-label {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: 700;
+}
+
+.field-label-customer { -fx-text-fill: #7e22ce; }
+.field-label-invoice { -fx-text-fill: #6d28d9; }
+.field-label-date { -fx-text-fill: #1d4ed8; }
+.field-label-due { -fx-text-fill: #0e7490; }
+.field-label-address { -fx-text-fill: #6d28d9; }
+.field-label-payment { -fx-text-fill: #15803d; }
+.field-label-delivery { -fx-text-fill: #0369a1; }
+.field-label-reference { -fx-text-fill: #1d4ed8; }
+.field-label-notes { -fx-text-fill: #a16207; }
+
+.sales-entry-new-button {
+    -fx-background-color: linear-gradient(to right, #6d28d9, #7c3aed);
+    -fx-border-color: #8b5cf6;
+    -fx-text-fill: white;
+    -fx-font-weight: 800;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-padding: 8px 12px;
+}
+
+.sales-entry-table-summary {
+    -fx-padding: 7px 10px;
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #d7e1ee;
+    -fx-border-radius: 7px;
+    -fx-background-radius: 7px;
+}
+
+.sales-entry-summary-caption {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.sales-entry-summary-value,
+.sales-entry-summary-net {
+    -fx-text-fill: #1d4ed8;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-summary-discount {
+    -fx-text-fill: #b45309;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-summary-tax {
+    -fx-text-fill: #0e7490;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-discount-text {
+    -fx-text-fill: #be123c;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-bottom-actions {
+    -fx-padding: 7px 10px;
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #d7e1ee;
+    -fx-border-radius: 9px;
+    -fx-background-radius: 9px;
+}
+
+.sales-entry-fixed-root .text-area {
+    -fx-padding: 4px 7px;
+}
+
+.sales-entry-fixed-root .sales-entry-table .placeholder .label {
+    -fx-text-alignment: center;
+}
+
+.sales-entry-fixed-root .sales-entry-summary-card {
+    -fx-border-color: #cbd5e1;
+}
+
+.sales-entry-fixed-root .sales-entry-quick-card {
+    -fx-border-color: #cbd5e1;
+}
+
+.sales-entry-fixed-root .sales-entry-document-card {
+    -fx-border-color: #e2c7d1;
+}
+
+
+/* Register visibility refinements: prominent counts and semantic totals. */
+.register-record-count {
+    -fx-background-color: linear-gradient(to right, #2563eb, #4f46e5);
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-padding: 7px 12px;
+    -fx-background-radius: 9px;
+    -fx-border-color: #bfdbfe;
+    -fx-border-radius: 9px;
+}
+.register-total-summary {
+    -fx-background-color: linear-gradient(to right, #eff6ff, #f5f3ff);
+    -fx-text-fill: #1e3a8a;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-padding: 8px 14px;
+    -fx-background-radius: 10px;
+    -fx-border-color: #c4b5fd;
+    -fx-border-radius: 10px;
+}
+.register-total-value {
+    -fx-font-size: 15px;
+    -fx-font-weight: 900;
+    -fx-padding: 3px 7px;
+    -fx-background-radius: 7px;
+}
+.register-total-sales { -fx-text-fill: #1d4ed8; -fx-background-color: #dbeafe; }
+.register-total-paid { -fx-text-fill: #15803d; -fx-background-color: #dcfce7; }
+.register-total-balance { -fx-text-fill: #be123c; -fx-background-color: #ffe4e6; }

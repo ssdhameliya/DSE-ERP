@@ -248,8 +248,7 @@ public class DashboardController {
         if (!website.isBlank()) details.add("Website: " + website);
         if (!gstin.isBlank()) details.add("GSTIN: " + gstin);
         if (!address.isBlank()) details.add("Address: " + address.replaceAll("[\\r\\n]+", ", "));
-        String liveClock = lblClock == null || lblClock.getText() == null || lblClock.getText().isBlank() ? "" : "   •   Live: " + lblClock.getText();
-        lblCompanyFooter.setText(company + (details.isEmpty() ? "" : "   •   " + String.join("   •   ", details)) + liveClock);
+        lblCompanyFooter.setText(company + (details.isEmpty() ? "" : "   •   " + String.join("   •   ", details)));
     }
 
     /** Disables protected navigation modules when the signed-in role lacks VIEW access. */

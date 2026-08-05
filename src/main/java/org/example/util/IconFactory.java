@@ -95,7 +95,7 @@ public final class IconFactory {
         if (node instanceof ButtonBase button) {
             String semantic = semantic(button);
             String originalText = clean(button.getText());
-            // v3.0.2 guarantees a visible semantic graphic on every actionable
+            // v3.0.3 guarantees a visible semantic graphic on every actionable
             // ButtonBase. Explicit mappings remain preferred; uncommon controls
             // receive a neutral document/action fallback rather than no icon.
             if (semantic == null && !Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))) {
@@ -123,8 +123,18 @@ public final class IconFactory {
                     }
                 }
                 applyButtonVariant(button, resolvedSemantic);
-                if (button.getTooltip() == null && !originalText.isBlank()) {
-                    button.setTooltip(new Tooltip(originalText));
+                button.setContentDisplay(originalText.isBlank()
+                    ? ContentDisplay.GRAPHIC_ONLY : ContentDisplay.LEFT);
+                button.setGraphicTextGap(7);
+                if (!originalText.isBlank()) {
+                    if (button.getAccessibleText() == null || button.getAccessibleText().isBlank()) {
+                        button.setAccessibleText(originalText);
+                    }
+                    if (button.getTooltip() == null) {
+                        button.setTooltip(new Tooltip(originalText));
+                    }
+                } else if (button.getAccessibleText() == null || button.getAccessibleText().isBlank()) {
+                    button.setAccessibleText(resolvedSemantic.replace('-', ' '));
                 }
             }
         }
@@ -357,7 +367,7 @@ public final class IconFactory {
             case "reminder" -> "fas-clock";
             case "complete" -> "fas-check-circle";
             case "more" -> "fas-ellipsis-h";
-            case "actions" -> "fas-cog";
+            case "actions" -> "fas-ellipsis-h";
             case "backup" -> "fas-database";
             case "restore" -> "fas-history";
             case "validate" -> "fas-shield-alt";
@@ -437,6 +447,10 @@ public final class IconFactory {
     private static String semantic(String text) {
         String value = text == null ? "" : text.toLowerCase(Locale.ROOT).trim();
         if (value.isBlank()) return null;
+        if (value.equals("first") || value.equals("|‹") || value.equals("«")) return "first";
+        if (value.equals("previous") || value.equals("‹")) return "previous";
+        if (value.equals("next") || value.equals("›")) return "next";
+        if (value.equals("last") || value.equals("›|") || value.equals("»")) return "last";
         if (value.contains("dashboard")) return "dashboard";
         if (value.equals("today") || value.equals("yesterday") || value.contains("days")
             || value.contains("month") || value.contains("custom range")) return "calendar";
@@ -453,6 +467,10 @@ public final class IconFactory {
         if (value.contains("send") && value.contains("receipt")) return "email";
         if (value.contains("continue")) return "next";
         if (value.contains("guide") || value.contains("help")) return "document";
+        if (value.contains("configure") || value.contains("manage")) return "settings";
+        if (value.contains("follow up")) return "reminder";
+        if (value.contains("expense")) return "payment";
+        if (value.contains("convert to sale")) return "sale";
         if (value.contains("map column") || value.contains("mapping")) return "settings";
         if (value.contains("system health")) return "validate";
         if (value.contains("offline package") || value.contains("install update")) return "update";

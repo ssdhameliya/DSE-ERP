@@ -66,7 +66,6 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private FlowPane activeFilterChips;
     @FXML private MenuButton savedViewsMenu;
     @FXML private TableView<Sales> tableSales;
-    @FXML private TableColumn<Sales,Boolean> colSelect;
     @FXML private TableColumn<Sales,String> colInvoice,colDate,colCustomer,colMobile,colGstin,colDue,colStatus,colMail,colWhatsapp;
     @FXML private TableColumn<Sales,Double> colTotal,colPaid,colBalance;
     @FXML private TableColumn<Sales,Void> colAction;
@@ -88,7 +87,6 @@ public class SalesListController implements ScreenLifecycle {
 
     @FXML public void initialize(){
         tableSales.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        TableSelectionSupport.install(tableSales,colSelect);
         configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();
         configureExplicitTableHeaderIcons();
         simplifyFilters();
@@ -164,7 +162,6 @@ public class SalesListController implements ScreenLifecycle {
     }
 
     private void configureExplicitTableHeaderIcons(){
-        setHeaderIcon(colSelect,"quantity");
         setHeaderIcon(colInvoice,"document");
         setHeaderIcon(colDate,"calendar");
         setHeaderIcon(colCustomer,"customer");

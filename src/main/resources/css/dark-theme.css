@@ -4775,3 +4775,590 @@ TABLE ACTION BUTTONS
     -fx-padding: 7px 12px;
 }
 .erp-action-button.erp-button-icon { -fx-padding: 7px; -fx-min-width: 36px; }
+
+
+/* v3.0.3 consistent semantic action buttons */
+.button .erp-action-glyph {
+    -fx-icon-size: 16px;
+}
+
+.button {
+    -fx-graphic-text-gap: 7px;
+}
+
+.button.erp-button-primary,
+.button.erp-button-secondary,
+.button.erp-button-success,
+.button.erp-button-warning,
+.button.erp-button-danger {
+    -fx-min-height: 34px;
+    -fx-pref-height: 36px;
+    -fx-padding: 7px 13px;
+}
+
+.button.erp-button-icon,
+.table-cell .button,
+.table-cell .menu-button {
+    -fx-min-width: 32px;
+    -fx-pref-width: 34px;
+    -fx-max-width: 38px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 34px;
+    -fx-max-height: 38px;
+    -fx-padding: 5px;
+}
+
+
+/* ================================================================
+   MASTER DATA CONTENT REDESIGN — v3.0.3
+   Presentation-only styling. Navigation shell and business logic
+   remain unchanged.
+   ================================================================ */
+.master-data-redesign {
+    -fx-background-color: #0b1728;
+}
+
+.master-data-redesign .master-modern-header {
+    -fx-background-color: linear-gradient(to right, #0f2037, #101c31);
+    -fx-border-color: transparent transparent #263b59 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.master-data-redesign .master-category-panel,
+.master-data-redesign .master-table-card,
+.master-data-redesign .master-insights-panel,
+.master-data-redesign .master-side-card {
+    -fx-background-color: linear-gradient(to bottom right, #14263d, #111f33);
+    -fx-background-radius: 14;
+    -fx-border-color: #2b4262;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.24), 18, 0.10, 0, 5);
+}
+
+.master-data-redesign .master-category-panel {
+    -fx-padding: 20 16 18 16;
+}
+
+.master-data-redesign .master-kpi-card {
+    -fx-min-height: 118;
+    -fx-pref-height: 118;
+    -fx-padding: 18;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.22), 14, 0.08, 0, 4);
+}
+
+.master-data-redesign .master-kpi-blue {
+    -fx-background-color: linear-gradient(to bottom right, #183b72, #172a4f);
+    -fx-border-color: #2f64aa;
+}
+.master-data-redesign .master-kpi-green {
+    -fx-background-color: linear-gradient(to bottom right, #124f43, #12352f);
+    -fx-border-color: #23836c;
+}
+.master-data-redesign .master-kpi-purple {
+    -fx-background-color: linear-gradient(to bottom right, #3b2b70, #29234f);
+    -fx-border-color: #654dc0;
+}
+.master-data-redesign .master-kpi-amber {
+    -fx-background-color: linear-gradient(to bottom right, #593916, #3c2b18);
+    -fx-border-color: #9d681d;
+}
+
+.master-data-redesign .master-kpi-card .kpi-title {
+    -fx-text-fill: #c8d7ec;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+.master-data-redesign .master-kpi-card .kpi-value,
+.master-data-redesign .master-kpi-card .kpi-value-small {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+}
+
+.master-data-redesign .master-category-list {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 3 0 3 0;
+}
+.master-data-redesign .master-category-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #dce8f8;
+    -fx-padding: 5 3 5 3;
+}
+.master-data-redesign .master-category-list .list-cell .master-category-cell-content {
+    -fx-background-color: #13263d;
+    -fx-background-radius: 10;
+    -fx-border-color: #294361;
+    -fx-border-radius: 10;
+    -fx-padding: 8 10 8 9;
+}
+.master-data-redesign .master-category-list .list-cell:hover .master-category-cell-content {
+    -fx-background-color: #193553;
+    -fx-border-color: #3b6b9e;
+}
+.master-data-redesign .master-category-list .list-cell:selected .master-category-cell-content {
+    -fx-background-color: linear-gradient(to right, #245de0, #5634dc);
+    -fx-border-color: #708dff;
+}
+.master-data-redesign .master-category-name {
+    -fx-text-fill: #eaf3ff;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+.master-data-redesign .master-category-state {
+    -fx-text-fill: #31d17c;
+    -fx-font-size: 13px;
+}
+
+.master-data-redesign .master-table-card {
+    -fx-padding: 14;
+}
+.master-data-redesign .master-table-card .table-view {
+    -fx-background-color: #0e1c2e;
+    -fx-border-color: #2b4363;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+.master-data-redesign .master-table-card .column-header-background {
+    -fx-background-color: linear-gradient(to bottom, #213b5d, #1a304d);
+    -fx-background-radius: 9 9 0 0;
+}
+.master-data-redesign .master-table-card .column-header {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent #314e73 #314e73 transparent;
+    -fx-padding: 10 8;
+}
+.master-data-redesign .master-table-card .table-row-cell {
+    -fx-background-color: #102137;
+    -fx-border-color: transparent transparent #233a58 transparent;
+    -fx-cell-size: 46px;
+}
+.master-data-redesign .master-table-card .table-row-cell:odd {
+    -fx-background-color: #11243a;
+}
+.master-data-redesign .master-table-card .table-row-cell:hover {
+    -fx-background-color: #183552;
+}
+.master-data-redesign .master-table-card .table-row-cell:selected {
+    -fx-background-color: linear-gradient(to right, #24558c, #214773);
+}
+
+.master-data-redesign .master-insights-panel {
+    -fx-padding: 16;
+}
+.master-data-redesign .master-side-card {
+    -fx-padding: 14;
+}
+.master-data-redesign .master-side-card .summary-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+}
+.master-data-redesign .chart-pie-label,
+.master-data-redesign .chart-legend-item {
+    -fx-text-fill: #d8e6f8;
+}
+
+
+/* =====================================================================
+   DSE ERP 3.0.3 — Approved Master Data content refresh
+   Scope: Masterdata.fxml only. Application shell/sidebar/footer unchanged.
+   ===================================================================== */
+.approved-screen-masterdata {
+    -fx-background-color: transparent;
+}
+
+.approved-screen-masterdata .master-modern-header {
+    -fx-background-color: linear-gradient(to bottom right, #172340, #111a31);
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-border-color: rgba(104, 128, 190, 0.26);
+    -fx-effect: dropshadow(gaussian, rgba(2, 6, 23, 0.28), 18, 0.16, 0, 6);
+}
+
+.approved-screen-masterdata .page-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #f8fafc;
+}
+
+.approved-screen-masterdata .page-subtitle,
+.approved-screen-masterdata .table-hint,
+.approved-screen-masterdata .master-kpi-caption {
+    -fx-text-fill: #94a3b8;
+}
+
+.approved-screen-masterdata .master-category-panel,
+.approved-screen-masterdata .master-insights-panel,
+.approved-screen-masterdata .master-table-card {
+    -fx-background-color: linear-gradient(to bottom right, #151f38, #10182c);
+    -fx-background-radius: 16;
+    -fx-border-radius: 16;
+    -fx-border-color: rgba(104, 128, 190, 0.24);
+    -fx-effect: dropshadow(gaussian, rgba(2, 6, 23, 0.25), 16, 0.12, 0, 5);
+}
+
+.approved-screen-masterdata .master-category-panel {
+    -fx-padding: 0;
+}
+
+.approved-screen-masterdata .master-panel-title-icon,
+.approved-screen-masterdata .master-section-icon {
+    -fx-min-width: 31;
+    -fx-pref-width: 31;
+    -fx-max-width: 31;
+    -fx-min-height: 31;
+    -fx-pref-height: 31;
+    -fx-max-height: 31;
+    -fx-background-color: rgba(59, 130, 246, 0.18);
+    -fx-background-radius: 9;
+    -fx-alignment: center;
+}
+
+.approved-screen-masterdata .sidebar-title,
+.approved-screen-masterdata .section-title,
+.approved-screen-masterdata .table-title,
+.approved-screen-masterdata .summary-title {
+    -fx-font-weight: 800;
+    -fx-text-fill: #f8fafc;
+}
+
+.approved-screen-masterdata .master-category-list {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 3 0 3 0;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 5 2 5 2;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell .master-category-cell-content {
+    -fx-background-color: rgba(30, 41, 69, 0.68);
+    -fx-background-radius: 11;
+    -fx-border-radius: 11;
+    -fx-border-color: rgba(100, 116, 139, 0.18);
+    -fx-padding: 10 12 10 12;
+}
+
+.approved-screen-masterdata .master-category-list .list-cell:hover .master-category-cell-content {
+    -fx-background-color: rgba(42, 58, 96, 0.88);
+    -fx-border-color: rgba(96, 165, 250, 0.38);
+}
+
+.approved-screen-masterdata .master-category-list .list-cell:selected .master-category-cell-content {
+    -fx-background-color: linear-gradient(to right, rgba(37, 99, 235, 0.92), rgba(79, 70, 229, 0.82));
+    -fx-border-color: #60a5fa;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.35), 12, 0.2, 0, 3);
+}
+
+.approved-screen-masterdata .master-category-name {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #dbeafe;
+}
+
+.approved-screen-masterdata .master-category-state {
+    -fx-text-fill: #34d399;
+    -fx-font-size: 10px;
+}
+
+.approved-screen-masterdata .master-kpi-card {
+    -fx-padding: 15 17 14 17;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-min-height: 118;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(2, 6, 23, 0.25), 14, 0.14, 0, 4);
+}
+
+.approved-screen-masterdata .master-kpi-blue {
+    -fx-background-color: linear-gradient(to bottom right, rgba(30, 64, 175, 0.94), rgba(37, 99, 235, 0.68));
+    -fx-border-color: rgba(96, 165, 250, 0.55);
+}
+.approved-screen-masterdata .master-kpi-green {
+    -fx-background-color: linear-gradient(to bottom right, rgba(5, 110, 85, 0.94), rgba(16, 185, 129, 0.62));
+    -fx-border-color: rgba(52, 211, 153, 0.55);
+}
+.approved-screen-masterdata .master-kpi-purple {
+    -fx-background-color: linear-gradient(to bottom right, rgba(91, 33, 182, 0.95), rgba(139, 92, 246, 0.62));
+    -fx-border-color: rgba(167, 139, 250, 0.55);
+}
+.approved-screen-masterdata .master-kpi-amber {
+    -fx-background-color: linear-gradient(to bottom right, rgba(180, 83, 9, 0.95), rgba(245, 158, 11, 0.60));
+    -fx-border-color: rgba(251, 191, 36, 0.58);
+}
+
+.approved-screen-masterdata .master-kpi-card .kpi-title,
+.approved-screen-masterdata .master-kpi-card .kpi-value,
+.approved-screen-masterdata .master-kpi-card .kpi-value-small,
+.approved-screen-masterdata .master-kpi-card .master-kpi-caption {
+    -fx-text-fill: white;
+}
+
+.approved-screen-masterdata .master-kpi-card .kpi-value {
+    -fx-font-size: 26px;
+    -fx-font-weight: 900;
+}
+.approved-screen-masterdata .master-kpi-card .kpi-value-small {
+    -fx-font-size: 21px;
+    -fx-font-weight: 900;
+}
+.approved-screen-masterdata .master-kpi-card .master-kpi-caption {
+    -fx-opacity: 0.82;
+    -fx-font-size: 11px;
+}
+
+.approved-screen-masterdata .master-table-toolbar {
+    -fx-padding: 2 0 0 0;
+}
+
+.approved-screen-masterdata .master-action-button {
+    -fx-min-height: 36;
+    -fx-pref-height: 36;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-font-weight: 700;
+    -fx-graphic-text-gap: 8;
+}
+
+.approved-screen-masterdata .master-table-card {
+    -fx-padding: 15 15 12 15;
+}
+
+.approved-screen-masterdata .master-records-table {
+    -fx-background-color: #0f172a;
+    -fx-border-color: rgba(100, 116, 139, 0.25);
+    -fx-border-radius: 11;
+    -fx-background-radius: 11;
+    -fx-fixed-cell-size: 46;
+}
+
+.approved-screen-masterdata .master-records-table .column-header-background {
+    -fx-background-color: linear-gradient(to right, #172554, #1e3a8a);
+    -fx-background-radius: 10 10 0 0;
+}
+
+.approved-screen-masterdata .master-records-table .column-header,
+.approved-screen-masterdata .master-records-table .filler {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent rgba(96, 165, 250, 0.30) transparent;
+    -fx-size: 44;
+}
+
+.approved-screen-masterdata .master-records-table .column-header .label {
+    -fx-text-fill: #dbeafe;
+    -fx-font-weight: 800;
+}
+
+.approved-screen-masterdata .master-records-table .table-row-cell {
+    -fx-background-color: #111a2e;
+    -fx-border-color: transparent transparent rgba(51, 65, 85, 0.42) transparent;
+}
+
+.approved-screen-masterdata .master-records-table .table-row-cell:odd {
+    -fx-background-color: #131e34;
+}
+
+.approved-screen-masterdata .master-records-table .table-row-cell:hover {
+    -fx-background-color: #1b2b49;
+}
+
+.approved-screen-masterdata .master-records-table .table-row-cell:selected {
+    -fx-background-color: linear-gradient(to right, rgba(37, 99, 235, 0.68), rgba(79, 70, 229, 0.46));
+}
+
+.approved-screen-masterdata .master-side-card {
+    -fx-background-color: rgba(20, 30, 53, 0.90);
+    -fx-background-radius: 13;
+    -fx-border-radius: 13;
+    -fx-border-color: rgba(100, 116, 139, 0.22);
+    -fx-padding: 13;
+}
+
+.approved-screen-masterdata .master-chart-card {
+    -fx-padding: 8 10 6 10;
+}
+
+.approved-screen-masterdata .master-summary-value {
+    -fx-text-fill: #93c5fd;
+    -fx-font-weight: 800;
+    -fx-alignment: center-right;
+}
+
+.approved-screen-masterdata .master-tips-card {
+    -fx-min-height: 128;
+}
+
+.approved-screen-masterdata .tip-text {
+    -fx-text-fill: #aab9cf;
+    -fx-font-size: 11.5px;
+}
+
+.approved-screen-masterdata .master-table-footer {
+    -fx-padding: 2 2 0 2;
+}
+
+/* ===== Create Sale Invoice: compact no-scroll workspace ===== */
+.sales-entry-fixed-root {
+    -fx-background-color: #071421;
+    -fx-font-family: "Segoe UI", "Inter", sans-serif;
+}
+
+.sales-entry-fixed-root .sales-entry-card {
+    -fx-padding: 12px;
+}
+
+.sales-entry-customer-card {
+    -fx-border-color: #29445f;
+    -fx-background-color: linear-gradient(to bottom right, #10243a, #0d1d30);
+}
+
+.sales-entry-items-card {
+    -fx-border-color: #165c72;
+    -fx-background-color: linear-gradient(to bottom right, #0d2638, #0b1d30);
+}
+
+.sales-entry-section-customer {
+    -fx-text-fill: #d7ddff;
+}
+
+.sales-entry-section-items {
+    -fx-text-fill: #67e8f9;
+}
+
+.sales-entry-section-summary {
+    -fx-text-fill: #d8b4fe;
+}
+
+.sales-entry-section-quick {
+    -fx-text-fill: #facc15;
+}
+
+.sales-entry-section-document {
+    -fx-text-fill: #fb7185;
+}
+
+.sales-entry-field-label {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: 700;
+}
+
+.field-label-customer { -fx-text-fill: #c084fc; }
+.field-label-invoice { -fx-text-fill: #d8b4fe; }
+.field-label-date { -fx-text-fill: #60a5fa; }
+.field-label-due { -fx-text-fill: #22d3ee; }
+.field-label-address { -fx-text-fill: #a78bfa; }
+.field-label-payment { -fx-text-fill: #4ade80; }
+.field-label-delivery { -fx-text-fill: #38bdf8; }
+.field-label-reference { -fx-text-fill: #93c5fd; }
+.field-label-notes { -fx-text-fill: #facc15; }
+
+.sales-entry-new-button {
+    -fx-background-color: linear-gradient(to right, #6d28d9, #7c3aed);
+    -fx-border-color: #8b5cf6;
+    -fx-text-fill: white;
+    -fx-font-weight: 800;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-padding: 8px 12px;
+}
+
+.sales-entry-table-summary {
+    -fx-padding: 7px 10px;
+    -fx-background-color: #0b1b2d;
+    -fx-border-color: #23415e;
+    -fx-border-radius: 7px;
+    -fx-background-radius: 7px;
+}
+
+.sales-entry-summary-caption {
+    -fx-text-fill: #91a4ba;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.sales-entry-summary-value,
+.sales-entry-summary-net {
+    -fx-text-fill: #60a5fa;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-summary-discount {
+    -fx-text-fill: #f59e0b;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-summary-tax {
+    -fx-text-fill: #22d3ee;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-discount-text {
+    -fx-text-fill: #fb7185;
+    -fx-font-weight: 800;
+}
+
+.sales-entry-bottom-actions {
+    -fx-padding: 7px 10px;
+    -fx-background-color: #0c1c2e;
+    -fx-border-color: #253f59;
+    -fx-border-radius: 9px;
+    -fx-background-radius: 9px;
+}
+
+.sales-entry-fixed-root .text-area {
+    -fx-padding: 4px 7px;
+}
+
+.sales-entry-fixed-root .sales-entry-table .placeholder .label {
+    -fx-text-alignment: center;
+}
+
+.sales-entry-fixed-root .sales-entry-summary-card {
+    -fx-border-color: #385a7a;
+}
+
+.sales-entry-fixed-root .sales-entry-quick-card {
+    -fx-border-color: #284d69;
+}
+
+.sales-entry-fixed-root .sales-entry-document-card {
+    -fx-border-color: #4c334c;
+}
+
+
+/* Register visibility refinements: prominent counts and semantic totals. */
+.register-record-count {
+    -fx-background-color: linear-gradient(to right, #1d4ed8, #4338ca);
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-padding: 7px 12px;
+    -fx-background-radius: 9px;
+    -fx-border-color: rgba(125, 171, 255, 0.45);
+    -fx-border-radius: 9px;
+}
+.register-total-summary {
+    -fx-background-color: linear-gradient(to right, rgba(37, 99, 235, 0.20), rgba(124, 58, 237, 0.22));
+    -fx-text-fill: #e5edff;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-padding: 8px 14px;
+    -fx-background-radius: 10px;
+    -fx-border-color: rgba(139, 92, 246, 0.45);
+    -fx-border-radius: 10px;
+}
+.register-total-value {
+    -fx-font-size: 15px;
+    -fx-font-weight: 900;
+    -fx-padding: 3px 7px;
+    -fx-background-radius: 7px;
+}
+.register-total-sales { -fx-text-fill: #93c5fd; -fx-background-color: rgba(37, 99, 235, 0.14); }
+.register-total-paid { -fx-text-fill: #86efac; -fx-background-color: rgba(34, 197, 94, 0.13); }
+.register-total-balance { -fx-text-fill: #fda4af; -fx-background-color: rgba(244, 63, 94, 0.13); }
