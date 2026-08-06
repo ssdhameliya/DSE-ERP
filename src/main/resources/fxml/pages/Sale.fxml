@@ -147,14 +147,14 @@
                 </TableView>
 
                 <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-table-summary">
-                    <Label text="Total Items:" styleClass="sales-entry-summary-caption"/>
+                    <Label text="Total Items:" styleClass="sales-entry-summary-caption,sales-entry-summary-caption-items"/>
                     <Label fx:id="lblTotalItems" text="0" styleClass="sales-entry-summary-value"/>
                     <Region HBox.hgrow="ALWAYS"/>
-                    <Label text="Discount" styleClass="sales-entry-summary-caption"/>
+                    <Label text="Discount" styleClass="sales-entry-summary-caption,sales-entry-summary-caption-discount"/>
                     <Label fx:id="lblBottomDiscount" text="₹ 0.00" styleClass="sales-entry-summary-discount"/>
-                    <Label text="Tax" styleClass="sales-entry-summary-caption"/>
+                    <Label text="Tax" styleClass="sales-entry-summary-caption,sales-entry-summary-caption-tax"/>
                     <Label fx:id="lblBottomTax" text="₹ 0.00" styleClass="sales-entry-summary-tax"/>
-                    <Label text="Net" styleClass="sales-entry-summary-caption"/>
+                    <Label text="Net" styleClass="sales-entry-summary-caption,sales-entry-summary-caption-net"/>
                     <Label fx:id="lblBottomNet" text="₹ 0.00" styleClass="sales-entry-summary-net"/>
                 </HBox>
 

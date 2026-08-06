@@ -22,7 +22,7 @@
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Button fx:id="btnHeaderRefresh" text="Refresh" onAction="#refresh"
-                        styleClass="secondary-button,master-action-button"/>
+                        styleClass="approved-button,approved-secondary-button,master-action-button"/>
             </HBox>
 
             <HBox spacing="12" alignment="CENTER_LEFT">
@@ -32,9 +32,9 @@
                            HBox.hgrow="ALWAYS"
                            styleClass="approved-input,master-search-field"/>
                 <Button fx:id="btnHeaderAddLookup" text="Add Lookup" onAction="#addLookup"
-                        styleClass="primary-button,master-action-button"/>
+                        styleClass="approved-button,approved-primary-button,master-action-button"/>
                 <Button fx:id="btnHeaderExport" text="Export" onAction="#exportLookup"
-                        styleClass="secondary-button,master-action-button"/>
+                        styleClass="approved-button,approved-secondary-button,master-action-button"/>
             </HBox>
         </VBox>
     </top>
@@ -59,11 +59,11 @@
 
             <VBox spacing="9" styleClass="master-category-actions">
                 <Button fx:id="btnAddCategory" text="Add Category" onAction="#addCategory"
-                        maxWidth="Infinity" styleClass="primary-button,master-action-button"/>
+                        maxWidth="Infinity" styleClass="approved-button,approved-primary-button,master-action-button"/>
                 <Button fx:id="btnRenameCategory" text="Rename Category" onAction="#renameCategory"
-                        maxWidth="Infinity" styleClass="secondary-button,master-action-button"/>
+                        maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,master-action-button"/>
                 <Button fx:id="btnDeleteCategory" text="Delete Category" onAction="#deleteCategory"
-                        maxWidth="Infinity" styleClass="danger-button,master-action-button"/>
+                        maxWidth="Infinity" styleClass="approved-button,approved-danger-button,master-action-button"/>
             </VBox>
         </VBox>
     </left>
@@ -122,13 +122,13 @@
                     </HBox>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Button fx:id="btnAddLookup" text="Add" onAction="#addLookup"
-                            styleClass="primary-button,master-action-button"/>
+                            styleClass="approved-button,approved-primary-button,master-action-button"/>
                     <Button fx:id="btnEditLookup" text="Edit" onAction="#editLookup"
-                            styleClass="secondary-button,master-action-button"/>
+                            styleClass="approved-button,approved-secondary-button,master-action-button"/>
                     <Button fx:id="btnDeleteLookup" text="Delete" onAction="#deleteLookup"
-                            styleClass="danger-button,master-action-button"/>
+                            styleClass="approved-button,approved-danger-button,master-action-button"/>
                     <Button fx:id="btnRefreshLookup" text="Refresh" onAction="#refresh"
-                            styleClass="secondary-button,master-action-button"/>
+                            styleClass="approved-button,approved-secondary-button,master-action-button"/>
                 </HBox>
 
                 <VBox spacing="10" VBox.vgrow="ALWAYS"
@@ -136,7 +136,7 @@
                     <HBox alignment="CENTER_LEFT">
                         <Label text="Master Records" styleClass="table-title"/>
                         <Region HBox.hgrow="ALWAYS"/>
-                        <Label text="Double-click a row to edit" styleClass="table-hint"/>
+                        
                     </HBox>
 
                     <TableView fx:id="tblLookup"
@@ -171,9 +171,9 @@
                     </TableView>
 
                     <HBox alignment="CENTER_LEFT" spacing="12" styleClass="master-table-footer">
-                        <Label fx:id="lblRecordCount" text="0 Records" styleClass="table-footer"/>
+                        <Label fx:id="lblRecordCount" text="0 Records" styleClass="table-footer,master-record-count-badge"/>
                         <Region HBox.hgrow="ALWAYS"/>
-                        <Pagination fx:id="pagination" pageCount="1"/>
+                        <Pagination fx:id="pagination" pageCount="1" maxPageIndicatorCount="5" styleClass="master-premium-pagination"/>
                     </HBox>
                 </VBox>
             </VBox>
@@ -215,11 +215,11 @@
                 <VBox spacing="9" styleClass="summary-card,master-side-card">
                     <Label text="Quick Actions" styleClass="summary-title"/>
                     <Button fx:id="btnQuickAddLookup" text="Add Lookup" onAction="#addLookup"
-                            maxWidth="Infinity" styleClass="primary-button,master-action-button"/>
+                            maxWidth="Infinity" styleClass="approved-button,approved-primary-button,master-action-button"/>
                     <Button fx:id="btnQuickAddCategory" text="Add Category" onAction="#addCategory"
-                            maxWidth="Infinity" styleClass="secondary-button,master-action-button"/>
+                            maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,master-action-button"/>
                     <Button fx:id="btnQuickRefresh" text="Refresh" onAction="#refresh"
-                            maxWidth="Infinity" styleClass="secondary-button,master-action-button"/>
+                            maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,master-action-button"/>
                 </VBox>
 
                 <VBox spacing="7" styleClass="summary-card,master-side-card,master-tips-card"
@@ -239,13 +239,10 @@
     </center>
 
     <bottom>
-        <HBox alignment="CENTER_LEFT" spacing="15" styleClass="status-bar">
-            <padding><Insets top="8" right="15" bottom="8" left="15"/></padding>
+        <!-- Controller compatibility nodes; hidden so the shared application footer remains fully visible. -->
+        <HBox visible="false" managed="false">
             <Label text="Ready" fx:id="lblStatus"/>
-            <Separator orientation="VERTICAL"/>
             <Label text="Master Data Module"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Label text="F1 Help"/>
         </HBox>
     </bottom>
 </BorderPane>

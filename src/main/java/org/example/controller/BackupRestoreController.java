@@ -530,9 +530,14 @@ public class BackupRestoreController {
     }
 
     private void setOperationRunning(boolean running) {
-        backupTable.setDisable(running);
-        cmbSchedule.setDisable(running);
-        spRetention.setDisable(running);
+        if (backupTable != null && backupTable.getScene() != null
+                && backupTable.getScene().getRoot() != null) {
+            backupTable.getScene().getRoot().setDisable(running);
+        } else {
+            backupTable.setDisable(running);
+            cmbSchedule.setDisable(running);
+            spRetention.setDisable(running);
+        }
 
         if (btnRestoreSelected != null) {
             btnRestoreSelected.setDisable(
@@ -719,7 +724,9 @@ public class BackupRestoreController {
     }
 
     private void setStatus(String message) {
-        lblStatus.setText(message == null ? "" : message);
+        if (lblStatus != null) {
+            lblStatus.setText(message == null ? "" : message);
+        }
     }
 
     private void showWarning(String message) {

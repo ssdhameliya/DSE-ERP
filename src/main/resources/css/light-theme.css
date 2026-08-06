@@ -6008,3 +6008,107 @@ SECTION TITLES
 .backup-restore-page .backup-history-table {
     -fx-min-height: 170px;
 }
+
+/* v3.0.5 focused cosmetic refinements */
+.sales-entry-summary-caption-items,
+.sales-entry-summary-caption-discount,
+.sales-entry-summary-caption-tax,
+.sales-entry-summary-caption-net {
+    -fx-padding: 4px 8px;
+    -fx-background-radius: 8px;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+.sales-entry-summary-caption-items { -fx-text-fill: #1d4ed8; -fx-background-color: #dbeafe; }
+.sales-entry-summary-caption-discount { -fx-text-fill: #92400e; -fx-background-color: #fef3c7; }
+.sales-entry-summary-caption-tax { -fx-text-fill: #0e7490; -fx-background-color: #cffafe; }
+.sales-entry-summary-caption-net { -fx-text-fill: #6d28d9; -fx-background-color: #ede9fe; }
+.sales-entry-summary-value,
+.sales-entry-summary-discount,
+.sales-entry-summary-tax,
+.sales-entry-summary-net {
+    -fx-font-size: 13px;
+    -fx-padding: 3px 6px;
+}
+.quotation-detail-close-button {
+    -fx-background-color: #dc2626;
+    -fx-text-fill: white;
+    -fx-font-weight: 800;
+    -fx-padding: 6px 11px;
+}
+.quotation-detail-close-button:hover { -fx-background-color: #b91c1c; }
+.master-data-premium {
+    -fx-padding: 0 0 2px 0;
+}
+
+
+/* v3.0.5 — Quotation summary and Master Data premium footer controls */
+.quotation-register-page .quotation-filtered-summary {
+    -fx-background-color: linear-gradient(to right, #2563eb, #7c3aed);
+    -fx-background-radius: 10px;
+    -fx-border-color: #bfdbfe;
+    -fx-border-radius: 10px;
+    -fx-padding: 7px 13px;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 12.5px;
+    -fx-font-weight: 800;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.20), 9, 0.15, 0, 2);
+}
+
+.approved-screen-masterdata .master-record-count-badge {
+    -fx-background-color: linear-gradient(to right, #0d9488, #2563eb);
+    -fx-background-radius: 10px;
+    -fx-border-color: #bfdbfe;
+    -fx-border-radius: 10px;
+    -fx-padding: 7px 13px;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 12.5px;
+    -fx-font-weight: 800;
+    -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.18), 9, 0.14, 0, 2);
+}
+
+.approved-screen-masterdata .master-premium-pagination {
+    -fx-page-information-visible: false;
+    -fx-padding: 0;
+}
+
+.approved-screen-masterdata .master-premium-pagination .pagination-control {
+    -fx-background-color: transparent;
+}
+
+.approved-screen-masterdata .master-premium-pagination .control-box {
+    -fx-spacing: 6px;
+}
+
+.approved-screen-masterdata .master-premium-pagination .left-arrow-button,
+.approved-screen-masterdata .master-premium-pagination .right-arrow-button,
+.approved-screen-masterdata .master-premium-pagination .number-button {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-min-width: 34px;
+    -fx-min-height: 32px;
+    -fx-padding: 6px 10px;
+    -fx-text-fill: #334155;
+    -fx-font-weight: 800;
+    -fx-cursor: hand;
+}
+
+.approved-screen-masterdata .master-premium-pagination .left-arrow-button:hover,
+.approved-screen-masterdata .master-premium-pagination .right-arrow-button:hover,
+.approved-screen-masterdata .master-premium-pagination .number-button:hover {
+    -fx-background-color: #eff6ff;
+    -fx-border-color: #60a5fa;
+    -fx-text-fill: #1d4ed8;
+}
+
+.approved-screen-masterdata .master-premium-pagination .number-button:selected {
+    -fx-background-color: linear-gradient(to right, #2563eb, #7c3aed);
+    -fx-border-color: #2563eb;
+    -fx-text-fill: #ffffff;
+}
+
+.approved-screen-masterdata .master-premium-pagination:disabled {
+    -fx-opacity: 0.72;
+}

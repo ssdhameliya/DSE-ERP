@@ -120,7 +120,7 @@
 
                 <VBox fx:id="detailDrawer" spacing="11" styleClass="detail-drawer,quotation-detail-drawer">
                     <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
-                    <HBox><Label text="Quotation Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="×" onAction="#closeDetails" styleClass="icon-button,approved-button,approved-secondary-button"/></HBox>
+                    <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Quotation Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="quotation-detail-close-button,approved-button,approved-danger-button"/></HBox>
                     <Label fx:id="lblDetailNo" styleClass="drawer-document"/>
                     <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>
                     <Separator/><Label fx:id="lblDetailCustomer" styleClass="drawer-customer"/><Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text"/><Separator/>
@@ -141,7 +141,7 @@
                         <Button text="Follow Up" onAction="#followUpSelected" GridPane.rowIndex="2" GridPane.columnIndex="1" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     </GridPane>
                     <Label text="Notes" styleClass="drawer-section"/><TextArea fx:id="txtDetailNotes" prefRowCount="4" wrapText="true" styleClass="approved-input"/><Button text="Save Notes" onAction="#saveNotes" styleClass="secondary-button"/>
-                    <Region VBox.vgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="secondary-button" maxWidth="Infinity"/>
+                    <Region VBox.vgrow="ALWAYS"/><Button text="Close Details" onAction="#closeDetails" styleClass="quotation-detail-close-button,approved-button,approved-danger-button" maxWidth="Infinity"/>
                 </VBox>
             </items>
         </SplitPane>

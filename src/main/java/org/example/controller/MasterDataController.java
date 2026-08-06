@@ -150,6 +150,10 @@ public class MasterDataController {
 
     private final LookupService service = new LookupService();
 
+    private static final int PAGE_SIZE = 10;
+    private List<Lookup> filteredLookups = List.of();
+    private boolean updatingPagination;
+
     /* =========================================================
        INITIALIZATION
        ========================================================= */
@@ -164,6 +168,7 @@ public class MasterDataController {
 
         configureTableColumns();
         configureTableInteractions();
+        configurePagination();
         configureListeners();
         configureKeyboardShortcuts();
 
@@ -481,14 +486,11 @@ public class MasterDataController {
                     )
                     .toList();
 
-            ObservableList<Lookup> tableItems =
-                FXCollections.observableArrayList(filteredList);
-
-            tblLookup.setItems(tableItems);
+            filteredLookups = List.copyOf(filteredList);
 
             updateTableDashboard(
                 selectedType,
-                tableItems.size()
+                filteredLookups.size()
             );
 
         } catch (Exception exception) {
@@ -562,11 +564,7 @@ public class MasterDataController {
                 : recordCount + " Records"
         );
 
-        if (pagination != null) {
-            pagination.setPageCount(1);
-            pagination.setCurrentPageIndex(0);
-            pagination.setDisable(true);
-        }
+        updatePagination();
 
         setStatus(
             "Loaded "
@@ -581,6 +579,8 @@ public class MasterDataController {
 
     private void clearTable() {
 
+        filteredLookups = List.of();
+
         tblLookup.setItems(
             FXCollections.observableArrayList()
         );
@@ -594,10 +594,63 @@ public class MasterDataController {
 
         setLabelText(lblRecordCount, "0 Records");
 
-        if (pagination != null) {
-            pagination.setPageCount(1);
+        updatePagination();
+    }
+
+    private void configurePagination() {
+        if (pagination == null) {
+            return;
+        }
+
+        pagination.getStyleClass().add("master-premium-pagination");
+        pagination.setMaxPageIndicatorCount(5);
+        pagination.currentPageIndexProperty().addListener((observable, oldIndex, newIndex) -> {
+            if (!updatingPagination) {
+                applyCurrentPage();
+            }
+        });
+    }
+
+    private void updatePagination() {
+        if (pagination == null) {
+            applyCurrentPage();
+            return;
+        }
+
+        int pageCount = Math.max(1, (int) Math.ceil(filteredLookups.size() / (double) PAGE_SIZE));
+
+        updatingPagination = true;
+        try {
+            pagination.setPageCount(pageCount);
             pagination.setCurrentPageIndex(0);
-            pagination.setDisable(true);
+            pagination.setDisable(pageCount <= 1);
+        } finally {
+            updatingPagination = false;
+        }
+
+        applyCurrentPage();
+    }
+
+    private void applyCurrentPage() {
+        int total = filteredLookups.size();
+        int pageIndex = pagination == null ? 0 : pagination.getCurrentPageIndex();
+        int fromIndex = Math.min(pageIndex * PAGE_SIZE, total);
+        int toIndex = Math.min(fromIndex + PAGE_SIZE, total);
+
+        tblLookup.setItems(
+            FXCollections.observableArrayList(
+                filteredLookups.subList(fromIndex, toIndex)
+            )
+        );
+
+        if (total == 0) {
+            setLabelText(lblRecordCount, "0 Records");
+        } else {
+            setLabelText(
+                lblRecordCount,
+                "Showing " + (fromIndex + 1) + " to " + toIndex + " of " + total
+                    + (total == 1 ? " Record" : " Records")
+            );
         }
     }
 
