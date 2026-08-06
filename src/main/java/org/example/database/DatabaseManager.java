@@ -53,6 +53,7 @@ public class DatabaseManager {
         createOperationsTables();
         ensureReminderWorkflowColumns();
         createWorkflowTables();
+        ensurePaymentWorkflowColumns();
         createUserAccessTables();
         createBackupSettingsTable();
         createBackupHistoryTable();
@@ -568,6 +569,14 @@ public class DatabaseManager {
      * Stores module/action permissions for each database role.  Existing roles
      * receive practical defaults, while Administrator always retains access.
      */
+    /** Adds durable payment proof and workflow fields without disturbing existing records. */
+    private static void ensurePaymentWorkflowColumns() {
+        addColumnIfMissing("payment_record", "received_from", "TEXT");
+        addColumnIfMissing("payment_record", "payment_type", "TEXT NOT NULL DEFAULT 'PARTIAL'");
+        addColumnIfMissing("payment_record", "attachment_path", "TEXT");
+        createTable("CREATE INDEX IF NOT EXISTS idx_payment_date ON payment_record(document_type, document_id, payment_date DESC)");
+    }
+
     private static void createUserAccessTables() {
         createTable("""
             CREATE TABLE IF NOT EXISTS permissions (

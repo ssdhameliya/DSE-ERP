@@ -268,3 +268,6 @@
     -fx-border-radius: 7px;
     -fx-border-width: 1px;
 }
+
+.communication-resend-button { -fx-min-width: 132px; -fx-pref-width: 132px; -fx-max-width: 132px; -fx-padding: 7px 10px; -fx-font-weight: 800; }
+.reminder-three-dot-button { -fx-font-size: 18px; -fx-font-weight: 900; -fx-padding: 2px 8px; -fx-alignment: center; }

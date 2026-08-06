@@ -167,3 +167,6 @@
 .reports-export-button > .label { -fx-padding: 0 8 0 4; }
 .settings-notification-grid { -fx-hgap: 16; -fx-vgap: 10; }
 .settings-notification-category { -fx-padding: 10 12; -fx-background-radius: 9; -fx-border-radius: 9; }
+
+.communication-resend-button { -fx-min-width: 132px; -fx-pref-width: 132px; -fx-max-width: 132px; -fx-padding: 7px 10px; -fx-font-weight: 800; }
+.reminder-three-dot-button { -fx-font-size: 18px; -fx-font-weight: 900; -fx-padding: 2px 8px; -fx-alignment: center; }

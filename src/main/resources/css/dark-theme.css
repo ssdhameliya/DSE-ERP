@@ -5571,3 +5571,262 @@ TABLE ACTION BUTTONS
     -fx-border-color: #31567f;
     -fx-text-fill: #7dc4ff;
 }
+
+/* DSE ERP 3.0.7 - Unified Invoice Payment visual polish */
+.invoice-overview-card {
+    -fx-border-width: 1.2;
+}
+.meta-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+.meta-value {
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+}
+.invoice-number {
+    -fx-font-size: 17px;
+}
+.contact-value {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-opacity: 0.95;
+}
+.money-hero {
+    -fx-font-size: 19px;
+    -fx-font-weight: 900;
+}
+.meta-blue { -fx-text-fill: #60a5fa; }
+.meta-purple { -fx-text-fill: #c084fc; }
+.meta-cyan { -fx-text-fill: #22d3ee; }
+.meta-orange { -fx-text-fill: #fbbf24; }
+.meta-green { -fx-text-fill: #34d399; }
+
+.status-pill {
+    -fx-padding: 4 9 4 9;
+    -fx-background-radius: 999;
+    -fx-font-size: 11px;
+    -fx-font-weight: 900;
+}
+.status-paid {
+    -fx-background-color: rgba(16,185,129,0.22);
+    -fx-text-fill: #34d399;
+    -fx-border-color: rgba(52,211,153,0.6);
+    -fx-border-radius: 999;
+}
+.status-partial {
+    -fx-background-color: rgba(59,130,246,0.22);
+    -fx-text-fill: #60a5fa;
+    -fx-border-color: rgba(96,165,250,0.6);
+    -fx-border-radius: 999;
+}
+.status-pending {
+    -fx-background-color: rgba(59,130,246,0.22);
+    -fx-text-fill: #60a5fa;
+    -fx-border-color: rgba(96,165,250,0.6);
+    -fx-border-radius: 999;
+}
+.status-overdue {
+    -fx-background-color: rgba(239,68,68,0.20);
+    -fx-text-fill: #fb7185;
+    -fx-border-color: rgba(251,113,133,0.65);
+    -fx-border-radius: 999;
+}
+.section-accent-title {
+    -fx-text-fill: #60a5fa;
+    -fx-font-size: 15px;
+    -fx-font-weight: 900;
+}
+.summary-card {
+    -fx-border-width: 1.4;
+}
+.summary-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #c084fc;
+}
+.summary-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+}
+.summary-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: 900;
+}
+.total-label, .total-value { -fx-text-fill: #60a5fa; }
+.paid-label, .paid-value { -fx-text-fill: #34d399; }
+.balance-label, .balance-value { -fx-text-fill: #fb7185; }
+.paid-percent {
+    -fx-font-size: 16px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #34d399;
+}
+.payment-progress {
+    -fx-pref-height: 15px;
+}
+.attachment-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #fbbf24;
+}
+.proof-drop-zone {
+    -fx-padding: 14;
+    -fx-border-width: 1.5;
+    -fx-border-style: segments(6, 4);
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+}
+.proof-hint {
+    -fx-font-weight: 700;
+}
+.attachment-file-name {
+    -fx-font-weight: 800;
+    -fx-text-fill: #60a5fa;
+}
+.action-email { -fx-text-fill: #67e8f9; }
+.action-download { -fx-text-fill: #93c5fd; }
+.action-whatsapp { -fx-text-fill: #4ade80; }
+.back-register-button {
+    -fx-font-weight: 900;
+    -fx-text-fill: #ddd6fe;
+}
+.history-icon {
+    -fx-font-size: 18px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #c084fc;
+}
+.history-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #60a5fa;
+}
+.history-count {
+    -fx-padding: 4 10 4 10;
+    -fx-background-radius: 999;
+    -fx-background-color: rgba(139,92,246,0.22);
+    -fx-text-fill: #c4b5fd;
+    -fx-font-weight: 900;
+}
+.timeline-card {
+    -fx-padding: 16;
+}
+.timeline-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #fbbf24;
+}
+.timeline-line {
+    -fx-background-color: linear-gradient(to right, #8b5cf6, #22d3ee, #22c55e, #f59e0b, #8b5cf6);
+    -fx-translate-y: -26;
+}
+.timeline-node {
+    -fx-min-width: 42px;
+    -fx-min-height: 42px;
+    -fx-pref-width: 42px;
+    -fx-pref-height: 42px;
+    -fx-alignment: center;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-border-width: 2;
+    -fx-font-size: 11px;
+    -fx-font-weight: 900;
+}
+.node-purple {
+    -fx-background-color: rgba(139,92,246,0.28);
+    -fx-border-color: #a78bfa;
+    -fx-text-fill: #ddd6fe;
+}
+.node-cyan {
+    -fx-background-color: rgba(6,182,212,0.26);
+    -fx-border-color: #22d3ee;
+    -fx-text-fill: #a5f3fc;
+}
+.node-green {
+    -fx-background-color: rgba(34,197,94,0.25);
+    -fx-border-color: #4ade80;
+    -fx-text-fill: #bbf7d0;
+}
+.node-orange {
+    -fx-background-color: rgba(245,158,11,0.26);
+    -fx-border-color: #fbbf24;
+    -fx-text-fill: #fde68a;
+}
+.timeline-text {
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-text-alignment: center;
+}
+/* DSE ERP 3.0.7 - final unified invoice payment polish */
+.payment-page-title {
+    -fx-text-fill: #68b5ff;
+    -fx-font-size: 25px;
+    -fx-font-weight: 900;
+}
+.payment-page-subtitle {
+    -fx-text-fill: #b99cff;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+.payment-entry-card {
+    -fx-border-color: rgba(68, 158, 255, 0.48);
+    -fx-border-width: 1;
+}
+.field-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+.field-blue { -fx-text-fill: #58aaff; }
+.field-purple { -fx-text-fill: #be8cff; }
+.field-orange { -fx-text-fill: #ffbd4a; }
+.field-cyan { -fx-text-fill: #43d7df; }
+.field-green { -fx-text-fill: #3ee39a; }
+.field-red { -fx-text-fill: #ff7182; }
+.payment-input {
+    -fx-border-color: rgba(105, 168, 255, 0.50);
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+}
+.amount-input {
+    -fx-font-weight: 900;
+    -fx-text-fill: #56e6a5;
+}
+.payment-type-radio {
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #8fc7ff;
+    -fx-padding: 8 13 8 13;
+    -fx-border-color: rgba(80, 159, 255, 0.50);
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+.payment-type-radio:selected {
+    -fx-text-fill: #ffffff;
+    -fx-background-color: rgba(60, 113, 220, 0.30);
+    -fx-border-color: #5ba6ff;
+}
+.proof-side-card {
+    -fx-border-color: rgba(255, 186, 45, 0.62);
+    -fx-border-width: 1;
+}
+.attachment-title {
+    -fx-text-fill: #ffc43d;
+    -fx-font-size: 15px;
+    -fx-font-weight: 900;
+}
+.payment-history-card {
+    -fx-border-color: rgba(164, 108, 255, 0.55);
+    -fx-border-width: 1;
+}
+.history-title {
+    -fx-text-fill: #65b5ff;
+    -fx-font-size: 18px;
+    -fx-font-weight: 900;
+}
+.history-count {
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: 900;
+    -fx-background-color: rgba(130, 77, 220, 0.75);
+    -fx-background-radius: 14;
+    -fx-padding: 5 12 5 12;
+}

@@ -90,12 +90,52 @@ public class CommunicationCenterController implements ScreenLifecycle {
             .toList());
     }
 
+    private void configureDataCellIcons() {
+        colTime.setCellFactory(c -> semanticTextCell(value -> "calendar"));
+        colEntity.setCellFactory(c -> semanticTextCell(value -> {
+            String v = value == null ? "" : value.toUpperCase(Locale.ROOT);
+            if (v.startsWith("SAL-")) return "sale";
+            if (v.startsWith("QT-")) return "quotation";
+            if (v.startsWith("PUR-") || v.startsWith("PO-")) return "purchase";
+            return "document";
+        }));
+        colChannel.setCellFactory(c -> semanticTextCell(value ->
+            "WHATSAPP".equalsIgnoreCase(value) ? "whatsapp" : "email"));
+        colRecipient.setCellFactory(c -> semanticTextCell(value -> "customer"));
+        colSubject.setCellFactory(c -> semanticTextCell(value -> "document"));
+        colStatus.setCellFactory(c -> semanticTextCell(value -> {
+            String v = value == null ? "" : value.toUpperCase(Locale.ROOT);
+            return v.contains("SENT") || v.contains("SUCCESS") ? "complete" : "error";
+        }));
+        colError.setCellFactory(c -> semanticTextCell(value ->
+            value == null || value.isBlank() ? "status" : "warning"));
+        colUser.setCellFactory(c -> semanticTextCell(value -> "user"));
+    }
+
+    private TableCell<Row, String> semanticTextCell(java.util.function.Function<String, String> semantic) {
+        return new TableCell<>() {
+            @Override protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null || value.isBlank()) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                setText(value);
+                setGraphic(IconFactory.compactIcon(semantic.apply(value), 13));
+                setContentDisplay(ContentDisplay.LEFT);
+                setGraphicTextGap(7);
+                setAlignment(Pos.CENTER_LEFT);
+            }
+        };
+    }
+
     private void configureActions(){
         if(colActions==null)return;
         colActions.setCellFactory(c->new TableCell<>(){
-            final Button resend=new Button("Resend",IconFactory.compactIcon("email",14));
-            {resend.getStyleClass().addAll("approved-button","approved-primary-button","communication-resend-button");resend.setMinWidth(112);resend.setPrefWidth(112);resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
-            @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:resend);setAlignment(Pos.CENTER);}
+            final Button resend=new Button("Re-send Email",IconFactory.compactIcon("email",14));
+            {resend.getProperties().put("erp.icon.skip", true);resend.getStyleClass().addAll("approved-button","action-email","communication-resend-button");resend.setContentDisplay(ContentDisplay.LEFT);resend.setGraphicTextGap(7);resend.setMinWidth(132);resend.setPrefWidth(132);resend.setMaxWidth(132);resend.setTooltip(new Tooltip("Re-send email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
+            @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);Row row=empty?null:getTableRow().getItem();setGraphic(row==null||!"EMAIL".equalsIgnoreCase(row.channel.get())?null:resend);setAlignment(Pos.CENTER);}
         });
     }
     private void resend(Row row){
