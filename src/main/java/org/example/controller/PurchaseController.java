@@ -545,6 +545,16 @@ public class PurchaseController {
                 );
             }
             else {
+                /*
+                 * A second instance of the screen can remain open while another
+                 * purchase is saved. Re-check the number immediately before the
+                 * insert and advance it if necessary.
+                 */
+                if (purchaseService.getByInvoice(purchase.getInvoiceNo()) != null) {
+                    String freshInvoiceNo = purchaseService.nextInvoiceNo();
+                    txtInvoiceNo.setText(freshInvoiceNo);
+                    purchase.setInvoiceNo(freshInvoiceNo);
+                }
                 purchaseService.save(purchase);
                 NotificationService.add(
                     "Purchase "

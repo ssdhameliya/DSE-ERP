@@ -92,6 +92,8 @@ public class SalesController {
     @FXML
     private Label lblGrandTotal;
 
+    @FXML private Label lblTotalItems, lblBottomDiscount, lblBottomTax, lblBottomNet, lblTaxableAmount;
+
     @FXML
     private TableView<SalesLine> tableLines;
 
@@ -864,6 +866,12 @@ public class SalesController {
         lblGrandTotal.setText(
             String.format("₹ %.2f", total)
         );
+
+        if (lblTotalItems != null) lblTotalItems.setText(Integer.toString(tableLines.getItems().size()));
+        if (lblBottomDiscount != null) lblBottomDiscount.setText(String.format("₹ %.2f", discount));
+        if (lblBottomTax != null) lblBottomTax.setText(String.format("₹ %.2f", gst));
+        if (lblBottomNet != null) lblBottomNet.setText(String.format("₹ %.2f", total));
+        if (lblTaxableAmount != null) lblTaxableAmount.setText(String.format("₹ %.2f", net));
 
     }
 

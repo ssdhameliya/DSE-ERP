@@ -56,7 +56,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private Label lblTotalSales,lblInvoiceCount,lblTodaySales,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblDueSoon,lblDueSoonCount,lblEmailRate;
     @FXML private StackPane salesTitleIcon,totalSalesIcon,todaySalesIcon,pendingSalesIcon,overdueSalesIcon,dueSoonIcon,emailRateIcon;
     @FXML private Button btnNewSale,btnResetFilters,btnRefreshSales,btnApplyFilters,btnExportExcel,btnExportPdf,btnPrintRegister;
-    @FXML private Button btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange;
+    @FXML private Button btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnCloseDetails;
     @FXML private TextField txtSearch,txtInvoice,txtAmountFrom,txtAmountTo;
     @FXML private TextArea txtDetailNotes;
     @FXML private ComboBox<String> cmbCustomer,cmbPaymentStatus,cmbPaymentDue,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType;
@@ -112,10 +112,10 @@ public class SalesListController implements ScreenLifecycle {
         setButtonIcon(btnExportPdf,"pdf");
         setButtonIcon(btnPrintRegister,"print");
         setButtonIcon(btnTodayRange,"calendar");
-        setButtonIcon(btnYesterdayRange,"restore");
+        setButtonIcon(btnYesterdayRange,"calendar");
         setButtonIcon(btnSevenDaysRange,"calendar");
         setButtonIcon(btnThirtyDaysRange,"calendar");
-        setButtonIcon(btnCustomRange,"calendar");
+        setButtonIcon(btnCustomRange,"calendar"); setButtonIcon(btnCloseDetails,"close");
     }
 
     private void setIcon(StackPane holder,String semantic,int size){

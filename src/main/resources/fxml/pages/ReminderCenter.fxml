@@ -87,7 +87,7 @@
     </HBox>
 
     <!-- Main workspace -->
-    <SplitPane dividerPositions="0.73" VBox.vgrow="ALWAYS" styleClass="reminder-workspace">
+    <SplitPane dividerPositions="1.0" VBox.vgrow="ALWAYS" styleClass="reminder-workspace">
 
         <!-- Table card -->
         <VBox spacing="12" styleClass="reminder-table-card">
@@ -117,13 +117,13 @@
                     <TableColumn fx:id="colPriority" text="Priority" prefWidth="105" styleClass="approved-table-column"/>
                     <TableColumn fx:id="colStatus" text="Status" prefWidth="115" styleClass="approved-table-column"/>
                     <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="125" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colActions" text="Actions" prefWidth="92" minWidth="92" maxWidth="92" sortable="false" resizable="false" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colActions" text="" prefWidth="92" minWidth="92" maxWidth="92" sortable="false" resizable="false" styleClass="approved-table-column"/>
                 </columns>
             </TableView>
         </VBox>
 
         <!-- Details card -->
-        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="reminder-detail-scroll">
+        <ScrollPane managed="false" visible="false" fitToWidth="true" hbarPolicy="NEVER" styleClass="reminder-detail-scroll">
             <content>
                 <VBox spacing="16" styleClass="detail-drawer,reminder-detail-panel">
                     <HBox alignment="CENTER_LEFT">
@@ -172,7 +172,7 @@
                             <Button text="Mark Complete" onAction="#completeSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="primary-button,reminder-complete-button"/>
                         </HBox>
 
-                        <MenuButton fx:id="detailMoreActions" text="Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
+                        <MenuButton fx:id="detailMoreActions" text="Reminder Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
                     </VBox>
                 </VBox>
             </content>

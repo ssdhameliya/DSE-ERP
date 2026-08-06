@@ -121,12 +121,11 @@ public final class ProfessionalUiEnhancer {
         // icon-and-label treatment without requiring screen-specific code.
         if (!Boolean.TRUE.equals(table.getProperties().get("erp-column-listener"))) {
             table.getProperties().put("erp-column-listener", true);
-            table.getColumns().addListener((ListChangeListener<TableColumn>) change ->
-                Platform.runLater(() -> {
-                    decorateColumns(table.getColumns());
-                    captureAdaptiveBaselines(table, true);
-                    resizeColumnsToUseAvailableWidth(table);
-                }));
+            table.getColumns().addListener((ListChangeListener<TableColumn>) change -> {
+                decorateColumns(table.getColumns());
+                captureAdaptiveBaselines(table, true);
+                resizeColumnsToUseAvailableWidth(table);
+            });
         }
 
         if (!table.getColumns().isEmpty()) {
@@ -144,7 +143,12 @@ public final class ProfessionalUiEnhancer {
                     // Java without an id or label, so a blank leading heading is
                     // itself the reliable cross-screen selection-column marker.
                     || heading.isBlank());
-            if (selectionColumn && !Boolean.TRUE.equals(first.getProperties().get("erp-row-number"))) {
+            if (selectionColumn && table.getStyleClass().contains("erp-hide-leading-index")) {
+                first.setVisible(false);
+                first.setMinWidth(0);
+                first.setPrefWidth(0);
+                first.setMaxWidth(0);
+            } else if (selectionColumn && !Boolean.TRUE.equals(first.getProperties().get("erp-row-number"))) {
                 first.getProperties().put("erp-row-number", true);
                 first.getProperties().put("erp-header-label", "No.");
                 first.getProperties().put("erp-header-semantic", "quantity");

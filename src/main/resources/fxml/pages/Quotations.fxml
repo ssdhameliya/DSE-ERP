@@ -2,8 +2,8 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationController" styleClass="register-page,quotation-register-page,approved-ui,approved-screen,approved-screen-quotations,erp-screen-root">
 
     <top>
-        <VBox spacing="14" styleClass="quotation-register-top">
-            <padding><Insets top="18" right="20" bottom="14" left="20"/></padding>
+        <VBox spacing="10" styleClass="quotation-register-top">
+            <padding><Insets top="10" right="18" bottom="9" left="18"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="12">
                 <StackPane fx:id="pageIcon" styleClass="quotation-page-icon"/>
@@ -92,7 +92,7 @@
                     </VBox>
 
                     <VBox spacing="0" styleClass="quotation-table-card" VBox.vgrow="ALWAYS">
-                        <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table,erp-table-profile-register">
+                        <TableView fx:id="table" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table,erp-table-profile-register">
                             <columns>
                                 <TableColumn fx:id="colNo" text="Quotation No." prefWidth="130" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colDate" text="Date" prefWidth="95" styleClass="approved-table-column"/>
@@ -104,7 +104,7 @@
                                 <TableColumn fx:id="colConverted" text="Converted To" prefWidth="115" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colSalesperson" text="Sales Person" prefWidth="120" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="100" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colActions" text="Actions" prefWidth="88" sortable="false" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colActions" text="" prefWidth="88" sortable="false" styleClass="approved-table-column"/>
                             </columns>
                         </TableView>
 

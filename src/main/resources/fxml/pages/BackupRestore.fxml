@@ -2,11 +2,9 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.control.Button?><?import javafx.scene.control.ComboBox?><?import javafx.scene.control.Label?><?import javafx.scene.control.MenuButton?><?import javafx.scene.control.ScrollPane?><?import javafx.scene.control.Spinner?><?import javafx.scene.control.TableColumn?><?import javafx.scene.control.TableView?><?import javafx.scene.layout.BorderPane?><?import javafx.scene.layout.ColumnConstraints?><?import javafx.scene.layout.GridPane?><?import javafx.scene.layout.HBox?><?import javafx.scene.layout.Priority?><?import javafx.scene.layout.Region?><?import javafx.scene.layout.StackPane?><?import javafx.scene.layout.VBox?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.BackupRestoreController" styleClass="register-page,backup-restore-page,approved-ui,approved-screen,approved-screen-backup-restore,erp-screen-root">
 
     <center>
-        <ScrollPane fitToWidth="true" fitToHeight="false" pannable="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="backup-page-scroll">
-          <content>
-        <VBox spacing="18" styleClass="backup-page-content">
+        <VBox spacing="10" styleClass="backup-page-content">
             <padding>
-                <Insets top="22" right="22" bottom="22" left="22"/>
+                <Insets top="12" right="16" bottom="10" left="16"/>
             </padding>
 
             <!-- Header -->
@@ -160,14 +158,14 @@
                     <Label fx:id="lblHistoryCount" text="0 backups" styleClass="backup-history-count"/>
                 </HBox>
 
-                <TableView fx:id="backupTable" VBox.vgrow="ALWAYS" minHeight="260" styleClass="backup-history-table,approved-table,erp-table-profile-history">
+                <TableView fx:id="backupTable" VBox.vgrow="ALWAYS" minHeight="170" styleClass="backup-history-table,approved-table,erp-table-profile-history">
                     <columns>
                         <TableColumn fx:id="colBackupName" text="Backup Name" prefWidth="330" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colCreated" text="Date &amp; Time" prefWidth="190" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colSize" text="Size" prefWidth="100" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colStatus" text="Status" prefWidth="130" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colSource" text="Source" prefWidth="120" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colActions" text="Actions" prefWidth="92" sortable="false" resizable="false" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colActions" text="" prefWidth="92" sortable="false" resizable="false" styleClass="approved-table-column"/>
                     </columns>
                 </TableView>
 
@@ -178,13 +176,6 @@
                     <Button text="Copy Path" onAction="#copyDatabasePath" styleClass="backup-secondary-button"/>
                 </HBox>
             </VBox>
-
-            <HBox alignment="CENTER_LEFT" spacing="8" styleClass="backup-status-bar">
-                <StackPane fx:id="statusIconHolder"/>
-                <Label fx:id="lblStatus" text="Ready" wrapText="true" styleClass="muted-label,backup-status-text,approved-status"/>
-            </HBox>
         </VBox>
-          </content>
-        </ScrollPane>
     </center>
 </BorderPane>

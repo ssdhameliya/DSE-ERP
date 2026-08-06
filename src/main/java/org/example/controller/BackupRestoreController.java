@@ -119,11 +119,11 @@ public class BackupRestoreController {
     }
 
     private void setIcon(StackPane holder, String semantic, double size) {
-        holder.getChildren().setAll(IconFactory.icon(semantic, size));
+        if (holder != null) holder.getChildren().setAll(IconFactory.icon(semantic, size));
     }
 
     private void setCompactIcon(StackPane holder, String semantic, double size) {
-        holder.getChildren().setAll(IconFactory.compactIcon(semantic, size));
+        if (holder != null) holder.getChildren().setAll(IconFactory.compactIcon(semantic, size));
     }
 
     private void configureScheduleControls() {
@@ -754,6 +754,6 @@ public class BackupRestoreController {
         IconFactory.applyTableHeaderIcon(colSize, "quantity");
         IconFactory.applyTableHeaderIcon(colStatus, "status");
         IconFactory.applyTableHeaderIcon(colSource, "source");
-        IconFactory.applyTableHeaderIcon(colActions, "actions");
+        colActions.setText(""); IconFactory.applyTableHeaderIcon(colActions, "more");
     }
 }

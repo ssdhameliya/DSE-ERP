@@ -72,9 +72,7 @@
                         <HBox spacing="7">
                             <ComboBox fx:id="cmbBillingAddress" promptText="Select billing address..."
                                       maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
-                            <Button text="New Address" onAction="#addCustomer"
-                                    styleClass="sales-entry-new-button,approved-button,approved-primary-button"/>
-                        </HBox>
+</HBox>
                     </VBox>
 
                     <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1">
@@ -150,14 +148,14 @@
 
                 <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-table-summary">
                     <Label text="Total Items:" styleClass="sales-entry-summary-caption"/>
-                    <Label text="0" styleClass="sales-entry-summary-value"/>
+                    <Label fx:id="lblTotalItems" text="0" styleClass="sales-entry-summary-value"/>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Label text="Discount" styleClass="sales-entry-summary-caption"/>
-                    <Label text="₹ 0.00" styleClass="sales-entry-summary-discount"/>
+                    <Label fx:id="lblBottomDiscount" text="₹ 0.00" styleClass="sales-entry-summary-discount"/>
                     <Label text="Tax" styleClass="sales-entry-summary-caption"/>
-                    <Label text="₹ 0.00" styleClass="sales-entry-summary-tax"/>
+                    <Label fx:id="lblBottomTax" text="₹ 0.00" styleClass="sales-entry-summary-tax"/>
                     <Label text="Net" styleClass="sales-entry-summary-caption"/>
-                    <Label text="₹ 0.00" styleClass="sales-entry-summary-net"/>
+                    <Label fx:id="lblBottomNet" text="₹ 0.00" styleClass="sales-entry-summary-net"/>
                 </HBox>
 
                 <VBox spacing="4">
@@ -183,10 +181,10 @@
                   styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-summary-card">
                 <Label text="Invoice Summary"
                        styleClass="flow-title,sales-entry-section-title,sales-entry-section-summary"/>
-                <HBox><Label text="Sub Total"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblNetAmount" styleClass="money-strong"/></HBox>
-                <HBox><Label text="Total Discount"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblDiscount" styleClass="sales-entry-discount-text"/></HBox>
-                <HBox><Label text="Taxable Amount"/><Region HBox.hgrow="ALWAYS"/><Label text="₹ 0.00"/></HBox>
-                <HBox><Label text="Total Tax"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblGst" styleClass="blue-text"/></HBox>
+                <HBox styleClass="sales-summary-row,sales-summary-subtotal"><Label text="Sub Total" styleClass="sales-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblNetAmount" styleClass="money-strong,sales-summary-value"/></HBox>
+                <HBox styleClass="sales-summary-row,sales-summary-discount"><Label text="Total Discount" styleClass="sales-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblDiscount" styleClass="sales-entry-discount-text,sales-summary-value"/></HBox>
+                <HBox styleClass="sales-summary-row,sales-summary-taxable"><Label text="Taxable Amount" styleClass="sales-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblTaxableAmount" text="₹ 0.00" styleClass="sales-summary-value,sales-summary-taxable-value"/></HBox>
+                <HBox styleClass="sales-summary-row,sales-summary-tax"><Label text="Total Tax" styleClass="sales-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblGst" styleClass="blue-text,sales-summary-value"/></HBox>
                 <Separator/>
                 <HBox alignment="CENTER_LEFT">
                     <Label text="Total Amount" styleClass="flow-title"/>
@@ -195,39 +193,9 @@
                 </HBox>
             </VBox>
 
-            <VBox spacing="9" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-quick-card">
-                <Label text="Quick Actions"
-                       styleClass="flow-title,sales-entry-section-title,sales-entry-section-quick"/>
-                <GridPane hgap="8" vgap="8">
-                    <columnConstraints>
-                        <ColumnConstraints percentWidth="50"/>
-                        <ColumnConstraints percentWidth="50"/>
-                    </columnConstraints>
-                    <Button text="Preview" onAction="#preview" maxWidth="Infinity"
-                            styleClass="approved-button,approved-secondary-button"/>
-                    <Button text="Download PDF" onAction="#preview" GridPane.columnIndex="1" maxWidth="Infinity"
-                            styleClass="approved-button,approved-secondary-button"/>
-                    <Button text="Send Email" onAction="#preview" GridPane.rowIndex="1" maxWidth="Infinity"
-                            styleClass="approved-button,approved-secondary-button"/>
-                    <Button text="Send WhatsApp" onAction="#preview" GridPane.rowIndex="1"
-                            GridPane.columnIndex="1" maxWidth="Infinity"
-                            styleClass="approved-button,approved-secondary-button"/>
-                </GridPane>
-            </VBox>
 
-            <VBox spacing="9"
-                  styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-document-card">
-                <Label text="Document Actions"
-                       styleClass="flow-title,sales-entry-section-title,sales-entry-section-document"/>
-                <HBox spacing="8">
-                    <Button text="Cancel" onAction="#cancel" HBox.hgrow="ALWAYS" maxWidth="Infinity"
-                            styleClass="sales-entry-cancel-button,approved-button,approved-secondary-button"/>
-                    <Button text="Save as Draft" onAction="#saveDraft" HBox.hgrow="ALWAYS" maxWidth="Infinity"
-                            styleClass="approved-button,approved-secondary-button"/>
-                </HBox>
-                <Button text="Save &amp; Print" onAction="#saveSale" maxWidth="Infinity"
-                        styleClass="sales-entry-save-button,approved-button,approved-primary-button"/>
-            </VBox>
+
+
         </VBox>
     </HBox>
 </VBox>

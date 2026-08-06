@@ -57,7 +57,7 @@ public class PurchaseReturnsController {
         for (TableColumn<Row, Number> column : List.of(cTotal, cRefund)) column.setCellFactory(x -> moneyCell());
         cStatus.setCellFactory(x -> SemanticTableCells.status("return")); cRefundStatus.setCellFactory(x -> SemanticTableCells.status("refund"));
         cStatus.setGraphic(IconFactory.icon("return")); cRefundStatus.setGraphic(IconFactory.icon("payment"));
-        installSelection(); installActions(); installRows();
+        installActions(); installRows();
         dpFrom.setValue(LocalDate.now().minusDays(7)); dpTo.setValue(LocalDate.now());
         supplier.valueProperty().addListener((o, a, b) -> filter());
         status.valueProperty().addListener((o, a, b) -> filter());
@@ -176,7 +176,7 @@ public class PurchaseReturnsController {
         IconFactory.applyTableHeaderIcon(cStatus, "status");
         IconFactory.applyTableHeaderIcon(cRefund, "payment");
         IconFactory.applyTableHeaderIcon(cRefundStatus, "status");
-        IconFactory.applyTableHeaderIcon(cAction, "actions");
+        cAction.setText(""); IconFactory.applyTableHeaderIcon(cAction, "more");
     }
 
     private void installKpiIcons(){setKpi(iconTotal,"return");setKpi(iconMonth,"calendar");setKpi(iconCount,"document");setKpi(iconRefund,"payment");setKpi(iconAverage,"currency");}

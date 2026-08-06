@@ -5455,7 +5455,7 @@ SECTION TITLES
 .erp-action-button.erp-button-icon { -fx-padding: 7px; -fx-min-width: 36px; }
 
 
-/* DSE ERP v3.0.3 responsive full-view and icon consistency */
+/* DSE ERP v3.0.4 responsive full-view and icon consistency */
 .erp-screen-root { -fx-max-width: infinity; -fx-max-height: infinity; }
 .erp-full-width-table { -fx-max-width: infinity; -fx-max-height: infinity; }
 .erp-full-width-table .column-header .label { -fx-text-overrun: clip; }
@@ -5470,7 +5470,7 @@ SECTION TITLES
 }
 
 
-/* v3.0.3 consistent semantic action buttons */
+/* v3.0.4 consistent semantic action buttons */
 .button .erp-action-glyph {
     -fx-icon-size: 16px;
 }
@@ -5503,7 +5503,7 @@ SECTION TITLES
 
 
 /* ================================================================
-   MASTER DATA CONTENT REDESIGN — v3.0.3 (light theme)
+   MASTER DATA CONTENT REDESIGN — v3.0.4 (light theme)
    ================================================================ */
 .master-data-redesign {
     -fx-background-color: #f4f7fc;
@@ -5568,7 +5568,7 @@ SECTION TITLES
 
 
 /* =====================================================================
-   DSE ERP 3.0.3 — Approved Master Data content refresh (light theme)
+   DSE ERP 3.0.4 — Approved Master Data content refresh (light theme)
    Scope: Masterdata.fxml only. Application shell/sidebar/footer unchanged.
    ===================================================================== */
 .approved-screen-masterdata {
@@ -5924,3 +5924,87 @@ SECTION TITLES
 .register-total-sales { -fx-text-fill: #1d4ed8; -fx-background-color: #dbeafe; }
 .register-total-paid { -fx-text-fill: #15803d; -fx-background-color: #dcfce7; }
 .register-total-balance { -fx-text-fill: #be123c; -fx-background-color: #ffe4e6; }
+
+
+/* DSE ERP 3.0.4 focused UI corrections */
+.register-page-size-label {
+    -fx-background-radius: 999px;
+    -fx-padding: 6px 12px;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+.detail-close-button {
+    -fx-min-width: 36px;
+    -fx-pref-height: 32px;
+    -fx-background-radius: 8px;
+}
+.sales-summary-row {
+    -fx-padding: 7px 10px;
+    -fx-background-radius: 8px;
+}
+.sales-summary-label { -fx-font-weight: 700; }
+.sales-summary-value { -fx-font-weight: 800; -fx-font-size: 14px; }
+.report-static-summary {
+    -fx-fixed-cell-size: 30px;
+    -fx-min-height: 150px;
+}
+.report-bottom-row .report-card {
+    -fx-min-height: 230px;
+}
+.backup-restore-page .backup-content {
+    -fx-spacing: 14px;
+}
+
+.register-page-size-label { -fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; -fx-border-color: #93c5fd; -fx-border-radius: 999px; }
+.sales-summary-subtotal { -fx-background-color: #eff6ff; }
+.sales-summary-discount { -fx-background-color: #fff1f2; }
+.sales-summary-taxable { -fx-background-color: #faf5ff; }
+.sales-summary-tax { -fx-background-color: #f0f9ff; }
+
+
+/* v3.0.4 focused layout corrections */
+.drawer-close-button {
+    -fx-min-height: 34px;
+    -fx-pref-height: 34px;
+    -fx-padding: 6px 12px;
+    -fx-font-weight: 700;
+}
+.reports-single-page {
+    -fx-padding: 6px 10px 6px 10px;
+}
+.reports-single-page .reports-header {
+    -fx-padding: 6px 10px;
+}
+.reports-single-page .reports-title-block {
+    -fx-padding: 2px 0 4px 0;
+}
+.reports-single-page .reports-header-subtitle {
+    -fx-padding: 2px 0 0 0;
+}
+.reports-single-page .report-bottom-row .report-card {
+    -fx-min-height: 0;
+    -fx-pref-height: 180px;
+    -fx-padding: 8px;
+}
+.reports-single-page .reports-bottom-fill {
+    -fx-min-height: 180px;
+    -fx-pref-height: 190px;
+}
+.reports-single-page .summary-list {
+    -fx-fixed-cell-size: 27px;
+}
+.reports-single-page .report-static-summary .list-cell {
+    -fx-padding: 4px 8px;
+}
+.quotation-register-page .quotation-register-table {
+    -fx-min-height: 0;
+}
+.backup-restore-page .backup-page-content {
+    -fx-spacing: 10px;
+}
+.backup-restore-page .backup-section-card {
+    -fx-padding: 10px;
+}
+.backup-restore-page .backup-history-table {
+    -fx-min-height: 170px;
+}

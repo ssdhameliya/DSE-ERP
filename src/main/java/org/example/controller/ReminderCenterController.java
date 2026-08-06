@@ -412,7 +412,7 @@ public class ReminderCenterController {
             {
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Reminder actions"));
-                actions.setGraphic(IconFactory.compactIcon("actions", 16));
+                actions.setGraphic(IconFactory.compactIcon("edit", 16));
                 actions.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
                 actions.getStyleClass().addAll("reminder-action-button", "reminder-three-dot-button");
                 setAlignment(Pos.CENTER);
@@ -757,6 +757,7 @@ public class ReminderCenterController {
         IconFactory.applyTableHeaderIcon(colPriority, "warning");
         IconFactory.applyTableHeaderIcon(colStatus, "status");
         IconFactory.applyTableHeaderIcon(colCreatedBy, "user");
-        IconFactory.applyTableHeaderIcon(colActions, "actions");
+        colActions.setText("");
+        IconFactory.applyTableHeaderIcon(colActions, "edit");
     }
 }

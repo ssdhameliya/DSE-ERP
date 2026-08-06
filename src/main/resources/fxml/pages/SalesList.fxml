@@ -143,7 +143,7 @@
               <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
               <Label fx:id="lblPageInfo" styleClass="muted-text,register-record-count"/>
               <Region HBox.hgrow="ALWAYS"/>
-              <Label text="Rows per page:" styleClass="sales-page-label"/>
+              <Label text="Rows per page" styleClass="sales-page-label,register-page-size-label"/>
               <ComboBox fx:id="cmbPageSize" prefWidth="75" styleClass="approved-input"/>
               <Button text="|‹" onAction="#firstPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
               <Button text="‹" onAction="#previousPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
@@ -178,7 +178,7 @@
 
         <VBox fx:id="detailDrawer" spacing="12" styleClass="detail-drawer">
           <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
-          <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="×" onAction="#closeDetails" styleClass="icon-button,approved-button,approved-secondary-button"/></HBox>
+          <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
           <Label fx:id="lblDetailInvoice" styleClass="drawer-document"/>
           <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>
           <Separator/>

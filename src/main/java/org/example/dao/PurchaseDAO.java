@@ -402,44 +402,37 @@ public class PurchaseDAO {
     //====================================================
     public String nextInvoiceNo(){
 
+        /*
+         * COUNT(*) is not safe for document numbering because deleted rows or
+         * imported records can make the next count collide with an existing
+         * invoice number. Read the highest numeric PUR- suffix instead.
+         */
+        String sql =
+            """
+            SELECT COALESCE(
+                MAX(
+                    CASE
+                        WHEN UPPER(TRIM(invoice_no)) GLOB 'PUR-[0-9]*'
+                        THEN CAST(SUBSTR(UPPER(TRIM(invoice_no)), 5) AS INTEGER)
+                        ELSE 0
+                    END
+                ),
+                0
+            ) + 1
+            FROM purchase_header
+            """;
 
         try(
-            Connection con =
-                DatabaseManager.getConnection();
-
-            Statement st =
-                con.createStatement();
-
-            ResultSet rs =
-                st.executeQuery(
-                    "SELECT COUNT(*) FROM purchase_header"
-                )
-
+            Connection con = DatabaseManager.getConnection();
+            Statement st = con.createStatement();
+            ResultSet rs = st.executeQuery(sql)
         ){
-
-            int no=1;
-
-
-            if(rs.next()){
-
-                no =
-                    rs.getInt(1)+1;
-
-            }
-
-
-            return
-                "PUR-"
-                    +String.format("%05d",no);
-
-
+            int no = rs.next() ? rs.getInt(1) : 1;
+            return "PUR-" + String.format("%05d", Math.max(1, no));
         }
         catch(Exception e){
-
             throw new RuntimeException(e);
-
         }
-
     }
 
     public Purchase getByInvoice(String invoiceNo){

@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- v2.1.9 chart-free executive dashboard: lightweight on macOS and consistent on Windows. --><StackPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardHomeController" fx:id="dashboardRoot" styleClass="approved-ui,dashboard-chart-free,approved-screen,approved-screen-dashboard-home,erp-screen-root">
-    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="approved-page-scroll">
+    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="NEVER" styleClass="approved-page-scroll">
         <content>
-            <VBox fx:id="dashboardContent" spacing="14" styleClass="approved-page,dashboard-executive">
-                <padding><Insets top="18" right="20" bottom="18" left="20"/></padding>
+            <VBox fx:id="dashboardContent" spacing="10" styleClass="approved-page,dashboard-executive">
+                <padding><Insets top="12" right="16" bottom="12" left="16"/></padding>
 
                 <HBox alignment="CENTER_LEFT" spacing="14" styleClass="approved-page-header,approved-section-header">
                     <StackPane fx:id="dashboardTitleIcon" styleClass="approved-title-icon"/>

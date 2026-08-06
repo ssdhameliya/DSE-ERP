@@ -9,10 +9,10 @@
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.MasterDataController"
             styleClass="master-page,master-data-premium,master-data-redesign,approved-ui,approved-screen,approved-screen-masterdata,erp-screen-root"
-            prefWidth="1450" prefHeight="900">
+            prefWidth="1450">
 
     <top>
-        <VBox spacing="16" styleClass="page-header,master-modern-header,approved-section-header">
+        <VBox spacing="16" minHeight="118" styleClass="page-header,master-modern-header,approved-section-header">
             <padding><Insets top="18" right="24" bottom="16" left="24"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="12">

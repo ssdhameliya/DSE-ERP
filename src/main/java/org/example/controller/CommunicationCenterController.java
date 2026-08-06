@@ -12,6 +12,10 @@ import javafx.geometry.Pos;
 import javafx.concurrent.Task;
 import org.example.service.EmailService;
 import org.example.service.WhatsappService;
+import org.example.service.InvoicePdfService;
+import org.example.service.SalesService;
+import org.example.service.PurchaseService;
+import java.nio.file.Path;
 import org.example.database.DatabaseManager;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
@@ -62,7 +66,12 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private List<Row> readRows() throws Exception {
         List<Row>x=new ArrayList<>();
         try(Connection c=DatabaseManager.getConnection();Statement s=c.createStatement();ResultSet r=s.executeQuery("SELECT * FROM communication_log ORDER BY id DESC")){
-            while(r.next())x.add(new Row(r.getString("created_at"),r.getString("entity_type")+" #"+r.getInt("entity_id"),r.getString("channel"),r.getString("recipient"),r.getString("subject"),r.getString("status"),r.getString("error_message"),r.getString("created_by")));
+            while(r.next()){
+                String type=r.getString("entity_type");
+                int entityId=r.getInt("entity_id");
+                String subject=r.getString("subject");
+                x.add(new Row(r.getString("created_at"),documentLabel(c,type,entityId,subject),type,entityId,r.getString("channel"),r.getString("recipient"),subject,r.getString("status"),r.getString("error_message"),r.getString("created_by")));
+            }
         }
         return x;
     }
@@ -84,25 +93,95 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private void configureActions(){
         if(colActions==null)return;
         colActions.setCellFactory(c->new TableCell<>(){
-            final Button resend=new Button("Resend",IconFactory.compactIcon("refresh",14));
-            {resend.getStyleClass().addAll("approved-button","approved-primary-button","communication-resend-button");resend.setMinWidth(96);resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
+            final Button resend=new Button("Resend",IconFactory.compactIcon("email",14));
+            {resend.getStyleClass().addAll("approved-button","approved-primary-button","communication-resend-button");resend.setMinWidth(112);resend.setPrefWidth(112);resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
             @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:resend);setAlignment(Pos.CENTER);}
         });
     }
     private void resend(Row row){
         Task<Void> task=new Task<>(){@Override protected Void call() throws Exception{
-            String channel=row.channel.get();String recipient=row.recipient.get();String subject=row.subject.get().isBlank()?row.entity.get():row.subject.get();
-            if("EMAIL".equalsIgnoreCase(channel)) EmailService.send(recipient,subject,"Resent from DSE ERP Communication Center.");
-            else {String phone=recipient.replaceAll("\\D","");if(phone.length()==10)phone="91"+phone;WhatsappService.openWhatsappWithMessage(phone,subject,null);}
-            try(Connection c=DatabaseManager.getConnection();PreparedStatement ps=c.prepareStatement("INSERT INTO communication_log(entity_type,entity_id,channel,recipient,subject,status,created_by) VALUES(?,0,?,?,?,'SENT',?)")){ps.setString(1,"RESEND");ps.setString(2,channel);ps.setString(3,recipient);ps.setString(4,subject);ps.setString(5,"System");ps.executeUpdate();}
+            String channel=row.channel.get();
+            String recipient=row.recipient.get();
+            String subject=row.subject.get().isBlank()?row.entity.get():row.subject.get();
+            Path attachment=originalDocumentPdf(row);
+            if("EMAIL".equalsIgnoreCase(channel)){
+                String body="Please find the original document attached.\n\nResent from DSE ERP Communication Center.";
+                if(attachment!=null) EmailService.send(recipient,subject,body,attachment);
+                else EmailService.send(recipient,subject,body);
+            } else {
+                String phone=recipient.replaceAll("\\D","");
+                if(phone.length()==10)phone="91"+phone;
+                WhatsappService.openWhatsappWithMessage(phone,subject,attachment);
+            }
+            try(Connection c=DatabaseManager.getConnection();PreparedStatement ps=c.prepareStatement(
+                    "INSERT INTO communication_log(entity_type,entity_id,channel,recipient,subject,status,created_by) VALUES(?,?,?,?,?,'SENT',?)")){
+                ps.setString(1,row.entityType);
+                ps.setInt(2,row.entityId);
+                ps.setString(3,channel);
+                ps.setString(4,recipient);
+                ps.setString(5,subject);
+                ps.setString(6,"System");
+                ps.executeUpdate();
+            }
             return null;}};
-        task.setOnSucceeded(e->{org.example.util.ToastManager.success(table,"Resent",row.channel.get()+" communication prepared successfully.");refresh();});
+        task.setOnSucceeded(e->{org.example.util.ToastManager.success(table,"Resent",row.entity.get()+" was resent successfully.");refresh();});
         task.setOnFailed(e->new OwnedAlert(Alert.AlertType.ERROR,task.getException()==null?"Resend failed":task.getException().getMessage()).showAndWait());
         Thread t=new Thread(task,"communication-resend");t.setDaemon(true);t.start();
     }
 
+    private String documentLabel(Connection c,String type,int id,String subject){
+        if(type==null)return subject==null?"Document":subject;
+        String sql=switch(type.toUpperCase(Locale.ROOT)){
+            case "SALE" -> "SELECT invoice_no FROM sales_header WHERE id=?";
+            case "PURCHASE" -> "SELECT invoice_no FROM purchase_header WHERE id=?";
+            case "QUOTATION" -> "SELECT quotation_no FROM quotation_header WHERE id=?";
+            default -> null;
+        };
+        if(sql!=null && id>0){
+            try(PreparedStatement p=c.prepareStatement(sql)){p.setInt(1,id);try(ResultSet r=p.executeQuery()){if(r.next())return r.getString(1);}}catch(Exception ignored){}
+        }
+        if(subject!=null&&!subject.isBlank()){
+            java.util.regex.Matcher m=java.util.regex.Pattern.compile("(SAL-[A-Z0-9-]+|INV-[A-Z0-9-]+|PUR-[A-Z0-9-]+|QT-[A-Z0-9-]+)",java.util.regex.Pattern.CASE_INSENSITIVE).matcher(subject);
+            if(m.find())return m.group(1);
+        }
+        return type+" #"+id;
+    }
+
+    private Path originalDocumentPdf(Row row) throws Exception{
+        String type=row.entityType==null?"":row.entityType.toUpperCase(Locale.ROOT);
+        String number=row.entity.get();
+        return switch(type){
+            case "SALE" -> {
+                var sale=new SalesService().getByInvoice(number);
+                yield sale==null?null:InvoicePdfService.sales(sale);
+            }
+            case "PURCHASE" -> {
+                var purchase=new PurchaseService().getByInvoice(number);
+                yield purchase==null?null:InvoicePdfService.purchase(purchase);
+            }
+            case "QUOTATION" -> InvoicePdfService.quotation(number);
+            default -> null;
+        };
+    }
+
     @FXML private void openEmailSettings(){NavigationManager.getInstance().loadPage("/fxml/pages/EmailSettings.fxml");}
-    public static final class Row{final SimpleStringProperty time,entity,channel,recipient,subject,status,error,user;Row(String a,String b,String c,String d,String e,String f,String g,String h){time=new SimpleStringProperty(a);entity=new SimpleStringProperty(b);channel=new SimpleStringProperty(c);recipient=new SimpleStringProperty(d==null?"":d);subject=new SimpleStringProperty(e==null?"":e);status=new SimpleStringProperty(f);error=new SimpleStringProperty(g==null?"":g);user=new SimpleStringProperty(h==null?"":h);}}
+    public static final class Row{
+        final SimpleStringProperty time,entity,channel,recipient,subject,status,error,user;
+        final String entityType;
+        final int entityId;
+        Row(String timeValue,String entityValue,String type,int id,String channelValue,String recipientValue,String subjectValue,String statusValue,String errorValue,String userValue){
+            time=new SimpleStringProperty(timeValue);
+            entity=new SimpleStringProperty(entityValue);
+            entityType=type;
+            entityId=id;
+            channel=new SimpleStringProperty(channelValue);
+            recipient=new SimpleStringProperty(recipientValue==null?"":recipientValue);
+            subject=new SimpleStringProperty(subjectValue==null?"":subjectValue);
+            status=new SimpleStringProperty(statusValue);
+            error=new SimpleStringProperty(errorValue==null?"":errorValue);
+            user=new SimpleStringProperty(userValue==null?"":userValue);
+        }
+    }
 
 
 
@@ -127,6 +206,6 @@ public class CommunicationCenterController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(colStatus, "status");
         IconFactory.applyTableHeaderIcon(colError, "error");
         IconFactory.applyTableHeaderIcon(colUser, "user");
-        IconFactory.applyTableHeaderIcon(colActions, "actions");
+        IconFactory.applyTableHeaderIcon(colActions, "email");
     }
 }

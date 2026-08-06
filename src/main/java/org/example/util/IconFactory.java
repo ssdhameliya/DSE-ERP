@@ -95,7 +95,7 @@ public final class IconFactory {
         if (node instanceof ButtonBase button) {
             String semantic = semantic(button);
             String originalText = clean(button.getText());
-            // v3.0.3 guarantees a visible semantic graphic on every actionable
+            // v3.0.4 guarantees a visible semantic graphic on every actionable
             // ButtonBase. Explicit mappings remain preferred; uncommon controls
             // receive a neutral document/action fallback rather than no icon.
             if (semantic == null && !Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))) {

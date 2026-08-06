@@ -138,7 +138,7 @@
 .erp-action-button.erp-button-icon { -fx-padding: 7px; -fx-min-width: 36px; }
 
 
-/* v3.0.3 consistent semantic action buttons */
+/* v3.0.4 consistent semantic action buttons */
 .button .erp-action-glyph {
     -fx-icon-size: 16px;
 }
@@ -167,4 +167,34 @@
     -fx-pref-height: 34px;
     -fx-max-height: 38px;
     -fx-padding: 5px;
+}
+
+
+/* DSE ERP 3.0.4 focused UI corrections */
+.register-page-size-label {
+    -fx-background-radius: 999px;
+    -fx-padding: 6px 12px;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+.detail-close-button {
+    -fx-min-width: 36px;
+    -fx-pref-height: 32px;
+    -fx-background-radius: 8px;
+}
+.sales-summary-row {
+    -fx-padding: 7px 10px;
+    -fx-background-radius: 8px;
+}
+.sales-summary-label { -fx-font-weight: 700; }
+.sales-summary-value { -fx-font-weight: 800; -fx-font-size: 14px; }
+.report-static-summary {
+    -fx-fixed-cell-size: 30px;
+    -fx-min-height: 150px;
+}
+.report-bottom-row .report-card {
+    -fx-min-height: 230px;
+}
+.backup-restore-page .backup-content {
+    -fx-spacing: 14px;
 }
