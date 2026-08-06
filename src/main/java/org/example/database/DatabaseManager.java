@@ -431,6 +431,7 @@ public class DatabaseManager {
         addColumnIfMissing("quotation_header", "source", "TEXT");
         addColumnIfMissing("quotation_header", "created_by", "TEXT");
         addColumnIfMissing("quotation_header", "discount_amount", "REAL NOT NULL DEFAULT 0");
+        addColumnIfMissing("quotation_line", "discount_percent", "REAL NOT NULL DEFAULT 0");
         addColumnIfMissing("quotation_header", "converted_invoice_no", "TEXT");
         addColumnIfMissing("quotation_header", "email_sent", "INTEGER NOT NULL DEFAULT 0");
         addColumnIfMissing("quotation_header", "whatsapp_sent", "INTEGER NOT NULL DEFAULT 0");

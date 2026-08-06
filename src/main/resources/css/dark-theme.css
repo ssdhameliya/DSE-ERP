@@ -5447,7 +5447,7 @@ TABLE ACTION BUTTONS
     -fx-min-height: 170px;
 }
 
-/* v3.0.5 focused cosmetic refinements */
+/* v3.0.6 focused cosmetic refinements */
 .sales-entry-summary-caption-items,
 .sales-entry-summary-caption-discount,
 .sales-entry-summary-caption-tax,
@@ -5480,7 +5480,7 @@ TABLE ACTION BUTTONS
 }
 
 
-/* v3.0.5 — Quotation summary and Master Data premium footer controls */
+/* v3.0.6 — Quotation summary and Master Data premium footer controls */
 .quotation-register-page .quotation-filtered-summary {
     -fx-background-color: linear-gradient(to right, #1d4ed8, #6d28d9);
     -fx-background-radius: 10px;
@@ -5549,4 +5549,25 @@ TABLE ACTION BUTTONS
 
 .approved-screen-masterdata .master-premium-pagination:disabled {
     -fx-opacity: 0.72;
+}
+
+
+.quotation-section-card, .quotation-totals-card { -fx-background-color: #172033; -fx-border-color: #334155; }
+.quotation-section-title, .quotation-section-icon .ikonli-font-icon { -fx-text-fill: #60a5fa; -fx-icon-color: #60a5fa; }
+.quotation-section-icon { -fx-background-color: #1e3a5f; }
+.quotation-item-sku, .quotation-metric-caption { -fx-text-fill: #94a3b8; }
+.quotation-mini-metric { -fx-background-color: #24213d; -fx-border-color: #4c4676; }
+.quotation-mini-metric .quotation-metric-icon { -fx-background-color: #39335f; }
+.quotation-mini-metric .ikonli-font-icon { -fx-icon-color: #a78bfa; }
+.quotation-totals-card { -fx-background-color: #18243b; }
+.quotation-grand-total { -fx-text-fill: #60a5fa; }
+.quotation-entry-table .column-header-background,
+.quotation-entry-table .column-header, .quotation-entry-table .filler { -fx-background-color: #081426; }
+.quotation-entry-table .column-header .label { -fx-text-fill: #f8fafc; }
+
+.quotation-register-page .quotation-detail-value { -fx-text-fill: #7dc4ff; }
+.quotation-register-page .quotation-detail-contact {
+    -fx-background-color: #172b46;
+    -fx-border-color: #31567f;
+    -fx-text-fill: #7dc4ff;
 }

@@ -198,3 +198,73 @@
 .backup-restore-page .backup-content {
     -fx-spacing: 14px;
 }
+
+
+/* Quotation editor — polished master entry dialog */
+.quotation-editor-dialog { -fx-min-width: 900px; }
+.quotation-editor-dialog .header-panel { -fx-padding: 14px 18px; }
+.quotation-editor-dialog .header-panel .label { -fx-font-size: 13px; }
+.quotation-dialog-scroll, .quotation-dialog-scroll > .viewport { -fx-background-color: transparent; }
+.quotation-dialog-content { -fx-background-color: transparent; }
+.quotation-section-card {
+    -fx-padding: 14px 16px;
+    -fx-spacing: 12px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+.quotation-section-title { -fx-font-size: 12px; -fx-font-weight: 800; }
+.quotation-section-icon {
+    -fx-min-width: 22px; -fx-pref-width: 22px; -fx-min-height: 22px; -fx-pref-height: 22px;
+    -fx-background-radius: 6px;
+}
+.quotation-details-grid .label, .quotation-item-entry .label { -fx-font-weight: 600; }
+.required-star { -fx-text-fill: #ef4444; }
+.quotation-quick-add { -fx-min-width: 44px; -fx-pref-width: 44px; }
+.quotation-add-item { -fx-min-width: 118px; }
+.quotation-entry-table { -fx-fixed-cell-size: 56px; }
+.quotation-entry-table .column-header-background,
+.quotation-entry-table .column-header,
+.quotation-entry-table .filler { -fx-min-height: 34px; -fx-pref-height: 34px; }
+.quotation-item-name, .quotation-qty-main, .quotation-amount-strong { -fx-font-weight: 700; }
+.quotation-item-sku, .quotation-metric-caption { -fx-font-size: 10px; }
+.quotation-row-delete { -fx-min-width: 32px; -fx-pref-width: 32px; -fx-min-height: 30px; -fx-pref-height: 30px; }
+.quotation-mini-metric {
+    -fx-padding: 10px 14px;
+    -fx-min-width: 132px;
+    -fx-background-radius: 9px;
+    -fx-border-radius: 9px;
+    -fx-border-width: 1px;
+}
+.quotation-metric-icon {
+    -fx-min-width: 34px; -fx-pref-width: 34px; -fx-min-height: 34px; -fx-pref-height: 34px;
+    -fx-background-radius: 8px;
+}
+.quotation-metric-value { -fx-font-size: 17px; -fx-font-weight: 800; }
+.quotation-totals-card {
+    -fx-padding: 9px 16px;
+    -fx-min-width: 340px;
+    -fx-background-radius: 9px;
+    -fx-border-radius: 9px;
+    -fx-border-width: 1px;
+}
+.quotation-grand-title, .quotation-grand-total { -fx-font-size: 16px; -fx-font-weight: 800; }
+.quotation-grand-total { -fx-font-size: 18px; }
+
+/* Quotation 3.0.6 enhancements */
+.quotation-column-header { -fx-alignment: center; }
+.quotation-column-header .erp-icon-holder {
+    -fx-min-width: 20px; -fx-pref-width: 20px; -fx-max-width: 20px;
+    -fx-min-height: 20px; -fx-pref-height: 20px; -fx-max-height: 20px;
+    -fx-background-color: transparent;
+}
+.quotation-column-title { -fx-font-size: 11px; -fx-font-weight: 700; }
+.quotation-detail-value { -fx-font-size: 14px; -fx-font-weight: 800; }
+.quotation-detail-contact {
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-padding: 8px 10px;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+    -fx-border-width: 1px;
+}

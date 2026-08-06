@@ -31,3 +31,9 @@ ADAPTIVE TABLE WIDTH FILL
 - Keeps row-number, selection and action columns compact.
 - When the viewport is narrower than the readable baselines, restores those widths and retains horizontal scrolling where required.
 - Excludes import-preview and permission-matrix tables because they own specialized dynamic sizing.
+
+
+Quotation master polish:
+- Rebuilt Create/Edit Quotation dialog to match the approved visual.
+- Added item discounts, calculated taxable/GST/grand totals, validation, and responsive summary cards.
+- Added quotation_line.discount_percent database migration and persistence.
