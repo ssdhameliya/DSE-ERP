@@ -22,6 +22,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import org.example.model.*;
+import org.example.dao.LookupDAO;
 
 import org.example.navigation.NavigationManager;
 
@@ -60,8 +61,11 @@ public class SalesController {
     @FXML
     private DatePicker dpInvoiceDate;
     @FXML private DatePicker dpDueDate;
-    @FXML private ComboBox<String> cmbSalesPerson,cmbPaymentTerms,cmbDeliveryStatus;
+    @FXML private ComboBox<String> cmbSalesPerson,cmbPaymentTerms;
+    @FXML private ComboBox<String> cmbGstType,cmbTransporter,cmbChargeType,cmbDoorDelivery;
     @FXML private TextField txtOtherCharges,txtTransport,txtReference,txtAttachment;
+    @FXML private TextField txtVehicleNumber,txtContactPerson,txtContactPersonMobile,txtTransportNote,txtOrderNo,txtGstin,txtChargeAmount;
+    @FXML private CheckBox chkSameAsBilling;
     @FXML private TextArea txtInvoiceMessage;
 
     @FXML
@@ -92,7 +96,7 @@ public class SalesController {
     @FXML
     private Label lblGrandTotal;
 
-    @FXML private Label lblTotalItems, lblBottomDiscount, lblBottomTax, lblBottomNet, lblTaxableAmount;
+    @FXML private Label lblTotalItems, lblBottomDiscount, lblBottomTax, lblBottomCharges, lblBottomNet, lblTaxableAmount, lblChargeCaption, lblCharges;
 
     @FXML
     private TableView<SalesLine> tableLines;
@@ -126,6 +130,7 @@ public class SalesController {
 
     @FXML
     private Button btnAddLine;
+    @FXML private Button btnRemoveLine, btnSaveDraft;
 
 
 
@@ -144,6 +149,8 @@ public class SalesController {
 
     private final SalesService salesService =
         new SalesService();
+
+    private final LookupDAO lookupDAO = new LookupDAO();
 
     //-------------------------------------------------------
     // Editing
@@ -175,11 +182,35 @@ public class SalesController {
         setupEditableColumns();
         Platform.runLater(this::decorateActions);
         cmbSalesPerson.getItems().setAll("Admin","Ajay Shah","Rahul Mehta");cmbSalesPerson.setValue("Admin");
-        cmbPaymentTerms.getItems().setAll("Due on Receipt","7 Days","15 Days","30 Days","45 Days");cmbPaymentTerms.setValue("15 Days");
-        dpInvoiceDate.valueProperty().addListener((o,a,b)->updateDueDate());
-        cmbPaymentTerms.valueProperty().addListener((o,a,b)->updateDueDate());
-        cmbDeliveryStatus.getItems().setAll("To be Delivered","Partially Delivered","Delivered");cmbDeliveryStatus.setValue("To be Delivered");
-        txtOtherCharges.textProperty().addListener((o,a,b)->recalculate());txtTransport.textProperty().addListener((o,a,b)->recalculate());
+        cmbPaymentTerms.getItems().setAll(lookupDAO.getValuesByCategoryCode("PAYMENT_TERMS"));
+        if (cmbPaymentTerms.getItems().contains("15 Days")) cmbPaymentTerms.setValue("15 Days");
+        else if (!cmbPaymentTerms.getItems().isEmpty()) cmbPaymentTerms.getSelectionModel().selectFirst();
+        if (cmbChargeType != null) cmbChargeType.getItems().setAll(lookupDAO.getValuesByCategoryCode("CHARGES"));
+        if (cmbDoorDelivery != null) { cmbDoorDelivery.getItems().setAll("Yes","No"); cmbDoorDelivery.setValue("No"); }
+        dpInvoiceDate.valueProperty().addListener((o,a,b)->syncPoDateFromPaymentTerms());
+        cmbPaymentTerms.valueProperty().addListener((o,a,b)->syncPoDateFromPaymentTerms());
+
+        // Delivery Address can follow Billing Address or be entered independently.
+        if (chkSameAsBilling != null) {
+            chkSameAsBilling.selectedProperty().addListener((o, oldValue, same) -> syncDeliveryAddressState());
+        }
+        if (cmbBillingAddress != null) {
+            cmbBillingAddress.valueProperty().addListener((o, oldValue, address) -> {
+                if (chkSameAsBilling != null && chkSameAsBilling.isSelected()) {
+                    txtDeliveryAddress.setText(address == null ? "" : address);
+                }
+            });
+        }
+
+        // Master-driven values use stable category codes, so renaming the visible
+        // category in Master Data does not break Create Sale.
+        cmbGstType.getItems().setAll(lookupDAO.getValuesByCategoryCode("GST_TYPE"));
+        if (!cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
+        cmbTransporter.getItems().setAll(lookupDAO.getValuesByCategoryCode("TRANSPORTER"));
+        cmbGstType.valueProperty().addListener((o,a,b) -> updateGstHeaders());
+        updateGstHeaders();
+
+        if (txtChargeAmount != null) txtChargeAmount.textProperty().addListener((o,a,b)->recalculate());
 
         tableLines.getSelectionModel()
             .selectedItemProperty()
@@ -310,17 +341,23 @@ public class SalesController {
             if (customer == null) {
                 txtBillingAddress.clear();
                 if (cmbBillingAddress != null) cmbBillingAddress.getItems().clear();
-                if (editingSale == null) txtDeliveryAddress.clear();
+                if (txtGstin != null) txtGstin.clear();
+                if (editingSale == null && txtDeliveryAddress != null) txtDeliveryAddress.clear();
                 return;
             }
             String address = customer.getAddress() == null ? "" : customer.getAddress().trim();
             txtBillingAddress.setText(address);
+            java.util.List<String> addresses = address.isBlank()
+                ? java.util.List.of() : java.util.List.of(address);
             if (cmbBillingAddress != null) {
-                cmbBillingAddress.getItems().setAll(address.isBlank() ? java.util.List.of() : java.util.List.of(address));
+                cmbBillingAddress.getItems().setAll(addresses);
                 cmbBillingAddress.getSelectionModel().select(address);
             }
-            if (editingSale == null || txtDeliveryAddress.getText() == null
-                || txtDeliveryAddress.getText().isBlank()) txtDeliveryAddress.setText(address);
+            if (txtGstin != null && (editingSale == null || txtGstin.getText() == null || txtGstin.getText().isBlank())) {
+                txtGstin.setText(customer.getGstin() == null ? "" : customer.getGstin());
+            }
+            if (editingSale == null && chkSameAsBilling != null) chkSameAsBilling.setSelected(true);
+            syncDeliveryAddressState();
         });
 
         //-------------------------------------------------------
@@ -392,7 +429,15 @@ public class SalesController {
 
     }
 
-    private void updateDueDate(){if(dpInvoiceDate.getValue()==null)return;String value=cmbPaymentTerms.getValue();int days=0;if(value!=null){java.util.regex.Matcher m=java.util.regex.Pattern.compile("(\\d+)").matcher(value);if(m.find())days=Integer.parseInt(m.group(1));}dpDueDate.setValue(dpInvoiceDate.getValue().plusDays(days));}
+    private void updateGstHeaders() {
+        String type = cmbGstType == null ? "" : cmbGstType.getValue();
+        boolean igst = type != null && type.trim().equalsIgnoreCase("IGST");
+        String percentLabel = igst ? "IGST %" : "GST %";
+        String amountLabel = igst ? "IGST Amount (₹)" : "GST Amount (₹)";
+        if (colGst != null) colGst.setText(percentLabel);
+        if (colGstAmount != null) colGstAmount.setText(amountLabel);
+        if (txtGST != null) txtGST.setPromptText(percentLabel);
+    }
 
     /** Opens the shared themed customer editor and refreshes the sale form. */
     @FXML
@@ -718,6 +763,15 @@ public class SalesController {
 
         }
 
+        if (txtOrderNo != null && (txtOrderNo.getText() == null || txtOrderNo.getText().isBlank())) {
+            txtOrderNo.setText(salesService.nextOrderNo());
+        }
+
+        if (txtDeliveryAddress != null && (txtDeliveryAddress.getText() == null || txtDeliveryAddress.getText().isBlank())) {
+            warn("Enter delivery address");
+            return null;
+        }
+
         if (tableLines.getItems().isEmpty()) {
 
             warn("Add items");
@@ -764,7 +818,8 @@ public class SalesController {
                 )
                 .sum();
 
-        double total = net + gst + number(txtOtherCharges) + number(txtTransport);
+        double charges = number(txtChargeAmount);
+        double total = net + gst + charges;
 
         sale.setSubtotal(net);
         sale.setDiscountAmount(discount);
@@ -773,16 +828,28 @@ public class SalesController {
 
         sale.setTotalAmount(total);
 
-        sale.setRemarks(
-            txtRemarks.getText()+"\nReference: "+txtReference.getText()+"\nTransport: "+txtTransport.getText()+"\nOther Charges: "+txtOtherCharges.getText()+"\nAttachment: "+txtAttachment.getText()
-        );
-        sale.setDueDate(dpDueDate.getValue());
+        sale.setRemarks(txtRemarks == null ? "" : txtRemarks.getText());
+        sale.setDueDate(calculatePaymentDueDate(dpInvoiceDate.getValue(), cmbPaymentTerms.getValue()));
+        sale.setPoDate(dpDueDate == null ? null : dpDueDate.getValue());
+        sale.setOrderNo(txtOrderNo == null ? "" : txtOrderNo.getText());
         sale.setSalesperson(cmbSalesPerson.getValue());
-        sale.setNotes(txtInvoiceMessage.getText());
-        sale.setDeliveryAddress(txtDeliveryAddress.getText());
+        sale.setNotes("");
+        String billing = cmbBillingAddress == null ? txtBillingAddress.getText() : cmbBillingAddress.getValue();
+        String shipping = txtDeliveryAddress == null ? "" : txtDeliveryAddress.getText();
+        sale.setBillingAddress(billing == null ? "" : billing);
+        sale.setDeliveryAddress(shipping == null ? "" : shipping);
+        sale.setGstin(txtGstin == null ? "" : txtGstin.getText());
         sale.setPaymentTerms(cmbPaymentTerms.getValue());
-        sale.setTransporter(txtTransport.getText());
-        sale.setReferenceNo(txtReference.getText());
+        sale.setGstType(cmbGstType == null ? "" : cmbGstType.getValue());
+        sale.setTransporter(cmbTransporter == null ? "" : cmbTransporter.getValue());
+        sale.setDoorDelivery(cmbDoorDelivery == null || cmbDoorDelivery.getValue() == null ? "" : cmbDoorDelivery.getValue());
+        sale.setVehicleNumber(txtVehicleNumber == null ? "" : txtVehicleNumber.getText());
+        sale.setContactPerson(txtContactPerson == null ? "" : txtContactPerson.getText());
+        sale.setContactPersonMobile(txtContactPersonMobile == null ? "" : txtContactPersonMobile.getText());
+        sale.setChargeType(cmbChargeType == null || cmbChargeType.getValue() == null ? "" : cmbChargeType.getValue());
+        sale.setChargeAmount(charges);
+        sale.setTransportNote(txtTransportNote == null ? "" : txtTransportNote.getText());
+        sale.setReferenceNo("");
 
         return sale;
 
@@ -793,7 +860,32 @@ public class SalesController {
 // NEW SALE
 //--------------------------------------------------
 
-    @FXML
+    private LocalDate calculatePaymentDueDate(LocalDate invoiceDate, String terms) {
+        if (invoiceDate == null) return null;
+        if (terms == null || terms.isBlank() || terms.equalsIgnoreCase("Due on Receipt")) return invoiceDate;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+)").matcher(terms);
+        return matcher.find() ? invoiceDate.plusDays(Integer.parseInt(matcher.group(1))) : invoiceDate;
+    }
+
+    private void syncPoDateFromPaymentTerms() {
+        if (dpDueDate == null) return;
+        dpDueDate.setValue(calculatePaymentDueDate(
+            dpInvoiceDate == null ? null : dpInvoiceDate.getValue(),
+            cmbPaymentTerms == null ? null : cmbPaymentTerms.getValue()));
+    }
+
+    private void syncDeliveryAddressState() {
+        if (txtDeliveryAddress == null) return;
+        boolean same = chkSameAsBilling != null && chkSameAsBilling.isSelected();
+        if (same) {
+            String billing = cmbBillingAddress == null ? txtBillingAddress.getText() : cmbBillingAddress.getValue();
+            txtDeliveryAddress.setText(billing == null ? "" : billing);
+        }
+        txtDeliveryAddress.setEditable(!same);
+        txtDeliveryAddress.setDisable(false);
+        txtDeliveryAddress.setOpacity(same ? 0.88 : 1.0);
+    }
+
     private void newSale() {
 
         editingSale = null;
@@ -805,7 +897,7 @@ public class SalesController {
         dpInvoiceDate.setValue(
             LocalDate.now()
         );
-        dpDueDate.setValue(LocalDate.now().plusDays(15));
+        syncPoDateFromPaymentTerms();
 
         cmbCustomer.setValue(null);
 
@@ -821,6 +913,19 @@ public class SalesController {
         txtRemarks.clear();
         txtBillingAddress.clear();
         txtDeliveryAddress.clear();
+        if (cmbBillingAddress != null) cmbBillingAddress.getItems().clear();
+        if (chkSameAsBilling != null) chkSameAsBilling.setSelected(true);
+        if (txtOrderNo != null) txtOrderNo.setText(salesService.nextOrderNo());
+        if (txtGstin != null) txtGstin.clear();
+        if (cmbGstType != null && !cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
+        if (cmbTransporter != null) cmbTransporter.setValue(null);
+        if (cmbDoorDelivery != null) cmbDoorDelivery.setValue("No");
+        if (txtVehicleNumber != null) txtVehicleNumber.clear();
+        if (txtContactPerson != null) txtContactPerson.clear();
+        if (txtContactPersonMobile != null) txtContactPersonMobile.clear();
+        if (txtTransportNote != null) txtTransportNote.clear();
+        if (cmbChargeType != null) cmbChargeType.setValue(null);
+        if (txtChargeAmount != null) txtChargeAmount.setText("0");
 
         tableLines.getItems().clear();
 
@@ -851,7 +956,8 @@ public class SalesController {
                 )
                 .sum();
 
-        double total = net + gst + number(txtOtherCharges) + number(txtTransport);
+        double charges = number(txtChargeAmount);
+        double total = net + gst + charges;
 
         lblNetAmount.setText(
             String.format("₹ %.2f", net)
@@ -870,8 +976,14 @@ public class SalesController {
         if (lblTotalItems != null) lblTotalItems.setText(Integer.toString(tableLines.getItems().size()));
         if (lblBottomDiscount != null) lblBottomDiscount.setText(String.format("₹ %.2f", discount));
         if (lblBottomTax != null) lblBottomTax.setText(String.format("₹ %.2f", gst));
+        if (lblBottomCharges != null) lblBottomCharges.setText(String.format("₹ %.2f", charges));
         if (lblBottomNet != null) lblBottomNet.setText(String.format("₹ %.2f", total));
         if (lblTaxableAmount != null) lblTaxableAmount.setText(String.format("₹ %.2f", net));
+        if (lblCharges != null) lblCharges.setText(String.format("₹ %.2f", charges));
+        if (lblChargeCaption != null) {
+            String chargeType = cmbChargeType == null ? "" : cmbChargeType.getValue();
+            lblChargeCaption.setText(chargeType == null || chargeType.isBlank() ? "Charges" : "Charges • " + chargeType);
+        }
 
     }
 
@@ -934,13 +1046,25 @@ public class SalesController {
         dpInvoiceDate.setValue(
             sale.getInvoiceDate()
         );
-        dpDueDate.setValue(sale.getDueDate());
+        dpDueDate.setValue(sale.getPoDate());
         cmbSalesPerson.setValue(sale.getSalesperson().isBlank()?"Admin":sale.getSalesperson());
         txtInvoiceMessage.setText(sale.getNotes());
         txtDeliveryAddress.setText(sale.getDeliveryAddress());
         cmbPaymentTerms.setValue(sale.getPaymentTerms().isBlank() ? "15 Days" : sale.getPaymentTerms());
-        txtTransport.setText(sale.getTransporter());
-        txtReference.setText(sale.getReferenceNo());
+        if (cmbGstType != null) cmbGstType.setValue(sale.getGstType().isBlank()
+            ? (cmbGstType.getItems().isEmpty() ? null : cmbGstType.getItems().get(0)) : sale.getGstType());
+        if (cmbTransporter != null) cmbTransporter.setValue(sale.getTransporter());
+        if (cmbDoorDelivery != null) cmbDoorDelivery.setValue(sale.getDoorDelivery().isBlank() ? "No" : sale.getDoorDelivery());
+        if (txtVehicleNumber != null) txtVehicleNumber.setText(sale.getVehicleNumber());
+        if (txtContactPerson != null) txtContactPerson.setText(sale.getContactPerson());
+        if (txtContactPersonMobile != null) txtContactPersonMobile.setText(sale.getContactPersonMobile());
+        if (cmbChargeType != null) cmbChargeType.setValue(sale.getChargeType().isBlank() ? null : sale.getChargeType());
+        if (txtChargeAmount != null) txtChargeAmount.setText(String.valueOf(sale.getChargeAmount()));
+        if (txtTransportNote != null) txtTransportNote.setText(sale.getTransportNote());
+        if (txtOrderNo != null) txtOrderNo.setText(sale.getOrderNo());
+        if (txtGstin != null) txtGstin.setText(sale.getGstin().isBlank() && sale.getCustomer() != null
+            ? sale.getCustomer().getGstin() : sale.getGstin());
+        txtReference.setText("");
 
         // Select customer
 
@@ -963,6 +1087,20 @@ public class SalesController {
 
             }
 
+        }
+
+        if (cmbBillingAddress != null) {
+            String billing = sale.getBillingAddress().isBlank()
+                ? (sale.getCustomer() == null ? "" : sale.getCustomer().getAddress())
+                : sale.getBillingAddress();
+            if (billing != null && !billing.isBlank() && !cmbBillingAddress.getItems().contains(billing))
+                cmbBillingAddress.getItems().add(billing);
+            cmbBillingAddress.setValue(billing);
+        }
+        if (chkSameAsBilling != null) {
+            String billing = cmbBillingAddress == null ? "" : cmbBillingAddress.getValue();
+            chkSameAsBilling.setSelected(!sale.getDeliveryAddress().isBlank() && sale.getDeliveryAddress().equals(billing));
+            syncDeliveryAddressState();
         }
 
         txtRemarks.setText(
@@ -1015,8 +1153,24 @@ public class SalesController {
         txtRemarks.setDisable(value);
         txtBillingAddress.setDisable(value);
         txtDeliveryAddress.setDisable(value);
+        if (cmbBillingAddress != null) cmbBillingAddress.setDisable(value);
+        if (cmbGstType != null) cmbGstType.setDisable(value);
+        if (cmbTransporter != null) cmbTransporter.setDisable(value);
+        if (cmbDoorDelivery != null) cmbDoorDelivery.setDisable(value);
+        if (txtVehicleNumber != null) txtVehicleNumber.setDisable(value);
+        if (txtContactPerson != null) txtContactPerson.setDisable(value);
+        if (txtContactPersonMobile != null) txtContactPersonMobile.setDisable(value);
+        if (cmbChargeType != null) cmbChargeType.setDisable(value);
+        if (txtChargeAmount != null) txtChargeAmount.setDisable(value);
+        if (txtTransportNote != null) txtTransportNote.setDisable(value);
+        if (txtOrderNo != null) txtOrderNo.setDisable(value);
+        if (txtGstin != null) txtGstin.setDisable(value);
+        if (chkSameAsBilling != null) chkSameAsBilling.setDisable(value);
 
         btnAddLine.setDisable(value);
+        if (btnRemoveLine != null) btnRemoveLine.setDisable(value);
+        if (btnSaveDraft != null) btnSaveDraft.setDisable(value);
+        if (btnAddCustomer != null) btnAddCustomer.setDisable(value);
 
         btnSaveSale.setDisable(value);
 

@@ -878,10 +878,11 @@ public class MasterDataController {
         String newName
     ) throws SQLException {
 
+        // category_code is the stable integration key. Users may rename the visible
+        // category_name without breaking screens that consume that master.
         String updateCategorySql = """
             UPDATE master_category
-            SET category_name = ?,
-                category_code = ?
+            SET category_name = ?
             WHERE category_name = ?
             """;
 
@@ -893,8 +894,7 @@ public class MasterDataController {
         ) {
 
             statement.setString(1, newName);
-            statement.setString(2, categoryCode);
-            statement.setString(3, oldName);
+            statement.setString(2, oldName);
             statement.executeUpdate();
         }
 

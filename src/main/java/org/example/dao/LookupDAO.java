@@ -173,6 +173,34 @@ public class LookupDAO {
 
     }
 
+
+    /**
+     * Loads active values through the stable master category code. The visible
+     * category name may be renamed in Master Data without breaking consumers.
+     */
+    public List<String> getValuesByCategoryCode(String categoryCode) {
+        List<String> list = new ArrayList<>();
+        String sql = """
+            SELECT lm.lookup_value
+            FROM lookup_master lm
+            JOIN master_category mc ON mc.category_name = lm.lookup_type
+            WHERE mc.category_code = ?
+              AND mc.is_active = 1
+              AND lm.is_active = 1
+            ORDER BY lm.display_order, lm.lookup_value
+            """;
+        try (Connection con = DatabaseManager.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, categoryCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) list.add(rs.getString(1));
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return list;
+    }
+
     /*
      * Next Code Generator
      */

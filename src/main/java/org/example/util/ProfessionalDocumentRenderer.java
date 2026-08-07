@@ -172,9 +172,9 @@ public final class ProfessionalDocumentRenderer {
             // The invoice number is already displayed in the blue badge above.
             // These rows intentionally mirror the approved icon/label/value grid.
             salesRefPair(info, "calendar", "Invoice Date", data.date);
-            salesRefPair(info, "calendar", "Due Date", data.dueDate);
-            salesRefPair(info, "document", "Purchase Order", data.purchaseOrder);
-            salesRefPair(info, "reference", "Reference", data.reference);
+            salesRefPair(info, "calendar", "PO Date", data.poDate);
+            salesRefPair(info, "reference", "Order No.", data.purchaseOrder);
+            salesRefPair(info, "reference", "GST Type", data.gstType);
             salesRefPair(info, "user", "Sales Person", data.salesperson);
             salesRefPair(info, "currency", "Currency", "INR");
         } else {
@@ -632,6 +632,9 @@ public final class ProfessionalDocumentRenderer {
         String sgst = "SGST (" + quantity(componentRate) + "%)";
         addTotal(totals, cgst, data.gst/2, false, accent);
         addTotal(totals, sgst, data.gst/2, false, accent);
+        if (kind == Kind.SALES_INVOICE && (data.chargeAmount > .009 || !data.chargeType.isBlank())) {
+            addTotal(totals, data.chargeType.isBlank() ? "Charges" : data.chargeType, data.chargeAmount, false, accent);
+        }
         addTotal(totals, data.refund ? "RETURN / REFUND AMOUNT" : kind == Kind.PURCHASE_INVOICE ? "TOTAL AMOUNT" : "GRAND TOTAL", data.total, true, accent);
         Cell right = new Cell().add(totals).setBorder(Border.NO_BORDER)
             .setPaddingTop(0).setPaddingBottom(0).setPaddingLeft(0).setPaddingRight(0);
@@ -1188,18 +1191,30 @@ public final class ProfessionalDocumentRenderer {
                 data.number = result.getString("invoice_no");
                 data.date = result.getString("invoice_date");
                 data.dueDate = safeColumn(result, "due_date");
+                data.poDate = safeColumn(result, "po_date");
                 populateParty(data, result);
+                if (sales) {
+                    data.partyAddress = firstNonBlank(safeColumn(result, "billing_address"), data.partyAddress);
+                }
                 data.subtotal = result.getDouble("subtotal");
                 data.gst = result.getDouble("gst_amount");
                 data.total = result.getDouble("total_amount");
                 data.salesperson = safeColumn(result, "salesperson");
                 data.paymentTerms = safeColumn(result, "payment_terms");
                 data.transporter = safeColumn(result, "transporter");
+                data.gstType = safeColumn(result, "gst_type");
+                data.doorDelivery = safeColumn(result, "door_delivery");
+                data.vehicleNumber = safeColumn(result, "vehicle_number");
+                data.contactPerson = safeColumn(result, "contact_person");
+                data.transportNote = safeColumn(result, "transport_note");
+                data.chargeType = safeColumn(result, "charge_type");
+                data.chargeAmount = safeDoubleColumn(result, "charge_amount");
                 data.reference = safeColumn(result, "reference_no");
-                data.purchaseOrder = firstNonBlank(
-                    safeColumn(result, "purchase_order_no"),
-                    firstNonBlank(safeColumn(result, "po_number"),
-                        safeColumn(result, "purchase_order")));
+                data.purchaseOrder = sales
+                    ? safeColumn(result, "order_no")
+                    : firstNonBlank(safeColumn(result, "purchase_order_no"),
+                        firstNonBlank(safeColumn(result, "po_number"), safeColumn(result, "purchase_order")));
+                if (sales) data.partyGstin = firstNonBlank(safeColumn(result, "gstin"), data.partyGstin);
                 data.shipTo = sales
                     ? firstNonBlank(safeColumn(result, "delivery_address"), data.partyAddress)
                     : companyShipText();
@@ -1527,6 +1542,14 @@ public final class ProfessionalDocumentRenderer {
         }
     }
 
+    private static double safeDoubleColumn(ResultSet result, String name) {
+        try {
+            return result.getDouble(name);
+        } catch (SQLException ignored) {
+            return 0;
+        }
+    }
+
     private static String money(double value) {
         return MONEY.format(value);
     }
@@ -1572,6 +1595,7 @@ public final class ProfessionalDocumentRenderer {
         String number;
         String date;
         String dueDate = "";
+        String poDate = "";
         String originalNumber = "";
         String originalDate = "";
         String partyCode = "";
@@ -1583,6 +1607,13 @@ public final class ProfessionalDocumentRenderer {
         String salesperson = "";
         String paymentTerms = "";
         String transporter = "";
+        String gstType = "";
+        String doorDelivery = "";
+        String vehicleNumber = "";
+        String contactPerson = "";
+        String transportNote = "";
+        String chargeType = "";
+        double chargeAmount;
         String reference = "";
         String purchaseOrder = "";
         String shipTo = "";

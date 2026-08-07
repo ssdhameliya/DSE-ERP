@@ -50,6 +50,19 @@ public class Sales {
     private String paymentTerms;
     private String transporter;
     private String referenceNo;
+    private LocalDate poDate;
+    private String billingAddress;
+    private String gstType;
+    private String doorDelivery;
+    private String vehicleNumber;
+    private String contactPerson;
+    private String transportNote;
+    private String orderNo;
+    private String gstin;
+    private String chargeType;
+    private double chargeAmount;
+    private String contactPersonMobile;
+    private String documentStatus;
 
 
     public int getId() {
@@ -179,7 +192,11 @@ public class Sales {
     public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
     public double getPaidAmount() { return paidAmount; }
     public void setPaidAmount(double paidAmount) { this.paidAmount = paidAmount; }
-    public double getBalanceAmount() { return Math.max(0, totalAmount - paidAmount); }
+    public double getBalanceAmount() {
+        String status = getDocumentStatus();
+        if ("CANCELLED".equalsIgnoreCase(status) || "DELETED".equalsIgnoreCase(status)) return 0;
+        return Math.max(0, totalAmount - paidAmount);
+    }
     public String getPaymentStatus() { return paymentStatus == null ? "PENDING" : paymentStatus; }
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
     public boolean isWhatsappSent() { return whatsappSent; }
@@ -200,6 +217,32 @@ public class Sales {
     public void setTransporter(String transporter) { this.transporter = transporter; }
     public String getReferenceNo() { return referenceNo == null ? "" : referenceNo; }
     public void setReferenceNo(String referenceNo) { this.referenceNo = referenceNo; }
+    public LocalDate getPoDate() { return poDate; }
+    public void setPoDate(LocalDate poDate) { this.poDate = poDate; }
+    public String getBillingAddress() { return billingAddress == null ? "" : billingAddress; }
+    public void setBillingAddress(String billingAddress) { this.billingAddress = billingAddress; }
+    public String getGstType() { return gstType == null ? "" : gstType; }
+    public void setGstType(String gstType) { this.gstType = gstType; }
+    public String getDoorDelivery() { return doorDelivery == null ? "" : doorDelivery; }
+    public void setDoorDelivery(String doorDelivery) { this.doorDelivery = doorDelivery; }
+    public String getVehicleNumber() { return vehicleNumber == null ? "" : vehicleNumber; }
+    public void setVehicleNumber(String vehicleNumber) { this.vehicleNumber = vehicleNumber; }
+    public String getContactPerson() { return contactPerson == null ? "" : contactPerson; }
+    public void setContactPerson(String contactPerson) { this.contactPerson = contactPerson; }
+    public String getTransportNote() { return transportNote == null ? "" : transportNote; }
+    public void setTransportNote(String transportNote) { this.transportNote = transportNote; }
+    public String getOrderNo() { return orderNo == null ? "" : orderNo; }
+    public void setOrderNo(String orderNo) { this.orderNo = orderNo; }
+    public String getGstin() { return gstin == null ? "" : gstin; }
+    public void setGstin(String gstin) { this.gstin = gstin; }
+    public String getChargeType() { return chargeType == null ? "" : chargeType; }
+    public void setChargeType(String chargeType) { this.chargeType = chargeType; }
+    public double getChargeAmount() { return chargeAmount; }
+    public void setChargeAmount(double chargeAmount) { this.chargeAmount = Math.max(0, chargeAmount); }
+    public String getContactPersonMobile() { return contactPersonMobile == null ? "" : contactPersonMobile; }
+    public void setContactPersonMobile(String contactPersonMobile) { this.contactPersonMobile = contactPersonMobile; }
+    public String getDocumentStatus() { return documentStatus == null || documentStatus.isBlank() ? "PENDING" : documentStatus; }
+    public void setDocumentStatus(String documentStatus) { this.documentStatus = documentStatus; }
 
 
 

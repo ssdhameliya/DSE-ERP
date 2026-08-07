@@ -33,6 +33,11 @@ public class SalesService {
         return dao.nextInvoiceNo();
     }
 
+    /** Master-driven Order No. used by Create Sale. */
+    public String nextOrderNo() {
+        return dao.nextOrderNo();
+    }
+
 
     /**
      * Sales Register
@@ -51,18 +56,14 @@ public class SalesService {
 
 
     /**
-     * Delete Sale
+     * Soft-delete a sale. The invoice and lines remain for audit; stock is restored once.
      */
     public void delete(String invoiceNo) {
-        Sales document = dao.getByInvoice(invoiceNo);
-        if (document == null) throw new IllegalArgumentException("Sales document not found: " + invoiceNo);
-        String paymentStatus = document.getPaymentStatus() == null ? "" : document.getPaymentStatus().trim().toUpperCase();
-        boolean financiallyLocked = document.getPaidAmount() > 0.0001
-            || paymentStatus.equals("PAID") || paymentStatus.equals("SETTLED") || paymentStatus.equals("PARTIAL");
-        if (financiallyLocked) {
-            throw new IllegalStateException("Paid, partially paid, or settled sales documents cannot be deleted. Use the return/reversal workflow.");
-        }
         dao.delete(invoiceNo);
+    }
+
+    public void cancel(String invoiceNo) {
+        dao.cancel(invoiceNo);
     }
 
 

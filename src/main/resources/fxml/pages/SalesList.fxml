@@ -134,7 +134,6 @@
                 <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colWhatsapp" text="WhatsApp" prefWidth="82" minWidth="76" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colAction" text="Actions" prefWidth="72" minWidth="68" maxWidth="76" styleClass="approved-table-column"/>
               </columns>
             </TableView>
@@ -179,28 +178,56 @@
         <VBox fx:id="detailDrawer" spacing="12" prefWidth="318" minWidth="300" maxWidth="330" styleClass="detail-drawer,sales-detail-drawer">
           <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
           <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
-          <Label fx:id="lblDetailInvoice" styleClass="drawer-document"/>
+          <Label fx:id="lblDetailInvoice" styleClass="drawer-document,sales-detail-invoice"/>
           <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>
           <Separator/>
           <Label text="Customer" styleClass="drawer-section"/>
-          <Label fx:id="lblDetailCustomer" styleClass="drawer-customer"/>
-          <Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text"/>
+          <Label fx:id="lblDetailCustomer" styleClass="drawer-customer,sales-detail-customer"/>
+          <Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text,sales-detail-contact"/>
           <Separator/>
           <GridPane hgap="12" vgap="8">
+            <columnConstraints>
+              <ColumnConstraints percentWidth="42"/>
+              <ColumnConstraints percentWidth="58"/>
+            </columnConstraints>
             <Label text="Invoice Amount"/><Label fx:id="lblDetailAmount" GridPane.columnIndex="1" styleClass="drawer-money"/>
             <Label text="Paid Amount" GridPane.rowIndex="1"/><Label fx:id="lblDetailPaid" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="summary-paid"/>
             <Label text="Balance" GridPane.rowIndex="2"/><Label fx:id="lblDetailBalance" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="summary-balance"/>
             <Label text="Due Date" GridPane.rowIndex="3"/><Label fx:id="lblDetailDue" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+            <Label text="Charges" GridPane.rowIndex="4" styleClass="sales-detail-charge-label"/>
+            <Label fx:id="lblDetailCharges" text="Not Applicable" GridPane.rowIndex="4" GridPane.columnIndex="1"
+                   wrapText="true" styleClass="sales-detail-charge-value"/>
           </GridPane>
           <Separator/>
-          <Label text="Notes / Remarks" styleClass="drawer-section"/>
-          <TextArea fx:id="txtDetailNotes" prefRowCount="5" wrapText="true" styleClass="approved-input"/>
-          <Button text="Save Notes" onAction="#saveSelectedNotes" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+          <Label text="Tax &amp; Transport" styleClass="drawer-section,sales-detail-transport-title"/>
+          <GridPane hgap="10" vgap="6" styleClass="sales-detail-transport-grid">
+            <columnConstraints>
+              <ColumnConstraints percentWidth="42"/>
+              <ColumnConstraints percentWidth="58"/>
+            </columnConstraints>
+            <Label text="GST Type"/><Label fx:id="lblDetailGstType" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="GSTIN" GridPane.rowIndex="1"/><Label fx:id="lblDetailGstin" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
+            <Label text="Transporter" GridPane.rowIndex="2"/><Label fx:id="lblDetailTransporter" GridPane.rowIndex="2" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
+            <Label text="Door Delivery" GridPane.rowIndex="3"/><Label fx:id="lblDetailDoorDelivery" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="Vehicle No." GridPane.rowIndex="4"/><Label fx:id="lblDetailVehicle" GridPane.rowIndex="4" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="Contact Person" GridPane.rowIndex="5"/><Label fx:id="lblDetailContactPerson" GridPane.rowIndex="5" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
+            <Label text="Contact Mobile" GridPane.rowIndex="6"/><Label fx:id="lblDetailContactMobile" GridPane.rowIndex="6" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+          </GridPane>
           <Separator/>
-          <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
-          <Button text="Send WhatsApp" onAction="#whatsappSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
-          <Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
-          <Button text="Send Reminder" onAction="#remindSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+          <GridPane hgap="8" vgap="8" styleClass="sales-detail-action-grid">
+            <columnConstraints>
+              <ColumnConstraints percentWidth="50"/>
+              <ColumnConstraints percentWidth="50"/>
+            </columnConstraints>
+            <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity"
+                    styleClass="approved-button,approved-primary-button"/>
+            <Button text="Edit Sale" onAction="#editSelectedSale" maxWidth="Infinity" GridPane.columnIndex="1"
+                    styleClass="approved-button,approved-primary-button,sales-detail-edit-button"/>
+            <Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity" GridPane.rowIndex="1"
+                    styleClass="approved-button,approved-primary-button"/>
+            <Button text="Send Reminder" onAction="#remindSelected" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1"
+                    styleClass="approved-button,approved-primary-button"/>
+          </GridPane>
           <Region VBox.vgrow="ALWAYS"/>
           <PieChart fx:id="dueChart" visible="false" managed="false"/>
           <BarChart fx:id="customerChart" visible="false" managed="false"><xAxis><NumberAxis/></xAxis><yAxis><CategoryAxis/></yAxis></BarChart>

@@ -388,6 +388,19 @@ public class DatabaseManager {
         addColumnIfMissing("sales_header", "reference_no", "TEXT");
         addColumnIfMissing("sales_header", "attachment_path", "TEXT");
         addColumnIfMissing("sales_header", "document_status", "TEXT NOT NULL DEFAULT 'COMPLETED'");
+        addColumnIfMissing("sales_header", "po_date", "TEXT");
+        addColumnIfMissing("sales_header", "billing_address", "TEXT");
+        addColumnIfMissing("sales_header", "gst_type", "TEXT");
+        addColumnIfMissing("sales_header", "door_delivery", "TEXT");
+        addColumnIfMissing("sales_header", "vehicle_number", "TEXT");
+        addColumnIfMissing("sales_header", "contact_person", "TEXT");
+        addColumnIfMissing("sales_header", "transport_note", "TEXT");
+        addColumnIfMissing("sales_header", "order_no", "TEXT");
+        addColumnIfMissing("sales_header", "gstin", "TEXT");
+        addColumnIfMissing("sales_header", "charge_type", "TEXT");
+        addColumnIfMissing("sales_header", "charge_amount", "REAL NOT NULL DEFAULT 0");
+        addColumnIfMissing("sales_header", "contact_person_mobile", "TEXT");
+        createTable("CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_header_order_no ON sales_header(order_no) WHERE order_no IS NOT NULL AND TRIM(order_no) <> '';");
         addColumnIfMissing("purchase_header", "due_date", "TEXT");
         addColumnIfMissing("purchase_header", "paid_amount", "REAL NOT NULL DEFAULT 0");
         addColumnIfMissing("purchase_header", "payment_status", "TEXT NOT NULL DEFAULT 'PENDING'");
@@ -863,5 +876,48 @@ public class DatabaseManager {
             ex.printStackTrace();
         }
         createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('DISCOUNT','DISCOUNT','Default item discount percentages',60,1)");
+        // Stable category codes let business screens keep working even when users rename the visible master category.
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('GST_TYPE','GST TYPE','Sales tax treatment used by Create Sale',70,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('TRANSPORTER','TRANSPORTER','Transporter master used by Create Sale',80,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('PO_DATE_FORMAT','PO DATE FORMATE','Order number pattern used by Create Sale',90,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('PAYMENT_TERMS','PAYMENT TERMS','Payment terms used by Create Sale',100,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('CHARGES','CHARGES','Additional sale charges used by Create Sale',110,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('SALES_INVOICE_FORMAT','SALES INVOICE FORMAT','Sales invoice numbering pattern used by Create Sale',120,1)");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='PO_DATE_FORMAT'),'POFMT001','PO/DD-MM-YYYY/XXXX','Auto-generated order number format',10,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='POFMT001')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='GST_TYPE'),'GSTT001','GST','Intra-state GST',10,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='GSTT001')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='GST_TYPE'),'GSTT002','IGST','Inter-state GST',20,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='GSTT002')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='PAYMENT_TERMS'),'PAY001','Due on Receipt','Immediate payment',10,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='PAY001')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='PAYMENT_TERMS'),'PAY002','7 Days','Payment due in 7 days',20,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='PAY002')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='PAYMENT_TERMS'),'PAY003','15 Days','Payment due in 15 days',30,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='PAY003')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='PAYMENT_TERMS'),'PAY004','30 Days','Payment due in 30 days',40,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='PAY004')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='PAYMENT_TERMS'),'PAY005','45 Days','Payment due in 45 days',50,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='PAY005')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='CHARGES'),'CHG001','Freight','Freight / transport charges',10,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='CHG001')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='CHARGES'),'CHG002','Packing & Forwarding','Packing and forwarding charges',20,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='CHG002')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='CHARGES'),'CHG003','Handling','Handling charges',30,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='CHG003')");
+        createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT (SELECT category_name FROM master_category WHERE category_code='SALES_INVOICE_FORMAT'),'SIFMT001','IN/DD-MM-YYYY/XXXX','Auto-generated sales invoice number format',10,1 " +
+            "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='SIFMT001')");
     }
 }

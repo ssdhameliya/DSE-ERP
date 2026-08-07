@@ -5856,3 +5856,97 @@ TABLE ACTION BUTTONS
     -fx-opacity: 1;
     -fx-padding: 0 4 0 2;
 }
+
+
+/* v3.0.11 Create Sale + Sales Register refinements */
+.sales-entry-page .sales-entry-delivery-area {
+    -fx-control-inner-background: #162b45;
+    -fx-background-color: #162b45;
+    -fx-border-color: #2f6da3;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+}
+.sales-entry-page .sales-entry-same-address {
+    -fx-text-fill: #77c7ff;
+    -fx-font-weight: 700;
+}
+.sales-entry-page .sales-entry-order-field {
+    -fx-text-fill: #d4b0ff;
+    -fx-font-weight: 800;
+    -fx-border-color: #7146b8;
+}
+.sales-entry-page .sales-entry-transport-card {
+    -fx-border-color: #2a7185;
+    -fx-background-color: rgba(18, 55, 68, 0.35);
+}
+.sales-entry-page .sales-entry-section-transport {
+    -fx-text-fill: #6ce2d9;
+}
+.sales-entry-page .sales-entry-tax-input,
+.sales-entry-page .sales-entry-gstin-input {
+    -fx-border-color: #277f72;
+}
+.sales-detail-invoice {
+    -fx-font-size: 18px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #ffffff;
+}
+.sales-detail-customer {
+    -fx-font-size: 15px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #7ec8ff;
+}
+.sales-detail-contact {
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #55e0c3;
+}
+.sales-detail-edit-button {
+    -fx-background-color: linear-gradient(to right, #6d45d8, #2478ed);
+    -fx-text-fill: white;
+    -fx-font-weight: 800;
+}
+
+
+/* v3.0.11 Create Sale final polish */
+.sales-entry-charge-type, .sales-entry-charge-amount {
+    -fx-border-color: #7c3aed;
+    -fx-border-radius: 7;
+}
+.sales-summary-charges {
+    -fx-background-color: rgba(124, 58, 237, 0.16);
+    -fx-background-radius: 7;
+}
+.sales-summary-charges-value, .sales-detail-charge-value {
+    -fx-text-fill: #c4b5fd;
+    -fx-font-weight: bold;
+}
+.sales-detail-charge-label {
+    -fx-text-fill: #fbbf24;
+    -fx-font-weight: bold;
+}
+.sales-entry-door-delivery {
+    -fx-border-color: #14b8a6;
+    -fx-border-radius: 7;
+}
+
+
+.sales-entry-summary-caption-charges {
+    -fx-background-color: rgba(255, 153, 51, 0.18);
+    -fx-text-fill: #ffb347;
+    -fx-background-radius: 10;
+    -fx-padding: 4 9 4 9;
+    -fx-font-weight: bold;
+}
+.sales-entry-summary-charges {
+    -fx-text-fill: #ffb347;
+    -fx-font-weight: bold;
+}
+.sales-detail-transport-title {
+    -fx-text-fill: #59e6d1;
+    -fx-font-weight: bold;
+}
+.sales-detail-meta-value {
+    -fx-text-fill: #7edff2;
+    -fx-font-weight: bold;
+}

@@ -39,11 +39,24 @@ public class SalesDAO {
                 delivery_address,
                 payment_terms,
                 transporter,
-                reference_no
+                reference_no,
+                po_date,
+                billing_address,
+                gst_type,
+                door_delivery,
+                vehicle_number,
+                contact_person,
+                transport_note,
+                order_no,
+                gstin,
+                charge_type,
+                charge_amount,
+                contact_person_mobile,
+                document_status
             )
             VALUES
             (
-                ?,?,?,?,?,?,?,?,datetime('now'),0,?,?,?,?,?,?,?
+                ?,?,?,?,?,?,?,?,datetime('now'),0,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'PENDING'
             )
             """;
 
@@ -85,6 +98,9 @@ public class SalesDAO {
             // insert so a new sale never attempts to reuse an existing invoice number.
             if (invoiceNumberExists(con, sales.getInvoiceNo())) {
                 sales.setInvoiceNo(nextInvoiceNo(con));
+            }
+            if (sales.getOrderNo() == null || sales.getOrderNo().isBlank() || orderNumberExists(con, sales.getOrderNo())) {
+                sales.setOrderNo(nextOrderNo(con));
             }
 
             try(
@@ -150,6 +166,18 @@ public class SalesDAO {
                 headerPs.setString(13, sales.getPaymentTerms());
                 headerPs.setString(14, sales.getTransporter());
                 headerPs.setString(15, sales.getReferenceNo());
+                headerPs.setString(16, sales.getPoDate() == null ? null : sales.getPoDate().toString());
+                headerPs.setString(17, sales.getBillingAddress());
+                headerPs.setString(18, sales.getGstType());
+                headerPs.setString(19, sales.getDoorDelivery());
+                headerPs.setString(20, sales.getVehicleNumber());
+                headerPs.setString(21, sales.getContactPerson());
+                headerPs.setString(22, sales.getTransportNote());
+                headerPs.setString(23, sales.getOrderNo());
+                headerPs.setString(24, sales.getGstin());
+                headerPs.setString(25, sales.getChargeType());
+                headerPs.setDouble(26, sales.getChargeAmount());
+                headerPs.setString(27, sales.getContactPersonMobile());
 
                 headerPs.executeUpdate();
 
@@ -269,7 +297,7 @@ public class SalesDAO {
                 pm.name,
                 pm.email,
                 pm.phone,
-                pm.gstin,
+                pm.gstin AS party_gstin,
                 COALESCE(SUM(sl.quantity),0) AS total_qty
             FROM sales_header sh
             LEFT JOIN party_master pm
@@ -329,7 +357,7 @@ public class SalesDAO {
                     rs.getString("email")
                 );
                 customer.setPhone(rs.getString("phone"));
-                customer.setGstin(rs.getString("gstin"));
+                customer.setGstin(rs.getString("party_gstin"));
 
                 sale.setCustomer(customer);
 
@@ -366,6 +394,7 @@ public class SalesDAO {
                 sale.setDueDate(dueDate == null || dueDate.isBlank() ? null : LocalDate.parse(dueDate));
                 sale.setPaidAmount(rs.getDouble("paid_amount"));
                 sale.setPaymentStatus(rs.getString("payment_status"));
+                sale.setDocumentStatus(rs.getString("document_status"));
                 sale.setWhatsappSent(rs.getInt("whatsapp_sent") == 1);
                 sale.setInvoiceType(rs.getString("invoice_type"));
                 sale.setSalesperson(rs.getString("salesperson"));
@@ -375,6 +404,19 @@ public class SalesDAO {
                 sale.setPaymentTerms(rs.getString("payment_terms"));
                 sale.setTransporter(rs.getString("transporter"));
                 sale.setReferenceNo(rs.getString("reference_no"));
+                String poDate = rs.getString("po_date");
+                sale.setPoDate(poDate == null || poDate.isBlank() ? null : LocalDate.parse(poDate));
+                sale.setBillingAddress(rs.getString("billing_address"));
+                sale.setGstType(rs.getString("gst_type"));
+                sale.setDoorDelivery(rs.getString("door_delivery"));
+                sale.setVehicleNumber(rs.getString("vehicle_number"));
+                sale.setContactPerson(rs.getString("contact_person"));
+                sale.setTransportNote(rs.getString("transport_note"));
+                sale.setOrderNo(rs.getString("order_no"));
+                sale.setGstin(rs.getString("gstin"));
+                sale.setChargeType(rs.getString("charge_type"));
+                sale.setChargeAmount(rs.getDouble("charge_amount"));
+                sale.setContactPersonMobile(rs.getString("contact_person_mobile"));
 
                 sales.add(sale);
 
@@ -400,6 +442,88 @@ public class SalesDAO {
 // NEXT SALES INVOICE
 //====================================================
 
+
+    /**
+     * Generates the next Order No. from the master-driven PO DATE FORMATE pattern.
+     * The visible master category can be renamed because the stable category code
+     * PO_DATE_FORMAT is used to resolve the configured format.
+     */
+    public String nextOrderNo() {
+        try (Connection con = DatabaseManager.getConnection()) {
+            return nextOrderNo(con);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to generate Order No.", e);
+        }
+    }
+
+    private String nextOrderNo(Connection con) throws SQLException {
+        String format = "PO/DD-MM-YYYY/XXXX";
+        String sql = """
+            SELECT lm.lookup_value
+            FROM lookup_master lm
+            JOIN master_category mc ON mc.category_name = lm.lookup_type
+            WHERE mc.category_code = 'PO_DATE_FORMAT'
+              AND mc.is_active = 1
+              AND lm.is_active = 1
+            ORDER BY lm.display_order, lm.id
+            LIMIT 1
+            """;
+        try (PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next() && rs.getString(1) != null && !rs.getString(1).isBlank()) {
+                format = rs.getString(1).trim();
+            }
+        }
+
+        LocalDate today = LocalDate.now();
+        String dated = format
+            .replace("DD-MM-YYYY", today.format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy")))
+            .replace("DD/MM/YYYY", today.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+            .replace("YYYY-MM-DD", today.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+
+        java.util.regex.Matcher token = java.util.regex.Pattern.compile("X{2,}").matcher(dated);
+        if (!token.find()) {
+            // A format without a sequence token still gets a safe sequence suffix.
+            dated = dated + "/XXXX";
+            token = java.util.regex.Pattern.compile("X{2,}").matcher(dated);
+            token.find();
+        }
+        int width = token.end() - token.start();
+        String prefix = dated.substring(0, token.start());
+        String suffix = dated.substring(token.end());
+
+        int max = 0;
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT order_no FROM sales_header WHERE order_no IS NOT NULL AND order_no LIKE ?")) {
+            ps.setString(1, prefix + "%" + suffix);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String existing = rs.getString(1);
+                    if (existing == null || !existing.startsWith(prefix) || !existing.endsWith(suffix)) continue;
+                    int end = existing.length() - suffix.length();
+                    if (end < prefix.length()) continue;
+                    String seq = existing.substring(prefix.length(), end);
+                    try { max = Math.max(max, Integer.parseInt(seq)); } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        int next = max + 1;
+        String candidate;
+        do {
+            candidate = prefix + String.format(java.util.Locale.ROOT, "%0" + width + "d", next++) + suffix;
+        } while (orderNumberExists(con, candidate));
+        return candidate;
+    }
+
+    private boolean orderNumberExists(Connection con, String orderNo) throws SQLException {
+        if (orderNo == null || orderNo.isBlank()) return false;
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT 1 FROM sales_header WHERE TRIM(UPPER(order_no))=TRIM(UPPER(?)) LIMIT 1")) {
+            ps.setString(1, orderNo);
+            try (ResultSet rs = ps.executeQuery()) { return rs.next(); }
+        }
+    }
+
     public String nextInvoiceNo() {
         try (Connection con = DatabaseManager.getConnection()) {
             return nextInvoiceNo(con);
@@ -413,31 +537,64 @@ public class SalesDAO {
     }
 
     /**
-     * Finds the next free SAL sequence while ignoring imported document formats.
-     * The explicit existence loop also handles gaps and historical duplicate-like
-     * values safely without changing any existing invoice.
+     * Generates the next Sales Invoice No. from the master-driven SALES INVOICE FORMAT pattern.
+     * The visible master name can change; the stable category code keeps Create Sale working.
      */
     private String nextInvoiceNo(Connection con) throws SQLException {
-        int highest = 0;
-        try (PreparedStatement ps = con.prepareStatement(
-                "SELECT invoice_no FROM sales_header WHERE UPPER(invoice_no) LIKE 'SAL-%'");
+        String format = "IN/DD-MM-YYYY/XXXX";
+        String sql = """
+            SELECT lm.lookup_value
+            FROM lookup_master lm
+            JOIN master_category mc ON mc.category_name = lm.lookup_type
+            WHERE mc.category_code = 'SALES_INVOICE_FORMAT'
+              AND mc.is_active = 1
+              AND lm.is_active = 1
+            ORDER BY lm.display_order, lm.id
+            LIMIT 1
+            """;
+        try (PreparedStatement ps = con.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                String value = rs.getString(1);
-                if (value == null) continue;
-                String suffix = value.trim().substring(4);
-                if (!suffix.matches("\\d+")) continue;
-                try {
-                    highest = Math.max(highest, Integer.parseInt(suffix));
-                } catch (NumberFormatException ignored) {
-                    // Very large or malformed imported suffixes do not participate.
+            if (rs.next() && rs.getString(1) != null && !rs.getString(1).isBlank()) {
+                format = rs.getString(1).trim();
+            }
+        }
+
+        LocalDate today = LocalDate.now();
+        String dated = format
+            .replace("DD-MM-YYYY", today.format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy")))
+            .replace("DD/MM/YYYY", today.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+            .replace("YYYY-MM-DD", today.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+
+        java.util.regex.Matcher token = java.util.regex.Pattern.compile("X{2,}").matcher(dated);
+        if (!token.find()) {
+            dated = dated + "/XXXX";
+            token = java.util.regex.Pattern.compile("X{2,}").matcher(dated);
+            token.find();
+        }
+        int width = token.end() - token.start();
+        String prefix = dated.substring(0, token.start());
+        String suffix = dated.substring(token.end());
+
+        int max = 0;
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT invoice_no FROM sales_header WHERE invoice_no IS NOT NULL AND invoice_no LIKE ?")) {
+            ps.setString(1, prefix + "%" + suffix);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String existing = rs.getString(1);
+                    if (existing == null || !existing.startsWith(prefix) || !existing.endsWith(suffix)) continue;
+                    int end = existing.length() - suffix.length();
+                    if (end < prefix.length()) continue;
+                    String seq = existing.substring(prefix.length(), end);
+                    try { max = Math.max(max, Integer.parseInt(seq)); } catch (NumberFormatException ignored) {}
                 }
             }
         }
 
+        int next = max + 1;
         String candidate;
         do {
-            candidate = "SAL-" + String.format("%05d", ++highest);
+            candidate = prefix + String.format(java.util.Locale.ROOT, "%0" + width + "d", next++) + suffix;
         } while (invoiceNumberExists(con, candidate));
         return candidate;
     }
@@ -469,7 +626,7 @@ public class SalesDAO {
                 pm.name,
                 pm.email,
                 pm.phone,
-                pm.gstin
+                pm.gstin AS party_gstin
             FROM sales_header sh
             LEFT JOIN party_master pm
             ON sh.customer_id = pm.id
@@ -545,7 +702,7 @@ public class SalesDAO {
                     rs.getString("email")
                 );
                 customer.setPhone(rs.getString("phone"));
-                customer.setGstin(rs.getString("gstin"));
+                customer.setGstin(rs.getString("party_gstin"));
 
                 s.setCustomer(customer);
 
@@ -578,6 +735,7 @@ public class SalesDAO {
                 s.setDueDate(dueDate == null || dueDate.isBlank() ? null : LocalDate.parse(dueDate));
                 s.setPaidAmount(rs.getDouble("paid_amount"));
                 s.setPaymentStatus(rs.getString("payment_status"));
+                s.setDocumentStatus(rs.getString("document_status"));
                 s.setWhatsappSent(rs.getInt("whatsapp_sent") == 1);
                 s.setInvoiceType(rs.getString("invoice_type"));
                 s.setSalesperson(rs.getString("salesperson"));
@@ -587,6 +745,19 @@ public class SalesDAO {
                 s.setPaymentTerms(rs.getString("payment_terms"));
                 s.setTransporter(rs.getString("transporter"));
                 s.setReferenceNo(rs.getString("reference_no"));
+                String poDate = rs.getString("po_date");
+                s.setPoDate(poDate == null || poDate.isBlank() ? null : LocalDate.parse(poDate));
+                s.setBillingAddress(rs.getString("billing_address"));
+                s.setGstType(rs.getString("gst_type"));
+                s.setDoorDelivery(rs.getString("door_delivery"));
+                s.setVehicleNumber(rs.getString("vehicle_number"));
+                s.setContactPerson(rs.getString("contact_person"));
+                s.setTransportNote(rs.getString("transport_note"));
+                s.setOrderNo(rs.getString("order_no"));
+                s.setGstin(rs.getString("gstin"));
+                s.setChargeType(rs.getString("charge_type"));
+                s.setChargeAmount(rs.getDouble("charge_amount"));
+                s.setContactPersonMobile(rs.getString("contact_person_mobile"));
 
             }
 
@@ -681,7 +852,19 @@ public class SalesDAO {
                 delivery_address = ?,
                 payment_terms = ?,
                 transporter = ?,
-                reference_no = ?
+                reference_no = ?,
+                po_date = ?,
+                billing_address = ?,
+                gst_type = ?,
+                door_delivery = ?,
+                vehicle_number = ?,
+                contact_person = ?,
+                transport_note = ?,
+                order_no = ?,
+                gstin = ?,
+                charge_type = ?,
+                charge_amount = ?,
+                contact_person_mobile = ?
             WHERE id = ?
             """;
 
@@ -790,9 +973,21 @@ public class SalesDAO {
                 updatePs.setString(12, sales.getPaymentTerms());
                 updatePs.setString(13, sales.getTransporter());
                 updatePs.setString(14, sales.getReferenceNo());
+                updatePs.setString(15, sales.getPoDate() == null ? null : sales.getPoDate().toString());
+                updatePs.setString(16, sales.getBillingAddress());
+                updatePs.setString(17, sales.getGstType());
+                updatePs.setString(18, sales.getDoorDelivery());
+                updatePs.setString(19, sales.getVehicleNumber());
+                updatePs.setString(20, sales.getContactPerson());
+                updatePs.setString(21, sales.getTransportNote());
+                updatePs.setString(22, sales.getOrderNo());
+                updatePs.setString(23, sales.getGstin());
+                updatePs.setString(24, sales.getChargeType());
+                updatePs.setDouble(25, sales.getChargeAmount());
+                updatePs.setString(26, sales.getContactPersonMobile());
 
                 updatePs.setInt(
-                    15,
+                    27,
                     sales.getId()
                 );
 
@@ -885,93 +1080,68 @@ public class SalesDAO {
     }
 
     public void delete(String invoiceNo) {
+        changeDocumentStatusAndRestoreStock(invoiceNo, "DELETED");
+    }
 
-        String restoreStock =
-            """
-            UPDATE item_master
-            SET opening_stock = COALESCE(opening_stock, 0) +
-                COALESCE((SELECT SUM(sl.quantity)
-                          FROM sales_line sl JOIN sales_header sh ON sh.id = sl.sales_id
-                          WHERE sh.invoice_no = ? AND sl.item_code = item_master.item_code), 0)
-            WHERE item_code IN (
-                SELECT sl.item_code FROM sales_line sl
-                JOIN sales_header sh ON sh.id = sl.sales_id WHERE sh.invoice_no = ?)
-            """;
+    public void cancel(String invoiceNo) {
+        changeDocumentStatusAndRestoreStock(invoiceNo, "CANCELLED");
+    }
 
-        String deleteLines =
-            """
-            DELETE FROM sales_line
-            WHERE sales_id =
-            (
-                SELECT id
-                FROM sales_header
-                WHERE invoice_no = ?
-            )
-            """;
-
-        String deleteHeader =
-            """
-            DELETE FROM sales_header
-            WHERE invoice_no = ?
-            """;
-
-        try(Connection con =
-                DatabaseManager.getConnection()) {
-
+    private void changeDocumentStatusAndRestoreStock(String invoiceNo, String targetStatus) {
+        try (Connection con = DatabaseManager.getConnection()) {
             con.setAutoCommit(false);
+            try {
+                int salesId;
+                String currentStatus;
+                try (PreparedStatement header = con.prepareStatement(
+                        "SELECT id, COALESCE(document_status,'PENDING') FROM sales_header WHERE invoice_no=?")) {
+                    header.setString(1, invoiceNo);
+                    try (ResultSet rs = header.executeQuery()) {
+                        if (!rs.next()) throw new IllegalArgumentException("Sales document not found: " + invoiceNo);
+                        salesId = rs.getInt(1);
+                        currentStatus = rs.getString(2);
+                    }
+                }
 
-            try(
+                if ("CANCELLED".equalsIgnoreCase(currentStatus) || "DELETED".equalsIgnoreCase(currentStatus)) {
+                    if (targetStatus.equalsIgnoreCase(currentStatus)) {
+                        con.rollback();
+                        return;
+                    }
+                    // Stock was already restored by the earlier terminal action; only change the status.
+                } else {
+                    try (PreparedStatement lines = con.prepareStatement(
+                            "SELECT item_code, quantity FROM sales_line WHERE sales_id=?");
+                         PreparedStatement stock = con.prepareStatement(
+                            "UPDATE item_master SET opening_stock=COALESCE(opening_stock,0)+? WHERE item_code=?")) {
+                        lines.setInt(1, salesId);
+                        try (ResultSet rs = lines.executeQuery()) {
+                            while (rs.next()) {
+                                stock.setDouble(1, rs.getDouble("quantity"));
+                                stock.setString(2, rs.getString("item_code"));
+                                stock.addBatch();
+                            }
+                        }
+                        stock.executeBatch();
+                    }
+                }
 
-                PreparedStatement stockPs =
-                    con.prepareStatement(restoreStock);
-
-                PreparedStatement ps1 =
-                    con.prepareStatement(deleteLines);
-
-                PreparedStatement ps2 =
-                    con.prepareStatement(deleteHeader)
-
-            ){
-
-                stockPs.setString(1, invoiceNo);
-                stockPs.setString(2, invoiceNo);
-                stockPs.executeUpdate();
-
-                ps1.setString(
-                    1,
-                    invoiceNo
-                );
-
-                ps1.executeUpdate();
-
-                ps2.setString(
-                    1,
-                    invoiceNo
-                );
-
-                ps2.executeUpdate();
-
+                try (PreparedStatement update = con.prepareStatement(
+                        "UPDATE sales_header SET document_status=?, payment_status=? WHERE id=?")) {
+                    update.setString(1, targetStatus);
+                    update.setString(2, targetStatus);
+                    update.setInt(3, salesId);
+                    update.executeUpdate();
+                }
                 con.commit();
-
-            }
-            catch(Exception e){
-
+            } catch (Exception e) {
                 con.rollback();
-
                 throw e;
-
             }
-
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to " + targetStatus.toLowerCase(java.util.Locale.ROOT)
+                + " sales document " + invoiceNo, e);
         }
-        catch(Exception e){
-
-            throw new RuntimeException(
-                "Unable to delete sales.",
-                e
-            );
-
-        }
-
     }
 
     public void markEmailSent(int salesId){
