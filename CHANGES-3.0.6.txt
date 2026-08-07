@@ -1,0 +1,11 @@
+DSE ERP 3.0.6
+
+Quotation enhancements:
+- GST and discount are numeric text fields.
+- GST and discount auto-populate from item_master after item selection.
+- Removed quotation item summary/footer controls.
+- Added semantic icons to all item table headers.
+- Made quotation detail values larger, bold, and visually highlighted.
+- Improved mobile/contact visibility and removed the redundant bottom Close Details button.
+- Prevented deletion of ACCEPTED quotations.
+- Quotation number generation now scans existing numbers and always advances to an unused number, even after deletions.

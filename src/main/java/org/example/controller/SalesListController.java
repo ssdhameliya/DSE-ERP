@@ -210,7 +210,7 @@ public class SalesListController implements ScreenLifecycle {
 
     private void configurePaging(){cmbPageSize.getItems().setAll(10,25,50,100);cmbPageSize.setValue(25);cmbPageSize.valueProperty().addListener((o,a,b)->{currentPage=0;renderPage();});}
     private void configureActions(){
-        colAction.setMinWidth(118);colAction.setPrefWidth(118);colAction.setMaxWidth(118);
+        colAction.setMinWidth(68);colAction.setPrefWidth(72);colAction.setMaxWidth(76);
         colAction.setCellFactory(c->new TableCell<>(){final MenuButton menu=new MenuButton();{
             menu.getProperties().put("erp.icon.semantic", "actions");
             menu.setGraphic(IconFactory.compactIcon("actions",15));
@@ -260,7 +260,7 @@ public class SalesListController implements ScreenLifecycle {
     }
     @Override public void onScreenHidden(){UiTaskExecutor.cancel("sales-register-load");}
 
-    private void showDetails(Sales sale){selected=sale;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.78);lblDetailInvoice.setText(sale.getInvoiceNo());lblDetailDate.setText(sale.getInvoiceDate().format(dateFormat));lblDetailStatus.setText(sale.getPaymentStatus());lblDetailCustomer.setText(sale.getCustomer().getName());lblDetailContact.setText(safe(sale.getCustomer().getPhone())+"\n"+safe(sale.getCustomer().getEmail())+"\n"+safe(sale.getCustomer().getGstin()));lblDetailAmount.setText(money(sale.getTotalAmount()));lblDetailPaid.setText(money(sale.getPaidAmount()));lblDetailBalance.setText(money(sale.getBalanceAmount()));lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(dateFormat)+" • "+dueLabel(sale));txtDetailNotes.setText(sale.getNotes());}
+    private void showDetails(Sales sale){selected=sale;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.81);lblDetailInvoice.setText(sale.getInvoiceNo());lblDetailDate.setText(sale.getInvoiceDate().format(dateFormat));lblDetailStatus.setText(sale.getPaymentStatus());lblDetailCustomer.setText(sale.getCustomer().getName());lblDetailContact.setText(safe(sale.getCustomer().getPhone())+"\n"+safe(sale.getCustomer().getEmail())+"\n"+safe(sale.getCustomer().getGstin()));lblDetailAmount.setText(money(sale.getTotalAmount()));lblDetailPaid.setText(money(sale.getPaidAmount()));lblDetailBalance.setText(money(sale.getBalanceAmount()));lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(dateFormat)+" • "+dueLabel(sale));txtDetailNotes.setText(sale.getNotes());}
     @FXML private void closeDetails(){selected=null;detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1);tableSales.getSelectionModel().clearSelection();}
     private Sales requireSelected(){if(selected==null){warning("Select an invoice first.");return null;}return selected;}
     @FXML private void emailSelected(){Sales s=requireSelected();if(s!=null)sendEmail(s);}@FXML private void whatsappSelected(){Sales s=requireSelected();if(s!=null)sendWhatsapp(s);}@FXML private void recordSelectedPayment(){Sales s=requireSelected();if(s!=null)openPayment(s);}@FXML private void remindSelected(){Sales s=requireSelected();if(s!=null)createReminder(s);}

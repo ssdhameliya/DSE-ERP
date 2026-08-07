@@ -68,7 +68,7 @@
   </top>
 
   <center>
-    <SplitPane fx:id="mainSplit" dividerPositions="0.78" styleClass="register-split,sales-register-split">
+    <SplitPane fx:id="mainSplit" dividerPositions="0.81" styleClass="register-split,sales-register-split">
       <items>
         <VBox spacing="12" styleClass="register-workspace,sales-register-workspace">
           <padding><Insets top="0" right="18" bottom="14" left="18"/></padding>
@@ -123,19 +123,19 @@
           <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
             <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,erp-table-profile-register">
               <columns>
-                <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="125" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colDate" text="Date" prefWidth="92" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="155" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colMobile" text="Mobile" prefWidth="110" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colGstin" text="GSTIN" prefWidth="135" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colTotal" text="Amount" prefWidth="105" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colPaid" text="Paid" prefWidth="100" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colBalance" text="Balance" prefWidth="100" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colDue" text="Payment Due" prefWidth="120" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colStatus" text="Document Status" prefWidth="115" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colMail" text="Email" prefWidth="75" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colWhatsapp" text="WhatsApp" prefWidth="85" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="58" minWidth="54" maxWidth="62" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="98" minWidth="88" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDate" text="Date" prefWidth="82" minWidth="76" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="128" minWidth="110" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMobile" text="Mobile" prefWidth="92" minWidth="84" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colGstin" text="GSTIN" prefWidth="112" minWidth="100" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colTotal" text="Amount" prefWidth="96" minWidth="88" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colPaid" text="Paid" prefWidth="82" minWidth="74" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colBalance" text="Balance" prefWidth="90" minWidth="82" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colWhatsapp" text="WhatsApp" prefWidth="82" minWidth="76" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colAction" text="Actions" prefWidth="72" minWidth="68" maxWidth="76" styleClass="approved-table-column"/>
               </columns>
             </TableView>
 
@@ -176,7 +176,7 @@
           </VBox>
         </VBox>
 
-        <VBox fx:id="detailDrawer" spacing="12" styleClass="detail-drawer">
+        <VBox fx:id="detailDrawer" spacing="12" prefWidth="318" minWidth="300" maxWidth="330" styleClass="detail-drawer,sales-detail-drawer">
           <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
           <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
           <Label fx:id="lblDetailInvoice" styleClass="drawer-document"/>

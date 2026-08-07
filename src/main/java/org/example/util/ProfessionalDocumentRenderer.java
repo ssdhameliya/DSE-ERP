@@ -86,6 +86,7 @@ public final class ProfessionalDocumentRenderer {
 
         normalizeTotals(data);
         Files.createDirectories(output.toAbsolutePath().getParent());
+        logo = configuredDocumentLogo(logo);
         Color accent = BLUE;
 
         try (PdfWriter writer = new PdfWriter(output.toFile());
@@ -101,11 +102,11 @@ public final class ProfessionalDocumentRenderer {
             // to the item table; the former GST/place-of-supply strip is omitted.
             document.add(spacer(4));
             document.add(referenceItems(data, accent, kind));
-            document.add(spacer(5));
             Table lowerArea = referenceLowerArea(data, accent, kind, pdf);
-            // Keep the final totals/payment block intact. If item rows consume the
-            // remaining space, iText moves this complete block to the next page.
-            if (kind == Kind.SALES_INVOICE) lowerArea.setKeepTogether(true);
+            // Allow the summary area to use the remaining first-page space instead
+            // of moving the entire lower section to a second page. The payment block
+            // itself remains compact and grouped inside the lower-area table.
+            lowerArea.setKeepTogether(false);
             document.add(lowerArea);
             document.add(spacer(4));
             document.add(referenceFooterBand(accent, kind));
@@ -133,13 +134,13 @@ public final class ProfessionalDocumentRenderer {
         outer.addCell(salesBrandCell(logo, accent));
 
         String heading = switch (kind) {
-            case SALES_INVOICE -> "SALES INVOICE";
-            case PURCHASE_INVOICE -> "PURCHASE INVOICE";
+            case SALES_INVOICE -> "TAX INVOICE";
+            case PURCHASE_INVOICE -> "TAX INVOICE";
             case QUOTATION -> "QUOTATION";
             case SALES_REFUND -> "SALES RETURN / CREDIT NOTE";
             case PURCHASE_REFUND -> "PURCHASE RETURN NOTE";
         };
-        Cell identity = new Cell().setBorder(Border.NO_BORDER).setPadding(5).setMinHeight(112)
+        Cell identity = new Cell().setBorder(Border.NO_BORDER).setPadding(4).setMinHeight(98)
             .setTextAlignment(TextAlignment.RIGHT);
         identity.add(new Paragraph(heading).setBold().setFontSize(kind == Kind.SALES_REFUND ? 14 : 17)
             .setFontColor(INK).setMargin(0));
@@ -215,6 +216,23 @@ public final class ProfessionalDocumentRenderer {
         addPdfIconLine(brand, "website.png", config("company.website", ""), accent, false);
         addAlignedGstinLine(brand, config("company.gstin", ""), accent, true);
         return brand;
+    }
+
+    /**
+     * Resolves the Company & Billing logo saved by Settings. The method keeps the
+     * caller-provided/bundled logo only as a safe fallback for older installations.
+     */
+    private static Path configuredDocumentLogo(Path fallback) {
+        String configured = ConfigManager.get("company.logoPath", "").trim();
+        if (!configured.isBlank()) {
+            try {
+                Path path = Path.of(configured).toAbsolutePath().normalize();
+                if (Files.isRegularFile(path)) return path;
+            } catch (Exception ignored) {
+                // A stale setting must not prevent invoice generation.
+            }
+        }
+        return fallback;
     }
 
     /** Adds a configured logo without allowing a missing asset to break rendering. */
@@ -538,7 +556,7 @@ public final class ProfessionalDocumentRenderer {
         table.setKeepTogether(false);
         for (String header : headers) table.addHeaderCell(new Cell().add(new Paragraph(header).setBold().setFontSize(6.2f))
             .setFontColor(ColorConstants.WHITE).setBackgroundColor(accent).setTextAlignment(TextAlignment.CENTER)
-            .setVerticalAlignment(VerticalAlignment.MIDDLE).setPadding(4).setBorder(new SolidBorder(ColorConstants.WHITE,.3f)));
+            .setVerticalAlignment(VerticalAlignment.MIDDLE).setPadding(3).setBorder(new SolidBorder(ColorConstants.WHITE,.3f)));
         int index = 1;
         for (Line line : data.lines) {
             double taxable = line.quantity * line.rate - line.discount;
@@ -557,20 +575,37 @@ public final class ProfessionalDocumentRenderer {
             }
             for (int c = 0; c < values.size(); c++) table.addCell(new Cell()
                 .add(new Paragraph(values.get(c)).setFontSize(6.4f).setMargin(0))
-                .setPadding(5).setMinHeight(36).setVerticalAlignment(VerticalAlignment.MIDDLE)
+                .setPaddingTop(2).setPaddingBottom(2).setPaddingLeft(3).setPaddingRight(3)
+                .setMinHeight(18).setVerticalAlignment(VerticalAlignment.MIDDLE)
                 .setTextAlignment(c >= values.size()-5 && c != 2 ? TextAlignment.RIGHT : TextAlignment.LEFT)
                 .setBorder(new SolidBorder(kind == Kind.SALES_INVOICE ? PDF_LINE : new DeviceRgb(190,198,211),.45f)));
         }
-        // No decorative blank rows: the table height follows the actual item count.
-        // iText repeats the header automatically when real rows flow to another page.
+
+        // Keep a consistent item-section footprint for short documents. These are
+        // deliberately blank cells (not fake item records), so the bank/UPI/signature
+        // block remains near the bottom while users still get visible writing space.
+        int minimumVisibleRows = data.refund ? 3 : (kind == Kind.QUOTATION ? 5 : 4);
+        int blankRows = Math.max(0, minimumVisibleRows - data.lines.size());
+        for (int row = 0; row < blankRows; row++) {
+            for (int c = 0; c < headers.length; c++) {
+                table.addCell(new Cell().add(new Paragraph(" ").setFontSize(6.2f).setMargin(0))
+                    .setMinHeight(18).setPadding(2)
+                    .setBorder(new SolidBorder(kind == Kind.SALES_INVOICE ? PDF_LINE
+                        : new DeviceRgb(190,198,211), .45f)));
+            }
+        }
         return table;
     }
 
     /** Amount, terms, bank/QR/signature and return-specific summaries. */
     private static Table referenceLowerArea(Data data, Color accent, Kind kind, PdfDocument pdf) {
         if (data.refund) return referenceReturnLowerArea(data, accent, kind);
-        Table outer = new Table(UnitValue.createPercentArray(new float[]{56, 44})).useAllAvailableWidth();
-        Cell left = plainCell().setPaddingRight(7);
+        // Keep a deliberate gutter between the left narrative blocks and the
+        // right totals table so their borders never touch, while preserving the
+        // same outer left/right alignment as the item table.
+        Table outer = new Table(UnitValue.createPercentArray(new float[]{55, 2, 43}))
+            .useAllAvailableWidth().setMarginTop(5);
+        Cell left = plainCell().setPaddingRight(0).setPaddingTop(0);
         left.add(refIconSection("amount-words.png", "AMOUNT IN WORDS",
             amountWords(data.total) + " Only", accent, false));
         if (data.refund) {
@@ -588,6 +623,7 @@ public final class ProfessionalDocumentRenderer {
             }
         }
         outer.addCell(left);
+        outer.addCell(plainCell());
         Table totals = new Table(UnitValue.createPercentArray(new float[]{58,42})).useAllAvailableWidth();
         addTotal(totals, "Sub Total", data.subtotal, false, accent);
         addTotal(totals, "Taxable Amount", data.subtotal, false, accent);
@@ -597,26 +633,35 @@ public final class ProfessionalDocumentRenderer {
         addTotal(totals, cgst, data.gst/2, false, accent);
         addTotal(totals, sgst, data.gst/2, false, accent);
         addTotal(totals, data.refund ? "RETURN / REFUND AMOUNT" : kind == Kind.PURCHASE_INVOICE ? "TOTAL AMOUNT" : "GRAND TOTAL", data.total, true, accent);
-        Cell right = new Cell().add(totals).setBorder(Border.NO_BORDER).setPadding(0);
+        Cell right = new Cell().add(totals).setBorder(Border.NO_BORDER)
+            .setPaddingTop(0).setPaddingBottom(0).setPaddingLeft(0).setPaddingRight(0);
         if (data.refund) right.add(refSection("REFUND / DEBIT NOTE STATUS", present(data.status), accent));
         outer.addCell(right);
 
-        Cell full = new Cell(1,2).setBorder(new SolidBorder(PDF_LINE,.7f))
-            .setPadding(7).setMinHeight(88);
-        Table payment = new Table(UnitValue.createPercentArray(new float[]{40,20,40})).useAllAvailableWidth();
+        // Push the payment/branding strip toward the physical page bottom for
+        // short invoices. As item count grows the spacer collapses, allowing the
+        // strip to flow naturally to the next page only when it genuinely must.
+        float bottomGap = Math.max(0f, 66f - Math.max(0, data.lines.size() - 1) * 18f);
+        Cell bottomSpacer = new Cell(1, 3).setBorder(Border.NO_BORDER)
+            .setPadding(0).setHeight(bottomGap);
+        outer.addCell(bottomSpacer);
+
+        Cell full = new Cell(1,3).setBorder(new SolidBorder(PDF_LINE,.7f))
+            .setPadding(3).setMinHeight(52).setKeepTogether(true);
+        Table payment = new Table(UnitValue.createPercentArray(new float[]{42,20,38})).useAllAvailableWidth();
         Cell bank = plainCell();
         bank.setBorderRight(new SolidBorder(PDF_LINE, .65f));
         bank.add(sectionIconTitle("bank.png", "BANK DETAILS", accent));
-        bank.add(new Paragraph(bankText()).setFontSize(6.7f).setMultipliedLeading(1.2f)
-            .setMarginTop(3).setMarginBottom(0));
+        bank.add(new Paragraph(bankText()).setFontSize(5.8f).setMultipliedLeading(1.05f)
+            .setMarginTop(1).setMarginBottom(0));
         payment.addCell(bank);
         Cell qr = plainCell().setTextAlignment(TextAlignment.CENTER)
             .setVerticalAlignment(VerticalAlignment.MIDDLE);
         qr.setBorderRight(new SolidBorder(PDF_LINE, .65f));
         qr.add(new Paragraph("QR CODE").setBold().setFontColor(accent)
-            .setFontSize(7).setMargin(0));
-        qr.add(new Paragraph("Scan to make payment").setFontSize(5.8f)
-            .setFontColor(INK).setMarginTop(0).setMarginBottom(2));
+            .setFontSize(6.3f).setMargin(0));
+        qr.add(new Paragraph("Scan to make payment").setFontSize(5.1f)
+            .setFontColor(INK).setMarginTop(0).setMarginBottom(0));
         if (!data.refund) addConfiguredQr(qr, data, pdf);
         payment.addCell(qr);
         Cell sign = plainCell().setTextAlignment(TextAlignment.CENTER)
@@ -627,10 +672,11 @@ public final class ProfessionalDocumentRenderer {
             // The Settings screen permits either a handwritten signature or a
             // square company stamp. Preserve its aspect ratio and never replace
             // the user's configured asset merely because it is square.
-            sign.add(new Image(signatureData).setAutoScale(true).setMaxHeight(42).setMaxWidth(90)
+            sign.add(new Image(signatureData).setAutoScale(true).setMaxHeight(28).setMaxWidth(70)
                 .setHorizontalAlignment(HorizontalAlignment.CENTER));
         } catch (Exception ignored) {}
-        sign.add(new Paragraph(data.refund ? "Approved / Authorized Signatory" : "Authorized Signatory").setBold().setFontSize(7));
+        sign.add(new Paragraph(data.refund ? "Approved / Authorized Signatory" : "Authorized Signatory")
+            .setBold().setFontSize(6.4f).setMarginTop(0).setMarginBottom(0));
         payment.addCell(sign); full.add(payment); outer.addCell(full);
         return outer;
     }
@@ -687,12 +733,12 @@ public final class ProfessionalDocumentRenderer {
     /** Sales lower-section box with the reference icon positioned beside its title. */
     private static Table refIconSection(String iconName, String title, String body,
                                          Color accent, boolean terms) {
-        Table box = new Table(1).useAllAvailableWidth().setMarginBottom(4);
+        Table box = new Table(1).useAllAvailableWidth().setMarginBottom(3);
         box.addCell(new Cell().add(sectionIconTitle(iconName, title, accent))
-            .setPadding(3).setBorder(new SolidBorder(PDF_LINE, .6f)));
+            .setPadding(2.5f).setBorder(new SolidBorder(PDF_LINE, .6f)));
         box.addCell(new Cell().add(new Paragraph(body).setFontSize(6.8f)
                 .setMultipliedLeading(1.2f).setMargin(0))
-            .setPadding(5).setMinHeight(terms ? 58 : 28)
+            .setPadding(4).setMinHeight(terms ? 42 : 22)
             .setBorder(new SolidBorder(PDF_LINE, .6f)));
         return box;
     }
@@ -712,7 +758,7 @@ public final class ProfessionalDocumentRenderer {
     }
 
     private static Table refSection(String title, String body, Color accent) {
-        Table box = new Table(1).useAllAvailableWidth().setMarginBottom(4);
+        Table box = new Table(1).useAllAvailableWidth().setMarginBottom(3);
         box.addCell(new Cell().add(new Paragraph(title).setBold().setFontColor(accent).setFontSize(7).setMargin(0))
             .setPadding(3).setBorder(new SolidBorder(PDF_LINE,.6f)));
         box.addCell(new Cell().add(new Paragraph(body).setFontSize(6.8f).setMultipliedLeading(1.2f).setMargin(0))
@@ -725,7 +771,7 @@ public final class ProfessionalDocumentRenderer {
         Path qrPath = configuredAsset("payment.qrImagePath");
         if (qrPath != null) try {
             cell.add(new Image(configuredQrImageData(qrPath)).setAutoScale(true)
-                .setMaxWidth(54).setMaxHeight(54)
+                .setMaxWidth(38).setMaxHeight(38)
                 .setHorizontalAlignment(HorizontalAlignment.CENTER));
             return;
         } catch (Exception ignored) {}
@@ -825,7 +871,7 @@ public final class ProfessionalDocumentRenderer {
 
     /** Footer contact cell used by the approved Sales Invoice prototype. */
     private static Cell footerIconCell(String iconName, String value) {
-        Cell container = new Cell().setBorder(Border.NO_BORDER).setPadding(3)
+        Cell container = new Cell().setBorder(Border.NO_BORDER).setPadding(2)
             .setVerticalAlignment(VerticalAlignment.MIDDLE);
         Table row = new Table(UnitValue.createPercentArray(new float[]{12, 88})).useAllAvailableWidth();
         Cell icon = new Cell().setBorder(Border.NO_BORDER).setPadding(0);
@@ -1136,7 +1182,7 @@ public final class ProfessionalDocumentRenderer {
                         " not found: " + number);
                 }
                 Data data = new Data();
-                data.title = sales ? "SALES INVOICE" : "PURCHASE INVOICE";
+                data.title = "TAX INVOICE";
                 data.numberLabel = "Invoice No.";
                 data.dateLabel = "Invoice Date";
                 data.number = result.getString("invoice_no");
@@ -1410,10 +1456,10 @@ public final class ProfessionalDocumentRenderer {
     private static void addTotal(Table table, String label, double amount,
                                  boolean grand, Color accent) {
         Cell left = new Cell().add(new Paragraph(label).setBold().setFontSize(grand ? 9 : 8))
-            .setPadding(6).setBorder(new SolidBorder(PDF_LINE, .55f));
+            .setPadding(4).setBorder(new SolidBorder(PDF_LINE, .55f));
         Cell right = new Cell().add(new Paragraph("\u20B9 " + money(amount))
                 .setBold().setFontSize(grand ? 9 : 8))
-            .setTextAlignment(TextAlignment.RIGHT).setPadding(6)
+            .setTextAlignment(TextAlignment.RIGHT).setPadding(4)
             .setBorder(new SolidBorder(PDF_LINE, .55f));
         if (grand) {
             left.setBackgroundColor(accent).setFontColor(ColorConstants.WHITE);

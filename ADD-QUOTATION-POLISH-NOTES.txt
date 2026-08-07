@@ -1,0 +1,19 @@
+DSE ERP 3.0.6 — Add Quotation Polish
+
+Implemented:
+- Rebuilt Create/Edit Quotation dialog based on the supplied reference image.
+- Quotation details card with customer, date, valid-until, follow-up, source, and remarks.
+- Add-items area with quantity, GST rate, and percentage discount.
+- Detailed item table with SKU, quantity, GST, discount, rate, GST amount, total, and delete action.
+- Live total items and total quantity cards.
+- Live subtotal, discount, taxable amount, GST, and grand total calculation.
+- Required-field and date validation.
+- Persistent line-level discount_percent database migration.
+- Correct quotation header discount, taxable amount, GST, and grand-total persistence.
+- Discount-aware quotation duplication and conversion to sales.
+- Matching light and dark theme styling.
+
+Validation:
+- Java source braces are balanced.
+- A javac parser pass found no Java syntax/parser errors.
+- Full Maven compilation was not available in this environment because Maven is not installed.

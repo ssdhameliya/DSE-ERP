@@ -1,0 +1,17 @@
+DSE ERP 3.0.7 — Invoice Payment UI Polish
+
+Completed:
+- Enhanced top invoice panel with clearer, larger and color-coded labels and values.
+- Added dynamic invoice status colors for Paid, Partial, Pending and Overdue.
+- Reworked Invoice Summary with bold, colorful totals.
+- Removed separate Payment Status and Quick Actions cards.
+- Moved Send Receipt, Statement, WhatsApp Receipt and Email Invoice to the top action bar.
+- Back to Register now opens the Sales Register directly.
+- Improved Attach Receipt / Bank Proof visibility and upload area.
+- Enhanced Payment History title, count badge, table header icons and table height.
+- Rebuilt Invoice Timeline with connected colorful stages and bold dynamic values.
+- Preserved existing payment, attachment, proof viewing, export, email, WhatsApp, PDF and print behavior.
+
+Validation:
+- RecordPayment.fxml parsed successfully.
+- Modified Java source braces are balanced.

@@ -94,6 +94,21 @@ public class InvoicePdfService {
     }
 
     private static Path ensureLogo() throws Exception {
+        // The branding image uploaded in Settings -> Company & Billing is the
+        // single source of truth for every generated PDF.
+        String configuredLogo = ConfigManager.get("company.logoPath", "").trim();
+        if (!configuredLogo.isBlank()) {
+            try {
+                Path configuredPath = Path.of(configuredLogo).toAbsolutePath().normalize();
+                if (Files.isRegularFile(configuredPath)) {
+                    return configuredPath;
+                }
+            } catch (Exception ignored) {
+                // Fall through to the bundled logo so PDF generation never fails
+                // because an old configuration path is no longer available.
+            }
+        }
+
         Path logo = ConfigManager.getConfigFolder().resolve("logo.png");
         if (Files.notExists(logo)) {
             try (var input = InvoicePdfService.class.getResourceAsStream("/logo.png")) {

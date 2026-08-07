@@ -1,0 +1,23 @@
+DSE ERP 3.0.7
+
+Payment workflow
+- Combined Record Payment and Payment History into one screen.
+- Saving a payment now refreshes invoice totals and history without navigating away.
+- Added payment-mode filtering and CSV export directly on the Record Payment screen.
+- View Payment History now focuses the embedded history table.
+- Payment summary remains visible beside the form.
+
+Reminder Center
+- Replaced the misleading reminder/settings-style action glyph with a clear ellipsis actions icon.
+- Existing Edit, Complete, Snooze, Reopen, and Delete menu actions remain available.
+
+Communication Center
+- Replaced the icon-only action with a visible “Resend Email” button.
+- The button is displayed only for EMAIL records.
+- Clicking it regenerates/locates the selected quotation, sales, or purchase PDF and sends it to the selected record’s recipient.
+- Successful resend activity is written back to communication_log.
+
+Validation
+- Updated FXML files were parsed successfully.
+- Modified Java files have balanced source braces.
+- Full Maven compilation was not run because Maven is not installed in this environment.
