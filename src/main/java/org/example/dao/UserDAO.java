@@ -18,22 +18,43 @@ public class UserDAO {
             statement.setString(3, password);
 
             try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) return null;
-                AppUser user = map(resultSet);
-                try (PreparedStatement update = connection.prepareStatement(
-                    "UPDATE users SET last_login=CURRENT_TIMESTAMP,failed_attempts=0 WHERE id=?")) {
-                    update.setInt(1,user.getId());
-                    update.executeUpdate();
-                }
-                return user;
+                return resultSet.next() ? map(resultSet) : null;
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not sign in", exception);
         }
     }
 
+    public AppUser findActiveByIdentity(String identity) {
+        String sql = "SELECT u.*,r.role_name resolved_role FROM users u JOIN roles r ON r.id=u.role_id AND r.active=1 " +
+            "WHERE (lower(u.username)=lower(?) OR lower(u.email)=lower(?)) " +
+            "AND u.active=1 AND COALESCE(u.locked,0)=0";
+
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, identity.trim());
+            statement.setString(2, identity.trim());
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? map(resultSet) : null;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not load user account", exception);
+        }
+    }
+
+    public void recordSuccessfulLogin(int id) {
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "UPDATE users SET last_login=CURRENT_TIMESTAMP,failed_attempts=0 WHERE id=?")) {
+            statement.setInt(1, id);
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not update sign-in history", exception);
+        }
+    }
+
     public void register(AppUser user) {
-        String sql = "INSERT INTO users(username,password,full_name,role,role_id,email,active) VALUES(?,?,?,'USER',(SELECT id FROM roles WHERE role_name='USER'),?,1)";
+        String sql = "INSERT INTO users(username,password,full_name,role,role_id,email,active) VALUES(?,?,?,'SALES',(SELECT id FROM roles WHERE role_name='SALES'),?,1)";
 
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -48,7 +69,8 @@ public class UserDAO {
     }
 
     public void changePassword(int id, String password) {
-        try (Connection c = DatabaseManager.getConnection(); PreparedStatement p = c.prepareStatement("UPDATE users SET password=? WHERE id=?")) {
+        try (Connection c = DatabaseManager.getConnection();
+             PreparedStatement p = c.prepareStatement("UPDATE users SET password=? WHERE id=?")) {
             p.setString(1, password);
             p.setInt(2, id);
             p.executeUpdate();

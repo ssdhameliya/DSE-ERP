@@ -6392,3 +6392,29 @@ SECTION TITLES
     -fx-background-radius: 14;
     -fx-padding: 5 12 5 12;
 }
+
+/* Login role ComboBox: keep the selected value readable in the button cell. */
+.auth-card .combo-box.auth-input > .list-cell,
+.auth-card .combo-box.auth-input .list-cell {
+    -fx-text-fill: #172033;
+}
+.auth-card .combo-box.auth-input .arrow-button .arrow {
+    -fx-background-color: #475569;
+}
+
+
+/* v3.0.10 final login role ComboBox selected-value rendering */
+.auth-card .combo-box.auth-input > .list-cell {
+    -fx-text-fill: #172033;
+    -fx-background-color: transparent;
+    -fx-opacity: 1;
+}
+
+
+/* Login role selected value: explicit button-cell rendering. */
+.auth-card .combo-box.auth-input .auth-role-selected-cell {
+    -fx-text-fill: #172033;
+    -fx-background-color: transparent;
+    -fx-opacity: 1;
+    -fx-padding: 0 4 0 2;
+}

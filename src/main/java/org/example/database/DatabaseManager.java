@@ -119,7 +119,7 @@ public class DatabaseManager {
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 full_name TEXT,
-                role TEXT NOT NULL DEFAULT 'USER',
+                role TEXT NOT NULL DEFAULT 'SALES',
                 email TEXT UNIQUE,
                 active INTEGER NOT NULL DEFAULT 1
             );
@@ -238,10 +238,11 @@ public class DatabaseManager {
     private static void createRolesTable() {
         createTable("CREATE TABLE IF NOT EXISTS roles(id INTEGER PRIMARY KEY AUTOINCREMENT, role_name TEXT NOT NULL UNIQUE, description TEXT, active INTEGER NOT NULL DEFAULT 1)");
         // Normalize legacy ADMINISTRATOR installations to the concise ADMIN role.
-        createTable("INSERT OR IGNORE INTO roles(role_name,description) VALUES('ADMIN','Full application access'),('MANAGER','Business management access'),('USER','Standard operational access')");
+        createTable("INSERT OR IGNORE INTO roles(role_name,description) VALUES('ADMIN','Full application access'),('MANAGER','Business management access'),('SALES','Standard sales and operational access'),('USER','Legacy standard operational access')");
         createTable("UPDATE users SET role='ADMIN',role_id=(SELECT id FROM roles WHERE role_name='ADMIN') WHERE UPPER(role)='ADMINISTRATOR' OR role_id IN (SELECT id FROM roles WHERE role_name='ADMINISTRATOR')");
-        createTable("UPDATE users SET role_id=(SELECT id FROM roles WHERE role_name=CASE UPPER(role) WHEN 'ADMIN' THEN 'ADMIN' WHEN 'MANAGER' THEN 'MANAGER' ELSE 'USER' END) WHERE role_id IS NULL");
-        createTable("UPDATE roles SET active=0 WHERE role_name='ADMINISTRATOR'");
+        createTable("UPDATE users SET role='SALES',role_id=(SELECT id FROM roles WHERE role_name='SALES') WHERE UPPER(role)='USER' OR role_id IN (SELECT id FROM roles WHERE role_name='USER')");
+        createTable("UPDATE users SET role_id=(SELECT id FROM roles WHERE role_name=CASE UPPER(role) WHEN 'ADMIN' THEN 'ADMIN' WHEN 'MANAGER' THEN 'MANAGER' WHEN 'SALES' THEN 'SALES' ELSE 'SALES' END) WHERE role_id IS NULL");
+        createTable("UPDATE roles SET active=0 WHERE role_name IN ('ADMINISTRATOR','USER')");
     }
 
     private static void addColumnIfMissing(String table, String column, String definition) {
@@ -619,7 +620,7 @@ public class DatabaseManager {
                    CASE
                      WHEN r.role_name='ADMIN' THEN 1
                      WHEN r.role_name='MANAGER' AND p.module_name NOT IN ('USERS','BACKUP','SETTINGS') THEN 1
-                     WHEN r.role_name='USER' AND p.action_name IN ('VIEW','CREATE','EDIT')
+                     WHEN r.role_name='SALES' AND p.action_name IN ('VIEW','CREATE','EDIT')
                           AND p.module_name NOT IN ('USERS','BACKUP','SETTINGS') THEN 1
                      ELSE 0
                    END

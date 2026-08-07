@@ -11,6 +11,14 @@ public class UserService {
         return dao.authenticate(identity, password);
     }
 
+    public AppUser findActiveByIdentity(String identity) {
+        return dao.findActiveByIdentity(identity);
+    }
+
+    public void recordSuccessfulLogin(int id) {
+        dao.recordSuccessfulLogin(id);
+    }
+
     public void register(AppUser user) {
         dao.register(user);
     }

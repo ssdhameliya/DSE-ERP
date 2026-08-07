@@ -42,7 +42,7 @@ public class UserDialogController {
         btnSave.setText("Update User");
         txtPassword.setPromptText("Leave blank to keep current password");
         txtConfirm.setPromptText("Confirm new password");
-        String sql = "SELECT u.*,COALESCE(r.role_name,u.role,'USER') resolved_role FROM users u LEFT JOIN roles r ON r.id=u.role_id WHERE u.id=?";
+        String sql = "SELECT u.*,COALESCE(r.role_name,u.role,'SALES') resolved_role FROM users u LEFT JOIN roles r ON r.id=u.role_id WHERE u.id=?";
         try (Connection c=DatabaseManager.getConnection(); PreparedStatement p=c.prepareStatement(sql)) {
             p.setInt(1,userId);
             try (ResultSet r=p.executeQuery()) {
@@ -69,7 +69,7 @@ public class UserDialogController {
         try (Connection c=DatabaseManager.getConnection(); PreparedStatement p=c.prepareStatement("SELECT role_name FROM roles WHERE active=1 ORDER BY role_name"); ResultSet r=p.executeQuery()) {
             while(r.next()) cmbRole.getItems().add(r.getString(1));
         } catch(Exception e){ message("Unable to load roles: "+e.getMessage(),true); }
-        if(cmbRole.getItems().contains("USER")) cmbRole.setValue("USER");
+        if(cmbRole.getItems().contains("SALES")) cmbRole.setValue("SALES");
         else if(!cmbRole.getItems().isEmpty()) cmbRole.getSelectionModel().selectFirst();
     }
 
