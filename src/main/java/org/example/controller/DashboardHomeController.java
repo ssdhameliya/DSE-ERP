@@ -452,8 +452,8 @@ public class DashboardHomeController {
     @FXML private void addPayment(ActionEvent event) { open(event, "/fxml/pages/SalesList.fxml"); }
     @FXML private void addCustomer(ActionEvent event) { open(event, "/fxml/pages/Customer.fxml"); }
     @FXML private void addSupplier(ActionEvent event) { open(event, "/fxml/pages/Suppliers.fxml"); }
-    @FXML private void bankEntry(ActionEvent event) { open(event, "/fxml/pages/Operations.fxml"); }
-    @FXML private void expenseEntry(ActionEvent event) { open(event, "/fxml/pages/Operations.fxml"); }
+    @FXML private void bankEntry(ActionEvent event) { BankExpenseController.requestMode(BankExpenseController.Mode.BANK); open(event, "/fxml/pages/BankExpense.fxml"); }
+    @FXML private void expenseEntry(ActionEvent event) { BankExpenseController.requestMode(BankExpenseController.Mode.EXPENSE); open(event, "/fxml/pages/BankExpense.fxml"); }
     @FXML private void openItems(ActionEvent event) { open(event, "/fxml/pages/ItemMaster.fxml"); }
     @FXML private void openImport(ActionEvent event) { open(event, "/fxml/pages/Import.fxml"); }
 

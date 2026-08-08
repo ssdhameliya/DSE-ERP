@@ -6512,3 +6512,7 @@ SECTION TITLES
     -fx-text-fill: #7edff2;
     -fx-font-weight: bold;
 }
+.bank-expense-mode-strip,.finance-entry-card,.finance-list-card { -fx-background-color: #ffffff; -fx-border-color: #d9e4f0; }
+.finance-section-title,.finance-kpi-value { -fx-text-fill: #0f172a; }
+.finance-field-label,.finance-kpi-label { -fx-text-fill: #334155; }
+.finance-kpi-note,.finance-file-name { -fx-text-fill: #64748b; }

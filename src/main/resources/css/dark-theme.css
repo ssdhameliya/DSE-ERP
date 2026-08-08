@@ -5950,3 +5950,7 @@ TABLE ACTION BUTTONS
     -fx-text-fill: #7edff2;
     -fx-font-weight: bold;
 }
+.bank-expense-mode-strip,.finance-entry-card,.finance-list-card { -fx-background-color: #102236; -fx-border-color: #27435f; }
+.finance-section-title,.finance-kpi-value { -fx-text-fill: #f8fafc; }
+.finance-field-label,.finance-kpi-label { -fx-text-fill: #cbd5e1; }
+.finance-kpi-note,.finance-file-name { -fx-text-fill: #94a3b8; }

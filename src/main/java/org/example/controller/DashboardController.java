@@ -89,6 +89,7 @@ public class DashboardController {
     private Button btnQuotation;
     @FXML
     private Button btnOperations;
+    @FXML private Button btnBankExpense;
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
     @FXML private Button btnBackup;
@@ -306,6 +307,7 @@ public class DashboardController {
             : text.contains("master") ? "master"
             : text.contains("customer") || text.contains("crm") ? "customer"
             : text.contains("supplier") || text.contains("hrm") ? "supplier"
+            : text.contains("bank") || text.contains("expense") ? "bank"
             : text.contains("report") ? "report"
             : text.contains("email") || text.contains("communication") ? "email"
             : text.contains("notification") ? "notification"
@@ -373,6 +375,7 @@ public class DashboardController {
             btnQuotation.getStyleClass().remove("menu-selected");
         if (btnOperations != null)
             btnOperations.getStyleClass().remove("menu-selected");
+        if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-selected");
         if (btnReminders != null) btnReminders.getStyleClass().remove("menu-selected");
         if (btnUserAccess != null) btnUserAccess.getStyleClass().remove("menu-selected");
         if (btnBackup != null) btnBackup.getStyleClass().remove("menu-selected");
@@ -483,6 +486,16 @@ public class DashboardController {
     @FXML
     private void openOperations() {
         openPage(btnOperations, "Returns, Finance & Reminders", "/fxml/pages/Operations.fxml");
+    }
+
+    @FXML private void openBankEntry() {
+        BankExpenseController.requestMode(BankExpenseController.Mode.BANK);
+        openPage(btnBankExpense, "Bank Entry", "/fxml/pages/BankExpense.fxml");
+    }
+
+    @FXML private void openExpenseEntry() {
+        BankExpenseController.requestMode(BankExpenseController.Mode.EXPENSE);
+        openPage(btnBankExpense, "Expense Entry", "/fxml/pages/BankExpense.fxml");
     }
 
     @FXML private void createSale() { openPage(btnSales, "Create Sale", "/fxml/pages/Sale.fxml"); }

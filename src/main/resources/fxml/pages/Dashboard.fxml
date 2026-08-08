@@ -25,6 +25,9 @@
             <Button fx:id="btnSettings" text="Settings" onAction="#openSettings" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnBackup" text="Backup &amp; Restore" onAction="#openBackup" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
             <Button fx:id="btnImport" text="Data Import" onAction="#openImport" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <VBox styleClass="nav-group"><Button fx:id="btnBankExpense" text="Bank &amp; Expense" onAction="#openBankEntry" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button"/>
+                <VBox spacing="1" styleClass="nav-children"><Button text="Bank Entry" onAction="#openBankEntry" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button text="Expense Entry" onAction="#openExpenseEntry" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox>
+            </VBox>
             <Button fx:id="btnOperations" text="Operations" onAction="#openOperations" visible="false" managed="false" styleClass="approved-button,approved-secondary-button"/>
               </VBox></content>
             </ScrollPane>

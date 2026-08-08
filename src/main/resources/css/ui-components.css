@@ -271,3 +271,35 @@
 
 .communication-resend-button { -fx-min-width: 132px; -fx-pref-width: 132px; -fx-max-width: 132px; -fx-padding: 7px 10px; -fx-font-weight: 800; }
 .reminder-three-dot-button { -fx-font-size: 18px; -fx-font-weight: 900; -fx-padding: 2px 8px; -fx-alignment: center; }
+
+/* Bank & Expense workspace — v4.0.3 */
+.bank-expense-page { -fx-padding: 4px; }
+.bank-expense-mode-strip { -fx-padding: 4px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 1px; }
+.bank-expense-mode-button { -fx-min-width: 120px; -fx-font-weight: 800; }
+.finance-mode-selected-bank { -fx-background-color: linear-gradient(to right,#4f46e5,#1677ff); -fx-text-fill: white; }
+.finance-mode-selected-expense { -fx-background-color: linear-gradient(to right,#6d28d9,#7c3aed); -fx-text-fill: white; }
+.finance-kpi-card { -fx-padding: 12px 14px; -fx-spacing: 3px; -fx-min-height: 86px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 1px; }
+.finance-kpi-label { -fx-font-size: 11px; -fx-font-weight: 700; }
+.finance-kpi-value { -fx-font-size: 18px; -fx-font-weight: 900; }
+.finance-kpi-note { -fx-font-size: 10px; -fx-opacity: .85; }
+.finance-kpi-blue { -fx-border-color: rgba(59,130,246,.42); -fx-background-color: rgba(37,99,235,.10); }
+.finance-kpi-purple { -fx-border-color: rgba(139,92,246,.42); -fx-background-color: rgba(124,58,237,.10); }
+.finance-kpi-green { -fx-border-color: rgba(34,197,94,.42); -fx-background-color: rgba(22,163,74,.10); }
+.finance-kpi-red { -fx-border-color: rgba(239,68,68,.42); -fx-background-color: rgba(220,38,38,.10); }
+.finance-entry-card,.finance-list-card { -fx-padding: 12px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 1px; }
+.finance-section-title { -fx-font-size: 14px; -fx-font-weight: 900; -fx-padding: 0 0 4px 0; }
+.finance-field-label { -fx-font-size: 10px; -fx-font-weight: 700; }
+.finance-file-name { -fx-font-size: 10px; -fx-opacity: .75; -fx-alignment: center-left; }
+.finance-table { -fx-fixed-cell-size: 45px; }
+.finance-table .column-header-background,.finance-table .column-header,.finance-table .filler { -fx-min-height: 34px; -fx-pref-height: 34px; }
+.finance-row-action { -fx-min-width: 34px; -fx-pref-width: 34px; -fx-padding: 5px; }
+.finance-chip-green,.finance-chip-red,.finance-chip-purple,.finance-chip-blue,.finance-chip-orange,.finance-chip-teal { -fx-font-weight: 800; -fx-alignment: center; }
+.finance-chip-green { -fx-text-fill: #22c55e; }
+.finance-chip-red { -fx-text-fill: #ef4444; }
+.finance-chip-purple { -fx-text-fill: #a78bfa; }
+.finance-chip-blue { -fx-text-fill: #60a5fa; }
+.finance-chip-orange { -fx-text-fill: #f59e0b; }
+.finance-chip-teal { -fx-text-fill: #2dd4bf; }
+.finance-showing-label { -fx-padding: 6px 10px; -fx-background-color: linear-gradient(to right,#2563eb,#7c3aed); -fx-text-fill: white; -fx-font-weight: 900; -fx-background-radius: 6px; }
+.finance-page-label { -fx-padding: 6px 10px; -fx-font-weight: 800; }
+.finance-page-button { -fx-min-width: 34px; -fx-pref-width: 34px; }

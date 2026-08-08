@@ -51,6 +51,7 @@ public class DatabaseManager {
         createQuotationTables();
         ensureQuotationWorkflowColumns();
         createOperationsTables();
+        ensureFinanceWorkflowColumns();
         ensureReminderWorkflowColumns();
         createWorkflowTables();
         ensurePaymentWorkflowColumns();
@@ -499,6 +500,14 @@ public class DatabaseManager {
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """);
+    }
+
+
+    /** Additive fields used by the dedicated Bank & Expense workspace. */
+    private static void ensureFinanceWorkflowColumns() {
+        addColumnIfMissing("finance_register", "account_name", "TEXT");
+        addColumnIfMissing("finance_register", "bill_path", "TEXT");
+        addColumnIfMissing("finance_register", "reconciled", "INTEGER NOT NULL DEFAULT 0");
     }
 
     /**
