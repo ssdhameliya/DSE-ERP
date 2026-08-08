@@ -1,9 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Create Purchase: concise supplier, dates, payment terms, items, totals and attachments. --><ScrollPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fitToWidth="true" hbarPolicy="NEVER" fx:controller="org.example.controller.PurchaseController" styleClass="purchase-scroll,approved-ui,approved-screen,approved-screen-purchase,erp-screen-root">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Create Purchase: concise supplier, dates, payment terms, items, totals and attachments. --><ScrollPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="NEVER" fx:controller="org.example.controller.PurchaseController" styleClass="purchase-scroll,approved-ui,approved-screen,approved-screen-purchase,erp-screen-root">
   <content>
     <HBox spacing="15" styleClass="purchase-page">
       <padding><Insets top="14" right="14" bottom="18" left="14"/></padding>
       <VBox spacing="14" HBox.hgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header,erp-compact-identity-header">
+          <StackPane styleClass="erp-page-header-icon"><Label text="▤" styleClass="erp-page-header-symbol"/></StackPane>
+          <VBox spacing="2"><Label text="Create Purchase" styleClass="screen-title"/><Label text="Create and manage a new supplier purchase" styleClass="screen-subtitle,erp-accent-subtitle"/></VBox>
+        </HBox>
         <VBox spacing="12" styleClass="purchase-card">
           <Label text="Purchase Details" styleClass="purchase-section-title"/>
           <GridPane hgap="14" vgap="12">
@@ -37,7 +41,7 @@
         <VBox spacing="10" styleClass="purchase-card" VBox.vgrow="ALWAYS">
           <Label text="Purchase Items" styleClass="purchase-section-title"/>
           <HBox spacing="7"><ComboBox fx:id="cmbItem" promptText="Select item" HBox.hgrow="ALWAYS" styleClass="approved-input"/><TextField fx:id="txtQuantity" promptText="Qty" prefWidth="85" styleClass="approved-input"/><TextField fx:id="txtRate" promptText="Rate" prefWidth="110" styleClass="approved-input"/><TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100" styleClass="approved-input"/><TextField fx:id="txtGST" promptText="Tax %" prefWidth="85" styleClass="approved-input"/><Button fx:id="btnAddLine" text="Add Item" onAction="#addLine" styleClass="approved-button,approved-primary-button"/><Button text="Cancel Edit" onAction="#cancelEdit" styleClass="approved-button,approved-secondary-button"/><Button text="Delete" onAction="#removeLine" styleClass="danger-button"/></HBox>
-          <TableView fx:id="tableLines" prefHeight="520" minHeight="380" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-line-item">
+          <TableView fx:id="tableLines" prefHeight="455" minHeight="330" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-line-item">
             <columns><TableColumn text="#" prefWidth="45" styleClass="approved-table-column"/><TableColumn fx:id="colItem" text="Item Name *" prefWidth="360" styleClass="approved-table-column"/><TableColumn fx:id="colQuantity" text="Qty" prefWidth="100" styleClass="approved-table-column"/><TableColumn fx:id="colRate" text="Rate (₹)" prefWidth="125" styleClass="approved-table-column"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="100" styleClass="approved-table-column"/><TableColumn fx:id="colDiscountAmount" text="Discount" prefWidth="115" styleClass="approved-table-column"/><TableColumn fx:id="colGst" text="Tax (%)" prefWidth="90" styleClass="approved-table-column"/><TableColumn fx:id="colNetAmount" text="Taxable" prefWidth="150" styleClass="approved-table-column"/><TableColumn fx:id="colGstAmount" text="Tax" prefWidth="130" styleClass="approved-table-column"/><TableColumn fx:id="colTotal" text="Amount (₹)" prefWidth="160" styleClass="approved-table-column"/></columns>
           </TableView>
         </VBox>

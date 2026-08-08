@@ -37,9 +37,7 @@
         <!-- The header is intentionally identical for every ERP page. -->
         <HBox fx:id="topBar" spacing="10" alignment="CENTER_LEFT" styleClass="erp-topbar">
             <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
-            <Button contentDisplay="GRAPHIC_ONLY" styleClass="top-icon,toolbar-menu,approved-button,approved-secondary-button,approved-icon-button">
-                <tooltip><Tooltip text="Toggle navigation menu"/></tooltip>
-            </Button>
+            <StackPane fx:id="shellPageIcon" styleClass="shell-page-icon"/>
             <VBox><Label fx:id="lblPageTitle" text="Dashboard" styleClass="erp-page-title"/><Label fx:id="lblBreadcrumb" text="Welcome back, Admin!" styleClass="erp-breadcrumb"/></VBox>
             <Region HBox.hgrow="ALWAYS"/>
             <!-- Live workstation date/time shown before global search on every module. -->

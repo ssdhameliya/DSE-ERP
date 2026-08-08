@@ -2,19 +2,19 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesListController" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-sales-list,erp-screen-root">
   <top>
     <VBox spacing="14" styleClass="sales-register-top">
-      <padding><Insets top="18" right="18" bottom="14" left="18"/></padding>
+      <padding><Insets top="18" right="18" bottom="0" left="18"/></padding>
 
-      <HBox alignment="CENTER_LEFT" spacing="12">
+      <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-register-hero,approved-section-header,erp-page-identity-header">
         <StackPane fx:id="salesTitleIcon" styleClass="sales-title-icon"/>
         <VBox spacing="3">
           <Label text="Sales Register" styleClass="screen-title,sales-screen-title"/>
-          <Label text="Manage all sales invoices, collections and customer communication" styleClass="screen-subtitle"/>
+          <Label text="Manage all sales invoices, collections and customer communication" styleClass="screen-subtitle,sales-register-subtitle-accent"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
         <Button fx:id="btnNewSale" text="New Sale (F2)" onAction="#newSale" styleClass="primary-action,sales-new-button"/>
       </HBox>
 
-      <HBox spacing="12" styleClass="sales-metric-row">
+      <HBox spacing="12" styleClass="sales-metric-row,sales-kpi-panel,erp-kpi-section">
         <HBox spacing="12" alignment="CENTER_LEFT" styleClass="sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS">
           <StackPane fx:id="totalSalesIcon" styleClass="sales-metric-icon,total-sales-icon"/>
           <VBox spacing="4">
@@ -71,9 +71,9 @@
     <SplitPane fx:id="mainSplit" dividerPositions="0.81" styleClass="register-split,sales-register-split">
       <items>
         <VBox spacing="12" styleClass="register-workspace,sales-register-workspace">
-          <padding><Insets top="0" right="18" bottom="14" left="18"/></padding>
+          <padding><Insets top="14" right="18" bottom="14" left="18"/></padding>
 
-          <VBox spacing="10" styleClass="filter-surface,sales-filter-surface,approved-filter-bar">
+          <VBox spacing="10" styleClass="filter-surface,sales-filter-surface,approved-filter-bar,erp-filter-section">
             <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
             <HBox spacing="9" alignment="CENTER_LEFT">
               <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="360" HBox.hgrow="ALWAYS" styleClass="approved-input"/>

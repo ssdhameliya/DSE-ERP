@@ -21,7 +21,7 @@ import java.util.*;
 public class ReportsController implements ScreenLifecycle {
     private static final String TASK_KEY = "reports-load";
     @FXML private Label lblPurchase,lblSales,lblStock,lblLowStock,lblProfit,lblReceivables,lblCustomers,lblMargin;
-    @FXML private StackPane reportSalesIcon,reportPurchaseIcon,reportProfitIcon,reportReceivableIcon,reportStockIcon,reportCustomerIcon;
+    @FXML private StackPane reportPageIcon,reportSalesIcon,reportPurchaseIcon,reportProfitIcon,reportReceivableIcon,reportStockIcon,reportCustomerIcon;
     @FXML private DatePicker dpFrom,dpTo;
     @FXML private ComboBox<String> cmbReportType,cmbParty,cmbItem,cmbSalesPerson;
     @FXML private ProgressBar profitProgress;
@@ -94,7 +94,7 @@ public class ReportsController implements ScreenLifecycle {
         lblLowStock.setText(d.low()+" low-stock items"); lblCustomers.setText(String.valueOf(d.customers()));
         double margin=d.sales()==0?0:(d.profit()/d.sales())*100;
         lblMargin.setText(String.format("%.2f%%",margin)); profitProgress.setProgress(Math.max(0,Math.min(1,Math.abs(margin)/100)));
-        tblSales.getItems().setAll(d.salesRows()); tblPurchases.getItems().setAll(d.purchaseRows());
+        tblSales.getItems().setAll(d.salesRows()); tblPurchases.getItems().setAll(d.purchaseRows()); adjustRecentTableHeight(tblSales); adjustRecentTableHeight(tblPurchases);
         paymentSummary.getItems().setAll(
             "Total Receivables  •  "+money(d.receivables()),
             "Received Amount   •  "+money(d.salesPaid()),
@@ -147,7 +147,8 @@ public class ReportsController implements ScreenLifecycle {
         colSaleNo.setMinWidth(110); colSaleDate.setMinWidth(95); colSaleParty.setMinWidth(135); colSaleAmount.setMinWidth(105); colSaleStatus.setMinWidth(100);
         colPurchaseNo.setMinWidth(110); colPurchaseDate.setMinWidth(95); colPurchaseParty.setMinWidth(135); colPurchaseAmount.setMinWidth(105); colPurchaseStatus.setMinWidth(100);
     }
-    private void configureIcons(){btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));
+    private void adjustRecentTableHeight(TableView<?> table){if(table==null)return;int rows=Math.max(1,Math.min(8,table.getItems().size()));double h=38+(rows*32.0);table.setMinHeight(0);table.setPrefHeight(h);table.setMaxHeight(h);}
+    private void configureIcons(){if(reportPageIcon!=null)reportPageIcon.getChildren().setAll(IconFactory.icon("report",24));btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));
         reportSalesIcon.getChildren().setAll(IconFactory.icon("sales",22)); reportPurchaseIcon.getChildren().setAll(IconFactory.icon("purchase",22));
         reportProfitIcon.getChildren().setAll(IconFactory.icon("chart",22)); reportReceivableIcon.getChildren().setAll(IconFactory.icon("payment",22));
         reportStockIcon.getChildren().setAll(IconFactory.icon("inventory",22)); reportCustomerIcon.getChildren().setAll(IconFactory.icon("customer",22));

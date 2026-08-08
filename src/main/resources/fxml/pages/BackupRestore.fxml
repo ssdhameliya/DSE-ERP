@@ -8,7 +8,7 @@
             </padding>
 
             <!-- Header -->
-            <HBox alignment="CENTER_LEFT" spacing="14" styleClass="backup-page-header,approved-section-header">
+            <HBox alignment="CENTER_LEFT" spacing="14" styleClass="backup-page-header,approved-section-header,erp-page-identity-header">
                 <StackPane fx:id="headerIconHolder" styleClass="backup-header-icon,approved-section-header"/>
 
                 <VBox spacing="3">

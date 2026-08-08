@@ -264,6 +264,33 @@ public final class IconFactory {
         return semantic(text);
     }
 
+    /**
+     * Resolves the visual identity of an ERP page from its destination title.
+     * Register/detail wording is intentionally secondary to the business module,
+     * e.g. "Sales Register" stays a sales/cart icon rather than a generic register icon.
+     */
+    public static String semanticForPageTitle(String title) {
+        String value = title == null ? "" : title.toLowerCase(Locale.ROOT).trim();
+        if (value.contains("sale")) return "sale";
+        if (value.contains("purchase")) return "purchase";
+        if (value.contains("quotation")) return "quotation";
+        if (value.contains("bank")) return "bank";
+        if (value.contains("expense") || value.contains("payment")) return "payment";
+        if (value.contains("customer")) return "customer";
+        if (value.contains("supplier")) return "supplier";
+        if (value.contains("inventory")) return "inventory";
+        if (value.contains("item")) return "item";
+        if (value.contains("report")) return "report";
+        if (value.contains("reminder")) return "reminder";
+        if (value.contains("setting")) return "settings";
+        if (value.contains("user") || value.contains("access")) return "user";
+        if (value.contains("communication") || value.contains("email") || value.contains("whatsapp")) return "communication";
+        if (value.contains("master")) return "master";
+        if (value.contains("dashboard")) return "dashboard";
+        String resolved = semantic(title);
+        return resolved == null ? "document" : resolved;
+    }
+
     /** Assigns one shared visual role without changing the button action. */
     private static void applyButtonVariant(ButtonBase button, String semantic) {
         if (isInside(button, "erp-sidebar") || button.getStyleClass().contains("square-action")) {

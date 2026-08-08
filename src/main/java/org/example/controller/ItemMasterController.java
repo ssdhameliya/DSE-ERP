@@ -34,7 +34,7 @@ public class ItemMasterController {
     @FXML private TextField txtSearch;
     @FXML private TableView<Item> tableItems;
     @FXML private Label lblRecordCount,lblKpiTotal,lblKpiCategories,lblKpiLowStock,lblKpiValue;
-    @FXML private StackPane itemTotalIcon,itemCategoryIcon,itemLowIcon,itemValueIcon;
+    @FXML private StackPane itemPageIcon,itemTotalIcon,itemCategoryIcon,itemLowIcon,itemValueIcon;
 
 
     @FXML private TableColumn<Item, String> colCode;
@@ -291,6 +291,7 @@ public class ItemMasterController {
     }
 
     private void installKpiIcons() {
+        if(itemPageIcon!=null)itemPageIcon.getChildren().setAll(IconFactory.icon("item",24));
         setKpiIcon(itemTotalIcon, "item"); setKpiIcon(itemCategoryIcon, "category");
         setKpiIcon(itemLowIcon, "reminder"); setKpiIcon(itemValueIcon, "currency");
     }

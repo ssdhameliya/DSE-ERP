@@ -2,7 +2,8 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserAccessController" spacing="10" styleClass="user-access-page,user-access-v2,approved-ui,approved-screen,approved-screen-user-access,erp-screen-root">
     <padding><Insets top="14" right="16" bottom="12" left="16"/></padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="user-access-header,approved-section-header">
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="user-access-header,approved-section-header,erp-page-identity-header">
+        <StackPane fx:id="userAccessPageIcon" styleClass="erp-page-header-icon"/>
         <VBox spacing="2">
             <Label text="User Access &amp; Permissions" styleClass="page-heading,user-access-title"/>
             <Label text="Manage users, roles and system access permissions" styleClass="muted-label"/>
@@ -13,11 +14,9 @@
         <Button text="Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-header-button,user-access-permission-button,approved-button,approved-secondary-button"/>
     </HBox>
 
-    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="user-access-search-row,approved-filter-bar">
-        <TextField fx:id="txtSearch" promptText="Search users by name, email, username, department or branch..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
-    </HBox>
+    <TextField fx:id="txtSearch" visible="false" managed="false" text=""/>
 
-    <HBox spacing="10" styleClass="user-access-kpi-row">
+    <HBox spacing="12" styleClass="user-access-kpi-row,erp-kpi-section">
         <VBox styleClass="user-kpi,user-kpi-purple" HBox.hgrow="ALWAYS">
             <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-purple"><Label fx:id="iconTotalUsers"/></StackPane><VBox><Label text="Total Users" styleClass="metric-title"/><Label fx:id="lblTotal" text="0" styleClass="metric-value"/><Label text="All system users" styleClass="muted-label"/></VBox></HBox>
         </VBox>

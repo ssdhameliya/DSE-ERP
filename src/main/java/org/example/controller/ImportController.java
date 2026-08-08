@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import javafx.scene.layout.StackPane;
 import org.example.util.OwnedAlert;
 
 import javafx.application.Platform;
@@ -52,6 +53,7 @@ public class ImportController {
 
     @FXML private Label lblChosenFile;
     @FXML private Label lblDropIcon;
+    @FXML private StackPane importPageIcon;
     @FXML private Label lblMappingCount;
     @FXML private Label lblPreviewCount;
     @FXML private Label lblPreviewStatus;
@@ -176,6 +178,7 @@ public class ImportController {
 
     @FXML
     private void initialize() {
+        if (importPageIcon != null) importPageIcon.getChildren().setAll(IconFactory.icon("import", 24));
 
         cmbImportModule.setItems(
             FXCollections.observableArrayList(

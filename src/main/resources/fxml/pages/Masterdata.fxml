@@ -12,10 +12,11 @@
             prefWidth="1450">
 
     <top>
-        <VBox spacing="16" minHeight="118" styleClass="page-header,master-modern-header,approved-section-header">
+        <VBox spacing="16" minHeight="118" styleClass="page-header,master-modern-header,approved-section-header,erp-page-identity-header">
             <padding><Insets top="18" right="24" bottom="16" left="24"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="12">
+                <StackPane fx:id="masterPageIcon" styleClass="erp-page-header-icon"/>
                 <VBox spacing="4">
                     <Label text="Master Data Management" styleClass="page-title"/>
                     <Label text="Manage lookup categories and master records" styleClass="page-subtitle"/>
@@ -42,6 +43,7 @@
     <left>
         <VBox prefWidth="285" minWidth="260" maxWidth="320" spacing="14"
               styleClass="sidebar,master-category-panel">
+            <BorderPane.margin><Insets top="14" right="0" bottom="0" left="0"/></BorderPane.margin>
             <padding><Insets top="18" right="16" bottom="18" left="16"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="10">
@@ -70,10 +72,11 @@
 
     <center>
         <HBox spacing="18">
-            <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
+            <BorderPane.margin><Insets top="14" right="0" bottom="0" left="14"/></BorderPane.margin>
+            <padding><Insets top="0" right="0" bottom="0" left="0"/></padding>
 
             <VBox spacing="16" HBox.hgrow="ALWAYS">
-                <HBox spacing="14" styleClass="master-kpi-row">
+                <HBox spacing="14" styleClass="master-kpi-row,erp-kpi-section">
                     <VBox spacing="5" HBox.hgrow="ALWAYS"
                           styleClass="kpi-card,master-kpi-card,master-kpi-blue">
                         <HBox alignment="CENTER_LEFT" spacing="10">
@@ -175,64 +178,6 @@
                         <Region HBox.hgrow="ALWAYS"/>
                         <Pagination fx:id="pagination" pageCount="1" maxPageIndicatorCount="5" styleClass="master-premium-pagination"/>
                     </HBox>
-                </VBox>
-            </VBox>
-
-            <VBox prefWidth="305" minWidth="285" maxWidth="330" spacing="14"
-                  styleClass="analytics-panel,master-insights-panel">
-                <HBox alignment="CENTER_LEFT" spacing="9">
-                    <StackPane fx:id="analyticsIcon" styleClass="master-section-icon"/>
-                    <Label text="Analytics" styleClass="section-title"/>
-                </HBox>
-
-                <VBox spacing="8" styleClass="summary-card,master-side-card,master-chart-card">
-                    <PieChart fx:id="categoryPieChart"
-                              prefHeight="210"
-                              labelsVisible="false"
-                              legendVisible="true"
-                              title="Category Distribution"/>
-                </VBox>
-
-                <VBox spacing="10" styleClass="summary-card,master-side-card">
-                    <Label text="Summary" styleClass="summary-title"/>
-                    <GridPane hgap="10" vgap="10">
-                        <columnConstraints>
-                            <ColumnConstraints percentWidth="60"/>
-                            <ColumnConstraints percentWidth="40"/>
-                        </columnConstraints>
-                        <Label text="Categories"/>
-                        <Label fx:id="lblSummaryCategoryCount" GridPane.columnIndex="1"
-                               styleClass="master-summary-value"/>
-                        <Label text="Values" GridPane.rowIndex="1"/>
-                        <Label fx:id="lblSummaryValueCount" GridPane.columnIndex="1" GridPane.rowIndex="1"
-                               styleClass="master-summary-value"/>
-                        <Label text="Selected" GridPane.rowIndex="2"/>
-                        <Label fx:id="lblSummarySelectedCategory" GridPane.columnIndex="1" GridPane.rowIndex="2"
-                               styleClass="master-summary-value"/>
-                    </GridPane>
-                </VBox>
-
-                <VBox spacing="9" styleClass="summary-card,master-side-card">
-                    <Label text="Quick Actions" styleClass="summary-title"/>
-                    <Button fx:id="btnQuickAddLookup" text="Add Lookup" onAction="#addLookup"
-                            maxWidth="Infinity" styleClass="approved-button,approved-primary-button,master-action-button"/>
-                    <Button fx:id="btnQuickAddCategory" text="Add Category" onAction="#addCategory"
-                            maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,master-action-button"/>
-                    <Button fx:id="btnQuickRefresh" text="Refresh" onAction="#refresh"
-                            maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,master-action-button"/>
-                </VBox>
-
-                <VBox spacing="7" styleClass="summary-card,master-side-card,master-tips-card"
-                      VBox.vgrow="ALWAYS">
-                    <Label text="Tips" styleClass="summary-title"/>
-                    <Label wrapText="true" styleClass="tip-text"
-                           text="• Keep category names unique."/>
-                    <Label wrapText="true" styleClass="tip-text"
-                           text="• Use short, meaningful lookup codes."/>
-                    <Label wrapText="true" styleClass="tip-text"
-                           text="• Avoid duplicate lookup values."/>
-                    <Label wrapText="true" styleClass="tip-text"
-                           text="• Refresh after bulk changes."/>
                 </VBox>
             </VBox>
         </HBox>

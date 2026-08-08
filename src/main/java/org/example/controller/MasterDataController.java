@@ -70,6 +70,7 @@ public class MasterDataController {
     @FXML private StackPane categoryPanelIcon;
     @FXML private StackPane lookupValuesIcon;
     @FXML private StackPane analyticsIcon;
+    @FXML private StackPane masterPageIcon;
 
     @FXML private Button btnHeaderRefresh;
     @FXML private Button btnHeaderAddLookup;
@@ -249,6 +250,7 @@ public class MasterDataController {
     }
 
     private void configureSectionIcons() {
+        if (masterPageIcon != null) masterPageIcon.getChildren().setAll(IconFactory.icon("master", 24));
         if (categoryPanelIcon != null) categoryPanelIcon.getChildren().setAll(IconFactory.icon("category", 18));
         if (lookupValuesIcon != null) lookupValuesIcon.getChildren().setAll(IconFactory.icon("master", 18));
         if (analyticsIcon != null) analyticsIcon.getChildren().setAll(IconFactory.icon("analytics", 18));

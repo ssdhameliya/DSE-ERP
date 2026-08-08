@@ -11,6 +11,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -39,6 +40,7 @@ public abstract class PartyMasterController {
     protected TableColumn<Party, Boolean> colActive;
     @FXML
     protected Label lblRecordCount;
+    @FXML protected StackPane partyPageIcon;
     private final PartyService service = new PartyService();
 
     protected abstract String partyType();
@@ -47,6 +49,7 @@ public abstract class PartyMasterController {
 
     @FXML
     public void initialize() {
+        if (partyPageIcon != null) partyPageIcon.getChildren().setAll(IconFactory.icon("CUSTOMER".equals(partyType()) ? "customer" : "supplier", 24));
         configureExplicitTableHeaderIcons();
         colCode.setCellValueFactory(new PropertyValueFactory<>("partyCode"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));

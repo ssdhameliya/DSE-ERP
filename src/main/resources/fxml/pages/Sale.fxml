@@ -11,7 +11,7 @@
       styleClass="purchase-page,sales-entry-page,sales-entry-fixed-root,approved-ui,approved-screen,approved-screen-sale,erp-screen-root">
     <padding><Insets top="12" right="14" bottom="10" left="14"/></padding>
 
-    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-header,approved-section-header">
+    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-header,approved-section-header,erp-page-identity-header">
         <StackPane styleClass="sales-entry-title-icon"><Label text=""/></StackPane>
         <VBox spacing="2">
             <Label text="Create Sale Invoice" styleClass="sales-entry-page-title"/>

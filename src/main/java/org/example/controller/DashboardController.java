@@ -103,6 +103,7 @@ public class DashboardController {
     @FXML
     private Label lblPageTitle;
     @FXML private Label lblBreadcrumb;
+    @FXML private StackPane shellPageIcon;
     @FXML private Label lblSidebarUser;
 
     @FXML
@@ -154,6 +155,7 @@ public class DashboardController {
 
         if (navigationManager.loadPage("/fxml/pages/DashboardHome.fxml")) {
             lblPageTitle.setText("Dashboard");
+            updateShellPageIcon("Dashboard");
             selectMenu(btnDashboard);
         }
         updateThemeButton();
@@ -396,6 +398,17 @@ public class DashboardController {
         return user.getFullName().trim();
     }
 
+    /**
+     * Keeps the shell page icon synchronized with the destination page.
+     * The semantic is derived centrally from the page title, so individual FXML
+     * screens never hardcode a second copy of their navigation icon.
+     */
+    private void updateShellPageIcon(String pageTitle) {
+        if (shellPageIcon == null) return;
+        String semantic = IconFactory.semanticForPageTitle(pageTitle);
+        shellPageIcon.getChildren().setAll(IconFactory.icon(semantic, 28));
+    }
+
     private void openPage(Button button,
                           String pageTitle,
                           String fxmlPath) {
@@ -403,6 +416,7 @@ public class DashboardController {
         if (navigationManager.loadPage(fxmlPath)) {
             selectMenu(button);
             lblPageTitle.setText(pageTitle);
+            updateShellPageIcon(pageTitle);
             if (lblBreadcrumb != null) {
                 lblBreadcrumb.setText(pageTitle.equals("Dashboard")
                     ? "Welcome back, " + currentUserName() + "!"

@@ -2,10 +2,10 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationController" styleClass="register-page,quotation-register-page,approved-ui,approved-screen,approved-screen-quotations,erp-screen-root">
 
     <top>
-        <VBox spacing="10" styleClass="quotation-register-top">
+        <VBox spacing="10" styleClass="quotation-register-top,erp-transparent-section-stack">
             <padding><Insets top="10" right="18" bottom="9" left="18"/></padding>
 
-            <HBox alignment="CENTER_LEFT" spacing="12">
+            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
                 <StackPane fx:id="pageIcon" styleClass="quotation-page-icon"/>
                 <VBox spacing="2">
                     <Label text="Quotation Register" styleClass="screen-title"/>
@@ -15,7 +15,7 @@
                 <Button fx:id="btnNewQuotation" text="New Quotation (F2)" onAction="#newQuotation" styleClass="quotation-primary-button"/>
             </HBox>
 
-            <HBox spacing="12" styleClass="quotation-metric-row">
+            <HBox spacing="12" styleClass="quotation-metric-row,erp-kpi-section">
                 <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-total" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="totalMetricIcon" styleClass="quotation-metric-icon,total-quotation-icon"/>
                     <VBox spacing="4"><Label text="Total Quotations" styleClass="metric-label"/><Label fx:id="lblTotalValue" styleClass="metric-value"/><Label fx:id="lblTotalCount" styleClass="metric-note"/></VBox>

@@ -6,7 +6,7 @@
          ===================================================== -->
 
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading">
+        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
 
             <padding>
                 <Insets top="20" right="28" bottom="16" left="28"/>

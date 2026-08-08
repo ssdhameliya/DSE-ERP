@@ -30,6 +30,7 @@ public class ReminderCenterController {
 
     @FXML private Label lblOpen, lblOverdue, lblDueToday, lblUpcoming;
     @FXML private Label lblResultCount;
+    @FXML private StackPane reminderPageIcon;
     @FXML private Label lblDetailTitle, lblDetailReference, lblDetailDue,
             lblDetailPriority, lblDetailStatus, lblDetailNotes;
     @FXML private StackPane openMetricIcon, overdueMetricIcon,
@@ -47,6 +48,7 @@ public class ReminderCenterController {
 
     @FXML
     public void initialize() {
+        if (reminderPageIcon != null) reminderPageIcon.getChildren().setAll(IconFactory.icon("reminder", 24));
         configureExplicitTableHeaderIcons();
         configureFilters();
         configureColumns();
@@ -601,7 +603,7 @@ public class ReminderCenterController {
 
     private void updateResultCount() {
         int count = filtered == null ? 0 : filtered.size();
-        lblResultCount.setText(count + (count == 1 ? " reminder" : " reminders"));
+        lblResultCount.setText("Showing " + count + " Record" + (count == 1 ? "" : "s"));
     }
 
     private void updateMetrics() {

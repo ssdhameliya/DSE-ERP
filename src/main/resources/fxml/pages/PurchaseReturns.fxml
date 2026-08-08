@@ -1,19 +1,20 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Purchase Return Register: supplier returns, refunds, documents and actions. --><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.PurchaseReturnsController" spacing="14" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-purchase-returns,erp-screen-root">
   <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
-  <HBox alignment="CENTER_LEFT">
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
+    <StackPane styleClass="erp-page-header-icon"><Label text="↩" styleClass="erp-page-header-symbol"/></StackPane>
     <VBox><Label text="Purchase Return Register" styleClass="screen-title"/><Label text="Manage supplier returns, debit notes and refunds" styleClass="screen-subtitle"/></VBox>
     <Region HBox.hgrow="ALWAYS"/>
     <Button text="Create Purchase Return" onAction="#create" styleClass="primary-action"/>
   </HBox>
-  <HBox spacing="12" styleClass="return-kpi-row">
+  <HBox spacing="12" styleClass="return-kpi-row,erp-kpi-section">
     <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="↩" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Total Returns" styleClass="metric-label"/><Label fx:id="total" styleClass="metric-value"/><Label text="All time" styleClass="metric-note"/></VBox></HBox>
     <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-today" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="▣" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="This Month" styleClass="metric-label"/><Label fx:id="monthCount" styleClass="metric-value"/><Label text="Returns this month" styleClass="metric-note"/></VBox></HBox>
     <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-pending" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="▤" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Return Count" styleClass="metric-label"/><Label fx:id="count" styleClass="metric-value"/><Label text="All time" styleClass="metric-note"/></VBox></HBox>
     <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-email" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="▰" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Refunded Amount" styleClass="metric-label"/><Label fx:id="refund" styleClass="metric-value"/><Label text="Processed" styleClass="metric-note"/></VBox></HBox>
     <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-due" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="₹" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Average Return" styleClass="metric-label"/><Label fx:id="average" styleClass="metric-value"/><Label text="Per return" styleClass="metric-note"/></VBox></HBox>
   </HBox>
-  <VBox spacing="10" styleClass="filter-surface,approved-filter-bar">
+  <VBox spacing="10" styleClass="filter-surface,approved-filter-bar,erp-filter-section">
     <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
     <HBox spacing="10" alignment="CENTER_LEFT">
       <TextField fx:id="search" promptText="Search return, purchase or supplier..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>

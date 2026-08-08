@@ -18,6 +18,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.example.database.DatabaseManager;
@@ -36,6 +37,7 @@ public class UserAccessController {
     @FXML private Label iconTotalUsers, iconActiveUsers, iconRoles, iconLocked, iconLogins;
     @FXML private Label lblTotal,lblActive,lblRoles,lblLocked,lblLogins,lblRoleHint;
     @FXML private TextField txtSearch;
+    @FXML private StackPane userAccessPageIcon;
     @FXML private ComboBox<String> cmbRole,cmbStatus,cmbBranch,cmbPermissionRole;
     @FXML private TabPane accessTabs;
     @FXML private Tab tabRoles,tabPermissions;
@@ -59,6 +61,7 @@ public class UserAccessController {
     private FilteredList<UserRow> filtered;
 
     @FXML public void initialize(){
+        if(userAccessPageIcon!=null)userAccessPageIcon.getChildren().setAll(IconFactory.icon("users",24));
         installKpiIcons();
         configureUserTable(); configureRoleTable(); configurePermissionTable(); configureIcons();
         cmbStatus.getItems().setAll("All Statuses","Active","Inactive","Locked"); cmbStatus.setValue("All Statuses");

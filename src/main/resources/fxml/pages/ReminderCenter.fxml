@@ -10,7 +10,8 @@
     </padding>
 
     <!-- Page heading -->
-    <HBox alignment="CENTER_LEFT" spacing="14" styleClass="reminder-page-header,approved-section-header">
+    <HBox alignment="CENTER_LEFT" spacing="14" styleClass="reminder-page-header,approved-section-header,erp-page-identity-header">
+        <StackPane fx:id="reminderPageIcon" styleClass="erp-page-header-icon"/>
         <VBox spacing="4">
             <Label text="Reminder Center" styleClass="page-heading,reminder-page-title"/>
             <Label text="Manage follow-ups, payment reminders and important business tasks." styleClass="muted-label,reminder-page-subtitle"/>
@@ -97,7 +98,6 @@
                     <Label text="Double-click a row to edit, or use the Action menu." styleClass="reminder-section-caption"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Label fx:id="lblResultCount" text="0 reminders" styleClass="reminder-result-count"/>
             </HBox>
 
             <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,reminder-table,erp-table-profile-history">
@@ -120,6 +120,10 @@
                     <TableColumn fx:id="colActions" text="" prefWidth="92" minWidth="92" maxWidth="92" sortable="false" resizable="false" styleClass="approved-table-column"/>
                 </columns>
             </TableView>
+            <HBox alignment="CENTER_RIGHT" styleClass="table-footer,reminder-table-footer">
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="lblResultCount" text="Showing 0 Records" styleClass="reminder-result-count,record-count-pill"/>
+            </HBox>
         </VBox>
 
         <!-- Details card -->

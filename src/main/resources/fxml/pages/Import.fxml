@@ -7,17 +7,14 @@
 
     <top>
 
-        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="import-page-header,approved-section-header">
+        <HBox alignment="CENTER_LEFT" spacing="14" styleClass="import-page-header,approved-section-header,erp-page-identity-header">
+            <BorderPane.margin><Insets top="14" right="18" bottom="0" left="18"/></BorderPane.margin>
 
             <padding>
                 <Insets top="14" right="20" bottom="10" left="20"/>
             </padding>
 
-            <StackPane minWidth="38" minHeight="38" prefWidth="38" prefHeight="38" styleClass="import-header-icon-box,approved-section-header">
-
-                <SVGPath content="M5 2h7l4 4v12H5V2zm2 2v12h7V7h-3V4H7zm1 6h5v1.5H8V10zm0 3h5v1.5H8V13z" styleClass="import-header-icon"/>
-
-            </StackPane>
+            <StackPane fx:id="importPageIcon" minWidth="38" minHeight="38" prefWidth="38" prefHeight="38" styleClass="erp-page-header-icon,import-header-icon-box"/>
 
             <VBox spacing="3" HBox.hgrow="ALWAYS">
 
@@ -48,13 +45,14 @@
     <center>
 
         <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" pannable="true" styleClass="import-main-scroll">
+            <BorderPane.margin><Insets top="14" right="18" bottom="14" left="18"/></BorderPane.margin>
 
             <content>
 
                 <VBox spacing="9" fillWidth="true" styleClass="import-workspace">
 
                     <padding>
-                        <Insets top="4" right="20" bottom="18" left="20"/>
+                        <Insets top="0" right="0" bottom="0" left="0"/>
                     </padding>
 
                     <!-- =================================================

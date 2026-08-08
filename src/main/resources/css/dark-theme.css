@@ -6018,3 +6018,122 @@ TABLE ACTION BUTTONS
 .sales-entry-page .sales-entry-section-actions { -fx-text-fill: #c1a7ff; }
 .sales-entry-page .sales-entry-action-toggle { -fx-background-color: #17304c; -fx-border-color: #3e6b99; -fx-text-fill: #8dccff; }
 .sales-entry-page .sales-entry-action-toggle:selected { -fx-background-color: #21466f; -fx-border-color: #5796d5; }
+
+/* Sales Register visual pilot: page identity + outlined hero. */
+.shell-page-icon { -fx-min-width:42; -fx-pref-width:42; -fx-min-height:42; -fx-pref-height:42; -fx-alignment:center; }
+.shell-page-icon .erp-icon-holder { -fx-effect:none; }
+.sales-register-page .sales-register-hero { -fx-padding:12 14; -fx-background-color:#102238; -fx-background-radius:12; -fx-border-color:#31506f; -fx-border-width:1; -fx-border-radius:12; }
+.sales-register-page .sales-register-subtitle-accent { -fx-text-fill:#60a5fa; -fx-font-weight:bold; }
+
+/* Sales Register pilot: separated, consistently padded section surfaces */
+.sales-register-page .sales-register-hero,
+.sales-register-page .sales-kpi-panel,
+.sales-register-page .sales-filter-surface,
+.sales-register-page .sales-table-card {
+    -fx-padding: 14px;
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-border-width: 1px;
+}
+.sales-register-page .sales-kpi-panel { -fx-background-color:#0d1d30; -fx-border-color:#29445f; }
+
+/* Sales Register pilot v3: true section separation and uniform outer spacing */
+.sales-register-page .sales-register-top {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+.sales-register-page .sales-register-hero {
+    -fx-background-color: #102238;
+    -fx-border-color: #31506f;
+}
+.sales-register-page .sales-kpi-panel {
+    -fx-background-color: #0d1d30;
+    -fx-border-color: #29445f;
+}
+.sales-register-page .sales-register-workspace {
+    -fx-background-color: #0c1524;
+}
+
+
+/* DSE ERP 4.0.5 — approved Sales Register section standard applied across menu screens. */
+.erp-transparent-section-stack {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+}
+.erp-page-identity-header {
+    -fx-padding: 12 14;
+    -fx-spacing: 12;
+    -fx-background-color: #102238;
+    -fx-background-radius: 12;
+    -fx-border-color: #31506f;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+}
+.erp-compact-identity-header { -fx-padding: 9 12; }
+.erp-page-header-icon {
+    -fx-min-width: 42; -fx-pref-width: 42; -fx-max-width: 42;
+    -fx-min-height: 42; -fx-pref-height: 42; -fx-max-height: 42;
+    -fx-alignment: CENTER;
+    -fx-background-color: rgba(99, 58, 190, .32);
+    -fx-background-radius: 12;
+    -fx-border-color: #6d4bb5;
+    -fx-border-radius: 12;
+}
+.erp-page-header-symbol { -fx-text-fill: #b99cff; -fx-font-size: 21px; -fx-font-weight: 800; }
+.erp-page-identity-header .screen-subtitle,
+.erp-page-identity-header .page-subtitle,
+.erp-page-identity-header .approved-page-subtitle,
+.erp-page-identity-header .erp-accent-subtitle { -fx-text-fill: #60a5fa; -fx-font-weight: 700; }
+.erp-kpi-section {
+    -fx-padding: 12 14;
+    -fx-background-color: #0d1d30;
+    -fx-background-radius: 12;
+    -fx-border-color: #29445f;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+}
+.erp-filter-section {
+    -fx-background-color: #102238;
+    -fx-background-radius: 12;
+    -fx-border-color: #31506f;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+}
+/* Preserve no-scroll desktop layouts: keep cards compact after adding section outlines. */
+.erp-screen-root .erp-kpi-section .sales-metric-card,
+.erp-screen-root .erp-kpi-section .standard-kpi-card,
+.erp-screen-root .erp-kpi-section .return-kpi-card,
+.erp-screen-root .erp-kpi-section .quotation-metric-card {
+    -fx-padding: 10 12;
+}
+
+
+/* ===== DSE ERP 4.0.5 targeted screen polish ===== */
+.master-data-redesign .master-modern-header { -fx-background-insets: 0; }
+.master-data-redesign .master-category-panel, .master-data-redesign .master-kpi-row, .master-data-redesign .master-table-toolbar, .master-data-redesign .master-table-card { -fx-background-insets: 0; }
+.master-data-redesign .master-kpi-row { -fx-padding: 12; }
+.master-data-redesign .master-table-card { -fx-padding: 12; }
+.inventory-premium-page .inventory-table-card { -fx-max-width: infinity; }
+.inventory-premium-page .inventory-record-footer { -fx-min-height: 48; -fx-pref-height: 48; }
+.inventory-premium-page .inventory-record-count, .reminder-center-page .reminder-result-count { -fx-font-weight: 800; }
+.reports-single-page { -fx-spacing: 12; -fx-padding: 12 14 10 14; }
+.reports-single-page .reports-header { -fx-min-height: 70; -fx-pref-height: 70; -fx-max-height: 70; -fx-padding: 10 14; }
+.reports-single-page .report-kpi-grid { -fx-min-height: 92; -fx-pref-height: 92; -fx-max-height: 92; -fx-padding: 10; }
+.reports-single-page .report-kpi-card { -fx-min-height: 72; -fx-pref-height: 72; -fx-max-height: 72; -fx-padding: 8 10; }
+.reports-single-page .report-filter-card { -fx-min-height: 48; -fx-pref-height: 48; -fx-max-height: 48; -fx-padding: 7 10; }
+.reports-single-page .metric-value { -fx-font-size: 16px; }
+.reports-single-page .metric-label, .reports-single-page .metric-note { -fx-font-size: 10.5px; }
+.reminder-center-page { -fx-spacing: 14; -fx-padding: 18; }
+.reminder-center-page .reminder-page-header { -fx-min-height: 72; -fx-pref-height: 72; -fx-padding: 10 14; }
+.reminder-center-page .reminder-metrics-row { -fx-min-height: 100; -fx-pref-height: 100; }
+.reminder-center-page .reminder-metric-card { -fx-min-height: 96; -fx-pref-height: 96; -fx-padding: 12 14; }
+.reminder-center-page .reminder-table-footer { -fx-min-height: 46; -fx-pref-height: 46; -fx-padding: 8 4 0 4; }
+.user-access-v2 { -fx-spacing: 14; -fx-padding: 14 16 12 16; }
+.user-access-v2 .user-access-header { -fx-min-height: 72; -fx-pref-height: 72; -fx-padding: 10 14; }
+.user-access-v2 .user-access-kpi-row { -fx-min-height: 94; -fx-pref-height: 94; -fx-padding: 10; }
+.user-access-v2 .user-kpi { -fx-min-height: 74; -fx-pref-height: 74; -fx-padding: 10 12; }
+.import-page .import-page-header { -fx-min-height: 72; -fx-pref-height: 72; -fx-padding: 10 14; }
+.import-page .import-main-scroll { -fx-background-insets: 0; -fx-padding: 0; }
+.import-page .import-workspace { -fx-spacing: 12; }

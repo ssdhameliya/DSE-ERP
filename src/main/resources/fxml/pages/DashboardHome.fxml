@@ -5,7 +5,7 @@
             <VBox fx:id="dashboardContent" spacing="10" styleClass="approved-page,dashboard-executive">
                 <padding><Insets top="12" right="16" bottom="12" left="16"/></padding>
 
-                <HBox alignment="CENTER_LEFT" spacing="14" styleClass="approved-page-header,approved-section-header">
+                <HBox alignment="CENTER_LEFT" spacing="14" styleClass="approved-page-header,approved-section-header,erp-page-identity-header">
                     <StackPane fx:id="dashboardTitleIcon" styleClass="approved-title-icon"/>
                     <VBox spacing="3">
                         <Label text="Dashboard" styleClass="approved-page-title"/>
@@ -16,7 +16,7 @@
                     <Button fx:id="refreshDashboardButton" text="Refresh" onAction="#refreshDashboard" styleClass="approved-primary-button,approved-button,approved-secondary-button"/>
                 </HBox>
 
-                <GridPane hgap="12" vgap="12" styleClass="approved-kpi-grid,approved-kpi">
+                <GridPane hgap="12" vgap="12" styleClass="approved-kpi-grid,approved-kpi,erp-kpi-section">
                     <columnConstraints>
                         <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
                         <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>

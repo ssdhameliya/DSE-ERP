@@ -1,7 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.ItemMasterController" spacing="14" styleClass="register-page,master-entity-page,item-master-premium,approved-ui,approved-screen,approved-screen-item-master,erp-screen-root">
     <padding><Insets top="18" right="18" bottom="14" left="18"/></padding>
-    <HBox alignment="CENTER_LEFT" styleClass="entity-page-header,approved-section-header">
+    <HBox alignment="CENTER_LEFT" styleClass="entity-page-header,approved-section-header,erp-page-identity-header">
+        <StackPane fx:id="itemPageIcon" styleClass="erp-page-header-icon"/>
         <VBox spacing="3">
             <Label text="Items Master" styleClass="screen-title"/>
             <Label text="Manage product codes, tax, pricing and reorder settings" styleClass="screen-subtitle"/>
@@ -10,14 +11,14 @@
         <Button text="New Item" onAction="#newItem" styleClass="primary-action,entity-create-button"/>
     </HBox>
 
-    <HBox spacing="12" styleClass="standard-kpi-row">
+    <HBox spacing="12" styleClass="standard-kpi-row,erp-kpi-section">
         <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-blue" HBox.hgrow="ALWAYS"><StackPane fx:id="itemTotalIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Total Items" styleClass="metric-label"/><Label fx:id="lblKpiTotal" text="0" styleClass="metric-value"/><Label text="Catalog records" styleClass="metric-note"/></VBox></HBox>
         <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-purple" HBox.hgrow="ALWAYS"><StackPane fx:id="itemCategoryIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Categories" styleClass="metric-label"/><Label fx:id="lblKpiCategories" text="0" styleClass="metric-value"/><Label text="Active item groups" styleClass="metric-note"/></VBox></HBox>
         <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-orange" HBox.hgrow="ALWAYS"><StackPane fx:id="itemLowIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Low Stock" styleClass="metric-label"/><Label fx:id="lblKpiLowStock" text="0" styleClass="metric-value"/><Label text="At or below minimum" styleClass="metric-note"/></VBox></HBox>
         <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-green" HBox.hgrow="ALWAYS"><StackPane fx:id="itemValueIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Catalog Value" styleClass="metric-label"/><Label fx:id="lblKpiValue" text="₹ 0.00" styleClass="metric-value"/><Label text="Opening stock valuation" styleClass="metric-note"/></VBox></HBox>
     </HBox>
 
-    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-surface,entity-toolbar,approved-filter-bar,approved-toolbar">
+    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-surface,entity-toolbar,approved-filter-bar,approved-toolbar,erp-filter-section">
         <padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
         <TextField fx:id="txtSearch" promptText="Search item code, name, category or brand..." HBox.hgrow="ALWAYS" styleClass="entity-search"/>
         <Button text="Edit" onAction="#editItem" styleClass="secondary-button"/>
@@ -53,7 +54,6 @@
         </TableView>
         <HBox alignment="CENTER_RIGHT" styleClass="table-footer,entity-table-footer">
             <padding><Insets top="10" right="14" bottom="10" left="14"/></padding>
-            <Label text="Inventory master records" styleClass="muted-text"/>
             <Region HBox.hgrow="ALWAYS"/>
             <Label fx:id="lblRecordCount" styleClass="record-count-pill"/>
         </HBox>
