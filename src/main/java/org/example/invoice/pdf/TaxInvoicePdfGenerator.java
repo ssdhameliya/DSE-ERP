@@ -2,6 +2,7 @@ package org.example.invoice.pdf;
 
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.colors.ColorConstants;
+import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.geom.Rectangle;
@@ -118,13 +119,12 @@ public final class TaxInvoicePdfGenerator {
         title.addCell(titleCell);
         doc.add(title);
 
-        Cell metaCell = rounded(new Cell().setPadding(6).setBackgroundColor(PALE_BLUE)
-                .setBorder(Border.NO_BORDER));
+        Cell metaCell = roundedFilled(new Cell().setPadding(6).setBorder(Border.NO_BORDER), PALE_BLUE);
         Table meta = new Table(UnitValue.createPercentArray(new float[]{16, 3, 31, 16, 3, 31})).useAllAvailableWidth();
         addMetaPair(meta, "INVOICE NO", invoice.invoiceNo(), "INVOICE DATE", formatDate(invoice.invoiceDate()));
         addMetaPair(meta, "ORDER NO", dash(invoice.orderNo()), "PO DATE", formatDate(invoice.poDate()));
         metaCell.add(meta);
-        doc.add(new Table(1).useAllAvailableWidth().setMarginBottom(7).addCell(metaCell));
+        doc.add(new Table(1).useAllAvailableWidth().setMarginTop(5).setMarginBottom(7).addCell(metaCell));
     }
 
     private static void addMetaPair(Table table, String leftLabel, String leftValue,
@@ -153,7 +153,7 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Cell addressCard(String heading, InvoiceParty party) {
-        Cell card = rounded(new Cell().setPadding(7).setBorder(Border.NO_BORDER).setBackgroundColor(PALE_BLUE));
+        Cell card = roundedFilled(new Cell().setPadding(7).setBorder(Border.NO_BORDER), PALE_BLUE);
         card.add(new Paragraph(heading).setBold().setFontSize(7.5f).setFontColor(BLUE)
                 .setMarginBottom(5));
 
@@ -191,11 +191,10 @@ public final class TaxInvoicePdfGenerator {
         values.addCell(sharedStripValue("TRANSPORTER", transporter, true));
         values.addCell(sharedStripValue("CONTACT PERSON", invoice.contactPerson(), false));
 
-        Cell sharedPanel = rounded(new Cell()
-                .setPadding(0)
-                .setBackgroundColor(PALE_BLUE)
+        Cell sharedPanel = roundedFilled(new Cell()
+                .setPadding(1)
                 .setBorder(Border.NO_BORDER)
-                .add(values));
+                .add(values), PALE_BLUE);
 
         Table strip = new Table(1)
                 .useAllAvailableWidth()
@@ -212,7 +211,6 @@ public final class TaxInvoicePdfGenerator {
                 .setPaddingLeft(5)
                 .setPaddingRight(5)
                 .setBorder(Border.NO_BORDER)
-                .setBackgroundColor(PALE_BLUE)
                 .setVerticalAlignment(VerticalAlignment.MIDDLE)
                 .add(new Paragraph(label + " : " + dash(value))
                         .setBold()
@@ -292,40 +290,40 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static void addFinancialSection(Document doc, TaxInvoiceDocument invoice) {
-        Table outer = new Table(UnitValue.createPercentArray(new float[]{57, 43}))
+        Table outer = new Table(UnitValue.createPercentArray(new float[]{57, 1.5f, 41.5f}))
                 .useAllAvailableWidth().setKeepTogether(true).setMarginBottom(5);
 
-        Cell left = rounded(noBorder().setPaddingRight(5));
+        Cell left = roundedFilled(noBorder().setPadding(4), PALE_BLUE);
         left.add(bankDetails(invoice.company()));
 
-        Cell right = rounded(noBorder().setPaddingLeft(1));
+        Cell right = roundedFilled(noBorder().setPadding(0), PALE_BLUE);
         right.add(totalsTable(invoice));
 
         outer.addCell(left);
+        outer.addCell(noBorder());
         outer.addCell(right);
         doc.add(outer);
 
         Table words = new Table(UnitValue.createPercentArray(new float[]{22, 48, 17, 13}))
                 .useAllAvailableWidth().setKeepTogether(true);
-        words.addCell(rounded(new Cell().setBackgroundColor(GREEN).setFontColor(ColorConstants.WHITE)
-                .setBorder(Border.NO_BORDER).setPadding(4))
+        words.addCell(new Cell().setFontColor(ColorConstants.WHITE).setBorder(Border.NO_BORDER).setPadding(4)
                 .add(new Paragraph("AMOUNT IN WORDS").setBold().setFontSize(7.2f).setMargin(0)));
-        words.addCell(new Cell().setBorder(new SolidBorder(GREEN, .55f)).setPadding(4)
+        words.addCell(new Cell().setBackgroundColor(ColorConstants.WHITE).setBorder(Border.NO_BORDER).setPadding(4)
                 .add(new Paragraph(invoice.amountInWords()).setBold().setFontSize(7.2f).setMargin(0)));
-        words.addCell(new Cell().setBackgroundColor(GREEN).setFontColor(ColorConstants.WHITE)
-                .setBorder(new SolidBorder(GREEN, .8f)).setPadding(4)
+        words.addCell(new Cell().setFontColor(ColorConstants.WHITE).setBorder(Border.NO_BORDER).setPadding(4)
                 .add(new Paragraph("GRAND TOTAL").setBold().setFontSize(7.2f).setMargin(0)));
-        words.addCell(rounded(new Cell().setBackgroundColor(GREEN).setFontColor(ColorConstants.WHITE)
-                .setTextAlignment(TextAlignment.RIGHT).setBorder(Border.NO_BORDER).setPadding(4))
+        words.addCell(new Cell().setFontColor(ColorConstants.WHITE)
+                .setTextAlignment(TextAlignment.RIGHT).setBorder(Border.NO_BORDER).setPadding(4)
                 .add(new Paragraph("INR " + money(invoice.totals().grandTotal()))
                         .setBold().setFontSize(7.7f).setMargin(0)));
-        doc.add(words);
+        Cell wordsPanel = roundedFilled(noBorder().setPadding(0).add(words), GREEN);
+        doc.add(new Table(1).useAllAvailableWidth().addCell(wordsPanel));
     }
 
     private static Table bankDetails(CompanyProfile company) {
         Table bank = new Table(UnitValue.createPercentArray(new float[]{29, 71})).useAllAvailableWidth();
-        bank.setBackgroundColor(PALE_BLUE).setBorder(Border.NO_BORDER);
-        bank.addCell(new Cell(1, 2).setBackgroundColor(PALE_BLUE).setFontColor(NAVY)
+        bank.setBorder(Border.NO_BORDER);
+        bank.addCell(new Cell(1, 2).setFontColor(NAVY)
                 .setBorder(Border.NO_BORDER).setPaddingTop(5).setPaddingLeft(6).setPaddingBottom(4)
                 .add(new Paragraph("BANK DETAILS").setBold().setFontSize(7.6f).setMargin(0)));
         addBankRow(bank, "Supplier GST No.", company.gstin(), true);
@@ -339,19 +337,19 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static void addBankRow(Table bank, String label, String value, boolean highlight) {
-        bank.addCell(new Cell().setBackgroundColor(PALE_BLUE).setBorder(Border.NO_BORDER)
+        bank.addCell(new Cell().setBorder(Border.NO_BORDER)
                 .setPaddingLeft(6).setPaddingTop(2.4f).setPaddingBottom(2.4f)
                 .add(new Paragraph(label).setBold().setFontSize(6.5f).setMargin(0)));
         Paragraph valueText = new Paragraph(":  " + dash(value)).setFontSize(6.5f).setMargin(0);
         if (highlight) valueText.setBold().setFontColor(NAVY);
-        bank.addCell(new Cell().setBackgroundColor(PALE_BLUE).setBorder(Border.NO_BORDER)
+        bank.addCell(new Cell().setBorder(Border.NO_BORDER)
                 .setPaddingRight(6).setPaddingTop(2.4f).setPaddingBottom(2.4f).add(valueText));
     }
 
     private static Table totalsTable(TaxInvoiceDocument invoice) {
         InvoiceTotals totals = invoice.totals();
         Table table = new Table(UnitValue.createPercentArray(new float[]{64, 36})).useAllAvailableWidth();
-        table.setBackgroundColor(PALE_BLUE).setBorder(Border.NO_BORDER);
+        table.setBorder(Border.NO_BORDER);
         addTotalRow(table, "BASIC AMOUNT", totals.basicAmount());
         addTotalRow(table, "DISCOUNT @ NIL", totals.discountAmount());
         addTotalRow(table, "FREIGHT CHARGES @ EXTRA", totals.freightCharges());
@@ -366,10 +364,10 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static void addTotalRow(Table table, String label, double amount) {
-        table.addCell(new Cell().setBackgroundColor(PALE_BLUE)
+        table.addCell(new Cell()
                 .setBorder(new SolidBorder(GRID, .5f)).setPadding(3)
                 .add(new Paragraph(label).setBold().setFontSize(6.7f).setMargin(0)));
-        table.addCell(new Cell().setBackgroundColor(PALE_BLUE)
+        table.addCell(new Cell()
                 .setTextAlignment(TextAlignment.RIGHT).setBorder(new SolidBorder(GRID, .5f)).setPadding(3)
                 .add(new Paragraph("INR " + money(amount)).setBold().setFontSize(6.7f).setMargin(0)));
     }
@@ -389,8 +387,8 @@ public final class TaxInvoicePdfGenerator {
         Table table = new Table(UnitValue.createPercentArray(new float[]{62, 38}))
                 .useAllAvailableWidth().setKeepTogether(true).setMarginTop(5);
 
-        Cell terms = rounded(new Cell().setPadding(7).setMinHeight(91).setBackgroundColor(PALE_YELLOW)
-                .setBorder(Border.NO_BORDER));
+        Cell terms = roundedFilled(new Cell().setPadding(7).setMinHeight(91)
+                .setBorder(Border.NO_BORDER), PALE_YELLOW);
         terms.add(new Paragraph("TERMS & CONDITIONS").setBold().setFontColor(NAVY).setFontSize(7.8f).setMarginBottom(4));
         String text = invoice.company().terms();
         if (text.isBlank()) {
@@ -401,8 +399,8 @@ public final class TaxInvoicePdfGenerator {
         }
         terms.add(new Paragraph(text).setFontSize(6.5f).setFixedLeading(8.5f).setMargin(0));
 
-        Cell signature = rounded(new Cell().setPadding(6).setMinHeight(91).setTextAlignment(TextAlignment.CENTER)
-                .setBorder(Border.NO_BORDER).setBackgroundColor(VERY_PALE_BLUE));
+        Cell signature = roundedFilled(new Cell().setPadding(6).setMinHeight(91).setTextAlignment(TextAlignment.CENTER)
+                .setBorder(Border.NO_BORDER), VERY_PALE_BLUE);
         signature.add(new Paragraph("For, " + invoice.company().name()).setBold().setFontColor(NAVY)
                 .setFontSize(8.2f).setMarginBottom(3));
         Image signatureImage = configuredImage(ConfigManager.get("company.signaturePath", ""));
@@ -420,13 +418,13 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static void addFooter(Document doc, CompanyProfile company) {
-        doc.add(new Paragraph(company.address()).setTextAlignment(TextAlignment.CENTER)
-                .setFontColor(MUTED).setBold().setFontSize(6.1f).setMarginTop(5).setMarginBottom(2));
-
         Table stripes = new Table(UnitValue.createPercentArray(new float[]{74, 26})).useAllAvailableWidth();
         stripes.addCell(new Cell().setHeight(3).setBackgroundColor(NAVY).setBorder(Border.NO_BORDER));
         stripes.addCell(new Cell().setHeight(3).setBackgroundColor(BLUE).setBorder(Border.NO_BORDER));
         doc.add(stripes);
+
+        doc.add(new Paragraph(company.address()).setTextAlignment(TextAlignment.CENTER)
+                .setFontColor(MUTED).setBold().setFontSize(6.1f).setMarginTop(5).setMarginBottom(2));
     }
 
     private static Cell columnHeader(String text) {
@@ -448,18 +446,37 @@ public final class TaxInvoicePdfGenerator {
 
     /** Adds the softly rounded outer card used by the approved JASVI design. */
     private static Cell rounded(Cell cell) {
-        cell.setNextRenderer(new RoundedCellRenderer(cell));
+        cell.setNextRenderer(new RoundedCellRenderer(cell, null));
+        return cell;
+    }
+
+    private static Cell roundedFilled(Cell cell, Color fill) {
+        cell.setNextRenderer(new RoundedCellRenderer(cell, fill));
         return cell;
     }
 
     private static final class RoundedCellRenderer extends CellRenderer {
-        private RoundedCellRenderer(Cell modelElement) {
+        private final Color fill;
+
+        private RoundedCellRenderer(Cell modelElement, Color fill) {
             super(modelElement);
+            this.fill = fill;
         }
 
         @Override
         public IRenderer getNextRenderer() {
-            return new RoundedCellRenderer((Cell) getModelElement());
+            return new RoundedCellRenderer((Cell) getModelElement(), fill);
+        }
+
+        @Override
+        public void drawBackground(DrawContext drawContext) {
+            if (fill == null) return;
+            Rectangle box = getOccupiedAreaBBox();
+            drawContext.getCanvas().saveState()
+                    .setFillColor(fill)
+                    .roundRectangle(box.getX(), box.getY(), box.getWidth(), box.getHeight(), 5f)
+                    .fill()
+                    .restoreState();
         }
 
         @Override
