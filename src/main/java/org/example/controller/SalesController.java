@@ -78,7 +78,6 @@ public class SalesController {
     private TextArea txtRemarks;
     @FXML private TextArea txtBillingAddress;
     /** Displays the selected customer's billing address using the same control pattern as Create Purchase. */
-    @FXML private ComboBox<String> cmbBillingAddress;
     @FXML private TextArea txtDeliveryAddress;
 
     @FXML
@@ -194,8 +193,8 @@ public class SalesController {
         if (chkSameAsBilling != null) {
             chkSameAsBilling.selectedProperty().addListener((o, oldValue, same) -> syncDeliveryAddressState());
         }
-        if (cmbBillingAddress != null) {
-            cmbBillingAddress.valueProperty().addListener((o, oldValue, address) -> {
+        if (txtBillingAddress != null) {
+            txtBillingAddress.textProperty().addListener((o, oldValue, address) -> {
                 if (chkSameAsBilling != null && chkSameAsBilling.isSelected()) {
                     txtDeliveryAddress.setText(address == null ? "" : address);
                 }
@@ -340,19 +339,12 @@ public class SalesController {
         cmbCustomer.valueProperty().addListener((observable, oldCustomer, customer) -> {
             if (customer == null) {
                 txtBillingAddress.clear();
-                if (cmbBillingAddress != null) cmbBillingAddress.getItems().clear();
                 if (txtGstin != null) txtGstin.clear();
                 if (editingSale == null && txtDeliveryAddress != null) txtDeliveryAddress.clear();
                 return;
             }
             String address = customer.getAddress() == null ? "" : customer.getAddress().trim();
             txtBillingAddress.setText(address);
-            java.util.List<String> addresses = address.isBlank()
-                ? java.util.List.of() : java.util.List.of(address);
-            if (cmbBillingAddress != null) {
-                cmbBillingAddress.getItems().setAll(addresses);
-                cmbBillingAddress.getSelectionModel().select(address);
-            }
             if (txtGstin != null && (editingSale == null || txtGstin.getText() == null || txtGstin.getText().isBlank())) {
                 txtGstin.setText(customer.getGstin() == null ? "" : customer.getGstin());
             }
@@ -763,10 +755,6 @@ public class SalesController {
 
         }
 
-        if (txtOrderNo != null && (txtOrderNo.getText() == null || txtOrderNo.getText().isBlank())) {
-            txtOrderNo.setText(salesService.nextOrderNo());
-        }
-
         if (txtDeliveryAddress != null && (txtDeliveryAddress.getText() == null || txtDeliveryAddress.getText().isBlank())) {
             warn("Enter delivery address");
             return null;
@@ -834,7 +822,7 @@ public class SalesController {
         sale.setOrderNo(txtOrderNo == null ? "" : txtOrderNo.getText());
         sale.setSalesperson(cmbSalesPerson.getValue());
         sale.setNotes("");
-        String billing = cmbBillingAddress == null ? txtBillingAddress.getText() : cmbBillingAddress.getValue();
+        String billing = txtBillingAddress == null ? "" : txtBillingAddress.getText();
         String shipping = txtDeliveryAddress == null ? "" : txtDeliveryAddress.getText();
         sale.setBillingAddress(billing == null ? "" : billing);
         sale.setDeliveryAddress(shipping == null ? "" : shipping);
@@ -878,7 +866,7 @@ public class SalesController {
         if (txtDeliveryAddress == null) return;
         boolean same = chkSameAsBilling != null && chkSameAsBilling.isSelected();
         if (same) {
-            String billing = cmbBillingAddress == null ? txtBillingAddress.getText() : cmbBillingAddress.getValue();
+            String billing = txtBillingAddress == null ? "" : txtBillingAddress.getText();
             txtDeliveryAddress.setText(billing == null ? "" : billing);
         }
         txtDeliveryAddress.setEditable(!same);
@@ -913,9 +901,8 @@ public class SalesController {
         txtRemarks.clear();
         txtBillingAddress.clear();
         txtDeliveryAddress.clear();
-        if (cmbBillingAddress != null) cmbBillingAddress.getItems().clear();
         if (chkSameAsBilling != null) chkSameAsBilling.setSelected(true);
-        if (txtOrderNo != null) txtOrderNo.setText(salesService.nextOrderNo());
+        if (txtOrderNo != null) txtOrderNo.clear();
         if (txtGstin != null) txtGstin.clear();
         if (cmbGstType != null && !cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
         if (cmbTransporter != null) cmbTransporter.setValue(null);
@@ -1089,16 +1076,14 @@ public class SalesController {
 
         }
 
-        if (cmbBillingAddress != null) {
+        if (txtBillingAddress != null) {
             String billing = sale.getBillingAddress().isBlank()
                 ? (sale.getCustomer() == null ? "" : sale.getCustomer().getAddress())
                 : sale.getBillingAddress();
-            if (billing != null && !billing.isBlank() && !cmbBillingAddress.getItems().contains(billing))
-                cmbBillingAddress.getItems().add(billing);
-            cmbBillingAddress.setValue(billing);
+            txtBillingAddress.setText(billing == null ? "" : billing);
         }
         if (chkSameAsBilling != null) {
-            String billing = cmbBillingAddress == null ? "" : cmbBillingAddress.getValue();
+            String billing = txtBillingAddress == null ? "" : txtBillingAddress.getText();
             chkSameAsBilling.setSelected(!sale.getDeliveryAddress().isBlank() && sale.getDeliveryAddress().equals(billing));
             syncDeliveryAddressState();
         }
@@ -1153,7 +1138,6 @@ public class SalesController {
         txtRemarks.setDisable(value);
         txtBillingAddress.setDisable(value);
         txtDeliveryAddress.setDisable(value);
-        if (cmbBillingAddress != null) cmbBillingAddress.setDisable(value);
         if (cmbGstType != null) cmbGstType.setDisable(value);
         if (cmbTransporter != null) cmbTransporter.setDisable(value);
         if (cmbDoorDelivery != null) cmbDoorDelivery.setDisable(value);

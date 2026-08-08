@@ -272,7 +272,7 @@
 .communication-resend-button { -fx-min-width: 132px; -fx-pref-width: 132px; -fx-max-width: 132px; -fx-padding: 7px 10px; -fx-font-weight: 800; }
 .reminder-three-dot-button { -fx-font-size: 18px; -fx-font-weight: 900; -fx-padding: 2px 8px; -fx-alignment: center; }
 
-/* Bank & Expense workspace — v4.0.3 */
+/* Bank & Expense workspace — v4.0.4 */
 .bank-expense-page { -fx-padding: 4px; }
 .bank-expense-mode-strip { -fx-padding: 4px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 1px; }
 .bank-expense-mode-button { -fx-min-width: 120px; -fx-font-weight: 800; }

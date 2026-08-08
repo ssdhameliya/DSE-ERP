@@ -892,6 +892,17 @@ public class DatabaseManager {
         createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('PAYMENT_TERMS','PAYMENT TERMS','Payment terms used by Create Sale',100,1)");
         createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('CHARGES','CHARGES','Additional sale charges used by Create Sale',110,1)");
         createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('SALES_INVOICE_FORMAT','SALES INVOICE FORMAT','Sales invoice numbering pattern used by Create Sale',120,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('PAYMENT_MODE','PAYMENT MODE','Payment methods used by Bank & Expense Entry',130,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('EXPENSE_CATEGORY','EXPENSE CATEGORY','Expense classifications used by Expense Entry',140,1)");
+        seedMasterValuesIfEmpty("PAYMENT_MODE", new String[][]{
+            {"PMODE001","NEFT"}, {"PMODE002","RTGS"}, {"PMODE003","UPI"}, {"PMODE004","Cheque"},
+            {"PMODE005","Card"}, {"PMODE006","Cash"}, {"PMODE007","Bank Transfer"}, {"PMODE008","Other"}
+        });
+        seedMasterValuesIfEmpty("EXPENSE_CATEGORY", new String[][]{
+            {"ECAT001","Office Expenses"}, {"ECAT002","Travel Expenses"}, {"ECAT003","Marketing"}, {"ECAT004","Purchase"},
+            {"ECAT005","Internet & Phone"}, {"ECAT006","Transport"}, {"ECAT007","Maintenance"}, {"ECAT008","Utilities"},
+            {"ECAT009","Rent"}, {"ECAT010","Salary"}, {"ECAT011","Other"}
+        });
         createTable("INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
             "SELECT (SELECT category_name FROM master_category WHERE category_code='PO_DATE_FORMAT'),'POFMT001','PO/DD-MM-YYYY/XXXX','Auto-generated order number format',10,1 " +
             "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='POFMT001')");
@@ -929,4 +940,33 @@ public class DatabaseManager {
             "SELECT (SELECT category_name FROM master_category WHERE category_code='SALES_INVOICE_FORMAT'),'SIFMT001','IN/DD-MM-YYYY/XXXX','Auto-generated sales invoice number format',10,1 " +
             "WHERE NOT EXISTS(SELECT 1 FROM lookup_master WHERE lookup_code='SIFMT001')");
     }
+    /** Seeds a new configurable master only when it has no values yet. */
+    private static void seedMasterValuesIfEmpty(String categoryCode, String[][] values) {
+        String countSql = "SELECT COUNT(*) FROM lookup_master lm JOIN master_category mc ON mc.category_name=lm.lookup_type WHERE mc.category_code=?";
+        String insertSql = "INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active) " +
+            "SELECT mc.category_name,?,?,?, ?,1 FROM master_category mc WHERE mc.category_code=?";
+        try (Connection con = getConnection();
+             PreparedStatement count = con.prepareStatement(countSql)) {
+            count.setString(1, categoryCode);
+            try (ResultSet rs = count.executeQuery()) {
+                if (rs.next() && rs.getInt(1) > 0) return;
+            }
+            try (PreparedStatement insert = con.prepareStatement(insertSql)) {
+                int order = 10;
+                for (String[] value : values) {
+                    insert.setString(1, value[0]);
+                    insert.setString(2, value[1]);
+                    insert.setString(3, null);
+                    insert.setInt(4, order);
+                    insert.setString(5, categoryCode);
+                    insert.addBatch();
+                    order += 10;
+                }
+                insert.executeBatch();
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
 }

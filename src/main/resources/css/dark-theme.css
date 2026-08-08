@@ -5954,3 +5954,67 @@ TABLE ACTION BUTTONS
 .finance-section-title,.finance-kpi-value { -fx-text-fill: #f8fafc; }
 .finance-field-label,.finance-kpi-label { -fx-text-fill: #cbd5e1; }
 .finance-kpi-note,.finance-file-name { -fx-text-fill: #94a3b8; }
+
+
+/* v4.0.4 Create Sale / Dashboard usability refinements */
+.sales-entry-address-area { -fx-min-height: 82; -fx-pref-height: 88; }
+.sales-entry-side-actions { -fx-padding: 2 0 0 0; }
+.sales-entry-side-actions .button { -fx-min-width: 108; -fx-pref-height: 38; }
+.approved-quick-action { -fx-min-width: 158; -fx-pref-width: 170; -fx-max-width: Infinity; -fx-min-height: 78; -fx-pref-height: 82; -fx-wrap-text: true; }
+.approved-quick-action .text { -fx-text-alignment: center; }
+.dashboard-top-customer-list .list-cell,
+.dashboard-aging-list .list-cell,
+.dashboard-activity-list .list-cell { -fx-background-radius: 8; -fx-border-radius: 8; -fx-padding: 10 11; }
+.dashboard-row-accent-0 { -fx-background-color: rgba(37, 99, 235, 0.13); -fx-text-fill: #60a5fa; }
+.dashboard-row-accent-1 { -fx-background-color: rgba(16, 185, 129, 0.13); -fx-text-fill: #34d399; }
+.dashboard-row-accent-2 { -fx-background-color: rgba(168, 85, 247, 0.13); -fx-text-fill: #c084fc; }
+.dashboard-row-accent-3 { -fx-background-color: rgba(245, 158, 11, 0.13); -fx-text-fill: #fbbf24; }
+.dashboard-row-accent-4 { -fx-background-color: rgba(236, 72, 153, 0.13); -fx-text-fill: #f472b6; }
+
+
+/* v4.0.4 final Create Sale action panel + dashboard 4x2 quick-action alignment */
+.sales-entry-page .sales-entry-actions-card {
+    -fx-padding: 13;
+}
+.sales-entry-page .sales-entry-section-actions {
+    -fx-font-weight: 800;
+}
+.sales-entry-page .sales-entry-side-actions {
+    -fx-padding: 2 0 0 0;
+}
+.sales-entry-page .sales-entry-side-actions .button {
+    -fx-min-height: 54;
+    -fx-pref-height: 54;
+    -fx-font-size: 14px;
+}
+.sales-entry-page .sales-entry-action-toggle {
+    -fx-min-height: 38;
+    -fx-pref-height: 38;
+}
+.sales-entry-page .sales-entry-action-toggle {
+    -fx-alignment: CENTER;
+    -fx-padding: 0 12;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-font-weight: 800;
+}
+.sales-entry-page .sales-entry-action-toggle > .box {
+    -fx-padding: 3;
+}
+.dashboard-quick-grid {
+    -fx-alignment: CENTER;
+}
+.dashboard-quick-grid .approved-quick-action {
+    -fx-min-width: 0;
+    -fx-pref-width: -1;
+    -fx-max-width: Infinity;
+    -fx-min-height: 78;
+    -fx-pref-height: 82;
+    -fx-alignment: CENTER;
+    -fx-content-display: LEFT;
+    -fx-text-alignment: CENTER;
+}
+.sales-entry-page .sales-entry-actions-card { -fx-border-color: #6447a7; -fx-background-color: rgba(45,31,83,.34); }
+.sales-entry-page .sales-entry-section-actions { -fx-text-fill: #c1a7ff; }
+.sales-entry-page .sales-entry-action-toggle { -fx-background-color: #17304c; -fx-border-color: #3e6b99; -fx-text-fill: #8dccff; }
+.sales-entry-page .sales-entry-action-toggle:selected { -fx-background-color: #21466f; -fx-border-color: #5796d5; }

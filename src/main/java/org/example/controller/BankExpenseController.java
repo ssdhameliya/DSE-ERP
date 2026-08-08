@@ -8,6 +8,8 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.example.config.ConfigManager;
+import org.example.dao.LookupDAO;
+import org.example.navigation.ScreenLifecycle;
 import org.example.database.DatabaseManager;
 import org.example.service.NotificationService;
 import org.example.util.IconFactory;
@@ -18,10 +20,16 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.*;
 
-public class BankExpenseController {
+public class BankExpenseController implements ScreenLifecycle {
     public enum Mode { BANK, EXPENSE }
-    private static Mode requestedMode = Mode.BANK;
+    private static volatile Mode requestedMode;
     public static void requestMode(Mode mode) { requestedMode = mode == null ? Mode.BANK : mode; }
+
+    private static Mode consumeRequestedMode() {
+        Mode requested = requestedMode;
+        requestedMode = null;
+        return requested;
+    }
 
     @FXML private Label lblTitle, lblSubtitle, formTitle, listTitle;
     @FXML private Button btnBankMode, btnExpenseMode, saveButton, addButton;
@@ -39,6 +47,7 @@ public class BankExpenseController {
     @FXML private TableColumn<EntryRow,Void> colAction;
 
     private final ToggleGroup typeGroup = new ToggleGroup();
+    private final LookupDAO lookupDAO = new LookupDAO();
     private final List<EntryRow> filtered = new ArrayList<>();
     private Mode mode;
     private File selectedBill;
@@ -50,14 +59,45 @@ public class BankExpenseController {
         ensureFinanceColumns();
         entryDate.setValue(LocalDate.now());
         creditRadio.setToggleGroup(typeGroup); debitRadio.setToggleGroup(typeGroup); creditRadio.setSelected(true);
-        paymentMode.setItems(FXCollections.observableArrayList("NEFT","RTGS","UPI","Cheque","Card","Cash","Bank Transfer","Other"));
-        paymentMode.setValue("NEFT");
-        expenseCategory.setItems(FXCollections.observableArrayList("Office Expenses","Travel Expenses","Marketing","Purchase","Internet & Phone","Transport","Maintenance","Utilities","Rent","Salary","Other"));
+        loadMasterLookups();
         loadAccounts();
         configureTable();
         periodFilter.setItems(FXCollections.observableArrayList("This Month","This Year","All Time")); periodFilter.setValue("This Month");
-        mode = requestedMode; requestedMode = Mode.BANK;
+        Mode initialMode = consumeRequestedMode();
+        mode = initialMode == null ? Mode.BANK : initialMode;
         applyMode(mode);
+    }
+
+    private void loadMasterLookups() {
+        String selectedPaymentMode = paymentMode == null ? null : paymentMode.getValue();
+        List<String> paymentModes = lookupDAO.getValuesByCategoryCode("PAYMENT_MODE");
+        List<String> expenseCategories = lookupDAO.getValuesByCategoryCode("EXPENSE_CATEGORY");
+
+        paymentMode.getItems().setAll(paymentModes);
+        expenseCategory.getItems().setAll(expenseCategories);
+
+        if (selectedPaymentMode != null && paymentModes.contains(selectedPaymentMode)) {
+            paymentMode.setValue(selectedPaymentMode);
+        } else if (!paymentModes.isEmpty()) {
+            paymentMode.getSelectionModel().selectFirst();
+        } else {
+            paymentMode.getSelectionModel().clearSelection();
+        }
+    }
+
+    @Override
+    public void onScreenShown(boolean reusedFromCache) {
+        // BankExpense.fxml is intentionally cached. On reuse, refresh the master
+        // values and consume the navigation request so the cached controller cannot
+        // keep whichever tab happened to be open previously.
+        if (reusedFromCache) loadMasterLookups();
+        Mode requested = consumeRequestedMode();
+        if (requested != null && requested != mode) {
+            applyMode(requested);
+        } else if (reusedFromCache) {
+            loadMetrics();
+            applyFilters();
+        }
     }
 
     private void loadAccounts() {
@@ -82,7 +122,14 @@ public class BankExpenseController {
         saveButton.setText(bank ? "Save Entry" : "Save Expense"); addButton.setText(bank ? "Add Entry" : "Add Expense");
         bankOnlyFields.setVisible(bank); bankOnlyFields.setManaged(bank); expenseOnlyFields.setVisible(!bank); expenseOnlyFields.setManaged(!bank); billBox.setVisible(!bank); billBox.setManaged(!bank);
         styleModeButton(btnBankMode, bank); styleModeButton(btnExpenseMode, !bank);
-        typeFilter.getItems().setAll(bank ? List.of("All Types","Deposit","Withdrawal") : List.of("All Categories","Office Expenses","Travel Expenses","Marketing","Purchase","Internet & Phone","Transport","Maintenance","Utilities","Rent","Salary","Other"));
+        if (bank) {
+            typeFilter.getItems().setAll("All Types", "Deposit", "Withdrawal");
+        } else {
+            List<String> categoryFilters = new ArrayList<>();
+            categoryFilters.add("All Categories");
+            categoryFilters.addAll(expenseCategory.getItems());
+            typeFilter.getItems().setAll(categoryFilters);
+        }
         typeFilter.getSelectionModel().selectFirst();
         colType.setText(bank ? "Type" : "Category"); colMode.setVisible(!bank);
         configureHeaderIcons(); loadMetrics(); applyFilters();
@@ -142,9 +189,9 @@ public class BankExpenseController {
         } catch(Exception e){ error(e.getMessage()==null?"Unable to save entry":e.getMessage()); }
     }
 
-    private void validate(){ if(entryDate.getValue()==null)throw new IllegalArgumentException("Select a date."); if(description.getText().trim().isEmpty())throw new IllegalArgumentException("Enter a description."); if(amount.getText().trim().isEmpty())throw new IllegalArgumentException("Enter an amount."); double v; try{v=Double.parseDouble(amount.getText().replace(",","").trim());}catch(Exception e){throw new IllegalArgumentException("Enter a valid amount.");} if(v<=0)throw new IllegalArgumentException("Amount must be greater than zero."); if(paymentMode.getValue()==null)throw new IllegalArgumentException("Select payment mode."); if(mode==Mode.BANK&&bankAccount.getValue()==null)throw new IllegalArgumentException("Select bank account."); if(mode==Mode.EXPENSE&&(text(expenseCategory).isBlank()||expenseAccount.getValue()==null))throw new IllegalArgumentException("Select expense category and account."); }
+    private void validate(){ if(entryDate.getValue()==null)throw new IllegalArgumentException("Select a date."); if(description.getText().trim().isEmpty())throw new IllegalArgumentException("Enter a description."); if(amount.getText().trim().isEmpty())throw new IllegalArgumentException("Enter an amount."); double v; try{v=Double.parseDouble(amount.getText().replace(",","").trim());}catch(Exception e){throw new IllegalArgumentException("Enter a valid amount.");} if(v<=0)throw new IllegalArgumentException("Amount must be greater than zero."); if(paymentMode.getItems().isEmpty())throw new IllegalArgumentException("No Payment Mode is configured in Master Data."); if(paymentMode.getValue()==null)throw new IllegalArgumentException("Select payment mode."); if(mode==Mode.BANK&&bankAccount.getValue()==null)throw new IllegalArgumentException("Select bank account."); if(mode==Mode.EXPENSE&&expenseCategory.getItems().isEmpty())throw new IllegalArgumentException("No Expense Category is configured in Master Data."); if(mode==Mode.EXPENSE&&(expenseCategory.getValue()==null||expenseCategory.getValue().isBlank()||expenseAccount.getValue()==null))throw new IllegalArgumentException("Select expense category and account."); }
 
-    @FXML private void clearForm(){ if(entryDate!=null)entryDate.setValue(LocalDate.now()); if(referenceNo!=null)referenceNo.clear(); if(description!=null)description.clear(); if(amount!=null)amount.clear(); if(creditRadio!=null)creditRadio.setSelected(true); if(expenseCategory!=null){expenseCategory.getSelectionModel().clearSelection(); if(expenseCategory.isEditable()) expenseCategory.getEditor().clear();} editingId=null; selectedBill=null; if(billName!=null)billName.setText("No file selected"); if(saveButton!=null)saveButton.setText(mode==Mode.EXPENSE?"Save Expense":"Save Entry"); }
+    @FXML private void clearForm(){ if(entryDate!=null)entryDate.setValue(LocalDate.now()); if(referenceNo!=null)referenceNo.clear(); if(description!=null)description.clear(); if(amount!=null)amount.clear(); if(creditRadio!=null)creditRadio.setSelected(true); if(expenseCategory!=null)expenseCategory.getSelectionModel().clearSelection(); editingId=null; selectedBill=null; if(billName!=null)billName.setText("No file selected"); if(saveButton!=null)saveButton.setText(mode==Mode.EXPENSE?"Save Expense":"Save Entry"); }
     @FXML private void focusForm(){ if(mode==Mode.EXPENSE)expenseCategory.requestFocus(); else bankAccount.requestFocus(); }
     @FXML private void chooseBill(){ FileChooser f=new FileChooser(); f.setTitle("Choose expense bill"); f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bill files","*.pdf","*.png","*.jpg","*.jpeg")); selectedBill=f.showOpenDialog(table.getScene().getWindow()); if(selectedBill!=null)billName.setText(selectedBill.getName()); }
 
@@ -159,7 +206,7 @@ public class BankExpenseController {
     private void renderPage(){ int pages=Math.max(1,(filtered.size()+PAGE_SIZE-1)/PAGE_SIZE); if(currentPage>=pages)currentPage=pages-1; int from=Math.min(currentPage*PAGE_SIZE,filtered.size()),to=Math.min(from+PAGE_SIZE,filtered.size()); table.getItems().setAll(filtered.subList(from,to)); showingLabel.setText(filtered.isEmpty()?"Showing 0 to 0 of 0 entries":"Showing "+(from+1)+" to "+to+" of "+filtered.size()+" entries"); pageLabel.setText((currentPage+1)+" / "+pages); }
     @FXML private void previousPage(){if(currentPage>0){currentPage--;renderPage();}} @FXML private void nextPage(){int pages=Math.max(1,(filtered.size()+PAGE_SIZE-1)/PAGE_SIZE);if(currentPage+1<pages){currentPage++;renderPage();}}
 
-    private void editRow(EntryRow row){ if(row==null)return; editingId=row.id; entryDate.setValue(LocalDate.parse(row.date.get())); description.setText(row.description.get()); referenceNo.setText(row.reference.get()); amount.setText(String.valueOf(row.amount.get())); paymentMode.setValue(row.paymentMode.get()); if(mode==Mode.BANK){ if("DEPOSIT".equals(row.rawType))creditRadio.setSelected(true);else debitRadio.setSelected(true); if(!row.account.get().isBlank())bankAccount.setValue(row.account.get()); }else{expenseCategory.setValue(row.type.get()); if(expenseCategory.isEditable()) expenseCategory.getEditor().setText(row.type.get()); if(!row.account.get().isBlank())expenseAccount.setValue(row.account.get());} saveButton.setText(mode==Mode.BANK?"Update Entry":"Update Expense"); focusForm(); }
+    private void editRow(EntryRow row){ if(row==null)return; editingId=row.id; entryDate.setValue(LocalDate.parse(row.date.get())); description.setText(row.description.get()); referenceNo.setText(row.reference.get()); amount.setText(String.valueOf(row.amount.get())); paymentMode.setValue(row.paymentMode.get()); if(mode==Mode.BANK){ if("DEPOSIT".equals(row.rawType))creditRadio.setSelected(true);else debitRadio.setSelected(true); if(!row.account.get().isBlank())bankAccount.setValue(row.account.get()); }else{expenseCategory.setValue(row.type.get()); if(!row.account.get().isBlank())expenseAccount.setValue(row.account.get());} saveButton.setText(mode==Mode.BANK?"Update Entry":"Update Expense"); focusForm(); }
     private void deleteRow(EntryRow row){ if(row==null)return; Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Delete this entry? This action cannot be undone."); a.showAndWait().filter(b->b==ButtonType.OK).ifPresent(b->{try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement("DELETE FROM finance_register WHERE id=?")){p.setInt(1,row.id);p.executeUpdate();loadMetrics();applyFilters();}catch(Exception e){error(e.getMessage());}}); }
 
     private void ensureFinanceColumns(){ addColumn("account_name","TEXT"); addColumn("bill_path","TEXT"); addColumn("reconciled","INTEGER NOT NULL DEFAULT 0"); }

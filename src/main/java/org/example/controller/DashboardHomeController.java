@@ -9,6 +9,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
 import org.example.util.IconFactory;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ProgressIndicator;
@@ -64,6 +65,7 @@ public class DashboardHomeController {
         installKpiIcons();
         installQuickActionIcons();
         installDashboardHeaderIcons();
+        installColorfulDashboardLists();
         if (cmbPeriod != null) {
             cmbPeriod.getItems().setAll("This Month", "This Quarter", "This Year", "All Time");
             cmbPeriod.setValue("This Month");
@@ -120,6 +122,34 @@ public class DashboardHomeController {
         button.setManaged(true);
         button.getProperties().put("erp-icon-preserve", true);
         button.getProperties().put("erp.icon.semantic", icon);
+    }
+
+    /** Keeps the three dashboard insight lists readable and gives each row a clear visual accent. */
+    private void installColorfulDashboardLists() {
+        installColorfulList(topCustomerList, "dashboard-customer-row");
+        installColorfulList(agingList, "dashboard-aging-row");
+        installColorfulList(activityList, "dashboard-activity-row");
+    }
+
+    private void installColorfulList(ListView<String> list, String baseStyle) {
+        if (list == null) return;
+        list.setCellFactory(view -> new ListCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                getStyleClass().removeAll(
+                    "dashboard-customer-row", "dashboard-aging-row", "dashboard-activity-row",
+                    "dashboard-row-accent-0", "dashboard-row-accent-1", "dashboard-row-accent-2",
+                    "dashboard-row-accent-3", "dashboard-row-accent-4"
+                );
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
+                setText(item);
+                getStyleClass().add(baseStyle);
+                getStyleClass().add("dashboard-row-accent-" + Math.floorMod(getIndex(), 5));
+            }
+        });
     }
 
     /** Cycles the shared dashboard reporting period and reloads all database widgets. */

@@ -58,25 +58,18 @@
                         <DatePicker fx:id="dpDueDate" maxWidth="Infinity" styleClass="approved-input"/>
                     </VBox>
 
-                    <VBox spacing="4" GridPane.rowIndex="1">
+                    <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnSpan="2">
                         <Label text="Billing Address *" styleClass="sales-entry-field-label,field-label-address"/>
-                        <ComboBox fx:id="cmbBillingAddress" promptText="Select billing address..."
-                                  maxWidth="Infinity" styleClass="approved-input"/>
+                        <TextArea fx:id="txtBillingAddress" promptText="Billing address..."
+                                  prefRowCount="4" prefHeight="88" wrapText="true" maxWidth="Infinity"
+                                  styleClass="approved-input,sales-entry-delivery-area,sales-entry-address-area"/>
                     </VBox>
 
-                    <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1" GridPane.columnSpan="2">
-                        <HBox alignment="CENTER_LEFT" spacing="10">
-                            <Label text="Delivery Address *" styleClass="sales-entry-field-label,field-label-address"/>
-                        </HBox>
+                    <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2" GridPane.columnSpan="2">
+                        <Label text="Delivery Address *" styleClass="sales-entry-field-label,field-label-address"/>
                         <TextArea fx:id="txtDeliveryAddress" promptText="Enter delivery address..."
-                                  prefRowCount="3" prefHeight="72" wrapText="true" maxWidth="Infinity"
-                                  styleClass="approved-input,sales-entry-delivery-area"/>
-                    </VBox>
-
-                    <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3">
-                        <Label text="Order No." styleClass="sales-entry-field-label,field-label-invoice"/>
-                        <TextField fx:id="txtOrderNo" editable="false" promptText="Auto generated"
-                                   styleClass="approved-input,sales-entry-order-field"/>
+                                  prefRowCount="4" prefHeight="88" wrapText="true" maxWidth="Infinity"
+                                  styleClass="approved-input,sales-entry-delivery-area,sales-entry-address-area"/>
                     </VBox>
 
                     <VBox spacing="4" GridPane.rowIndex="2">
@@ -96,14 +89,14 @@
                         <TextField fx:id="txtChargeAmount" text="0" promptText="0.00"
                                    styleClass="approved-input,sales-entry-charge-amount"/>
                     </VBox>
-                    <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnIndex="3" alignment="BOTTOM_LEFT">
-                        <CheckBox fx:id="chkSameAsBilling" text="Same as Billing Address" selected="true"
-                                  styleClass="sales-entry-same-address"/>
+                    <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnIndex="3">
+                        <Label text="Order No." styleClass="sales-entry-field-label,field-label-invoice"/>
+                        <TextField fx:id="txtOrderNo" promptText="Enter order no. (optional)"
+                                   styleClass="approved-input,sales-entry-order-field"/>
                     </VBox>
                 </GridPane>
 
                 <!-- Compatibility/backing controls retained but removed from the visible workflow. -->
-                <TextArea fx:id="txtBillingAddress" visible="false" managed="false"/>
                 <TextArea fx:id="txtRemarks" visible="false" managed="false"/>
                 <Label fx:id="lblInvoiceDisplay" visible="false" managed="false"/>
                 <ComboBox fx:id="cmbSalesPerson" visible="false" managed="false"/>
@@ -127,6 +120,8 @@
                             styleClass="sales-entry-add-button,approved-button,approved-primary-button"/>
                     <Button fx:id="btnRemoveLine" text="Remove" onAction="#removeLine"
                             styleClass="sales-entry-remove-button,approved-button,approved-danger-button"/>
+                    <CheckBox fx:id="chkSameAsBilling" text="Same as Billing Address" selected="true"
+                              styleClass="sales-entry-same-address,sales-entry-action-toggle"/>
                 </HBox>
 
                 <TableView fx:id="tableLines" minHeight="190" VBox.vgrow="ALWAYS"
@@ -165,15 +160,6 @@
                 </HBox>
             </VBox>
 
-            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="sales-entry-bottom-actions">
-                <Button text="Cancel" onAction="#cancel"
-                        styleClass="sales-entry-cancel-button,approved-button,approved-secondary-button"/>
-                <Button fx:id="btnSaveDraft" text="Save as Draft" onAction="#saveDraft"
-                        styleClass="approved-button,approved-secondary-button"/>
-                <Region HBox.hgrow="ALWAYS"/>
-                <Button fx:id="btnSaveSale" text="Save &amp; Print" onAction="#saveSale"
-                        styleClass="sales-entry-save-button,approved-button,approved-primary-button"/>
-            </HBox>
         </VBox>
 
         <VBox spacing="10" prefWidth="300" minWidth="285" maxWidth="330">
@@ -243,6 +229,17 @@
                                    styleClass="approved-input"/>
                     </VBox>
                 </GridPane>
+            </VBox>
+
+            <VBox spacing="10" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-actions-card">
+                <Label text="Action Needed"
+                       styleClass="flow-title,sales-entry-section-title,sales-entry-section-actions"/>
+                <HBox alignment="CENTER" spacing="10" styleClass="sales-entry-side-actions">
+                    <Button text="Cancel" onAction="#cancel" maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                            styleClass="sales-entry-cancel-button,approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSaveSale" text="Save" onAction="#saveSale" maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                            styleClass="sales-entry-save-button,approved-button,approved-primary-button"/>
+                </HBox>
             </VBox>
         </VBox>
     </HBox>

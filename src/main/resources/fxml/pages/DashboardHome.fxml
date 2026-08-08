@@ -39,24 +39,30 @@
 
                 <GridPane hgap="12" vgap="12">
                     <columnConstraints><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/></columnConstraints>
-                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="0"><HBox><Label text="Top Customers" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewTopCustomers" styleClass="approved-link"/></HBox><ListView fx:id="topCustomerList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list"/></VBox>
-                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="1"><HBox><Label text="Receivables Ageing" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View Register" onMouseClicked="#viewReceivables" styleClass="approved-link"/></HBox><ListView fx:id="agingList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list"/></VBox>
-                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="2"><HBox><Label text="Recent Activities" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Live" styleClass="approved-live-badge"/></HBox><ListView fx:id="activityList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list"/></VBox>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="0"><HBox><Label text="Top Customers" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewTopCustomers" styleClass="approved-link"/></HBox><ListView fx:id="topCustomerList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-top-customer-list"/></VBox>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="1"><HBox><Label text="Receivables Ageing" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View Register" onMouseClicked="#viewReceivables" styleClass="approved-link"/></HBox><ListView fx:id="agingList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-aging-list"/></VBox>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="2"><HBox><Label text="Recent Activities" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Live" styleClass="approved-live-badge"/></HBox><ListView fx:id="activityList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-activity-list"/></VBox>
                 </GridPane>
 
                 <HBox spacing="12">
                     <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface">
                         <Label text="Quick Actions" styleClass="approved-card-title"/>
-                        <TilePane hgap="10" vgap="10" prefColumns="4" prefTileWidth="130" prefTileHeight="78">
-                            <Button fx:id="quickSale" text="New Sale" onAction="#newSale" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                            <Button fx:id="quickPurchase" text="Create Purchase" onAction="#newPurchase" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                            <Button fx:id="quickCustomer" text="Add Customer" onAction="#addCustomer" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                            <Button fx:id="quickQuotation" text="Quotation" onAction="#newQuotation" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                            <Button fx:id="quickPayment" text="Add Payment" onAction="#addPayment" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                            <Button fx:id="quickSupplier" text="Add Supplier" onAction="#addSupplier" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                            <Button fx:id="quickBank" text="Bank Entry" onAction="#bankEntry" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                            <Button fx:id="quickExpense" text="Expense Entry" onAction="#expenseEntry" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
-                        </TilePane>
+                        <GridPane hgap="12" vgap="12" alignment="CENTER" maxWidth="Infinity" styleClass="dashboard-quick-grid">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                            </columnConstraints>
+                            <Button fx:id="quickSale" text="New Sale" onAction="#newSale" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickPurchase" text="Create Purchase" onAction="#newPurchase" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickCustomer" text="Add Customer" onAction="#addCustomer" maxWidth="Infinity" GridPane.columnIndex="2" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickQuotation" text="Quotation" onAction="#newQuotation" maxWidth="Infinity" GridPane.columnIndex="3" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickPayment" text="Add Payment" onAction="#addPayment" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickSupplier" text="Add Supplier" onAction="#addSupplier" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickBank" text="Bank Entry" onAction="#bankEntry" maxWidth="Infinity" GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickExpense" text="Expense Entry" onAction="#expenseEntry" maxWidth="Infinity" GridPane.columnIndex="3" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                        </GridPane>
                     </VBox>
                     <VBox spacing="10" prefWidth="350" styleClass="approved-card,reminder-dashboard-card">
                         <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Reminders" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewReminders" styleClass="approved-link"/></HBox>

@@ -30,7 +30,7 @@
         <HBox spacing="12"><RadioButton fx:id="creditRadio" text="Deposit (Credit)"/><RadioButton fx:id="debitRadio" text="Withdrawal (Debit)"/></HBox>
       </VBox>
       <VBox fx:id="expenseOnlyFields" spacing="8" visible="false" managed="false">
-        <Label text="Category *" styleClass="finance-field-label"/><ComboBox fx:id="expenseCategory" editable="true" maxWidth="Infinity"/>
+        <Label text="Category *" styleClass="finance-field-label"/><ComboBox fx:id="expenseCategory" editable="false" maxWidth="Infinity"/>
         <Label text="Account *" styleClass="finance-field-label"/><ComboBox fx:id="expenseAccount" maxWidth="Infinity"/>
       </VBox>
       <Label text="Payment Mode *" styleClass="finance-field-label"/><ComboBox fx:id="paymentMode" maxWidth="Infinity"/>
