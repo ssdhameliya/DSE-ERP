@@ -1,0 +1,27 @@
+DSE ERP v3.0.6 - BUILD AND VERIFICATION REPORT
+
+Compilation status: NOT EXECUTED
+Reason: Maven is not installed; project targets Java 25/JavaFX 25.0.2 while the available runtime is Java 21; network access to Maven repositories is unavailable.
+Therefore this report does not claim compilation success.
+
+STATIC AND PACKAGE VERIFICATION
+-------------------------------
+[PASS] FXML XML parsing: 36/36 parsed successfully
+[PASS] CSS brace balance: dark-theme.css: {=1679 }=1679
+[PASS] CSS brace balance: light-theme.css: {=1769 }=1769
+[PASS] CSS brace balance: ui-components.css: {=98 }=98
+[PASS] CSS brace balance: ui-layout.css: {=114 }=114
+[PASS] Version consistency: pom.xml=True, app-version.properties=True, Login.fxml=True
+[PASS] No Markdown files: 0 found
+[PASS] Java source unchanged: 0 changed
+
+RECOMMENDED FINAL BUILD COMMANDS (JDK 25)
+-----------------------------------------
+mvn clean verify
+mvn clean package
+mvn javafx:run  (for manual UI verification)
+
+REQUIRED MANUAL SCREENSHOT MATRIX
+---------------------------------
+Capture both v3.0.5 and v3.0.6 at 1366x768, 1920x1080, 2560x1440, and 3840x2160 for all business-critical screens.
+At minimum: Login, DashboardHome, SalesList, PurchaseList, Quotations, Inventory, Reports, Settings, UserAccess, ReminderCenter, BackupRestore, and representative dialogs.

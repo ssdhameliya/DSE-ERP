@@ -1,0 +1,51 @@
+DSE ERP v3.0.6 - VERIFIED FILE-BY-FILE CHANGE LOG
+
+Baseline: uploaded DSE-ERP-main.zip (v3.0.5)
+Release: DSE-ERP-3.0.6
+
+MODIFIED FILES (5)
+
+pom.xml
+-------
+Changed project version: 3.0.5 -> 3.0.6.
+No dependency, plugin, compiler, packaging, or main-class changes.
+Before lines: 241; after lines: 241; net: +0.
+
+src/main/resources/app-version.properties
+-----------------------------------------
+Changed runtime application version: 3.0.5 -> 3.0.6.
+Before lines: 1; after lines: 1; net: +0.
+
+src/main/resources/css/ui-components.css
+----------------------------------------
+Added 25 lines of global component rules for action controls, table-header content, context menus, tooltips, and footer-label clipping.
+No existing CSS rule was removed or rewritten.
+Before lines: 200; after lines: 225; net: +25.
+
+src/main/resources/css/ui-layout.css
+------------------------------------
+Added 210 lines of global layout rules for page padding, headers, cards, 36px controls, KPI cards, toolbars, tables, footers, dialogs, and compact/ultra-compact shell classes.
+No existing CSS rule was removed or rewritten.
+Before lines: 169; after lines: 376; net: +207.
+
+src/main/resources/fxml/pages/Login.fxml
+----------------------------------------
+Changed visible login-screen version label: Version 3.0.5 -> Version 3.0.6.
+No layout, controller, event-handler, or field changes.
+Before lines: 67; after lines: 67; net: +0.
+
+JAVA FILES
+----------
+Modified Java files: 0.
+Business logic, SQL, models, services, controllers, and handlers are unchanged.
+
+FXML FILES
+----------
+Modified FXML files: 1 (Login.fxml version label only).
+All other FXML screens are unchanged; they may inherit global CSS rules through ThemeManager.
+
+DELIVERABLE DIFFERENCE
+----------------------
+The IntelliJ package omits .github workflows.
+The GitHub-ready package includes .github workflows.
+All application source files are otherwise identical.

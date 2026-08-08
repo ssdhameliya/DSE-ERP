@@ -69,6 +69,12 @@ public final class ProfessionalDocumentRenderer {
     private static final DeviceRgb LINE = new DeviceRgb(170, 180, 196);
     private static final DeviceRgb PDF_LINE = new DeviceRgb(177, 194, 222);
     private static final DeviceRgb PALE = new DeviceRgb(247, 249, 252);
+    private static final DeviceRgb JASVI_NAVY = new DeviceRgb(25, 58, 116);
+    private static final DeviceRgb JASVI_BLUE = new DeviceRgb(49, 109, 179);
+    private static final DeviceRgb JASVI_PALE_BLUE = new DeviceRgb(237, 244, 253);
+    private static final DeviceRgb JASVI_GREEN = new DeviceRgb(42, 145, 91);
+    private static final DeviceRgb JASVI_PALE_YELLOW = new DeviceRgb(255, 249, 221);
+    private static final DeviceRgb JASVI_TEXT = new DeviceRgb(24, 37, 59);
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
 
     private ProfessionalDocumentRenderer() {
@@ -87,6 +93,14 @@ public final class ProfessionalDocumentRenderer {
         normalizeTotals(data);
         Files.createDirectories(output.toAbsolutePath().getParent());
         logo = configuredDocumentLogo(logo);
+
+        // Sales invoices use the approved JASVI Industries composition.  The
+        // database-loading and action-routing code remains shared, so preview,
+        // download, email and WhatsApp always receive this same PDF.
+        if (kind == Kind.SALES_INVOICE) {
+            renderJasviSalesInvoice(output, logo, data);
+            return;
+        }
         Color accent = BLUE;
 
         try (PdfWriter writer = new PdfWriter(output.toFile());
@@ -112,6 +126,338 @@ public final class ProfessionalDocumentRenderer {
             document.add(referenceFooterBand(accent, kind));
             document.flush();
             addWatermarkAndPages(pdf, data.title, accent);
+        }
+    }
+
+    /**
+     * Renders the approved JASVI Industries sales invoice.
+     *
+     * <p>The item table is a normal flowing iText table: it contains exactly
+     * one body row per database line, repeats its header after a page break and
+     * grows onto additional pages without inserting decorative blank rows.</p>
+     */
+    private static void renderJasviSalesInvoice(Path output, Path fallbackLogo, Data data)
+        throws Exception {
+        try (PdfWriter writer = new PdfWriter(output.toFile());
+             PdfDocument pdf = new PdfDocument(writer);
+             Document document = new Document(pdf, PageSize.A4)) {
+            document.setMargins(12, 16, 14, 16);
+            applyUnicodeFont(document);
+
+            document.add(jasviHeader(fallbackLogo));
+            document.add(jasviInvoiceIdentity(data));
+            document.add(jasviAddressCards(data));
+            document.add(jasviTransportStrip(data));
+            document.add(jasviItemTable(data));
+            document.add(jasviSummaryArea(data, pdf).setKeepTogether(true));
+            document.add(jasviTermsAndSignature().setKeepTogether(true));
+            document.add(jasviFooter().setKeepTogether(true));
+            document.flush();
+            addJasviPageNumbers(pdf);
+        }
+    }
+
+    /** Uses the supplied JASVI banner as the primary document identity. */
+    private static Table jasviHeader(Path fallbackLogo) {
+        Table header = new Table(1).useAllAvailableWidth().setMarginBottom(5);
+        Cell cell = new Cell().setBorder(Border.NO_BORDER).setPadding(0)
+            .setTextAlignment(TextAlignment.CENTER);
+        try (InputStream stream = ProfessionalDocumentRenderer.class
+                .getResourceAsStream("/pdf/jasvi/company-header.png")) {
+            if (stream != null) {
+                cell.add(new Image(ImageDataFactory.create(stream.readAllBytes()))
+                    .setAutoScale(true).setMaxHeight(92)
+                    .setHorizontalAlignment(HorizontalAlignment.CENTER));
+            } else if (fallbackLogo != null && Files.isRegularFile(fallbackLogo)) {
+                cell.add(new Image(ImageDataFactory.create(fallbackLogo.toString()))
+                    .setAutoScale(true).setMaxHeight(72)
+                    .setHorizontalAlignment(HorizontalAlignment.CENTER));
+            }
+        } catch (Exception ignored) {
+            cell.add(new Paragraph(config("company.name", "JASVI INDUSTRIES"))
+                .setBold().setFontSize(25).setFontColor(JASVI_NAVY));
+        }
+        header.addCell(cell);
+        return header;
+    }
+
+    /** Blue title band and compact invoice metadata matching the reference. */
+    private static Table jasviInvoiceIdentity(Data data) {
+        Table outer = new Table(UnitValue.createPercentArray(new float[]{47, 53}))
+            .useAllAvailableWidth().setMarginBottom(6);
+        outer.addCell(new Cell().setBorder(Border.NO_BORDER).setPadding(0));
+
+        Cell right = new Cell().setPadding(0).setBorder(new SolidBorder(JASVI_BLUE, .8f));
+        right.add(new Paragraph("TAX INVOICE")
+            .setBackgroundColor(JASVI_NAVY).setFontColor(ColorConstants.WHITE)
+            .setTextAlignment(TextAlignment.CENTER).setBold().setFontSize(15)
+            .setPadding(5).setMargin(0));
+        right.add(new Paragraph("ORIGINAL FOR BUYER")
+            .setBackgroundColor(JASVI_BLUE).setFontColor(ColorConstants.WHITE)
+            .setTextAlignment(TextAlignment.CENTER).setBold().setFontSize(6.8f)
+            .setPadding(2).setMargin(0));
+
+        Table metadata = new Table(UnitValue.createPercentArray(new float[]{48, 52}))
+            .useAllAvailableWidth().setBackgroundColor(JASVI_PALE_BLUE);
+        jasviMeta(metadata, "Invoice No.", data.number);
+        jasviMeta(metadata, "Invoice Date", displayDate(data.date));
+        jasviMeta(metadata, "Due Date", displayDate(data.dueDate));
+        jasviMeta(metadata, "Payment Terms", present(data.paymentTerms));
+        jasviMeta(metadata, "Reference", present(data.reference));
+        jasviMeta(metadata, "Currency", "INR");
+        right.add(metadata);
+        outer.addCell(right);
+        return outer;
+    }
+
+    private static void jasviMeta(Table table, String label, String value) {
+        table.addCell(new Cell().add(new Paragraph(label).setBold().setFontSize(7.2f))
+            .setBorder(Border.NO_BORDER).setPadding(2.5f).setPaddingLeft(7));
+        table.addCell(new Cell().add(new Paragraph(":  " + present(value)).setFontSize(7.2f))
+            .setBorder(Border.NO_BORDER).setPadding(2.5f));
+    }
+
+    /** Equal billing and delivery cards populated from the selected customer. */
+    private static Table jasviAddressCards(Data data) {
+        Table cards = new Table(UnitValue.createPercentArray(new float[]{50, 50}))
+            .useAllAvailableWidth().setMarginBottom(5);
+        cards.addCell(jasviAddressCard("BILLING ADDRESS", data.partyName,
+            data.partyAddress, data.partyPhone, data.partyEmail, data.partyGstin));
+        cards.addCell(jasviAddressCard("DELIVERY ADDRESS", data.partyName,
+            firstNonBlank(data.shipTo, data.partyAddress), data.partyPhone,
+            data.partyEmail, data.partyGstin));
+        return cards;
+    }
+
+    private static Cell jasviAddressCard(String title, String name, String address,
+                                         String phone, String email, String gstin) {
+        Cell card = new Cell().setPadding(0).setBorder(new SolidBorder(JASVI_BLUE, .7f));
+        card.add(new Paragraph(title).setBold().setFontColor(ColorConstants.WHITE)
+            .setBackgroundColor(JASVI_NAVY).setFontSize(8).setPadding(4).setMargin(0));
+        Cell content = new Cell().setBorder(Border.NO_BORDER).setPadding(6);
+        content.add(new Paragraph(present(name)).setBold().setFontSize(8.2f).setMarginBottom(2));
+        content.add(new Paragraph(present(address)).setFontSize(7.2f)
+            .setMultipliedLeading(1.25f).setMarginBottom(3));
+        content.add(jasviInline("Phone", phone));
+        content.add(jasviInline("Email", email));
+        content.add(jasviInline("GSTIN", gstin));
+        Table wrapper = new Table(1).useAllAvailableWidth();
+        wrapper.addCell(content);
+        card.add(wrapper);
+        return card;
+    }
+
+    private static Paragraph jasviInline(String label, String value) {
+        return new Paragraph().add(new Text(label + ": ").setBold().setFontColor(JASVI_NAVY))
+            .add(new Text(present(value))).setFontSize(6.9f).setMargin(0);
+    }
+
+    /** Compact logistics strip directly above the line-item table. */
+    private static Table jasviTransportStrip(Data data) {
+        Table strip = new Table(UnitValue.createPercentArray(new float[]{25, 25, 25, 25}))
+            .useAllAvailableWidth().setMarginBottom(5);
+        jasviStripCell(strip, "Transporter", present(data.transporter));
+        jasviStripCell(strip, "Vehicle No.", present(data.vehicleNumber));
+        jasviStripCell(strip, "GST Treatment", present(data.gstType));
+        jasviStripCell(strip, "Place of Supply", config("company.state", "India"));
+        return strip;
+    }
+
+    private static void jasviStripCell(Table table, String label, String value) {
+        table.addCell(new Cell().add(new Paragraph()
+                .add(new Text(label + ": ").setBold().setFontColor(JASVI_NAVY))
+                .add(new Text(value)).setFontSize(6.4f).setMargin(0))
+            .setBackgroundColor(JASVI_PALE_BLUE).setPadding(4)
+            .setBorder(new SolidBorder(JASVI_BLUE, .5f)));
+    }
+
+    /** Dynamic item table with no placeholder rows. */
+    private static Table jasviItemTable(Data data) {
+        Table table = new Table(UnitValue.createPercentArray(
+            new float[]{5, 12, 31, 8, 12, 9, 10, 13})).useAllAvailableWidth();
+        table.setMarginBottom(6);
+        String[] headers = {"SR.", "HSN CODE", "PRODUCT DESCRIPTION", "QTY",
+            "UNIT RATE", "UNIT", "GST %", "AMOUNT (INR)"};
+        for (String header : headers) {
+            table.addHeaderCell(new Cell().add(new Paragraph(header).setBold().setFontSize(6.4f))
+                .setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE)
+                .setFontColor(ColorConstants.WHITE).setBackgroundColor(JASVI_NAVY)
+                .setPadding(4).setBorder(new SolidBorder(ColorConstants.WHITE, .35f)));
+        }
+        int index = 1;
+        for (Line line : data.lines) {
+            double base = line.quantity * line.rate - line.discount;
+            double total = base + base * line.gst / 100;
+            jasviItemCell(table, String.valueOf(index++), TextAlignment.CENTER);
+            jasviItemCell(table, present(line.hsn), TextAlignment.CENTER);
+            jasviItemCell(table, present(line.description), TextAlignment.LEFT);
+            jasviItemCell(table, quantity(line.quantity), TextAlignment.RIGHT);
+            jasviItemCell(table, money(line.rate), TextAlignment.RIGHT);
+            jasviItemCell(table, present(line.unit), TextAlignment.CENTER);
+            jasviItemCell(table, quantity(line.gst) + "%", TextAlignment.CENTER);
+            jasviItemCell(table, money(total), TextAlignment.RIGHT);
+        }
+        return table;
+    }
+
+    private static void jasviItemCell(Table table, String value, TextAlignment alignment) {
+        table.addCell(new Cell().add(new Paragraph(value).setFontSize(6.7f).setMargin(0))
+            .setTextAlignment(alignment).setVerticalAlignment(VerticalAlignment.MIDDLE)
+            .setBackgroundColor(JASVI_PALE_BLUE).setPadding(4)
+            .setBorder(new SolidBorder(ColorConstants.WHITE, .45f)));
+    }
+
+    /** Tax, bank, QR and grand-total area used on the final page. */
+    private static Table jasviSummaryArea(Data data, PdfDocument pdf) {
+        Table outer = new Table(UnitValue.createPercentArray(new float[]{58, 42}))
+            .useAllAvailableWidth().setMarginBottom(6);
+        Cell left = new Cell().setBorder(Border.NO_BORDER).setPaddingRight(6);
+        left.add(jasviAmountWords(data));
+        left.add(jasviBankAndQr(data, pdf));
+        outer.addCell(left);
+
+        Cell right = new Cell().setBorder(Border.NO_BORDER).setPadding(0);
+        Table totals = new Table(UnitValue.createPercentArray(new float[]{60, 40}))
+            .useAllAvailableWidth();
+        jasviTotal(totals, "Taxable Amount", data.subtotal, false);
+        double gstRate = data.subtotal == 0 ? 0 : data.gst / data.subtotal * 100;
+        boolean interstate = isInterstate(data);
+        if (interstate) {
+            jasviTotal(totals, "IGST (" + quantity(gstRate) + "%)", data.gst, false);
+        } else {
+            jasviTotal(totals, "CGST (" + quantity(gstRate / 2) + "%)", data.gst / 2, false);
+            jasviTotal(totals, "SGST (" + quantity(gstRate / 2) + "%)", data.gst / 2, false);
+        }
+        jasviTotal(totals, "Round Off", 0, false);
+        jasviTotal(totals, "GRAND TOTAL", data.total, true);
+        right.add(totals);
+        outer.addCell(right);
+        return outer;
+    }
+
+    private static Table jasviAmountWords(Data data) {
+        Table box = new Table(1).useAllAvailableWidth().setMarginBottom(5);
+        box.addCell(new Cell().add(new Paragraph("AMOUNT IN WORDS").setBold().setFontSize(7.2f))
+            .setFontColor(ColorConstants.WHITE).setBackgroundColor(JASVI_GREEN)
+            .setPadding(3).setBorder(Border.NO_BORDER));
+        box.addCell(new Cell().add(new Paragraph(amountWords(data.total) + " Only")
+                .setBold().setFontSize(7).setMargin(0))
+            .setPadding(5).setBorder(new SolidBorder(JASVI_GREEN, .6f)));
+        return box;
+    }
+
+    private static Table jasviBankAndQr(Data data, PdfDocument pdf) {
+        Table box = new Table(UnitValue.createPercentArray(new float[]{62, 38}))
+            .useAllAvailableWidth();
+        Cell bank = new Cell().setPadding(5).setBorder(new SolidBorder(JASVI_BLUE, .6f));
+        bank.add(new Paragraph("BANK DETAILS").setBold().setFontColor(JASVI_NAVY)
+            .setFontSize(7.2f).setMarginBottom(3));
+        bank.add(new Paragraph(bankText()).setFontSize(6.6f).setMultipliedLeading(1.2f));
+        box.addCell(bank);
+        Cell qr = new Cell().setPadding(3).setTextAlignment(TextAlignment.CENTER)
+            .setVerticalAlignment(VerticalAlignment.MIDDLE)
+            .setBorder(new SolidBorder(JASVI_BLUE, .6f));
+        qr.add(new Paragraph("SCAN TO PAY").setBold().setFontColor(JASVI_NAVY)
+            .setFontSize(6.8f).setMargin(0));
+        addConfiguredQr(qr, data, pdf);
+        box.addCell(qr);
+        return box;
+    }
+
+    private static void jasviTotal(Table table, String label, double amount, boolean grand) {
+        Cell left = new Cell().add(new Paragraph(label).setBold().setFontSize(grand ? 8.5f : 7.2f))
+            .setPadding(5).setBorder(new SolidBorder(JASVI_BLUE, .5f));
+        Cell right = new Cell().add(new Paragraph("\u20B9 " + money(amount))
+                .setBold().setFontSize(grand ? 9 : 7.2f))
+            .setTextAlignment(TextAlignment.RIGHT).setPadding(5)
+            .setBorder(new SolidBorder(JASVI_BLUE, .5f));
+        if (grand) {
+            left.setBackgroundColor(JASVI_GREEN).setFontColor(ColorConstants.WHITE);
+            right.setBackgroundColor(JASVI_GREEN).setFontColor(ColorConstants.WHITE);
+        }
+        table.addCell(left);
+        table.addCell(right);
+    }
+
+    private static boolean isInterstate(Data data) {
+        String companyState = config("company.state", "").toLowerCase(Locale.ROOT);
+        String party = (data.partyAddress + " " + data.shipTo).toLowerCase(Locale.ROOT);
+        return !companyState.isBlank() && !party.isBlank() && !party.contains(companyState);
+    }
+
+    /** Reference terms panel and configured signature. */
+    private static Table jasviTermsAndSignature() {
+        Table outer = new Table(UnitValue.createPercentArray(new float[]{62, 38}))
+            .useAllAvailableWidth().setMarginBottom(6);
+        Cell terms = new Cell().setPadding(6).setBackgroundColor(JASVI_PALE_YELLOW)
+            .setBorder(new SolidBorder(JASVI_BLUE, .6f));
+        terms.add(new Paragraph("TERMS & CONDITIONS").setBold().setFontColor(JASVI_NAVY)
+            .setFontSize(7.5f).setMarginBottom(3));
+        terms.add(new Paragraph(config("invoice.terms",
+            "1. Goods once sold will not be taken back.\n" +
+                "2. Payment is due within the agreed credit period.\n" +
+                "3. Interest may apply on overdue balances.\n" +
+                "4. Subject to local jurisdiction only."))
+            .setFontSize(6.3f).setMultipliedLeading(1.25f).setMargin(0));
+        outer.addCell(terms);
+
+        Cell sign = new Cell().setPadding(5).setTextAlignment(TextAlignment.CENTER)
+            .setVerticalAlignment(VerticalAlignment.MIDDLE)
+            .setBorder(new SolidBorder(JASVI_BLUE, .6f));
+        sign.add(new Paragraph("FOR " + config("company.name", "JASVI INDUSTRIES"))
+            .setBold().setFontColor(JASVI_NAVY).setFontSize(6.8f).setMarginBottom(2));
+        Path signature = configuredAsset("company.signaturePath");
+        if (signature != null) {
+            try {
+                sign.add(new Image(configuredAssetImageData(signature, 360))
+                    .setAutoScale(true).setMaxHeight(35).setMaxWidth(95)
+                    .setHorizontalAlignment(HorizontalAlignment.CENTER));
+            } catch (Exception ignored) {
+                // The document remains valid when an optional signature is unreadable.
+            }
+        }
+        sign.add(new Paragraph("Authorized Signatory").setBold().setFontSize(6.8f).setMargin(0));
+        outer.addCell(sign);
+        return outer;
+    }
+
+    private static Table jasviFooter() {
+        Table footer = new Table(1).useAllAvailableWidth();
+        footer.addCell(new Cell().add(new Paragraph(config("company.address", ""))
+                .setTextAlignment(TextAlignment.CENTER).setFontSize(6.4f).setMargin(0))
+            .setPadding(3).setBorder(Border.NO_BORDER));
+        footer.addCell(new Cell().setHeight(3).setPadding(0).setBorder(Border.NO_BORDER)
+            .setBackgroundColor(JASVI_NAVY));
+        footer.addCell(new Cell().setHeight(2).setPadding(0).setBorder(Border.NO_BORDER)
+            .setBackgroundColor(JASVI_BLUE));
+        return footer;
+    }
+
+    private static String displayDate(String value) {
+        if (value == null || value.isBlank()) return "Not provided";
+        try {
+            java.time.LocalDate date = java.time.LocalDate.parse(value.substring(0, 10));
+            return date.format(java.time.format.DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH));
+        } catch (Exception ignored) {
+            return value;
+        }
+    }
+
+    private static void addJasviPageNumbers(PdfDocument pdf) {
+        int total = pdf.getNumberOfPages();
+        for (int page = 1; page <= total; page++) {
+            PdfPage pdfPage = pdf.getPage(page);
+            PdfCanvas canvas = new PdfCanvas(pdfPage.newContentStreamAfter(),
+                pdfPage.getResources(), pdf);
+            try {
+                canvas.beginText().setFontAndSize(PdfFontFactory.createFont(), 6.5f)
+                    .moveText(PageSize.A4.getWidth() - 54, 7)
+                    .showText("Page " + page + " of " + total).endText();
+            } catch (Exception ignored) {
+                // Page numbering is decorative; invoice creation must never fail for it.
+            } finally {
+                canvas.release();
+            }
         }
     }
 

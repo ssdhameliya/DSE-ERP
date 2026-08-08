@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.model.Purchase;
 import org.example.model.Sales;
+import org.example.invoice.service.SalesTaxInvoiceService;
 import org.example.util.ProfessionalDocumentRenderer;
 import org.example.config.ConfigManager;
 
@@ -42,16 +43,7 @@ public class InvoicePdfService {
         if (invoice == null || invoice.getInvoiceNo() == null || invoice.getInvoiceNo().isBlank()) {
             throw new IllegalArgumentException("A valid sales record is required to create the PDF.");
         }
-        String logoPath = ensureLogo().toString();
-        Path outputDir = ensureOutputDirectory();
-
-        // Output file path
-        String outputPath = outputDir.resolve("Sales-Tax-Invoice-" + invoice.getInvoiceNo() + ".pdf").toString();
-
-        // Generate PDF using improved template
-        ProfessionalDocumentRenderer.render(Path.of(outputPath), Path.of(logoPath), invoice.getInvoiceNo(), ProfessionalDocumentRenderer.Kind.SALES_INVOICE);
-
-        Path result = Path.of(outputPath);
+        Path result = SalesTaxInvoiceService.generate(invoice);
         validatePdf(result, invoice.getInvoiceNo());
         return result;
     }
