@@ -14,6 +14,7 @@ public record TaxInvoiceDocument(
         String transporter,
         String vehicleNumber,
         String contactPerson,
+        String contactPersonMobile,
         List<TaxInvoiceItem> items,
         String gstType,
         double freightCharges,
@@ -26,6 +27,7 @@ public record TaxInvoiceDocument(
         transporter = safe(transporter);
         vehicleNumber = safe(vehicleNumber);
         contactPerson = safe(contactPerson);
+        contactPersonMobile = safe(contactPersonMobile);
         gstType = safe(gstType);
         items = items == null ? List.of() : List.copyOf(items);
     }

@@ -63,7 +63,7 @@ public final class SalesToTaxInvoiceMapper {
             String description = cleanDescription(line.getItemDescription(), line.getItemCode());
             items.add(new TaxInvoiceItem(
                     serial++, masterItem == null ? "" : safe(masterItem.getHsn()),
-                    description, line.getQuantity(),
+                    description, masterItem == null ? "" : safe(masterItem.getRemarks()), line.getQuantity(),
                     masterItem == null ? "Nos" : firstNonBlank(masterItem.getUnit(), "Nos"),
                     line.getRate(), line.getDiscountPercent(), line.getGstPercent()));
         }
@@ -78,26 +78,28 @@ public final class SalesToTaxInvoiceMapper {
                 firstNonBlank(sale.getOrderNo(), sale.getReferenceNo()), sale.getPoDate(),
                 billing, delivery, transporter, sale.getVehicleNumber(),
                 firstNonBlank(sale.getContactPerson(), customer.getContactPerson()),
+                firstNonBlank(sale.getContactPersonMobile(), customer.getPhone()),
                 items, sale.getGstType(), sale.getChargeAmount(), totals, words);
     }
 
     private static CompanyProfile company(String logoPath) {
         return new CompanyProfile(
-                ConfigManager.get("company.name", "JASVI INDUSTRIES"),
-                ConfigManager.get("company.address",
-                        "52, Darshanvilla Park, Nr. Gopal Chowk, Bapasitaram Chowk, Nikol - Naroda, Ahmedabad, Gujarat, INDIA - 382345."),
-                ConfigManager.get("company.gstin", "24ANXPD3352N1ZK"),
-                ConfigManager.get("company.email", "jasviindustries1989@gmail.com"),
-                ConfigManager.get("company.alternateEmail", "marketing@jasviindustries.in"),
-                ConfigManager.get("company.phone", "+91 72280 99500"),
-                ConfigManager.get("payment.bankName", "KOTAK MAHINDRA BANK LTD."),
-                ConfigManager.get("payment.branch", "NIKOL"),
-                ConfigManager.get("payment.accountNumber", "0745366171"),
-                ConfigManager.get("payment.ifsc", "KKBK0002603"),
-                ConfigManager.get("payment.accountType", "CURRENT"),
-                ConfigManager.get("payment.mode", "AGAINST DELIVERY"),
+                ConfigManager.get("company.name", ""),
+                ConfigManager.get("company.address", ""),
+                ConfigManager.get("company.gstin", ""),
+                ConfigManager.get("company.email", ""),
+                ConfigManager.get("company.alternateEmail", ""),
+                ConfigManager.get("company.phone", ""),
+                ConfigManager.get("payment.bankName", ""),
+                ConfigManager.get("payment.branch", ""),
+                ConfigManager.get("payment.accountNumber", ""),
+                ConfigManager.get("payment.ifsc", ""),
+                ConfigManager.get("payment.accountType", ""),
+                ConfigManager.get("payment.mode", ""),
                 ConfigManager.get("company.terms", ""),
-                logoPath);
+                logoPath,
+                ConfigManager.get("company.signaturePath", ""),
+                ConfigManager.get("company.certificationText", "AN ISO 9001 : 2015 COMPANY"));
     }
 
     private static String cleanDescription(String value, String code) {

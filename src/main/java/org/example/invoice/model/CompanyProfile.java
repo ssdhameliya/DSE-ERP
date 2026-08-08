@@ -14,9 +14,11 @@ public record CompanyProfile(
         String accountType,
         String paymentMode,
         String terms,
-        String logoPath) {
+        String logoPath,
+        String signaturePath,
+        String certificationText) {
     public CompanyProfile {
-        name = def(name, "JASVI INDUSTRIES");
+        name = safe(name);
         address = safe(address);
         gstin = safe(gstin);
         email = safe(email);
@@ -26,10 +28,20 @@ public record CompanyProfile(
         bankBranch = safe(bankBranch);
         accountNumber = safe(accountNumber);
         ifsc = safe(ifsc);
-        accountType = def(accountType, "CURRENT");
-        paymentMode = def(paymentMode, "AGAINST DELIVERY");
+        accountType = safe(accountType);
+        paymentMode = safe(paymentMode);
         terms = safe(terms);
         logoPath = safe(logoPath);
+        signaturePath = safe(signaturePath);
+        certificationText = safe(certificationText);
+    }
+
+
+    public CompanyProfile(String name, String address, String gstin, String email, String alternateEmail,
+                          String phone, String bankName, String bankBranch, String accountNumber, String ifsc,
+                          String accountType, String paymentMode, String terms, String logoPath) {
+        this(name, address, gstin, email, alternateEmail, phone, bankName, bankBranch, accountNumber, ifsc,
+                accountType, paymentMode, terms, logoPath, "", "");
     }
 
     private static String safe(String value) { return value == null ? "" : value.trim(); }
