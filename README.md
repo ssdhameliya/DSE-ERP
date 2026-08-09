@@ -37,13 +37,13 @@ On Windows, `build.bat` performs the same verification and `Run DSE ERP.bat` lau
 Windows PowerShell:
 
 ```powershell
-.\scripts\package-windows.ps1 -Version 5.0.0
+.\scripts\package-windows.ps1 -Version 5.0.1
 ```
 
 macOS Terminal:
 
 ```bash
-./scripts/package-macos.sh 5.0.0
+./scripts/package-macos.sh 5.0.1
 ```
 
 The generated packages are written to:
@@ -56,8 +56,8 @@ The generated packages are written to:
 After committing a matching version in `pom.xml`, push a semantic-version tag:
 
 ```bash
-git tag v5.0.0
-git push origin v5.0.0
+git tag v5.0.1
+git push origin v5.0.1
 ```
 
 GitHub Actions builds:
@@ -87,6 +87,12 @@ https://github.com/ssdhameliya/DSE-ERP
 
 The JavaFX application uses PostgreSQL through Spring Data JPA, Hibernate and HikariCP.
 The existing SQLite driver remains available only for the one-time data migration tool.
+
+Existing installations are upgrade-safe: when an existing workspace contains
+`Database/JavaAppERP.db` and no database URL was explicitly configured, DSE ERP
+continues using that SQLite database. Fresh installations default to PostgreSQL.
+An explicit `db.url` or `DSE_DB_URL` always takes precedence, allowing administrators
+to migrate a workspace to PostgreSQL without disrupting other installations.
 
 Local IntelliJ/Maven configuration:
 

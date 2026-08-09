@@ -50,8 +50,8 @@ public class Main extends Application {
         }
         try {
             DatabaseManager.initialize();
-            SpringPersistence.initialize();
-            if (ConfigManager.isSqlite()) BackupManager.ensureApplicationMetadata();
+            if (ConfigManager.isPostgreSql()) SpringPersistence.initialize();
+            else BackupManager.ensureApplicationMetadata();
         } catch (Exception exception) {
             exception.printStackTrace();
             new OwnedAlert(Alert.AlertType.ERROR,
@@ -71,9 +71,9 @@ public class Main extends Application {
         }
     }
 
-    /** SetupWizardController has already created the workspace and initialized SQLite. */
+    /** SetupWizardController has already created the workspace and initialized its database. */
     private void completeFirstRun(Stage stage) {
-        SpringPersistence.initialize();
+        if (ConfigManager.isPostgreSql()) SpringPersistence.initialize();
         finishStartup(stage);
         SceneManager.showLogin();
     }

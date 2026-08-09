@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 public final class ConfigManager {
+    private static final String DEFAULT_POSTGRES_URL = "jdbc:postgresql://localhost:5432/dse_erp";
     private static final Properties properties = new Properties();
 
     private ConfigManager() {}
@@ -71,8 +72,19 @@ public final class ConfigManager {
     }
 
     public static String getDbUrl() {
-        return get("db.url", System.getenv().getOrDefault(
-                "DSE_DB_URL", "jdbc:postgresql://localhost:5432/dse_erp"));
+        Path legacyDatabase = WorkspaceManager.isConfigured()
+                ? WorkspaceManager.getDatabaseFolder().resolve("JavaAppERP.db")
+                : null;
+        return resolveDbUrl(properties.getProperty("db.url"), System.getenv("DSE_DB_URL"), legacyDatabase);
+    }
+
+    static String resolveDbUrl(String configuredUrl, String environmentUrl, Path legacyDatabase) {
+        if (configuredUrl != null && !configuredUrl.isBlank()) return configuredUrl.trim();
+        if (environmentUrl != null && !environmentUrl.isBlank()) return environmentUrl.trim();
+        if (legacyDatabase != null && Files.isRegularFile(legacyDatabase)) {
+            return "jdbc:sqlite:" + legacyDatabase.toAbsolutePath().normalize();
+        }
+        return DEFAULT_POSTGRES_URL;
     }
 
     public static String getDbUsername() {
@@ -89,6 +101,10 @@ public final class ConfigManager {
 
     public static boolean isPostgreSql() {
         return getDbUrl().startsWith("jdbc:postgresql:");
+    }
+
+    public static String getDatabaseDescription() {
+        return isSqlite() ? getDatabasePath().toString() : getDbUrl();
     }
 
     public static Path getDatabasePath() {

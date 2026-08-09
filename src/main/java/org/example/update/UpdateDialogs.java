@@ -156,7 +156,7 @@ public final class UpdateDialogs {
         String[][] rows = {
                 {"Application Version", ConfigManager.get("app.version", UpdateService.DEFAULT_VERSION)},
                 {"Database Schema", String.valueOf(BackupManager.CURRENT_SCHEMA_VERSION)},
-                {"Database File", org.example.config.ConfigManager.getDatabasePath().toString()},
+                {"Database", org.example.config.ConfigManager.getDatabaseDescription()},
                 {"Backup Status", safeBackupCount()},
                 {"Java Runtime", System.getProperty("java.version")},
                 {"Operating System", System.getProperty("os.name") + " " + System.getProperty("os.version") + " (" + System.getProperty("os.arch") + ")"},

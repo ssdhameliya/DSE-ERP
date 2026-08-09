@@ -1,6 +1,7 @@
 package org.example.dao;
 
 import org.example.database.DatabaseManager;
+import org.example.config.ConfigManager;
 import org.example.model.AppUser;
 import org.example.persistence.SpringPersistence;
 import org.example.persistence.entity.UserEntity;
@@ -13,6 +14,7 @@ public class UserDAO {
     private static final BCryptPasswordEncoder PASSWORDS = new BCryptPasswordEncoder();
 
     public AppUser authenticate(String identity, String password) {
+        if (ConfigManager.isSqlite()) return authenticateWithJdbc(identity, password);
         try {
             UserEntity entity = repository().findActiveByIdentity(identity.trim()).orElse(null);
             if (entity == null || !passwordMatches(password, entity.getPassword())) return null;
@@ -26,6 +28,7 @@ public class UserDAO {
     }
 
     public AppUser findActiveByIdentity(String identity) {
+        if (ConfigManager.isSqlite()) return findActiveWithJdbc(identity);
         try {
             return repository().findActiveByIdentity(identity.trim()).map(this::map).orElse(null);
         } catch (RuntimeException exception) {
@@ -90,6 +93,44 @@ public class UserDAO {
 
     private UserRepository repository() {
         return SpringPersistence.bean(UserRepository.class);
+    }
+
+    private AppUser authenticateWithJdbc(String identity, String password) {
+        AppUser user = findActiveWithJdbc(identity);
+        if (user == null || !passwordMatches(password, user.getPassword())) return null;
+        if (!isBcrypt(user.getPassword())) {
+            String encoded = PASSWORDS.encode(password);
+            updatePasswordWithJdbc(user.getId(), encoded);
+            user.setPassword(encoded);
+        }
+        return user;
+    }
+
+    private AppUser findActiveWithJdbc(String identity) {
+        String sql = "SELECT u.*,r.role_name resolved_role FROM users u JOIN roles r ON r.id=u.role_id AND r.active=1 "
+                + "WHERE (lower(u.username)=lower(?) OR lower(u.email)=lower(?)) "
+                + "AND u.active=1 AND COALESCE(u.locked,0)=0";
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, identity.trim());
+            statement.setString(2, identity.trim());
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? map(rows) : null;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not load user account", exception);
+        }
+    }
+
+    private void updatePasswordWithJdbc(int id, String encodedPassword) {
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement("UPDATE users SET password=? WHERE id=?")) {
+            statement.setString(1, encodedPassword);
+            statement.setInt(2, id);
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not upgrade password security", exception);
+        }
     }
 
     private boolean passwordMatches(String rawPassword, String storedPassword) {
