@@ -78,6 +78,25 @@ public final class ConfigManager {
         return resolveDbUrl(properties.getProperty("db.url"), System.getenv("DSE_DB_URL"), legacyDatabase);
     }
 
+    public static synchronized String getConfiguredDbUrl() {
+        String value = properties.getProperty("db.url");
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    public static String getEnvironmentDbUrl() {
+        String value = System.getenv("DSE_DB_URL");
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    public static String getDefaultPostgresUrl() {
+        return DEFAULT_POSTGRES_URL;
+    }
+
+    public static Path getLegacyDatabasePath() {
+        return WorkspaceManager.getDatabaseFolder().resolve("JavaAppERP.db")
+                .toAbsolutePath().normalize();
+    }
+
     static String resolveDbUrl(String configuredUrl, String environmentUrl, Path legacyDatabase) {
         if (configuredUrl != null && !configuredUrl.isBlank()) return configuredUrl.trim();
         if (environmentUrl != null && !environmentUrl.isBlank()) return environmentUrl.trim();

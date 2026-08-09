@@ -5464,10 +5464,8 @@ SECTION TITLES
 .reports-title-block .page-title { -fx-font-size: 22px; }
 .erp-action-glyph { -fx-opacity: 1.0; }
 .button, .menu-button, .toggle-button { -fx-graphic-text-gap: 7; }
-@media (max-width: 1450px) {
-  .button, .menu-button, .toggle-button { -fx-padding: 7 10 7 10; }
-  .metric-value, .kpi-value { -fx-font-size: 17px; }
-}
+.compact-shell .button, .compact-shell .menu-button, .compact-shell .toggle-button { -fx-padding: 7 10 7 10; }
+.compact-shell .metric-value, .compact-shell .kpi-value { -fx-font-size: 17px; }
 
 
 /* v3.0.4 consistent semantic action buttons */

@@ -13,7 +13,7 @@
                 <Label text="Safe application updates" wrapText="true" styleClass="setup-feature"/>
             </VBox>
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Windows • macOS • SQLite" styleClass="setup-brand-subtitle"/>
+            <Label text="Windows • macOS • PostgreSQL" styleClass="setup-brand-subtitle"/>
         </VBox>
     </left>
     <center>

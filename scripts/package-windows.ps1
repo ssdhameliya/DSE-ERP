@@ -38,7 +38,9 @@ $CommonArgs = @(
     '--input', $Input,
     '--main-jar', 'DSE_Final.jar',
     '--main-class', 'org.example.app.Launcher',
-    '--java-options', '-Dfile.encoding=UTF-8'
+    '--java-options', '-Dfile.encoding=UTF-8',
+    '--java-options', '--enable-native-access=ALL-UNNAMED',
+    '--java-options', '-Ddse.erp.nativeAccessRelaunch=true'
 )
 if (Test-Path $Icon) { $CommonArgs += @('--icon', $Icon) }
 
