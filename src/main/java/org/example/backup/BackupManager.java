@@ -4,6 +4,8 @@ import org.example.config.ConfigManager;
 import org.example.database.DatabaseManager;
 
 import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.sql.*;
 import java.time.Duration;
@@ -13,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -38,10 +41,18 @@ public final class BackupManager {
             "users", "item_master", "party_master", "sales_header", "sales_line",
             "purchase_header", "purchase_line", "application_setting"
     );
+    private static final Set<String> LEGACY_NOT_VALID_CONSTRAINTS = Set.of(
+            "quotation_line_item_code_fkey", "quotation_line_quotation_id_fkey",
+            "return_register_item_code_fkey", "role_permission_role_id_fkey",
+            "stock_adjustment_item_code_fkey"
+    );
 
     private BackupManager() {}
 
     public static Path databasePath() {
+        if (ConfigManager.isPostgreSql()) {
+            return Path.of(ConfigManager.get("postgres.dataPath", "D:\\PostgreSQL\\18\\data"));
+        }
         return ConfigManager.getDatabasePath();
     }
 
@@ -50,8 +61,10 @@ public final class BackupManager {
     }
 
     public static void ensureFolders() throws IOException {
-        Path parent = databasePath().getParent();
-        if (parent != null) Files.createDirectories(parent);
+        if (ConfigManager.isSqlite()) {
+            Path parent = databasePath().getParent();
+            if (parent != null) Files.createDirectories(parent);
+        }
         Files.createDirectories(backupFolder());
         Files.createDirectories(ConfigManager.getBackupTrashFolder());
     }
@@ -70,8 +83,10 @@ public final class BackupManager {
         BACKUP_LOCK.lockInterruptibly();
         try {
             ensureFolders();
-            Path target = uniquePath(backupFolder(), prefix, ".db");
-            createConsistentSnapshot(databasePath(), target);
+            Path target = uniquePath(backupFolder(), prefix,
+                    ConfigManager.isPostgreSql() ? ".pgbackup" : ".db");
+            if (ConfigManager.isPostgreSql()) createPostgresSnapshot(target);
+            else createConsistentSnapshot(databasePath(), target);
             ValidationResult result = validateBackup(target);
             if (!result.valid()) {
                 Files.deleteIfExists(target);
@@ -111,6 +126,7 @@ public final class BackupManager {
         if (Files.size(file) == 0) {
             return ValidationResult.invalid("The selected backup file is empty.");
         }
+        if (isPostgresBackup(file)) return validatePostgresBackup(file);
 
         Set<String> tables = new HashSet<>();
         String applicationId = null;
@@ -176,7 +192,8 @@ public final class BackupManager {
         if (!result.valid()) throw new IllegalStateException(result.message());
 
         ensureFolders();
-        Path target = uniquePath(backupFolder(), "Imported", ".db");
+        Path target = uniquePath(backupFolder(), "Imported",
+                isPostgresBackup(externalFile) ? ".pgbackup" : ".db");
         Files.copy(externalFile, target, StandardCopyOption.COPY_ATTRIBUTES);
         ValidationResult copiedResult = validateBackup(target);
         if (!copiedResult.valid()) {
@@ -193,6 +210,10 @@ public final class BackupManager {
     public static void stageRestore(Path selectedBackup) throws Exception {
         ValidationResult result = validateBackup(selectedBackup);
         if (!result.valid()) throw new IllegalStateException(result.message());
+        if (ConfigManager.isPostgreSql() && !isPostgresBackup(selectedBackup)) {
+            throw new IllegalStateException("A PostgreSQL installation can restore only .pgbackup files. " +
+                    "Use the SQLite migration utility for legacy .db files.");
+        }
 
         ensureFolders();
         Path pending = ConfigManager.getPendingRestoreFile();
@@ -220,6 +241,8 @@ public final class BackupManager {
      */
     public static RestoreResult applyPendingRestoreIfPresent() {
         if (!hasPendingRestore()) return RestoreResult.none();
+
+        if (ConfigManager.isPostgreSql()) return applyPendingPostgresRestore();
 
         Path pending = ConfigManager.getPendingRestoreFile();
         Path database = databasePath();
@@ -272,6 +295,33 @@ public final class BackupManager {
             quarantinePendingRestore();
             return RestoreResult.failed(
                     "The staged restore could not be applied. The existing database was preserved or rolled back.", failure);
+        }
+    }
+
+    private static RestoreResult applyPendingPostgresRestore() {
+        Path pending = ConfigManager.getPendingRestoreFile();
+        Path safety = null;
+        try {
+            if (!isPostgresBackup(pending)) {
+                clearPendingRestore();
+                return RestoreResult.failed("Pending restore is not a PostgreSQL backup.", null);
+            }
+            ValidationResult validation = validatePostgresBackup(pending);
+            if (!validation.valid()) {
+                clearPendingRestore();
+                return RestoreResult.failed(validation.message(), null);
+            }
+            safety = createSafetyBackup();
+            restorePostgresBackup(pending);
+            Files.deleteIfExists(pending);
+            clearPendingRestore();
+            ConfigManager.set("backup.restore.last_success", Instant.now().toString());
+            return RestoreResult.applied(databasePath(), safety);
+        } catch (Exception failure) {
+            LOGGER.log(Level.SEVERE, "Pending PostgreSQL restore failed", failure);
+            quarantinePendingRestore();
+            return RestoreResult.failed(
+                    "The PostgreSQL restore could not be applied; the safety backup was preserved.", failure);
         }
     }
 
@@ -473,7 +523,8 @@ public final class BackupManager {
         try {
             if (Files.isRegularFile(pending)) {
                 Files.createDirectories(backupFolder());
-                Path quarantine = uniquePath(backupFolder(), "Failed-Restore", ".db");
+                Path quarantine = uniquePath(backupFolder(), "Failed-Restore",
+                        isPostgresBackup(pending) ? ".pgbackup" : ".db");
                 Files.move(pending, quarantine, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException exception) {
@@ -536,9 +587,136 @@ public final class BackupManager {
     }
 
     private static boolean isManagedBackup(Path path) {
+        String filename = path.getFileName().toString().toLowerCase(Locale.ROOT);
         return Files.isRegularFile(path)
-                && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".db")
+                && (filename.endsWith(".db") || filename.endsWith(".pgbackup"))
                 && !path.equals(ConfigManager.getPendingRestoreFile());
+    }
+
+    private static void createPostgresSnapshot(Path target) throws Exception {
+        Files.createDirectories(target.toAbsolutePath().getParent());
+        List<String> connection = postgresConnectionArguments();
+        List<String> command = new ArrayList<>();
+        command.add(postgresTool("pg_dump.exe").toString());
+        command.addAll(connection);
+        command.add("--format=custom");
+        command.add("--no-owner");
+        command.add("--file=" + target.toAbsolutePath());
+        command.add(postgresDatabaseName());
+        runPostgresTool(command);
+    }
+
+    private static ValidationResult validatePostgresBackup(Path file) throws Exception {
+        List<String> command = List.of(postgresTool("pg_restore.exe").toString(), "--list", file.toAbsolutePath().toString());
+        String listing = runPostgresTool(command);
+        Set<String> missing = new TreeSet<>();
+        for (String table : REQUIRED_TABLES) {
+            if (!listing.matches("(?s).*\\bTABLE(?: DATA)?\\s+public\\s+" + Pattern.quote(table) + "\\b.*")) {
+                missing.add(table);
+            }
+        }
+        if (!missing.isEmpty()) {
+            return ValidationResult.invalid("PostgreSQL backup is missing table(s): " + String.join(", ", missing));
+        }
+        return ValidationResult.valid(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "Fully compatible PostgreSQL backup");
+    }
+
+    private static void restorePostgresBackup(Path backup) throws Exception {
+        String listing = runPostgresTool(List.of(
+                postgresTool("pg_restore.exe").toString(), "--list", backup.toAbsolutePath().toString()));
+        Path useList = Files.createTempFile("dse-erp-restore-", ".list");
+        try {
+            List<String> filtered = listing.lines()
+                    .filter(line -> LEGACY_NOT_VALID_CONSTRAINTS.stream().noneMatch(line::contains))
+                    .toList();
+            Files.write(useList, filtered, StandardCharsets.UTF_8);
+
+            List<String> command = new ArrayList<>();
+            command.add(postgresTool("pg_restore.exe").toString());
+            command.addAll(postgresConnectionArguments());
+            command.add("--clean");
+            command.add("--if-exists");
+            command.add("--no-owner");
+            command.add("--no-privileges");
+            command.add("--single-transaction");
+            command.add("--use-list=" + useList.toAbsolutePath());
+            command.add("--dbname=" + postgresDatabaseName());
+            command.add(backup.toAbsolutePath().toString());
+            dropLegacyNotValidConstraints();
+            try {
+                runPostgresTool(command);
+                addLegacyNotValidConstraints();
+            } catch (Exception failure) {
+                try { addLegacyNotValidConstraints(); } catch (Exception repairFailure) {
+                    failure.addSuppressed(repairFailure);
+                }
+                throw failure;
+            }
+        } finally {
+            Files.deleteIfExists(useList);
+        }
+    }
+
+    private static void addLegacyNotValidConstraints() throws SQLException {
+        String[] statements = {
+                "ALTER TABLE quotation_line ADD CONSTRAINT quotation_line_item_code_fkey FOREIGN KEY(item_code) REFERENCES item_master(item_code) NOT VALID",
+                "ALTER TABLE quotation_line ADD CONSTRAINT quotation_line_quotation_id_fkey FOREIGN KEY(quotation_id) REFERENCES quotation_header(id) ON DELETE CASCADE NOT VALID",
+                "ALTER TABLE return_register ADD CONSTRAINT return_register_item_code_fkey FOREIGN KEY(item_code) REFERENCES item_master(item_code) NOT VALID",
+                "ALTER TABLE role_permission ADD CONSTRAINT role_permission_role_id_fkey FOREIGN KEY(role_id) REFERENCES roles(id) ON DELETE CASCADE NOT VALID",
+                "ALTER TABLE stock_adjustment ADD CONSTRAINT stock_adjustment_item_code_fkey FOREIGN KEY(item_code) REFERENCES item_master(item_code) NOT VALID"
+        };
+        try (Connection connection = DatabaseManager.getConnection(); Statement statement = connection.createStatement()) {
+            for (String sql : statements) statement.execute(sql);
+        }
+    }
+
+    private static void dropLegacyNotValidConstraints() throws SQLException {
+        String[] statements = {
+                "ALTER TABLE quotation_line DROP CONSTRAINT IF EXISTS quotation_line_item_code_fkey",
+                "ALTER TABLE quotation_line DROP CONSTRAINT IF EXISTS quotation_line_quotation_id_fkey",
+                "ALTER TABLE return_register DROP CONSTRAINT IF EXISTS return_register_item_code_fkey",
+                "ALTER TABLE role_permission DROP CONSTRAINT IF EXISTS role_permission_role_id_fkey",
+                "ALTER TABLE stock_adjustment DROP CONSTRAINT IF EXISTS stock_adjustment_item_code_fkey"
+        };
+        try (Connection connection = DatabaseManager.getConnection(); Statement statement = connection.createStatement()) {
+            for (String sql : statements) statement.execute(sql);
+        }
+    }
+
+    private static boolean isPostgresBackup(Path file) {
+        try (var input = Files.newInputStream(file)) {
+            return "PGDMP".equals(new String(input.readNBytes(5), StandardCharsets.US_ASCII));
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    private static List<String> postgresConnectionArguments() {
+        URI uri = URI.create(ConfigManager.getDbUrl().substring("jdbc:".length()));
+        int port = uri.getPort() < 0 ? 5432 : uri.getPort();
+        return List.of("--host=" + uri.getHost(), "--port=" + port,
+                "--username=" + ConfigManager.getDbUsername());
+    }
+
+    private static String postgresDatabaseName() {
+        URI uri = URI.create(ConfigManager.getDbUrl().substring("jdbc:".length()));
+        String path = uri.getPath();
+        return path == null || path.length() <= 1 ? "dse_erp" : path.substring(1);
+    }
+
+    private static Path postgresTool(String executable) {
+        return Path.of(ConfigManager.get("postgres.binPath", "D:\\PostgreSQL\\18\\pgsql\\bin"), executable);
+    }
+
+    private static String runPostgresTool(List<String> command) throws Exception {
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.redirectErrorStream(true);
+        builder.environment().put("PGPASSWORD", ConfigManager.getDbPassword());
+        Process process = builder.start();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        int exit = process.waitFor();
+        if (exit != 0) throw new IllegalStateException("PostgreSQL backup command failed: " + output.trim());
+        return output;
     }
 
     private static long modified(Path path) {

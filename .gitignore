@@ -22,6 +22,8 @@ desktop.ini
 *.db-wal
 *.db-shm
 *.db-journal
+*.pgbackup
+.env
 /config.properties
 Backups/
 Logs/

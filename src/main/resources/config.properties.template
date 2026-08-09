@@ -11,8 +11,9 @@ company.phone=
 # Theme (LIGHT or DARK)
 theme=LIGHT
 
-# Optional database override. Leave absent to use:
-#   <workspace>/Database/JavaAppERP.db
+# PostgreSQL (password is read from DSE_DB_PASSWORD by default)
+db.url=jdbc:postgresql://localhost:5432/dse_erp
+db.username=dse_erp_app
 
 # SMTP
 smtp.host=

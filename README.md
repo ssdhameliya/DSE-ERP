@@ -1,6 +1,6 @@
 # DSE ERP
 
-DSE ERP is an open-source JavaFX desktop ERP application by **DS Engineers**. It targets Windows and macOS and uses JDK 25, JavaFX 25, Maven, and SQLite.
+DSE ERP is an open-source JavaFX desktop ERP application by **DS Engineers**. It targets Windows and macOS and uses JDK 25, JavaFX 25, Maven, Spring Data JPA, Hibernate, and PostgreSQL.
 
 ## Main modules
 
@@ -37,13 +37,13 @@ On Windows, `build.bat` performs the same verification and `Run DSE ERP.bat` lau
 Windows PowerShell:
 
 ```powershell
-.\scripts\package-windows.ps1 -Version 2.1.12
+.\scripts\package-windows.ps1 -Version 5.0.0
 ```
 
 macOS Terminal:
 
 ```bash
-./scripts/package-macos.sh 2.1.12
+./scripts/package-macos.sh 5.0.0
 ```
 
 The generated packages are written to:
@@ -56,8 +56,8 @@ The generated packages are written to:
 After committing a matching version in `pom.xml`, push a semantic-version tag:
 
 ```bash
-git tag v2.1.12
-git push origin v2.1.12
+git tag v5.0.0
+git push origin v5.0.0
 ```
 
 GitHub Actions builds:
@@ -73,7 +73,7 @@ Release assets are published to GitHub Releases automatically.
 
 Business data is stored outside the installed application so updates do not overwrite it. New installations use a setup wizard to select a workspace, which may be on another internal drive or external SSD.
 
-See [`docs/WORKSPACE.md`](docs/WORKSPACE.md) for the folder structure, migration behavior, and backup recommendations.
+The setup wizard creates the workspace folders and stores the selected workspace pointer in the operating-system application-data folder.
 
 ## Security
 
@@ -83,6 +83,23 @@ Do not commit customer databases, runtime configuration, SMTP app passwords, sig
 
 https://github.com/ssdhameliya/DSE-ERP
 
-## Additional documentation
+## PostgreSQL development setup
 
-- Phase 2 automatic install-and-restart updater: `docs/PHASE-2-AUTOMATIC-UPDATER.md`
+The JavaFX application uses PostgreSQL through Spring Data JPA, Hibernate and HikariCP.
+The existing SQLite driver remains available only for the one-time data migration tool.
+
+Local IntelliJ/Maven configuration:
+
+* JDK: `C:\Program Files\Eclipse Adoptium\jdk-25.0.4.7-hotspot`
+* PostgreSQL binaries: `D:\PostgreSQL\18\pgsql\bin`
+* PostgreSQL data: `D:\PostgreSQL\18\data`
+* URL: `jdbc:postgresql://localhost:5432/dse_erp`
+* User: `dse_erp_app`
+* Password: read from the `DSE_DB_PASSWORD` user environment variable
+
+Run `scripts\start-postgresql.cmd` if PostgreSQL is not already accepting connections,
+then run `org.example.app.Launcher` from IntelliJ or `mvn javafx:run` from a Java 25 shell.
+
+Manual and scheduled backups are PostgreSQL custom-format `.pgbackup` files created with
+`pg_dump`. Restore is staged and applied atomically on the next application start. Legacy
+SQLite `.db` backups remain readable for migration, but are never overwritten by PostgreSQL.

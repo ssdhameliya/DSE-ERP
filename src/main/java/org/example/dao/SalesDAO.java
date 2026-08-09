@@ -20,7 +20,7 @@ public class SalesDAO {
 
         String headerSql =
             """
-            
+
                 INSERT INTO sales_header
             (
                 invoice_no,
@@ -298,13 +298,15 @@ public class SalesDAO {
                 pm.email,
                 pm.phone,
                 pm.gstin AS party_gstin,
-                COALESCE(SUM(sl.quantity),0) AS total_qty
+                COALESCE(sl.total_qty,0) AS total_qty
             FROM sales_header sh
             LEFT JOIN party_master pm
                 ON sh.customer_id = pm.id
-            LEFT JOIN sales_line sl
-                ON sh.id = sl.sales_id
-            GROUP BY sh.id
+            LEFT JOIN (
+                SELECT sales_id, SUM(quantity) AS total_qty
+                FROM sales_line
+                GROUP BY sales_id
+            ) sl ON sh.id = sl.sales_id
             ORDER BY
                 sh.invoice_date DESC,
                 sh.id DESC

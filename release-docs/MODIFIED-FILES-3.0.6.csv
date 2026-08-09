@@ -1,6 +1,0 @@
-File,Type,Direct change
-pom.xml,Build metadata,Version 3.0.5 to 3.0.6
-src/main/resources/app-version.properties,Runtime metadata,Version 3.0.5 to 3.0.6
-src/main/resources/css/ui-components.css,CSS,25 appended global component lines
-src/main/resources/css/ui-layout.css,CSS,210 appended global layout lines
-src/main/resources/fxml/pages/Login.fxml,FXML,Visible version label 3.0.5 to 3.0.6

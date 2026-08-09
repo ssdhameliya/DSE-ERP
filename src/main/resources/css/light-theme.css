@@ -2751,7 +2751,7 @@ SECTION TITLES
     -fx-font-size: 10px;
 }
 
-/* ========================================================================== 
+/* ==========================================================================
    Reminder Center premium UI — append to light-theme.css
    Scoped under .reminder-center-page to avoid affecting any other module.
    ========================================================================== */
@@ -4347,7 +4347,7 @@ SECTION TITLES
 .quotation-register-page .quotation-empty-title { -fx-font-size: 15px; -fx-font-weight: 800; -fx-text-fill: #1f2937; }
 .quotation-register-page .quotation-empty-message { -fx-font-size: 12px; -fx-text-fill: #7a8799; }
 
-/* ========================================================================== 
+/* ==========================================================================
    Premium Create Sale Invoice — scoped to the sales entry page
    ========================================================================== */
 .sales-entry-scroll,

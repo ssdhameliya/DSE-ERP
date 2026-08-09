@@ -244,7 +244,7 @@ public class PurchaseDAO {
 
         String sql =
             """
-           
+
                 SELECT
                ph.*,
                pm.party_code,
@@ -252,14 +252,15 @@ public class PurchaseDAO {
                pm.email,
                pm.phone,
                pm.gstin,
-               COALESCE(SUM(pl.quantity),0) AS total_qty
+               COALESCE(pl.total_qty,0) AS total_qty
            FROM purchase_header ph
            LEFT JOIN party_master pm
                ON ph.supplier_id = pm.id
-           LEFT JOIN purchase_line pl
-               ON ph.id = pl.purchase_id
-           GROUP BY
-               ph.id
+           LEFT JOIN (
+               SELECT purchase_id, SUM(quantity) AS total_qty
+               FROM purchase_line
+               GROUP BY purchase_id
+           ) pl ON ph.id = pl.purchase_id
            ORDER BY
                ph.invoice_date DESC,
                ph.id DESC
@@ -670,7 +671,7 @@ public class PurchaseDAO {
         String updateHeader =
             """
             UPDATE purchase_header
-            SET 
+            SET
                 invoice_date = ?,
                 supplier_id = ?,
                 subtotal = ?,

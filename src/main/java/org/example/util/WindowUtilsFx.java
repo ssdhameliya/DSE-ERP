@@ -88,7 +88,7 @@ public final class WindowUtilsFx {
     private static double validSize(double saved,double fallback,double minimum){ return !Double.isFinite(saved)||saved<minimum?Math.max(fallback,minimum):saved; }
 
     private static Rectangle2D ensureVisibleOnScreens(double x,double y,double w,double h){
-        if(Double.isFinite(x)&&Double.isFinite(y)) for(Screen s:Screen.getScreens()){Rectangle2D b=s.getVisualBounds();if(b.intersects(x,y,Math.max(1,w),Math.max(1,h)))return clamp(b,x,y,w,h);} 
+        if(Double.isFinite(x)&&Double.isFinite(y)) for(Screen s:Screen.getScreens()){Rectangle2D b=s.getVisualBounds();if(b.intersects(x,y,Math.max(1,w),Math.max(1,h)))return clamp(b,x,y,w,h);}
         Rectangle2D b=Screen.getPrimary().getVisualBounds(); double nw=Math.min(w,b.getWidth()),nh=Math.min(h,b.getHeight());
         return new Rectangle2D(b.getMinX()+(b.getWidth()-nw)/2,b.getMinY()+(b.getHeight()-nh)/2,nw,nh);
     }

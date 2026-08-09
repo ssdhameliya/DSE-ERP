@@ -2395,7 +2395,7 @@ TABLE ACTION BUTTONS
     -fx-font-size: 10px;
 }
 
-/* ========================================================================== 
+/* ==========================================================================
    Reminder Center premium UI — append to dark-theme.css
    Scoped under .reminder-center-page to avoid affecting any other module.
    ========================================================================== */
@@ -3697,7 +3697,7 @@ TABLE ACTION BUTTONS
 .quotation-register-page .quotation-empty-title { -fx-font-size: 15px; -fx-font-weight: 800; -fx-text-fill: #edf2f8; }
 .quotation-register-page .quotation-empty-message { -fx-font-size: 12px; -fx-text-fill: #90a1b7; }
 
-/* ========================================================================== 
+/* ==========================================================================
    Premium Create Sale Invoice — scoped to the sales entry page
    ========================================================================== */
 .sales-entry-scroll,

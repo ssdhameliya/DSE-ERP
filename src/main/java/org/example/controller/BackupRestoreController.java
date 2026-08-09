@@ -264,7 +264,8 @@ public class BackupRestoreController {
 
     private boolean isDatabaseBackup(Path path) {
         return Files.isRegularFile(path)
-                && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".db");
+                && (path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".db")
+                    || path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".pgbackup"));
     }
 
     private BackupRow toRow(Path path) {
@@ -381,7 +382,7 @@ public class BackupRestoreController {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Select DSE ERP Backup");
         chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("SQLite backup", "*.db")
+                new FileChooser.ExtensionFilter("ERP backup", "*.db", "*.pgbackup")
         );
 
         var file = chooser.showOpenDialog(backupTable.getScene().getWindow());
@@ -393,7 +394,7 @@ public class BackupRestoreController {
         if (event.getDragboard().hasFiles()
                 && event.getDragboard().getFiles().size() == 1
                 && event.getDragboard().getFiles().getFirst().getName()
-                        .toLowerCase(Locale.ROOT).endsWith(".db")) {
+                        .toLowerCase(Locale.ROOT).matches(".*\\.(db|pgbackup)$")) {
             event.acceptTransferModes(TransferMode.COPY);
         }
         event.consume();

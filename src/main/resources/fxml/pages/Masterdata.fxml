@@ -139,7 +139,7 @@
                     <HBox alignment="CENTER_LEFT">
                         <Label text="Master Records" styleClass="table-title"/>
                         <Region HBox.hgrow="ALWAYS"/>
-                        
+
                     </HBox>
 
                     <TableView fx:id="tblLookup"

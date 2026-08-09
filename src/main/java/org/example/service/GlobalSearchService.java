@@ -38,7 +38,7 @@ public final class GlobalSearchService {
         add(results, like, "Return", "/fxml/pages/Operations.fxml",
             "SELECT return_no,COALESCE(invoice_no,''),return_date||'  '||return_type||'  '||status FROM return_register WHERE return_no LIKE ? OR COALESCE(invoice_no,'') LIKE ? OR COALESCE(reason,'') LIKE ? LIMIT 20", 3);
         add(results, like, "Payment", "/fxml/pages/Operations.fxml",
-            "SELECT COALESCE(reference_no,'Payment #'||id),document_type,payment_date||'  ₹'||printf('%,.2f',amount)||'  '||payment_mode FROM payment_record WHERE COALESCE(reference_no,'') LIKE ? OR document_type LIKE ? OR payment_mode LIKE ? LIMIT 20", 3);
+            "SELECT COALESCE(reference_no,'Payment #'||CAST(id AS TEXT)),document_type,payment_date||'  ₹'||printf('%,.2f',amount)||'  '||payment_mode FROM payment_record WHERE COALESCE(reference_no,'') LIKE ? OR document_type LIKE ? OR payment_mode LIKE ? LIMIT 20", 3);
         add(results, like, "Master Value", "/fxml/pages/Masterdata.fxml",
             "SELECT lookup_code,lookup_value,lookup_type||'  '||COALESCE(description,'') FROM lookup_master WHERE lookup_code LIKE ? OR lookup_value LIKE ? OR lookup_type LIKE ? OR COALESCE(description,'') LIKE ? LIMIT 20", 4);
         return results.stream().limit(100).toList();

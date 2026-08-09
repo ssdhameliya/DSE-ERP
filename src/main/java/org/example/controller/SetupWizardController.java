@@ -174,7 +174,7 @@ public class SetupWizardController {
                 }
                 ConfigManager.save();
                 DatabaseManager.initialize();
-                BackupManager.ensureApplicationMetadata();
+                if (ConfigManager.isSqlite()) BackupManager.ensureApplicationMetadata();
                 saveAdministrator();
                 Platform.runLater(() -> {
                     if (onCompleted != null) onCompleted.run(); else SceneManager.showLogin();

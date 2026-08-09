@@ -10,23 +10,18 @@ import java.sql.*;
 
 public class DatabaseManager {
 
-    // Resolve the same configured SQLite file used by Backup & Restore.
-    private static final Path DATABASE_PATH = ConfigManager.getDatabasePath();
-    private static final String DB_FOLDER = DATABASE_PATH.getParent().toString();
-    private static final String DB_FILE = DATABASE_PATH.toString();
-    private static final String DB_URL = ConfigManager.getDbUrl();
-
     /**
      * Initialize database and create required tables.
      */
     public static void initialize() {
 
-        File folder = new File(DB_FOLDER);
-        if (!folder.exists()) {
-            folder.mkdirs();
+        if (ConfigManager.isSqlite()) {
+            File folder = ConfigManager.getDatabasePath().getParent().toFile();
+            if (!folder.exists() && !folder.mkdirs()) {
+                throw new IllegalStateException("Database folder could not be created: " + folder);
+            }
+            migrateBundledDatabaseIfNeeded();
         }
-
-        migrateBundledDatabaseIfNeeded();
 
         createUsersTable();
         ensureUserColumns();
@@ -71,7 +66,8 @@ public class DatabaseManager {
     }
 
     private static void migrateBundledDatabaseIfNeeded() {
-        Path target = Path.of(DB_FILE);
+        if (!ConfigManager.isSqlite()) return;
+        Path target = ConfigManager.getDatabasePath();
         if (Files.exists(target)) return;
         Path bundled = Path.of(System.getProperty("user.dir"), "JavaAppERP.db");
         if (!Files.exists(bundled)) return;
@@ -87,11 +83,15 @@ public class DatabaseManager {
      */
     public static Connection getConnection() throws SQLException {
         try {
-            Class.forName("org.sqlite.JDBC");
+            Class.forName(ConfigManager.isPostgreSql() ? "org.postgresql.Driver" : "org.sqlite.JDBC");
         } catch (ClassNotFoundException ex) {
-            throw new SQLException("SQLite JDBC driver is unavailable", ex);
+            throw new SQLException("Database JDBC driver is unavailable", ex);
         }
-        return DriverManager.getConnection(DB_URL);
+        if (ConfigManager.isPostgreSql()) {
+            return SqlCompatibility.wrap(DriverManager.getConnection(
+                    ConfigManager.getDbUrl(), ConfigManager.getDbUsername(), ConfigManager.getDbPassword()));
+        }
+        return DriverManager.getConnection(ConfigManager.getDbUrl());
     }
 
     /**
@@ -102,10 +102,26 @@ public class DatabaseManager {
             Connection con = getConnection();
             Statement stmt = con.createStatement()
         ) {
-            stmt.execute(sql);
+            stmt.execute(portableSql(sql));
         } catch (SQLException ex) {
-            ex.printStackTrace();
+            throw new IllegalStateException("Database schema statement failed: " + sql, ex);
         }
+    }
+
+    private static String portableSql(String sql) {
+        if (!ConfigManager.isPostgreSql()) return sql;
+        String result = sql.trim();
+        if (result.toUpperCase().startsWith("PRAGMA ")) return "SELECT 1";
+        result = result.replaceAll("(?i)INTEGER\\s+PRIMARY\\s+KEY\\s+AUTOINCREMENT", "SERIAL PRIMARY KEY");
+        result = result.replaceAll("(?i)created_at\\s+INTEGER\\s+NOT\\s+NULL", "created_at BIGINT NOT NULL");
+        result = result.replaceAll("(?i)datetime\\('now'\\)", "CURRENT_TIMESTAMP");
+        boolean ignoreConflict = result.regionMatches(true, 0, "INSERT OR IGNORE INTO", 0, 21);
+        if (ignoreConflict) {
+            result = "INSERT INTO" + result.substring(21);
+            if (result.endsWith(";")) result = result.substring(0, result.length() - 1);
+            result += " ON CONFLICT DO NOTHING";
+        }
+        return result;
     }
 
     //====================================================
@@ -247,6 +263,10 @@ public class DatabaseManager {
     }
 
     private static void addColumnIfMissing(String table, String column, String definition) {
+        if (ConfigManager.isPostgreSql()) {
+            createTable("ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS " + column + " " + definition);
+            return;
+        }
         try (Connection con = getConnection();
              Statement stmt = con.createStatement();
              ResultSet columns = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
@@ -718,6 +738,9 @@ public class DatabaseManager {
             """);
         addColumnIfMissing("notifications", "target_fxml", "TEXT");
         addColumnIfMissing("notifications", "reference_no", "TEXT");
+        if (ConfigManager.isPostgreSql()) {
+            createTable("ALTER TABLE notifications ALTER COLUMN created_at TYPE BIGINT");
+        }
         createTable("CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(is_read, created_at)");
     }
 
@@ -743,6 +766,12 @@ public class DatabaseManager {
      * once without that constraint and retain every existing return record.
      */
     private static void ensureReturnLineStorage() {
+        if (ConfigManager.isPostgreSql()) {
+            // A return document contains one row per item, so return_no is intentionally non-unique.
+            createTable("ALTER TABLE return_register DROP CONSTRAINT IF EXISTS return_register_return_no_key");
+            createTable("CREATE INDEX IF NOT EXISTS idx_return_number ON return_register(return_no)");
+            return;
+        }
         boolean uniqueReturnNumber = false;
         try (Connection connection = getConnection();
              Statement statement = connection.createStatement();

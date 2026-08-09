@@ -71,14 +71,31 @@ public final class ConfigManager {
     }
 
     public static String getDbUrl() {
-        return get("db.url", "jdbc:sqlite:" + WorkspaceManager.getDatabaseFolder().resolve("JavaAppERP.db"));
+        return get("db.url", System.getenv().getOrDefault(
+                "DSE_DB_URL", "jdbc:postgresql://localhost:5432/dse_erp"));
+    }
+
+    public static String getDbUsername() {
+        return get("db.username", System.getenv().getOrDefault("DSE_DB_USERNAME", "dse_erp_app"));
+    }
+
+    public static String getDbPassword() {
+        return get("db.password", System.getenv().getOrDefault("DSE_DB_PASSWORD", ""));
+    }
+
+    public static boolean isSqlite() {
+        return getDbUrl().startsWith("jdbc:sqlite:");
+    }
+
+    public static boolean isPostgreSql() {
+        return getDbUrl().startsWith("jdbc:postgresql:");
     }
 
     public static Path getDatabasePath() {
         String url = getDbUrl();
         final String prefix = "jdbc:sqlite:";
         if (url == null || !url.startsWith(prefix)) {
-            throw new IllegalStateException("Only SQLite database URLs are supported: " + url);
+            throw new IllegalStateException("A SQLite file path was requested while using: " + url);
         }
         String value = url.substring(prefix.length()).trim();
         if (value.isBlank() || value.equals(":memory:")) {

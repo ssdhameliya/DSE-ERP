@@ -11,6 +11,7 @@ import org.example.backup.BackupManager;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.database.DatabaseManager;
+import org.example.persistence.SpringPersistence;
 import org.example.update.UpdateLifecycle;
 import org.example.update.UpdateStartupChecker;
 import org.example.util.SceneManager;
@@ -49,7 +50,8 @@ public class Main extends Application {
         }
         try {
             DatabaseManager.initialize();
-            BackupManager.ensureApplicationMetadata();
+            SpringPersistence.initialize();
+            if (ConfigManager.isSqlite()) BackupManager.ensureApplicationMetadata();
         } catch (Exception exception) {
             exception.printStackTrace();
             new OwnedAlert(Alert.AlertType.ERROR,
@@ -71,6 +73,7 @@ public class Main extends Application {
 
     /** SetupWizardController has already created the workspace and initialized SQLite. */
     private void completeFirstRun(Stage stage) {
+        SpringPersistence.initialize();
         finishStartup(stage);
         SceneManager.showLogin();
     }
@@ -102,6 +105,7 @@ public class Main extends Application {
 
     @Override public void stop() {
         if (backupScheduler != null) backupScheduler.shutdownNow();
+        SpringPersistence.close();
     }
 
     public static void main(String[] args) { launch(args); }

@@ -1,9 +1,0 @@
-DSE ERP 3.0.7 compile fix
-
-Fixed:
-- RecordPaymentController.validate() now declares IOException.
-- This resolves the javac error caused by Files.size(selectedAttachment).
-
-Reason:
-- Files.size(Path) throws java.io.IOException.
-- validate() is called inside save(), whose existing try/catch already handles Exception.
