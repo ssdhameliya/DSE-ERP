@@ -7,6 +7,9 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.lang.management.ManagementFactory;
 import java.lang.management.GarbageCollectorMXBean;
@@ -18,6 +21,13 @@ public final class PerformanceMonitor {
     private static final long MAX_LOG_BYTES = 2L * 1024L * 1024L;
     private static volatile long lastGcCount = totalGcCount();
     private static volatile long lastGcTime = totalGcTime();
+    private static final ThreadPoolExecutor LOG_WRITER = new ThreadPoolExecutor(
+            1, 1, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(512), runnable -> {
+        Thread thread = new Thread(runnable, "dse-performance-log");
+        thread.setDaemon(true);
+        thread.setPriority(Thread.MIN_PRIORITY);
+        return thread;
+    }, new ThreadPoolExecutor.DiscardOldestPolicy());
 
     private PerformanceMonitor() { }
 
@@ -52,7 +62,12 @@ public final class PerformanceMonitor {
         return stats == null ? new Snapshot(0, 0, 0) : stats.snapshot();
     }
 
-    private static synchronized void log(String operation, String detail) {
+    private static void log(String operation, String detail) {
+        String line = Instant.now() + " | " + operation + " | " + detail + System.lineSeparator();
+        LOG_WRITER.execute(() -> write(line));
+    }
+
+    private static synchronized void write(String line) {
         try {
             Path folder = org.example.config.ConfigManager.getConfigFolder();
             Files.createDirectories(folder);
@@ -61,8 +76,7 @@ public final class PerformanceMonitor {
                 Files.move(log, folder.resolve("performance.log.1"),
                     StandardCopyOption.REPLACE_EXISTING);
             }
-            Files.writeString(log,
-                Instant.now() + " | " + operation + " | " + detail + System.lineSeparator(),
+            Files.writeString(log, line,
                 StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (Exception ignored) { }
     }

@@ -8,6 +8,7 @@ import org.example.util.ProfessionalUiEnhancer;
 import org.example.util.ModernDialog;
 import org.example.util.PerformanceMonitor;
 import org.example.util.ScreenRefreshPolicy;
+import org.example.util.PerformanceBudgets;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -78,6 +79,7 @@ public class NavigationManager {
         }
         if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) return false;
         String timingKey = "navigation:" + fxml;
+        boolean[] reusedPage = {false};
         PerformanceMonitor.start(timingKey);
         contentPane.getStyleClass().add("navigation-loading");
         try {
@@ -88,6 +90,7 @@ public class NavigationManager {
             boolean cacheable = !NON_CACHEABLE.contains(fxml);
             CachedPage cached = cacheable ? pageCache.get(fxml) : null;
             boolean reused = cached != null;
+            reusedPage[0] = reused;
             if (!reused) {
                 long loadStarted = System.nanoTime();
                 FXMLLoader loader = new FXMLLoader(url);
@@ -139,7 +142,10 @@ public class NavigationManager {
             return false;
         } finally {
             contentPane.getStyleClass().remove("navigation-loading");
-            PerformanceMonitor.finish(timingKey);
+            long elapsed = PerformanceMonitor.finish(timingKey);
+            if (elapsed >= 0) PerformanceBudgets.record(fxml, elapsed,
+                    reusedPage[0] ? PerformanceBudgets.CACHED_PAGE_MS
+                            : PerformanceBudgets.FIRST_REGISTER_MS);
             NAVIGATION_IN_PROGRESS.set(false);
         }
     }

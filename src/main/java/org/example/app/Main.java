@@ -17,6 +17,8 @@ import org.example.update.UpdateStartupChecker;
 import org.example.util.SceneManager;
 import org.example.util.WindowUtilsFx;
 import org.example.util.PerformanceMonitor;
+import org.example.util.PerformanceBudgets;
+import org.example.util.FxResponsivenessMonitor;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -25,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 public final class Main {
     private ScheduledExecutorService backupScheduler;
     private boolean stopped;
+    private final FxResponsivenessMonitor responsivenessMonitor = new FxResponsivenessMonitor();
 
     public void start(Stage stage) {
         stage.initStyle(StageStyle.DECORATED);
@@ -41,13 +44,18 @@ public final class Main {
     }
 
     private void initializeConfiguredApplication(Stage stage) {
+        PerformanceMonitor.start("warm-startup");
+        SceneManager.showSplash();
+        Thread startup = new Thread(() -> initializeInBackground(stage), "dse-startup");
+        startup.setDaemon(true);
+        startup.start();
+    }
+
+    private void initializeInBackground(Stage stage) {
         ConfigManager.load();
         BackupManager.RestoreResult restoreResult = BackupManager.applyPendingRestoreIfPresent();
         if (restoreResult.attempted() && !restoreResult.applied()) {
             if (restoreResult.failure() != null) restoreResult.failure().printStackTrace();
-            new OwnedAlert(Alert.AlertType.ERROR,
-                    restoreResult.message() + "\n\nThe ERP will continue using the preserved database.")
-                    .showAndWait();
         }
         AutomaticPostgresMigration.Result databaseUpgrade = AutomaticPostgresMigration.attempt();
         if (databaseUpgrade.failure() != null) databaseUpgrade.failure().printStackTrace();
@@ -57,13 +65,18 @@ public final class Main {
             else BackupManager.ensureApplicationMetadata();
         } catch (Exception exception) {
             exception.printStackTrace();
-            new OwnedAlert(Alert.AlertType.ERROR,
-                    "Database initialization failed: " + exception.getMessage()).showAndWait();
+            Platform.runLater(() -> new OwnedAlert(Alert.AlertType.ERROR,
+                    "Database initialization failed: " + exception.getMessage()).showAndWait());
+            return;
         }
-        finishStartup(stage);
-        showDatabaseUpgradeResult(databaseUpgrade);
-        if (restoreResult.applied()) {
-            Platform.runLater(() -> {
+        Platform.runLater(() -> {
+            SceneManager.showLogin();
+            finishStartup(stage);
+            showDatabaseUpgradeResult(databaseUpgrade);
+            if (restoreResult.attempted() && !restoreResult.applied()) {
+                new OwnedAlert(Alert.AlertType.ERROR,
+                        restoreResult.message() + "\n\nThe ERP will continue using the preserved database.").show();
+            } else if (restoreResult.applied()) {
                 String safety = restoreResult.safetyBackup() == null
                         ? "No previous database existed."
                         : "Safety backup: " + restoreResult.safetyBackup();
@@ -71,8 +84,8 @@ public final class Main {
                         "The staged database restore was applied successfully.\n\n" + safety);
                 alert.setHeaderText("Database restore completed");
                 alert.show();
-            });
-        }
+            }
+        });
     }
 
     private void showDatabaseUpgradeResult(AutomaticPostgresMigration.Result result) {
@@ -110,6 +123,10 @@ public final class Main {
 
     private void finishStartup(Stage stage) {
         stage.show();
+        responsivenessMonitor.start();
+        long startupMillis = PerformanceMonitor.finish("warm-startup");
+        if (startupMillis >= 0) PerformanceBudgets.record("warm-startup", startupMillis,
+                PerformanceBudgets.WARM_STARTUP_MS);
         PerformanceMonitor.event("runtime",
             "os=" + System.getProperty("os.name")
                 + " | arch=" + System.getProperty("os.arch")
@@ -137,7 +154,9 @@ public final class Main {
         if (stopped) return;
         stopped = true;
         if (backupScheduler != null) backupScheduler.shutdownNow();
+        responsivenessMonitor.stop();
         SpringPersistence.close();
+        DatabaseManager.close();
     }
 
     public static void launch(String[] args) {

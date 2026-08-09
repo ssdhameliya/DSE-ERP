@@ -9,7 +9,7 @@
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.MasterDataController"
             styleClass="master-page,master-data-premium,master-data-redesign,approved-ui,approved-screen,approved-screen-masterdata,erp-screen-root"
-            prefWidth="1450">
+            >
 
     <top>
         <VBox spacing="16" minHeight="118" styleClass="page-header,master-modern-header,approved-section-header,erp-page-identity-header">
@@ -164,11 +164,11 @@
                             </ContextMenu>
                         </contextMenu>
                         <columns>
-                            <TableColumn fx:id="colCode" text="Code" prefWidth="155"
+                            <TableColumn fx:id="colCode" text="Code" prefWidth="120"
                                          styleClass="approved-table-column"/>
-                            <TableColumn fx:id="colValue" text="Value" prefWidth="260"
+                            <TableColumn fx:id="colValue" text="Value" prefWidth="190"
                                          styleClass="approved-table-column"/>
-                            <TableColumn fx:id="colDescription" text="Description" prefWidth="520"
+                            <TableColumn fx:id="colDescription" text="Description" prefWidth="390"
                                          styleClass="approved-table-column"/>
                         </columns>
                     </TableView>

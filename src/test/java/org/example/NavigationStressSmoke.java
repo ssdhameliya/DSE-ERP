@@ -7,6 +7,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.example.config.ConfigManager;
+import org.example.config.WorkspaceManager;
 import org.example.database.DatabaseManager;
 import org.example.navigation.NavigationManager;
 import org.example.theme.ThemeManager;
@@ -21,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class NavigationStressSmoke {
     public static void main(String[] args) throws Exception {
         System.setProperty("prism.order", "sw");
+        WorkspaceManager.initialize();
         ConfigManager.load();
         DatabaseManager.initialize();
         CountDownLatch done = new CountDownLatch(1);

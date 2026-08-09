@@ -5265,8 +5265,8 @@ SECTION TITLES
 .approved-list { -fx-background-color: transparent; -fx-border-color: transparent; }
 .approved-list .list-cell { -fx-background-color: transparent; -fx-padding: 10 8; -fx-border-color: transparent transparent #edf1f7 transparent; }
 .dashboard-chart-free .chart { -fx-visibility: hidden; }
-.root.platform-mac .approved-card, .root.platform-mac .approved-kpi, .platform-mac .approved-card, .platform-mac .approved-kpi { -fx-effect: none; }
-.root.platform-mac .approved-button, .platform-mac .approved-button { -fx-background-insets: 0; }
+.root.platform-macos .approved-card, .root.platform-macos .approved-kpi, .platform-macos .approved-card, .platform-macos .approved-kpi { -fx-effect: null; }
+.root.platform-macos .approved-button, .platform-macos .approved-button { -fx-background-insets: 0; }
 
 /* === v2.1.9 all-screen approved release ================================= */
 .approved-screen { -fx-background-color:#f6f8fc; }
@@ -5288,7 +5288,7 @@ SECTION TITLES
 .approved-screen .scroll-pane, .approved-screen .scroll-pane > .viewport { -fx-background-color:transparent; }
 .compact-layout .approved-filter-bar, .compact-layout .approved-toolbar { -fx-padding:8; -fx-spacing:6; }
 .small-display .approved-kpi, .small-display .approved-surface, .small-display .approved-card { -fx-padding:10; }
-.platform-mac .approved-surface, .platform-mac .approved-section-header, .platform-mac .approved-filter-bar, .platform-mac .approved-toolbar { -fx-effect:none; }
+.platform-macos .approved-surface, .platform-macos .approved-section-header, .platform-macos .approved-filter-bar, .platform-macos .approved-toolbar { -fx-effect:null; }
 
 /* v2.1.13 focused KPI/table/report stabilization */
 .dashboard-executive .sales-metric-card, .reports-single-page .sales-metric-card {
@@ -6674,6 +6674,9 @@ SECTION TITLES
 .master-data-redesign .master-category-panel, .master-data-redesign .master-kpi-row, .master-data-redesign .master-table-toolbar, .master-data-redesign .master-table-card { -fx-background-insets: 0; }
 .master-data-redesign .master-kpi-row { -fx-padding: 12; }
 .master-data-redesign .master-table-card { -fx-padding: 12; }
+.small-display.master-data-redesign .master-category-panel { -fx-min-width: 205; -fx-pref-width: 220; }
+.small-display.master-data-redesign .master-table-card,
+.small-display.master-data-redesign .master-records-table { -fx-min-width: 0; }
 .inventory-premium-page .inventory-table-card { -fx-max-width: infinity; }
 .inventory-premium-page .inventory-record-footer { -fx-min-height: 48; -fx-pref-height: 48; }
 .inventory-premium-page .inventory-record-count, .reminder-center-page .reminder-result-count { -fx-font-weight: 800; }

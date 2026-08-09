@@ -37,13 +37,13 @@ On Windows, `build.bat` performs the same verification and `Run DSE ERP.bat` lau
 Windows PowerShell:
 
 ```powershell
-.\scripts\package-windows.ps1 -Version 5.0.2
+.\scripts\package-windows.ps1 -Version 5.0.3
 ```
 
 macOS Terminal:
 
 ```bash
-./scripts/package-macos.sh 5.0.2
+./scripts/package-macos.sh 5.0.3
 ```
 
 The generated packages are written to:
@@ -56,8 +56,8 @@ The generated packages are written to:
 After committing a matching version in `pom.xml`, push a semantic-version tag:
 
 ```bash
-git tag v5.0.2
-git push origin v5.0.2
+git tag v5.0.3
+git push origin v5.0.3
 ```
 
 GitHub Actions builds:
@@ -88,7 +88,7 @@ https://github.com/ssdhameliya/DSE-ERP
 The JavaFX application uses PostgreSQL through Spring Data JPA, Hibernate and HikariCP.
 The existing SQLite driver remains available only for the one-time data migration tool.
 
-Version 5.0.2 automatically upgrades an existing, unconfigured SQLite workspace when
+Version 5.0.3 automatically upgrades an existing, unconfigured SQLite workspace when
 PostgreSQL is reachable. Before copying, it creates and validates a SQLite safety snapshot.
 The data is copied transactionally into a fingerprinted `dse_migration_*` PostgreSQL
 schema, row counts are verified, and `db.url` is saved only after success. Existing

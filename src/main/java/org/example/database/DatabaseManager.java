@@ -1,7 +1,11 @@
 package org.example.database;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.example.config.ConfigManager;
+import org.example.util.PerformanceMonitor;
 
+import javax.sql.DataSource;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,11 +14,17 @@ import java.sql.*;
 
 public class DatabaseManager {
 
+    private static final Object POOL_LOCK = new Object();
+    private static final ThreadLocal<Connection> INITIALIZATION_CONNECTION = new ThreadLocal<>();
+    private static volatile HikariDataSource postgresPool;
+    private static volatile String postgresPoolKey;
+
     /**
      * Initialize database and create required tables.
      */
     public static void initialize() {
 
+        PerformanceMonitor.start("database-initialize");
         if (ConfigManager.isSqlite()) {
             File folder = ConfigManager.getDatabasePath().getParent().toFile();
             if (!folder.exists() && !folder.mkdirs()) {
@@ -22,47 +32,55 @@ public class DatabaseManager {
             }
             migrateBundledDatabaseIfNeeded();
         }
+        try (Connection connection = openConnection()) {
+            INITIALIZATION_CONNECTION.set(connection);
 
-        createUsersTable();
-        ensureUserColumns();
-        createRolesTable();
+            createUsersTable();
+            ensureUserColumns();
+            createRolesTable();
 
-        createItemMasterTable();
-        ensureInventoryColumns();
+            createItemMasterTable();
+            ensureInventoryColumns();
 
-        createLookupTable();
-        createMasterCategoryTable();
+            createLookupTable();
+            createMasterCategoryTable();
 
-        createPartyTable();
+            createPartyTable();
 
-        createPurchaseTables();
-        ensurePurchaseLineDiscountColumns();
-        ensurePurchaseWorkflowColumns();
+            createPurchaseTables();
+            ensurePurchaseLineDiscountColumns();
+            ensurePurchaseWorkflowColumns();
 
-        createSalesTables();
-        ensureSalesLineDiscountColumns();
-        ensureSalesWorkflowColumns();
+            createSalesTables();
+            ensureSalesLineDiscountColumns();
+            ensureSalesWorkflowColumns();
 
-        createQuotationTables();
-        ensureQuotationWorkflowColumns();
-        createOperationsTables();
-        ensureFinanceWorkflowColumns();
-        ensureReminderWorkflowColumns();
-        createWorkflowTables();
-        ensurePaymentWorkflowColumns();
-        createUserAccessTables();
-        createBackupSettingsTable();
-        createBackupHistoryTable();
-        createApplicationMetadataTable();
-        addColumnIfMissing("communication_log", "is_read", "INTEGER NOT NULL DEFAULT 0");
-        createNotificationTable();
-        createBusinessIndexes();
-        ensureReturnLineStorage();
-        migrateCompletedWhatsappHandoffs();
+            createQuotationTables();
+            ensureQuotationWorkflowColumns();
+            createOperationsTables();
+            ensureFinanceWorkflowColumns();
+            ensureReminderWorkflowColumns();
+            createWorkflowTables();
+            ensurePaymentWorkflowColumns();
+            createUserAccessTables();
+            createBackupSettingsTable();
+            createBackupHistoryTable();
+            createApplicationMetadataTable();
+            addColumnIfMissing("communication_log", "is_read", "INTEGER NOT NULL DEFAULT 0");
+            createNotificationTable();
+            createBusinessIndexes();
+            ensureReturnLineStorage();
+            migrateCompletedWhatsappHandoffs();
 
-        seedLookupData();
-        seedAdministrator();
+            seedLookupData();
+            seedAdministrator();
 
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Database connection could not be initialized", exception);
+        } finally {
+            INITIALIZATION_CONNECTION.remove();
+            PerformanceMonitor.finish("database-initialize");
+        }
     }
 
     private static void migrateBundledDatabaseIfNeeded() {
@@ -82,16 +100,64 @@ public class DatabaseManager {
      * Returns database connection.
      */
     public static Connection getConnection() throws SQLException {
+        Connection initialization = INITIALIZATION_CONNECTION.get();
+        if (initialization != null) {
+            return ConfigManager.isPostgreSql()
+                    ? SqlCompatibility.wrap(initialization, false)
+                    : SqlCompatibility.nonClosing(initialization);
+        }
+        return openConnection();
+    }
+
+    private static Connection openConnection() throws SQLException {
         try {
             Class.forName(ConfigManager.isPostgreSql() ? "org.postgresql.Driver" : "org.sqlite.JDBC");
         } catch (ClassNotFoundException ex) {
             throw new SQLException("Database JDBC driver is unavailable", ex);
         }
         if (ConfigManager.isPostgreSql()) {
-            return SqlCompatibility.wrap(DriverManager.getConnection(
-                    ConfigManager.getDbUrl(), ConfigManager.getDbUsername(), ConfigManager.getDbPassword()));
+            return SqlCompatibility.wrap(postgresDataSource().getConnection());
         }
         return DriverManager.getConnection(ConfigManager.getDbUrl());
+    }
+
+    /** Shared PostgreSQL pool for legacy JDBC and Spring/Hibernate. */
+    public static DataSource postgresDataSource() {
+        if (!ConfigManager.isPostgreSql()) {
+            throw new IllegalStateException("PostgreSQL data source requested while using " + ConfigManager.getDbUrl());
+        }
+        String key = ConfigManager.getDbUrl() + '\n' + ConfigManager.getDbUsername()
+                + '\n' + ConfigManager.getDbPassword();
+        HikariDataSource current = postgresPool;
+        if (current != null && !current.isClosed() && key.equals(postgresPoolKey)) return current;
+        synchronized (POOL_LOCK) {
+            current = postgresPool;
+            if (current != null && !current.isClosed() && key.equals(postgresPoolKey)) return current;
+            if (current != null) current.close();
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(ConfigManager.getDbUrl());
+            config.setUsername(ConfigManager.getDbUsername());
+            config.setPassword(ConfigManager.getDbPassword());
+            config.setMaximumPoolSize(8);
+            config.setMinimumIdle(1);
+            config.setConnectionTimeout(3_000);
+            config.setValidationTimeout(1_000);
+            config.setIdleTimeout(120_000);
+            config.setMaxLifetime(900_000);
+            config.setPoolName("dse-erp-postgres");
+            current = new HikariDataSource(config);
+            postgresPool = current;
+            postgresPoolKey = key;
+            return current;
+        }
+    }
+
+    public static void close() {
+        synchronized (POOL_LOCK) {
+            if (postgresPool != null) postgresPool.close();
+            postgresPool = null;
+            postgresPoolKey = null;
+        }
     }
 
     /**
@@ -837,6 +903,7 @@ public class DatabaseManager {
                 connection.rollback();
                 throw exception;
             } finally {
+                if (!connection.getAutoCommit()) connection.setAutoCommit(true);
                 statement.execute("PRAGMA foreign_keys=ON");
             }
         } catch (SQLException exception) {

@@ -20,11 +20,24 @@ final class SqlCompatibility {
     private SqlCompatibility() {}
 
     static Connection wrap(Connection connection) {
+        return wrap(connection, true);
+    }
+
+    static Connection wrap(Connection connection, boolean closeable) {
         return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
                 new Class<?>[]{Connection.class}, (proxy, method, args) -> {
+                    if (!closeable && method.getName().equals("close")) return null;
                     Object[] translated = translateFirstSqlArgument(args);
                     Object result = invoke(connection, method, translated);
                     return result instanceof Statement statement ? wrapStatement(statement) : result;
+                });
+    }
+
+    static Connection nonClosing(Connection connection) {
+        return (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
+                new Class<?>[]{Connection.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("close")) return null;
+                    return invoke(connection, method, args);
                 });
     }
 

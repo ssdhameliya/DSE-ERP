@@ -1,9 +1,8 @@
 package org.example.persistence;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import jakarta.persistence.EntityManagerFactory;
 import org.example.config.ConfigManager;
+import org.example.database.DatabaseManager;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,16 +40,9 @@ public final class SpringPersistence {
     @Configuration
     @EnableJpaRepositories(basePackages = "org.example.persistence.repository")
     static class PersistenceConfiguration {
-        @Bean(destroyMethod = "close")
+        @Bean(destroyMethod = "")
         DataSource dataSource() {
-            HikariConfig config = new HikariConfig();
-            config.setJdbcUrl(ConfigManager.getDbUrl());
-            config.setUsername(ConfigManager.getDbUsername());
-            config.setPassword(ConfigManager.getDbPassword());
-            config.setMaximumPoolSize(10);
-            config.setMinimumIdle(1);
-            config.setPoolName("dse-erp-pool");
-            return new HikariDataSource(config);
+            return DatabaseManager.postgresDataSource();
         }
 
         @Bean

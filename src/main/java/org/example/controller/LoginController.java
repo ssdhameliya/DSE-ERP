@@ -13,6 +13,9 @@ import org.example.util.ButtonAction;
 import org.example.util.ClockService;
 import org.example.util.SceneManager;
 import org.example.util.UiActionIcons;
+import org.example.util.UiTaskExecutor;
+import org.example.util.PerformanceMonitor;
+import org.example.util.PerformanceBudgets;
 
 import java.util.Locale;
 import java.util.prefs.Preferences;
@@ -136,9 +139,21 @@ public class LoginController {
         String password = txtPassword.getText();
         String selectedRole = selectedDatabaseRole();
 
-        try {
+        setLoginBusy(true, "SIGNING IN...");
+        PerformanceMonitor.start("login-click");
+        UiTaskExecutor.submitLatest("login-authentication", () -> {
             AppUser user = users.authenticate(identity, password);
+            if (user == null) return new LoginAttempt(null, false);
+            String actualRole = normalizeRole(user.getRole());
+            boolean sent = "ADMIN".equals(actualRole)
+                    || !actualRole.equals(selectedRole)
+                    || OtpService.issueAndSend(user.getEmail());
+            return new LoginAttempt(user, sent);
+        }, attempt -> {
+            setLoginBusy(false, null);
+            AppUser user = attempt.user();
             if (user == null) {
+                PerformanceMonitor.finish("login-click");
                 message("Invalid email/username or password.", true);
                 return;
             }
@@ -148,6 +163,7 @@ public class LoginController {
                 showFieldError(cmbRole, lblRoleError,
                         "Selected role does not match this user account.");
                 message("Please select the role assigned to this account.", true);
+                PerformanceMonitor.finish("login-click");
                 return;
             }
 
@@ -157,19 +173,21 @@ public class LoginController {
             }
 
             pendingUser = user;
-            boolean sent = OtpService.issueAndSend(user.getEmail());
             txtOtp.setDisable(false);
             txtOtp.requestFocus();
             btnLogin.setText("VERIFY OTP");
-            message(sent
+            message(attempt.otpSent()
                     ? "Verification code sent to " + user.getEmail() + "."
                     : "A verification code was already sent. Please enter it below.", false);
-        } catch (Exception exception) {
+            PerformanceMonitor.finish("login-click");
+        }, exception -> {
+            setLoginBusy(false, null);
+            PerformanceMonitor.finish("login-click");
             pendingUser = null;
             OtpService.clear();
             updateLoginMode();
             message("Login failed: " + exception.getMessage(), true);
-        }
+        });
     }
 
     private boolean validateCredentials() {
@@ -207,16 +225,37 @@ public class LoginController {
 
         AppUser authenticated = pendingUser;
         pendingUser = null;
+        PerformanceMonitor.start("login-click");
         completeLogin(authenticated);
     }
 
     private void completeLogin(AppUser user) {
-        users.recordSuccessfulLogin(user.getId());
-        saveRememberedLogin();
-        SessionService.signIn(user);
-        NotificationService.add("Signed in successfully.");
-        SceneManager.showDashboard();
+        setLoginBusy(true, "OPENING ERP...");
+        UiTaskExecutor.submitLatest("login-complete", () -> {
+            users.recordSuccessfulLogin(user.getId());
+            NotificationService.add("Signed in successfully.");
+            return user;
+        }, authenticated -> {
+            saveRememberedLogin();
+            SessionService.signIn(authenticated);
+            SceneManager.showDashboard();
+            setLoginBusy(false, null);
+            long elapsed = PerformanceMonitor.finish("login-click");
+            if (elapsed >= 0) PerformanceBudgets.record("login", elapsed, PerformanceBudgets.LOGIN_MS);
+        }, failure -> {
+            setLoginBusy(false, null);
+            PerformanceMonitor.finish("login-click");
+            message("Login failed: " + failure.getMessage(), true);
+        });
     }
+
+    private void setLoginBusy(boolean busy, String text) {
+        btnLogin.setDisable(busy);
+        if (busy && text != null) btnLogin.setText(text);
+        else updateLoginMode();
+    }
+
+    private record LoginAttempt(AppUser user, boolean otpSent) { }
 
     private void resetPendingLogin() {
         if (pendingUser == null) return;

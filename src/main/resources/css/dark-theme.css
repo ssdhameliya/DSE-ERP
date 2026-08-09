@@ -4430,6 +4430,9 @@ TABLE ACTION BUTTONS
 .ultra-compact-shell .erp-topbar { -fx-spacing: 5; -fx-padding: 7 8 7 8; }
 .ultra-compact-shell .top-user { -fx-padding: 7 9; }
 .platform-macos .table-view, .platform-macos .scroll-pane { -fx-cache: true; -fx-cache-hint: speed; }
+.small-display.master-data-redesign .master-category-panel { -fx-min-width: 205; -fx-pref-width: 220; }
+.small-display.master-data-redesign .master-table-card,
+.small-display.master-data-redesign .master-records-table { -fx-min-width: 0; }
 
 /* 2.1.3 cross-platform display-size stabilization */
 .small-display .erp-topbar { -fx-padding: 6 7; -fx-spacing: 4; }

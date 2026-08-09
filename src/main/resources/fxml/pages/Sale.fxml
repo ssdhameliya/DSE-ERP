@@ -3,12 +3,16 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx/25"
+<ScrollPane xmlns="http://javafx.com/javafx/25"
       xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="org.example.controller.SalesController"
+      fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED"
+      styleClass="sales-entry-scroll,approved-ui,approved-screen,approved-screen-sale,erp-screen-root">
+  <content>
+<VBox
       fx:id="salesEntryRoot"
       spacing="10"
-      styleClass="purchase-page,sales-entry-page,sales-entry-fixed-root,approved-ui,approved-screen,approved-screen-sale,erp-screen-root">
+      styleClass="purchase-page,sales-entry-page,sales-entry-fixed-root">
     <padding><Insets top="12" right="14" bottom="10" left="14"/></padding>
 
     <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-header,approved-section-header,erp-page-identity-header">
@@ -244,3 +248,5 @@
         </VBox>
     </HBox>
 </VBox>
+  </content>
+</ScrollPane>
