@@ -12,7 +12,7 @@ Release 5.0.3 focuses on macOS responsiveness while preserving the PostgreSQL mi
 - Adds a JavaFX pulse watchdog that records UI stalls over 100 ms in `performance.log`.
 - Corrects macOS platform selectors and removes expensive card effects on macOS.
 - Makes the Sales form vertically scrollable and tightens Master Data at 1024x768.
-- Validates all FXML screens in light and dark themes at 1024x768 on both macOS architectures during release builds.
+- Includes a 1024x768 two-theme FXML smoke test and compiles it on both macOS architectures during release builds.
 
 ## Acceptance budgets
 
