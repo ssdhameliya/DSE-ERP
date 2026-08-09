@@ -12,8 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Generates a deterministic 25-line invoice to verify page continuation and
- * final-page-only totals, bank details, terms, signature, and footer sections.
+ * Generates a deterministic 25-line invoice with mixed remark heights to verify
+ * rendered-height pagination plus final-page-only totals, bank details, terms,
+ * signature, and footer sections.
  */
 public final class TaxInvoicePaginationSmoke {
     private TaxInvoicePaginationSmoke() {
@@ -30,7 +31,11 @@ public final class TaxInvoicePaginationSmoke {
                     index,
                     "7306" + String.format("%04d", index),
                     "JASVI verification product " + index,
-                    "Verification remark line " + index,
+                    index % 4 == 0
+                            ? "Verification remark line " + index + "\nSecond technical detail line\nThird technical detail line"
+                            : index % 3 == 0
+                            ? "Verification remark line " + index + "\nSecond technical detail line"
+                            : "Verification remark line " + index,
                     index % 4 + 1,
                     "NOS",
                     1250.00 + index * 25.00,
@@ -84,6 +89,7 @@ public final class TaxInvoicePaginationSmoke {
                 billing,
                 delivery,
                 "JASVI TRANSPORT",
+                "Yes",
                 "GJ01AB1234",
                 "Accounts Department",
                 "+91 98765 43210",

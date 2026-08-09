@@ -12,6 +12,7 @@ public record TaxInvoiceDocument(
         InvoiceParty billing,
         InvoiceParty delivery,
         String transporter,
+        String doorDelivery,
         String vehicleNumber,
         String contactPerson,
         String contactPersonMobile,
@@ -25,6 +26,7 @@ public record TaxInvoiceDocument(
         invoiceNo = safe(invoiceNo);
         orderNo = safe(orderNo);
         transporter = safe(transporter);
+        doorDelivery = safe(doorDelivery);
         vehicleNumber = safe(vehicleNumber);
         contactPerson = safe(contactPerson);
         contactPersonMobile = safe(contactPersonMobile);

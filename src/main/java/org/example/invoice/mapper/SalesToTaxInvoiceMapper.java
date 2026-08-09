@@ -72,11 +72,12 @@ public final class SalesToTaxInvoiceMapper {
         InvoiceTotals totals = InvoiceTaxCalculator.calculate(items, sale.getChargeAmount(), sale.getGstType());
         String words = "INR : " + AmountInWordsConverter.indianRupees(totals.grandTotal());
 
-        String transporter = firstNonBlank(sale.getTransporter(), sale.getDoorDelivery());
+        String transporter = firstNonBlank(sale.getTransporter());
+        String doorDelivery = firstNonBlank(sale.getDoorDelivery(), "No");
         return new TaxInvoiceDocument(
                 company, sale.getInvoiceNo(), sale.getInvoiceDate(),
                 firstNonBlank(sale.getOrderNo(), sale.getReferenceNo()), sale.getPoDate(),
-                billing, delivery, transporter, sale.getVehicleNumber(),
+                billing, delivery, transporter, doorDelivery, sale.getVehicleNumber(),
                 firstNonBlank(sale.getContactPerson(), customer.getContactPerson()),
                 firstNonBlank(sale.getContactPersonMobile(), customer.getPhone()),
                 items, sale.getGstType(), sale.getChargeAmount(), totals, words);
