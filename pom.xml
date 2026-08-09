@@ -14,7 +14,7 @@
 
     <groupId>org.example</groupId>
     <artifactId>JavaApp</artifactId>
-    <version>5.0.3</version>
+    <version>5.0.4</version>
 
     <properties>
         <maven.compiler.release>25</maven.compiler.release>

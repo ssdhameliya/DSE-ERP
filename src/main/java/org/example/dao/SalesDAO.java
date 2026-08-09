@@ -334,11 +334,7 @@ public class SalesDAO {
                     rs.getString("invoice_no")
                 );
 
-                sale.setInvoiceDate(
-                    LocalDate.parse(
-                        rs.getString("invoice_date")
-                    )
-                );
+                sale.setInvoiceDate(readLocalDate(rs, "invoice_date"));
 
                 Party customer =
                     new Party();
@@ -392,8 +388,7 @@ public class SalesDAO {
                     rs.getInt("email_sent") == 1
                 );
 
-                String dueDate = rs.getString("due_date");
-                sale.setDueDate(dueDate == null || dueDate.isBlank() ? null : LocalDate.parse(dueDate));
+                sale.setDueDate(readLocalDate(rs, "due_date"));
                 sale.setPaidAmount(rs.getDouble("paid_amount"));
                 sale.setPaymentStatus(rs.getString("payment_status"));
                 sale.setDocumentStatus(rs.getString("document_status"));
@@ -406,8 +401,7 @@ public class SalesDAO {
                 sale.setPaymentTerms(rs.getString("payment_terms"));
                 sale.setTransporter(rs.getString("transporter"));
                 sale.setReferenceNo(rs.getString("reference_no"));
-                String poDate = rs.getString("po_date");
-                sale.setPoDate(poDate == null || poDate.isBlank() ? null : LocalDate.parse(poDate));
+                sale.setPoDate(readLocalDate(rs, "po_date"));
                 sale.setBillingAddress(rs.getString("billing_address"));
                 sale.setGstType(rs.getString("gst_type"));
                 sale.setDoorDelivery(rs.getString("door_delivery"));
@@ -679,11 +673,7 @@ public class SalesDAO {
                     rs.getString("invoice_no")
                 );
 
-                s.setInvoiceDate(
-                    LocalDate.parse(
-                        rs.getString("invoice_date")
-                    )
-                );
+                s.setInvoiceDate(readLocalDate(rs, "invoice_date"));
 
                 Party customer =
                     new Party();
@@ -733,8 +723,7 @@ public class SalesDAO {
                     rs.getInt("email_sent") == 1
                 );
 
-                String dueDate = rs.getString("due_date");
-                s.setDueDate(dueDate == null || dueDate.isBlank() ? null : LocalDate.parse(dueDate));
+                s.setDueDate(readLocalDate(rs, "due_date"));
                 s.setPaidAmount(rs.getDouble("paid_amount"));
                 s.setPaymentStatus(rs.getString("payment_status"));
                 s.setDocumentStatus(rs.getString("document_status"));
@@ -747,8 +736,7 @@ public class SalesDAO {
                 s.setPaymentTerms(rs.getString("payment_terms"));
                 s.setTransporter(rs.getString("transporter"));
                 s.setReferenceNo(rs.getString("reference_no"));
-                String poDate = rs.getString("po_date");
-                s.setPoDate(poDate == null || poDate.isBlank() ? null : LocalDate.parse(poDate));
+                s.setPoDate(readLocalDate(rs, "po_date"));
                 s.setBillingAddress(rs.getString("billing_address"));
                 s.setGstType(rs.getString("gst_type"));
                 s.setDoorDelivery(rs.getString("door_delivery"));
@@ -1184,5 +1172,33 @@ public class SalesDAO {
 
     }
 
+
+
+    /**
+     * Reads a SQL DATE/TIMESTAMP value as LocalDate in a database-neutral way.
+     * PostgreSQL may return values such as "2026-09-08 00:00:00" while the
+     * legacy SQLite code returned "2026-09-08".  Using getObject first keeps
+     * both representations safe and avoids LocalDate.parse() failures.
+     */
+    private static LocalDate readLocalDate(ResultSet rs, String column) throws SQLException {
+        Object value = rs.getObject(column);
+        if (value == null) return null;
+        if (value instanceof LocalDate date) return date;
+        if (value instanceof java.sql.Date date) return date.toLocalDate();
+        if (value instanceof java.sql.Timestamp timestamp) return timestamp.toLocalDateTime().toLocalDate();
+        if (value instanceof java.time.LocalDateTime dateTime) return dateTime.toLocalDate();
+
+        String text = value.toString().trim();
+        if (text.isEmpty()) return null;
+        // Handles ISO date, PostgreSQL timestamp text and timestamp values with T separator.
+        if (text.length() >= 10) {
+            try { return LocalDate.parse(text.substring(0, 10)); }
+            catch (RuntimeException ignored) { }
+        }
+        try { return LocalDate.parse(text); }
+        catch (RuntimeException ex) {
+            throw new SQLException("Unsupported date value in column '" + column + "': " + text, ex);
+        }
+    }
 
 }

@@ -61,10 +61,13 @@ public final class TaxInvoicePdfGenerator {
     private static final DeviceRgb MUTED = new DeviceRgb(78, 90, 108);
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     // Fixed page-grid heights used by the deterministic pagination engine.
-    // These are table-region heights (header + rendered item rows + filler rows).
-    private static final float FIRST_FINAL_ITEM_REGION_HEIGHT = 193f;
+    // The first/final-page item region is deliberately capped so the complete
+    // closing stack (Bank/Calculation -> INR/Grand Total -> Terms/Signature -> Footer)
+    // always remains on the same final page. Real item rows fill from the top and
+    // blank grid rows fill only the unused portion of this reserved item region.
+    private static final float FIRST_FINAL_ITEM_REGION_HEIGHT = 252f;
     private static final float FIRST_CONTENT_ITEM_REGION_HEIGHT = 430f;
-    private static final float CONTINUATION_FINAL_ITEM_REGION_HEIGHT = 500f;
+    private static final float CONTINUATION_FINAL_ITEM_REGION_HEIGHT = 503f;
     private static final float CONTINUATION_CONTENT_ITEM_REGION_HEIGHT = 744f;
     private static final float FILLER_ROW_HEIGHT = 18f;
     private static final float LAYOUT_SAFETY = 2.0f;
@@ -83,11 +86,15 @@ public final class TaxInvoicePdfGenerator {
     private static final float FONT_TERMS = 6.9f;
     private static final float CONTENT_WIDTH_PERCENT = 100f;
     private static final float STANDARD_SECTION_GAP = 5f;
+    // Lower closing stack uses one explicit visible gap. The final item-region heights
+    // are reduced accordingly so Item -> Bank and Terms -> Footer keep the same spacing
+    // without pushing the closing stack to a second page.
+    private static final float LOWER_SECTION_GAP = 7f;
     private static final float HEADER_TO_TITLE_GAP = 12f;
     private static final float FOOTER_RESERVED_BOTTOM = 31f;
-    private static final float FOOTER_BAR_Y = 4f;
-    private static final float FOOTER_ADDRESS_Y = 13f;
-    private static final float FOOTER_SEPARATOR_Y = 27f;
+    private static final float FOOTER_BAR_Y = 3.5f;
+    private static final float FOOTER_ADDRESS_Y = 17.5f;
+    private static final float FOOTER_SEPARATOR_Y = 28.5f;
     private static final float FOOTER_DARK_PERCENT = 48f;
     private static final float FOOTER_BLUE_PERCENT = 52f;
 
@@ -108,8 +115,7 @@ public final class TaxInvoicePdfGenerator {
             addAddressCards(doc, invoice);
             addTransportStrip(doc, invoice);
             addPaginatedItems(doc, invoice);
-            addFinancialSection(doc, invoice);
-            addTermsAndSignature(doc, invoice);
+            addFixedClosingStack(doc, invoice);
             addFooter(doc, invoice.company());
         }
         return output;
@@ -398,7 +404,7 @@ public final class TaxInvoicePdfGenerator {
         }
 
         Cell itemPanel = rounded(new Cell().setPadding(0).setBorder(Border.NO_BORDER).add(table));
-        doc.add(new Table(1).useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP).addCell(itemPanel));
+        doc.add(new Table(1).useAllAvailableWidth().setMarginBottom(LOWER_SECTION_GAP).addCell(itemPanel));
     }
 
     private static Table buildItemsTable(List<TaxInvoiceItem> items) {
@@ -411,9 +417,9 @@ public final class TaxInvoicePdfGenerator {
             table.addCell(itemCell(dash(item.getHsn()), TextAlignment.CENTER));
             table.addCell(itemDescriptionCell(item));
             table.addCell(itemCell(number(item.getQuantity()), TextAlignment.CENTER));
-            table.addCell(itemCell(rupees(item.getRate()), TextAlignment.RIGHT));
+            table.addCell(itemCell(money(item.getRate()), TextAlignment.RIGHT));
             table.addCell(itemCell(dash(item.getUnit()), TextAlignment.CENTER));
-            table.addCell(itemCell(rupees(item.getGrossAmount()), TextAlignment.RIGHT));
+            table.addCell(itemCell(money(item.getGrossAmount()), TextAlignment.RIGHT));
         }
         return table;
     }
@@ -437,9 +443,43 @@ public final class TaxInvoicePdfGenerator {
         }
     }
 
-    private static void addFinancialSection(Document doc, TaxInvoiceDocument invoice) {
+    /**
+     * Places the complete closing stack on the final page from the footer upward.
+     * This removes the mixed positioning model that previously left a variable gap
+     * between Terms/Signature and the fixed footer. Every lower section now uses
+     * the same LOWER_SECTION_GAP between every lower closing section.
+     */
+    private static void addFixedClosingStack(Document doc, TaxInvoiceDocument invoice) {
+        int pageNo = doc.getPdfDocument().getNumberOfPages();
+        float contentWidth = PageSize.A4.getWidth() - doc.getLeftMargin() - doc.getRightMargin();
+        float left = doc.getLeftMargin();
+
+        Table financial = buildFinancialTable(invoice);
+        Table closing = buildClosingTotalsTable(invoice);
+        Table terms = buildTermsAndSignatureTable(invoice);
+
+        float financialHeight = measureTableHeight(doc, financial);
+        float closingHeight = measureTableHeight(doc, closing);
+        float termsHeight = Math.max(84f, measureTableHeight(doc, terms));
+
+        // Footer separator is the upper edge of the footer. Build upward from it
+        // so all lower blocks remain deterministic on single and multi-page invoices.
+        float termsY = FOOTER_SEPARATOR_Y + LOWER_SECTION_GAP;
+        float closingY = termsY + termsHeight + LOWER_SECTION_GAP;
+        float financialY = closingY + closingHeight + LOWER_SECTION_GAP;
+
+        terms.setFixedPosition(pageNo, left, termsY, contentWidth);
+        closing.setFixedPosition(pageNo, left, closingY, contentWidth);
+        financial.setFixedPosition(pageNo, left, financialY, contentWidth);
+
+        doc.add(financial);
+        doc.add(closing);
+        doc.add(terms);
+    }
+
+    private static Table buildFinancialTable(TaxInvoiceDocument invoice) {
         Table outer = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
-                .useAllAvailableWidth().setKeepTogether(true).setMarginBottom(STANDARD_SECTION_GAP);
+                .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
         Cell left = roundedFilled(noBorder().setPadding(4), PALE_BLUE);
         left.add(bankDetails(invoice.company()));
@@ -450,13 +490,12 @@ public final class TaxInvoicePdfGenerator {
         outer.addCell(left);
         outer.addCell(noBorder());
         outer.addCell(right);
-        doc.add(outer);
+        return outer;
+    }
 
-        // Match the approved invoice: Amount in Words and Grand Total are two
-        // independent bordered blocks, aligned to the same split as the bank
-        // and calculation panels above.
+    private static Table buildClosingTotalsTable(TaxInvoiceDocument invoice) {
         Table closing = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
-                .useAllAvailableWidth().setKeepTogether(true).setMarginBottom(STANDARD_SECTION_GAP);
+                .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
         Table words = new Table(UnitValue.createPercentArray(new float[]{12, 88})).useAllAvailableWidth();
         words.addCell(noBorder().setFontColor(NAVY).setPaddingLeft(6).setPaddingTop(4).setPaddingBottom(4)
@@ -471,9 +510,9 @@ public final class TaxInvoicePdfGenerator {
                 .add(new Paragraph("G R A N D   T O T A L").setBold().setFontSize(7.2f).setMargin(0)));
         grand.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.RIGHT)
                 .setPaddingRight(6).setPaddingTop(4).setPaddingBottom(4)
-                .add(new Paragraph(rupees(invoice.totals().grandTotal())).setBold().setFontSize(8.1f).setMargin(0)));
+                .add(new Paragraph(money(invoice.totals().grandTotal())).setBold().setFontSize(8.1f).setMargin(0)));
         closing.addCell(roundedFilled(noBorder().setPadding(0).add(grand), GREEN));
-        doc.add(closing);
+        return closing;
     }
 
     private static Table bankDetails(CompanyProfile company) {
@@ -529,7 +568,7 @@ public final class TaxInvoicePdfGenerator {
                 .setBorderBottom(new SolidBorder(GRID, .28f))
                 .setTextAlignment(TextAlignment.RIGHT)
                 .setPaddingLeft(3).setPaddingRight(5).setPaddingTop(1.65f).setPaddingBottom(1.65f);
-        Paragraph amountText = new Paragraph(zeroAsDashRupees(amount)).setFontSize(FONT_TOTAL).setMargin(0);
+        Paragraph amountText = new Paragraph(zeroAsDashAmount(amount)).setFontSize(FONT_TOTAL).setMargin(0);
         if (strong) amountText.setBold();
         amountCell.add(amountText);
         table.addCell(labelCell);
@@ -544,20 +583,20 @@ public final class TaxInvoicePdfGenerator {
                 .add(new Paragraph(label).setBold().setFontSize(grand ? 8 : 6.7f).setMargin(0)));
         table.addCell(new Cell().setBackgroundColor(fill).setFontColor(text)
                 .setTextAlignment(TextAlignment.RIGHT).setBorder(new SolidBorder(GRID, .5f)).setPadding(grand ? 4 : 3)
-                .add(new Paragraph("₹ " + money(amount)).setBold().setFontSize(grand ? 8.4f : 6.7f).setMargin(0)));
+                .add(new Paragraph(money(amount)).setBold().setFontSize(grand ? 8.4f : 6.7f).setMargin(0)));
     }
 
-    private static void addTermsAndSignature(Document doc, TaxInvoiceDocument invoice) {
+    private static Table buildTermsAndSignatureTable(TaxInvoiceDocument invoice) {
         Table table = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
-                .useAllAvailableWidth().setKeepTogether(true).setMarginTop(0);
+                .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
-        Cell terms = roundedFilled(new Cell().setPadding(7).setMinHeight(84)
+        Cell terms = roundedFilled(new Cell().setPadding(7).setHeight(84)
                 .setBorder(Border.NO_BORDER), PALE_YELLOW);
         terms.add(new Paragraph("TERMS & CONDITIONS").setBold().setFontColor(NAVY).setFontSize(FONT_SECTION).setMarginBottom(5));
         String text = invoice.company().terms();
         terms.add(new Paragraph(text).setFontSize(FONT_TERMS).setFixedLeading(10.4f).setMargin(0));
 
-        Cell signature = roundedFilled(new Cell().setPadding(6).setMinHeight(84).setTextAlignment(TextAlignment.CENTER)
+        Cell signature = roundedFilled(new Cell().setPadding(6).setHeight(84).setTextAlignment(TextAlignment.CENTER)
                 .setBorder(Border.NO_BORDER), VERY_PALE_BLUE);
         signature.add(new Paragraph("For, " + invoice.company().name()).setBold().setFontColor(NAVY)
                 .setFontSize(8.8f).setMarginBottom(3));
@@ -574,11 +613,12 @@ public final class TaxInvoicePdfGenerator {
         table.addCell(terms);
         table.addCell(noBorder());
         table.addCell(signature);
-        doc.add(table);
+        return table;
     }
 
     private static void addFooter(Document doc, CompanyProfile company) {
-        // 4.0.7 final polish: the footer is anchored to the physical bottom of
+        // 5.0.4 footer polish: keep the footer geometry fixed and only protect the address text from overlap.
+        // The footer remains anchored to the physical bottom of
         // the final A4 page instead of participating in normal document flow.
         // This keeps the same bottom position for single-page and multi-page
         // invoices while preserving a small printer-safe margin below the bar.
@@ -591,11 +631,17 @@ public final class TaxInvoicePdfGenerator {
         separator.setFixedPosition(pageNo, left, FOOTER_SEPARATOR_Y, contentWidth);
         doc.add(separator);
 
-        Paragraph address = new Paragraph(company.address()).setTextAlignment(TextAlignment.LEFT)
-                .setFontColor(NAVY).setBold().setFontSize(FONT_BODY_SMALL).setFixedLeading(7.2f)
-                .setMargin(0);
-        address.setFixedPosition(pageNo, left + 8f, FOOTER_ADDRESS_Y, contentWidth - 16f);
-        doc.add(address);
+        // Keep the footer text inside its own fixed-height safe band. The band is shifted
+        // upward inside the unchanged footer frame so the address cannot touch the
+        // upper separator or the lower two-colour bar on Windows/macOS font metrics.
+        Table addressBand = new Table(1).useAllAvailableWidth().setHeight(10.5f);
+        addressBand.addCell(noBorder().setPaddingLeft(8f).setPaddingRight(8f)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE)
+                .add(new Paragraph(company.address()).setTextAlignment(TextAlignment.LEFT)
+                        .setFontColor(NAVY).setBold().setFontSize(5.8f).setFixedLeading(6.4f)
+                        .setMargin(0)));
+        addressBand.setFixedPosition(pageNo, left, FOOTER_ADDRESS_Y, contentWidth);
+        doc.add(addressBand);
 
         Table stripes = new Table(UnitValue.createPercentArray(
                 new float[]{FOOTER_DARK_PERCENT, FOOTER_BLUE_PERCENT}))
@@ -789,12 +835,8 @@ public final class TaxInvoicePdfGenerator {
         return value == null || value.isBlank() ? "-" : value.trim();
     }
 
-    private static String rupees(double value) {
-        return "₹ " + money(value);
-    }
-
-    private static String zeroAsDashRupees(double value) {
-        return Math.abs(value) < 0.0000001 ? "-" : rupees(value);
+    private static String zeroAsDashAmount(double value) {
+        return Math.abs(value) < 0.0000001 ? "-" : money(value);
     }
 
     private static String money(double value) {
