@@ -1,44 +1,4 @@
 package org.example.service;
-
-import org.example.dao.PartyDAO;
-import org.example.model.Party;
-
-import java.util.List;
-
-public class PartyService {
-    private final PartyDAO dao = new PartyDAO();
-
-    public void save(Party party) {
-        dao.save(party);
-    }
-
-    public void update(Party party) {
-        dao.update(party);
-    }
-
-    // Check if item exists
-    public boolean existsByCode(String code) {
-        return dao.existsByCode(code);
-    }
-
-    public void delete(int id) {
-        dao.delete(id);
-    }
-
-    public List<Party> getByType(String type) {
-        return dao.getByType(type);
-    }
-
-    public String nextCode(String type) {
-        return dao.nextCode(type);
-    }
-
-    // NEW: saveOrUpdate
-    public void saveOrUpdate(Party party) {
-        if (dao.existsByCode(party.getPartyCode())) {
-            dao.update(party);
-        } else {
-            dao.save(party);
-        }
-    }
-}
+import org.example.api.master.MasterApiClient; import org.example.config.ConfigManager; import org.example.dao.PartyDAO; import org.example.model.Party; import java.util.*;
+public class PartyService { private final PartyDAO dao=new PartyDAO(); private final MasterApiClient api=new MasterApiClient(); private boolean useApi(){return ConfigManager.isApiDataEnabled();}
+ public void save(Party p){if(useApi())api.saveParty(p);else dao.save(p);} public void update(Party p){if(useApi())api.updateParty(p);else dao.update(p);} public boolean existsByCode(String c){return useApi()?api.partyExists(c):dao.existsByCode(c);} public void delete(int id){if(useApi())api.deleteParty(id);else dao.delete(id);} public List<Party> getByType(String t){return useApi()?api.parties(t):dao.getByType(t);} public String nextCode(String t){return useApi()?api.nextPartyCode(t):dao.nextCode(t);} public void saveOrUpdate(Party p){if(existsByCode(p.getPartyCode()))update(p);else save(p);} }

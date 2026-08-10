@@ -15,6 +15,8 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import org.example.database.DatabaseManager;
+import org.example.config.ConfigManager;
+import org.example.api.insights.InsightsApiClient;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
 import org.example.util.IconFactory;
@@ -26,6 +28,7 @@ import java.util.Locale;
 
 /** Database-backed reminder inbox with CRUD, completion and snooze workflows. */
 public class ReminderCenterController {
+    private final InsightsApiClient insightsApi = new InsightsApiClient();
     private static final DateTimeFormatter DISPLAY_DATE = DateTimeFormatter.ofPattern("dd MMM yyyy");
 
     @FXML private Label lblOpen, lblOverdue, lblDueToday, lblUpcoming;
@@ -205,6 +208,11 @@ public class ReminderCenterController {
     @FXML
     private void refresh() {
         source.clear();
+        if (ConfigManager.isApiDataEnabled()) {
+            try { for (var d : insightsApi.reminders()) source.add(new ReminderRow(d)); }
+            catch (Exception exception) { error("Reminders could not be loaded", exception); }
+            updateMetrics(); applyFilters(); if(!filtered.isEmpty()) table.getSelectionModel().selectFirst(); else showDetails(null); return;
+        }
 
         String sql = "SELECT * FROM reminder_register "
                 + "ORDER BY CASE status WHEN 'OPEN' THEN 0 WHEN 'SNOOZED' THEN 1 ELSE 2 END, "
@@ -291,6 +299,15 @@ public class ReminderCenterController {
                 return;
             }
 
+            if (ConfigManager.isApiDataEnabled()) {
+                try {
+                    var dto=new InsightsApiClient.ReminderDto(row==null?null:row.id,title.getText().trim(),reference.getText().trim(),due.getValue().toString(),priority.getValue(),notes.getText(),row==null?"OPEN":row.status.get(),currentUser(),null);
+                    if(row==null) insightsApi.saveReminder(dto); else insightsApi.updateReminder(dto);
+                    NotificationService.add((row==null?"Reminder created: ":"Reminder updated: ")+title.getText().trim()); refresh();
+                } catch(Exception exception){ error("Reminder could not be saved",exception); }
+                return;
+            }
+
             String sql = row == null
                     ? "INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,updated_at) "
                     + "VALUES(?,?,?,?,?,'OPEN',?,CURRENT_TIMESTAMP)"
@@ -337,6 +354,10 @@ public class ReminderCenterController {
             return;
         }
 
+        if (ConfigManager.isApiDataEnabled()) {
+            try { insightsApi.reminderStatus(row.id,status,null); NotificationService.add("Reminder "+row.title.get()+" marked "+status.toLowerCase(Locale.ROOT)+"."); refresh(); }
+            catch(Exception exception){error("Reminder status could not be changed",exception);} return;
+        }
         try (Connection connection = DatabaseManager.getConnection();
              Statement statement = connection.createStatement()) {
 
@@ -372,6 +393,7 @@ public class ReminderCenterController {
         dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
 
         dialog.showAndWait().filter(save::equals).ifPresent(button -> {
+            if(ConfigManager.isApiDataEnabled()){try{insightsApi.reminderStatus(row.id,"SNOOZED",picker.getValue().toString());refresh();}catch(Exception exception){error("Reminder could not be snoozed",exception);}return;}
             try (Connection connection = DatabaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(
                          "UPDATE reminder_register SET status='SNOOZED',snoozed_until=?,"
@@ -393,6 +415,7 @@ public class ReminderCenterController {
             return;
         }
 
+        if(ConfigManager.isApiDataEnabled()){try{insightsApi.deleteReminder(row.id);refresh();}catch(Exception exception){error("Reminder could not be deleted",exception);}return;}
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "DELETE FROM reminder_register WHERE id=?"
@@ -416,9 +439,10 @@ public class ReminderCenterController {
                 actions.setTooltip(new Tooltip("Open reminder actions"));
                 actions.getProperties().put("erp.icon.skip", true);
                 actions.setAccessibleText("Reminder actions");
-                actions.setText("•••");
-                actions.setGraphic(null);
-                actions.setContentDisplay(ContentDisplay.TEXT_ONLY);
+                actions.setText("Actions");
+                actions.setGraphic(IconFactory.compactIcon("reminder", 15));
+                actions.setContentDisplay(ContentDisplay.LEFT);
+                actions.setGraphicTextGap(6);
                 actions.getStyleClass().addAll("reminder-action-button", "reminder-three-dot-button");
                 setAlignment(Pos.CENTER);
 
@@ -737,6 +761,10 @@ public class ReminderCenterController {
         final SimpleStringProperty status;
         final SimpleStringProperty createdBy;
         final String notes;
+
+        ReminderRow(InsightsApiClient.ReminderDto d) {
+            id=d.id()==null?0:d.id(); title=new SimpleStringProperty(blank(d.title(),"")); reference=new SimpleStringProperty(blank(d.referenceNo(),"—")); due=new SimpleStringProperty(blank(d.dueDate(),"")); priority=new SimpleStringProperty(blank(d.priority(),"NORMAL")); status=new SimpleStringProperty(blank(d.status(),"OPEN")); createdBy=new SimpleStringProperty(blank(d.createdBy(),"System")); notes=blank(d.notes(),"");
+        }
 
         ReminderRow(ResultSet resultSet) throws SQLException {
             id = resultSet.getInt("id");

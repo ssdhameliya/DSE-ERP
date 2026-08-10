@@ -62,8 +62,11 @@ import org.example.service.GlobalSearchService.SearchResult;
 import org.example.service.PermissionService;
 import org.example.util.IconFactory;
 import org.example.config.ConfigManager;
+import org.example.api.insights.InsightsApiClient;
 
 public class DashboardController {
+    private static volatile DashboardController CURRENT;
+    private final InsightsApiClient insightsApi = new InsightsApiClient();
 
     /** Periodically refreshes the unread badge while the main shell is open. */
     private Timeline notificationRefresh;
@@ -143,6 +146,7 @@ public class DashboardController {
     private MenuButton menuUser;
 
     public void initialize() {
+        CURRENT = this;
 
         ClockService.start(lblClock);
         // Company details do not change every second. Refreshing the complete
@@ -198,6 +202,10 @@ public class DashboardController {
     private void refreshShellIndicatorsAsync() {
         if (!indicatorRefreshRunning.compareAndSet(false, true)) return;
         CompletableFuture.supplyAsync(() -> {
+            if (org.example.config.ConfigManager.isApiDataEnabled()) {
+                try { var c=insightsApi.shellCounts(); return new int[]{c.notifications(),c.email(),c.whatsapp(),c.reminders()}; }
+                catch(Exception ignored) { return new int[]{0,0,0,0}; }
+            }
             int notifications = 0, email = 0, whatsapp = 0, reminders = 0;
             String sql = "SELECT " +
                 "(SELECT COUNT(*) FROM notifications WHERE COALESCE(is_read,0)=0)," +
@@ -510,6 +518,18 @@ public class DashboardController {
     @FXML private void openExpenseEntry() {
         BankExpenseController.requestMode(BankExpenseController.Mode.EXPENSE);
         openPage(btnBankExpense, "Expense Entry", "/fxml/pages/BankExpense.fxml");
+    }
+
+    @FXML private void openBankStatement() {
+        openPage(btnBankExpense, "Bank Statement", "/fxml/pages/BankStatement.fxml");
+    }
+
+    /** Lets a feature page navigate through the existing cached ERP shell. */
+    public static void navigateFromChild(String title, String fxmlPath, BankExpenseController.Mode mode) {
+        DashboardController c = CURRENT;
+        if (c == null) return;
+        if (mode != null) BankExpenseController.requestMode(mode);
+        javafx.application.Platform.runLater(() -> c.openPage(c.btnBankExpense, title, fxmlPath));
     }
 
     @FXML private void createSale() { openPage(btnSales, "Create Sale", "/fxml/pages/Sale.fxml"); }

@@ -11,10 +11,13 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.example.config.ConfigManager;
-import org.example.dao.SalesDAO;
+
 import org.example.database.DatabaseManager;
 import org.example.model.Sales;
 import org.example.navigation.NavigationManager;
+import org.example.service.SalesService;
+import org.example.service.LookupService;
+import org.example.navigation.ScreenLifecycle;
 import org.example.service.EmailService;
 import org.example.service.InvoicePdfService;
 import org.example.service.NotificationService;
@@ -34,7 +37,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class RecordPaymentController {
+public class RecordPaymentController implements ScreenLifecycle {
     public record PaymentRow(int id, String date, String reference, String from, String mode,
                              double amount, String status, String notes, String receiptPath) {}
 
@@ -58,19 +61,26 @@ public class RecordPaymentController {
     private final List<PaymentRow> allPayments = new ArrayList<>();
     private Sales sale;
     private Path selectedAttachment;
+    private final LookupService lookupService = new LookupService();
 
     @FXML public void initialize() {
-        sale = new SalesDAO().getByInvoice(SalesScreenContext.invoice());
-        if (sale == null) {
-            new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected invoice.").showAndWait();
-            return;
-        }
-        configureInvoice();
-        configurePaymentForm();
         configureHistoryTable();
+        configurePaymentForm();
+        loadSelectedInvoice();
+        Platform.runLater(this::wireUi);
+    }
+
+    @Override public void onScreenShown(boolean reusedFromCache) { loadSelectedInvoice(); }
+
+    private void loadSelectedInvoice() {
+        String selected=SalesScreenContext.invoice();
+        if(selected==null||selected.isBlank())return;
+        sale = new SalesService().getByInvoice(selected);
+        if (sale == null) { new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected invoice: "+selected).showAndWait(); return; }
+        configureInvoice();
+        resetForm();
         loadHistory();
         refreshTimeline();
-        Platform.runLater(this::wireUi);
     }
 
     private void configureInvoice() {
@@ -86,30 +96,34 @@ public class RecordPaymentController {
 
     private void configurePaymentForm() {
         paymentDate.setValue(LocalDate.now());
-        mode.setItems(FXCollections.observableArrayList("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"));
-        mode.setValue("Bank Transfer");
+        List<String> modes;
+        try { modes=new ArrayList<>(lookupService.getValuesByCategoryCode("PAYMENT_MODE")); } catch(Exception e){ modes=new ArrayList<>(); }
+        if(modes.isEmpty()) modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
+        mode.setItems(FXCollections.observableArrayList(modes));
+        if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer"); else if(!modes.isEmpty())mode.getSelectionModel().selectFirst();
         ToggleGroup group = new ToggleGroup();
         fullPayment.setToggleGroup(group); partialPayment.setToggleGroup(group); advancePayment.setToggleGroup(group);
         partialPayment.setSelected(true);
-        amount.setText(String.format(Locale.ROOT, "%.2f", sale.getBalanceAmount()));
         amount.textProperty().addListener((o,a,b)->updateBalancePreview());
         fullPayment.setOnAction(e -> selectFull());
         partialPayment.setOnAction(e -> selectPartial());
         advancePayment.setOnAction(e -> selectAdvance());
 
-        historyModeFilter.setItems(FXCollections.observableArrayList("All Modes", "Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"));
+        List<String> historyModes=new ArrayList<>(); historyModes.add("All Modes"); historyModes.addAll(modes);
+        historyModeFilter.setItems(FXCollections.observableArrayList(historyModes));
         historyModeFilter.setValue("All Modes");
         historyModeFilter.valueProperty().addListener((o,a,b)->applyHistoryFilter());
         historyFromDate.valueProperty().addListener((o,a,b)->applyHistoryFilter());
         historyToDate.valueProperty().addListener((o,a,b)->applyHistoryFilter());
 
-        String bank = ConfigManager.get("payment.bankName", "").trim();
-        String account = ConfigManager.get("payment.accountNumber", "").trim();
-        if (!bank.isBlank() && !account.isBlank()) {
-            bankAccount.getItems().setAll(bank + " - " + mask(account));
-            bankAccount.getSelectionModel().selectFirst();
-        } else bankAccount.setPromptText("Configure bank account in Settings");
-        mode.valueProperty().addListener((o,a,b)->bankAccount.setDisable(!"Bank Transfer".equalsIgnoreCase(b)));
+        List<String> accounts=new ArrayList<>();
+        try{for(org.example.model.Lookup l:lookupService.getByType("BANK ACCOUNT")){if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String n=l.getDescription()==null?"":l.getDescription().trim();accounts.add(n.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+n);}}}catch(Exception ignored){}
+        if(accounts.isEmpty()){
+            String bank = ConfigManager.get("payment.bankName", "").trim(); String account = ConfigManager.get("payment.accountNumber", "").trim();
+            if(!account.isBlank())accounts.add(bank.isBlank()?account:account+" - "+bank);
+        }
+        bankAccount.getItems().setAll(accounts); if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst(); else bankAccount.setPromptText("Add BANK ACCOUNT values in Masters");
+        mode.valueProperty().addListener((o,a,b)->bankAccount.setDisable(b==null||!(b.toLowerCase(Locale.ROOT).contains("bank")||b.equalsIgnoreCase("NEFT")||b.equalsIgnoreCase("RTGS"))));
     }
 
     private void configureHistoryTable() {
@@ -160,7 +174,7 @@ public class RecordPaymentController {
     }
 
     private void refreshInvoiceAmounts() {
-        sale = new SalesDAO().getByInvoice(SalesScreenContext.invoice());
+        sale = new SalesService().getByInvoice(SalesScreenContext.invoice());
         double t=sale.getTotalAmount(), p=sale.getPaidAmount(), b=sale.getBalanceAmount();
         total.setText(money(t)); paid.setText(money(p)); balance.setText(money(b));
         summaryTotal.setText(money(t)); summaryPaid.setText(money(p)); summaryBalance.setText(money(b));
@@ -318,7 +332,6 @@ public class RecordPaymentController {
 
     @FXML private void downloadPdf(){ try{Path p=InvoicePdfService.sales(sale); Desktop.getDesktop().open(p.getParent().toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
     @FXML private void printInvoice(){ try{Desktop.getDesktop().print(InvoicePdfService.sales(sale).toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
-    @FXML private void viewInvoice(){ NavigationManager.getInstance().loadPage("/fxml/pages/SalesInvoiceDetails.fxml"); }
     @FXML private void cancel(){ NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
 
     @FXML private void sendReceipt() {

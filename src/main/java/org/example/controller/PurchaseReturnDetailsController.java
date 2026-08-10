@@ -194,7 +194,7 @@ public class PurchaseReturnDetailsController {
         try (Connection connection = DatabaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                  "UPDATE return_register SET " + column +
-                     "=?,updated_at=datetime('now') WHERE return_no=?")) {
+                     "=?,updated_at=CURRENT_TIMESTAMP WHERE return_no=?")) {
             statement.setString(1, value);
             statement.setString(2, no.getText());
             statement.executeUpdate();

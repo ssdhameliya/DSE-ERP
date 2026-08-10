@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.database.DatabaseManager;
 import org.example.config.ConfigManager;
+import org.example.api.insights.InsightsApiClient;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -31,6 +32,7 @@ public final class NotificationService {
         }
     }
 
+    private static final InsightsApiClient API = new InsightsApiClient();
     private NotificationService() {}
 
     /**
@@ -62,6 +64,7 @@ public final class NotificationService {
     public static void createNotification(Category category, String title, String message, String severity,
                                           String targetFxml, String referenceNo) {
         if (!isAllowed(category, severity)) return;
+        if(ConfigManager.isApiDataEnabled()){try{API.createNotification(new InsightsApiClient.NotificationCreate(title,message,severity==null?"INFO":severity,targetFxml,referenceNo));}catch(Exception ex){ex.printStackTrace();}return;}
         String insert = "INSERT INTO notifications(title,message,severity,is_read,target_fxml,reference_no,created_at) VALUES(?,?,?,?,?,?,?)";
         try (Connection con = DatabaseManager.getConnection(); PreparedStatement ps = con.prepareStatement(insert)) {
             ps.setString(1, title);
@@ -115,6 +118,7 @@ public final class NotificationService {
 
     /** Returns the newest notification rows for the notification center. */
     public static List<NotificationItem> findRecent(int limit) {
+        if(ConfigManager.isApiDataEnabled()){try{return API.notifications(limit).stream().map(x->new NotificationItem(x.id(),x.title(),x.message(),x.severity(),x.read(),x.targetFxml(),x.referenceNo(),x.createdAt())).toList();}catch(Exception ex){ex.printStackTrace();return List.of();}}
         String sql = "SELECT id,title,message,severity,is_read,target_fxml,reference_no,created_at " +
             "FROM notifications ORDER BY created_at DESC LIMIT ?";
         List<NotificationItem> items = new ArrayList<>();
@@ -132,6 +136,7 @@ public final class NotificationService {
 
     /** Returns the unread count shown on the header bell badge. */
     public static int unreadCount() {
+        if(ConfigManager.isApiDataEnabled()){try{return (int)API.unreadCount();}catch(Exception ex){ex.printStackTrace();return 0;}}
         try (Connection con = DatabaseManager.getConnection(); PreparedStatement ps = con.prepareStatement(
             "SELECT COUNT(*) FROM notifications WHERE is_read=0"); ResultSet rs = ps.executeQuery()) {
             return rs.next() ? rs.getInt(1) : 0;
@@ -139,19 +144,13 @@ public final class NotificationService {
     }
 
     /** Marks one notification as read after it is opened. */
-    public static void markRead(long id) {
-        executeUpdate("UPDATE notifications SET is_read=1 WHERE id=?", id);
-    }
+    public static void markRead(long id) { if(ConfigManager.isApiDataEnabled()){API.markRead(id);return;} executeUpdate("UPDATE notifications SET is_read=1 WHERE id=?", id); }
 
     /** Marks all notifications as read without deleting history. */
-    public static void markAllRead() {
-        executeUpdate("UPDATE notifications SET is_read=1");
-    }
+    public static void markAllRead() { if(ConfigManager.isApiDataEnabled()){API.markAllRead();return;} executeUpdate("UPDATE notifications SET is_read=1"); }
 
     /** Removes a single notification; primarily used by retention and automated verification. */
-    public static void delete(long id) {
-        executeUpdate("DELETE FROM notifications WHERE id=?", id);
-    }
+    public static void delete(long id) { if(ConfigManager.isApiDataEnabled()){API.deleteNotification(id);return;} executeUpdate("DELETE FROM notifications WHERE id=?", id); }
 
     private static void executeUpdate(String sql, Object... parameters) {
         try (Connection con = DatabaseManager.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
@@ -167,6 +166,7 @@ public final class NotificationService {
      * @return joined notification messages
      */
     public static String getAll() {
+        if(ConfigManager.isApiDataEnabled()){StringJoiner sj=new StringJoiner("\n");for(NotificationItem x:findRecent(500)){sj.add((x.title()==null||x.title().isBlank()?"":x.title()+": ")+(x.message()==null?"":x.message()));}return sj.toString();}
         String sql = "SELECT title, message FROM notifications ORDER BY created_at ASC";
         StringJoiner sj = new StringJoiner("\n");
         try (Connection con = DatabaseManager.getConnection();
@@ -187,6 +187,7 @@ public final class NotificationService {
     }
 
     public static List<String> getItems() {
+        if(ConfigManager.isApiDataEnabled()){List<String> out=new ArrayList<>();for(NotificationItem x:findRecent(50)){String marker="ERROR".equalsIgnoreCase(x.severity())?"!":"WARN".equalsIgnoreCase(x.severity())?"*":"i";out.add(marker+"  "+safe(x.title())+"\n    "+safe(x.message()));}return out;}
         String sql = "SELECT title,message,severity,created_at FROM notifications ORDER BY created_at DESC LIMIT 50";
         List<String> items = new ArrayList<>();
         try (Connection con = DatabaseManager.getConnection(); PreparedStatement ps = con.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
@@ -205,6 +206,7 @@ public final class NotificationService {
      * Delete all notifications from the database. Use with caution.
      */
     public static void clear() {
+        if(ConfigManager.isApiDataEnabled()){API.clearNotifications();return;}
         String sql = "DELETE FROM notifications";
         try (Connection con = DatabaseManager.getConnection(); PreparedStatement ps = con.prepareStatement(sql)) {
             ps.executeUpdate();

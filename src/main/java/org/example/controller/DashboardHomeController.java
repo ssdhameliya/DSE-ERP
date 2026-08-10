@@ -17,6 +17,8 @@ import javafx.concurrent.Task;
 import javafx.application.Platform;
 import javafx.scene.layout.StackPane;
 import org.example.database.DatabaseManager;
+import org.example.config.ConfigManager;
+import org.example.api.insights.InsightsApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.service.NotificationService;
 
@@ -58,6 +60,7 @@ public class DashboardHomeController {
         quickCustomer, quickSupplier, quickBank, quickExpense, refreshDashboardButton;
 
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.of("en", "IN"));
+    private final InsightsApiClient insightsApi = new InsightsApiClient();
 
     @FXML
     public void initialize() {
@@ -218,6 +221,10 @@ public class DashboardHomeController {
     }
 
     private DashboardSnapshot querySnapshot(String period) {
+        if (ConfigManager.isApiDataEnabled()) {
+            var d = insightsApi.dashboard(period).snapshot();
+            return new DashboardSnapshot(d.period(),d.products(),d.customers(),d.invoices(),d.purchases(),d.lowStock(),d.salesValue(),d.purchaseValue(),d.receivables(),d.payables(),d.openReceivables(),d.openPayables(),d.cash(),d.openReminders(),d.overdueReminders());
+        }
         org.example.util.PerformanceMonitor.start("dashboard:" + period);
         try {
             String salesCondition = periodCondition(period, "invoice_date");
@@ -275,6 +282,15 @@ public class DashboardHomeController {
     }
 
     private SecondaryPanels querySecondaryPanels() {
+        if (ConfigManager.isApiDataEnabled()) {
+            var b = insightsApi.dashboard(selectedPeriod());
+            List<ActivityRow> recent = b.recent().stream().map(x -> new ActivityRow(x.type(),x.number(),x.party(),x.date(),money(x.amount()))).toList();
+            List<String> customers = b.topCustomers().stream().map(v -> formatPair(v)).toList();
+            List<String> ageing = b.ageing().stream().map(v -> formatPair(v)).toList();
+            List<String> activities = b.activities().stream().map(x -> x.message() + "    " + Instant.ofEpochMilli(x.createdAt()).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd MMM, hh:mm a"))).toList();
+            if (activities.isEmpty()) activities = List.of("No recent application activity");
+            return new SecondaryPanels(recent,customers,ageing,activities);
+        }
         long started = System.nanoTime();
         List<ActivityRow> recent = queryRecentActivityRows();
         List<String> customers = queryTopCustomers();
@@ -340,6 +356,13 @@ public class DashboardHomeController {
         }
         if (activities.isEmpty()) activities.add("No recent application activity");
         return activities;
+    }
+
+    private String formatPair(String raw) {
+        if (raw == null) return "";
+        int split=raw.lastIndexOf('|');
+        if(split<0) return raw;
+        try{return raw.substring(0,split)+"    "+money(Double.parseDouble(raw.substring(split+1)));}catch(Exception e){return raw;}
     }
 
     private record SecondaryPanels(List<ActivityRow> recent, List<String> customers, List<String> ageing, List<String> activities) {}

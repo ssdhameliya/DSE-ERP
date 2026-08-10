@@ -25,9 +25,9 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser;
-import org.example.database.DatabaseManager;
 import org.example.model.Lookup;
 import org.example.service.LookupService;
+import org.example.service.MasterCategoryService;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 
@@ -37,7 +37,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.net.URL;
-import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -150,6 +149,7 @@ public class MasterDataController {
     private Label lblStatus;
 
     private final LookupService service = new LookupService();
+    private final MasterCategoryService categoryService = new MasterCategoryService();
 
     private static final int PAGE_SIZE = 10;
     private List<Lookup> filteredLookups = List.of();
@@ -391,53 +391,18 @@ public class MasterDataController {
        ========================================================= */
 
     private void loadCategories() {
-
-        String previouslySelected =
-            lstTypes.getSelectionModel().getSelectedItem();
-
-        List<String> categories = new ArrayList<>();
-
-        String sql = """
-            SELECT category_name
-            FROM master_category
-            ORDER BY display_order, category_name
-            """;
-
-        try (
-            Connection connection = DatabaseManager.getConnection();
-            PreparedStatement statement =
-                connection.prepareStatement(sql);
-            ResultSet resultSet = statement.executeQuery()
-        ) {
-
-            while (resultSet.next()) {
-                categories.add(resultSet.getString("category_name"));
-            }
-
+        String previouslySelected = lstTypes.getSelectionModel().getSelectedItem();
+        try {
+            List<MasterCategoryService.Category> rows = categoryService.getAll();
+            List<String> categories = rows.stream().map(MasterCategoryService.Category::name).toList();
             allCategories.clear(); allCategories.addAll(categories);
             filterCategories(txtCategorySearch == null ? "" : txtCategorySearch.getText());
-
             updateCategoryCounts(categories.size());
             loadCategoryChart();
-
-            if (previouslySelected != null
-                && categories.contains(previouslySelected)) {
-
-                lstTypes.getSelectionModel()
-                    .select(previouslySelected);
-
-            } else if (!categories.isEmpty()) {
-
-                lstTypes.getSelectionModel().selectFirst();
-            }
-
-        } catch (SQLException exception) {
-
-            showWarning(
-                "Could not load Master Categories:\n"
-                    + exception.getMessage()
-            );
-
+            if (previouslySelected != null && categories.contains(previouslySelected)) lstTypes.getSelectionModel().select(previouslySelected);
+            else if (!categories.isEmpty()) lstTypes.getSelectionModel().selectFirst();
+        } catch (Exception exception) {
+            showWarning("Could not load Master Categories:\n" + exception.getMessage());
             setStatus("Failed to load categories.");
         }
     }
@@ -661,74 +626,20 @@ public class MasterDataController {
        ========================================================= */
 
     private void loadCategoryChart() {
-
-        if (categoryPieChart == null) {
-            return;
-        }
-
-        ObservableList<PieChart.Data> chartData =
-            FXCollections.observableArrayList();
-
-        String sql = """
-            SELECT
-                mc.category_name,
-                COUNT(lm.id) AS value_count
-            FROM master_category mc
-            LEFT JOIN lookup_master lm
-                ON lm.lookup_type = mc.category_name
-            GROUP BY mc.category_name
-            ORDER BY value_count DESC, mc.category_name
-            """;
-
-        try (
-            Connection connection = DatabaseManager.getConnection();
-            PreparedStatement statement =
-                connection.prepareStatement(sql);
-            ResultSet resultSet = statement.executeQuery()
-        ) {
-
-            while (resultSet.next()) {
-
-                String category =
-                    resultSet.getString("category_name");
-
-                int valueCount =
-                    resultSet.getInt("value_count");
-
-                if (valueCount > 0) {
-                    chartData.add(
-                        new PieChart.Data(
-                            category,
-                            valueCount
-                        )
-                    );
-                }
+        if (categoryPieChart == null) return;
+        try {
+            ObservableList<PieChart.Data> chartData = FXCollections.observableArrayList();
+            for (MasterCategoryService.Category row : categoryService.getAll()) {
+                if (row.valueCount() > 0) chartData.add(new PieChart.Data(row.name(), row.valueCount()));
             }
-
             categoryPieChart.setData(chartData);
             categoryPieChart.setAnimated(false);
             categoryPieChart.setLabelsVisible(false);
             categoryPieChart.setLegendVisible(true);
-
-            if (chartData.isEmpty()) {
-                categoryPieChart.setTitle(
-                    "No Category Data"
-                );
-            } else {
-                categoryPieChart.setTitle(
-                    "Category Distribution"
-                );
-            }
-
-        } catch (SQLException exception) {
-
-            categoryPieChart.setData(
-                FXCollections.observableArrayList()
-            );
-
-            categoryPieChart.setTitle(
-                "Analytics Unavailable"
-            );
+            categoryPieChart.setTitle(chartData.isEmpty() ? "No Category Data" : "Category Distribution");
+        } catch (Exception exception) {
+            categoryPieChart.setData(FXCollections.observableArrayList());
+            categoryPieChart.setTitle("Analytics Unavailable");
         }
     }
 
@@ -743,321 +654,59 @@ public class MasterDataController {
 
     @FXML
     private void renameCategory() {
-
-        String selectedCategory =
-            lstTypes.getSelectionModel().getSelectedItem();
-
-        if (selectedCategory == null) {
-            showWarning(
-                "Select a Master Category to rename."
-            );
-            return;
-        }
-
+        String selectedCategory = lstTypes.getSelectionModel().getSelectedItem();
+        if (selectedCategory == null) { showWarning("Select a Master Category to rename."); return; }
         editCategory(selectedCategory);
     }
 
+    @FXML
+
+
     private void editCategory(String oldName) {
-
         boolean isNewCategory = oldName == null;
-
-        TextInputDialog dialog =
-            new OwnedTextInputDialog(
-                isNewCategory ? "" : oldName
-            );
-
-        dialog.setTitle(
-            isNewCategory
-                ? "Add Master Category"
-                : "Rename Master Category"
-        );
-
-        dialog.setHeaderText(
-            isNewCategory
-                ? "Create a category for related master values"
-                : "Rename this category and all linked values"
-        );
-
+        TextInputDialog dialog = new OwnedTextInputDialog(isNewCategory ? "" : oldName);
+        dialog.setTitle(isNewCategory ? "Add Master Category" : "Rename Master Category");
+        dialog.setHeaderText(isNewCategory ? "Create a category for related master values" : "Rename this category and all linked values");
         dialog.setContentText("Category name:");
-
-        dialog.showAndWait()
-            .map(String::trim)
-            .filter(value -> !value.isBlank())
-            .ifPresent(value -> {
-
-                String newName =
-                    value.toUpperCase(Locale.ROOT);
-
-                String categoryCode =
-                    generateCategoryCode(newName);
-
-                try (
-                    Connection connection =
-                        DatabaseManager.getConnection()
-                ) {
-
-                    connection.setAutoCommit(false);
-
-                    try {
-
-                        if (isNewCategory) {
-
-                            insertCategory(
-                                connection,
-                                categoryCode,
-                                newName
-                            );
-
-                        } else {
-
-                            renameCategory(
-                                connection,
-                                oldName,
-                                categoryCode,
-                                newName
-                            );
-                        }
-
-                        connection.commit();
-
-                        loadCategories();
-
-                        lstTypes.getSelectionModel()
-                            .select(newName);
-
-                        setStatus(
-                            isNewCategory
-                                ? "Category added successfully."
-                                : "Category renamed successfully."
-                        );
-
-                    } catch (SQLException exception) {
-
-                        connection.rollback();
-                        throw exception;
-                    }
-
-                } catch (SQLException exception) {
-
-                    showWarning(
-                        "Master Category could not be saved. "
-                            + "Use a unique name.\n"
-                            + exception.getMessage()
-                    );
-
-                    setStatus("Category could not be saved.");
-                }
-            });
+        dialog.showAndWait().map(String::trim).filter(value -> !value.isBlank()).ifPresent(value -> {
+            String newName = value.toUpperCase(Locale.ROOT);
+            try {
+                if (isNewCategory) categoryService.add(newName); else categoryService.rename(oldName, newName);
+                loadCategories(); lstTypes.getSelectionModel().select(newName);
+                setStatus(isNewCategory ? "Category added successfully." : "Category renamed successfully.");
+            } catch (Exception exception) {
+                showWarning("Master Category could not be saved. Use a unique name.\n" + exception.getMessage());
+                setStatus("Category could not be saved.");
+            }
+        });
     }
 
-    private void insertCategory(
-        Connection connection,
-        String categoryCode,
-        String categoryName
-    ) throws SQLException {
 
-        String sql = """
-            INSERT INTO master_category
-                (category_code, category_name)
-            VALUES (?, ?)
-            """;
 
-        try (
-            PreparedStatement statement =
-                connection.prepareStatement(sql)
-        ) {
 
-            statement.setString(1, categoryCode);
-            statement.setString(2, categoryName);
-            statement.executeUpdate();
-        }
-    }
 
-    private void renameCategory(
-        Connection connection,
-        String oldName,
-        String categoryCode,
-        String newName
-    ) throws SQLException {
 
-        // category_code is the stable integration key. Users may rename the visible
-        // category_name without breaking screens that consume that master.
-        String updateCategorySql = """
-            UPDATE master_category
-            SET category_name = ?
-            WHERE category_name = ?
-            """;
-
-        try (
-            PreparedStatement statement =
-                connection.prepareStatement(
-                    updateCategorySql
-                )
-        ) {
-
-            statement.setString(1, newName);
-            statement.setString(2, oldName);
-            statement.executeUpdate();
-        }
-
-        String updateLookupSql = """
-            UPDATE lookup_master
-            SET lookup_type = ?
-            WHERE lookup_type = ?
-            """;
-
-        try (
-            PreparedStatement statement =
-                connection.prepareStatement(
-                    updateLookupSql
-                )
-        ) {
-
-            statement.setString(1, newName);
-            statement.setString(2, oldName);
-            statement.executeUpdate();
-        }
-    }
-
-    private String generateCategoryCode(
-        String categoryName
-    ) {
-
-        String code = categoryName
-            .replaceAll("[^A-Z0-9]+", "_")
-            .replaceAll("^_+|_+$", "");
-
-        if (code.isBlank()) {
-            code = "CATEGORY";
-        }
-
-        return code;
-    }
 
     @FXML
     private void deleteCategory() {
-
-        String selectedCategory =
-            lstTypes.getSelectionModel().getSelectedItem();
-
-        if (selectedCategory == null) {
-
-            showWarning(
-                "Select a Master Category to delete."
-            );
-
-            return;
-        }
-
-        Alert confirmation = new OwnedAlert(
-            Alert.AlertType.CONFIRMATION,
-            "Delete category '"
-                + selectedCategory
-                + "' and all of its values?",
-            ButtonType.YES,
-            ButtonType.NO
-        );
-
-        confirmation.setTitle("Delete Master Category");
-        confirmation.setHeaderText(
-            "Confirm category deletion"
-        );
-
-        if (confirmation.showAndWait()
-            .orElse(ButtonType.NO) != ButtonType.YES) {
-
-            return;
-        }
-
-        try (
-            Connection connection =
-                DatabaseManager.getConnection()
-        ) {
-
-            connection.setAutoCommit(false);
-
-            try {
-
-                deleteLookupsByCategory(
-                    connection,
-                    selectedCategory
-                );
-
-                deleteCategoryRecord(
-                    connection,
-                    selectedCategory
-                );
-
-                connection.commit();
-
-                loadCategories();
-
-                if (!lstTypes.getItems().isEmpty()) {
-                    lstTypes.getSelectionModel().selectFirst();
-                } else {
-                    clearTable();
-                }
-
-                setStatus(
-                    "Category deleted successfully."
-                );
-
-            } catch (SQLException exception) {
-
-                connection.rollback();
-                throw exception;
-            }
-
-        } catch (SQLException exception) {
-
-            showWarning(
-                "Category could not be deleted:\n"
-                    + exception.getMessage()
-            );
-
-            setStatus("Category could not be deleted.");
+        String selectedCategory = lstTypes.getSelectionModel().getSelectedItem();
+        if (selectedCategory == null) { showWarning("Select a Master Category to delete."); return; }
+        Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+            "Delete category '" + selectedCategory + "' and all of its values?", ButtonType.YES, ButtonType.NO);
+        confirmation.setTitle("Delete Master Category"); confirmation.setHeaderText("Confirm category deletion");
+        if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
+        try {
+            categoryService.delete(selectedCategory); loadCategories();
+            if (!lstTypes.getItems().isEmpty()) lstTypes.getSelectionModel().selectFirst(); else clearTable();
+            setStatus("Category deleted successfully.");
+        } catch (Exception exception) {
+            showWarning("Category could not be deleted:\n" + exception.getMessage()); setStatus("Category could not be deleted.");
         }
     }
 
-    private void deleteLookupsByCategory(
-        Connection connection,
-        String categoryName
-    ) throws SQLException {
 
-        String sql = """
-            DELETE FROM lookup_master
-            WHERE lookup_type = ?
-            """;
 
-        try (
-            PreparedStatement statement =
-                connection.prepareStatement(sql)
-        ) {
 
-            statement.setString(1, categoryName);
-            statement.executeUpdate();
-        }
-    }
-
-    private void deleteCategoryRecord(
-        Connection connection,
-        String categoryName
-    ) throws SQLException {
-
-        String sql = """
-            DELETE FROM master_category
-            WHERE category_name = ?
-            """;
-
-        try (
-            PreparedStatement statement =
-                connection.prepareStatement(sql)
-        ) {
-
-            statement.setString(1, categoryName);
-            statement.executeUpdate();
-        }
-    }
 
     /* =========================================================
        LOOKUP ACTIONS

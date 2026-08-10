@@ -11,6 +11,7 @@
     <HBox spacing="6" styleClass="bank-expense-mode-strip">
       <Button fx:id="btnBankMode" text="Bank Entry" onAction="#showBankMode" styleClass="approved-button,bank-expense-mode-button"/>
       <Button fx:id="btnExpenseMode" text="Expense Entry" onAction="#showExpenseMode" styleClass="approved-button,bank-expense-mode-button"/>
+      <Button fx:id="btnBankRecon" text="Bank Reconciliation" onAction="#showBankReconciliation" styleClass="approved-button,bank-expense-mode-button,bank-recon-nav-button"/>
     </HBox>
   </HBox>
 
@@ -64,6 +65,7 @@
           <TableColumn fx:id="colMode" text="Mode" prefWidth="95"/>
           <TableColumn fx:id="colReference" text="Reference" prefWidth="120"/>
           <TableColumn fx:id="colAmount" text="Amount" prefWidth="115"/>
+          <TableColumn fx:id="colMatch" text="Match / Link" prefWidth="145"/>
           <TableColumn fx:id="colAction" text="Action" prefWidth="105" sortable="false"/>
         </columns>
       </TableView>

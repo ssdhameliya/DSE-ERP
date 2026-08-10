@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesListController" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-sales-list,erp-screen-root">
   <top>
-    <VBox spacing="14" styleClass="sales-register-top">
-      <padding><Insets top="18" right="18" bottom="0" left="18"/></padding>
+    <VBox spacing="10" styleClass="sales-register-top,sales-register-compact-top">
+      <padding><Insets top="12" right="18" bottom="0" left="18"/></padding>
 
       <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-register-hero,approved-section-header,erp-page-identity-header">
         <StackPane fx:id="salesTitleIcon" styleClass="sales-title-icon"/>
@@ -71,7 +71,7 @@
     <SplitPane fx:id="mainSplit" dividerPositions="0.81" styleClass="register-split,sales-register-split">
       <items>
         <VBox spacing="12" styleClass="register-workspace,sales-register-workspace">
-          <padding><Insets top="14" right="18" bottom="14" left="18"/></padding>
+          <padding><Insets top="12" right="18" bottom="12" left="18"/></padding>
 
           <VBox spacing="10" styleClass="filter-surface,sales-filter-surface,approved-filter-bar,erp-filter-section">
             <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
@@ -139,7 +139,7 @@
             </TableView>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="table-footer,sales-table-footer">
-              <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
+              <padding><Insets top="7" right="12" bottom="7" left="12"/></padding>
               <Label fx:id="lblPageInfo" styleClass="muted-text,register-record-count"/>
               <Region HBox.hgrow="ALWAYS"/>
               <Label text="Rows per page" styleClass="sales-page-label,register-page-size-label"/>
@@ -152,7 +152,7 @@
             </HBox>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="export-bar,sales-export-bar">
-              <padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
+              <padding><Insets top="7" right="12" bottom="7" left="12"/></padding>
               <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportSale" styleClass="secondary-button,sales-export-button"/>
               <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="secondary-button,sales-export-button"/>
               <Button fx:id="btnPrintRegister" text="Print" onAction="#printRegister" styleClass="secondary-button,sales-export-button"/>
@@ -175,7 +175,7 @@
           </VBox>
         </VBox>
 
-        <VBox fx:id="detailDrawer" spacing="12" prefWidth="318" minWidth="300" maxWidth="330" styleClass="detail-drawer,sales-detail-drawer">
+        <VBox fx:id="detailDrawer" spacing="12" prefWidth="318" minWidth="300" maxWidth="330" styleClass="detail-drawer,sales-detail-drawer,sales-detail-drawer-spaced">
           <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
           <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
           <Label fx:id="lblDetailInvoice" styleClass="drawer-document,sales-detail-invoice"/>
@@ -208,10 +208,7 @@
             <Label text="GST Type"/><Label fx:id="lblDetailGstType" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
             <Label text="GSTIN" GridPane.rowIndex="1"/><Label fx:id="lblDetailGstin" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
             <Label text="Transporter" GridPane.rowIndex="2"/><Label fx:id="lblDetailTransporter" GridPane.rowIndex="2" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
-            <Label text="Door Delivery" GridPane.rowIndex="3"/><Label fx:id="lblDetailDoorDelivery" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
-            <Label text="Vehicle No." GridPane.rowIndex="4"/><Label fx:id="lblDetailVehicle" GridPane.rowIndex="4" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
-            <Label text="Contact Person" GridPane.rowIndex="5"/><Label fx:id="lblDetailContactPerson" GridPane.rowIndex="5" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
-            <Label text="Contact Mobile" GridPane.rowIndex="6"/><Label fx:id="lblDetailContactMobile" GridPane.rowIndex="6" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="Vehicle No." GridPane.rowIndex="3"/><Label fx:id="lblDetailVehicle" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
           </GridPane>
           <Separator/>
           <GridPane hgap="8" vgap="8" styleClass="sales-detail-action-grid">

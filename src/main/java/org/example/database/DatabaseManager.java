@@ -990,6 +990,7 @@ public class DatabaseManager {
         createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('SALES_INVOICE_FORMAT','SALES INVOICE FORMAT','Sales invoice numbering pattern used by Create Sale',120,1)");
         createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('PAYMENT_MODE','PAYMENT MODE','Payment methods used by Bank & Expense Entry',130,1)");
         createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('EXPENSE_CATEGORY','EXPENSE CATEGORY','Expense classifications used by Expense Entry',140,1)");
+        createTable("INSERT OR IGNORE INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('BANK_ACCOUNT','BANK ACCOUNT','Bank account master: value is account number and description is bank name',150,1)");
         seedMasterValuesIfEmpty("PAYMENT_MODE", new String[][]{
             {"PMODE001","NEFT"}, {"PMODE002","RTGS"}, {"PMODE003","UPI"}, {"PMODE004","Cheque"},
             {"PMODE005","Card"}, {"PMODE006","Cash"}, {"PMODE007","Bank Transfer"}, {"PMODE008","Other"}

@@ -6699,3 +6699,13 @@ SECTION TITLES
 .import-page .import-page-header { -fx-min-height: 72; -fx-pref-height: 72; -fx-padding: 10 14; }
 .import-page .import-main-scroll { -fx-background-insets: 0; -fx-padding: 0; }
 .import-page .import-workspace { -fx-spacing: 12; }
+
+/* 5.0.6 import wizard polish */
+.import-page .import-wizard-step { -fx-background-color:#ffffff; -fx-border-color:#cbd5e1; -fx-text-fill:#475569; -fx-font-weight:800; }
+.import-page .import-wizard-step-active { -fx-background-color:#eff6ff; -fx-border-color:#2563eb; -fx-text-fill:#1d4ed8; }
+.import-page .import-selection-card { -fx-background-color:#ffffff; -fx-border-color:#cbd5e1; }
+.import-page .import-selection-card:hover { -fx-border-color:#60a5fa; -fx-background-color:#f8fbff; }
+.import-page .import-wizard-kpi { -fx-background-color:#f8fafc; -fx-border-color:#cbd5e1; }
+.import-page .import-drop-zone { -fx-background-color:#f8fbff; -fx-border-color:#3b82f6; -fx-border-style:dashed; -fx-border-width:1.5; -fx-border-radius:14; -fx-background-radius:14; }
+.import-page .import-mapping-grid { -fx-background-color:#ffffff; }
+.import-page .import-progress-card { -fx-background-color:#f8fafc; -fx-border-color:#cbd5e1; -fx-padding:10; -fx-background-radius:10; -fx-border-radius:10; }

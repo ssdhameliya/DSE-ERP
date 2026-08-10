@@ -8,14 +8,11 @@ import org.example.model.Sales;
 import org.example.model.SalesLine;
 import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
-import org.example.database.DatabaseManager;
 import org.example.util.SpreadsheetLayoutDetector;
 
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -82,11 +79,8 @@ public class ImportService {
                     item.setDescription(desc.trim());
 
                     item.setCategory(getCellValue(row, mapping.get("category")));
-                    item.setBrand(getCellValue(row, mapping.get("brand")));
-                    item.setMaterial(getCellValue(row, mapping.get("material")));
-                    item.setSize(getCellValue(row, mapping.get("size")));
                     item.setUnit(getCellValue(row, mapping.get("unit")));
-                    item.setHsn(getCellValue(row, mapping.get("hsn")));
+                    item.setHsn(required(getCellValue(row, mapping.get("hsn")), "hsn"));
                     item.setGst(parseDouble(getCellValue(row, mapping.get("gst"))));
                     item.setDiscountPercent(parseDouble(getCellValue(row, mapping.get("discount_percent"))));
                     item.setPurchasePrice(parseDouble(getCellValue(row, mapping.get("purchase_price"))));
@@ -252,10 +246,17 @@ public class ImportService {
                     String code = defaultText(getCellValue(row, mapping.get("value_code")), service.generateNextCode(categoryCode));
                     processed++;
                     if (!dryRun) {
-                        try (Connection connection = DatabaseManager.getConnection(); PreparedStatement statement = connection.prepareStatement(
-                            "INSERT INTO master_category(category_code,category_name,description,is_active) VALUES(?,?,?,1) ON CONFLICT(category_code) DO UPDATE SET category_name=excluded.category_name,description=excluded.description")) {
-                            statement.setString(1, categoryCode); statement.setString(2, categoryName);
-                            statement.setString(3, getCellValue(row, mapping.get("category_description"))); statement.executeUpdate();
+                        // PostgreSQL/API mode: master-category persistence belongs to Spring, never desktop JDBC.
+                        if (org.example.config.ConfigManager.isApiDataEnabled()) {
+                            new org.example.api.master.MasterApiClient().upsertCategory(
+                                categoryCode, categoryName,
+                                getCellValue(row, mapping.get("category_description")),
+                                (int) parseDouble(getCellValue(row, mapping.get("display_order"))),
+                                !"false".equalsIgnoreCase(getCellValue(row, mapping.get("is_active")))
+                            );
+                        } else {
+                            // Legacy SQLite fallback remains encapsulated in the existing service layer.
+                            service.ensureCategory(categoryCode, categoryName, getCellValue(row, mapping.get("category_description")));
                         }
                         Lookup lookup = service.getByType(categoryCode).stream().filter(existing -> existing.getLookupCode().equalsIgnoreCase(code)).findFirst().orElse(null);
                         boolean exists = lookup != null;

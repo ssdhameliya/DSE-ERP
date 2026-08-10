@@ -22,9 +22,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
 /**
- * Central, file-safe SQLite backup and staged-restore implementation.
+ * Central backup and staged-restore implementation for SQLite and PostgreSQL.
  * Restore is applied before DatabaseManager.initialize(), while no application connection is open.
  */
+@SuppressWarnings({"SqlResolve", "SqlDialectInspection"})
 public final class BackupManager {
 
     public static final String APPLICATION_ID = "DSE_ERP";

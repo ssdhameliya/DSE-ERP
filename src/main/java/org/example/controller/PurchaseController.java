@@ -550,7 +550,7 @@ public class PurchaseController {
                  * purchase is saved. Re-check the number immediately before the
                  * insert and advance it if necessary.
                  */
-                if (purchaseService.getByInvoice(purchase.getInvoiceNo()) != null) {
+                if (purchaseService.existsInvoice(purchase.getInvoiceNo())) {
                     String freshInvoiceNo = purchaseService.nextInvoiceNo();
                     txtInvoiceNo.setText(freshInvoiceNo);
                     purchase.setInvoiceNo(freshInvoiceNo);
@@ -563,7 +563,7 @@ public class PurchaseController {
                 );
 
             }
-            saveMetadata(purchase);
+            if (!org.example.config.ConfigManager.isApiDataEnabled()) saveMetadata(purchase);
             Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
             if(print) java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());
             if(email){if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())throw new IllegalStateException("Supplier email is missing");EmailService.send(full.getSupplier().getEmail(),"Purchase "+full.getInvoiceNo(),"Please find the purchase document attached.",InvoicePdfService.purchase(full));purchaseService.markEmailSent(full.getId());}
@@ -694,7 +694,7 @@ public class PurchaseController {
 
     }
 
-    private void saveMetadata(Purchase p)throws Exception{try(Connection c=DatabaseManager.getConnection();PreparedStatement q=c.prepareStatement("UPDATE purchase_header SET due_date=?,delivery_date=?,document_status=?,warehouse=?,payment_terms=?,currency=?,reference_no=?,gst_treatment=?,transporter=?,lr_awb_no=?,discount_type=?,discount_amount=?,attachment_path=?,created_by=COALESCE(created_by,'Admin'),updated_at=datetime('now') WHERE invoice_no=?")){q.setString(1,str(p.getDueDate()));q.setString(2,str(p.getDeliveryDate()));q.setString(3,p.getDocumentStatus());q.setString(4,p.getWarehouse());q.setString(5,p.getPaymentTerms());q.setString(6,p.getCurrency());q.setString(7,p.getReferenceNo());q.setString(8,p.getGstTreatment());q.setString(9,p.getTransporter());q.setString(10,p.getLrAwbNo());q.setString(11,p.getDiscountType());q.setDouble(12,p.getDiscountAmount());q.setString(13,p.getAttachmentPath());q.setString(14,p.getInvoiceNo());q.executeUpdate();}}
+    private void saveMetadata(Purchase p)throws Exception{try(Connection c=DatabaseManager.getConnection();PreparedStatement q=c.prepareStatement("UPDATE purchase_header SET due_date=?,delivery_date=?,document_status=?,warehouse=?,payment_terms=?,currency=?,reference_no=?,gst_treatment=?,transporter=?,lr_awb_no=?,discount_type=?,discount_amount=?,attachment_path=?,created_by=COALESCE(created_by,'Admin'),updated_at=CURRENT_TIMESTAMP WHERE invoice_no=?")){q.setString(1,str(p.getDueDate()));q.setString(2,str(p.getDeliveryDate()));q.setString(3,p.getDocumentStatus());q.setString(4,p.getWarehouse());q.setString(5,p.getPaymentTerms());q.setString(6,p.getCurrency());q.setString(7,p.getReferenceNo());q.setString(8,p.getGstTreatment());q.setString(9,p.getTransporter());q.setString(10,p.getLrAwbNo());q.setString(11,p.getDiscountType());q.setDouble(12,p.getDiscountAmount());q.setString(13,p.getAttachmentPath());q.setString(14,p.getInvoiceNo());q.executeUpdate();}}
     @FXML private void chooseAttachment(){FileChooser f=new FileChooser();attachment=f.showOpenDialog(tableLines.getScene().getWindow());if(attachment!=null)lblAttachment.setText(attachment.getName());}
     @FXML private void clearLines(){tableLines.getItems().clear();recalculate();}
     @FXML private void preview(){new OwnedAlert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}

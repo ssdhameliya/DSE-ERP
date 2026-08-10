@@ -69,6 +69,8 @@ public class ImportController {
 
     @FXML private VBox dropZone;
     @FXML private VBox progressContainer;
+    @FXML private VBox step1Panel, step2Panel, step3Panel, step4Panel;
+    @FXML private Label step1Badge, step2Badge, step3Badge, step4Badge;
 
     @FXML private TableView<Map<String, String>> tblPreview;
 
@@ -110,18 +112,16 @@ public class ImportController {
         "item_code",
         "description",
         "category",
-        "brand",
-        "material",
-        "size",
         "unit",
         "hsn",
         "gst",
+        "discount_percent",
         "purchase_price",
         "selling_price",
+        "remarks",
         "opening_stock",
         "minimum_stock",
-        "location",
-        "remarks"
+        "location"
     );
 
     private static final List<String> CUSTOMER_FIELDS = List.of(
@@ -172,6 +172,10 @@ public class ImportController {
         "is_active"
     );
 
+
+    private static final List<String> BANK_STATEMENT_FIELDS = List.of(
+        "transaction_date", "value_date", "description", "reference", "amount", "direction", "balance"
+    );
     /* =========================================================
        INITIALIZATION
        ========================================================= */
@@ -187,7 +191,8 @@ public class ImportController {
                 "Suppliers/HRM",
                 "Sales",
                 "Purchases",
-                "Master Categories and Values"
+                "Master Categories and Values",
+                "Bank Statement"
             )
         );
 
@@ -209,6 +214,7 @@ public class ImportController {
         progressContainer.setManaged(false);
 
         btnRunImport.setDisable(true);
+        showStep(requestedModule != null && !requestedModule.isBlank() ? 2 : 1);
 
         cmbImportModule.valueProperty().addListener(
             (observable, oldValue, newValue) -> {
@@ -242,12 +248,37 @@ public class ImportController {
     private void configurePreviewTable() {
 
         tblPreview.setPlaceholder(
-            new Label("Select an Excel file to preview its data.")
+            new Label("Select an import file to preview its data.")
         );
 
         tblPreview.setColumnResizePolicy(
             TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
         );
+    }
+
+    @FXML private void selectItemMaster(){ selectImportModule("Item Master"); }
+    @FXML private void selectCustomers(){ selectImportModule("Customers/CRM"); }
+    @FXML private void selectSuppliers(){ selectImportModule("Suppliers/HRM"); }
+    @FXML private void selectSales(){ selectImportModule("Sales"); }
+    @FXML private void selectPurchases(){ selectImportModule("Purchases"); }
+    @FXML private void selectMasters(){ selectImportModule("Master Categories and Values"); }
+    @FXML private void selectBankStatement(){ selectImportModule("Bank Statement"); }
+    private void selectImportModule(String module){ cmbImportModule.setValue(module); showStep(2); }
+    @FXML private void goStep1(){ showStep(1); }
+    @FXML private void goStep2(){ showStep(2); }
+    @FXML private void goStep3(){
+        if(selectedFile==null){ new OwnedAlert(Alert.AlertType.WARNING,"Choose an import file before continuing.").showAndWait(); return; }
+        showStep(3);
+    }
+    @FXML private void goStep4(){
+        if(selectedFile==null){ new OwnedAlert(Alert.AlertType.WARNING,"Choose an import file before continuing.").showAndWait(); return; }
+        showStep(4);
+    }
+    private void showStep(int step){
+        VBox[] panels={step1Panel,step2Panel,step3Panel,step4Panel};
+        for(int i=0;i<panels.length;i++) if(panels[i]!=null){boolean on=i==step-1;panels[i].setVisible(on);panels[i].setManaged(on);}
+        Label[] badges={step1Badge,step2Badge,step3Badge,step4Badge};
+        for(int i=0;i<badges.length;i++) if(badges[i]!=null){badges[i].getStyleClass().remove("import-wizard-step-active");if(i==step-1&&!badges[i].getStyleClass().contains("import-wizard-step-active"))badges[i].getStyleClass().add("import-wizard-step-active");}
     }
 
     /* =========================================================
@@ -263,6 +294,7 @@ public class ImportController {
             case "Suppliers/HRM" -> SUPPLIER_FIELDS;
             case "Sales", "Purchases" -> DOCUMENT_FIELDS;
             case "Master Categories and Values" -> MASTER_FIELDS;
+            case "Bank Statement" -> BANK_STATEMENT_FIELDS;
             default -> ITEM_FIELDS;
         };
     }
@@ -297,6 +329,8 @@ public class ImportController {
                     "value"
                 );
 
+            case "Bank Statement" -> Set.of("transaction_date","value_date","description","reference","amount","direction","balance");
+
             default ->
                 Set.of(
                     "item_code",
@@ -322,7 +356,9 @@ public class ImportController {
                  "minimum_stock",
                  "opening_balance",
                  "paid_amount",
-                 "display_order" -> "Number";
+                 "display_order",
+                 "amount",
+                 "balance" -> "Number";
 
             case "is_active" -> "Boolean";
 
@@ -378,6 +414,10 @@ public class ImportController {
        ========================================================= */
 
     private List<String> readHeaders(File file) {
+
+        if ("Bank Statement".equals(cmbImportModule.getValue())) {
+            return List.of("Transaction Date","Value Date","Description","Chq / Ref No.","Amount","Dr / Cr","Balance");
+        }
 
         try (Workbook workbook = WorkbookFactory.create(file)) {
 
@@ -473,6 +513,13 @@ public class ImportController {
             case "isactive" ->
                 normalizedHeader.equals("active")
                     || normalizedHeader.equals("status");
+
+            case "transactiondate" -> normalizedHeader.equals("transactiondate");
+            case "valuedate" -> normalizedHeader.equals("valuedate");
+            case "reference" -> normalizedHeader.equals("chqrefno") || normalizedHeader.equals("referenceno");
+            case "amount" -> normalizedHeader.equals("amount");
+            case "direction" -> normalizedHeader.equals("drcr") || normalizedHeader.equals("debitcredit");
+            case "balance" -> normalizedHeader.equals("balance");
 
             default -> false;
         };
@@ -775,7 +822,7 @@ public class ImportController {
 
         if (selectedFile == null) {
             lblReadyStatus.setText(
-                "Choose an Excel file to begin"
+                "Bank Statement".equals(cmbImportModule.getValue()) ? "Choose a bank statement CSV to begin" : "Choose an Excel file to begin"
             );
         } else if (!requiredMappingsComplete()) {
             lblReadyStatus.setText(
@@ -1026,8 +1073,23 @@ public class ImportController {
 
     private void loadPreviewRows() {
 
-        List<Map<String, String>> previewData =
-            new ArrayList<>();
+        List<Map<String, String>> previewData = new ArrayList<>();
+
+        if ("Bank Statement".equals(cmbImportModule.getValue())) {
+            try {
+                var parsed = new org.example.bank.KotakBankStatementCsvParser().parse(selectedFile.toPath());
+                for (var row : parsed.rows().stream().limit(50).toList()) {
+                    Map<String,String> m = new LinkedHashMap<>();
+                    m.put("transaction_date", row.transactionTimestamp()); m.put("value_date", row.valueDate());
+                    m.put("description", row.description()); m.put("reference", row.reference());
+                    m.put("amount", String.format(Locale.ROOT,"%.2f", row.debit()>0?row.debit():row.credit()));
+                    m.put("direction", row.debit()>0?"DR":"CR"); m.put("balance", String.format(Locale.ROOT,"%.2f",row.balance()));
+                    previewData.add(m);
+                }
+                tblPreview.getItems().setAll(previewData); lblPreviewCount.setText(previewData.size()+" rows shown"); lblPreviewStatus.setText("Kotak bank statement preview loaded successfully");
+                return;
+            } catch(Exception e) { lblPreviewStatus.setText("Bank statement preview failed: "+safeMessage(e)); return; }
+        }
 
         try (
             Workbook workbook =
@@ -1213,16 +1275,15 @@ public class ImportController {
 
         FileChooser chooser = new FileChooser();
 
-        chooser.setTitle("Select Excel File");
+        boolean bankStatement = "Bank Statement".equals(cmbImportModule.getValue());
+        chooser.setTitle(bankStatement ? "Select Bank Statement CSV" : "Select Excel File");
 
         chooser
             .getExtensionFilters()
             .add(
-                new FileChooser.ExtensionFilter(
-                    "Excel workbooks",
-                    "*.xlsx",
-                    "*.xls"
-                )
+                bankStatement
+                    ? new FileChooser.ExtensionFilter("Bank statement CSV", "*.csv")
+                    : new FileChooser.ExtensionFilter("Excel workbooks", "*.xlsx", "*.xls")
             );
 
         File file =
@@ -1244,7 +1305,7 @@ public class ImportController {
             event
                 .getDragboard()
                 .hasFiles()
-                && isExcel(
+                && isSupportedImportFile(
                 event
                     .getDragboard()
                     .getFiles()
@@ -1313,7 +1374,7 @@ public class ImportController {
                     .getFiles()
                     .getFirst();
 
-            if (isExcel(file)) {
+            if (isSupportedImportFile(file)) {
 
                 selectFile(file);
                 accepted = true;
@@ -1322,8 +1383,7 @@ public class ImportController {
 
                 showWarning(
                     "Unsupported file",
-                    "Please choose an Excel workbook "
-                        + "(.xlsx or .xls)."
+                    "Bank Statement".equals(cmbImportModule.getValue()) ? "Please choose a Kotak CSV statement (.csv)." : "Please choose an Excel workbook (.xlsx or .xls)."
                 );
             }
         }
@@ -1332,7 +1392,7 @@ public class ImportController {
         event.consume();
     }
 
-    private boolean isExcel(File file) {
+    private boolean isSupportedImportFile(File file) {
 
         String name =
             file == null
@@ -1341,18 +1401,17 @@ public class ImportController {
                 .getName()
                 .toLowerCase(Locale.ROOT);
 
-        return name.endsWith(".xlsx")
-            || name.endsWith(".xls");
+        if ("Bank Statement".equals(cmbImportModule.getValue())) return name.endsWith(".csv");
+        return name.endsWith(".xlsx") || name.endsWith(".xls");
     }
 
     private void selectFile(File file) {
 
-        if (!isExcel(file)) {
+        if (!isSupportedImportFile(file)) {
 
             showWarning(
                 "Unsupported file",
-                "Please choose an Excel workbook "
-                    + "(.xlsx or .xls)."
+                "Bank Statement".equals(cmbImportModule.getValue()) ? "Please choose a Kotak CSV statement (.csv)." : "Please choose an Excel workbook (.xlsx or .xls)."
             );
 
             return;
@@ -1444,6 +1503,11 @@ public class ImportController {
 
     @FXML
     private void onRunImport() {
+        if (!org.example.config.ConfigManager.isApiDataEnabled()) {
+            new OwnedAlert(Alert.AlertType.ERROR,
+                "Data Import requires the Spring API runtime in the PostgreSQL model. Start the DSE ERP server and try again.").showAndWait();
+            return;
+        }
         runImport();
     }
 
@@ -1608,6 +1672,8 @@ public class ImportController {
                     this::updateProgress
                 );
 
+            case "Bank Statement" -> importBankStatement(dryRun);
+
             default ->
                 importService.importItems(
                     selectedFile.toPath(),
@@ -1616,6 +1682,16 @@ public class ImportController {
                     this::updateProgress
                 );
         };
+    }
+
+    private ImportService.ImportResult importBankStatement(boolean dryRun) throws Exception {
+        var parsed = new org.example.bank.KotakBankStatementCsvParser().parse(selectedFile.toPath());
+        updateProgress(parsed.rows().size(), parsed.rows().size());
+        if (dryRun) return new ImportService.ImportResult(parsed.rows().size(),0,0,0,List.of());
+        var u=org.example.service.SessionService.current(); String user=u==null?"User":u.getFullName();
+        var request = new org.example.api.bank.BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),user,parsed.rows());
+        var result = new org.example.api.bank.BankStatementApiClient().importStatement(request);
+        return new ImportService.ImportResult(parsed.rows().size(),result.importedRows(),0,result.duplicateRows(),List.of());
     }
 
     private Map<String, String> collectCurrentMapping() {
@@ -1792,6 +1868,9 @@ public class ImportController {
 
             case "Master Categories and Values" ->
                 "/fxml/pages/Masterdata.fxml";
+
+            case "Bank Statement" ->
+                "/fxml/pages/BankStatement.fxml";
 
             default ->
                 "/fxml/pages/ItemMaster.fxml";
@@ -2112,18 +2191,16 @@ public class ImportController {
                     "ITEM-0001",
                     "MS Round Pipe",
                     "Pipe",
-                    "DSE",
-                    "Carbon Steel",
-                    "20",
                     "Nos",
                     "73063000",
                     "18",
+                    "0",
                     "1200",
                     "1500",
+                    "Sample item",
                     "0",
                     "10",
-                    "Main Warehouse",
-                    "Sample item"
+                    "Main Warehouse"
                 );
         };
     }

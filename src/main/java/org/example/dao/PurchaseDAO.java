@@ -34,7 +34,7 @@ public class PurchaseDAO {
             )
             VALUES
             (
-                ?,?,?,?,?,?,?,datetime('now'),0
+                ?,?,?,?,?,?,?,CURRENT_TIMESTAMP,0
             )
             """;
 
@@ -296,11 +296,7 @@ public class PurchaseDAO {
                 );
 
 
-                purchase.setInvoiceDate(
-                    LocalDate.parse(
-                        rs.getString("invoice_date")
-                    )
-                );
+                purchase.setInvoiceDate(readLocalDate(rs, "invoice_date"));
 
 
 
@@ -368,11 +364,10 @@ public class PurchaseDAO {
                 purchase.setEmailSent(
                     rs.getInt("email_sent") == 1
                 );
-                String dueDate=rs.getString("due_date");
-                purchase.setDueDate(dueDate==null||dueDate.isBlank()?null:LocalDate.parse(dueDate));
+                purchase.setDueDate(readLocalDate(rs, "due_date"));
                 purchase.setPaidAmount(rs.getDouble("paid_amount"));
                 purchase.setPaymentStatus(rs.getString("payment_status"));
-                purchase.setDocumentStatus(rs.getString("document_status"));purchase.setWarehouse(rs.getString("warehouse"));purchase.setPaymentTerms(rs.getString("payment_terms"));purchase.setCurrency(rs.getString("currency"));purchase.setReferenceNo(rs.getString("reference_no"));purchase.setGstTreatment(rs.getString("gst_treatment"));purchase.setTransporter(rs.getString("transporter"));purchase.setLrAwbNo(rs.getString("lr_awb_no"));purchase.setDiscountType(rs.getString("discount_type"));purchase.setDiscountAmount(rs.getDouble("discount_amount"));purchase.setAttachmentPath(rs.getString("attachment_path"));purchase.setCreatedBy(rs.getString("created_by"));String delivery=rs.getString("delivery_date");purchase.setDeliveryDate(delivery==null||delivery.isBlank()?null:LocalDate.parse(delivery));
+                purchase.setDocumentStatus(rs.getString("document_status"));purchase.setWarehouse(rs.getString("warehouse"));purchase.setPaymentTerms(rs.getString("payment_terms"));purchase.setCurrency(rs.getString("currency"));purchase.setReferenceNo(rs.getString("reference_no"));purchase.setGstTreatment(rs.getString("gst_treatment"));purchase.setTransporter(rs.getString("transporter"));purchase.setLrAwbNo(rs.getString("lr_awb_no"));purchase.setDiscountType(rs.getString("discount_type"));purchase.setDiscountAmount(rs.getDouble("discount_amount"));purchase.setAttachmentPath(rs.getString("attachment_path"));purchase.setCreatedBy(rs.getString("created_by"));purchase.setDeliveryDate(readLocalDate(rs, "delivery_date"));
 
 
                 purchases.add(
@@ -404,35 +399,29 @@ public class PurchaseDAO {
     public String nextInvoiceNo(){
 
         /*
-         * COUNT(*) is not safe for document numbering because deleted rows or
-         * imported records can make the next count collide with an existing
-         * invoice number. Read the highest numeric PUR- suffix instead.
+         * Portable numbering logic for both SQLite and PostgreSQL.
+         * Read existing invoice numbers and parse the numeric PUR- suffix in Java
+         * instead of relying on SQLite-only GLOB/SUBSTR expressions.
          */
-        String sql =
-            """
-            SELECT COALESCE(
-                MAX(
-                    CASE
-                        WHEN UPPER(TRIM(invoice_no)) GLOB 'PUR-[0-9]*'
-                        THEN CAST(SUBSTR(UPPER(TRIM(invoice_no)), 5) AS INTEGER)
-                        ELSE 0
-                    END
-                ),
-                0
-            ) + 1
-            FROM purchase_header
-            """;
-
-        try(
-            Connection con = DatabaseManager.getConnection();
-            Statement st = con.createStatement();
-            ResultSet rs = st.executeQuery(sql)
-        ){
-            int no = rs.next() ? rs.getInt(1) : 1;
-            return "PUR-" + String.format("%05d", Math.max(1, no));
-        }
-        catch(Exception e){
-            throw new RuntimeException(e);
+        String sql = "SELECT invoice_no FROM purchase_header";
+        int max = 0;
+        try (Connection con = DatabaseManager.getConnection();
+             Statement st = con.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                String value = rs.getString(1);
+                if (value == null) continue;
+                String normalized = value.trim().toUpperCase(java.util.Locale.ROOT);
+                if (!normalized.matches("PUR-\\d+")) continue;
+                try {
+                    max = Math.max(max, Integer.parseInt(normalized.substring(4)));
+                } catch (NumberFormatException ignored) {
+                    // Ignore malformed legacy/imported document numbers.
+                }
+            }
+            return "PUR-" + String.format("%05d", max + 1);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to generate the next purchase invoice number", e);
         }
     }
 
@@ -513,11 +502,7 @@ public class PurchaseDAO {
                 );
 
 
-                p.setInvoiceDate(
-                    LocalDate.parse(
-                        rs.getString("invoice_date")
-                    )
-                );
+                p.setInvoiceDate(readLocalDate(rs, "invoice_date"));
 
 
                 Party party =
@@ -568,13 +553,12 @@ public class PurchaseDAO {
                 p.setRemarks(
                     rs.getString("remarks")
                 );
-                String dueDate=rs.getString("due_date");
-                p.setDueDate(dueDate==null||dueDate.isBlank()?null:LocalDate.parse(dueDate));
+                p.setDueDate(readLocalDate(rs, "due_date"));
                 p.setPaidAmount(rs.getDouble("paid_amount"));
                 p.setPaymentStatus(rs.getString("payment_status"));
                 p.setEmailSent(rs.getInt("email_sent")==1);
                 p.setCreatedAt(rs.getString("created_at"));
-                p.setDocumentStatus(rs.getString("document_status"));p.setWarehouse(rs.getString("warehouse"));p.setPaymentTerms(rs.getString("payment_terms"));p.setCurrency(rs.getString("currency"));p.setReferenceNo(rs.getString("reference_no"));p.setGstTreatment(rs.getString("gst_treatment"));p.setTransporter(rs.getString("transporter"));p.setLrAwbNo(rs.getString("lr_awb_no"));p.setDiscountType(rs.getString("discount_type"));p.setDiscountAmount(rs.getDouble("discount_amount"));p.setAttachmentPath(rs.getString("attachment_path"));p.setCreatedBy(rs.getString("created_by"));String delivery=rs.getString("delivery_date");p.setDeliveryDate(delivery==null||delivery.isBlank()?null:LocalDate.parse(delivery));
+                p.setDocumentStatus(rs.getString("document_status"));p.setWarehouse(rs.getString("warehouse"));p.setPaymentTerms(rs.getString("payment_terms"));p.setCurrency(rs.getString("currency"));p.setReferenceNo(rs.getString("reference_no"));p.setGstTreatment(rs.getString("gst_treatment"));p.setTransporter(rs.getString("transporter"));p.setLrAwbNo(rs.getString("lr_awb_no"));p.setDiscountType(rs.getString("discount_type"));p.setDiscountAmount(rs.getDouble("discount_amount"));p.setAttachmentPath(rs.getString("attachment_path"));p.setCreatedBy(rs.getString("created_by"));p.setDeliveryDate(readLocalDate(rs, "delivery_date"));
 
             }
 
@@ -1016,5 +1000,25 @@ public class PurchaseDAO {
 
 
 
+
+    /** Reads DATE/TIMESTAMP values safely from both PostgreSQL and SQLite JDBC drivers. */
+    private static LocalDate readLocalDate(ResultSet rs, String column) throws SQLException {
+        Object raw = rs.getObject(column);
+        if (raw == null) return null;
+        if (raw instanceof LocalDate date) return date;
+        if (raw instanceof java.sql.Date date) return date.toLocalDate();
+        if (raw instanceof java.sql.Timestamp timestamp) return timestamp.toLocalDateTime().toLocalDate();
+        if (raw instanceof java.time.LocalDateTime dateTime) return dateTime.toLocalDate();
+        String text = raw.toString().trim();
+        if (text.isBlank()) return null;
+        if (text.length() >= 10) {
+            try { return LocalDate.parse(text.substring(0, 10)); }
+            catch (Exception ignored) { }
+        }
+        try { return LocalDate.parse(text); }
+        catch (Exception ex) {
+            throw new SQLException("Unable to parse " + column + " as a date: " + text, ex);
+        }
+    }
 
 }

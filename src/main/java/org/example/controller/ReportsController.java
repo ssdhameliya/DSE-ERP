@@ -7,6 +7,8 @@ import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.database.DatabaseManager;
+import org.example.config.ConfigManager;
+import org.example.api.insights.InsightsApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
 import org.example.service.BusinessReportService;
@@ -33,6 +35,7 @@ public class ReportsController implements ScreenLifecycle {
     @FXML private MenuButton btnExport;
     @FXML private MenuItem miExcel,miPdf;
     private final BusinessReportService reportService=new BusinessReportService();
+    private final InsightsApiClient insightsApi=new InsightsApiClient();
     private volatile boolean loaded;
     private volatile boolean loadRequested;
 
@@ -48,7 +51,7 @@ public class ReportsController implements ScreenLifecycle {
     private void loadFiltersAsync(){
         UiTaskExecutor.submitLatest("reports-filters", this::readFilters, this::applyFilters, error -> PerformanceMonitor.event("reports-filters-error", error.getMessage()));
     }
-    private FilterData readFilters(){ return new FilterData(list("SELECT name FROM party_master WHERE COALESCE(is_active,1)=1 ORDER BY name"), list("SELECT description FROM item_master WHERE COALESCE(is_active,1)=1 ORDER BY description"), list("SELECT DISTINCT salesperson FROM sales_header WHERE COALESCE(salesperson,'')<>'' ORDER BY salesperson")); }
+    private FilterData readFilters(){ if(ConfigManager.isApiDataEnabled()){var f=insightsApi.reportFilters();return new FilterData(f.parties(),f.items(),f.salespeople());} return new FilterData(list("SELECT name FROM party_master WHERE COALESCE(is_active,1)=1 ORDER BY name"), list("SELECT description FROM item_master WHERE COALESCE(is_active,1)=1 ORDER BY description"), list("SELECT DISTINCT salesperson FROM sales_header WHERE COALESCE(salesperson,'')<>'' ORDER BY salesperson")); }
     private void applyFilters(FilterData data){ long started=System.nanoTime(); setOptions(cmbParty,"All Customers / Suppliers",data.parties()); setOptions(cmbItem,"All Items",data.items()); setOptions(cmbSalesPerson,"All Sales Persons",data.salespeople()); PerformanceMonitor.event("controller-phase","reports-filter-apply | "+((System.nanoTime()-started)/1_000_000L)+" ms"); }
     private void setOptions(ComboBox<String> box,String all,List<String> values){box.getItems().setAll(all);box.getItems().addAll(values);box.getSelectionModel().selectFirst();}
     private List<String> list(String sql){List<String> out=new ArrayList<>();try(Connection c=DatabaseManager.getConnection();Statement s=c.createStatement();ResultSet r=s.executeQuery(sql)){while(r.next())out.add(r.getString(1));}catch(SQLException e){PerformanceMonitor.event("report-filter-query",e.getMessage());}return out;}
@@ -68,6 +71,14 @@ public class ReportsController implements ScreenLifecycle {
         }, failure -> { loadRequested=false; setBusy(false); error("Could not load report data: "+failure.getMessage()); });
     }
     private ReportData loadReport(String from,String to) throws SQLException {
+        if(ConfigManager.isApiDataEnabled()){
+            var d=insightsApi.report(from,to);
+            List<Point> cp=d.customerPoints().stream().map(x->new Point(x.label(),x.value())).toList();
+            List<Point> ip=d.itemPoints().stream().map(x->new Point(x.label(),x.value())).toList();
+            List<String[]> sr=d.salesRows().stream().map(x->new String[]{x.number(),x.date(),x.party(),money(x.amount()),x.status()}).toList();
+            List<String[]> pr=d.purchaseRows().stream().map(x->new String[]{x.number(),x.date(),x.party(),money(x.amount()),x.status()}).toList();
+            return new ReportData(d.sales(),d.purchase(),d.profit(),d.receivables(),d.stock(),d.low(),d.customers(),List.of(),cp,ip,sr,pr,d.salesPaid(),d.payables(),d.purchasesPaid(),d.items(),d.out());
+        }
         PerformanceMonitor.start("reports-query-bundle");
         try {
             double sales=number("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE invoice_date BETWEEN ? AND ?",from,to);

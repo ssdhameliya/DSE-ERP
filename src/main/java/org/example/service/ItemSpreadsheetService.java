@@ -3,7 +3,6 @@ package org.example.service;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.example.database.DatabaseManager;
 import org.example.model.Item;
 import org.example.model.Party;
 
@@ -15,7 +14,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.sql.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
@@ -23,7 +21,7 @@ import java.util.Locale;
  * Excel import/export contract for item masters. The first worksheet uses the columns exported here.
  */
 public final class ItemSpreadsheetService {
-    private static final String[] HEADERS = {"Item Code", "Description", "Category", "Brand", "Material", "Size", "Unit", "HSN", "GST %", "Discount %", "Purchase Price", "Selling Price", "Opening Stock", "Minimum Stock", "Location", "Remarks"};
+    private static final String[] HEADERS = {"Item Code", "Description", "Category", "Unit", "HSN", "GST %", "Discount %", "Purchase Price", "Selling Price", "Remarks", "Opening Stock", "Minimum Stock", "Location"};
     private final ItemService itemService = new ItemService();
 
 
@@ -45,21 +43,18 @@ public final class ItemSpreadsheetService {
                 write(row, 0, item.getItemCode());
                 write(row, 1, item.getDescription());
                 write(row, 2, item.getCategory());
-                write(row, 3, item.getBrand());
-                write(row, 4, item.getMaterial());
-                write(row, 5, item.getSize());
-                write(row, 6, item.getUnit());
-                write(row, 7, item.getHsn());
-                writeNumber(row, 8, item.getGst(), number);
-                writeNumber(row, 9, item.getDiscountPercent(), number);
-                writeNumber(row, 10, item.getPurchasePrice(), number);
-                writeNumber(row, 11, item.getSellingPrice(), number);
-                writeNumber(row, 12, item.getOpeningStock(), number);
-                writeNumber(row, 13, item.getMinimumStock(), number);
-                write(row, 14, item.getLocation());
-                write(row, 15, item.getRemarks());
+                write(row, 3, item.getUnit());
+                write(row, 4, item.getHsn());
+                writeNumber(row, 5, item.getGst(), number);
+                writeNumber(row, 6, item.getDiscountPercent(), number);
+                writeNumber(row, 7, item.getPurchasePrice(), number);
+                writeNumber(row, 8, item.getSellingPrice(), number);
+                write(row, 9, item.getRemarks());
+                writeNumber(row, 10, item.getOpeningStock(), number);
+                writeNumber(row, 11, item.getMinimumStock(), number);
+                write(row, 12, item.getLocation());
             }
-            for (int c = 0; c < HEADERS.length; c++) sheet.setColumnWidth(c, c == 1 || c == 15 ? 28 * 256 : 16 * 256);
+            for (int c = 0; c < HEADERS.length; c++) sheet.setColumnWidth(c, c == 1 || c == 9 ? 28 * 256 : 16 * 256);
             sheet.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(0, Math.max(0, rowIndex - 1), 0, HEADERS.length - 1));
             workbook.write(output);
         }
@@ -115,20 +110,17 @@ public final class ItemSpreadsheetService {
     private String[] csv(String line){return line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)",-1);}
     private String cv(String[] v,int i){return i<v.length?v[i].trim().replaceAll("^\"|\"$","").replace("\"\"","\""):"";}
     private double cn(String[]v,int i){String x=cv(v,i).replace(",","");if(x.isBlank())return 0;try{return Double.parseDouble(x);}catch(Exception e){throw new IllegalArgumentException(HEADERS[i]+" must be a number");}}
-    private Item readCsvItem(String[]v){Item i=new Item();i.setItemCode(cv(v,0));i.setDescription(cv(v,1));if(i.getItemCode().isBlank())throw new IllegalArgumentException("Item Code is required");if(i.getDescription().isBlank())throw new IllegalArgumentException("Description is required");i.setCategory(cv(v,2));i.setBrand(cv(v,3));i.setMaterial(cv(v,4));i.setSize(cv(v,5));i.setUnit(cv(v,6));i.setHsn(cv(v,7));i.setGst(cn(v,8));i.setDiscountPercent(cn(v,9));i.setPurchasePrice(cn(v,10));i.setSellingPrice(cn(v,11));i.setOpeningStock(cn(v,12));i.setMinimumStock(cn(v,13));i.setLocation(cv(v,14));i.setRemarks(cv(v,15));return i;}
+    private Item readCsvItem(String[]v){Item i=new Item();i.setItemCode(cv(v,0));i.setDescription(cv(v,1));if(i.getItemCode().isBlank())throw new IllegalArgumentException("Item Code is required");if(i.getDescription().isBlank())throw new IllegalArgumentException("Description is required");i.setCategory(cv(v,2));i.setUnit(cv(v,3));i.setHsn(cv(v,4));if(i.getHsn().isBlank())throw new IllegalArgumentException("HSN Code is required");i.setGst(cn(v,5));i.setDiscountPercent(cn(v,6));i.setPurchasePrice(cn(v,7));i.setSellingPrice(cn(v,8));i.setRemarks(cv(v,9));i.setOpeningStock(cn(v,10));i.setMinimumStock(cn(v,11));i.setLocation(cv(v,12));i.setBrand(null);i.setMaterial(null);i.setSize(null);return i;}
 
     private void persistAll(List<Item> items) throws IOException {
-        String sql="""
-            INSERT INTO item_master(item_code,description,category,brand,material,size,unit,hsn,gst,discount_percent,purchase_price,selling_price,opening_stock,minimum_stock,location,remarks)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT(item_code) DO UPDATE SET
-              description=excluded.description, category=excluded.category, brand=excluded.brand,
-              material=excluded.material, size=excluded.size, unit=excluded.unit, hsn=excluded.hsn,
-              gst=excluded.gst, discount_percent=excluded.discount_percent, purchase_price=excluded.purchase_price, selling_price=excluded.selling_price,
-              opening_stock=excluded.opening_stock, minimum_stock=excluded.minimum_stock,
-              location=excluded.location, remarks=excluded.remarks
-            """;
-        try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement(sql)){c.setAutoCommit(false);try{for(Item i:items){p.setString(1,i.getItemCode());p.setString(2,i.getDescription());p.setString(3,i.getCategory());p.setString(4,i.getBrand());p.setString(5,i.getMaterial());p.setString(6,i.getSize());p.setString(7,i.getUnit());p.setString(8,i.getHsn());p.setDouble(9,i.getGst());p.setDouble(10,i.getDiscountPercent());p.setDouble(11,i.getPurchasePrice());p.setDouble(12,i.getSellingPrice());p.setDouble(13,i.getOpeningStock());p.setDouble(14,i.getMinimumStock());p.setString(15,i.getLocation());p.setString(16,i.getRemarks());p.addBatch();}p.executeBatch();c.commit();}catch(Exception e){c.rollback();throw e;}}catch(Exception e){throw new IOException("No items were imported. Database transaction was rolled back: "+e.getMessage(),e);}
+        // All item imports use ItemService. In PostgreSQL/API mode this is
+        // JavaFX -> REST -> Spring -> JPA/Hibernate -> PostgreSQL.
+        // No desktop JDBC writes are permitted in the import path.
+        try {
+            for (Item item : items) itemService.saveOrUpdate(item);
+        } catch (Exception e) {
+            throw new IOException("Item import failed through ERP service: " + e.getMessage(), e);
+        }
     }
 
     private Item readItem(Row row, DataFormatter f) {
@@ -140,19 +132,18 @@ public final class ItemSpreadsheetService {
         item.setItemCode(code);
         item.setDescription(description);
         item.setCategory(text(row, 2, f));
-        item.setBrand(text(row, 3, f));
-        item.setMaterial(text(row, 4, f));
-        item.setSize(text(row, 5, f));
-        item.setUnit(text(row, 6, f));
-        item.setHsn(text(row, 7, f));
-        item.setGst(number(row, 8, f));
-        item.setDiscountPercent(number(row, 9, f));
-        item.setPurchasePrice(number(row, 10, f));
-        item.setSellingPrice(number(row, 11, f));
-        item.setOpeningStock(number(row, 12, f));
-        item.setMinimumStock(number(row, 13, f));
-        item.setLocation(text(row, 14, f));
-        item.setRemarks(text(row, 15, f));
+        item.setBrand(null); item.setMaterial(null); item.setSize(null);
+        item.setUnit(text(row, 3, f));
+        item.setHsn(text(row, 4, f));
+        if(item.getHsn()==null||item.getHsn().isBlank()) throw new IllegalArgumentException("HSN Code is required");
+        item.setGst(number(row, 5, f));
+        item.setDiscountPercent(number(row, 6, f));
+        item.setPurchasePrice(number(row, 7, f));
+        item.setSellingPrice(number(row, 8, f));
+        item.setRemarks(text(row, 9, f));
+        item.setOpeningStock(number(row, 10, f));
+        item.setMinimumStock(number(row, 11, f));
+        item.setLocation(text(row, 12, f));
         return item;
     }
 

@@ -23,12 +23,12 @@
    <HBox spacing="14">
     <VBox spacing="12" HBox.hgrow="ALWAYS">
      <VBox spacing="10" styleClass="flow-card,invoice-overview-card">
-      <HBox spacing="24" alignment="CENTER_LEFT">
-       <VBox prefWidth="150"><Label text="📄  Invoice No." styleClass="meta-label,meta-blue"/><HBox spacing="8"><Label fx:id="invoiceNo" styleClass="meta-value,invoice-number"/><Label fx:id="invoiceStatus" styleClass="status-pill"/></HBox></VBox>
-       <VBox prefWidth="240"><Label text="👤  Customer" styleClass="meta-label,meta-purple"/><Label fx:id="customer" styleClass="meta-value,customer-name"/><Label fx:id="customerPhone" styleClass="contact-value"/><Label fx:id="customerEmail" styleClass="contact-value"/></VBox>
-       <VBox prefWidth="135"><Label text="📅  Invoice Date" styleClass="meta-label,meta-cyan"/><Label fx:id="invoiceDate" styleClass="meta-value"/></VBox>
-       <VBox prefWidth="135"><Label text="⏰  Due Date" styleClass="meta-label,meta-orange"/><Label fx:id="dueDate" styleClass="meta-value"/></VBox>
-       <VBox prefWidth="160"><Label text="₹  Total Amount" styleClass="meta-label,meta-green"/><Label fx:id="total" styleClass="money-hero"/></VBox>
+      <HBox spacing="18" alignment="CENTER_LEFT">
+       <VBox prefWidth="250" minWidth="220"><Label text="📄  Invoice No." styleClass="meta-label,meta-blue"/><HBox spacing="8"><Label fx:id="invoiceNo" styleClass="meta-value,invoice-number"/><Label fx:id="invoiceStatus" styleClass="status-pill"/></HBox></VBox>
+       <VBox prefWidth="270"><Label text="👤  Customer" styleClass="meta-label,meta-purple"/><Label fx:id="customer" styleClass="meta-value,customer-name"/><Label fx:id="customerPhone" styleClass="contact-value"/><Label fx:id="customerEmail" styleClass="contact-value"/></VBox>
+       <VBox prefWidth="145"><Label text="📅  Invoice Date" styleClass="meta-label,meta-cyan"/><Label fx:id="invoiceDate" styleClass="meta-value"/></VBox>
+       <VBox prefWidth="145"><Label text="⏰  Due Date" styleClass="meta-label,meta-orange"/><Label fx:id="dueDate" styleClass="meta-value"/></VBox>
+       <VBox prefWidth="185"><Label text="₹  Total Amount" styleClass="meta-label,meta-green"/><Label fx:id="total" styleClass="money-hero"/></VBox>
       </HBox>
      </VBox>
 
@@ -89,13 +89,13 @@
     </VBox>
    </HBox>
 
-   <VBox fx:id="historySection" spacing="8" styleClass="flow-card,payment-history-card">
+   <VBox fx:id="historySection" spacing="8" VBox.vgrow="ALWAYS" styleClass="flow-card,payment-history-card,payment-history-expanded">
     <HBox alignment="CENTER_LEFT" spacing="8">
      <Label text="🕘" styleClass="history-icon"/>
      <Label text="Payment History" styleClass="history-title"/>
      <Label fx:id="historyCount" text="0 Payments" styleClass="history-count"/>
     </HBox>
-    <TableView fx:id="historyTable" prefHeight="90" minHeight="90" maxHeight="390" styleClass="approved-table,erp-table-profile-register">
+    <TableView fx:id="historyTable" prefHeight="240" minHeight="190" maxHeight="Infinity" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-register">
      <columns>
       <TableColumn fx:id="historyDate" text="Payment Date" visible="false" prefWidth="0"/>
       <TableColumn fx:id="historyMode" text="Payment Mode" prefWidth="165"/>

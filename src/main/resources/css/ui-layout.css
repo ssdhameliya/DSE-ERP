@@ -170,3 +170,25 @@
 
 .communication-resend-button { -fx-min-width: 132px; -fx-pref-width: 132px; -fx-max-width: 132px; -fx-padding: 7px 10px; -fx-font-weight: 800; }
 .reminder-three-dot-button { -fx-font-size: 18px; -fx-font-weight: 900; -fx-padding: 2px 8px; -fx-alignment: center; }
+
+/* 5.0.6 FINAL UI STABILIZATION */
+.sales-register-page .sales-register-compact-top .sales-register-hero { -fx-padding: 9 14; }
+.sales-register-page .sales-register-compact-top .sales-kpi-panel { -fx-padding: 6 8 8 8; -fx-pref-height: 92; -fx-min-height: 88; }
+.sales-register-page .sales-register-compact-top .sales-metric-row { -fx-pref-height: 92; -fx-min-height: 88; }
+.sales-register-page .sales-register-compact-top .sales-metric-card { -fx-padding: 10 12; -fx-min-height: 78; -fx-pref-height: 82; }
+.sales-register-page .sales-detail-drawer-spaced { -fx-background-insets: 12 0 12 0; -fx-border-insets: 12 0 12 0; -fx-padding: 26 14 26 14; }
+.sales-register-page .sales-export-bar, .sales-register-page .sales-table-footer { -fx-min-height: 46; -fx-pref-height: 46; }
+.sales-register-page .sales-summary-block { -fx-padding: 5 14; }
+.sales-entry-ultra-compact .sales-entry-header { -fx-padding: 7 10; }
+.sales-entry-ultra-compact .sales-entry-card { -fx-padding: 8 10; }
+.sales-entry-ultra-compact .sales-entry-table-summary { -fx-padding: 5 8; -fx-min-height: 34; }
+.sales-entry-ultra-compact .sales-entry-actions-card { -fx-padding: 8; }
+.sales-entry-side-actions-vertical .button { -fx-pref-width: 150; -fx-max-width: 150; }
+.payment-history-expanded { -fx-min-height: 260; }
+.communication-resend-button { -fx-min-width: 118; -fx-pref-width: 128; -fx-max-width: 148; -fx-content-display: left; }
+.reminder-action-button { -fx-min-width: 96; -fx-pref-width: 100; -fx-content-display: left; }
+.import-wizard-stepper { -fx-padding: 12 18; -fx-spacing: 18; }
+.import-wizard-step { -fx-padding: 8 16; -fx-background-radius: 20; -fx-border-radius: 20; -fx-border-width: 1; }
+.import-wizard-step-active { -fx-border-color: #3b82f6; }
+.import-wizard-kpi { -fx-padding: 10 12; -fx-min-height: 74; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-width: 1; }
+.import-selection-card { -fx-padding: 14; -fx-min-height: 118; -fx-background-radius: 14; -fx-border-radius: 14; -fx-border-width: 1; }

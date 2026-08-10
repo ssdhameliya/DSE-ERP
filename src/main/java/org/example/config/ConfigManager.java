@@ -114,6 +114,31 @@ public final class ConfigManager {
         return get("db.password", System.getenv().getOrDefault("DSE_DB_PASSWORD", ""));
     }
 
+
+    public static String getAuthMode() {
+        return get("auth.mode", System.getenv().getOrDefault("DSE_AUTH_MODE", "api")).trim().toLowerCase();
+    }
+
+    public static boolean isApiAuthenticationEnabled() {
+        return "api".equals(getAuthMode());
+    }
+
+    public static String getAuthApiBaseUrl() {
+        return get("auth.api.baseUrl", System.getenv().getOrDefault("DSE_AUTH_API_URL", "http://localhost:8080"));
+    }
+
+    public static String getDataMode() {
+        return get("data.mode", System.getenv().getOrDefault("DSE_DATA_MODE", "api")).trim().toLowerCase();
+    }
+
+    public static boolean isApiDataEnabled() {
+        return "api".equals(getDataMode()) && isPostgreSql();
+    }
+
+    public static String getDataApiBaseUrl() {
+        return get("data.api.baseUrl", System.getenv().getOrDefault("DSE_DATA_API_URL", getAuthApiBaseUrl()));
+    }
+
     public static boolean isSqlite() {
         return getDbUrl().startsWith("jdbc:sqlite:");
     }

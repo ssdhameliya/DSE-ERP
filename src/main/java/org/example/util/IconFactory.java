@@ -425,6 +425,8 @@ public final class IconFactory {
             case "confirmation" -> "fas-question-circle";
             case "sent" -> "fas-paper-plane";
             case "history" -> "fas-history";
+            case "link" -> "fas-link";
+            case "info" -> "fas-info-circle";
             case "adjust" -> "fas-sliders-h";
             case "workspace" -> "fas-folder-open";
             case "bank" -> "fas-university";

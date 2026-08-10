@@ -1,45 +1,4 @@
 package org.example.service;
-
-import org.example.dao.ItemDAO;
-import org.example.model.Item;
-
-import java.util.List;
-
-public class ItemService {
-    private final ItemDAO dao = new ItemDAO();
-
-    public void save(Item item) {
-        dao.save(item);
-    }
-
-    public void update(Item item) {
-        dao.update(item);
-    }
-
-    public void delete(int id) {
-        dao.delete(id);
-    }
-
-    public void delete(String itemCode) {
-        dao.deleteByCode(itemCode);
-    }
-
-    public List<Item> getAll() {
-        return dao.getAll();
-    }
-
-    // Generate next item code
-    public String nextCode() {
-        return dao.nextCode();
-    }
-
-    // Save or update depending on existence
-    public void saveOrUpdate(Item item) {
-        dao.saveOrUpdate(item);
-    }
-
-    // ✅ NEW: Check if item exists by code
-    public boolean existsByCode(String code) {
-        return dao.existsByCode(code);
-    }
-}
+import org.example.api.master.MasterApiClient; import org.example.config.ConfigManager; import org.example.dao.ItemDAO; import org.example.model.Item; import java.util.*;
+public class ItemService {private final ItemDAO dao=new ItemDAO();private final MasterApiClient api=new MasterApiClient();private boolean useApi(){return ConfigManager.isApiDataEnabled();}
+ public void save(Item i){if(useApi())api.saveItem(i);else dao.save(i);} public void update(Item i){if(useApi())api.updateItem(i);else dao.update(i);} public void delete(int id){if(useApi()){Item match=getAll().stream().filter(x->x.getId()==id).findFirst().orElseThrow();api.deleteItem(match.getItemCode());}else dao.delete(id);} public void delete(String c){if(useApi())api.deleteItem(c);else dao.deleteByCode(c);} public List<Item> getAll(){return useApi()?api.items():dao.getAll();} public String nextCode(){return useApi()?api.nextItemCode():dao.nextCode();} public void saveOrUpdate(Item i){if(existsByCode(i.getItemCode()))update(i);else save(i);} public boolean existsByCode(String c){return useApi()?api.itemExists(c):dao.existsByCode(c);} }

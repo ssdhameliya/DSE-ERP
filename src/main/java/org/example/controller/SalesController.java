@@ -22,7 +22,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import org.example.model.*;
-import org.example.dao.LookupDAO;
+import org.example.service.LookupService;
 
 import org.example.navigation.NavigationManager;
 
@@ -36,6 +36,7 @@ import org.example.util.PlatformUiSupport;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.ArrayList;
 
 public class SalesController {
     @FXML private Button btnAddCustomer;
@@ -149,7 +150,7 @@ public class SalesController {
     private final SalesService salesService =
         new SalesService();
 
-    private final LookupDAO lookupDAO = new LookupDAO();
+    private final LookupService lookupService = new LookupService();
 
     //-------------------------------------------------------
     // Editing
@@ -167,6 +168,7 @@ public class SalesController {
 
     @FXML
     public void initialize() {
+        List<String> initializationErrors = new ArrayList<>();
         if (btnAddCustomer != null) { btnAddCustomer.setGraphic(IconFactory.compactIcon("customer", 20)); btnAddCustomer.getProperties().put("erp-icon-preserve", true); }
         tableLines.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         configureExplicitTableHeaderIcons();
@@ -181,10 +183,10 @@ public class SalesController {
         setupEditableColumns();
         Platform.runLater(this::decorateActions);
         cmbSalesPerson.getItems().setAll("Admin","Ajay Shah","Rahul Mehta");cmbSalesPerson.setValue("Admin");
-        cmbPaymentTerms.getItems().setAll(lookupDAO.getValuesByCategoryCode("PAYMENT_TERMS"));
+        safeLoad("Payment Terms", initializationErrors, () -> cmbPaymentTerms.getItems().setAll(lookupService.getValuesByCategoryCode("PAYMENT_TERMS")));
         if (cmbPaymentTerms.getItems().contains("15 Days")) cmbPaymentTerms.setValue("15 Days");
         else if (!cmbPaymentTerms.getItems().isEmpty()) cmbPaymentTerms.getSelectionModel().selectFirst();
-        if (cmbChargeType != null) cmbChargeType.getItems().setAll(lookupDAO.getValuesByCategoryCode("CHARGES"));
+        if (cmbChargeType != null) safeLoad("Charges", initializationErrors, () -> cmbChargeType.getItems().setAll(lookupService.getValuesByCategoryCode("CHARGES")));
         if (cmbDoorDelivery != null) { cmbDoorDelivery.getItems().setAll("Yes","No"); cmbDoorDelivery.setValue("No"); }
         dpInvoiceDate.valueProperty().addListener((o,a,b)->syncPoDateFromPaymentTerms());
         cmbPaymentTerms.valueProperty().addListener((o,a,b)->syncPoDateFromPaymentTerms());
@@ -203,9 +205,9 @@ public class SalesController {
 
         // Master-driven values use stable category codes, so renaming the visible
         // category in Master Data does not break Create Sale.
-        cmbGstType.getItems().setAll(lookupDAO.getValuesByCategoryCode("GST_TYPE"));
+        safeLoad("GST Types", initializationErrors, () -> cmbGstType.getItems().setAll(lookupService.getValuesByCategoryCode("GST_TYPE")));
         if (!cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
-        cmbTransporter.getItems().setAll(lookupDAO.getValuesByCategoryCode("TRANSPORTER"));
+        safeLoad("Transporters", initializationErrors, () -> cmbTransporter.getItems().setAll(lookupService.getValuesByCategoryCode("TRANSPORTER")));
         cmbGstType.valueProperty().addListener((o,a,b) -> updateGstHeaders());
         updateGstHeaders();
 
@@ -256,29 +258,17 @@ public class SalesController {
         // Load Customers
         //-------------------------------------------------------
 
-        cmbCustomer.setItems(
-
-            FXCollections.observableArrayList(
-
-                partyService.getByType("CUSTOMER")
-
-            )
-
-        );
+        safeLoad("Customers", initializationErrors, () -> cmbCustomer.setItems(
+            FXCollections.observableArrayList(partyService.getByType("CUSTOMER"))
+        ));
 
         //-------------------------------------------------------
         // Load Items
         //-------------------------------------------------------
 
-        cmbItem.setItems(
-
-            FXCollections.observableArrayList(
-
-                itemService.getAll()
-
-            )
-
-        );
+        safeLoad("Items", initializationErrors, () -> cmbItem.setItems(
+            FXCollections.observableArrayList(itemService.getAll())
+        ));
 
         //-------------------------------------------------------
         // Customer Combo
@@ -1376,6 +1366,32 @@ public class SalesController {
 
 
 
+
+    private void safeLoad(String label, List<String> errors, Runnable loader) {
+        try {
+            loader.run();
+        } catch (Exception ex) {
+            String message = rootMessage(ex);
+            errors.add(label + ": " + message);
+            System.err.println("Create Sale initialization - " + label + ": " + message);
+            Platform.runLater(() -> {
+                if (errors.size() == 1) {
+                    new OwnedAlert(Alert.AlertType.WARNING,
+                        "Create Sale opened, but some API-backed master data could not be loaded.\n\n" +
+                        String.join("\n", errors) +
+                        "\n\nCheck that the Spring server is running and review its console for the matching endpoint error.")
+                        .showAndWait();
+                }
+            });
+        }
+    }
+
+    private String rootMessage(Throwable error) {
+        Throwable current = error;
+        while (current.getCause() != null && current.getCause() != current) current = current.getCause();
+        String message = current.getMessage();
+        return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
+    }
 
     private void configureExplicitTableHeaderIcons() {
         IconFactory.applyTableHeaderIcon(colItem, "item");

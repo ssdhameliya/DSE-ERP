@@ -13,13 +13,13 @@ import org.example.service.NotificationService;
 import org.example.util.IconFactory;
 
 public class ItemDialogController {
-    @FXML private TextField txtItemCode, txtDescription, txtSize, txtHSN, txtPurchasePrice,
+    @FXML private TextField txtItemCode, txtDescription, txtHSN, txtPurchasePrice,
             txtSellingPrice, txtOpeningStock, txtMinimumStock, txtLocation;
     @FXML private TextArea txtRemarks;
-    @FXML private ComboBox<String> cmbCategory, cmbMaterial, cmbUnit, cmbBrand, cmbGST, cmbDiscount;
+    @FXML private ComboBox<String> cmbCategory, cmbUnit, cmbGST, cmbDiscount;
     @FXML private Button btnSave, btnCancel;
     @FXML private Label lblTitle, lblSubtitle;
-    @FXML private Label errDescription, errCategory, errUnit, errGst, errDiscount, errSellingPrice,
+    @FXML private Label errDescription, errCategory, errUnit, errGst, errDiscount, errHSN, errSellingPrice,
             errPurchasePrice, errOpeningStock, errMinimumStock;
     @FXML private StackPane headerIconHolder;
 
@@ -44,9 +44,7 @@ public class ItemDialogController {
 
     private void loadDropdowns() {
         cmbCategory.getItems().setAll(lookupService.getValues("CATEGORY"));
-        cmbMaterial.getItems().setAll(lookupService.getValues("MATERIAL"));
         cmbUnit.getItems().setAll(lookupService.getValues("UNIT"));
-        cmbBrand.getItems().setAll(lookupService.getValues("BRAND"));
         cmbGST.getItems().setAll(lookupService.getValues("GST"));
         cmbDiscount.getItems().setAll(lookupService.getValues("DISCOUNT"));
         if (!cmbDiscount.getItems().isEmpty()) cmbDiscount.getSelectionModel().selectFirst();
@@ -63,9 +61,6 @@ public class ItemDialogController {
         txtItemCode.setText(safe(item.getItemCode()));
         txtDescription.setText(safe(item.getDescription()));
         cmbCategory.setValue(item.getCategory());
-        cmbBrand.setValue(item.getBrand());
-        cmbMaterial.setValue(item.getMaterial());
-        txtSize.setText(safe(item.getSize()));
         cmbUnit.setValue(item.getUnit());
         txtHSN.setText(safe(item.getHsn()));
         cmbGST.setValue(formatLookup(item.getGst()));
@@ -87,9 +82,9 @@ public class ItemDialogController {
             item.setItemCode(txtItemCode.getText().trim());
             item.setDescription(txtDescription.getText().trim());
             item.setCategory(cmbCategory.getValue());
-            item.setBrand(cmbBrand.getValue());
-            item.setMaterial(cmbMaterial.getValue());
-            item.setSize(txtSize.getText().trim());
+            item.setBrand(null);
+            item.setMaterial(null);
+            item.setSize(null);
             item.setUnit(cmbUnit.getValue());
             item.setHsn(txtHSN.getText().trim());
             item.setGst(parseLookupDouble(cmbGST));
@@ -108,6 +103,10 @@ public class ItemDialogController {
                     created ? "Item created" : "Item updated",
                     item.getItemCode() + " - " + item.getDescription(),
                     "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
+            Alert success = new OwnedAlert(Alert.AlertType.INFORMATION,
+                    created ? "Item added successfully." : "Item updated successfully.");
+            success.setHeaderText(created ? "Item Created" : "Item Updated");
+            success.showAndWait();
             closeDialog();
         } catch (Exception ex) {
             Alert alert = new OwnedAlert(Alert.AlertType.ERROR, ex.getMessage());
@@ -130,6 +129,10 @@ public class ItemDialogController {
         }
         if (cmbUnit.getValue() == null || cmbUnit.getValue().isBlank()) {
             showError(cmbUnit, errUnit, "Please select a unit.");
+            valid = false;
+        }
+        if (txtHSN.getText() == null || txtHSN.getText().trim().isBlank()) {
+            showError(txtHSN, errHSN, "HSN Code is required.");
             valid = false;
         }
         if (cmbGST.getValue() == null || cmbGST.getValue().isBlank()) {
@@ -185,6 +188,7 @@ public class ItemDialogController {
         txtDescription.textProperty().addListener((o, a, b) -> clearError(txtDescription, errDescription));
         cmbCategory.valueProperty().addListener((o, a, b) -> clearError(cmbCategory, errCategory));
         cmbUnit.valueProperty().addListener((o, a, b) -> clearError(cmbUnit, errUnit));
+        txtHSN.textProperty().addListener((o,a,b)->clearError(txtHSN,errHSN));
         cmbGST.valueProperty().addListener((o, a, b) -> clearError(cmbGST, errGst));
         cmbDiscount.valueProperty().addListener((o, a, b) -> clearError(cmbDiscount, errDiscount));
         txtSellingPrice.textProperty().addListener((o, a, b) -> clearError(txtSellingPrice, errSellingPrice));
@@ -212,6 +216,7 @@ public class ItemDialogController {
         clearError(txtDescription, errDescription);
         clearError(cmbCategory, errCategory);
         clearError(cmbUnit, errUnit);
+        clearError(txtHSN, errHSN);
         clearError(cmbGST, errGst);
         clearError(cmbDiscount, errDiscount);
         clearError(txtSellingPrice, errSellingPrice);

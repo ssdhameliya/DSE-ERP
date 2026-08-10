@@ -232,6 +232,9 @@ public class ItemMasterController {
             try {
                 service.delete(selected.getItemCode());
                 NotificationService.add("Item '" + selected.getDescription() + "' was deleted.");
+                Alert done = new OwnedAlert(Alert.AlertType.INFORMATION, "Item deleted successfully.");
+                done.setHeaderText("Item Deleted");
+                done.showAndWait();
                 loadItems();
             } catch (Exception e) {
                 showError("Could not delete item: " + e.getMessage());

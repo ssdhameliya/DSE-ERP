@@ -14,7 +14,7 @@
 
     <groupId>org.example</groupId>
     <artifactId>JavaApp</artifactId>
-    <version>5.0.4</version>
+    <version>5.0.6</version>
 
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
@@ -115,6 +115,12 @@
             <groupId>com.itextpdf</groupId>
             <artifactId>barcodes</artifactId>
             <version>7.2.3</version>
+        </dependency>
+
+        <!-- JSON for desktop REST API clients -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
 
         <!-- Email -->
