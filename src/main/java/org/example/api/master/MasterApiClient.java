@@ -42,7 +42,6 @@ public final class MasterApiClient {
  public String nextLookupCode(String type){return get("/api/master/lookups/next-code?type="+enc(type),NextCodeResponse.class).code();}
  public List<CategoryDto> categories(){return get("/api/master/categories",new TypeReference<List<CategoryDto>>(){});}
  public void addCategory(String name){postNoBody("/api/master/categories?name="+enc(name));}
- public CategoryDto upsertCategory(String code,String name,String description,int displayOrder,boolean active){return post("/api/master/categories/upsert",new UpsertCategoryRequest(code,name,description,displayOrder,active),CategoryDto.class);}
  public void renameCategory(String oldName,String newName){put("/api/master/categories/rename",new RenameCategoryRequest(oldName,newName),CategoryDto.class);}
  public void deleteCategory(String name){delete("/api/master/categories?name="+enc(name));}
 
@@ -64,6 +63,5 @@ public final class MasterApiClient {
  public record LookupDto(Integer id,String lookupType,String lookupCode,String lookupValue,String description,int displayOrder,boolean active){}
  public record CategoryDto(Integer id,String categoryCode,String categoryName,String description,int displayOrder,boolean active,long valueCount){}
  public record RenameCategoryRequest(String oldName,String newName){}
- public record UpsertCategoryRequest(String categoryCode,String categoryName,String description,int displayOrder,boolean active){}
  public record NextCodeResponse(String code){} public record ExistsResponse(boolean exists){} public record ValuesResponse(List<String> values){} public record OperationResponse(boolean success,String message){}
 }

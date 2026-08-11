@@ -524,6 +524,13 @@ public class DashboardController {
         openPage(btnBankExpense, "Bank Statement", "/fxml/pages/BankStatement.fxml");
     }
 
+    /** Lets administration child pages navigate inside the existing ERP shell. */
+    public static void navigateFromChildPage(String title, String fxmlPath) {
+        DashboardController c = CURRENT;
+        if (c == null) return;
+        javafx.application.Platform.runLater(() -> c.openPage(c.btnUserAccess, title, fxmlPath));
+    }
+
     /** Lets a feature page navigate through the existing cached ERP shell. */
     public static void navigateFromChild(String title, String fxmlPath, BankExpenseController.Mode mode) {
         DashboardController c = CURRENT;

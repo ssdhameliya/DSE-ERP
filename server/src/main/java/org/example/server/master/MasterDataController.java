@@ -31,7 +31,6 @@ public class MasterDataController {
 
  @GetMapping("/categories") public List<MasterDtos.CategoryDto> categories(){return service.categories();}
  @PostMapping("/categories") public MasterDtos.CategoryDto addCategory(@RequestParam String name){return service.addCategory(name);}
- @PostMapping("/categories/upsert") public MasterDtos.CategoryDto upsertCategory(@RequestBody MasterDtos.UpsertCategoryRequest r){return service.upsertCategory(r);}
  @PutMapping("/categories/rename") public MasterDtos.CategoryDto rename(@RequestBody MasterDtos.RenameCategoryRequest r){return service.renameCategory(r.oldName(),r.newName());}
  @DeleteMapping("/categories") public MasterDtos.OperationResponse deleteCategory(@RequestParam String name){service.deleteCategory(name);return new MasterDtos.OperationResponse(true,"OK");}
 }

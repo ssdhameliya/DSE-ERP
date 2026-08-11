@@ -439,10 +439,9 @@ public class ReminderCenterController {
                 actions.setTooltip(new Tooltip("Open reminder actions"));
                 actions.getProperties().put("erp.icon.skip", true);
                 actions.setAccessibleText("Reminder actions");
-                actions.setText("Actions");
-                actions.setGraphic(IconFactory.compactIcon("reminder", 15));
-                actions.setContentDisplay(ContentDisplay.LEFT);
-                actions.setGraphicTextGap(6);
+                actions.setText("•••");
+                actions.setGraphic(null);
+                actions.setContentDisplay(ContentDisplay.TEXT_ONLY);
                 actions.getStyleClass().addAll("reminder-action-button", "reminder-three-dot-button");
                 setAlignment(Pos.CENTER);
 

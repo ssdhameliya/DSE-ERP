@@ -3,6 +3,7 @@ package org.example.service;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.example.database.DatabaseManager;
 import org.example.model.Item;
 import org.example.model.Party;
 
@@ -14,6 +15,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.sql.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
@@ -113,14 +115,17 @@ public final class ItemSpreadsheetService {
     private Item readCsvItem(String[]v){Item i=new Item();i.setItemCode(cv(v,0));i.setDescription(cv(v,1));if(i.getItemCode().isBlank())throw new IllegalArgumentException("Item Code is required");if(i.getDescription().isBlank())throw new IllegalArgumentException("Description is required");i.setCategory(cv(v,2));i.setUnit(cv(v,3));i.setHsn(cv(v,4));if(i.getHsn().isBlank())throw new IllegalArgumentException("HSN Code is required");i.setGst(cn(v,5));i.setDiscountPercent(cn(v,6));i.setPurchasePrice(cn(v,7));i.setSellingPrice(cn(v,8));i.setRemarks(cv(v,9));i.setOpeningStock(cn(v,10));i.setMinimumStock(cn(v,11));i.setLocation(cv(v,12));i.setBrand(null);i.setMaterial(null);i.setSize(null);return i;}
 
     private void persistAll(List<Item> items) throws IOException {
-        // All item imports use ItemService. In PostgreSQL/API mode this is
-        // JavaFX -> REST -> Spring -> JPA/Hibernate -> PostgreSQL.
-        // No desktop JDBC writes are permitted in the import path.
-        try {
-            for (Item item : items) itemService.saveOrUpdate(item);
-        } catch (Exception e) {
-            throw new IOException("Item import failed through ERP service: " + e.getMessage(), e);
-        }
+        String sql="""
+            INSERT INTO item_master(item_code,description,category,brand,material,size,unit,hsn,gst,discount_percent,purchase_price,selling_price,opening_stock,minimum_stock,location,remarks)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(item_code) DO UPDATE SET
+              description=excluded.description, category=excluded.category, brand=excluded.brand,
+              material=excluded.material, size=excluded.size, unit=excluded.unit, hsn=excluded.hsn,
+              gst=excluded.gst, discount_percent=excluded.discount_percent, purchase_price=excluded.purchase_price, selling_price=excluded.selling_price,
+              opening_stock=excluded.opening_stock, minimum_stock=excluded.minimum_stock,
+              location=excluded.location, remarks=excluded.remarks
+            """;
+        try(Connection c=DatabaseManager.getConnection();PreparedStatement p=c.prepareStatement(sql)){c.setAutoCommit(false);try{for(Item i:items){p.setString(1,i.getItemCode());p.setString(2,i.getDescription());p.setString(3,i.getCategory());p.setString(4,i.getBrand());p.setString(5,i.getMaterial());p.setString(6,i.getSize());p.setString(7,i.getUnit());p.setString(8,i.getHsn());p.setDouble(9,i.getGst());p.setDouble(10,i.getDiscountPercent());p.setDouble(11,i.getPurchasePrice());p.setDouble(12,i.getSellingPrice());p.setDouble(13,i.getOpeningStock());p.setDouble(14,i.getMinimumStock());p.setString(15,i.getLocation());p.setString(16,i.getRemarks());p.addBatch();}p.executeBatch();c.commit();}catch(Exception e){c.rollback();throw e;}}catch(Exception e){throw new IOException("No items were imported. Database transaction was rolled back: "+e.getMessage(),e);}
     }
 
     private Item readItem(Row row, DataFormatter f) {

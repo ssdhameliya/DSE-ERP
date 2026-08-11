@@ -401,3 +401,19 @@
 .bank-audit-event { -fx-font-weight: 900; }
 .bank-audit-detail { -fx-font-size: 11px; }
 .bank-audit-meta { -fx-font-size: 10px; -fx-opacity: .72; }
+/* DSE ERP 5.0.7 - approved full-screen administration + import workflow */
+.ua-premium-header { -fx-padding: 10 12; -fx-background-radius: 12; -fx-border-radius: 12; }
+.ua-full-card, .import-stage-card { -fx-padding: 14; -fx-background-radius: 14; -fx-border-radius: 14; }
+.import-wizard-bar { -fx-padding: 10 24 12 24; }
+.wizard-badge { -fx-min-width: 30; -fx-min-height: 30; -fx-alignment: center; -fx-background-radius: 18; -fx-font-weight: 800; }
+.wizard-active { -fx-background-color: #1769ff; -fx-text-fill: white; -fx-effect: dropshadow(gaussian, rgba(23,105,255,.55), 12, .35, 0, 0); }
+.wizard-done { -fx-background-color: #159957; -fx-text-fill: white; }
+.wizard-pending { -fx-background-color: rgba(75,96,126,.28); -fx-text-fill: #b7c4d8; -fx-border-color: #4a607e; -fx-border-radius: 18; }
+.wizard-title { -fx-font-weight: 800; -fx-padding: 5 0 1 0; }
+.wizard-line { -fx-min-height: 2; -fx-max-height: 2; -fx-background-color: #315070; -fx-translate-y: -18; }
+.import-choice-card { -fx-padding: 18; -fx-background-color: rgba(25,48,78,.68); -fx-border-color: rgba(91,132,181,.38); -fx-border-radius: 12; -fx-background-radius: 12; }
+.import-choice-card:hover { -fx-border-color: #2f80ff; -fx-background-color: rgba(28,58,96,.88); }
+.import-drop-zone-large { -fx-min-height: 310; -fx-border-style: segments(8,6); -fx-border-width: 1.4; -fx-border-radius: 12; -fx-background-radius: 12; }
+.import-selected-file-panel { -fx-padding: 20; -fx-background-color: rgba(24,45,72,.72); -fx-border-color: rgba(82,119,160,.42); -fx-border-radius: 12; -fx-background-radius: 12; }
+.import-benefits { -fx-padding: 12 16; -fx-background-color: rgba(19,43,69,.72); -fx-background-radius: 10; }
+.import-benefits .label { -fx-font-weight: 700; }

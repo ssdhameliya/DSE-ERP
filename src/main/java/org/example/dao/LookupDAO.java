@@ -254,9 +254,4 @@ public class LookupDAO {
 
     }
 
-
-    public void ensureCategory(String code,String name,String description){
-        String sql="INSERT INTO master_category(category_code,category_name,description,is_active) VALUES(?,?,?,1) ON CONFLICT(category_code) DO UPDATE SET category_name=excluded.category_name,description=excluded.description";
-        try(java.sql.Connection c=org.example.database.DatabaseManager.getConnection(); java.sql.PreparedStatement ps=c.prepareStatement(sql)){ps.setString(1,code);ps.setString(2,name);ps.setString(3,description);ps.executeUpdate();}catch(Exception e){throw new RuntimeException(e);}
-    }
 }

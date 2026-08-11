@@ -1,131 +1,16 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserAccessController" spacing="10" styleClass="user-access-page,user-access-v2,approved-ui,approved-screen,approved-screen-user-access,erp-screen-root">
-    <padding><Insets top="14" right="16" bottom="12" left="16"/></padding>
-
-    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="user-access-header,approved-section-header,erp-page-identity-header">
-        <StackPane fx:id="userAccessPageIcon" styleClass="erp-page-header-icon"/>
-        <VBox spacing="2">
-            <Label text="User Access &amp; Permissions" styleClass="page-heading,user-access-title"/>
-            <Label text="Manage users, roles and system access permissions" styleClass="muted-label"/>
-        </VBox>
-        <Region HBox.hgrow="ALWAYS"/>
-        <Button text="Add New User" onAction="#addUser" styleClass="primary-button,user-access-add-user"/>
-        <Button text="Manage Roles" onAction="#manageRoles" styleClass="user-access-header-button,approved-button,approved-secondary-button"/>
-        <Button text="Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-header-button,user-access-permission-button,approved-button,approved-secondary-button"/>
-    </HBox>
-
-    <TextField fx:id="txtSearch" visible="false" managed="false" text=""/>
-
-    <HBox spacing="12" styleClass="user-access-kpi-row,erp-kpi-section">
-        <VBox styleClass="user-kpi,user-kpi-purple" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-purple"><Label fx:id="iconTotalUsers"/></StackPane><VBox><Label text="Total Users" styleClass="metric-title"/><Label fx:id="lblTotal" text="0" styleClass="metric-value"/><Label text="All system users" styleClass="muted-label"/></VBox></HBox>
-        </VBox>
-        <VBox styleClass="user-kpi,user-kpi-green" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-green"><Label fx:id="iconActiveUsers"/></StackPane><VBox><Label text="Active Users" styleClass="metric-title"/><Label fx:id="lblActive" text="0" styleClass="metric-value"/><Label text="Currently active" styleClass="muted-label,user-success-text"/></VBox></HBox>
-        </VBox>
-        <VBox styleClass="user-kpi,user-kpi-blue" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-blue"><Label fx:id="iconRoles"/></StackPane><VBox><Label text="Roles" styleClass="metric-title"/><Label fx:id="lblRoles" text="0" styleClass="metric-value"/><Label text="System roles" styleClass="muted-label"/></VBox></HBox>
-        </VBox>
-        <VBox styleClass="user-kpi,user-kpi-red" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-red"><Label fx:id="iconLocked"/></StackPane><VBox><Label text="Locked Accounts" styleClass="metric-title"/><Label fx:id="lblLocked" text="0" styleClass="metric-value"/><Label text="Temporarily locked" styleClass="muted-label,user-danger-text"/></VBox></HBox>
-        </VBox>
-        <VBox styleClass="user-kpi,user-kpi-cyan" HBox.hgrow="ALWAYS">
-            <HBox spacing="10" alignment="CENTER_LEFT"><StackPane styleClass="user-kpi-icon,user-kpi-icon-cyan"><Label fx:id="iconLogins"/></StackPane><VBox><Label text="Login Activity (Today)" styleClass="metric-title"/><Label fx:id="lblLogins" text="0" styleClass="metric-value"/><Label text="Successful logins" styleClass="muted-label"/></VBox></HBox>
-        </VBox>
-    </HBox>
-
-    <GridPane hgap="10" vgap="10" VBox.vgrow="ALWAYS" styleClass="user-access-main-grid">
-        <columnConstraints>
-            <ColumnConstraints percentWidth="58" hgrow="ALWAYS"/>
-            <ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
-        </columnConstraints>
-
-        <VBox spacing="9" styleClass="user-access-card,user-access-users-card" GridPane.columnIndex="0">
-            <HBox alignment="CENTER_LEFT">
-                <VBox spacing="1"><Label text="Users" styleClass="section-title"/><Label text="Manage and monitor all system users" styleClass="muted-label"/></VBox>
-                <Region HBox.hgrow="ALWAYS"/>
-            </HBox>
-            <HBox spacing="8">
-                <ComboBox fx:id="cmbRole" promptText="All Roles" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-input"/>
-                <ComboBox fx:id="cmbStatus" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-input"/>
-                <ComboBox fx:id="cmbBranch" promptText="All Branches" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-input"/>
-                <Button text="Refresh" onAction="#refresh" styleClass="user-access-refresh,approved-button,approved-secondary-button"/>
-            </HBox>
-            <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="user-access-user-table,approved-table,erp-table-profile-administration">
-                <columns>
-                    <TableColumn fx:id="colUser" text="User" prefWidth="135" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colEmail" text="Email / Username" prefWidth="185" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colRole" text="Role" prefWidth="80" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colDepartment" text="Department" prefWidth="90" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colAccess" text="Access" prefWidth="90" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colBranch" text="Branch" prefWidth="80" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colStatus" text="Status" prefWidth="82" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colLastLogin" text="Last Login" prefWidth="125" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colMfa" text="MFA" prefWidth="60" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colActions" text="" minWidth="86" prefWidth="86" maxWidth="86" resizable="false" styleClass="approved-table-column"/>
-                </columns>
-            </TableView>
-            <HBox spacing="8" alignment="CENTER_RIGHT" styleClass="user-access-bottom-actions">
-                <Button text="Edit Selected" onAction="#editSelected" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Reset Password" onAction="#resetSelected" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Add New User" onAction="#addUser" styleClass="primary-button"/>
-            </HBox>
-        </VBox>
-
-        <VBox spacing="8" styleClass="user-access-card,user-access-role-card" GridPane.columnIndex="1">
-            <HBox alignment="CENTER_LEFT">
-                <VBox spacing="1"><Label text="Roles &amp; Permissions" styleClass="section-title"/><Label text="Manage dynamic roles and their database permissions" styleClass="muted-label"/></VBox>
-            </HBox>
-            <TabPane fx:id="accessTabs" VBox.vgrow="ALWAYS" tabClosingPolicy="UNAVAILABLE" styleClass="user-access-tabs">
-                <tabs>
-                    <Tab fx:id="tabRoles" text="Roles">
-                        <VBox spacing="8">
-                            <HBox alignment="CENTER_LEFT">
-                                <VBox spacing="1"><Label text="System Roles" styleClass="section-title"/><Label text="Create, edit and manage user roles" styleClass="muted-label"/></VBox>
-                                <Region HBox.hgrow="ALWAYS"/>
-                                <Button text="Add Role" onAction="#addRole" styleClass="primary-button"/>
-                                <Button text="Edit" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/>
-                                <Button text="Delete" onAction="#deleteRole" styleClass="danger-button"/>
-                            </HBox>
-                            <TableView fx:id="roleTable" prefHeight="235" VBox.vgrow="ALWAYS" styleClass="user-access-role-table,approved-table,erp-table-profile-administration">
-                                <columns>
-                                    <TableColumn fx:id="colRoleName" text="Role Name" prefWidth="100" styleClass="approved-table-column"/>
-                                    <TableColumn fx:id="colRoleDescription" text="Description" prefWidth="230" styleClass="approved-table-column"/>
-                                    <TableColumn fx:id="colRoleUsers" text="Users" prefWidth="55" styleClass="approved-table-column"/>
-                                    <TableColumn fx:id="colRoleStatus" text="Status" prefWidth="72" styleClass="approved-table-column"/>
-                                    <TableColumn fx:id="colRoleActions" text="" minWidth="82" prefWidth="82" maxWidth="82" resizable="false" styleClass="approved-table-column"/>
-                                </columns>
-                            </TableView>
-                            <Label text="Role Permissions Overview" styleClass="section-title,user-role-overview-title"/>
-                            <Label text="Select a role and open Permission Matrix to view or change its current access." wrapText="true" styleClass="user-role-overview-hint"/>
-                            <HBox spacing="8" alignment="CENTER_RIGHT">
-                                <Button text="Open Permission Matrix" onAction="#showPermissionMatrix" styleClass="user-access-permission-button,approved-button,approved-secondary-button"/>
-                            </HBox>
-                        </VBox>
-                    </Tab>
-                    <Tab fx:id="tabPermissions" text="Permission Matrix">
-                        <VBox spacing="8">
-                            <HBox alignment="CENTER_LEFT" spacing="8" styleClass="permission-role-toolbar,approved-toolbar">
-                                <Label text="Select Role"/>
-                                <ComboBox fx:id="cmbPermissionRole" prefWidth="180" styleClass="approved-input"/>
-                                <Label fx:id="lblRoleHint" text="Select a role to review permissions" styleClass="muted-label" HBox.hgrow="ALWAYS"/>
-                            </HBox>
-                            <TableView fx:id="permissionTable" editable="true" VBox.vgrow="ALWAYS" styleClass="user-access-permission-table,approved-table,erp-table-profile-administration">
-                                <columns>
-                                    <TableColumn fx:id="colPermissionModule" text="Module" prefWidth="100" styleClass="approved-table-column"/>
-                                    <TableColumn fx:id="colPermissionAction" text="" prefWidth="105" styleClass="approved-table-column"/>
-                                    <TableColumn fx:id="colPermissionDescription" text="Description" prefWidth="245" styleClass="approved-table-column"/>
-                                    <TableColumn fx:id="colPermissionAllowed" text="Allowed" prefWidth="70" editable="true" styleClass="approved-table-column"/>
-                                </columns>
-                            </TableView>
-                            <HBox spacing="8" alignment="CENTER_RIGHT">
-                                <Button text="Reset Changes" onAction="#resetPermissions" styleClass="approved-button,approved-secondary-button"/>
-                                <Button text="Save Permissions" onAction="#savePermissions" styleClass="primary-button"/>
-                            </HBox>
-                        </VBox>
-                    </Tab>
-                </tabs>
-            </TabPane>
-        </VBox>
-    </GridPane>
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserAccessController" spacing="12" styleClass="user-access-page,approved-ui,erp-screen-root">
+ <padding><Insets top="14" right="18" bottom="14" left="18"/></padding>
+ <HBox alignment="CENTER_LEFT" spacing="12" styleClass="ua-premium-header"><StackPane fx:id="userAccessPageIcon" styleClass="erp-page-header-icon"/><VBox spacing="2"><Label text="User Access &amp; Permissions" styleClass="screen-title"/><Label text="Manage users, account security and access from one administration workspace" styleClass="screen-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Manage Roles" onAction="#manageRoles" styleClass="approved-button,approved-secondary-button"/><Button text="Permission Matrix" onAction="#showPermissionMatrix" styleClass="primary-button"/><Button text="Add New User" onAction="#addUser" styleClass="primary-button,user-access-add-user"/></HBox>
+ <TextField fx:id="txtSearch" visible="false" managed="false"/>
+ <HBox spacing="10"><VBox styleClass="user-kpi,user-kpi-purple" HBox.hgrow="ALWAYS"><Label text="Total Users" styleClass="metric-title"/><Label fx:id="lblTotal" text="0" styleClass="metric-value"/><Label fx:id="iconTotalUsers" visible="false"/></VBox><VBox styleClass="user-kpi,user-kpi-green" HBox.hgrow="ALWAYS"><Label text="Active Users" styleClass="metric-title"/><Label fx:id="lblActive" text="0" styleClass="metric-value"/><Label fx:id="iconActiveUsers" visible="false"/></VBox><VBox styleClass="user-kpi,user-kpi-blue" HBox.hgrow="ALWAYS"><Label text="Roles" styleClass="metric-title"/><Label fx:id="lblRoles" text="0" styleClass="metric-value"/><Label fx:id="iconRoles" visible="false"/></VBox><VBox styleClass="user-kpi,user-kpi-red" HBox.hgrow="ALWAYS"><Label text="Locked Accounts" styleClass="metric-title"/><Label fx:id="lblLocked" text="0" styleClass="metric-value"/><Label fx:id="iconLocked" visible="false"/></VBox><VBox styleClass="user-kpi,user-kpi-cyan" HBox.hgrow="ALWAYS"><Label text="Login Activity Today" styleClass="metric-title"/><Label fx:id="lblLogins" text="0" styleClass="metric-value"/><Label fx:id="iconLogins" visible="false"/></VBox></HBox>
+ <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="user-access-card,ua-full-card"><HBox alignment="CENTER_LEFT"><VBox><Label text="User Management" styleClass="section-title"/><Label text="Search, filter and manage ERP users" styleClass="muted-label"/></VBox><Region HBox.hgrow="ALWAYS"/><ComboBox fx:id="cmbRole" promptText="All Roles" prefWidth="180" styleClass="approved-input"/><ComboBox fx:id="cmbStatus" prefWidth="160" styleClass="approved-input"/><ComboBox fx:id="cmbBranch" promptText="All Branches" prefWidth="180" styleClass="approved-input"/><Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/></HBox>
+ <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="user-access-user-table,approved-table,erp-table-profile-administration"><columns><TableColumn fx:id="colUser" text="User"/><TableColumn fx:id="colEmail" text="Email / Username"/><TableColumn fx:id="colRole" text="Role"/><TableColumn fx:id="colDepartment" text="Department"/><TableColumn fx:id="colAccess" text="Access"/><TableColumn fx:id="colBranch" text="Branch"/><TableColumn fx:id="colStatus" text="Status"/><TableColumn fx:id="colLastLogin" text="Last Login"/><TableColumn fx:id="colMfa" text="MFA"/><TableColumn fx:id="colActions" text=""/></columns></TableView>
+ <HBox spacing="8" alignment="CENTER_RIGHT"><Button text="Edit Selected" onAction="#editSelected" styleClass="approved-button,approved-secondary-button"/><Button text="Reset Password" onAction="#resetSelected" styleClass="approved-button,approved-secondary-button"/><Button text="Add New User" onAction="#addUser" styleClass="primary-button"/></HBox></VBox>
+ <!-- hidden compatibility controls: roles/permissions now live on separate full pages -->
+ <TabPane fx:id="accessTabs" visible="false" managed="false"><tabs><Tab fx:id="tabRoles"/><Tab fx:id="tabPermissions"/></tabs></TabPane>
+ <ComboBox fx:id="cmbPermissionRole" visible="false" managed="false"/><Label fx:id="lblRoleHint" visible="false" managed="false"/>
+ <TableView fx:id="roleTable" visible="false" managed="false"><columns><TableColumn fx:id="colRoleName"/><TableColumn fx:id="colRoleDescription"/><TableColumn fx:id="colRoleUsers"/><TableColumn fx:id="colRoleStatus"/><TableColumn fx:id="colRoleActions"/></columns></TableView>
+ <TableView fx:id="permissionTable" visible="false" managed="false"><columns><TableColumn fx:id="colPermissionModule"/><TableColumn fx:id="colPermissionAction"/><TableColumn fx:id="colPermissionDescription"/><TableColumn fx:id="colPermissionAllowed"/></columns></TableView>
 </VBox>

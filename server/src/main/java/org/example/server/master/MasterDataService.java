@@ -189,16 +189,6 @@ public class MasterDataService {
     }
 
     @Transactional
-    public MasterDtos.CategoryDto upsertCategory(MasterDtos.UpsertCategoryRequest r) {
-        String n = normal(r.categoryName());
-        String c = r.categoryCode() == null || r.categoryCode().isBlank() ? code(n) : normal(r.categoryCode());
-        MasterCategoryEntity e = categories.findByCategoryCode(c).orElseGet(MasterCategoryEntity::new);
-        e.setCategoryCode(c); e.setCategoryName(n); e.setDescription(r.description());
-        e.setDisplayOrder(r.displayOrder()); e.setActive(r.active()?1:0);
-        return categoryDto(categories.save(e), lookups.countByLookupType(n));
-    }
-
-    @Transactional
     public MasterDtos.CategoryDto addCategory(String name) {
         String n = normal(name), code = code(n);
         if (categories.findByCategoryName(n).isPresent()) throw new IllegalArgumentException("Category already exists");

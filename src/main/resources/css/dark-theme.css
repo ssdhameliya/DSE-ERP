@@ -6140,13 +6140,3 @@ TABLE ACTION BUTTONS
 .import-page .import-page-header { -fx-min-height: 72; -fx-pref-height: 72; -fx-padding: 10 14; }
 .import-page .import-main-scroll { -fx-background-insets: 0; -fx-padding: 0; }
 .import-page .import-workspace { -fx-spacing: 12; }
-
-/* 5.0.6 import wizard polish */
-.import-page .import-wizard-step { -fx-background-color:#101d30; -fx-border-color:#334a68; -fx-text-fill:#b9c7db; -fx-font-weight:800; }
-.import-page .import-wizard-step-active { -fx-background-color:#17345b; -fx-border-color:#3b82f6; -fx-text-fill:#dbeafe; }
-.import-page .import-selection-card { -fx-background-color:#101e32; -fx-border-color:#2a405e; }
-.import-page .import-selection-card:hover { -fx-border-color:#4f86d9; -fx-background-color:#132640; }
-.import-page .import-wizard-kpi { -fx-background-color:#112039; -fx-border-color:#314a70; }
-.import-page .import-drop-zone { -fx-background-color:#0e1c30; -fx-border-color:#3b82f6; -fx-border-style:dashed; -fx-border-width:1.5; -fx-border-radius:14; -fx-background-radius:14; }
-.import-page .import-mapping-grid { -fx-background-color:#0f1c2f; }
-.import-page .import-progress-card { -fx-background-color:#102238; -fx-border-color:#31506f; -fx-padding:10; -fx-background-radius:10; -fx-border-radius:10; }

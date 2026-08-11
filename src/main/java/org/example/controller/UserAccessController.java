@@ -144,8 +144,8 @@ public class UserAccessController {
         catch(Exception e){error("Permissions could not be saved",e);}
     }
     @FXML private void resetPermissions(){loadPermissions(cmbPermissionRole.getValue());}
-    @FXML private void showPermissionMatrix(){accessTabs.getSelectionModel().select(tabPermissions);if(cmbPermissionRole.getValue()==null&&!roles.isEmpty())cmbPermissionRole.setValue(roles.get(0).name.get());}
-    @FXML private void manageRoles(){accessTabs.getSelectionModel().select(tabRoles);}
+    @FXML private void showPermissionMatrix(){ DashboardController.navigateFromChildPage("Permission Matrix", "/fxml/pages/PermissionMatrix.fxml"); }
+    @FXML private void manageRoles(){ DashboardController.navigateFromChildPage("Role Management", "/fxml/pages/RoleManagement.fxml"); }
 
     @FXML private void addUser(){openUserDialog(null);} @FXML private void editSelected(){edit(table.getSelectionModel().getSelectedItem());}
     private void edit(UserRow row){if(row!=null)openUserDialog(row.id);}

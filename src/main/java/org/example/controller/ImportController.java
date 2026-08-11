@@ -69,13 +69,13 @@ public class ImportController {
 
     @FXML private VBox dropZone;
     @FXML private VBox progressContainer;
-    @FXML private VBox step1Panel, step2Panel, step3Panel, step4Panel;
-    @FXML private Label step1Badge, step2Badge, step3Badge, step4Badge;
 
     @FXML private TableView<Map<String, String>> tblPreview;
 
     @FXML private ProgressBar progressBar;
     @FXML private CheckBox chkDryRun;
+    @FXML private VBox stepSelect, stepUpload, stepMap, stepReview;
+    @FXML private Label step1Badge, step2Badge, step3Badge, step4Badge;
 
     /* =========================================================
        SERVICES AND STATE
@@ -214,7 +214,8 @@ public class ImportController {
         progressContainer.setManaged(false);
 
         btnRunImport.setDisable(true);
-        showStep(requestedModule != null && !requestedModule.isBlank() ? 2 : 1);
+
+        showWizardStep(1);
 
         cmbImportModule.valueProperty().addListener(
             (observable, oldValue, newValue) -> {
@@ -226,6 +227,26 @@ public class ImportController {
                 reloadSelectedWorkbookForModule();
             }
         );
+    }
+
+
+    @FXML private void selectItemMaster(){ selectModuleAndContinue("Item Master"); }
+    @FXML private void selectCustomers(){ selectModuleAndContinue("Customers/CRM"); }
+    @FXML private void selectSuppliers(){ selectModuleAndContinue("Suppliers/HRM"); }
+    @FXML private void selectSales(){ selectModuleAndContinue("Sales"); }
+    @FXML private void selectPurchases(){ selectModuleAndContinue("Purchases"); }
+    @FXML private void selectMasterValues(){ selectModuleAndContinue("Master Categories and Values"); }
+    private void selectModuleAndContinue(String module){ cmbImportModule.setValue(module); showWizardStep(2); }
+    @FXML private void wizardBackToSelect(){ showWizardStep(1); }
+    @FXML private void wizardBackToUpload(){ showWizardStep(2); }
+    @FXML private void wizardBackToMap(){ showWizardStep(3); }
+    @FXML private void wizardContinueUpload(){ if(selectedFile==null){showWarning("Choose a file","Select an import file before continuing.");return;} showWizardStep(3); }
+    @FXML private void wizardContinueMap(){ if(!requiredMappingsComplete()){showWarning("Required mappings are missing","Map all required fields before continuing.");return;} showWizardStep(4); }
+    private void showWizardStep(int step){
+        VBox[] panes={stepSelect,stepUpload,stepMap,stepReview};
+        for(int i=0;i<panes.length;i++) if(panes[i]!=null){panes[i].setVisible(i==step-1);panes[i].setManaged(i==step-1);}
+        Label[] badges={step1Badge,step2Badge,step3Badge,step4Badge};
+        for(int i=0;i<badges.length;i++) if(badges[i]!=null){badges[i].getStyleClass().removeAll("wizard-active","wizard-done");badges[i].getStyleClass().add(i==step-1?"wizard-active":i<step-1?"wizard-done":"wizard-pending");}
     }
 
     private void configureIcons() {
@@ -254,31 +275,6 @@ public class ImportController {
         tblPreview.setColumnResizePolicy(
             TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
         );
-    }
-
-    @FXML private void selectItemMaster(){ selectImportModule("Item Master"); }
-    @FXML private void selectCustomers(){ selectImportModule("Customers/CRM"); }
-    @FXML private void selectSuppliers(){ selectImportModule("Suppliers/HRM"); }
-    @FXML private void selectSales(){ selectImportModule("Sales"); }
-    @FXML private void selectPurchases(){ selectImportModule("Purchases"); }
-    @FXML private void selectMasters(){ selectImportModule("Master Categories and Values"); }
-    @FXML private void selectBankStatement(){ selectImportModule("Bank Statement"); }
-    private void selectImportModule(String module){ cmbImportModule.setValue(module); showStep(2); }
-    @FXML private void goStep1(){ showStep(1); }
-    @FXML private void goStep2(){ showStep(2); }
-    @FXML private void goStep3(){
-        if(selectedFile==null){ new OwnedAlert(Alert.AlertType.WARNING,"Choose an import file before continuing.").showAndWait(); return; }
-        showStep(3);
-    }
-    @FXML private void goStep4(){
-        if(selectedFile==null){ new OwnedAlert(Alert.AlertType.WARNING,"Choose an import file before continuing.").showAndWait(); return; }
-        showStep(4);
-    }
-    private void showStep(int step){
-        VBox[] panels={step1Panel,step2Panel,step3Panel,step4Panel};
-        for(int i=0;i<panels.length;i++) if(panels[i]!=null){boolean on=i==step-1;panels[i].setVisible(on);panels[i].setManaged(on);}
-        Label[] badges={step1Badge,step2Badge,step3Badge,step4Badge};
-        for(int i=0;i<badges.length;i++) if(badges[i]!=null){badges[i].getStyleClass().remove("import-wizard-step-active");if(i==step-1&&!badges[i].getStyleClass().contains("import-wizard-step-active"))badges[i].getStyleClass().add("import-wizard-step-active");}
     }
 
     /* =========================================================
@@ -1503,11 +1499,6 @@ public class ImportController {
 
     @FXML
     private void onRunImport() {
-        if (!org.example.config.ConfigManager.isApiDataEnabled()) {
-            new OwnedAlert(Alert.AlertType.ERROR,
-                "Data Import requires the Spring API runtime in the PostgreSQL model. Start the DSE ERP server and try again.").showAndWait();
-            return;
-        }
         runImport();
     }
 
