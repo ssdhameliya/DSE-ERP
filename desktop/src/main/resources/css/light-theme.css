@@ -6906,7 +6906,7 @@ SECTION TITLES
 .sales-register-page .sales-screen-title { -fx-font-size: 22px; }
 
 
-/* ===== DSE ERP 5.1.24 Sales Register split-safe KPI stabilization =====
+/* ===== DSE ERP 5.1.25 Sales Register split-safe KPI stabilization =====
    KPI strip now lives inside the left SplitPane workspace so opening invoice
    details resizes KPI/filter/table together instead of allowing overlap. */
 .sales-register-page .sales-register-workspace > .sales-kpi-panel {
@@ -6943,4 +6943,4 @@ SECTION TITLES
 .sales-register-page .sales-register-workspace {
     -fx-spacing: 10px;
 }
-/* ===== End DSE ERP 5.1.24 Sales Register split-safe KPI stabilization ===== */
+/* ===== End DSE ERP 5.1.25 Sales Register split-safe KPI stabilization ===== */

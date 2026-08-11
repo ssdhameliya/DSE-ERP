@@ -30,7 +30,7 @@ Copy-Item $Jar (Join-Path $Input "DSE_Final.jar")
 New-Item -ItemType Directory -Path (Join-Path $Input "server") -Force | Out-Null
 Copy-Item $ServerJar (Join-Path $Input "server\dse-erp-server.jar")
 
-# 5.1.24 managed PostgreSQL payload. DSE_POSTGRES_RUNTIME_DIR may point to an extracted
+# 5.1.25 managed PostgreSQL payload. DSE_POSTGRES_RUNTIME_DIR may point to an extracted
 # PostgreSQL 18 binary distribution. Development/release machines can also use the standard install.
 $PostgresCandidates = @()
 if ($env:DSE_POSTGRES_RUNTIME_DIR) { $PostgresCandidates += $env:DSE_POSTGRES_RUNTIME_DIR }
@@ -63,6 +63,7 @@ $CommonArgs = @(
     '--input', $Input,
     '--main-jar', 'DSE_Final.jar',
     '--main-class', 'org.example.app.Launcher',
+    '--jlink-options', '--strip-debug --no-man-pages --no-header-files',
     '--java-options', '-Dfile.encoding=UTF-8',
     '--java-options', '--enable-native-access=ALL-UNNAMED',
     '--java-options', '-Ddse.erp.nativeAccessRelaunch=true',
@@ -73,6 +74,13 @@ if (Test-Path $Icon) { $CommonArgs += @('--icon', $Icon) }
 # Build an app image first so packaging failures are easier to diagnose.
 $AppImageArgs = @('--type', 'app-image') + $CommonArgs + @('--dest', $AppImage)
 & jpackage @AppImageArgs
+if ($LASTEXITCODE -ne 0) { throw "jpackage app-image creation failed." }
+
+$BundledJava = Join-Path $AppImage "DSE ERP\runtime\bin\java.exe"
+if (-not (Test-Path $BundledJava)) {
+    throw "Production app image is missing bundled Java launcher: $BundledJava"
+}
+Write-Host "Verified bundled Java launcher: $BundledJava" -ForegroundColor DarkCyan
 
 $ExeArgs = @(
     '--type', 'exe'
@@ -86,6 +94,7 @@ $ExeArgs = @(
     '--win-upgrade-uuid', '8cef21e1-7e8c-5b0a-8d50-a38685db0f96'
 )
 & jpackage @ExeArgs
+if ($LASTEXITCODE -ne 0) { throw "jpackage Windows installer creation failed." }
 
 $Exe = Get-ChildItem $Dest -Filter '*.exe' | Select-Object -First 1
 if (-not $Exe) { throw "Windows installer was not produced." }

@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.24 managed PostgreSQL payload. For release packaging, point
+# 5.1.25 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -75,6 +75,7 @@ COMMON=(
   --input "$INPUT"
   --main-jar "DSE_Final.jar"
   --main-class "org.example.app.Launcher"
+  --jlink-options "--strip-debug --no-man-pages --no-header-files"
   --java-options "-Dfile.encoding=UTF-8"
   --java-options "--enable-native-access=ALL-UNNAMED"
   --java-options "-Ddse.erp.nativeAccessRelaunch=true"
@@ -85,6 +86,14 @@ COMMON=(
 [[ -f "$ICNS" ]] && COMMON+=(--icon "$ICNS")
 
 jpackage --type app-image "${COMMON[@]}" --dest "$APP_IMAGE"
+
+BUNDLED_JAVA="$APP_IMAGE/DSE ERP.app/Contents/runtime/Contents/Home/bin/java"
+if [[ ! -x "$BUNDLED_JAVA" ]]; then
+  echo "ERROR: Production app image is missing bundled Java launcher: $BUNDLED_JAVA" >&2
+  exit 1
+fi
+echo "Verified bundled Java launcher: $BUNDLED_JAVA"
+
 jpackage --type dmg "${COMMON[@]}" --dest "$DEST"
 
 DMG="$(find "$DEST" -maxdepth 1 -name '*.dmg' -print -quit)"
