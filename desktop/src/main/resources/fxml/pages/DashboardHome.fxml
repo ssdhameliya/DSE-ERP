@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- v2.1.9 chart-free executive dashboard: lightweight on macOS and consistent on Windows. --><StackPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardHomeController" fx:id="dashboardRoot" styleClass="approved-ui,dashboard-chart-free,approved-screen,approved-screen-dashboard-home,erp-screen-root">
+    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="NEVER" styleClass="approved-page-scroll">
+        <content>
+            <VBox fx:id="dashboardContent" spacing="10" styleClass="approved-page,dashboard-executive">
+                <padding><Insets top="12" right="16" bottom="12" left="16"/></padding>
+
+                <HBox alignment="CENTER_LEFT" spacing="14" styleClass="approved-page-header,approved-section-header,erp-page-identity-header">
+                    <StackPane fx:id="dashboardTitleIcon" styleClass="approved-title-icon"/>
+                    <VBox spacing="3">
+                        <Label text="Dashboard" styleClass="approved-page-title"/>
+                        <Label text="Overview of your business at a glance" styleClass="approved-page-subtitle"/>
+                    </VBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button text="This Month" onAction="#cyclePeriod" styleClass="approved-secondary-button,approved-button"/>
+                    <Button fx:id="refreshDashboardButton" text="Refresh" onAction="#refreshDashboard" styleClass="approved-primary-button,approved-button,approved-secondary-button"/>
+                </HBox>
+
+                <GridPane hgap="12" vgap="12" styleClass="approved-kpi-grid,approved-kpi,erp-kpi-section">
+                    <columnConstraints>
+                        <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+                        <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+                        <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <VBox spacing="8" styleClass="kpi-sales,sales-metric-card,sales-metric-total" GridPane.columnIndex="0"><HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="salesKpiIcon" styleClass="approved-kpi-icon,approved-kpi,sales-metric-icon"/><VBox><Label text="Total Sales" styleClass="approved-kpi-caption,approved-page-subtitle,metric-label"/><Label fx:id="lblSalesValue" styleClass="approved-kpi-value,metric-value"/></VBox></HBox><Label fx:id="lblSalesNote" styleClass="approved-kpi-note,metric-note"/></VBox>
+                    <VBox spacing="8" styleClass="kpi-purchase,sales-metric-card,sales-metric-today" GridPane.columnIndex="1"><HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="purchaseKpiIcon" styleClass="approved-kpi-icon,approved-kpi,sales-metric-icon"/><VBox><Label text="Total Purchases" styleClass="approved-kpi-caption,approved-page-subtitle,metric-label"/><Label fx:id="lblPurchaseValue" styleClass="approved-kpi-value,metric-value"/></VBox></HBox><Label fx:id="lblPurchaseNote" styleClass="approved-kpi-note,metric-note"/></VBox>
+                    <VBox spacing="8" styleClass="kpi-receivable,sales-metric-card,sales-metric-pending" GridPane.columnIndex="2"><HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="receivableKpiIcon" styleClass="approved-kpi-icon,approved-kpi,sales-metric-icon"/><VBox><Label text="Receivables" styleClass="approved-kpi-caption,approved-page-subtitle,metric-label"/><Label fx:id="lblStockValue" styleClass="approved-kpi-value,metric-value"/></VBox></HBox><Label fx:id="lblReceivableNote" styleClass="approved-kpi-note,metric-note"/></VBox>
+                    <VBox spacing="8" styleClass="kpi-payable,sales-metric-card,sales-metric-overdue" GridPane.columnIndex="3"><HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="payableKpiIcon" styleClass="approved-kpi-icon,approved-kpi,sales-metric-icon"/><VBox><Label text="Payables" styleClass="approved-kpi-caption,approved-page-subtitle,metric-label"/><Label fx:id="lblLowStock" styleClass="approved-kpi-value,metric-value"/></VBox></HBox><Label fx:id="lblStockNote" styleClass="approved-kpi-note,metric-note"/></VBox>
+                    <VBox spacing="8" styleClass="kpi-cash,sales-metric-card,sales-metric-due" GridPane.columnIndex="4"><HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="cashKpiIcon" styleClass="approved-kpi-icon,approved-kpi,sales-metric-icon"/><VBox><Label text="Cash Position" styleClass="approved-kpi-caption,approved-page-subtitle,metric-label"/><Label fx:id="lblCash" styleClass="approved-kpi-value,metric-value"/></VBox></HBox><Label text="Received less paid and expenses" styleClass="approved-kpi-note,metric-note"/></VBox>
+                    <VBox spacing="8" styleClass="kpi-stock,sales-metric-card,sales-metric-email" GridPane.columnIndex="5"><HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="lowStockKpiIcon" styleClass="approved-kpi-icon,approved-kpi,sales-metric-icon"/><VBox><Label text="Low Stock" styleClass="approved-kpi-caption,approved-page-subtitle,metric-label"/><Label fx:id="lblLowStockValue" styleClass="approved-kpi-value,metric-value"/></VBox></HBox><Label fx:id="lblLowStockNote" styleClass="approved-kpi-note,metric-note"/></VBox>
+                </GridPane>
+
+                <HBox spacing="12" styleClass="dashboard-mini-kpi-row">
+                    <HBox alignment="CENTER_LEFT" spacing="10" HBox.hgrow="ALWAYS" styleClass="dashboard-mini-kpi,dashboard-mini-customer" onMouseClicked="#viewCustomers"><StackPane fx:id="customersMiniIcon" styleClass="dashboard-mini-kpi-icon"/><VBox spacing="3"><Label text="Customers" styleClass="metric-label"/><Label fx:id="lblCustomers" styleClass="metric-value"/><Label text="Customer master" styleClass="metric-note"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="View All" styleClass="approved-link"/></HBox>
+                    <HBox alignment="CENTER_LEFT" spacing="10" HBox.hgrow="ALWAYS" styleClass="dashboard-mini-kpi,dashboard-mini-items" onMouseClicked="#viewItems"><StackPane fx:id="itemsMiniIcon" styleClass="dashboard-mini-kpi-icon"/><VBox spacing="3"><Label text="Catalog Items" styleClass="metric-label"/><Label fx:id="lblProducts" styleClass="metric-value"/><Label text="Inventory catalog" styleClass="metric-note"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="View All" styleClass="approved-link"/></HBox>
+                    <HBox alignment="CENTER_LEFT" spacing="10" HBox.hgrow="ALWAYS" styleClass="dashboard-mini-kpi,dashboard-mini-sales" onMouseClicked="#viewSalesInvoices"><StackPane fx:id="salesMiniIcon" styleClass="dashboard-mini-kpi-icon"/><VBox spacing="3"><Label text="Sales Invoices" styleClass="metric-label"/><Label fx:id="lblOrders" styleClass="metric-value"/><Label text="Sales register" styleClass="metric-note"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="View All" styleClass="approved-link"/></HBox>
+                    <HBox alignment="CENTER_LEFT" spacing="10" HBox.hgrow="ALWAYS" styleClass="dashboard-mini-kpi,dashboard-mini-purchases" onMouseClicked="#viewPurchaseInvoices"><StackPane fx:id="purchasesMiniIcon" styleClass="dashboard-mini-kpi-icon"/><VBox spacing="3"><Label text="Purchase Invoices" styleClass="metric-label"/><Label fx:id="lblPurchases" styleClass="metric-value"/><Label text="Purchase register" styleClass="metric-note"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="View All" styleClass="approved-link"/></HBox>
+                </HBox>
+
+                <GridPane hgap="12" vgap="12">
+                    <columnConstraints><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/></columnConstraints>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="0"><HBox><Label text="Top Customers" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewTopCustomers" styleClass="approved-link"/></HBox><ListView fx:id="topCustomerList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-top-customer-list"/></VBox>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="1"><HBox><Label text="Receivables Ageing" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View Register" onMouseClicked="#viewReceivables" styleClass="approved-link"/></HBox><ListView fx:id="agingList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-aging-list"/></VBox>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="2"><HBox><Label text="Recent Activities" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Live" styleClass="approved-live-badge"/></HBox><ListView fx:id="activityList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-activity-list"/></VBox>
+                </GridPane>
+
+                <HBox spacing="12">
+                    <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface">
+                        <Label text="Quick Actions" styleClass="approved-card-title"/>
+                        <GridPane hgap="12" vgap="12" alignment="CENTER" maxWidth="Infinity" styleClass="dashboard-quick-grid">
+                            <columnConstraints>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                            </columnConstraints>
+                            <Button fx:id="quickSale" text="New Sale" onAction="#newSale" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickPurchase" text="Create Purchase" onAction="#newPurchase" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickCustomer" text="Add Customer" onAction="#addCustomer" maxWidth="Infinity" GridPane.columnIndex="2" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickQuotation" text="Quotation" onAction="#newQuotation" maxWidth="Infinity" GridPane.columnIndex="3" GridPane.rowIndex="0" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickPayment" text="Add Payment" onAction="#addPayment" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickSupplier" text="Add Supplier" onAction="#addSupplier" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickBank" text="Bank Entry" onAction="#bankEntry" maxWidth="Infinity" GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                            <Button fx:id="quickExpense" text="Expense Entry" onAction="#expenseEntry" maxWidth="Infinity" GridPane.columnIndex="3" GridPane.rowIndex="1" styleClass="approved-quick-action,approved-button,approved-primary-button"/>
+                        </GridPane>
+                    </VBox>
+                    <VBox spacing="10" prefWidth="350" styleClass="approved-card,reminder-dashboard-card">
+                        <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Reminders" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewReminders" styleClass="approved-link"/></HBox>
+                        <Label fx:id="lblReminderCount" text="0" styleClass="approved-kpi-value,metric-value"/>
+                        <Label fx:id="lblReminderSummary" text="No overdue reminders" wrapText="true" styleClass="approved-body-text"/>
+                        <Label text="Open Reminder Center to review, complete or snooze business follow-ups." wrapText="true" styleClass="approved-page-subtitle"/>
+                        <Button text="Open Reminder Center" onAction="#viewReminders" styleClass="approved-button,approved-primary-button"/>
+                        <Label fx:id="lblTrendSales" visible="false" managed="false"/><Label fx:id="lblTrendPeriod" visible="false" managed="false"/><Label fx:id="lblComparisonPeriod" visible="false" managed="false"/><Label fx:id="lblProductsNote" visible="false" managed="false"/>
+                    </VBox>
+                </HBox>
+
+                <TableView fx:id="recentTable" visible="false" managed="false" styleClass="approved-table"><columns><TableColumn fx:id="colNumber" text="Invoice No." styleClass="approved-table-column"/><TableColumn fx:id="colDate" text="Date" styleClass="approved-table-column"/><TableColumn fx:id="colParty" text="Customer / Supplier" styleClass="approved-table-column"/><TableColumn fx:id="colAmount" text="Amount" styleClass="approved-table-column"/><TableColumn fx:id="colType" text="Type" styleClass="approved-table-column"/></columns></TableView>
+            </VBox>
+        </content>
+    </ScrollPane>
+    <StackPane fx:id="loadingOverlay" visible="false" managed="false" styleClass="erp-loading-overlay"><VBox alignment="CENTER" spacing="12" maxWidth="360" styleClass="erp-loading-card"><ProgressIndicator fx:id="loadingProgress" progress="-1" prefWidth="48" prefHeight="48"/><Label fx:id="loadingMessage" text="Loading dashboard data…" styleClass="erp-loading-title"/><Label text="The ERP remains responsive while data is prepared." wrapText="true" styleClass="erp-loading-subtitle"/></VBox></StackPane>
+</StackPane>

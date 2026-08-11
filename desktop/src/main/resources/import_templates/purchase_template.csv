@@ -1,0 +1,2 @@
+invoice_no,invoice_date,supplier_id,subtotal,gst_amount,total_amount,remarks
+PINV001,2026-07-20,1,500,90,590,Sample purchase

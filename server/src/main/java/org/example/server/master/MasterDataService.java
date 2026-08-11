@@ -129,12 +129,19 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<MasterDtos.LookupDto> lookups(String type) {
-        return lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(type).stream().map(this::lookupDto).toList();
+        LinkedHashMap<String,LookupEntity> unique = new LinkedHashMap<>();
+        for (LookupEntity e : lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(type)) {
+            String key = normal(e.getLookupType()) + "|" + normal(e.getLookupCode()) + "|" + normal(e.getLookupValue());
+            unique.putIfAbsent(key, e);
+        }
+        return unique.values().stream().map(this::lookupDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<String> values(String type) {
-        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(type).stream().map(LookupEntity::getLookupValue).toList();
+        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(type).stream()
+                .map(LookupEntity::getLookupValue).filter(Objects::nonNull)
+                .map(String::trim).filter(v -> !v.isBlank()).distinct().toList();
     }
 
     @Transactional(readOnly = true)
@@ -145,6 +152,10 @@ public class MasterDataService {
 
     @Transactional
     public MasterDtos.LookupDto saveLookup(MasterDtos.LookupDto d) {
+        String type = normal(d.lookupType()), code = normal(d.lookupCode()), value = normal(d.lookupValue());
+        boolean duplicate = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(type).stream().anyMatch(existing ->
+                normal(existing.getLookupCode()).equals(code) || normal(existing.getLookupValue()).equals(value));
+        if (duplicate) throw new IllegalArgumentException("This lookup code or value already exists in " + type + ".");
         LookupEntity e = new LookupEntity();
         copy(d, e);
         return lookupDto(lookups.save(e));
@@ -215,6 +226,25 @@ public class MasterDataService {
     public void deleteCategory(String name) {
         lookups.deleteByLookupType(name);
         categories.findByCategoryName(name).ifPresent(categories::delete);
+    }
+
+    @Transactional
+    public void saveItems(List<MasterDtos.ItemDto> rows) {
+        for (MasterDtos.ItemDto d : rows) {
+            ItemEntity e = items.findByItemCode(d.itemCode()).orElseGet(ItemEntity::new);
+            copy(d, e, e.getId() == null);
+            items.save(e);
+        }
+    }
+
+    @Transactional
+    public MasterDtos.CategoryDto upsertCategory(MasterDtos.CategoryUpsertRequest d) {
+        String code = normal(d.code());
+        MasterCategoryEntity e = categories.findByCategoryCode(code).orElseGet(MasterCategoryEntity::new);
+        e.setCategoryCode(code); e.setCategoryName(normal(d.name())); e.setDescription(d.description());
+        if (e.getActive() == null) e.setActive(1); if (e.getDisplayOrder() == null) e.setDisplayOrder(0);
+        e = categories.save(e);
+        return categoryDto(e, lookups.countByLookupType(e.getCategoryName()));
     }
 
     private String normal(String v) {

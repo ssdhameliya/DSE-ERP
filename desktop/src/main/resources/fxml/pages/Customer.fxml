@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.CustomerController" spacing="14" styleClass="register-page,master-entity-page,customer-master-premium,approved-ui,approved-screen,approved-screen-customer,erp-screen-root">
+    <padding><Insets top="18" right="18" bottom="14" left="18"/></padding>
+    <HBox alignment="CENTER_LEFT" styleClass="entity-page-header,approved-section-header,erp-page-identity-header">
+        <StackPane fx:id="partyPageIcon" styleClass="erp-page-header-icon"/><VBox spacing="3"><Label text="Customers Master" styleClass="screen-title"/><Label text="Manage customer contacts, tax details and opening balances" styleClass="screen-subtitle"/></VBox>
+        <Region HBox.hgrow="ALWAYS"/><Button text="New Customer" onAction="#newParty" styleClass="primary-action,entity-create-button"/>
+    </HBox>
+    <HBox spacing="10" alignment="CENTER_LEFT" styleClass="filter-surface,entity-toolbar,approved-filter-bar,approved-toolbar,erp-filter-section"><padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
+        <TextField fx:id="txtSearch" promptText="Search code, customer, phone, email or GSTIN..." HBox.hgrow="ALWAYS" styleClass="entity-search"/>
+        <Button text="Edit" onAction="#editParty" styleClass="secondary-button"/><Button text="Delete" onAction="#deleteParty" styleClass="danger-button"/><Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+        <Separator orientation="VERTICAL" prefHeight="28"/><Button text="Import Excel" onAction="#importParties" styleClass="secondary-button"/><Button text="Export Excel" onAction="#exportparties" styleClass="secondary-button"/>
+    </HBox>
+    <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="entity-table-card">
+        <TableView fx:id="tableParties" VBox.vgrow="ALWAYS" styleClass="professional-table,entity-table,erp-table-profile-master">
+            <placeholder><VBox alignment="CENTER" spacing="8" styleClass="premium-empty-state"><Label text="No customers found" styleClass="empty-state-title"/><Label text="Add a customer or update the current search." styleClass="muted-text"/></VBox></placeholder>
+            <columns><TableColumn fx:id="colCode" text="Customer Code" prefWidth="115" styleClass="approved-table-column"/><TableColumn fx:id="colName" text="Customer Name" prefWidth="190" styleClass="approved-table-column"/><TableColumn fx:id="colContact" text="Contact Person" prefWidth="145" styleClass="approved-table-column"/><TableColumn fx:id="colPhone" text="Mobile" prefWidth="115" styleClass="approved-table-column"/><TableColumn fx:id="colEmail" text="Email" prefWidth="210" styleClass="approved-table-column"/><TableColumn fx:id="colGstin" text="GSTIN" prefWidth="145" styleClass="approved-table-column"/><TableColumn fx:id="colAddress" text="Address" prefWidth="250" styleClass="approved-table-column"/><TableColumn fx:id="colOpeningBalance" text="Opening Balance" prefWidth="130" styleClass="approved-table-column"/><TableColumn fx:id="colActive" text="Status" prefWidth="95" styleClass="approved-table-column"/></columns>
+        </TableView>
+        <HBox alignment="CENTER_RIGHT" styleClass="table-footer,entity-table-footer"><padding><Insets top="10" right="14" bottom="10" left="14"/></padding><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblRecordCount" styleClass="record-count-pill"/></HBox>
+    </VBox>
+</VBox>

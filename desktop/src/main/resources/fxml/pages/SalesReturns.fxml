@@ -1,0 +1,49 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Sales Return Register: database KPIs, date/status filters and transactional actions. --><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesReturnsController" spacing="14" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-sales-returns,erp-screen-root">
+  <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
+    <StackPane styleClass="erp-page-header-icon"><Label text="↩" styleClass="erp-page-header-symbol"/></StackPane>
+    <VBox><Label text="Sales Return Register" styleClass="screen-title"/><Label text="Manage customer returns, approvals and refunds" styleClass="screen-subtitle"/></VBox>
+    <Region HBox.hgrow="ALWAYS"/>
+    <Button text="Create Sales Return" onAction="#create" styleClass="primary-action"/>
+  </HBox>
+
+  <HBox spacing="12" styleClass="return-kpi-row,erp-kpi-section">
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="↩" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Total Returns" styleClass="metric-label"/><Label fx:id="total" styleClass="metric-value"/><Label text="All returns" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-today" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="◷" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="This Month" styleClass="metric-label"/><Label fx:id="month" styleClass="metric-value"/><Label text="Current period" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-pending" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="!" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Pending Returns" styleClass="metric-label"/><Label fx:id="pending" styleClass="metric-value"/><Label text="Awaiting action" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-email" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="✓" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Approved Returns" styleClass="metric-label"/><Label fx:id="approved" styleClass="metric-value"/><Label text="Approved / completed" styleClass="metric-note"/></VBox></HBox>
+    <HBox alignment="CENTER_LEFT" spacing="11" styleClass="return-kpi-card,sales-metric-card,sales-metric-due" HBox.hgrow="ALWAYS"><StackPane styleClass="return-kpi-icon,sales-metric-icon"><Label text="₹" styleClass="return-kpi-symbol"/></StackPane><VBox spacing="4"><Label text="Refunded Amount" styleClass="metric-label"/><Label fx:id="refund" styleClass="metric-value"/><Label text="Processed refunds" styleClass="metric-note"/></VBox></HBox>
+  </HBox>
+
+  <VBox spacing="10" styleClass="filter-surface,approved-filter-bar,erp-filter-section">
+    <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
+    <HBox spacing="10" alignment="CENTER_LEFT">
+      <TextField fx:id="search" promptText="Search return, invoice or customer..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+      <ComboBox fx:id="customerFilter" promptText="All Customers" prefWidth="190" styleClass="approved-input"/>
+      <DatePicker fx:id="dpFrom" prefWidth="145" styleClass="approved-input"/>
+      <DatePicker fx:id="dpTo" prefWidth="145" styleClass="approved-input"/>
+      <ComboBox fx:id="statusFilter" promptText="All Status" prefWidth="150" styleClass="approved-input"/>
+      <Button text="Apply Filters" onAction="#filter" styleClass="approved-button,approved-primary-button"/>
+      <Button text="Reset" onAction="#reset" styleClass="secondary-button"/>
+      <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+      <Button text="Export" onAction="#export" styleClass="secondary-button"/>
+    </HBox>
+  </VBox>
+
+  <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register">
+    <columns>
+      <TableColumn fx:id="no" text="Return No." prefWidth="145" styleClass="approved-table-column"/>
+      <TableColumn fx:id="date" text="Return Date" prefWidth="100" styleClass="approved-table-column"/>
+      <TableColumn fx:id="invoice" text="Original Invoice" prefWidth="135" styleClass="approved-table-column"/>
+      <TableColumn fx:id="customer" text="Customer" prefWidth="165" styleClass="approved-table-column"/>
+      <TableColumn fx:id="amount" text="Amount (₹)" prefWidth="110" styleClass="approved-table-column"/>
+      <TableColumn fx:id="reason" text="Reason" prefWidth="170" styleClass="approved-table-column"/>
+      <TableColumn fx:id="status" text="Return Status" prefWidth="125" styleClass="approved-table-column"/>
+      <TableColumn fx:id="refundStatus" text="Refund Status" prefWidth="125" styleClass="approved-table-column"/>
+      <TableColumn fx:id="action" text="" prefWidth="90" styleClass="approved-table-column"/>
+    </columns>
+  </TableView>
+  <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo" styleClass="register-record-count"/></HBox>
+</VBox>

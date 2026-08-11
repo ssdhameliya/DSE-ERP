@@ -1,0 +1,12 @@
+DSE ERP 5.1.24 - Phase 5.1.24 Production PostgreSQL Runtime
+
+This folder is populated during native packaging with PostgreSQL 18 binaries for the target OS/architecture.
+Only runtime folders required by DSE ERP are copied (bin, lib, share); an installer-created PostgreSQL data directory is NEVER bundled here.
+
+Required commands under bin/: initdb, pg_ctl, psql, createdb.
+
+Development/packaging override:
+  DSE_POSTGRES_RUNTIME_DIR=<PostgreSQL 18 runtime root>
+
+Customer data is stored outside the application installation in the selected DSE ERP workspace under Database/PostgreSQL/data.
+Packaged mode requires this private runtime and will not silently fall back to an unrelated system PostgreSQL installation.

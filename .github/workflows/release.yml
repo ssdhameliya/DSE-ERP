@@ -46,6 +46,14 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Enforce no new desktop JDBC debt
+        run: python3 scripts/audit-desktop-jdbc.py
+      - name: Enforce Phase 2 desktop data boundary
+        run: python3 scripts/audit-phase2-data-boundary.py
+      - name: Enforce PostgreSQL-only desktop runtime
+        run: python3 scripts/audit-postgres-only.py
+      - name: Enforce final Spring/Hibernate data architecture
+        run: python3 scripts/audit-final-data-architecture.py
       - name: Run tests
         run: mvn -B -ntp clean verify
 
@@ -69,6 +77,13 @@ jobs:
             $wix = Get-ChildItem 'C:\Program Files (x86)' -Directory -Filter 'WiX Toolset v3*' | Sort-Object Name -Descending | Select-Object -First 1
             if ($wix) { $wixBin = Join-Path $wix.FullName 'bin'; $wixBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
           }
+      - name: Prepare PostgreSQL 18 runtime
+        shell: pwsh
+        run: |
+          choco install postgresql18 --yes --no-progress --params '/NoPath /Password:DseReleaseBuildOnly!'
+          $pg = 'C:\Program Files\PostgreSQL\18'
+          if (-not (Test-Path (Join-Path $pg 'bin\initdb.exe'))) { throw "PostgreSQL 18 runtime not found at $pg" }
+          "DSE_POSTGRES_RUNTIME_DIR=$pg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build Windows EXE
         shell: pwsh
         run: ./scripts/package-windows.ps1 -Version '${{ needs.validate.outputs.version }}'
@@ -93,6 +108,13 @@ jobs:
           java-version: '25'
           architecture: aarch64
           cache: maven
+      - name: Prepare PostgreSQL 18 runtime
+        shell: zsh {0}
+        run: |
+          brew install postgresql@18
+          PG_PREFIX="$(brew --prefix postgresql@18)"
+          test -x "$PG_PREFIX/bin/initdb"
+          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_PREFIX" >> "$GITHUB_ENV"
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
@@ -123,6 +145,13 @@ jobs:
           java-version: '25'
           architecture: x64
           cache: maven
+      - name: Prepare PostgreSQL 18 runtime
+        shell: zsh {0}
+        run: |
+          brew install postgresql@18
+          PG_PREFIX="$(brew --prefix postgresql@18)"
+          test -x "$PG_PREFIX/bin/initdb"
+          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_PREFIX" >> "$GITHUB_ENV"
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh

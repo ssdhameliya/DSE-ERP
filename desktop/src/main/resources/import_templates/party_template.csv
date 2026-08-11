@@ -1,0 +1,2 @@
+party_type,party_code,name,contact_person,phone,email,gstin,address,opening_balance,is_active
+CUSTOMER,CUST001,Example Customer,Mr. Example,919999888777,customer@example.com,29ABCDE1234F1Z5,Some Address,0,1

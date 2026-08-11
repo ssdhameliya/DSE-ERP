@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -31,6 +32,15 @@ public class AuthController {
     @PostMapping("/password")
     public ResponseEntity<AuthDtos.OperationResponse> password(@RequestBody AuthDtos.ChangePasswordRequest request) {
         AuthDtos.OperationResponse result = auth.changePassword(request);
+        return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
+    }
+
+    @GetMapping("/registration-roles")
+    public List<AuthDtos.RoleOption> registrationRoles() { return auth.registrationRoles(); }
+
+    @PostMapping("/register")
+    public ResponseEntity<AuthDtos.OperationResponse> register(@RequestBody AuthDtos.RegisterRequest request) {
+        AuthDtos.OperationResponse result = auth.register(request);
         return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
     }
 }

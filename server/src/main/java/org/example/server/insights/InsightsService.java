@@ -1,15 +1,14 @@
 package org.example.server.insights;
 
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.example.server.persistence.JpaNativeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.sql.*;
 import java.time.*;
 import java.util.*;
 
 @Service
 public class InsightsService {
- private final JdbcTemplate jdbc; public InsightsService(JdbcTemplate jdbc){this.jdbc=jdbc;}
+ private final JpaNativeRepository jdbc; public InsightsService(JpaNativeRepository jdbc){this.jdbc=jdbc;}
 
  @Transactional(readOnly=true) public InsightDtos.DashboardBundle dashboard(String period){
    String cond=periodSql(period,"invoice_date");
@@ -22,7 +21,7 @@ public class InsightsService {
    long openRem=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')");
    long overdue=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND due_date IS NOT NULL AND CAST(due_date AS DATE)<CURRENT_DATE");
    var snap=new InsightDtos.DashboardSnapshot(period,products,customers,invoices,purchases,low,sales,purchase,recv,pay,openRecv,openPay,cash,openRem,overdue);
-   List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString("type"),rs.getString("doc_no"),rs.getString("party"),String.valueOf(rs.getObject("doc_date")),rs.getDouble("amount")));
+   List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString(1),rs.getString(2),rs.getString(3),String.valueOf(rs.getObject(4)),rs.getDouble(5)));
    String pc=periodSql(period,"s.invoice_date");
    List<String> top=jdbc.query("SELECT p.name,COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE "+pc+" GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5",(rs,i)->rs.getString(1)+"|"+rs.getDouble(2));
    if(top.isEmpty())top=List.of("No customer sales for "+period.toLowerCase(Locale.ROOT));
@@ -40,10 +39,14 @@ public class InsightsService {
    int reminders=(int)l("SELECT COUNT(*) FROM reminder_register WHERE status IN ('OPEN','SNOOZED')");
    return new InsightDtos.ShellCounts(notifications,email,whatsapp,reminders);
  }
+ @Transactional public void markCommunicationRead(String channel){
+   jdbc.update("UPDATE communication_log SET is_read=1 WHERE channel=?",channel==null?"":channel.trim().toUpperCase(Locale.ROOT));
+ }
+
 
  @Transactional(readOnly=true) public InsightDtos.ReportFilters reportFilters(){return new InsightDtos.ReportFilters(strings("SELECT name FROM party_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') ORDER BY name"),strings("SELECT description FROM item_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') ORDER BY description"),strings("SELECT DISTINCT salesperson FROM sales_header WHERE COALESCE(salesperson,'')<>'' ORDER BY salesperson"));}
  @Transactional(readOnly=true) public InsightDtos.ReportBundle report(String from,String to){
-   Object[] a={java.sql.Date.valueOf(from),java.sql.Date.valueOf(to)}; String between=" BETWEEN ? AND ?";
+   Object[] a={LocalDate.parse(from),LocalDate.parse(to)}; String between=" BETWEEN ? AND ?";
    double sales=n("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE CAST(invoice_date AS DATE)"+between,a), purchase=n("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE CAST(invoice_date AS DATE)"+between,a); double profit=sales-purchase;
    double recv=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE CAST(invoice_date AS DATE)"+between,a),stock=n("SELECT COALESCE(SUM(opening_stock*purchase_price),0) FROM item_master");
    long low=l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)"),customers=l("SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t')");
@@ -55,9 +58,9 @@ public class InsightsService {
    return new InsightDtos.ReportBundle(sales,purchase,profit,recv,stock,low,customers,cp,ip,sr,pr,sp,pay,pp,l("SELECT COUNT(*) FROM item_master"),l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=0"));
  }
 
- @Transactional(readOnly=true) public List<InsightDtos.ReminderDto> reminders(){return jdbc.query("SELECT id,title,reference_no,due_date,priority,notes,status,created_by,snoozed_until FROM reminder_register ORDER BY CASE status WHEN 'OPEN' THEN 0 WHEN 'SNOOZED' THEN 1 ELSE 2 END,due_date,id DESC",(r,i)->new InsightDtos.ReminderDto(r.getInt("id"),r.getString("title"),r.getString("reference_no"),String.valueOf(r.getObject("due_date")),r.getString("priority"),r.getString("notes"),r.getString("status"),r.getString("created_by"),r.getObject("snoozed_until")==null?null:String.valueOf(r.getObject("snoozed_until"))));}
- @Transactional public InsightDtos.ReminderDto saveReminder(InsightDtos.ReminderDto d,boolean update){if(update){jdbc.update("UPDATE reminder_register SET title=?,reference_no=?,due_date=?,priority=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",d.title(),d.referenceNo(),java.sql.Date.valueOf(d.dueDate()),d.priority(),d.notes(),d.id());}else{jdbc.update("INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,updated_at) VALUES(?,?,?,?,?,'OPEN',?,CURRENT_TIMESTAMP)",d.title(),d.referenceNo(),java.sql.Date.valueOf(d.dueDate()),d.priority(),d.notes(),d.createdBy());} return reminders().stream().filter(x->update?Objects.equals(x.id(),d.id()):Objects.equals(x.title(),d.title())).findFirst().orElse(d);}
- @Transactional public void setReminderStatus(int id,String status,String snoozedUntil){if("SNOOZED".equalsIgnoreCase(status))jdbc.update("UPDATE reminder_register SET status='SNOOZED',snoozed_until=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",java.sql.Date.valueOf(snoozedUntil),id);else if("COMPLETED".equalsIgnoreCase(status))jdbc.update("UPDATE reminder_register SET status='COMPLETED',completed_at=CURRENT_TIMESTAMP,snoozed_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?",id);else jdbc.update("UPDATE reminder_register SET status=?,completed_at=NULL,snoozed_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?",status,id);}
+ @Transactional(readOnly=true) public List<InsightDtos.ReminderDto> reminders(){return jdbc.query("SELECT id,title,reference_no,due_date,priority,notes,status,created_by,snoozed_until FROM reminder_register ORDER BY CASE status WHEN 'OPEN' THEN 0 WHEN 'SNOOZED' THEN 1 ELSE 2 END,due_date,id DESC",(r,i)->new InsightDtos.ReminderDto(r.getInt(1),r.getString(2),r.getString(3),String.valueOf(r.getObject(4)),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getObject(9)==null?null:String.valueOf(r.getObject(9))));}
+ @Transactional public InsightDtos.ReminderDto saveReminder(InsightDtos.ReminderDto d,boolean update){if(update){jdbc.update("UPDATE reminder_register SET title=?,reference_no=?,due_date=?,priority=?,notes=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",d.title(),d.referenceNo(),LocalDate.parse(d.dueDate()),d.priority(),d.notes(),d.id());}else{jdbc.update("INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,updated_at) VALUES(?,?,?,?,?,'OPEN',?,CURRENT_TIMESTAMP)",d.title(),d.referenceNo(),LocalDate.parse(d.dueDate()),d.priority(),d.notes(),d.createdBy());} return reminders().stream().filter(x->update?Objects.equals(x.id(),d.id()):Objects.equals(x.title(),d.title())).findFirst().orElse(d);}
+ @Transactional public void setReminderStatus(int id,String status,String snoozedUntil){if("SNOOZED".equalsIgnoreCase(status))jdbc.update("UPDATE reminder_register SET status='SNOOZED',snoozed_until=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",LocalDate.parse(snoozedUntil),id);else if("COMPLETED".equalsIgnoreCase(status))jdbc.update("UPDATE reminder_register SET status='COMPLETED',completed_at=CURRENT_TIMESTAMP,snoozed_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?",id);else jdbc.update("UPDATE reminder_register SET status=?,completed_at=NULL,snoozed_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?",status,id);}
  @Transactional public void deleteReminder(int id){jdbc.update("DELETE FROM reminder_register WHERE id=?",id);}
 
  @Transactional(readOnly=true) public List<InsightDtos.NotificationDto> notifications(int limit){return jdbc.query("SELECT id,title,message,severity,is_read,target_fxml,reference_no,created_at FROM notifications ORDER BY created_at DESC LIMIT ?",(r,i)->new InsightDtos.NotificationDto(r.getLong(1),r.getString(2),r.getString(3),r.getString(4),readFlag(r.getObject(5)),r.getString(6),r.getString(7),r.getLong(8)),Math.max(1,limit));}

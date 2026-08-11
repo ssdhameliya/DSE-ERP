@@ -8,6 +8,7 @@ public final class MasterDtos {
  public record LookupDto(Integer id,String lookupType,String lookupCode,String lookupValue,String description,int displayOrder,boolean active){}
  public record CategoryDto(Integer id,String categoryCode,String categoryName,String description,int displayOrder,boolean active,long valueCount){}
  public record RenameCategoryRequest(String oldName,String newName){}
+ public record CategoryUpsertRequest(String code,String name,String description){}
  public record NextCodeResponse(String code){}
  public record ExistsResponse(boolean exists){}
  public record ValuesResponse(List<String> values){}

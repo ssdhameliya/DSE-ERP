@@ -11,6 +11,6 @@ if errorlevel 1 (
 )
 
 echo.
-echo Build successful: %~dp0target\DSE_Final.jar
+echo Build successful: %~dp0desktop\target\DSE_Final.jar
 echo To create the Windows installer, run package-windows.ps1.
 endlocal

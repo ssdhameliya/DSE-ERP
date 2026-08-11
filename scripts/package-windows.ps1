@@ -16,10 +16,10 @@ if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
 Write-Host "Building DSE ERP $Version for Windows..." -ForegroundColor Cyan
 mvn -B -ntp clean verify
 
-$Jar = Join-Path $Root "target/DSE_Final.jar"
-if (-not (Test-Path $Jar)) {
-    throw "Packaged JAR not found: $Jar"
-}
+$Jar = Join-Path $Root "desktop/target/DSE_Final.jar"
+$ServerJar = Join-Path $Root "server/target/dse-erp-server.jar"
+if (-not (Test-Path $Jar)) { throw "Packaged desktop JAR not found: $Jar" }
+if (-not (Test-Path $ServerJar)) { throw "Packaged server JAR not found: $ServerJar" }
 
 $Input = Join-Path $Root "target/jpackage-input"
 $Dest = Join-Path $Root "target/windows-installer"
@@ -27,20 +27,46 @@ $AppImage = Join-Path $Root "target/windows-app-image"
 Remove-Item $Input, $Dest, $AppImage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $Input, $Dest, $AppImage | Out-Null
 Copy-Item $Jar (Join-Path $Input "DSE_Final.jar")
+New-Item -ItemType Directory -Path (Join-Path $Input "server") -Force | Out-Null
+Copy-Item $ServerJar (Join-Path $Input "server\dse-erp-server.jar")
 
-$Icon = Join-Path $Root "src/main/resources/installer/DSE-ERP.ico"
+# 5.1.24 managed PostgreSQL payload. DSE_POSTGRES_RUNTIME_DIR may point to an extracted
+# PostgreSQL 18 binary distribution. Development/release machines can also use the standard install.
+$PostgresCandidates = @()
+if ($env:DSE_POSTGRES_RUNTIME_DIR) { $PostgresCandidates += $env:DSE_POSTGRES_RUNTIME_DIR }
+$PostgresCandidates += @('C:\Program Files\PostgreSQL\18', 'D:\PostgreSQL\18\pgsql')
+$PostgresRuntime = $PostgresCandidates | Where-Object {
+    Test-Path (Join-Path $_ 'bin\initdb.exe')
+} | Select-Object -First 1
+if (-not $PostgresRuntime) {
+    throw "PostgreSQL 18 runtime not found. Set DSE_POSTGRES_RUNTIME_DIR to an extracted PostgreSQL 18 binary distribution."
+}
+$PostgresInput = Join-Path $Input 'runtime\postgresql'
+New-Item -ItemType Directory -Path $PostgresInput -Force | Out-Null
+foreach ($folder in @('bin','lib','share')) {
+    $source = Join-Path $PostgresRuntime $folder
+    if (-not (Test-Path $source)) { throw "PostgreSQL runtime folder missing: $source" }
+    Copy-Item $source (Join-Path $PostgresInput $folder) -Recurse -Force
+}
+Copy-Item (Join-Path $Root 'runtime\runtime-manifest.properties') (Join-Path $Input 'runtime\runtime-manifest.properties') -Force
+Write-Host "Bundled PostgreSQL runtime: $PostgresRuntime" -ForegroundColor DarkCyan
+python (Join-Path $Root 'scripts\verify-production-bundle.py') $Input
+if ($LASTEXITCODE -ne 0) { throw 'Production runtime bundle verification failed.' }
+
+$Icon = Join-Path $Root "desktop/src/main/resources/installer/DSE-ERP.ico"
 $CommonArgs = @(
     '--name', 'DSE ERP',
     '--app-version', $Version,
     '--vendor', 'DS Engineers',
-    '--description', 'Open-source JavaFX ERP desktop application',
+    '--description', 'DSE ERP desktop business management application',
     '--copyright', 'Copyright (c) DS Engineers',
     '--input', $Input,
     '--main-jar', 'DSE_Final.jar',
     '--main-class', 'org.example.app.Launcher',
     '--java-options', '-Dfile.encoding=UTF-8',
     '--java-options', '--enable-native-access=ALL-UNNAMED',
-    '--java-options', '-Ddse.erp.nativeAccessRelaunch=true'
+    '--java-options', '-Ddse.erp.nativeAccessRelaunch=true',
+    '--java-options', '-Ddse.erp.packaged=true'
 )
 if (Test-Path $Icon) { $CommonArgs += @('--icon', $Icon) }
 

@@ -1,0 +1,2 @@
+invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,remarks
+QTN001,2026-07-20,1,750,135,885,Sample quotation

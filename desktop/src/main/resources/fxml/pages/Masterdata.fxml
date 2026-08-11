@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/25"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.MasterDataController"
+            styleClass="master-page,master-data-premium,master-data-redesign,approved-ui,approved-screen,approved-screen-masterdata,erp-screen-root"
+            >
+
+    <top>
+        <VBox spacing="16" minHeight="118" styleClass="page-header,master-modern-header,approved-section-header,erp-page-identity-header">
+            <padding><Insets top="18" right="24" bottom="16" left="24"/></padding>
+
+            <HBox alignment="CENTER_LEFT" spacing="12">
+                <StackPane fx:id="masterPageIcon" styleClass="erp-page-header-icon"/>
+                <VBox spacing="4">
+                    <Label text="Master Data Management" styleClass="page-title"/>
+                    <Label text="Manage lookup categories and master records" styleClass="page-subtitle"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnHeaderRefresh" text="Refresh" onAction="#refresh"
+                        styleClass="approved-button,approved-secondary-button,master-action-button"/>
+            </HBox>
+
+            <HBox spacing="12" alignment="CENTER_LEFT">
+                <TextField fx:id="txtSearch"
+                           promptText="Search categories or lookup values..."
+                           prefHeight="42"
+                           HBox.hgrow="ALWAYS"
+                           styleClass="approved-input,master-search-field"/>
+                <Button fx:id="btnHeaderAddLookup" text="Add Lookup" onAction="#addLookup"
+                        styleClass="approved-button,approved-primary-button,master-action-button"/>
+                <Button fx:id="btnHeaderExport" text="Export" onAction="#exportLookup"
+                        styleClass="approved-button,approved-secondary-button,master-action-button"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <left>
+        <VBox prefWidth="285" minWidth="260" maxWidth="320" spacing="14"
+              styleClass="sidebar,master-category-panel">
+            <BorderPane.margin><Insets top="14" right="0" bottom="0" left="0"/></BorderPane.margin>
+            <padding><Insets top="18" right="16" bottom="18" left="16"/></padding>
+
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <StackPane fx:id="categoryPanelIcon" styleClass="master-panel-title-icon"/>
+                <Label text="Lookup Categories" styleClass="sidebar-title"/>
+            </HBox>
+
+            <TextField fx:id="txtCategorySearch"
+                       promptText="Search Categories..."
+                       styleClass="approved-input,master-category-search"/>
+
+            <ListView fx:id="lstTypes"
+                      VBox.vgrow="ALWAYS"
+                      styleClass="approved-list,master-category-list"/>
+
+            <VBox spacing="9" styleClass="master-category-actions">
+                <Button fx:id="btnAddCategory" text="Add Category" onAction="#addCategory"
+                        maxWidth="Infinity" styleClass="approved-button,approved-primary-button,master-action-button"/>
+                <Button fx:id="btnRenameCategory" text="Rename Category" onAction="#renameCategory"
+                        maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,master-action-button"/>
+                <Button fx:id="btnDeleteCategory" text="Delete Category" onAction="#deleteCategory"
+                        maxWidth="Infinity" styleClass="approved-button,approved-danger-button,master-action-button"/>
+            </VBox>
+        </VBox>
+    </left>
+
+    <center>
+        <HBox spacing="18">
+            <BorderPane.margin><Insets top="14" right="0" bottom="0" left="14"/></BorderPane.margin>
+            <padding><Insets top="0" right="0" bottom="0" left="0"/></padding>
+
+            <VBox spacing="16" HBox.hgrow="ALWAYS">
+                <HBox spacing="14" styleClass="master-kpi-row,erp-kpi-section">
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-blue">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiCategoriesIcon" styleClass="master-kpi-icon"/>
+                            <Label text="Categories" styleClass="kpi-title"/>
+                        </HBox>
+                        <Label fx:id="lblDashboardCategoryCount" text="0" styleClass="kpi-value"/>
+                        <Label text="Total Categories" styleClass="master-kpi-caption"/>
+                    </VBox>
+
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-green">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiValuesIcon" styleClass="master-kpi-icon"/>
+                            <Label text="Lookup Values" styleClass="kpi-title"/>
+                        </HBox>
+                        <Label fx:id="lblDashboardValueCount" text="0" styleClass="kpi-value"/>
+                        <Label text="Total Values" styleClass="master-kpi-caption"/>
+                    </VBox>
+
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-purple">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiSelectedIcon" styleClass="master-kpi-icon"/>
+                            <Label text="Selected" styleClass="kpi-title"/>
+                        </HBox>
+                        <Label fx:id="lblSelectedCategory" text="-" styleClass="kpi-value-small"/>
+                        <Label text="Active Category" styleClass="master-kpi-caption"/>
+                    </VBox>
+
+                    <VBox spacing="5" HBox.hgrow="ALWAYS"
+                          styleClass="kpi-card,master-kpi-card,master-kpi-amber">
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane fx:id="kpiStatusIcon" styleClass="master-kpi-icon"/>
+                            <Label text="System Status" styleClass="kpi-title"/>
+                        </HBox>
+                        <Label text="READY" styleClass="status-active,approved-status"/>
+                        <Label text="Database Connected" styleClass="master-kpi-caption"/>
+                    </VBox>
+                </HBox>
+
+                <HBox spacing="10" alignment="CENTER_LEFT" styleClass="master-table-toolbar">
+                    <HBox alignment="CENTER_LEFT" spacing="9">
+                        <StackPane fx:id="lookupValuesIcon" styleClass="master-section-icon"/>
+                        <Label text="Lookup Values" styleClass="section-title"/>
+                    </HBox>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="btnAddLookup" text="Add" onAction="#addLookup"
+                            styleClass="approved-button,approved-primary-button,master-action-button"/>
+                    <Button fx:id="btnEditLookup" text="Edit" onAction="#editLookup"
+                            styleClass="approved-button,approved-secondary-button,master-action-button"/>
+                    <Button fx:id="btnDeleteLookup" text="Delete" onAction="#deleteLookup"
+                            styleClass="approved-button,approved-danger-button,master-action-button"/>
+                    <Button fx:id="btnRefreshLookup" text="Refresh" onAction="#refresh"
+                            styleClass="approved-button,approved-secondary-button,master-action-button"/>
+                </HBox>
+
+                <VBox spacing="10" VBox.vgrow="ALWAYS"
+                      styleClass="table-card,master-table-card">
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="Master Records" styleClass="table-title"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+
+                    </HBox>
+
+                    <TableView fx:id="tblLookup"
+                               VBox.vgrow="ALWAYS"
+                               styleClass="approved-table,erp-table-profile-master,master-records-table">
+                        <placeholder>
+                            <VBox alignment="CENTER" spacing="10">
+                                <Label text="No Records Found" styleClass="empty-title"/>
+                                <Label text="Create a lookup value using the Add button."
+                                       styleClass="empty-subtitle"/>
+                            </VBox>
+                        </placeholder>
+                        <contextMenu>
+                            <ContextMenu>
+                                <items>
+                                    <MenuItem text="Edit Lookup" onAction="#editLookup"/>
+                                    <SeparatorMenuItem/>
+                                    <MenuItem text="Delete Lookup" onAction="#deleteLookup"/>
+                                    <SeparatorMenuItem/>
+                                    <MenuItem text="Refresh" onAction="#refresh"/>
+                                </items>
+                            </ContextMenu>
+                        </contextMenu>
+                        <columns>
+                            <TableColumn fx:id="colCode" text="Code" prefWidth="120"
+                                         styleClass="approved-table-column"/>
+                            <TableColumn fx:id="colValue" text="Value" prefWidth="190"
+                                         styleClass="approved-table-column"/>
+                            <TableColumn fx:id="colDescription" text="Description" prefWidth="390"
+                                         styleClass="approved-table-column"/>
+                        </columns>
+                    </TableView>
+
+                    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="master-table-footer">
+                        <Label fx:id="lblRecordCount" text="0 Records" styleClass="table-footer,master-record-count-badge"/>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Pagination fx:id="pagination" pageCount="1" maxPageIndicatorCount="5" styleClass="master-premium-pagination"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+        </HBox>
+    </center>
+
+    <bottom>
+        <!-- Controller compatibility nodes; hidden so the shared application footer remains fully visible. -->
+        <HBox visible="false" managed="false">
+            <Label text="Ready" fx:id="lblStatus"/>
+            <Label text="Master Data Module"/>
+        </HBox>
+    </bottom>
+</BorderPane>

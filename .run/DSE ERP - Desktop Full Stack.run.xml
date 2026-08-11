@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="DSE ERP - Desktop Full Stack" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="org.example.app.Launcher" />
+    <module name="dse-erp-desktop" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <envs>
+      <env name="DSE_POSTGRES_MODE" value="managed" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -6,6 +6,7 @@ public class InsightsController {
  private final InsightsService s; public InsightsController(InsightsService s){this.s=s;}
  @GetMapping("/dashboard") public InsightDtos.DashboardBundle dashboard(@RequestParam(defaultValue="This Month") String period){return s.dashboard(period);}
  @GetMapping("/shell-counts") public InsightDtos.ShellCounts shellCounts(){return s.shellCounts();}
+ @PostMapping("/communication/read") public InsightDtos.Ok markCommunicationRead(@RequestParam String channel){s.markCommunicationRead(channel);return ok("Updated");}
  @GetMapping("/reports/filters") public InsightDtos.ReportFilters filters(){return s.reportFilters();}
  @GetMapping("/reports") public InsightDtos.ReportBundle reports(@RequestParam String from,@RequestParam String to){return s.report(from,to);}
  @GetMapping("/reminders") public List<InsightDtos.ReminderDto> reminders(){return s.reminders();}

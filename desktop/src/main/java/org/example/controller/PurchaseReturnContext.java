@@ -1,0 +1,1 @@
+package org.example.controller; public final class PurchaseReturnContext{private static String no;private PurchaseReturnContext(){}public static void select(String v){no=v;}public static String value(){return no;}}

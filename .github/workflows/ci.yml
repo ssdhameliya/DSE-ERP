@@ -21,5 +21,13 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      - name: Enforce no new desktop JDBC debt
+        run: python3 scripts/audit-desktop-jdbc.py
+      - name: Enforce Phase 2 desktop data boundary
+        run: python3 scripts/audit-phase2-data-boundary.py
+      - name: Enforce PostgreSQL-only desktop runtime
+        run: python3 scripts/audit-postgres-only.py
+      - name: Enforce final Spring/Hibernate data architecture
+        run: python3 scripts/audit-final-data-architecture.py
       - name: Verify project
         run: mvn -B -ntp clean verify

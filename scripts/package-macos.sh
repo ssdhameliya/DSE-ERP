@@ -19,16 +19,41 @@ esac
 echo "Building DSE ERP $VERSION for macOS $ARCH_LABEL..."
 mvn -B -ntp clean verify
 
-JAR="$ROOT/target/DSE_Final.jar"
-[[ -f "$JAR" ]] || { echo "Packaged JAR not found: $JAR" >&2; exit 1; }
+JAR="$ROOT/desktop/target/DSE_Final.jar"
+SERVER_JAR="$ROOT/server/target/dse-erp-server.jar"
+[[ -f "$JAR" ]] || { echo "Packaged desktop JAR not found: $JAR" >&2; exit 1; }
+[[ -f "$SERVER_JAR" ]] || { echo "Packaged server JAR not found: $SERVER_JAR" >&2; exit 1; }
 INPUT="$ROOT/target/jpackage-input"
 DEST="$ROOT/target/macos-installer"
 APP_IMAGE="$ROOT/target/macos-app-image"
 rm -rf "$INPUT" "$DEST" "$APP_IMAGE"
 mkdir -p "$INPUT" "$DEST" "$APP_IMAGE"
 cp "$JAR" "$INPUT/DSE_Final.jar"
+mkdir -p "$INPUT/server"
+cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-PNG="$ROOT/src/main/resources/installer/logo-1024.png"
+# 5.1.24 managed PostgreSQL payload. For release packaging, point
+# DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
+POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
+if [[ -z "$POSTGRES_RUNTIME" ]]; then
+  for candidate in "/opt/homebrew/opt/postgresql@18" "/usr/local/opt/postgresql@18" "/Library/PostgreSQL/18"; do
+    if [[ -x "$candidate/bin/initdb" ]]; then POSTGRES_RUNTIME="$candidate"; break; fi
+  done
+fi
+[[ -n "$POSTGRES_RUNTIME" && -x "$POSTGRES_RUNTIME/bin/initdb" ]] || {
+  echo "PostgreSQL 18 runtime not found. Set DSE_POSTGRES_RUNTIME_DIR to a verified PostgreSQL 18 binary distribution." >&2
+  exit 1
+}
+mkdir -p "$INPUT/runtime/postgresql"
+for folder in bin lib share; do
+  [[ -d "$POSTGRES_RUNTIME/$folder" ]] || { echo "PostgreSQL runtime folder missing: $POSTGRES_RUNTIME/$folder" >&2; exit 1; }
+  cp -R "$POSTGRES_RUNTIME/$folder" "$INPUT/runtime/postgresql/$folder"
+done
+cp "$ROOT/runtime/runtime-manifest.properties" "$INPUT/runtime/runtime-manifest.properties"
+echo "Bundled PostgreSQL runtime: $POSTGRES_RUNTIME"
+python3 "$ROOT/scripts/verify-production-bundle.py" "$INPUT"
+
+PNG="$ROOT/desktop/src/main/resources/installer/logo-1024.png"
 ICNS="$ROOT/target/DSE-ERP.icns"
 if [[ -f "$PNG" ]]; then
   ICONSET="$ROOT/target/DSE-ERP.iconset"
@@ -45,7 +70,7 @@ COMMON=(
   --name "DSE ERP"
   --app-version "$VERSION"
   --vendor "DS Engineers"
-  --description "Open-source JavaFX ERP desktop application"
+  --description "DSE ERP desktop business management application"
   --copyright "Copyright (c) DS Engineers"
   --input "$INPUT"
   --main-jar "DSE_Final.jar"
@@ -53,6 +78,7 @@ COMMON=(
   --java-options "-Dfile.encoding=UTF-8"
   --java-options "--enable-native-access=ALL-UNNAMED"
   --java-options "-Ddse.erp.nativeAccessRelaunch=true"
+  --java-options "-Ddse.erp.packaged=true"
   --mac-package-identifier "com.dsengineers.dseerp"
   --mac-package-name "DSE ERP"
 )

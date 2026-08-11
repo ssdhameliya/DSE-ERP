@@ -20,6 +20,7 @@ public class MasterDataController {
  @DeleteMapping("/items/{code}") public MasterDtos.OperationResponse deleteItem(@PathVariable String code){service.deleteItem(code);return new MasterDtos.OperationResponse(true,"OK");}
  @GetMapping("/items/exists") public MasterDtos.ExistsResponse itemExists(@RequestParam String code){return new MasterDtos.ExistsResponse(service.itemExists(code));}
  @GetMapping("/items/next-code") public MasterDtos.NextCodeResponse itemNext(){return new MasterDtos.NextCodeResponse(service.nextItemCode());}
+ @PostMapping("/items/bulk") public MasterDtos.OperationResponse bulkItems(@RequestBody List<MasterDtos.ItemDto> rows){service.saveItems(rows);return new MasterDtos.OperationResponse(true,"OK");}
 
  @GetMapping("/lookups") public List<MasterDtos.LookupDto> lookups(@RequestParam String type){return service.lookups(type);}
  @GetMapping("/lookups/values") public MasterDtos.ValuesResponse values(@RequestParam String type){return new MasterDtos.ValuesResponse(service.values(type));}
@@ -31,6 +32,7 @@ public class MasterDataController {
 
  @GetMapping("/categories") public List<MasterDtos.CategoryDto> categories(){return service.categories();}
  @PostMapping("/categories") public MasterDtos.CategoryDto addCategory(@RequestParam String name){return service.addCategory(name);}
+ @PutMapping("/categories/upsert") public MasterDtos.CategoryDto upsertCategory(@RequestBody MasterDtos.CategoryUpsertRequest d){return service.upsertCategory(d);}
  @PutMapping("/categories/rename") public MasterDtos.CategoryDto rename(@RequestBody MasterDtos.RenameCategoryRequest r){return service.renameCategory(r.oldName(),r.newName());}
  @DeleteMapping("/categories") public MasterDtos.OperationResponse deleteCategory(@RequestParam String name){service.deleteCategory(name);return new MasterDtos.OperationResponse(true,"OK");}
 }
