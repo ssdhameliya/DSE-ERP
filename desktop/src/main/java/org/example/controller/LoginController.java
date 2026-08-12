@@ -54,7 +54,7 @@ public class LoginController {
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
         ClockService.start(lblClock);
 
-        cmbRole.getItems().setAll("Admin", "Manager", "Sales");
+        cmbRole.getItems().setAll("Admin", "Manager", "Sale");
 
         // Render the selected role explicitly in the closed ComboBox.
         // Some JavaFX skins do not repaint the button cell reliably after a
@@ -303,21 +303,7 @@ public class LoginController {
     @FXML private void forgotPassword() {
         resetPendingLogin();
         OtpService.clear();
-        clearResetErrors();
-        resetUser = null;
-
-        String identity = txtUsername.getText() == null ? "" : txtUsername.getText().trim();
-        txtResetIdentity.setText(identity);
-        txtResetOtp.clear();
-        txtNewPassword.clear();
-        txtConfirmPassword.clear();
-
-        loginPanel.setManaged(false);
-        loginPanel.setVisible(false);
-        resetPanel.setManaged(true);
-        resetPanel.setVisible(true);
-        lblMessage.setText("");
-        txtResetIdentity.requestFocus();
+        message("For account security, ask an Admin to reset your password from User Access.", false);
     }
 
     @FXML private void sendResetOtp() {

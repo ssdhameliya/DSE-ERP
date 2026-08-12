@@ -3,6 +3,7 @@ package org.example.api.auth;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.config.ConfigManager;
+import org.example.api.ApiSession;
 import org.example.model.AppUser;
 
 import java.io.IOException;
@@ -28,10 +29,7 @@ public final class AuthApiClient {
     private final String baseUrl;
 
     public AuthApiClient() {
-        this.baseUrl = null;
-        this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
-        this.json = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this(ConfigManager.getAuthApiBaseUrl());
     }
 
     AuthApiClient(String baseUrl) {
@@ -41,14 +39,16 @@ public final class AuthApiClient {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    private String endpointBaseUrl() {
-        return baseUrl == null ? normalizeBaseUrl(ConfigManager.getAuthApiBaseUrl()) : baseUrl;
-    }
-
     public AppUser authenticate(String identity, String password) {
         LoginResponse response = post("/api/auth/login",
                 new LoginRequest(identity, password), LoginResponse.class);
-        return response == null || !response.success() ? null : toAppUser(response.user());
+        if (response == null || !response.success()) return null;
+        if (response.accessToken() == null || response.accessToken().isBlank()) {
+            throw new IllegalStateException("The running backend does not support secure bearer login. "
+                    + "Restart DSE ERP so the current backend can be launched.");
+        }
+        ApiSession.establish(response.accessToken(), response.expiresAt());
+        return toAppUser(response.user());
     }
 
     public AppUser findActiveByIdentity(String identity) {
@@ -78,12 +78,23 @@ public final class AuthApiClient {
         }
     }
 
+    public void logout() {
+        String token = ApiSession.token();
+        try {
+            if (token != null) postAuthenticated("/api/auth/logout", null, OperationResponse.class);
+        } finally {
+            ApiSession.clear();
+        }
+    }
+
     public List<RoleOption> registrationRoles() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + "/api/auth/registration-roles"))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/registration-roles"))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Accept", "application/json")
-                    .GET().build();
+                    .GET();
+            ApiSession.authorize(builder);
+            HttpRequest request = builder.build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("Unable to load registration roles");
@@ -94,13 +105,13 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Role request was interrupted", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot load registration roles from " + endpointBaseUrl(), exception);
+            throw new IllegalStateException("Cannot load registration roles from " + baseUrl, exception);
         }
     }
 
     public boolean healthCheck() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + "/api/auth/health"))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/health"))
                     .timeout(Duration.ofSeconds(3)).GET().build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() >= 200 && response.statusCode() < 300;
@@ -112,12 +123,13 @@ public final class AuthApiClient {
     private <T> T post(String path, Object body, Class<T> responseType) {
         try {
             String payload = json.writeValueAsString(body);
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + path))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(payload))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(payload));
+            if (!"/api/auth/login".equals(path)) ApiSession.authorize(builder);
+            HttpRequest request = builder.build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 401 || response.statusCode() == 404) return null;
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -130,7 +142,27 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Authentication API request was interrupted", exception);
         } catch (IOException | IllegalArgumentException exception) {
-            throw new IllegalStateException("Cannot reach authentication server at " + endpointBaseUrl(), exception);
+            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl, exception);
+        }
+    }
+
+    private <T> T postAuthenticated(String path, Object body, Class<T> responseType) {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                    .timeout(REQUEST_TIMEOUT).header("Accept", "application/json");
+            ApiSession.authorize(builder);
+            if (body == null) builder.POST(HttpRequest.BodyPublishers.noBody());
+            else builder.header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401) { ApiSession.clear(); throw new ApiSession.AuthenticationRequiredException("Please sign in again"); }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("Authentication API error (" + response.statusCode() + ")");
+            return json.readValue(response.body(), responseType);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Authentication API request was interrupted", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl, exception);
         }
     }
 
@@ -163,7 +195,7 @@ public final class AuthApiClient {
     public record UserIdRequest(int userId) {}
     public record ChangePasswordRequest(int userId, String password) {}
     public record RegisterRequest(String username, String password, String fullName, String email, String role) {}
-    public record LoginResponse(boolean success, UserPayload user, String message) {}
+    public record LoginResponse(boolean success, UserPayload user, String message, String accessToken, String expiresAt) {}
     public record LookupResponse(boolean found, UserPayload user) {}
     public record OperationResponse(boolean success, String message) {}
     public record RoleOption(String code, String displayName) {
@@ -173,3 +205,4 @@ public final class AuthApiClient {
                               String email, boolean active, String department, String branch,
                               String accessLevel, boolean locked, boolean mfaEnabled) {}
 }
+

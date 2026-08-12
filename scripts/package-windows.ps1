@@ -30,7 +30,7 @@ Copy-Item $Jar (Join-Path $Input "DSE_Final.jar")
 New-Item -ItemType Directory -Path (Join-Path $Input "server") -Force | Out-Null
 Copy-Item $ServerJar (Join-Path $Input "server\dse-erp-server.jar")
 
-# 5.1.39 managed PostgreSQL payload. DSE_POSTGRES_RUNTIME_DIR may point to an extracted
+# 5.1.40 managed PostgreSQL payload. DSE_POSTGRES_RUNTIME_DIR may point to an extracted
 # PostgreSQL 18 binary distribution. Development/release machines can also use the standard install.
 $PostgresCandidates = @()
 if ($env:DSE_POSTGRES_RUNTIME_DIR) { $PostgresCandidates += $env:DSE_POSTGRES_RUNTIME_DIR }
@@ -50,8 +50,20 @@ foreach ($folder in @('bin','lib','share')) {
 }
 Copy-Item (Join-Path $Root 'runtime\runtime-manifest.properties') (Join-Path $Input 'runtime\runtime-manifest.properties') -Force
 Write-Host "Bundled PostgreSQL runtime: $PostgresRuntime" -ForegroundColor DarkCyan
-python (Join-Path $Root 'scripts\verify-production-bundle.py') $Input
-if ($LASTEXITCODE -ne 0) { throw 'Production runtime bundle verification failed.' }
+$RequiredBundleFiles = @(
+    (Join-Path $Input 'DSE_Final.jar'),
+    (Join-Path $Input 'server\dse-erp-server.jar'),
+    (Join-Path $Input 'runtime\runtime-manifest.properties'),
+    (Join-Path $Input 'runtime\postgresql\bin\initdb.exe'),
+    (Join-Path $Input 'runtime\postgresql\bin\pg_ctl.exe'),
+    (Join-Path $Input 'runtime\postgresql\bin\psql.exe'),
+    (Join-Path $Input 'runtime\postgresql\bin\createdb.exe')
+)
+$MissingBundleFiles = $RequiredBundleFiles | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }
+if ($MissingBundleFiles) {
+    throw "Production runtime bundle verification failed. Missing: $($MissingBundleFiles -join ', ')"
+}
+Write-Host 'DSE ERP production bundle verification PASS' -ForegroundColor Green
 
 $Icon = Join-Path $Root "desktop/src/main/resources/installer/DSE-ERP.ico"
 $CommonArgs = @(
@@ -63,7 +75,6 @@ $CommonArgs = @(
     '--input', $Input,
     '--main-jar', 'DSE_Final.jar',
     '--main-class', 'org.example.app.Launcher',
-    '--jlink-options', '--strip-debug --no-man-pages --no-header-files',
     '--java-options', '-Dfile.encoding=UTF-8',
     '--java-options', '--enable-native-access=ALL-UNNAMED',
     '--java-options', '-Ddse.erp.nativeAccessRelaunch=true',
@@ -102,6 +113,22 @@ $FinalName = "DSE-ERP-$Version-Windows-x64.exe"
 $FinalPath = Join-Path $Dest $FinalName
 Move-Item $Exe.FullName $FinalPath -Force
 $Hash = (Get-FileHash $FinalPath -Algorithm SHA256).Hash.ToLowerInvariant()
-"$Hash  $FinalName" | Set-Content (Join-Path $Dest 'checksums-windows.txt') -Encoding utf8
+$ChecksumPath = Join-Path $Dest 'checksums-windows.sha256'
+"$Hash  $FinalName" | Set-Content $ChecksumPath -Encoding utf8
 
-Write-Host "Created: $FinalPath" -ForegroundColor Green
+$ReleaseDir = Join-Path (Split-Path -Parent $Root) "DSE-ERP-$Version-RELEASE"
+New-Item -ItemType Directory -Path $ReleaseDir -Force | Out-Null
+Copy-Item -LiteralPath $FinalPath -Destination (Join-Path $ReleaseDir $FinalName) -Force
+Copy-Item -LiteralPath $ChecksumPath -Destination (Join-Path $ReleaseDir 'checksums-windows.sha256') -Force
+
+# Release artifacts live beside the source copy; remove generated Maven output.
+$GeneratedTarget = Join-Path $Root 'target'
+if (Test-Path -LiteralPath $GeneratedTarget) {
+    Get-ChildItem -LiteralPath $GeneratedTarget -Recurse -File -Force | ForEach-Object {
+        if ($_.IsReadOnly) { $_.IsReadOnly = $false }
+    }
+}
+mvn -B -ntp clean
+if ($LASTEXITCODE -ne 0) { throw 'The installer was created, but Maven could not clean generated build output.' }
+
+Write-Host "Created: $(Join-Path $ReleaseDir $FinalName)" -ForegroundColor Green

@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 5.1.39 managed PostgreSQL runtime.
+ * 5.1.40 managed PostgreSQL runtime.
  *
  * Fresh workspaces use a private PostgreSQL cluster owned by DSE ERP. Existing installations
  * that explicitly configure db.url or DSE_DB_URL remain external and are never reconfigured.
@@ -219,24 +219,6 @@ public final class ManagedPostgresRuntime {
         return home.resolve("bin").resolve(windows ? name + ".exe" : name);
     }
 
-    private static Path initdbShare(Path home) {
-        Path shareRoot = home.resolve("share").toAbsolutePath().normalize();
-        if (Files.isRegularFile(shareRoot.resolve("postgres.bki"))) return shareRoot;
-        if (!Files.isDirectory(shareRoot)) {
-            throw new IllegalStateException("Bundled PostgreSQL share directory is missing: " + shareRoot);
-        }
-        try (var paths = Files.walk(shareRoot, 4)) {
-            return paths.filter(Files::isRegularFile)
-                    .filter(path -> "postgres.bki".equals(path.getFileName().toString()))
-                    .map(Path::getParent)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException(
-                            "Bundled PostgreSQL postgres.bki was not found under: " + shareRoot));
-        } catch (IOException exception) {
-            throw new IllegalStateException("Unable to inspect bundled PostgreSQL share directory: " + shareRoot, exception);
-        }
-    }
-
     private static RuntimeState loadState(Path file) {
         Properties p = new Properties();
         try (InputStream in = Files.newInputStream(file)) {
@@ -341,11 +323,7 @@ public final class ManagedPostgresRuntime {
         try {
             Files.writeString(passwordFile, state.ownerPassword(), StandardCharsets.UTF_8);
             restrictPermissions(passwordFile);
-            Path share = initdbShare(home);
-            run(List.of(bin(home, "initdb").toString(),
-                    "-L", share.toString(),
-                    "-D", data.toString(),
-                    "-U", OWNER_USER,
+            run(List.of(bin(home, "initdb").toString(), "-D", data.toString(), "-U", OWNER_USER,
                     "--pwfile=" + passwordFile, "--encoding=UTF8", "--locale=C",
                     "--auth-local=scram-sha-256", "--auth-host=scram-sha-256"), null, COMMAND_TIMEOUT);
         } finally {

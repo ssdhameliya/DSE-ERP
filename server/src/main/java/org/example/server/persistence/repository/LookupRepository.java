@@ -11,4 +11,8 @@ public interface LookupRepository extends JpaRepository<LookupEntity,Integer> {
     List<LookupEntity> findByLookupTypeOrderByLookupCodeDesc(String lookupType);
     void deleteByLookupType(String lookupType);
     long countByLookupType(String lookupType);
+    @Query("select (count(l)>0) from LookupEntity l where upper(trim(l.lookupType))=upper(trim(:type)) and upper(trim(l.lookupCode))=upper(trim(:code)) and (:id is null or l.id<>:id)")
+    boolean duplicateCode(@Param("type") String type,@Param("code") String code,@Param("id") Integer id);
+    @Query("select (count(l)>0) from LookupEntity l where upper(trim(l.lookupType))=upper(trim(:type)) and upper(trim(l.lookupValue))=upper(trim(:value)) and (:id is null or l.id<>:id)")
+    boolean duplicateValue(@Param("type") String type,@Param("value") String value,@Param("id") Integer id);
 }

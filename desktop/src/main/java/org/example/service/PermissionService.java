@@ -1,19 +1,37 @@
 package org.example.service;
 
-import org.example.api.admin.AdminApiClient;
+import java.util.Locale;
+import java.util.Set;
 
-/** Resolves server-owned role permissions for the signed-in user. */
+/** Fixed desktop navigation matrix; the server independently enforces every API permission. */
 public final class PermissionService {
+    private static final Set<String> MANAGER_DENIED = Set.of(
+            "usersview", "backupview", "settingsview"
+    );
+    private static final Set<String> SALES_ALLOWED = Set.of(
+            "salesview", "quotationview", "customersview", "remindersview"
+    );
+
     private PermissionService() {}
+
     public static boolean allowed(String permissionKey) {
         if (SessionService.current() == null) return false;
-        String role = SessionService.current().getRole();
-        if (role != null && (role.equalsIgnoreCase("ADMIN") || role.equalsIgnoreCase("ADMINISTRATOR"))) return true;
+        String role = normalizeRole(SessionService.current().getRole());
         String wanted = normalize(permissionKey);
-        try {
-            return new AdminApiClient().permissions(role).stream().anyMatch(p -> p.allowed() &&
-                (normalize(p.module()+"."+p.action()).equals(wanted) || normalize(p.action()).equals(wanted)));
-        } catch (Exception ignored) { return false; }
+        if ("ADMIN".equals(role)) return true;
+        if ("MANAGER".equals(role)) return !MANAGER_DENIED.contains(wanted);
+        if ("SALES".equals(role)) return SALES_ALLOWED.contains(wanted);
+        return false;
     }
-    private static String normalize(String v){return v==null?"":v.replaceAll("[^A-Za-z0-9]","").toLowerCase(java.util.Locale.ROOT);}
+
+    private static String normalizeRole(String value) {
+        String role = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if ("ADMINISTRATOR".equals(role)) return "ADMIN";
+        if ("SALE".equals(role)) return "SALES";
+        return role;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : value.replaceAll("[^A-Za-z0-9]", "").toLowerCase(Locale.ROOT);
+    }
 }

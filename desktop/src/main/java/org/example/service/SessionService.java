@@ -22,5 +22,6 @@ public final class SessionService {
 
     public static void clear() {
         current = null;
+        org.example.api.ApiSession.clear();
     }
 }

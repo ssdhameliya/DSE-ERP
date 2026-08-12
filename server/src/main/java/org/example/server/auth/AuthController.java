@@ -1,6 +1,7 @@
 package org.example.server.auth;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -25,13 +26,15 @@ public class AuthController {
     public AuthDtos.LookupResponse lookup(@RequestBody AuthDtos.LookupRequest request) { return auth.lookup(request); }
 
     @PostMapping("/login-complete")
-    public AuthDtos.OperationResponse loginComplete(@RequestBody AuthDtos.UserIdRequest request) {
-        return auth.completeLogin(request);
+    public AuthDtos.OperationResponse loginComplete(@RequestBody AuthDtos.UserIdRequest request,
+                                                     @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {
+        return auth.completeLogin(request, current);
     }
 
     @PostMapping("/password")
-    public ResponseEntity<AuthDtos.OperationResponse> password(@RequestBody AuthDtos.ChangePasswordRequest request) {
-        AuthDtos.OperationResponse result = auth.changePassword(request);
+    public ResponseEntity<AuthDtos.OperationResponse> password(@RequestBody AuthDtos.ChangePasswordRequest request,
+                                                                @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {
+        AuthDtos.OperationResponse result = auth.changePassword(request, current);
         return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
     }
 
@@ -42,5 +45,13 @@ public class AuthController {
     public ResponseEntity<AuthDtos.OperationResponse> register(@RequestBody AuthDtos.RegisterRequest request) {
         AuthDtos.OperationResponse result = auth.register(request);
         return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
+    }
+
+    @PostMapping("/logout")
+    public AuthDtos.OperationResponse logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        String token = authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)
+                ? authorization.substring(7).trim() : null;
+        auth.logout(token);
+        return new AuthDtos.OperationResponse(true, "Signed out");
     }
 }
