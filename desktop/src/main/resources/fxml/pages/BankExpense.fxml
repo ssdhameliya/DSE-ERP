@@ -58,15 +58,14 @@
       </HBox>
       <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="finance-table">
         <columns>
-          <TableColumn fx:id="colDate" text="Date" prefWidth="90"/>
-          <TableColumn fx:id="colType" text="Type" prefWidth="105"/>
-          <TableColumn fx:id="colDescription" text="Description" prefWidth="220"/>
-          <TableColumn fx:id="colAccount" text="Account" prefWidth="135"/>
-          <TableColumn fx:id="colMode" text="Mode" prefWidth="95"/>
-          <TableColumn fx:id="colReference" text="Reference" prefWidth="120"/>
-          <TableColumn fx:id="colAmount" text="Amount" prefWidth="115"/>
-          <TableColumn fx:id="colMatch" text="Match / Link" prefWidth="145"/>
-          <TableColumn fx:id="colAction" text="Action" prefWidth="105" sortable="false"/>
+          <TableColumn fx:id="colDate" text="Date"/>
+          <TableColumn fx:id="colType" text="Type"/>
+          <TableColumn fx:id="colDescription" text="Description"/>
+          <TableColumn fx:id="colAccount" text="Account"/>
+          <TableColumn fx:id="colMode" text="Mode"/>
+          <TableColumn fx:id="colReference" text="Reference"/>
+          <TableColumn fx:id="colAmount" text="Amount"/>
+          <TableColumn fx:id="colAction" text="Action" sortable="false"/>
         </columns>
       </TableView>
       <HBox alignment="CENTER_LEFT">

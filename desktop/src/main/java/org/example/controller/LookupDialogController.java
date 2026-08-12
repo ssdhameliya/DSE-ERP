@@ -20,6 +20,7 @@ public class LookupDialogController {
     private final LookupService service = new LookupService();
     private String lookupType;
     private Lookup editingLookup;
+    private boolean saved;
 
     @FXML
     public void initialize() {
@@ -64,6 +65,7 @@ public class LookupDialogController {
         lookup.setActive(chkActive.isSelected());
 
         if (editingLookup == null) service.save(lookup); else service.update(lookup);
+        saved = true;
         close();
     }
 
@@ -96,6 +98,8 @@ public class LookupDialogController {
         label.setVisible(false);
         label.setManaged(false);
     }
+
+    public boolean wasSaved() { return saved; }
 
     @FXML private void cancel() { close(); }
     private void close() { ((Stage) txtCode.getScene().getWindow()).close(); }

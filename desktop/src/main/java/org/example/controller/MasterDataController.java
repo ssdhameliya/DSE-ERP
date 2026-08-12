@@ -673,7 +673,9 @@ public class MasterDataController {
             try {
                 if (isNewCategory) categoryService.add(newName); else categoryService.rename(oldName, newName);
                 loadCategories(); lstTypes.getSelectionModel().select(newName);
-                setStatus(isNewCategory ? "Category added successfully." : "Category renamed successfully.");
+                String successMessage = isNewCategory ? "Category added successfully." : "Category renamed successfully.";
+                setStatus(successMessage);
+                showSuccess(isNewCategory ? "Category Added" : "Category Renamed", successMessage);
             } catch (Exception exception) {
                 showWarning("Master Category could not be saved. Use a unique name.\n" + exception.getMessage());
                 setStatus("Category could not be saved.");
@@ -699,6 +701,7 @@ public class MasterDataController {
             categoryService.delete(selectedCategory); loadCategories();
             if (!lstTypes.getItems().isEmpty()) lstTypes.getSelectionModel().selectFirst(); else clearTable();
             setStatus("Category deleted successfully.");
+            showSuccess("Category Deleted", "Master category '" + selectedCategory + "' was deleted successfully.");
         } catch (Exception exception) {
             showWarning("Category could not be deleted:\n" + exception.getMessage()); setStatus("Category could not be deleted.");
         }
@@ -763,9 +766,12 @@ public class MasterDataController {
 
             loadTable();
 
-            setStatus(
-                "Lookup dialog closed. Data refreshed."
-            );
+            if (controller.wasSaved()) {
+                setStatus("Master record added successfully.");
+                showSuccess("Master Record Added", "The new " + selectedType + " record was saved successfully.");
+            } else {
+                setStatus("Add Master cancelled.");
+            }
 
         } catch (IOException exception) {
 
@@ -844,9 +850,12 @@ public class MasterDataController {
 
             loadTable();
 
-            setStatus(
-                "Lookup dialog closed. Data refreshed."
-            );
+            if (controller.wasSaved()) {
+                setStatus("Master record updated successfully.");
+                showSuccess("Master Record Updated", "The selected master record was updated successfully.");
+            } else {
+                setStatus("Edit Master cancelled.");
+            }
 
         } catch (IOException exception) {
 
@@ -924,6 +933,8 @@ public class MasterDataController {
             setStatus(
                 "Lookup deleted successfully."
             );
+            showSuccess("Master Record Deleted",
+                "Master record '" + selectedLookup.getLookupValue() + "' was deleted successfully.");
 
         } catch (Exception exception) {
 
@@ -983,6 +994,13 @@ public class MasterDataController {
         if (lblStatus != null) {
             lblStatus.setText(message);
         }
+    }
+
+    private void showSuccess(String header, String message) {
+        Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION, message, ButtonType.OK);
+        alert.setTitle("Success");
+        alert.setHeaderText(header);
+        alert.showAndWait();
     }
 
     private void showWarning(String message) {

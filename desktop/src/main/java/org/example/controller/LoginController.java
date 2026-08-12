@@ -16,6 +16,7 @@ import org.example.util.UiActionIcons;
 import org.example.util.UiTaskExecutor;
 import org.example.util.PerformanceMonitor;
 import org.example.util.PerformanceBudgets;
+import org.example.update.BuildInfo;
 
 import java.util.Locale;
 import java.util.prefs.Preferences;
@@ -39,7 +40,7 @@ public class LoginController {
     @FXML private ComboBox<String> cmbRole;
     @FXML private CheckBox chkRemember;
     @FXML private ToggleButton btnTheme;
-    @FXML private Label lblClock, lblMessage, lblUsernameError, lblPasswordError, lblRoleError, lblOtpError;
+    @FXML private Label lblClock, lblMessage, lblUsernameError, lblPasswordError, lblRoleError, lblOtpError, lblVersion;
     @FXML private Label lblResetIdentityError, lblResetOtpError, lblNewPasswordError, lblConfirmPasswordError;
     @FXML private Button btnLogin, btnRegister, btnEmailSettings, btnForgotPassword;
     @FXML private Button btnSendResetOtp, btnResetPassword, btnBackToLogin;
@@ -50,6 +51,7 @@ public class LoginController {
     private AppUser resetUser;
 
     @FXML public void initialize() {
+        if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
         ClockService.start(lblClock);
 
         cmbRole.getItems().setAll("Admin", "Manager", "Sales");

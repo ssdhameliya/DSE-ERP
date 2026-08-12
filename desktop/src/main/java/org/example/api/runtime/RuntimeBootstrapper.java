@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 
 /**
- * 5.1.25 runtime foundation.
+ * 5.1.30 runtime foundation.
  *
  * Ensures managed PostgreSQL and the packaged Spring Boot backend are running before API-backed JavaFX screens open.
  */
@@ -323,7 +323,13 @@ public final class RuntimeBootstrapper {
     }
 
     private static void prepareManagedServerEndpoint() {
-        if (!isPackagedRuntime() || ConfigManager.hasExplicitApiBaseUrl()) return;
+        if (!isPackagedRuntime()) return;
+
+        // Packaged DSE ERP owns its local Spring backend. Bundled config.properties
+        // contains development fallback URLs and must never be treated as a user
+        // override. Only explicit environment variables may opt into another API.
+        if (System.getenv("DSE_AUTH_API_URL") != null || System.getenv("DSE_DATA_API_URL") != null) return;
+
         String current = ConfigManager.getDataApiBaseUrl();
         try {
             URI uri = URI.create(current);

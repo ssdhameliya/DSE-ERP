@@ -54,11 +54,12 @@ public final class Main {
     }
 
     private void initializeInBackground(Stage stage) {
+        SceneManager.updateSplashStage(1, "Loading workspace and configuration...");
         ConfigManager.load();
         try {
-            SceneManager.updateSplashStatus("Preparing local PostgreSQL...");
+            SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
             ManagedPostgresRuntime.ensureReady();
-            SceneManager.updateSplashStatus("Database runtime ready...");
+            SceneManager.updateSplashStage(2, "PostgreSQL is ready.");
         } catch (Exception exception) {
             exception.printStackTrace();
             Platform.runLater(() -> {
@@ -74,11 +75,12 @@ public final class Main {
             if (restoreResult.failure() != null) restoreResult.failure().printStackTrace();
         }
         try {
-            SceneManager.updateSplashStatus("Starting DSE ERP services...");
+            SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
             RuntimeBootstrapper.ensureServerReady();
-            SceneManager.updateSplashStatus("Spring is verifying the ERP schema...");
+            SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
             new org.example.api.runtime.RuntimeApiClient().status();
-            SceneManager.updateSplashStatus("Services ready. Opening DSE ERP...");
+            SceneManager.updateSplashStage(5, "Finalizing DSE ERP...");
+            SceneManager.markSplashReady("Services ready. Opening DSE ERP...");
         } catch (Exception exception) {
             exception.printStackTrace();
             Platform.runLater(() -> {
@@ -115,11 +117,16 @@ public final class Main {
         SceneManager.showSplash();
         Thread firstRunStartup = new Thread(() -> {
             try {
+                SceneManager.updateSplashStage(1, "Loading workspace and configuration...");
                 ConfigManager.load();
-                SceneManager.updateSplashStatus("Preparing local PostgreSQL...");
+                SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
                 ManagedPostgresRuntime.ensureReady();
-                SceneManager.updateSplashStatus("Starting DSE ERP services...");
+                SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
                 RuntimeBootstrapper.ensureServerReady();
+                SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
+                new org.example.api.runtime.RuntimeApiClient().status();
+                SceneManager.updateSplashStage(5, "Finalizing DSE ERP...");
+                SceneManager.markSplashReady("Services ready. Opening DSE ERP...");
                 Platform.runLater(() -> {
                     finishStartup(stage);
                     if (SessionService.current() == null) SceneManager.showLogin();

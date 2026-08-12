@@ -6,7 +6,7 @@ echo.
 echo ========================================
 echo   DO NOT USE THIS SCRIPT TO BUILD THE CUSTOMER INSTALLER
 echo ========================================
-echo   DSE ERP 5.1.25 - DEVELOPMENT / INTELLIJ ONLY
+echo   DSE ERP 5.1.30 - DEVELOPMENT / INTELLIJ ONLY
 echo ========================================
 echo.
 
@@ -44,7 +44,15 @@ if not defined DSE_POSTGRES_HOME if not defined DSE_POSTGRES_RUNTIME_DIR (
   exit /b 2
 )
 
-echo [1/2] Installing shared contracts...
+echo [1/3] Cleaning stale desktop resources/classes...
+call mvn -pl desktop -am clean -DskipTests
+if errorlevel 1 (
+  echo ERROR: Clean failed.
+  pause
+  exit /b 3
+)
+
+echo [2/3] Installing shared contracts...
 call mvn -pl shared install -DskipTests
 if errorlevel 1 (
   echo.
@@ -54,7 +62,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [2/2] Starting JavaFX full stack...
+echo [3/3] Starting JavaFX full stack...
 echo       JavaFX will start managed PostgreSQL, build a uniquely named current
 echo       Spring Boot backend JAR, verify its exact version, then open the UI.
 echo.

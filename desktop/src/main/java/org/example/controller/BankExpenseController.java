@@ -47,7 +47,7 @@ public class BankExpenseController implements ScreenLifecycle {
     @FXML private TextArea description;
     @FXML private Label billName, showingLabel, pageLabel;
     @FXML private TableView<EntryRow> table;
-    @FXML private TableColumn<EntryRow,String> colDate,colType,colDescription,colAccount,colMode,colReference,colMatch;
+    @FXML private TableColumn<EntryRow,String> colDate,colType,colDescription,colAccount,colMode,colReference;
     @FXML private TableColumn<EntryRow,Number> colAmount;
     @FXML private TableColumn<EntryRow,Void> colAction;
 
@@ -164,6 +164,7 @@ public class BankExpenseController implements ScreenLifecycle {
         }
         typeFilter.getSelectionModel().selectFirst();
         colType.setText(bank ? "Type" : "Category"); colMode.setVisible(!bank);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         configureHeaderIcons(); loadMetrics(); applyFilters();
     }
 
@@ -174,15 +175,28 @@ public class BankExpenseController implements ScreenLifecycle {
 
     private void configureTable() {
         colDate.setCellValueFactory(v->v.getValue().date); colType.setCellValueFactory(v->v.getValue().type); colDescription.setCellValueFactory(v->v.getValue().description);
-        colAccount.setCellValueFactory(v->v.getValue().account); colMode.setCellValueFactory(v->v.getValue().paymentMode); colReference.setCellValueFactory(v->v.getValue().reference); colAmount.setCellValueFactory(v->v.getValue().amount); colMatch.setCellValueFactory(v->v.getValue().match);
+        colAccount.setCellValueFactory(v->v.getValue().account); colMode.setCellValueFactory(v->v.getValue().paymentMode); colReference.setCellValueFactory(v->v.getValue().reference); colAmount.setCellValueFactory(v->v.getValue().amount);
         colAmount.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(Number n, boolean empty){ super.updateItem(n,empty); if(empty||n==null){setText(null);setStyle("");return;} EntryRow row=getTableRow()==null?null:getTableRow().getItem(); setText(money(n.doubleValue())); boolean positive=row!=null && row.rawType.contains("DEPOSIT"); setStyle("-fx-text-fill:" + (positive ? "#22c55e" : "#ef4444") + ";-fx-font-weight:800;"); }});
-        colMatch.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String text, boolean empty){ super.updateItem(text,empty); setText(null); setGraphic(null); if(empty||text==null||text.isBlank()||getIndex()<0||getIndex()>=getTableView().getItems().size())return; EntryRow row=getTableView().getItems().get(getIndex()); Hyperlink link=new Hyperlink(text); link.getStyleClass().add("bank-match-link"); link.setGraphic(IconFactory.compactIcon("link",13)); link.setOnAction(e->openLinked(row)); setGraphic(link);} });
         colType.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String s, boolean empty){ super.updateItem(s,empty); setText(empty?null:s); getStyleClass().removeAll("finance-chip-green","finance-chip-red","finance-chip-purple","finance-chip-blue","finance-chip-orange","finance-chip-teal"); if(!empty&&s!=null)getStyleClass().add(chipStyle(s)); }});
         colAction.setCellFactory(c->new TableCell<>() { private final Button edit=new Button("Edit"), del=new Button("Delete"); private final javafx.scene.layout.HBox box=new javafx.scene.layout.HBox(5,edit,del); { edit.getStyleClass().addAll("approved-button","approved-secondary-button","finance-row-action"); del.getStyleClass().addAll("approved-button","approved-danger-button","finance-row-action"); edit.setOnAction(e->editRow(getTableView().getItems().get(getIndex()))); del.setOnAction(e->deleteRow(getTableView().getItems().get(getIndex()))); } @Override protected void updateItem(Void v, boolean empty){super.updateItem(v,empty);setGraphic(empty?null:box);} });
-        table.setPlaceholder(new Label("No entries found")); configureHeaderIcons();
+        table.setPlaceholder(new Label("No entries found"));
+        table.getColumns().removeIf(column -> {
+            String text = column.getText();
+            return text != null && ("Match / Link".equalsIgnoreCase(text.trim()) || "Match".equalsIgnoreCase(text.trim()));
+        });
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        colDate.setMinWidth(85);       colDate.setPrefWidth(95);
+        colType.setMinWidth(100);      colType.setPrefWidth(115);
+        colDescription.setMinWidth(180); colDescription.setPrefWidth(260);
+        colAccount.setMinWidth(130);   colAccount.setPrefWidth(180);
+        colMode.setMinWidth(90);       colMode.setPrefWidth(110);
+        colReference.setMinWidth(115); colReference.setPrefWidth(150);
+        colAmount.setMinWidth(110);    colAmount.setPrefWidth(130);
+        colAction.setMinWidth(120);    colAction.setPrefWidth(135);
+        configureHeaderIcons();
     }
 
-    private void configureHeaderIcons(){ IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colType, mode==Mode.EXPENSE?"category":"status"); IconFactory.applyTableHeaderIcon(colDescription,"document"); IconFactory.applyTableHeaderIcon(colAccount,"bank"); IconFactory.applyTableHeaderIcon(colMode,"payment"); IconFactory.applyTableHeaderIcon(colReference,"reference"); IconFactory.applyTableHeaderIcon(colAmount,"currency"); IconFactory.applyTableHeaderIcon(colMatch,"link"); IconFactory.applyTableHeaderIcon(colAction,"actions"); }
+    private void configureHeaderIcons(){ IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colType, mode==Mode.EXPENSE?"category":"status"); IconFactory.applyTableHeaderIcon(colDescription,"document"); IconFactory.applyTableHeaderIcon(colAccount,"bank"); IconFactory.applyTableHeaderIcon(colMode,"payment"); IconFactory.applyTableHeaderIcon(colReference,"reference"); IconFactory.applyTableHeaderIcon(colAmount,"currency"); IconFactory.applyTableHeaderIcon(colAction,"actions"); }
 
     private void loadMetrics() {
         try {
@@ -217,8 +231,15 @@ public class BankExpenseController implements ScreenLifecycle {
                 OperationsApiClient.FinanceEntry dto = new OperationsApiClient.FinanceEntry(editingId, null, rawType, entryDate.getValue().toString(), category, referenceNo.getText().trim(), value, paymentMode.getValue(), description.getText().trim(), account, selectedBill==null?null:selectedBill.getAbsolutePath(), false);
                 if (editingId == null) financeService.save(dto); else financeService.update(dto);
             }
-            NotificationService.add((editingId==null?"Finance entry created":"Finance entry updated")+": "+rawType+" "+money(value));
+            boolean wasUpdate = editingId != null;
+            String actionLabel = mode == Mode.EXPENSE ? "Expense" : "Bank Entry";
+            NotificationService.add((wasUpdate ? actionLabel + " updated" : actionLabel + " created") + ": " + money(value));
             clearForm(); loadMetrics(); applyFilters();
+            success(
+                wasUpdate ? actionLabel + " Updated" : actionLabel + " Saved",
+                (wasUpdate ? actionLabel + " was updated successfully." : actionLabel + " was saved successfully.")
+                    + "\n\nAmount: " + money(value)
+            );
         } catch (Exception e) { error(e.getMessage()); }
     }
 
@@ -250,10 +271,17 @@ public class BankExpenseController implements ScreenLifecycle {
     private void deleteRow(EntryRow row){
         if(row==null)return;
         Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Delete this entry? This action cannot be undone.");
-        a.showAndWait().filter(b->b==ButtonType.OK).ifPresent(b->{try{financeService.delete(row.id);loadMetrics();applyFilters();}catch(Exception e){error(e.getMessage());}});
+        a.setHeaderText("Confirm deletion");
+        a.showAndWait().filter(b->b==ButtonType.OK).ifPresent(b->{
+            try{
+                financeService.delete(row.id);
+                loadMetrics();
+                applyFilters();
+                success(mode==Mode.EXPENSE?"Expense Deleted":"Bank Entry Deleted",
+                        (mode==Mode.EXPENSE?"Expense":"Bank entry")+" was deleted successfully.");
+            }catch(Exception e){error(e.getMessage());}
+        });
     }
-
-    private void openLinked(EntryRow row){ if(row==null)return; String type=safe(row.linkedTargetType,"").toUpperCase(Locale.ROOT); if("SALE".equals(type)&&!safe(row.linkedDocumentNo,"").isBlank()){SalesScreenContext.select(row.linkedDocumentNo);org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml");return;} if("PURCHASE".equals(type)&&!safe(row.linkedDocumentNo,"").isBlank()){PurchaseScreenContext.select(row.linkedDocumentNo);org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");return;} if(row.statementTransactionId!=null){DashboardController.navigateFromChild("Bank Statement","/fxml/pages/BankStatement.fxml",null);return;} info("Match / Link","No reconciliation link is available for this entry."); }
 
 
 
@@ -263,7 +291,8 @@ public class BankExpenseController implements ScreenLifecycle {
     private String chipStyle(String s){String x=s.toLowerCase(Locale.ROOT); if(x.contains("deposit"))return"finance-chip-green";if(x.contains("withdraw"))return"finance-chip-red";if(x.contains("office"))return"finance-chip-purple";if(x.contains("travel")||x.contains("transport"))return"finance-chip-blue";if(x.contains("marketing")||x.contains("maintenance"))return"finance-chip-orange";return"finance-chip-teal";}
     private static String currentUser(){var u=org.example.service.SessionService.current();return u==null?"User":safe(u.getFullName(),"User");}
     private void info(String header,String text){OwnedAlert a=new OwnedAlert(Alert.AlertType.INFORMATION,text);a.setHeaderText(header);a.showAndWait();}
+    private void success(String header,String text){OwnedAlert a=new OwnedAlert(Alert.AlertType.INFORMATION,text,ButtonType.OK);a.setTitle("Success");a.setHeaderText(header);a.showAndWait();}
     private void error(String text){new OwnedAlert(Alert.AlertType.ERROR,text==null?"Operation failed":text).showAndWait();}
 
-    public static final class EntryRow { final int id; final SimpleStringProperty date,type,description,account,paymentMode,reference,match; final SimpleDoubleProperty amount; final String rawType,linkedTargetType,linkedDocumentNo; final Long statementTransactionId; final Integer linkedTargetId; EntryRow(int id,String d,String t,String desc,String acc,String pm,String ref,double amt,String raw,Long statementId,String targetType,Integer targetId,String documentNo){this.id=id;date=new SimpleStringProperty(d);type=new SimpleStringProperty(t);description=new SimpleStringProperty(desc);account=new SimpleStringProperty(acc);paymentMode=new SimpleStringProperty(pm);reference=new SimpleStringProperty(ref);amount=new SimpleDoubleProperty(amt);rawType=raw==null?"":raw.toUpperCase(Locale.ROOT);statementTransactionId=statementId;linkedTargetType=targetType==null?"":targetType;linkedTargetId=targetId;linkedDocumentNo=documentNo==null?"":documentNo;String display="";if(!linkedDocumentNo.isBlank())display=linkedDocumentNo;else if(statementId!=null)display="Bank Statement";match=new SimpleStringProperty(display);} }
+    public static final class EntryRow { final int id; final SimpleStringProperty date,type,description,account,paymentMode,reference; final SimpleDoubleProperty amount; final String rawType,linkedTargetType,linkedDocumentNo; final Long statementTransactionId; final Integer linkedTargetId; EntryRow(int id,String d,String t,String desc,String acc,String pm,String ref,double amt,String raw,Long statementId,String targetType,Integer targetId,String documentNo){this.id=id;date=new SimpleStringProperty(d);type=new SimpleStringProperty(t);description=new SimpleStringProperty(desc);account=new SimpleStringProperty(acc);paymentMode=new SimpleStringProperty(pm);reference=new SimpleStringProperty(ref);amount=new SimpleDoubleProperty(amt);rawType=raw==null?"":raw.toUpperCase(Locale.ROOT);statementTransactionId=statementId;linkedTargetType=targetType==null?"":targetType;linkedTargetId=targetId;linkedDocumentNo=documentNo==null?"":documentNo;} }
 }

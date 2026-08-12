@@ -28,7 +28,10 @@ public final class AuthApiClient {
     private final String baseUrl;
 
     public AuthApiClient() {
-        this(ConfigManager.getAuthApiBaseUrl());
+        this.baseUrl = null;
+        this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+        this.json = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     AuthApiClient(String baseUrl) {
@@ -36,6 +39,10 @@ public final class AuthApiClient {
         this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.json = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    }
+
+    private String endpointBaseUrl() {
+        return baseUrl == null ? normalizeBaseUrl(ConfigManager.getAuthApiBaseUrl()) : baseUrl;
     }
 
     public AppUser authenticate(String identity, String password) {
@@ -73,7 +80,7 @@ public final class AuthApiClient {
 
     public List<RoleOption> registrationRoles() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/registration-roles"))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + "/api/auth/registration-roles"))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Accept", "application/json")
                     .GET().build();
@@ -87,13 +94,13 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Role request was interrupted", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot load registration roles from " + baseUrl, exception);
+            throw new IllegalStateException("Cannot load registration roles from " + endpointBaseUrl(), exception);
         }
     }
 
     public boolean healthCheck() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/health"))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + "/api/auth/health"))
                     .timeout(Duration.ofSeconds(3)).GET().build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() >= 200 && response.statusCode() < 300;
@@ -105,7 +112,7 @@ public final class AuthApiClient {
     private <T> T post(String path, Object body, Class<T> responseType) {
         try {
             String payload = json.writeValueAsString(body);
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + path))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
@@ -123,7 +130,7 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Authentication API request was interrupted", exception);
         } catch (IOException | IllegalArgumentException exception) {
-            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl, exception);
+            throw new IllegalStateException("Cannot reach authentication server at " + endpointBaseUrl(), exception);
         }
     }
 
