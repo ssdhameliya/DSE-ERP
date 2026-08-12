@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.37 managed PostgreSQL payload. For release packaging, point
+# 5.1.38 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -58,25 +58,71 @@ done
 PG_CONFIG="$POSTGRES_RUNTIME/bin/pg_config"
 [[ -x "$PG_CONFIG" ]] || { echo "ERROR: PostgreSQL pg_config missing: $PG_CONFIG" >&2; exit 1; }
 
-POSTGRES_SHARE="$("$PG_CONFIG" --sharedir)"
-[[ -n "$POSTGRES_SHARE" && -d "$POSTGRES_SHARE" ]] || {
-  echo "ERROR: pg_config returned an invalid PostgreSQL shared-data directory: $POSTGRES_SHARE" >&2
-  exit 1
-}
-[[ -f "$POSTGRES_SHARE/postgres.bki" ]] || {
-  echo "ERROR: PostgreSQL shared-data directory does not contain postgres.bki: $POSTGRES_SHARE" >&2
+POSTGRES_SHARE_REPORTED="$("$PG_CONFIG" --sharedir)"
+[[ -n "$POSTGRES_SHARE_REPORTED" ]] || {
+  echo "ERROR: pg_config --sharedir returned an empty path." >&2
   exit 1
 }
 
+# Homebrew's opt/share trees can be symlinked into the Cellar. Resolve the real
+# directory first, then dereference every symlink while copying so the DMG owns
+# the actual PostgreSQL initialization files rather than Homebrew links.
+POSTGRES_SHARE="$(python3 - "$POSTGRES_SHARE_REPORTED" <<'PY'
+import os, sys
+print(os.path.realpath(sys.argv[1]))
+PY
+)"
+
+[[ -d "$POSTGRES_SHARE" ]] || {
+  echo "ERROR: PostgreSQL shared-data directory does not exist." >&2
+  echo "       pg_config: $POSTGRES_SHARE_REPORTED" >&2
+  echo "       resolved : $POSTGRES_SHARE" >&2
+  exit 1
+}
+
+# If a vendor layout nests the real initdb support files one level deeper,
+# locate postgres.bki and use the directory containing it.
+if [[ ! -f "$POSTGRES_SHARE/postgres.bki" ]]; then
+  POSTGRES_BKI="$(find -L "$POSTGRES_SHARE" "$POSTGRES_RUNTIME" -maxdepth 4 -type f -name postgres.bki -print -quit 2>/dev/null || true)"
+  if [[ -n "$POSTGRES_BKI" ]]; then
+    POSTGRES_SHARE="${POSTGRES_BKI:h}"
+  fi
+fi
+
+[[ -f "$POSTGRES_SHARE/postgres.bki" ]] || {
+  echo "ERROR: PostgreSQL shared-data directory does not contain postgres.bki." >&2
+  echo "       pg_config: $POSTGRES_SHARE_REPORTED" >&2
+  echo "       resolved : $POSTGRES_SHARE" >&2
+  echo "Available PostgreSQL share candidates:" >&2
+  find -L "$POSTGRES_RUNTIME" -maxdepth 4 -type f \( -name postgres.bki -o -name postgresql.conf.sample -o -name pg_hba.conf.sample \) -print >&2 2>/dev/null || true
+  exit 1
+}
+
+rm -rf "$INPUT/runtime/postgresql/share"
 mkdir -p "$INPUT/runtime/postgresql/share"
-cp -R "$POSTGRES_SHARE/." "$INPUT/runtime/postgresql/share/"
+
+# -L is critical here: copy file contents, never Homebrew symlinks.
+cp -RL "$POSTGRES_SHARE/." "$INPUT/runtime/postgresql/share/"
 
 [[ -f "$INPUT/runtime/postgresql/share/postgres.bki" ]] || {
-  echo "ERROR: Bundled PostgreSQL share/postgres.bki is missing after pg_config copy." >&2
+  echo "ERROR: Bundled PostgreSQL share/postgres.bki is missing after dereferenced copy." >&2
+  echo "       source: $POSTGRES_SHARE" >&2
+  echo "       target: $INPUT/runtime/postgresql/share" >&2
+  echo "Copied share tree (first 100 entries):" >&2
+  find "$INPUT/runtime/postgresql/share" -maxdepth 2 -print | head -100 >&2 || true
   exit 1
 }
-echo "PostgreSQL shared-data source: $POSTGRES_SHARE"
-echo "Verified bundled PostgreSQL share/postgres.bki."
+
+# Production bundle may not contain links back into Homebrew.
+if find "$INPUT/runtime/postgresql/share" -type l -print -quit | grep -q .; then
+  echo "ERROR: PostgreSQL share bundle still contains symlinks after dereferenced copy." >&2
+  find "$INPUT/runtime/postgresql/share" -type l -print >&2
+  exit 1
+fi
+
+echo "PostgreSQL shared-data source reported: $POSTGRES_SHARE_REPORTED"
+echo "PostgreSQL shared-data source resolved: $POSTGRES_SHARE"
+echo "Verified bundled PostgreSQL share/postgres.bki with no external symlinks."
 
 # Verify the copied share tree contains the minimum files initdb needs.
 for required_share_file in postgres.bki postgresql.conf.sample pg_hba.conf.sample; do
