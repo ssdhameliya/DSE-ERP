@@ -56,25 +56,38 @@ if not errors:
         except Exception as exc:
             errors.append(f'PostgreSQL command cannot execute: {exe}: {exc}')
 
-# Perform the exact operation that previously failed only on customer Macs.  The -L
-# option is PostgreSQL's supported override for initdb input files.  --no-sync is used
-# only for this disposable CI verification cluster.
+# Perform the exact first-workspace initialization path used by ManagedPostgresRuntime.
+# This deliberately uses SCRAM, a pwfile, normal fsync, UTF-8, locale C and the bundled
+# -L bootstrap directory. A release must prove this full operation works from the staged
+# runtime; initdb --version (or a trust/no-sync shortcut) is not a sufficient smoke test.
 if not errors and pg_share is not None:
     import tempfile
     import shutil
+    import secrets
     temp_parent=Path(tempfile.mkdtemp(prefix='dse-pg-verify-'))
     cluster=temp_parent/'data'
+    pwfile=temp_parent/'owner.pwd'
     try:
+        pwfile.write_text(secrets.token_urlsafe(30) + '\n', encoding='utf-8')
+        try:
+            os.chmod(pwfile, 0o600)
+        except OSError:
+            pass
         initdb=pg/'bin'/('initdb.exe' if win else 'initdb')
-        result=subprocess.run([str(initdb), '-D', str(cluster), '-L', str(pg_share),
-                               '-U', 'dse_verify', '--encoding=UTF8', '--locale=C',
-                               '--auth-local=trust', '--auth-host=trust', '--no-sync'],
-                              env=env, text=True, encoding='utf-8', errors='replace',
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+        command=[str(initdb), '-D', str(cluster), '-L', str(pg_share),
+                 '-U', 'dse_erp_owner', '--pwfile=' + str(pwfile),
+                 '--encoding=UTF8', '--locale=C',
+                 '--auth-local=scram-sha-256', '--auth-host=scram-sha-256']
+        result=subprocess.run(command, env=env, text=True, encoding='utf-8', errors='replace',
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
+        output=result.stdout.strip()
         if result.returncode != 0 or not (cluster/'PG_VERSION').is_file():
-            errors.append(f'PostgreSQL real initdb verification failed (exit {result.returncode}): {result.stdout.strip()}')
+            errors.append('PostgreSQL exact first-workspace initdb verification failed '
+                          f'(exit {result.returncode}): {output}')
+        else:
+            print('Verified PostgreSQL exact first-workspace initdb path (SCRAM + pwfile + fsync).')
     except Exception as exc:
-        errors.append(f'PostgreSQL real initdb verification failed: {exc}')
+        errors.append(f'PostgreSQL exact first-workspace initdb verification failed: {exc}')
     finally:
         shutil.rmtree(temp_parent, ignore_errors=True)
 

@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 6.0.3 managed PostgreSQL runtime.
+ * 6.0.4 managed PostgreSQL runtime.
  *
  * Fresh workspaces use a private PostgreSQL cluster owned by DSE ERP. Existing installations
  * that explicitly configure db.url or DSE_DB_URL remain external and are never reconfigured.
@@ -393,12 +393,40 @@ public final class ManagedPostgresRuntime {
             Files.writeString(passwordFile, state.ownerPassword(), StandardCharsets.UTF_8);
             restrictPermissions(passwordFile);
             Path initdbShare = locateInitdbShare(home);
-            run(List.of(bin(home, "initdb").toString(), "-D", data.toString(), "-L", initdbShare.toString(),
-                    "-U", OWNER_USER, "--pwfile=" + passwordFile, "--encoding=UTF8", "--locale=C",
-                    "--auth-local=scram-sha-256", "--auth-host=scram-sha-256"), null, COMMAND_TIMEOUT);
+            List<String> command = List.of(bin(home, "initdb").toString(), "-D", data.toString(),
+                    "-L", initdbShare.toString(), "-U", OWNER_USER, "--pwfile=" + passwordFile,
+                    "--encoding=UTF8", "--locale=C", "--auth-local=scram-sha-256",
+                    "--auth-host=scram-sha-256");
+
+            // Keep the complete native output outside the transient bootstrap directory.
+            // Startup dialogs intentionally show only a compact tail, while this file gives
+            // support the exact backend/dyld/initdb failure even if the app is later removed.
+            Path diagnosticLog = WorkspaceManager.getLogsFolder().resolve("postgresql-initdb.log");
+            Files.createDirectories(diagnosticLog.getParent());
+            ProcessResult result = run(command, null, Duration.ofSeconds(120), false);
+            String diagnostic = "DSE ERP 6.0.4 managed PostgreSQL initdb" + System.lineSeparator()
+                    + "Runtime: " + home + System.lineSeparator()
+                    + "Bootstrap share: " + initdbShare + System.lineSeparator()
+                    + "Data staging: " + data + System.lineSeparator()
+                    + "Exit code: " + result.exitCode() + System.lineSeparator()
+                    + System.lineSeparator() + result.output();
+            Files.writeString(diagnosticLog, diagnostic, StandardCharsets.UTF_8);
+            if (result.exitCode() != 0) {
+                throw new IllegalStateException("PostgreSQL initdb failed (" + result.exitCode() + "). "
+                        + "Full diagnostic log: " + diagnosticLog + System.lineSeparator()
+                        + compactOutputTail(result.output(), 3500));
+            }
         } finally {
             Files.deleteIfExists(passwordFile);
         }
+    }
+
+    private static String compactOutputTail(String output, int maxChars) {
+        if (output == null || output.isBlank()) return "No PostgreSQL diagnostic output was produced.";
+        String value = output.strip();
+        if (value.length() <= maxChars) return value;
+        return "... (earlier PostgreSQL output omitted; see diagnostic log) ..." + System.lineSeparator()
+                + value.substring(value.length() - maxChars);
     }
 
     private static void deleteTreeQuietly(Path root) {

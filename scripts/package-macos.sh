@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 6.0.3 managed PostgreSQL payload. For release packaging, point
+# 6.0.4 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -89,6 +89,7 @@ python3 "$ROOT/scripts/relocate-macos-postgresql.py" \
   "$INPUT/runtime/postgresql" "$POSTGRES_RUNTIME"
 
 echo "Bundled relocatable PostgreSQL runtime: $POSTGRES_RUNTIME"
+echo "Running exact first-workspace PostgreSQL smoke test before jpackage..."
 python3 "$ROOT/scripts/verify-production-bundle.py" "$INPUT"
 
 PNG="$ROOT/desktop/src/main/resources/installer/logo-1024.png"
@@ -134,6 +135,7 @@ echo "Verified bundled Java launcher: $BUNDLED_JAVA"
 
 # Verify the runtime again from the actual .app layout. This catches any jpackage
 # staging regression before a DMG can be uploaded to a release.
+echo "Running exact first-workspace PostgreSQL smoke test from final .app layout..."
 python3 "$ROOT/scripts/verify-production-bundle.py" "$APP_IMAGE/DSE ERP.app/Contents/app"
 
 jpackage --type dmg "${COMMON[@]}" --dest "$DEST"

@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 
 /**
- * 6.0.3 runtime foundation.
+ * 6.0.4 runtime foundation.
  *
  * Ensures managed PostgreSQL and the packaged Spring Boot backend are running before API-backed JavaFX screens open.
  */
