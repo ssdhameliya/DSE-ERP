@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 5.1.38 managed PostgreSQL runtime.
+ * 5.1.39 managed PostgreSQL runtime.
  *
  * Fresh workspaces use a private PostgreSQL cluster owned by DSE ERP. Existing installations
  * that explicitly configure db.url or DSE_DB_URL remain external and are never reconfigured.
@@ -208,12 +208,6 @@ public final class ManagedPostgresRuntime {
                 throw new IllegalStateException("DSE ERP installation is incomplete: PostgreSQL command missing: " + command);
             }
         }
-        Path share = postgresShare(home);
-        if (!Files.isRegularFile(share.resolve("postgres.bki"))) {
-            throw new IllegalStateException(
-                    "DSE ERP installation is incomplete: bundled PostgreSQL share/postgres.bki is missing: "
-                            + share.resolve("postgres.bki"));
-        }
     }
 
     private static boolean isPackagedRuntime() {
@@ -225,8 +219,22 @@ public final class ManagedPostgresRuntime {
         return home.resolve("bin").resolve(windows ? name + ".exe" : name);
     }
 
-    private static Path postgresShare(Path home) {
-        return home.resolve("share").toAbsolutePath().normalize();
+    private static Path initdbShare(Path home) {
+        Path shareRoot = home.resolve("share").toAbsolutePath().normalize();
+        if (Files.isRegularFile(shareRoot.resolve("postgres.bki"))) return shareRoot;
+        if (!Files.isDirectory(shareRoot)) {
+            throw new IllegalStateException("Bundled PostgreSQL share directory is missing: " + shareRoot);
+        }
+        try (var paths = Files.walk(shareRoot, 4)) {
+            return paths.filter(Files::isRegularFile)
+                    .filter(path -> "postgres.bki".equals(path.getFileName().toString()))
+                    .map(Path::getParent)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Bundled PostgreSQL postgres.bki was not found under: " + shareRoot));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to inspect bundled PostgreSQL share directory: " + shareRoot, exception);
+        }
     }
 
     private static RuntimeState loadState(Path file) {
@@ -333,11 +341,7 @@ public final class ManagedPostgresRuntime {
         try {
             Files.writeString(passwordFile, state.ownerPassword(), StandardCharsets.UTF_8);
             restrictPermissions(passwordFile);
-            Path share = postgresShare(home);
-            if (!Files.isRegularFile(share.resolve("postgres.bki"))) {
-                throw new IllegalStateException(
-                        "Bundled PostgreSQL initialization files are missing: " + share.resolve("postgres.bki"));
-            }
+            Path share = initdbShare(home);
             run(List.of(bin(home, "initdb").toString(),
                     "-L", share.toString(),
                     "-D", data.toString(),

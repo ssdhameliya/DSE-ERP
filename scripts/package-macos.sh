@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.38 managed PostgreSQL payload. For release packaging, point
+# 5.1.39 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -45,286 +45,162 @@ fi
   exit 1
 }
 mkdir -p "$INPUT/runtime/postgresql"
-
-# Copy executable and library trees from the PostgreSQL runtime root.
-for folder in bin lib; do
+for folder in bin lib share; do
   [[ -d "$POSTGRES_RUNTIME/$folder" ]] || { echo "PostgreSQL runtime folder missing: $POSTGRES_RUNTIME/$folder" >&2; exit 1; }
   cp -R "$POSTGRES_RUNTIME/$folder" "$INPUT/runtime/postgresql/$folder"
 done
 
-# Homebrew does not guarantee that PostgreSQL's shared initialization files live
-# under $POSTGRES_RUNTIME/share. Ask the installed PostgreSQL build for its real
-# shared-data directory and copy that content into our portable runtime/share.
-PG_CONFIG="$POSTGRES_RUNTIME/bin/pg_config"
-[[ -x "$PG_CONFIG" ]] || { echo "ERROR: PostgreSQL pg_config missing: $PG_CONFIG" >&2; exit 1; }
-
-POSTGRES_SHARE_REPORTED="$("$PG_CONFIG" --sharedir)"
-[[ -n "$POSTGRES_SHARE_REPORTED" ]] || {
-  echo "ERROR: pg_config --sharedir returned an empty path." >&2
-  exit 1
-}
-
-# Homebrew's opt/share trees can be symlinked into the Cellar. Resolve the real
-# directory first, then dereference every symlink while copying so the DMG owns
-# the actual PostgreSQL initialization files rather than Homebrew links.
-POSTGRES_SHARE="$(python3 - "$POSTGRES_SHARE_REPORTED" <<'PY'
-import os, sys
-print(os.path.realpath(sys.argv[1]))
-PY
-)"
-
-[[ -d "$POSTGRES_SHARE" ]] || {
-  echo "ERROR: PostgreSQL shared-data directory does not exist." >&2
-  echo "       pg_config: $POSTGRES_SHARE_REPORTED" >&2
-  echo "       resolved : $POSTGRES_SHARE" >&2
-  exit 1
-}
-
-# If a vendor layout nests the real initdb support files one level deeper,
-# locate postgres.bki and use the directory containing it.
-if [[ ! -f "$POSTGRES_SHARE/postgres.bki" ]]; then
-  POSTGRES_BKI="$(find -L "$POSTGRES_SHARE" "$POSTGRES_RUNTIME" -maxdepth 4 -type f -name postgres.bki -print -quit 2>/dev/null || true)"
-  if [[ -n "$POSTGRES_BKI" ]]; then
-    POSTGRES_SHARE="${POSTGRES_BKI:h}"
-  fi
-fi
-
-[[ -f "$POSTGRES_SHARE/postgres.bki" ]] || {
-  echo "ERROR: PostgreSQL shared-data directory does not contain postgres.bki." >&2
-  echo "       pg_config: $POSTGRES_SHARE_REPORTED" >&2
-  echo "       resolved : $POSTGRES_SHARE" >&2
-  echo "Available PostgreSQL share candidates:" >&2
-  find -L "$POSTGRES_RUNTIME" -maxdepth 4 -type f \( -name postgres.bki -o -name postgresql.conf.sample -o -name pg_hba.conf.sample \) -print >&2 2>/dev/null || true
-  exit 1
-}
-
-rm -rf "$INPUT/runtime/postgresql/share"
-mkdir -p "$INPUT/runtime/postgresql/share"
-
-# -L is critical here: copy file contents, never Homebrew symlinks.
-cp -RL "$POSTGRES_SHARE/." "$INPUT/runtime/postgresql/share/"
-
-[[ -f "$INPUT/runtime/postgresql/share/postgres.bki" ]] || {
-  echo "ERROR: Bundled PostgreSQL share/postgres.bki is missing after dereferenced copy." >&2
-  echo "       source: $POSTGRES_SHARE" >&2
-  echo "       target: $INPUT/runtime/postgresql/share" >&2
-  echo "Copied share tree (first 100 entries):" >&2
-  find "$INPUT/runtime/postgresql/share" -maxdepth 2 -print | head -100 >&2 || true
-  exit 1
-}
-
-# Production bundle may not contain links back into Homebrew.
-if find "$INPUT/runtime/postgresql/share" -type l -print -quit | grep -q .; then
-  echo "ERROR: PostgreSQL share bundle still contains symlinks after dereferenced copy." >&2
-  find "$INPUT/runtime/postgresql/share" -type l -print >&2
-  exit 1
-fi
-
-echo "PostgreSQL shared-data source reported: $POSTGRES_SHARE_REPORTED"
-echo "PostgreSQL shared-data source resolved: $POSTGRES_SHARE"
-echo "Verified bundled PostgreSQL share/postgres.bki with no external symlinks."
-
-# Verify the copied share tree contains the minimum files initdb needs.
-for required_share_file in postgres.bki postgresql.conf.sample pg_hba.conf.sample; do
-  [[ -f "$INPUT/runtime/postgresql/share/$required_share_file" ]] || {
-    echo "ERROR: Bundled PostgreSQL initialization file missing: share/$required_share_file" >&2
-    exit 1
-  }
-done
-echo "Verified PostgreSQL initialization share tree."
-
-# macOS PostgreSQL must be fully self-contained. Homebrew PostgreSQL binaries can
-# contain absolute references into /opt/homebrew/Cellar or /usr/local/Cellar.
-# Copy external dylibs into the app payload and rewrite every non-system Mach-O
-# dependency to a path inside runtime/postgresql.
+# Keep the proven 5.1.39 PostgreSQL layout exactly as copied above. The only
+# macOS portability work below is to relocate dynamic-library dependencies that
+# still point outside the bundle. External libraries are placed in a bucket
+# derived from their ORIGINAL source directory, while retaining their ORIGINAL
+# filename. This prevents basename collisions without breaking ICU/Kerberos
+# @loader_path sibling references.
 PG_BUNDLE="$INPUT/runtime/postgresql"
 PG_DEPS="$PG_BUNDLE/lib/dse-deps"
+PG_MAP="$PG_DEPS/.dse-source-map.tsv"
 mkdir -p "$PG_DEPS"
+: > "$PG_MAP"
 
 is_macho() {
   file "$1" 2>/dev/null | grep -q "Mach-O"
 }
 
-bundled_match_for_dependency() {
-  local dep="$1"
-  local base="${dep:t}"
-  find "$PG_BUNDLE/lib" -type f -name "$base" ! -path "$PG_DEPS/*" -print -quit 2>/dev/null || true
+original_source_for() {
+  local bundled="$1"
+  awk -F '\t' -v dst="$bundled" '$2==dst {print $1; exit}' "$PG_MAP"
 }
 
-relative_loader_reference() {
-  local from="$1"
-  local to="$2"
-  python3 - "$from" "$to" <<'PY'
-import os, sys
-source=os.path.abspath(sys.argv[1])
-target=os.path.abspath(sys.argv[2])
-rel=os.path.relpath(target, os.path.dirname(source))
-print("@loader_path/" + rel)
-PY
-}
-
-copy_external_dylib() {
-  local dep="$1"
-  local source="$dep"
-  if [[ ! -e "$source" ]]; then
-    echo "ERROR: PostgreSQL dependency does not exist on build machine: $dep" >&2
-    exit 1
+record_source_map() {
+  local src="$1" dst="$2"
+  if ! awk -F '\t' -v src="$src" '$1==src {found=1} END{exit !found}' "$PG_MAP"; then
+    printf '%s\t%s\n' "$src" "$dst" >> "$PG_MAP"
   fi
+}
 
-  local real_source
+bundle_external_dylib() {
+  local source="$1"
+  [[ -e "$source" ]] || {
+    echo "ERROR: External PostgreSQL dylib is missing on build runner: $source" >&2
+    exit 1
+  }
+
+  local real_source source_dir dir_hash dest_dir dest
   real_source="$(python3 - "$source" <<'PY'
 import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
 )"
+  source_dir="${real_source:h}"
+  dir_hash="$(printf '%s' "$source_dir" | shasum -a 256 | awk '{print substr($1,1,12)}')"
+  dest_dir="$PG_DEPS/$dir_hash"
+  dest="$dest_dir/${real_source:t}"
 
-  local map_file="$PG_DEPS/.dse-source-map.tsv"
-  touch "$map_file"
-
-  # Reuse the exact destination previously assigned to this original source.
-  local mapped
-  mapped="$(awk -F '\t' -v src="$real_source" '$1==src {print $2; exit}' "$map_file")"
-  if [[ -n "$mapped" ]]; then
-    [[ -e "$mapped" ]] || {
-      echo "ERROR: PostgreSQL dependency map points to a missing file: $mapped" >&2
-      exit 1
-    }
-    print -r -- "$mapped"
-    return 0
-  fi
-
-  local base="${real_source:t}"
-  local dest="$PG_DEPS/$base"
-
-  # Preserve the original basename whenever possible. This is essential for
-  # libraries such as ICU and Kerberos that use @loader_path/<sibling-name>.
-  # Only a true same-basename collision gets a deterministic hashed filename.
-  if [[ -e "$dest" ]]; then
-    local owner
-    owner="$(awk -F '\t' -v dst="$dest" '$2==dst {print $1; exit}' "$map_file")"
-    if [[ "$owner" != "$real_source" ]]; then
-      local digest stem ext
-      digest="$(shasum -a 256 "$real_source" | awk '{print substr($1,1,12)}')"
-      if [[ "$base" == *.dylib ]]; then
-        stem="${base%.dylib}"
-        ext=".dylib"
-      else
-        stem="$base"
-        ext=""
-      fi
-      dest="$PG_DEPS/${stem}-dse-${digest}${ext}"
-      echo "PostgreSQL dylib basename collision: $base -> ${dest:t}" >&2
-    fi
-  fi
-
+  mkdir -p "$dest_dir"
   if [[ ! -e "$dest" ]]; then
     cp -L "$real_source" "$dest"
     chmod u+w "$dest"
-    echo "Bundled PostgreSQL dependency: $real_source -> ${dest:t}" >&2
+    echo "Bundled PostgreSQL dependency: $real_source -> $dest" >&2
   fi
-
-  printf '%s\t%s\n' "$real_source" "$dest" >> "$map_file"
+  record_source_map "$real_source" "$dest"
   print -r -- "$dest"
 }
 
-rewrite_macho_dependencies() {
-  local file_path="$1"
-  is_macho "$file_path" || return 0
-  chmod u+w "$file_path" 2>/dev/null || true
+relative_loader_reference() {
+  python3 - "$1" "$2" <<'PY'
+import os, sys
+source=os.path.abspath(sys.argv[1])
+target=os.path.abspath(sys.argv[2])
+print("@loader_path/" + os.path.relpath(target, os.path.dirname(source)))
+PY
+}
 
-  local deps
-  deps="$(otool -L "$file_path" | tail -n +2 | awk '{print $1}')"
-  local dep target replacement
+find_bundled_postgres_lib() {
+  local basename="$1"
+  find "$PG_BUNDLE/lib" -type f -name "$basename" ! -path "$PG_DEPS/*" -print -quit 2>/dev/null || true
+}
+
+rewrite_macho_dependencies() {
+  local candidate="$1"
+  is_macho "$candidate" || return 0
+  chmod u+w "$candidate" 2>/dev/null || true
+
+  local original_source original_dir dep target replacement sibling
+  original_source="$(original_source_for "$candidate")"
+  original_dir=""
+  [[ -n "$original_source" ]] && original_dir="${original_source:h}"
+
   while IFS= read -r dep; do
     [[ -n "$dep" ]] || continue
-
     case "$dep" in
-      /System/*|/usr/lib/*|@executable_path/*) continue ;;
+      /System/*|/usr/lib/*|@executable_path/*)
+        continue
+        ;;
       @loader_path/*)
-        local sibling_name sibling_here original_source original_dir original_sibling
-        sibling_name="${dep#@loader_path/}"
-        sibling_here="${file_path:h}/$sibling_name"
-        [[ -e "$sibling_here" ]] && continue
+        # Leave valid local sibling references alone.
+        sibling="${candidate:h}/${dep#@loader_path/}"
+        [[ -e "$sibling" ]] && continue
 
-        # Find the original source corresponding to this bundled file.
-        original_source="$(awk -F '\t' -v dst="$file_path" '$2==dst {print $1; exit}' "$PG_DEPS/.dse-source-map.tsv")"
-        if [[ -n "$original_source" ]]; then
-          original_dir="${original_source:h}"
-          original_sibling="$original_dir/$sibling_name"
-          if [[ -e "$original_sibling" ]]; then
-            target="$(copy_external_dylib "$original_sibling")"
-            replacement="$(relative_loader_reference "$file_path" "$target")"
-            install_name_tool -change "$dep" "$replacement" "$file_path"
-            continue
-          fi
-        fi
-
-        # Last fallback: search copied PostgreSQL libraries by exact basename.
-        target="$(find "$PG_BUNDLE/lib" -type f -name "$sibling_name" -print -quit 2>/dev/null || true)"
-        if [[ -n "$target" ]]; then
-          replacement="$(relative_loader_reference "$file_path" "$target")"
-          install_name_tool -change "$dep" "$replacement" "$file_path"
+        # For copied external libraries, resolve the sibling from the same
+        # ORIGINAL source directory and put it in the same destination bucket.
+        if [[ -n "$original_dir" && -e "$original_dir/${dep#@loader_path/}" ]]; then
+          target="$(bundle_external_dylib "$original_dir/${dep#@loader_path/}")"
+          replacement="$(relative_loader_reference "$candidate" "$target")"
+          install_name_tool -change "$dep" "$replacement" "$candidate"
           continue
         fi
 
-        echo "ERROR: Missing @loader_path dependency '$dep' required by $file_path" >&2
+        # PostgreSQL's own lib directory is the final local fallback.
+        target="$(find_bundled_postgres_lib "${dep#@loader_path/}")"
+        if [[ -n "$target" ]]; then
+          replacement="$(relative_loader_reference "$candidate" "$target")"
+          install_name_tool -change "$dep" "$replacement" "$candidate"
+          continue
+        fi
+
+        echo "ERROR: Unresolved @loader_path dependency '$dep' in $candidate" >&2
+        exit 1
+        ;;
+      @rpath/*)
+        local rbase="${dep:t}"
+        target="$(find_bundled_postgres_lib "$rbase")"
+        if [[ -z "$target" && -n "$original_dir" && -e "$original_dir/$rbase" ]]; then
+          target="$(bundle_external_dylib "$original_dir/$rbase")"
+        fi
+        [[ -n "$target" ]] || {
+          echo "ERROR: Unresolved @rpath dependency '$dep' in $candidate" >&2
+          exit 1
+        }
+        replacement="$(relative_loader_reference "$candidate" "$target")"
+        install_name_tool -change "$dep" "$replacement" "$candidate"
+        ;;
+      /*)
+        # Prefer the PostgreSQL lib already copied by 5.1.39 when names match.
+        target="$(find_bundled_postgres_lib "${dep:t}")"
+        [[ -n "$target" ]] || target="$(bundle_external_dylib "$dep")"
+        replacement="$(relative_loader_reference "$candidate" "$target")"
+        install_name_tool -change "$dep" "$replacement" "$candidate"
+        ;;
+      *)
+        echo "ERROR: Unsupported dylib reference '$dep' in $candidate" >&2
         exit 1
         ;;
     esac
-
-    target=""
-
-    # If the dependency is already part of the copied PostgreSQL lib tree,
-    # prefer that exact bundled copy. This fixes libpq.5.dylib and similar
-    # Homebrew absolute references without duplicating them.
-    target="$(bundled_match_for_dependency "$dep")"
-
-    if [[ -z "$target" ]]; then
-      case "$dep" in
-        @rpath/*)
-          local rbase="${dep:t}"
-          target="$(find "$PG_BUNDLE/lib" -type f -name "$rbase" -print -quit 2>/dev/null || true)"
-          ;;
-        /*)
-          target="$(copy_external_dylib "$dep")"
-          ;;
-        *)
-          echo "ERROR: Unsupported PostgreSQL dylib reference '$dep' in $file_path" >&2
-          exit 1
-          ;;
-      esac
-    fi
-
-    [[ -n "$target" && -e "$target" ]] || {
-      echo "ERROR: Could not bundle PostgreSQL dependency '$dep' required by $file_path" >&2
-      exit 1
-    }
-
-    replacement="$(relative_loader_reference "$file_path" "$target")"
-    install_name_tool -change "$dep" "$replacement" "$file_path"
-  done <<< "$deps"
-
-  # A copied dylib may carry an absolute install-id. Give it a portable id.
-  if [[ "$file_path" == *.dylib ]]; then
-    install_name_tool -id "@loader_path/${file_path:t}" "$file_path" 2>/dev/null || true
-  fi
+  done < <(otool -L "$candidate" | tail -n +2 | awk '{print $1}')
 }
 
-# Repeatedly scan because copied external dylibs can introduce more dependencies.
-for pass in 1 2 3 4 5 6; do
-  changed=0
-  before_count="$(find "$PG_DEPS" -type f 2>/dev/null | wc -l | tr -d ' ')"
+# Iterate because copying one external dylib may introduce another.
+for pass in 1 2 3 4 5 6 7 8; do
+  before="$(find "$PG_DEPS" -type f ! -name '.dse-source-map.tsv' | wc -l | tr -d ' ')"
   while IFS= read -r candidate; do
     rewrite_macho_dependencies "$candidate"
-  done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f -print)
-  after_count="$(find "$PG_DEPS" -type f 2>/dev/null | wc -l | tr -d ' ')"
-  [[ "$after_count" == "$before_count" ]] || changed=1
-  [[ "$changed" -eq 0 ]] && break
+  done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f ! -name '.dse-source-map.tsv' -print)
+  after="$(find "$PG_DEPS" -type f ! -name '.dse-source-map.tsv' | wc -l | tr -d ' ')"
+  [[ "$before" == "$after" ]] && break
 done
 
-# Release gate: no packaged PostgreSQL Mach-O file may retain a Homebrew/Cellar
-# or other non-system absolute dependency. This prevents creating another DMG
-# that only works on the GitHub runner/build Mac.
+# Release gate: no bundled Mach-O may point to Homebrew or another external
+# absolute library. Valid references are system libraries or paths inside bundle.
 bad_refs=0
 while IFS= read -r candidate; do
   is_macho "$candidate" || continue
@@ -333,48 +209,90 @@ while IFS= read -r candidate; do
     case "$dep" in
       /System/*|/usr/lib/*|@loader_path/*|@executable_path/*) ;;
       *)
-        echo "ERROR: External dylib reference remains:" >&2
-        echo "       File: $candidate" >&2
-        echo "       Ref : $dep" >&2
+        echo "ERROR: External PostgreSQL dylib reference remains:" >&2
+        echo "       file: $candidate" >&2
+        echo "       ref : $dep" >&2
         bad_refs=1
         ;;
     esac
   done < <(otool -L "$candidate" | tail -n +2 | awk '{print $1}')
-done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f -print)
+done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f ! -name '.dse-source-map.tsv' -print)
 [[ "$bad_refs" -eq 0 ]] || exit 1
 
-missing_loader_refs=0
-while IFS= read -r candidate; do
-  is_macho "$candidate" || continue
-  while IFS= read -r dep; do
-    case "$dep" in
-      @loader_path/*)
-        resolved="${candidate:h}/${dep#@loader_path/}"
-        if [[ ! -e "$resolved" ]]; then
-          echo "ERROR: Unresolved bundled @loader_path dependency:" >&2
-          echo "       File: $candidate" >&2
-          echo "       Ref : $dep" >&2
-          missing_loader_refs=1
-        fi
-        ;;
-    esac
-  done < <(otool -L "$candidate" | tail -n +2 | awk '{print $1}')
-done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f -print)
-[[ "$missing_loader_refs" -eq 0 ]] || exit 1
+# Locate initdb support files INSIDE the untouched 5.1.39 share tree. Homebrew
+# sometimes nests them under share/postgresql@18; do not restructure the tree.
+PG_INIT_SHARE="$(python3 - "$PG_BUNDLE/share" <<'PY'
+import os, sys
+root=os.path.abspath(sys.argv[1])
+for current, dirs, files in os.walk(root):
+    depth=os.path.relpath(current, root).count(os.sep)
+    if "postgres.bki" in files:
+        print(current)
+        raise SystemExit(0)
+    if depth >= 3:
+        dirs[:] = []
+raise SystemExit(1)
+PY
+)" || {
+  echo "ERROR: postgres.bki not found anywhere inside bundled PostgreSQL share tree." >&2
+  find "$PG_BUNDLE/share" -maxdepth 4 -print >&2 || true
+  exit 1
+}
+echo "Bundled initdb share directory: $PG_INIT_SHARE"
 
-echo "Verified PostgreSQL external dependencies and @loader_path references are self-contained."
+# Critical release smoke test: actually initialize a temporary PostgreSQL
+# cluster using only the relocated runtime and bundled share directory.
+PG_SMOKE="$ROOT/target/postgres-smoke-data"
+rm -rf "$PG_SMOKE"
+env DYLD_LIBRARY_PATH="" DYLD_FALLBACK_LIBRARY_PATH="" \
+  "$PG_BUNDLE/bin/initdb" \
+  -L "$PG_INIT_SHARE" \
+  -D "$PG_SMOKE" \
+  --no-sync \
+  --encoding=UTF8 \
+  --locale=C \
+  --auth-local=trust \
+  --auth-host=trust >/tmp/dse-initdb-smoke.log 2>&1 || {
+    echo "ERROR: Bundled PostgreSQL initdb smoke test failed." >&2
+    cat /tmp/dse-initdb-smoke.log >&2 || true
+    exit 1
+  }
+echo "Verified bundled PostgreSQL initdb smoke test."
 
+PG_SMOKE_PORT="$(python3 - <<'PY'
+import socket
+with socket.socket() as s:
+    s.bind(("127.0.0.1", 0))
+    print(s.getsockname()[1])
+PY
+)"
 
-# Explicitly verify the commands required for workspace creation.
-for pg_cmd in postgres pg_ctl initdb createdb psql; do
-  pg_path="$PG_BUNDLE/bin/$pg_cmd"
-  [[ -x "$pg_path" ]] || { echo "ERROR: Bundled PostgreSQL command missing: $pg_path" >&2; exit 1; }
-  echo "Verified self-contained PostgreSQL command: $pg_cmd"
-  otool -L "$pg_path"
-done
+env DYLD_LIBRARY_PATH="" DYLD_FALLBACK_LIBRARY_PATH="" \
+  "$PG_BUNDLE/bin/pg_ctl" \
+  -D "$PG_SMOKE" \
+  -o "-h 127.0.0.1 -p $PG_SMOKE_PORT" \
+  -w start >/tmp/dse-postgres-start-smoke.log 2>&1 || {
+    echo "ERROR: Bundled PostgreSQL server smoke test failed to start." >&2
+    cat /tmp/dse-postgres-start-smoke.log >&2 || true
+    rm -rf "$PG_SMOKE"
+    exit 1
+  }
+
+env DYLD_LIBRARY_PATH="" DYLD_FALLBACK_LIBRARY_PATH="" \
+  "$PG_BUNDLE/bin/pg_ctl" \
+  -D "$PG_SMOKE" \
+  -m fast \
+  -w stop >/tmp/dse-postgres-stop-smoke.log 2>&1 || {
+    echo "ERROR: Bundled PostgreSQL server smoke test failed to stop cleanly." >&2
+    cat /tmp/dse-postgres-stop-smoke.log >&2 || true
+    exit 1
+  }
+
+rm -rf "$PG_SMOKE"
+echo "Verified bundled PostgreSQL server start/stop smoke test."
 
 cp "$ROOT/runtime/runtime-manifest.properties" "$INPUT/runtime/runtime-manifest.properties"
-echo "Bundled self-contained PostgreSQL runtime: $POSTGRES_RUNTIME"
+echo "Bundled PostgreSQL runtime: $POSTGRES_RUNTIME"
 python3 "$ROOT/scripts/verify-production-bundle.py" "$INPUT"
 
 PNG="$ROOT/desktop/src/main/resources/installer/logo-1024.png"
@@ -419,23 +337,19 @@ fi
 echo "Verified bundled Java launcher: $BUNDLED_JAVA"
 
 APP_PG="$APP_IMAGE/DSE ERP.app/Contents/app/runtime/postgresql"
-[[ -x "$APP_PG/bin/postgres" && -x "$APP_PG/bin/initdb" ]] || {
-  echo "ERROR: Packaged app image is missing PostgreSQL runtime commands." >&2
+[[ -x "$APP_PG/bin/initdb" && -x "$APP_PG/bin/postgres" ]] || {
+  echo "ERROR: Packaged app image is missing PostgreSQL commands." >&2
   exit 1
 }
-for required_share_file in postgres.bki postgresql.conf.sample pg_hba.conf.sample; do
-  [[ -f "$APP_PG/share/$required_share_file" ]] || {
-    echo "ERROR: Packaged app image is missing PostgreSQL share/$required_share_file." >&2
-    exit 1
-  }
-done
-echo "Verified packaged PostgreSQL initialization share tree."
-if otool -L "$APP_PG/bin/postgres" | grep -E '/opt/homebrew|/usr/local/(Cellar|opt)|/Library/PostgreSQL' >/dev/null; then
-  echo "ERROR: Packaged postgres still depends on an external PostgreSQL/Homebrew path." >&2
-  otool -L "$APP_PG/bin/postgres" >&2
+if ! find "$APP_PG/share" -maxdepth 4 -type f -name postgres.bki -print -quit | grep -q .; then
+  echo "ERROR: Packaged app image does not contain postgres.bki." >&2
   exit 1
 fi
-echo "Verified packaged PostgreSQL is independent of Homebrew paths."
+if find "$APP_PG/bin" "$APP_PG/lib" -type f -print0 | xargs -0 file 2>/dev/null | grep 'Mach-O' | cut -d: -f1 | while IFS= read -r f; do otool -L "$f"; done | grep -E '/opt/homebrew|/usr/local/(Cellar|opt)|/Library/PostgreSQL' >/dev/null; then
+  echo "ERROR: Packaged PostgreSQL still contains an external Homebrew/PostgreSQL dylib reference." >&2
+  exit 1
+fi
+echo "Verified packaged PostgreSQL runtime is self-contained."
 
 jpackage --type dmg "${COMMON[@]}" --dest "$DEST"
 
