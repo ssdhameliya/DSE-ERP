@@ -60,13 +60,14 @@ def content_key(path: Path) -> str:
     return h.hexdigest()[:10]
 
 
-def copy_dependency(source: Path, deps_dir: Path) -> Path:
+def copy_dependency(source: Path, deps_dir: Path, origins: dict[Path, Path]) -> Path:
     real = source.resolve()
     deps_dir.mkdir(parents=True, exist_ok=True)
     target = deps_dir / real.name
     if target.exists():
         try:
             if target.stat().st_size == real.stat().st_size and content_key(target) == content_key(real):
+                origins[target.resolve()] = real
                 return target
         except OSError:
             pass
@@ -74,6 +75,7 @@ def copy_dependency(source: Path, deps_dir: Path) -> Path:
     if not target.exists():
         shutil.copy2(real, target)
         target.chmod(target.stat().st_mode | 0o755)
+    origins[target.resolve()] = real
     return target
 
 
@@ -82,14 +84,32 @@ def loader_reference(owner: Path, target: Path) -> str:
     return "@loader_path/" + rel
 
 
-def resolve_dep(dep: str, owner: Path, source_prefix: Path, bundle_root: Path, deps_dir: Path) -> Path | None:
+def resolve_dep(
+    dep: str, owner: Path, source_prefix: Path, bundle_root: Path, deps_dir: Path,
+    origins: dict[Path, Path],
+) -> Path | None:
     if dep.startswith(SYSTEM_PREFIXES):
         return None
 
-    # A dependency already rewritten to a relative location needs no copying here.
+    # A copied third-party dylib may itself contain @loader_path references to
+    # sibling libraries from its original Homebrew formula.  Because copy2()
+    # dereferences symlinks, those sibling aliases are not automatically present
+    # in dse-deps.  Resolve the missing reference against the original dylib
+    # location, copy that dependency, and let the caller rewrite the load command
+    # to the actual bundled filename.  This is required for ICU, where e.g.
+    # libicuuc.78.3.dylib loads @loader_path/libicudata.78.dylib.
     if dep.startswith("@loader_path/"):
-        candidate = (owner.parent / dep[len("@loader_path/"):]).resolve()
-        return candidate if candidate.exists() else None
+        rel = dep[len("@loader_path/"):]
+        candidate = owner.parent / rel
+        if candidate.exists():
+            return candidate.resolve()
+
+        original_owner = origins.get(owner.resolve())
+        if original_owner is not None:
+            original_candidate = original_owner.parent / rel
+            if original_candidate.exists():
+                return copy_dependency(original_candidate, deps_dir, origins)
+        return None
 
     if dep.startswith("@executable_path/") or dep.startswith("@rpath/"):
         # Homebrew PostgreSQL generally resolves these through its own copied tree.
@@ -110,7 +130,7 @@ def resolve_dep(dep: str, owner: Path, source_prefix: Path, bundle_root: Path, d
         pass
 
     # Dependency belongs to another Homebrew formula (OpenSSL, ICU, readline, zstd, ...).
-    return copy_dependency(src, deps_dir)
+    return copy_dependency(src, deps_dir, origins)
 
 
 def all_macho(root: Path) -> list[Path]:
@@ -135,6 +155,7 @@ def main() -> int:
 
     # Scan repeatedly because copied third-party dylibs can themselves add dependencies.
     processed: set[Path] = set()
+    origins: dict[Path, Path] = {}
     while True:
         candidates = all_macho(root)
         pending = [p for p in candidates if p not in processed]
@@ -143,7 +164,7 @@ def main() -> int:
         for owner in pending:
             changes: list[tuple[str, str]] = []
             for dep in deps(owner):
-                target = resolve_dep(dep, owner, source_prefix, root, deps_dir)
+                target = resolve_dep(dep, owner, source_prefix, root, deps_dir, origins)
                 if target is None:
                     continue
                 new_ref = loader_reference(owner, target)

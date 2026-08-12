@@ -1,4 +1,4 @@
-DSE ERP 6.0.1 - Phase 6.0.1 Production PostgreSQL Runtime
+DSE ERP 6.0.2 - Phase 6.0.2 Production PostgreSQL Runtime
 
 This folder is populated during native packaging with PostgreSQL 18 binaries for the target OS/architecture.
 Only runtime folders required by DSE ERP are copied (bin, lib, share); an installer-created PostgreSQL data directory is NEVER bundled here.
