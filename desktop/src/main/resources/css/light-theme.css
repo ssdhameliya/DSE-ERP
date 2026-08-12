@@ -6906,7 +6906,7 @@ SECTION TITLES
 .sales-register-page .sales-screen-title { -fx-font-size: 22px; }
 
 
-/* ===== DSE ERP 5.1.31 Sales Register split-safe KPI stabilization =====
+/* ===== DSE ERP 5.1.32 Sales Register split-safe KPI stabilization =====
    KPI strip now lives inside the left SplitPane workspace so opening invoice
    details resizes KPI/filter/table together instead of allowing overlap. */
 .sales-register-page .sales-register-workspace > .sales-kpi-panel {
@@ -6943,10 +6943,10 @@ SECTION TITLES
 .sales-register-page .sales-register-workspace {
     -fx-spacing: 10px;
 }
-/* ===== End DSE ERP 5.1.31 Sales Register split-safe KPI stabilization ===== */
+/* ===== End DSE ERP 5.1.32 Sales Register split-safe KPI stabilization ===== */
 
 
-/* ===== DSE ERP 5.1.31 approved startup splash ===== */
+/* ===== DSE ERP 5.1.32 approved startup splash ===== */
 .dse-startup-splash {
     -fx-background-color: linear-gradient(to bottom right, #06172d 0%, #082b59 48%, #06172d 100%);
     -fx-font-family: "Segoe UI", "Inter", sans-serif;
@@ -7019,10 +7019,10 @@ SECTION TITLES
     -fx-border-width: 1 0 0 0; -fx-padding: 11 4 0 4;
 }
 .dse-startup-splash .splash-footer-text { -fx-text-fill: #8fa3bd; -fx-font-size: 11px; }
-/* ===== End DSE ERP 5.1.31 approved startup splash ===== */
+/* ===== End DSE ERP 5.1.32 approved startup splash ===== */
 
 
-/* ===== DSE ERP 5.1.31 approved splash exact-view override ===== */
+/* ===== DSE ERP 5.1.32 approved splash exact-view override ===== */
 .dse-startup-splash {
     -fx-background-color: radial-gradient(center 50% 18%, radius 78%, #0b3c78 0%, #072a55 46%, #04162c 100%);
 }
@@ -7037,4 +7037,4 @@ SECTION TITLES
 .dse-startup-splash .splash-stage-icon { -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 7, 0.10, 0, 2); }
 .dse-startup-splash .splash-info-strip { -fx-padding: 12 0 7 0; }
 .dse-startup-splash .splash-footer { -fx-padding: 12 5 2 5; }
-/* ===== End DSE ERP 5.1.31 approved splash exact-view override ===== */
+/* ===== End DSE ERP 5.1.32 approved splash exact-view override ===== */
