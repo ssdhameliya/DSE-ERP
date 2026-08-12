@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 6.0.2 managed PostgreSQL runtime.
+ * 6.0.3 managed PostgreSQL runtime.
  *
  * Fresh workspaces use a private PostgreSQL cluster owned by DSE ERP. Existing installations
  * that explicitly configure db.url or DSE_DB_URL remain external and are never reconfigured.
@@ -212,11 +212,12 @@ public final class ManagedPostgresRuntime {
     public static void verifyBundledRuntime() {
         if (!isPackagedRuntime()) return;
         Path home = locatePostgresHome();
-        for (String command : List.of("initdb", "pg_ctl", "psql", "createdb")) {
+        for (String command : List.of("initdb", "pg_ctl", "psql", "createdb", "postgres")) {
             if (!Files.isRegularFile(bin(home, command))) {
                 throw new IllegalStateException("DSE ERP installation is incomplete: PostgreSQL command missing: " + command);
             }
         }
+        locateInitdbShare(home);
     }
 
     private static boolean isPackagedRuntime() {
@@ -226,6 +227,37 @@ public final class ManagedPostgresRuntime {
     private static Path bin(Path home, String name) {
         boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
         return home.resolve("bin").resolve(windows ? name + ".exe" : name);
+    }
+
+    /**
+     * Finds the PostgreSQL initdb bootstrap share directory inside the bundled runtime.
+     * Homebrew PostgreSQL is compiled with pkgshare outside the formula opt prefix
+     * (for example /opt/homebrew/share/postgresql@18).  On a customer's Mac that
+     * build-machine path does not exist, so initdb must be given the bundled location
+     * explicitly with -L.
+     */
+    private static Path locateInitdbShare(Path home) {
+        Path share = home.resolve("share");
+        for (Path candidate : List.of(share.resolve("postgresql@18"), share)) {
+            if (Files.isRegularFile(candidate.resolve("postgres.bki"))) {
+                return candidate.toAbsolutePath().normalize();
+            }
+        }
+        if (Files.isDirectory(share)) {
+            try (var walk = Files.walk(share, 4)) {
+                return walk.filter(path -> path.getFileName() != null
+                                && path.getFileName().toString().equals("postgres.bki")
+                                && Files.isRegularFile(path))
+                        .map(Path::getParent)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "DSE ERP installation is incomplete: bundled PostgreSQL bootstrap file postgres.bki is missing."));
+            } catch (IOException exception) {
+                throw new IllegalStateException("Unable to inspect bundled PostgreSQL share directory: " + share, exception);
+            }
+        }
+        throw new IllegalStateException(
+                "DSE ERP installation is incomplete: bundled PostgreSQL share directory is missing: " + share);
     }
 
     private static RuntimeState loadState(Path file) {
@@ -360,8 +392,9 @@ public final class ManagedPostgresRuntime {
         try {
             Files.writeString(passwordFile, state.ownerPassword(), StandardCharsets.UTF_8);
             restrictPermissions(passwordFile);
-            run(List.of(bin(home, "initdb").toString(), "-D", data.toString(), "-U", OWNER_USER,
-                    "--pwfile=" + passwordFile, "--encoding=UTF8", "--locale=C",
+            Path initdbShare = locateInitdbShare(home);
+            run(List.of(bin(home, "initdb").toString(), "-D", data.toString(), "-L", initdbShare.toString(),
+                    "-U", OWNER_USER, "--pwfile=" + passwordFile, "--encoding=UTF8", "--locale=C",
                     "--auth-local=scram-sha-256", "--auth-host=scram-sha-256"), null, COMMAND_TIMEOUT);
         } finally {
             Files.deleteIfExists(passwordFile);

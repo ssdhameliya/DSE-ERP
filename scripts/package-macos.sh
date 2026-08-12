@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 6.0.2 managed PostgreSQL payload. For release packaging, point
+# 6.0.3 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -50,6 +50,36 @@ for folder in bin lib share; do
   # -L dereferences formula symlinks so the packaged runtime never points back to Homebrew.
   cp -RL "$POSTGRES_RUNTIME/$folder" "$INPUT/runtime/postgresql/$folder"
 done
+
+# Homebrew's PostgreSQL formula keeps initdb bootstrap files in pkgshare
+# (typically /opt/homebrew/share/postgresql@18), which is outside the formula's
+# opt prefix on some runners.  A copied bin/lib runtime can therefore execute
+# but initdb later fails on a clean Mac looking for the build-machine postgres.bki.
+# Ensure postgres.bki and its companion bootstrap files are physically bundled.
+if ! find "$INPUT/runtime/postgresql/share" -name postgres.bki -type f -print -quit | grep -q .; then
+  HOMEBREW_PREFIX="$(brew --prefix 2>/dev/null || true)"
+  PG_PKGSHARE=""
+  for candidate in \
+      "$POSTGRES_RUNTIME/share/postgresql@18" \
+      "$POSTGRES_RUNTIME/share" \
+      "${HOMEBREW_PREFIX:+$HOMEBREW_PREFIX/share/postgresql@18}"; do
+    if [[ -n "$candidate" && -f "$candidate/postgres.bki" ]]; then
+      PG_PKGSHARE="$candidate"
+      break
+    fi
+  done
+  [[ -n "$PG_PKGSHARE" ]] || {
+    echo "PostgreSQL bootstrap files not found (postgres.bki). Refusing to build an incomplete macOS runtime." >&2
+    exit 1
+  }
+  mkdir -p "$INPUT/runtime/postgresql/share/postgresql@18"
+  cp -RL "$PG_PKGSHARE/." "$INPUT/runtime/postgresql/share/postgresql@18/"
+fi
+
+BUNDLED_PG_BKI="$(find "$INPUT/runtime/postgresql/share" -name postgres.bki -type f -print -quit)"
+[[ -n "$BUNDLED_PG_BKI" ]] || { echo "Bundled PostgreSQL postgres.bki is missing after staging." >&2; exit 1; }
+echo "Bundled PostgreSQL bootstrap share: $(dirname "$BUNDLED_PG_BKI")"
+
 cp "$ROOT/runtime/runtime-manifest.properties" "$INPUT/runtime/runtime-manifest.properties"
 
 # Homebrew PostgreSQL binaries are not relocatable by copying alone. Their Mach-O

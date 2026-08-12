@@ -30,7 +30,7 @@ Copy-Item $Jar (Join-Path $Input "DSE_Final.jar")
 New-Item -ItemType Directory -Path (Join-Path $Input "server") -Force | Out-Null
 Copy-Item $ServerJar (Join-Path $Input "server\dse-erp-server.jar")
 
-# 6.0.2 managed PostgreSQL payload. DSE_POSTGRES_RUNTIME_DIR may point to an extracted
+# 6.0.3 managed PostgreSQL payload. DSE_POSTGRES_RUNTIME_DIR may point to an extracted
 # PostgreSQL 18 binary distribution. Development/release machines can also use the standard install.
 $PostgresCandidates = @()
 if ($env:DSE_POSTGRES_RUNTIME_DIR) { $PostgresCandidates += $env:DSE_POSTGRES_RUNTIME_DIR }
