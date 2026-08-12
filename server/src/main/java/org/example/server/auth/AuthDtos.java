@@ -7,8 +7,7 @@ public final class AuthDtos {
     public record UserIdRequest(int userId) {}
     public record ChangePasswordRequest(int userId, String password) {}
     public record RegisterRequest(String username, String password, String fullName, String email, String role) {}
-    public record LoginResponse(boolean success, UserPayload user, String message,
-                                String accessToken, String expiresAt) {}
+    public record LoginResponse(boolean success, UserPayload user, String message) {}
     public record LookupResponse(boolean found, UserPayload user) {}
     public record OperationResponse(boolean success, String message) {}
     public record RoleOption(String code, String displayName) {}
@@ -16,4 +15,3 @@ public final class AuthDtos {
                               String email, boolean active, String department, String branch,
                               String accessLevel, boolean locked, boolean mfaEnabled) {}
 }
-

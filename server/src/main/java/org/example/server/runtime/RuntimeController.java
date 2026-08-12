@@ -17,7 +17,7 @@ public class RuntimeController {
     private final String version;
     private final String apiRevision;
 
-    public RuntimeController(RuntimeService runtimeService, @Value("${dse.app.version:" + RuntimeContract.APP_VERSION + "}") String version, @Value("${dse.api.revision:" + RuntimeContract.API_REVISION + "}") String apiRevision) {
+    public RuntimeController(RuntimeService runtimeService, @Value("${dse.app.version:" + RuntimeContract.APP_VERSION + "}") String version, @Value("${dse.api.revision:spring-hibernate-jpa-v1}") String apiRevision) {
         this.runtimeService = runtimeService;
         this.version = version;
         this.apiRevision = apiRevision;

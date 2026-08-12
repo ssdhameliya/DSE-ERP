@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -24,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 5.1.42 managed PostgreSQL runtime.
+ * 6.0.0 managed PostgreSQL runtime.
  *
  * Fresh workspaces use a private PostgreSQL cluster owned by DSE ERP. Existing installations
  * that explicitly configure db.url or DSE_DB_URL remain external and are never reconfigured.
@@ -76,10 +77,18 @@ public final class ManagedPostgresRuntime {
             if (!stateExists && !clusterExists) {
                 // Genuine first installation for this workspace.
                 state = newRuntimeState();
-                initializeCluster(home, data, state);
-                configureCluster(data, state.port());
-                saveState(stateFile, state);
-                writeInstanceMarker(data, state.instanceId());
+                prepareFreshCluster(home, data, state);
+                try {
+                    saveState(stateFile, state);
+                    writeInstanceMarker(data, state.instanceId());
+                } catch (Exception bootstrapStateError) {
+                    // The cluster has never been used at this point. Remove the fresh
+                    // bootstrap rather than leaving a workspace that looks like an
+                    // existing database but has no matching runtime identity.
+                    deleteTreeQuietly(data);
+                    try { Files.deleteIfExists(stateFile); } catch (IOException ignored) {}
+                    throw bootstrapStateError;
+                }
             } else if (stateExists && clusterExists) {
                 // Normal restart/upgrade: ALWAYS reuse the existing database.
                 state = loadState(stateFile);
@@ -317,6 +326,34 @@ public final class ManagedPostgresRuntime {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    private static void prepareFreshCluster(Path home, Path data, RuntimeState state) throws Exception {
+        Files.createDirectories(data.getParent());
+        if (Files.exists(data)) {
+            try (var entries = Files.list(data)) {
+                if (entries.findAny().isPresent()) {
+                    throw new IllegalStateException(
+                            "The new managed PostgreSQL data folder is not empty but has no valid PG_VERSION. "
+                            + "DSE ERP will not delete unknown files: " + data);
+                }
+            }
+            Files.deleteIfExists(data);
+        }
+
+        Path staging = data.getParent().resolve("data.bootstrap-" + java.util.UUID.randomUUID());
+        try {
+            initializeCluster(home, staging, state);
+            configureCluster(staging, state.port());
+            try {
+                Files.move(staging, data, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                Files.move(staging, data);
+            }
+        } catch (Exception exception) {
+            deleteTreeQuietly(staging);
+            throw exception;
+        }
+    }
+
     private static void initializeCluster(Path home, Path data, RuntimeState state) throws Exception {
         Files.createDirectories(data);
         Path passwordFile = Files.createTempFile(WorkspaceManager.getTempFolder(), "pg-owner-", ".pwd");
@@ -329,6 +366,15 @@ public final class ManagedPostgresRuntime {
         } finally {
             Files.deleteIfExists(passwordFile);
         }
+    }
+
+    private static void deleteTreeQuietly(Path root) {
+        if (root == null || !Files.exists(root)) return;
+        try (var walk = Files.walk(root)) {
+            walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                try { Files.deleteIfExists(path); } catch (IOException ignored) {}
+            });
+        } catch (IOException ignored) {}
     }
 
     private static void configureCluster(Path data, int port) throws IOException {
@@ -434,6 +480,7 @@ public final class ManagedPostgresRuntime {
     private static ProcessResult run(List<String> command, Properties environment, Duration timeout, boolean failOnError) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
+        configureNativeRuntimeEnvironment(pb, command);
         if (environment != null) {
             for (String name : environment.stringPropertyNames()) {
                 pb.environment().put(name, environment.getProperty(name));
@@ -474,6 +521,34 @@ public final class ManagedPostgresRuntime {
             throw new IllegalStateException("PostgreSQL command failed (" + result.exitCode() + "): " + output.strip());
         }
         return result;
+    }
+
+    private static void configureNativeRuntimeEnvironment(ProcessBuilder pb, List<String> command) {
+        if (command == null || command.isEmpty()) return;
+        try {
+            Path executable = Path.of(command.getFirst()).toAbsolutePath().normalize();
+            Path binDir = executable.getParent();
+            Path home = binDir == null ? null : binDir.getParent();
+            if (home == null || !Files.isDirectory(home.resolve("lib"))) return;
+
+            String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+            String pathKey = os.contains("win") ? "Path" : "PATH";
+            String existingPath = pb.environment().getOrDefault(pathKey, "");
+            pb.environment().put(pathKey, binDir + java.io.File.pathSeparator + existingPath);
+
+            if (os.contains("mac")) {
+                String bundled = String.join(":",
+                        home.resolve("lib").toString(),
+                        home.resolve("lib/postgresql").toString(),
+                        home.resolve("lib/dse-deps").toString());
+                String existing = pb.environment().getOrDefault("DYLD_FALLBACK_LIBRARY_PATH", "");
+                pb.environment().put("DYLD_FALLBACK_LIBRARY_PATH",
+                        existing.isBlank() ? bundled : bundled + ":" + existing);
+            }
+        } catch (Exception ignored) {
+            // Relocated Mach-O load commands are the primary production mechanism.
+            // Environment setup is only a defensive fallback for local/dev runtimes.
+        }
     }
 
     public static synchronized void shutdownIfConfigured() {

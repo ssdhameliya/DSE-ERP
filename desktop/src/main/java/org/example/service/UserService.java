@@ -18,5 +18,4 @@ public class UserService {
     public void register(AppUser user) { authApi.register(user); }
     public List<AuthApiClient.RoleOption> registrationRoles() { return authApi.registrationRoles(); }
     public void changePassword(int id, String password) { authApi.changePassword(id, password); }
-    public void logout() { authApi.logout(); }
 }

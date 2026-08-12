@@ -878,8 +878,7 @@ public class DashboardController {
 
     @FXML
     private void logout() {
-        try { new org.example.service.UserService().logout(); }
-        finally { SessionService.clear(); }
+        SessionService.clear();
         org.example.util.SceneManager.showLogin();
     }
 

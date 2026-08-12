@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.42 managed PostgreSQL payload. For release packaging, point
+# 6.0.0 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -47,10 +47,18 @@ fi
 mkdir -p "$INPUT/runtime/postgresql"
 for folder in bin lib share; do
   [[ -d "$POSTGRES_RUNTIME/$folder" ]] || { echo "PostgreSQL runtime folder missing: $POSTGRES_RUNTIME/$folder" >&2; exit 1; }
-  cp -R "$POSTGRES_RUNTIME/$folder" "$INPUT/runtime/postgresql/$folder"
+  # -L dereferences formula symlinks so the packaged runtime never points back to Homebrew.
+  cp -RL "$POSTGRES_RUNTIME/$folder" "$INPUT/runtime/postgresql/$folder"
 done
 cp "$ROOT/runtime/runtime-manifest.properties" "$INPUT/runtime/runtime-manifest.properties"
-echo "Bundled PostgreSQL runtime: $POSTGRES_RUNTIME"
+
+# Homebrew PostgreSQL binaries are not relocatable by copying alone. Their Mach-O
+# load commands contain build-runner paths such as /opt/homebrew/Cellar/.... Bundle
+# transitive non-system dylibs and rewrite every load command before jpackage runs.
+python3 "$ROOT/scripts/relocate-macos-postgresql.py" \
+  "$INPUT/runtime/postgresql" "$POSTGRES_RUNTIME"
+
+echo "Bundled relocatable PostgreSQL runtime: $POSTGRES_RUNTIME"
 python3 "$ROOT/scripts/verify-production-bundle.py" "$INPUT"
 
 PNG="$ROOT/desktop/src/main/resources/installer/logo-1024.png"
@@ -93,6 +101,10 @@ if [[ ! -x "$BUNDLED_JAVA" ]]; then
   exit 1
 fi
 echo "Verified bundled Java launcher: $BUNDLED_JAVA"
+
+# Verify the runtime again from the actual .app layout. This catches any jpackage
+# staging regression before a DMG can be uploaded to a release.
+python3 "$ROOT/scripts/verify-production-bundle.py" "$APP_IMAGE/DSE ERP.app/Contents/app"
 
 jpackage --type dmg "${COMMON[@]}" --dest "$DEST"
 

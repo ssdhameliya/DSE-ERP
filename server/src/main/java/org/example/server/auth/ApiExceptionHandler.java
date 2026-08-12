@@ -1,7 +1,6 @@
 package org.example.server.auth;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -12,16 +11,10 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
     }
 
-    @ExceptionHandler(SecurityException.class)
-    ResponseEntity<AuthDtos.OperationResponse> forbidden(SecurityException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
-    }
-
     @ExceptionHandler(Exception.class)
     ResponseEntity<AuthDtos.OperationResponse> serverError(Exception ex) {
         ex.printStackTrace();
-        return ResponseEntity.internalServerError().body(new AuthDtos.OperationResponse(false, "The request could not be completed"));
+        return ResponseEntity.internalServerError().body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
     }
 
     private String rootMessage(Throwable failure) {
