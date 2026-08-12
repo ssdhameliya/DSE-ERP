@@ -265,7 +265,7 @@ public final class BackupManager {
     }
 
     public static void ensureApplicationMetadata() {
-        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "5.1.40"); }
+        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "5.1.42"); }
         catch (Exception exception) { LOGGER.log(Level.WARNING, "Application metadata could not be initialized", exception); }
     }
 
