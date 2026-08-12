@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.34 managed PostgreSQL payload. For release packaging, point
+# 5.1.35 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -95,50 +95,52 @@ print(os.path.realpath(sys.argv[1]))
 PY
 )"
 
-  # Every external source gets one stable destination derived from the ORIGINAL
-  # source file. We never compare it with a bundled copy after install_name_tool
-  # has rewritten that bundled copy, because such rewriting legitimately changes
-  # its bytes and caused the 5.1.34 false collision failure.
-  local base digest stem ext dest
-  base="${real_source:t}"
-  digest="$(shasum -a 256 "$real_source" | awk '{print substr($1,1,12)}')"
+  local map_file="$PG_DEPS/.dse-source-map.tsv"
+  touch "$map_file"
 
-  if [[ "$base" == *.dylib ]]; then
-    stem="${base%.dylib}"
-    ext=".dylib"
-  else
-    stem="$base"
-    ext=""
+  # Reuse the exact destination previously assigned to this original source.
+  local mapped
+  mapped="$(awk -F '\t' -v src="$real_source" '$1==src {print $2; exit}' "$map_file")"
+  if [[ -n "$mapped" ]]; then
+    [[ -e "$mapped" ]] || {
+      echo "ERROR: PostgreSQL dependency map points to a missing file: $mapped" >&2
+      exit 1
+    }
+    print -r -- "$mapped"
+    return 0
   fi
 
-  dest="$PG_DEPS/${stem}-dse-${digest}${ext}"
+  local base="${real_source:t}"
+  local dest="$PG_DEPS/$base"
 
-  # The same original source always resolves to the same deterministic path.
-  # If it was already copied and subsequently rewritten, simply reuse it.
+  # Preserve the original basename whenever possible. This is essential for
+  # libraries such as ICU and Kerberos that use @loader_path/<sibling-name>.
+  # Only a true same-basename collision gets a deterministic hashed filename.
+  if [[ -e "$dest" ]]; then
+    local owner
+    owner="$(awk -F '\t' -v dst="$dest" '$2==dst {print $1; exit}' "$map_file")"
+    if [[ "$owner" != "$real_source" ]]; then
+      local digest stem ext
+      digest="$(shasum -a 256 "$real_source" | awk '{print substr($1,1,12)}')"
+      if [[ "$base" == *.dylib ]]; then
+        stem="${base%.dylib}"
+        ext=".dylib"
+      else
+        stem="$base"
+        ext=""
+      fi
+      dest="$PG_DEPS/${stem}-dse-${digest}${ext}"
+      echo "PostgreSQL dylib basename collision: $base -> ${dest:t}" >&2
+    fi
+  fi
+
   if [[ ! -e "$dest" ]]; then
     cp -L "$real_source" "$dest"
     chmod u+w "$dest"
     echo "Bundled PostgreSQL dependency: $real_source -> ${dest:t}" >&2
   fi
 
-  # Some Homebrew dylibs reference sibling libraries using
-  # @loader_path/<original-basename>. Because the collision-safe file above has
-  # a hash in its name, keep an alias with the original basename whenever that
-  # alias is not already occupied. This preserves ICU/Kerberos sibling loading.
-  local alias_path="$PG_DEPS/$base"
-  if [[ ! -e "$alias_path" ]]; then
-    ln -s "${dest:t}" "$alias_path"
-    echo "Created PostgreSQL dylib alias: $base -> ${dest:t}" >&2
-  elif [[ -L "$alias_path" ]]; then
-    :
-  elif cmp -s "$real_source" "$alias_path"; then
-    :
-  else
-    # True basename collision: do not overwrite the existing alias. Callers with
-    # absolute/@rpath references are rewritten to the hashed destination.
-    echo "PostgreSQL dylib alias collision retained safely: $base" >&2
-  fi
-
+  printf '%s\t%s\n' "$real_source" "$dest" >> "$map_file"
   print -r -- "$dest"
 }
 
@@ -154,7 +156,37 @@ rewrite_macho_dependencies() {
     [[ -n "$dep" ]] || continue
 
     case "$dep" in
-      /System/*|/usr/lib/*|@loader_path/*|@executable_path/*) continue ;;
+      /System/*|/usr/lib/*|@executable_path/*) continue ;;
+      @loader_path/*)
+        local sibling_name sibling_here original_source original_dir original_sibling
+        sibling_name="${dep#@loader_path/}"
+        sibling_here="${file_path:h}/$sibling_name"
+        [[ -e "$sibling_here" ]] && continue
+
+        # Find the original source corresponding to this bundled file.
+        original_source="$(awk -F '\t' -v dst="$file_path" '$2==dst {print $1; exit}' "$PG_DEPS/.dse-source-map.tsv")"
+        if [[ -n "$original_source" ]]; then
+          original_dir="${original_source:h}"
+          original_sibling="$original_dir/$sibling_name"
+          if [[ -e "$original_sibling" ]]; then
+            target="$(copy_external_dylib "$original_sibling")"
+            replacement="$(relative_loader_reference "$file_path" "$target")"
+            install_name_tool -change "$dep" "$replacement" "$file_path"
+            continue
+          fi
+        fi
+
+        # Last fallback: search copied PostgreSQL libraries by exact basename.
+        target="$(find "$PG_BUNDLE/lib" -type f -name "$sibling_name" -print -quit 2>/dev/null || true)"
+        if [[ -n "$target" ]]; then
+          replacement="$(relative_loader_reference "$file_path" "$target")"
+          install_name_tool -change "$dep" "$replacement" "$file_path"
+          continue
+        fi
+
+        echo "ERROR: Missing @loader_path dependency '$dep' required by $file_path" >&2
+        exit 1
+        ;;
     esac
 
     target=""
@@ -228,17 +260,27 @@ while IFS= read -r candidate; do
 done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f -print)
 [[ "$bad_refs" -eq 0 ]] || exit 1
 
-echo "Verified PostgreSQL external dependencies use stable source-derived bundle paths."
+missing_loader_refs=0
+while IFS= read -r candidate; do
+  is_macho "$candidate" || continue
+  while IFS= read -r dep; do
+    case "$dep" in
+      @loader_path/*)
+        resolved="${candidate:h}/${dep#@loader_path/}"
+        if [[ ! -e "$resolved" ]]; then
+          echo "ERROR: Unresolved bundled @loader_path dependency:" >&2
+          echo "       File: $candidate" >&2
+          echo "       Ref : $dep" >&2
+          missing_loader_refs=1
+        fi
+        ;;
+    esac
+  done < <(otool -L "$candidate" | tail -n +2 | awk '{print $1}')
+done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f -print)
+[[ "$missing_loader_refs" -eq 0 ]] || exit 1
 
-dangling_aliases=0
-while IFS= read -r alias; do
-  if [[ ! -e "$alias" ]]; then
-    echo "ERROR: Dangling PostgreSQL dylib alias: $alias -> $(readlink "$alias")" >&2
-    dangling_aliases=1
-  fi
-done < <(find "$PG_DEPS" -type l -print)
-[[ "$dangling_aliases" -eq 0 ]] || exit 1
-echo "Verified PostgreSQL dylib aliases are valid."
+echo "Verified PostgreSQL external dependencies and @loader_path references are self-contained."
+
 
 # Explicitly verify the commands required for workspace creation.
 for pg_cmd in postgres pg_ctl initdb createdb psql; do
