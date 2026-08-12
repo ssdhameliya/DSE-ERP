@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.35 managed PostgreSQL payload. For release packaging, point
+# 5.1.36 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -49,6 +49,11 @@ for folder in bin lib share; do
   [[ -d "$POSTGRES_RUNTIME/$folder" ]] || { echo "PostgreSQL runtime folder missing: $POSTGRES_RUNTIME/$folder" >&2; exit 1; }
   cp -R "$POSTGRES_RUNTIME/$folder" "$INPUT/runtime/postgresql/$folder"
 done
+[[ -f "$INPUT/runtime/postgresql/share/postgres.bki" ]] || {
+  echo "ERROR: Bundled PostgreSQL share/postgres.bki is missing before packaging." >&2
+  exit 1
+}
+echo "Verified bundled PostgreSQL share/postgres.bki."
 
 # macOS PostgreSQL must be fully self-contained. Homebrew PostgreSQL binaries can
 # contain absolute references into /opt/homebrew/Cellar or /usr/local/Cellar.
@@ -340,6 +345,11 @@ APP_PG="$APP_IMAGE/DSE ERP.app/Contents/app/runtime/postgresql"
   echo "ERROR: Packaged app image is missing PostgreSQL runtime commands." >&2
   exit 1
 }
+[[ -f "$APP_PG/share/postgres.bki" ]] || {
+  echo "ERROR: Packaged app image is missing PostgreSQL share/postgres.bki." >&2
+  exit 1
+}
+echo "Verified packaged PostgreSQL share/postgres.bki."
 if otool -L "$APP_PG/bin/postgres" | grep -E '/opt/homebrew|/usr/local/(Cellar|opt)|/Library/PostgreSQL' >/dev/null; then
   echo "ERROR: Packaged postgres still depends on an external PostgreSQL/Homebrew path." >&2
   otool -L "$APP_PG/bin/postgres" >&2

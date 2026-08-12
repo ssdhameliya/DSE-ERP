@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 5.1.35 managed PostgreSQL runtime.
+ * 5.1.36 managed PostgreSQL runtime.
  *
  * Fresh workspaces use a private PostgreSQL cluster owned by DSE ERP. Existing installations
  * that explicitly configure db.url or DSE_DB_URL remain external and are never reconfigured.
@@ -208,6 +208,12 @@ public final class ManagedPostgresRuntime {
                 throw new IllegalStateException("DSE ERP installation is incomplete: PostgreSQL command missing: " + command);
             }
         }
+        Path share = postgresShare(home);
+        if (!Files.isRegularFile(share.resolve("postgres.bki"))) {
+            throw new IllegalStateException(
+                    "DSE ERP installation is incomplete: bundled PostgreSQL share/postgres.bki is missing: "
+                            + share.resolve("postgres.bki"));
+        }
     }
 
     private static boolean isPackagedRuntime() {
@@ -217,6 +223,10 @@ public final class ManagedPostgresRuntime {
     private static Path bin(Path home, String name) {
         boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
         return home.resolve("bin").resolve(windows ? name + ".exe" : name);
+    }
+
+    private static Path postgresShare(Path home) {
+        return home.resolve("share").toAbsolutePath().normalize();
     }
 
     private static RuntimeState loadState(Path file) {
@@ -323,7 +333,15 @@ public final class ManagedPostgresRuntime {
         try {
             Files.writeString(passwordFile, state.ownerPassword(), StandardCharsets.UTF_8);
             restrictPermissions(passwordFile);
-            run(List.of(bin(home, "initdb").toString(), "-D", data.toString(), "-U", OWNER_USER,
+            Path share = postgresShare(home);
+            if (!Files.isRegularFile(share.resolve("postgres.bki"))) {
+                throw new IllegalStateException(
+                        "Bundled PostgreSQL initialization files are missing: " + share.resolve("postgres.bki"));
+            }
+            run(List.of(bin(home, "initdb").toString(),
+                    "-L", share.toString(),
+                    "-D", data.toString(),
+                    "-U", OWNER_USER,
                     "--pwfile=" + passwordFile, "--encoding=UTF8", "--locale=C",
                     "--auth-local=scram-sha-256", "--auth-host=scram-sha-256"), null, COMMAND_TIMEOUT);
         } finally {
