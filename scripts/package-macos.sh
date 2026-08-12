@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.36 managed PostgreSQL payload. For release packaging, point
+# 5.1.37 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -45,15 +45,47 @@ fi
   exit 1
 }
 mkdir -p "$INPUT/runtime/postgresql"
-for folder in bin lib share; do
+
+# Copy executable and library trees from the PostgreSQL runtime root.
+for folder in bin lib; do
   [[ -d "$POSTGRES_RUNTIME/$folder" ]] || { echo "PostgreSQL runtime folder missing: $POSTGRES_RUNTIME/$folder" >&2; exit 1; }
   cp -R "$POSTGRES_RUNTIME/$folder" "$INPUT/runtime/postgresql/$folder"
 done
-[[ -f "$INPUT/runtime/postgresql/share/postgres.bki" ]] || {
-  echo "ERROR: Bundled PostgreSQL share/postgres.bki is missing before packaging." >&2
+
+# Homebrew does not guarantee that PostgreSQL's shared initialization files live
+# under $POSTGRES_RUNTIME/share. Ask the installed PostgreSQL build for its real
+# shared-data directory and copy that content into our portable runtime/share.
+PG_CONFIG="$POSTGRES_RUNTIME/bin/pg_config"
+[[ -x "$PG_CONFIG" ]] || { echo "ERROR: PostgreSQL pg_config missing: $PG_CONFIG" >&2; exit 1; }
+
+POSTGRES_SHARE="$("$PG_CONFIG" --sharedir)"
+[[ -n "$POSTGRES_SHARE" && -d "$POSTGRES_SHARE" ]] || {
+  echo "ERROR: pg_config returned an invalid PostgreSQL shared-data directory: $POSTGRES_SHARE" >&2
   exit 1
 }
+[[ -f "$POSTGRES_SHARE/postgres.bki" ]] || {
+  echo "ERROR: PostgreSQL shared-data directory does not contain postgres.bki: $POSTGRES_SHARE" >&2
+  exit 1
+}
+
+mkdir -p "$INPUT/runtime/postgresql/share"
+cp -R "$POSTGRES_SHARE/." "$INPUT/runtime/postgresql/share/"
+
+[[ -f "$INPUT/runtime/postgresql/share/postgres.bki" ]] || {
+  echo "ERROR: Bundled PostgreSQL share/postgres.bki is missing after pg_config copy." >&2
+  exit 1
+}
+echo "PostgreSQL shared-data source: $POSTGRES_SHARE"
 echo "Verified bundled PostgreSQL share/postgres.bki."
+
+# Verify the copied share tree contains the minimum files initdb needs.
+for required_share_file in postgres.bki postgresql.conf.sample pg_hba.conf.sample; do
+  [[ -f "$INPUT/runtime/postgresql/share/$required_share_file" ]] || {
+    echo "ERROR: Bundled PostgreSQL initialization file missing: share/$required_share_file" >&2
+    exit 1
+  }
+done
+echo "Verified PostgreSQL initialization share tree."
 
 # macOS PostgreSQL must be fully self-contained. Homebrew PostgreSQL binaries can
 # contain absolute references into /opt/homebrew/Cellar or /usr/local/Cellar.
@@ -345,11 +377,13 @@ APP_PG="$APP_IMAGE/DSE ERP.app/Contents/app/runtime/postgresql"
   echo "ERROR: Packaged app image is missing PostgreSQL runtime commands." >&2
   exit 1
 }
-[[ -f "$APP_PG/share/postgres.bki" ]] || {
-  echo "ERROR: Packaged app image is missing PostgreSQL share/postgres.bki." >&2
-  exit 1
-}
-echo "Verified packaged PostgreSQL share/postgres.bki."
+for required_share_file in postgres.bki postgresql.conf.sample pg_hba.conf.sample; do
+  [[ -f "$APP_PG/share/$required_share_file" ]] || {
+    echo "ERROR: Packaged app image is missing PostgreSQL share/$required_share_file." >&2
+    exit 1
+  }
+done
+echo "Verified packaged PostgreSQL initialization share tree."
 if otool -L "$APP_PG/bin/postgres" | grep -E '/opt/homebrew|/usr/local/(Cellar|opt)|/Library/PostgreSQL' >/dev/null; then
   echo "ERROR: Packaged postgres still depends on an external PostgreSQL/Homebrew path." >&2
   otool -L "$APP_PG/bin/postgres" >&2
