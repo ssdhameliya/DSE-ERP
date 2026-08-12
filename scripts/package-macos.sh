@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 5.1.33 managed PostgreSQL payload. For release packaging, point
+# 5.1.34 managed PostgreSQL payload. For release packaging, point
 # DSE_POSTGRES_RUNTIME_DIR at a verified PostgreSQL 18 binary distribution for this architecture.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 if [[ -z "$POSTGRES_RUNTIME" ]]; then
@@ -98,7 +98,7 @@ PY
   # Every external source gets one stable destination derived from the ORIGINAL
   # source file. We never compare it with a bundled copy after install_name_tool
   # has rewritten that bundled copy, because such rewriting legitimately changes
-  # its bytes and caused the 5.1.33 false collision failure.
+  # its bytes and caused the 5.1.34 false collision failure.
   local base digest stem ext dest
   base="${real_source:t}"
   digest="$(shasum -a 256 "$real_source" | awk '{print substr($1,1,12)}')"
@@ -119,6 +119,24 @@ PY
     cp -L "$real_source" "$dest"
     chmod u+w "$dest"
     echo "Bundled PostgreSQL dependency: $real_source -> ${dest:t}" >&2
+  fi
+
+  # Some Homebrew dylibs reference sibling libraries using
+  # @loader_path/<original-basename>. Because the collision-safe file above has
+  # a hash in its name, keep an alias with the original basename whenever that
+  # alias is not already occupied. This preserves ICU/Kerberos sibling loading.
+  local alias_path="$PG_DEPS/$base"
+  if [[ ! -e "$alias_path" ]]; then
+    ln -s "${dest:t}" "$alias_path"
+    echo "Created PostgreSQL dylib alias: $base -> ${dest:t}" >&2
+  elif [[ -L "$alias_path" ]]; then
+    :
+  elif cmp -s "$real_source" "$alias_path"; then
+    :
+  else
+    # True basename collision: do not overwrite the existing alias. Callers with
+    # absolute/@rpath references are rewritten to the hashed destination.
+    echo "PostgreSQL dylib alias collision retained safely: $base" >&2
   fi
 
   print -r -- "$dest"
@@ -211,6 +229,16 @@ done < <(find "$PG_BUNDLE/bin" "$PG_BUNDLE/lib" -type f -print)
 [[ "$bad_refs" -eq 0 ]] || exit 1
 
 echo "Verified PostgreSQL external dependencies use stable source-derived bundle paths."
+
+dangling_aliases=0
+while IFS= read -r alias; do
+  if [[ ! -e "$alias" ]]; then
+    echo "ERROR: Dangling PostgreSQL dylib alias: $alias -> $(readlink "$alias")" >&2
+    dangling_aliases=1
+  fi
+done < <(find "$PG_DEPS" -type l -print)
+[[ "$dangling_aliases" -eq 0 ]] || exit 1
+echo "Verified PostgreSQL dylib aliases are valid."
 
 # Explicitly verify the commands required for workspace creation.
 for pg_cmd in postgres pg_ctl initdb createdb psql; do
