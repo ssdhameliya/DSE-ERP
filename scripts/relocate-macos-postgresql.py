@@ -23,7 +23,15 @@ FORBIDDEN_PREFIXES = (
 
 
 def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=check)
+    return subprocess.run(
+        args,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=check,
+    )
 
 
 def is_macho(path: Path) -> bool:
