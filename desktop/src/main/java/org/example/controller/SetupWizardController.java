@@ -39,7 +39,8 @@ public class SetupWizardController {
 
     @FXML public void initialize() {
         steps.addAll(List.of(stepWorkspace, stepCompany, stepEmail, stepAdmin, stepFinish));
-        txtWorkspace.setText(WorkspaceManager.getSuggestedWorkspace().toString());
+        txtWorkspace.setText((WorkspaceManager.isConfigured()
+                ? WorkspaceManager.getWorkspaceRoot() : WorkspaceManager.getSuggestedWorkspace()).toString());
         txtSmtpHost.setText("smtp.mail.yahoo.com");
         txtSmtpPort.setText("465");
         txtAdminUsername.setText("admin");
@@ -160,7 +161,7 @@ public class SetupWizardController {
             try {
                 WorkspaceManager.configure(Path.of(txtWorkspace.getText().trim()));
                 ConfigManager.load();
-                ConfigManager.setWithoutSaving("setup.completed", "true");
+                ConfigManager.setWithoutSaving("setup.completed", "false");
                 ConfigManager.setWithoutSaving("company.name", txtCompanyName.getText().trim());
                 ConfigManager.setWithoutSaving("company.phone", safe(txtPhone));
                 ConfigManager.setWithoutSaving("company.email", safe(txtCompanyEmail));
@@ -178,6 +179,8 @@ public class SetupWizardController {
                 new SetupApiClient().bootstrap(
                         txtCompanyName.getText().trim(), safe(txtPhone), safe(txtCompanyEmail), safe(txtGstin), safe(txtAddress),
                         txtAdminName.getText().trim(), txtAdminUsername.getText().trim(), txtAdminEmail.getText().trim(), txtAdminPassword.getText());
+                ConfigManager.setWithoutSaving("setup.completed", "true");
+                ConfigManager.save();
                 Platform.runLater(() -> {
                     if (onCompleted != null) onCompleted.run(); else SceneManager.showLogin();
                 });

@@ -5,6 +5,7 @@ import org.example.server.persistence.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.PostConstruct;
+import org.example.server.security.CurrentUser;
 
 import java.util.*;
 
@@ -36,11 +37,13 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<MasterDtos.PartyDto> parties(String type) {
+        requirePartyAccess(type);
         return parties.findByPartyTypeOrderByNameAsc(normal(type)).stream().map(this::partyDto).toList();
     }
 
     @Transactional
     public MasterDtos.PartyDto saveParty(MasterDtos.PartyDto d) {
+        requirePartyAccess(d == null ? null : d.partyType());
         PartyEntity e = new PartyEntity();
         copy(d, e, true);
         return partyDto(parties.save(e));
@@ -49,13 +52,17 @@ public class MasterDataService {
     @Transactional
     public MasterDtos.PartyDto updateParty(MasterDtos.PartyDto d) {
         PartyEntity e = parties.findById(req(d.id(), "Party id")).orElseThrow(() -> new IllegalArgumentException("Party not found"));
+        requirePartyAccess(e.getPartyType());
+        requirePartyAccess(d.partyType());
         copy(d, e, false);
         return partyDto(e);
     }
 
     @Transactional
     public void deleteParty(int id) {
-        parties.deleteById(id);
+        PartyEntity e = parties.findById(id).orElseThrow(() -> new IllegalArgumentException("Party not found"));
+        requirePartyAccess(e.getPartyType());
+        parties.delete(e);
     }
 
     @Transactional(readOnly = true)
@@ -67,8 +74,15 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public String nextPartyCode(String type) {
+        requirePartyAccess(type);
         String t = normal(type), prefix = "CUSTOMER".equals(t) ? "CUS" : "SUP";
         return prefix + String.format("%03d", parties.countByPartyType(t) + 1);
+    }
+
+    private void requirePartyAccess(String type) {
+        if (CurrentUser.isSales() && !"CUSTOMER".equals(normal(type))) {
+            throw new SecurityException("Supplier data requires Manager or Admin access");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -129,19 +143,12 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<MasterDtos.LookupDto> lookups(String type) {
-        LinkedHashMap<String,LookupEntity> unique = new LinkedHashMap<>();
-        for (LookupEntity e : lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(type)) {
-            String key = normal(e.getLookupType()) + "|" + normal(e.getLookupCode()) + "|" + normal(e.getLookupValue());
-            unique.putIfAbsent(key, e);
-        }
-        return unique.values().stream().map(this::lookupDto).toList();
+        return lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(type).stream().map(this::lookupDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<String> values(String type) {
-        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(type).stream()
-                .map(LookupEntity::getLookupValue).filter(Objects::nonNull)
-                .map(String::trim).filter(v -> !v.isBlank()).distinct().toList();
+        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(type).stream().map(LookupEntity::getLookupValue).toList();
     }
 
     @Transactional(readOnly = true)
@@ -150,12 +157,17 @@ public class MasterDataService {
         return c == null ? List.of() : values(c.getCategoryName());
     }
 
+    @Transactional(readOnly = true)
+    public List<MasterDtos.LookupDto> lookupsByCategoryCode(String code) {
+        MasterCategoryEntity c = categories.findByCategoryCode(code).orElse(null);
+        if (c == null) return List.of();
+        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(c.getCategoryName())
+            .stream().map(this::lookupDto).toList();
+    }
+
     @Transactional
     public MasterDtos.LookupDto saveLookup(MasterDtos.LookupDto d) {
-        String type = normal(d.lookupType()), code = normal(d.lookupCode()), value = normal(d.lookupValue());
-        boolean duplicate = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(type).stream().anyMatch(existing ->
-                normal(existing.getLookupCode()).equals(code) || normal(existing.getLookupValue()).equals(value));
-        if (duplicate) throw new IllegalArgumentException("This lookup code or value already exists in " + type + ".");
+        validateLookup(d);
         LookupEntity e = new LookupEntity();
         copy(d, e);
         return lookupDto(lookups.save(e));
@@ -163,6 +175,7 @@ public class MasterDataService {
 
     @Transactional
     public MasterDtos.LookupDto updateLookup(MasterDtos.LookupDto d) {
+        validateLookup(d);
         LookupEntity e = lookups.findById(req(d.id(), "Lookup id")).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
         copy(d, e);
         return lookupDto(e);
@@ -307,12 +320,20 @@ public class MasterDataService {
     }
 
     private void copy(MasterDtos.LookupDto d, LookupEntity e) {
-        e.setLookupType(d.lookupType());
-        e.setLookupCode(d.lookupCode());
-        e.setLookupValue(d.lookupValue());
+        e.setLookupType(normal(d.lookupType()));
+        e.setLookupCode(normal(d.lookupCode()));
+        e.setLookupValue(d.lookupValue() == null ? null : d.lookupValue().trim());
         e.setDescription(d.description());
         e.setDisplayOrder(d.displayOrder());
         e.setActive(d.active() ? 1 : 0);
+    }
+
+    private void validateLookup(MasterDtos.LookupDto d) {
+        if (d == null || d.lookupType() == null || d.lookupType().isBlank()) throw new IllegalArgumentException("Lookup type is required");
+        if (d.lookupCode() == null || d.lookupCode().isBlank()) throw new IllegalArgumentException("Lookup code is required");
+        if (d.lookupValue() == null || d.lookupValue().isBlank()) throw new IllegalArgumentException("Lookup value is required");
+        if (lookups.duplicateCode(d.lookupType(), d.lookupCode(), d.id())) throw new IllegalArgumentException("This lookup code already exists in " + d.lookupType());
+        if (lookups.duplicateValue(d.lookupType(), d.lookupValue(), d.id())) throw new IllegalArgumentException("This lookup value already exists in " + d.lookupType());
     }
 
     private MasterDtos.LookupDto lookupDto(LookupEntity e) {

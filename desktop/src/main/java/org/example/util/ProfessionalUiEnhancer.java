@@ -278,27 +278,31 @@ public final class ProfessionalUiEnhancer {
             return;
         }
 
-        double extra = available - baselineTotal;
-        double totalWeight = 0;
-        for (TableColumn column : flexible) {
-            totalWeight += adaptiveColumnWeight(column);
-        }
-
+        java.util.Map<TableColumn,Double> widths = new java.util.LinkedHashMap<>();
         for (TableColumn column : visible) {
             Number stored = (Number) column.getProperties().get("erp-adaptive-base-pref");
-            if (stored == null) continue;
-            double baseline = Math.max(column.getMinWidth(), stored.doubleValue());
-
-            if (!flexible.contains(column)) {
-                column.setPrefWidth(baseline);
-                continue;
-            }
-
-            double share = totalWeight <= 0
-                ? extra / flexible.size()
-                : extra * adaptiveColumnWeight(column) / totalWeight;
-            column.setPrefWidth(Math.min(column.getMaxWidth(), baseline + share));
+            if (stored != null) widths.put(column, Math.max(column.getMinWidth(), stored.doubleValue()));
         }
+        double remaining = available - baselineTotal;
+        java.util.List<TableColumn> active = new java.util.ArrayList<>(flexible);
+        int guard = 0;
+        while (remaining > .25 && !active.isEmpty() && guard++ < 12) {
+            double weight = active.stream().mapToDouble(ProfessionalUiEnhancer::adaptiveColumnWeight).sum();
+            double consumed = 0;
+            java.util.List<TableColumn> capped = new java.util.ArrayList<>();
+            for (TableColumn column : active) {
+                double share = weight <= 0 ? remaining / active.size() : remaining * adaptiveColumnWeight(column) / weight;
+                double current = widths.getOrDefault(column,column.getPrefWidth());
+                double next = Math.min(column.getMaxWidth(), current + share);
+                consumed += Math.max(0,next-current); widths.put(column,next);
+                if (next + .25 >= column.getMaxWidth()) capped.add(column);
+            }
+            remaining -= consumed; active.removeAll(capped);
+            if (consumed <= .01) break;
+        }
+        // Apply the final widths in one pass. Redistributing capped-column surplus
+        // prevents the unused strip previously visible at the right edge.
+        widths.forEach(TableColumn::setPrefWidth);
     }
 
     /** Keeps utility columns compact while allowing business data to absorb space. */

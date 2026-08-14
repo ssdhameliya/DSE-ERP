@@ -13,7 +13,6 @@ public class SalesDAO {
 
     public synchronized void save(Sales sales) { api.saveSale(sales); }
     public List<Sales> getAll() { return api.sales(); }
-    public String nextOrderNo() { return api.nextOrderNo(); }
     public String nextInvoiceNo() { return api.nextSaleInvoice(); }
     public Sales getByInvoice(String invoiceNo) { return api.sale(invoiceNo); }
     public void update(Sales sales) { api.updateSale(sales); }

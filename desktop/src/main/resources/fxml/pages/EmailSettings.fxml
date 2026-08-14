@@ -9,7 +9,7 @@
             <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle"/>
             <Label text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Version 2.0.0" styleClass="auth-version"/>
+            <Label text="Version 7.1.8" styleClass="auth-version"/>
         </VBox>
     </left>
 

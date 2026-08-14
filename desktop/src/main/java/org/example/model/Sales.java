@@ -1,6 +1,7 @@
 package org.example.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -59,8 +60,13 @@ public class Sales {
     private String transportNote;
     private String orderNo;
     private String gstin;
+    private String billingGstin;
+    private String deliveryGstin;
+    private boolean sameAsBilling = true;
+    private String transporterGstin;
     private String chargeType;
     private double chargeAmount;
+    private List<SalesCharge> charges = new ArrayList<>();
     private String contactPersonMobile;
     private String documentStatus;
 
@@ -235,10 +241,41 @@ public class Sales {
     public void setOrderNo(String orderNo) { this.orderNo = orderNo; }
     public String getGstin() { return gstin == null ? "" : gstin; }
     public void setGstin(String gstin) { this.gstin = gstin; }
+    public String getBillingGstin() { return billingGstin == null ? "" : billingGstin; }
+    public void setBillingGstin(String billingGstin) { this.billingGstin = billingGstin; }
+    public String getDeliveryGstin() { return deliveryGstin == null ? "" : deliveryGstin; }
+    public void setDeliveryGstin(String deliveryGstin) { this.deliveryGstin = deliveryGstin; }
+    public boolean isSameAsBilling() { return sameAsBilling; }
+    public void setSameAsBilling(boolean sameAsBilling) { this.sameAsBilling = sameAsBilling; }
+    public String getTransporterGstin() { return transporterGstin == null ? "" : transporterGstin; }
+    public void setTransporterGstin(String transporterGstin) { this.transporterGstin = transporterGstin; }
     public String getChargeType() { return chargeType == null ? "" : chargeType; }
     public void setChargeType(String chargeType) { this.chargeType = chargeType; }
     public double getChargeAmount() { return chargeAmount; }
     public void setChargeAmount(double chargeAmount) { this.chargeAmount = Math.max(0, chargeAmount); }
+    public List<SalesCharge> getCharges() {
+        if (charges == null || charges.isEmpty()) {
+            if (getChargeAmount() <= 0) return List.of();
+            return List.of(new SalesCharge(getChargeType().isBlank() ? "Charges" : getChargeType(), getChargeAmount(), false, 0));
+        }
+        return List.copyOf(charges);
+    }
+    public void setCharges(List<SalesCharge> charges) {
+        this.charges = charges == null ? new ArrayList<>() : charges.stream().filter(java.util.Objects::nonNull).limit(2).map(SalesCharge::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        if (!this.charges.isEmpty()) {
+            SalesCharge first = this.charges.get(0);
+            setChargeType(first.getChargeType());
+            setChargeAmount(first.getAmount());
+        } else if (getChargeAmount() <= 0) {
+            // Preserve the legacy single-charge fields when an older server does
+            // not yet return the normalized charges collection. getCharges()
+            // will expose that legacy value as a one-row compatibility charge.
+            setChargeType("");
+            setChargeAmount(0);
+        }
+    }
+    public double getChargesAmount() { return getCharges().stream().mapToDouble(SalesCharge::getAmount).sum(); }
+    public double getChargesTaxAmount() { return getCharges().stream().mapToDouble(SalesCharge::getTaxAmount).sum(); }
     public String getContactPersonMobile() { return contactPersonMobile == null ? "" : contactPersonMobile; }
     public void setContactPersonMobile(String contactPersonMobile) { this.contactPersonMobile = contactPersonMobile; }
     public String getDocumentStatus() { return documentStatus == null || documentStatus.isBlank() ? "PENDING" : documentStatus; }

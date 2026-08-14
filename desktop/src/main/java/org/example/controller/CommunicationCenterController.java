@@ -127,8 +127,8 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private void configureActions(){
         if(colActions==null)return;
         colActions.setCellFactory(c->new TableCell<>(){
-            final Button resend=new Button("Re-send Email",IconFactory.compactIcon("email",14));
-            {resend.getProperties().put("erp.icon.skip", true);resend.getStyleClass().addAll("approved-button","action-email","communication-resend-button");resend.setContentDisplay(ContentDisplay.LEFT);resend.setGraphicTextGap(7);resend.setMinWidth(132);resend.setPrefWidth(132);resend.setMaxWidth(132);resend.setTooltip(new Tooltip("Re-send email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
+            final Button resend=new Button("Resend",IconFactory.compactIcon("refresh",14));
+            {resend.getProperties().put("erp.icon.skip", true);resend.getStyleClass().addAll("approved-button","action-email","communication-resend-button");resend.setContentDisplay(ContentDisplay.LEFT);resend.setGraphicTextGap(7);resend.setMinWidth(104);resend.setPrefWidth(104);resend.setMaxWidth(104);resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
             @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);Row row=empty?null:getTableRow().getItem();setGraphic(row==null||!"EMAIL".equalsIgnoreCase(row.channel.get())?null:resend);setAlignment(Pos.CENTER);}
         });
     }
@@ -213,6 +213,6 @@ public class CommunicationCenterController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(colStatus, "status");
         IconFactory.applyTableHeaderIcon(colError, "error");
         IconFactory.applyTableHeaderIcon(colUser, "user");
-        IconFactory.applyTableHeaderIcon(colActions, "email");
+        IconFactory.applyTableHeaderIcon(colActions, "refresh");
     }
 }

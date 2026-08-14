@@ -34,5 +34,15 @@ public final class SetupApiClient {
         } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException("Setup interrupted",e); }
         catch (Exception e) { if(e instanceof IllegalStateException ise) throw ise; throw new IllegalStateException("Unable to complete setup through Spring API",e); }
     }
+    public boolean requiresSetup() {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(ConfigManager.getDataApiBaseUrl()+"/api/setup/status"))
+                .timeout(Duration.ofSeconds(15)).GET().build();
+        try {
+            HttpResponse<String> response=http.send(request,HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if(response.statusCode()<200 || response.statusCode()>=300) throw new IllegalStateException("Setup status API failed ("+response.statusCode()+")");
+            return response.body().replace(" ", "").contains("\"required\":true");
+        } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException("Setup status check interrupted",e); }
+        catch (Exception e) { if(e instanceof IllegalStateException ise) throw ise; throw new IllegalStateException("Unable to verify workspace setup",e); }
+    }
     private static String esc(String value){ if(value==null)return ""; return value.replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n").replace("\r","\\r"); }
 }

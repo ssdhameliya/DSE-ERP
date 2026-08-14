@@ -33,6 +33,7 @@ import org.example.invoice.model.CompanyProfile;
 import org.example.invoice.model.InvoiceParty;
 import org.example.invoice.model.InvoiceTotals;
 import org.example.invoice.model.TaxInvoiceDocument;
+import org.example.invoice.model.TaxInvoiceCharge;
 import org.example.invoice.model.TaxInvoiceItem;
 
 import java.io.InputStream;
@@ -102,6 +103,7 @@ public final class TaxInvoicePdfGenerator {
     }
 
     public static Path generate(TaxInvoiceDocument invoice, Path output) throws Exception {
+        validateCustomerFacingRemarks(invoice);
         Files.createDirectories(output.toAbsolutePath().normalize().getParent());
         try (PdfWriter writer = new PdfWriter(output.toString());
              PdfDocument pdf = new PdfDocument(writer);
@@ -201,11 +203,11 @@ public final class TaxInvoicePdfGenerator {
                 .useAllAvailableWidth().setMarginTop(STANDARD_SECTION_GAP).setMarginBottom(STANDARD_SECTION_GAP);
         metaCards.addCell(metaCard(
                 "INVOICE NO", invoice.invoiceNo(),
-                "ORDER NO", dash(invoice.orderNo())));
+                invoice.orderNo().isBlank() ? "" : "ORDER NO", invoice.orderNo()));
         metaCards.addCell(noBorder());
         metaCards.addCell(metaCard(
                 "INVOICE DATE", formatDate(invoice.invoiceDate()),
-                "PO DATE", formatDate(invoice.poDate())));
+                invoice.poDate() == null ? "" : "PO DATE", invoice.poDate() == null ? "" : formatDate(invoice.poDate())));
         doc.add(metaCards);
     }
 
@@ -213,7 +215,7 @@ public final class TaxInvoicePdfGenerator {
         Cell card = roundedFilled(new Cell().setPadding(7).setBorder(Border.NO_BORDER), PALE_BLUE);
         Table values = new Table(UnitValue.createPercentArray(new float[]{32, 5, 63})).useAllAvailableWidth();
         addSingleMetaRow(values, label1, value1);
-        addSingleMetaRow(values, label2, value2);
+        if (label2 != null && !label2.isBlank() && value2 != null && !value2.isBlank()) addSingleMetaRow(values, label2, value2);
         card.add(values);
         return card;
     }
@@ -231,11 +233,17 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static void addAddressCards(Document doc, TaxInvoiceDocument invoice) {
-        Table addresses = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
-                .useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP);
-        addresses.addCell(addressCard("BILLING ADDRESS", invoice.billing()));
-        addresses.addCell(noBorder());
-        addresses.addCell(addressCard("DELIVERY ADDRESS", invoice.delivery()));
+        boolean same = sameParty(invoice.billing(), invoice.delivery());
+        Table addresses = same
+                ? new Table(1).useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP)
+                : new Table(UnitValue.createPercentArray(new float[]{49, 2, 49})).useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP);
+        if (same) {
+            addresses.addCell(addressCard("BILLING & DELIVERY ADDRESS", invoice.billing()));
+        } else {
+            addresses.addCell(addressCard("BILLING ADDRESS", invoice.billing()));
+            addresses.addCell(noBorder());
+            addresses.addCell(addressCard("DELIVERY ADDRESS", invoice.delivery()));
+        }
         doc.add(addresses);
     }
 
@@ -244,7 +252,7 @@ public final class TaxInvoicePdfGenerator {
         card.add(new Paragraph(heading).setBold().setFontSize(FONT_SECTION).setFontColor(NAVY)
                 .setMarginBottom(5));
 
-        Cell content = noBorder().setPadding(0).setMinHeight(60);
+        Cell content = noBorder().setPadding(0);
         content.add(new Paragraph(party.name()).setBold().setFontSize(FONT_PARTY).setMarginBottom(3));
         if (!party.address().isBlank()) {
             content.add(new Paragraph(party.address()).setFontSize(FONT_BODY).setFixedLeading(8.4f).setMarginBottom(2));
@@ -259,40 +267,40 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static void addTransportStrip(Document doc, TaxInvoiceDocument invoice) {
-        // Keep transport and contact data semantically separate. The sale already
-        // stores Door Delivery and Vehicle Number independently, so the PDF must
-        // not merge those values into the transporter name.
-        Table strip = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
+        if (!hasTransportDetails(invoice)) return;
+        Table strip = new Table(UnitValue.createPercentArray(new float[]{58, 42}))
                 .useAllAvailableWidth().setMarginTop(0).setMarginBottom(STANDARD_SECTION_GAP);
-        strip.addCell(transportInfoCard(invoice));
-        strip.addCell(noBorder());
-        strip.addCell(contactInfoCard(invoice));
+        String transport = joinNonBlank("  |  ",
+                labelled("TRANSPORTER", invoice.transporter()),
+                labelled("GSTIN", invoice.transporterGstin()),
+                labelled("VEHICLE", invoice.vehicleNumber()));
+        String contact = joinNonBlank("  |  ", invoice.contactPerson(), formatIndianPhone(invoice.contactPersonMobile()));
+        strip.addCell(compactInfoCell(transport, false));
+        strip.addCell(compactInfoCell(contact.isBlank() ? "" : "CONTACT DETAILS : " + contact, true));
         doc.add(strip);
     }
 
-    private static Cell transportInfoCard(TaxInvoiceDocument invoice) {
-        Cell card = roundedFilled(new Cell().setPaddingTop(3).setPaddingBottom(3)
-                .setPaddingLeft(7).setPaddingRight(7).setBorder(Border.NO_BORDER), PALE_BLUE);
-        card.add(infoLine("TRANSPORTER", invoice.transporter()));
-        Table secondLine = new Table(UnitValue.createPercentArray(new float[]{46, 54})).useAllAvailableWidth();
-        secondLine.addCell(noBorder().add(infoLine("DELIVERY METHOD", yesNo(invoice.doorDelivery()))));
-        secondLine.addCell(noBorder().add(infoLine("VEHICLE NUMBER", invoice.vehicleNumber())));
-        card.add(secondLine);
-        return card;
+    private static Cell compactInfoCell(String text, boolean right) {
+        Cell cell = new Cell().setBackgroundColor(PALE_BLUE).setBorder(new SolidBorder(GRID,.6f))
+                .setPaddingTop(4).setPaddingBottom(4).setPaddingLeft(7).setPaddingRight(7)
+                .setTextAlignment(right ? TextAlignment.RIGHT : TextAlignment.LEFT);
+        cell.add(new Paragraph(text).setBold().setFontSize(FONT_BODY_SMALL).setMargin(0));
+        return cell;
     }
 
-    private static Cell contactInfoCard(TaxInvoiceDocument invoice) {
-        Cell card = roundedFilled(new Cell().setPaddingTop(3).setPaddingBottom(3)
-                .setPaddingLeft(7).setPaddingRight(7).setBorder(Border.NO_BORDER), PALE_BLUE);
-        card.add(infoLine("CONTACT NAME", invoice.contactPerson()));
-        card.add(infoLine("CONTACT NUMBER", formatIndianPhone(invoice.contactPersonMobile())));
-        return card;
+    private static boolean hasTransportDetails(TaxInvoiceDocument invoice) {
+        return !joinNonBlank("", invoice.transporter(), invoice.transporterGstin(), invoice.vehicleNumber(), invoice.contactPerson(), invoice.contactPersonMobile()).isBlank();
     }
 
-    private static Paragraph infoLine(String label, String value) {
-        return new Paragraph(label + " : " + dash(value))
-                .setBold().setFontSize(FONT_BODY_SMALL).setFixedLeading(8.2f).setMargin(0);
+    private static boolean sameParty(InvoiceParty left, InvoiceParty right) {
+        if (left == null || right == null) return false;
+        return normalized(left.name()).equals(normalized(right.name()))
+                && normalized(left.address()).equals(normalized(right.address()))
+                && normalized(left.gstin()).equals(normalized(right.gstin()));
     }
+
+    private static String labelled(String label, String value) { return value == null || value.isBlank() ? "" : label + " : " + value.trim(); }
+    private static String normalized(String value) { return value == null ? "" : value.replaceAll("\\s+"," ").trim().toUpperCase(Locale.ROOT); }
 
     /**
      * Deterministic 4.0.7 pagination. Row fitting is based on iText's actual
@@ -307,8 +315,9 @@ public final class TaxInvoicePdfGenerator {
 
         // One-page invoices keep the approved fixed item region so every closing
         // block lands in the same place regardless of how many blank rows remain.
-        if (fitsItems(doc, items, FIRST_FINAL_ITEM_REGION_HEIGHT)) {
-            addItemsTable(doc, items, FIRST_FINAL_ITEM_REGION_HEIGHT);
+        float firstFinalCapacity = firstPageCapacity(invoice, FIRST_FINAL_ITEM_REGION_HEIGHT);
+        if (fitsItems(doc, items, firstFinalCapacity)) {
+            addItemsTable(doc, items, firstFinalCapacity);
             return;
         }
 
@@ -326,7 +335,7 @@ public final class TaxInvoicePdfGenerator {
             }
 
             float contentCapacity = firstPage
-                    ? FIRST_CONTENT_ITEM_REGION_HEIGHT
+                    ? firstPageCapacity(invoice, FIRST_CONTENT_ITEM_REGION_HEIGHT)
                     : CONTINUATION_CONTENT_ITEM_REGION_HEIGHT;
 
             // Fill every non-final page to its measured rendered-height capacity.
@@ -342,6 +351,22 @@ public final class TaxInvoicePdfGenerator {
             doc.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
             addContinuationHeading(doc, invoice);
             firstPage = false;
+        }
+    }
+
+    private static float firstPageCapacity(TaxInvoiceDocument invoice, float base) {
+        float capacity = base;
+        if (invoice.orderNo().isBlank() && invoice.poDate() == null) capacity += 12f;
+        if (sameParty(invoice.billing(), invoice.delivery())) capacity += 28f;
+        if (!hasTransportDetails(invoice)) capacity += 20f;
+        return capacity;
+    }
+
+    private static void validateCustomerFacingRemarks(TaxInvoiceDocument invoice) {
+        for (TaxInvoiceItem item : invoice.items()) {
+            if (item.getRemarks() == null || item.getRemarks().isBlank()) {
+                throw new IllegalArgumentException("Item Master remark is required for invoice PDF (item " + item.getSerialNo() + ").");
+            }
         }
     }
 
@@ -386,8 +411,8 @@ public final class TaxInvoicePdfGenerator {
     /** Renders a content-only page without artificial blank filler rows. */
     private static void addContentItemsTable(Document doc, List<TaxInvoiceItem> items) {
         Table table = buildItemsTable(items);
-        Cell itemPanel = rounded(new Cell().setPadding(0).setBorder(Border.NO_BORDER).add(table));
-        doc.add(new Table(1).useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP).addCell(itemPanel));
+        table.setMarginBottom(STANDARD_SECTION_GAP);
+        doc.add(table);
     }
 
     private static void addItemsTable(Document doc, List<TaxInvoiceItem> items, float targetHeight) {
@@ -403,8 +428,8 @@ public final class TaxInvoicePdfGenerator {
             addFillerRow(table, Math.min(FILLER_ROW_HEIGHT, remaining));
         }
 
-        Cell itemPanel = rounded(new Cell().setPadding(0).setBorder(Border.NO_BORDER).add(table));
-        doc.add(new Table(1).useAllAvailableWidth().setMarginBottom(LOWER_SECTION_GAP).addCell(itemPanel));
+        table.setMarginBottom(LOWER_SECTION_GAP);
+        doc.add(table);
     }
 
     private static Table buildItemsTable(List<TaxInvoiceItem> items) {
@@ -481,10 +506,10 @@ public final class TaxInvoicePdfGenerator {
         Table outer = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
-        Cell left = roundedFilled(noBorder().setPadding(4), PALE_BLUE);
+        Cell left = new Cell().setPadding(4).setBackgroundColor(ColorConstants.WHITE).setBorder(new SolidBorder(GRID,.65f));
         left.add(bankDetails(invoice.company()));
 
-        Cell right = roundedFilled(noBorder().setPadding(0), PALE_BLUE);
+        Cell right = new Cell().setPadding(0).setBackgroundColor(ColorConstants.WHITE).setBorder(new SolidBorder(GRID,.65f));
         right.add(totalsTable(invoice));
 
         outer.addCell(left);
@@ -518,14 +543,18 @@ public final class TaxInvoicePdfGenerator {
     private static Table bankDetails(CompanyProfile company) {
         Table bank = new Table(UnitValue.createPercentArray(new float[]{29, 71})).useAllAvailableWidth();
         bank.setBorder(Border.NO_BORDER);
-        addBankRow(bank, "Supplier GST NO", company.gstin(), true);
-        addBankRow(bank, "BANK NAME", company.bankName(), false);
-        addBankRow(bank, "BRANCH", company.bankBranch(), false);
-        addBankRow(bank, "A/c NO", company.accountNumber(), false);
-        addBankRow(bank, "IFSC CODE", company.ifsc(), false);
-        addBankRow(bank, "ACCOUNT TYPE", company.accountType(), false);
-        addBankRow(bank, "PAYMENT MODE", company.paymentMode(), false);
+        addBankRowIfPresent(bank, "Supplier GST NO", company.gstin(), true);
+        addBankRowIfPresent(bank, "BANK NAME", company.bankName(), false);
+        addBankRowIfPresent(bank, "BRANCH", company.bankBranch(), false);
+        addBankRowIfPresent(bank, "A/c NO", company.accountNumber(), false);
+        addBankRowIfPresent(bank, "IFSC CODE", company.ifsc(), false);
+        addBankRowIfPresent(bank, "ACCOUNT TYPE", company.accountType(), false);
+        addBankRowIfPresent(bank, "PAYMENT MODE", company.paymentMode(), false);
         return bank;
+    }
+
+    private static void addBankRowIfPresent(Table bank, String label, String value, boolean highlight) {
+        if (value != null && !value.isBlank()) addBankRow(bank,label,value,highlight);
     }
 
     private static void addBankRow(Table bank, String label, String value, boolean highlight) {
@@ -543,20 +572,28 @@ public final class TaxInvoicePdfGenerator {
         Table table = new Table(UnitValue.createPercentArray(new float[]{64, 36})).useAllAvailableWidth();
         table.setBorder(Border.NO_BORDER);
         addTotalRow(table, "BASIC AMOUNT", totals.basicAmount());
-        addTotalRow(table, "DISCOUNT @ NIL", totals.discountAmount());
-        addTotalRow(table, "FREIGHT CHARGES @ EXTRA", totals.freightCharges());
-        addTotalRow(table, "GROSS TOTAL", totals.grossTotal());
+        if (totals.discountAmount() > .004) addTotalRow(table, "DISCOUNT", totals.discountAmount());
+        for (TaxInvoiceCharge charge : invoice.charges()) addTotalRow(table, charge.name().toUpperCase(Locale.ROOT), charge.amount());
+        addTotalRow(table, "TAXABLE AMOUNT", totals.taxableAmount());
 
-        double gstRate = invoice.items().stream().mapToDouble(TaxInvoiceItem::getGstPercent).max().orElse(0);
-        addTotalRow(table, "CGST @ " + percent(gstRate / 2), totals.cgst());
-        addTotalRow(table, "SGST @ " + percent(gstRate / 2), totals.sgst());
-        addTotalRow(table, "IGST @ " + percent(gstRate), totals.igst());
+        List<Double> rates = new ArrayList<>();
+        invoice.items().stream().mapToDouble(TaxInvoiceItem::getGstPercent).filter(rate->rate>0).forEach(rates::add);
+        invoice.charges().stream().filter(TaxInvoiceCharge::taxable).mapToDouble(TaxInvoiceCharge::gstPercent).filter(rate->rate>0).forEach(rates::add);
+        long distinctRates = rates.stream().map(rate->Math.round(rate*100d)).distinct().count();
+        double gstRate = rates.stream().mapToDouble(Double::doubleValue).max().orElse(0);
+        boolean igstMode = invoice.gstType().toUpperCase(Locale.ROOT).contains("IGST") || invoice.gstType().toUpperCase(Locale.ROOT).contains("INTER");
+        String rateText = distinctRates == 1 ? " @ " + percent(igstMode ? gstRate : gstRate/2d) : "";
+        if (igstMode) addTotalRow(table, "IGST" + rateText, totals.igst());
+        else {
+            addTotalRow(table, "CGST" + rateText, totals.cgst());
+            addTotalRow(table, "SGST" + rateText, totals.sgst());
+        }
         addTotalRow(table, "ROUND OFF", totals.roundOff());
         return table;
     }
 
     private static void addTotalRow(Table table, String label, double amount) {
-        boolean strong = "BASIC AMOUNT".equals(label) || "GROSS TOTAL".equals(label);
+        boolean strong = "BASIC AMOUNT".equals(label) || "TAXABLE AMOUNT".equals(label);
         Cell labelCell = new Cell().setBorder(Border.NO_BORDER)
                 .setBorderBottom(new SolidBorder(GRID, .28f))
                 .setPaddingLeft(5).setPaddingRight(3).setPaddingTop(1.65f).setPaddingBottom(1.65f);
@@ -590,14 +627,14 @@ public final class TaxInvoicePdfGenerator {
         Table table = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
-        Cell terms = roundedFilled(new Cell().setPadding(7).setHeight(84)
-                .setBorder(Border.NO_BORDER), PALE_YELLOW);
+        Cell terms = new Cell().setPadding(7).setHeight(84).setBackgroundColor(ColorConstants.WHITE)
+                .setBorder(new SolidBorder(GRID,.65f));
         terms.add(new Paragraph("TERMS & CONDITIONS").setBold().setFontColor(NAVY).setFontSize(FONT_SECTION).setMarginBottom(5));
         String text = invoice.company().terms();
         terms.add(new Paragraph(text).setFontSize(FONT_TERMS).setFixedLeading(10.4f).setMargin(0));
 
-        Cell signature = roundedFilled(new Cell().setPadding(6).setHeight(84).setTextAlignment(TextAlignment.CENTER)
-                .setBorder(Border.NO_BORDER), VERY_PALE_BLUE);
+        Cell signature = new Cell().setPadding(6).setHeight(84).setTextAlignment(TextAlignment.CENTER)
+                .setBackgroundColor(ColorConstants.WHITE).setBorder(new SolidBorder(GRID,.65f));
         signature.add(new Paragraph("For, " + invoice.company().name()).setBold().setFontColor(NAVY)
                 .setFontSize(8.8f).setMarginBottom(3));
         Image signatureImage = configuredImage(invoice.company().signaturePath());
@@ -662,12 +699,8 @@ public final class TaxInvoicePdfGenerator {
     private static Cell itemDescriptionCell(TaxInvoiceItem item) {
         Cell cell = new Cell().setBorder(new SolidBorder(GRID, .45f)).setPaddingTop(2.3f).setPaddingBottom(2.3f).setPaddingLeft(3).setPaddingRight(3)
                 .setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.TOP);
-        cell.add(new Paragraph(item.getDescription()).setBold().setFontSize(FONT_ITEM_TITLE)
+        cell.add(new Paragraph(item.getRemarks()).setFontSize(FONT_ITEM_TITLE)
                 .setFixedLeading(8.3f).setMargin(0));
-        if (!item.getRemarks().isBlank()) {
-            cell.add(new Paragraph(item.getRemarks()).setFontSize(FONT_ITEM_REMARK)
-                    .setFixedLeading(7.8f).setMarginTop(1).setMarginBottom(0));
-        }
         return cell;
     }
 

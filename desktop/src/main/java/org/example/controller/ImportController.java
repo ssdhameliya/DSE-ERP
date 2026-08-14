@@ -46,6 +46,7 @@ public class ImportController {
        ========================================================= */
 
     @FXML private ComboBox<String> cmbImportModule;
+    @FXML private ComboBox<String> cmbImportMode;
     @FXML private TextField txtImportNote;
 
     @FXML private GridPane gridMapping;
@@ -116,6 +117,9 @@ public class ImportController {
         "item_code",
         "description",
         "category",
+        "brand",
+        "material",
+        "size",
         "unit",
         "hsn",
         "gst",
@@ -201,6 +205,9 @@ public class ImportController {
         );
 
         cmbImportModule.getSelectionModel().selectFirst();
+        cmbImportMode.setItems(FXCollections.observableArrayList(
+            "Update non-blank fields (recommended)", "Create new only", "Create or update", "Skip existing"));
+        cmbImportMode.getSelectionModel().selectFirst();
 
         String requestedModule = ImportScreenContext.consume();
 
@@ -296,12 +303,12 @@ public class ImportController {
             if (button != null) button.setGraphic(IconFactory.compactIcon("excel", 16));
         }
 
-        if (itemChoiceIcon != null) itemChoiceIcon.getChildren().setAll(IconFactory.icon("item", 28));
-        if (customerChoiceIcon != null) customerChoiceIcon.getChildren().setAll(IconFactory.icon("customer", 28));
-        if (supplierChoiceIcon != null) supplierChoiceIcon.getChildren().setAll(IconFactory.icon("supplier", 28));
-        if (salesChoiceIcon != null) salesChoiceIcon.getChildren().setAll(IconFactory.icon("sale", 28));
-        if (purchaseChoiceIcon != null) purchaseChoiceIcon.getChildren().setAll(IconFactory.icon("purchase", 28));
-        if (masterChoiceIcon != null) masterChoiceIcon.getChildren().setAll(IconFactory.icon("master", 28));
+        if (itemChoiceIcon != null) itemChoiceIcon.getChildren().setAll(IconFactory.icon("item", 46));
+        if (customerChoiceIcon != null) customerChoiceIcon.getChildren().setAll(IconFactory.icon("customer", 46));
+        if (supplierChoiceIcon != null) supplierChoiceIcon.getChildren().setAll(IconFactory.icon("supplier", 46));
+        if (salesChoiceIcon != null) salesChoiceIcon.getChildren().setAll(IconFactory.icon("sale", 46));
+        if (purchaseChoiceIcon != null) purchaseChoiceIcon.getChildren().setAll(IconFactory.icon("purchase", 46));
+        if (masterChoiceIcon != null) masterChoiceIcon.getChildren().setAll(IconFactory.icon("master", 46));
         if (selectedFileExcelIcon != null) selectedFileExcelIcon.getChildren().setAll(IconFactory.icon("excel", 30));
     }
 
@@ -1591,6 +1598,12 @@ public class ImportController {
 
         boolean dryRun =
             chkDryRun.isSelected();
+        ImportService.ImportMode importMode = switch (cmbImportMode.getSelectionModel().getSelectedIndex()) {
+            case 1 -> ImportService.ImportMode.CREATE_ONLY;
+            case 2 -> ImportService.ImportMode.UPSERT;
+            case 3 -> ImportService.ImportMode.SKIP_EXISTING;
+            default -> ImportService.ImportMode.UPDATE_NON_BLANK;
+        };
 
         String module =
             cmbImportModule.getValue();
@@ -1607,7 +1620,8 @@ public class ImportController {
                     return executeImport(
                         module,
                         mapping,
-                        dryRun
+                        dryRun,
+                        importMode
                     );
                 }
             };
@@ -1679,7 +1693,8 @@ public class ImportController {
     private ImportService.ImportResult executeImport(
         String module,
         Map<String, String> mapping,
-        boolean dryRun
+        boolean dryRun,
+        ImportService.ImportMode importMode
     ) throws Exception {
 
         return switch (module) {
@@ -1689,6 +1704,7 @@ public class ImportController {
                     selectedFile.toPath(),
                     mapping,
                     dryRun,
+                    importMode,
                     this::updateProgress
                 );
 
@@ -1697,6 +1713,7 @@ public class ImportController {
                     selectedFile.toPath(),
                     mapping,
                     dryRun,
+                    importMode,
                     this::updateProgress
                 );
 
@@ -1705,6 +1722,7 @@ public class ImportController {
                     selectedFile.toPath(),
                     mapping,
                     dryRun,
+                    importMode,
                     this::updateProgress
                 );
 
@@ -1713,6 +1731,7 @@ public class ImportController {
                     selectedFile.toPath(),
                     mapping,
                     dryRun,
+                    importMode,
                     this::updateProgress
                 );
 
@@ -1721,6 +1740,7 @@ public class ImportController {
                     selectedFile.toPath(),
                     mapping,
                     dryRun,
+                    importMode,
                     this::updateProgress
                 );
 
@@ -1731,6 +1751,7 @@ public class ImportController {
                     selectedFile.toPath(),
                     mapping,
                     dryRun,
+                    importMode,
                     this::updateProgress
                 );
         };
@@ -1985,6 +2006,25 @@ public class ImportController {
                 workbook.createSheet(
                     "Import Template"
                 );
+
+            Sheet instructions = workbook.createSheet("Instructions");
+            String[][] guidance = {
+                {"DSE ERP 7.1.8 Import Template", "Keep identifier and header names unchanged."},
+                {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
+                {"Create new only", "Existing identifiers are skipped; only new records are created."},
+                {"Create or update", "Existing master records are replaced with supplied values."},
+                {"Skip existing", "Existing identifiers are never changed."},
+                {"Financial documents", "Existing posted Sales and Purchase invoices are always protected and skipped."},
+                {"Safe process", "Run Validate only first, review the preview and errors, then import."},
+                {"Identifiers", identifierGuidance(cmbImportModule.getValue())}
+            };
+            for (int i = 0; i < guidance.length; i++) {
+                Row row = instructions.createRow(i);
+                row.createCell(0).setCellValue(guidance[i][0]);
+                row.createCell(1).setCellValue(guidance[i][1]);
+            }
+            instructions.setColumnWidth(0, 28 * 256);
+            instructions.setColumnWidth(1, 92 * 256);
 
             CellStyle headerStyle =
                 createTemplateHeaderStyle(
@@ -2243,6 +2283,9 @@ public class ImportController {
                     "ITEM-0001",
                     "MS Round Pipe",
                     "Pipe",
+                    "Jasvi",
+                    "Mild Steel",
+                    "25 mm",
                     "Nos",
                     "73063000",
                     "18",
@@ -2254,6 +2297,16 @@ public class ImportController {
                     "10",
                     "Main Warehouse"
                 );
+        };
+    }
+
+    private String identifierGuidance(String module) {
+        return switch (module) {
+            case "Customers/CRM", "Suppliers/HRM" -> "party_code identifies the record to create, update or skip.";
+            case "Sales", "Purchases" -> "invoice_no groups all item rows into one document; existing posted documents are protected.";
+            case "Master Categories and Values" -> "category_code + value_code identify a reusable master value.";
+            case "Bank Statement" -> "The source fingerprint and transaction row protect against duplicate imports.";
+            default -> "item_code identifies the item to create, update or skip.";
         };
     }
 

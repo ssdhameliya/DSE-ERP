@@ -684,7 +684,7 @@ public class PurchaseController {
         purchase.setRemarks(
             txtRemarks.getText()
         );
-        purchase.setDueDate(dpDueDate.getValue());purchase.setDeliveryDate(dpDeliveryDate.getValue());purchase.setWarehouse(cmbWarehouse.getValue());purchase.setPaymentTerms(cmbPaymentTerms.getValue());purchase.setCurrency(cmbCurrency.getValue());purchase.setReferenceNo(txtReference.getText());purchase.setGstTreatment(cmbGstTreatment.getValue());purchase.setTransporter(cmbTransporter.getValue());purchase.setLrAwbNo(txtLrAwb.getText());purchase.setDiscountType("Item Level");purchase.setDiscountAmount(discount);purchase.setTotalAmount(net+gst);purchase.setAttachmentPath(attachment==null?null:attachment.getAbsolutePath());
+        purchase.setDueDate(dpDueDate.getValue());purchase.setDeliveryDate(dpDeliveryDate.getValue());purchase.setWarehouse(cmbWarehouse.getValue());purchase.setPaymentTerms(cmbPaymentTerms.getValue());purchase.setCurrency(cmbCurrency.getValue());purchase.setReferenceNo(txtReference.getText());purchase.setGstTreatment(cmbGstTreatment.getValue());purchase.setTransporter(cmbTransporter.getValue());purchase.setLrAwbNo(txtLrAwb.getText());purchase.setDiscountType("Item Level");purchase.setDiscountAmount(discount);purchase.setTotalAmount(net+gst);purchase.setAttachmentPath(attachment != null ? attachment.getAbsolutePath() : (editingPurchase == null ? null : editingPurchase.getAttachmentPath()));
 
 
 
@@ -707,6 +707,10 @@ public class PurchaseController {
     private void newPurchase(){
 
         editingPurchase = null;
+        attachment = null;
+        if (lblAttachment != null) lblAttachment.setText("");
+        if (txtReference != null) txtReference.clear();
+        if (txtLrAwb != null) txtLrAwb.clear();
 
 
         txtInvoiceNo.setText(
@@ -938,6 +942,7 @@ public class PurchaseController {
 
         }
         editingPurchase = purchase;
+        attachment = null;
 
 
         txtInvoiceNo.setText(
@@ -988,7 +993,7 @@ public class PurchaseController {
 
         }
 
-        dpDueDate.setValue(purchase.getDueDate());dpDeliveryDate.setValue(purchase.getDeliveryDate());select(cmbWarehouse,purchase.getWarehouse());select(cmbPaymentTerms,purchase.getPaymentTerms());select(cmbCurrency,purchase.getCurrency());select(cmbGstTreatment,purchase.getGstTreatment());select(cmbTransporter,purchase.getTransporter());select(cmbDiscountType,purchase.getDiscountType());txtReference.setText(value(purchase.getReferenceNo()));txtLrAwb.setText(value(purchase.getLrAwbNo()));txtDiscount.setText(String.valueOf(purchase.getDiscountAmount()));if(purchase.getAttachmentPath()!=null)lblAttachment.setText(purchase.getAttachmentPath());
+        dpDueDate.setValue(purchase.getDueDate());dpDeliveryDate.setValue(purchase.getDeliveryDate());select(cmbWarehouse,purchase.getWarehouse());select(cmbPaymentTerms,purchase.getPaymentTerms());select(cmbCurrency,purchase.getCurrency());select(cmbGstTreatment,purchase.getGstTreatment());select(cmbTransporter,purchase.getTransporter());select(cmbDiscountType,purchase.getDiscountType());txtReference.setText(value(purchase.getReferenceNo()));txtLrAwb.setText(value(purchase.getLrAwbNo()));txtDiscount.setText(String.valueOf(purchase.getDiscountAmount()));if (lblAttachment != null) lblAttachment.setText(purchase.getAttachmentPath() == null ? "" : purchase.getAttachmentPath());
 
 
         recalculate();

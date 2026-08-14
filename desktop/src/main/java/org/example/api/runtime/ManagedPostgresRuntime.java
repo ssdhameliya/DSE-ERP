@@ -11,7 +11,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -25,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 6.0.4 managed PostgreSQL runtime.
+ * 7.1.2 managed PostgreSQL runtime.
  *
  * Fresh workspaces use a private PostgreSQL cluster owned by DSE ERP. Existing installations
  * that explicitly configure db.url or DSE_DB_URL remain external and are never reconfigured.
@@ -77,18 +76,10 @@ public final class ManagedPostgresRuntime {
             if (!stateExists && !clusterExists) {
                 // Genuine first installation for this workspace.
                 state = newRuntimeState();
-                prepareFreshCluster(home, data, state);
-                try {
-                    saveState(stateFile, state);
-                    writeInstanceMarker(data, state.instanceId());
-                } catch (Exception bootstrapStateError) {
-                    // The cluster has never been used at this point. Remove the fresh
-                    // bootstrap rather than leaving a workspace that looks like an
-                    // existing database but has no matching runtime identity.
-                    deleteTreeQuietly(data);
-                    try { Files.deleteIfExists(stateFile); } catch (IOException ignored) {}
-                    throw bootstrapStateError;
-                }
+                initializeCluster(home, data, state);
+                configureCluster(data, state.port());
+                saveState(stateFile, state);
+                writeInstanceMarker(data, state.instanceId());
             } else if (stateExists && clusterExists) {
                 // Normal restart/upgrade: ALWAYS reuse the existing database.
                 state = loadState(stateFile);
@@ -174,6 +165,13 @@ public final class ManagedPostgresRuntime {
         }
         if (explicit != null && !explicit.isBlank()) candidates.add(Path.of(explicit));
 
+        String configuredBin = ConfigManager.get("postgres.binPath", "").trim();
+        if (!configuredBin.isBlank()) {
+            Path binPath = Path.of(configuredBin).toAbsolutePath().normalize();
+            candidates.add("bin".equalsIgnoreCase(String.valueOf(binPath.getFileName()))
+                    ? binPath.getParent() : binPath);
+        }
+
         try {
             Path code = Path.of(ManagedPostgresRuntime.class.getProtectionDomain().getCodeSource().getLocation().toURI())
                     .toAbsolutePath().normalize();
@@ -188,8 +186,7 @@ public final class ManagedPostgresRuntime {
         if (!isPackagedRuntime()) {
             String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (os.contains("win")) {
-                candidates.add(Path.of("D:/PostgreSQL/18/pgsql"));
-                candidates.add(Path.of("C:/Program Files/PostgreSQL/18"));
+                addDevelopmentWindowsCandidates(candidates);
             } else if (os.contains("mac")) {
                 candidates.add(Path.of("/opt/homebrew/opt/postgresql@18"));
                 candidates.add(Path.of("/usr/local/opt/postgresql@18"));
@@ -206,18 +203,71 @@ public final class ManagedPostgresRuntime {
         }
         throw new IllegalStateException(isPackagedRuntime()
                 ? "DSE ERP installation is incomplete: bundled PostgreSQL runtime is missing."
-                : "PostgreSQL 18 runtime was not found. Development can set DSE_POSTGRES_HOME.");
+                : "PostgreSQL 18 runtime was not found for this IntelliJ/development run. "
+                    + "DSE ERP checked the project runtime, PATH and common Windows developer installations. "
+                    + "Set DSE_POSTGRES_HOME to the PostgreSQL 18 folder, or configure an external PostgreSQL server.");
+    }
+
+    /**
+     * Resolves a PostgreSQL client command from the same runtime used by the desktop database.
+     * This keeps backup and restore portable across packaged Windows/macOS installations and
+     * avoids leaking a developer-machine drive path into user-facing failures.
+     */
+    public static Path postgresTool(String command) {
+        if (command == null || command.isBlank()) {
+            throw new IllegalArgumentException("PostgreSQL command name is required.");
+        }
+        String normalized = command.trim();
+        if (normalized.toLowerCase(Locale.ROOT).endsWith(".exe")) {
+            normalized = normalized.substring(0, normalized.length() - 4);
+        }
+        Path home = activeHome;
+        if (home == null || !Files.isRegularFile(bin(home, normalized))) {
+            home = locatePostgresHome();
+        }
+        Path tool = bin(home, normalized).toAbsolutePath().normalize();
+        if (!Files.isRegularFile(tool)) {
+            throw new IllegalStateException("PostgreSQL command is missing from the DSE ERP runtime: " + normalized);
+        }
+        return tool;
+    }
+
+    private static void addWindowsInstallCandidate(List<Path> candidates, String programFiles) {
+        if (programFiles != null && !programFiles.isBlank()) {
+            candidates.add(Path.of(programFiles, "PostgreSQL", "18"));
+        }
+    }
+
+    /** Development-only discovery. Packaged apps never call this method and must use their bundle. */
+    private static void addDevelopmentWindowsCandidates(List<Path> candidates) {
+        addWindowsInstallCandidate(candidates, System.getenv("ProgramFiles"));
+        addWindowsInstallCandidate(candidates, System.getenv("ProgramFiles(x86)"));
+        addWindowsInstallCandidate(candidates, System.getenv("ProgramW6432"));
+        String local=System.getenv("LOCALAPPDATA");
+        if(local!=null&&!local.isBlank())candidates.add(Path.of(local,"Programs","PostgreSQL","18"));
+        String scoop=System.getenv("SCOOP");
+        if(scoop!=null&&!scoop.isBlank())candidates.add(Path.of(scoop,"apps","postgresql","current"));
+        String path=System.getenv("PATH");
+        if(path==null||path.isBlank())return;
+        for(String entry:path.split(java.util.regex.Pattern.quote(System.getProperty("path.separator",";")))){
+            if(entry==null||entry.isBlank())continue;
+            try{
+                Path folder=Path.of(entry).toAbsolutePath().normalize();
+                if(Files.isRegularFile(folder.resolve("initdb.exe")))
+                    candidates.add("bin".equalsIgnoreCase(String.valueOf(folder.getFileName()))?folder.getParent():folder);
+            }catch(Exception ignored){}
+        }
     }
 
     public static void verifyBundledRuntime() {
         if (!isPackagedRuntime()) return;
         Path home = locatePostgresHome();
-        for (String command : List.of("initdb", "pg_ctl", "psql", "createdb", "postgres")) {
+        for (String command : List.of("initdb", "pg_ctl", "psql", "createdb")) {
             if (!Files.isRegularFile(bin(home, command))) {
                 throw new IllegalStateException("DSE ERP installation is incomplete: PostgreSQL command missing: " + command);
             }
         }
-        locateInitdbShare(home);
+        postgresShare(home);
     }
 
     private static boolean isPackagedRuntime() {
@@ -229,35 +279,21 @@ public final class ManagedPostgresRuntime {
         return home.resolve("bin").resolve(windows ? name + ".exe" : name);
     }
 
-    /**
-     * Finds the PostgreSQL initdb bootstrap share directory inside the bundled runtime.
-     * Homebrew PostgreSQL is compiled with pkgshare outside the formula opt prefix
-     * (for example /opt/homebrew/share/postgresql@18).  On a customer's Mac that
-     * build-machine path does not exist, so initdb must be given the bundled location
-     * explicitly with -L.
-     */
-    private static Path locateInitdbShare(Path home) {
-        Path share = home.resolve("share");
-        for (Path candidate : List.of(share.resolve("postgresql@18"), share)) {
-            if (Files.isRegularFile(candidate.resolve("postgres.bki"))) {
-                return candidate.toAbsolutePath().normalize();
-            }
+    private static Path postgresShare(Path home) {
+        Path shareRoot = home.resolve("share");
+        if (!Files.isDirectory(shareRoot)) {
+            throw new IllegalStateException(
+                    "DSE ERP installation is incomplete: bundled PostgreSQL share directory is missing.");
         }
-        if (Files.isDirectory(share)) {
-            try (var walk = Files.walk(share, 4)) {
-                return walk.filter(path -> path.getFileName() != null
-                                && path.getFileName().toString().equals("postgres.bki")
-                                && Files.isRegularFile(path))
-                        .map(Path::getParent)
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "DSE ERP installation is incomplete: bundled PostgreSQL bootstrap file postgres.bki is missing."));
-            } catch (IOException exception) {
-                throw new IllegalStateException("Unable to inspect bundled PostgreSQL share directory: " + share, exception);
-            }
+        try (var paths = Files.find(shareRoot, 4,
+                (path, attributes) -> attributes.isRegularFile()
+                        && "postgres.bki".equals(path.getFileName().toString()))) {
+            return paths.map(Path::getParent).sorted().findFirst().orElseThrow(() ->
+                    new IllegalStateException(
+                            "DSE ERP installation is incomplete: bundled PostgreSQL postgres.bki is missing."));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to inspect bundled PostgreSQL share directory", exception);
         }
-        throw new IllegalStateException(
-                "DSE ERP installation is incomplete: bundled PostgreSQL share directory is missing: " + share);
     }
 
     private static RuntimeState loadState(Path file) {
@@ -358,84 +394,19 @@ public final class ManagedPostgresRuntime {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private static void prepareFreshCluster(Path home, Path data, RuntimeState state) throws Exception {
-        Files.createDirectories(data.getParent());
-        if (Files.exists(data)) {
-            try (var entries = Files.list(data)) {
-                if (entries.findAny().isPresent()) {
-                    throw new IllegalStateException(
-                            "The new managed PostgreSQL data folder is not empty but has no valid PG_VERSION. "
-                            + "DSE ERP will not delete unknown files: " + data);
-                }
-            }
-            Files.deleteIfExists(data);
-        }
-
-        Path staging = data.getParent().resolve("data.bootstrap-" + java.util.UUID.randomUUID());
-        try {
-            initializeCluster(home, staging, state);
-            configureCluster(staging, state.port());
-            try {
-                Files.move(staging, data, StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
-                Files.move(staging, data);
-            }
-        } catch (Exception exception) {
-            deleteTreeQuietly(staging);
-            throw exception;
-        }
-    }
-
     private static void initializeCluster(Path home, Path data, RuntimeState state) throws Exception {
         Files.createDirectories(data);
         Path passwordFile = Files.createTempFile(WorkspaceManager.getTempFolder(), "pg-owner-", ".pwd");
         try {
             Files.writeString(passwordFile, state.ownerPassword(), StandardCharsets.UTF_8);
             restrictPermissions(passwordFile);
-            Path initdbShare = locateInitdbShare(home);
-            List<String> command = List.of(bin(home, "initdb").toString(), "-D", data.toString(),
-                    "-L", initdbShare.toString(), "-U", OWNER_USER, "--pwfile=" + passwordFile,
-                    "--encoding=UTF8", "--locale=C", "--auth-local=scram-sha-256",
-                    "--auth-host=scram-sha-256");
-
-            // Keep the complete native output outside the transient bootstrap directory.
-            // Startup dialogs intentionally show only a compact tail, while this file gives
-            // support the exact backend/dyld/initdb failure even if the app is later removed.
-            Path diagnosticLog = WorkspaceManager.getLogsFolder().resolve("postgresql-initdb.log");
-            Files.createDirectories(diagnosticLog.getParent());
-            ProcessResult result = run(command, null, Duration.ofSeconds(120), false);
-            String diagnostic = "DSE ERP 6.0.4 managed PostgreSQL initdb" + System.lineSeparator()
-                    + "Runtime: " + home + System.lineSeparator()
-                    + "Bootstrap share: " + initdbShare + System.lineSeparator()
-                    + "Data staging: " + data + System.lineSeparator()
-                    + "Exit code: " + result.exitCode() + System.lineSeparator()
-                    + System.lineSeparator() + result.output();
-            Files.writeString(diagnosticLog, diagnostic, StandardCharsets.UTF_8);
-            if (result.exitCode() != 0) {
-                throw new IllegalStateException("PostgreSQL initdb failed (" + result.exitCode() + "). "
-                        + "Full diagnostic log: " + diagnosticLog + System.lineSeparator()
-                        + compactOutputTail(result.output(), 3500));
-            }
+            run(List.of(bin(home, "initdb").toString(), "-D", data.toString(),
+                    "-L", postgresShare(home).toString(), "-U", OWNER_USER,
+                    "--pwfile=" + passwordFile, "--encoding=UTF8", "--locale=C",
+                    "--auth-local=scram-sha-256", "--auth-host=scram-sha-256"), null, COMMAND_TIMEOUT);
         } finally {
             Files.deleteIfExists(passwordFile);
         }
-    }
-
-    private static String compactOutputTail(String output, int maxChars) {
-        if (output == null || output.isBlank()) return "No PostgreSQL diagnostic output was produced.";
-        String value = output.strip();
-        if (value.length() <= maxChars) return value;
-        return "... (earlier PostgreSQL output omitted; see diagnostic log) ..." + System.lineSeparator()
-                + value.substring(value.length() - maxChars);
-    }
-
-    private static void deleteTreeQuietly(Path root) {
-        if (root == null || !Files.exists(root)) return;
-        try (var walk = Files.walk(root)) {
-            walk.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
-                try { Files.deleteIfExists(path); } catch (IOException ignored) {}
-            });
-        } catch (IOException ignored) {}
     }
 
     private static void configureCluster(Path data, int port) throws IOException {
@@ -541,7 +512,6 @@ public final class ManagedPostgresRuntime {
     private static ProcessResult run(List<String> command, Properties environment, Duration timeout, boolean failOnError) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
-        configureNativeRuntimeEnvironment(pb, command);
         if (environment != null) {
             for (String name : environment.stringPropertyNames()) {
                 pb.environment().put(name, environment.getProperty(name));
@@ -582,34 +552,6 @@ public final class ManagedPostgresRuntime {
             throw new IllegalStateException("PostgreSQL command failed (" + result.exitCode() + "): " + output.strip());
         }
         return result;
-    }
-
-    private static void configureNativeRuntimeEnvironment(ProcessBuilder pb, List<String> command) {
-        if (command == null || command.isEmpty()) return;
-        try {
-            Path executable = Path.of(command.getFirst()).toAbsolutePath().normalize();
-            Path binDir = executable.getParent();
-            Path home = binDir == null ? null : binDir.getParent();
-            if (home == null || !Files.isDirectory(home.resolve("lib"))) return;
-
-            String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-            String pathKey = os.contains("win") ? "Path" : "PATH";
-            String existingPath = pb.environment().getOrDefault(pathKey, "");
-            pb.environment().put(pathKey, binDir + java.io.File.pathSeparator + existingPath);
-
-            if (os.contains("mac")) {
-                String bundled = String.join(":",
-                        home.resolve("lib").toString(),
-                        home.resolve("lib/postgresql").toString(),
-                        home.resolve("lib/dse-deps").toString());
-                String existing = pb.environment().getOrDefault("DYLD_FALLBACK_LIBRARY_PATH", "");
-                pb.environment().put("DYLD_FALLBACK_LIBRARY_PATH",
-                        existing.isBlank() ? bundled : bundled + ":" + existing);
-            }
-        } catch (Exception ignored) {
-            // Relocated Mach-O load commands are the primary production mechanism.
-            // Environment setup is only a defensive fallback for local/dev runtimes.
-        }
     }
 
     public static synchronized void shutdownIfConfigured() {

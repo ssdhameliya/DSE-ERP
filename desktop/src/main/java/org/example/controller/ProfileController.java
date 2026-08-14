@@ -1,27 +1,8 @@
 package org.example.controller;
-
-import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import org.example.model.AppUser;
-import org.example.service.SessionService;
-
-public class ProfileController {
-    @FXML
-    private Label lblName;
-    @FXML
-    private Label lblUsername;
-    @FXML
-    private Label lblEmail;
-
-    @FXML
-    public void initialize() {
-        AppUser user = SessionService.current();
-        if (user == null) {
-            return;
-        }
-
-        lblName.setText(user.getFullName());
-        lblUsername.setText(user.getUsername());
-        lblEmail.setText(user.getEmail());
-    }
-}
+import javafx.fxml.FXML;import javafx.scene.control.*;import org.example.api.profile.ProfileApiClient;import org.example.model.AppUser;import org.example.service.*;import org.example.util.OwnedAlert;import java.util.Locale;
+public class ProfileController {@FXML private Label lblInitials,lblName,lblRole,lblStatus,lblUsername,lblAccessLevel,lblLastLogin,lblMfa;@FXML private TextField txtFullName,txtEmail,txtDepartment,txtBranch;@FXML private PasswordField txtCurrentPassword,txtNewPassword,txtConfirmPassword;@FXML private Button btnSave,btnPassword;private final ProfileApiClient api=new ProfileApiClient();
+ @FXML public void initialize(){loadProfile();}private void loadProfile(){try{apply(api.current());}catch(Exception ex){show(Alert.AlertType.ERROR,"Profile could not be loaded",ex.getMessage());}}
+ private void apply(ProfileApiClient.ProfileDto p){txtFullName.setText(safe(p.fullName()));txtEmail.setText(safe(p.email()));txtDepartment.setText(safe(p.department()));txtBranch.setText(safe(p.branch()));lblName.setText(safe(p.fullName()).isBlank()?p.username():p.fullName());lblUsername.setText(p.username());lblRole.setText(displayRole(p.role()));lblAccessLevel.setText(safe(p.accessLevel()));lblLastLogin.setText(safe(p.lastLogin()).isBlank()?"Never":p.lastLogin());lblMfa.setText(p.mfaEnabled()?"Enabled":"Not enabled");lblStatus.setText(!p.active()?"Inactive":p.locked()?"Locked":"Active");lblInitials.setText(initials(p.fullName(),p.username()));}
+ @FXML private void saveProfile(){String name=txtFullName.getText()==null?"":txtFullName.getText().trim(),email=txtEmail.getText()==null?"":txtEmail.getText().trim();if(name.isBlank()||!email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")){show(Alert.AlertType.WARNING,"Check profile details","Full name and a valid email address are required.");return;}try{ProfileApiClient.ProfileDto p=api.update(new ProfileApiClient.ProfileUpdate(name,email,txtDepartment.getText(),txtBranch.getText()));apply(p);AppUser current=SessionService.current();if(current!=null){current.setFullName(p.fullName());current.setEmail(p.email());current.setDepartment(p.department());current.setBranch(p.branch());}NotificationService.createNotification(NotificationService.Category.SECURITY,"Profile updated","Your profile details were updated successfully.","INFO","/fxml/pages/Profile.fxml",p.username());show(Alert.AlertType.INFORMATION,"Profile saved","Your profile details have been saved.");}catch(Exception ex){show(Alert.AlertType.ERROR,"Profile update failed",ex.getMessage());}}
+ @FXML private void changePassword(){String current=txtCurrentPassword.getText(),a=txtNewPassword.getText(),b=txtConfirmPassword.getText();if(current==null||current.isBlank()){show(Alert.AlertType.WARNING,"Current password required","Enter your current password before changing it.");return;}if(a==null||a.length()<8||!a.matches(".*[A-Za-z].*")||!a.matches(".*[0-9].*")){show(Alert.AlertType.WARNING,"Password is too weak","Use at least 8 characters with a letter and a number.");return;}if(!a.equals(b)){show(Alert.AlertType.WARNING,"Passwords do not match","Enter the same password in both fields.");return;}try{new UserService().changePassword(SessionService.current().getId(),current,a);txtCurrentPassword.clear();txtNewPassword.clear();txtConfirmPassword.clear();NotificationService.createNotification(NotificationService.Category.SECURITY,"Password changed","Your account password was changed successfully.","INFO","/fxml/pages/Profile.fxml",SessionService.current().getUsername());show(Alert.AlertType.INFORMATION,"Password updated","Your password has been changed. Sign in again on your next request.");}catch(Exception ex){show(Alert.AlertType.ERROR,"Password update failed",ex.getMessage());}}
+ private void show(Alert.AlertType t,String h,String m){OwnedAlert a=new OwnedAlert(t,m==null?"The request could not be completed.":m);a.setHeaderText(h);a.showAndWait();}private static String safe(String v){return v==null?"":v;}private static String displayRole(String v){return "SALES".equalsIgnoreCase(v)?"Sale":safe(v).toUpperCase(Locale.ROOT);}private static String initials(String n,String u){String s=safe(n).isBlank()?safe(u):n;String[] p=s.trim().split("\\s+");if(p.length==0||p[0].isBlank())return "U";return(p[0].substring(0,1)+(p.length>1?p[p.length-1].substring(0,1):"")).toUpperCase(Locale.ROOT);}}

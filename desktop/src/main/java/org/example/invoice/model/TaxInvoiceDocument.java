@@ -12,13 +12,13 @@ public record TaxInvoiceDocument(
         InvoiceParty billing,
         InvoiceParty delivery,
         String transporter,
-        String doorDelivery,
+        String transporterGstin,
         String vehicleNumber,
         String contactPerson,
         String contactPersonMobile,
         List<TaxInvoiceItem> items,
         String gstType,
-        double freightCharges,
+        List<TaxInvoiceCharge> charges,
         InvoiceTotals totals,
         String amountInWords) {
 
@@ -26,12 +26,13 @@ public record TaxInvoiceDocument(
         invoiceNo = safe(invoiceNo);
         orderNo = safe(orderNo);
         transporter = safe(transporter);
-        doorDelivery = safe(doorDelivery);
+        transporterGstin = safe(transporterGstin);
         vehicleNumber = safe(vehicleNumber);
         contactPerson = safe(contactPerson);
         contactPersonMobile = safe(contactPersonMobile);
         gstType = safe(gstType);
         items = items == null ? List.of() : List.copyOf(items);
+        charges = charges == null ? List.of() : List.copyOf(charges);
     }
 
     private static String safe(String value) { return value == null ? "" : value.trim(); }

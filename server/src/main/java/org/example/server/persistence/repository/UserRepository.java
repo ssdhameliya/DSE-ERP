@@ -8,6 +8,9 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<UserEntity, Integer> {
+    boolean existsByUsernameIgnoreCase(String username);
+    boolean existsByEmailIgnoreCase(String email);
+
     @Query("""
         select u from UserEntity u left join fetch u.assignedRole r
         where (lower(u.username)=lower(:identity) or lower(u.email)=lower(:identity))

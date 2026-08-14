@@ -14,7 +14,7 @@ public final class NotificationService {
         REMINDERS, COMMUNICATION, BACKUP, UPDATE, SECURITY, SYSTEM
     }
 
-    public record NotificationItem(long id, String title, String message, String severity,
+    public record NotificationItem(long id, String title, String message, String severity, String category,
                                    boolean read, String targetFxml, String referenceNo,
                                    long createdAt) {
         @Override public String toString() { return title + "\n" + message; }
@@ -36,7 +36,8 @@ public final class NotificationService {
         if (!isAllowed(category, severity)) return;
         try {
             API.createNotification(new InsightsApiClient.NotificationCreate(
-                    title, message, severity == null ? "INFO" : severity, targetFxml, referenceNo));
+                    title, message, severity == null ? "INFO" : severity,
+                    (category == null ? Category.SYSTEM : category).name(), targetFxml, referenceNo));
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 
@@ -65,13 +66,13 @@ public final class NotificationService {
         if (text.contains("update")) return Category.UPDATE;
         if (text.contains("security") || text.contains("login") || text.contains("password")) return Category.SECURITY;
         if (text.contains("purchase") || text.contains("supplier")) return Category.PURCHASES;
-        return Category.SALES;
+        return Category.SYSTEM;
     }
 
     public static List<NotificationItem> findRecent(int limit) {
         try {
             return API.notifications(limit).stream().map(x -> new NotificationItem(
-                    x.id(), x.title(), x.message(), x.severity(), x.read(), x.targetFxml(), x.referenceNo(), x.createdAt())).toList();
+                    x.id(), x.title(), x.message(), x.severity(), x.category(), x.read(), x.targetFxml(), x.referenceNo(), x.createdAt())).toList();
         } catch (Exception ex) { ex.printStackTrace(); return List.of(); }
     }
     public static int unreadCount() { try { return (int) API.unreadCount(); } catch (Exception ex) { ex.printStackTrace(); return 0; } }

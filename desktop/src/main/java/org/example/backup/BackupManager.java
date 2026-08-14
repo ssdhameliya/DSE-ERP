@@ -1,6 +1,7 @@
 package org.example.backup;
 
 import org.example.config.ConfigManager;
+import org.example.api.runtime.ManagedPostgresRuntime;
 import org.example.api.support.SupportApiClient;
 
 import java.io.IOException;
@@ -265,7 +266,7 @@ public final class BackupManager {
     }
 
     public static void ensureApplicationMetadata() {
-        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "6.0.4"); }
+        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "7.1.8"); }
         catch (Exception exception) { LOGGER.log(Level.WARNING, "Application metadata could not be initialized", exception); }
     }
 
@@ -364,7 +365,7 @@ public final class BackupManager {
         Files.createDirectories(target.toAbsolutePath().getParent());
         List<String> connection = postgresConnectionArguments();
         List<String> command = new ArrayList<>();
-        command.add(postgresTool("pg_dump.exe").toString());
+        command.add(postgresTool("pg_dump").toString());
         command.addAll(connection);
         command.add("--format=custom");
         command.add("--no-owner");
@@ -374,7 +375,7 @@ public final class BackupManager {
     }
 
     private static ValidationResult validatePostgresBackup(Path file) throws Exception {
-        List<String> command = List.of(postgresTool("pg_restore.exe").toString(), "--list", file.toAbsolutePath().toString());
+        List<String> command = List.of(postgresTool("pg_restore").toString(), "--list", file.toAbsolutePath().toString());
         String listing = runPostgresTool(command);
         Set<String> missing = new TreeSet<>();
         for (String table : REQUIRED_TABLES) {
@@ -390,7 +391,7 @@ public final class BackupManager {
 
     private static void restorePostgresBackup(Path backup) throws Exception {
         String listing = runPostgresTool(List.of(
-                postgresTool("pg_restore.exe").toString(), "--list", backup.toAbsolutePath().toString()));
+                postgresTool("pg_restore").toString(), "--list", backup.toAbsolutePath().toString()));
         Path useList = Files.createTempFile("dse-erp-restore-", ".list");
         try {
             List<String> filtered = listing.lines()
@@ -399,7 +400,7 @@ public final class BackupManager {
             Files.write(useList, filtered, StandardCharsets.UTF_8);
 
             List<String> command = new ArrayList<>();
-            command.add(postgresTool("pg_restore.exe").toString());
+            command.add(postgresTool("pg_restore").toString());
             command.addAll(postgresConnectionArguments());
             command.add("--clean");
             command.add("--if-exists");
@@ -450,7 +451,7 @@ public final class BackupManager {
     }
 
     private static Path postgresTool(String executable) {
-        return Path.of(ConfigManager.get("postgres.binPath", "D:\\PostgreSQL\\18\\pgsql\\bin"), executable);
+        return ManagedPostgresRuntime.postgresTool(executable);
     }
 
     private static String runPostgresTool(List<String> command) throws Exception {

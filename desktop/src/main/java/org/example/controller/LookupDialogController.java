@@ -7,6 +7,7 @@ import javafx.stage.Stage;
 import org.example.model.Lookup;
 import org.example.service.LookupService;
 import org.example.util.IconFactory;
+import org.example.util.OwnedAlert;
 
 public class LookupDialogController {
     @FXML private TextField txtCode, txtValue;
@@ -64,9 +65,23 @@ public class LookupDialogController {
         lookup.setDisplayOrder(spnOrder.getValue());
         lookup.setActive(chkActive.isSelected());
 
-        if (editingLookup == null) service.save(lookup); else service.update(lookup);
-        saved = true;
-        close();
+        boolean created = editingLookup == null;
+        try {
+            if (created) service.save(lookup); else service.update(lookup);
+            saved = true;
+            new OwnedAlert(
+                    Alert.AlertType.INFORMATION,
+                    "Master value " + (created ? "saved" : "updated") + " successfully."
+                            + "\n\n" + lookup.getLookupCode() + " - " + lookup.getLookupValue()
+            ).showAndWait();
+            close();
+        } catch (Exception exception) {
+            new OwnedAlert(
+                    Alert.AlertType.ERROR,
+                    "Unable to save master value: "
+                            + (exception.getMessage() == null ? "Unexpected error." : exception.getMessage())
+            ).showAndWait();
+        }
     }
 
     private boolean validateForm() {

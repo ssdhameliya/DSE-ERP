@@ -74,6 +74,9 @@
                 </Button>
                 <Label fx:id="lblWhatsappBadge" text="0" mouseTransparent="true" styleClass="notification-badge" StackPane.alignment="TOP_RIGHT"/>
             </StackPane>
+            <Button fx:id="btnShortcutInfo" contentDisplay="GRAPHIC_ONLY" onAction="#showShortcutInfo" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button">
+                <tooltip><Tooltip text="Keyboard shortcuts"/></tooltip>
+            </Button>
             <MenuButton fx:id="menuUser" text="Administrator" styleClass="top-user,approved-menu-button"><items>
                 <MenuItem text="My Profile" onAction="#showProfile"/>
                 <MenuItem text="Settings" onAction="#openSettings"/>

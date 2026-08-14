@@ -3,6 +3,7 @@ package org.example.api.auth;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.config.ConfigManager;
+import org.example.api.ApiSession;
 import org.example.model.AppUser;
 
 import java.io.IOException;
@@ -28,10 +29,7 @@ public final class AuthApiClient {
     private final String baseUrl;
 
     public AuthApiClient() {
-        this.baseUrl = null;
-        this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
-        this.json = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this(ConfigManager.getAuthApiBaseUrl());
     }
 
     AuthApiClient(String baseUrl) {
@@ -41,28 +39,24 @@ public final class AuthApiClient {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    private String endpointBaseUrl() {
-        return baseUrl == null ? normalizeBaseUrl(ConfigManager.getAuthApiBaseUrl()) : baseUrl;
-    }
-
     public AppUser authenticate(String identity, String password) {
         LoginResponse response = post("/api/auth/login",
                 new LoginRequest(identity, password), LoginResponse.class);
-        return response == null || !response.success() ? null : toAppUser(response.user());
-    }
-
-    public AppUser findActiveByIdentity(String identity) {
-        LookupResponse response = post("/api/auth/lookup",
-                new LookupRequest(identity), LookupResponse.class);
-        return response == null || !response.found() ? null : toAppUser(response.user());
+        if (response == null || !response.success()) return null;
+        if (response.accessToken() == null || response.accessToken().isBlank()) {
+            throw new IllegalStateException("The running backend does not support secure bearer login. "
+                    + "Restart DSE ERP so the current backend can be launched.");
+        }
+        ApiSession.establish(response.accessToken(), response.expiresAt());
+        return toAppUser(response.user());
     }
 
     public void recordSuccessfulLogin(int userId) {
         post("/api/auth/login-complete", new UserIdRequest(userId), OperationResponse.class);
     }
 
-    public void changePassword(int userId, String password) {
-        OperationResponse response = post("/api/auth/password", new ChangePasswordRequest(userId, password),
+    public void changePassword(int userId, String currentPassword, String password) {
+        OperationResponse response = post("/api/auth/password", new ChangePasswordRequest(userId, currentPassword, password),
                 OperationResponse.class);
         if (response == null || !response.success()) {
             throw new IllegalStateException(response == null ? "Password update failed" : response.message());
@@ -78,12 +72,54 @@ public final class AuthApiClient {
         }
     }
 
+    public ChallengeResponse requestRegistrationOtp(AppUser user) {
+        ChallengeResponse response = post("/api/auth/registration/request",
+                new RegistrationOtpRequest(user.getUsername(), user.getFullName(), user.getEmail(), user.getRole()),
+                ChallengeResponse.class);
+        if (response == null || !response.success())
+            throw new IllegalStateException(response == null ? "Registration verification failed" : response.message());
+        return response;
+    }
+
+    public void completeRegistration(AppUser user, String challengeId, String otp) {
+        OperationResponse response = post("/api/auth/registration/complete",
+                new RegistrationCompleteRequest(challengeId, otp, user.getUsername(), user.getPassword(),
+                        user.getFullName(), user.getEmail(), user.getRole()), OperationResponse.class);
+        if (response == null || !response.success())
+            throw new IllegalStateException(response == null ? "Registration failed" : response.message());
+    }
+
+    public ChallengeResponse requestPasswordReset(String identity) {
+        ChallengeResponse response = post("/api/auth/password-reset/request",
+                new PasswordResetOtpRequest(identity), ChallengeResponse.class);
+        if (response == null || !response.success())
+            throw new IllegalStateException(response == null ? "Password reset request failed" : response.message());
+        return response;
+    }
+
+    public void completePasswordReset(String challengeId, String otp, String password) {
+        OperationResponse response = post("/api/auth/password-reset/complete",
+                new PasswordResetCompleteRequest(challengeId, otp, password), OperationResponse.class);
+        if (response == null || !response.success())
+            throw new IllegalStateException(response == null ? "Password reset failed" : response.message());
+    }
+
+    public void logout() {
+        String token = ApiSession.token();
+        try {
+            if (token != null) postAuthenticated("/api/auth/logout", null, OperationResponse.class);
+        } finally {
+            ApiSession.clear();
+        }
+    }
+
     public List<RoleOption> registrationRoles() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + "/api/auth/registration-roles"))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/registration-roles"))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Accept", "application/json")
-                    .GET().build();
+                    .GET();
+            HttpRequest request = builder.build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("Unable to load registration roles");
@@ -94,13 +130,13 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Role request was interrupted", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot load registration roles from " + endpointBaseUrl(), exception);
+            throw new IllegalStateException("Cannot load registration roles from " + baseUrl, exception);
         }
     }
 
     public boolean healthCheck() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + "/api/auth/health"))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/health"))
                     .timeout(Duration.ofSeconds(3)).GET().build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() >= 200 && response.statusCode() < 300;
@@ -112,25 +148,44 @@ public final class AuthApiClient {
     private <T> T post(String path, Object body, Class<T> responseType) {
         try {
             String payload = json.writeValueAsString(body);
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpointBaseUrl() + path))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(payload))
-                    .build();
+                    .POST(HttpRequest.BodyPublishers.ofString(payload));
+            if (!isPublicAuthPath(path)) ApiSession.authorize(builder);
+            HttpRequest request = builder.build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 401 || response.statusCode() == 404) return null;
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                String message = response.body() == null || response.body().isBlank()
-                        ? "HTTP " + response.statusCode() : response.body();
-                throw new IllegalStateException("Authentication API error: " + message);
+                throw new IllegalStateException(apiErrorMessage(response));
             }
             return json.readValue(response.body(), responseType);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Authentication API request was interrupted", exception);
         } catch (IOException | IllegalArgumentException exception) {
-            throw new IllegalStateException("Cannot reach authentication server at " + endpointBaseUrl(), exception);
+            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl, exception);
+        }
+    }
+
+    private <T> T postAuthenticated(String path, Object body, Class<T> responseType) {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                    .timeout(REQUEST_TIMEOUT).header("Accept", "application/json");
+            ApiSession.authorize(builder);
+            if (body == null) builder.POST(HttpRequest.BodyPublishers.noBody());
+            else builder.header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401) { ApiSession.clear(); throw new ApiSession.AuthenticationRequiredException("Please sign in again"); }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("Authentication API error (" + response.statusCode() + ")");
+            return json.readValue(response.body(), responseType);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Authentication API request was interrupted", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl, exception);
         }
     }
 
@@ -158,13 +213,31 @@ public final class AuthApiClient {
         return url;
     }
 
+    private static boolean isPublicAuthPath(String path) {
+        return "/api/auth/login".equals(path)
+                || path.startsWith("/api/auth/registration/")
+                || path.startsWith("/api/auth/password-reset/");
+    }
+
+    private String apiErrorMessage(HttpResponse<String> response) {
+        try {
+            OperationResponse error = json.readValue(response.body(), OperationResponse.class);
+            if (error.message() != null && !error.message().isBlank()) return error.message();
+        } catch (Exception ignored) { }
+        return "Authentication request failed (HTTP " + response.statusCode() + ")";
+    }
+
     public record LoginRequest(String identity, String password) {}
-    public record LookupRequest(String identity) {}
     public record UserIdRequest(int userId) {}
-    public record ChangePasswordRequest(int userId, String password) {}
+    public record ChangePasswordRequest(int userId, String currentPassword, String password) {}
     public record RegisterRequest(String username, String password, String fullName, String email, String role) {}
-    public record LoginResponse(boolean success, UserPayload user, String message) {}
-    public record LookupResponse(boolean found, UserPayload user) {}
+    public record RegistrationOtpRequest(String username, String fullName, String email, String role) {}
+    public record RegistrationCompleteRequest(String challengeId, String otp, String username, String password,
+                                               String fullName, String email, String role) {}
+    public record PasswordResetOtpRequest(String identity) {}
+    public record PasswordResetCompleteRequest(String challengeId, String otp, String password) {}
+    public record ChallengeResponse(boolean success, String challengeId, String message) {}
+    public record LoginResponse(boolean success, UserPayload user, String message, String accessToken, String expiresAt) {}
     public record OperationResponse(boolean success, String message) {}
     public record RoleOption(String code, String displayName) {
         @Override public String toString() { return displayName; }

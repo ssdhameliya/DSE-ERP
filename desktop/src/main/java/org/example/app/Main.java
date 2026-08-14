@@ -10,6 +10,7 @@ import org.example.backup.BackupManager;
 import org.example.api.runtime.RuntimeBootstrapper;
 import org.example.api.runtime.RuntimeHealthMonitor;
 import org.example.api.runtime.ManagedPostgresRuntime;
+import org.example.api.setup.SetupApiClient;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.service.SessionService;
@@ -38,7 +39,7 @@ public final class Main {
         SceneManager.initialize(stage);
         WindowUtilsFx.apply(stage, 1200, 800);
 
-        if (!WorkspaceManager.isConfigured()) {
+        if (!WorkspaceManager.isConfigured() || !WorkspaceManager.isSetupComplete()) {
             SceneManager.showSetupWizard(() -> completeFirstRun(stage));
             return;
         }
@@ -79,6 +80,10 @@ public final class Main {
             RuntimeBootstrapper.ensureServerReady();
             SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
             new org.example.api.runtime.RuntimeApiClient().status();
+            if (new SetupApiClient().requiresSetup()) {
+                Platform.runLater(() -> SceneManager.showSetupWizard(() -> completeFirstRun(stage)));
+                return;
+            }
             SceneManager.updateSplashStage(5, "Finalizing DSE ERP...");
             SceneManager.markSplashReady("Services ready. Opening DSE ERP...");
         } catch (Exception exception) {

@@ -9,21 +9,21 @@
             <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle"/>
             <Label text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Version 2.0.0" styleClass="auth-version"/>
+            <Label text="Version 7.1.8" styleClass="auth-version"/>
         </VBox>
     </left>
 
     <center><StackPane styleClass="auth-content"><VBox maxWidth="760" spacing="12" alignment="CENTER" styleClass="auth-card">
         <StackPane styleClass="auth-section-icon"><Label text="+"/></StackPane>
         <Label text="Create New Account" styleClass="auth-title"/>
-        <Label text="Choose Admin, Manager or Sales. Access is granted by the selected role." styleClass="auth-description"/>
+        <Label text="Choose Manager or Sale. Administrator accounts remain protected." styleClass="auth-description"/>
         <GridPane hgap="14" vgap="7" maxWidth="680">
             <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
             <VBox spacing="4" GridPane.columnIndex="0"><Label text="Full name *" styleClass="auth-field-label"/><TextField fx:id="txtName" promptText="Full name" styleClass="auth-input"/><Label fx:id="lblNameError" managed="false" visible="false" styleClass="field-error"/></VBox>
             <VBox spacing="4" GridPane.columnIndex="1"><Label text="Username *" styleClass="auth-field-label"/><TextField fx:id="txtUsername" promptText="Username" styleClass="auth-input"/><Label fx:id="lblUsernameError" managed="false" visible="false" styleClass="field-error"/></VBox>
             <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnSpan="2"><Label text="Email address *" styleClass="auth-field-label"/><TextField fx:id="txtEmail" promptText="Email address" styleClass="auth-input"/><Label fx:id="lblEmailError" managed="false" visible="false" styleClass="field-error"/></VBox>
             <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnSpan="2"><Label text="Role *" styleClass="auth-field-label"/><ComboBox fx:id="cmbRole" promptText="Select role" maxWidth="1.7976931348623157E308" styleClass="auth-input"/><Label fx:id="lblRoleError" managed="false" visible="false" styleClass="field-error"/></VBox>
-            <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="0"><Label text="Password *" styleClass="auth-field-label"/><PasswordField fx:id="txtPassword" promptText="Minimum 6 characters" styleClass="auth-input"/><Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="0"><Label text="Password *" styleClass="auth-field-label"/><PasswordField fx:id="txtPassword" promptText="8+ characters, letter and number" styleClass="auth-input"/><Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/></VBox>
             <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="1"><Label text="Confirm password *" styleClass="auth-field-label"/><PasswordField fx:id="txtConfirm" promptText="Confirm password" styleClass="auth-input"/><Label fx:id="lblConfirmError" managed="false" visible="false" styleClass="field-error"/></VBox>
         </GridPane>
         <Button fx:id="btnSendOtp" text="Send email OTP" onAction="#sendOtp" maxWidth="300" styleClass="auth-secondary-button,auth-email-button"/>

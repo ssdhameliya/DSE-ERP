@@ -4,6 +4,7 @@ import org.example.invoice.model.CompanyProfile;
 import org.example.invoice.model.InvoiceParty;
 import org.example.invoice.model.InvoiceTotals;
 import org.example.invoice.model.TaxInvoiceDocument;
+import org.example.invoice.model.TaxInvoiceCharge;
 import org.example.invoice.model.TaxInvoiceItem;
 
 import java.nio.file.Path;
@@ -89,14 +90,15 @@ public final class TaxInvoicePaginationSmoke {
                 billing,
                 delivery,
                 "JASVI TRANSPORT",
-                "Yes",
+                "24AAAAA9999A1Z5",
                 "GJ01AB1234",
                 "Accounts Department",
                 "+91 98765 43210",
                 items,
                 "CGST/SGST",
-                0.0,
-                new InvoiceTotals(basic, discount, 0.0, taxable, cgst, sgst, 0.0, 0.0, grandTotal),
+                List.of(new TaxInvoiceCharge("Freight Charges", 500, true, 18),
+                        new TaxInvoiceCharge("Packing & Forwarding", 250, true, 18)),
+                new InvoiceTotals(basic, discount, 750.0, taxable + 750, 0.0, cgst + 67.5, sgst + 67.5, 0.0, 0.0, grandTotal + 885),
                 "Verification amount only");
 
         TaxInvoicePdfGenerator.generate(invoice, output);

@@ -91,7 +91,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-x64
-          path: target/windows-installer/*
+          path: release-artifacts/windows/*
           if-no-files-found: error
           retention-days: 7
 
@@ -111,10 +111,9 @@ jobs:
       - name: Prepare PostgreSQL 18 runtime
         shell: zsh {0}
         run: |
-          brew install postgresql@18
-          PG_PREFIX="$(brew --prefix postgresql@18)"
-          test -x "$PG_PREFIX/bin/initdb"
-          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_PREFIX" >> "$GITHUB_ENV"
+          PG_RUNTIME="$RUNNER_TEMP/dse-postgresql-18.4"
+          zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
+          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_RUNTIME" >> "$GITHUB_ENV"
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
@@ -148,10 +147,9 @@ jobs:
       - name: Prepare PostgreSQL 18 runtime
         shell: zsh {0}
         run: |
-          brew install postgresql@18
-          PG_PREFIX="$(brew --prefix postgresql@18)"
-          test -x "$PG_PREFIX/bin/initdb"
-          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_PREFIX" >> "$GITHUB_ENV"
+          PG_RUNTIME="$RUNNER_TEMP/dse-postgresql-18.4"
+          zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
+          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_RUNTIME" >> "$GITHUB_ENV"
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh

@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 
 public class ImportService {
+    public enum ImportMode { UPDATE_NON_BLANK, CREATE_ONLY, UPSERT, SKIP_EXISTING }
 
     // ---------------- Result wrapper ----------------
     public static class ImportResult {
@@ -37,19 +38,19 @@ public class ImportService {
     }
 
     // ---------------- Customers ----------------
-    public ImportResult importCustomers(Path file, Map<String,String> mapping, boolean dryRun,
+    public ImportResult importCustomers(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                         BiConsumer<Integer,Integer> progress) throws Exception {
-        return importParties(file, mapping, dryRun, progress, "CUSTOMER");
+        return importParties(file, mapping, dryRun, mode, progress, "CUSTOMER");
     }
 
     // ---------------- Suppliers ----------------
-    public ImportResult importSuppliers(Path file, Map<String,String> mapping, boolean dryRun,
+    public ImportResult importSuppliers(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                         BiConsumer<Integer,Integer> progress) throws Exception {
-        return importParties(file, mapping, dryRun, progress, "SUPPLIER");
+        return importParties(file, mapping, dryRun, mode, progress, "SUPPLIER");
     }
 
     // ---------------- Items ----------------
-    public ImportResult importItems(Path file, Map<String,String> mapping, boolean dryRun,
+    public ImportResult importItems(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                     BiConsumer<Integer,Integer> progress) throws Exception {
         List<Item> items = new ArrayList<>();
         List<String> errors = new ArrayList<>();
@@ -117,8 +118,10 @@ public class ImportService {
 
                 try {
                     if (service.existsByCode(item.getItemCode())) {
-                        service.update(item);
-                        updated++;
+                        if (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING) { skipped++; continue; }
+                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeItem(item, service.getAll().stream()
+                            .filter(existing -> existing.getItemCode().equalsIgnoreCase(item.getItemCode())).findFirst().orElse(null));
+                        service.update(item); updated++;
                     } else {
                         service.save(item);
                         imported++;
@@ -134,18 +137,18 @@ public class ImportService {
     }
 
     /** Imports sales invoices, grouping multiple spreadsheet rows by invoice number. */
-    public ImportResult importSales(Path file, Map<String,String> mapping, boolean dryRun,
+    public ImportResult importSales(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                     BiConsumer<Integer,Integer> progress) throws Exception {
-        return importDocuments(file, mapping, dryRun, progress, true);
+        return importDocuments(file, mapping, dryRun, mode, progress, true);
     }
 
     /** Imports purchase invoices, grouping multiple spreadsheet rows by invoice number. */
-    public ImportResult importPurchases(Path file, Map<String,String> mapping, boolean dryRun,
+    public ImportResult importPurchases(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                         BiConsumer<Integer,Integer> progress) throws Exception {
-        return importDocuments(file, mapping, dryRun, progress, false);
+        return importDocuments(file, mapping, dryRun, mode, progress, false);
     }
 
-    private ImportResult importDocuments(Path file, Map<String,String> mapping, boolean dryRun,
+    private ImportResult importDocuments(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                          BiConsumer<Integer,Integer> progress, boolean sales) throws Exception {
         record ImportRow(String invoice, LocalDate date, String party, String item, double qty,
                          double rate, double gst, String terms, double paid, String remarks) {}
@@ -192,7 +195,9 @@ public class ImportService {
                 itemService.getAll().forEach(item -> itemByCode.put(item.getItemCode().toUpperCase(Locale.ROOT), item));
                 if (sales) {
                     SalesService service = new SalesService();
-                    if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) { skipped++; continue; }
+                    if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) {
+                        skipped++; errors.add(entry.getKey() + ": existing posted sales invoice was protected and skipped"); continue;
+                    }
                     Sales document = new Sales();
                     document.setInvoiceNo(entry.getKey()); document.setInvoiceDate(first.date()); document.setCustomer(party);
                     document.setDueDate(first.date().plusDays(termDays(first.terms()))); document.setPaidAmount(first.paid());
@@ -206,7 +211,9 @@ public class ImportService {
                     document.setLines(lines); applySalesTotals(document); service.save(document);
                 } else {
                     PurchaseService service = new PurchaseService();
-                    if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) { skipped++; continue; }
+                    if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) {
+                        skipped++; errors.add(entry.getKey() + ": existing posted purchase invoice was protected and skipped"); continue;
+                    }
                     Purchase document = new Purchase();
                     document.setInvoiceNo(entry.getKey()); document.setInvoiceDate(first.date()); document.setSupplier(party);
                     document.setDueDate(first.date().plusDays(termDays(first.terms()))); document.setPaymentTerms(first.terms());
@@ -229,7 +236,7 @@ public class ImportService {
     }
 
     /** Imports both master categories and their reusable values. */
-    public ImportResult importMasterValues(Path file, Map<String,String> mapping, boolean dryRun,
+    public ImportResult importMasterValues(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                            BiConsumer<Integer,Integer> progress) throws Exception {
         List<String> errors = new ArrayList<>();
         int processed = 0, imported = 0, updated = 0, skipped = 0;
@@ -255,7 +262,8 @@ public class ImportService {
                         lookup.setDescription(getCellValue(row, mapping.get("value_description")));
                         lookup.setDisplayOrder((int) parseDouble(getCellValue(row, mapping.get("display_order"))));
                         lookup.setActive(!"false".equalsIgnoreCase(getCellValue(row, mapping.get("is_active"))));
-                        if (exists) { service.update(lookup); updated++; } else { service.save(lookup); imported++; }
+                        if (exists && (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING)) { skipped++; }
+                        else if (exists) { service.update(lookup); updated++; } else { service.save(lookup); imported++; }
                     }
                 } catch (Exception ex) { skipped++; errors.add("Row " + (i + 1) + ": " + ex.getMessage()); }
                 progress.accept(i, Math.max(1, total));
@@ -266,7 +274,7 @@ public class ImportService {
 
 
     // ---------------- Shared Party Import ----------------
-    private ImportResult importParties(Path file, Map<String,String> mapping, boolean dryRun,
+    private ImportResult importParties(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                        BiConsumer<Integer,Integer> progress, String partyType) throws Exception {
         List<Party> parties = new ArrayList<>();
         List<String> errors = new ArrayList<>();
@@ -332,8 +340,10 @@ public class ImportService {
 
                 try {
                     if (service.existsByCode(p.getPartyCode())) {
-                        service.update(p);
-                        updated++;
+                        if (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING) { skipped++; continue; }
+                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeParty(p, service.getByType(partyType).stream()
+                            .filter(existing -> existing.getPartyCode().equalsIgnoreCase(p.getPartyCode())).findFirst().orElse(null));
+                        service.update(p); updated++;
                     } else {
                         service.save(p);
                         imported++;
@@ -348,6 +358,33 @@ public class ImportService {
         return new ImportResult(processed, imported, updated, skipped, errors);
 
     }
+
+    private static void mergeParty(Party incoming, Party existing) {
+        if (existing == null) return;
+        incoming.setId(existing.getId());
+        if (blank(incoming.getName())) incoming.setName(existing.getName());
+        if (blank(incoming.getContactPerson())) incoming.setContactPerson(existing.getContactPerson());
+        if (blank(incoming.getPhone())) incoming.setPhone(existing.getPhone());
+        if (blank(incoming.getEmail())) incoming.setEmail(existing.getEmail());
+        if (blank(incoming.getGstin())) incoming.setGstin(existing.getGstin());
+        if (blank(incoming.getAddress())) incoming.setAddress(existing.getAddress());
+    }
+
+    private static void mergeItem(Item incoming, Item existing) {
+        if (existing == null) return;
+        incoming.setId(existing.getId());
+        if (blank(incoming.getDescription())) incoming.setDescription(existing.getDescription());
+        if (blank(incoming.getCategory())) incoming.setCategory(existing.getCategory());
+        if (blank(incoming.getBrand())) incoming.setBrand(existing.getBrand());
+        if (blank(incoming.getMaterial())) incoming.setMaterial(existing.getMaterial());
+        if (blank(incoming.getSize())) incoming.setSize(existing.getSize());
+        if (blank(incoming.getUnit())) incoming.setUnit(existing.getUnit());
+        if (blank(incoming.getHsn())) incoming.setHsn(existing.getHsn());
+        if (blank(incoming.getLocation())) incoming.setLocation(existing.getLocation());
+        if (blank(incoming.getRemarks())) incoming.setRemarks(existing.getRemarks());
+    }
+
+    private static boolean blank(String value) { return value == null || value.isBlank(); }
 
     // ---------------- Helpers ----------------
     private String getCellValue(Row row, String header) {

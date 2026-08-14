@@ -13,7 +13,6 @@ public class SalesService {
     public void save(Sales sales){ if(useApi()) api.saveSale(sales); else dao.save(sales); }
     public void update(Sales sales){ if(useApi()) api.updateSale(sales); else dao.update(sales); }
     public String nextInvoiceNo(){ return useApi()?api.nextSaleInvoice():dao.nextInvoiceNo(); }
-    public String nextOrderNo(){ return useApi()?api.nextOrderNo():dao.nextOrderNo(); }
     public List<Sales> getAll(){ return useApi()?api.sales():dao.getAll(); }
     public Sales getByInvoice(String invoiceNo){ return useApi()?api.sale(invoiceNo):dao.getByInvoice(invoiceNo); }
     public boolean existsInvoice(String invoiceNo){ return useApi()?api.saleExists(invoiceNo):dao.getByInvoice(invoiceNo)!=null; }

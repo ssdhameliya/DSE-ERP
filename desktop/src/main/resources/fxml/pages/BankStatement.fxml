@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.BankStatementController" styleClass="bank-recon-root,approved-screen">
   <top>
-    <VBox spacing="10">
+    <VBox spacing="10" styleClass="bank-recon-top-stack">
       <HBox alignment="CENTER_LEFT" spacing="12" styleClass="bank-recon-header,approved-page-header">
         <StackPane fx:id="pageIcon" prefWidth="42" prefHeight="42" styleClass="approved-page-icon,bank-recon-page-icon"/>
         <VBox spacing="2">
@@ -37,7 +37,7 @@
   </top>
 
   <center>
-    <HBox spacing="10">
+    <HBox spacing="10" styleClass="bank-recon-workspace">
       <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="bank-recon-main-panel">
         <VBox spacing="8" styleClass="bank-recon-filter-panel">
           <HBox spacing="8" alignment="CENTER_LEFT">
@@ -45,6 +45,17 @@
             <Button fx:id="btnSearch" text="Search" onAction="#applyFilters" styleClass="approved-button,approved-primary-button"/>
             <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+          </HBox>
+          <HBox spacing="10" alignment="CENTER_LEFT" styleClass="bank-bulk-toolbar">
+            <CheckBox fx:id="chkSelectAll" text="Select all visible" onAction="#selectAllVisible"/>
+            <Label fx:id="lblSelected" text="0 selected" styleClass="bank-recon-progress-label"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <MenuButton fx:id="bulkActions" text="Bulk Actions" disable="true" styleClass="approved-button,approved-secondary-button">
+              <items>
+                <MenuItem text="Mark selected for review" onAction="#bulkMarkReview"/>
+                <MenuItem text="Ignore selected" onAction="#bulkIgnore"/>
+              </items>
+            </MenuButton>
           </HBox>
           <HBox spacing="8" alignment="CENTER_LEFT">
             <VBox spacing="2" HBox.hgrow="ALWAYS"><Label text="From Date" styleClass="bank-recon-field-caption"/><DatePicker fx:id="fromDate" promptText="From" maxWidth="Infinity"/></VBox>
@@ -58,6 +69,7 @@
         <VBox VBox.vgrow="ALWAYS" styleClass="bank-recon-table-panel">
           <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="approved-table,bank-recon-table">
             <columns>
+              <TableColumn fx:id="colSelect" text="" prefWidth="54" sortable="false"/>
               <TableColumn fx:id="colDate" text="Date" prefWidth="105"/>
               <TableColumn fx:id="colValueDate" text="Value Date" prefWidth="105"/>
               <TableColumn fx:id="colReference" text="Reference / Cheque No." prefWidth="170"/>

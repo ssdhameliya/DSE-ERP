@@ -3,11 +3,14 @@ package org.example.controller;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import org.example.model.AppUser;
 import org.example.service.NotificationService;
 import org.example.service.OtpService;
 import org.example.service.SessionService;
 import org.example.service.UserService;
+import org.example.service.BrandingService;
 import org.example.theme.ThemeManager;
 import org.example.util.ButtonAction;
 import org.example.util.ClockService;
@@ -17,6 +20,7 @@ import org.example.util.UiTaskExecutor;
 import org.example.util.PerformanceMonitor;
 import org.example.util.PerformanceBudgets;
 import org.example.update.BuildInfo;
+import org.example.config.ConfigManager;
 
 import java.util.Locale;
 import java.util.prefs.Preferences;
@@ -42,19 +46,24 @@ public class LoginController {
     @FXML private ToggleButton btnTheme;
     @FXML private Label lblClock, lblMessage, lblUsernameError, lblPasswordError, lblRoleError, lblOtpError, lblVersion;
     @FXML private Label lblResetIdentityError, lblResetOtpError, lblNewPasswordError, lblConfirmPasswordError;
+    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription;
+    @FXML private Label lblFooterCompany, lblFooterPhone, lblFooterEmail, lblFooterWebsite;
+    @FXML private ImageView imgBrandLogo, imgLoginLogo;
+    @FXML private VBox brandPanel;
     @FXML private Button btnLogin, btnRegister, btnEmailSettings, btnForgotPassword;
     @FXML private Button btnSendResetOtp, btnResetPassword, btnBackToLogin;
     @FXML private VBox loginPanel, resetPanel, otpPanel;
 
     private final UserService users = new UserService();
     private AppUser pendingUser;
-    private AppUser resetUser;
+    private String resetChallengeId;
 
     @FXML public void initialize() {
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
+        applyBranding();
         ClockService.start(lblClock);
 
-        cmbRole.getItems().setAll("Admin", "Manager", "Sales");
+        cmbRole.getItems().setAll("Admin", "Manager", "Sale");
 
         // Render the selected role explicitly in the closed ComboBox.
         // Some JavaFX skins do not repaint the button cell reliably after a
@@ -105,6 +114,7 @@ public class LoginController {
 
         txtUsername.textProperty().addListener((obs, oldValue, newValue) -> resetPendingLogin());
         txtPassword.textProperty().addListener((obs, oldValue, newValue) -> resetPendingLogin());
+        txtResetIdentity.textProperty().addListener((obs, oldValue, newValue) -> resetChallengeId = null);
         cmbRole.valueProperty().addListener((obs, oldValue, newValue) -> {
             clearFieldError(cmbRole, lblRoleError);
             resetPendingLogin();
@@ -113,6 +123,42 @@ public class LoginController {
         chkRemember.selectedProperty().addListener((obs, oldValue, selected) -> {
             if (!selected) clearRememberedLogin();
         });
+        javafx.application.Platform.runLater(this::installResponsiveBranding);
+    }
+
+    private void applyBranding() {
+        if (lblBrandName != null) lblBrandName.setText(BrandingService.applicationName());
+        if (lblBrandTagline != null) lblBrandTagline.setText(BrandingService.tagline());
+        if (lblBrandDescription != null) lblBrandDescription.setText(BrandingService.loginDescription());
+        Image logo = BrandingService.logo();
+        if (lblFooterCompany != null) lblFooterCompany.setText(BrandingService.companyName());
+        if (lblFooterPhone != null) lblFooterPhone.setText("Phone: " + configured("company.phone"));
+        if (lblFooterEmail != null) lblFooterEmail.setText("Email: " + configured("company.email"));
+        if (lblFooterWebsite != null) lblFooterWebsite.setText("Website: " + configured("company.website"));
+        if (logo != null && !logo.isError()) {
+            showLogo(imgBrandLogo, logo);
+            showLogo(imgLoginLogo, logo);
+        }
+    }
+
+    private void installResponsiveBranding() {
+        if (brandPanel == null || brandPanel.getScene() == null) return;
+        Runnable resize = () -> brandPanel.setPrefWidth(
+                Math.max(360, Math.min(690, brandPanel.getScene().getWidth() * .46)));
+        brandPanel.getScene().widthProperty().addListener((o, a, b) -> resize.run());
+        resize.run();
+    }
+
+    private static void showLogo(ImageView view, Image logo) {
+        if (view == null) return;
+        view.setImage(logo);
+        view.setManaged(true);
+        view.setVisible(true);
+    }
+
+    private static String configured(String key) {
+        String result = ConfigManager.get(key, "").trim();
+        return result.isBlank() ? "—" : result;
     }
 
     @FXML private void toggleTheme() {
@@ -303,21 +349,9 @@ public class LoginController {
     @FXML private void forgotPassword() {
         resetPendingLogin();
         OtpService.clear();
-        clearResetErrors();
-        resetUser = null;
-
-        String identity = txtUsername.getText() == null ? "" : txtUsername.getText().trim();
-        txtResetIdentity.setText(identity);
-        txtResetOtp.clear();
-        txtNewPassword.clear();
-        txtConfirmPassword.clear();
-
-        loginPanel.setManaged(false);
-        loginPanel.setVisible(false);
-        resetPanel.setManaged(true);
-        resetPanel.setVisible(true);
-        lblMessage.setText("");
-        txtResetIdentity.requestFocus();
+        resetChallengeId = null;
+        showResetPanel();
+        message("Enter your email or username to receive a reset code.", false);
     }
 
     @FXML private void sendResetOtp() {
@@ -329,23 +363,12 @@ public class LoginController {
         }
 
         try {
-            AppUser user = users.findActiveByIdentity(identity);
-            if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
-                // Keep the wording deliberately neutral so the reset screen does
-                // not disclose whether an arbitrary account exists.
-                message("If the account is eligible, a reset code will be sent to its registered email.", false);
-                return;
-            }
-
-            resetUser = user;
-            boolean sent = OtpService.issueAndSend(user.getEmail());
-            message(sent
-                    ? "Password reset code sent to " + maskedEmail(user.getEmail()) + "."
-                    : "A reset code was already sent. Please check your email.", false);
+            var challenge = users.requestPasswordReset(identity);
+            resetChallengeId = challenge.challengeId();
+            message(challenge.message() + ".", false);
             txtResetOtp.requestFocus();
         } catch (Exception exception) {
-            resetUser = null;
-            OtpService.clear();
+            resetChallengeId = null;
             message("Unable to send reset code: " + exception.getMessage(), true);
         }
     }
@@ -353,7 +376,7 @@ public class LoginController {
     @FXML private void resetPassword() {
         clearResetErrors();
 
-        if (resetUser == null) {
+        if (resetChallengeId == null) {
             message("Send a password reset code first.", true);
             txtResetIdentity.requestFocus();
             return;
@@ -368,9 +391,9 @@ public class LoginController {
             showFieldError(txtResetOtp, lblResetOtpError, "Reset code is required.");
             valid = false;
         }
-        if (password.length() < 6) {
+        if (password.length() < 8 || !password.matches(".*[A-Za-z].*") || !password.matches(".*[0-9].*")) {
             showFieldError(txtNewPassword, lblNewPasswordError,
-                    "New password must contain at least 6 characters.");
+                    "Use 8+ characters with a letter and number.");
             valid = false;
         }
         if (!password.equals(confirm)) {
@@ -380,16 +403,10 @@ public class LoginController {
         }
         if (!valid) return;
 
-        if (!OtpService.verify(otp)) {
-            showFieldError(txtResetOtp, lblResetOtpError, "The reset code is invalid or expired.");
-            message("The reset code is invalid or expired.", true);
-            return;
-        }
-
         try {
-            users.changePassword(resetUser.getId(), password);
+            users.completePasswordReset(resetChallengeId, otp, password);
             String identity = txtResetIdentity.getText().trim();
-            resetUser = null;
+            resetChallengeId = null;
             showLoginPanel();
             txtUsername.setText(identity);
             txtPassword.clear();
@@ -401,7 +418,7 @@ public class LoginController {
     }
 
     @FXML private void backToLogin() {
-        resetUser = null;
+        resetChallengeId = null;
         OtpService.clear();
         showLoginPanel();
         lblMessage.setText("");
@@ -416,6 +433,18 @@ public class LoginController {
             resetPanel.setManaged(false);
             resetPanel.setVisible(false);
         }
+    }
+
+    private void showResetPanel() {
+        if (loginPanel != null) {
+            loginPanel.setManaged(false);
+            loginPanel.setVisible(false);
+        }
+        if (resetPanel != null) {
+            resetPanel.setManaged(true);
+            resetPanel.setVisible(true);
+        }
+        txtResetIdentity.requestFocus();
     }
 
     private String selectedDatabaseRole() {
@@ -461,15 +490,6 @@ public class LoginController {
         PREFS.remove(PREF_REMEMBER);
         PREFS.remove(PREF_IDENTITY);
         PREFS.remove(PREF_ROLE);
-    }
-
-    private String maskedEmail(String email) {
-        if (email == null || email.isBlank() || !email.contains("@")) return "registered email";
-        int at = email.indexOf('@');
-        String local = email.substring(0, at);
-        String domain = email.substring(at);
-        if (local.length() <= 2) return "*".repeat(Math.max(1, local.length())) + domain;
-        return local.substring(0, 2) + "***" + domain;
     }
 
     @FXML private void register() { SceneManager.showRegistration(); }

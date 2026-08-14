@@ -394,7 +394,7 @@ public final class IconFactory {
             case "reminder" -> "fas-clock";
             case "complete" -> "fas-check-circle";
             case "more" -> "fas-ellipsis-h";
-            case "actions" -> "fas-ellipsis-h";
+            case "actions" -> "fas-tools";
             case "backup" -> "fas-database";
             case "restore" -> "fas-history";
             case "validate" -> "fas-shield-alt";
@@ -412,6 +412,10 @@ public final class IconFactory {
             case "tax" -> "fas-percentage";
             case "discount" -> "fas-tags";
             case "currency" -> "fas-rupee-sign";
+            case "debit" -> "fas-arrow-circle-down";
+            case "credit" -> "fas-arrow-circle-up";
+            case "balance" -> "fas-wallet";
+            case "reference" -> "fas-hashtag";
             case "status" -> "fas-tasks";
             case "category" -> "fas-tags";
             case "unit" -> "fas-ruler";
@@ -447,11 +451,12 @@ public final class IconFactory {
     private static String colour(String semantic) {
         return switch (semantic) {
             case "sale", "complete", "add", "import", "whatsapp", "save", "validate", "excel" -> "green";
-            case "purchase", "item", "filter", "reminder", "calendar", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source" -> "orange";
+            case "purchase", "item", "filter", "reminder", "calendar", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference" -> "orange";
             case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print" -> "purple";
-            case "report", "delete", "error", "cancel", "pdf" -> "pink";
+            case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
-            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "first", "previous", "next", "last", "history", "workspace", "select" -> "blue";
+            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "first", "previous", "next", "last", "history", "workspace", "select", "balance" -> "blue";
+            case "credit" -> "green";
             case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart" -> "purple";
             case "login", "test" -> "blue";
             default -> "indigo";

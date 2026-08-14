@@ -5,14 +5,19 @@ import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.util.Duration;
 import org.example.update.BuildInfo;
+import org.example.service.BrandingService;
 
 public class SplashController {
     @FXML private ProgressBar progressBar;
     @FXML private Label lblStatus, progressPercent, elapsedTime, stageValue, systemValue, databaseValue, versionLabel;
     @FXML private Label workspaceStatus, postgresStatus, springStatus, schemaStatus, applicationStatus;
     @FXML private Label workspaceTime, postgresTime, springTime, schemaTime, applicationTime;
+    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblStarting;
+    @FXML private ImageView imgBrandLogo;
 
     private long startedNanos;
     private Timeline clock;
@@ -24,12 +29,24 @@ public class SplashController {
         startedNanos = System.nanoTime();
         stageStartedNanos = startedNanos;
         versionLabel.setText("Version " + BuildInfo.version());
+        applyBranding();
         systemValue.setText(systemMemoryLabel());
         databaseValue.setText("PostgreSQL");
         updateStage(1, "Loading workspace and configuration...");
         clock = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshElapsed()));
         clock.setCycleCount(Timeline.INDEFINITE);
         clock.play();
+    }
+
+    private void applyBranding() {
+        if (lblBrandName != null) lblBrandName.setText(BrandingService.applicationName());
+        if (lblBrandTagline != null) lblBrandTagline.setText(BrandingService.tagline());
+        if (lblStarting != null) lblStarting.setText(BrandingService.startingText());
+        Image logo = BrandingService.logo();
+        if (logo != null && !logo.isError() && imgBrandLogo != null) {
+            imgBrandLogo.setImage(logo); imgBrandLogo.setManaged(true); imgBrandLogo.setVisible(true);
+            if (lblBrandMark != null) { lblBrandMark.setManaged(false); lblBrandMark.setVisible(false); }
+        }
     }
 
     public void updateStage(int stage, String message) {

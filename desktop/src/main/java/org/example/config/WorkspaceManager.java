@@ -42,11 +42,8 @@ public final class WorkspaceManager {
                 }
             }
 
-            Path existing = detectExistingWorkspace();
-            if (existing != null) {
-                configure(existing);
-                organizeExistingConfig(existing);
-            }
+            // A missing pointer always means first-run selection. Never silently adopt
+            // an old AppData/.dse-erp folder, because it may contain a zero-user database.
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to initialize the DSE ERP workspace.", exception);
         }
@@ -54,6 +51,17 @@ public final class WorkspaceManager {
 
     public static synchronized boolean isConfigured() {
         return workspaceRoot != null && Files.isDirectory(workspaceRoot);
+    }
+
+    public static synchronized boolean isSetupComplete() {
+        if (!isConfigured()) return false;
+        Path config = workspaceRoot.resolve("Config").resolve("config.properties");
+        if (!Files.isRegularFile(config)) return false;
+        try {
+            return Boolean.parseBoolean(readProperties(config).getProperty("setup.completed", "false"));
+        } catch (IOException exception) {
+            return false;
+        }
     }
 
     public static synchronized Path getWorkspaceRoot() {

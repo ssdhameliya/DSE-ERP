@@ -1398,7 +1398,7 @@ TABLE ACTION BUTTONS
 .settings-navigation-icon { -fx-text-fill: #73a9ff; -fx-font-size: 18px; -fx-min-width: 22px; }
 
 /* ==========================================================
-   DATA IMPORT PAGE — PROFESSIONAL DARK MODE
+   DATA IMPORT PAGE â€” PROFESSIONAL DARK MODE
    ========================================================== */
 
 .import-page,
@@ -1976,7 +1976,7 @@ TABLE ACTION BUTTONS
 }
 
 /* ==========================================================
-   SETTINGS PAGE — FINAL DARK MODE OVERRIDE
+   SETTINGS PAGE â€” FINAL DARK MODE OVERRIDE
    Keep this block at the END of dark-theme.css.
    ========================================================== */
 .settings-page-shell,
@@ -2396,7 +2396,7 @@ TABLE ACTION BUTTONS
 }
 
 /* ==========================================================================
-   Reminder Center premium UI — append to dark-theme.css
+   Reminder Center premium UI â€” append to dark-theme.css
    Scoped under .reminder-center-page to avoid affecting any other module.
    ========================================================================== */
 .reminder-center-page {
@@ -2866,7 +2866,7 @@ TABLE ACTION BUTTONS
     -fx-min-height: 38;
 }
 /* ========================================================================
-   BACKUP & RESTORE — PREMIUM SCREEN (append to dark-theme.css)
+   BACKUP & RESTORE â€” PREMIUM SCREEN (append to dark-theme.css)
    Scoped beneath .backup-restore-page to avoid affecting other modules.
    ======================================================================== */
 .backup-restore-page {
@@ -3218,7 +3218,7 @@ TABLE ACTION BUTTONS
 }
 
 /* ========================================================================
-   PREMIUM SETTINGS + SHARED SHELL POLISH — DARK
+   PREMIUM SETTINGS + SHARED SHELL POLISH â€” DARK
    Same layout and geometry as light mode.
    ======================================================================== */
 .settings-page-shell { -fx-background-color: #0c1623; }
@@ -3352,7 +3352,7 @@ TABLE ACTION BUTTONS
 .erp-company-footer-text { -fx-text-fill: #aebdd0; -fx-font-size: 10px; -fx-font-weight: 600; }
 
 /* =====================================================================
-   Premium Sales Register — scoped presentation layer
+   Premium Sales Register â€” scoped presentation layer
    ===================================================================== */
 .sales-register-page {
     -fx-background-color: #0c1524;
@@ -3520,7 +3520,7 @@ TABLE ACTION BUTTONS
 
 
 /* =====================================================================
-   Premium Sales Register completion — quick ranges, paid values, footer
+   Premium Sales Register completion â€” quick ranges, paid values, footer
    ===================================================================== */
 .sales-register-page .sales-quick-range-row { -fx-padding: 1px 0 0 0; }
 .sales-register-page .sales-range-button {
@@ -3617,7 +3617,7 @@ TABLE ACTION BUTTONS
 }
 
 /* =====================================================================
-   QUOTATION REGISTER — PREMIUM UI (DARK)
+   QUOTATION REGISTER â€” PREMIUM UI (DARK)
    Scoped to .quotation-register-page
    ===================================================================== */
 .quotation-register-page { -fx-background-color: #0d1829; }
@@ -3698,7 +3698,7 @@ TABLE ACTION BUTTONS
 .quotation-register-page .quotation-empty-message { -fx-font-size: 12px; -fx-text-fill: #90a1b7; }
 
 /* ==========================================================================
-   Premium Create Sale Invoice — scoped to the sales entry page
+   Premium Create Sale Invoice â€” scoped to the sales entry page
    ========================================================================== */
 .sales-entry-scroll,
 .sales-entry-scroll > .viewport,
@@ -4251,7 +4251,7 @@ TABLE ACTION BUTTONS
 .stock-preview-value { -fx-font-size: 21px; -fx-font-weight: bold; -fx-text-fill: #8caeff; }
 .stock-dialog-error { -fx-text-fill: #ff6c7c; -fx-font-size: 11px; }
 
-/* ===== USER ACCESS V2 — approved enterprise layout ===== */
+/* ===== USER ACCESS V2 â€” approved enterprise layout ===== */
 .user-access-v2 { -fx-background-color: #081727; }
 .user-access-v2 .user-access-header { -fx-padding: 0 0 2 0; }
 .user-access-v2 .user-access-title { -fx-font-size: 23px; -fx-font-weight: bold; }
@@ -4706,7 +4706,7 @@ TABLE ACTION BUTTONS
 .settings-notification-grid { -fx-hgap: 16; -fx-vgap: 10; }
 .settings-notification-category { -fx-padding: 10 12; -fx-background-radius: 9; -fx-border-radius: 9; }
 
-/* v2.1.13 shared KPI system — Sales Register visual standard */
+/* v2.1.13 shared KPI system â€” Sales Register visual standard */
 .standard-kpi-row { -fx-alignment: center-left; }
 .standard-kpi-card { -fx-min-height: 100px; -fx-pref-height: 100px; -fx-padding: 14 16; -fx-background-radius: 13px; -fx-border-radius: 13px; -fx-border-width: 1px; -fx-background-color: #17283b; -fx-border-color: #304760; }
 .standard-kpi-card:hover { -fx-translate-y: -2px; }
@@ -4813,7 +4813,7 @@ TABLE ACTION BUTTONS
 
 
 /* ================================================================
-   MASTER DATA CONTENT REDESIGN — v3.0.4
+   MASTER DATA CONTENT REDESIGN â€” v3.0.4
    Presentation-only styling. Navigation shell and business logic
    remain unchanged.
    ================================================================ */
@@ -4967,7 +4967,7 @@ TABLE ACTION BUTTONS
 
 
 /* =====================================================================
-   DSE ERP 3.0.4 — Approved Master Data content refresh
+   DSE ERP 3.0.4 â€” Approved Master Data content refresh
    Scope: Masterdata.fxml only. Application shell/sidebar/footer unchanged.
    ===================================================================== */
 .approved-screen-masterdata {
@@ -5483,7 +5483,7 @@ TABLE ACTION BUTTONS
 }
 
 
-/* v3.0.6 — Quotation summary and Master Data premium footer controls */
+/* v3.0.6 â€” Quotation summary and Master Data premium footer controls */
 .quotation-register-page .quotation-filtered-summary {
     -fx-background-color: linear-gradient(to right, #1d4ed8, #6d28d9);
     -fx-background-radius: 10px;
@@ -6059,7 +6059,7 @@ TABLE ACTION BUTTONS
 }
 
 
-/* DSE ERP 4.0.5 — approved Sales Register section standard applied across menu screens. */
+/* DSE ERP 4.0.5 â€” approved Sales Register section standard applied across menu screens. */
 .erp-transparent-section-stack {
     -fx-background-color: transparent;
     -fx-border-color: transparent;
@@ -6212,7 +6212,7 @@ TABLE ACTION BUTTONS
 }
 
 /* ==========================================================
-   DSE ERP 5.0.10 — GLOBAL COMBO/CHOICE VISIBILITY + IMPORT UI
+   DSE ERP 5.0.10 â€” GLOBAL COMBO/CHOICE VISIBILITY + IMPORT UI
    Final theme authority. Page CSS may change geometry only.
    ========================================================== */
 .combo-box,
@@ -6273,6 +6273,28 @@ TABLE ACTION BUTTONS
 .import-choice-card:hover {
     -fx-background-color: #1a3556;
     -fx-border-color: #4f8cff;
+}
+
+/* 7.0.1 final popup authority: JavaFX popup cells must always paint their own text/surface. */
+.combo-box-popup > .list-view,
+.combo-box-popup .list-view {
+    -fx-background-color: #142238;
+    -fx-control-inner-background: #142238;
+    -fx-border-color: #49627f;
+}
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell,
+.combo-box-popup .list-cell,
+.combo-box-popup .list-cell:filled {
+    -fx-background-color: #142238;
+    -fx-text-fill: #f5f8fc;
+    -fx-opacity: 1;
+}
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:hover,
+.combo-box-popup > .list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:selected,
+.combo-box-popup .list-cell:filled:hover,
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: #285c9c;
+    -fx-text-fill: #ffffff;
 }
 .import-choice-card .label { -fx-text-fill: #f4f7fb; }
 .import-choice-card .muted-label { -fx-text-fill: #aebed3; }
@@ -6335,7 +6357,7 @@ TABLE ACTION BUTTONS
 .sales-register-page .sales-export-bar { -fx-padding: 7px 10px; }
 .sales-register-page .sales-summary-block { -fx-padding: 4px 10px; }
 
-/* DSE ERP 5.1.19 — compact, non-clipping Sales Register KPI header */
+/* DSE ERP 5.1.19 â€” compact, non-clipping Sales Register KPI header */
 .sales-register-page .sales-register-top { -fx-spacing: 8px; }
 .sales-register-page .sales-register-hero { -fx-padding: 9px 12px; }
 .sales-register-page .sales-metric-row { -fx-pref-height: 88px; -fx-min-height: 88px; -fx-spacing: 8px; }
@@ -6347,7 +6369,7 @@ TABLE ACTION BUTTONS
 .sales-register-page .sales-screen-title { -fx-font-size: 22px; }
 
 
-/* ===== DSE ERP 6.0.4 Sales Register split-safe KPI stabilization =====
+/* ===== DSE ERP 7.0.1 Sales Register split-safe KPI stabilization =====
    KPI strip now lives inside the left SplitPane workspace so opening invoice
    details resizes KPI/filter/table together instead of allowing overlap. */
 .sales-register-page .sales-register-workspace > .sales-kpi-panel {
@@ -6384,10 +6406,10 @@ TABLE ACTION BUTTONS
 .sales-register-page .sales-register-workspace {
     -fx-spacing: 10px;
 }
-/* ===== End DSE ERP 6.0.4 Sales Register split-safe KPI stabilization ===== */
+/* ===== End DSE ERP 7.0.1 Sales Register split-safe KPI stabilization ===== */
 
 
-/* ===== DSE ERP 6.0.4 approved startup splash ===== */
+/* ===== DSE ERP 7.0.1 approved startup splash ===== */
 .dse-startup-splash {
     -fx-background-color: linear-gradient(to bottom right, #06172d 0%, #082b59 48%, #06172d 100%);
     -fx-font-family: "Segoe UI", "Inter", sans-serif;
@@ -6460,10 +6482,10 @@ TABLE ACTION BUTTONS
     -fx-border-width: 1 0 0 0; -fx-padding: 11 4 0 4;
 }
 .dse-startup-splash .splash-footer-text { -fx-text-fill: #8fa3bd; -fx-font-size: 11px; }
-/* ===== End DSE ERP 6.0.4 approved startup splash ===== */
+/* ===== End DSE ERP 7.0.1 approved startup splash ===== */
 
 
-/* ===== DSE ERP 6.0.4 approved splash exact-view override ===== */
+/* ===== DSE ERP 7.0.1 approved splash exact-view override ===== */
 .dse-startup-splash {
     -fx-background-color: radial-gradient(center 50% 18%, radius 78%, #0b3c78 0%, #072a55 46%, #04162c 100%);
 }
@@ -6478,4 +6500,226 @@ TABLE ACTION BUTTONS
 .dse-startup-splash .splash-stage-icon { -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 7, 0.10, 0, 2); }
 .dse-startup-splash .splash-info-strip { -fx-padding: 12 0 7 0; }
 .dse-startup-splash .splash-footer { -fx-padding: 12 5 2 5; }
-/* ===== End DSE ERP 6.0.4 approved splash exact-view override ===== */
+/* ===== End DSE ERP 7.0.1 approved splash exact-view override ===== */
+
+/* ===== DSE ERP 7.1.2 interactive workspaces: dark mode ===== */
+.quotation-editor-page, .quotation-editor-scroll, .quotation-editor-scroll > .viewport { -fx-background-color: #0b1522; }
+.quotation-editor-card, .quotation-summary-card, .bank-bulk-toolbar, .notification-filter-bar {
+    -fx-background-color: #142238; -fx-border-color: #344b67; -fx-border-width: 1;
+    -fx-background-radius: 12; -fx-border-radius: 12; -fx-padding: 16;
+}
+.quotation-summary-card { -fx-effect: dropshadow(gaussian, rgba(0,0,0,.30), 16, .10, 0, 4); }
+.quotation-editor-grand-total { -fx-text-fill: #73a9ff; -fx-font-size: 26px; -fx-font-weight: 900; }
+.quotation-editor-page .label, .bank-bulk-toolbar .label, .notification-filter-bar .label { -fx-text-fill: #eef4fb; }
+.quotation-editor-page .muted-label { -fx-text-fill: #a8b8cc; }
+.quotation-editor-page .text-field, .quotation-editor-page .text-area, .quotation-editor-page .date-picker {
+    -fx-background-color: #1b2b42; -fx-text-fill: #f5f8fc; -fx-border-color: #405a79;
+}
+.quotation-editor-page .text-area .content { -fx-background-color: #1b2b42; }
+.notification-filter-bar { -fx-padding: 10 14; -fx-background-radius: 0; -fx-border-radius: 0; }
+.notification-search { -fx-background-color: #1b2b42; -fx-text-fill: #f5f8fc; -fx-prompt-text-fill: #9fb0c5; }
+.bank-menu-section .label { -fx-text-fill: #9fb0c5; -fx-font-size: 10px; -fx-font-weight: 800; }
+.bank-bulk-toolbar { -fx-padding: 8 10; }
+.import-choice-icon { -fx-min-width: 64; -fx-pref-width: 64; -fx-min-height: 64; -fx-pref-height: 64; -fx-alignment: CENTER; -fx-background-color: #1e3a5f; -fx-background-radius: 14; }
+/* ===== End DSE ERP 7.1.2 dark mode ===== */
+
+/* ===== DSE ERP 7.1.3 compact sale and shortcut guide: dark mode ===== */
+.sales-entry-page .sales-entry-address-area {
+    -fx-min-height: 40px; -fx-pref-height: 42px; -fx-max-height: 44px;
+}
+.sales-entry-page .sales-entry-side-actions { -fx-alignment: CENTER; -fx-spacing: 5px; }
+.sales-entry-page .sales-entry-side-actions .button {
+    -fx-min-width: 124px; -fx-pref-width: 142px; -fx-max-width: 160px;
+    -fx-min-height: 30px; -fx-pref-height: 32px; -fx-max-height: 34px;
+    -fx-font-size: 12px; -fx-padding: 5px 12px;
+}
+.shortcut-info-content { -fx-padding: 8px 4px; }
+.shortcut-info-grid { -fx-padding: 10px; -fx-background-color: #142238; -fx-background-radius: 10px; }
+.shortcut-info-key {
+    -fx-min-width: 48px; -fx-alignment: CENTER; -fx-padding: 5px 10px;
+    -fx-background-color: #1769e0; -fx-background-radius: 7px;
+    -fx-text-fill: white; -fx-font-weight: 800;
+}
+.shortcut-info-name { -fx-text-fill: #eef4fb; -fx-font-weight: 700; }
+/* ===== End DSE ERP 7.1.3 compact sale and shortcut guide ===== */
+
+/* ===== DSE ERP 7.1.3 final single-viewport sale + quotation identity ===== */
+.sales-entry-scroll > .viewport > .sales-entry-fixed-root { -fx-min-height: 0; }
+.sales-entry-page .sales-entry-items-card {
+    -fx-min-height: 250px; -fx-pref-height: 300px;
+}
+.sales-entry-page .sales-entry-table {
+    -fx-min-height: 145px; -fx-pref-height: 220px;
+}
+.sales-entry-page .sales-entry-new-button {
+    -fx-min-width: 154px; -fx-pref-width: 154px; -fx-max-width: 170px;
+    -fx-content-display: LEFT; -fx-graphic-text-gap: 7px;
+}
+.sales-entry-page .sales-entry-same-address {
+    -fx-content-display: LEFT; -fx-graphic-text-gap: 0;
+}
+.quotation-editor-title-icon {
+    -fx-min-width: 48px; -fx-pref-width: 48px; -fx-max-width: 48px;
+    -fx-min-height: 48px; -fx-pref-height: 48px; -fx-max-height: 48px;
+    -fx-alignment: CENTER; -fx-background-color: #302560;
+    -fx-background-radius: 14px; -fx-border-color: #6f58b8; -fx-border-radius: 14px;
+}
+.quotation-editor-title-icon .ikonli-font-icon { -fx-icon-color: #c4b5fd; }
+/* ===== End DSE ERP 7.1.3 final single-viewport sale + quotation identity ===== */
+
+/* ===== DSE ERP 7.1.4 Bank Statement workspace: dark mode ===== */
+.bank-recon-root { -fx-background-color:#071421; -fx-padding:12px; }
+.bank-recon-top-stack { -fx-spacing:10px; }
+.bank-recon-header, .bank-recon-kpi-panel, .bank-recon-filter-panel,
+.bank-recon-table-panel, .bank-recon-flow-panel, .bank-recon-how-panel {
+    -fx-background-color:#102238; -fx-border-color:#29445f; -fx-border-width:1px;
+    -fx-background-radius:12px; -fx-border-radius:12px;
+    -fx-effect:dropshadow(gaussian,rgba(0,0,0,.22),12,.08,0,3);
+}
+.bank-recon-header { -fx-padding:10px 14px; }
+.bank-recon-kpi-panel { -fx-padding:8px; }
+.bank-recon-kpi { -fx-padding:8px 10px; -fx-min-height:74px; -fx-pref-height:78px; }
+.bank-recon-kpi-icon { -fx-min-width:28px; -fx-pref-width:28px; -fx-min-height:28px; -fx-pref-height:28px; }
+.bank-recon-filter-panel { -fx-padding:10px 12px; }
+.bank-recon-table-panel { -fx-padding:10px; }
+.bank-recon-flow-panel { -fx-padding:12px; }
+.bank-recon-how-panel { -fx-padding:8px 12px; }
+.bank-recon-table .check-box { -fx-alignment:CENTER; }
+.bank-workspace-dialog { -fx-background-color:#08172a; -fx-padding:14px; }
+.bank-workspace-dialog > .content { -fx-padding:0; }
+.bank-dialog-hero {
+    -fx-padding:14px; -fx-background-color:linear-gradient(to right,#102f58,#0b2344);
+    -fx-background-radius:12px; -fx-border-color:#315d91; -fx-border-radius:12px;
+}
+.bank-dialog-icon { -fx-background-color:#203f70; -fx-background-radius:12px; }
+.bank-dialog-hero-title { -fx-text-fill:#f5f8ff; -fx-font-size:21px; -fx-font-weight:900; }
+.bank-dialog-subtitle { -fx-text-fill:#a9bdd6; -fx-font-size:12px; }
+.bank-dialog-section, .bank-dialog-metric-card, .bank-transaction-amount-card {
+    -fx-background-color:#12243b; -fx-border-color:#304b69; -fx-border-width:1px;
+    -fx-background-radius:11px; -fx-border-radius:11px; -fx-padding:12px;
+}
+.bank-dialog-grid { -fx-padding:4px; }
+.bank-dialog-label { -fx-text-fill:#9eb1c9; -fx-font-weight:700; }
+.bank-dialog-value, .bank-dialog-metric-value { -fx-text-fill:#eef5ff; -fx-font-weight:800; }
+.bank-transaction-amount-card { -fx-background-color:linear-gradient(to bottom right,#123c43,#102d36); -fx-border-color:#277f72; -fx-alignment:CENTER; }
+.bank-transaction-hero-amount { -fx-text-fill:#42dc7b; -fx-font-size:24px; -fx-font-weight:900; }
+.bank-note-counter { -fx-text-fill:#8da2bd; }
+.bank-evidence-preview { -fx-font-family:"Consolas"; -fx-font-size:12px; -fx-background-color:#07172c; -fx-control-inner-background:#07172c; }
+.bank-evidence-preview .list-cell { -fx-background-color:#07172c; -fx-text-fill:#c8d8eb; -fx-padding:3px 8px; }
+.bank-audit-card { -fx-background-color:#122a43; -fx-border-color:#315473; -fx-border-radius:10px; -fx-background-radius:10px; -fx-padding:11px; }
+.bank-audit-badge { -fx-background-color:#174d39; -fx-text-fill:#63e6a7; -fx-background-radius:999px; -fx-padding:3px 8px; -fx-font-size:10px; -fx-font-weight:800; }
+.bank-match-dialog .table-view { -fx-min-height:360px; }
+.bank-match-dialog .bank-dialog-help { -fx-background-color:#3a2b12; -fx-border-color:#93651b; }
+/* ===== End DSE ERP 7.1.4 Bank Statement workspace ===== */
+
+/* ===== DSE ERP 7.1.5 sales charges: dark mode ===== */
+.sales-entry-charge-manager {
+    -fx-padding: 0; -fx-min-height: 34px; -fx-pref-height: 36px;
+}
+.sales-entry-charge-manager-summary {
+    -fx-padding: 7px 10px; -fx-background-color: #14283e;
+    -fx-border-color: #35516e; -fx-border-radius: 7px; -fx-background-radius: 7px;
+    -fx-text-fill: #dce8f7; -fx-font-weight: 700;
+}
+.sales-charge-dialog { -fx-background-color: #08182a; }
+.sales-charge-editor-scroll,
+.sales-charge-editor-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+.sales-charge-editor-scroll {
+    -fx-border-color: transparent; -fx-padding: 0;
+}
+.sales-charge-editor-row {
+    -fx-padding: 10px; -fx-spacing: 8px; -fx-alignment: CENTER_LEFT;
+    -fx-background-color: #12253c; -fx-border-color: #31506f;
+    -fx-border-radius: 9px; -fx-background-radius: 9px;
+}
+.register-total-amount { -fx-text-fill: #73a9ff; -fx-font-weight: 800; }
+.register-balance-pending { -fx-text-fill: #fb7185; -fx-font-weight: 900; }
+.register-balance-settled { -fx-text-fill: #4ade80; -fx-font-weight: 800; }
+.invoice-payment-dialog { -fx-background-color: #08172a; }
+.invoice-payment-table { -fx-min-height: 300px; }
+.payment-metric-total { -fx-text-fill: #73a9ff; }
+.payment-metric-paid, .payment-metric-settled { -fx-text-fill: #4ade80; }
+.payment-metric-pending { -fx-text-fill: #fb7185; }
+.payment-history-total { -fx-text-fill: #eef5ff; -fx-font-weight: 900; }
+/* ===== End DSE ERP 7.1.5 sales charges ===== */
+
+/* ===== DSE ERP 7.1.7 profile, branding and notification center ===== */
+.profile-scroll, .profile-scroll > .viewport, .profile-page { -fx-background-color:#071525; }
+.profile-hero, .profile-card { -fx-background-color:#10243a; -fx-border-color:#31506e; -fx-border-radius:14px; -fx-background-radius:14px; -fx-padding:16px; }
+.profile-avatar { -fx-background-color:linear-gradient(to bottom right,#2d7dff,#7c3aed); -fx-background-radius:36px; }
+.profile-avatar-text { -fx-text-fill:white; -fx-font-size:24px; -fx-font-weight:900; }
+.profile-chip { -fx-background-color:#173762; -fx-text-fill:#8db7ff; -fx-background-radius:999px; -fx-padding:3px 10px; -fx-font-weight:800; }
+.profile-status { -fx-background-color:#174d39; -fx-text-fill:#63e6a7; }
+.field-caption { -fx-text-fill:#91a6bf; -fx-font-size:11px; -fx-font-weight:700; }
+.notification-center-dialog { -fx-pref-width:940px; }
+.notification-unread-header { -fx-background-color:#173762; -fx-text-fill:#8db7ff; -fx-background-radius:999px; -fx-padding:6px 12px; -fx-font-weight:900; }
+.notification-row-date { -fx-text-fill:#8fa4bd; -fx-font-size:11px; }
+.notification-category-chip, .notification-new-badge { -fx-background-radius:999px; -fx-padding:3px 8px; -fx-font-size:10px; -fx-font-weight:800; }
+.notification-category-chip { -fx-background-color:#173762; -fx-text-fill:#8db7ff; }
+.notification-category-sales { -fx-background-color:#593219; -fx-text-fill:#fdba74; }
+.notification-category-purchases { -fx-background-color:#551f40; -fx-text-fill:#f9a8d4; }
+.notification-category-security { -fx-background-color:#3d2b68; -fx-text-fill:#c4b5fd; }
+.notification-category-inventory { -fx-background-color:#174d39; -fx-text-fill:#63e6a7; }
+.notification-new-badge { -fx-background-color:#1d4f91; -fx-text-fill:#bfdbfe; }
+.splash-brand-logo-box { -fx-min-height:60px; }
+/* ===== End DSE ERP 7.1.7 ===== */
+
+/* 7.1.7 global ComboBox readability contract.  Keep both the closed value and
+   every popup row readable even when a page-specific table style is inherited. */
+.combo-box,
+.combo-box-base { -fx-background-color:#132943; -fx-border-color:#426384; }
+.combo-box > .list-cell,
+.combo-box-base > .list-cell,
+.combo-box .list-cell,
+.table-cell .combo-box > .list-cell,
+.table-cell .combo-box .list-cell {
+    -fx-text-fill:#f4f8ff;
+    -fx-background-color:transparent;
+    -fx-opacity:1;
+}
+.combo-box-popup .list-view {
+    -fx-background-color:#0d1d30;
+    -fx-border-color:#426384;
+}
+.combo-box-popup .list-view .list-cell {
+    -fx-text-fill:#f4f8ff;
+    -fx-background-color:#0f2238;
+    -fx-opacity:1;
+}
+.combo-box-popup .list-view .list-cell:filled:hover,
+.combo-box-popup .list-view .list-cell:filled:selected {
+    -fx-text-fill:white;
+    -fx-background-color:#2563eb;
+}
+.combo-box .arrow-button .arrow { -fx-background-color:#dbeafe; }
+
+/* ===== 7.1.7 approved notification, branding and profile presentation ===== */
+.notification-center-dialog { -fx-pref-width:1120px; }
+.notification-dialog-content { -fx-background-color:#0e1d30; -fx-background-radius:22px; -fx-border-color:#3b78d8; -fx-border-radius:22px; -fx-border-width:2px; }
+.notification-dialog-content .modern-dialog-titlebar { -fx-padding:22px 28px; -fx-background-color:linear-gradient(to right,#132943,#102138); -fx-background-radius:20px 20px 0 0; -fx-border-color:transparent transparent #315f9b transparent; }
+.notification-dialog-content .modern-dialog-title { -fx-font-size:26px; -fx-text-fill:#f4f8ff; -fx-font-weight:900; }
+.notification-dialog-subtitle { -fx-text-fill:#9fb0c8; -fx-font-size:14px; }
+.notification-filter-bar { -fx-padding:18px 28px; -fx-background-color:#0e1d30; -fx-border-color:transparent transparent #29425e transparent; }
+.notification-search { -fx-pref-height:44px; -fx-background-radius:10px; -fx-border-radius:10px; }
+.notification-filter-button { -fx-min-width:44px; -fx-min-height:44px; }
+.notification-unread-header { -fx-text-alignment:center; -fx-font-size:15px; }
+.notification-center-dialog .notification-list { -fx-background-color:#0b192a; -fx-border-color:transparent; }
+.notification-center-dialog .notification-list .list-cell { -fx-background-color:#0f2136; -fx-border-color:transparent transparent #29425e transparent; -fx-padding:14px 26px; }
+.notification-center-dialog .notification-list .list-cell:unread { -fx-background-color:#173457; -fx-border-color:transparent transparent #355273 #4f8cff; -fx-border-width:0 0 1px 4px; }
+.notification-timeline-icon { -fx-min-width:52px; -fx-min-height:52px; -fx-max-width:52px; -fx-max-height:52px; -fx-background-color:#173762; -fx-background-radius:26px; }
+.notification-icon-sale { -fx-background-color:#593219; }
+.notification-icon-purchase { -fx-background-color:#551f40; }
+.notification-icon-security { -fx-background-color:#3d2b68; }
+.notification-icon-settings, .notification-icon-refresh { -fx-background-color:#174d39; }
+.notification-row-title { -fx-text-fill:#f4f8ff; -fx-font-size:15px; -fx-font-weight:900; }
+.notification-row-message { -fx-text-fill:#c1cee0; -fx-font-size:13px; }
+.notification-row-reference { -fx-text-fill:#90a2ba; -fx-font-size:10px; }
+.notification-dialog-actions { -fx-padding:18px 28px; -fx-background-color:#0b192a; -fx-background-radius:0 0 20px 20px; }
+.auth-company-logo-box, .auth-login-logo-box { -fx-background-color:#f8fbff; -fx-background-radius:14px; -fx-padding:7px; -fx-effect:dropshadow(gaussian,rgba(0,0,0,.4),18,.12,0,5); }
+.auth-login-logo-box { -fx-effect:none; -fx-border-color:#31506e; -fx-border-radius:12px; }
+.profile-hero { -fx-effect:dropshadow(gaussian,rgba(0,0,0,.3),18,.10,0,5); }
+.profile-card { -fx-effect:dropshadow(gaussian,rgba(0,0,0,.22),14,.08,0,3); }
+.bank-match-id { -fx-background-color:#122942; -fx-border-color:#31506e; -fx-border-radius:12px; -fx-background-radius:12px; -fx-padding:10px 18px; -fx-text-fill:#d9e8fb; -fx-font-weight:800; }
+/* ===== End 7.1.7 presentation ===== */

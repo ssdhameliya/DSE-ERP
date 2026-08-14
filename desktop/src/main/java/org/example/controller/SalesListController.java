@@ -42,6 +42,7 @@ import org.example.util.IconFactory;
 import org.example.util.TableSelectionSupport;
 import org.example.util.SemanticTableCells;
 import org.example.util.UiActionIcons;
+import org.example.util.InvoicePaymentDetailsDialog;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -93,7 +94,16 @@ public class SalesListController implements ScreenLifecycle {
         simplifyFilters();
         detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1.0);
         tableSales.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null)showDetails(b);});
+        tableSales.setRowFactory(view->{TableRow<Sales> row=new TableRow<>();row.setOnMouseClicked(event->{if(event.getClickCount()==2&&!row.isEmpty())showPaymentDetails(row.getItem());});return row;});
         txtSearch.textProperty().addListener((o,a,b)->applyFilters());
+    }
+
+    private void showPaymentDetails(Sales sale) {
+        try {
+            InvoicePaymentDetailsDialog.show(tableSales, support, "SALE", sale.getId(), sale.getInvoiceNo(),
+                    "Customer", sale.getCustomer() == null ? "" : sale.getCustomer().getName(),
+                    sale.getTotalAmount(), sale.getPaidAmount(), sale.getBalanceAmount());
+        } catch (Exception exception) { error(exception); }
     }
 
 
@@ -150,9 +160,9 @@ public class SalesListController implements ScreenLifecycle {
         colDue.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(dueLabel(v.getValue())));
         colStatus.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(documentStatus(v.getValue())));
         colMail.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().isEmailSent()?"Sent":"Not Sent"));
-        colTotal.setCellFactory(x->moneyCell());
+        colTotal.setCellFactory(x->totalMoneyCell());
         colPaid.setCellFactory(x->paidMoneyCell());
-        colBalance.setCellFactory(x->moneyCell());
+        colBalance.setCellFactory(x->balanceMoneyCell());
         colStatus.setCellFactory(x->SemanticTableCells.status("document"));
         colMail.setCellFactory(x->SemanticTableCells.status("email"));
         colDue.setGraphic(IconFactory.icon("reminder"));colStatus.setGraphic(IconFactory.icon("status"));colMail.setGraphic(IconFactory.icon("email"));
@@ -182,6 +192,9 @@ public class SalesListController implements ScreenLifecycle {
     }
 
     private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);}};}
+    private TableCell<Sales,Double> totalMoneyCell(){return coloredMoneyCell("register-total-amount",null);}
+    private TableCell<Sales,Double> balanceMoneyCell(){return coloredMoneyCell("register-balance-pending","register-balance-settled");}
+    private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-total-amount","register-balance-pending","register-balance-settled");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
     private TableCell<Sales,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("sales-paid-positive","sales-paid-zero");if(!e&&v!=null)getStyleClass().add(v>.009?"sales-paid-positive":"sales-paid-zero");}};}
     private TableCell<Sales,String> statusCell(String semantic){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("pill-success","pill-warning","pill-danger","pill-neutral");if(!e&&v!=null){boolean good=v.equalsIgnoreCase("COMPLETED")||v.equalsIgnoreCase("PAID")||v.equalsIgnoreCase("SENT");boolean pending=v.equalsIgnoreCase("IN PROGRESS")||v.equalsIgnoreCase("PARTIAL")||v.equalsIgnoreCase("PENDING");getStyleClass().add(good?"pill-success":pending?"pill-warning":"pill-danger");String icon = good ? semantic : (pending ? ("status".equals(semantic)?"reminder":semantic) : "error");setGraphic(IconFactory.compactIcon(icon,15));}}};}
     private TableCell<Sales,String> dueCell(){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("due-overdue","due-soon","due-paid");if(!e&&v!=null){boolean paid=v.equals("Paid"),overdue=v.startsWith("Overdue");getStyleClass().add(overdue?"due-overdue":paid?"due-paid":"due-soon");setGraphic(IconFactory.compactIcon(overdue?"error":paid?"complete":"reminder",15));}}};}
@@ -293,12 +306,11 @@ public class SalesListController implements ScreenLifecycle {
         lblDetailBalance.setText(money(sale.getBalanceAmount()));
         lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(dateFormat)+" • "+dueLabel(sale));
         if (lblDetailCharges != null) {
-            String type = safe(sale.getChargeType()).trim();
-            if (sale.getChargeAmount() > .009 || !type.isBlank()) {
-                lblDetailCharges.setText((type.isBlank() ? "Charges" : type) + " • " + money(sale.getChargeAmount()));
-            } else {
-                lblDetailCharges.setText("Not Applicable");
-            }
+            var charges = sale.getCharges();
+            lblDetailCharges.setText(charges.isEmpty() ? "Not Applicable" : charges.stream()
+                    .map(charge -> charge.getChargeType() + " • " + money(charge.getAmount())
+                            + (charge.isTaxable() ? " (GST " + String.format(java.util.Locale.ROOT,"%.2f%%",charge.getGstPercent()) + ")" : ""))
+                    .collect(java.util.stream.Collectors.joining("\n")));
         }
         if (lblDetailGstType != null) lblDetailGstType.setText(safe(sale.getGstType()).isBlank() ? "Not Applicable" : sale.getGstType());
         if (lblDetailGstin != null) lblDetailGstin.setText(safe(sale.getGstin()).isBlank() ? "Not Applicable" : sale.getGstin());

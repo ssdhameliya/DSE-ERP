@@ -4,7 +4,6 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import org.example.model.AppUser;
 import org.example.api.auth.AuthApiClient;
-import org.example.service.OtpService;
 import org.example.service.UserService;
 import org.example.util.ClockService;
 import org.example.util.IconFactory;
@@ -21,12 +20,18 @@ public class RegistrationController {
     @FXML private Button btnSendOtp, btnCreate, btnBack;
     private final UserService users = new UserService();
     private AppUser pending;
+    private String challengeId;
 
     @FXML public void initialize() {
         ClockService.start(lblClock);
         btnSendOtp.setGraphic(IconFactory.icon("email")); btnCreate.setGraphic(IconFactory.icon("add")); btnBack.setGraphic(IconFactory.icon("return"));
         bindClear(txtName,lblNameError); bindClear(txtUsername,lblUsernameError); bindClear(txtEmail,lblEmailError); bindClear(txtPassword,lblPasswordError); bindClear(txtConfirm,lblConfirmError); bindClear(txtOtp,lblOtpError);
-        cmbRole.valueProperty().addListener((o,a,b) -> { if (b != null) clearField(cmbRole, lblRoleError); });
+        cmbRole.valueProperty().addListener((o,a,b) -> { if (b != null) clearField(cmbRole, lblRoleError); invalidateChallenge(); });
+        txtName.textProperty().addListener((o,a,b)->invalidateChallenge());
+        txtUsername.textProperty().addListener((o,a,b)->invalidateChallenge());
+        txtEmail.textProperty().addListener((o,a,b)->invalidateChallenge());
+        txtPassword.textProperty().addListener((o,a,b)->invalidateChallenge());
+        txtConfirm.textProperty().addListener((o,a,b)->invalidateChallenge());
         try {
             cmbRole.getItems().setAll(users.registrationRoles());
             cmbRole.getItems().stream().filter(r -> "SALES".equalsIgnoreCase(r.code())).findFirst().ifPresent(cmbRole::setValue);
@@ -38,16 +43,15 @@ public class RegistrationController {
     @FXML private void sendOtp() {
         if (!validateAccountFields()) { message("Please correct the highlighted fields.", true); return; }
         pending = new AppUser(); pending.setFullName(txtName.getText().trim()); pending.setUsername(txtUsername.getText().trim()); pending.setEmail(txtEmail.getText().trim()); pending.setPassword(txtPassword.getText()); pending.setRole(cmbRole.getValue().code());
-        try { boolean sent=OtpService.issueAndSend(pending.getEmail()); message(sent?"OTP sent. Enter it to create your User account.":"OTP was already sent. Please use the latest code.", false); txtOtp.requestFocus(); }
+        try { var challenge=users.requestRegistrationOtp(pending); challengeId=challenge.challengeId(); message(challenge.message()+". Enter it to create your account.", false); txtOtp.requestFocus(); }
         catch(Exception e){ message(e.getMessage(), true); }
     }
 
     @FXML private void register() {
         clearField(txtOtp,lblOtpError);
-        if (pending == null) { message("Send the OTP first.", true); return; }
+        if (pending == null || challengeId == null) { message("Send the OTP first.", true); return; }
         if (txtOtp.getText()==null || txtOtp.getText().trim().isEmpty()) { error(txtOtp,lblOtpError,"Verification code is required."); message("Please enter the verification code.",true); return; }
-        if (!OtpService.verify(txtOtp.getText().trim())) { error(txtOtp,lblOtpError,"The OTP is invalid or expired."); message("The OTP is invalid or expired.",true); return; }
-        try { users.register(pending); message("Registration complete. You can now sign in as " + pending.getRole() + ".", false); }
+        try { users.completeRegistration(pending,challengeId,txtOtp.getText().trim()); challengeId=null; message("Registration complete. You can now sign in as " + pending.getRole() + ".", false); }
         catch(Exception e){ message(e.getMessage(), true); }
     }
 
@@ -58,11 +62,12 @@ public class RegistrationController {
         if(blank(txtUsername)){error(txtUsername,lblUsernameError,"Username is required.");ok=false;}
         if(blank(txtEmail)){error(txtEmail,lblEmailError,"Email address is required.");ok=false;} else if(!EMAIL.matcher(txtEmail.getText().trim()).matches()){error(txtEmail,lblEmailError,"Enter a valid email address.");ok=false;}
         if(cmbRole.getValue()==null){error(cmbRole,lblRoleError,"Role is required.");ok=false;}
-        if(blank(txtPassword)){error(txtPassword,lblPasswordError,"Password is required.");ok=false;} else if(txtPassword.getText().length()<6){error(txtPassword,lblPasswordError,"Use at least 6 characters.");ok=false;}
+        if(blank(txtPassword)){error(txtPassword,lblPasswordError,"Password is required.");ok=false;} else if(txtPassword.getText().length()<8||!txtPassword.getText().matches(".*[A-Za-z].*")||!txtPassword.getText().matches(".*[0-9].*")){error(txtPassword,lblPasswordError,"Use 8+ characters with a letter and number.");ok=false;}
         if(blank(txtConfirm)){error(txtConfirm,lblConfirmError,"Confirm password is required.");ok=false;} else if(!txtPassword.getText().equals(txtConfirm.getText())){error(txtConfirm,lblConfirmError,"Passwords do not match.");ok=false;}
         return ok;
     }
     @FXML private void back(){SceneManager.showLogin();}
+    private void invalidateChallenge(){pending=null;challengeId=null;}
     private boolean blank(TextInputControl c){return c.getText()==null||c.getText().trim().isEmpty();}
     private void bindClear(TextInputControl f,Label l){f.textProperty().addListener((o,a,b)->{if(b!=null&&!b.isBlank())clearField(f,l);});}
     private void error(Control f,Label l,String t){l.setText(t);l.setManaged(true);l.setVisible(true);if(!f.getStyleClass().contains("invalid-field"))f.getStyleClass().add("invalid-field");}

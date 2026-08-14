@@ -14,5 +14,6 @@ public class LookupDAO {
     public List<Lookup> getByType(String type) { return api.lookups(type); }
     public List<String> getValues(String type) { return api.lookupValues(type); }
     public List<String> getValuesByCategoryCode(String categoryCode) { return api.lookupValuesByCategoryCode(categoryCode); }
+    public List<Lookup> getByCategoryCode(String categoryCode) { return api.lookupsByCategoryCode(categoryCode); }
     public String generateNextCode(String type) { return api.nextLookupCode(type); }
 }

@@ -7,17 +7,27 @@ import java.time.Instant;
 import java.util.*;
 
 public final class GitHubReleaseClient {
-    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).followRedirects(HttpClient.Redirect.NORMAL).build();
+    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(60)).followRedirects(HttpClient.Redirect.NORMAL).build();
 
     public UpdateRelease latest(String owner, String repository, boolean includePrerelease) throws Exception {
         requirePart(owner, "GitHub owner"); requirePart(repository, "GitHub repository");
         String endpoint = includePrerelease
                 ? "https://api.github.com/repos/%s/%s/releases?per_page=15".formatted(owner, repository)
                 : "https://api.github.com/repos/%s/%s/releases/latest".formatted(owner, repository);
-        HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
-                .timeout(Duration.ofSeconds(30)).header("Accept", "application/vnd.github+json")
-                .header("X-GitHub-Api-Version", "2022-11-28").header("User-Agent", "DSE-ERP-Updater").GET().build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response = null;
+        Exception last = null;
+        for (int attempt=1; attempt<=3; attempt++) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
+                        .timeout(Duration.ofSeconds(90)).header("Accept", "application/vnd.github+json")
+                        .header("X-GitHub-Api-Version", "2022-11-28").header("User-Agent", "DSE-ERP-Updater").GET().build();
+                response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode()!=408 && response.statusCode()!=429 && response.statusCode()<500) break;
+                last = new IllegalStateException("GitHub returned HTTP " + response.statusCode() + ".");
+            } catch (Exception failure) { last=failure; }
+            if (attempt<3) Thread.sleep(attempt*1500L);
+        }
+        if(response==null) throw new IllegalStateException("GitHub release check failed after 3 attempts.",last);
         if (response.statusCode() == 404) throw new IllegalStateException("No published GitHub Release was found for " + owner + "/" + repository + ".");
         if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("GitHub returned HTTP " + response.statusCode() + ".");
         Object parsed = MiniJson.parse(response.body());

@@ -24,7 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 
 /**
- * 6.0.4 runtime foundation.
+ * 7.1.2 runtime foundation.
  *
  * Ensures managed PostgreSQL and the packaged Spring Boot backend are running before API-backed JavaFX screens open.
  */
@@ -293,11 +293,10 @@ public final class RuntimeBootstrapper {
     }
 
     private static Process startServer(Path jar) {
-        Path java = javaExecutable();
         Path log = serverLogPath();
         try {
             Files.createDirectories(log.getParent());
-            ProcessBuilder builder = new ProcessBuilder(java.toString(), "-jar", jar.toString());
+            ProcessBuilder builder = new ProcessBuilder(serverCommand(jar));
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
             builder.environment().put("DSE_DB_URL", ConfigManager.getDbUrl());
@@ -305,10 +304,41 @@ public final class RuntimeBootstrapper {
             builder.environment().put("DSE_DB_PASSWORD", ConfigManager.getDbPassword());
             builder.environment().putIfAbsent("DSE_SERVER_PORT", serverPort());
             builder.environment().put("DSE_INTERNAL_BRIDGE_TOKEN", ConfigManager.getRuntimeInternalBridgeToken());
+            builder.environment().put("DSE_SMTP_HOST", ConfigManager.getSmtpHost());
+            builder.environment().put("DSE_SMTP_PORT", ConfigManager.getSmtpPort());
+            builder.environment().put("DSE_SMTP_EMAIL", ConfigManager.getSmtpEmail());
+            builder.environment().put("DSE_SMTP_PASSWORD", ConfigManager.getSmtpPassword());
+            builder.environment().put("DSE_SMTP_CONFIG_FILE",
+                    WorkspaceManager.getConfigurationFolder().resolve("config.properties").toString());
             return builder.start();
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to start packaged DSE ERP backend from " + jar, exception);
         }
+    }
+
+    private static List<String> serverCommand(Path jar) {
+        if (isPackagedRuntime() && isWindows()) {
+            return List.of(packagedWindowsServerLauncher().toString());
+        }
+        return List.of(javaExecutable().toString(), "-jar", jar.toString());
+    }
+
+    private static Path packagedWindowsServerLauncher() {
+        String applicationPath = System.getProperty("jpackage.app-path", "").trim();
+        if (applicationPath.isEmpty()) {
+            throw new IllegalStateException("The packaged Windows application path is unavailable.");
+        }
+        Path application = Path.of(applicationPath).toAbsolutePath().normalize();
+        Path folder = application.getParent();
+        Path launcher = folder == null ? null : folder.resolve("DSE ERP Server.exe");
+        if (launcher == null || !Files.isRegularFile(launcher)) {
+            throw new IllegalStateException("Packaged Spring Boot launcher not found: " + launcher);
+        }
+        return launcher;
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
     }
 
     private static void ensureInternalBridgeToken() {
@@ -380,6 +410,7 @@ public final class RuntimeBootstrapper {
     private static void verifyPackagedRuntime() {
         if (!isPackagedRuntime()) return;
         locateServerJar();
+        if (isWindows()) packagedWindowsServerLauncher();
         ManagedPostgresRuntime.verifyBundledRuntime();
     }
 
@@ -393,7 +424,7 @@ public final class RuntimeBootstrapper {
     }
 
     private static Path javaExecutable() {
-        String executable = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win") ? "java.exe" : "java";
+        String executable = isWindows() ? "java.exe" : "java";
         Path java = Path.of(System.getProperty("java.home"), "bin", executable);
         if (!Files.isRegularFile(java)) throw new IllegalStateException("Bundled Java runtime executable not found: " + java);
         return java;

@@ -37,13 +37,13 @@ On Windows, `build.bat` performs the same verification and `Run DSE ERP.bat` lau
 Windows PowerShell:
 
 ```powershell
-.\scripts\package-windows.ps1 -Version 5.0.3
+.\scripts\package-windows.ps1 -Version 7.1.8
 ```
 
 macOS Terminal:
 
 ```bash
-./scripts/package-macos.sh 5.0.3
+./scripts/package-macos.sh 7.1.8
 ```
 
 The generated packages are written to:
@@ -56,8 +56,8 @@ The generated packages are written to:
 After committing a matching version in `pom.xml`, push a semantic-version tag:
 
 ```bash
-git tag v5.0.3
-git push origin v5.0.3
+git tag v7.1.8
+git push origin v7.1.8
 ```
 
 GitHub Actions builds:
@@ -85,15 +85,9 @@ https://github.com/ssdhameliya/DSE-ERP
 
 ## PostgreSQL development setup
 
-The JavaFX application uses PostgreSQL through Spring Data JPA, Hibernate and HikariCP.
-The existing SQLite driver remains available only for the one-time data migration tool.
-
-Version 5.0.3 automatically upgrades an existing, unconfigured SQLite workspace when
-PostgreSQL is reachable. Before copying, it creates and validates a SQLite safety snapshot.
-The data is copied transactionally into a fingerprinted `dse_migration_*` PostgreSQL
-schema, row counts are verified, and `db.url` is saved only after success. Existing
-PostgreSQL schemas are never replaced. If PostgreSQL is unavailable, the application
-continues using the original SQLite database and the migration can be retried later.
+The JavaFX application is PostgreSQL-only. JavaFX accesses business data through the
+authenticated Spring API; database access is owned by Spring Data JPA and Hibernate.
+There is no SQLite runtime or desktop JDBC persistence path.
 
 An explicit `db.url` or `DSE_DB_URL` always takes precedence. For a shared office setup,
 install PostgreSQL once on an always-on server and point every desktop client to the same
@@ -112,5 +106,5 @@ Run `scripts\start-postgresql.cmd` if PostgreSQL is not already accepting connec
 then run `org.example.app.Launcher` from IntelliJ or `mvn javafx:run` from a Java 25 shell.
 
 Manual and scheduled backups are PostgreSQL custom-format `.pgbackup` files created with
-`pg_dump`. Restore is staged and applied atomically on the next application start. Legacy
-SQLite `.db` backups remain readable for migration, but are never overwritten by PostgreSQL.
+`pg_dump`. Restore is staged and applied atomically on the next application start.
+Installer packages include the managed PostgreSQL runtime required by the application.

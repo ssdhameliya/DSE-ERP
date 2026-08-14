@@ -8,6 +8,7 @@ import org.example.model.Party;
 import org.example.service.NotificationService;
 import org.example.service.PartyService;
 import org.example.util.IconFactory;
+import org.example.util.OwnedAlert;
 
 import java.util.regex.Pattern;
 
@@ -87,16 +88,28 @@ public class PartyDialogController {
         party.setActive(chkActive.isSelected());
 
         boolean created = editing == null;
-        if (created) service.save(party); else service.update(party);
-
         String entityName = "CUSTOMER".equals(type) ? "Customer" : "Supplier";
-        NotificationService.createNotification(
-                (created ? "Created " : "Updated ") + entityName,
-                party.getPartyCode() + " - " + party.getName(),
-                "INFO",
-                "CUSTOMER".equals(type) ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
-                party.getPartyCode());
-        close();
+        try {
+            if (created) service.save(party); else service.update(party);
+            NotificationService.createNotification(
+                    (created ? "Created " : "Updated ") + entityName,
+                    party.getPartyCode() + " - " + party.getName(),
+                    "INFO",
+                    "CUSTOMER".equals(type) ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
+                    party.getPartyCode());
+            new OwnedAlert(
+                    Alert.AlertType.INFORMATION,
+                    entityName + (created ? " saved successfully." : " updated successfully.")
+                            + "\n\n" + party.getPartyCode() + " - " + party.getName()
+            ).showAndWait();
+            close();
+        } catch (Exception exception) {
+            new OwnedAlert(
+                    Alert.AlertType.ERROR,
+                    "Unable to save " + entityName.toLowerCase() + ": "
+                            + (exception.getMessage() == null ? "Unexpected error." : exception.getMessage())
+            ).showAndWait();
+        }
     }
 
     private boolean validateForm() {

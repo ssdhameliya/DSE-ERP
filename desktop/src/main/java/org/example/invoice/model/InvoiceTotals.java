@@ -3,8 +3,9 @@ package org.example.invoice.model;
 public record InvoiceTotals(
         double basicAmount,
         double discountAmount,
-        double freightCharges,
-        double grossTotal,
+        double chargesAmount,
+        double taxableAmount,
+        double nonTaxableCharges,
         double cgst,
         double sgst,
         double igst,

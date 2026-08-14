@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationEditorController" styleClass="approved-ui,approved-screen,quotation-editor-page,erp-screen-root">
+  <top>
+    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
+      <padding><Insets top="18" right="24" bottom="16" left="24"/></padding>
+      <StackPane fx:id="quotationTitleIcon" styleClass="quotation-editor-title-icon"/>
+      <VBox spacing="3" HBox.hgrow="ALWAYS"><Label fx:id="lblPageTitle" text="Create Quotation" styleClass="page-title"/><Label fx:id="lblPageSubtitle" text="Build a complete customer quotation in one workspace" styleClass="muted-label"/></VBox>
+      <Button fx:id="btnPreview" text="Preview" onAction="#preview" styleClass="approved-button,approved-secondary-button"/>
+      <Button fx:id="btnDraft" text="Save Draft" onAction="#saveDraft" styleClass="approved-button,approved-secondary-button"/>
+      <Button fx:id="btnSaveSend" text="Save &amp; Send" onAction="#saveAndSend" styleClass="approved-button,approved-primary-button"/>
+    </HBox>
+  </top>
+  <center>
+    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="quotation-editor-scroll">
+      <content>
+        <VBox spacing="16" styleClass="quotation-editor-content">
+          <padding><Insets top="8" right="24" bottom="28" left="24"/></padding>
+          <HBox spacing="16" alignment="TOP_LEFT">
+            <VBox spacing="16" HBox.hgrow="ALWAYS">
+              <VBox spacing="12" styleClass="quotation-editor-card">
+                <Label text="QUOTATION DETAILS" styleClass="quotation-section-title"/>
+                <GridPane hgap="14" vgap="10">
+                  <columnConstraints><ColumnConstraints percentWidth="18"/><ColumnConstraints percentWidth="32" hgrow="ALWAYS"/><ColumnConstraints percentWidth="18"/><ColumnConstraints percentWidth="32" hgrow="ALWAYS"/></columnConstraints>
+                  <children>
+                    <Label text="Customer *" GridPane.rowIndex="0"/><ComboBox fx:id="cmbCustomer" promptText="Select customer" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                    <Label text="Source" GridPane.columnIndex="2" GridPane.rowIndex="0"/><ComboBox fx:id="cmbSource" maxWidth="Infinity" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                    <Label text="Quotation Date *" GridPane.rowIndex="1"/><DatePicker fx:id="dpDate" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                    <Label text="Valid Until *" GridPane.columnIndex="2" GridPane.rowIndex="1"/><DatePicker fx:id="dpValid" maxWidth="Infinity" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                    <Label text="Follow Up" GridPane.rowIndex="2"/><DatePicker fx:id="dpFollowUp" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                    <Label text="Remarks" GridPane.columnIndex="2" GridPane.rowIndex="2"/><TextArea fx:id="txtRemarks" promptText="Commercial terms or customer notes..." prefRowCount="2" wrapText="true" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
+                  </children>
+                </GridPane>
+              </VBox>
+              <VBox spacing="12" styleClass="quotation-editor-card">
+                <HBox alignment="CENTER_LEFT"><Label text="ITEMS &amp; PRICING" styleClass="quotation-section-title"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblLineCount" text="0 line item(s)" styleClass="muted-label"/></HBox>
+                <GridPane hgap="10" vgap="6">
+                  <columnConstraints><ColumnConstraints percentWidth="40" hgrow="ALWAYS"/><ColumnConstraints percentWidth="14"/><ColumnConstraints percentWidth="14"/><ColumnConstraints percentWidth="14"/><ColumnConstraints percentWidth="18"/></columnConstraints>
+                  <children>
+                    <Label text="Item *"/><Label text="Quantity *" GridPane.columnIndex="1"/><Label text="GST %" GridPane.columnIndex="2"/><Label text="Discount %" GridPane.columnIndex="3"/>
+                    <ComboBox fx:id="cmbItem" promptText="Search or select item" onAction="#itemSelected" maxWidth="Infinity" GridPane.rowIndex="1"/>
+                    <TextField fx:id="txtQuantity" text="1.00" GridPane.columnIndex="1" GridPane.rowIndex="1"/><TextField fx:id="txtGst" text="0.00" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtDiscount" text="0.00" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                    <Button fx:id="btnAdd" text="Add Item" onAction="#addItem" maxWidth="Infinity" GridPane.columnIndex="4" GridPane.rowIndex="1" styleClass="approved-button,approved-primary-button"/>
+                  </children>
+                </GridPane>
+                <TableView fx:id="tableLines" prefHeight="360">
+                  <columns>
+                    <TableColumn fx:id="colItem" text="Item Details" prefWidth="230"/><TableColumn fx:id="colCode" text="Code" prefWidth="100"/><TableColumn fx:id="colQty" text="Qty" prefWidth="80"/><TableColumn fx:id="colRate" text="Rate" prefWidth="100"/><TableColumn fx:id="colGst" text="GST %" prefWidth="80"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="95"/><TableColumn fx:id="colAmount" text="Amount" prefWidth="120"/><TableColumn fx:id="colAction" text="Action" prefWidth="90"/>
+                  </columns>
+                </TableView>
+              </VBox>
+            </VBox>
+            <VBox minWidth="280" prefWidth="300" maxWidth="330" spacing="12" styleClass="quotation-summary-card">
+              <Label text="QUOTATION SUMMARY" styleClass="quotation-section-title"/>
+              <GridPane hgap="12" vgap="12"><columnConstraints><ColumnConstraints hgrow="ALWAYS"/><ColumnConstraints halignment="RIGHT"/></columnConstraints>
+                <children><Label text="Subtotal"/><Label fx:id="lblSubtotal" text="₹ 0.00" GridPane.columnIndex="1"/><Label text="Discount" GridPane.rowIndex="1"/><Label fx:id="lblDiscount" text="₹ 0.00" GridPane.columnIndex="1" GridPane.rowIndex="1"/><Label text="Taxable" GridPane.rowIndex="2"/><Label fx:id="lblTaxable" text="₹ 0.00" GridPane.columnIndex="1" GridPane.rowIndex="2"/><Label text="GST" GridPane.rowIndex="3"/><Label fx:id="lblGst" text="₹ 0.00" GridPane.columnIndex="1" GridPane.rowIndex="3"/></children>
+              </GridPane>
+              <Separator/><Label text="GRAND TOTAL" styleClass="muted-label"/><Label fx:id="lblGrandTotal" text="₹ 0.00" styleClass="quotation-editor-grand-total"/>
+              <Label text="Totals update automatically as items are added. Saving validates customer, dates and every line before the quotation is sent." wrapText="true" styleClass="muted-label"/>
+            </VBox>
+          </HBox>
+        </VBox>
+      </content>
+    </ScrollPane>
+  </center>
+</BorderPane>

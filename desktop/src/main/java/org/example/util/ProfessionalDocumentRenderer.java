@@ -228,10 +228,9 @@ public final class ProfessionalDocumentRenderer {
         Table cards = new Table(UnitValue.createPercentArray(new float[]{50, 50}))
             .useAllAvailableWidth().setMarginBottom(5);
         cards.addCell(jasviAddressCard("BILLING ADDRESS", data.partyName,
-            data.partyAddress, data.partyPhone, data.partyEmail, data.partyGstin));
+            data.partyAddress, data.partyPhone, data.partyEmail, data.billingGstin));
         cards.addCell(jasviAddressCard("DELIVERY ADDRESS", data.partyName,
-            firstNonBlank(data.shipTo, data.partyAddress), data.partyPhone,
-            data.partyEmail, data.partyGstin));
+            data.shipTo, data.partyPhone, data.partyEmail, data.deliveryGstin));
         return cards;
     }
 
@@ -260,20 +259,20 @@ public final class ProfessionalDocumentRenderer {
 
     /** Compact logistics strip directly above the line-item table. */
     private static Table jasviTransportStrip(Data data) {
-        Table strip = new Table(UnitValue.createPercentArray(new float[]{25, 25, 25, 25}))
+        Table strip = new Table(UnitValue.createPercentArray(new float[]{24, 24, 26, 26}))
             .useAllAvailableWidth().setMarginBottom(5);
-        jasviStripCell(strip, "Transporter", present(data.transporter));
-        jasviStripCell(strip, "Vehicle No.", present(data.vehicleNumber));
-        jasviStripCell(strip, "GST Treatment", present(data.gstType));
-        jasviStripCell(strip, "Place of Supply", config("company.state", "India"));
+        jasviStripCell(strip, "TRANSPORTER", data.transporter);
+        jasviStripCell(strip, "GSTIN", data.transporterGstin);
+        jasviStripCell(strip, "CONTACT NAME", data.contactPerson);
+        jasviStripCell(strip, "NUMBER", data.contactPersonMobile);
         return strip;
     }
 
     private static void jasviStripCell(Table table, String label, String value) {
         table.addCell(new Cell().add(new Paragraph()
                 .add(new Text(label + ": ").setBold().setFontColor(JASVI_NAVY))
-                .add(new Text(value)).setFontSize(6.4f).setMargin(0))
-            .setBackgroundColor(JASVI_PALE_BLUE).setPadding(4)
+                .add(new Text(pdfValue(value))).setFontSize(6.4f).setMargin(0))
+            .setPadding(5)
             .setBorder(new SolidBorder(JASVI_BLUE, .5f)));
     }
 
@@ -334,7 +333,7 @@ public final class ProfessionalDocumentRenderer {
             jasviTotal(totals, "CGST (" + quantity(gstRate / 2) + "%)", data.gst / 2, false);
             jasviTotal(totals, "SGST (" + quantity(gstRate / 2) + "%)", data.gst / 2, false);
         }
-        jasviTotal(totals, "Round Off", 0, false);
+        jasviTotal(totals, "Round Off", 0.00, false);
         jasviTotal(totals, "GRAND TOTAL", data.total, true);
         right.add(totals);
         outer.addCell(right);
@@ -1524,7 +1523,7 @@ public final class ProfessionalDocumentRenderer {
         OperationsApiClient api=new OperationsApiClient(); MasterApiClient master=new MasterApiClient();
         Data data=new Data(); data.title="TAX INVOICE";data.numberLabel="Invoice No.";data.dateLabel="Invoice Date";
         Map<String,Item> itemMap=new java.util.HashMap<>();for(Item i:master.items())itemMap.put(i.getItemCode(),i);
-        if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentException("Sales not found: "+number);data.number=doc.getInvoiceNo();data.date=strDate(doc.getInvoiceDate());data.dueDate=strDate(doc.getDueDate());data.poDate=strDate(doc.getPoDate());populateParty(data,doc.getCustomer());data.partyAddress=firstNonBlank(doc.getBillingAddress(),data.partyAddress);data.subtotal=doc.getSubtotal();data.gst=doc.getGstAmount();data.total=doc.getTotalAmount();data.salesperson=doc.getSalesperson();data.paymentTerms=doc.getPaymentTerms();data.transporter=doc.getTransporter();data.gstType=doc.getGstType();data.doorDelivery=doc.getDoorDelivery();data.vehicleNumber=doc.getVehicleNumber();data.contactPerson=doc.getContactPerson();data.transportNote=doc.getTransportNote();data.chargeType=doc.getChargeType();data.chargeAmount=doc.getChargeAmount();data.reference=doc.getReferenceNo();data.purchaseOrder=doc.getOrderNo();data.partyGstin=firstNonBlank(doc.getGstin(),data.partyGstin);data.shipTo=firstNonBlank(doc.getDeliveryAddress(),data.partyAddress);if(doc.getLines()!=null)for(SalesLine l:doc.getLines())data.lines.add(line(l.getItemCode(),l.getItemDescription(),l.getQuantity(),l.getRate(),l.getGstPercent(),l.getDiscountAmount(),itemMap));}
+if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentException("Sales not found: "+number);data.number=doc.getInvoiceNo();data.date=strDate(doc.getInvoiceDate());data.dueDate=strDate(doc.getDueDate());data.poDate=strDate(doc.getPoDate());populateParty(data,doc.getCustomer());data.partyAddress=firstNonBlank(doc.getBillingAddress(),data.partyAddress);data.billingGstin=firstNonBlank(doc.getBillingGstin(),doc.getGstin(),data.partyGstin);data.sameAsBilling=doc.isSameAsBilling();data.shipTo=data.sameAsBilling?data.partyAddress:present(doc.getDeliveryAddress());data.deliveryGstin=data.sameAsBilling?data.billingGstin:present(doc.getDeliveryGstin());data.subtotal=doc.getSubtotal();data.gst=doc.getGstAmount();data.total=doc.getTotalAmount();data.salesperson=doc.getSalesperson();data.paymentTerms=doc.getPaymentTerms();data.transporter=doc.getTransporter();data.transporterGstin=doc.getTransporterGstin();data.gstType=doc.getGstType();data.vehicleNumber=doc.getVehicleNumber();data.contactPerson=doc.getContactPerson();data.contactPersonMobile=doc.getContactPersonMobile();data.transportNote=doc.getTransportNote();data.chargeType=doc.getChargeType();data.chargeAmount=doc.getChargeAmount();data.reference=doc.getReferenceNo();data.purchaseOrder=doc.getOrderNo();data.partyGstin=data.billingGstin;if(doc.getLines()!=null)for(SalesLine l:doc.getLines())data.lines.add(line(l.getItemCode(),l.getItemDescription(),l.getQuantity(),l.getRate(),l.getGstPercent(),l.getDiscountAmount(),itemMap));}
         else{Purchase doc=api.purchase(number);if(doc==null)throw new IllegalArgumentException("Purchase not found: "+number);data.number=doc.getInvoiceNo();data.date=strDate(doc.getInvoiceDate());data.dueDate=strDate(doc.getDueDate());populateParty(data,doc.getSupplier());data.subtotal=doc.getSubtotal();data.gst=doc.getGstAmount();data.total=doc.getTotalAmount();data.paymentTerms=doc.getPaymentTerms();data.transporter=doc.getTransporter();data.reference=doc.getReferenceNo();data.shipTo=companyShipText();if(doc.getLines()!=null)for(PurchaseLine l:doc.getLines())data.lines.add(line(l.getItemCode(),l.getItemDescription(),l.getQuantity(),l.getRate(),l.getGstPercent(),l.getDiscountAmount(),itemMap));}
         return data;
     }
@@ -1703,9 +1702,17 @@ public final class ProfessionalDocumentRenderer {
         return value == null || value.isBlank() ? "Not provided" : value;
     }
 
+    private static String pdfValue(String value) {
+        return value == null || value.isBlank() ? "NA" : value;
+    }
+
     /** Returns the first non-blank value without replacing it with display text. */
     private static String firstNonBlank(String first, String fallback) {
         return first != null && !first.isBlank() ? first : Objects.toString(fallback, "");
+    }
+
+    private static String firstNonBlank(String first, String second, String fallback) {
+        return firstNonBlank(first, firstNonBlank(second, fallback));
     }
 
     private static String money(double value) {
@@ -1760,15 +1767,19 @@ public final class ProfessionalDocumentRenderer {
         String partyName = "";
         String partyAddress = "";
         String partyGstin = "";
+        String billingGstin = "";
+        String deliveryGstin = "";
         String partyPhone = "";
         String partyEmail = "";
         String salesperson = "";
         String paymentTerms = "";
         String transporter = "";
+        String transporterGstin = "";
         String gstType = "";
         String doorDelivery = "";
         String vehicleNumber = "";
         String contactPerson = "";
+        String contactPersonMobile = "";
         String transportNote = "";
         String chargeType = "";
         double chargeAmount;
@@ -1782,6 +1793,7 @@ public final class ProfessionalDocumentRenderer {
         double total;
         boolean refund;
         boolean quotation;
+        boolean sameAsBilling = true;
         List<Line> lines = new ArrayList<>();
     }
 

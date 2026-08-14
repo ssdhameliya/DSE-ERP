@@ -2,6 +2,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.image.ImageView?>
 <BorderPane xmlns="http://javafx.com/javafx/25"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="org.example.controller.SplashController"
@@ -9,11 +10,14 @@
 
     <center>
         <VBox alignment="CENTER" spacing="8" maxWidth="940">
-            <Label text="◆" styleClass="splash-brand-mark"/>
-            <Label text="DSE ERP" styleClass="splash-brand-title"/>
-            <Label text="Business Management Suite" styleClass="splash-brand-subtitle"/>
+            <StackPane styleClass="splash-brand-logo-box">
+                <Label fx:id="lblBrandMark" text="◆" styleClass="splash-brand-mark"/>
+                <ImageView fx:id="imgBrandLogo" fitWidth="520" fitHeight="118" preserveRatio="true" smooth="true" managed="false" visible="false"/>
+            </StackPane>
+            <Label fx:id="lblBrandName" text="DSE ERP" styleClass="splash-brand-title"/>
+            <Label fx:id="lblBrandTagline" text="Business Management Suite" styleClass="splash-brand-subtitle"/>
             <Region prefHeight="10"/>
-            <Label text="Starting DSE ERP..." styleClass="splash-start-title"/>
+            <Label fx:id="lblStarting" text="Starting DSE ERP..." styleClass="splash-start-title"/>
             <Label text="Please wait while we prepare everything for you." styleClass="splash-start-copy"/>
             <Region prefHeight="10"/>
 

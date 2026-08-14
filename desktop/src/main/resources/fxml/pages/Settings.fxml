@@ -186,7 +186,7 @@
 
                 <content>
 
-                    <StackPane maxWidth="Infinity" styleClass="settings-panel-host">
+                    <StackPane fx:id="panelHost" maxWidth="Infinity" styleClass="settings-panel-host">
 
                         <!-- =============================================
                              COMPANY & BILLING
@@ -274,6 +274,17 @@
                                 </VBox>
 
                             </GridPane>
+
+                            <VBox spacing="12" styleClass="settings-information-card,settings-application-branding-card">
+                                <Label text="Application Branding" styleClass="settings-subsection-title"/>
+                                <Label text="These labels appear on the splash and sign-in screens. Company identity and the application product name remain independently configurable." wrapText="true" styleClass="settings-help-text"/>
+                                <GridPane hgap="18" vgap="12">
+                                    <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
+                                    <VBox spacing="6"><Label text="Application Name" styleClass="settings-form-label"/><TextField fx:id="txtApplicationName" promptText="DSE ERP" styleClass="approved-input"/></VBox>
+                                    <VBox spacing="6" GridPane.columnIndex="1"><Label text="Application Tagline" styleClass="settings-form-label"/><TextField fx:id="txtApplicationTagline" promptText="Business Management Suite" styleClass="approved-input"/></VBox>
+                                    <VBox spacing="6" GridPane.columnSpan="2" GridPane.rowIndex="1"><Label text="Startup Message" styleClass="settings-form-label"/><TextField fx:id="txtApplicationStartingText" promptText="Starting DSE ERP..." styleClass="approved-input"/></VBox>
+                                </GridPane>
+                            </VBox>
 
                             <Separator/>
 
@@ -682,7 +693,7 @@
                             <HBox spacing="14">
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
-                                    <Label fx:id="lblCurrentVersion" text="2.0.0" styleClass="update-version-value"/>
+                                    <Label fx:id="lblCurrentVersion" text="7.1.8" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">

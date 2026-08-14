@@ -35,15 +35,16 @@ public final class SalesToTaxInvoiceMapper {
 
         String billingAddress = firstNonBlank(sale.getBillingAddress(), customer.getAddress());
         String deliveryAddress = firstNonBlank(sale.getDeliveryAddress(), billingAddress);
-        String customerGstin = firstNonBlank(sale.getGstin(), customer.getGstin());
+        String billingGstin = firstNonBlank(sale.getBillingGstin(), sale.getGstin(), customer.getGstin());
+        String deliveryGstin = firstNonBlank(sale.getDeliveryGstin(), billingGstin);
 
         InvoiceParty billing = new InvoiceParty(
-                customer.getName(), billingAddress, customerGstin,
+                customer.getName(), billingAddress, billingGstin,
                 firstNonBlank(sale.getContactPerson(), customer.getContactPerson()),
                 firstNonBlank(sale.getContactPersonMobile(), customer.getPhone()));
 
         InvoiceParty delivery = new InvoiceParty(
-                customer.getName(), deliveryAddress, customerGstin,
+                customer.getName(), deliveryAddress, deliveryGstin,
                 firstNonBlank(sale.getContactPerson(), customer.getContactPerson()),
                 firstNonBlank(sale.getContactPersonMobile(), customer.getPhone()));
 
@@ -69,18 +70,20 @@ public final class SalesToTaxInvoiceMapper {
         }
         if (items.isEmpty()) throw new IllegalArgumentException("At least one valid invoice item is required.");
 
-        InvoiceTotals totals = InvoiceTaxCalculator.calculate(items, sale.getChargeAmount(), sale.getGstType());
+        List<TaxInvoiceCharge> charges = sale.getCharges().stream()
+                .map(charge -> new TaxInvoiceCharge(charge.getChargeType(), charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
+                .toList();
+        InvoiceTotals totals = InvoiceTaxCalculator.calculate(items, charges, sale.getGstType());
         String words = "INR : " + AmountInWordsConverter.indianRupees(totals.grandTotal());
 
         String transporter = firstNonBlank(sale.getTransporter());
-        String doorDelivery = firstNonBlank(sale.getDoorDelivery(), "No");
         return new TaxInvoiceDocument(
                 company, sale.getInvoiceNo(), sale.getInvoiceDate(),
                 firstNonBlank(sale.getOrderNo(), sale.getReferenceNo()), sale.getPoDate(),
-                billing, delivery, transporter, doorDelivery, sale.getVehicleNumber(),
+                billing, delivery, transporter, sale.getTransporterGstin(), sale.getVehicleNumber(),
                 firstNonBlank(sale.getContactPerson(), customer.getContactPerson()),
                 firstNonBlank(sale.getContactPersonMobile(), customer.getPhone()),
-                items, sale.getGstType(), sale.getChargeAmount(), totals, words);
+                items, sale.getGstType(), charges, totals, words);
     }
 
     private static CompanyProfile company(String logoPath) {

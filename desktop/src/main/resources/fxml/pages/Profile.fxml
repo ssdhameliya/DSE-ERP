@@ -1,13 +1,9 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ProfileController" spacing="18" styleClass="mock-page,approved-ui,approved-screen,approved-screen-profile,erp-screen-root" style="-fx-padding:30;">
-    <Label text="My Profile" styleClass="screen-title"/>
-    <Label text="Manage your account information" styleClass="screen-subtitle"/>
-    <GridPane hgap="28" vgap="18" styleClass="flow-card">
-    <Label text="Full name" style="-fx-font-weight:bold;"/>
-    <Label fx:id="lblName" GridPane.columnIndex="1"/>
-    <Label text="Username" style="-fx-font-weight:bold;" GridPane.rowIndex="1"/>
-    <Label fx:id="lblUsername" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-    <Label text="Email" style="-fx-font-weight:bold;" GridPane.rowIndex="2"/>
-    <Label fx:id="lblEmail" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-    </GridPane>
-</VBox>
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?>
+<ScrollPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ProfileController" fitToWidth="true" styleClass="approved-ui,approved-screen,approved-screen-profile,erp-screen-root,profile-scroll"><content>
+<VBox spacing="16" styleClass="profile-page"><padding><Insets top="22" right="26" bottom="24" left="26"/></padding>
+ <HBox alignment="CENTER_LEFT" spacing="14" styleClass="profile-hero"><StackPane minWidth="72" minHeight="72" styleClass="profile-avatar"><Label fx:id="lblInitials" text="U" styleClass="profile-avatar-text"/></StackPane><VBox spacing="3" HBox.hgrow="ALWAYS"><Label fx:id="lblName" text="My Profile" styleClass="screen-title"/><Label text="Manage your personal account details and security" styleClass="screen-subtitle"/><HBox spacing="8"><Label fx:id="lblRole" styleClass="profile-chip"/><Label fx:id="lblStatus" styleClass="profile-chip,profile-status"/></HBox></VBox><Button fx:id="btnSave" text="Save Profile" onAction="#saveProfile" styleClass="primary-button"/></HBox>
+ <HBox spacing="16"><VBox spacing="12" HBox.hgrow="ALWAYS" styleClass="flow-card,profile-card"><Label text="Personal Details" styleClass="section-title"/><GridPane hgap="14" vgap="10"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints><VBox spacing="5"><Label text="Full Name *"/><TextField fx:id="txtFullName" promptText="Full name"/></VBox><VBox spacing="5" GridPane.columnIndex="1"><Label text="Email *"/><TextField fx:id="txtEmail" promptText="Email address"/></VBox><VBox spacing="5" GridPane.rowIndex="1"><Label text="Department"/><TextField fx:id="txtDepartment" promptText="Department"/></VBox><VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1"><Label text="Branch"/><TextField fx:id="txtBranch" promptText="Branch"/></VBox></GridPane></VBox>
+ <VBox spacing="10" prefWidth="360" styleClass="flow-card,profile-card"><Label text="Account Overview" styleClass="section-title"/><Label text="Username" styleClass="field-caption"/><Label fx:id="lblUsername"/><Label text="Access Level" styleClass="field-caption"/><Label fx:id="lblAccessLevel"/><Label text="Last Login" styleClass="field-caption"/><Label fx:id="lblLastLogin"/><Label text="MFA" styleClass="field-caption"/><Label fx:id="lblMfa"/></VBox></HBox>
+ <VBox spacing="12" styleClass="flow-card,profile-card"><Label text="Change Password" styleClass="section-title"/><Label text="Confirm your current password, then use at least 8 characters with a letter and a number." styleClass="screen-subtitle"/><HBox spacing="12"><PasswordField fx:id="txtCurrentPassword" promptText="Current password" HBox.hgrow="ALWAYS"/><PasswordField fx:id="txtNewPassword" promptText="New password" HBox.hgrow="ALWAYS"/><PasswordField fx:id="txtConfirmPassword" promptText="Confirm new password" HBox.hgrow="ALWAYS"/><Button fx:id="btnPassword" text="Update Password" onAction="#changePassword" styleClass="secondary-button"/></HBox></VBox>
+</VBox></content></ScrollPane>

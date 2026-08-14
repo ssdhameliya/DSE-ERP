@@ -389,8 +389,6 @@ INSERT INTO master_category(category_code, category_name, description, display_o
 
 INSERT INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('TRANSPORTER','TRANSPORTER','Transporter master used by Create Sale',80,1) ON CONFLICT DO NOTHING;
 
-INSERT INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('PO_DATE_FORMAT','PO DATE FORMATE','Order number pattern used by Create Sale',90,1) ON CONFLICT DO NOTHING;
-
 INSERT INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('PAYMENT_TERMS','PAYMENT TERMS','Payment terms used by Create Sale',100,1) ON CONFLICT DO NOTHING;
 
 INSERT INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('CHARGES','CHARGES','Additional sale charges used by Create Sale',110,1) ON CONFLICT DO NOTHING;
@@ -754,7 +752,6 @@ JOIN (VALUES
  ('EXPENSE_CATEGORY','ECAT005','Internet & Phone','',50),('EXPENSE_CATEGORY','ECAT006','Transport','',60),
  ('EXPENSE_CATEGORY','ECAT007','Maintenance','',70),('EXPENSE_CATEGORY','ECAT008','Utilities','',80),
  ('EXPENSE_CATEGORY','ECAT009','Rent','',90),('EXPENSE_CATEGORY','ECAT010','Salary','',100),('EXPENSE_CATEGORY','ECAT011','Other','',110),
- ('PO_DATE_FORMAT','POFMT001','PO/DD-MM-YYYY/XXXX','Auto-generated order number format',10),
  ('GST_TYPE','GSTT001','GST','Intra-state GST',10),('GST_TYPE','GSTT002','IGST','Inter-state GST',20),
  ('PAYMENT_TERMS','PAY001','Due on Receipt','Immediate payment',10),('PAYMENT_TERMS','PAY002','7 Days','Payment due in 7 days',20),
  ('PAYMENT_TERMS','PAY003','15 Days','Payment due in 15 days',30),('PAYMENT_TERMS','PAY004','30 Days','Payment due in 30 days',40),

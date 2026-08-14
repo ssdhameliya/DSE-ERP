@@ -13,7 +13,6 @@ public class BusinessOperationsController {
  @PostMapping("/sales/cancel") public OperationDtos.OperationResponse cancelSale(@RequestParam String invoiceNo){s.cancelSale(invoiceNo);return ok("Sale cancelled");}
  @PostMapping("/sales/email-sent/{id}") public OperationDtos.OperationResponse saleEmail(@PathVariable int id){s.markSaleEmail(id);return ok("Updated");}
  @GetMapping("/sales/next-invoice") public OperationDtos.NextNumber nextSale(){return new OperationDtos.NextNumber(s.nextSalesInvoice());}
- @GetMapping("/sales/next-order") public OperationDtos.NextNumber nextOrder(){return new OperationDtos.NextNumber(s.nextOrderNo());}
 
  @GetMapping("/purchases") public List<OperationDtos.PurchaseDto> purchases(){return s.purchases();}
  @GetMapping("/purchases/by-invoice") public OperationDtos.PurchaseDto purchase(@RequestParam String invoiceNo){return s.purchase(invoiceNo);}
