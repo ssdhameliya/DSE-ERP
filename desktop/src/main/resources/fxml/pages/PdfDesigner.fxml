@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.documentstudio.controller.PdfDesignerController"
+            fx:id="root" styleClass="pdf-designer-root,approved-screen">
+    <top>
+        <VBox spacing="8" styleClass="pdf-designer-top">
+            <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
+            <HBox spacing="8" alignment="CENTER_LEFT">
+                <Button text="Back" onAction="#backToLibrary" styleClass="approved-button,approved-secondary-button"/>
+                <VBox spacing="1">
+                    <Label fx:id="lblTemplateName" text="PDF Designer" styleClass="pdf-designer-title"/>
+                    <Label fx:id="lblTemplateMeta" text="Purchase Invoice • Draft" styleClass="pdf-designer-meta"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="lblSaveState" text="Ready" styleClass="pdf-designer-save-state"/>
+                <Button text="Undo" onAction="#undo" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Redo" onAction="#redo" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Save Draft" onAction="#saveDraft" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Save &amp; Set Default" onAction="#saveAndDefault" styleClass="approved-button,approved-primary-button"/>
+            </HBox>
+            <HBox spacing="8" alignment="CENTER_LEFT" styleClass="pdf-designer-contextbar">
+                <Label text="Preview Data:"/>
+                <ComboBox fx:id="cmbSampleInvoice" prefWidth="210" promptText="Sample / choose invoice"/>
+                <Button fx:id="btnPreview" text="Preview Data" onAction="#togglePreview" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Export Test PDF" onAction="#exportTestPdf" styleClass="approved-button,approved-secondary-button"/>
+                <Separator orientation="VERTICAL"/>
+                <Label text="Zoom"/>
+                <Slider fx:id="zoomSlider" min="50" max="180" value="100" prefWidth="150"/>
+                <Label fx:id="lblZoom" text="100%"/>
+                <CheckBox fx:id="chkSnap" text="Snap" selected="true"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="lblPageSize" text="A4" styleClass="pdf-designer-meta"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <left>
+        <VBox spacing="10" prefWidth="245" minWidth="220" maxWidth="270" styleClass="pdf-designer-panel,pdf-designer-left">
+            <padding><Insets top="12" right="10" bottom="12" left="10"/></padding>
+            <Label text="TOOLS" styleClass="pdf-designer-section"/>
+            <GridPane hgap="7" vgap="7">
+                <Button text="Text" onAction="#addText" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Image" onAction="#addImage" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Whiteout" onAction="#addWhiteout" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Rectangle" onAction="#addRectangle" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Line" onAction="#addLine" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Item Table" onAction="#addItemTable" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="approved-button,approved-secondary-button"/>
+                <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
+            </GridPane>
+            <Separator/>
+            <Label text="ERP DATA" styleClass="pdf-designer-section"/>
+            <TextField fx:id="txtFieldSearch" promptText="Search company, purchase, supplier..."/>
+            <ListView fx:id="lstFields" prefHeight="235" VBox.vgrow="ALWAYS"/>
+            <Button text="Add Selected Field" onAction="#addSelectedField" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+            <Separator/>
+            <Label text="PAGES" styleClass="pdf-designer-section"/>
+            <ListView fx:id="lstPages" prefHeight="140"/>
+        </VBox>
+    </left>
+
+    <center>
+        <StackPane styleClass="pdf-designer-workspace">
+            <ScrollPane fx:id="canvasScroll" pannable="true" fitToWidth="false" fitToHeight="false"
+                        hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED" styleClass="pdf-designer-scroll">
+                <content>
+                    <StackPane fx:id="canvasHolder" alignment="TOP_CENTER" styleClass="pdf-designer-canvas-holder">
+                        <Pane fx:id="canvasPane" styleClass="pdf-designer-canvas"/>
+                    </StackPane>
+                </content>
+            </ScrollPane>
+        </StackPane>
+    </center>
+
+    <right>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefWidth="285" minWidth="260" maxWidth="320" styleClass="pdf-designer-properties-scroll">
+            <content>
+                <VBox spacing="9" styleClass="pdf-designer-panel,pdf-designer-properties">
+                    <padding><Insets top="12" right="12" bottom="18" left="12"/></padding>
+                    <Label text="PROPERTIES" styleClass="pdf-designer-section"/>
+                    <Label fx:id="lblSelection" text="Select an object on the page" wrapText="true" styleClass="pdf-designer-selection"/>
+                    <Label text="Content / Field" styleClass="field-caption"/>
+                    <TextArea fx:id="txtContent" prefRowCount="3" wrapText="true"/>
+                    <GridPane hgap="8" vgap="7">
+                        <Label text="X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <Label text="Y" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtY" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                        <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="2"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                        <Label text="Height" GridPane.columnIndex="0" GridPane.rowIndex="3"/><TextField fx:id="txtHeight" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                        <Label text="Font" GridPane.columnIndex="0" GridPane.rowIndex="4"/><TextField fx:id="txtFontSize" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                        <columnConstraints><ColumnConstraints minWidth="58"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
+                    </GridPane>
+                    <HBox spacing="10"><CheckBox fx:id="chkBold" text="Bold"/><CheckBox fx:id="chkLocked" text="Lock"/></HBox>
+                    <Label text="Text Color" styleClass="field-caption"/><ColorPicker fx:id="colorText" maxWidth="Infinity"/>
+                    <Label text="Fill Color" styleClass="field-caption"/><ColorPicker fx:id="colorFill" maxWidth="Infinity"/>
+                    <Label text="Border / Line Color" styleClass="field-caption"/><ColorPicker fx:id="colorStroke" maxWidth="Infinity"/>
+                    <Label text="Item Table Columns" styleClass="field-caption"/>
+                    <TextField fx:id="txtTableColumns" promptText="serial,hsn,description,qty,unit,rate,gst,amount"/>
+                    <Label text="Table Row Height" styleClass="field-caption"/>
+                    <TextField fx:id="txtRowHeight"/>
+                    <Button text="Apply Properties" onAction="#applyProperties" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                    <HBox spacing="8">
+                        <Button text="Duplicate" onAction="#duplicateSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                        <Button text="Delete" onAction="#deleteSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/>
+                    </HBox>
+                    <Separator/>
+                    <Label text="How it works" styleClass="pdf-designer-section"/>
+                    <Label text="Drag objects directly on the page. Coordinates are stored in PDF points, so the exported document stays identical on Windows, macOS and different display scales."
+                           wrapText="true" styleClass="pdf-designer-help"/>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </right>
+</BorderPane>

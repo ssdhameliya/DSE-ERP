@@ -26,7 +26,9 @@
             <Button fx:id="btnReminders" text="Reminders" onAction="#openReminderCenter" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnUserAccess" text="User Access" onAction="#openUserAccess" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button text="Communication" onAction="#openCommunication" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnDocumentStudio" text="Purchase Document Studio" onAction="#openDocumentStudio" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnSettings" text="Settings" onAction="#openSettings" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnSafeRollback" text="Safe Rollback" onAction="#openSafeRollback" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,safe-rollback-nav-button"/>
             <Button fx:id="btnBackup" text="Backup &amp; Restore" onAction="#openBackup" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
             <Button fx:id="btnOperations" text="Operations" onAction="#openOperations" visible="false" managed="false" styleClass="approved-button,approved-secondary-button"/>
               </VBox></content>
@@ -84,6 +86,7 @@
                 <MenuItem text="Reminder Center" onAction="#openReminderCenter"/>
                 <MenuItem text="User Access" onAction="#openUserAccess"/>
                 <MenuItem text="Data Import" onAction="#openDataImport"/>
+                <MenuItem text="Purchase Document Studio" onAction="#openDocumentStudio"/>
                 <SeparatorMenuItem/>
                 <MenuItem text="Change Password" onAction="#changePassword"/>
                 <SeparatorMenuItem/>

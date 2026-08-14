@@ -156,7 +156,7 @@ public final class UpdateDialogs {
     public static void showSystemHealth(Window owner) {
         GridPane grid = new GridPane(); grid.setHgap(24); grid.setVgap(12); grid.setPadding(new Insets(18));
         String[][] rows = {
-                {"Application Version", ConfigManager.get("app.version", UpdateService.DEFAULT_VERSION)},
+                {"Application Version", BuildInfo.version()},
                 {"Database Schema", String.valueOf(BackupManager.CURRENT_SCHEMA_VERSION)},
                 {"Database", org.example.config.ConfigManager.getDatabaseDescription()},
                 {"Backup Status", safeBackupCount()},

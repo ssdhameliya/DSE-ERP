@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<ScrollPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.documentstudio.controller.DocumentStudioController"
+            fitToWidth="true" hbarPolicy="NEVER" styleClass="doc-studio-scroll,approved-screen">
+    <content>
+        <VBox fx:id="root" spacing="16" styleClass="doc-studio-root">
+            <padding><Insets top="18" right="20" bottom="24" left="20"/></padding>
+            <HBox alignment="CENTER_LEFT" spacing="16" styleClass="doc-studio-hero">
+                <VBox spacing="4" HBox.hgrow="ALWAYS">
+                    <Label text="Purchase Document Studio" styleClass="doc-studio-title"/>
+                    <Label text="Import your own Purchase Invoice PDF, map live supplier and purchase data, then reuse it for Preview, Print, Email and WhatsApp. Sales PDFs remain unchanged."
+                           wrapText="true" styleClass="doc-studio-subtitle"/>
+                </VBox>
+                <Button text="Import PDF" onAction="#importPdf" styleClass="approved-button,approved-primary-button"/>
+                <Button text="Blank Template" onAction="#createBlank" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+
+            <HBox spacing="12">
+                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi">
+                    <Label text="Templates" styleClass="doc-studio-kpi-label"/>
+                    <Label fx:id="lblTotal" text="0" styleClass="doc-studio-kpi-value"/>
+                </VBox>
+                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi">
+                    <Label text="Active" styleClass="doc-studio-kpi-label"/>
+                    <Label fx:id="lblActive" text="0" styleClass="doc-studio-kpi-value"/>
+                </VBox>
+                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi">
+                    <Label text="Default Purchase Template" styleClass="doc-studio-kpi-label"/>
+                    <Label fx:id="lblPurchaseDefault" text="Built-in DSE ERP" styleClass="doc-studio-kpi-default"/>
+                </VBox>
+                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi">
+                    <Label text="Safety" styleClass="doc-studio-kpi-label"/>
+                    <Label text="Built-in PDF fallback enabled" styleClass="doc-studio-kpi-safe"/>
+                </VBox>
+            </HBox>
+
+            <HBox spacing="10" alignment="CENTER_LEFT" styleClass="doc-studio-filterbar">
+                <TextField fx:id="txtSearch" promptText="Search templates..." prefWidth="300" HBox.hgrow="ALWAYS"/>
+                <ComboBox fx:id="cmbType" prefWidth="210"/>
+                <ComboBox fx:id="cmbStatus" prefWidth="150"/>
+                <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+
+            <VBox spacing="8">
+                <HBox alignment="CENTER_LEFT">
+                    <Label text="My Templates" styleClass="doc-studio-section-title"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label text="Purchase-only designer • one active default template." styleClass="doc-studio-tip"/>
+                </HBox>
+                <StackPane minHeight="380" styleClass="doc-studio-library">
+                    <FlowPane fx:id="cards" hgap="14" vgap="14" prefWrapLength="1100"/>
+                    <VBox fx:id="emptyState" alignment="CENTER" spacing="9" visible="false" managed="false" styleClass="doc-studio-empty">
+                        <Label text="No templates yet" styleClass="doc-studio-empty-title"/>
+                        <Label text="Import an existing PDF or start with a blank A4 page." styleClass="doc-studio-empty-text"/>
+                        <Button text="Import My First PDF" onAction="#importPdf" styleClass="approved-button,approved-primary-button"/>
+                    </VBox>
+                </StackPane>
+            </VBox>
+        </VBox>
+    </content>
+</ScrollPane>

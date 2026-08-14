@@ -40,6 +40,44 @@ public final class GitHubReleaseClient {
         return mapRelease((Map<?,?>) parsed);
     }
 
+
+    /** Loads one exact published release so Safe Rollback can retrieve a previous installer. */
+    public UpdateRelease byVersion(String owner, String repository, String version) throws Exception {
+        requirePart(owner, "GitHub owner"); requirePart(repository, "GitHub repository");
+        String clean = Objects.requireNonNullElse(version, "").trim();
+        if (clean.startsWith("v") || clean.startsWith("V")) clean = clean.substring(1);
+        if (!clean.matches("\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?"))
+            throw new IllegalArgumentException("Rollback version is not valid: " + version);
+        HttpResponse<String> response = request("https://api.github.com/repos/%s/%s/releases/tags/v%s".formatted(owner, repository, clean));
+        if (response.statusCode() == 404)
+            response = request("https://api.github.com/repos/%s/%s/releases/tags/%s".formatted(owner, repository, clean));
+        if (response.statusCode() == 404)
+            throw new IllegalStateException("Published GitHub Release " + clean + " was not found for " + owner + "/" + repository + ".");
+        if (response.statusCode() < 200 || response.statusCode() >= 300)
+            throw new IllegalStateException("GitHub returned HTTP " + response.statusCode() + " while loading release " + clean + ".");
+        Object parsed = MiniJson.parse(response.body());
+        if (!(parsed instanceof Map<?,?> map)) throw new IllegalStateException("GitHub returned an invalid release response.");
+        if (bool(map, "draft")) throw new IllegalStateException("Release " + clean + " is still a draft.");
+        return mapRelease(map);
+    }
+
+    private HttpResponse<String> request(String endpoint) throws Exception {
+        HttpResponse<String> response = null; Exception last = null;
+        for (int attempt=1; attempt<=3; attempt++) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
+                        .timeout(Duration.ofSeconds(90)).header("Accept", "application/vnd.github+json")
+                        .header("X-GitHub-Api-Version", "2022-11-28").header("User-Agent", "DSE-ERP-Updater").GET().build();
+                response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode()!=408 && response.statusCode()!=429 && response.statusCode()<500) return response;
+                last = new IllegalStateException("GitHub returned HTTP " + response.statusCode() + ".");
+            } catch (Exception failure) { last=failure; }
+            if (attempt<3) Thread.sleep(attempt*1500L);
+        }
+        if (response != null) return response;
+        throw new IllegalStateException("GitHub release request failed after 3 attempts.", last);
+    }
+
     private UpdateRelease mapRelease(Map<?,?> map) {
         List<UpdateRelease.Asset> assets = new ArrayList<>();
         Object rawAssets = map.get("assets");

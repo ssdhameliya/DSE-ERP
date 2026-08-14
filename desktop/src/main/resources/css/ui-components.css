@@ -417,3 +417,98 @@
 .import-selected-file-panel { -fx-padding: 20; -fx-background-color: rgba(24,45,72,.72); -fx-border-color: rgba(82,119,160,.42); -fx-border-radius: 12; -fx-background-radius: 12; }
 .import-benefits { -fx-padding: 12 16; -fx-background-color: rgba(19,43,69,.72); -fx-background-radius: 10; }
 .import-benefits .label { -fx-font-weight: 700; }
+
+/* ===== DSE ERP 7.2.5 Document Studio / PDF Designer ===== */
+.doc-studio-root { -fx-padding: 18 20 24 20; }
+.doc-studio-hero { -fx-padding: 18 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-width: 1; }
+.doc-studio-title { -fx-font-size: 24px; -fx-font-weight: 900; }
+.doc-studio-subtitle { -fx-font-size: 12px; -fx-max-width: 720px; }
+.doc-studio-kpi { -fx-padding: 13 15; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-width: 1; -fx-min-height: 76; }
+.doc-studio-kpi-label { -fx-font-size: 10px; -fx-font-weight: 800; }
+.doc-studio-kpi-value { -fx-font-size: 21px; -fx-font-weight: 900; }
+.doc-studio-kpi-default, .doc-studio-kpi-safe { -fx-font-size: 12px; -fx-font-weight: 850; }
+.doc-studio-filterbar { -fx-padding: 11 12; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-width: 1; }
+.doc-studio-section-title { -fx-font-size: 16px; -fx-font-weight: 900; }
+.doc-studio-tip { -fx-font-size: 10px; -fx-font-weight: 700; }
+.doc-studio-library { -fx-padding: 14; -fx-background-radius: 14; -fx-border-radius: 14; -fx-border-width: 1; }
+.doc-template-card { -fx-padding: 12; -fx-background-radius: 14; -fx-border-radius: 14; -fx-border-width: 1; }
+.doc-template-preview { -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-width: 1; -fx-padding: 6; -fx-alignment: center; }
+.doc-template-thumbnail { -fx-smooth: true; }
+.doc-template-preview-placeholder { -fx-font-weight: 800; -fx-opacity: .7; }
+.doc-template-name { -fx-font-size: 14px; -fx-font-weight: 900; }
+.doc-template-type { -fx-font-size: 10px; -fx-font-weight: 800; }
+.doc-template-badge { -fx-padding: 3 8; -fx-background-radius: 999; -fx-font-size: 9px; -fx-font-weight: 900; }
+.doc-studio-empty { -fx-padding: 70; }
+.doc-studio-empty-title { -fx-font-size: 18px; -fx-font-weight: 900; }
+.doc-studio-empty-text { -fx-font-size: 11px; }
+
+.pdf-designer-root { -fx-min-width: 900; -fx-min-height: 620; }
+.pdf-designer-top { -fx-border-width: 0 0 1 0; }
+.pdf-designer-title { -fx-font-size: 15px; -fx-font-weight: 900; }
+.pdf-designer-meta { -fx-font-size: 10px; -fx-font-weight: 700; }
+.pdf-designer-save-state { -fx-padding: 5 9; -fx-background-radius: 999; -fx-font-size: 10px; -fx-font-weight: 900; }
+.pdf-designer-contextbar { -fx-padding: 5 0 0 0; }
+.pdf-designer-panel { -fx-border-width: 0 1 0 0; }
+.pdf-designer-properties { -fx-border-width: 0 0 0 1; }
+.pdf-designer-section { -fx-font-size: 10px; -fx-font-weight: 900; }
+.pdf-designer-selection { -fx-padding: 8 9; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-font-weight: 800; }
+.pdf-designer-workspace { -fx-padding: 0; }
+.pdf-designer-canvas-holder { -fx-padding: 40; }
+.pdf-designer-canvas { -fx-background-color: white; -fx-effect: dropshadow(gaussian, rgba(15,23,42,.28), 24, .22, 0, 6); }
+.pdf-designer-object { -fx-cursor: move; -fx-border-width: 1; -fx-border-style: segments(5,3); }
+.pdf-designer-object-selected { -fx-border-width: 2; -fx-border-style: solid; -fx-effect: dropshadow(gaussian, rgba(37,99,235,.35), 10, .22, 0, 0); }
+.pdf-designer-object-locked { -fx-cursor: default; -fx-opacity: .88; }
+.pdf-object-whiteout { -fx-background-color: white; }
+.pdf-object-item_table { -fx-background-color: rgba(37,99,235,.10); }
+.pdf-designer-help { -fx-font-size: 10px; -fx-line-spacing: 2; }
+.pdf-designer-loading { -fx-padding: 8 10; -fx-background-radius: 8; -fx-font-weight: 800; }
+/* ===== End DSE ERP 7.2.5 Document Studio ===== */
+
+/* ===== DSE ERP 7.2.6 Safe Rollback ===== */
+.safe-rollback-page { -fx-background-color: transparent; }
+.safe-rollback-scroll { -fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent; }
+.safe-rollback-scroll > .viewport { -fx-background-color: transparent; }
+.safe-rollback-content { -fx-fill-width: true; }
+.safe-rollback-header { -fx-padding: 20 24 20 24; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-width: 1; }
+.safe-rollback-header-icon { -fx-min-width: 56; -fx-pref-width: 56; -fx-max-width: 56; -fx-min-height: 56; -fx-pref-height: 56; -fx-max-height: 56; -fx-background-radius: 16; }
+.safe-rollback-title { -fx-font-size: 25px; -fx-font-weight: 800; }
+.safe-rollback-subtitle { -fx-font-size: 13px; -fx-max-width: 850px; }
+.safe-rollback-metric { -fx-padding: 18 19; -fx-min-height: 94; -fx-background-radius: 14; -fx-border-radius: 14; -fx-border-width: 1; }
+.safe-rollback-metric-icon { -fx-min-width: 48; -fx-pref-width: 48; -fx-max-width: 48; -fx-min-height: 48; -fx-pref-height: 48; -fx-max-height: 48; -fx-background-radius: 12; }
+.safe-rollback-metric-label { -fx-font-size: 10px; -fx-font-weight: 800; }
+.safe-rollback-metric-value { -fx-font-size: 20px; -fx-font-weight: 800; }
+.safe-rollback-metric-small { -fx-font-size: 14px; }
+.safe-rollback-caption { -fx-font-size: 11px; }
+.safe-rollback-card { -fx-padding: 20 22; -fx-spacing: 12; -fx-background-radius: 15; -fx-border-radius: 15; -fx-border-width: 1; }
+.safe-rollback-preserve-card { -fx-padding: 20 22; -fx-background-radius: 15; -fx-border-radius: 15; -fx-border-width: 1; }
+.safe-rollback-shield { -fx-min-width: 52; -fx-pref-width: 52; -fx-max-width: 52; -fx-min-height: 52; -fx-pref-height: 52; -fx-max-height: 52; -fx-background-radius: 15; }
+.safe-rollback-section-title { -fx-font-size: 15px; -fx-font-weight: 800; }
+.safe-rollback-section-description, .safe-rollback-preserve-text { -fx-font-size: 12px; }
+.safe-rollback-protected-badge { -fx-padding: 5 10; -fx-background-radius: 999; -fx-font-size: 10px; -fx-font-weight: 900; }
+.safe-rollback-status-line { -fx-padding: 9 12; -fx-background-radius: 9; -fx-font-size: 11.5px; }
+.safe-rollback-table { -fx-background-radius: 11; -fx-border-radius: 11; }
+.safe-rollback-table .column-header-background { -fx-background-radius: 10 10 0 0; }
+.safe-rollback-table .column-header { -fx-pref-height: 42; }
+.safe-rollback-table .table-row-cell { -fx-cell-size: 44; }
+.safe-rollback-metrics-grid, .safe-rollback-balanced-grid { -fx-max-width: Infinity; }
+.safe-rollback-packages-card { -fx-max-width: Infinity; }
+.safe-rollback-status-safe { -fx-font-weight: 800; }
+.safe-rollback-status-blocked { -fx-font-weight: 800; }
+.safe-rollback-action-button { -fx-font-weight: 800; -fx-background-radius: 9; }
+.safe-rollback-primary, .safe-rollback-secondary, .safe-rollback-warning { -fx-background-radius: 9; -fx-font-weight: 700; }
+.safe-rollback-field-label { -fx-font-size: 10px; -fx-font-weight: 800; }
+.safe-rollback-recovery-value { -fx-font-size: 12px; -fx-font-weight: 700; }
+.safe-rollback-warning-text { -fx-font-size: 11px; }
+.safe-rollback-step { -fx-padding: 7 9; -fx-background-radius: 8; -fx-font-size: 11.5px; -fx-font-weight: 600; }
+.safe-rollback-history-count { -fx-padding: 4 9; -fx-background-radius: 999; -fx-font-size: 10px; -fx-font-weight: 800; }
+.safe-rollback-mini-icon { -fx-min-width: 40; -fx-pref-width: 40; -fx-max-width: 40; -fx-min-height: 40; -fx-pref-height: 40; -fx-max-height: 40; -fx-background-radius: 11; }
+.safe-rollback-empty { -fx-padding: 20; -fx-font-size: 12px; -fx-text-alignment: center; }
+.safe-rollback-nav-button { -fx-font-weight: 700; }
+/* ===== End DSE ERP 7.2.6 Safe Rollback ===== */
+
+/* ===== DSE ERP 7.2.6 Settings unified brand assets ===== */
+.settings-brand-assets-panel { -fx-max-width: Infinity; -fx-padding: 16; }
+.settings-brand-assets-row { -fx-fill-height: true; -fx-max-width: Infinity; }
+.settings-brand-asset-card { -fx-min-width: 260; -fx-max-width: Infinity; }
+.settings-asset-purpose { -fx-font-size: 10.5px; -fx-min-height: 28; }
+/* ===== End DSE ERP 7.2.6 Settings unified brand assets ===== */

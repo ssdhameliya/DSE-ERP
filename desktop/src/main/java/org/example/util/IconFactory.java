@@ -282,6 +282,7 @@ public final class IconFactory {
         if (value.contains("item")) return "item";
         if (value.contains("report")) return "report";
         if (value.contains("reminder")) return "reminder";
+        if (value.contains("rollback")) return "rollback";
         if (value.contains("setting")) return "settings";
         if (value.contains("user") || value.contains("access")) return "user";
         if (value.contains("communication") || value.contains("email") || value.contains("whatsapp")) return "communication";
@@ -396,6 +397,9 @@ public final class IconFactory {
             case "more" -> "fas-ellipsis-h";
             case "actions" -> "fas-tools";
             case "backup" -> "fas-database";
+            case "rollback" -> "fas-shield-alt";
+            case "package" -> "fas-box-open";
+            case "database" -> "fas-database";
             case "restore" -> "fas-history";
             case "validate" -> "fas-shield-alt";
             case "folder" -> "fas-folder-open";
@@ -443,6 +447,14 @@ public final class IconFactory {
             case "test" -> "fas-vial";
             case "draft" -> "fas-file-signature";
             case "restart" -> "fas-redo";
+            case "version" -> "fas-code-branch";
+            case "compatibility" -> "fas-link";
+            case "workflow" -> "fas-project-diagram";
+            case "recovery" -> "fas-life-ring";
+            case "database-backup" -> "fas-database";
+            case "snapshot" -> "fas-camera";
+            case "preserve" -> "fas-lock";
+            case "installer" -> "fas-compact-disc";
             default -> "fas-question-circle";
         };
     }
@@ -451,13 +463,16 @@ public final class IconFactory {
     private static String colour(String semantic) {
         return switch (semantic) {
             case "sale", "complete", "add", "import", "whatsapp", "save", "validate", "excel" -> "green";
-            case "purchase", "item", "filter", "reminder", "calendar", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference" -> "orange";
+            case "purchase", "item", "filter", "reminder", "calendar", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
             case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
-            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "first", "previous", "next", "last", "history", "workspace", "select", "balance" -> "blue";
+            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance" -> "blue";
             case "credit" -> "green";
-            case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart" -> "purple";
+            case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart", "workflow", "version" -> "purple";
+            case "compatibility", "database-backup", "snapshot", "recovery" -> "blue";
+            case "preserve" -> "green";
+            case "installer" -> "orange";
             case "login", "test" -> "blue";
             default -> "indigo";
         };
@@ -524,6 +539,7 @@ public final class IconFactory {
         if (value.contains("reminder")) return "reminder";
         if (value.contains("complete") || value.contains("approve")) return "complete";
         if (value.contains("validate") || value.contains("verify")) return "validate";
+        if (value.contains("rollback")) return "rollback";
         if (value.contains("restore")) return "restore";
         if (value.contains("backup")) return "backup";
         if (value.contains("open folder") || value.contains("choose file") || value.contains("choose backup")

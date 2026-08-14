@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.SafeRollbackController"
+            styleClass="safe-rollback-page,approved-ui,approved-screen,erp-screen-root">
+    <center>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="safe-rollback-scroll">
+            <content>
+                <VBox spacing="20" maxWidth="Infinity" styleClass="safe-rollback-content">
+                    <padding><Insets top="20" right="24" bottom="24" left="24"/></padding>
+
+                    <HBox alignment="CENTER_LEFT" spacing="14" styleClass="safe-rollback-header">
+                        <StackPane fx:id="headerIconHolder" styleClass="safe-rollback-header-icon"/>
+                        <VBox spacing="4">
+                            <Label text="Safe Rollback" styleClass="safe-rollback-title"/>
+                            <Label text="Return to a previous DSE ERP application version while preserving the current production database and workspace data."
+                                   wrapText="true" styleClass="safe-rollback-subtitle"/>
+                        </VBox>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button text="Refresh" onAction="#refresh" styleClass="approved-button,safe-rollback-secondary"/>
+                    </HBox>
+
+                    <GridPane hgap="14" vgap="14" maxWidth="Infinity" styleClass="safe-rollback-metrics-grid">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                            <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                            <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                            <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="safe-rollback-metric" GridPane.columnIndex="0">
+                            <StackPane fx:id="versionIconHolder" styleClass="safe-rollback-metric-icon,safe-rollback-icon-blue"/>
+                            <VBox spacing="3"><Label text="CURRENT VERSION" styleClass="safe-rollback-metric-label"/><Label fx:id="lblCurrentVersion" text="7.2.6" styleClass="safe-rollback-metric-value"/><Label text="Running application" styleClass="safe-rollback-caption"/></VBox>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="safe-rollback-metric" GridPane.columnIndex="1">
+                            <StackPane fx:id="schemaIconHolder" styleClass="safe-rollback-metric-icon,safe-rollback-icon-purple"/>
+                            <VBox spacing="3"><Label text="DATABASE" styleClass="safe-rollback-metric-label"/><Label fx:id="lblDatabaseSchema" text="Schema 1" styleClass="safe-rollback-metric-value"/><Label text="Compatibility gate" styleClass="safe-rollback-caption"/></VBox>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="safe-rollback-metric" GridPane.columnIndex="2">
+                            <StackPane fx:id="safetyIconHolder" styleClass="safe-rollback-metric-icon,safe-rollback-icon-green"/>
+                            <VBox spacing="3"><Label text="DATA POLICY" styleClass="safe-rollback-metric-label"/><Label fx:id="lblSafetyStatus" text="Current data preserved" styleClass="safe-rollback-metric-value,safe-rollback-metric-small"/><Label text="No automatic DB downgrade" styleClass="safe-rollback-caption"/></VBox>
+                        </HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="safe-rollback-metric" GridPane.columnIndex="3">
+                            <StackPane fx:id="packageIconHolder" styleClass="safe-rollback-metric-icon,safe-rollback-icon-orange"/>
+                            <VBox spacing="3"><Label text="ROLLBACK PACKAGES" styleClass="safe-rollback-metric-label"/><Label fx:id="lblPackageCount" text="0" styleClass="safe-rollback-metric-value"/><Label text="Compatible previous installers" styleClass="safe-rollback-caption"/></VBox>
+                        </HBox>
+                    </GridPane>
+
+                    <HBox alignment="CENTER_LEFT" spacing="16" maxWidth="Infinity" styleClass="safe-rollback-preserve-card">
+                        <StackPane fx:id="shieldIconHolder" styleClass="safe-rollback-shield"/>
+                        <VBox spacing="5" HBox.hgrow="ALWAYS">
+                            <Label text="Safe Application Rollback — Keep Current Business Data" styleClass="safe-rollback-section-title"/>
+                            <Label text="A rollback changes the installed application only. Sales, purchases, payments, inventory, customers, suppliers, attachments, issued documents and templates stay in the active workspace. A verified PostgreSQL safety backup is created before installation begins."
+                                   wrapText="true" styleClass="safe-rollback-preserve-text"/>
+                        </VBox>
+                        <Label text="PROTECTED" styleClass="safe-rollback-protected-badge"/>
+                    </HBox>
+
+                    <VBox spacing="14" maxWidth="Infinity" styleClass="safe-rollback-card,safe-rollback-packages-card">
+                        <HBox alignment="CENTER_LEFT" spacing="12">
+                            <StackPane fx:id="packagesSectionIconHolder" styleClass="safe-rollback-section-icon,safe-rollback-icon-orange"/>
+                            <VBox spacing="2">
+                                <Label text="Available Previous Versions" styleClass="safe-rollback-section-title"/>
+                                <Label text="Only database-compatible packages can be started. Unknown or incompatible schemas are blocked automatically." styleClass="safe-rollback-section-description"/>
+                            </VBox>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Button text="Download Previous Release" onAction="#downloadPreviousVersion" styleClass="approved-button,safe-rollback-primary"/>
+                            <Button text="Import Previous Installer" onAction="#importPreviousInstaller" styleClass="approved-button,safe-rollback-secondary"/>
+                            <Button text="Open Package Folder" onAction="#openPackageFolder" styleClass="approved-button,safe-rollback-secondary"/>
+                        </HBox>
+                        <Label fx:id="lblStatus" text="Checking rollback packages…" wrapText="true" styleClass="safe-rollback-status-line"/>
+                        <TableView fx:id="candidateTable" prefHeight="300" minHeight="250" maxWidth="Infinity" styleClass="approved-table,safe-rollback-table">
+                            <columns>
+                                <TableColumn fx:id="colVersion" text="Version" prefWidth="100"/>
+                                <TableColumn fx:id="colPackage" text="Installer Package" prefWidth="340"/>
+                                <TableColumn fx:id="colSchema" text="Database" prefWidth="110"/>
+                                <TableColumn fx:id="colCompatibility" text="Compatibility" prefWidth="125"/>
+                                <TableColumn fx:id="colStatus" text="Status" prefWidth="95"/>
+                                <TableColumn fx:id="colActions" text="" prefWidth="135" sortable="false" resizable="false"/>
+                            </columns>
+                            <placeholder><Label text="No previous installer retained yet. Use Download Previous Release or Import Previous Installer." wrapText="true" styleClass="safe-rollback-empty"/></placeholder>
+                        </TableView>
+                    </VBox>
+
+                    <GridPane hgap="16" vgap="16" maxWidth="Infinity" styleClass="safe-rollback-balanced-grid">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                            <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <VBox spacing="12" minHeight="250" maxWidth="Infinity" styleClass="safe-rollback-card" GridPane.columnIndex="0">
+                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                <StackPane fx:id="recoveryIconHolder" styleClass="safe-rollback-mini-icon"/>
+                                <VBox spacing="2"><Label text="Rollback Recovery Points" styleClass="safe-rollback-section-title"/><Label text="Created before every rollback attempt." styleClass="safe-rollback-section-description"/></VBox>
+                            </HBox>
+                            <Label text="Latest recovery point" styleClass="safe-rollback-field-label"/>
+                            <Label fx:id="lblRecoveryPoint" text="No rollback recovery point yet" wrapText="true" styleClass="safe-rollback-recovery-value"/>
+                            <HBox spacing="8">
+                                <Button text="Open Recovery Folder" onAction="#openRecoveryFolder" styleClass="approved-button,safe-rollback-secondary"/>
+                                <Button text="Full Database Recovery" onAction="#openFullRecovery" styleClass="approved-button,safe-rollback-warning"/>
+                            </HBox>
+                            <Label text="Full Database Recovery is intentionally separate because restoring an older backup can replace transactions entered after that backup." wrapText="true" styleClass="safe-rollback-warning-text"/>
+                        </VBox>
+                        <VBox spacing="12" minHeight="250" maxWidth="Infinity" styleClass="safe-rollback-card" GridPane.columnIndex="1">
+                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                <StackPane fx:id="sequenceIconHolder" styleClass="safe-rollback-section-icon,safe-rollback-icon-blue"/>
+                                <VBox spacing="2"><Label text="Safety Sequence" styleClass="safe-rollback-section-title"/><Label text="Every checkpoint must pass before the previous installer starts." styleClass="safe-rollback-section-description"/></VBox>
+                            </HBox>
+                            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="safe-rollback-step"><StackPane fx:id="step1IconHolder" styleClass="safe-rollback-step-icon"/><Label text="Verify target database compatibility" HBox.hgrow="ALWAYS"/></HBox>
+                            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="safe-rollback-step"><StackPane fx:id="step2IconHolder" styleClass="safe-rollback-step-icon"/><Label text="Create verified PostgreSQL safety backup" HBox.hgrow="ALWAYS"/></HBox>
+                            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="safe-rollback-step"><StackPane fx:id="step3IconHolder" styleClass="safe-rollback-step-icon"/><Label text="Snapshot Config + Templates" HBox.hgrow="ALWAYS"/></HBox>
+                            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="safe-rollback-step"><StackPane fx:id="step4IconHolder" styleClass="safe-rollback-step-icon"/><Label text="Preserve workspace and business documents" HBox.hgrow="ALWAYS"/></HBox>
+                            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="safe-rollback-step"><StackPane fx:id="step5IconHolder" styleClass="safe-rollback-step-icon"/><Label text="Launch previous application installer" HBox.hgrow="ALWAYS"/></HBox>
+                            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="safe-rollback-step"><StackPane fx:id="step6IconHolder" styleClass="safe-rollback-step-icon"/><Label text="Restart against the current database" HBox.hgrow="ALWAYS"/></HBox>
+                        </VBox>
+                    </GridPane>
+
+                    <VBox spacing="12" maxWidth="Infinity" styleClass="safe-rollback-card">
+                        <HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="activityIconHolder" styleClass="safe-rollback-section-icon,safe-rollback-icon-purple"/><VBox spacing="2"><Label text="Rollback Activity" styleClass="safe-rollback-section-title"/><Label text="Audit trail of package preparation and rollback actions." styleClass="safe-rollback-section-description"/></VBox><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblHistoryCount" text="0 events" styleClass="safe-rollback-history-count"/></HBox>
+                        <TableView fx:id="historyTable" prefHeight="250" minHeight="200" maxWidth="Infinity" styleClass="approved-table,safe-rollback-table">
+                            <columns>
+                                <TableColumn fx:id="colHistoryTime" text="Date &amp; Time" prefWidth="175"/>
+                                <TableColumn fx:id="colHistoryAction" text="Action" prefWidth="150"/>
+                                <TableColumn fx:id="colHistoryVersion" text="Target" prefWidth="90"/>
+                                <TableColumn fx:id="colHistoryResult" text="Result" prefWidth="100"/>
+                                <TableColumn fx:id="colHistoryDetail" text="Details" prefWidth="520"/>
+                            </columns>
+                        </TableView>
+                    </VBox>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+</BorderPane>

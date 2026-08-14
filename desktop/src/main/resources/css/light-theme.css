@@ -7280,3 +7280,79 @@ SECTION TITLES
 /* 7.2.0 branding/auth polish */
 .dse-startup-splash .splash-info-strip { -fx-background-color: rgba(255,255,255,.05); -fx-background-radius: 14; -fx-border-color: #4d78a8; -fx-border-radius: 14; -fx-border-width: 1; -fx-padding: 12 16; }
 .auth-content { -fx-padding: 34 46 34 46; -fx-alignment: center; }
+
+/* ===== DSE ERP 7.2.5 Document Studio light theme ===== */
+.doc-studio-scroll, .doc-studio-scroll > .viewport, .doc-studio-root { -fx-background-color:#f4f7fb; }
+.doc-studio-hero { -fx-background-color:linear-gradient(to right,#ffffff,#eef5ff); -fx-border-color:#cbdcf0; }
+.doc-studio-title { -fx-text-fill:#101c35; }
+.doc-studio-subtitle, .doc-studio-tip, .doc-studio-empty-text { -fx-text-fill:#64748b; }
+.doc-studio-kpi, .doc-studio-filterbar, .doc-studio-library, .doc-template-card { -fx-background-color:#ffffff; -fx-border-color:#d9e4f0; }
+.doc-studio-kpi-label, .doc-template-type { -fx-text-fill:#64748b; }
+.doc-studio-kpi-value, .doc-template-name, .doc-studio-section-title { -fx-text-fill:#172033; }
+.doc-studio-kpi-default { -fx-text-fill:#2563eb; }
+.doc-studio-kpi-safe { -fx-text-fill:#15803d; }
+.doc-template-preview { -fx-background-color:#f3f7fc; -fx-border-color:#d4e0ee; }
+.doc-template-status-draft { -fx-background-color:#fef3c7; -fx-text-fill:#92400e; }
+.doc-template-status-active { -fx-background-color:#dcfce7; -fx-text-fill:#166534; }
+.doc-template-status-archived { -fx-background-color:#e2e8f0; -fx-text-fill:#475569; }
+.doc-template-default { -fx-background-color:#dbeafe; -fx-text-fill:#1d4ed8; }
+.doc-template-version { -fx-background-color:#ede9fe; -fx-text-fill:#6d28d9; }
+.pdf-designer-root, .pdf-designer-top, .pdf-designer-panel, .pdf-designer-properties-scroll > .viewport { -fx-background-color:#f8fafc; }
+.pdf-designer-top { -fx-border-color:#d9e4f0; }
+.pdf-designer-title { -fx-text-fill:#172033; }
+.pdf-designer-meta, .pdf-designer-help { -fx-text-fill:#64748b; }
+.pdf-designer-save-state { -fx-background-color:#dcfce7; -fx-text-fill:#166534; }
+.pdf-designer-panel { -fx-border-color:#d9e4f0; }
+.pdf-designer-properties { -fx-border-color:#d9e4f0; }
+.pdf-designer-workspace, .pdf-designer-scroll, .pdf-designer-scroll > .viewport, .pdf-designer-canvas-holder { -fx-background-color:#e8eef6; }
+.pdf-designer-selection { -fx-background-color:#eff6ff; -fx-border-color:#bfdbfe; -fx-text-fill:#1d4ed8; }
+.pdf-designer-object { -fx-border-color:rgba(37,99,235,.55); }
+.pdf-designer-object-selected { -fx-border-color:#2563eb; }
+.pdf-designer-object-locked { -fx-border-color:#f59e0b; }
+.pdf-designer-section { -fx-text-fill:#475569; }
+.pdf-designer-loading { -fx-background-color:#ffffff; -fx-text-fill:#475569; }
+/* ===== End DSE ERP 7.2.5 Document Studio light theme ===== */
+
+/* ===== DSE ERP 7.2.6 Safe Rollback light theme ===== */
+.safe-rollback-header, .safe-rollback-card, .safe-rollback-metric { -fx-background-color: #ffffff; -fx-border-color: #e2e8f0; }
+.safe-rollback-header { -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 16, 0, 0, 5); }
+.safe-rollback-header-icon { -fx-background-color: #fff7ed; }
+.safe-rollback-title, .safe-rollback-section-title, .safe-rollback-metric-value { -fx-text-fill: #0f172a; }
+.safe-rollback-subtitle, .safe-rollback-section-description, .safe-rollback-caption, .safe-rollback-preserve-text, .safe-rollback-warning-text, .safe-rollback-empty { -fx-text-fill: #64748b; }
+.safe-rollback-metric-label, .safe-rollback-field-label { -fx-text-fill: #64748b; }
+.safe-rollback-icon-blue { -fx-background-color: #eff6ff; }
+.safe-rollback-icon-purple { -fx-background-color: #f5f3ff; }
+.safe-rollback-icon-green { -fx-background-color: #ecfdf5; }
+.safe-rollback-icon-orange { -fx-background-color: #fff7ed; }
+.safe-rollback-preserve-card { -fx-background-color: linear-gradient(to right, #ecfdf5, #f0fdfa); -fx-border-color: #a7f3d0; }
+.safe-rollback-shield, .safe-rollback-mini-icon { -fx-background-color: #ecfdf5; }
+.safe-rollback-protected-badge { -fx-background-color: #d1fae5; -fx-text-fill: #047857; }
+.safe-rollback-status-line { -fx-background-color: #f8fafc; -fx-text-fill: #475569; }
+.safe-rollback-status-safe { -fx-text-fill: #15803d; }
+.safe-rollback-status-blocked { -fx-text-fill: #dc2626; }
+.safe-rollback-action-button, .safe-rollback-primary { -fx-background-color: #ea580c; -fx-text-fill: white; }
+.safe-rollback-action-button:hover, .safe-rollback-primary:hover { -fx-background-color: #c2410c; }
+.safe-rollback-secondary { -fx-background-color: #f8fafc; -fx-border-color: #cbd5e1; -fx-border-width: 1; -fx-text-fill: #334155; }
+.safe-rollback-warning { -fx-background-color: #fff7ed; -fx-border-color: #fdba74; -fx-border-width: 1; -fx-text-fill: #c2410c; }
+.safe-rollback-warning-text { -fx-text-fill: #9a3412; }
+.safe-rollback-step { -fx-background-color: #f8fafc; -fx-text-fill: #334155; }
+.safe-rollback-history-count { -fx-background-color: #f1f5f9; -fx-text-fill: #475569; }
+.safe-rollback-recovery-value { -fx-text-fill: #334155; }
+.safe-rollback-nav-button { -fx-border-color: transparent transparent transparent #f97316; -fx-border-width: 0 0 0 3; }
+/* ===== End DSE ERP 7.2.6 Safe Rollback light theme ===== */
+
+/* Safe Rollback 7.2.6 UI refinement: geometric icons + full-width balanced layout */
+.safe-rollback-content { -fx-fill-width: true; }
+.safe-rollback-card { -fx-max-width: Infinity; }
+.safe-rollback-balanced-grid { -fx-max-width: Infinity; }
+.safe-rollback-section-icon { -fx-min-width: 38; -fx-min-height: 38; -fx-pref-width: 38; -fx-pref-height: 38; -fx-max-width: 38; -fx-max-height: 38; -fx-background-radius: 11; }
+.safe-rollback-step { -fx-padding: 8 12; -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-width: 1; }
+.safe-rollback-step-icon { -fx-min-width: 28; -fx-min-height: 28; -fx-pref-width: 28; -fx-pref-height: 28; -fx-max-width: 28; -fx-max-height: 28; -fx-background-radius: 8; }
+.safe-rollback-table { -fx-max-width: Infinity; }
+.safe-rollback-table .column-header .label { -fx-graphic-text-gap: 7; }
+.safe-rollback-table .table-row-cell { -fx-cell-size: 38; }
+.safe-rollback-section-icon, .safe-rollback-step-icon { -fx-border-color: #dbe4ef; -fx-border-width: 1; }
+.safe-rollback-step { -fx-border-color: #e2e8f0; }
+.safe-rollback-step-icon { -fx-background-color: #f1f5f9; }
+
+.settings-asset-purpose { -fx-text-fill: #64748b; }

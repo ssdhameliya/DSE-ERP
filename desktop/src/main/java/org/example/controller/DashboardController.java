@@ -99,7 +99,9 @@ public class DashboardController {
     @FXML private Button btnBankExpense;
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
+    @FXML private Button btnDocumentStudio;
     @FXML private Button btnBackup;
+    @FXML private Button btnSafeRollback;
 
     @FXML
     private Button btnReports;
@@ -254,7 +256,7 @@ public class DashboardController {
         protect(btnSupplier, "SUPPLIERS.VIEW"); protect(btnMasters, "MASTERS.VIEW");
         protect(btnReports, "REPORTS.VIEW"); protect(btnReminders, "REMINDERS.VIEW");
         protect(btnUserAccess, "USERS.VIEW"); protect(btnBackup, "BACKUP.VIEW");
-        protect(btnSettings, "SETTINGS.VIEW"); protect(btnImport, "IMPORT.VIEW");
+        protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "BACKUP.VIEW"); protect(btnDocumentStudio, "SETTINGS.VIEW"); protect(btnImport, "IMPORT.VIEW");
     }
 
     private void protect(Button button, String permission) {
@@ -360,8 +362,10 @@ public class DashboardController {
             : text.contains("bank") || text.contains("expense") ? "bank"
             : text.contains("report") ? "report"
             : text.contains("email") || text.contains("communication") ? "email"
+            : text.contains("document studio") ? "document"
             : text.contains("notification") ? "notification"
             : text.contains("reminder") ? "reminder"
+            : text.contains("rollback") ? "rollback"
             : text.contains("backup") ? "save"
             : text.contains("user access") ? "users"
             : text.contains("setting") ? "settings"
@@ -428,7 +432,9 @@ public class DashboardController {
         if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-selected");
         if (btnReminders != null) btnReminders.getStyleClass().remove("menu-selected");
         if (btnUserAccess != null) btnUserAccess.getStyleClass().remove("menu-selected");
+        if (btnDocumentStudio != null) btnDocumentStudio.getStyleClass().remove("menu-selected");
         if (btnBackup != null) btnBackup.getStyleClass().remove("menu-selected");
+        if (btnSafeRollback != null) btnSafeRollback.getStyleClass().remove("menu-selected");
 
         if (btnReports != null)
             btnReports.getStyleClass().remove("menu-selected");
@@ -571,6 +577,13 @@ public class DashboardController {
         javafx.application.Platform.runLater(() -> c.openPage(c.btnUserAccess, title, fxmlPath));
     }
 
+    /** Lets Document Studio child pages keep the shell title and menu selection synchronized. */
+    public static void navigateFromDocumentStudio(String title, String fxmlPath) {
+        DashboardController c = CURRENT;
+        if (c == null) return;
+        javafx.application.Platform.runLater(() -> c.openPage(c.btnDocumentStudio, title, fxmlPath));
+    }
+
     /** Lets a feature page navigate through the existing cached ERP shell. */
     public static void navigateFromChild(String title, String fxmlPath, BankExpenseController.Mode mode) {
         DashboardController c = CURRENT;
@@ -593,6 +606,9 @@ public class DashboardController {
     @FXML private void openCommunication() {
         CommunicationScreenContext.select(null);
         openPage(null, "Communication Center", "/fxml/pages/CommunicationCenter.fxml");
+    }
+    @FXML private void openDocumentStudio() {
+        openPage(btnDocumentStudio, "Purchase Document Studio", "/fxml/pages/DocumentStudio.fxml");
     }
     @FXML private void openEmailCenter() {
         markCommunicationRead("EMAIL");
@@ -636,6 +652,11 @@ public class DashboardController {
             "Settings",
             "/fxml/pages/Settings.fxml");
 
+    }
+
+    @FXML
+    private void openSafeRollback() {
+        openPage(btnSafeRollback, "Safe Rollback", "/fxml/pages/SafeRollback.fxml");
     }
 
     @FXML
