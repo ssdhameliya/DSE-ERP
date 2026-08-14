@@ -13,9 +13,9 @@ public final class BrandingService {
     public static String tagline() { return value("application.tagline", "Business Management Suite"); }
     public static String startingText() { return value("application.startingText", "Starting " + applicationName() + "..."); }
     public static String loginDescription() { return "Role-aware secure access to " + applicationName(); }
-    public static Image logo() {
+    public static Image brandImage() {
         try {
-            String configured = ConfigManager.get("company.logoPath", "").trim();
+            String configured = ConfigManager.get("application.brandImagePath", "").trim();
             if (!configured.isBlank()) {
                 Path path = Path.of(configured).toAbsolutePath().normalize();
                 if (Files.isRegularFile(path)) return new Image(path.toUri().toString(), true);
@@ -23,6 +23,8 @@ public final class BrandingService {
         } catch (Exception ignored) { }
         return null;
     }
+    /** Backward-compatible alias for application UI branding. */
+    public static Image logo() { return brandImage(); }
     private static String value(String key, String fallback) {
         try {
             String configured = ConfigManager.get(key, fallback);

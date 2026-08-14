@@ -288,6 +288,28 @@
 
                             <Separator/>
 
+
+                            <VBox spacing="12">
+                                <Label text="Application Brand Image" styleClass="settings-subsection-title"/>
+                                <Label text="This image is used across Splash, Login, Registration, Forgot Password and Email / OTP setup. It is independent from the Company Logo used on documents." wrapText="true" styleClass="settings-help-text"/>
+                                <VBox spacing="9" maxWidth="650" styleClass="settings-asset-card">
+                                    <Label text="Brand Image" styleClass="settings-form-label"/>
+                                    <StackPane minHeight="145" prefHeight="145" maxWidth="Infinity" styleClass="settings-image-preview">
+                                        <ImageView fx:id="imgApplicationBrand" fitWidth="420" fitHeight="120" preserveRatio="true" smooth="true"/>
+                                        <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
+                                            <Label text="◆" styleClass="settings-placeholder-icon"/>
+                                            <Label text="No application brand image selected" styleClass="settings-help-text"/>
+                                        </VBox>
+                                    </StackPane>
+                                    <Label fx:id="lblApplicationBrandFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                    <HBox spacing="8">
+                                        <Button text="Upload / Change" onAction="#uploadApplicationBrand" styleClass="settings-secondary-button"/>
+                                        <Button text="Remove" onAction="#removeApplicationBrand" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                    </HBox>
+                                </VBox>
+                            </VBox>
+
+                            <Separator/>
                             <!-- DOCUMENT BRANDING -->
 
                             <VBox spacing="12">

@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.PostConstruct;
 import org.example.server.security.CurrentUser;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 import java.util.*;
 
@@ -15,6 +17,9 @@ public class MasterDataService {
     private final ItemRepository items;
     private final LookupRepository lookups;
     private final MasterCategoryRepository categories;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public MasterDataService(PartyRepository p, ItemRepository i, LookupRepository l, MasterCategoryRepository c) {
         parties = p;
@@ -168,22 +173,36 @@ public class MasterDataService {
     @Transactional
     public MasterDtos.LookupDto saveLookup(MasterDtos.LookupDto d) {
         validateLookup(d);
+        requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
         LookupEntity e = new LookupEntity();
         copy(d, e);
-        return lookupDto(lookups.save(e));
+        return lookupDto(lookups.saveAndFlush(e));
     }
 
     @Transactional
     public MasterDtos.LookupDto updateLookup(MasterDtos.LookupDto d) {
         validateLookup(d);
+        requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
         LookupEntity e = lookups.findById(req(d.id(), "Lookup id")).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
         copy(d, e);
-        return lookupDto(e);
+        return lookupDto(lookups.saveAndFlush(e));
+    }
+
+    private void requireActiveCategoryForActiveLookup(String type, boolean active) {
+        if (!active) return;
+        MasterCategoryEntity category = categories.findByCategoryName(type).orElse(null);
+        if (category != null && !Objects.equals(category.getActive(), 1)) {
+            throw new IllegalArgumentException("Master category '" + type + "' is inactive. Reactivate the category before activating or adding values.");
+        }
     }
 
     @Transactional
     public void deleteLookup(int id) {
-        lookups.deleteById(id);
+        LookupEntity e = lookups.findById(id).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        // Master values are historical reference data. A user "delete" therefore retires the value
+        // instead of physically removing it, whether or not the value has already been used.
+        e.setActive(0);
+        lookups.saveAndFlush(e);
     }
 
     @Transactional(readOnly = true)
@@ -221,7 +240,7 @@ public class MasterDataService {
         e.setCategoryName(n);
         e.setDisplayOrder(0);
         e.setActive(1);
-        return categoryDto(categories.save(e), 0);
+        return categoryDto(categories.saveAndFlush(e), 0);
     }
 
     @Transactional
@@ -229,16 +248,83 @@ public class MasterDataService {
         MasterCategoryEntity c = categories.findByCategoryName(oldName).orElseThrow(() -> new IllegalArgumentException("Category not found"));
         String n = normal(newName);
         List<LookupEntity> vals = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(oldName);
+        if (!oldName.equalsIgnoreCase(n) && categories.findByCategoryName(n).isPresent()) {
+            throw new IllegalArgumentException("Category already exists");
+        }
         c.setCategoryName(n);
         for (LookupEntity l : vals) l.setLookupType(n);
-        lookups.saveAll(vals);
+        lookups.saveAllAndFlush(vals);
+        categories.saveAndFlush(c);
         return categoryDto(c, vals.size());
     }
 
     @Transactional
     public void deleteCategory(String name) {
-        lookups.deleteByLookupType(name);
-        categories.findByCategoryName(name).ifPresent(categories::delete);
+        MasterCategoryEntity category = categories.findByCategoryName(name)
+            .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(name);
+        // Retire the category and all of its values atomically. Existing transactions keep their
+        // historical text, while active-only APIs stop offering these values for future use.
+        category.setActive(0);
+        for (LookupEntity value : values) value.setActive(0);
+        if (!values.isEmpty()) lookups.saveAllAndFlush(values);
+        categories.saveAndFlush(category);
+    }
+
+    private List<String> lookupUsage(LookupEntity lookup) {
+        String type = normal(lookup.getLookupType());
+        String code = categories.findByCategoryName(lookup.getLookupType())
+            .map(MasterCategoryEntity::getCategoryCode).map(this::normal).orElse(type.replace(' ', '_'));
+        String value = lookup.getLookupValue() == null ? "" : lookup.getLookupValue().trim();
+        List<String> usage = new ArrayList<>();
+        switch (code) {
+            case "CATEGORY" -> addUsage(usage, countText("item_master", "category", value), "Item Master category");
+            case "BRAND" -> addUsage(usage, countText("item_master", "brand", value), "Item Master brand");
+            case "MATERIAL" -> addUsage(usage, countText("item_master", "material", value), "Item Master material");
+            case "UNIT", "UOM" -> addUsage(usage, countText("item_master", "unit", value), "Item Master unit");
+            case "EXPENSE_CATEGORY" -> addUsage(usage, countText("finance_register", "category", value), "Expense records");
+            case "PAYMENT_MODE" -> {
+                addUsage(usage, countText("finance_register", "payment_mode", value), "Finance records");
+                addUsage(usage, countText("payment_record", "payment_mode", value), "Payment records");
+            }
+            case "PAYMENT_TERMS" -> addUsage(usage, countText("sales_header", "payment_terms", value), "Sales invoices");
+            case "GST_TYPE" -> addUsage(usage, countText("sales_header", "gst_type", value), "Sales invoices");
+            case "CHARGES" -> {
+                addUsage(usage, countText("sales_header", "charge_type", value), "Sales charge headers");
+                long chargeUses = countText("sales_charge", "charge_name", value);
+                if (lookup.getLookupCode() != null && !lookup.getLookupCode().isBlank()) {
+                    chargeUses += countText("sales_charge", "charge_code", lookup.getLookupCode());
+                }
+                addUsage(usage, chargeUses, "Sales charges");
+            }
+            case "GST" -> addUsage(usage, countNumber("item_master", "gst", value), "Item Master GST");
+            case "DISCOUNT" -> addUsage(usage, countNumber("item_master", "discount_percent", value), "Item Master discount");
+            default -> { }
+        }
+        return usage;
+    }
+
+    private void addUsage(List<String> usage, long count, String label) {
+        if (count > 0) usage.add(label + ": " + count);
+    }
+
+    private long countText(String table, String column, String value) {
+        Number n = (Number) entityManager.createNativeQuery(
+            "select count(*) from " + table + " where upper(trim(coalesce(" + column + ",''))) = upper(trim(:value))")
+            .setParameter("value", value).getSingleResult();
+        return n.longValue();
+    }
+
+    private long countNumber(String table, String column, String value) {
+        try {
+            double parsed = Double.parseDouble(value.replace("%", "").trim());
+            Number n = (Number) entityManager.createNativeQuery(
+                "select count(*) from " + table + " where " + column + " = :value")
+                .setParameter("value", parsed).getSingleResult();
+            return n.longValue();
+        } catch (Exception ignored) {
+            return 0;
+        }
     }
 
     @Transactional

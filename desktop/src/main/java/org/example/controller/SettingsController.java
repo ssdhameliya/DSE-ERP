@@ -177,6 +177,8 @@ public class SettingsController {
     @FXML
     private ImageView imgCompanyLogo;
 
+    @FXML private ImageView imgApplicationBrand;
+
     @FXML
     private ImageView imgSignature;
 
@@ -186,6 +188,8 @@ public class SettingsController {
     @FXML
     private VBox placeholderCompanyLogo;
 
+    @FXML private VBox placeholderApplicationBrand;
+
     @FXML
     private VBox placeholderSignature;
 
@@ -194,6 +198,8 @@ public class SettingsController {
 
     @FXML
     private Label lblLogoFile;
+
+    @FXML private Label lblApplicationBrandFile;
 
     @FXML
     private Label lblSignatureFile;
@@ -264,6 +270,9 @@ public class SettingsController {
 
     private static final String LOGO_PATH_KEY =
         "company.logoPath";
+
+    private static final String APPLICATION_BRAND_PATH_KEY =
+        "application.brandImagePath";
 
     private static final String SIGNATURE_PATH_KEY =
         "company.signaturePath";
@@ -604,6 +613,16 @@ public class SettingsController {
        ========================================================= */
 
     @FXML
+    private void uploadApplicationBrand() {
+        selectAndStoreImage(APPLICATION_BRAND_PATH_KEY, "application-brand", imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile);
+    }
+
+    @FXML
+    private void removeApplicationBrand() {
+        removeConfiguredAsset(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile);
+    }
+
+    @FXML
     private void uploadCompanyLogo() {
 
         selectAndStoreImage(
@@ -848,6 +867,13 @@ public class SettingsController {
     }
 
     private void refreshAllAssetPreviews() {
+
+        refreshAssetPreview(
+            APPLICATION_BRAND_PATH_KEY,
+            imgApplicationBrand,
+            placeholderApplicationBrand,
+            lblApplicationBrandFile
+        );
 
         refreshAssetPreview(
             LOGO_PATH_KEY,

@@ -94,7 +94,8 @@ public class SalesListController implements ScreenLifecycle {
         simplifyFilters();
         detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1.0);
         tableSales.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null)showDetails(b);});
-        tableSales.setRowFactory(view->{TableRow<Sales> row=new TableRow<>();row.setOnMouseClicked(event->{if(event.getClickCount()==2&&!row.isEmpty())showPaymentDetails(row.getItem());});return row;});
+        // Keep row selection single-purpose. Invoice/payment actions are available from the explicit Action menu and detail drawer.
+        tableSales.setRowFactory(view -> new TableRow<>());
         txtSearch.textProperty().addListener((o,a,b)->applyFilters());
     }
 
@@ -324,8 +325,37 @@ public class SalesListController implements ScreenLifecycle {
     private Sales requireSelected(){if(selected==null){warning("Select an invoice first.");return null;}return selected;}
     @FXML private void emailSelected(){Sales s=requireSelected();if(s!=null)sendEmail(s);}@FXML private void whatsappSelected(){Sales s=requireSelected();if(s!=null)sendWhatsapp(s);}@FXML private void editSelectedSale(){Sales s=requireSelected();if(s!=null)edit(s);}@FXML private void recordSelectedPayment(){Sales s=requireSelected();if(s!=null)openPayment(s);}@FXML private void remindSelected(){Sales s=requireSelected();if(s!=null)createReminder(s);}
     private void openInvoiceDetails(Sales s){openPayment(s);}
-    private void openPayment(Sales s){SalesScreenContext.select(s.getInvoiceNo());NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml");}
-    private void openPaymentHistory(Sales s){SalesScreenContext.select(s.getInvoiceNo());NavigationManager.getInstance().loadPage("/fxml/pages/PaymentHistory.fxml");}
+    private void openPayment(Sales s){
+        if (s == null || safe(s.getInvoiceNo()).isBlank()) {
+            warning("Unable to open Record Payment because the selected invoice is not available.");
+            return;
+        }
+        SalesScreenContext.select(s.getInvoiceNo());
+        navigateSalesPage("/fxml/pages/RecordPayment.fxml", "Record Payment");
+    }
+    private void openPaymentHistory(Sales s){
+        if (s == null || safe(s.getInvoiceNo()).isBlank()) {
+            warning("Unable to open Payment History because the selected invoice is not available.");
+            return;
+        }
+        SalesScreenContext.select(s.getInvoiceNo());
+        navigateSalesPage("/fxml/pages/PaymentHistory.fxml", "Payment History");
+    }
+    private void navigateSalesPage(String fxml, String screenName) {
+        StackPane pane = tableSales.getScene() == null ? null : (StackPane) tableSales.getScene().lookup("#contentPane");
+        NavigationManager manager = NavigationManager.forPane(pane);
+        if (manager == null) {
+            warning(screenName + " could not be opened because the application navigation shell is not available.");
+            return;
+        }
+        if (manager.loadPage(fxml)) return;
+        // loadPage can reject a click while another navigation is finishing. Retry once on the next FX pulse.
+        javafx.application.Platform.runLater(() -> {
+            if (!manager.loadPage(fxml)) {
+                warning(screenName + " could not be opened. Please try again.");
+            }
+        });
+    }
 
     @FXML private void showToday(){applyDateRange(LocalDate.now(),LocalDate.now());}
     @FXML private void showYesterday(){LocalDate day=LocalDate.now().minusDays(1);applyDateRange(day,day);}

@@ -7276,3 +7276,7 @@ SECTION TITLES
 .profile-card { -fx-effect:dropshadow(gaussian,rgba(35,58,91,.07),14,.08,0,3); }
 .bank-match-id { -fx-background-color:#f5f8ff; -fx-border-color:#d7e4f5; -fx-border-radius:12px; -fx-background-radius:12px; -fx-padding:10px 18px; -fx-text-fill:#273957; -fx-font-weight:800; }
 /* ===== End 7.1.7 presentation ===== */
+
+/* 7.2.0 branding/auth polish */
+.dse-startup-splash .splash-info-strip { -fx-background-color: rgba(255,255,255,.05); -fx-background-radius: 14; -fx-border-color: #4d78a8; -fx-border-radius: 14; -fx-border-width: 1; -fx-padding: 12 16; }
+.auth-content { -fx-padding: 34 46 34 46; -fx-alignment: center; }

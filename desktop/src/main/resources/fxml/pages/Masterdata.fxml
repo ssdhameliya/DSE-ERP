@@ -64,7 +64,7 @@
                         maxWidth="Infinity" styleClass="approved-button,approved-primary-button,master-action-button"/>
                 <Button fx:id="btnRenameCategory" text="Rename Category" onAction="#renameCategory"
                         maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,master-action-button"/>
-                <Button fx:id="btnDeleteCategory" text="Delete Category" onAction="#deleteCategory"
+                <Button fx:id="btnDeleteCategory" text="Deactivate Category" onAction="#deleteCategory"
                         maxWidth="Infinity" styleClass="approved-button,approved-danger-button,master-action-button"/>
             </VBox>
         </VBox>
@@ -128,7 +128,7 @@
                             styleClass="approved-button,approved-primary-button,master-action-button"/>
                     <Button fx:id="btnEditLookup" text="Edit" onAction="#editLookup"
                             styleClass="approved-button,approved-secondary-button,master-action-button"/>
-                    <Button fx:id="btnDeleteLookup" text="Delete" onAction="#deleteLookup"
+                    <Button fx:id="btnDeleteLookup" text="Deactivate" onAction="#deleteLookup"
                             styleClass="approved-button,approved-danger-button,master-action-button"/>
                     <Button fx:id="btnRefreshLookup" text="Refresh" onAction="#refresh"
                             styleClass="approved-button,approved-secondary-button,master-action-button"/>
@@ -157,7 +157,7 @@
                                 <items>
                                     <MenuItem text="Edit Lookup" onAction="#editLookup"/>
                                     <SeparatorMenuItem/>
-                                    <MenuItem text="Delete Lookup" onAction="#deleteLookup"/>
+                                    <MenuItem text="Deactivate Lookup" onAction="#deleteLookup"/>
                                     <SeparatorMenuItem/>
                                     <MenuItem text="Refresh" onAction="#refresh"/>
                                 </items>

@@ -1,15 +1,15 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.RegistrationController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-registration,erp-screen-root">
+<?import javafx.geometry.Insets?><?import javafx.scene.image.ImageView?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.RegistrationController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-registration,erp-screen-root">
 
     <left>
         <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
-            <StackPane styleClass="auth-logo-badge"><Label text="◆" styleClass="auth-logo-mark"/></StackPane>
-            <Label text="JavaApp ERP" styleClass="auth-brand-title"/>
+            <StackPane minHeight="100" prefHeight="100" maxWidth="330" styleClass="auth-company-logo-box"><ImageView fx:id="imgBrandLogo" fitWidth="310" fitHeight="90" preserveRatio="true" smooth="true" managed="false" visible="false"/><Label fx:id="lblBrandMark" text="◆" styleClass="auth-logo-mark"/></StackPane>
+            <Label fx:id="lblBrandName" text="DSE ERP" styleClass="auth-brand-title"/>
             <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
-            <Label text="Engineering Business Suite" styleClass="auth-brand-subtitle"/>
-            <Label text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
+            <Label fx:id="lblBrandTagline" text="Business Management Suite" styleClass="auth-brand-subtitle"/>
+            <Label fx:id="lblBrandDescription" text="Business Management Suite" wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Version 7.1.9" styleClass="auth-version"/>
+            <Label text="Version 7.2.2" styleClass="auth-version"/>
         </VBox>
     </left>
 

@@ -26,6 +26,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser;
 import org.example.model.Lookup;
+import org.example.navigation.ScreenLifecycle;
 import org.example.service.LookupService;
 import org.example.service.MasterCategoryService;
 import org.example.theme.ThemeManager;
@@ -41,7 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MasterDataController {
+public class MasterDataController implements ScreenLifecycle {
 
     /* =========================================================
        SIDEBAR
@@ -186,6 +187,18 @@ public class MasterDataController {
     }
 
 
+
+    @Override
+    public void onScreenShown(boolean reusedFromCache) {
+        if (!reusedFromCache) return;
+        String selectedCategory = lstTypes == null ? null : lstTypes.getSelectionModel().getSelectedItem();
+        loadCategories();
+        if (selectedCategory != null && lstTypes.getItems().contains(selectedCategory)) {
+            lstTypes.getSelectionModel().select(selectedCategory);
+        }
+        loadTable();
+        setStatus("Master data refreshed from server.");
+    }
 
     /**
      * Premium category navigation used only by the Master Data content page.
@@ -692,18 +705,18 @@ public class MasterDataController {
     @FXML
     private void deleteCategory() {
         String selectedCategory = lstTypes.getSelectionModel().getSelectedItem();
-        if (selectedCategory == null) { showWarning("Select a Master Category to delete."); return; }
+        if (selectedCategory == null) { showWarning("Select a Master Category to deactivate."); return; }
         Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
-            "Delete category '" + selectedCategory + "' and all of its values?", ButtonType.YES, ButtonType.NO);
-        confirmation.setTitle("Delete Master Category"); confirmation.setHeaderText("Confirm category deletion");
+            "Deactivate category '" + selectedCategory + "' and all of its values? Existing records will remain unchanged.", ButtonType.YES, ButtonType.NO);
+        confirmation.setTitle("Deactivate Master Category"); confirmation.setHeaderText("Confirm category deactivation");
         if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
         try {
             categoryService.delete(selectedCategory); loadCategories();
             if (!lstTypes.getItems().isEmpty()) lstTypes.getSelectionModel().selectFirst(); else clearTable();
-            setStatus("Category deleted successfully.");
-            showSuccess("Category Deleted", "Master category '" + selectedCategory + "' was deleted successfully.");
+            setStatus("Category deactivated successfully.");
+            showSuccess("Category Deactivated", "Master category '" + selectedCategory + "' and its values are now inactive for future use.");
         } catch (Exception exception) {
-            showWarning("Category could not be deleted:\n" + exception.getMessage()); setStatus("Category could not be deleted.");
+            showWarning("Category could not be deactivated:\n" + exception.getMessage()); setStatus("Category could not be deactivated.");
         }
     }
 
@@ -899,7 +912,7 @@ public class MasterDataController {
         if (selectedLookup == null) {
 
             showWarning(
-                "Select a master record to delete."
+                "Select a master record to deactivate."
             );
 
             return;
@@ -907,15 +920,15 @@ public class MasterDataController {
 
         Alert confirmation = new OwnedAlert(
             Alert.AlertType.CONFIRMATION,
-            "Delete '"
+            "Deactivate '"
                 + selectedLookup.getLookupValue()
-                + "'? This cannot be undone.",
+                + "'? Existing records will keep this value, but it will not be offered for future use.",
             ButtonType.YES,
             ButtonType.NO
         );
 
-        confirmation.setTitle("Delete Master Record");
-        confirmation.setHeaderText("Confirm deletion");
+        confirmation.setTitle("Deactivate Master Record");
+        confirmation.setHeaderText("Confirm deactivation");
 
         if (confirmation.showAndWait()
             .orElse(ButtonType.NO) != ButtonType.YES) {
@@ -931,20 +944,20 @@ public class MasterDataController {
             loadTable();
 
             setStatus(
-                "Lookup deleted successfully."
+                "Lookup deactivated successfully."
             );
-            showSuccess("Master Record Deleted",
-                "Master record '" + selectedLookup.getLookupValue() + "' was deleted successfully.");
+            showSuccess("Master Record Deactivated",
+                "Master record '" + selectedLookup.getLookupValue() + "' is now inactive for future use.");
 
         } catch (Exception exception) {
 
             showError(
-                "Lookup could not be deleted:\n"
+                "Lookup could not be deactivated:\n"
                     + exception.getMessage()
             );
 
             setStatus(
-                "Lookup could not be deleted."
+                "Lookup could not be deactivated."
             );
         }
     }

@@ -34,11 +34,7 @@
                     </VBox>
 
                     <VBox spacing="5" maxWidth="620">
-                        <HBox alignment="CENTER_LEFT">
-                            <Label text="Password *" styleClass="auth-field-label"/>
-                            <Region HBox.hgrow="ALWAYS"/>
-                            <Button fx:id="btnForgotPassword" text="Forgot Password?" onAction="#forgotPassword" styleClass="auth-secondary-button"/>
-                        </HBox>
+                        <Label text="Password *" styleClass="auth-field-label"/>
                         <PasswordField fx:id="txtPassword" promptText="Password" prefHeight="44" styleClass="auth-input"/>
                         <Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/>
                     </VBox>
@@ -69,6 +65,7 @@
                     </HBox>
                     <Button fx:id="btnRegister" text="Create a new User account" onAction="#register" maxWidth="360" styleClass="auth-secondary-button"/>
                     <Button fx:id="btnEmailSettings" text="Configure Email / OTP Settings" onAction="#openEmailSettings" maxWidth="360" styleClass="auth-secondary-button,auth-email-button"/>
+                    <Button fx:id="btnForgotPassword" text="Forgot Password?" onAction="#forgotPassword" maxWidth="360" styleClass="auth-secondary-button"/>
                 </VBox>
 
                 <VBox fx:id="resetPanel" managed="false" visible="false" spacing="11" maxWidth="620" alignment="CENTER">

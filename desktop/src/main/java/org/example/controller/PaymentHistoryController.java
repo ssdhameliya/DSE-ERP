@@ -11,6 +11,7 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.api.support.SupportApiClient;
 import org.example.model.Sales;
@@ -136,8 +137,34 @@ public class PaymentHistoryController {
         catch (IOException exception) { error("Export failed: " + exception.getMessage()); }
     }
 
-    @FXML private void record() { SalesScreenContext.select(sale.getInvoiceNo()); NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml"); }
-    @FXML private void invoice() { SalesScreenContext.select(sale.getInvoiceNo()); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
+    @FXML private void record() {
+        if (sale == null || sale.getInvoiceNo() == null || sale.getInvoiceNo().isBlank()) {
+            error("The invoice is not available. Return to Sales Register and select the invoice again.");
+            return;
+        }
+        SalesScreenContext.select(sale.getInvoiceNo());
+        navigate("/fxml/pages/RecordPayment.fxml", "Record Payment");
+    }
+    @FXML private void invoice() {
+        if (sale == null || sale.getInvoiceNo() == null || sale.getInvoiceNo().isBlank()) {
+            error("The invoice is not available. Return to Sales Register and select the invoice again.");
+            return;
+        }
+        SalesScreenContext.select(sale.getInvoiceNo());
+        navigate("/fxml/pages/SalesList.fxml", "Sales Register");
+    }
+    private void navigate(String fxml, String screenName) {
+        StackPane pane = table.getScene() == null ? null : (StackPane) table.getScene().lookup("#contentPane");
+        NavigationManager manager = NavigationManager.forPane(pane);
+        if (manager == null) {
+            error(screenName + " could not be opened because the application navigation shell is not available.");
+            return;
+        }
+        if (manager.loadPage(fxml)) return;
+        javafx.application.Platform.runLater(() -> {
+            if (!manager.loadPage(fxml)) error(screenName + " could not be opened. Please try again.");
+        });
+    }
 
     private static String money(double value) { return String.format(Locale.of("en", "IN"), "₹%,.2f", value); }
     private static String csv(String value) { return '"' + (value == null ? "" : value.replace("\"", "\"\"")) + '"'; }
