@@ -9,6 +9,7 @@ public record TaxInvoiceDocument(
         LocalDate invoiceDate,
         String orderNo,
         LocalDate poDate,
+        String paymentTerms,
         InvoiceParty billing,
         InvoiceParty delivery,
         String transporter,
@@ -25,6 +26,7 @@ public record TaxInvoiceDocument(
     public TaxInvoiceDocument {
         invoiceNo = safe(invoiceNo);
         orderNo = safe(orderNo);
+        paymentTerms = safe(paymentTerms);
         transporter = safe(transporter);
         transporterGstin = safe(transporterGstin);
         vehicleNumber = safe(vehicleNumber);

@@ -40,7 +40,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -61,15 +63,9 @@ public final class TaxInvoicePdfGenerator {
     private static final DeviceRgb GRID = new DeviceRgb(117, 153, 198);
     private static final DeviceRgb MUTED = new DeviceRgb(78, 90, 108);
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-    // Fixed page-grid heights used by the deterministic pagination engine.
-    // The first/final-page item region is deliberately capped so the complete
-    // closing stack (Bank/Calculation -> INR/Grand Total -> Terms/Signature -> Footer)
-    // always remains on the same final page. Real item rows fill from the top and
-    // blank grid rows fill only the unused portion of this reserved item region.
-    private static final float FIRST_FINAL_ITEM_REGION_HEIGHT = 252f;
-    private static final float FIRST_CONTENT_ITEM_REGION_HEIGHT = 430f;
-    private static final float CONTINUATION_FINAL_ITEM_REGION_HEIGHT = 503f;
-    private static final float CONTINUATION_CONTENT_ITEM_REGION_HEIGHT = 744f;
+    // Item pagination is derived from iText's live remaining page area. Final-page
+    // capacity is solved against the measured closing stack so the item frame ends
+    // exactly one standard gap above Bank/Calculation, regardless of optional content.
     private static final float FILLER_ROW_HEIGHT = 18f;
     private static final float LAYOUT_SAFETY = 2.0f;
 
@@ -81,23 +77,26 @@ public final class TaxInvoicePdfGenerator {
     private static final float FONT_BODY = 6.8f;
     private static final float FONT_BODY_SMALL = 6.45f;
     private static final float FONT_TABLE_HEADER = 6.9f;
-    private static final float FONT_ITEM_TITLE = 6.9f;
+    private static final float FONT_ITEM_TITLE = FONT_BODY_SMALL;
     private static final float FONT_ITEM_REMARK = 6.35f;
     private static final float FONT_TOTAL = 6.45f;
     private static final float FONT_TERMS = 6.9f;
     private static final float CONTENT_WIDTH_PERCENT = 100f;
     private static final float STANDARD_SECTION_GAP = 5f;
+    private static final float COMPACT_VERTICAL_PADDING = 1f;
     // Lower closing stack uses one explicit visible gap. The final item-region heights
     // are reduced accordingly so Item -> Bank and Terms -> Footer keep the same spacing
     // without pushing the closing stack to a second page.
-    private static final float LOWER_SECTION_GAP = 7f;
-    private static final float HEADER_TO_TITLE_GAP = 12f;
+    private static final float LOWER_SECTION_GAP = STANDARD_SECTION_GAP;
+    private static final float HEADER_TO_TITLE_GAP = STANDARD_SECTION_GAP;
     private static final float FOOTER_RESERVED_BOTTOM = 31f;
     private static final float FOOTER_BAR_Y = 3.5f;
     private static final float FOOTER_ADDRESS_Y = 17.5f;
     private static final float FOOTER_SEPARATOR_Y = 28.5f;
     private static final float FOOTER_DARK_PERCENT = 48f;
     private static final float FOOTER_BLUE_PERCENT = 52f;
+    private static final float FOOTER_PAGE_NUMBER_WIDTH = 68f;
+    private static final int MAX_ITEMS_PER_PAGE = 20;
 
     private TaxInvoicePdfGenerator() {
     }
@@ -119,6 +118,7 @@ public final class TaxInvoicePdfGenerator {
             addPaginatedItems(doc, invoice);
             addFixedClosingStack(doc, invoice);
             addFooter(doc, invoice.company());
+            addPageNumbers(doc);
         }
         return output;
     }
@@ -203,7 +203,7 @@ public final class TaxInvoicePdfGenerator {
                 .useAllAvailableWidth().setMarginTop(STANDARD_SECTION_GAP).setMarginBottom(STANDARD_SECTION_GAP);
         metaCards.addCell(metaCard(
                 "INVOICE NO", invoice.invoiceNo(),
-                invoice.orderNo().isBlank() ? "" : "ORDER NO", invoice.orderNo()));
+                "ORDER NO", invoice.orderNo().isBlank() ? "NA" : invoice.orderNo()));
         metaCards.addCell(noBorder());
         metaCards.addCell(metaCard(
                 "INVOICE DATE", formatDate(invoice.invoiceDate()),
@@ -212,7 +212,9 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Cell metaCard(String label1, String value1, String label2, String value2) {
-        Cell card = roundedFilled(new Cell().setPadding(7).setBorder(Border.NO_BORDER), PALE_BLUE);
+        Cell card = roundedFilled(new Cell()
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
+                .setPaddingLeft(6).setPaddingRight(6).setBorder(Border.NO_BORDER), PALE_BLUE);
         Table values = new Table(UnitValue.createPercentArray(new float[]{32, 5, 63})).useAllAvailableWidth();
         addSingleMetaRow(values, label1, value1);
         if (label2 != null && !label2.isBlank() && value2 != null && !value2.isBlank()) addSingleMetaRow(values, label2, value2);
@@ -229,7 +231,8 @@ public final class TaxInvoicePdfGenerator {
     private static Cell metaText(String value, boolean bold) {
         Paragraph p = new Paragraph(value == null ? "" : value).setFontSize(FONT_META).setMargin(0);
         if (bold) p.setBold();
-        return noBorder().setPaddingTop(1.2f).setPaddingBottom(1.2f).setPaddingLeft(1).setPaddingRight(1).add(p);
+        return noBorder().setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
+                .setPaddingLeft(1).setPaddingRight(1).add(p);
     }
 
     private static void addAddressCards(Document doc, TaxInvoiceDocument invoice) {
@@ -248,7 +251,9 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Cell addressCard(String heading, InvoiceParty party) {
-        Cell card = roundedFilled(new Cell().setPadding(7).setBorder(Border.NO_BORDER), PALE_BLUE);
+        Cell card = roundedFilled(new Cell()
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
+                .setPaddingLeft(6).setPaddingRight(6).setBorder(Border.NO_BORDER), PALE_BLUE);
         card.add(new Paragraph(heading).setBold().setFontSize(FONT_SECTION).setFontColor(NAVY)
                 .setMarginBottom(5));
 
@@ -268,24 +273,65 @@ public final class TaxInvoicePdfGenerator {
 
     private static void addTransportStrip(Document doc, TaxInvoiceDocument invoice) {
         if (!hasTransportDetails(invoice)) return;
-        Table strip = new Table(UnitValue.createPercentArray(new float[]{58, 42}))
-                .useAllAvailableWidth().setMarginTop(0).setMarginBottom(STANDARD_SECTION_GAP);
-        String transport = joinNonBlank("  |  ",
-                labelled("TRANSPORTER", invoice.transporter()),
-                labelled("GSTIN", invoice.transporterGstin()),
-                labelled("VEHICLE", invoice.vehicleNumber()));
-        String contact = joinNonBlank("  |  ", invoice.contactPerson(), formatIndianPhone(invoice.contactPersonMobile()));
-        strip.addCell(compactInfoCell(transport, false));
-        strip.addCell(compactInfoCell(contact.isBlank() ? "" : "CONTACT DETAILS : " + contact, true));
+
+        // One full-width single-line transport card. No reserved outer 5pt gutters:
+        // every available point belongs to the visible facts. Column shares are
+        // proportional to content length, so longer facts (usually Contact Details)
+        // automatically receive more width while short facts stay compact.
+        String contact = joinNonBlank(" / ", invoice.contactPerson(), formatIndianPhone(invoice.contactPersonMobile()));
+        List<String> facts = new ArrayList<>();
+        addIfNotBlank(facts, labelled("TRANSPORTER", invoice.transporter()));
+        addIfNotBlank(facts, labelled("GSTIN", invoice.transporterGstin()));
+        addIfNotBlank(facts, labelled("VEHICLE", invoice.vehicleNumber()));
+        addIfNotBlank(facts, contact.isBlank() ? "" : "CONTACT DETAILS : " + contact);
+
+        float[] widths = transportFactWidths(facts);
+        float transportFontSize = transportFontSize(facts);
+        Table content = new Table(UnitValue.createPercentArray(widths)).useAllAvailableWidth().setMargin(0);
+        for (int i = 0; i < facts.size(); i++) {
+            Cell fact = noBorder()
+                    .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
+                    .setPaddingLeft(i == 0 ? 0 : 2).setPaddingRight(i == facts.size() - 1 ? 0 : 2)
+                    .setTextAlignment(TextAlignment.CENTER)
+                    .setVerticalAlignment(VerticalAlignment.MIDDLE)
+                    .add(new Paragraph(facts.get(i))
+                            .setBold().setFontSize(transportFontSize).setFixedLeading(transportFontSize + 1.2f).setMargin(0));
+            content.addCell(fact);
+        }
+
+        Cell contentCard = noBorder().setBackgroundColor(PALE_BLUE)
+                .setPadding(0)
+                .add(content);
+
+        Table strip = new Table(1).useAllAvailableWidth().setMarginTop(0).setMarginBottom(STANDARD_SECTION_GAP);
+        strip.addCell(roundedFilled(new Cell().setPadding(0).setBorder(Border.NO_BORDER).add(contentCard), PALE_BLUE));
         doc.add(strip);
     }
 
-    private static Cell compactInfoCell(String text, boolean right) {
-        Cell cell = new Cell().setBackgroundColor(PALE_BLUE).setBorder(new SolidBorder(GRID,.6f))
-                .setPaddingTop(4).setPaddingBottom(4).setPaddingLeft(7).setPaddingRight(7)
-                .setTextAlignment(right ? TextAlignment.RIGHT : TextAlignment.LEFT);
-        cell.add(new Paragraph(text).setBold().setFontSize(FONT_BODY_SMALL).setMargin(0));
-        return cell;
+    private static float[] transportFactWidths(List<String> facts) {
+        float[] widths = new float[facts.size()];
+        for (int i = 0; i < facts.size(); i++) {
+            String fact = facts.get(i);
+            // Character-weighted sizing is intentionally simple and deterministic.
+            // It gives long values more room while preserving a compact minimum share.
+            widths[i] = Math.max(10f, fact == null ? 10f : fact.length() + 4f);
+        }
+        return widths;
+    }
+
+    private static float transportFontSize(List<String> facts) {
+        int totalChars = 0;
+        for (String fact : facts) totalChars += fact == null ? 0 : fact.length();
+        // Keep the standard small-body size for normal invoices and only compress
+        // very dense transport rows enough to protect the single-line contract.
+        if (totalChars > 120) return 5.65f;
+        if (totalChars > 100) return 5.9f;
+        if (totalChars > 82) return 6.15f;
+        return FONT_BODY_SMALL;
+    }
+
+    private static void addIfNotBlank(List<String> values, String value) {
+        if (value != null && !value.isBlank()) values.add(value);
     }
 
     private static boolean hasTransportDetails(TaxInvoiceDocument invoice) {
@@ -303,63 +349,140 @@ public final class TaxInvoicePdfGenerator {
     private static String normalized(String value) { return value == null ? "" : value.replaceAll("\\s+"," ").trim().toUpperCase(Locale.ROOT); }
 
     /**
-     * Deterministic 4.0.7 pagination. Row fitting is based on iText's actual
-     * rendered table height, so long Product Description / Item Master Remark
-     * rows are never treated as a fixed-count row. Closing blocks remain on the
-     * final page and are anchored by a fixed-height item region filled with blank
-     * grid rows when necessary.
+     * 7.1.9 multi-page pagination contract.
+     *
+     * Every physical page repeats the approved full invoice header stack
+     * (company/header, invoice meta, addresses and transporter). Non-final pages
+     * contain up to 20 real item rows only; those real rows are expanded uniformly
+     * to consume the available item region and finish one approved section gap above
+     * that page's footer. Artificial blank grid rows are never added to an
+     * intermediate page. Only the final page may use blank grid rows, and only to
+     * consume the flexible item area above the Bank/Calculation closing stack.
      */
     private static void addPaginatedItems(Document doc, TaxInvoiceDocument invoice) {
         List<TaxInvoiceItem> items = new ArrayList<>(invoice.items());
         if (items.isEmpty()) return;
 
-        // One-page invoices keep the approved fixed item region so every closing
-        // block lands in the same place regardless of how many blank rows remain.
-        float firstFinalCapacity = firstPageCapacity(invoice, FIRST_FINAL_ITEM_REGION_HEIGHT);
-        if (fitsItems(doc, items, firstFinalCapacity)) {
+        // Single-page invoices keep the approved natural/filler-row behavior unchanged.
+        float firstFinalCapacity = finalItemCapacity(doc, invoice);
+        if (items.size() <= MAX_ITEMS_PER_PAGE && fitsItems(doc, items, firstFinalCapacity)) {
             addItemsTable(doc, items, firstFinalCapacity);
             return;
         }
 
+        // Multi-page invoices establish ONE real-row height from page 1 and reuse it
+        // on every later page. The final page therefore has fewer total rows, never
+        // narrower/compressed rows; its unused row slots are filled with same-height
+        // blank rows above the measured closing stack.
+        float intermediateCapacity = intermediateItemCapacity(doc);
+        int firstCount = Math.min(MAX_ITEMS_PER_PAGE,
+                Math.max(1, maxFittingCount(doc, items, intermediateCapacity)));
+        float standardRowMinHeight = expandedRowMinHeight(doc, items.subList(0, firstCount), intermediateCapacity);
+
         int offset = 0;
-        boolean firstPage = true;
         while (offset < items.size()) {
             List<TaxInvoiceItem> remaining = items.subList(offset, items.size());
-            float finalCapacity = CONTINUATION_FINAL_ITEM_REGION_HEIGHT;
+            float finalCapacity = finalItemCapacity(doc, invoice);
 
-            // The first continuation page that can contain every remaining item
-            // together with the fixed closing area becomes the final page.
-            if (!firstPage && fitsItems(doc, remaining, finalCapacity)) {
-                addItemsTable(doc, remaining, finalCapacity);
+            if (remaining.size() <= MAX_ITEMS_PER_PAGE
+                    && fitsItems(doc, remaining, finalCapacity, standardRowMinHeight)) {
+                addItemsTable(doc, remaining, finalCapacity, standardRowMinHeight);
                 return;
             }
 
-            float contentCapacity = firstPage
-                    ? firstPageCapacity(invoice, FIRST_CONTENT_ITEM_REGION_HEIGHT)
-                    : CONTINUATION_CONTENT_ITEM_REGION_HEIGHT;
-
-            // Fill every non-final page to its measured rendered-height capacity.
-            // There is deliberately no balancing between pages: blank grid rows
-            // belong only on the final page. Keep at least one complete item for
-            // the final page so the closing page is never an empty item template.
-            int fit = maxFittingCount(doc, remaining, contentCapacity);
-            if (remaining.size() > 1) fit = Math.min(fit, remaining.size() - 1);
+            float pageCapacity = intermediateItemCapacity(doc);
+            int physicalFit = maxFittingCount(doc, remaining, pageCapacity, standardRowMinHeight);
+            int fit = Math.min(MAX_ITEMS_PER_PAGE, physicalFit);
+            if (remaining.size() <= MAX_ITEMS_PER_PAGE && remaining.size() > 1) {
+                fit = Math.min(fit, remaining.size() - 1);
+            }
             fit = Math.max(1, fit);
 
-            addContentItemsTable(doc, remaining.subList(0, fit));
+            addExpandedContentItemsTable(doc, remaining.subList(0, fit), pageCapacity, standardRowMinHeight);
             offset += fit;
+
+            addFooter(doc, invoice.company());
             doc.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
-            addContinuationHeading(doc, invoice);
-            firstPage = false;
+            addCompanyHeader(doc, invoice.company());
+            addInvoiceTitleAndMeta(doc, invoice);
+            addAddressCards(doc, invoice);
+            addTransportStrip(doc, invoice);
         }
     }
 
-    private static float firstPageCapacity(TaxInvoiceDocument invoice, float base) {
-        float capacity = base;
-        if (invoice.orderNo().isBlank() && invoice.poDate() == null) capacity += 12f;
-        if (sameParty(invoice.billing(), invoice.delivery())) capacity += 28f;
-        if (!hasTransportDetails(invoice)) capacity += 20f;
-        return capacity;
+    /**
+     * Available height for real item rows on a non-final page. Normal document flow
+     * already stops above the fixed footer reserve; keep one additional standard 5pt
+     * visible gap between the item frame and footer separator.
+     */
+    private static float intermediateItemCapacity(Document doc) {
+        return Math.max(0f, currentFlowCapacity(doc) - STANDARD_SECTION_GAP);
+    }
+
+    /**
+     * Renders a non-final page using real rows only. The rows themselves are expanded
+     * uniformly so the table consumes the complete available item region; no blank
+     * filler rows are introduced on intermediate pages.
+     */
+    private static float expandedRowMinHeight(Document doc, List<TaxInvoiceItem> items, float targetHeight) {
+        float low = 0f;
+        float high = 48f;
+        for (int i = 0; i < 18; i++) {
+            float mid = (low + high) / 2f;
+            Table candidate = buildItemsTable(items, mid);
+            float measured = measureTableHeight(doc, roundedItemsSection(candidate));
+            if (measured <= targetHeight) low = mid;
+            else high = mid;
+        }
+        return low;
+    }
+
+    private static void addExpandedContentItemsTable(Document doc, List<TaxInvoiceItem> items,
+                                                     float targetHeight, float standardRowMinHeight) {
+        Table section = roundedItemsSection(buildItemsTable(items, standardRowMinHeight));
+        section.setMarginBottom(0);
+        doc.add(section);
+    }
+
+    /**
+     * Returns the exact live height still available to normal document flow on the
+     * current page. This replaces the old first/continuation magic-number capacities.
+     */
+    private static float currentFlowCapacity(Document doc) {
+        LayoutArea area = doc.getRenderer().getCurrentArea();
+        if (area == null || area.getBBox() == null) return 0f;
+        return Math.max(0f, area.getBBox().getHeight() - LAYOUT_SAFETY);
+    }
+
+    /**
+     * Calculates final-page item capacity from physical page coordinates. The top of
+     * Bank/Calculation is measured from the footer upward; the item frame is allowed
+     * to consume every point above it except the one approved 5pt section gap.
+     */
+    private static float finalItemCapacity(Document doc, TaxInvoiceDocument invoice) {
+        LayoutArea area = doc.getRenderer().getCurrentArea();
+        if (area == null || area.getBBox() == null) return 0f;
+
+        float currentTopY = area.getBBox().getTop();
+        float financialTopY = closingGeometry(doc, invoice).financialTopY();
+        return Math.max(0f, currentTopY - financialTopY - STANDARD_SECTION_GAP);
+    }
+
+    private static ClosingGeometry closingGeometry(Document doc, TaxInvoiceDocument invoice) {
+        float financialHeight = measureTableHeight(doc, buildFinancialTable(invoice));
+        float closingHeight = measureTableHeight(doc, buildClosingTotalsTable(invoice));
+        float termsHeight = measureTableHeight(doc, buildTermsAndSignatureTable(invoice));
+
+        float termsY = FOOTER_SEPARATOR_Y + STANDARD_SECTION_GAP;
+        float closingY = termsY + termsHeight + STANDARD_SECTION_GAP;
+        float financialY = closingY + closingHeight + STANDARD_SECTION_GAP;
+        return new ClosingGeometry(financialY, financialHeight, closingY, termsY);
+    }
+
+    private record ClosingGeometry(float financialY, float financialHeight, float closingY, float termsY) {
+        float financialTopY() {
+            return financialY + financialHeight;
+        }
     }
 
     private static void validateCustomerFacingRemarks(TaxInvoiceDocument invoice) {
@@ -371,9 +494,13 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static int maxFittingCount(Document doc, List<TaxInvoiceItem> items, float capacity) {
+        return maxFittingCount(doc, items, capacity, 0f);
+    }
+
+    private static int maxFittingCount(Document doc, List<TaxInvoiceItem> items, float capacity, float rowMinHeight) {
         int best = 0;
         for (int count = 1; count <= items.size(); count++) {
-            if (measureItemsTableHeight(doc, items.subList(0, count)) <= capacity - LAYOUT_SAFETY) {
+            if (measureItemsTableHeight(doc, items.subList(0, count), rowMinHeight) <= capacity - LAYOUT_SAFETY) {
                 best = count;
             } else {
                 break;
@@ -383,11 +510,19 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static boolean fitsItems(Document doc, List<TaxInvoiceItem> items, float capacity) {
-        return measureItemsTableHeight(doc, items) <= capacity - LAYOUT_SAFETY;
+        return fitsItems(doc, items, capacity, 0f);
+    }
+
+    private static boolean fitsItems(Document doc, List<TaxInvoiceItem> items, float capacity, float rowMinHeight) {
+        return measureItemsTableHeight(doc, items, rowMinHeight) <= capacity - LAYOUT_SAFETY;
     }
 
     private static float measureItemsTableHeight(Document doc, List<TaxInvoiceItem> items) {
-        Table table = buildItemsTable(items);
+        return measureItemsTableHeight(doc, items, 0f);
+    }
+
+    private static float measureItemsTableHeight(Document doc, List<TaxInvoiceItem> items, float rowMinHeight) {
+        Table table = buildItemsTable(items, rowMinHeight);
         IRenderer renderer = table.createRendererSubTree();
         renderer.setParent(doc.getRenderer());
         float contentWidth = PageSize.A4.getWidth() - doc.getLeftMargin() - doc.getRightMargin();
@@ -397,56 +532,130 @@ public final class TaxInvoicePdfGenerator {
         return result.getOccupiedArea().getBBox().getHeight();
     }
 
-    private static void addContinuationHeading(Document doc, TaxInvoiceDocument invoice) {
-        Table heading = new Table(UnitValue.createPercentArray(new float[]{65, 35}))
-                .useAllAvailableWidth().setMarginBottom(6);
-        heading.addCell(noBorder().add(new Paragraph("TAX INVOICE - CONTINUED")
-                .setBold().setFontColor(NAVY).setFontSize(10).setMargin(0)));
-        heading.addCell(noBorder().setTextAlignment(TextAlignment.RIGHT)
-                .add(new Paragraph(invoice.invoiceNo()).setBold().setFontColor(BLUE)
-                        .setFontSize(9).setMargin(0)));
-        doc.add(heading);
-    }
-
-    /** Renders a content-only page without artificial blank filler rows. */
-    private static void addContentItemsTable(Document doc, List<TaxInvoiceItem> items) {
-        Table table = buildItemsTable(items);
-        table.setMarginBottom(STANDARD_SECTION_GAP);
-        doc.add(table);
-    }
-
     private static void addItemsTable(Document doc, List<TaxInvoiceItem> items, float targetHeight) {
-        Table table = buildItemsTable(items);
-        // Fill the unused item region with blank grid rows until the actual
-        // rendered table height reaches the page template target. The final
-        // closing sections therefore begin at a stable Y position.
+        addItemsTable(doc, items, targetHeight, 0f);
+    }
+
+    private static void addItemsTable(Document doc, List<TaxInvoiceItem> items,
+                                      float targetHeight, float standardRowMinHeight) {
+        Table table = buildItemsTable(items, standardRowMinHeight);
+        // Final-page filler rows use the SAME row height as real multi-page rows.
+        // Therefore the final page has fewer total rows, not compressed rows.
+        float fillerHeight = standardRowMinHeight > 0f ? standardRowMinHeight : FILLER_ROW_HEIGHT;
         int guard = 0;
         while (guard++ < 80) {
-            float measured = measureTableHeight(doc, table);
+            Table section = roundedItemsSection(table);
+            float measured = measureTableHeight(doc, section);
             float remaining = targetHeight - measured;
             if (remaining <= 1.2f) break;
-            addFillerRow(table, Math.min(FILLER_ROW_HEIGHT, remaining));
+            if (remaining + 0.6f < fillerHeight) break;
+            addFillerRow(table, fillerHeight);
         }
 
-        table.setMarginBottom(LOWER_SECTION_GAP);
-        doc.add(table);
+        Table section = roundedItemsSection(table);
+        section.setMarginBottom(0);
+        doc.add(section);
+    }
+
+    private static Table roundedItemsSection(Table items) {
+        Table section = new Table(1).useAllAvailableWidth().setMargin(0);
+        section.addCell(roundedFilled(new Cell().setPadding(0).setBorder(Border.NO_BORDER).add(items), ColorConstants.WHITE));
+        return section;
     }
 
     private static Table buildItemsTable(List<TaxInvoiceItem> items) {
-        float[] widths = {7, 14, 39, 9, 12, 8, 14};
-        Table table = new Table(UnitValue.createPercentArray(widths)).useAllAvailableWidth();
+        return buildItemsTable(items, 0f);
+    }
+
+    private static Table buildItemsTable(List<TaxInvoiceItem> items, float rowMinHeight) {
+        // Size every non-description column from the actual header/data it must render.
+        // PRODUCT DESCRIPTION deliberately receives every remaining point of table width.
+        float[] widths = dynamicItemColumnWidths(items);
+        Table table = new Table(UnitValue.createPointArray(widths)).useAllAvailableWidth();
         String[] headers = {"SR. NO.", "HSN CODE", "PRODUCT DESCRIPTION", "QTY", "UNIT RATE", "UNIT", "AMOUNT (INR)"};
         for (String header : headers) table.addHeaderCell(columnHeader(header));
         for (TaxInvoiceItem item : items) {
-            table.addCell(itemCell(String.valueOf(item.getSerialNo()), TextAlignment.CENTER));
-            table.addCell(itemCell(dash(item.getHsn()), TextAlignment.CENTER));
-            table.addCell(itemDescriptionCell(item));
-            table.addCell(itemCell(number(item.getQuantity()), TextAlignment.CENTER));
-            table.addCell(itemCell(money(item.getRate()), TextAlignment.RIGHT));
-            table.addCell(itemCell(dash(item.getUnit()), TextAlignment.CENTER));
-            table.addCell(itemCell(money(item.getGrossAmount()), TextAlignment.RIGHT));
+            table.addCell(itemCell(String.valueOf(item.getSerialNo()), TextAlignment.CENTER, rowMinHeight));
+            table.addCell(itemCell(dash(item.getHsn()), TextAlignment.CENTER, rowMinHeight));
+            table.addCell(itemDescriptionCell(item, rowMinHeight));
+            table.addCell(itemCell(number(item.getQuantity()), TextAlignment.CENTER, rowMinHeight));
+            table.addCell(itemCell(money(item.getRate()), TextAlignment.RIGHT, rowMinHeight));
+            table.addCell(itemCell(dash(item.getUnit()), TextAlignment.CENTER, rowMinHeight));
+            table.addCell(itemCell(money(item.getGrossAmount()), TextAlignment.RIGHT, rowMinHeight));
         }
         return table;
+    }
+
+    /**
+     * Content-aware item-table geometry. Non-description columns consume only the
+     * width required by their header or widest value (within protective bounds).
+     * The Product Description column is the sole flexible column and receives all
+     * remaining table width.
+     */
+    private static float[] dynamicItemColumnWidths(List<TaxInvoiceItem> items) {
+        final float tableWidth = PageSize.A4.getWidth() - 48f; // document left/right margins are 24pt
+        final float cellSafety = 9f;
+
+        float serial = textWidthEstimate("SR. NO.", FONT_TABLE_HEADER) + cellSafety;
+        float hsn = textWidthEstimate("HSN CODE", FONT_TABLE_HEADER) + cellSafety;
+        float qty = textWidthEstimate("QTY", FONT_TABLE_HEADER) + cellSafety;
+        float rate = textWidthEstimate("UNIT RATE", FONT_TABLE_HEADER) + cellSafety;
+        float unit = textWidthEstimate("UNIT", FONT_TABLE_HEADER) + cellSafety;
+        float amount = textWidthEstimate("AMOUNT (INR)", FONT_TABLE_HEADER) + cellSafety;
+
+        if (items != null) {
+            for (TaxInvoiceItem item : items) {
+                if (item == null) continue;
+                serial = Math.max(serial, textWidthEstimate(String.valueOf(item.getSerialNo()), FONT_BODY_SMALL) + cellSafety);
+                hsn = Math.max(hsn, textWidthEstimate(dash(item.getHsn()), FONT_BODY_SMALL) + cellSafety);
+                qty = Math.max(qty, textWidthEstimate(number(item.getQuantity()), FONT_BODY_SMALL) + cellSafety);
+                rate = Math.max(rate, textWidthEstimate(money(item.getRate()), FONT_BODY_SMALL) + cellSafety);
+                unit = Math.max(unit, textWidthEstimate(dash(item.getUnit()), FONT_BODY_SMALL) + cellSafety);
+                amount = Math.max(amount, textWidthEstimate(money(item.getGrossAmount()), FONT_BODY_SMALL) + cellSafety);
+            }
+        }
+
+        serial = clamp(serial, 34f, 46f);
+        hsn = clamp(hsn, 48f, 78f);
+        qty = clamp(qty, 30f, 58f);
+        rate = clamp(rate, 48f, 78f);
+        unit = clamp(unit, 31f, 58f);
+        amount = clamp(amount, 60f, 96f);
+
+        final float minDescription = 180f;
+        float fixed = serial + hsn + qty + rate + unit + amount;
+        if (tableWidth - fixed < minDescription) {
+            // Protect Description from being crushed by an unusually large numeric value.
+            float targetFixed = tableWidth - minDescription;
+            float scale = targetFixed / fixed;
+            serial *= scale;
+            hsn *= scale;
+            qty *= scale;
+            rate *= scale;
+            unit *= scale;
+            amount *= scale;
+            fixed = serial + hsn + qty + rate + unit + amount;
+        }
+
+        float description = Math.max(minDescription, tableWidth - fixed);
+        return new float[]{serial, hsn, description, qty, rate, unit, amount};
+    }
+
+    private static float textWidthEstimate(String value, float fontSize) {
+        if (value == null || value.isBlank()) return 0f;
+        float units = 0f;
+        for (char ch : value.toCharArray()) {
+            if (Character.isWhitespace(ch)) units += 0.28f;
+            else if ("ilI1.,:'|".indexOf(ch) >= 0) units += 0.28f;
+            else if ("MW@#%&".indexOf(ch) >= 0) units += 0.82f;
+            else if (Character.isUpperCase(ch)) units += 0.62f;
+            else units += 0.52f;
+        }
+        return units * fontSize;
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static float measureTableHeight(Document doc, Table table) {
@@ -483,19 +692,13 @@ public final class TaxInvoicePdfGenerator {
         Table closing = buildClosingTotalsTable(invoice);
         Table terms = buildTermsAndSignatureTable(invoice);
 
-        float financialHeight = measureTableHeight(doc, financial);
-        float closingHeight = measureTableHeight(doc, closing);
-        float termsHeight = Math.max(84f, measureTableHeight(doc, terms));
+        // Use the exact same geometry contract used by finalItemCapacity(). This
+        // guarantees Item frame bottom -> Bank/Calculation top = 5pt by construction.
+        ClosingGeometry geometry = closingGeometry(doc, invoice);
 
-        // Footer separator is the upper edge of the footer. Build upward from it
-        // so all lower blocks remain deterministic on single and multi-page invoices.
-        float termsY = FOOTER_SEPARATOR_Y + LOWER_SECTION_GAP;
-        float closingY = termsY + termsHeight + LOWER_SECTION_GAP;
-        float financialY = closingY + closingHeight + LOWER_SECTION_GAP;
-
-        terms.setFixedPosition(pageNo, left, termsY, contentWidth);
-        closing.setFixedPosition(pageNo, left, closingY, contentWidth);
-        financial.setFixedPosition(pageNo, left, financialY, contentWidth);
+        terms.setFixedPosition(pageNo, left, geometry.termsY(), contentWidth);
+        closing.setFixedPosition(pageNo, left, geometry.closingY(), contentWidth);
+        financial.setFixedPosition(pageNo, left, geometry.financialY(), contentWidth);
 
         doc.add(financial);
         doc.add(closing);
@@ -506,10 +709,12 @@ public final class TaxInvoicePdfGenerator {
         Table outer = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
-        Cell left = new Cell().setPadding(4).setBackgroundColor(ColorConstants.WHITE).setBorder(new SolidBorder(GRID,.65f));
-        left.add(bankDetails(invoice.company()));
+        Cell left = roundedFilled(new Cell()
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
+                .setPaddingLeft(4).setPaddingRight(4).setBorder(Border.NO_BORDER), ColorConstants.WHITE);
+        left.add(bankDetails(invoice));
 
-        Cell right = new Cell().setPadding(0).setBackgroundColor(ColorConstants.WHITE).setBorder(new SolidBorder(GRID,.65f));
+        Cell right = roundedFilled(new Cell().setPadding(0).setBorder(Border.NO_BORDER), ColorConstants.WHITE);
         right.add(totalsTable(invoice));
 
         outer.addCell(left);
@@ -523,24 +728,36 @@ public final class TaxInvoicePdfGenerator {
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
         Table words = new Table(UnitValue.createPercentArray(new float[]{12, 88})).useAllAvailableWidth();
-        words.addCell(noBorder().setFontColor(NAVY).setPaddingLeft(6).setPaddingTop(4).setPaddingBottom(4)
+        words.addCell(noBorder().setFontColor(NAVY).setPaddingLeft(6)
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
                 .add(new Paragraph("INR :").setBold().setFontSize(7.1f).setMargin(0)));
-        words.addCell(noBorder().setPaddingLeft(1).setPaddingRight(5).setPaddingTop(4).setPaddingBottom(4)
+        words.addCell(noBorder().setPaddingLeft(1).setPaddingRight(5)
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
                 .add(new Paragraph(stripInrPrefix(invoice.amountInWords())).setFontSize(6.9f).setMargin(0)));
         closing.addCell(roundedFilled(noBorder().setPadding(0).add(words), GREEN));
         closing.addCell(noBorder());
 
-        Table grand = new Table(UnitValue.createPercentArray(new float[]{67, 33})).useAllAvailableWidth();
-        grand.addCell(noBorder().setFontColor(NAVY).setPaddingLeft(7).setPaddingTop(4).setPaddingBottom(4)
+        // Center the complete GRAND TOTAL statement, not only the numeric value.
+        // Equal 18% outer gutters surround a 64% content group. Inside that group,
+        // label/value proportions are 70/30 (~45/19 of the card), matching the
+        // requested visual balance while keeping equal left/right breathing room.
+        Table grand = new Table(UnitValue.createPercentArray(new float[]{18, 64, 18})).useAllAvailableWidth();
+        grand.addCell(noBorder());
+        Table grandContent = new Table(UnitValue.createPercentArray(new float[]{70, 30})).useAllAvailableWidth();
+        grandContent.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.LEFT)
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
                 .add(new Paragraph("G R A N D   T O T A L").setBold().setFontSize(7.2f).setMargin(0)));
-        grand.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.RIGHT)
-                .setPaddingRight(6).setPaddingTop(4).setPaddingBottom(4)
+        grandContent.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.RIGHT)
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
                 .add(new Paragraph(money(invoice.totals().grandTotal())).setBold().setFontSize(8.1f).setMargin(0)));
+        grand.addCell(noBorder().setPadding(0).add(grandContent));
+        grand.addCell(noBorder());
         closing.addCell(roundedFilled(noBorder().setPadding(0).add(grand), GREEN));
         return closing;
     }
 
-    private static Table bankDetails(CompanyProfile company) {
+    private static Table bankDetails(TaxInvoiceDocument invoice) {
+        CompanyProfile company = invoice.company();
         Table bank = new Table(UnitValue.createPercentArray(new float[]{29, 71})).useAllAvailableWidth();
         bank.setBorder(Border.NO_BORDER);
         addBankRowIfPresent(bank, "Supplier GST NO", company.gstin(), true);
@@ -550,6 +767,7 @@ public final class TaxInvoicePdfGenerator {
         addBankRowIfPresent(bank, "IFSC CODE", company.ifsc(), false);
         addBankRowIfPresent(bank, "ACCOUNT TYPE", company.accountType(), false);
         addBankRowIfPresent(bank, "PAYMENT MODE", company.paymentMode(), false);
+        addBankRow(bank, "PAYMENT TERMS", paymentTermsDisplay(invoice), true);
         return bank;
     }
 
@@ -559,12 +777,12 @@ public final class TaxInvoicePdfGenerator {
 
     private static void addBankRow(Table bank, String label, String value, boolean highlight) {
         bank.addCell(new Cell().setBorder(Border.NO_BORDER)
-                .setPaddingLeft(6).setPaddingTop(1.35f).setPaddingBottom(1.35f)
+                .setPaddingLeft(6).setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
                 .add(new Paragraph(label).setBold().setFontSize(FONT_BODY_SMALL).setMargin(0)));
         Paragraph valueText = new Paragraph(":  " + dash(value)).setFontSize(FONT_BODY_SMALL).setMargin(0);
         if (highlight) valueText.setBold().setFontColor(NAVY);
         bank.addCell(new Cell().setBorder(Border.NO_BORDER)
-                .setPaddingRight(6).setPaddingTop(1.35f).setPaddingBottom(1.35f).add(valueText));
+                .setPaddingRight(6).setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING).add(valueText));
     }
 
     private static Table totalsTable(TaxInvoiceDocument invoice) {
@@ -596,7 +814,7 @@ public final class TaxInvoicePdfGenerator {
         boolean strong = "BASIC AMOUNT".equals(label) || "TAXABLE AMOUNT".equals(label);
         Cell labelCell = new Cell().setBorder(Border.NO_BORDER)
                 .setBorderBottom(new SolidBorder(GRID, .28f))
-                .setPaddingLeft(5).setPaddingRight(3).setPaddingTop(1.65f).setPaddingBottom(1.65f);
+                .setPaddingLeft(5).setPaddingRight(3).setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING);
         Paragraph labelText = new Paragraph(label).setFontSize(FONT_TOTAL).setMargin(0);
         if (strong) labelText.setBold();
         labelCell.add(labelText);
@@ -604,7 +822,7 @@ public final class TaxInvoicePdfGenerator {
         Cell amountCell = new Cell().setBorder(Border.NO_BORDER)
                 .setBorderBottom(new SolidBorder(GRID, .28f))
                 .setTextAlignment(TextAlignment.RIGHT)
-                .setPaddingLeft(3).setPaddingRight(5).setPaddingTop(1.65f).setPaddingBottom(1.65f);
+                .setPaddingLeft(3).setPaddingRight(5).setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING);
         Paragraph amountText = new Paragraph(zeroAsDashAmount(amount)).setFontSize(FONT_TOTAL).setMargin(0);
         if (strong) amountText.setBold();
         amountCell.add(amountText);
@@ -627,30 +845,87 @@ public final class TaxInvoicePdfGenerator {
         Table table = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
-        Cell terms = new Cell().setPadding(7).setHeight(84).setBackgroundColor(ColorConstants.WHITE)
-                .setBorder(new SolidBorder(GRID,.65f));
+        // Restore the original dynamic Terms & Conditions card. The table row itself
+        // keeps Terms and Signature height-synchronised; no fixed height is introduced.
+        Cell terms = roundedFilled(new Cell()
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
+                .setPaddingLeft(7).setPaddingRight(7).setBorder(Border.NO_BORDER), ColorConstants.WHITE);
         terms.add(new Paragraph("TERMS & CONDITIONS").setBold().setFontColor(NAVY).setFontSize(FONT_SECTION).setMarginBottom(5));
         String text = invoice.company().terms();
-        terms.add(new Paragraph(text).setFontSize(FONT_TERMS).setFixedLeading(10.4f).setMargin(0));
+        if (text != null && !text.isBlank()) {
+            terms.add(new Paragraph(text).setFontSize(FONT_TERMS).setFixedLeading(10.4f).setMargin(0));
+        }
+        table.addCell(terms);
+        table.addCell(noBorder());
 
-        Cell signature = new Cell().setPadding(6).setHeight(84).setTextAlignment(TextAlignment.CENTER)
-                .setBackgroundColor(ColorConstants.WHITE).setBorder(new SolidBorder(GRID,.65f));
+        // Signature keeps the same dynamic 49/2/49 row as Terms & Conditions, but
+        // uses a much wider balanced inner content zone to avoid wasting side space.
+        Cell signatureOuter = roundedFilled(new Cell()
+                .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
+                .setPaddingLeft(0).setPaddingRight(0).setBorder(Border.NO_BORDER), ColorConstants.WHITE);
+        Table signatureLayout = new Table(UnitValue.createPercentArray(new float[]{4, 40, 4})).useAllAvailableWidth();
+        signatureLayout.addCell(noBorder());
+        Cell signature = noBorder().setPadding(0).setTextAlignment(TextAlignment.CENTER)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE);
         signature.add(new Paragraph("For, " + invoice.company().name()).setBold().setFontColor(NAVY)
-                .setFontSize(8.8f).setMarginBottom(3));
+                .setFontSize(8.8f).setTextAlignment(TextAlignment.CENTER).setMarginBottom(3));
         Image signatureImage = configuredImage(invoice.company().signaturePath());
         if (signatureImage != null) {
-            signatureImage.scaleToFit(120f, 42f);
+            signatureImage.scaleToFit(174f, 46f);
             signatureImage.setHorizontalAlignment(HorizontalAlignment.CENTER);
             signature.add(signatureImage);
         } else {
-            signature.add(new Paragraph("\n\n\n").setMargin(0));
+            signature.add(new Paragraph(" ").setFontSize(16f).setMargin(0));
         }
-        signature.add(new Paragraph("AUTHORIZED SIGNATORY").setBold().setFontSize(6.2f).setMarginTop(2).setMarginBottom(0));
-
-        table.addCell(terms);
-        table.addCell(noBorder());
-        table.addCell(signature);
+        signature.add(new Paragraph("AUTHORIZED SIGNATORY").setBold().setFontSize(6.2f)
+                .setTextAlignment(TextAlignment.CENTER).setMarginTop(2).setMarginBottom(0));
+        signatureLayout.addCell(signature);
+        signatureLayout.addCell(noBorder());
+        signatureOuter.add(signatureLayout);
+        table.addCell(signatureOuter);
         return table;
+    }
+
+    private static String paymentTermsDisplay(TaxInvoiceDocument invoice) {
+        if (invoice.paymentTerms() != null && !invoice.paymentTerms().isBlank()) {
+            return invoice.paymentTerms().trim();
+        }
+        if (invoice.invoiceDate() != null && invoice.poDate() != null) {
+            long days = ChronoUnit.DAYS.between(invoice.invoiceDate(), invoice.poDate());
+            if (days == 0) return "Due on Receipt";
+            if (days > 0) return days + (days == 1 ? " Day" : " Days");
+        }
+        return "NA";
+    }
+
+    /**
+     * Adds a compact page indicator only for multi-page invoices. The indicator is
+     * overlaid inside the existing bottom-right blue footer bar after all pages have
+     * been created, so the already-centered footer address is never moved or resized.
+     */
+    private static void addPageNumbers(Document doc) {
+        int totalPages = doc.getPdfDocument().getNumberOfPages();
+        if (totalPages <= 1) return;
+
+        float pageRight = PageSize.A4.getWidth() - doc.getRightMargin();
+        float left = pageRight - FOOTER_PAGE_NUMBER_WIDTH;
+
+        for (int page = 1; page <= totalPages; page++) {
+            Table pageBand = new Table(1).setWidth(FOOTER_PAGE_NUMBER_WIDTH).setHeight(7f);
+            pageBand.addCell(noBorder()
+                    .setPadding(0)
+                    .setPaddingRight(2f)
+                    .setVerticalAlignment(VerticalAlignment.MIDDLE)
+                    .add(new Paragraph("Page " + page + " of " + totalPages)
+                            .setTextAlignment(TextAlignment.RIGHT)
+                            .setFontColor(ColorConstants.WHITE)
+                            .setBold()
+                            .setFontSize(4.8f)
+                            .setFixedLeading(5.2f)
+                            .setMargin(0)));
+            pageBand.setFixedPosition(page, left, FOOTER_BAR_Y, FOOTER_PAGE_NUMBER_WIDTH);
+            doc.add(pageBand);
+        }
     }
 
     private static void addFooter(Document doc, CompanyProfile company) {
@@ -674,7 +949,7 @@ public final class TaxInvoicePdfGenerator {
         Table addressBand = new Table(1).useAllAvailableWidth().setHeight(10.5f);
         addressBand.addCell(noBorder().setPaddingLeft(8f).setPaddingRight(8f)
                 .setVerticalAlignment(VerticalAlignment.MIDDLE)
-                .add(new Paragraph(company.address()).setTextAlignment(TextAlignment.LEFT)
+                .add(new Paragraph(company.address()).setTextAlignment(TextAlignment.CENTER)
                         .setFontColor(NAVY).setBold().setFontSize(5.8f).setFixedLeading(6.4f)
                         .setMargin(0)));
         addressBand.setFixedPosition(pageNo, left, FOOTER_ADDRESS_Y, contentWidth);
@@ -697,17 +972,27 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Cell itemDescriptionCell(TaxInvoiceItem item) {
+        return itemDescriptionCell(item, 0f);
+    }
+
+    private static Cell itemDescriptionCell(TaxInvoiceItem item, float rowMinHeight) {
         Cell cell = new Cell().setBorder(new SolidBorder(GRID, .45f)).setPaddingTop(2.3f).setPaddingBottom(2.3f).setPaddingLeft(3).setPaddingRight(3)
                 .setTextAlignment(TextAlignment.LEFT).setVerticalAlignment(VerticalAlignment.TOP);
+        if (rowMinHeight > 0f) cell.setMinHeight(rowMinHeight);
         cell.add(new Paragraph(item.getRemarks()).setFontSize(FONT_ITEM_TITLE)
-                .setFixedLeading(8.3f).setMargin(0));
+                .setFixedLeading(8.0f).setMargin(0));
         return cell;
     }
 
     private static Cell itemCell(String text, TextAlignment alignment) {
-        return new Cell().setBorder(new SolidBorder(GRID, .45f)).setPaddingTop(2.3f).setPaddingBottom(2.3f).setPaddingLeft(3).setPaddingRight(3)
-                .setTextAlignment(alignment).setVerticalAlignment(VerticalAlignment.MIDDLE)
-                .add(new Paragraph(text == null ? "" : text).setFontSize(FONT_BODY_SMALL).setFixedLeading(8.0f).setMargin(0));
+        return itemCell(text, alignment, 0f);
+    }
+
+    private static Cell itemCell(String text, TextAlignment alignment, float rowMinHeight) {
+        Cell cell = new Cell().setBorder(new SolidBorder(GRID, .45f)).setPaddingTop(2.3f).setPaddingBottom(2.3f).setPaddingLeft(3).setPaddingRight(3)
+                .setTextAlignment(alignment).setVerticalAlignment(VerticalAlignment.MIDDLE);
+        if (rowMinHeight > 0f) cell.setMinHeight(rowMinHeight);
+        return cell.add(new Paragraph(text == null ? "" : text).setFontSize(FONT_BODY_SMALL).setFixedLeading(8.0f).setMargin(0));
     }
 
     /**

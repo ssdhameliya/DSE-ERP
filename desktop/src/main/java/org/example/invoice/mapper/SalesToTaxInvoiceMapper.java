@@ -79,7 +79,7 @@ public final class SalesToTaxInvoiceMapper {
         String transporter = firstNonBlank(sale.getTransporter());
         return new TaxInvoiceDocument(
                 company, sale.getInvoiceNo(), sale.getInvoiceDate(),
-                firstNonBlank(sale.getOrderNo(), sale.getReferenceNo()), sale.getPoDate(),
+                firstNonBlank(sale.getOrderNo(), sale.getReferenceNo()), sale.getPoDate(), sale.getPaymentTerms(),
                 billing, delivery, transporter, sale.getTransporterGstin(), sale.getVehicleNumber(),
                 firstNonBlank(sale.getContactPerson(), customer.getContactPerson()),
                 firstNonBlank(sale.getContactPersonMobile(), customer.getPhone()),

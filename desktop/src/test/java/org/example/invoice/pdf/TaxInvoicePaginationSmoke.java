@@ -87,6 +87,7 @@ public final class TaxInvoicePaginationSmoke {
                 LocalDate.of(2026, 8, 8),
                 "PO-PAGE-TEST",
                 LocalDate.of(2026, 8, 7),
+                "15 Days",
                 billing,
                 delivery,
                 "JASVI TRANSPORT",
