@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedTextInputDialog;
 
 import javafx.beans.property.SimpleDoubleProperty;
@@ -65,8 +67,8 @@ public class SalesReturnsController {
         refundStatus.setGraphic(IconFactory.icon("payment"));
         installActions();
         installRows();
-        dpFrom.setValue(LocalDate.now().minusDays(7));
-        dpTo.setValue(LocalDate.now());
+        dpFrom.setValue(BusinessClock.today().minusDays(7));
+        dpTo.setValue(BusinessClock.today());
         search.textProperty().addListener((o, a, b) -> filter());
         customerFilter.valueProperty().addListener((o, a, b) -> filter());
         statusFilter.valueProperty().addListener((o, a, b) -> filter());
@@ -145,7 +147,7 @@ public class SalesReturnsController {
 
     private void updateKpis() {
         double sum = all.stream().mapToDouble(Row::amount).sum();
-        double current = all.stream().filter(x -> parse(x.date()).getMonth() == LocalDate.now().getMonth()).mapToDouble(Row::amount).sum();
+        double current = all.stream().filter(x -> parse(x.date()).getMonth() == BusinessClock.today().getMonth()).mapToDouble(Row::amount).sum();
         double accepted = all.stream().filter(x -> Set.of("APPROVED", "COMPLETED").contains(x.status())).mapToDouble(Row::amount).sum();
         double refunded = all.stream().mapToDouble(Row::refund).sum();
         total.setText(money(sum)); month.setText(money(current)); approved.setText(money(accepted)); pending.setText(money(sum - accepted)); refund.setText(money(refunded));
@@ -164,7 +166,7 @@ public class SalesReturnsController {
         table.getItems().setAll(visible); pageInfo.setText("Showing " + visible.size() + " of " + all.size() + " returns");
     }
 
-    @FXML private void reset() { search.clear(); customerFilter.setValue("All Customers"); statusFilter.setValue("All Status"); dpFrom.setValue(LocalDate.now().minusDays(7)); dpTo.setValue(LocalDate.now()); filter(); }
+    @FXML private void reset() { search.clear(); customerFilter.setValue("All Customers"); statusFilter.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusDays(7)); dpTo.setValue(BusinessClock.today()); filter(); }
     @FXML private void refresh() { load(); }
     @FXML private void create() {
         info("Create a sales return from the Sales Register so the original invoice, stock and customer balance stay linked.");

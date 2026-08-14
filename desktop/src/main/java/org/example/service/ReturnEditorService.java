@@ -1,5 +1,7 @@
 package org.example.service;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 
@@ -87,7 +89,7 @@ public final class ReturnEditorService {
         dialog.setTitle(type == Type.SALES ? "Create Sales Return" : "Create Purchase Return");
         dialog.setHeaderText("Return items from invoice " + invoiceNo);
 
-        DatePicker returnDate = new DatePicker(LocalDate.now());
+        DatePicker returnDate = new DatePicker(BusinessClock.today());
         Label total = new Label("Return total: " + money(0));
         total.getStyleClass().add("metric-value");
 

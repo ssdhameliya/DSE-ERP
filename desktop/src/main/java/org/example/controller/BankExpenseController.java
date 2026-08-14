@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -64,7 +66,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private static final int PAGE_SIZE = 8;
 
     @FXML public void initialize() {
-        entryDate.setValue(LocalDate.now());
+        entryDate.setValue(BusinessClock.today());
         creditRadio.setToggleGroup(typeGroup); debitRadio.setToggleGroup(typeGroup); creditRadio.setSelected(true);
         loadMasterLookups();
         loadAccounts();
@@ -243,7 +245,7 @@ public class BankExpenseController implements ScreenLifecycle {
 
     private void validate(){ if(entryDate.getValue()==null)throw new IllegalArgumentException("Select a date."); if(description.getText().trim().isEmpty())throw new IllegalArgumentException("Enter a description."); if(amount.getText().trim().isEmpty())throw new IllegalArgumentException("Enter an amount."); double v; try{v=Double.parseDouble(amount.getText().replace(",","").trim());}catch(Exception e){throw new IllegalArgumentException("Enter a valid amount.");} if(v<=0)throw new IllegalArgumentException("Amount must be greater than zero."); if(paymentMode.getItems().isEmpty())throw new IllegalArgumentException("No Payment Mode is configured in Master Data."); if(paymentMode.getValue()==null)throw new IllegalArgumentException("Select payment mode."); if(mode==Mode.BANK&&bankAccount.getValue()==null)throw new IllegalArgumentException("Select bank account."); if(mode==Mode.EXPENSE&&expenseCategory.getItems().isEmpty())throw new IllegalArgumentException("No Expense Category is configured in Master Data."); if(mode==Mode.EXPENSE&&(expenseCategory.getValue()==null||expenseCategory.getValue().isBlank()||expenseAccount.getValue()==null))throw new IllegalArgumentException("Select expense category and account."); }
 
-    @FXML private void clearForm(){ reconciliationStatementId=null; if(entryDate!=null)entryDate.setValue(LocalDate.now()); if(referenceNo!=null)referenceNo.clear(); if(description!=null)description.clear(); if(amount!=null)amount.clear(); if(creditRadio!=null)creditRadio.setSelected(true); if(expenseCategory!=null)expenseCategory.getSelectionModel().clearSelection(); editingId=null; selectedBill=null; if(billName!=null)billName.setText("No file selected"); if(saveButton!=null)saveButton.setText(mode==Mode.EXPENSE?"Save Expense":"Save Entry"); }
+    @FXML private void clearForm(){ reconciliationStatementId=null; if(entryDate!=null)entryDate.setValue(BusinessClock.today()); if(referenceNo!=null)referenceNo.clear(); if(description!=null)description.clear(); if(amount!=null)amount.clear(); if(creditRadio!=null)creditRadio.setSelected(true); if(expenseCategory!=null)expenseCategory.getSelectionModel().clearSelection(); editingId=null; selectedBill=null; if(billName!=null)billName.setText("No file selected"); if(saveButton!=null)saveButton.setText(mode==Mode.EXPENSE?"Save Expense":"Save Entry"); }
     @FXML private void focusForm(){ if(mode==Mode.EXPENSE)expenseCategory.requestFocus(); else bankAccount.requestFocus(); }
     @FXML private void chooseBill(){ FileChooser f=new FileChooser(); f.setTitle("Choose expense bill"); f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bill files","*.pdf","*.png","*.jpg","*.jpeg")); selectedBill=f.showOpenDialog(table.getScene().getWindow()); if(selectedBill!=null)billName.setText(selectedBill.getName()); }
 
@@ -261,7 +263,7 @@ public class BankExpenseController implements ScreenLifecycle {
         } catch(Exception e){error("Unable to load entries: "+e.getMessage());}
         renderPage();
     }
-    private boolean matchesPeriod(String date,String period){ if(period==null||"All Time".equals(period))return true; if(date==null)return false; try{LocalDate d=LocalDate.parse(date);LocalDate now=LocalDate.now();return switch(period){case "3 Months"->!d.isBefore(now.minusMonths(3));case "6 Months"->!d.isBefore(now.minusMonths(6));case "This Year"->d.getYear()==now.getYear();default->d.getYear()==now.getYear()&&d.getMonth()==now.getMonth();};}catch(Exception e){return false;} }
+    private boolean matchesPeriod(String date,String period){ if(period==null||"All Time".equals(period))return true; if(date==null)return false; try{LocalDate d=LocalDate.parse(date);LocalDate now=BusinessClock.today();return switch(period){case "3 Months"->!d.isBefore(now.minusMonths(3));case "6 Months"->!d.isBefore(now.minusMonths(6));case "This Year"->d.getYear()==now.getYear();default->d.getYear()==now.getYear()&&d.getMonth()==now.getMonth();};}catch(Exception e){return false;} }
     private void renderPage(){ int pages=Math.max(1,(filtered.size()+PAGE_SIZE-1)/PAGE_SIZE); if(currentPage>=pages)currentPage=pages-1; int from=Math.min(currentPage*PAGE_SIZE,filtered.size()),to=Math.min(from+PAGE_SIZE,filtered.size()); table.getItems().setAll(filtered.subList(from,to)); showingLabel.setText(filtered.isEmpty()?"Showing 0 to 0 of 0 entries":"Showing "+(from+1)+" to "+to+" of "+filtered.size()+" entries"); pageLabel.setText((currentPage+1)+" / "+pages); }
     @FXML private void previousPage(){if(currentPage>0){currentPage--;renderPage();}} @FXML private void nextPage(){int pages=Math.max(1,(filtered.size()+PAGE_SIZE-1)/PAGE_SIZE);if(currentPage+1<pages){currentPage++;renderPage();}}
 

@@ -22,9 +22,15 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.service.ImportService;
 import org.example.util.IconFactory;
 import org.example.util.SpreadsheetLayoutDetector;
+import org.example.util.BusinessClock;
+import org.example.config.WorkspaceManager;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.awt.Desktop;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -164,6 +170,7 @@ public class ImportController {
         "quantity",
         "rate",
         "gst_percent",
+        "gst_type",
         "payment_terms",
         "paid_amount",
         "remarks"
@@ -1244,12 +1251,11 @@ public class ImportController {
                             != null
                     ) {
 
-                        value =
-                            SpreadsheetLayoutDetector
-                                .format(
-                                    row.getCell(columnIndex),
-                                    evaluator
-                                );
+                        Cell previewCell = row.getCell(columnIndex);
+                        boolean dateField = domainField != null && domainField.toLowerCase(Locale.ROOT).contains("date");
+                        value = dateField
+                            ? SpreadsheetLayoutDetector.formatForBusiness(previewCell, evaluator)
+                            : SpreadsheetLayoutDetector.format(previewCell, evaluator);
                     }
 
                     rowMap.put(
@@ -1863,64 +1869,141 @@ public class ImportController {
        RESULT AND NAVIGATION
        ========================================================= */
 
-    private void showResult(
-        ImportService.ImportResult result
-    ) {
-
-        Alert alert =
-            new OwnedAlert(
-                Alert.AlertType.INFORMATION
-            );
-
-        alert.setTitle("Import Result");
-
-        alert.setHeaderText(
-            chkDryRun.isSelected()
-                ? "Validation completed"
-                : "Import completed"
-        );
-
-        StringBuilder message =
-            new StringBuilder();
-
-        message
-            .append("Processed (unique): ")
-            .append(result.processed)
-            .append("\n");
-
-        message
-            .append("Imported (new): ")
-            .append(result.imported)
-            .append("\n");
-
-        message
-            .append("Updated (existing): ")
-            .append(result.updated)
-            .append("\n");
-
-        message
-            .append("Skipped: ")
-            .append(result.skipped)
-            .append("\n");
-
-        if (!result.errors.isEmpty()) {
-
-            message.append("\nDetails:\n");
-
-            result.errors.forEach(
-                error ->
-                    message
-                        .append("- ")
-                        .append(error)
-                        .append("\n")
-            );
+    private void showResult(ImportService.ImportResult result) {
+        Path report = null;
+        try {
+            report = writeImportResultReport(result);
+        } catch (Exception exception) {
+            System.err.println("Could not write import result report: " + safeMessage(exception));
         }
 
-        alert.setContentText(
-            message.toString()
-        );
+        Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Import Result");
+        alert.setHeaderText(chkDryRun.isSelected() ? "Validation completed" : "Import completed");
 
-        alert.showAndWait();
+        StringBuilder message = new StringBuilder()
+            .append("Processed: ").append(result.processed).append("\n")
+            .append("Passed: ").append(result.passedCount()).append("\n")
+            .append("Imported (new): ").append(result.imported).append("\n")
+            .append("Updated: ").append(result.updated).append("\n")
+            .append("Skipped: ").append(result.skipped).append("\n")
+            .append("Failed: ").append(result.failedCount());
+
+        if (report != null) {
+            message.append("\n\nDetailed Excel result report generated.");
+        }
+        alert.setContentText(message.toString());
+
+        ButtonType openReport = new ButtonType("Open Result Report", ButtonBar.ButtonData.LEFT);
+        if (report != null) {
+            alert.getButtonTypes().setAll(openReport, ButtonType.OK);
+        } else {
+            alert.getButtonTypes().setAll(ButtonType.OK);
+        }
+
+        Optional<ButtonType> selected = alert.showAndWait();
+        if (report != null && selected.isPresent() && selected.get() == openReport) {
+            openReport(report);
+        }
+    }
+
+    private Path writeImportResultReport(ImportService.ImportResult result) throws Exception {
+        Path folder = WorkspaceManager.getImportsFolder().resolve("Results");
+        Files.createDirectories(folder);
+
+        String module = cmbImportModule.getValue() == null ? "Import"
+            : cmbImportModule.getValue().replaceAll("[^A-Za-z0-9]+", "_");
+        String stamp = BusinessClock.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        Path target = folder.resolve("Import_Result_" + module + "_" + stamp + ".xlsx");
+
+        try (Workbook workbook = new XSSFWorkbook();
+             FileOutputStream output = new FileOutputStream(target.toFile())) {
+
+            CellStyle headerStyle = createTemplateHeaderStyle(workbook);
+
+            Sheet summary = workbook.createSheet("Summary");
+            String[][] summaryRows = {
+                {"Module", cmbImportModule.getValue() == null ? "" : cmbImportModule.getValue()},
+                {"Source File", selectedFile == null ? "" : selectedFile.getName()},
+                {"Mode", chkDryRun.isSelected() ? "Validate only" : "Import"},
+                {"Processed", String.valueOf(result.processed)},
+                {"Passed", String.valueOf(result.passedCount())},
+                {"Imported", String.valueOf(result.imported)},
+                {"Updated", String.valueOf(result.updated)},
+                {"Skipped", String.valueOf(result.skipped)},
+                {"Failed", String.valueOf(result.failedCount())},
+                {"Business Date", BusinessClock.formatDate(BusinessClock.today())},
+                {"Business Time", BusinessClock.now().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))
+                    + " " + BusinessClock.zoneAbbreviation()}
+            };
+            for (int i = 0; i < summaryRows.length; i++) {
+                Row row = summary.createRow(i);
+                row.createCell(0).setCellValue(summaryRows[i][0]);
+                row.createCell(1).setCellValue(summaryRows[i][1]);
+            }
+            summary.setColumnWidth(0, 24 * 256);
+            summary.setColumnWidth(1, 70 * 256);
+
+            Sheet details = workbook.createSheet("Import Results");
+            String[] headers = {"Source Row(s)", "Reference", "Status", "Action", "Tax Type", "GST %", "Message"};
+            Row header = details.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            int rowIndex = 1;
+            if (!result.details.isEmpty()) {
+                for (ImportService.ImportRowResult detail : result.details) {
+                    Row row = details.createRow(rowIndex++);
+                    row.createCell(0).setCellValue(detail.sourceRows);
+                    row.createCell(1).setCellValue(detail.reference);
+                    row.createCell(2).setCellValue(detail.status);
+                    row.createCell(3).setCellValue(detail.action);
+                    row.createCell(4).setCellValue(detail.taxType);
+                    row.createCell(5).setCellValue(detail.gstPercent);
+                    row.createCell(6).setCellValue(detail.message);
+                }
+            } else {
+                for (String error : result.errors) {
+                    Row row = details.createRow(rowIndex++);
+                    row.createCell(2).setCellValue("FAILED");
+                    row.createCell(3).setCellValue("NONE");
+                    row.createCell(6).setCellValue(error);
+                }
+                if (rowIndex == 1) {
+                    Row row = details.createRow(rowIndex);
+                    row.createCell(2).setCellValue("PASSED");
+                    row.createCell(3).setCellValue("SUMMARY");
+                    row.createCell(6).setCellValue("Import completed without row-level errors.");
+                }
+            }
+
+            details.createFreezePane(0, 1);
+            details.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(
+                0, Math.max(1, rowIndex - 1), 0, headers.length - 1));
+            int[] widths = {16, 24, 14, 16, 14, 12, 70};
+            for (int i = 0; i < widths.length; i++) details.setColumnWidth(i, widths[i] * 256);
+
+            workbook.write(output);
+        }
+        return target;
+    }
+
+    private void openReport(Path report) {
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(report.toFile());
+            } else {
+                new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "Result report saved to:\n" + report, ButtonType.OK).showAndWait();
+            }
+        } catch (Exception exception) {
+            new OwnedAlert(Alert.AlertType.INFORMATION,
+                "Result report saved to:\n" + report + "\n\nCould not open it automatically.",
+                ButtonType.OK).showAndWait();
+        }
     }
 
     private String targetFor(String module) {
@@ -2009,13 +2092,15 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 7.1.9 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 7.2.4 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},
                 {"Skip existing", "Existing identifiers are never changed."},
                 {"Financial documents", "Existing posted Sales and Purchase invoices are always protected and skipped."},
-                {"Safe process", "Run Validate only first, review the preview and errors, then import."},
+                {"GST / IGST", "For Sales/Purchases use gst_type = GST for intra-state or IGST for inter-state. Enter gst_percent only; DSE ERP calculates tax amounts from line values."},
+                {"GST calculation", "GST is calculated as CGST + SGST (equal halves); IGST applies the full GST rate as IGST. Do not enter tax amounts manually."},
+                {"Safe process", "Run Validate only first, review the preview and generated result report, then import."},
                 {"Identifiers", identifierGuidance(cmbImportModule.getValue())}
             };
             for (int i = 0; i < guidance.length; i++) {
@@ -2067,42 +2152,20 @@ public class ImportController {
                 );
             }
 
-            Row sample =
-                sheet.createRow(1);
-
-            List<String> examples =
-                exampleRowFor(
-                    cmbImportModule.getValue()
-                );
-
-            for (
-                int columnIndex = 0;
-                columnIndex
-                    < Math.min(
-                    fields.size(),
-                    examples.size()
-                );
-                columnIndex++
-            ) {
-
-                sample
-                    .createCell(columnIndex)
-                    .setCellValue(
-                        examples.get(columnIndex)
-                    );
+            List<List<String>> exampleRows = exampleRowsFor(cmbImportModule.getValue());
+            int lastSampleRow = 0;
+            for (int sampleIndex = 0; sampleIndex < exampleRows.size(); sampleIndex++) {
+                Row sample = sheet.createRow(sampleIndex + 1);
+                List<String> examples = exampleRows.get(sampleIndex);
+                for (int columnIndex = 0; columnIndex < Math.min(fields.size(), examples.size()); columnIndex++) {
+                    sample.createCell(columnIndex).setCellValue(examples.get(columnIndex));
+                }
+                lastSampleRow = sampleIndex + 1;
             }
 
             sheet.createFreezePane(0, 1);
-
-            sheet.setAutoFilter(
-                new org.apache.poi.ss.util
-                    .CellRangeAddress(
-                    0,
-                    1,
-                    0,
-                    fields.size() - 1
-                )
-            );
+            sheet.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(
+                0, Math.max(1, lastSampleRow), 0, fields.size() - 1));
 
             workbook.write(output);
 
@@ -2206,6 +2269,26 @@ public class ImportController {
         );
     }
 
+    private List<List<String>> exampleRowsFor(String module) {
+        if ("Sales".equals(module)) {
+            return List.of(
+                List.of("SAL-GST-0001", BusinessClock.formatDate(BusinessClock.today()), "CUS-0001", "ITEM-0001",
+                    "2", "1500", "18", "GST", "15 Days", "0", "Sample intra-state sale; tax calculated as CGST 9% + SGST 9%"),
+                List.of("SAL-IGST-0002", BusinessClock.formatDate(BusinessClock.today()), "CUS-0002", "ITEM-0001",
+                    "1", "2000", "18", "IGST", "15 Days", "0", "Sample inter-state sale; tax calculated as IGST 18%")
+            );
+        }
+        if ("Purchases".equals(module)) {
+            return List.of(
+                List.of("PUR-GST-0001", BusinessClock.formatDate(BusinessClock.today()), "SUP-0001", "ITEM-0001",
+                    "10", "1200", "18", "GST", "15 Days", "0", "Sample intra-state purchase; tax calculated as CGST 9% + SGST 9%"),
+                List.of("PUR-IGST-0002", BusinessClock.formatDate(BusinessClock.today()), "SUP-0002", "ITEM-0001",
+                    "5", "1200", "18", "IGST", "15 Days", "0", "Sample inter-state purchase; tax calculated as IGST 18%")
+            );
+        }
+        return List.of(exampleRowFor(module));
+    }
+
     private List<String> exampleRowFor(
         String module
     ) {
@@ -2247,6 +2330,7 @@ public class ImportController {
                     "2",
                     "1500",
                     "18",
+                    "GST",
                     "15 Days",
                     "0",
                     "Sample sales invoice"
@@ -2261,6 +2345,7 @@ public class ImportController {
                     "10",
                     "1200",
                     "18",
+                    "GST",
                     "15 Days",
                     "0",
                     "Sample purchase invoice"

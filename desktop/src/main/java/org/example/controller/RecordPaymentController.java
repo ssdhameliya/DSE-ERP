@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -95,7 +97,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     private void configurePaymentForm() {
-        paymentDate.setValue(LocalDate.now());
+        paymentDate.setValue(BusinessClock.today());
         List<String> modes;
         try { modes=new ArrayList<>(lookupService.getValuesByCategoryCode("PAYMENT_MODE")); } catch(Exception e){ modes=new ArrayList<>(); }
         if(modes.isEmpty()) modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
@@ -186,7 +188,7 @@ public class RecordPaymentController implements ScreenLifecycle {
         invoiceStatus.getStyleClass().removeAll("status-paid", "status-partial", "status-pending", "status-overdue");
         if ("PAID".equals(status)) invoiceStatus.getStyleClass().add("status-paid");
         else if ("PARTIAL".equals(status)) invoiceStatus.getStyleClass().add("status-partial");
-        else if (sale.getDueDate()!=null && sale.getDueDate().isBefore(LocalDate.now())) invoiceStatus.getStyleClass().add("status-overdue");
+        else if (sale.getDueDate()!=null && sale.getDueDate().isBefore(BusinessClock.today())) invoiceStatus.getStyleClass().add("status-overdue");
         else invoiceStatus.getStyleClass().add("status-pending");
         updateBalancePreview();
     }
@@ -234,12 +236,12 @@ public class RecordPaymentController implements ScreenLifecycle {
         if(dot>=0) ext=name.substring(dot);
         Path dir=ConfigManager.getConfigFolder().resolve("PaymentProofs").resolve(sale.getInvoiceNo());
         Files.createDirectories(dir);
-        Path target=dir.resolve(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmssSSS").format(LocalDateTime.now())+ext);
+        Path target=dir.resolve(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmssSSS").format(BusinessClock.now())+ext);
         return Files.copy(source,target,StandardCopyOption.REPLACE_EXISTING);
     }
 
     private void resetForm() {
-        reference.clear(); notes.clear(); paymentDate.setValue(LocalDate.now()); selectedAttachment=null;
+        reference.clear(); notes.clear(); paymentDate.setValue(BusinessClock.today()); selectedAttachment=null;
         attachmentName.setText("No file selected");
         amount.setText(String.format(Locale.ROOT,"%.2f",sale.getBalanceAmount()));
     }
@@ -388,5 +390,5 @@ public class RecordPaymentController implements ScreenLifecycle {
     private String safe(String v){return v==null?"":v;}
     private String safeOr(String v,String fallback){return v==null||v.isBlank()?fallback:v;}
     private String csv(String v){return "\""+safe(v).replace("\"","\"\"")+"\"";}
-    private String formatDate(LocalDate d){return d==null?"Not set":d.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));}
+    private String formatDate(LocalDate d){return d==null?"Not set":BusinessClock.formatDate(d);}
 }

@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
 
@@ -82,7 +84,6 @@ public class SalesListController implements ScreenLifecycle {
     private final SalesService service=new SalesService();
     private final SupportApiClient support=new SupportApiClient();
     private final NumberFormat currency=NumberFormat.getCurrencyInstance(Locale.of("en", "IN"));
-    private final DateTimeFormatter dateFormat=DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private List<Sales> allSales=new ArrayList<>(),filteredSales=new ArrayList<>();
     private int currentPage=0;
     private Sales selected;
@@ -151,7 +152,7 @@ public class SalesListController implements ScreenLifecycle {
 
     private void configureColumns(){
         colInvoice.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().getInvoiceNo()));
-        colDate.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().getInvoiceDate().format(dateFormat)));
+        colDate.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().getInvoiceDate().format(BusinessClock.dateFormatter())));
         colCustomer.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().getCustomer().getName()));
         colMobile.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(safe(v.getValue().getCustomer().getPhone())));
         colGstin.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(safe(v.getValue().getCustomer().getGstin())));
@@ -257,7 +258,7 @@ public class SalesListController implements ScreenLifecycle {
     }
 
     private boolean matches(ComboBox<String> box,String value){String f=box.getValue();return f==null||f.equals("All")||f.equalsIgnoreCase(value);}
-    private boolean matchesDue(Sales s){String f=cmbPaymentDue.getValue();if(f==null||f.equals("All"))return true;if(s.getDueDate()==null||s.getBalanceAmount()<=0)return false;long days=java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(),s.getDueDate());return switch(f){case "Overdue"->days<0;case "Due Today"->days==0;case "Next 7 Days"->days>=0&&days<=7;case "Next 30 Days"->days>=0&&days<=30;default->true;};}
+    private boolean matchesDue(Sales s){String f=cmbPaymentDue.getValue();if(f==null||f.equals("All"))return true;if(s.getDueDate()==null||s.getBalanceAmount()<=0)return false;long days=java.time.temporal.ChronoUnit.DAYS.between(BusinessClock.today(),s.getDueDate());return switch(f){case "Overdue"->days<0;case "Due Today"->days==0;case "Next 7 Days"->days>=0&&days<=7;case "Next 30 Days"->days>=0&&days<=30;default->true;};}
 
     private void renderPage(){int size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue(),pages=Math.max(1,(int)Math.ceil(filteredSales.size()/(double)size));currentPage=Math.min(currentPage,pages-1);int from=Math.min(currentPage*size,filteredSales.size()),to=Math.min(from+size,filteredSales.size());tableSales.setItems(FXCollections.observableArrayList(filteredSales.subList(from,to)));lblPageNumber.setText((currentPage+1)+" / "+pages);lblPageInfo.setText(filteredSales.isEmpty()?"No entries":"Showing "+(from+1)+" to "+to+" of "+filteredSales.size()+" entries");}
     @FXML private void firstPage(){currentPage=0;renderPage();}@FXML private void previousPage(){if(currentPage>0)currentPage--;renderPage();}@FXML private void nextPage(){int pages=(int)Math.ceil(filteredSales.size()/(double)cmbPageSize.getValue());if(currentPage<pages-1)currentPage++;renderPage();}@FXML private void lastPage(){currentPage=Math.max(0,(int)Math.ceil(filteredSales.size()/(double)cmbPageSize.getValue())-1);renderPage();}
@@ -265,12 +266,12 @@ public class SalesListController implements ScreenLifecycle {
     private void updateMetrics(){
         List<Sales> active=allSales.stream().filter(this::isActiveFinancialDocument).toList();
         double total=sum(active,Sales::getTotalAmount),
-            today=sum(active.stream().filter(s->s.getInvoiceDate().equals(LocalDate.now())).toList(),Sales::getTotalAmount),
+            today=sum(active.stream().filter(s->s.getInvoiceDate().equals(BusinessClock.today())).toList(),Sales::getTotalAmount),
             pending=sum(active,Sales::getBalanceAmount);
-        List<Sales> overdue=active.stream().filter(s->s.getBalanceAmount()>0&&s.getDueDate()!=null&&s.getDueDate().isBefore(LocalDate.now())).toList(),
-            soon=active.stream().filter(s->s.getBalanceAmount()>0&&s.getDueDate()!=null&&!s.getDueDate().isBefore(LocalDate.now())&&!s.getDueDate().isAfter(LocalDate.now().plusDays(7))).toList();
+        List<Sales> overdue=active.stream().filter(s->s.getBalanceAmount()>0&&s.getDueDate()!=null&&s.getDueDate().isBefore(BusinessClock.today())).toList(),
+            soon=active.stream().filter(s->s.getBalanceAmount()>0&&s.getDueDate()!=null&&!s.getDueDate().isBefore(BusinessClock.today())&&!s.getDueDate().isAfter(BusinessClock.today().plusDays(7))).toList();
         lblTotalSales.setText(money(total));lblInvoiceCount.setText(active.size()+" invoices");
-        lblTodaySales.setText(money(today));lblTodayCount.setText(active.stream().filter(s->s.getInvoiceDate().equals(LocalDate.now())).count()+" invoices");
+        lblTodaySales.setText(money(today));lblTodayCount.setText(active.stream().filter(s->s.getInvoiceDate().equals(BusinessClock.today())).count()+" invoices");
         lblPending.setText(money(pending));lblPendingCount.setText(active.stream().filter(s->s.getBalanceAmount()>0).count()+" invoices");
         lblOverdue.setText(money(sum(overdue,Sales::getBalanceAmount)));lblOverdueCount.setText(overdue.size()+" invoices");
         lblDueSoon.setText(money(sum(soon,Sales::getBalanceAmount)));lblDueSoonCount.setText(soon.size()+" invoices");
@@ -282,7 +283,7 @@ public class SalesListController implements ScreenLifecycle {
 
     private void updateCharts(){
         if(PlatformUiSupport.isMac()||dueChart==null||customerChart==null||salesChart==null)return;
-        Map<String,Double> buckets=new LinkedHashMap<>();buckets.put("Due Today",0d);buckets.put("1-7 Days",0d);buckets.put("8-30 Days",0d);buckets.put("Over 30 Days",0d);for(Sales s:allSales)if(s.getBalanceAmount()>0&&s.getDueDate()!=null){long d=java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(),s.getDueDate());String k=d<=0?"Due Today":d<=7?"1-7 Days":d<=30?"8-30 Days":"Over 30 Days";buckets.merge(k,s.getBalanceAmount(),Double::sum);}dueChart.getData().setAll(buckets.entrySet().stream().filter(e->e.getValue()>0).map(e->new PieChart.Data(e.getKey(),e.getValue())).toList());
+        Map<String,Double> buckets=new LinkedHashMap<>();buckets.put("Due Today",0d);buckets.put("1-7 Days",0d);buckets.put("8-30 Days",0d);buckets.put("Over 30 Days",0d);for(Sales s:allSales)if(s.getBalanceAmount()>0&&s.getDueDate()!=null){long d=java.time.temporal.ChronoUnit.DAYS.between(BusinessClock.today(),s.getDueDate());String k=d<=0?"Due Today":d<=7?"1-7 Days":d<=30?"8-30 Days":"Over 30 Days";buckets.merge(k,s.getBalanceAmount(),Double::sum);}dueChart.getData().setAll(buckets.entrySet().stream().filter(e->e.getValue()>0).map(e->new PieChart.Data(e.getKey(),e.getValue())).toList());
         Map<String,Double> customers=new HashMap<>();for(Sales s:allSales){String customerName=s.getCustomer()==null?null:s.getCustomer().getName();if(customerName==null||customerName.isBlank())customerName="Unknown Customer";customers.merge(customerName,s.getTotalAmount(),Double::sum);}XYChart.Series<Number,String> cs=new XYChart.Series<>();customers.entrySet().stream().sorted(Map.Entry.<String,Double>comparingByValue().reversed()).limit(5).forEach(e->cs.getData().add(new XYChart.Data<>(e.getValue(),e.getKey())));customerChart.getData().setAll(cs);
         Map<String,Double> months=new TreeMap<>();for(Sales s:allSales)months.merge(s.getInvoiceDate().toString().substring(0,7),s.getTotalAmount(),Double::sum);XYChart.Series<String,Number> ss=new XYChart.Series<>();months.entrySet().stream().skip(Math.max(0,months.size()-7)).forEach(e->ss.getData().add(new XYChart.Data<>(e.getKey(),e.getValue())));salesChart.getData().setAll(ss);
     }
@@ -298,14 +299,14 @@ public class SalesListController implements ScreenLifecycle {
         detailDrawer.setVisible(true);
         mainSplit.setDividerPositions(.81);
         lblDetailInvoice.setText(sale.getInvoiceNo());
-        lblDetailDate.setText(sale.getInvoiceDate().format(dateFormat));
+        lblDetailDate.setText(sale.getInvoiceDate().format(BusinessClock.dateFormatter()));
         lblDetailStatus.setText(documentStatus(sale));
         lblDetailCustomer.setText(sale.getCustomer().getName());
         lblDetailContact.setText(safe(sale.getCustomer().getPhone())+"\n"+safe(sale.getCustomer().getEmail())+"\n"+safe(sale.getCustomer().getGstin()));
         lblDetailAmount.setText(money(sale.getTotalAmount()));
         lblDetailPaid.setText(money(sale.getPaidAmount()));
         lblDetailBalance.setText(money(sale.getBalanceAmount()));
-        lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(dateFormat)+" • "+dueLabel(sale));
+        lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(BusinessClock.dateFormatter())+" • "+dueLabel(sale));
         if (lblDetailCharges != null) {
             var charges = sale.getCharges();
             lblDetailCharges.setText(charges.isEmpty() ? "Not Applicable" : charges.stream()
@@ -357,10 +358,10 @@ public class SalesListController implements ScreenLifecycle {
         });
     }
 
-    @FXML private void showToday(){applyDateRange(LocalDate.now(),LocalDate.now());}
-    @FXML private void showYesterday(){LocalDate day=LocalDate.now().minusDays(1);applyDateRange(day,day);}
-    @FXML private void showSevenDays(){applyDateRange(LocalDate.now().minusDays(6),LocalDate.now());}
-    @FXML private void showThirtyDays(){applyDateRange(LocalDate.now().minusDays(29),LocalDate.now());}
+    @FXML private void showToday(){applyDateRange(BusinessClock.today(),BusinessClock.today());}
+    @FXML private void showYesterday(){LocalDate day=BusinessClock.today().minusDays(1);applyDateRange(day,day);}
+    @FXML private void showSevenDays(){applyDateRange(BusinessClock.today().minusDays(6),BusinessClock.today());}
+    @FXML private void showThirtyDays(){applyDateRange(BusinessClock.today().minusDays(29),BusinessClock.today());}
     @FXML private void focusCustomRange(){dpFrom.requestFocus();}
     private void applyDateRange(LocalDate from,LocalDate to){dpFrom.setValue(from);dpTo.setValue(to);applyFilters();}
 
@@ -379,8 +380,8 @@ public class SalesListController implements ScreenLifecycle {
     private void openPdf(Sales sale){try{Path p=InvoicePdfService.sales(service.getByInvoice(sale.getInvoiceNo()));java.awt.Desktop.getDesktop().open(p.toFile());log("SALE",sale.getId(),"PDF_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
     private void sendEmail(Sales sale){String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=InvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.config.ConfigManager.get("company.name","DSE ERP"),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}
     private void sendWhatsapp(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());String phone=digits(full.getCustomer().getPhone());if(phone.length()==10)phone="91"+phone;if(phone.isBlank()){warning("Customer mobile number is not available. Update it in Customer Master.");return;}String missing=PaymentMessageService.missingPaymentConfiguration();if(missing!=null)warning(missing+" The invoice can still be shared without a payment link.");Path pdf=InvoicePdfService.sales(full);WhatsappService.openWhatsappWithMessage(phone,PaymentMessageService.salesMessage(full),pdf,PaymentMessageService.configuredQrPath());info("WhatsApp is ready. The invoice and configured UPI QR are on the clipboard for attachment.");support.markWhatsapp("SALE",full.getId());communication("SALE",full.getId(),"WHATSAPP",phone,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();}catch(Exception e){error(e);}}
-    private void recordPayment(Sales sale){if(sale.getBalanceAmount()<=0){info("This invoice is already fully paid.");return;}Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Record Payment");d.setHeaderText(sale.getInvoiceNo()+" • Balance "+money(sale.getBalanceAmount()));TextField amount=new TextField(String.format(Locale.ROOT,"%.2f",sale.getBalanceAmount())),ref=new TextField(),notes=new TextField();ComboBox<String>mode=new ComboBox<>(FXCollections.observableArrayList("Cash","Bank","UPI","Cheque","Card","Other"));mode.setValue("Bank");DatePicker date=new DatePicker(LocalDate.now());javafx.scene.layout.GridPane g=new javafx.scene.layout.GridPane();g.setHgap(10);g.setVgap(10);g.addRow(0,new Label("Date"),date);g.addRow(1,new Label("Amount"),amount);g.addRow(2,new Label("Mode"),mode);g.addRow(3,new Label("Reference"),ref);g.addRow(4,new Label("Notes"),notes);d.getDialogPane().setContent(g);d.getDialogPane().getButtonTypes().addAll(new ButtonType("Record",ButtonBar.ButtonData.OK_DONE),ButtonType.CANCEL);d.showAndWait().filter(b->b.getButtonData()==ButtonBar.ButtonData.OK_DONE).ifPresent(b->{try{double paid=Double.parseDouble(amount.getText());if(paid<=0||paid>sale.getBalanceAmount()+.01)throw new IllegalArgumentException("Payment must be between 0 and "+sale.getBalanceAmount());support.recordPayment(new SupportApiClient.PaymentRequest("SALE",sale.getId(),date.getValue().toString(),paid,mode.getValue(),ref.getText(),notes.getText(),sale.getCustomer()==null?"":sale.getCustomer().getName(),"RECEIPT",null,user()));log("SALE",sale.getId(),"PAYMENT_RECORDED",money(paid));refresh();info("Payment recorded.");}catch(Exception e){error(e);}});}
-    private void createReminder(Sales sale){DatePicker due=new DatePicker(sale.getDueDate()==null?LocalDate.now().plusDays(1):sale.getDueDate());TextInputDialog dialog=new OwnedTextInputDialog("Payment reminder for "+sale.getInvoiceNo());dialog.setTitle("Create Reminder");dialog.setHeaderText("Reminder date: "+due.getValue());dialog.setContentText("Reminder text:");dialog.showAndWait().ifPresent(text->{try{String priority=sale.getDueDate()!=null&&sale.getDueDate().isBefore(LocalDate.now())?"URGENT":"NORMAL";String notes="Customer: "+sale.getCustomer().getName()+"; Balance: "+money(sale.getBalanceAmount());new InsightsApiClient().saveReminder(new InsightsApiClient.ReminderDto(null,text,sale.getInvoiceNo(),due.getValue().toString(),priority,notes,"OPEN",org.example.service.SessionService.current()==null?"System":org.example.service.SessionService.current().getUsername(),null));NotificationService.add("Reminder created for "+sale.getInvoiceNo());info("Reminder created.");}catch(Exception e){error(e);}});}
+    private void recordPayment(Sales sale){if(sale.getBalanceAmount()<=0){info("This invoice is already fully paid.");return;}Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Record Payment");d.setHeaderText(sale.getInvoiceNo()+" • Balance "+money(sale.getBalanceAmount()));TextField amount=new TextField(String.format(Locale.ROOT,"%.2f",sale.getBalanceAmount())),ref=new TextField(),notes=new TextField();ComboBox<String>mode=new ComboBox<>(FXCollections.observableArrayList("Cash","Bank","UPI","Cheque","Card","Other"));mode.setValue("Bank");DatePicker date=new DatePicker(BusinessClock.today());javafx.scene.layout.GridPane g=new javafx.scene.layout.GridPane();g.setHgap(10);g.setVgap(10);g.addRow(0,new Label("Date"),date);g.addRow(1,new Label("Amount"),amount);g.addRow(2,new Label("Mode"),mode);g.addRow(3,new Label("Reference"),ref);g.addRow(4,new Label("Notes"),notes);d.getDialogPane().setContent(g);d.getDialogPane().getButtonTypes().addAll(new ButtonType("Record",ButtonBar.ButtonData.OK_DONE),ButtonType.CANCEL);d.showAndWait().filter(b->b.getButtonData()==ButtonBar.ButtonData.OK_DONE).ifPresent(b->{try{double paid=Double.parseDouble(amount.getText());if(paid<=0||paid>sale.getBalanceAmount()+.01)throw new IllegalArgumentException("Payment must be between 0 and "+sale.getBalanceAmount());support.recordPayment(new SupportApiClient.PaymentRequest("SALE",sale.getId(),date.getValue().toString(),paid,mode.getValue(),ref.getText(),notes.getText(),sale.getCustomer()==null?"":sale.getCustomer().getName(),"RECEIPT",null,user()));log("SALE",sale.getId(),"PAYMENT_RECORDED",money(paid));refresh();info("Payment recorded.");}catch(Exception e){error(e);}});}
+    private void createReminder(Sales sale){DatePicker due=new DatePicker(sale.getDueDate()==null?BusinessClock.today().plusDays(1):sale.getDueDate());TextInputDialog dialog=new OwnedTextInputDialog("Payment reminder for "+sale.getInvoiceNo());dialog.setTitle("Create Reminder");dialog.setHeaderText("Reminder date: "+due.getValue());dialog.setContentText("Reminder text:");dialog.showAndWait().ifPresent(text->{try{String priority=sale.getDueDate()!=null&&sale.getDueDate().isBefore(BusinessClock.today())?"URGENT":"NORMAL";String notes="Customer: "+sale.getCustomer().getName()+"; Balance: "+money(sale.getBalanceAmount());new InsightsApiClient().saveReminder(new InsightsApiClient.ReminderDto(null,text,sale.getInvoiceNo(),due.getValue().toString(),priority,notes,"OPEN",org.example.service.SessionService.current()==null?"System":org.example.service.SessionService.current().getUsername(),null));NotificationService.add("Reminder created for "+sale.getInvoiceNo());info("Reminder created.");}catch(Exception e){error(e);}});}
     private void attach(Sales sale){FileChooser chooser=new FileChooser();File file=chooser.showOpenDialog(tableSales.getScene().getWindow());if(file==null)return;try{support.attachment("SALE",sale.getId(),file.getAbsolutePath());log("SALE",sale.getId(),"DOCUMENT_ATTACHED",file.getName());info("Document attached to "+sale.getInvoiceNo()+".");}catch(Exception e){error(e);}}
     private void notes(Sales sale){TextInputDialog dialog=new OwnedTextInputDialog(safe(sale.getNotes()));dialog.setTitle("Sales Notes");dialog.setHeaderText("Notes / Remarks • "+sale.getInvoiceNo());dialog.showAndWait().ifPresent(value->{try{support.notes("SALE",sale.getId(),value);log("SALE",sale.getId(),"NOTES_UPDATED","Invoice notes updated");refresh();}catch(Exception e){error(e);}});}
 
@@ -433,7 +434,7 @@ public class SalesListController implements ScreenLifecycle {
     private void communication(String type,int id,String channel,String recipient,String subject,String status,String error){try{support.communication(new SupportApiClient.CommunicationRequest(type,id,channel,recipient,subject,status,error,user()));}catch(Exception ignored){}}
     private void log(String type,int id,String action,String detail){try{support.activity(type,id,action,detail,user());}catch(Exception ignored){}}
     private String user(){return SessionService.current()==null?"System":SessionService.current().getFullName();}
-    private String dueLabel(Sales s){if(s.getBalanceAmount()<=.01)return "Paid";if(s.getDueDate()==null)return "Not set";long d=java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(),s.getDueDate());return d<0?"Overdue by "+Math.abs(d)+" days":d==0?"Due today":"Due in "+d+" days";}
+    private String dueLabel(Sales s){if(s.getBalanceAmount()<=.01)return "Paid";if(s.getDueDate()==null)return "Not set";long d=java.time.temporal.ChronoUnit.DAYS.between(BusinessClock.today(),s.getDueDate());return d<0?"Overdue by "+Math.abs(d)+" days":d==0?"Due today":"Due in "+d+" days";}
     private String money(double v){return currency.format(v).replace("₹","₹ ");}private String safe(String v){return v==null?"":v;}private String lower(String v){return safe(v).toLowerCase(Locale.ROOT);}private String digits(String v){return safe(v).replaceAll("\\D","");}private String str(Object v){return v==null?"":v.toString();}private LocalDate date(String v){try{return v==null||v.isBlank()?null:LocalDate.parse(v);}catch(Exception e){return null;}}private double parseAmount(String v,double fallback){try{return v==null||v.isBlank()?fallback:Double.parseDouble(v.replace(",",""));}catch(Exception e){return fallback;}}
     private boolean confirm(String text){return org.example.util.ModernDialog.confirm(tableSales,"Confirmation","Are you sure?",text);}private void info(String m){org.example.util.ToastManager.success(tableSales,"Completed",m);}private void warning(String m){org.example.util.ModernDialog.warning(tableSales,"Warning","Please review",m);org.example.util.ToastManager.warning(tableSales,"Warning",m);}private void error(Throwable e){e.printStackTrace();String message=rootMessage(e);org.example.util.ModernDialog.error(tableSales,"Operation failed","Something went wrong",message);}private String rootMessage(Throwable failure){Throwable root=failure;while(root.getCause()!=null)root=root.getCause();String message=root.getMessage();return message==null||message.isBlank()?root.getClass().getSimpleName():message;}
 }

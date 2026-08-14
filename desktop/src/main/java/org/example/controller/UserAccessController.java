@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
@@ -124,7 +126,7 @@ public class UserAccessController {
     private void updateMetrics(){
         lblTotal.setText(String.valueOf(users.size())); lblActive.setText(String.valueOf(users.stream().filter(x->x.status.get().equals("Active")).count()));
         lblRoles.setText(String.valueOf(roles.size())); lblLocked.setText(String.valueOf(users.stream().filter(x->x.status.get().equals("Locked")).count()));
-        long today=users.stream().filter(x->x.lastLogin.get().startsWith(LocalDate.now().toString())).count(); lblLogins.setText(String.valueOf(today));
+        long today=users.stream().filter(x->x.lastLogin.get().startsWith(BusinessClock.today().toString())).count(); lblLogins.setText(String.valueOf(today));
     }
 
     private void loadPermissions(String roleName){

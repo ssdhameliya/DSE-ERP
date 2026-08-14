@@ -1,5 +1,7 @@
 package org.example.update;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
@@ -127,7 +129,7 @@ public final class UpdateDialogs {
     public static void showHistory(Window owner) {
         TableView<UpdateHistoryStore.Entry> table = new TableView<>();
         TableColumn<UpdateHistoryStore.Entry,String> version = column("Version", e -> e.version());
-        TableColumn<UpdateHistoryStore.Entry,String> installed = column("Date & Time", e -> DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").withZone(ZoneId.systemDefault()).format(e.timestamp()));
+        TableColumn<UpdateHistoryStore.Entry,String> installed = column("Date & Time", e -> DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a").withZone(BusinessClock.zone()).format(e.timestamp()));
         TableColumn<UpdateHistoryStore.Entry,String> channel = column("Channel", UpdateHistoryStore.Entry::channel);
         TableColumn<UpdateHistoryStore.Entry,String> result = column("Result", UpdateHistoryStore.Entry::result);
         TableColumn<UpdateHistoryStore.Entry,String> detail = column("Details", UpdateHistoryStore.Entry::detail);

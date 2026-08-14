@@ -1,5 +1,7 @@
 package org.example.service;
 
+import org.example.util.BusinessClock;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -164,7 +166,7 @@ public final class BusinessReportService {
     }
 
     private static void footer(PDPageContentStream c) throws IOException {
-        text(c, REGULAR, 8, Color.GRAY, 42, 28, "Generated " + LocalDate.now().format(DATE) + " | Confidential business report");
+        text(c, REGULAR, 8, Color.GRAY, 42, 28, "Generated " + BusinessClock.today().format(DATE) + " | Confidential business report");
     }
 
     private static CellStyle style(Workbook wb, IndexedColors fill, boolean bold, IndexedColors fontColor) {

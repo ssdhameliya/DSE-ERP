@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import javafx.beans.property.SimpleStringProperty;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -260,7 +262,7 @@ public class DashboardHomeController {
         List<ActivityRow> recent = b.recent().stream().map(x -> new ActivityRow(x.type(),x.number(),x.party(),x.date(),money(x.amount()))).toList();
         List<String> customers = b.topCustomers().stream().map(this::formatPair).toList();
         List<String> ageing = b.ageing().stream().map(this::formatPair).toList();
-        List<String> activities = b.activities().stream().map(x -> x.message() + "    " + Instant.ofEpochMilli(x.createdAt()).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("dd MMM, hh:mm a"))).toList();
+        List<String> activities = b.activities().stream().map(x -> x.message() + "    " + Instant.ofEpochMilli(x.createdAt()).atZone(BusinessClock.zone()).format(DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a"))).toList();
         if (activities.isEmpty()) activities = List.of("No recent application activity");
         return new SecondaryPanels(recent, customers, ageing, activities);
     }
@@ -322,10 +324,10 @@ public class DashboardHomeController {
     /** Replaces placeholder activity content with the latest persisted notifications. */
     private void loadLiveActivities() {
         List<String> activities = new ArrayList<>();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM, hh:mm a");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a");
         for (NotificationService.NotificationItem entry : NotificationService.findRecent(5)) {
             String created = Instant.ofEpochMilli(entry.createdAt())
-                .atZone(ZoneId.systemDefault()).format(formatter);
+                .atZone(BusinessClock.zone()).format(formatter);
             activities.add(entry.message() + "    " + created);
         }
         if (activities.isEmpty()) activities.add("No recent application activity");

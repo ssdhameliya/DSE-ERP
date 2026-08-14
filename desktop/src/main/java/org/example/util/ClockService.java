@@ -13,8 +13,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /** One shared clock pulse for every visible application clock label. */
 public final class ClockService {
-    private static final DateTimeFormatter FORMATTER =
-            DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy  |  hh:mm:ss a");
     private static final List<WeakReference<Label>> LABELS = new CopyOnWriteArrayList<>();
     private static Timeline timeline;
 
@@ -34,7 +32,7 @@ public final class ClockService {
 
     private static void updateAll() {
         long started=System.nanoTime();
-        String value = LocalDateTime.now().format(FORMATTER);
+        String value = BusinessClock.now().format(DateTimeFormatter.ofPattern("EEEE, " + BusinessClock.datePattern() + "  |  hh:mm:ss a")) + "  |  " + BusinessClock.zoneAbbreviation();
         for (WeakReference<Label> reference : LABELS) {
             Label label = reference.get();
             if (label != null && (label.getScene() != null || label.isVisible())) {
@@ -47,6 +45,6 @@ public final class ClockService {
     }
 
     private static void update(Label label) {
-        label.setText(LocalDateTime.now().format(FORMATTER));
+        label.setText(BusinessClock.now().format(DateTimeFormatter.ofPattern("EEEE, " + BusinessClock.datePattern() + "  |  hh:mm:ss a")) + "  |  " + BusinessClock.zoneAbbreviation());
     }
 }

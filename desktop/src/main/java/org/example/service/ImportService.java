@@ -1,5 +1,8 @@
 package org.example.service;
 
+import org.example.util.BusinessClock;
+import org.example.config.ConfigManager;
+
 import org.apache.poi.ss.usermodel.*;
 import org.example.model.Party;
 import org.example.model.Item;
@@ -21,19 +24,61 @@ public class ImportService {
     public enum ImportMode { UPDATE_NON_BLANK, CREATE_ONLY, UPSERT, SKIP_EXISTING }
 
     // ---------------- Result wrapper ----------------
+    public static final class ImportRowResult {
+        public final String sourceRows;
+        public final String reference;
+        public final String status;
+        public final String action;
+        public final String message;
+        public final String taxType;
+        public final double gstPercent;
+
+        public ImportRowResult(String sourceRows, String reference, String status, String action,
+                               String message, String taxType, double gstPercent) {
+            this.sourceRows = sourceRows == null ? "" : sourceRows;
+            this.reference = reference == null ? "" : reference;
+            this.status = status == null ? "" : status;
+            this.action = action == null ? "" : action;
+            this.message = message == null ? "" : message;
+            this.taxType = taxType == null ? "" : taxType;
+            this.gstPercent = gstPercent;
+        }
+    }
+
     public static class ImportResult {
         public final int processed;   // unique codes attempted
         public final int imported;    // new records created
         public final int updated;     // existing records updated
         public final int skipped;     // duplicates skipped
         public final List<String> errors;
+        public final List<ImportRowResult> details;
 
         public ImportResult(int processed, int imported, int updated, int skipped, List<String> errors) {
+            this(processed, imported, updated, skipped, errors, List.of());
+        }
+
+        public ImportResult(int processed, int imported, int updated, int skipped,
+                            List<String> errors, List<ImportRowResult> details) {
             this.processed = processed;
             this.imported = imported;
             this.updated = updated;
             this.skipped = skipped;
-            this.errors = errors;
+            this.errors = errors == null ? List.of() : List.copyOf(errors);
+            this.details = details == null ? List.of() : List.copyOf(details);
+        }
+
+        public int failedCount() {
+            if (!details.isEmpty()) {
+                return (int) details.stream().filter(row -> "FAILED".equalsIgnoreCase(row.status)).count();
+            }
+            return errors.size();
+        }
+
+        public int passedCount() {
+            if (!details.isEmpty()) {
+                return (int) details.stream().filter(row -> "PASSED".equalsIgnoreCase(row.status)).count();
+            }
+            return imported + updated;
         }
     }
 
@@ -150,10 +195,12 @@ public class ImportService {
 
     private ImportResult importDocuments(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                          BiConsumer<Integer,Integer> progress, boolean sales) throws Exception {
-        record ImportRow(String invoice, LocalDate date, String party, String item, double qty,
-                         double rate, double gst, String terms, double paid, String remarks) {}
+        record ImportRow(int sourceRow, String invoice, LocalDate date, String party, String item, double qty,
+                         double rate, double gst, String taxType, String terms, double paid, String remarks) {}
         List<ImportRow> rows = new ArrayList<>();
         List<String> errors = new ArrayList<>();
+        List<ImportRowResult> details = new ArrayList<>();
+
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
             SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
             Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
@@ -161,78 +208,161 @@ public class ImportService {
             for (int i = layout.headerRowIndex() + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
+                int sourceRow = i + 1;
                 try {
                     String party = required(getCellValue(row, mapping.get("party_code")), "party_code");
                     String item = required(getCellValue(row, mapping.get("item_code")), "item_code");
                     String invoice = getCellValue(row, mapping.get("invoice_no"));
-                    if (invoice == null || invoice.isBlank()) invoice = sales ? new SalesService().nextInvoiceNo() : new PurchaseService().nextInvoiceNo();
-                    rows.add(new ImportRow(invoice.trim(), parseDate(getCellValue(row, mapping.get("invoice_date"))),
-                        party.trim(), item.trim(), parsePositive(getCellValue(row, mapping.get("quantity")), "quantity"),
+                    if (invoice == null || invoice.isBlank()) {
+                        invoice = sales ? new SalesService().nextInvoiceNo() : new PurchaseService().nextInvoiceNo();
+                    }
+                    String taxType = normalizeTaxType(getCellValue(row, mapping.get("gst_type")), party, sales);
+                    rows.add(new ImportRow(sourceRow, invoice.trim(),
+                        getRequiredDateValue(row, mapping.get("invoice_date"), "invoice_date"),
+                        party.trim(), item.trim(),
+                        parsePositive(getCellValue(row, mapping.get("quantity")), "quantity"),
                         parsePositive(getCellValue(row, mapping.get("rate")), "rate"),
                         parseDouble(getCellValue(row, mapping.get("gst_percent"))),
+                        taxType,
                         defaultText(getCellValue(row, mapping.get("payment_terms")), "15 Days"),
                         parseDouble(getCellValue(row, mapping.get("paid_amount"))),
                         getCellValue(row, mapping.get("remarks"))));
                 } catch (Exception ex) {
-                    errors.add("Row " + (i + 1) + ": " + ex.getMessage());
+                    String error = "Row " + sourceRow + ": " + ex.getMessage();
+                    errors.add(error);
+                    details.add(new ImportRowResult(String.valueOf(sourceRow), "", "FAILED", "NONE",
+                        ex.getMessage(), "", 0));
                 }
                 progress.accept(i, Math.max(1, total));
             }
         }
+
         Map<String,List<ImportRow>> grouped = new LinkedHashMap<>();
         rows.forEach(row -> grouped.computeIfAbsent(row.invoice(), key -> new ArrayList<>()).add(row));
-        if (dryRun) return new ImportResult(grouped.size(), 0, 0, errors.size(), errors);
+
+        if (dryRun) {
+            for (Map.Entry<String,List<ImportRow>> entry : grouped.entrySet()) {
+                ImportRow first = entry.getValue().get(0);
+                details.add(new ImportRowResult(sourceRows(entry.getValue()), entry.getKey(), "PASSED", "VALIDATED",
+                    taxDescription(first.taxType(), first.gst()), first.taxType(), first.gst()));
+            }
+            return new ImportResult(grouped.size(), 0, 0, errors.size(), errors, details);
+        }
+
         PartyService partyService = new PartyService();
         ItemService itemService = new ItemService();
         int imported = 0, skipped = 0;
+
         for (Map.Entry<String,List<ImportRow>> entry : grouped.entrySet()) {
+            ImportRow first = entry.getValue().get(0);
+            String rowRange = sourceRows(entry.getValue());
             try {
-                ImportRow first = entry.getValue().get(0);
                 Party party = partyService.getByType(sales ? "CUSTOMER" : "SUPPLIER").stream()
-                    .filter(p -> p.getPartyCode().equalsIgnoreCase(first.party())).findFirst()
+                    .filter(candidate -> candidate.getPartyCode().equalsIgnoreCase(first.party())).findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Party not found: " + first.party()));
+
+                String taxType = normalizeTaxType(first.taxType(), party.getPartyCode(), sales);
+                double representativeRate = first.gst();
+
                 Map<String,Item> itemByCode = new HashMap<>();
                 itemService.getAll().forEach(item -> itemByCode.put(item.getItemCode().toUpperCase(Locale.ROOT), item));
+
                 if (sales) {
                     SalesService service = new SalesService();
                     if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) {
-                        skipped++; errors.add(entry.getKey() + ": existing posted sales invoice was protected and skipped"); continue;
+                        skipped++;
+                        String message = "Existing posted sales invoice was protected and skipped";
+                        errors.add(entry.getKey() + ": " + message);
+                        details.add(new ImportRowResult(rowRange, entry.getKey(), "SKIPPED", "NONE",
+                            message, taxType, representativeRate));
+                        continue;
                     }
+
                     Sales document = new Sales();
-                    document.setInvoiceNo(entry.getKey()); document.setInvoiceDate(first.date()); document.setCustomer(party);
-                    document.setDueDate(first.date().plusDays(termDays(first.terms()))); document.setPaidAmount(first.paid());
-                    document.setPaymentStatus(first.paid() > 0 ? "PARTIAL" : "PENDING"); document.setRemarks(first.remarks());
+                    document.setInvoiceNo(entry.getKey());
+                    document.setInvoiceDate(first.date());
+                    document.setCustomer(party);
+                    document.setDueDate(first.date().plusDays(termDays(first.terms())));
+                    document.setPaidAmount(first.paid());
+                    document.setPaymentStatus(first.paid() > 0 ? "PARTIAL" : "PENDING");
+                    document.setRemarks(first.remarks());
+                    document.setGstType(taxType);
+
                     List<SalesLine> lines = new ArrayList<>();
                     for (ImportRow importedRow : entry.getValue()) {
+                        if (!taxType.equalsIgnoreCase(importedRow.taxType())) {
+                            throw new IllegalArgumentException("Mixed GST/IGST treatment inside one invoice is not allowed");
+                        }
                         Item item = requireItem(itemByCode, importedRow.item());
-                        SalesLine line = new SalesLine(); line.setItemCode(item.getItemCode()); line.setItemDescription(item.getDescription());
-                        line.setQuantity(importedRow.qty()); line.setRate(importedRow.rate()); line.setGstPercent(importedRow.gst()); line.recalculate(); lines.add(line);
+                        SalesLine line = new SalesLine();
+                        line.setItemCode(item.getItemCode());
+                        line.setItemDescription(item.getDescription());
+                        line.setQuantity(importedRow.qty());
+                        line.setRate(importedRow.rate());
+                        line.setGstPercent(importedRow.gst());
+                        line.recalculate();
+                        lines.add(line);
                     }
-                    document.setLines(lines); applySalesTotals(document); service.save(document);
+                    document.setLines(lines);
+                    applySalesTotals(document);
+                    service.save(document);
                 } else {
                     PurchaseService service = new PurchaseService();
                     if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) {
-                        skipped++; errors.add(entry.getKey() + ": existing posted purchase invoice was protected and skipped"); continue;
+                        skipped++;
+                        String message = "Existing posted purchase invoice was protected and skipped";
+                        errors.add(entry.getKey() + ": " + message);
+                        details.add(new ImportRowResult(rowRange, entry.getKey(), "SKIPPED", "NONE",
+                            message, taxType, representativeRate));
+                        continue;
                     }
+
                     Purchase document = new Purchase();
-                    document.setInvoiceNo(entry.getKey()); document.setInvoiceDate(first.date()); document.setSupplier(party);
-                    document.setDueDate(first.date().plusDays(termDays(first.terms()))); document.setPaymentTerms(first.terms());
-                    document.setPaidAmount(first.paid()); document.setPaymentStatus(first.paid() > 0 ? "PARTIAL" : "PENDING");
-                    document.setRemarks(first.remarks()); document.setCurrency("INR - Indian Rupee"); document.setWarehouse("Main Warehouse");
+                    document.setInvoiceNo(entry.getKey());
+                    document.setInvoiceDate(first.date());
+                    document.setSupplier(party);
+                    document.setDueDate(first.date().plusDays(termDays(first.terms())));
+                    document.setPaymentTerms(first.terms());
+                    document.setPaidAmount(first.paid());
+                    document.setPaymentStatus(first.paid() > 0 ? "PARTIAL" : "PENDING");
+                    document.setRemarks(first.remarks());
+                    document.setCurrency("INR - Indian Rupee");
+                    document.setWarehouse("Main Warehouse");
+                    document.setGstTreatment(taxType);
+
                     List<PurchaseLine> lines = new ArrayList<>();
                     for (ImportRow importedRow : entry.getValue()) {
+                        if (!taxType.equalsIgnoreCase(importedRow.taxType())) {
+                            throw new IllegalArgumentException("Mixed GST/IGST treatment inside one invoice is not allowed");
+                        }
                         Item item = requireItem(itemByCode, importedRow.item());
-                        PurchaseLine line = new PurchaseLine(); line.setItemCode(item.getItemCode()); line.setItemDescription(item.getDescription());
-                        line.setQuantity(importedRow.qty()); line.setRate(importedRow.rate()); line.setGstPercent(importedRow.gst()); line.calculateAmounts(); lines.add(line);
+                        PurchaseLine line = new PurchaseLine();
+                        line.setItemCode(item.getItemCode());
+                        line.setItemDescription(item.getDescription());
+                        line.setQuantity(importedRow.qty());
+                        line.setRate(importedRow.rate());
+                        line.setGstPercent(importedRow.gst());
+                        line.calculateAmounts();
+                        lines.add(line);
                     }
-                    document.setLines(lines); applyPurchaseTotals(document); service.save(document);
+                    document.setLines(lines);
+                    applyPurchaseTotals(document);
+                    service.save(document);
                 }
+
                 imported++;
+                details.add(new ImportRowResult(rowRange, entry.getKey(), "PASSED", "CREATED",
+                    taxDescription(taxType, representativeRate), taxType, representativeRate));
             } catch (Exception ex) {
-                skipped++; errors.add(entry.getKey() + ": " + ex.getMessage());
+                skipped++;
+                String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+                errors.add(entry.getKey() + ": " + message);
+                details.add(new ImportRowResult(rowRange, entry.getKey(), "FAILED", "NONE",
+                    message, first.taxType(), first.gst()));
             }
         }
-        return new ImportResult(grouped.size(), imported, 0, skipped, errors);
+
+        return new ImportResult(grouped.size(), imported, 0, skipped, errors, details);
     }
 
     /** Imports both master categories and their reusable values. */
@@ -423,12 +553,28 @@ public class ImportService {
     }
 
     private LocalDate parseDate(String value) {
-        if (value == null || value.isBlank()) return LocalDate.now();
-        for (DateTimeFormatter formatter : List.of(DateTimeFormatter.ISO_LOCAL_DATE,
-            DateTimeFormatter.ofPattern("dd/MM/yyyy"), DateTimeFormatter.ofPattern("d/M/yyyy"))) {
-            try { return LocalDate.parse(value.trim(), formatter); } catch (Exception ignored) {}
+        LocalDate parsed = BusinessClock.parseDate(value);
+        if (parsed == null) throw new IllegalArgumentException("Missing required date");
+        return parsed;
+    }
+
+    private LocalDate getRequiredDateValue(Row row, String header, String field) {
+        if (header == null || header.isBlank()) throw new IllegalArgumentException("Missing " + field + " mapping");
+        Workbook workbook = row.getSheet().getWorkbook();
+        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        int colIndex = -1;
+        for (int headerIndex = Math.max(0, row.getSheet().getFirstRowNum());
+             headerIndex < row.getRowNum() && headerIndex < 75; headerIndex++) {
+            colIndex = SpreadsheetLayoutDetector.findHeaderIndex(row.getSheet().getRow(headerIndex), header, evaluator);
+            if (colIndex >= 0) break;
         }
-        throw new IllegalArgumentException("Invalid date: " + value + " (use yyyy-MM-dd or dd/MM/yyyy)");
+        if (colIndex < 0) throw new IllegalArgumentException("Missing " + field + " column");
+        Cell cell = row.getCell(colIndex);
+        LocalDate excelDate = SpreadsheetLayoutDetector.dateValue(cell, evaluator);
+        if (excelDate != null) return excelDate;
+        String text = SpreadsheetLayoutDetector.format(cell, evaluator);
+        if (text == null || text.isBlank()) throw new IllegalArgumentException("Missing " + field);
+        return parseDate(text);
     }
 
     private int termDays(String term) {
@@ -440,6 +586,52 @@ public class ImportService {
         Item item = itemByCode.get(code.toUpperCase(Locale.ROOT));
         if (item == null) throw new IllegalArgumentException("Item not found: " + code);
         return item;
+    }
+
+    private String normalizeTaxType(String value, String partyReference, boolean sales) {
+        String text = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (text.contains("IGST") || text.contains("INTER")) return "IGST";
+        if (text.equals("GST") || text.contains("INTRA") || text.contains("CGST") || text.contains("SGST")) return "GST";
+
+        // When the template leaves gst_type blank, infer it from GSTIN state codes where possible.
+        String companyGstin = ConfigManager.get("company.gstin", "").trim();
+        try {
+            PartyService partyService = new PartyService();
+            String type = sales ? "CUSTOMER" : "SUPPLIER";
+            Party party = partyService.getByType(type).stream()
+                .filter(candidate -> candidate.getPartyCode().equalsIgnoreCase(partyReference))
+                .findFirst().orElse(null);
+            String partyGstin = party == null || party.getGstin() == null ? "" : party.getGstin().trim();
+            if (companyGstin.length() >= 2 && partyGstin.length() >= 2
+                    && companyGstin.substring(0, 2).matches("\\d{2}")
+                    && partyGstin.substring(0, 2).matches("\\d{2}")) {
+                return companyGstin.substring(0, 2).equals(partyGstin.substring(0, 2)) ? "GST" : "IGST";
+            }
+        } catch (Exception ignored) { }
+        return "GST";
+    }
+
+    private String sourceRows(List<?> rawRows) {
+        if (rawRows == null || rawRows.isEmpty()) return "";
+        List<Integer> rows = new ArrayList<>();
+        for (Object value : rawRows) {
+            try {
+                var method = value.getClass().getDeclaredMethod("sourceRow");
+                method.setAccessible(true);
+                rows.add((Integer) method.invoke(value));
+            } catch (Exception ignored) { }
+        }
+        if (rows.isEmpty()) return "";
+        Collections.sort(rows);
+        return rows.size() == 1 ? String.valueOf(rows.get(0)) : rows.get(0) + "-" + rows.get(rows.size() - 1);
+    }
+
+    private String taxDescription(String taxType, double gstPercent) {
+        if ("IGST".equalsIgnoreCase(taxType)) {
+            return String.format(Locale.ROOT, "IGST %.2f%% calculated from line values", gstPercent);
+        }
+        double half = gstPercent / 2.0;
+        return String.format(Locale.ROOT, "GST %.2f%% calculated as CGST %.2f%% + SGST %.2f%%", gstPercent, half, half);
     }
 
     private void applySalesTotals(Sales document) {

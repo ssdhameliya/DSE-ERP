@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 
 import javafx.beans.property.SimpleStringProperty;
@@ -662,7 +664,7 @@ public class BackupRestoreController {
     private String formatModified(Path path) {
         try {
             Instant instant = Files.getLastModifiedTime(path).toInstant();
-            return DISPLAY_TIMESTAMP.format(instant.atZone(ZoneId.systemDefault()));
+            return DISPLAY_TIMESTAMP.format(instant.atZone(BusinessClock.zone()));
         } catch (Exception ignored) {
             return "Unknown";
         }

@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -44,7 +46,7 @@ public final class QuotationEditorController {
         btnAdd.setGraphic(IconFactory.compactIcon("add",16));
         btnPreview.setGraphic(IconFactory.compactIcon("view",16));btnDraft.setGraphic(IconFactory.compactIcon("save",16));btnSaveSend.setGraphic(IconFactory.compactIcon("send",16));
         cmbSource.setItems(FXCollections.observableArrayList("Direct","Email","WhatsApp","Website","Referral","Other"));cmbSource.setValue("Direct");
-        dpDate.setValue(LocalDate.now());dpValid.setValue(LocalDate.now().plusDays(30));dpFollowUp.setValue(LocalDate.now().plusDays(7));
+        dpDate.setValue(BusinessClock.today());dpValid.setValue(BusinessClock.today().plusDays(30));dpFollowUp.setValue(BusinessClock.today().plusDays(7));
         configureTable();loadChoices();quotationId=QuotationEditorContext.consume();if(quotationId!=null)loadQuotation(quotationId);
         tableLines.getItems().addListener((javafx.collections.ListChangeListener<LineRow>)c->{dirty=true;updateTotals();});
         txtRemarks.textProperty().addListener((o,a,b)->dirty=true);

@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 
@@ -29,7 +31,6 @@ import java.util.Locale;
 /** Database-backed reminder inbox with CRUD, completion and snooze workflows. */
 public class ReminderCenterController {
     private final InsightsApiClient insightsApi = new InsightsApiClient();
-    private static final DateTimeFormatter DISPLAY_DATE = DateTimeFormatter.ofPattern("dd MMM yyyy");
 
     @FXML private Label lblOpen, lblOverdue, lblDueToday, lblUpcoming;
     @FXML private Label lblResultCount;
@@ -241,7 +242,7 @@ public class ReminderCenterController {
         dialog.setHeaderText(row == null ? "Create a business follow-up" : "Update reminder details");
         TextField title = new TextField(row == null ? "" : row.title.get());
         TextField reference = new TextField(row == null ? "" : row.reference.get());
-        DatePicker due = new DatePicker(row == null ? LocalDate.now() : parse(row.due.get(), LocalDate.now()));
+        DatePicker due = new DatePicker(row == null ? BusinessClock.today() : parse(row.due.get(), BusinessClock.today()));
         ComboBox<String> priority = new ComboBox<>();
         priority.getItems().setAll("LOW", "NORMAL", "HIGH", "URGENT");
         priority.setValue(row == null ? "NORMAL" : row.priority.get());
@@ -283,7 +284,7 @@ public class ReminderCenterController {
 
     private void snooze(ReminderRow row) {
         if (row == null) return;
-        DatePicker picker = new DatePicker(LocalDate.now().plusDays(1));
+        DatePicker picker = new DatePicker(BusinessClock.today().plusDays(1));
         Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Snooze Reminder"); dialog.setHeaderText(row.title.get());
         dialog.getDialogPane().setContent(new javafx.scene.layout.VBox(8, new Label("Snooze until"), picker));
@@ -405,9 +406,9 @@ public class ReminderCenterController {
                 ReminderRow row = getTableRow() == null ? null : getTableRow().getItem();
                 boolean completed = row != null && "COMPLETED".equals(row.status.get());
 
-                if (!completed && date.isBefore(LocalDate.now())) {
+                if (!completed && date.isBefore(BusinessClock.today())) {
                     getStyleClass().add("reminder-due-overdue");
-                } else if (!completed && date.equals(LocalDate.now())) {
+                } else if (!completed && date.equals(BusinessClock.today())) {
                     getStyleClass().add("reminder-due-today");
                 } else {
                     getStyleClass().add("reminder-due-future");
@@ -474,7 +475,7 @@ public class ReminderCenterController {
                     || row.priority.get().equals(cmbPriority.getValue());
 
             LocalDate due = parse(row.due.get(), LocalDate.MAX);
-            LocalDate today = LocalDate.now();
+            LocalDate today = BusinessClock.today();
             String period = cmbPeriod.getValue();
 
             boolean matchesDate = period == null
@@ -502,7 +503,7 @@ public class ReminderCenterController {
     }
 
     private void updateMetrics() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = BusinessClock.today();
 
         long open = source.stream()
                 .filter(row -> !row.status.get().equals("COMPLETED"))
@@ -572,7 +573,7 @@ public class ReminderCenterController {
 
     private static String formatDate(String value) {
         LocalDate date = parse(value, null);
-        return date == null ? blank(value, "—") : DISPLAY_DATE.format(date);
+        return date == null ? blank(value, "—") : BusinessClock.formatDate(date);
     }
 
     private static String toDisplayText(String value) {

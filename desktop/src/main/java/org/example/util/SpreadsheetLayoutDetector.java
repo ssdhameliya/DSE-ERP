@@ -57,6 +57,31 @@ public final class SpreadsheetLayoutDetector {
         return cell == null ? "" : new DataFormatter(Locale.getDefault()).formatCellValue(cell, evaluator).trim();
     }
 
+
+    /** Returns the real Excel date when the cell is a date-formatted numeric/formula cell. */
+    public static java.time.LocalDate dateValue(Cell cell, FormulaEvaluator evaluator) {
+        if (cell == null) return null;
+        try {
+            CellType type = cell.getCellType();
+            if (type == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+                return cell.getLocalDateTimeCellValue().toLocalDate();
+            }
+            if (type == CellType.FORMULA) {
+                CellValue evaluated = evaluator == null ? null : evaluator.evaluate(cell);
+                if (evaluated != null && evaluated.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+                    return DateUtil.getLocalDateTime(evaluated.getNumberValue()).toLocalDate();
+                }
+            }
+        } catch (Exception ignored) { }
+        return null;
+    }
+
+    /** Formats real Excel dates with the application's saved date format; other cells remain unchanged. */
+    public static String formatForBusiness(Cell cell, FormulaEvaluator evaluator) {
+        java.time.LocalDate date = dateValue(cell, evaluator);
+        return date == null ? format(cell, evaluator) : BusinessClock.formatDate(date);
+    }
+
     public static int findHeaderIndex(Row headerRow, String heading, FormulaEvaluator evaluator) {
         if (headerRow == null || heading == null || heading.isBlank()) return -1;
         String wanted = normalize(heading);

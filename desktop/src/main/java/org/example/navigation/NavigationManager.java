@@ -1,5 +1,7 @@
 package org.example.navigation;
 
+import org.example.util.BusinessClock;
+
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
@@ -255,7 +257,7 @@ public class NavigationManager {
             Files.createDirectories(folder);
             Path log = folder.resolve("navigation-errors.log");
             StringBuilder text = new StringBuilder()
-                .append(System.lineSeparator()).append(LocalDateTime.now())
+                .append(System.lineSeparator()).append(BusinessClock.now())
                 .append(" screen=").append(fxml).append(System.lineSeparator());
             for (Throwable current = error; current != null; current = current.getCause()) {
                 text.append(current.getClass().getName()).append(": ")

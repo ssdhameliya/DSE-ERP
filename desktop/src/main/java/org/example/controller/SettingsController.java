@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 
 import javafx.collections.FXCollections;
@@ -483,7 +485,7 @@ public class SettingsController {
             cmbTimeZone,
             ConfigManager.get(
                 "company.timeZone",
-                ZoneId.systemDefault().getId()
+                BusinessClock.zone().getId()
             )
         );
 
@@ -1676,8 +1678,8 @@ public class SettingsController {
     private String formatUpdateTimestamp(String raw) {
         if (raw == null || raw.isBlank()) return "Never";
         try {
-            return java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
-                    .withZone(ZoneId.systemDefault()).format(java.time.Instant.parse(raw));
+            return java.time.format.DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a")
+                    .withZone(BusinessClock.zone()).format(java.time.Instant.parse(raw));
         } catch (Exception ignored) {
             return raw;
         }

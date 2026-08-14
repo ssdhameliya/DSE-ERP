@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedTextInputDialog;
 
 import javafx.beans.property.SimpleDoubleProperty;
@@ -60,7 +62,7 @@ public class PurchaseReturnsController {
         cStatus.setCellFactory(x -> SemanticTableCells.status("return")); cRefundStatus.setCellFactory(x -> SemanticTableCells.status("refund"));
         cStatus.setGraphic(IconFactory.icon("return")); cRefundStatus.setGraphic(IconFactory.icon("payment"));
         installActions(); installRows();
-        dpFrom.setValue(LocalDate.now().minusDays(7)); dpTo.setValue(LocalDate.now());
+        dpFrom.setValue(BusinessClock.today().minusDays(7)); dpTo.setValue(BusinessClock.today());
         supplier.valueProperty().addListener((o, a, b) -> filter());
         status.valueProperty().addListener((o, a, b) -> filter());
         search.textProperty().addListener((o, a, b) -> filter());
@@ -119,7 +121,7 @@ public class PurchaseReturnsController {
         try{for(ReturnApiClient.Summary r:returnApi.list("PURCHASE RETURN"))rows.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.status()),safe(r.refundStatus())));}catch(Exception e){error(e);}
         all=rows; supplier.setItems(FXCollections.observableArrayList("All Suppliers"));supplier.getItems().addAll(rows.stream().map(Row::supplier).filter(x->!x.isBlank()).distinct().sorted().toList());if(supplier.getValue()==null)supplier.setValue("All Suppliers");
         status.setItems(FXCollections.observableArrayList("All Status","PENDING","APPROVED","COMPLETED","PARTIAL","CANCELLED"));if(status.getValue()==null)status.setValue("All Status");
-        double sum=rows.stream().mapToDouble(Row::total).sum(),refunded=rows.stream().mapToDouble(Row::refund).sum();total.setText(money(sum));count.setText(String.valueOf(rows.size()));int thisMonth=(int)rows.stream().filter(row->parse(row.date()).getYear()==LocalDate.now().getYear()&&parse(row.date()).getMonthValue()==LocalDate.now().getMonthValue()).count();if(monthCount!=null)monthCount.setText(String.valueOf(thisMonth));refund.setText(money(refunded));average.setText(money(rows.isEmpty()?0:sum/rows.size()));filter();
+        double sum=rows.stream().mapToDouble(Row::total).sum(),refunded=rows.stream().mapToDouble(Row::refund).sum();total.setText(money(sum));count.setText(String.valueOf(rows.size()));int thisMonth=(int)rows.stream().filter(row->parse(row.date()).getYear()==BusinessClock.today().getYear()&&parse(row.date()).getMonthValue()==BusinessClock.today().getMonthValue()).count();if(monthCount!=null)monthCount.setText(String.valueOf(thisMonth));refund.setText(money(refunded));average.setText(money(rows.isEmpty()?0:sum/rows.size()));filter();
     }
 
     @FXML private void filter() {
@@ -131,7 +133,7 @@ public class PurchaseReturnsController {
         table.getItems().setAll(visible); pageInfo.setText("Showing " + visible.size() + " of " + all.size() + " returns");
     }
 
-    @FXML private void reset() { search.clear(); supplier.setValue("All Suppliers"); status.setValue("All Status"); dpFrom.setValue(LocalDate.now().minusDays(7)); dpTo.setValue(LocalDate.now()); filter(); }
+    @FXML private void reset() { search.clear(); supplier.setValue("All Suppliers"); status.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusDays(7)); dpTo.setValue(BusinessClock.today()); filter(); }
     @FXML private void create() { info("Create a purchase return from the Purchase Register so stock and supplier balances remain linked."); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void view(Row row) { PurchaseReturnContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseReturnDetails.fxml"); }
     private void original(Row row) { PurchaseScreenContext.select(row.invoice()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }

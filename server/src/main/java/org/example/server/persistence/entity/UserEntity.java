@@ -1,5 +1,7 @@
 package org.example.server.persistence.entity;
 
+import org.example.server.util.BusinessClock;
+
 import jakarta.persistence.*;
 
 @Entity
@@ -47,5 +49,5 @@ public class UserEntity {
     public String getAccessLevel() { return accessLevel; }
     public boolean isLocked() { return Integer.valueOf(1).equals(locked); }
     public boolean isMfaEnabled() { return Integer.valueOf(1).equals(mfaEnabled); }
-    public void recordSuccessfulLogin() { this.lastLogin = java.time.LocalDateTime.now(); this.failedAttempts = 0; }
+    public void recordSuccessfulLogin() { this.lastLogin = BusinessClock.now(); this.failedAttempts = 0; }
 }

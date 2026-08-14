@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 
@@ -761,9 +763,9 @@ public class DashboardController {
                     message.setWrapText(true);
                     message.getStyleClass().add("notification-row-message");
                     Instant created = Instant.ofEpochMilli(item.createdAt());
-                    Label time = new Label(DateTimeFormatter.ofPattern("hh:mm a").withZone(ZoneId.systemDefault()).format(created));
+                    Label time = new Label(DateTimeFormatter.ofPattern("hh:mm a").withZone(BusinessClock.zone()).format(created));
                     time.getStyleClass().add("notification-row-time");
-                    Label date = new Label(DateTimeFormatter.ofPattern("dd MMM yyyy").withZone(ZoneId.systemDefault()).format(created));
+                    Label date = new Label(DateTimeFormatter.ofPattern(BusinessClock.datePattern()).withZone(BusinessClock.zone()).format(created));
                     date.getStyleClass().add("notification-row-date");
                     Label category = new Label(displayNotificationCategory(item.category()));
                     category.getStyleClass().addAll("notification-category-chip", "notification-category-" + safeNotificationCategory(item.category()).toLowerCase(Locale.ROOT));

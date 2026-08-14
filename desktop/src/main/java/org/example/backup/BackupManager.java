@@ -1,5 +1,7 @@
 package org.example.backup;
 
+import org.example.util.BusinessClock;
+
 import org.example.config.ConfigManager;
 import org.example.api.runtime.ManagedPostgresRuntime;
 import org.example.api.support.SupportApiClient;
@@ -195,7 +197,7 @@ public final class BackupManager {
         String schedule = readSetting("backup.schedule", "MANUAL").toUpperCase(Locale.ROOT);
         if ("MANUAL".equals(schedule)) return Optional.empty();
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = BusinessClock.today();
         LocalDate lastDate = parseDate(ConfigManager.get(LAST_SCHEDULED_DATE_KEY, ""));
         boolean due = switch (schedule) {
             case "DAILY" -> lastDate == null || lastDate.isBefore(today);
@@ -266,7 +268,7 @@ public final class BackupManager {
     }
 
     public static void ensureApplicationMetadata() {
-        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "7.1.9"); }
+        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "7.2.4"); }
         catch (Exception exception) { LOGGER.log(Level.WARNING, "Application metadata could not be initialized", exception); }
     }
 
@@ -345,7 +347,7 @@ public final class BackupManager {
     }
 
     private static Path uniquePath(Path folder, String prefix, String extension) {
-        String timestamp = LocalDateTime.now().format(FILE_TS);
+        String timestamp = BusinessClock.now().format(FILE_TS);
         Path candidate = folder.resolve(prefix + "-" + timestamp + extension);
         int suffix = 1;
         while (Files.exists(candidate)) {

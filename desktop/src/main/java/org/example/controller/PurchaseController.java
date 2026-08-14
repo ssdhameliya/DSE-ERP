@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedChoiceDialog;
 
 import org.example.util.OwnedAlert;
@@ -718,10 +720,10 @@ public class PurchaseController {
         );
 
         dpInvoiceDate.setValue(
-            LocalDate.now()
+            BusinessClock.today()
         );
-        dpDueDate.setValue(LocalDate.now().plusDays(15));
-        dpDeliveryDate.setValue(LocalDate.now());
+        dpDueDate.setValue(BusinessClock.today().plusDays(15));
+        dpDeliveryDate.setValue(BusinessClock.today());
 
 
         cmbSupplier.setValue(null);

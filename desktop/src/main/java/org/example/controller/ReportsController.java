@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
@@ -41,7 +43,7 @@ public class ReportsController implements ScreenLifecycle {
 
     @FXML public void initialize(){
         configureExplicitTableHeaderIcons(); configureIcons(); configureStatusCells();
-        dpFrom.setValue(LocalDate.now().withDayOfMonth(1)); dpTo.setValue(LocalDate.now());
+        dpFrom.setValue(BusinessClock.today().withDayOfMonth(1)); dpTo.setValue(BusinessClock.today());
         cmbReportType.getItems().setAll("All Reports","Sales","Purchase","Inventory","Payments"); cmbReportType.getSelectionModel().selectFirst();
         setCell(colSaleNo,0);setCell(colSaleDate,1);setCell(colSaleParty,2);setCell(colSaleAmount,3);setCell(colSaleStatus,4);
         setCell(colPurchaseNo,0);setCell(colPurchaseDate,1);setCell(colPurchaseParty,2);setCell(colPurchaseAmount,3);setCell(colPurchaseStatus,4);
@@ -59,7 +61,7 @@ public class ReportsController implements ScreenLifecycle {
     private void setOptions(ComboBox<String> box,String all,List<String> values){box.getItems().setAll(all);box.getItems().addAll(values);box.getSelectionModel().selectFirst();}
 
 
-    @FXML private void resetFilters(){cmbReportType.getSelectionModel().selectFirst();cmbParty.getSelectionModel().selectFirst();cmbItem.getSelectionModel().selectFirst();cmbSalesPerson.getSelectionModel().selectFirst();dpFrom.setValue(LocalDate.now().withDayOfMonth(1));dpTo.setValue(LocalDate.now());refresh();}
+    @FXML private void resetFilters(){cmbReportType.getSelectionModel().selectFirst();cmbParty.getSelectionModel().selectFirst();cmbItem.getSelectionModel().selectFirst();cmbSalesPerson.getSelectionModel().selectFirst();dpFrom.setValue(BusinessClock.today().withDayOfMonth(1));dpTo.setValue(BusinessClock.today());refresh();}
     @FXML private void refresh(){ requestRefresh(); }
     private void requestRefresh(){
         if(dpFrom.getValue()==null||dpTo.getValue()==null||dpFrom.getValue().isAfter(dpTo.getValue())){error("Choose a valid reporting date range.");return;}

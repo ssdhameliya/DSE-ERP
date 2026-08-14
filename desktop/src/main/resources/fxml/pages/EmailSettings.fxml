@@ -9,7 +9,7 @@
             <Label fx:id="lblBrandTagline" text="Business Management Suite" styleClass="auth-brand-subtitle"/>
             <Label fx:id="lblBrandDescription" text="Business Management Suite" wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Version 7.2.2" styleClass="auth-version"/>
+            <Label text="Version 7.2.4" styleClass="auth-version"/>
         </VBox>
     </left>
 

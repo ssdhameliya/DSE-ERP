@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.util.BusinessClock;
+
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
@@ -1045,7 +1047,7 @@ public class SalesController {
         // payment term when a fresh Sales screen is opened.
         loadingSaleForEdit = true;
         selectDefaultPaymentTerms();
-        dpInvoiceDate.setValue(LocalDate.now());
+        dpInvoiceDate.setValue(BusinessClock.today());
         loadingSaleForEdit = false;
         updatePoDateFromPaymentTerms();
 
