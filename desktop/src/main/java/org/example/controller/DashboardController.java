@@ -608,7 +608,7 @@ public class DashboardController {
         openPage(null, "Communication Center", "/fxml/pages/CommunicationCenter.fxml");
     }
     @FXML private void openDocumentStudio() {
-        openPage(btnDocumentStudio, "Purchase Document Studio", "/fxml/pages/DocumentStudio.fxml");
+        openPage(btnDocumentStudio, "Document Studio", "/fxml/pages/DocumentStudio.fxml");
     }
     @FXML private void openEmailCenter() {
         markCommunicationRead("EMAIL");

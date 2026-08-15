@@ -14,6 +14,7 @@ import org.example.api.setup.SetupApiClient;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.service.SessionService;
+import org.example.service.BrandingService;
 import org.example.update.UpdateLifecycle;
 import org.example.update.UpdateStartupChecker;
 import org.example.util.SceneManager;
@@ -48,6 +49,10 @@ public final class Main {
 
     private void initializeConfiguredApplication(Stage stage) {
         PerformanceMonitor.start("warm-startup");
+        // Load workspace configuration before Splash.fxml is created so application
+        // branding (name, tagline, startup message and brand image) is available on
+        // the very first rendered frame instead of falling back to hard-coded defaults.
+        ConfigManager.load();
         SceneManager.showSplash();
         Thread startup = new Thread(() -> initializeInBackground(stage), "dse-startup");
         startup.setDaemon(true);
@@ -55,8 +60,11 @@ public final class Main {
     }
 
     private void initializeInBackground(Stage stage) {
-        SceneManager.updateSplashStage(1, "Loading workspace and configuration...");
+        SceneManager.updateSplashStage(1, "Workspace and configuration loaded.");
+        // Reload is intentionally safe here in case another startup component changed
+        // configuration after the initial splash preload, then refresh visible branding.
         ConfigManager.load();
+        SceneManager.refreshSplashBranding();
         try {
             SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
             ManagedPostgresRuntime.ensureReady();
@@ -65,7 +73,7 @@ public final class Main {
             exception.printStackTrace();
             Platform.runLater(() -> {
                 Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
-                        "DSE ERP could not prepare its local PostgreSQL database.\n\n" + exception.getMessage());
+                        BrandingService.applicationName() + " could not prepare its local PostgreSQL database.\n\n" + exception.getMessage());
                 alert.setHeaderText("Database runtime startup failed");
                 alert.showAndWait();
             });
@@ -84,15 +92,15 @@ public final class Main {
                 Platform.runLater(() -> SceneManager.showSetupWizard(() -> completeFirstRun(stage)));
                 return;
             }
-            SceneManager.updateSplashStage(5, "Finalizing DSE ERP...");
-            SceneManager.markSplashReady("Services ready. Opening DSE ERP...");
+            SceneManager.updateSplashStage(5, "Finalizing " + BrandingService.applicationName() + "...");
+            SceneManager.markSplashReady("Services ready. Opening " + BrandingService.applicationName() + "...");
         } catch (Exception exception) {
             exception.printStackTrace();
             Platform.runLater(() -> {
                 Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
-                        "DSE ERP services could not start automatically.\n\n" + exception.getMessage()
+                        BrandingService.applicationName() + " services could not start automatically.\n\n" + exception.getMessage()
                                 + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath());
-                alert.setHeaderText("DSE ERP startup failed");
+                alert.setHeaderText(BrandingService.applicationName() + " startup failed");
                 alert.showAndWait();
             });
             return;
@@ -119,19 +127,23 @@ public final class Main {
 
     /** SetupWizardController has created the workspace and bootstrapped company/admin data through the Spring API. */
     private void completeFirstRun(Stage stage) {
+        // The setup wizard has now created the workspace, so load its configuration
+        // before constructing the splash and immediately show the user's branding.
+        ConfigManager.load();
         SceneManager.showSplash();
         Thread firstRunStartup = new Thread(() -> {
             try {
-                SceneManager.updateSplashStage(1, "Loading workspace and configuration...");
+                SceneManager.updateSplashStage(1, "Workspace and configuration loaded.");
                 ConfigManager.load();
+                SceneManager.refreshSplashBranding();
                 SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
                 ManagedPostgresRuntime.ensureReady();
                 SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
                 RuntimeBootstrapper.ensureServerReady();
                 SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
                 new org.example.api.runtime.RuntimeApiClient().status();
-                SceneManager.updateSplashStage(5, "Finalizing DSE ERP...");
-                SceneManager.markSplashReady("Services ready. Opening DSE ERP...");
+                SceneManager.updateSplashStage(5, "Finalizing " + BrandingService.applicationName() + "...");
+                SceneManager.markSplashReady("Services ready. Opening " + BrandingService.applicationName() + "...");
                 Platform.runLater(() -> {
                     finishStartup(stage);
                     if (SessionService.current() == null) SceneManager.showLogin();
@@ -140,7 +152,7 @@ public final class Main {
                 exception.printStackTrace();
                 Platform.runLater(() -> {
                     Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
-                            "DSE ERP services could not start after setup.\n\n" + exception.getMessage()
+                            BrandingService.applicationName() + " services could not start after setup.\n\n" + exception.getMessage()
                                     + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath());
                     alert.setHeaderText("First-time startup failed");
                     alert.showAndWait();

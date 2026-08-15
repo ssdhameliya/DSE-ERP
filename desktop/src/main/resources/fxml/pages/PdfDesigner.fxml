@@ -2,6 +2,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.documentstudio.controller.PdfDesignerController"
             fx:id="root" styleClass="pdf-designer-root,approved-screen">
@@ -12,23 +13,26 @@
                 <Button text="Back" onAction="#backToLibrary" styleClass="approved-button,approved-secondary-button"/>
                 <VBox spacing="1">
                     <Label fx:id="lblTemplateName" text="PDF Designer" styleClass="pdf-designer-title"/>
-                    <Label fx:id="lblTemplateMeta" text="Purchase Invoice • Draft" styleClass="pdf-designer-meta"/>
+                    <Label fx:id="lblTemplateMeta" text="General PDF • Draft" styleClass="pdf-designer-meta"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
                 <Label fx:id="lblSaveState" text="Ready" styleClass="pdf-designer-save-state"/>
                 <Button text="Undo" onAction="#undo" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Redo" onAction="#redo" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Save Draft" onAction="#saveDraft" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Save &amp; Set Default" onAction="#saveAndDefault" styleClass="approved-button,approved-primary-button"/>
+                <Button fx:id="btnSaveDefault" text="Save Document" onAction="#saveAndDefault" styleClass="approved-button,approved-primary-button"/>
             </HBox>
             <HBox spacing="8" alignment="CENTER_LEFT" styleClass="pdf-designer-contextbar">
-                <Label text="Preview Data:"/>
-                <ComboBox fx:id="cmbSampleInvoice" prefWidth="210" promptText="Sample / choose invoice"/>
-                <Button fx:id="btnPreview" text="Preview Data" onAction="#togglePreview" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Export Test PDF" onAction="#exportTestPdf" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnConnectData" text="Connect ERP Data" onAction="#connectErpData" styleClass="approved-button,approved-secondary-button,pdf-data-connect-button"/>
+                <Label fx:id="lblPreviewData" text="Preview:"/>
+                <ComboBox fx:id="cmbSampleDocument" prefWidth="245" promptText="General PDF - no ERP data"/>
+                <Button fx:id="btnPreview" text="Final PDF" onAction="#togglePreview" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Export PDF" onAction="#exportTestPdf" styleClass="approved-button,approved-primary-button"/>
                 <Separator orientation="VERTICAL"/>
+                <Button text="Fit Page" onAction="#fitPage" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Fit Width" onAction="#fitWidth" styleClass="approved-button,approved-secondary-button"/>
                 <Label text="Zoom"/>
-                <Slider fx:id="zoomSlider" min="50" max="180" value="100" prefWidth="150"/>
+                <Slider fx:id="zoomSlider" min="40" max="200" value="100" prefWidth="135"/>
                 <Label fx:id="lblZoom" text="100%"/>
                 <CheckBox fx:id="chkSnap" text="Snap" selected="true"/>
                 <Region HBox.hgrow="ALWAYS"/>
@@ -38,26 +42,86 @@
     </top>
 
     <left>
-        <VBox spacing="10" prefWidth="245" minWidth="220" maxWidth="270" styleClass="pdf-designer-panel,pdf-designer-left">
-            <padding><Insets top="12" right="10" bottom="12" left="10"/></padding>
-            <Label text="TOOLS" styleClass="pdf-designer-section"/>
-            <GridPane hgap="7" vgap="7">
-                <Button text="Text" onAction="#addText" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Image" onAction="#addImage" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Whiteout" onAction="#addWhiteout" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Rectangle" onAction="#addRectangle" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Line" onAction="#addLine" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Item Table" onAction="#addItemTable" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="approved-button,approved-secondary-button"/>
-                <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
-            </GridPane>
-            <Separator/>
-            <Label text="ERP DATA" styleClass="pdf-designer-section"/>
-            <TextField fx:id="txtFieldSearch" promptText="Search company, purchase, supplier..."/>
-            <ListView fx:id="lstFields" prefHeight="235" VBox.vgrow="ALWAYS"/>
-            <Button text="Add Selected Field" onAction="#addSelectedField" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
-            <Separator/>
-            <Label text="PAGES" styleClass="pdf-designer-section"/>
-            <ListView fx:id="lstPages" prefHeight="140"/>
+        <VBox spacing="8" prefWidth="350" minWidth="330" maxWidth="390" styleClass="pdf-designer-panel,pdf-designer-left,pdf-designer-left-wide">
+            <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+            <Label text="DESIGN TOOLS" styleClass="pdf-designer-section"/>
+            <TabPane fx:id="leftTabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" styleClass="pdf-designer-tool-tabs">
+                <tabs>
+                    <Tab text="INSERT">
+                        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="pdf-designer-inner-scroll">
+                            <content>
+                                <VBox spacing="10">
+                                    <padding><Insets top="10" right="6" bottom="16" left="6"/></padding>
+                                    <TitledPane text="EDIT IMPORTED PDF" expanded="true" collapsible="false" styleClass="pdf-designer-tool-group">
+                                        <content>
+                                            <VBox spacing="7">
+                                                <ToggleButton fx:id="btnEditExistingText" text="Edit Existing PDF Text" onAction="#toggleExistingTextMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,pdf-tool-emphasis"/>
+                                                <ToggleButton fx:id="btnEditImportedImage" text="Edit Imported Image" onAction="#toggleImportedImageMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                                <ToggleButton fx:id="btnEditFormField" text="Edit PDF Form Field" onAction="#toggleFormFieldMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Replace / Hide Area" onAction="#addWhiteout" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                                <Label text="Modify detected PDF text, raster images and form fields non-destructively. Complex vectors/scans can be covered with Replace / Hide Area; the imported source remains protected." wrapText="true" styleClass="pdf-designer-help"/>
+                                            </VBox>
+                                        </content>
+                                    </TitledPane>
+                                    <TitledPane text="TEXT &amp; CONTENT" expanded="true" collapsible="false" styleClass="pdf-designer-tool-group">
+                                        <content>
+                                            <GridPane hgap="7" vgap="7">
+                                                <Button text="Heading" onAction="#addHeading" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Text" onAction="#addText" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Image" onAction="#addImage" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Dynamic Table" onAction="#addItemTable" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Rectangle" onAction="#addRectangle" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="2" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Line" onAction="#addLine" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="approved-button,approved-secondary-button"/>
+                                                <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
+                                            </GridPane>
+                                        </content>
+                                    </TitledPane>
+                                    <TitledPane text="BRAND &amp; BUSINESS IMAGES" expanded="true" collapsible="false" styleClass="pdf-designer-tool-group">
+                                        <content>
+                                            <GridPane hgap="7" vgap="7">
+                                                <Button text="Company Logo" onAction="#addCompanyLogo" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Signature" onAction="#addSignature" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="App Brand" onAction="#addApplicationBrand" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                                <Button text="Payment QR" onAction="#addPaymentQr" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                                <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
+                                            </GridPane>
+                                        </content>
+                                    </TitledPane>
+                                </VBox>
+                            </content>
+                        </ScrollPane>
+                    </Tab>
+                    <Tab text="DATA">
+                        <VBox spacing="9">
+                            <padding><Insets top="12" right="8" bottom="12" left="8"/></padding>
+                            <Label text="ERP DATA CONNECTION" styleClass="pdf-designer-section"/>
+                            <TextField fx:id="txtFieldSearch" promptText="Search fields for this document type..."/>
+                            <ListView fx:id="lstFields" VBox.vgrow="ALWAYS"/>
+                            <HBox spacing="7">
+                                <Button text="Connect / Change Type" onAction="#connectErpData" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
+                                <Button text="Disconnect" onAction="#disconnectErpData" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
+                            </HBox>
+                            <Button text="Add Selected Field" onAction="#addSelectedField" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                            <Button text="Convert Selected PDF Text to Field" onAction="#convertExistingToField" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                            <Label text="General PDFs show no ERP fields. Connect a document type to expose the matching Company, Purchase, Quotation, Delivery, Receipt or Return fields." wrapText="true" styleClass="pdf-designer-help"/>
+                        </VBox>
+                    </Tab>
+                    <Tab text="PAGES">
+                        <VBox spacing="9">
+                            <padding><Insets top="12" right="8" bottom="12" left="8"/></padding>
+                            <Label text="PDF PAGES" styleClass="pdf-designer-section"/>
+                            <ListView fx:id="lstPages" VBox.vgrow="ALWAYS"/>
+                            <Button text="+ Add Blank Page" onAction="#appendBlankPage" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                            <HBox spacing="7">
+                                <Button text="Rotate Left" onAction="#rotatePageLeft" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
+                                <Button text="Rotate Right" onAction="#rotatePageRight" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
+                            </HBox>
+                            <Button text="Delete Current Page" onAction="#deleteCurrentPage" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/>
+                            <Label text="Page changes apply only to the workspace copy used by this document. The original PDF file you imported outside DSE ERP is never modified." wrapText="true" styleClass="pdf-designer-help"/>
+                        </VBox>
+                    </Tab>
+                </tabs>
+            </TabPane>
         </VBox>
     </left>
 
@@ -75,41 +139,141 @@
     </center>
 
     <right>
-        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefWidth="285" minWidth="260" maxWidth="320" styleClass="pdf-designer-properties-scroll">
-            <content>
-                <VBox spacing="9" styleClass="pdf-designer-panel,pdf-designer-properties">
-                    <padding><Insets top="12" right="12" bottom="18" left="12"/></padding>
+        <BorderPane prefWidth="410" minWidth="385" maxWidth="460" styleClass="pdf-designer-panel,pdf-designer-properties-shell,pdf-designer-right-wide">
+            <top>
+                <VBox spacing="5" styleClass="pdf-designer-properties-header">
+                    <padding><Insets top="12" right="12" bottom="8" left="12"/></padding>
                     <Label text="PROPERTIES" styleClass="pdf-designer-section"/>
                     <Label fx:id="lblSelection" text="Select an object on the page" wrapText="true" styleClass="pdf-designer-selection"/>
-                    <Label text="Content / Field" styleClass="field-caption"/>
-                    <TextArea fx:id="txtContent" prefRowCount="3" wrapText="true"/>
-                    <GridPane hgap="8" vgap="7">
-                        <Label text="X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                        <Label text="Y" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtY" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                        <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="2"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-                        <Label text="Height" GridPane.columnIndex="0" GridPane.rowIndex="3"/><TextField fx:id="txtHeight" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-                        <Label text="Font" GridPane.columnIndex="0" GridPane.rowIndex="4"/><TextField fx:id="txtFontSize" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
-                        <columnConstraints><ColumnConstraints minWidth="58"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
-                    </GridPane>
-                    <HBox spacing="10"><CheckBox fx:id="chkBold" text="Bold"/><CheckBox fx:id="chkLocked" text="Lock"/></HBox>
-                    <Label text="Text Color" styleClass="field-caption"/><ColorPicker fx:id="colorText" maxWidth="Infinity"/>
-                    <Label text="Fill Color" styleClass="field-caption"/><ColorPicker fx:id="colorFill" maxWidth="Infinity"/>
-                    <Label text="Border / Line Color" styleClass="field-caption"/><ColorPicker fx:id="colorStroke" maxWidth="Infinity"/>
-                    <Label text="Item Table Columns" styleClass="field-caption"/>
-                    <TextField fx:id="txtTableColumns" promptText="serial,hsn,description,qty,unit,rate,gst,amount"/>
-                    <Label text="Table Row Height" styleClass="field-caption"/>
-                    <TextField fx:id="txtRowHeight"/>
-                    <Button text="Apply Properties" onAction="#applyProperties" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                    <Label fx:id="lblExistingOriginal" text="" visible="false" managed="false" wrapText="true" styleClass="pdf-existing-original"/>
+                </VBox>
+            </top>
+            <center>
+                <TabPane fx:id="propertiesTabs" tabClosingPolicy="UNAVAILABLE" styleClass="pdf-designer-properties-tabs">
+                    <tabs>
+                        <Tab text="OBJECT">
+                            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="pdf-designer-properties-scroll">
+                                <content>
+                                    <VBox spacing="10" styleClass="pdf-designer-properties">
+                                        <padding><Insets top="10" right="12" bottom="18" left="12"/></padding>
+                                        <VBox fx:id="existingTextSection" visible="false" managed="false" spacing="6" styleClass="pdf-existing-edit-card">
+                                            <Label text="EDIT EXISTING PDF TEXT" styleClass="field-caption"/>
+                                            <Label text="Type replacement text below. Apply creates a precise mask + editable text overlay; the imported PDF itself is never changed." wrapText="true" styleClass="pdf-designer-help"/>
+                                        </VBox>
+                                        <VBox fx:id="existingFormSection" visible="false" managed="false" spacing="6" styleClass="pdf-existing-edit-card">
+                                            <Label text="EDIT EXISTING PDF FORM FIELD" styleClass="field-caption"/>
+                                            <Label text="Type the replacement value below. Apply covers the original widget and places an editable Studio text object on top." wrapText="true" styleClass="pdf-designer-help"/>
+                                        </VBox>
+                                        <Label text="Content / Field" styleClass="field-caption"/>
+                                        <TextArea fx:id="txtContent" prefRowCount="4" wrapText="true"/>
+                                        <Separator/>
+                                        <Label text="POSITION &amp; SIZE" styleClass="field-caption"/>
+                                        <GridPane hgap="8" vgap="7">
+                                            <Label text="X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                            <Label text="Y" GridPane.columnIndex="2" GridPane.rowIndex="0"/><TextField fx:id="txtY" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                                            <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                            <Label text="Height" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtHeight" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                                            <columnConstraints>
+                                                <ColumnConstraints minWidth="45"/><ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
+                                                <ColumnConstraints minWidth="52"/><ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
+                                            </columnConstraints>
+                                        </GridPane>
+                                        <Separator/>
+                                        <Label text="TEXT &amp; APPEARANCE" styleClass="field-caption"/>
+                                        <GridPane hgap="8" vgap="7">
+                                            <Label text="Font Size" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtFontSize" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                            <Label text="Line / Border" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtStrokeWidth" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                            <columnConstraints><ColumnConstraints minWidth="88"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
+                                        </GridPane>
+                                        <HBox spacing="12"><CheckBox fx:id="chkBold" text="Bold"/><CheckBox fx:id="chkLocked" text="Lock object"/></HBox>
+                                        <GridPane hgap="8" vgap="7">
+                                            <Label text="Text" GridPane.columnIndex="0" GridPane.rowIndex="0"/><ColorPicker fx:id="colorText" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                            <Label text="Fill" GridPane.columnIndex="0" GridPane.rowIndex="1"/><ColorPicker fx:id="colorFill" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                            <Label text="Border" GridPane.columnIndex="0" GridPane.rowIndex="2"/><ColorPicker fx:id="colorStroke" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                                            <columnConstraints><ColumnConstraints minWidth="60"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
+                                        </GridPane>
+                                        <VBox fx:id="tablePropertiesSection" spacing="7" visible="false" managed="false">
+                                            <Separator/>
+                                            <Label text="DYNAMIC TABLE" styleClass="field-caption"/>
+                                            <Label text="Columns"/><TextField fx:id="txtTableColumns" promptText="serial,hsn,description,qty,unit,rate,gst,amount"/>
+                                            <GridPane hgap="8" vgap="7">
+                                                <Label text="Row Height" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtRowHeight" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                                <Label text="Header Height" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtHeaderHeight" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                                <columnConstraints><ColumnConstraints minWidth="95"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
+                                            </GridPane>
+                                        </VBox>
+                                    </VBox>
+                                </content>
+                            </ScrollPane>
+                        </Tab>
+                        <Tab text="IMAGE">
+                            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="pdf-designer-properties-scroll">
+                                <content>
+                                    <VBox fx:id="imagePropertiesSection" spacing="11" styleClass="pdf-designer-properties">
+                                        <padding><Insets top="12" right="12" bottom="18" left="12"/></padding>
+                                        <Label text="IMAGE CONTROLS" styleClass="field-caption"/>
+                                        <Label fx:id="lblImageSource" text="Select an image object" wrapText="true" styleClass="pdf-designer-help"/>
+                                        <Button fx:id="btnConvertImportedImage" text="Convert Imported Image to Editable Object" onAction="#convertImportedImage" visible="false" managed="false" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                                        <Button text="Replace Image" onAction="#replaceSelectedImage" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                        <Separator/>
+                                        <Label text="Sizing Mode" styleClass="field-caption"/>
+                                        <ComboBox fx:id="cmbImageFit" maxWidth="Infinity"/>
+                                        <CheckBox fx:id="chkPreserveRatio" text="Preserve aspect ratio" selected="true"/>
+                                        <Label text="Opacity" styleClass="field-caption"/>
+                                        <HBox spacing="8" alignment="CENTER_LEFT"><Slider fx:id="sldOpacity" min="5" max="100" value="100" HBox.hgrow="ALWAYS"/><Label fx:id="lblOpacity" text="100%"/></HBox>
+                                        <Label text="Rotation (degrees)" styleClass="field-caption"/>
+                                        <TextField fx:id="txtRotation" text="0"/>
+                                        <Label text="Image tools apply to uploaded images and configured brand assets. Fit keeps the whole image visible; Fill crops visually to the box; Stretch uses the full box." wrapText="true" styleClass="pdf-designer-help"/>
+                                    </VBox>
+                                </content>
+                            </ScrollPane>
+                        </Tab>
+                        <Tab text="ARRANGE">
+                            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="pdf-designer-properties-scroll">
+                                <content>
+                                    <VBox spacing="11" styleClass="pdf-designer-properties">
+                                        <padding><Insets top="12" right="12" bottom="18" left="12"/></padding>
+                                        <Label text="LAYER ORDER" styleClass="field-caption"/>
+                                        <GridPane hgap="8" vgap="8">
+                                            <Button text="Bring to Front" onAction="#bringToFront" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Send to Back" onAction="#sendToBack" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Move Forward" onAction="#moveForward" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Move Backward" onAction="#moveBackward" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                            <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
+                                        </GridPane>
+                                        <Separator/>
+                                        <Label text="ALIGN ON PAGE" styleClass="field-caption"/>
+                                        <GridPane hgap="8" vgap="8">
+                                            <Button text="Left" onAction="#alignLeft" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Center" onAction="#alignCenter" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Right" onAction="#alignRight" maxWidth="Infinity" GridPane.columnIndex="2" GridPane.rowIndex="0" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Top" onAction="#alignTop" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Middle" onAction="#alignMiddle" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                            <Button text="Bottom" onAction="#alignBottom" maxWidth="Infinity" GridPane.columnIndex="2" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                                            <columnConstraints><ColumnConstraints percentWidth="33.33"/><ColumnConstraints percentWidth="33.33"/><ColumnConstraints percentWidth="33.34"/></columnConstraints>
+                                        </GridPane>
+                                        <Separator/>
+                                        <Label text="QUICK ACTIONS" styleClass="field-caption"/>
+                                        <Button text="Toggle Lock" onAction="#toggleSelectedLock" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                        <Label text="Keyboard: Ctrl/Cmd+Z Undo • Ctrl/Cmd+Y Redo • Ctrl/Cmd+D Duplicate • Delete removes the selected unlocked object." wrapText="true" styleClass="pdf-designer-help"/>
+                                    </VBox>
+                                </content>
+                            </ScrollPane>
+                        </Tab>
+                    </tabs>
+                </TabPane>
+            </center>
+            <bottom>
+                <VBox spacing="7" styleClass="pdf-designer-sticky-actions">
+                    <padding><Insets top="9" right="10" bottom="10" left="10"/></padding>
+                    <Button fx:id="btnConvertExisting" text="Convert Existing Text to Selected ERP Field" onAction="#convertExistingToField" visible="false" managed="false" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <HBox spacing="8">
                         <Button text="Duplicate" onAction="#duplicateSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                         <Button text="Delete" onAction="#deleteSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/>
+                        <Button fx:id="btnApplyProperties" text="Apply" onAction="#applyProperties" defaultButton="true" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
                     </HBox>
-                    <Separator/>
-                    <Label text="How it works" styleClass="pdf-designer-section"/>
-                    <Label text="Drag objects directly on the page. Coordinates are stored in PDF points, so the exported document stays identical on Windows, macOS and different display scales."
-                           wrapText="true" styleClass="pdf-designer-help"/>
                 </VBox>
-            </content>
-        </ScrollPane>
+            </bottom>
+        </BorderPane>
     </right>
 </BorderPane>

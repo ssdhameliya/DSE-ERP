@@ -11,6 +11,7 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState;
 import org.apache.pdfbox.util.Matrix;
 import org.example.documentstudio.model.*;
 import org.example.invoice.model.TaxInvoiceItem;
@@ -38,7 +39,7 @@ public final class PdfTemplateRenderer {
     }
 
     public static Path renderSample(DocumentTemplate template, Path output) throws IOException {
-        return render(template, TemplateDataFactory.samplePurchase(), output);
+        return render(template, TemplateDataFactory.sampleFor(template == null ? DocumentType.GENERAL_PDF : template.getDocumentType()), output);
     }
 
     public static Path render(DocumentTemplate template, TemplateData data, Path output) throws IOException {
@@ -220,9 +221,52 @@ public final class PdfTemplateRenderer {
                                   TemplateElement e, Path imagePath) throws IOException {
         if (imagePath == null || !Files.isRegularFile(imagePath)) return;
         PDImageXObject image = PDImageXObject.createFromFileByContent(imagePath.toFile(), doc);
-        float x = (float) e.getX();
-        float y = toPdfY(page, e.getY() + e.getHeight());
-        cs.drawImage(image, x, y, (float) e.getWidth(), (float) e.getHeight());
+        float boxX = (float) e.getX();
+        float boxY = toPdfY(page, e.getY() + e.getHeight());
+        float boxW = (float) e.getWidth();
+        float boxH = (float) e.getHeight();
+
+        float drawW = boxW;
+        float drawH = boxH;
+        String fit = e.getImageFit();
+        if (!"STRETCH".equals(fit) || e.isPreserveAspectRatio()) {
+            float iw = Math.max(1, image.getWidth());
+            float ih = Math.max(1, image.getHeight());
+            float sx = boxW / iw;
+            float sy = boxH / ih;
+            float factor = "FILL".equals(fit) ? Math.max(sx, sy) : Math.min(sx, sy);
+            drawW = iw * factor;
+            drawH = ih * factor;
+        }
+
+        float drawX = boxX + (boxW - drawW) / 2f;
+        float drawY = boxY + (boxH - drawH) / 2f;
+        float centerX = boxX + boxW / 2f;
+        float centerY = boxY + boxH / 2f;
+
+        cs.saveGraphicsState();
+        try {
+            if (e.getOpacity() < 0.999) {
+                PDExtendedGraphicsState state = new PDExtendedGraphicsState();
+                state.setNonStrokingAlphaConstant((float) e.getOpacity());
+                cs.setGraphicsStateParameters(state);
+            }
+            if ("FILL".equals(fit)) {
+                cs.addRect(boxX, boxY, boxW, boxH);
+                // PDFBox clip() applies the clipping path and terminates the current path.
+                // PDPageContentStream has no public endPath() API.
+                cs.clip();
+            }
+            if (Math.abs(e.getRotation()) > 0.01) {
+                cs.transform(Matrix.getTranslateInstance(centerX, centerY));
+                cs.transform(Matrix.getRotateInstance(Math.toRadians(e.getRotation()), 0, 0));
+                cs.drawImage(image, drawX - centerX, drawY - centerY, drawW, drawH);
+            } else {
+                cs.drawImage(image, drawX, drawY, drawW, drawH);
+            }
+        } finally {
+            cs.restoreGraphicsState();
+        }
     }
 
     private static void drawItemTable(PDPage page, PDPageContentStream cs, TemplateElement e,

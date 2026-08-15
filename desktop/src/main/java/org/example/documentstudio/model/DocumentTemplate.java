@@ -1,5 +1,6 @@
 package org.example.documentstudio.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +11,7 @@ public class DocumentTemplate {
     private String id = UUID.randomUUID().toString();
     private String name = "Untitled Template";
     private DocumentType documentType = DocumentType.PURCHASE_INVOICE;
+    private TemplateCategory category;
     private int version = 1;
     private TemplateStatus status = TemplateStatus.DRAFT;
     private boolean defaultTemplate;
@@ -23,7 +25,16 @@ public class DocumentTemplate {
     public String getName() { return name == null ? "Untitled Template" : name; }
     public void setName(String name) { this.name = name == null || name.isBlank() ? "Untitled Template" : name.trim(); }
     public DocumentType getDocumentType() { return documentType; }
-    public void setDocumentType(DocumentType documentType) { this.documentType = documentType == null ? DocumentType.PURCHASE_INVOICE : documentType; }
+    public void setDocumentType(DocumentType documentType) {
+        this.documentType = documentType == null ? DocumentType.PURCHASE_INVOICE : documentType;
+        if (category == null) category = this.documentType.isGeneral() ? TemplateCategory.GENERAL_PDF : TemplateCategory.ERP_TEMPLATE;
+    }
+    public TemplateCategory getCategory() {
+        return category == null ? (getDocumentType().isGeneral() ? TemplateCategory.GENERAL_PDF : TemplateCategory.ERP_TEMPLATE) : category;
+    }
+    public void setCategory(TemplateCategory category) { this.category = category; }
+    @JsonIgnore
+    public boolean isErpConnected() { return getDocumentType().isErpConnected(); }
     public int getVersion() { return version; }
     public void setVersion(int version) { this.version = Math.max(1, version); }
     public TemplateStatus getStatus() { return status; }

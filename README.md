@@ -8,6 +8,7 @@ DSE ERP is an open-source JavaFX desktop ERP application by **DS Engineers**. It
 - Sales, purchases, quotations, returns, and payments
 - Customers, suppliers, items, master data, and inventory
 - User access, roles, and permissions
+- Universal Document Studio for editable/general PDFs and ERP templates
 - PDF/Excel exports and email/WhatsApp-assisted communication
 - Production-safe backup and staged restore
 - GitHub Releases update checking
@@ -37,13 +38,13 @@ On Windows, `build.bat` performs the same verification and `Run DSE ERP.bat` lau
 Windows PowerShell:
 
 ```powershell
-.\scripts\package-windows.ps1 -Version 7.2.4
+.\scripts\package-windows.ps1 -Version 7.3.0
 ```
 
 macOS Terminal:
 
 ```bash
-./scripts/package-macos.sh 7.2.4
+./scripts/package-macos.sh 7.3.0
 ```
 
 The generated packages are written to:
@@ -56,8 +57,8 @@ The generated packages are written to:
 After committing a matching version in `pom.xml`, push a semantic-version tag:
 
 ```bash
-git tag v7.2.4
-git push origin v7.2.4
+git tag v7.3.0
+git push origin v7.3.0
 ```
 
 GitHub Actions builds:

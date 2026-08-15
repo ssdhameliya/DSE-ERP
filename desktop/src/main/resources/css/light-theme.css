@@ -7356,3 +7356,54 @@ SECTION TITLES
 .safe-rollback-step-icon { -fx-background-color: #f1f5f9; }
 
 .settings-asset-purpose { -fx-text-fill: #64748b; }
+
+/* ===== DSE ERP 7.2.7 Purchase Document Studio advanced editing - light ===== */
+.pdf-designer-left-wide, .pdf-designer-right-wide, .pdf-designer-properties-shell,
+.pdf-designer-properties-header, .pdf-designer-sticky-actions { -fx-background-color:#f8fafc; -fx-border-color:#d9e4f0; }
+.pdf-designer-tool-tabs .tab-header-background, .pdf-designer-properties-tabs .tab-header-background { -fx-background-color:#eef4fb; }
+.pdf-designer-tool-tabs .tab, .pdf-designer-properties-tabs .tab { -fx-background-color:transparent; }
+.pdf-designer-tool-tabs .tab:selected, .pdf-designer-properties-tabs .tab:selected { -fx-background-color:#ffffff; }
+.pdf-designer-tool-tabs .tab:selected .tab-label, .pdf-designer-properties-tabs .tab:selected .tab-label { -fx-text-fill:#1d4ed8; }
+.pdf-designer-tool-group > .title { -fx-background-color:#eef4fb; -fx-background-radius:8; }
+.pdf-designer-tool-group > *.content { -fx-background-color:#ffffff; -fx-border-color:#d9e4f0; -fx-border-radius:0 0 8 8; }
+.pdf-existing-edit-card { -fx-background-color:#eff6ff; -fx-border-color:#bfdbfe; }
+.pdf-existing-original { -fx-background-color:#fff7ed; -fx-border-color:#fed7aa; -fx-text-fill:#9a3412; }
+.pdf-existing-text-target { -fx-border-color:rgba(37,99,235,.62); }
+.pdf-existing-text-target:hover, .pdf-existing-text-selected { -fx-border-color:#2563eb; }
+/* ===== End DSE ERP 7.2.7 Purchase Document Studio advanced editing - light ===== */
+
+/* ===== DSE ERP 7.3.0 Settings Workspace + Universal Document Studio - light ===== */
+.settings-category-shell { -fx-background-color: #ffffff; -fx-border-color: #d9e4f2; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.07), 12, 0.15, 0, 3); }
+.settings-category-heading { -fx-text-fill: #13223a; }
+.settings-category-subheading, .settings-category-hint { -fx-text-fill: #64748b; }
+.settings-category-tile { -fx-background-color: #f8fbff; -fx-border-color: #e2eaf4; }
+.settings-category-tile:hover { -fx-background-color: #eef5ff; -fx-border-color: #bfd4f3; }
+.settings-category-tile.settings-navigation-item-selected { -fx-background-color: linear-gradient(to bottom right, #eaf3ff, #f8fbff); -fx-border-color: #7eb0f5; -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.12), 8, 0.1, 0, 2); }
+.settings-category-tile.settings-navigation-item-selected .settings-navigation-title { -fx-text-fill: #1759c4; }
+.doc-studio-mode-card { -fx-background-color: #ffffff; -fx-border-color: #dce7f4; }
+.doc-studio-mode-title { -fx-text-fill: #1d4ed8; }
+.doc-template-general { -fx-background-color: #eef2ff; -fx-text-fill: #4338ca; }
+.doc-template-erp { -fx-background-color: #e9fbf3; -fx-text-fill: #047857; }
+/* ===== End DSE ERP 7.3.0 light ===== */
+
+
+/* ===== DSE ERP 7.3.0 Splash Branding + Settings Workspace Finalization ===== */
+.settings-page-shell .page-heading { -fx-padding: 10px 16px 10px 16px; }
+.settings-content.settings-workspace-layout { -fx-spacing: 8px; }
+.settings-category-shell { -fx-padding: 8px 10px; }
+.settings-category-tile .settings-navigation-title { -fx-text-overrun: clip; }
+.settings-workspace-panel-scroll { -fx-padding: 0; }
+/* ===== End 7.3.0 Settings Finalization ===== */
+
+/* ===== DSE ERP 7.3.0 stabilization: Document Studio + Settings fit ===== */
+.settings-panel-host { -fx-min-height: 0; }
+.settings-card-tall-compact { -fx-padding: 14px 16px; -fx-spacing: 10px; }
+.settings-card-tall-compact .settings-information-card { -fx-padding: 9px 11px; }
+.settings-card-tall-compact .settings-image-preview { -fx-background-radius: 10px; -fx-border-radius: 10px; }
+.pdf-existing-image-target { -fx-cursor: hand; -fx-border-width: 2; -fx-border-style: segments(6,4); -fx-background-color: rgba(245,158,11,.08); -fx-border-color: #f59e0b; }
+.pdf-existing-image-target > .label { -fx-font-size: 9px; -fx-font-weight: 900; -fx-text-fill: #f59e0b; -fx-background-color: rgba(15,23,42,.78); -fx-padding: 3 6; -fx-background-radius: 6; }
+.pdf-existing-image-selected { -fx-border-style: solid; -fx-effect: dropshadow(gaussian, rgba(245,158,11,.45), 10, .2, 0, 0); }
+.pdf-existing-form-target { -fx-cursor: text; -fx-border-width: 2; -fx-border-style: segments(5,3); -fx-background-color: rgba(16,185,129,.07); -fx-border-color: #10b981; }
+.pdf-existing-form-target > .label { -fx-font-size: 8px; -fx-font-weight: 800; -fx-text-fill: #10b981; -fx-opacity: .88; }
+.pdf-existing-form-selected { -fx-border-style: solid; -fx-effect: dropshadow(gaussian, rgba(16,185,129,.40), 10, .2, 0, 0); }
+/* ===== End 7.3.0 stabilization ===== */

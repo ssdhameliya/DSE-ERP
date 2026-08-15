@@ -10,7 +10,7 @@
   </parent>
   <groupId>org.example</groupId>
   <artifactId>dse-erp-parent</artifactId>
-  <version>7.2.6</version>
+  <version>7.3.0</version>
   <packaging>pom</packaging>
   <name>DSE ERP Parent</name>
   <modules>
@@ -19,7 +19,7 @@
     <module>desktop</module>
   </modules>
   <properties>
-        <dse.phase>7.2.6</dse.phase>
+        <dse.phase>7.3.0</dse.phase>
     <java.version>25</java.version>
     <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

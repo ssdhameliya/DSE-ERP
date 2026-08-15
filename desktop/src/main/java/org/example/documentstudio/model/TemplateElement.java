@@ -22,6 +22,10 @@ public class TemplateElement {
     private String strokeColor = "#94A3B8";
     private double strokeWidth = 1;
     private String imagePath = "";
+    private double opacity = 1.0;
+    private double rotation;
+    private boolean preserveAspectRatio = true;
+    private String imageFit = "FIT";
     private boolean locked;
     private List<String> tableColumns = new ArrayList<>(List.of(
             "serial", "hsn", "description", "qty", "unit", "rate", "gst", "amount"));
@@ -53,7 +57,8 @@ public class TemplateElement {
         c.x = x; c.y = y; c.width = width; c.height = height;
         c.text = text; c.fieldKey = fieldKey; c.fontSize = fontSize; c.bold = bold;
         c.textColor = textColor; c.fillColor = fillColor; c.strokeColor = strokeColor;
-        c.strokeWidth = strokeWidth; c.imagePath = imagePath; c.locked = locked;
+        c.strokeWidth = strokeWidth; c.imagePath = imagePath; c.opacity = opacity; c.rotation = rotation;
+        c.preserveAspectRatio = preserveAspectRatio; c.imageFit = imageFit; c.locked = locked;
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
         c.rowHeight = rowHeight; c.headerHeight = headerHeight;
         return c;
@@ -91,6 +96,21 @@ public class TemplateElement {
     public void setStrokeWidth(double strokeWidth) { this.strokeWidth = Math.max(0, Math.min(12, strokeWidth)); }
     public String getImagePath() { return imagePath == null ? "" : imagePath; }
     public void setImagePath(String imagePath) { this.imagePath = imagePath == null ? "" : imagePath; }
+    public double getOpacity() { return opacity; }
+    public void setOpacity(double opacity) { this.opacity = Math.max(0.05, Math.min(1.0, opacity)); }
+    public double getRotation() { return rotation; }
+    public void setRotation(double rotation) {
+        double normalized = rotation % 360.0;
+        if (normalized < 0) normalized += 360.0;
+        this.rotation = normalized;
+    }
+    public boolean isPreserveAspectRatio() { return preserveAspectRatio; }
+    public void setPreserveAspectRatio(boolean preserveAspectRatio) { this.preserveAspectRatio = preserveAspectRatio; }
+    public String getImageFit() { return imageFit == null || imageFit.isBlank() ? "FIT" : imageFit; }
+    public void setImageFit(String imageFit) {
+        String value = imageFit == null ? "FIT" : imageFit.trim().toUpperCase();
+        this.imageFit = switch (value) { case "FILL", "STRETCH" -> value; default -> "FIT"; };
+    }
     public boolean isLocked() { return locked; }
     public void setLocked(boolean locked) { this.locked = locked; }
     public List<String> getTableColumns() { return tableColumns == null ? List.of() : tableColumns; }

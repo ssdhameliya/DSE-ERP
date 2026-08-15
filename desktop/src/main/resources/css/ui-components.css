@@ -512,3 +512,59 @@
 .settings-brand-asset-card { -fx-min-width: 260; -fx-max-width: Infinity; }
 .settings-asset-purpose { -fx-font-size: 10.5px; -fx-min-height: 28; }
 /* ===== End DSE ERP 7.2.6 Settings unified brand assets ===== */
+
+/* ===== DSE ERP 7.2.7 Purchase Document Studio advanced editing ===== */
+.pdf-designer-left-wide { -fx-border-width: 0 1 0 0; }
+.pdf-designer-right-wide { -fx-border-width: 0 0 0 1; }
+.pdf-designer-tool-tabs, .pdf-designer-properties-tabs { -fx-tab-min-height: 34; -fx-tab-max-height: 34; }
+.pdf-designer-tool-tabs > .tab-header-area, .pdf-designer-properties-tabs > .tab-header-area { -fx-padding: 0 2 0 2; }
+.pdf-designer-tool-tabs .tab, .pdf-designer-properties-tabs .tab { -fx-padding: 5 13; }
+.pdf-designer-tool-tabs .tab-label, .pdf-designer-properties-tabs .tab-label { -fx-font-size: 10px; -fx-font-weight: 900; }
+.pdf-designer-inner-scroll, .pdf-designer-inner-scroll > .viewport,
+.pdf-designer-properties-scroll, .pdf-designer-properties-scroll > .viewport { -fx-background-color: transparent; }
+.pdf-designer-tool-group { -fx-animated: false; }
+.pdf-designer-tool-group > .title { -fx-padding: 8 10; }
+.pdf-designer-tool-group > .title > .text { -fx-font-size: 10px; -fx-font-weight: 900; }
+.pdf-designer-tool-group > *.content { -fx-padding: 9 8 9 8; }
+.pdf-tool-emphasis { -fx-font-weight: 900; }
+.pdf-designer-properties-shell { -fx-border-width: 0 0 0 1; }
+.pdf-designer-properties-header { -fx-border-width: 0 0 1 0; }
+.pdf-designer-sticky-actions { -fx-border-width: 1 0 0 0; }
+.pdf-existing-edit-card { -fx-padding: 9 10; -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-width: 1; }
+.pdf-existing-original { -fx-padding: 7 9; -fx-background-radius: 8; -fx-border-radius: 8; -fx-border-width: 1; -fx-font-size: 10px; -fx-font-weight: 800; }
+.pdf-existing-text-target { -fx-cursor: text; -fx-border-width: 1; -fx-border-style: segments(4,3); -fx-background-color: rgba(37,99,235,.035); }
+.pdf-existing-text-target > .label { -fx-opacity: 0.01; }
+.pdf-existing-text-target:hover { -fx-border-width: 2; -fx-background-color: rgba(37,99,235,.09); }
+.pdf-existing-text-selected { -fx-border-width: 2; -fx-border-style: solid; -fx-effect: dropshadow(gaussian, rgba(37,99,235,.35), 9, .2, 0, 0); }
+/* ===== End DSE ERP 7.2.7 Purchase Document Studio advanced editing ===== */
+
+/* ===== DSE ERP 7.3.0 Universal Document Studio + Settings Workspace ===== */
+.settings-workspace-layout { -fx-max-width: infinity; }
+.settings-category-shell { -fx-padding: 8px 10px; -fx-background-radius: 14px; -fx-border-radius: 14px; -fx-border-width: 1px; }
+.settings-category-heading { -fx-font-size: 15px; -fx-font-weight: 800; }
+.settings-category-subheading, .settings-category-hint { -fx-font-size: 11px; }
+.settings-category-scroll { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 0; }
+.settings-category-scroll > .viewport { -fx-background-color: transparent; }
+.settings-category-strip { -fx-padding: 1px; }
+.settings-category-tile { -fx-min-width: 205px; -fx-pref-width: 220px; -fx-max-width: 230px; -fx-min-height: 58px; -fx-pref-height: 58px; -fx-padding: 7px 10px; -fx-background-radius: 11px; -fx-border-radius: 11px; -fx-cursor: hand; }
+.settings-category-tile .settings-navigation-description { -fx-font-size: 10px; }
+.settings-workspace-panel-scroll { -fx-min-height: 440px; -fx-padding: 0; }
+.settings-workspace-panel-scroll > .viewport { -fx-background-color: transparent; }
+.settings-panel-host { -fx-max-width: infinity; }
+.settings-panel-host > .settings-card { -fx-max-width: infinity; }
+
+.universal-doc-hero { -fx-min-height: 92px; }
+.doc-studio-entry-button { -fx-min-height: 38px; -fx-padding: 9px 15px; }
+.doc-studio-kpi-wide { -fx-min-width: 330px; }
+.doc-studio-mode-guide { -fx-max-width: infinity; }
+.doc-studio-mode-card { -fx-padding: 12px 14px; -fx-background-radius: 12px; -fx-border-radius: 12px; -fx-border-width: 1px; -fx-min-height: 76px; }
+.doc-studio-mode-title { -fx-font-size: 11px; -fx-font-weight: 800; }
+.doc-template-general, .doc-template-erp { -fx-font-size: 9px; -fx-font-weight: 800; }
+.pdf-data-connect-button { -fx-font-weight: 800; }
+/* ===== End DSE ERP 7.3.0 ===== */
+
+/* ===== DSE ERP 7.3.0 stabilization ===== */
+.settings-card-tall-compact { -fx-max-width: infinity; }
+.settings-card-tall-compact .settings-brand-assets-panel { -fx-padding: 8; }
+.settings-workspace-panel-scroll { -fx-min-height: 0; }
+/* ===== End 7.3.0 stabilization ===== */

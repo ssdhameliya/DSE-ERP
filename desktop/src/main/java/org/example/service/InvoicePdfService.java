@@ -8,6 +8,7 @@ import org.example.config.ConfigManager;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.service.PdfTemplateRenderer;
 import org.example.documentstudio.service.TemplateStorageService;
+import org.example.documentstudio.service.DocumentDataService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,10 +19,9 @@ public class InvoicePdfService {
     /**
      * Generate a professional Purchase Invoice PDF.
      *
-     * <p>DSE ERP 7.2.5 keeps Document Studio deliberately purchase-only. If an
-     * active default Purchase template exists, it is used first. Any template
-     * rendering problem is logged and the established Purchase renderer is used
-     * as a safe fallback.</p>
+     * <p>Document Studio 7.3.0 can provide the active Purchase template. Any
+     * template rendering problem is logged and the established Purchase renderer
+     * remains the safe fallback.</p>
      */
     public static Path purchase(Purchase invoice) throws Exception {
         if (invoice == null || invoice.getInvoiceNo() == null || invoice.getInvoiceNo().isBlank()) {
@@ -79,6 +79,16 @@ public class InvoicePdfService {
             throw new IllegalArgumentException("A valid quotation number is required.");
         }
         Path result = ensureOutputDirectory().resolve("Quotation-" + quotationNo + ".pdf");
+        var customTemplate = TemplateStorageService.defaultFor(DocumentType.QUOTATION);
+        if (customTemplate.isPresent()) {
+            try {
+                PdfTemplateRenderer.render(customTemplate.get(), DocumentDataService.load(DocumentType.QUOTATION, quotationNo), result);
+                validatePdf(result, quotationNo);
+                return result;
+            } catch (Exception templateError) {
+                logTemplateFallback("quotation", quotationNo, templateError);
+            }
+        }
         ProfessionalDocumentRenderer.render(result, ensureLogo(), quotationNo,
             ProfessionalDocumentRenderer.Kind.QUOTATION);
         validatePdf(result, quotationNo);
@@ -86,16 +96,20 @@ public class InvoicePdfService {
     }
 
     private static void logPurchaseTemplateFallback(String documentNo, Exception error) {
+        logTemplateFallback("purchase", documentNo, error);
+    }
+
+    private static void logTemplateFallback(String type, String documentNo, Exception error) {
         try {
-            Path log = ConfigManager.getConfigFolder().resolve("purchase-document-studio-render-errors.log");
+            Path log = ConfigManager.getConfigFolder().resolve("document-studio-render-errors.log");
             String message = System.lineSeparator() + java.time.OffsetDateTime.now()
-                    + " | purchase=" + documentNo
+                    + " | " + type + "=" + documentNo
                     + " | " + error.getClass().getSimpleName()
                     + ": " + String.valueOf(error.getMessage());
             Files.writeString(log, message, java.nio.file.StandardOpenOption.CREATE,
                     java.nio.file.StandardOpenOption.APPEND);
         } catch (Exception ignored) {
-            // Diagnostics must never block the established Purchase PDF fallback.
+            // Diagnostics must never block the established built-in renderer fallback.
         }
     }
 

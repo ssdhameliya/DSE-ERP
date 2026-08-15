@@ -14,6 +14,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
@@ -52,6 +53,7 @@ import java.util.List;
 public class SettingsController {
 
     @FXML private StackPane panelHost;
+    @FXML private ScrollPane panelScroll;
 
     @FXML private Button btnCheckUpdates;
 
@@ -322,6 +324,13 @@ public class SettingsController {
         panelHost.getChildren().setAll(panelCompany);
         panelCompany.setManaged(true);
         panelCompany.setVisible(true);
+        Platform.runLater(() -> {
+            if (panelScroll != null) panelScroll.setVvalue(0.0);
+            panelCompany.applyCss();
+            panelCompany.autosize();
+            panelHost.applyCss();
+            panelHost.layout();
+        });
     }
 
     private void configureChoiceFields() {
@@ -1067,8 +1076,23 @@ public class SettingsController {
         if (selectedPanel != null && panelHost != null) {
             selectedPanel.setVisible(true);
             selectedPanel.setManaged(true);
-            if (panelHost.getChildren().size() != 1 || panelHost.getChildren().getFirst() != selectedPanel)
+            if (panelHost.getChildren().size() != 1 || panelHost.getChildren().getFirst() != selectedPanel) {
                 panelHost.getChildren().setAll(selectedPanel);
+            }
+            // Force a fresh viewport/layout pass on every category switch. This prevents
+            // the first two taller panels from retaining stale viewport metrics.
+            Platform.runLater(() -> {
+                if (panelScroll != null) panelScroll.setVvalue(0.0);
+                selectedPanel.applyCss();
+                selectedPanel.autosize();
+                panelHost.applyCss();
+                panelHost.layout();
+                if (panelScroll != null) {
+                    panelScroll.applyCss();
+                    panelScroll.layout();
+                    panelScroll.setVvalue(0.0);
+                }
+            });
         }
     }
 

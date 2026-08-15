@@ -1,5 +1,6 @@
 package org.example.documentstudio.service;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -9,6 +10,8 @@ import org.example.config.WorkspaceManager;
 import org.example.documentstudio.model.DocumentTemplate;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.TemplateStatus;
+import org.example.documentstudio.model.TemplateCategory;
+import org.example.documentstudio.model.TemplateElement;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -22,9 +25,12 @@ import java.util.stream.Stream;
 
 /** File-backed template repository stored under Workspace/Templates/DocumentStudio. */
 public final class TemplateStorageService {
-    private static final ObjectMapper JSON = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private static final ObjectMapper JSON = new ObjectMapper()
+            .enable(SerializationFeature.INDENT_OUTPUT)
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     private static final String META = "template.json";
     private static final String SOURCE = "source.pdf";
+    private static final String ORIGINAL = "original.pdf";
 
     private TemplateStorageService() {}
 
@@ -39,9 +45,9 @@ public final class TemplateStorageService {
         try (Stream<Path> folders = Files.list(root())) {
             folders.filter(Files::isDirectory).forEach(folder -> {
                 try { loadFromFolder(folder).ifPresent(result::add); }
-                catch (Exception ignored) { }
+                catch (Exception error) { logFailure("list", folder, error); }
             });
-        } catch (Exception ignored) { }
+        } catch (Exception error) { logFailure("list-root", null, error); }
         result.sort(Comparator.comparing(DocumentTemplate::getUpdatedAt,
                 Comparator.nullsLast(Comparator.reverseOrder())));
         return result;
@@ -50,7 +56,10 @@ public final class TemplateStorageService {
     public static Optional<DocumentTemplate> find(String id) {
         if (id == null || id.isBlank()) return Optional.empty();
         try { return loadFromFolder(root().resolve(id)); }
-        catch (Exception ignored) { return Optional.empty(); }
+        catch (Exception error) {
+            logFailure("find:" + id, null, error);
+            return Optional.empty();
+        }
     }
 
     public static Optional<DocumentTemplate> defaultFor(DocumentType type) {
@@ -62,6 +71,14 @@ public final class TemplateStorageService {
     }
 
     public static DocumentTemplate importPdf(Path sourcePdf, String name, DocumentType type) throws IOException {
+        return importPdf(sourcePdf, name, type, "");
+    }
+
+    /**
+     * Imports a PDF after validating credentials/permissions and creates an unencrypted private
+     * workspace copy. The caller-supplied password is used only for this operation and is never persisted.
+     */
+    public static DocumentTemplate importPdf(Path sourcePdf, String name, DocumentType type, String password) throws IOException {
         if (sourcePdf == null || !Files.isRegularFile(sourcePdf)) throw new IOException("The selected PDF does not exist.");
         String lower = sourcePdf.getFileName().toString().toLowerCase();
         if (!lower.endsWith(".pdf")) throw new IOException("Only PDF templates are supported.");
@@ -69,13 +86,23 @@ public final class TemplateStorageService {
         template.setId(UUID.randomUUID().toString());
         template.setName(name);
         template.setDocumentType(type);
+        template.setCategory(type != null && type.isGeneral() ? TemplateCategory.GENERAL_PDF : TemplateCategory.ERP_TEMPLATE);
         template.setStatus(TemplateStatus.DRAFT);
         template.setSourceFile(SOURCE);
         Path folder = folder(template);
-        Files.createDirectories(folder.resolve("assets"));
-        Files.copy(sourcePdf, folder.resolve(SOURCE), StandardCopyOption.REPLACE_EXISTING);
-        save(template);
-        return template;
+        try {
+            Files.createDirectories(folder.resolve("assets"));
+            // Keep an immutable byte-for-byte copy of what the user imported. The designer and
+            // renderer use source.pdf, which may be normalized/decrypted for editing.
+            Files.copy(sourcePdf, folder.resolve(ORIGINAL), StandardCopyOption.REPLACE_EXISTING);
+            PdfImportSecurityService.normalizeForEditing(sourcePdf, folder.resolve(SOURCE), password);
+            save(template);
+            verifySavedTemplate(template.getId());
+            return template;
+        } catch (IOException | RuntimeException error) {
+            try { deleteFolder(folder); } catch (Exception cleanup) { error.addSuppressed(cleanup); }
+            throw error;
+        }
     }
 
     public static DocumentTemplate createBlank(String name, DocumentType type) throws IOException {
@@ -83,6 +110,7 @@ public final class TemplateStorageService {
         template.setId(UUID.randomUUID().toString());
         template.setName(name);
         template.setDocumentType(type);
+        template.setCategory(type != null && type.isGeneral() ? TemplateCategory.GENERAL_PDF : TemplateCategory.ERP_TEMPLATE);
         template.setStatus(TemplateStatus.DRAFT);
         Path folder = folder(template);
         Files.createDirectories(folder.resolve("assets"));
@@ -91,6 +119,7 @@ public final class TemplateStorageService {
             document.save(folder.resolve(SOURCE).toFile());
         }
         save(template);
+        verifySavedTemplate(template.getId());
         return template;
     }
 
@@ -99,12 +128,72 @@ public final class TemplateStorageService {
         Path folder = folder(template);
         Files.createDirectories(folder.resolve("assets"));
         template.touch();
-        Path temp = folder.resolve(META + ".tmp");
-        JSON.writeValue(temp.toFile(), template);
-        try {
-            Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException ignored) {
-            Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING);
+        writeMetadata(folder, template);
+    }
+
+
+    /** Convert a General PDF into an ERP template (or change its ERP document type). */
+    public static synchronized void changeDocumentType(DocumentTemplate template, DocumentType type) throws IOException {
+        if (template == null || type == null) throw new IOException("Template and document type are required.");
+        template.setDocumentType(type);
+        template.setCategory(type.isGeneral() ? TemplateCategory.GENERAL_PDF : TemplateCategory.ERP_TEMPLATE);
+        if (type.isGeneral()) template.setDefaultTemplate(false);
+        save(template);
+    }
+
+    /** Append a new blank page matching the currently selected page size. */
+    public static synchronized int appendBlankPage(DocumentTemplate template, int referencePage) throws IOException {
+        Path source = sourcePdf(template);
+        Path temp = folder(template).resolve("source-page-edit.tmp.pdf");
+        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(source.toFile())) {
+            if (document.getNumberOfPages() == 0) document.addPage(new PDPage(PDRectangle.A4));
+            int ref = Math.max(0, Math.min(referencePage, document.getNumberOfPages() - 1));
+            PDRectangle box = document.getPage(ref).getMediaBox();
+            document.addPage(new PDPage(new PDRectangle(box.getWidth(), box.getHeight())));
+            document.save(temp.toFile());
+        }
+        Files.move(temp, source, StandardCopyOption.REPLACE_EXISTING);
+        return pageCount(template);
+    }
+
+    public static synchronized int deletePage(DocumentTemplate template, int pageIndex) throws IOException {
+        Path source = sourcePdf(template);
+        Path temp = folder(template).resolve("source-page-edit.tmp.pdf");
+        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(source.toFile())) {
+            if (document.getNumberOfPages() <= 1) throw new IOException("A document must contain at least one page.");
+            int index = Math.max(0, Math.min(pageIndex, document.getNumberOfPages() - 1));
+            document.removePage(index);
+            document.save(temp.toFile());
+        }
+        Files.move(temp, source, StandardCopyOption.REPLACE_EXISTING);
+        List<TemplateElement> adjusted = new ArrayList<>();
+        for (TemplateElement element : template.getElements()) {
+            if (element.getPageIndex() == pageIndex) continue;
+            if (element.getPageIndex() > pageIndex) element.setPageIndex(element.getPageIndex() - 1);
+            adjusted.add(element);
+        }
+        template.setElements(adjusted);
+        save(template);
+        return pageCount(template);
+    }
+
+    public static synchronized void rotatePage(DocumentTemplate template, int pageIndex, int degrees) throws IOException {
+        Path source = sourcePdf(template);
+        Path temp = folder(template).resolve("source-page-edit.tmp.pdf");
+        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(source.toFile())) {
+            if (document.getNumberOfPages() == 0) throw new IOException("Document has no pages.");
+            int index = Math.max(0, Math.min(pageIndex, document.getNumberOfPages() - 1));
+            PDPage page = document.getPage(index);
+            int rotation = ((page.getRotation() + degrees) % 360 + 360) % 360;
+            page.setRotation(rotation);
+            document.save(temp.toFile());
+        }
+        Files.move(temp, source, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static int pageCount(DocumentTemplate template) throws IOException {
+        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(sourcePdf(template).toFile())) {
+            return document.getNumberOfPages();
         }
     }
 
@@ -140,6 +229,8 @@ public final class TemplateStorageService {
         Path target = folder(copy);
         Files.createDirectories(target.resolve("assets"));
         Files.copy(sourcePdf(source), target.resolve(SOURCE), StandardCopyOption.REPLACE_EXISTING);
+        Path sourceOriginal = folder(source).resolve(ORIGINAL);
+        if (Files.isRegularFile(sourceOriginal)) Files.copy(sourceOriginal, target.resolve(ORIGINAL), StandardCopyOption.REPLACE_EXISTING);
         Path sourceAssets = folder(source).resolve("assets");
         if (Files.isDirectory(sourceAssets)) copyTree(sourceAssets, target.resolve("assets"));
         save(copy);
@@ -197,8 +288,47 @@ public final class TemplateStorageService {
     private static Optional<DocumentTemplate> loadFromFolder(Path folder) throws IOException {
         Path meta = folder.resolve(META);
         if (!Files.isRegularFile(meta)) return Optional.empty();
-        DocumentTemplate template = JSON.readValue(meta.toFile(), DocumentTemplate.class);
+        String raw = Files.readString(meta);
+        DocumentTemplate template = JSON.readValue(raw, DocumentTemplate.class);
+        boolean repair = raw.contains("\"erpConnected\"") || template.getCategory() == null
+                || template.getSourceFile() == null || template.getSourceFile().isBlank();
+        if (template.getId() == null || template.getId().isBlank()) {
+            template.setId(folder.getFileName().toString());
+            repair = true;
+        }
+        if (repair) {
+            template.setCategory(template.getDocumentType().isGeneral() ? TemplateCategory.GENERAL_PDF : TemplateCategory.ERP_TEMPLATE);
+            template.setSourceFile(SOURCE);
+            writeMetadata(folder, template);
+        }
         return Optional.of(template);
+    }
+
+    private static void writeMetadata(Path folder, DocumentTemplate template) throws IOException {
+        Path temp = folder.resolve(META + ".tmp");
+        JSON.writeValue(temp.toFile(), template);
+        try {
+            Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException ignored) {
+            Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static DocumentTemplate verifySavedTemplate(String id) throws IOException {
+        return loadFromFolder(root().resolve(id)).orElseThrow(() -> new IOException("Template metadata could not be reloaded after saving."));
+    }
+
+    private static void deleteFolder(Path folder) throws IOException {
+        if (folder == null || !Files.exists(folder)) return;
+        try (Stream<Path> walk = Files.walk(folder)) {
+            for (Path path : walk.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
+        }
+    }
+
+    private static void logFailure(String operation, Path path, Exception error) {
+        String where = path == null ? "" : " [" + path + "]";
+        System.err.println("[DocumentStudio] " + operation + where + " failed: " + error.getMessage());
+        error.printStackTrace(System.err);
     }
 
     private static void copyTree(Path source, Path target) throws IOException {

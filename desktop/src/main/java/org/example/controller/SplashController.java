@@ -38,14 +38,33 @@ public class SplashController {
         clock.play();
     }
 
+    public void refreshBranding() {
+        applyBranding();
+    }
+
     private void applyBranding() {
         if (lblBrandName != null) lblBrandName.setText(BrandingService.applicationName());
         if (lblBrandTagline != null) lblBrandTagline.setText(BrandingService.tagline());
         if (lblStarting != null) lblStarting.setText(BrandingService.startingText());
         Image logo = BrandingService.logo();
         if (logo != null && !logo.isError() && imgBrandLogo != null) {
-            imgBrandLogo.setImage(logo); imgBrandLogo.setManaged(true); imgBrandLogo.setVisible(true);
-            if (lblBrandMark != null) { lblBrandMark.setManaged(false); lblBrandMark.setVisible(false); }
+            imgBrandLogo.setImage(logo);
+            imgBrandLogo.setManaged(true);
+            imgBrandLogo.setVisible(true);
+            if (lblBrandMark != null) {
+                lblBrandMark.setManaged(false);
+                lblBrandMark.setVisible(false);
+            }
+        } else {
+            if (imgBrandLogo != null) {
+                imgBrandLogo.setImage(null);
+                imgBrandLogo.setManaged(false);
+                imgBrandLogo.setVisible(false);
+            }
+            if (lblBrandMark != null) {
+                lblBrandMark.setManaged(true);
+                lblBrandMark.setVisible(true);
+            }
         }
     }
 
@@ -79,7 +98,7 @@ public class SplashController {
         progressBar.setProgress(1.0);
         progressPercent.setText("100%");
         stageValue.setText("5 / 5");
-        lblStatus.setText(message == null ? "Opening DSE ERP..." : message);
+        lblStatus.setText(message == null ? "Opening " + BrandingService.applicationName() + "..." : message);
         refreshElapsed();
     }
 

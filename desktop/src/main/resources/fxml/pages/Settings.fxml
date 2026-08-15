@@ -9,10 +9,10 @@
         <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
 
             <padding>
-                <Insets top="20" right="28" bottom="16" left="28"/>
+                <Insets top="10" right="16" bottom="10" left="16"/>
             </padding>
 
-            <StackPane minWidth="48" prefWidth="48" maxWidth="48" minHeight="48" prefHeight="48" maxHeight="48" styleClass="settings-page-icon-box">
+            <StackPane minWidth="42" prefWidth="42" maxWidth="42" minHeight="42" prefHeight="42" maxHeight="42" styleClass="settings-page-icon-box">
                 <SVGPath content="M8.8 2h2.4l.5 2a6.8 6.8 0 0 1 1.5.9l2-.6 1.2 2.1-1.5 1.4c.1.5.1 1 0 1.5l1.5 1.4-1.2 2.1-2-.6c-.5.4-1 .7-1.5.9l-.5 2H8.8l-.5-2a6.8 6.8 0 0 1-1.5-.9l-2 .6-1.2-2.1 1.5-1.4a6 6 0 0 1 0-1.5L3.6 6.4l1.2-2.1 2 .6c.5-.4 1-.7 1.5-.9l.5-2zM10 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" styleClass="settings-page-icon-svg"/>
             </StackPane>
 
@@ -48,151 +48,58 @@
          ===================================================== -->
 
     <center>
+        <VBox spacing="8" styleClass="settings-content,settings-workspace-layout">
+            <padding><Insets top="8" right="16" bottom="16" left="16"/></padding>
 
-        <HBox spacing="18" alignment="TOP_LEFT" styleClass="settings-content">
-
-            <padding>
-                <Insets top="8" right="28" bottom="28" left="28"/>
-            </padding>
-
-            <!-- =================================================
-                 LEFT NAVIGATION
-                 ================================================= -->
-
-            <VBox prefWidth="255" minWidth="235" spacing="5" styleClass="settings-navigation-card">
-
-                <!-- COMPANY -->
-
-                <HBox fx:id="navCompany" onMouseClicked="#showCompany" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item,settings-navigation-item-selected">
-
-                    <StackPane styleClass="settings-navigation-icon-box,settings-icon-company">
-                        <SVGPath content="M3 4h14v13H3V4zm3 3h2v2H6V7zm4 0h2v2h-2V7zm4 0h1v2h-1V7zM6 11h2v2H6v-2zm4 0h2v2h-2v-2zm4 0h1v2h-1v-2z" styleClass="settings-navigation-svg"/>
-                    </StackPane>
-
-                    <VBox>
-                        <Label text="Company &amp; Billing" styleClass="settings-navigation-title"/>
-
-                        <Label text="Business and contact details" styleClass="settings-navigation-description"/>
-                    </VBox>
-
-                </HBox>
-
-                <!-- PAYMENT -->
-
-                <HBox fx:id="navPayment" onMouseClicked="#showPayment" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
-
-                    <StackPane styleClass="settings-navigation-icon-box,settings-icon-payment">
-                        <SVGPath content="M2 5h16v11H2V5zm0 3h16M5 12h4" styleClass="settings-navigation-svg"/>
-                    </StackPane>
-
-                    <VBox>
-                        <Label text="Payment &amp; Bank" styleClass="settings-navigation-title"/>
-
-                        <Label text="Bank and UPI details" styleClass="settings-navigation-description"/>
-                    </VBox>
-
-                </HBox>
-
-                <!-- INVOICE -->
-
-                <HBox fx:id="navInvoice" onMouseClicked="#showInvoice" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
-
-                    <StackPane styleClass="settings-navigation-icon-box,settings-icon-invoice">
-                        <SVGPath content="M5 2h8l4 4v12H5V2zm8 0v5h5M8 10h6M8 13h6M8 16h4" styleClass="settings-navigation-svg"/>
-                    </StackPane>
-
-                    <VBox>
-                        <Label text="Invoice &amp; Delivery" styleClass="settings-navigation-title"/>
-
-                        <Label text="Identity, address and terms" styleClass="settings-navigation-description"/>
-                    </VBox>
-
-                </HBox>
-
-                <!-- NOTIFICATIONS -->
-
-                <HBox fx:id="navNotifications" onMouseClicked="#showNotifications" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
-
-                    <StackPane styleClass="settings-navigation-icon-box,settings-icon-notification">
-                        <SVGPath content="M5 14h10l-1.5-2.5V8a3.5 3.5 0 0 0-7 0v3.5L5 14zm3.5 2h3" styleClass="settings-navigation-svg"/>
-                    </StackPane>
-
-                    <VBox>
-                        <Label text="Notifications" styleClass="settings-navigation-title"/>
-
-                        <Label text="Application activity alerts" styleClass="settings-navigation-description"/>
-                    </VBox>
-
-                </HBox>
-
-                <!-- EMAIL -->
-
-                <HBox fx:id="navEmail" onMouseClicked="#showEmail" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
-
-                    <StackPane styleClass="settings-navigation-icon-box,settings-icon-email">
-                        <SVGPath content="M2 4h16v12H2V4zm2 2l6 4.5L16 6" styleClass="settings-navigation-svg"/>
-                    </StackPane>
-
-                    <VBox>
-                        <Label text="Email &amp; App Preferences" styleClass="settings-navigation-title"/>
-
-                        <Label text="SMTP and delivery setup" styleClass="settings-navigation-description"/>
-                    </VBox>
-
-                </HBox>
-
-
-
-                <!-- WORKSPACE & STORAGE -->
-                <HBox fx:id="navWorkspace" onMouseClicked="#showWorkspace" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
-                    <StackPane styleClass="settings-navigation-icon-box,settings-icon-workspace">
-                        <SVGPath content="M2 5h7l2 2h7v10H2V5zm2 4h12" styleClass="settings-navigation-svg"/>
-                    </StackPane>
-                    <VBox>
-                        <Label text="Workspace &amp; Storage" styleClass="settings-navigation-title"/>
-                        <Label text="Database, backups and files" styleClass="settings-navigation-description"/>
-                    </VBox>
-                </HBox>
-
-                <!-- APPLICATION UPDATES -->
-
-                <HBox fx:id="navUpdates" onMouseClicked="#showUpdates" alignment="CENTER_LEFT" spacing="12" styleClass="settings-navigation-item">
-                    <StackPane styleClass="settings-navigation-icon-box,settings-icon-update">
-                        <SVGPath content="M10 2a8 8 0 1 0 7.5 5.2h-2.2A6 6 0 1 1 10 4V1l4 3-4 3V4z" styleClass="settings-navigation-svg"/>
-                    </StackPane>
-                    <VBox>
-                        <Label text="Application Updates" styleClass="settings-navigation-title"/>
-                        <Label text="GitHub Releases and update history" styleClass="settings-navigation-description"/>
-                    </VBox>
-                </HBox>
-
-                <Region VBox.vgrow="ALWAYS"/>
-
-                <VBox spacing="6" styleClass="settings-security-note">
-
-                    <Label text="Security reminder" styleClass="settings-navigation-title"/>
-
-                    <Label text="Use an email app password. Never enter your normal mailbox password." wrapText="true" styleClass="settings-security-text"/>
-
-                </VBox>
-
+            <!-- Compact horizontal settings navigator. The redundant workspace heading was
+                 intentionally removed so the selected category starts higher on screen. -->
+            <VBox spacing="0" styleClass="settings-category-shell">
+                <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER" pannable="true" styleClass="settings-category-scroll">
+                    <content>
+                        <HBox spacing="8" alignment="CENTER_LEFT" styleClass="settings-category-strip">
+                            <HBox fx:id="navCompany" onMouseClicked="#showCompany" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item,settings-navigation-item-selected">
+                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-company"><SVGPath content="M3 4h14v13H3V4zm3 3h2v2H6V7zm4 0h2v2h-2V7zm4 0h1v2h-1V7zM6 11h2v2H6v-2zm4 0h2v2h-2v-2zm4 0h1v2h-1v-2z" styleClass="settings-navigation-svg"/></StackPane>
+                                <VBox spacing="1"><Label text="Company &amp; Billing" styleClass="settings-navigation-title"/><Label text="Identity &amp; branding" styleClass="settings-navigation-description"/></VBox>
+                            </HBox>
+                            <HBox fx:id="navPayment" onMouseClicked="#showPayment" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
+                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-payment"><SVGPath content="M2 5h16v11H2V5zm0 3h16M5 12h4" styleClass="settings-navigation-svg"/></StackPane>
+                                <VBox spacing="1"><Label text="Payment &amp; Bank" styleClass="settings-navigation-title"/><Label text="Bank &amp; UPI" styleClass="settings-navigation-description"/></VBox>
+                            </HBox>
+                            <HBox fx:id="navInvoice" onMouseClicked="#showInvoice" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
+                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-invoice"><SVGPath content="M5 2h8l4 4v12H5V2zm8 0v5h5M8 10h6M8 13h6M8 16h4" styleClass="settings-navigation-svg"/></StackPane>
+                                <VBox spacing="1"><Label text="Invoice &amp; Delivery" styleClass="settings-navigation-title"/><Label text="Terms &amp; numbering" styleClass="settings-navigation-description"/></VBox>
+                            </HBox>
+                            <HBox fx:id="navNotifications" onMouseClicked="#showNotifications" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
+                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-notification"><SVGPath content="M5 14h10l-1.5-2.5V8a3.5 3.5 0 0 0-7 0v3.5L5 14zm3.5 2h3" styleClass="settings-navigation-svg"/></StackPane>
+                                <VBox spacing="1"><Label text="Notifications" styleClass="settings-navigation-title"/><Label text="Activity alerts" styleClass="settings-navigation-description"/></VBox>
+                            </HBox>
+                            <HBox fx:id="navEmail" onMouseClicked="#showEmail" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
+                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-email"><SVGPath content="M2 4h16v12H2V4zm2 2l6 4.5L16 6" styleClass="settings-navigation-svg"/></StackPane>
+                                <VBox spacing="1"><Label text="Email Settings" styleClass="settings-navigation-title"/><Label text="SMTP &amp; delivery" styleClass="settings-navigation-description"/></VBox>
+                            </HBox>
+                            <HBox fx:id="navWorkspace" onMouseClicked="#showWorkspace" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
+                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-workspace"><SVGPath content="M2 5h7l2 2h7v10H2V5zm2 4h12" styleClass="settings-navigation-svg"/></StackPane>
+                                <VBox spacing="1"><Label text="Workspace &amp; Storage" styleClass="settings-navigation-title"/><Label text="Database &amp; files" styleClass="settings-navigation-description"/></VBox>
+                            </HBox>
+                            <HBox fx:id="navUpdates" onMouseClicked="#showUpdates" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
+                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-update"><SVGPath content="M10 2a8 8 0 1 0 7.5 5.2h-2.2A6 6 0 1 1 10 4V1l4 3-4 3V4z" styleClass="settings-navigation-svg"/></StackPane>
+                                <VBox spacing="1"><Label text="Application Updates" styleClass="settings-navigation-title"/><Label text="Release &amp; history" styleClass="settings-navigation-description"/></VBox>
+                            </HBox>
+                        </HBox>
+                    </content>
+                </ScrollPane>
             </VBox>
 
-            <!-- =================================================
-                 PANEL HOST
-                 ================================================= -->
-
-            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" HBox.hgrow="ALWAYS" styleClass="clean-scroll,settings-panel-scroll">
-
+            <!-- Active category gets the full application width below the navigator. -->
+            <ScrollPane fx:id="panelScroll" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS" styleClass="clean-scroll,settings-panel-scroll,settings-workspace-panel-scroll">
                 <content>
-
-                    <StackPane fx:id="panelHost" maxWidth="Infinity" styleClass="settings-panel-host">
+<StackPane fx:id="panelHost" maxWidth="Infinity" styleClass="settings-panel-host">
 
                         <!-- =============================================
                              COMPANY & BILLING
                              ============================================= -->
 
-                        <VBox fx:id="panelCompany" spacing="20" maxWidth="Infinity" styleClass="settings-card">
+                        <VBox fx:id="panelCompany" spacing="10" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact">
 
                             <VBox spacing="3">
 
@@ -202,14 +109,16 @@
 
                             </VBox>
 
-                            <GridPane hgap="18" vgap="15">
+                            <GridPane hgap="12" vgap="8">
 
                                 <columnConstraints>
-                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
-                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
                                 </columnConstraints>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
                                     <Label text="Company Name" styleClass="settings-form-label"/>
 
@@ -217,7 +126,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
                                     <Label text="Phone" styleClass="settings-form-label"/>
 
@@ -225,7 +134,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.rowIndex="0">
 
                                     <Label text="Company Email" styleClass="settings-form-label"/>
 
@@ -233,7 +142,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                <VBox spacing="5" GridPane.columnIndex="3" GridPane.rowIndex="0">
 
                                     <Label text="GSTIN" styleClass="settings-form-label"/>
 
@@ -241,7 +150,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
                                     <Label text="PAN" styleClass="settings-form-label"/>
 
@@ -249,7 +158,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1">
 
                                     <Label text="Business Type" styleClass="settings-form-label"/>
 
@@ -257,7 +166,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.rowIndex="1">
 
                                     <Label text="Industry" styleClass="settings-form-label"/>
 
@@ -265,7 +174,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                <VBox spacing="5" GridPane.columnIndex="3" GridPane.rowIndex="1">
 
                                     <Label text="Financial Year Start" styleClass="settings-form-label"/>
 
@@ -273,35 +182,41 @@
 
                                 </VBox>
 
-                            </GridPane>
+                                <!-- Application identity is intentionally kept at the bottom of the primary Company & Billing form. -->
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                                    <Label text="Application Name" styleClass="settings-form-label"/>
+                                    <TextField fx:id="txtApplicationName" promptText="DSE ERP" styleClass="approved-input"/>
+                                </VBox>
 
-                            <VBox spacing="12" styleClass="settings-information-card,settings-application-branding-card">
-                                <Label text="Application Branding" styleClass="settings-subsection-title"/>
-                                <Label text="These labels appear on the splash and sign-in screens. Company identity and the application product name remain independently configurable." wrapText="true" styleClass="settings-help-text"/>
-                                <GridPane hgap="18" vgap="12">
-                                    <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                                    <VBox spacing="6"><Label text="Application Name" styleClass="settings-form-label"/><TextField fx:id="txtApplicationName" promptText="DSE ERP" styleClass="approved-input"/></VBox>
-                                    <VBox spacing="6" GridPane.columnIndex="1"><Label text="Application Tagline" styleClass="settings-form-label"/><TextField fx:id="txtApplicationTagline" promptText="Business Management Suite" styleClass="approved-input"/></VBox>
-                                    <VBox spacing="6" GridPane.columnSpan="2" GridPane.rowIndex="1"><Label text="Startup Message" styleClass="settings-form-label"/><TextField fx:id="txtApplicationStartingText" promptText="Starting DSE ERP..." styleClass="approved-input"/></VBox>
-                                </GridPane>
-                            </VBox>
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                    <Label text="Application Tagline" styleClass="settings-form-label"/>
+                                    <TextField fx:id="txtApplicationTagline" promptText="Business Management Suite" styleClass="approved-input"/>
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="2">
+                                    <Label text="Startup Message" styleClass="settings-form-label"/>
+                                    <TextField fx:id="txtApplicationStartingText" promptText="Starting DSE ERP..." styleClass="approved-input"/>
+                                    <Label text="Used on splash and sign-in screens; document branding remains independent." wrapText="true" styleClass="settings-help-text"/>
+                                </VBox>
+
+                            </GridPane>
 
                             <Separator/>
 
                             <!-- UNIFIED BRAND & IDENTITY ASSETS -->
-                            <VBox spacing="14" maxWidth="Infinity" styleClass="settings-information-card,settings-brand-assets-panel">
+                            <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-brand-assets-panel">
                                 <VBox spacing="4">
                                     <Label text="Brand &amp; Identity Assets" styleClass="settings-subsection-title"/>
                                     <Label text="Manage the application brand image, company document logo and authorized signature together from one panel. Each asset keeps its existing purpose and storage setting." wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
 
-                                <HBox spacing="14" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
+                                <HBox spacing="10" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
                                     <!-- APPLICATION BRAND IMAGE -->
-                                    <VBox spacing="9" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Application Brand Image" styleClass="settings-form-label"/>
                                         <Label text="Splash, login, registration and email / OTP screens" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane minHeight="150" prefHeight="150" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgApplicationBrand" fitWidth="330" fitHeight="125" preserveRatio="true" smooth="true"/>
+                                        <StackPane minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgApplicationBrand" fitWidth="330" fitHeight="82" preserveRatio="true" smooth="true"/>
                                             <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
                                                 <Label text="◆" styleClass="settings-placeholder-icon"/>
                                                 <Label text="No application brand image selected" styleClass="settings-help-text"/>
@@ -315,11 +230,11 @@
                                     </VBox>
 
                                     <!-- COMPANY LOGO -->
-                                    <VBox spacing="9" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Company Logo" styleClass="settings-form-label"/>
                                         <Label text="Quotations, invoices, returns and generated PDFs" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane minHeight="150" prefHeight="150" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgCompanyLogo" fitWidth="300" fitHeight="120" preserveRatio="true" smooth="true"/>
+                                        <StackPane minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgCompanyLogo" fitWidth="300" fitHeight="86" preserveRatio="true" smooth="true"/>
                                             <VBox fx:id="placeholderCompanyLogo" alignment="CENTER" spacing="8">
                                                 <SVGPath content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z" styleClass="settings-placeholder-icon"/>
                                                 <Label text="No logo selected" styleClass="settings-help-text"/>
@@ -333,11 +248,11 @@
                                     </VBox>
 
                                     <!-- AUTHORIZED SIGNATURE -->
-                                    <VBox spacing="9" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Authorized Signature" styleClass="settings-form-label"/>
                                         <Label text="Authorized sign-off on supported business documents" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane minHeight="150" prefHeight="150" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgSignature" fitWidth="300" fitHeight="115" preserveRatio="true" smooth="true"/>
+                                        <StackPane minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgSignature" fitWidth="300" fitHeight="86" preserveRatio="true" smooth="true"/>
                                             <VBox fx:id="placeholderSignature" alignment="CENTER" spacing="8">
                                                 <SVGPath content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14" styleClass="settings-placeholder-icon"/>
                                                 <Label text="No signature selected" styleClass="settings-help-text"/>
@@ -358,7 +273,7 @@
                              PAYMENT & BANK
                              ============================================= -->
 
-                        <VBox fx:id="panelPayment" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card">
+                        <VBox fx:id="panelPayment" visible="false" managed="false" spacing="10" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact">
 
                             <VBox spacing="3">
 
@@ -368,14 +283,15 @@
 
                             </VBox>
 
-                            <GridPane hgap="18" vgap="15">
+                            <GridPane hgap="12" vgap="8">
 
                                 <columnConstraints>
-                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
-                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="33.334" hgrow="ALWAYS"/>
                                 </columnConstraints>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
                                     <Label text="UPI ID" styleClass="settings-form-label"/>
 
@@ -383,7 +299,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
                                     <Label text="Account Holder Name" styleClass="settings-form-label"/>
 
@@ -391,7 +307,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.rowIndex="0">
 
                                     <Label text="Bank Name" styleClass="settings-form-label"/>
 
@@ -399,7 +315,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
                                     <Label text="Account Number" styleClass="settings-form-label"/>
 
@@ -407,7 +323,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1">
 
                                     <Label text="IFSC Code" styleClass="settings-form-label"/>
 
@@ -415,7 +331,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.rowIndex="1">
 
                                     <Label text="Branch" styleClass="settings-form-label"/>
 
@@ -429,17 +345,17 @@
 
                             <!-- PAYMENT QR -->
 
-                            <VBox spacing="10">
+                            <VBox spacing="7">
 
                                 <Label text="UPI Payment QR Code" styleClass="settings-subsection-title"/>
 
-                                <HBox spacing="16" alignment="TOP_LEFT">
+                                <HBox spacing="12" alignment="TOP_LEFT">
 
-                                    <VBox spacing="9" minWidth="280" prefWidth="320" styleClass="settings-asset-card">
+                                    <VBox spacing="6" minWidth="220" prefWidth="245" styleClass="settings-asset-card">
 
-                                        <StackPane minHeight="230" prefHeight="230" styleClass="settings-image-preview,settings-qr-preview">
+                                        <StackPane minHeight="145" prefHeight="145" styleClass="settings-image-preview,settings-qr-preview">
 
-                                            <ImageView fx:id="imgPaymentQr" fitWidth="205" fitHeight="205" preserveRatio="true" smooth="true"/>
+                                            <ImageView fx:id="imgPaymentQr" fitWidth="126" fitHeight="126" preserveRatio="true" smooth="true"/>
 
                                             <VBox fx:id="placeholderPaymentQr" alignment="CENTER" spacing="8">
 
@@ -463,7 +379,7 @@
 
                                     </VBox>
 
-                                    <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="settings-information-card">
+                                    <VBox spacing="8" HBox.hgrow="ALWAYS" styleClass="settings-information-card">
 
                                         <Label text="How the payment QR is used" styleClass="settings-form-label"/>
 
@@ -679,7 +595,7 @@
                             <HBox spacing="14">
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
-                                    <Label fx:id="lblCurrentVersion" text="7.2.6" styleClass="update-version-value"/>
+                                    <Label fx:id="lblCurrentVersion" text="7.3.0" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
@@ -737,13 +653,9 @@
 
 
                     </StackPane>
-
                 </content>
-
             </ScrollPane>
-
-        </HBox>
-
+        </VBox>
     </center>
 
 </BorderPane>
