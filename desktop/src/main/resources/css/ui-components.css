@@ -426,7 +426,7 @@
 .doc-studio-kpi { -fx-padding: 13 15; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-width: 1; -fx-min-height: 76; }
 .doc-studio-kpi-label { -fx-font-size: 10px; -fx-font-weight: 800; }
 .doc-studio-kpi-value { -fx-font-size: 21px; -fx-font-weight: 900; }
-.doc-studio-kpi-default, .doc-studio-kpi-safe { -fx-font-size: 12px; -fx-font-weight: 850; }
+.doc-studio-kpi-default, .doc-studio-kpi-safe { -fx-font-size: 12px; -fx-font-weight: 800; }
 .doc-studio-filterbar { -fx-padding: 11 12; -fx-background-radius: 12; -fx-border-radius: 12; -fx-border-width: 1; }
 .doc-studio-section-title { -fx-font-size: 16px; -fx-font-weight: 900; }
 .doc-studio-tip { -fx-font-size: 10px; -fx-font-weight: 700; }
@@ -653,7 +653,7 @@
 .auth-unified-card { -fx-max-width: 720px; -fx-padding: 26 30 24 30; }
 .auth-company-logo-box,.auth-login-logo-box { -fx-min-height: 108px; -fx-pref-height: 108px; -fx-max-height: 108px; }
 
-.settings-page-shell { -fx-padding: 0; }
+.settings-page-shell { -fx-padding: 14px 16px; }
 .settings-image-preview { -fx-clip-shape: none; }
 
 .table-action-menu,.row-actions,.user-action-menu,.backup-row-actions,.bank-row-action {
@@ -681,3 +681,96 @@
 
 .erp-page-identity-header { -fx-padding: 12px 14px; }
 .user-access-page > .erp-page-identity-header { -fx-min-height: 70px; }
+
+/* ===== DSE ERP 7.3.4 action-menu / communication reliability contract =====
+   Table cells use compact icon-button defaults elsewhere in the application.
+   Text-bearing Actions and Re-send controls must explicitly opt out of that
+   compact geometry. These selectors intentionally have higher specificity than
+   legacy theme rules so light/dark themes remain colour-only for these controls. */
+.table-view .table-cell .menu-button.table-action-menu,
+.table-view .table-cell .menu-button.row-actions,
+.table-view .table-cell .menu-button.user-action-menu,
+.table-view .table-cell .menu-button.approved-row-action,
+.table-view .table-cell .menu-button.backup-row-actions,
+.table-view .table-cell .menu-button.bank-row-action {
+    -fx-min-width: 122px;
+    -fx-pref-width: 130px;
+    -fx-max-width: 148px;
+    -fx-min-height: 34px;
+    -fx-pref-height: 34px;
+    -fx-max-height: 38px;
+    -fx-padding: 5px 8px;
+    -fx-content-display: left;
+    -fx-alignment: center-left;
+    -fx-graphic-text-gap: 6px;
+}
+.table-view .table-cell .menu-button.table-action-menu > .label,
+.table-view .table-cell .menu-button.row-actions > .label,
+.table-view .table-cell .menu-button.user-action-menu > .label,
+.table-view .table-cell .menu-button.approved-row-action > .label,
+.table-view .table-cell .menu-button.backup-row-actions > .label,
+.table-view .table-cell .menu-button.bank-row-action > .label {
+    -fx-content-display: left;
+    -fx-alignment: center-left;
+    -fx-graphic-text-gap: 6px;
+    -fx-padding: 0 2px 1px 2px;
+}
+.table-view .table-cell .menu-button.table-action-menu > .arrow-button,
+.table-view .table-cell .menu-button.row-actions > .arrow-button,
+.table-view .table-cell .menu-button.user-action-menu > .arrow-button,
+.table-view .table-cell .menu-button.approved-row-action > .arrow-button,
+.table-view .table-cell .menu-button.backup-row-actions > .arrow-button,
+.table-view .table-cell .menu-button.bank-row-action > .arrow-button {
+    -fx-min-width: 16px;
+    -fx-pref-width: 16px;
+    -fx-max-width: 16px;
+    -fx-padding: 0 4px 0 2px;
+    -fx-opacity: .82;
+}
+
+/* Avoid descender clipping (g/j/p/q/y) in every Actions popup. */
+.context-menu .menu-item {
+    -fx-min-height: 36px;
+    -fx-pref-height: 36px;
+    -fx-padding: 8px 12px 9px 12px;
+}
+.context-menu .menu-item > .label {
+    -fx-padding: 0 4px 2px 4px;
+}
+
+/* Communication Center is a text action, not a 34px icon-only table button. */
+.table-view .table-cell .button.communication-resend-button {
+    -fx-min-width: 118px;
+    -fx-pref-width: 122px;
+    -fx-max-width: 132px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 34px;
+    -fx-max-height: 38px;
+    -fx-padding: 5px 10px;
+    -fx-content-display: left;
+    -fx-alignment: center;
+    -fx-graphic-text-gap: 7px;
+}
+
+/* ===== DSE ERP 7.3.6 typography, Settings gutter, item-search and calendar reliability contract ===== */
+.erp-topbar .menu-button.top-user {
+    -fx-min-height: 42px; -fx-pref-height: 42px;
+    -fx-padding: 8px 12px 9px 12px;
+    -fx-content-display: left; -fx-graphic-text-gap: 8px;
+}
+.erp-topbar .menu-button.top-user > .label {
+    -fx-min-height: 22px; -fx-padding: 0 2px 2px 0;
+    -fx-alignment: center-left;
+}
+.settings-page-shell { -fx-padding: 14px 16px; }
+.settings-panel-host { -fx-padding: 0 0 12px 0; }
+.sales-entry-item-search-shell,.erp-item-search-shell { -fx-max-width: infinity; }
+.sales-entry-item-search,.erp-item-search { -fx-padding: 7px 40px 7px 10px; }
+.sales-entry-search-icon-box,.erp-item-search-icon-box { -fx-alignment: center; }
+.sales-entry-po-date-field { -fx-opacity: 1; }
+.date-picker-popup { -fx-padding: 8px; }
+/* Keep JavaFX DatePicker's native computed row/column sizes. Fixed day-cell
+   dimensions distort months whose first week contains previous-month dates. */
+.date-picker-popup .day-name-cell,.date-picker-popup .day-cell,.date-picker-popup .date-cell { -fx-alignment: center; }
+.date-picker-popup .day-cell,.date-picker-popup .date-cell { -fx-background-radius: 7px; -fx-border-radius: 7px; }
+/* ===== End DSE ERP 7.3.6 shared UI contract ===== */

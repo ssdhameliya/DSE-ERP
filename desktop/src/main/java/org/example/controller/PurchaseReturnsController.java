@@ -60,7 +60,6 @@ public class PurchaseReturnsController {
         cRefundStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().refundStatus()));
         for (TableColumn<Row, Number> column : List.of(cTotal, cRefund)) column.setCellFactory(x -> moneyCell());
         cStatus.setCellFactory(x -> SemanticTableCells.status("return")); cRefundStatus.setCellFactory(x -> SemanticTableCells.status("refund"));
-        cStatus.setGraphic(IconFactory.icon("return")); cRefundStatus.setGraphic(IconFactory.icon("payment"));
         installActions(); installRows();
         dpFrom.setValue(BusinessClock.today().minusDays(7)); dpTo.setValue(BusinessClock.today());
         supplier.valueProperty().addListener((o, a, b) -> filter());
@@ -167,7 +166,7 @@ public class PurchaseReturnsController {
         IconFactory.applyTableHeaderIcon(cTotal, "currency");
         IconFactory.applyTableHeaderIcon(cStatus, "status");
         IconFactory.applyTableHeaderIcon(cRefund, "payment");
-        IconFactory.applyTableHeaderIcon(cRefundStatus, "status");
+        IconFactory.applyTableHeaderIcon(cRefundStatus, "payment");
         cAction.setText("Actions"); IconFactory.applyTableHeaderIcon(cAction, "actions");
     }
 

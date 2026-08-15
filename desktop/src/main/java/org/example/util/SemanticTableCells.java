@@ -58,7 +58,7 @@ public final class SemanticTableCells {
             case "email" -> state == State.DANGER ? "email-warning" : "email";
             case "whatsapp" -> state == State.DANGER ? "whatsapp-warning" : "whatsapp";
             case "payment" -> state == State.SUCCESS ? "payment" : state == State.WARNING ? "reminder" : "warning";
-            case "document" -> state == State.SUCCESS ? "complete" : state == State.WARNING ? "document" : "warning";
+            case "document" -> normalized.contains("return") ? "return" : state == State.SUCCESS ? "complete" : state == State.WARNING ? "document" : "warning";
             case "account" -> normalized.contains("lock") ? "lock" : state == State.SUCCESS ? "user" : "warning";
             case "return" -> state == State.SUCCESS ? "return-complete" : state == State.WARNING ? "return" : "warning";
             case "refund" -> state == State.SUCCESS ? "payment" : state == State.WARNING ? "reminder" : "warning";
@@ -74,7 +74,7 @@ public final class SemanticTableCells {
                 || v.contains("OVERDUE") || v.contains("LOCKED") || v.contains("REJECT")) return State.DANGER;
         if (v.contains("PENDING") || v.contains("PARTIAL") || v.contains("DRAFT") || v.contains("OPEN")
                 || v.contains("PROGRESS") || v.contains("DUE") || v.contains("SNOOZE")) return State.WARNING;
-        if (v.contains("SENT") || v.contains("PAID") || v.contains("COMPLETED") || v.contains("ACTIVE")
+        if (v.contains("SENT") || v.contains("PAID") || v.contains("COMPLETED") || v.contains("RETURNED") || v.contains("ACTIVE")
                 || v.contains("APPROVED") || v.contains("ACCEPTED") || v.contains("VERIFIED") || v.contains("SUCCESS")) return State.SUCCESS;
         return State.NEUTRAL;
     }

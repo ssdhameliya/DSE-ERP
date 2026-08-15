@@ -1033,7 +1033,6 @@ TABLE ACTION BUTTONS
 .settings-secondary-button .settings-button-icon {
     -fx-fill: -app-text-primary;
 }
-+
 
     /* ==========================================================
        Application-wide component consistency layer
@@ -1148,7 +1147,6 @@ TABLE ACTION BUTTONS
 }
 .progress-bar > .track { -fx-background-color: -color-surface-2; }
 .progress-bar > .bar { -fx-background-color: -color-primary; }
-+
 
     /* ==========================================================
        CANONICAL COMPONENT CONTRACT
@@ -7033,3 +7031,44 @@ TABLE ACTION BUTTONS
 .permission-header-icon { -fx-background-color: #4f46e5; }
 .user-access-header-icon { -fx-background-color: #2563eb; }
 .communication-resend-button { -fx-background-color: #16a34a; -fx-text-fill: white; -fx-background-radius: 7px; }
+
+/* ===== DSE ERP 7.3.6 final visual reliability - dark ===== */
+.settings-page-shell { -fx-padding: 14px 16px; }
+.settings-content.settings-workspace-layout { -fx-padding: 10px 0 0 0; }
+.settings-panel-host { -fx-padding: 0 0 12px 0; }
+.erp-topbar .menu-button.top-user { -fx-min-height:42px; -fx-pref-height:42px; -fx-padding:8px 12px 9px 12px; }
+.erp-topbar .menu-button.top-user > .label { -fx-min-height:22px; -fx-padding:0 2px 2px 0; -fx-text-fill:#eaf2ff; }
+.auth-secondary-button .erp-action-glyph { -fx-opacity:1; }
+.auth-secondary-button .erp-action-glyph-purple { -fx-icon-color:#c4b5fd; }
+.sales-register-page .table-cell.register-amount-total,
+.purchase-register-page .table-cell.register-amount-total { -fx-text-fill:#fb7185; -fx-font-weight:800; }
+.sales-register-page .table-cell.register-paid-positive,
+.purchase-register-page .table-cell.register-paid-positive { -fx-text-fill:#4ade80; -fx-font-weight:900; }
+.sales-register-page .table-cell.register-paid-zero,
+.purchase-register-page .table-cell.register-paid-zero { -fx-text-fill:#fb7185; -fx-font-weight:800; }
+.sales-register-page .table-cell.register-balance-open,
+.purchase-register-page .table-cell.register-balance-open { -fx-text-fill:#73a9ff; -fx-font-weight:900; }
+.sales-register-page .table-cell.register-balance-settled,
+.purchase-register-page .table-cell.register-balance-settled { -fx-text-fill:#4ade80; -fx-font-weight:800; }
+.sales-entry-item-suggestions,.erp-item-suggestions { -fx-background-color:#102033; -fx-border-color:#36516d; -fx-border-width:1px; -fx-background-radius:10px; -fx-border-radius:10px; -fx-padding:6px; -fx-effect:dropshadow(gaussian,rgba(0,0,0,.42),20,.14,0,7); }
+.sales-entry-item-suggestions .menu-item,.erp-item-suggestions .menu-item { -fx-min-height:34px; -fx-padding:7px 10px; -fx-background-radius:7px; }
+.sales-entry-item-suggestions .menu-item:focused,.erp-item-suggestions .menu-item:focused { -fx-background-color:#173a62; }
+.date-picker-popup { -fx-background-color:#101f31; -fx-border-color:#36516d; -fx-border-width:1px; -fx-background-radius:14px; -fx-border-radius:14px; -fx-effect:dropshadow(gaussian,rgba(0,0,0,.48),22,.14,0,8); }
+.date-picker-popup .month-year-pane { -fx-background-color:#132842; -fx-background-radius:10px; }
+.date-picker-popup .spinner .label { -fx-text-fill:#f4f8ff; -fx-font-size:13px; -fx-font-weight:800; }
+.date-picker-popup .spinner .button { -fx-background-color:#193554; -fx-background-radius:8px; }
+.date-picker-popup .spinner .button:hover { -fx-background-color:#23476f; }
+.date-picker-popup .day-name-cell { -fx-background-color:#101f31; -fx-text-fill:#9fb1c7; -fx-font-weight:800; }
+.date-picker-popup .day-cell,.date-picker-popup .date-cell { -fx-background-color:#101f31; -fx-text-fill:#e8eff8; }
+.date-picker-popup .day-cell:hover { -fx-background-color:#173a62; -fx-text-fill:#9bc8ff; }
+.date-picker-popup .day-cell.today { -fx-border-color:#60a5fa; -fx-border-width:1.5px; -fx-text-fill:#8fc1ff; -fx-font-weight:900; }
+.date-picker-popup .day-cell:selected { -fx-background-color:#2563eb; -fx-text-fill:white; -fx-font-weight:900; }
+.date-picker-popup .previous-month, .date-picker-popup .next-month { -fx-background-color:#0e1b2b; -fx-text-fill:#62758d; }
+/* ===== End DSE ERP 7.3.6 dark ===== */
+
+/* DSE ERP 7.3.6 application footer readability: auth-footer styling must not
+   shrink the logged-in shell footer. */
+.universal-app-footer .label { -fx-font-size: 12px; }
+.universal-app-footer .universal-footer-trust,
+.universal-app-footer .universal-footer-company,
+.universal-app-footer .universal-footer-clock { -fx-font-weight: 700; }

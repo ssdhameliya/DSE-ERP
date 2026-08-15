@@ -241,18 +241,23 @@ public class MasterDataController implements ScreenLifecycle {
 
     private String categorySemantic(String category) {
         String value = category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
-        return switch (value) {
-            case "BRAND" -> "tag";
-            case "CATEGORY" -> "category";
-            case "GST", "TAX", "TAXES" -> "percent";
-            case "MATERIAL" -> "inventory";
-            case "UNIT", "UOM" -> "measure";
-            case "DISCOUNT" -> "discount";
-            case "PAYMENT TERMS" -> "payment";
-            case "WAREHOUSE" -> "warehouse";
-            case "STATUS" -> "complete";
-            default -> "master";
-        };
+        if (value.contains("BANK") || value.contains("UPI")) return "bank";
+        if (value.contains("BRAND")) return "identity";
+        if (value.contains("CATEGORY")) return "category";
+        if (value.contains("GST") || value.contains("TAX") || value.contains("VAT")) return "tax";
+        if (value.contains("MATERIAL") || value.contains("STOCK")) return "inventory";
+        if (value.equals("UNIT") || value.contains("UOM") || value.contains("MEASURE")) return "unit";
+        if (value.contains("DISCOUNT")) return "discount";
+        if (value.contains("CURRENCY")) return "currency";
+        if (value.contains("PAYMENT")) return "payment";
+        if (value.contains("WAREHOUSE")) return "inventory";
+        if (value.contains("TRANSPORT") || value.contains("COURIER") || value.contains("DELIVERY")) return "delivery";
+        if (value.contains("STATUS") || value.contains("STATE")) return "status";
+        if (value.contains("SOURCE") || value.contains("CHANNEL")) return "source";
+        if (value.contains("ROLE") || value.contains("PERMISSION")) return "role";
+        if (value.contains("EMAIL") || value.contains("SMTP")) return "email";
+        if (value.contains("TEST")) return "test";
+        return "master";
     }
 
     private void configureKpiIcons() {
@@ -314,6 +319,7 @@ public class MasterDataController implements ScreenLifecycle {
             .addListener((observable, oldValue, newValue) -> {
 
                 if (newValue != null) {
+                    if (kpiSelectedIcon != null) kpiSelectedIcon.getChildren().setAll(IconFactory.icon(categorySemantic(newValue), 24));
                     loadTable();
                 } else {
                     clearTable();
@@ -1044,9 +1050,9 @@ public class MasterDataController implements ScreenLifecycle {
 
 
     private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colCode, "document");
-        IconFactory.applyTableHeaderIcon(colValue, "item");
-        IconFactory.applyTableHeaderIcon(colDescription, "document");
+        IconFactory.applyTableHeaderIcon(colCode, "identity");
+        IconFactory.applyTableHeaderIcon(colValue, "category");
+        IconFactory.applyTableHeaderIcon(colDescription, "notes");
     }
     @FXML
     private void exportLookup() {

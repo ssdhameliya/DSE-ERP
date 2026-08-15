@@ -19,6 +19,7 @@ import org.example.util.ButtonAction;
 import org.example.util.ClockService;
 import org.example.util.SceneManager;
 import org.example.util.UiActionIcons;
+import org.example.util.IconFactory;
 import org.example.util.UiTaskExecutor;
 import org.example.util.PerformanceMonitor;
 import org.example.util.PerformanceBudgets;
@@ -101,6 +102,11 @@ public class LoginController {
         UiActionIcons.apply(btnRegister, ButtonAction.ADD);
         UiActionIcons.apply(btnEmailSettings, ButtonAction.EMAIL);
         UiActionIcons.apply(btnForgotPassword, "reset", "Reset forgotten password");
+        // Keep the recovery affordance explicit: generic page decoration must not
+        // leave Forgot Password as text-only after a theme/skin refresh.
+        btnForgotPassword.setGraphic(IconFactory.compactIcon("reset", 16));
+        btnForgotPassword.getProperties().put("erp.icon.semantic", "reset");
+        btnForgotPassword.getProperties().put("erp-icon-preserve", true);
         UiActionIcons.apply(btnSendResetOtp, ButtonAction.EMAIL);
         UiActionIcons.apply(btnResetPassword, "save", "Save new password");
         UiActionIcons.apply(btnBackToLogin, ButtonAction.CANCEL);

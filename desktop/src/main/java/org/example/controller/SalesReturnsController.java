@@ -63,8 +63,6 @@ public class SalesReturnsController {
         });
         status.setCellFactory(column -> SemanticTableCells.status("return"));
         refundStatus.setCellFactory(column -> SemanticTableCells.status("refund"));
-        status.setGraphic(IconFactory.icon("return"));
-        refundStatus.setGraphic(IconFactory.icon("payment"));
         installActions();
         installRows();
         dpFrom.setValue(BusinessClock.today().minusDays(7));
@@ -206,10 +204,10 @@ public class SalesReturnsController {
         IconFactory.applyTableHeaderIcon(date, "calendar");
         IconFactory.applyTableHeaderIcon(invoice, "document");
         IconFactory.applyTableHeaderIcon(customer, "customer");
-        IconFactory.applyTableHeaderIcon(reason, "document");
+        IconFactory.applyTableHeaderIcon(reason, "notes");
         IconFactory.applyTableHeaderIcon(amount, "currency");
         IconFactory.applyTableHeaderIcon(status, "status");
-        IconFactory.applyTableHeaderIcon(refundStatus, "status");
+        IconFactory.applyTableHeaderIcon(refundStatus, "payment");
         action.setText("Actions"); IconFactory.applyTableHeaderIcon(action, "actions");
     }
 }

@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.util.BusinessClock;
+import org.example.util.IconFactory;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
@@ -212,6 +213,18 @@ public final class ReturnEditorService {
         reason.setCellValueFactory(value -> new javafx.beans.property.ReadOnlyObjectWrapper<>(value.getValue()));
         reason.setCellFactory(column -> new ReasonEditorCell());
         reason.setPrefWidth(190);
+
+        IconFactory.applyTableHeaderIcon(selected, "select");
+        IconFactory.applyTableHeaderIcon(code, "identity");
+        IconFactory.applyTableHeaderIcon(item, "item");
+        IconFactory.applyTableHeaderIcon(invoiced, "document");
+        IconFactory.applyTableHeaderIcon(returned, "return");
+        IconFactory.applyTableHeaderIcon(available, "quantity");
+        IconFactory.applyTableHeaderIcon(quantity, "return");
+        IconFactory.applyTableHeaderIcon(rate, "currency");
+        IconFactory.applyTableHeaderIcon(tax, "tax");
+        IconFactory.applyTableHeaderIcon(amount, "currency");
+        IconFactory.applyTableHeaderIcon(reason, "notes");
 
         table.getColumns().addAll(selected, code, item, invoiced, returned, available,
             quantity, rate, tax, amount, reason);

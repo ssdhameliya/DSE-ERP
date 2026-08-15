@@ -15,6 +15,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Alert;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextInputDialog;
@@ -329,6 +330,12 @@ public class DashboardController {
         if (btnEmailCenter != null) btnEmailCenter.setGraphic(IconFactory.icon("email"));
         if (btnWhatsappCenter != null) btnWhatsappCenter.setGraphic(IconFactory.icon("whatsapp"));
         if (btnShortcutInfo != null) btnShortcutInfo.setGraphic(IconFactory.icon("info"));
+        if (btnDocumentStudio != null) {
+            btnDocumentStudio.setGraphic(IconFactory.icon("document", 18));
+            btnDocumentStudio.getProperties().put("erp.icon.semantic", "document");
+            btnDocumentStudio.setContentDisplay(ContentDisplay.LEFT);
+            btnDocumentStudio.setGraphicTextGap(10);
+        }
         menuUser.setGraphic(IconFactory.icon("user"));
     }
 

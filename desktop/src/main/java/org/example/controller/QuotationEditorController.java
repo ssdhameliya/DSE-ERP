@@ -5,12 +5,10 @@ import org.example.util.BusinessClock;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
-import javafx.util.StringConverter;
 import org.example.api.master.MasterApiClient;
 import org.example.api.quotation.QuotationApiClient;
 import org.example.model.Item;
@@ -27,7 +25,8 @@ import java.util.*;
 public final class QuotationEditorController {
     @FXML private Label lblPageTitle,lblPageSubtitle,lblSubtotal,lblDiscount,lblTaxable,lblGst,lblGrandTotal,lblLineCount;
     @FXML private ComboBox<CustomerChoice> cmbCustomer;
-    @FXML private ComboBox<ItemChoice> cmbItem;
+    @FXML private TextField txtItemSearch;
+    @FXML private StackPane itemSearchIconBox;
     @FXML private ComboBox<String> cmbSource;
     @FXML private DatePicker dpDate,dpValid,dpFollowUp;
     @FXML private TextField txtQuantity,txtGst,txtDiscount;
@@ -44,6 +43,9 @@ public final class QuotationEditorController {
     private Integer quotationId;
     private boolean dirty;
     private final ObservableList<ItemChoice> allItemChoices=FXCollections.observableArrayList();
+    private final ContextMenu itemSuggestions=new ContextMenu();
+    private ItemChoice selectedItem;
+    private boolean updatingItemSearch;
 
     @FXML private void initialize(){
         if(quotationTitleIcon!=null)quotationTitleIcon.getChildren().setAll(IconFactory.icon("quotation",24));
@@ -76,24 +78,29 @@ public final class QuotationEditorController {
         try{
             cmbCustomer.getItems().setAll(masters.parties("CUSTOMER").stream().map(CustomerChoice::new).toList());
             allItemChoices.setAll(masters.items().stream().map(ItemChoice::new).toList());
-            cmbItem.getItems().setAll(allItemChoices);
         }catch(Exception e){error(e);}
     }
 
     private void configureItemSearch(){
-        FilteredList<ItemChoice> filtered=new FilteredList<>(allItemChoices,item->true);
-        cmbItem.setItems(filtered);cmbItem.setVisibleRowCount(12);
-        cmbItem.setConverter(new StringConverter<>(){
-            @Override public String toString(ItemChoice item){return item==null?"":item.toString();}
-            @Override public ItemChoice fromString(String text){if(text==null)return null;String q=text.trim();return allItemChoices.stream().filter(i->i.toString().equalsIgnoreCase(q)).findFirst().orElse(null);}
-        });
-        cmbItem.getEditor().textProperty().addListener((obs,oldText,text)->{
-            ItemChoice selected=cmbItem.getValue();if(selected!=null&&selected.toString().equals(text))return;
-            String q=text==null?"":text.trim().toLowerCase(Locale.ROOT);
-            filtered.setPredicate(item->q.isEmpty()||item.toString().toLowerCase(Locale.ROOT).contains(q));
-            if(cmbItem.isFocused()&&!filtered.isEmpty())cmbItem.show();
+        if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.headerIcon("search"));
+        itemSuggestions.getStyleClass().add("erp-item-suggestions");
+        txtItemSearch.textProperty().addListener((obs,oldText,text)->{if(updatingItemSearch)return;selectedItem=null;refreshItemSuggestions(text);});
+        txtItemSearch.focusedProperty().addListener((obs,oldValue,focused)->{if(focused&&!txtItemSearch.getText().isBlank())refreshItemSuggestions(txtItemSearch.getText());else if(!focused)itemSuggestions.hide();});
+        txtItemSearch.setOnKeyPressed(event->{
+            if(event.getCode()==javafx.scene.input.KeyCode.ESCAPE)itemSuggestions.hide();
+            if(event.getCode()==javafx.scene.input.KeyCode.ENTER){ItemChoice match=resolveTypedItem(txtItemSearch.getText());if(match!=null)selectItem(match);}
         });
     }
+    private void refreshItemSuggestions(String text){
+        String q=text==null?"":text.trim().toLowerCase(Locale.ROOT);if(q.isBlank()||!txtItemSearch.isFocused()){itemSuggestions.hide();return;}
+        List<ItemChoice> matches=allItemChoices.stream().filter(item->item.searchText().contains(q)).limit(12).toList();itemSuggestions.getItems().clear();
+        for(ItemChoice item:matches){MenuItem option=new MenuItem(item.toString(),IconFactory.compactIcon("item",15));option.setOnAction(event->selectItem(item));itemSuggestions.getItems().add(option);}
+        if(matches.isEmpty())itemSuggestions.hide();else if(!itemSuggestions.isShowing())itemSuggestions.show(txtItemSearch,javafx.geometry.Side.BOTTOM,0,2);
+    }
+    private void selectItem(ItemChoice item){selectedItem=item;updatingItemSearch=true;try{txtItemSearch.setText(item==null?"":item.toString());}finally{updatingItemSearch=false;}itemSuggestions.hide();if(item!=null){txtGst.setText(String.format(Locale.ENGLISH,"%.2f",item.gst));txtDiscount.setText(String.format(Locale.ENGLISH,"%.2f",item.discount));}}
+    private void clearItemSearch(){selectItem(null);}
+    private ItemChoice resolveTypedItem(String text){if(selectedItem!=null)return selectedItem;String value=text==null?"":text.trim();if(value.isBlank())return null;return allItemChoices.stream().filter(item->item.toString().equalsIgnoreCase(value)||item.code.equalsIgnoreCase(value)||item.description.equalsIgnoreCase(value)).findFirst().orElse(null);}
+
 
     private void loadQuotation(int id){
         try{
@@ -105,9 +112,8 @@ public final class QuotationEditorController {
         }catch(Exception e){error(e);}
     }
 
-    @FXML private void itemSelected(){ItemChoice item=cmbItem.getValue();if(item==null)return;txtGst.setText(String.format(Locale.ENGLISH,"%.2f",item.gst));txtDiscount.setText(String.format(Locale.ENGLISH,"%.2f",item.discount));}
     @FXML private void addItem(){
-        try{ItemChoice item=Objects.requireNonNull(cmbItem.getValue(),"Select an item.");double qty=positive(txtQuantity.getText(),"Quantity");double gst=percent(txtGst.getText(),"GST");double discount=percent(txtDiscount.getText(),"Discount");tableLines.getItems().add(new LineRow(item.code,item.description,qty,item.rate,gst,discount));cmbItem.getSelectionModel().clearSelection();txtQuantity.setText("1.00");txtGst.setText("0.00");txtDiscount.setText("0.00");}catch(Exception e){error(e);}
+        try{ItemChoice item=Objects.requireNonNull(resolveTypedItem(txtItemSearch.getText()),"Select an item.");double qty=positive(txtQuantity.getText(),"Quantity");double gst=percent(txtGst.getText(),"GST");double discount=percent(txtDiscount.getText(),"Discount");tableLines.getItems().add(new LineRow(item.code,item.description,qty,item.rate,gst,discount));clearItemSearch();txtQuantity.setText("1.00");txtGst.setText("0.00");txtDiscount.setText("0.00");}catch(Exception e){error(e);}
     }
     @FXML private void preview(){updateTotals();new OwnedAlert(Alert.AlertType.INFORMATION,"Customer: "+(cmbCustomer.getValue()==null?"Not selected":cmbCustomer.getValue())+"\nItems: "+tableLines.getItems().size()+"\nGrand total: "+lblGrandTotal.getText()+"\nValid until: "+dpValid.getValue()).showAndWait();}
     @FXML private void saveDraft(){save(false);}
@@ -129,6 +135,6 @@ public final class QuotationEditorController {
     private void error(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?"Quotation operation failed.":e.getMessage()).showAndWait();}
 
     private static final class CustomerChoice{final int id;final String name;CustomerChoice(Party p){id=p.getId();name=p.getName();}@Override public String toString(){return name;}}
-    private static final class ItemChoice{final String code,description;final double rate,gst,discount;ItemChoice(Item i){code=i.getItemCode();description=i.getDescription();rate=i.getSellingPrice();gst=i.getGst();discount=i.getDiscountPercent();}@Override public String toString(){return code+" - "+description;}}
+    private static final class ItemChoice{final String code,description,remarks;final double rate,gst,discount;ItemChoice(Item i){code=safe(i.getItemCode());description=safe(i.getDescription());remarks=safe(i.getRemarks());rate=i.getSellingPrice();gst=i.getGst();discount=i.getDiscountPercent();}String searchText(){return (code+" "+description+" "+remarks).toLowerCase(Locale.ROOT);}@Override public String toString(){String base=code+(description.isBlank()?"":" - "+description);return remarks.isBlank()?base:base+" • "+remarks;}}
     public static final class LineRow{final StringProperty code=new SimpleStringProperty(),description=new SimpleStringProperty();final DoubleProperty quantity=new SimpleDoubleProperty(),rate=new SimpleDoubleProperty(),gst=new SimpleDoubleProperty(),discount=new SimpleDoubleProperty(),discountAmount=new SimpleDoubleProperty(),gstAmount=new SimpleDoubleProperty(),total=new SimpleDoubleProperty();LineRow(QuotationApiClient.LineDto l){this(l.code(),l.description(),l.quantity(),l.rate(),l.gst(),l.discount());}LineRow(String c,String d,double q,double r,double g,double disc){code.set(c);description.set(d);quantity.set(q);rate.set(r);gst.set(g);discount.set(disc);double gross=q*r,discountValue=gross*disc/100,taxable=gross-discountValue;discountAmount.set(discountValue);gstAmount.set(taxable*g/100);total.set(taxable+gstAmount.get());}}
 }

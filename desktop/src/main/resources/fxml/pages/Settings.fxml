@@ -95,6 +95,7 @@
             <ScrollPane fx:id="panelScroll" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS" styleClass="clean-scroll,settings-panel-scroll,settings-workspace-panel-scroll">
                 <content>
 <StackPane fx:id="panelHost" maxWidth="Infinity" styleClass="settings-panel-host">
+                    <padding><Insets top="0" right="0" bottom="12" left="0"/></padding>
 
                         <!-- =============================================
                              COMPANY & BILLING
@@ -213,7 +214,7 @@
 
                                 <HBox spacing="10" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
                                     <!-- APPLICATION BRAND IMAGE -->
-                                    <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Application Brand Image" styleClass="settings-form-label"/>
                                         <Label text="Splash, login, registration and email / OTP screens • Recommended 1600 × 320 (5:1)" wrapText="true" styleClass="settings-asset-purpose"/>
                                         <StackPane fx:id="applicationBrandPreview" minHeight="72" prefHeight="72" maxWidth="Infinity" styleClass="settings-image-preview">
@@ -231,7 +232,7 @@
                                     </VBox>
 
                                     <!-- COMPANY LOGO -->
-                                    <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Company Logo" styleClass="settings-form-label"/>
                                         <Label text="Quotations, invoices, returns and generated PDFs • Full logo preserved (PNG preferred)" wrapText="true" styleClass="settings-asset-purpose"/>
                                         <StackPane fx:id="companyLogoPreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
@@ -249,7 +250,7 @@
                                     </VBox>
 
                                     <!-- AUTHORIZED SIGNATURE -->
-                                    <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Authorized Signature" styleClass="settings-form-label"/>
                                         <Label text="Authorized sign-off on supported business documents • Transparent PNG preferred" wrapText="true" styleClass="settings-asset-purpose"/>
                                         <StackPane fx:id="signaturePreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
@@ -596,7 +597,7 @@
                             <HBox spacing="14">
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
-                                    <Label fx:id="lblCurrentVersion" text="7.3.3" styleClass="update-version-value"/>
+                                    <Label fx:id="lblCurrentVersion" text="7.3.6" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">

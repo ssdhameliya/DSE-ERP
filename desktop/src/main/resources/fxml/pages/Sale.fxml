@@ -106,7 +106,7 @@
                     </VBox>
                     <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="3">
                         <Label text="PO Date" styleClass="sales-entry-field-label,field-label-due"/>
-                        <DatePicker fx:id="dpDueDate" maxWidth="Infinity" styleClass="approved-input"/>
+                        <TextField fx:id="txtPoDate" editable="false" maxWidth="Infinity" promptText="Calculated from payment terms" styleClass="approved-input,sales-entry-po-date-field"/>
                     </VBox>
                     <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="4">
                         <Label text="PO Order No." styleClass="sales-entry-field-label,field-label-invoice"/>
@@ -148,10 +148,16 @@
                         <ColumnConstraints fx:id="entryAmountColumn" prefWidth="125"/>
                     </columnConstraints>
 
-                    <ComboBox fx:id="cmbItem" promptText="Search Item Master remarks..." editable="true"
-                              maxWidth="Infinity" GridPane.columnIndex="0" styleClass="approved-input">
+                    <StackPane maxWidth="Infinity" GridPane.columnIndex="0" styleClass="sales-entry-item-search-shell,erp-item-search-shell">
                         <GridPane.margin><Insets right="8"/></GridPane.margin>
-                    </ComboBox>
+                        <TextField fx:id="txtItemSearch" promptText="Search Item Master..." maxWidth="Infinity"
+                                   styleClass="approved-input,sales-entry-item-search,erp-item-search"/>
+                        <StackPane fx:id="itemSearchIconBox" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24"
+                                   minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT"
+                                   styleClass="sales-entry-search-icon-box,erp-item-search-icon-box">
+                            <StackPane.margin><Insets right="8"/></StackPane.margin>
+                        </StackPane>
+                    </StackPane>
                     <TextField fx:id="txtQuantity" promptText="Qty" maxWidth="Infinity"
                                GridPane.columnIndex="1" styleClass="approved-input">
                         <GridPane.margin><Insets right="8"/></GridPane.margin>

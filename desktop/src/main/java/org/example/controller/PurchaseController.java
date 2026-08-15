@@ -8,7 +8,6 @@ import org.example.util.OwnedAlert;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -32,7 +31,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.converter.DoubleStringConverter;
-import javafx.util.StringConverter;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import org.example.util.IconFactory;
@@ -74,8 +72,8 @@ public class PurchaseController {
     private ComboBox<Party> cmbSupplier;
 
 
-    @FXML
-    private ComboBox<Item> cmbItem;
+    @FXML private TextField txtItemSearch;
+    @FXML private javafx.scene.layout.StackPane itemSearchIconBox;
 
 
     @FXML
@@ -154,6 +152,9 @@ public class PurchaseController {
         new PurchaseService();
 
     private Purchase editingPurchase = null;
+    private final ContextMenu itemSuggestions = new ContextMenu();
+    private Item selectedItem;
+    private boolean updatingItemSearch;
 
     @FXML
     private Button btnAddLine;
@@ -193,15 +194,9 @@ public class PurchaseController {
                 txtGST.setText(String.valueOf(newLine.getGstPercent()));
                 txtLineDiscount.setText(String.valueOf(newLine.getDiscountPercent()));
 
-                // Select the correct item
-                for(Item item : cmbItem.getItems()){
-
-                    if(item.getItemCode().equals(newLine.getItemCode())){
-
-                        cmbItem.getSelectionModel().select(item);
-                        break;
-                    }
-                }
+                // Select the correct item in the text-search control.
+                allItems.stream().filter(item -> item.getItemCode().equals(newLine.getItemCode()))
+                    .findFirst().ifPresent(this::selectItem);
             }
         );
 
@@ -213,45 +208,6 @@ public class PurchaseController {
 
 
         allItems.setAll(itemService.getAll());
-        cmbItem.setItems(allItems);
-
-
-        cmbItem.setCellFactory(list ->
-            new ListCell<>(){
-
-                @Override
-                protected void updateItem(Item item, boolean empty){
-
-                    super.updateItem(item,empty);
-
-                    setText(
-                        empty || item==null
-                            ? null
-                            : item.getItemCode()
-                              +" - "
-                              +item.getDescription()
-                    );
-                }
-            });
-
-
-        cmbItem.setButtonCell(
-            new ListCell<>(){
-
-                @Override
-                protected void updateItem(Item item, boolean empty){
-
-                    super.updateItem(item,empty);
-
-                    setText(
-                        empty || item==null
-                            ? null
-                            : item.getItemCode()
-                              +" - "
-                              +item.getDescription()
-                    );
-                }
-            });
 
 
         configureItemSearch();
@@ -301,14 +257,6 @@ public class PurchaseController {
         dpInvoiceDate.valueProperty().addListener((obs, oldDate, newDate) -> updateDueDate());
         cmbPaymentTerms.valueProperty().addListener((obs, oldTerm, newTerm) -> updateDueDate());
         cmbSupplier.valueProperty().addListener((obs, oldSupplier, supplier) -> populateSupplierAddress(supplier));
-        // Selecting an item always uses the purchase rate and GST defined in Item Master.
-        cmbItem.valueProperty().addListener((obs, oldItem, item) -> {
-            if (item != null) {
-                txtRate.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getPurchasePrice()));
-                txtGST.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getGst()));
-                txtLineDiscount.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getDiscountPercent()));
-            }
-        });
         Platform.runLater(this::cleanPurchaseActions);
         newPurchase();
 
@@ -317,21 +265,45 @@ public class PurchaseController {
 
 
     private void configureItemSearch(){
-        FilteredList<Item> filtered=new FilteredList<>(allItems,item->true);
-        cmbItem.setItems(filtered);cmbItem.setVisibleRowCount(12);
-        StringConverter<Item> converter=new StringConverter<>(){
-            @Override public String toString(Item item){return item==null?"":itemDisplay(item);}
-            @Override public Item fromString(String text){if(text==null)return null;String q=text.trim();return allItems.stream().filter(i->itemDisplay(i).equalsIgnoreCase(q)).findFirst().orElse(null);}
-        };
-        cmbItem.setConverter(converter);
-        cmbItem.getEditor().textProperty().addListener((obs,oldText,text)->{
-            Item selected=cmbItem.getValue();if(selected!=null&&itemDisplay(selected).equals(text))return;
-            String q=text==null?"":text.trim().toLowerCase(java.util.Locale.ROOT);
-            filtered.setPredicate(item->q.isEmpty()||itemDisplay(item).toLowerCase(java.util.Locale.ROOT).contains(q));
-            if(cmbItem.isFocused()&&!filtered.isEmpty())cmbItem.show();
+        if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.headerIcon("search"));
+        itemSuggestions.getStyleClass().add("erp-item-suggestions");
+        txtItemSearch.textProperty().addListener((obs,oldText,text)->{
+            if(updatingItemSearch)return;
+            selectedItem=null;
+            refreshItemSuggestions(text);
+        });
+        txtItemSearch.focusedProperty().addListener((obs,oldValue,focused)->{
+            if(focused&&!txtItemSearch.getText().isBlank())refreshItemSuggestions(txtItemSearch.getText());
+            else if(!focused)itemSuggestions.hide();
+        });
+        txtItemSearch.setOnKeyPressed(event->{
+            if(event.getCode()==javafx.scene.input.KeyCode.ESCAPE)itemSuggestions.hide();
+            if(event.getCode()==javafx.scene.input.KeyCode.ENTER){Item match=resolveTypedItem(txtItemSearch.getText());if(match!=null)selectItem(match);}
         });
     }
-    private String itemDisplay(Item item){if(item==null)return "";String remarks=item.getRemarks()==null?"":item.getRemarks().trim();String base=item.getItemCode()+" - "+item.getDescription();return remarks.isBlank()?base:base+" • "+remarks;}
+    private void refreshItemSuggestions(String text){
+        String q=text==null?"":text.trim().toLowerCase(java.util.Locale.ROOT);
+        if(q.isBlank()||!txtItemSearch.isFocused()){itemSuggestions.hide();return;}
+        List<Item> matches=allItems.stream().filter(item->itemSearchHaystack(item).contains(q)).limit(12).toList();
+        itemSuggestions.getItems().clear();
+        for(Item item:matches){MenuItem option=new MenuItem(itemDisplay(item),IconFactory.compactIcon("item",15));option.setOnAction(event->selectItem(item));itemSuggestions.getItems().add(option);}
+        if(matches.isEmpty())itemSuggestions.hide();else if(!itemSuggestions.isShowing())itemSuggestions.show(txtItemSearch,javafx.geometry.Side.BOTTOM,0,2);
+    }
+    private void selectItem(Item item){
+        selectedItem=item;updatingItemSearch=true;
+        try{txtItemSearch.setText(item==null?"":itemDisplay(item));}finally{updatingItemSearch=false;}
+        itemSuggestions.hide();
+        if(item!=null){txtRate.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getPurchasePrice()));txtGST.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getGst()));txtLineDiscount.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getDiscountPercent()));}
+    }
+    private void clearItemSearch(){selectItem(null);}
+    private Item resolveTypedItem(String text){
+        if(selectedItem!=null)return selectedItem;String value=text==null?"":text.trim();if(value.isBlank())return null;
+        return allItems.stream().filter(item->itemDisplay(item).equalsIgnoreCase(value)||safeItem(item.getItemCode()).equalsIgnoreCase(value)||safeItem(item.getDescription()).equalsIgnoreCase(value)||safeItem(item.getRemarks()).equalsIgnoreCase(value)).findFirst().orElse(null);
+    }
+    private String itemSearchHaystack(Item item){return (safeItem(item.getItemCode())+" "+safeItem(item.getDescription())+" "+safeItem(item.getRemarks())+" "+safeItem(item.getHsn())).toLowerCase(java.util.Locale.ROOT);}
+    private String itemDisplay(Item item){if(item==null)return "";String remarks=safeItem(item.getRemarks());String base=safeItem(item.getItemCode())+(safeItem(item.getDescription()).isBlank()?"":" - "+safeItem(item.getDescription()));return remarks.isBlank()?base:base+" • "+remarks;}
+    private String safeItem(String value){return value==null?"":value.trim();}
+
 
 
     private void setupTable(){
@@ -384,7 +356,7 @@ public class PurchaseController {
     private void addLine(){
 
 
-        Item item = cmbItem.getValue();
+        Item item = resolveTypedItem(txtItemSearch.getText());
 
 
         if(item==null){
@@ -473,7 +445,7 @@ public class PurchaseController {
 
 
 
-            cmbItem.setValue(null);
+            clearItemSearch();
 
             txtQuantity.clear();
 
@@ -503,7 +475,7 @@ public class PurchaseController {
         editingLine = null;
         editingIndex = -1;
 
-        cmbItem.setValue(null);
+        clearItemSearch();
 
         txtQuantity.clear();
         txtRate.clear();
@@ -750,7 +722,7 @@ public class PurchaseController {
 
         cmbSupplier.setValue(null);
 
-        cmbItem.setValue(null);
+        clearItemSearch();
 
 
         txtQuantity.clear();
@@ -858,7 +830,7 @@ public class PurchaseController {
 
     private void importPurchaseItems(){
         FileChooser chooser=new FileChooser();chooser.setTitle("Import Purchase Items");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV File","*.csv"));File file=chooser.showOpenDialog(tableLines.getScene().getWindow());if(file==null)return;
-        try{int count=0;for(String row:Files.readAllLines(file.toPath())){if(row.isBlank()||row.toLowerCase().startsWith("item"))continue;String[]v=row.split(",");if(v.length<3)throw new IllegalArgumentException("CSV columns must be: item_code,quantity,rate,gst_percent");Item item=cmbItem.getItems().stream().filter(i->i.getItemCode().equalsIgnoreCase(v[0].trim())).findFirst().orElseThrow(()->new IllegalArgumentException("Unknown item code: "+v[0]));double q=Double.parseDouble(v[1].trim()),rate=Double.parseDouble(v[2].trim()),gst=v.length>3?Double.parseDouble(v[3].trim()):item.getGst();PurchaseLine line=new PurchaseLine();line.setItemCode(item.getItemCode());line.setItemDescription(item.getItemCode()+" - "+item.getDescription());line.setQuantity(q);line.setRate(rate);line.setGstPercent(gst);recalculateLine(line);tableLines.getItems().add(line);count++;}recalculate();new OwnedAlert(Alert.AlertType.INFORMATION,count+" purchase item(s) imported.").showAndWait();}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,"Could not import items: "+e.getMessage()).showAndWait();}
+        try{int count=0;for(String row:Files.readAllLines(file.toPath())){if(row.isBlank()||row.toLowerCase().startsWith("item"))continue;String[]v=row.split(",");if(v.length<3)throw new IllegalArgumentException("CSV columns must be: item_code,quantity,rate,gst_percent");Item item=allItems.stream().filter(i->i.getItemCode().equalsIgnoreCase(v[0].trim())).findFirst().orElseThrow(()->new IllegalArgumentException("Unknown item code: "+v[0]));double q=Double.parseDouble(v[1].trim()),rate=Double.parseDouble(v[2].trim()),gst=v.length>3?Double.parseDouble(v[3].trim()):item.getGst();PurchaseLine line=new PurchaseLine();line.setItemCode(item.getItemCode());line.setItemDescription(item.getItemCode()+" - "+item.getDescription());line.setQuantity(q);line.setRate(rate);line.setGstPercent(gst);recalculateLine(line);tableLines.getItems().add(line);count++;}recalculate();new OwnedAlert(Alert.AlertType.INFORMATION,count+" purchase item(s) imported.").showAndWait();}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,"Could not import items: "+e.getMessage()).showAndWait();}
     }
 
 

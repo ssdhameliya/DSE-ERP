@@ -588,7 +588,7 @@ public final class ProfessionalUiEnhancer {
     public static Node tableHeader(String label, String semantic) {
         Label title = new Label(label);
         title.getStyleClass().add("erp-table-header-label");
-        HBox header = new HBox(6, IconFactory.headerIcon(semantic), title);
+        HBox header = new HBox(6, IconFactory.compactIcon(semantic, 14), title);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setMouseTransparent(true);
         header.getStyleClass().add("erp-table-header-content");
@@ -684,8 +684,15 @@ public final class ProfessionalUiEnhancer {
         if (key.contains("read") || key.contains("create") || key.contains("update") || key.contains("delete")) return "permission";
         if (key.contains("frequency") || key.contains("schedule")) return "calendar";
         if (key.contains("method") || key.contains("mode")) return "category";
-        if (key.contains("name") || key.contains("title")) return "document";
-        return "document";
+        if (key.contains("code") || key.contains("identifier")) return "identity";
+        if (key.contains("description") || key.contains("reason") || key.contains("remark")) return "notes";
+        if (key.contains("value")) return "master";
+        if (key.contains("available") || key.contains("invoiced") || key.contains("quantity")) return "quantity";
+        if (key.contains("returned") || key.contains("return qty")) return "return";
+        if (key.contains("refund")) return "payment";
+        if (key.contains("selected") || key.contains("select")) return "select";
+        if (key.contains("name") || key.contains("title")) return "master";
+        return null;
     }
 
     /** Default icon-plus-label renderer for status columns without custom logic. */

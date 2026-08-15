@@ -4,7 +4,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import org.example.config.ConfigManager;
 import org.example.service.BrandingService;
 import org.example.util.ClockService;
@@ -41,10 +40,17 @@ public final class SharedApplicationFooter extends HBox {
         website.getStyleClass().add("universal-footer-detail");
         clock.getStyleClass().addAll("universal-footer-clock", "auth-footer-clock");
 
-        Region spring = new Region();
-        HBox.setHgrow(spring, Priority.ALWAYS);
-        getChildren().addAll(trust, separator(), company, separator(), phone, separator(), email, separator(), website, spring, clock);
-        setStyle("-fx-padding: 8 16 8 16;");
+        for (Label label : List.of(trust, company, phone, email, website, clock)) {
+            label.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(label, Priority.ALWAYS);
+        }
+        trust.setAlignment(Pos.CENTER_LEFT);
+        company.setAlignment(Pos.CENTER_LEFT);
+        phone.setAlignment(Pos.CENTER);
+        email.setAlignment(Pos.CENTER);
+        website.setAlignment(Pos.CENTER);
+        clock.setAlignment(Pos.CENTER_RIGHT);
+        setStyle("-fx-padding: 8 14 8 14;");
         INSTANCES.add(new WeakReference<>(this));
         refresh();
         ClockService.start(clock);
@@ -61,7 +67,7 @@ public final class SharedApplicationFooter extends HBox {
         updateOptional(phone, ConfigManager.get("company.phone", ""), "☎ " );
         updateOptional(email, ConfigManager.get("company.email", ""), "✉ " );
         updateOptional(website, ConfigManager.get("company.website", ""), "🌐 " );
-        collapseAdjacentSeparators();
+        rebuildChildren();
     }
 
     private static void updateOptional(Label label, String value, String prefix) {
@@ -72,30 +78,19 @@ public final class SharedApplicationFooter extends HBox {
         label.setManaged(show);
     }
 
-    private void collapseAdjacentSeparators() {
-        for (int i = 0; i < getChildren().size(); i++) {
-            if (!(getChildren().get(i) instanceof Label label) || !"•".equals(label.getText())) continue;
-            boolean left = hasVisibleContentBefore(i);
-            boolean right = hasVisibleContentAfter(i);
-            label.setVisible(left && right);
-            label.setManaged(left && right);
+    private void rebuildChildren() {
+        getChildren().clear();
+        List<Label> fields = new java.util.ArrayList<>();
+        fields.add(trust);
+        fields.add(company);
+        if (phone.isManaged()) fields.add(phone);
+        if (email.isManaged()) fields.add(email);
+        if (website.isManaged()) fields.add(website);
+        fields.add(clock);
+        for (int i = 0; i < fields.size(); i++) {
+            if (i > 0) getChildren().add(separator());
+            getChildren().add(fields.get(i));
         }
-    }
-
-    private boolean hasVisibleContentBefore(int index) {
-        for (int i=index-1;i>=0;i--) {
-            if (getChildren().get(i) instanceof Region && !(getChildren().get(i) instanceof Label)) return false;
-            if (getChildren().get(i).isManaged() && !(getChildren().get(i) instanceof Label l && "•".equals(l.getText()))) return true;
-        }
-        return false;
-    }
-
-    private boolean hasVisibleContentAfter(int index) {
-        for (int i=index+1;i<getChildren().size();i++) {
-            if (getChildren().get(i) instanceof Region && !(getChildren().get(i) instanceof Label)) return false;
-            if (getChildren().get(i).isManaged() && !(getChildren().get(i) instanceof Label l && "•".equals(l.getText()))) return true;
-        }
-        return false;
     }
 
     private static String nonBlank(String value, String fallback) {

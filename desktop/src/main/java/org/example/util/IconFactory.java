@@ -236,6 +236,10 @@ public final class IconFactory {
         if (column == null) return;
         String normalized = normalize(semantic);
         if ("actions".equals(normalized) && clean(column.getText()).isBlank()) column.setText("Actions");
+        // Table headers use the stable semantic glyph itself. The glyph carries
+        // its semantic colour (calendar/orange, paid/green, email/teal, etc.) so
+        // different columns remain visually distinct instead of looking like the
+        // same white symbol inside similarly shaped badges.
         column.setGraphic(compactIcon(normalized, 14));
         column.getProperties().put("erp-header-preserve", true);
         column.getProperties().put("erp-header-semantic", normalize(semantic));
@@ -361,6 +365,12 @@ public final class IconFactory {
             case "upload" -> "import";
             case "check" -> "complete";
             case "close" -> "cancel";
+            case "tag", "tags", "brand" -> "category";
+            case "percent", "percentage" -> "tax";
+            case "measure", "measurement", "uom" -> "unit";
+            case "warehouse" -> "inventory";
+            case "analytics" -> "report";
+            case "send" -> "sent";
             default -> value.isBlank() ? "unknown" : value;
         };
     }

@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.example</groupId>
         <artifactId>dse-erp-parent</artifactId>
-        <version>7.3.3</version>
+        <version>7.3.6</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -71,6 +71,13 @@
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
             <version>${poi.version}</version>
+        </dependency>
+
+        <!-- POI uses Log4j API; provide the desktop runtime logging implementation. -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- PDFBox reporting -->

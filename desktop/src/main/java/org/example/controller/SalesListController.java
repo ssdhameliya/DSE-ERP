@@ -167,7 +167,6 @@ public class SalesListController implements ScreenLifecycle {
         colBalance.setCellFactory(x->balanceMoneyCell());
         colStatus.setCellFactory(x->SemanticTableCells.status("document"));
         colMail.setCellFactory(x->SemanticTableCells.status("email"));
-        colDue.setGraphic(IconFactory.icon("reminder"));colStatus.setGraphic(IconFactory.icon("status"));colMail.setGraphic(IconFactory.icon("email"));
         colDue.setCellFactory(x->SemanticTableCells.dueDate());
         tableSales.setPlaceholder(new Label("No sales invoices match the selected filters"));
     }
@@ -188,21 +187,20 @@ public class SalesListController implements ScreenLifecycle {
     }
 
     private void setHeaderIcon(TableColumn<?,?> column,String semantic){
-        if(column==null)return;
-        column.setGraphic(IconFactory.compactIcon(semantic,14));
-        column.getProperties().put("erp-header-preserve",true);
+        IconFactory.applyTableHeaderIcon(column, semantic);
     }
 
     private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);}};}
-    private TableCell<Sales,Double> totalMoneyCell(){return coloredMoneyCell("register-total-amount",null);}
-    private TableCell<Sales,Double> balanceMoneyCell(){return coloredMoneyCell("register-balance-pending","register-balance-settled");}
-    private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-total-amount","register-balance-pending","register-balance-settled");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
-    private TableCell<Sales,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("sales-paid-positive","sales-paid-zero");if(!e&&v!=null)getStyleClass().add(v>.009?"sales-paid-positive":"sales-paid-zero");}};}
+    private TableCell<Sales,Double> totalMoneyCell(){return coloredMoneyCell("register-amount-total","register-amount-total");}
+    private TableCell<Sales,Double> balanceMoneyCell(){return coloredMoneyCell("register-balance-open","register-balance-settled");}
+    private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-total-amount","register-balance-pending","register-balance-settled","register-amount-total","register-balance-open");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
+    private TableCell<Sales,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("sales-paid-positive","sales-paid-zero","register-paid-positive","register-paid-zero");if(!e&&v!=null)getStyleClass().add(v>.009?"register-paid-positive":"register-paid-zero");}};}
     private TableCell<Sales,String> statusCell(String semantic){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("pill-success","pill-warning","pill-danger","pill-neutral");if(!e&&v!=null){boolean good=v.equalsIgnoreCase("COMPLETED")||v.equalsIgnoreCase("PAID")||v.equalsIgnoreCase("SENT");boolean pending=v.equalsIgnoreCase("IN PROGRESS")||v.equalsIgnoreCase("PARTIAL")||v.equalsIgnoreCase("PENDING");getStyleClass().add(good?"pill-success":pending?"pill-warning":"pill-danger");String icon = good ? semantic : (pending ? ("status".equals(semantic)?"reminder":semantic) : "error");setGraphic(IconFactory.compactIcon(icon,15));}}};}
     private TableCell<Sales,String> dueCell(){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("due-overdue","due-soon","due-paid");if(!e&&v!=null){boolean paid=v.equals("Paid"),overdue=v.startsWith("Overdue");getStyleClass().add(overdue?"due-overdue":paid?"due-paid":"due-soon");setGraphic(IconFactory.compactIcon(overdue?"error":paid?"complete":"reminder",15));}}};}
     private String documentStatus(Sales sale){
         String stored = safe(sale.getDocumentStatus()).trim();
-        if ("CANCELLED".equalsIgnoreCase(stored) || "DELETED".equalsIgnoreCase(stored)) return stored.toUpperCase(java.util.Locale.ROOT);
+        String normalized = stored.toUpperCase(java.util.Locale.ROOT);
+        if (java.util.Set.of("CANCELLED","DELETED","RETURNED","DRAFT").contains(normalized)) return normalized;
         if(sale.getBalanceAmount()<=.01)return "COMPLETED";
         if(sale.getPaidAmount()>0)return "IN PROGRESS";
         return "PENDING";

@@ -8,7 +8,6 @@ import org.example.util.OwnedTextInputDialog;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.TableCell;
@@ -29,6 +28,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Region;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -73,7 +73,7 @@ public class SalesController {
 
     @FXML
     private DatePicker dpInvoiceDate;
-    @FXML private DatePicker dpDueDate;
+    @FXML private TextField txtPoDate;
     @FXML private ComboBox<String> cmbSalesPerson,cmbPaymentTerms;
     @FXML private ComboBox<String> cmbGstType,cmbChargeType;
     @FXML private ComboBox<Lookup> cmbTransporter;
@@ -87,7 +87,8 @@ public class SalesController {
     private ComboBox<Party> cmbCustomer;
 
     @FXML
-    private ComboBox<Item> cmbItem;
+    private TextField txtItemSearch;
+    @FXML private StackPane itemSearchIconBox;
 
     @FXML
     private TextArea txtRemarks;
@@ -192,6 +193,9 @@ public class SalesController {
 
     private int editingIndex = -1;
     private final ObservableList<Item> allItems = FXCollections.observableArrayList();
+    private final ContextMenu itemSuggestions = new ContextMenu();
+    private Item selectedItem;
+    private boolean updatingItemSearch;
     private final ObservableList<SalesCharge> invoiceCharges = FXCollections.observableArrayList();
     private final ObservableList<String> availableChargeTypes = FXCollections.observableArrayList();
 
@@ -317,8 +321,7 @@ public class SalesController {
                     if (item.getItemCode()
                         .equals(newLine.getItemCode())) {
 
-                        cmbItem.getSelectionModel()
-                            .select(item);
+                        selectItem(item);
 
                         break;
                     }
@@ -420,15 +423,6 @@ public class SalesController {
 
         configureItemSearch();
 
-        // Selecting an item always uses current Item Master selling price and GST rate.
-        cmbItem.valueProperty().addListener((observable, oldItem, item) -> {
-            if (item != null) {
-                txtRate.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getSellingPrice()));
-                txtGST.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getGst()));
-                txtLineDiscount.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getDiscountPercent()));
-            }
-        });
-
         newSale();
 
     }
@@ -459,37 +453,90 @@ public class SalesController {
     }
 
     private void configureItemSearch() {
-        FilteredList<Item> filtered = new FilteredList<>(allItems, item -> true);
-        cmbItem.setItems(filtered);
-        cmbItem.setVisibleRowCount(12);
-        StringConverter<Item> converter = new StringConverter<>() {
-            @Override public String toString(Item item) { return item == null ? "" : itemRemark(item); }
-            @Override public Item fromString(String text) {
-                if (text == null) return null;
-                return allItems.stream().filter(i -> itemRemark(i).equalsIgnoreCase(text.trim())).findFirst().orElse(null);
-            }
-        };
-        cmbItem.setConverter(converter);
-        cmbItem.setCellFactory(list -> new ListCell<>() {
-            @Override protected void updateItem(Item item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : itemRemark(item));
+        if (itemSearchIconBox != null) itemSearchIconBox.getChildren().setAll(IconFactory.headerIcon("search"));
+        itemSuggestions.getStyleClass().addAll("sales-entry-item-suggestions","erp-item-suggestions");
+        txtItemSearch.textProperty().addListener((obs, oldText, text) -> {
+            if (updatingItemSearch) return;
+            selectedItem = null;
+            refreshItemSuggestions(text);
+        });
+        txtItemSearch.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (focused && !txtItemSearch.getText().isBlank()) refreshItemSuggestions(txtItemSearch.getText());
+            else if (!focused) itemSuggestions.hide();
+        });
+        txtItemSearch.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ESCAPE) itemSuggestions.hide();
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                Item match = resolveTypedItem(txtItemSearch.getText());
+                if (match != null) selectItem(match);
             }
         });
-        cmbItem.getEditor().textProperty().addListener((obs, oldText, text) -> {
-            Item selected = cmbItem.getValue();
-            if (selected != null && itemRemark(selected).equals(text)) return;
-            String query = text == null ? "" : text.trim().toLowerCase(java.util.Locale.ROOT);
-            filtered.setPredicate(item -> query.isEmpty() || itemRemark(item).toLowerCase(java.util.Locale.ROOT).contains(query));
-            if (cmbItem.isFocused() && !filtered.isEmpty()) cmbItem.show();
-        });
+    }
+
+    private void refreshItemSuggestions(String text) {
+        String query = text == null ? "" : text.trim().toLowerCase(java.util.Locale.ROOT);
+        if (query.isBlank() || !txtItemSearch.isFocused()) { itemSuggestions.hide(); return; }
+        List<Item> matches = allItems.stream()
+            .filter(item -> itemSearchHaystack(item).contains(query))
+            .limit(12)
+            .toList();
+        itemSuggestions.getItems().clear();
+        for (Item item : matches) {
+            MenuItem option = new MenuItem(itemSearchDisplay(item), IconFactory.compactIcon("item", 15));
+            option.setOnAction(event -> selectItem(item));
+            itemSuggestions.getItems().add(option);
+        }
+        if (matches.isEmpty()) itemSuggestions.hide();
+        else if (!itemSuggestions.isShowing()) itemSuggestions.show(txtItemSearch, Side.BOTTOM, 0, 2);
+    }
+
+    private void selectItem(Item item) {
+        selectedItem = item;
+        updatingItemSearch = true;
+        try { txtItemSearch.setText(item == null ? "" : itemSearchDisplay(item)); }
+        finally { updatingItemSearch = false; }
+        itemSuggestions.hide();
+        if (item != null) {
+            txtRate.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getSellingPrice()));
+            txtGST.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getGst()));
+            txtLineDiscount.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getDiscountPercent()));
+        }
+    }
+
+    private void clearItemSearch() { selectItem(null); }
+
+    private Item resolveTypedItem(String text) {
+        if (selectedItem != null) return selectedItem;
+        String value = text == null ? "" : text.trim();
+        if (value.isBlank()) return null;
+        return allItems.stream().filter(item ->
+            itemSearchDisplay(item).equalsIgnoreCase(value)
+                || safeItem(item.getItemCode()).equalsIgnoreCase(value)
+                || safeItem(item.getDescription()).equalsIgnoreCase(value)
+                || itemRemark(item).equalsIgnoreCase(value)
+        ).findFirst().orElse(null);
+    }
+
+    private String itemSearchHaystack(Item item) {
+        return (safeItem(item.getItemCode()) + " " + safeItem(item.getDescription()) + " "
+            + safeItem(item.getRemarks()) + " " + safeItem(item.getHsn())).toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private String itemSearchDisplay(Item item) {
+        if (item == null) return "";
+        String code = safeItem(item.getItemCode());
+        String description = safeItem(item.getDescription());
+        String remark = itemRemark(item);
+        String base = code + (description.isBlank() ? "" : " - " + description);
+        return remark.isBlank() ? base : base + "  •  " + remark;
     }
 
     private String itemRemark(Item item) {
         if (item == null) return "";
-        String remark = item.getRemarks();
-        return remark == null ? "" : remark.trim();
+        return safeItem(item.getRemarks()).trim();
     }
+
+    private String safeItem(String value) { return value == null ? "" : value.trim(); }
 
     private void configureTransporterSelector() {
         cmbTransporter.setConverter(new StringConverter<>() {
@@ -945,7 +992,8 @@ public class SalesController {
 
         sale.setRemarks(txtRemarks == null ? "" : txtRemarks.getText());
         sale.setDueDate(calculatePaymentDueDate(dpInvoiceDate.getValue(), cmbPaymentTerms.getValue()));
-        sale.setPoDate(dpDueDate == null ? null : dpDueDate.getValue());
+        String poDateText = txtPoDate == null ? "" : txtPoDate.getText();
+        sale.setPoDate(poDateText == null || poDateText.isBlank() ? null : BusinessClock.parseDate(poDateText));
         sale.setOrderNo(txtOrderNo == null ? "" : txtOrderNo.getText());
         sale.setSalesperson(cmbSalesPerson.getValue());
         sale.setNotes(txtInvoiceMessage == null || txtInvoiceMessage.getText() == null ? "" : txtInvoiceMessage.getText());
@@ -987,10 +1035,10 @@ public class SalesController {
     }
 
     private void updatePoDateFromPaymentTerms() {
-        if (dpDueDate == null) return;
+        if (txtPoDate == null) return;
         LocalDate invoiceDate = dpInvoiceDate == null ? null : dpInvoiceDate.getValue();
         String terms = cmbPaymentTerms == null ? null : cmbPaymentTerms.getValue();
-        dpDueDate.setValue(calculatePaymentDueDate(invoiceDate, terms));
+        txtPoDate.setText(BusinessClock.formatDate(calculatePaymentDueDate(invoiceDate, terms)));
     }
 
     /**
@@ -1053,7 +1101,7 @@ public class SalesController {
 
         cmbCustomer.setValue(null);
 
-        cmbItem.setValue(null);
+        clearItemSearch();
 
         txtQuantity.clear();
 
@@ -1265,7 +1313,7 @@ public class SalesController {
     private double number(TextField field){try{return field==null||field.getText()==null||field.getText().isBlank()?0:Double.parseDouble(field.getText().replace(",",""));}catch(Exception e){return 0;}}
 
     @FXML private void addMultipleItems(){new OwnedAlert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
-    @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->allItems.stream().filter(i->i.getItemCode().equalsIgnoreCase(code.trim())).findFirst().ifPresentOrElse(cmbItem::setValue,()->warn("Item code not found")));}
+    @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->allItems.stream().filter(i->i.getItemCode().equalsIgnoreCase(code.trim())).findFirst().ifPresentOrElse(this::selectItem,()->warn("Item code not found")));}
     @FXML private void attachFile(){javafx.stage.FileChooser c=new javafx.stage.FileChooser();java.io.File f=c.showOpenDialog(tableLines.getScene().getWindow());if(f!=null)txtAttachment.setText(f.getAbsolutePath());}
     @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
     @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}
@@ -1330,7 +1378,7 @@ public class SalesController {
         dpInvoiceDate.setValue(
             sale.getInvoiceDate()
         );
-        dpDueDate.setValue(sale.getPoDate());
+        if (txtPoDate != null) txtPoDate.setText(BusinessClock.formatDate(sale.getPoDate()));
         cmbSalesPerson.setValue(sale.getSalesperson().isBlank()?"Admin":sale.getSalesperson());
         txtInvoiceMessage.setText(sale.getNotes());
         cmbPaymentTerms.setValue(sale.getPaymentTerms().isBlank() ? "15 Days" : sale.getPaymentTerms());
@@ -1436,7 +1484,8 @@ public class SalesController {
 
         cmbCustomer.setDisable(value);
 
-        cmbItem.setDisable(value);
+        txtItemSearch.setDisable(value);
+        if (txtPoDate != null) txtPoDate.setDisable(value);
 
         txtQuantity.setDisable(value);
 
@@ -1475,7 +1524,8 @@ public class SalesController {
     private void addLine(){
 
 
-        Item item = cmbItem.getValue();
+        Item item = resolveTypedItem(txtItemSearch.getText());
+        if (item != null && selectedItem == null) selectItem(item);
 
 
         if(item==null){
@@ -1569,7 +1619,7 @@ public class SalesController {
 
 
 
-            cmbItem.setValue(null);
+            clearItemSearch();
 
             txtQuantity.clear();
 
@@ -1648,7 +1698,7 @@ public class SalesController {
         editingLine = null;
         editingIndex = -1;
 
-        cmbItem.setValue(null);
+        clearItemSearch();
 
         txtQuantity.clear();
         txtRate.clear();
