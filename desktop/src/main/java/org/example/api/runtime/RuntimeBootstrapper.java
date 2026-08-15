@@ -320,25 +320,17 @@ public final class RuntimeBootstrapper {
         }
     }
 
+    /**
+     * Launch the Spring Boot backend the same way in IntelliJ, Windows packages and macOS packages.
+     *
+     * A Spring Boot executable JAR is designed to be started with {@code java -jar}.  The previous
+     * Windows-only jpackage secondary launcher converted the server JAR into a class-path launch,
+     * which is a different startup model from IntelliJ/macOS and was the source of the native
+     * "Failed to launch JVM" path.  The Windows packaging script now preserves bin/java.exe in
+     * the bundled runtime, so all platforms can use this single, predictable command.
+     */
     private static List<String> serverCommand(Path jar) {
-        if (isPackagedRuntime() && isWindows()) {
-            return List.of(packagedWindowsServerLauncher().toString());
-        }
         return List.of(javaExecutable().toString(), "-jar", jar.toString());
-    }
-
-    private static Path packagedWindowsServerLauncher() {
-        String applicationPath = System.getProperty("jpackage.app-path", "").trim();
-        if (applicationPath.isEmpty()) {
-            throw new IllegalStateException("The packaged Windows application path is unavailable.");
-        }
-        Path application = Path.of(applicationPath).toAbsolutePath().normalize();
-        Path folder = application.getParent();
-        Path launcher = folder == null ? null : folder.resolve("DSE ERP Server.exe");
-        if (launcher == null || !Files.isRegularFile(launcher)) {
-            throw new IllegalStateException("Packaged Spring Boot launcher not found: " + launcher);
-        }
-        return launcher;
     }
 
     private static boolean isWindows() {
@@ -414,7 +406,7 @@ public final class RuntimeBootstrapper {
     private static void verifyPackagedRuntime() {
         if (!isPackagedRuntime()) return;
         locateServerJar();
-        if (isWindows()) packagedWindowsServerLauncher();
+        javaExecutable();
         ManagedPostgresRuntime.verifyBundledRuntime();
     }
 

@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><?import javafx.scene.shape.Circle?><?import javafx.scene.shape.SVGPath?><!-- Shared ERP shell: module navigation, global toolbar and page host. --><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardController" styleClass="erp-shell,approved-ui,approved-screen,approved-screen-dashboard,erp-screen-root">
+<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><?import javafx.scene.shape.Circle?><?import javafx.scene.shape.SVGPath?><!-- Shared ERP shell: module navigation, global toolbar and page host. --><?import org.example.ui.SharedApplicationFooter?>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardController" styleClass="erp-shell,approved-ui,approved-screen,approved-screen-dashboard,erp-screen-root">
     <left>
         <VBox fx:id="sidebarRoot" prefWidth="215" minWidth="175" maxWidth="235" styleClass="erp-sidebar">
             <padding><Insets top="18" right="12" bottom="18" left="12"/></padding>
@@ -126,11 +127,5 @@
         </HBox>
     </top>
     <center><StackPane fx:id="contentPane" id="contentPane" styleClass="erp-content"/></center>
-    <bottom>
-        <!-- Company identity footer is shared by every page hosted inside this shell. -->
-        <HBox alignment="CENTER" styleClass="erp-company-footer">
-            <padding><Insets top="7" right="16" bottom="7" left="16"/></padding>
-            <Label fx:id="lblCompanyFooter" wrapText="false" maxWidth="Infinity" textAlignment="CENTER" styleClass="erp-company-footer-text" HBox.hgrow="ALWAYS"/>
-        </HBox>
-    </bottom>
+    <bottom><SharedApplicationFooter/></bottom>
 </BorderPane>

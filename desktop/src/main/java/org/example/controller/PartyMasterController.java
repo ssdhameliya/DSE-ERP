@@ -91,8 +91,9 @@ public abstract class PartyMasterController {
                 actions.setGraphic(IconFactory.compactIcon("actions", 16));
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                actions.setMinWidth(96);
-                actions.setPrefWidth(102);
+                actions.setMinWidth(122);
+                actions.setPrefWidth(130);
+                actions.setMaxWidth(148);
                 actions.setTooltip(new Tooltip("Actions"));
                 edit.setOnAction(event -> runForRow(this, false));
                 delete.getStyleClass().add("danger-menu-item");

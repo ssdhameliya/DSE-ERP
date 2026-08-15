@@ -158,9 +158,9 @@ public final class IconFactory {
                 menu.setContentDisplay(ContentDisplay.LEFT);
                 menu.setGraphic(actionIcon("actions", 16));
                 menu.setGraphicTextGap(6);
-                menu.setMinWidth(92);
-                menu.setPrefWidth(98);
-                menu.setMaxWidth(112);
+                menu.setMinWidth(122);
+                menu.setPrefWidth(130);
+                menu.setMaxWidth(148);
                 if (menu.getTooltip() == null) menu.setTooltip(new Tooltip("Open actions"));
             }
             decorateMenuItems(menu);

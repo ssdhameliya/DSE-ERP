@@ -3,25 +3,26 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.image.ImageView?>
+<?import org.example.ui.SharedApplicationFooter?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LoginController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-login,erp-screen-root">
 
     <left>
-        <VBox fx:id="brandPanel" prefWidth="620" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
-            <StackPane minHeight="118" prefHeight="118" maxWidth="520" styleClass="auth-company-logo-box"><ImageView fx:id="imgBrandLogo" fitWidth="490" fitHeight="104" preserveRatio="true" smooth="true" managed="false" visible="false"/></StackPane>
+        <VBox fx:id="brandPanel" prefWidth="600" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel,auth-unified-brand-panel">
+            <StackPane fx:id="brandLogoBox" minHeight="118" prefHeight="118" maxWidth="520" styleClass="auth-company-logo-box"><ImageView fx:id="imgBrandLogo" preserveRatio="false" smooth="true" managed="false" visible="false"/></StackPane>
             <StackPane styleClass="auth-logo-badge"><Label fx:id="lblBrandMark" text="◆" styleClass="auth-logo-mark"/></StackPane>
             <Label fx:id="lblBrandName" text="DSE ERP" styleClass="auth-brand-title"/>
             <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
             <Label fx:id="lblBrandTagline" text="Business Management Suite" styleClass="auth-brand-subtitle"/>
-            <Label text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
+            <Label fx:id="lblBrandQuote" text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
             <Label fx:id="lblVersion" text="Version" styleClass="auth-version"/>
         </VBox>
     </left>
 
     <center>
-        <StackPane styleClass="auth-content">
-            <VBox maxWidth="720" spacing="14" alignment="CENTER" styleClass="auth-card">
-                <StackPane minHeight="86" prefHeight="86" maxWidth="560" styleClass="auth-login-logo-box"><ImageView fx:id="imgLoginLogo" fitWidth="530" fitHeight="78" preserveRatio="true" smooth="true" managed="false" visible="false"/></StackPane>
+        <StackPane styleClass="auth-content,auth-unified-content">
+            <VBox maxWidth="720" spacing="14" alignment="CENTER" styleClass="auth-card,auth-unified-card">
+                <StackPane styleClass="auth-section-icon,auth-login-section-icon"><Label text="⌾"/></StackPane>
                 <Label text="Welcome Back" styleClass="auth-eyebrow"/>
                 <Label text="Sign in to your account" styleClass="auth-title"/>
                 <Label fx:id="lblBrandDescription" text="Role-aware secure access to DSE ERP" styleClass="auth-description"/>
@@ -108,16 +109,5 @@
             </VBox>
         </StackPane>
     </center>
-
-    <bottom>
-        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="auth-footer">
-            <padding><Insets top="9" right="18" bottom="9" left="18"/></padding>
-            <Label fx:id="lblFooterCompany" text="DSE ERP" styleClass="auth-footer-strong"/>
-            <Label text="•"/><Label fx:id="lblFooterPhone" text="Phone: —"/>
-            <Label text="•"/><Label fx:id="lblFooterEmail" text="Email: —"/>
-            <Label text="•"/><Label fx:id="lblFooterWebsite" text="Website: —"/>
-            <Region HBox.hgrow="ALWAYS"/>
-            <Label fx:id="lblClock" text="00:00:00" styleClass="auth-footer-clock"/>
-        </HBox>
-    </bottom>
+    <bottom><SharedApplicationFooter/></bottom>
 </BorderPane>

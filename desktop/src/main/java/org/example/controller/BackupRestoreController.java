@@ -217,7 +217,9 @@ public class BackupRestoreController {
                 actions.setGraphic(IconFactory.compactIcon("actions", 15));
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                actions.setMinWidth(92);
+                actions.setMinWidth(122);
+                actions.setPrefWidth(130);
+                actions.setMaxWidth(148);
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Backup actions"));
             }

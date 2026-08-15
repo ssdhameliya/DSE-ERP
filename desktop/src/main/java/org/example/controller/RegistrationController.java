@@ -4,10 +4,12 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.StackPane;
 import org.example.model.AppUser;
 import org.example.api.auth.AuthApiClient;
 import org.example.service.UserService;
 import org.example.service.BrandingService;
+import org.example.service.BrandImagePresenter;
 import org.example.util.ClockService;
 import org.example.util.IconFactory;
 import org.example.util.SceneManager;
@@ -17,6 +19,7 @@ import java.util.regex.Pattern;
 public class RegistrationController {
     private static final Pattern EMAIL = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     @FXML private ImageView imgBrandLogo;
+    @FXML private StackPane brandLogoBox;
     @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription;
     @FXML private Label lblClock, lblMessage, lblNameError, lblUsernameError, lblEmailError, lblRoleError, lblPasswordError, lblConfirmError, lblOtpError;
     @FXML private TextField txtName, txtUsername, txtEmail, txtOtp;
@@ -28,7 +31,7 @@ public class RegistrationController {
     private String challengeId;
 
     @FXML public void initialize() {
-        ClockService.start(lblClock); applyBranding();
+        BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox); applyBranding();
         btnSendOtp.setGraphic(IconFactory.icon("email")); btnCreate.setGraphic(IconFactory.icon("add")); btnBack.setGraphic(IconFactory.icon("return"));
         bindClear(txtName,lblNameError); bindClear(txtUsername,lblUsernameError); bindClear(txtEmail,lblEmailError); bindClear(txtPassword,lblPasswordError); bindClear(txtConfirm,lblConfirmError); bindClear(txtOtp,lblOtpError);
         cmbRole.valueProperty().addListener((o,a,b) -> { if (b != null) clearField(cmbRole, lblRoleError); invalidateChallenge(); });
@@ -47,7 +50,7 @@ public class RegistrationController {
 
     private void applyBranding(){
         lblBrandName.setText(BrandingService.applicationName()); lblBrandTagline.setText(BrandingService.tagline()); lblBrandDescription.setText(BrandingService.loginDescription());
-        Image logo=BrandingService.brandImage(); if(logo!=null&&!logo.isError()){imgBrandLogo.setImage(logo);imgBrandLogo.setManaged(true);imgBrandLogo.setVisible(true);lblBrandMark.setManaged(false);lblBrandMark.setVisible(false);}
+        Image logo=BrandingService.applicationBrandImage(); if(logo!=null&&!logo.isError()){imgBrandLogo.setImage(logo);imgBrandLogo.setManaged(true);imgBrandLogo.setVisible(true);lblBrandMark.setManaged(false);lblBrandMark.setVisible(false);}
     }
 
     @FXML private void sendOtp() {

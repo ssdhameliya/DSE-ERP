@@ -27,7 +27,10 @@ import javafx.stage.DirectoryChooser;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.service.EmailService;
+import org.example.service.BrandAssetPolicy;
+import org.example.service.BrandImagePresenter;
 import org.example.service.NotificationService;
+import org.example.ui.SharedApplicationFooter;
 import org.example.update.UpdateDialogs;
 import org.example.update.UpdateService;
 import org.example.update.BuildInfo;
@@ -40,6 +43,8 @@ import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -182,6 +187,10 @@ public class SettingsController {
     private ImageView imgCompanyLogo;
 
     @FXML private ImageView imgApplicationBrand;
+    @FXML private StackPane applicationBrandPreview;
+    @FXML private StackPane companyLogoPreview;
+    @FXML private StackPane signaturePreview;
+    @FXML private StackPane paymentQrPreview;
 
     @FXML
     private ImageView imgSignature;
@@ -292,6 +301,7 @@ public class SettingsController {
     public void initialize() {
         if (btnCheckUpdates != null) { btnCheckUpdates.setGraphic(IconFactory.icon("update", 16)); btnCheckUpdates.getProperties().put("erp-icon-preserve", true); }
 
+        configureBrandAssetPresenters();
         configureChoiceFields();
         loadSettings();
         showCompany();
@@ -331,6 +341,13 @@ public class SettingsController {
             panelHost.applyCss();
             panelHost.layout();
         });
+    }
+
+    private void configureBrandAssetPresenters() {
+        BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
+        BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
+        BrandImagePresenter.contain(imgSignature, signaturePreview);
+        BrandImagePresenter.contain(imgPaymentQr, paymentQrPreview);
     }
 
     private void configureChoiceFields() {
@@ -625,7 +642,7 @@ public class SettingsController {
 
     @FXML
     private void uploadApplicationBrand() {
-        selectAndStoreImage(APPLICATION_BRAND_PATH_KEY, "application-brand", imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile);
+        selectAndStoreImage(APPLICATION_BRAND_PATH_KEY, "application-brand", imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER);
     }
 
     @FXML
@@ -641,7 +658,8 @@ public class SettingsController {
             "company-logo",
             imgCompanyLogo,
             placeholderCompanyLogo,
-            lblLogoFile
+            lblLogoFile,
+            BrandAssetPolicy.Role.COMPANY_LOGO
         );
     }
 
@@ -664,7 +682,8 @@ public class SettingsController {
             "signature",
             imgSignature,
             placeholderSignature,
-            lblSignatureFile
+            lblSignatureFile,
+            BrandAssetPolicy.Role.SIGNATURE
         );
     }
 
@@ -687,7 +706,8 @@ public class SettingsController {
             "payment-qr",
             imgPaymentQr,
             placeholderPaymentQr,
-            lblQrFile
+            lblQrFile,
+            BrandAssetPolicy.Role.PAYMENT_QR
         );
     }
 
@@ -707,88 +727,65 @@ public class SettingsController {
         String baseName,
         ImageView imageView,
         VBox placeholder,
-        Label fileLabel
+        Label fileLabel,
+        BrandAssetPolicy.Role role
     ) {
-
         FileChooser chooser = new FileChooser();
-
         chooser.setTitle("Choose Image");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                "Image files", "*.png", "*.jpg", "*.jpeg"));
 
-        chooser
-            .getExtensionFilters()
-            .add(
-                new FileChooser.ExtensionFilter(
-                    "Image files",
-                    "*.png",
-                    "*.jpg",
-                    "*.jpeg"
-                )
-            );
+        File selected = chooser.showOpenDialog(txtCompanyName.getScene().getWindow());
+        if (selected == null) return;
 
-        File selected =
-            chooser.showOpenDialog(
-                txtCompanyName
-                    .getScene()
-                    .getWindow()
-            );
-
-        if (selected == null) {
-            return;
-        }
-
+        Path temporary = null;
         try {
+            BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(selected.toPath(), role);
+            if (inspection.hasWarnings() && !confirmImageWarnings(role, inspection)) return;
 
-            String extension =
-                getSafeExtension(
-                    selected.getName()
-                );
+            String extension = getSafeExtension(selected.getName());
+            Path assetsFolder = ConfigManager.getConfigFolder().resolve("assets");
+            Files.createDirectories(assetsFolder);
+            Path destination = assetsFolder.resolve(baseName + extension);
 
-            Path assetsFolder =
-                ConfigManager
-                    .getConfigFolder()
-                    .resolve("assets");
+            temporary = Files.createTempFile(assetsFolder, baseName + "-", extension + ".uploading");
+            Files.copy(selected.toPath(), temporary, StandardCopyOption.REPLACE_EXISTING);
 
-            Files.createDirectories(
-                assetsFolder
-            );
+            // Decode the copied file before replacing the currently working asset.
+            // A corrupt upload therefore cannot remove production branding.
+            BrandAssetPolicy.inspect(temporary, role);
+            try {
+                Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException exception) {
+                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+            temporary = null;
 
-            removeOlderAssetVersions(
-                assetsFolder,
-                baseName
-            );
-
-            Path destination =
-                assetsFolder.resolve(
-                    baseName + extension
-                );
-
-            Files.copy(
-                selected.toPath(),
-                destination,
-                StandardCopyOption.REPLACE_EXISTING
-            );
-
-            ConfigManager.set(
-                configKey,
-                destination
-                    .toAbsolutePath()
-                    .toString()
-            );
-
-            showImagePreview(
-                destination,
-                imageView,
-                placeholder,
-                fileLabel
-            );
-
+            removeOlderAssetVersions(assetsFolder, baseName, destination);
+            ConfigManager.set(configKey, destination.toAbsolutePath().toString());
+            showImagePreview(destination, imageView, placeholder, fileLabel, role);
         } catch (Exception exception) {
-
-            showError(
-                "The image could not be saved: "
-                    + exception.getMessage()
-            );
+            showError("The image could not be saved: " + exception.getMessage());
+        } finally {
+            if (temporary != null) {
+                try { Files.deleteIfExists(temporary); } catch (Exception ignored) { }
+            }
         }
+    }
+
+    private boolean confirmImageWarnings(BrandAssetPolicy.Role role, BrandAssetPolicy.Inspection inspection) {
+        StringBuilder message = new StringBuilder();
+        message.append("Image: ").append(inspection.dimensions())
+                .append(" • ").append(inspection.ratioLabel()).append("\n\n");
+        for (String warning : inspection.warnings()) message.append("• ").append(warning).append("\n");
+        message.append("\n").append(BrandAssetPolicy.recommendation(role))
+                .append("\n\nUse this image anyway?");
+        return new OwnedAlert(
+                Alert.AlertType.CONFIRMATION,
+                message.toString(),
+                ButtonType.YES,
+                ButtonType.NO
+        ).showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
     }
 
     private String getSafeExtension(String fileName) {
@@ -811,26 +808,16 @@ public class SettingsController {
 
     private void removeOlderAssetVersions(
         Path assetsFolder,
-        String baseName
+        String baseName,
+        Path keep
     ) {
-
-        List<String> extensions =
-            List.of(
-                ".png",
-                ".jpg",
-                ".jpeg"
-            );
-
-        for (String extension : extensions) {
-
+        for (String extension : List.of(".png", ".jpg", ".jpeg")) {
+            Path candidate = assetsFolder.resolve(baseName + extension);
+            if (keep != null && candidate.toAbsolutePath().normalize().equals(keep.toAbsolutePath().normalize())) continue;
             try {
-                Files.deleteIfExists(
-                    assetsFolder.resolve(
-                        baseName + extension
-                    )
-                );
+                Files.deleteIfExists(candidate);
             } catch (Exception ignored) {
-                // A failed cleanup must not stop upload.
+                // Cleanup is best-effort after the replacement asset is safe.
             }
         }
     }
@@ -878,90 +865,33 @@ public class SettingsController {
     }
 
     private void refreshAllAssetPreviews() {
-
-        refreshAssetPreview(
-            APPLICATION_BRAND_PATH_KEY,
-            imgApplicationBrand,
-            placeholderApplicationBrand,
-            lblApplicationBrandFile
-        );
-
-        refreshAssetPreview(
-            LOGO_PATH_KEY,
-            imgCompanyLogo,
-            placeholderCompanyLogo,
-            lblLogoFile
-        );
-
-        refreshAssetPreview(
-            SIGNATURE_PATH_KEY,
-            imgSignature,
-            placeholderSignature,
-            lblSignatureFile
-        );
-
-        refreshAssetPreview(
-            QR_PATH_KEY,
-            imgPaymentQr,
-            placeholderPaymentQr,
-            lblQrFile
-        );
+        refreshAssetPreview(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER);
+        refreshAssetPreview(LOGO_PATH_KEY, imgCompanyLogo, placeholderCompanyLogo, lblLogoFile, BrandAssetPolicy.Role.COMPANY_LOGO);
+        refreshAssetPreview(SIGNATURE_PATH_KEY, imgSignature, placeholderSignature, lblSignatureFile, BrandAssetPolicy.Role.SIGNATURE);
+        refreshAssetPreview(QR_PATH_KEY, imgPaymentQr, placeholderPaymentQr, lblQrFile, BrandAssetPolicy.Role.PAYMENT_QR);
     }
 
     private void refreshAssetPreview(
         String configKey,
         ImageView imageView,
         VBox placeholder,
-        Label fileLabel
+        Label fileLabel,
+        BrandAssetPolicy.Role role
     ) {
-
-        String configuredPath =
-            ConfigManager.get(
-                configKey,
-                ""
-            );
-
+        String configuredPath = ConfigManager.get(configKey, "");
         if (configuredPath.isBlank()) {
-
-            clearImagePreview(
-                imageView,
-                placeholder,
-                fileLabel
-            );
-
+            clearImagePreview(imageView, placeholder, fileLabel);
             return;
         }
-
         try {
-
-            Path path =
-                Path.of(configuredPath);
-
+            Path path = Path.of(configuredPath);
             if (!Files.isRegularFile(path)) {
-
-                clearImagePreview(
-                    imageView,
-                    placeholder,
-                    fileLabel
-                );
-
+                clearImagePreview(imageView, placeholder, fileLabel);
                 return;
             }
-
-            showImagePreview(
-                path,
-                imageView,
-                placeholder,
-                fileLabel
-            );
-
+            showImagePreview(path, imageView, placeholder, fileLabel, role);
         } catch (Exception ignored) {
-
-            clearImagePreview(
-                imageView,
-                placeholder,
-                fileLabel
-            );
+            clearImagePreview(imageView, placeholder, fileLabel);
         }
     }
 
@@ -969,41 +899,30 @@ public class SettingsController {
         Path path,
         ImageView imageView,
         VBox placeholder,
-        Label fileLabel
+        Label fileLabel,
+        BrandAssetPolicy.Role role
     ) {
+        try {
+            Image image;
+            try (InputStream input = Files.newInputStream(path)) {
+                image = new Image(input);
+            }
+            if (image.isError()) {
+                clearImagePreview(imageView, placeholder, fileLabel);
+                return;
+            }
 
-        Image image =
-            new Image(
-                path
-                    .toUri()
-                    .toString(),
-                false
-            );
+            imageView.setImage(image);
+            imageView.setVisible(true);
+            imageView.setManaged(true);
+            placeholder.setVisible(false);
+            placeholder.setManaged(false);
 
-        if (image.isError()) {
-
-            clearImagePreview(
-                imageView,
-                placeholder,
-                fileLabel
-            );
-
-            return;
+            BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(path, role);
+            fileLabel.setText(path.getFileName() + " • " + inspection.dimensions());
+        } catch (Exception exception) {
+            clearImagePreview(imageView, placeholder, fileLabel);
         }
-
-        imageView.setImage(image);
-
-        imageView.setVisible(true);
-        imageView.setManaged(true);
-
-        placeholder.setVisible(false);
-        placeholder.setManaged(false);
-
-        fileLabel.setText(
-            path
-                .getFileName()
-                .toString()
-        );
     }
 
     private void clearImagePreview(
@@ -1227,6 +1146,8 @@ public class SettingsController {
         if (!saveValues()) {
             return;
         }
+
+        SharedApplicationFooter.refreshAll();
 
         if (chkNotifications.isSelected()) {
 

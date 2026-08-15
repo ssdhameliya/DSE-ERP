@@ -37,7 +37,11 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V7_1_8_1__remove_legacy_auto_po_order",
                     "db/migration/V7_1_8_1__remove_legacy_auto_po_order.sql"),
             new Migration("V7_1_8_2__enforce_customer_po_reference",
-                    "db/migration/V7_1_8_2__enforce_customer_po_reference.sql")
+                    "db/migration/V7_1_8_2__enforce_customer_po_reference.sql"),
+            new Migration("V7_3_2__reminder_reliability",
+                    "db/migration/V7_3_2__reminder_reliability.sql"),
+            new Migration("V7_3_2_1__permission_catalog_alignment",
+                    "db/migration/V7_3_2_1__permission_catalog_alignment.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -84,6 +88,10 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
     private void verifyRequiredSchema() {
         requireColumn("sales_header", "same_as_billing");
         requireColumn("notifications", "category");
+        requireColumn("reminder_register", "snoozed_until");
+        requireColumn("reminder_register", "completed_at");
+        requireColumn("reminder_register", "created_by");
+        requireColumn("reminder_register", "updated_at");
     }
 
     private void requireColumn(String table, String column) {

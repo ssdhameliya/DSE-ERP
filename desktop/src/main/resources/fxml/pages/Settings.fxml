@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.image.ImageView?><?import javafx.scene.layout.*?><?import javafx.scene.shape.SVGPath?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SettingsController" styleClass="settings-page-shell,approved-ui,approved-screen,approved-screen-settings,erp-screen-root">
+    <padding><Insets top="14" right="16" bottom="14" left="16"/></padding>
 
     <!-- =====================================================
          HEADER
@@ -49,7 +50,7 @@
 
     <center>
         <VBox spacing="8" styleClass="settings-content,settings-workspace-layout">
-            <padding><Insets top="8" right="16" bottom="16" left="16"/></padding>
+            <padding><Insets top="10" right="0" bottom="0" left="0"/></padding>
 
             <!-- Compact horizontal settings navigator. The redundant workspace heading was
                  intentionally removed so the selected category starts higher on screen. -->
@@ -214,9 +215,9 @@
                                     <!-- APPLICATION BRAND IMAGE -->
                                     <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Application Brand Image" styleClass="settings-form-label"/>
-                                        <Label text="Splash, login, registration and email / OTP screens" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgApplicationBrand" fitWidth="330" fitHeight="82" preserveRatio="true" smooth="true"/>
+                                        <Label text="Splash, login, registration and email / OTP screens • Recommended 1600 × 320 (5:1)" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="applicationBrandPreview" minHeight="72" prefHeight="72" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgApplicationBrand" preserveRatio="false" smooth="true"/>
                                             <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
                                                 <Label text="◆" styleClass="settings-placeholder-icon"/>
                                                 <Label text="No application brand image selected" styleClass="settings-help-text"/>
@@ -232,9 +233,9 @@
                                     <!-- COMPANY LOGO -->
                                     <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Company Logo" styleClass="settings-form-label"/>
-                                        <Label text="Quotations, invoices, returns and generated PDFs" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgCompanyLogo" fitWidth="300" fitHeight="86" preserveRatio="true" smooth="true"/>
+                                        <Label text="Quotations, invoices, returns and generated PDFs • Full logo preserved (PNG preferred)" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="companyLogoPreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgCompanyLogo" preserveRatio="true" smooth="true"/>
                                             <VBox fx:id="placeholderCompanyLogo" alignment="CENTER" spacing="8">
                                                 <SVGPath content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z" styleClass="settings-placeholder-icon"/>
                                                 <Label text="No logo selected" styleClass="settings-help-text"/>
@@ -250,9 +251,9 @@
                                     <!-- AUTHORIZED SIGNATURE -->
                                     <VBox spacing="6" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Authorized Signature" styleClass="settings-form-label"/>
-                                        <Label text="Authorized sign-off on supported business documents" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgSignature" fitWidth="300" fitHeight="86" preserveRatio="true" smooth="true"/>
+                                        <Label text="Authorized sign-off on supported business documents • Transparent PNG preferred" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="signaturePreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgSignature" preserveRatio="true" smooth="true"/>
                                             <VBox fx:id="placeholderSignature" alignment="CENTER" spacing="8">
                                                 <SVGPath content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14" styleClass="settings-placeholder-icon"/>
                                                 <Label text="No signature selected" styleClass="settings-help-text"/>
@@ -353,9 +354,9 @@
 
                                     <VBox spacing="6" minWidth="220" prefWidth="245" styleClass="settings-asset-card">
 
-                                        <StackPane minHeight="145" prefHeight="145" styleClass="settings-image-preview,settings-qr-preview">
+                                        <StackPane fx:id="paymentQrPreview" minHeight="145" prefHeight="145" styleClass="settings-image-preview,settings-qr-preview">
 
-                                            <ImageView fx:id="imgPaymentQr" fitWidth="126" fitHeight="126" preserveRatio="true" smooth="true"/>
+                                            <ImageView fx:id="imgPaymentQr" preserveRatio="true" smooth="true"/>
 
                                             <VBox fx:id="placeholderPaymentQr" alignment="CENTER" spacing="8">
 
@@ -595,7 +596,7 @@
                             <HBox spacing="14">
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
-                                    <Label fx:id="lblCurrentVersion" text="7.3.1" styleClass="update-version-value"/>
+                                    <Label fx:id="lblCurrentVersion" text="7.3.3" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">

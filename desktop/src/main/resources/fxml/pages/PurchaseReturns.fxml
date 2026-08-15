@@ -38,7 +38,7 @@
       <TableColumn fx:id="cRefund" text="Refund Amount (₹)" prefWidth="130" styleClass="approved-table-column"/>
       <TableColumn fx:id="cStatus" text="Return Status" prefWidth="125" styleClass="approved-table-column"/>
       <TableColumn fx:id="cRefundStatus" text="Refund Status" prefWidth="125" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cAction" text="Actions" prefWidth="112" minWidth="108" maxWidth="120" sortable="false" resizable="false" styleClass="approved-table-column"/>
+      <TableColumn fx:id="cAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
     </columns>
   </TableView>
   <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo" styleClass="register-record-count"/></HBox>

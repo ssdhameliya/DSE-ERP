@@ -143,7 +143,9 @@ public class ItemMasterController {
                 actions.setText("Actions");
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                actions.setMinWidth(92);
+                actions.setMinWidth(122);
+                actions.setPrefWidth(130);
+                actions.setMaxWidth(148);
                 actions.setTooltip(new Tooltip("Item actions"));
 
                 MenuItem edit = new MenuItem("Edit Item", IconFactory.compactIcon("edit", 16));

@@ -79,7 +79,7 @@
               <TableColumn fx:id="colBalance" text="Balance" prefWidth="115"/>
               <TableColumn fx:id="colStatus" text="Status" prefWidth="115"/>
               <TableColumn fx:id="colMatch" text="Match / Link" prefWidth="155"/>
-              <TableColumn fx:id="colAction" text="Actions" prefWidth="110"/>
+              <TableColumn fx:id="colAction" text="Actions" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
             </columns>
             <placeholder><VBox alignment="CENTER" spacing="8"><Label text="No bank statement transactions to display" styleClass="bank-recon-empty-title"/><Label text="Import a CSV statement or select an existing statement batch." styleClass="bank-recon-empty-note"/></VBox></placeholder>
           </TableView>

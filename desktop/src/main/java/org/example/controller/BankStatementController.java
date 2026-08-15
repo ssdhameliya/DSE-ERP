@@ -130,7 +130,7 @@ public class BankStatementController {
     }
 
     private MenuButton actionMenu(Row row){
-        MenuButton m=new MenuButton("Actions"); m.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action","table-action-menu"); m.setGraphic(IconFactory.compactIcon("actions",15)); m.setContentDisplay(ContentDisplay.LEFT); m.setGraphicTextGap(6); m.setMinWidth(92);
+        MenuButton m=new MenuButton("Actions"); m.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action","table-action-menu"); m.setGraphic(IconFactory.compactIcon("actions",15)); m.setContentDisplay(ContentDisplay.LEFT); m.setGraphicTextGap(6); m.setMinWidth(96); m.setPrefWidth(102); m.setMaxWidth(118);
         String s=up(row.dto.status());
         section(m,"VIEW");
         add(m,"View Transaction Details","view",()->viewEdit(row));

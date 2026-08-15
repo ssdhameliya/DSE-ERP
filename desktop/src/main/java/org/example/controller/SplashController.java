@@ -7,17 +7,20 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.StackPane;
 import javafx.util.Duration;
 import org.example.update.BuildInfo;
 import org.example.service.BrandingService;
+import org.example.service.BrandImagePresenter;
 
 public class SplashController {
     @FXML private ProgressBar progressBar;
     @FXML private Label lblStatus, progressPercent, elapsedTime, stageValue, systemValue, databaseValue, versionLabel;
     @FXML private Label workspaceStatus, postgresStatus, springStatus, schemaStatus, applicationStatus;
     @FXML private Label workspaceTime, postgresTime, springTime, schemaTime, applicationTime;
-    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblStarting;
+    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandQuote, lblStarting;
     @FXML private ImageView imgBrandLogo;
+    @FXML private StackPane brandLogoBox;
 
     private long startedNanos;
     private Timeline clock;
@@ -29,6 +32,7 @@ public class SplashController {
         startedNanos = System.nanoTime();
         stageStartedNanos = startedNanos;
         versionLabel.setText("Version " + BuildInfo.version());
+        BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox);
         applyBranding();
         systemValue.setText(systemMemoryLabel());
         databaseValue.setText("PostgreSQL");
@@ -45,8 +49,9 @@ public class SplashController {
     private void applyBranding() {
         if (lblBrandName != null) lblBrandName.setText(BrandingService.applicationName());
         if (lblBrandTagline != null) lblBrandTagline.setText(BrandingService.tagline());
+        if (lblBrandQuote != null) lblBrandQuote.setText(BrandingService.loginDescription());
         if (lblStarting != null) lblStarting.setText(BrandingService.startingText());
-        Image logo = BrandingService.logo();
+        Image logo = BrandingService.applicationBrandImage();
         if (logo != null && !logo.isError() && imgBrandLogo != null) {
             imgBrandLogo.setImage(logo);
             imgBrandLogo.setManaged(true);

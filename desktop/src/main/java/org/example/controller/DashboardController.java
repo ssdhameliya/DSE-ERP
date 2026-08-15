@@ -212,8 +212,9 @@ public class DashboardController {
             txtSearch.setPrefWidth(searchWidth);
             if (sidebarRoot != null) sidebarRoot.setPrefWidth(width < 1050 ? 164 : width < 1250 ? 178 : PlatformUiSupport.isMac() ? 198 : 215);
             if (menuUser != null) {
-                menuUser.setMaxWidth(width < 1400 ? 135 : 175);
-                PlatformUiSupport.configureTextOverflow(menuUser);
+                menuUser.setMinWidth(150);
+                menuUser.setPrefWidth(Math.min(235, Math.max(170, menuUser.prefWidth(-1) + 18)));
+                menuUser.setMaxWidth(250);
             }
             if (lblCompanyFooter != null) PlatformUiSupport.configureTextOverflow(lblCompanyFooter);
         };
@@ -273,7 +274,8 @@ public class DashboardController {
         protect(btnSupplier, "SUPPLIERS.VIEW"); protect(btnMasters, "MASTERS.VIEW");
         protect(btnReports, "REPORTS.VIEW"); protect(btnReminders, "REMINDERS.VIEW");
         protect(btnUserAccess, "USERS.VIEW"); protect(btnBackup, "BACKUP.VIEW");
-        protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "BACKUP.VIEW"); protect(btnDocumentStudio, "SETTINGS.VIEW"); protect(btnImport, "IMPORT.VIEW");
+        protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "SAFE_ROLLBACK.VIEW"); protect(btnDocumentStudio, "DOCUMENT_STUDIO.VIEW"); protect(btnImport, "IMPORT.VIEW");
+        protect(btnBankExpense, "BANK_EXPENSE.VIEW");
 
         // Quotations have their own permission but live inside the Sales accordion.
         // Keep the parent expandable when either Sales or Quotations is available.
@@ -286,6 +288,7 @@ public class DashboardController {
         if (btnQuotation != null) btnQuotation.setDisable(!quotationAllowed);
 
         inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
+        inheritGroupPermission(btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement);
     }
 
     private void protect(Button button, String permission) {

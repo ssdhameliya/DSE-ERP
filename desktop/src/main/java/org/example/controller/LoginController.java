@@ -3,6 +3,7 @@ package org.example.controller;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import org.example.model.AppUser;
@@ -11,6 +12,8 @@ import org.example.service.OtpService;
 import org.example.service.SessionService;
 import org.example.service.UserService;
 import org.example.service.BrandingService;
+import org.example.service.PermissionService;
+import org.example.service.BrandImagePresenter;
 import org.example.theme.ThemeManager;
 import org.example.util.ButtonAction;
 import org.example.util.ClockService;
@@ -46,10 +49,11 @@ public class LoginController {
     @FXML private ToggleButton btnTheme;
     @FXML private Label lblClock, lblMessage, lblUsernameError, lblPasswordError, lblRoleError, lblOtpError, lblVersion;
     @FXML private Label lblResetIdentityError, lblResetOtpError, lblNewPasswordError, lblConfirmPasswordError;
-    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription;
+    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription, lblBrandQuote;
     @FXML private Label lblFooterCompany, lblFooterPhone, lblFooterEmail, lblFooterWebsite;
     @FXML private ImageView imgBrandLogo, imgLoginLogo;
     @FXML private VBox brandPanel;
+    @FXML private StackPane brandLogoBox, loginLogoBox;
     @FXML private Button btnLogin, btnRegister, btnEmailSettings, btnForgotPassword;
     @FXML private Button btnSendResetOtp, btnResetPassword, btnBackToLogin;
     @FXML private VBox loginPanel, resetPanel, otpPanel;
@@ -60,8 +64,9 @@ public class LoginController {
 
     @FXML public void initialize() {
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
+        BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox);
+        BrandImagePresenter.applicationBanner(imgLoginLogo, loginLogoBox);
         applyBranding();
-        ClockService.start(lblClock);
 
         cmbRole.getItems().setAll("Admin", "Manager", "Sale");
 
@@ -130,7 +135,8 @@ public class LoginController {
         if (lblBrandName != null) lblBrandName.setText(BrandingService.applicationName());
         if (lblBrandTagline != null) lblBrandTagline.setText(BrandingService.tagline());
         if (lblBrandDescription != null) lblBrandDescription.setText(BrandingService.loginDescription());
-        Image logo = BrandingService.logo();
+        if (lblBrandQuote != null) lblBrandQuote.setText(BrandingService.loginDescription());
+        Image logo = BrandingService.applicationBrandImage();
         if (lblFooterCompany != null) lblFooterCompany.setText(BrandingService.companyName());
         if (lblFooterPhone != null) lblFooterPhone.setText("Phone: " + configured("company.phone"));
         if (lblFooterEmail != null) lblFooterEmail.setText("Email: " + configured("company.email"));
@@ -138,6 +144,10 @@ public class LoginController {
         if (logo != null && !logo.isError()) {
             showLogo(imgBrandLogo, logo);
             showLogo(imgLoginLogo, logo);
+            if (lblBrandMark != null) { lblBrandMark.setManaged(false); lblBrandMark.setVisible(false); }
+        } else if (lblBrandMark != null) {
+            lblBrandMark.setManaged(true);
+            lblBrandMark.setVisible(true);
         }
     }
 
@@ -286,6 +296,7 @@ public class LoginController {
         }, authenticated -> {
             saveRememberedLogin();
             SessionService.signIn(authenticated);
+            PermissionService.refresh();
             SceneManager.showDashboard();
             setLoginBusy(false, null);
             long elapsed = PerformanceMonitor.finish("login-click");

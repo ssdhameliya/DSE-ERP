@@ -184,7 +184,7 @@ public final class ProfessionalUiEnhancer {
      * widths are restored and JavaFX may show a horizontal scrollbar.
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void installAdaptiveColumnFill(TableView table) {
+    private static void installAdaptiveColumnFill(TableView<?> table) {
         if (Boolean.TRUE.equals(table.getProperties().get("erp-adaptive-column-fill"))) return;
         if (Boolean.TRUE.equals(table.getProperties().get("erp-preserve-resize-policy"))) return;
 
@@ -193,7 +193,7 @@ public final class ProfessionalUiEnhancer {
         );
         // Imported spreadsheets and permission matrices own dynamic/specialized
         // sizing and must not be altered by the shared register-table behavior.
-        if ("import".equals(profile) || "permission".equals(profile)) return;
+        if ("import".equals(profile)) return;
 
         table.getProperties().put("erp-adaptive-column-fill", true);
         captureAdaptiveBaselines(table, false);
@@ -206,6 +206,18 @@ public final class ProfessionalUiEnhancer {
                 captureAdaptiveBaselines(table, false);
                 resizeColumnsToUseAvailableWidth(table);
             }
+        });
+        if (table.getItems() != null) {
+            table.getItems().addListener((ListChangeListener) change -> {
+                captureAdaptiveBaselines(table, true);
+                resizeColumnsToUseAvailableWidth(table);
+            });
+        }
+        table.itemsProperty().addListener((obs, oldItems, newItems) -> {
+            if (newItems != null) newItems.addListener((ListChangeListener) change -> {
+                captureAdaptiveBaselines(table, true);
+                resizeColumnsToUseAvailableWidth(table);
+            });
         });
 
         resizeColumnsToUseAvailableWidth(table);
@@ -220,15 +232,36 @@ public final class ProfessionalUiEnhancer {
     private static void captureAdaptiveBaselines(TableView table, boolean includeNewColumns) {
         for (Object value : table.getVisibleLeafColumns()) {
             TableColumn column = (TableColumn) value;
-            if (!includeNewColumns
-                && column.getProperties().containsKey("erp-adaptive-base-pref")) {
-                continue;
-            }
-            if (!column.getProperties().containsKey("erp-adaptive-base-pref")) {
-                double baseline = Math.max(column.getMinWidth(), column.getPrefWidth());
-                column.getProperties().put("erp-adaptive-base-pref", baseline);
-            }
+            Object existing = column.getProperties().get("erp-adaptive-base-pref");
+            if (!includeNewColumns && existing instanceof Number) continue;
+            double baseline = existing instanceof Number number
+                ? Math.max(column.getMinWidth(), number.doubleValue())
+                : Math.max(column.getMinWidth(), column.getPrefWidth());
+            baseline = Math.max(baseline, estimatedReadableWidth(table, column));
+            column.getProperties().put("erp-adaptive-base-pref", baseline);
         }
+    }
+
+    /** Samples visible business values so table baselines are not based on headers alone. */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static double estimatedReadableWidth(TableView table, TableColumn column) {
+        String semantic = String.valueOf(column.getProperties().getOrDefault("erp-header-semantic", ""));
+        if ("actions".equalsIgnoreCase(semantic)) return 140;
+        String heading = adaptiveHeading(column);
+        double best = Math.max(78, heading.length() * 7.4 + 38);
+        int rows = Math.min(40, table.getItems() == null ? 0 : table.getItems().size());
+        for (int index = 0; index < rows; index++) {
+            try {
+                Object value = column.getCellData(index);
+                if (value == null) continue;
+                String text = String.valueOf(value).replaceAll("[\r\n]+", " ").trim();
+                if (text.isBlank()) continue;
+                best = Math.max(best, text.length() * 7.1 + 28);
+            } catch (Exception ignored) { }
+        }
+        double cap = heading.contains("description") || heading.contains("address") || heading.contains("subject") || heading.contains("error") ? 320
+            : heading.contains("email") || heading.contains("name") || heading.contains("recipient") ? 260 : 220;
+        return Math.min(cap, best);
     }
 
     /**
@@ -430,7 +463,8 @@ public final class ProfessionalUiEnhancer {
 
         int columns = table.getColumns().size();
         switch (profile) {
-            case "import", "permission" -> table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+            case "import" -> table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+            case "permission" -> table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
             case "register" -> table.setColumnResizePolicy(columns >= 9
                 ? TableView.UNCONSTRAINED_RESIZE_POLICY
                 : TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
@@ -531,9 +565,10 @@ public final class ProfessionalUiEnhancer {
         String profile = table == null ? "responsive"
             : String.valueOf(table.getProperties().getOrDefault("erp-table-profile", "responsive"));
         double min;
-        if ("actions".equals(semantic)) min = 92;
+        if ("actions".equals(semantic)) min = 136;
         else if ("quantity".equals(semantic) && (h.equals("no.") || h.equals("#") || h.equals("qty"))) min = 68;
-        else if ("status".equals(semantic) || "email".equals(semantic) || "whatsapp".equals(semantic)) min = 116;
+        else if ("status".equals(semantic) || "whatsapp".equals(semantic)) min = 116;
+        else if ("email".equals(semantic)) min = 170;
         else if ("calendar".equals(semantic) || "reminder".equals(semantic)) min = 118;
         else if ("currency".equals(semantic) || h.contains("amount") || h.contains("balance") || h.contains("paid")) min = 126;
         else if ("phone".equals(semantic)) min = 122;
@@ -545,7 +580,7 @@ public final class ProfessionalUiEnhancer {
         if ("dialog".equals(profile) || "detail".equals(profile)) min = Math.min(min, 118);
         if (column.getMinWidth() < min) column.setMinWidth(min);
         if (column.getPrefWidth() < min) column.setPrefWidth(min);
-        if ("actions".equals(semantic)) { column.setMaxWidth(120); column.setSortable(false); }
+        if ("actions".equals(semantic)) { column.setMinWidth(136); column.setPrefWidth(Math.max(column.getPrefWidth(), 140)); column.setMaxWidth(156); column.setSortable(false); }
         if (h.equals("no.") || h.equals("#")) column.setMaxWidth(72);
     }
 

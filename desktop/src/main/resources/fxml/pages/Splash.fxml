@@ -3,22 +3,23 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.image.ImageView?>
+<?import org.example.ui.SharedApplicationFooter?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.SplashController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-splash,erp-screen-root,dse-startup-splash,auth-splash-shell">
   <left>
-    <VBox prefWidth="620" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
-      <StackPane minHeight="118" prefHeight="118" maxWidth="520" styleClass="auth-company-logo-box,splash-brand-logo-box"><ImageView fx:id="imgBrandLogo" fitWidth="490" fitHeight="104" preserveRatio="true" smooth="true" managed="false" visible="false"/></StackPane>
+    <VBox prefWidth="600" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel,auth-unified-brand-panel">
+      <StackPane fx:id="brandLogoBox" minHeight="118" prefHeight="118" maxWidth="520" styleClass="auth-company-logo-box,splash-brand-logo-box"><ImageView fx:id="imgBrandLogo" preserveRatio="false" smooth="true" managed="false" visible="false"/></StackPane>
       <StackPane styleClass="auth-logo-badge"><Label fx:id="lblBrandMark" text="◆" styleClass="auth-logo-mark,splash-brand-mark"/></StackPane>
       <Label fx:id="lblBrandName" text="DSE ERP" styleClass="auth-brand-title,splash-brand-title"/>
       <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
       <Label fx:id="lblBrandTagline" text="Business Management Suite" styleClass="auth-brand-subtitle,splash-brand-subtitle"/>
-      <Label text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
+      <Label fx:id="lblBrandQuote" text="Precision in Engineering Excellence in Business." wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
       <Region VBox.vgrow="ALWAYS"/>
       <Label fx:id="versionLabel" text="Version" styleClass="auth-version"/>
     </VBox>
   </left>
   <center>
-    <StackPane styleClass="auth-content,splash-auth-content">
-      <VBox maxWidth="760" spacing="12" alignment="CENTER" styleClass="auth-card,splash-auth-card">
+    <StackPane styleClass="auth-content,auth-unified-content,splash-auth-content">
+      <VBox maxWidth="760" spacing="12" alignment="CENTER" styleClass="auth-card,auth-unified-card,splash-auth-card">
         <Label fx:id="lblStarting" text="Starting DSE ERP..." styleClass="auth-title,splash-start-title"/>
         <Label text="Please wait while we prepare everything for you." styleClass="auth-description,splash-start-copy"/>
         <VBox styleClass="splash-stage-card" spacing="0" maxWidth="720" VBox.vgrow="ALWAYS">
@@ -33,5 +34,5 @@
       </VBox>
     </StackPane>
   </center>
-  <bottom><HBox alignment="CENTER_LEFT" spacing="12" styleClass="auth-footer"><padding><Insets top="9" right="18" bottom="9" left="18"/></padding><Label text="Secured • Local • Reliable" styleClass="auth-footer-strong"/><Region HBox.hgrow="ALWAYS"/><Label text="© 2026 DS Engineers"/></HBox></bottom>
+    <bottom><SharedApplicationFooter/></bottom>
 </BorderPane>

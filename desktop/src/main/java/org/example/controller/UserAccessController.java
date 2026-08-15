@@ -90,14 +90,14 @@ public class UserAccessController {
         colStatus.setMinWidth(72); colStatus.setPrefWidth(82);
         colLastLogin.setMinWidth(98); colLastLogin.setPrefWidth(112);
         colMfa.setMinWidth(48); colMfa.setPrefWidth(56);
-        colActions.setMinWidth(86); colActions.setPrefWidth(86); colActions.setMaxWidth(86);
+        colActions.setMinWidth(120); colActions.setPrefWidth(124); colActions.setMaxWidth(132);
         table.setRowFactory(tv->{ TableRow<UserRow> row=new TableRow<>(); row.setOnMouseClicked(e->{if(!row.isEmpty()&&e.getButton()==MouseButton.PRIMARY&&e.getClickCount()==2)edit(row.getItem());}); return row;});
     }
     private void configureRoleTable(){
         colRoleName.setCellValueFactory(v->v.getValue().name); colRoleDescription.setCellValueFactory(v->v.getValue().description);
         colRoleUsers.setCellValueFactory(v->v.getValue().users); colRoleStatus.setCellValueFactory(v->v.getValue().status); colRoleActions.setCellFactory(c->roleActionCell());
         roleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78); colRoleActions.setMinWidth(70);
+        colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78); colRoleActions.setMinWidth(120); colRoleActions.setPrefWidth(124); colRoleActions.setMaxWidth(132);
         roleTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null){cmbPermissionRole.setValue(b.name.get());lblRoleHint.setText(b.description.get());}});
     }
     private void configurePermissionTable(){
@@ -173,7 +173,7 @@ public class UserAccessController {
 
     private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.role.get());showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
     private TableCell<RoleRow,Void> roleActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}RoleRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit Role","edit",e->{roleTable.getSelectionModel().select(row);editRole();}),mi("Manage Permissions","permission",e->{cmbPermissionRole.setValue(row.name.get());showPermissionMatrix();}),mi("Delete Role","delete",e->{roleTable.getSelectionModel().select(row);deleteRole();}));setGraphic(menu);}};}
-    private MenuButton createActionMenu(){MenuButton m=new MenuButton("Actions");m.setGraphic(IconFactory.compactIcon("actions",15));m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.setMinWidth(94);m.getStyleClass().add("table-action-menu");return m;}
+    private MenuButton createActionMenu(){MenuButton m=new MenuButton("Actions");m.setGraphic(IconFactory.compactIcon("actions",15));m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.setMinWidth(122);m.setPrefWidth(130);m.setMaxWidth(148);m.getStyleClass().add("table-action-menu");return m;}
     private MenuItem mi(String text,String icon,javafx.event.EventHandler<javafx.event.ActionEvent>handler){MenuItem i=new MenuItem(text,IconFactory.compactIcon(icon,16));i.setOnAction(handler);return i;}
     private void filter(){String q=txtSearch.getText()==null?"":txtSearch.getText().toLowerCase(Locale.ROOT);filtered.setPredicate(r->{boolean text=q.isBlank()||(r.user.get()+" "+r.fullName+" "+r.email.get()+" "+r.department.get()+" "+r.branch.get()).toLowerCase(Locale.ROOT).contains(q);boolean role=cmbRole.getValue()==null||cmbRole.getValue().startsWith("All")||r.role.get().equals(cmbRole.getValue());boolean status=cmbStatus.getValue()==null||cmbStatus.getValue().startsWith("All")||r.status.get().equals(cmbStatus.getValue());boolean branch=cmbBranch.getValue()==null||cmbBranch.getValue().startsWith("All")||r.branch.get().equals(cmbBranch.getValue());return text&&role&&status&&branch;});}
     private void audit(int userId,String action,String detail){try{adminApi.audit(userId,action,detail+" | by="+(SessionService.current()==null?"System":SessionService.current().getUsername()));}catch(Exception ignored){}}

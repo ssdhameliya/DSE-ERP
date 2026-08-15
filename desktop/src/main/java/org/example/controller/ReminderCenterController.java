@@ -16,6 +16,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 
 import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
@@ -136,7 +137,10 @@ public class ReminderCenterController {
         installIcon(upcomingMetricIcon, "calendar", 18, "reminder-metric-glyph");
         installIcon(emptyStateIcon, "reminder", 28, "reminder-empty-glyph");
 
-        detailMoreActions.setGraphic(IconFactory.compactIcon("more", 15));
+        detailMoreActions.setText("Actions");
+        detailMoreActions.setGraphic(IconFactory.compactIcon("actions", 15));
+        detailMoreActions.setContentDisplay(ContentDisplay.LEFT);
+        detailMoreActions.setGraphicTextGap(6);
         detailMoreActions.setFocusTraversable(false);
     }
 
@@ -242,45 +246,107 @@ public class ReminderCenterController {
         Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle(row == null ? "Add Reminder" : "Edit Reminder");
         dialog.setHeaderText(row == null ? "Create a business follow-up" : "Update reminder details");
+        dialog.getDialogPane().getStyleClass().add("reminder-editor-dialog");
+
         TextField title = new TextField(row == null ? "" : row.title.get());
-        TextField reference = new TextField(row == null ? "" : row.reference.get());
+        title.setPromptText("e.g. Follow up outstanding payment");
+        TextField reference = new TextField(row == null ? "" : rawReference(row.reference.get()));
+        reference.setPromptText("Invoice, quotation, PO or other reference");
         DatePicker due = new DatePicker(row == null ? BusinessClock.today() : parse(row.due.get(), BusinessClock.today()));
         ComboBox<String> priority = new ComboBox<>();
         priority.getItems().setAll("LOW", "NORMAL", "HIGH", "URGENT");
         priority.setValue(row == null ? "NORMAL" : row.priority.get());
         TextArea notes = new TextArea(row == null ? "" : row.notes);
+        notes.setPromptText("Notes, contact details or next action...");
         notes.setPrefRowCount(4);
-        GridPane grid = new GridPane(); grid.setHgap(12); grid.setVgap(12);
-        grid.addRow(0, new Label("Title *"), title); grid.addRow(1, new Label("Reference"), reference);
-        grid.addRow(2, new Label("Due Date *"), due); grid.addRow(3, new Label("Priority"), priority); grid.addRow(4, new Label("Notes"), notes);
-        dialog.getDialogPane().setContent(grid);
-        ButtonType save = new ButtonType("Save Reminder", ButtonBar.ButtonData.OK_DONE);
+        notes.setWrapText(true);
+
+        for (Control control : new Control[]{title, reference, due, priority, notes}) {
+            control.getStyleClass().add("reminder-editor-input");
+            control.setMaxWidth(Double.MAX_VALUE);
+        }
+
+        GridPane grid = new GridPane();
+        grid.setHgap(14);
+        grid.setVgap(11);
+        grid.getStyleClass().add("reminder-editor-grid");
+        javafx.scene.layout.ColumnConstraints labels = new javafx.scene.layout.ColumnConstraints();
+        labels.setMinWidth(100);
+        labels.setPrefWidth(110);
+        javafx.scene.layout.ColumnConstraints fields = new javafx.scene.layout.ColumnConstraints();
+        fields.setHgrow(javafx.scene.layout.Priority.ALWAYS);
+        grid.getColumnConstraints().setAll(labels, fields);
+        grid.addRow(0, editorLabel("Title *"), title);
+        grid.addRow(1, editorLabel("Reference"), reference);
+        grid.addRow(2, editorLabel("Due Date *"), due);
+        grid.addRow(3, editorLabel("Priority"), priority);
+        grid.addRow(4, editorLabel("Notes"), notes);
+
+        VBox content = new VBox(10,
+                new Label(row == null
+                        ? "Add a reminder and keep the business follow-up visible in one place."
+                        : "Update the selected reminder without changing its history or status."),
+                grid);
+        content.getStyleClass().add("reminder-editor-content");
+        content.setPrefWidth(560);
+        dialog.getDialogPane().setContent(content);
+
+        ButtonType save = new ButtonType(row == null ? "Add Reminder" : "Save Changes", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
         dialog.showAndWait().filter(save::equals).ifPresent(button -> {
-            if (title.getText().isBlank() || due.getValue() == null) { warning("Title and due date are required."); return; }
+            if (title.getText() == null || title.getText().isBlank() || due.getValue() == null) {
+                warning("Title and due date are required.");
+                return;
+            }
             try {
-                var dto = new InsightsApiClient.ReminderDto(row==null?null:row.id, title.getText().trim(), reference.getText().trim(), due.getValue().toString(), priority.getValue(), notes.getText(), row==null?"OPEN":row.status.get(), currentUser(), null);
+                var dto = new InsightsApiClient.ReminderDto(
+                        row == null ? null : row.id,
+                        title.getText().trim(),
+                        reference.getText() == null ? "" : reference.getText().trim(),
+                        due.getValue().toString(),
+                        priority.getValue(),
+                        notes.getText(),
+                        row == null ? "OPEN" : row.status.get(),
+                        currentUser(),
+                        null
+                );
                 if (row == null) insightsApi.saveReminder(dto); else insightsApi.updateReminder(dto);
-                NotificationService.add((row==null?"Reminder created: ":"Reminder updated: ")+title.getText().trim());
+                NotificationService.add((row == null ? "Reminder created: " : "Reminder updated: ") + title.getText().trim());
                 refresh();
-            } catch (Exception exception) { error("Reminder could not be saved", exception); }
+                information(row == null ? "Reminder created successfully." : "Reminder updated successfully.");
+            } catch (Exception exception) {
+                error("Reminder could not be saved", exception);
+            }
         });
     }
 
+    private Label editorLabel(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("reminder-editor-label");
+        return label;
+    }
+
+    private static String rawReference(String reference) {
+        return "No reference".equalsIgnoreCase(blank(reference, "")) ? "" : blank(reference, "");
+    }
+
     private void complete(ReminderRow row) {
-        changeStatus(row, "COMPLETED", "completed_at=CURRENT_TIMESTAMP,snoozed_until=NULL");
+        if (row == null || !confirm("Mark reminder '" + row.title.get() + "' as complete?")) return;
+        changeStatus(row, "COMPLETED");
     }
 
     private void reopen(ReminderRow row) {
-        changeStatus(row, "OPEN", "completed_at=NULL,snoozed_until=NULL");
+        if (row == null || !confirm("Reopen reminder '" + row.title.get() + "'?")) return;
+        changeStatus(row, "OPEN");
     }
 
-    private void changeStatus(ReminderRow row, String status, String extra) {
+    private void changeStatus(ReminderRow row, String status) {
         if (row == null) return;
         try {
             insightsApi.reminderStatus(row.id, status, null);
             NotificationService.add("Reminder " + row.title.get() + " marked " + status.toLowerCase(Locale.ROOT) + ".");
             refresh();
+            information("COMPLETED".equals(status) ? "Reminder marked complete." : "Reminder reopened successfully.");
         } catch (Exception exception) { error("Reminder status could not be changed", exception); }
     }
 
@@ -293,21 +359,26 @@ public class ReminderCenterController {
         ButtonType save = new ButtonType("Snooze", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
         dialog.showAndWait().filter(save::equals).ifPresent(button -> {
-            if (picker.getValue() == null) {
-                warning("Select a valid snooze date.");
+            if (picker.getValue() == null || picker.getValue().isBefore(BusinessClock.today())) {
+                warning("Select today or a future date for snooze.");
                 return;
             }
             try {
                 insightsApi.reminderStatus(row.id, "SNOOZED", picker.getValue().toString());
                 NotificationService.add("Reminder snoozed until " + BusinessClock.formatDate(picker.getValue()) + ": " + row.title.get());
                 refresh();
+                information("Reminder snoozed until " + BusinessClock.formatDate(picker.getValue()) + ".");
             } catch (Exception exception) { error("Reminder could not be snoozed", exception); }
         });
     }
 
     private void delete(ReminderRow row) {
-        if (row == null || !confirm("Delete reminder '" + row.title.get() + "'?")) return;
-        try { insightsApi.deleteReminder(row.id); refresh(); }
+        if (row == null) return;
+        String detail = "Delete reminder '" + row.title.get() + "'?\n\n"
+                + "Reference: " + row.reference.get() + "\n"
+                + "Due date: " + row.due.get() + "\n\nThis action cannot be undone.";
+        if (!confirm(detail)) return;
+        try { insightsApi.deleteReminder(row.id); refresh(); information("Reminder deleted successfully."); }
         catch (Exception exception) { error("Reminder could not be deleted", exception); }
     }
 
@@ -641,6 +712,10 @@ public class ReminderCenterController {
         new OwnedAlert(Alert.AlertType.WARNING, message).showAndWait();
     }
 
+    private void information(String message) {
+        new OwnedAlert(Alert.AlertType.INFORMATION, message).showAndWait();
+    }
+
     private void error(String title, Exception exception) {
         exception.printStackTrace();
         new OwnedAlert(
@@ -650,7 +725,7 @@ public class ReminderCenterController {
     }
 
     public static final class ReminderRow {
-        final int id;
+        final long id;
         final SimpleStringProperty title;
         final SimpleStringProperty reference;
         final SimpleStringProperty due;
@@ -660,7 +735,7 @@ public class ReminderCenterController {
         final String notes;
 
         ReminderRow(InsightsApiClient.ReminderDto d) {
-            id=d.id()==null?0:d.id();
+            id=d.id()==null?0L:d.id();
             title=new SimpleStringProperty(blank(d.title(),""));
             reference=new SimpleStringProperty(cleanReference(d.referenceNo()));
             due=new SimpleStringProperty(blank(d.dueDate(),""));

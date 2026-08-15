@@ -4,8 +4,10 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.StackPane;
 import org.example.config.ConfigManager;
 import org.example.service.BrandingService;
+import org.example.service.BrandImagePresenter;
 import org.example.navigation.NavigationManager;
 import org.example.util.ClockService;
 import org.example.util.IconFactory;
@@ -16,6 +18,7 @@ import java.util.regex.Pattern;
 public class EmailSettingsController {
     private static final Pattern EMAIL=Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     @FXML private ImageView imgBrandLogo;
+    @FXML private StackPane brandLogoBox;
     @FXML private Label lblBrandMark,lblBrandName,lblBrandTagline,lblBrandDescription;
     @FXML private Label lblClock,lblMessage,lblEmailError,lblPasswordError;
     @FXML private TextField txtSmtpEmail;
@@ -23,7 +26,8 @@ public class EmailSettingsController {
     @FXML private Button btnSave,btnBack;
 
     @FXML public void initialize(){
-        txtSmtpEmail.setText(ConfigManager.get("smtp.email","shailesh.rockstar007@yahoo.com")); txtSmtpPassword.setText(ConfigManager.get("smtp.appPassword","")); ClockService.start(lblClock);
+        txtSmtpEmail.setText(ConfigManager.get("smtp.email","shailesh.rockstar007@yahoo.com")); txtSmtpPassword.setText(ConfigManager.get("smtp.appPassword",""));
+        BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox);
         applyBranding();
         btnSave.setGraphic(IconFactory.icon("save")); btnBack.setGraphic(IconFactory.icon("return"));
         txtSmtpEmail.textProperty().addListener((o,a,b)->{if(b!=null&&!b.isBlank())clear(txtSmtpEmail,lblEmailError);});
@@ -32,7 +36,7 @@ public class EmailSettingsController {
 
     private void applyBranding(){
         lblBrandName.setText(BrandingService.applicationName()); lblBrandTagline.setText(BrandingService.tagline()); lblBrandDescription.setText(BrandingService.loginDescription());
-        Image logo=BrandingService.brandImage(); if(logo!=null&&!logo.isError()){imgBrandLogo.setImage(logo);imgBrandLogo.setManaged(true);imgBrandLogo.setVisible(true);lblBrandMark.setManaged(false);lblBrandMark.setVisible(false);}
+        Image logo=BrandingService.applicationBrandImage(); if(logo!=null&&!logo.isError()){imgBrandLogo.setImage(logo);imgBrandLogo.setManaged(true);imgBrandLogo.setVisible(true);lblBrandMark.setManaged(false);lblBrandMark.setVisible(false);}
     }
 
     @FXML private void save(){

@@ -49,7 +49,7 @@
                 <TableColumn fx:id="colMinimumStock" text="Min Stock" prefWidth="85" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colLocation" text="Location" prefWidth="110" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colRemarks" text="Remarks" prefWidth="180" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="120" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
             </columns>
         </TableView>
         <HBox alignment="CENTER_RIGHT" styleClass="table-footer,entity-table-footer">

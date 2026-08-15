@@ -3,10 +3,10 @@
     Premium Reminder Center.
     Existing fx:id values and action-handler names are preserved so the screen
     continues to use the same database and reminder workflows.
---><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.ReminderCenterController" spacing="18" styleClass="register-page,reminder-center-page,approved-ui,approved-screen,approved-screen-reminder-center,erp-screen-root">
+--><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.ReminderCenterController" spacing="12" styleClass="register-page,reminder-center-page,approved-ui,approved-screen,approved-screen-reminder-center,erp-screen-root">
 
     <padding>
-        <Insets top="22" right="22" bottom="22" left="22"/>
+        <Insets top="14" right="14" bottom="14" left="14"/>
     </padding>
 
     <!-- Page heading -->
@@ -24,7 +24,7 @@
     </HBox>
 
     <!-- Summary cards -->
-    <HBox spacing="14" styleClass="reminder-metrics-row">
+    <HBox spacing="10" styleClass="reminder-metrics-row">
         <VBox spacing="8" styleClass="standard-kpi-card,kpi-blue,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
@@ -95,7 +95,7 @@
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="2">
                     <Label text="Reminders" styleClass="section-title,reminder-section-title"/>
-                    <Label text="Double-click a row to edit, or use the Action menu." styleClass="reminder-section-caption"/>
+                    <Label text="Double-click a row to edit, or use the Actions menu." styleClass="reminder-section-caption"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
             </HBox>
@@ -117,7 +117,7 @@
                     <TableColumn fx:id="colPriority" text="Priority" prefWidth="105" styleClass="approved-table-column"/>
                     <TableColumn fx:id="colStatus" text="Status" prefWidth="115" styleClass="approved-table-column"/>
                     <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="125" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colActions" text="Actions" prefWidth="112" minWidth="108" maxWidth="120" sortable="false" resizable="false" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colActions" text="Actions" prefWidth="124" minWidth="120" maxWidth="132" sortable="false" resizable="false" styleClass="approved-table-column"/>
                 </columns>
             </TableView>
             <HBox alignment="CENTER_RIGHT" styleClass="table-footer,reminder-table-footer">
@@ -127,7 +127,7 @@
         </VBox>
 
         <!-- Details card -->
-        <ScrollPane fx:id="reminderDetailScroll" managed="false" visible="false" fitToWidth="true" hbarPolicy="NEVER" styleClass="reminder-detail-scroll">
+        <ScrollPane fx:id="reminderDetailScroll" managed="false" visible="false" fitToWidth="true" hbarPolicy="NEVER" minWidth="350" prefWidth="385" maxWidth="430" styleClass="reminder-detail-scroll">
             <content>
                 <VBox spacing="16" styleClass="detail-drawer,reminder-detail-panel">
                     <HBox alignment="CENTER_LEFT">
@@ -176,7 +176,7 @@
                             <Button text="Mark Complete" onAction="#completeSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="primary-button,reminder-complete-button"/>
                         </HBox>
 
-                        <MenuButton fx:id="detailMoreActions" text="Reminder Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
+                        <MenuButton fx:id="detailMoreActions" text="Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
                     </VBox>
                 </VBox>
             </content>

@@ -136,7 +136,7 @@
                 <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="112" minWidth="108" maxWidth="120" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
               </columns>
             </TableView>
 

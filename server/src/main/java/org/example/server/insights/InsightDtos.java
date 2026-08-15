@@ -9,7 +9,7 @@ public final class InsightDtos { private InsightDtos(){}
  public record PointDto(String label,double value){}
  public record ReportRow(String number,String date,String party,double amount,String status){}
  public record ReportBundle(double sales,double purchase,double profit,double receivables,double stock,long low,long customers,List<PointDto> customerPoints,List<PointDto> itemPoints,List<ReportRow> salesRows,List<ReportRow> purchaseRows,double salesPaid,double payables,double purchasesPaid,long items,long out){}
- public record ReminderDto(Integer id,String title,String referenceNo,String dueDate,String priority,String notes,String status,String createdBy,String snoozedUntil){}
+ public record ReminderDto(Long id,String title,String referenceNo,String dueDate,String priority,String notes,String status,String createdBy,String snoozedUntil){}
  public record NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo){}
  public record CountDto(long count){} public record ShellCounts(int notifications,int email,int whatsapp,int reminders){} public record Ok(boolean success,String message){}
 }

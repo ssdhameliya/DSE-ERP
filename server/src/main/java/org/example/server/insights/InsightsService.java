@@ -20,9 +20,9 @@ public class InsightsService {
    long openRecv=l("SELECT COUNT(*) FROM sales_header WHERE total_amount>COALESCE(paid_amount,0)"), openPay=l("SELECT COUNT(*) FROM purchase_header WHERE total_amount>COALESCE(paid_amount,0)");
    double cash=n("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header")-n("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header")-n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
    long openRem=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')");
-   long overdue=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND due_date IS NOT NULL AND CAST(due_date AS DATE)<CURRENT_DATE");
+   long overdue=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END < CURRENT_DATE");
    var snap=new InsightDtos.DashboardSnapshot(period,products,customers,invoices,purchases,low,sales,purchase,recv,pay,openRecv,openPay,cash,openRem,overdue);
-   List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString("type"),rs.getString("doc_no"),rs.getString("party"),String.valueOf(rs.getObject("doc_date")),rs.getDouble("amount")));
+   List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString(1),rs.getString(2),rs.getString(3),String.valueOf(rs.getObject(4)),rs.getDouble(5)));
    String pc=periodSql(period,"s.invoice_date");
    List<String> top=jdbc.query("SELECT p.name,COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE "+pc+" GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5",(rs,i)->rs.getString(1)+"|"+rs.getDouble(2));
    if(top.isEmpty())top=List.of("No customer sales for "+period.toLowerCase(Locale.ROOT));
@@ -37,7 +37,7 @@ public class InsightsService {
    int notifications=(int)unreadCount();
    int email=(int)l("SELECT COUNT(*) FROM communication_log WHERE channel='EMAIL' AND COALESCE(is_read::text,'0') IN ('0','false','f')");
    int whatsapp=(int)l("SELECT COUNT(*) FROM communication_log WHERE channel='WHATSAPP' AND COALESCE(is_read::text,'0') IN ('0','false','f')");
-   int reminders=(int)l("SELECT COUNT(*) FROM reminder_register WHERE status IN ('OPEN','SNOOZED')");
+   int reminders=(int)l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(NULLIF(TRIM(status),''),'OPEN')) IN ('OPEN','SNOOZED')");
    return new InsightDtos.ShellCounts(notifications,email,whatsapp,reminders);
  }
  @Transactional public void markCommunicationRead(String channel){
@@ -59,11 +59,122 @@ public class InsightsService {
    return new InsightDtos.ReportBundle(sales,purchase,profit,recv,stock,low,customers,cp,ip,sr,pr,sp,pay,pp,l("SELECT COUNT(*) FROM item_master"),l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=0"));
  }
 
- @Transactional(readOnly=true) public List<InsightDtos.ReminderDto> reminders(){return jdbc.query("SELECT id,title,reference_no,due_date,priority,notes,status,created_by,snoozed_until FROM reminder_register ORDER BY CASE UPPER(COALESCE(status,'OPEN')) WHEN 'OPEN' THEN 0 WHEN 'SNOOZED' THEN 1 ELSE 2 END,CAST(due_date AS DATE),id DESC",(r,i)->new InsightDtos.ReminderDto(r.getInt("id"),r.getString("title"),r.getString("reference_no"),r.getString("due_date"),r.getString("priority"),r.getString("notes"),r.getString("status"),r.getString("created_by"),r.getString("snoozed_until")));}
- @Transactional public InsightDtos.ReminderDto saveReminder(InsightDtos.ReminderDto d,boolean update){String due=validatedReminderDate(d.dueDate(),"Due date");String title=d.title()==null?"":d.title().trim();if(title.isBlank())throw new IllegalArgumentException("Reminder title is required");String priority=d.priority()==null||d.priority().isBlank()?"NORMAL":d.priority().trim().toUpperCase(Locale.ROOT);String reference=d.referenceNo()==null?"":d.referenceNo().trim();String notes=d.notes()==null?"":d.notes();String now=java.time.LocalDateTime.now().toString();if(update){if(d.id()==null||d.id()<=0)throw new IllegalArgumentException("Reminder id is required for update");jdbc.update("UPDATE reminder_register SET title=?,reference_no=?,due_date=?,priority=?,notes=?,updated_at=? WHERE id=?",title,reference,due,priority,notes,now,d.id());return reminders().stream().filter(x->Objects.equals(x.id(),d.id())).findFirst().orElseThrow(()->new IllegalStateException("Reminder was not found after update"));}Integer newId=jdbc.queryForObject("INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,updated_at) VALUES(?,?,?,?,?,'OPEN',?,?) RETURNING id",Integer.class,title,reference,due,priority,notes,CurrentUser.require().username(),now);return reminders().stream().filter(x->Objects.equals(x.id(),newId)).findFirst().orElseThrow(()->new IllegalStateException("Reminder was not found after creation"));}
- @Transactional public void setReminderStatus(int id,String status,String snoozedUntil){String normalized=status==null?"OPEN":status.trim().toUpperCase(Locale.ROOT);String now=java.time.LocalDateTime.now().toString();if("SNOOZED".equals(normalized)){String until=validatedReminderDate(snoozedUntil,"Snooze date");jdbc.update("UPDATE reminder_register SET status='SNOOZED',snoozed_until=?,completed_at=NULL,updated_at=? WHERE id=?",until,now,id);}else if("COMPLETED".equals(normalized)){jdbc.update("UPDATE reminder_register SET status='COMPLETED',completed_at=?,snoozed_until=NULL,updated_at=? WHERE id=?",now,now,id);}else{jdbc.update("UPDATE reminder_register SET status=?,completed_at=NULL,snoozed_until=NULL,updated_at=? WHERE id=?",normalized,now,id);}}
- @Transactional public void deleteReminder(int id){jdbc.update("DELETE FROM reminder_register WHERE id=?",id);}
- private String validatedReminderDate(String value,String field){if(value==null||value.isBlank())throw new IllegalArgumentException(field+" is required");LocalDate date=LocalDate.parse(value.trim());return date.toString();}
+ @Transactional(readOnly=true)
+ public List<InsightDtos.ReminderDto> reminders(){
+   return jdbc.query(
+     "SELECT id,title,reference_no,due_date,priority,notes,status,created_by,snoozed_until " +
+     "FROM reminder_register " +
+     "ORDER BY CASE UPPER(COALESCE(NULLIF(TRIM(status),''),'OPEN')) WHEN 'OPEN' THEN 0 WHEN 'SNOOZED' THEN 1 WHEN 'COMPLETED' THEN 2 ELSE 3 END, " +
+     "CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END NULLS LAST, id DESC",
+     (r,i)->toReminder(r)
+   );
+ }
+
+ @Transactional(readOnly=true)
+ public InsightDtos.ReminderDto reminder(long id){
+   if(id<=0) throw new IllegalArgumentException("Reminder id must be greater than zero");
+   List<InsightDtos.ReminderDto> matches=jdbc.query(
+     "SELECT id,title,reference_no,due_date,priority,notes,status,created_by,snoozed_until FROM reminder_register WHERE id=?",
+     (r,i)->toReminder(r), id
+   );
+   if(matches.isEmpty()) throw new IllegalArgumentException("Reminder was not found");
+   return matches.getFirst();
+ }
+
+ @Transactional
+ public InsightDtos.ReminderDto createReminder(InsightDtos.ReminderDto d){
+   ReminderInput input=validateReminder(d);
+   String now=LocalDateTime.now().toString();
+   String creator=CurrentUser.require().username();
+   Long newId=jdbc.queryForObject(
+     "INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,updated_at) " +
+     "VALUES(?,?,?,?,?,'OPEN',?,?) RETURNING id",
+     Long.class,
+     input.title(),input.reference(),input.dueDate(),input.priority(),input.notes(),creator,now
+   );
+   if(newId==null||newId<=0) throw new IllegalStateException("Reminder was created but no valid id was returned");
+   return reminder(newId);
+ }
+
+ @Transactional
+ public InsightDtos.ReminderDto updateReminder(long id,InsightDtos.ReminderDto d){
+   if(id<=0) throw new IllegalArgumentException("Reminder id must be greater than zero");
+   ReminderInput input=validateReminder(d);
+   int changed=jdbc.update(
+     "UPDATE reminder_register SET title=?,reference_no=?,due_date=?,priority=?,notes=?,updated_at=? WHERE id=?",
+     input.title(),input.reference(),input.dueDate(),input.priority(),input.notes(),LocalDateTime.now().toString(),id
+   );
+   if(changed!=1) throw new IllegalArgumentException("Reminder was not found or could not be updated");
+   return reminder(id);
+ }
+
+ @Transactional
+ public void setReminderStatus(long id,String status,String snoozedUntil){
+   if(id<=0) throw new IllegalArgumentException("Reminder id must be greater than zero");
+   String normalized=status==null?"OPEN":status.trim().toUpperCase(Locale.ROOT);
+   if(!Set.of("OPEN","SNOOZED","COMPLETED").contains(normalized)) throw new IllegalArgumentException("Unsupported reminder status: "+normalized);
+   String now=LocalDateTime.now().toString();
+   int changed;
+   if("SNOOZED".equals(normalized)){
+     String until=validatedReminderDate(snoozedUntil,"Snooze date");
+     changed=jdbc.update("UPDATE reminder_register SET status='SNOOZED',snoozed_until=?,completed_at=NULL,updated_at=? WHERE id=?",until,now,id);
+   }else if("COMPLETED".equals(normalized)){
+     changed=jdbc.update("UPDATE reminder_register SET status='COMPLETED',completed_at=?,snoozed_until=NULL,updated_at=? WHERE id=?",now,now,id);
+   }else{
+     changed=jdbc.update("UPDATE reminder_register SET status='OPEN',completed_at=NULL,snoozed_until=NULL,updated_at=? WHERE id=?",now,id);
+   }
+   if(changed!=1) throw new IllegalArgumentException("Reminder was not found or could not be updated");
+ }
+
+ @Transactional
+ public void deleteReminder(long id){
+   if(id<=0) throw new IllegalArgumentException("Reminder id must be greater than zero");
+   int changed=jdbc.update("DELETE FROM reminder_register WHERE id=?",id);
+   if(changed!=1) throw new IllegalArgumentException("Reminder was not found or was already deleted");
+ }
+
+ private ReminderInput validateReminder(InsightDtos.ReminderDto d){
+   if(d==null) throw new IllegalArgumentException("Reminder details are required");
+   String title=d.title()==null?"":d.title().trim();
+   if(title.isBlank()) throw new IllegalArgumentException("Reminder title is required");
+   String due=validatedReminderDate(d.dueDate(),"Due date");
+   String priority=d.priority()==null||d.priority().isBlank()?"NORMAL":d.priority().trim().toUpperCase(Locale.ROOT);
+   if(!Set.of("LOW","NORMAL","HIGH","URGENT").contains(priority)) throw new IllegalArgumentException("Unsupported reminder priority: "+priority);
+   String reference=d.referenceNo()==null?"":d.referenceNo().trim();
+   String notes=d.notes()==null?"":d.notes().trim();
+   return new ReminderInput(title,reference,due,priority,notes);
+ }
+
+ private InsightDtos.ReminderDto toReminder(JpaNativeRepository.NativeRow r) {
+   // JpaNativeRepository.query(...) intentionally returns positional NativeRow data.
+   // Alias lookups are empty on that path; using getString("title") was the 7.3.1
+   // defect that produced id=0 / blank Reminder rows and caused update HTTP 400s.
+   String status=Objects.toString(r.getString(7),"OPEN").trim();
+   if(status.isBlank()) status="OPEN";
+   String priority=Objects.toString(r.getString(5),"NORMAL").trim();
+   if(priority.isBlank()) priority="NORMAL";
+   String createdBy=Objects.toString(r.getString(8),"System").trim();
+   if(createdBy.isBlank()) createdBy="System";
+   return new InsightDtos.ReminderDto(
+     r.getLong(1),
+     Objects.toString(r.getString(2),""),
+     Objects.toString(r.getString(3),""),
+     Objects.toString(r.getString(4),""),
+     priority.toUpperCase(Locale.ROOT),
+     Objects.toString(r.getString(6),""),
+     status.toUpperCase(Locale.ROOT),
+     createdBy,
+     Objects.toString(r.getString(9),"")
+   );
+ }
+
+ private String validatedReminderDate(String value,String field){
+   if(value==null||value.isBlank()) throw new IllegalArgumentException(field+" is required");
+   try{return LocalDate.parse(value.trim()).toString();}
+   catch(Exception ex){throw new IllegalArgumentException(field+" must be a valid date",ex);}
+ }
+
+ private record ReminderInput(String title,String reference,String dueDate,String priority,String notes){}
 
  @Transactional(readOnly=true) public List<InsightDtos.NotificationDto> notifications(int limit){return jdbc.query("SELECT id,title,message,severity,category,is_read,target_fxml,reference_no,created_at FROM notifications ORDER BY created_at DESC LIMIT ?",(r,i)->new InsightDtos.NotificationDto(r.getLong(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),readFlag(r.getObject(6)),r.getString(7),r.getString(8),r.getLong(9)),Math.max(1,limit));}
  @Transactional(readOnly=true) public long unreadCount(){return l("SELECT COUNT(*) FROM notifications WHERE COALESCE(is_read::text,'0') IN ('0','false','f')");}
