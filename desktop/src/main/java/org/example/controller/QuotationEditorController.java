@@ -4,10 +4,13 @@ import org.example.util.BusinessClock;
 
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
+import javafx.util.StringConverter;
 import org.example.api.master.MasterApiClient;
 import org.example.api.quotation.QuotationApiClient;
 import org.example.model.Item;
@@ -40,6 +43,7 @@ public final class QuotationEditorController {
     private final MasterApiClient masters=new MasterApiClient();
     private Integer quotationId;
     private boolean dirty;
+    private final ObservableList<ItemChoice> allItemChoices=FXCollections.observableArrayList();
 
     @FXML private void initialize(){
         if(quotationTitleIcon!=null)quotationTitleIcon.getChildren().setAll(IconFactory.icon("quotation",24));
@@ -47,7 +51,7 @@ public final class QuotationEditorController {
         btnPreview.setGraphic(IconFactory.compactIcon("view",16));btnDraft.setGraphic(IconFactory.compactIcon("save",16));btnSaveSend.setGraphic(IconFactory.compactIcon("send",16));
         cmbSource.setItems(FXCollections.observableArrayList("Direct","Email","WhatsApp","Website","Referral","Other"));cmbSource.setValue("Direct");
         dpDate.setValue(BusinessClock.today());dpValid.setValue(BusinessClock.today().plusDays(30));dpFollowUp.setValue(BusinessClock.today().plusDays(7));
-        configureTable();loadChoices();quotationId=QuotationEditorContext.consume();if(quotationId!=null)loadQuotation(quotationId);
+        configureTable();loadChoices();configureItemSearch();quotationId=QuotationEditorContext.consume();if(quotationId!=null)loadQuotation(quotationId);
         tableLines.getItems().addListener((javafx.collections.ListChangeListener<LineRow>)c->{dirty=true;updateTotals();});
         txtRemarks.textProperty().addListener((o,a,b)->dirty=true);
     }
@@ -71,8 +75,24 @@ public final class QuotationEditorController {
     private void loadChoices(){
         try{
             cmbCustomer.getItems().setAll(masters.parties("CUSTOMER").stream().map(CustomerChoice::new).toList());
-            cmbItem.getItems().setAll(masters.items().stream().map(ItemChoice::new).toList());
+            allItemChoices.setAll(masters.items().stream().map(ItemChoice::new).toList());
+            cmbItem.getItems().setAll(allItemChoices);
         }catch(Exception e){error(e);}
+    }
+
+    private void configureItemSearch(){
+        FilteredList<ItemChoice> filtered=new FilteredList<>(allItemChoices,item->true);
+        cmbItem.setItems(filtered);cmbItem.setVisibleRowCount(12);
+        cmbItem.setConverter(new StringConverter<>(){
+            @Override public String toString(ItemChoice item){return item==null?"":item.toString();}
+            @Override public ItemChoice fromString(String text){if(text==null)return null;String q=text.trim();return allItemChoices.stream().filter(i->i.toString().equalsIgnoreCase(q)).findFirst().orElse(null);}
+        });
+        cmbItem.getEditor().textProperty().addListener((obs,oldText,text)->{
+            ItemChoice selected=cmbItem.getValue();if(selected!=null&&selected.toString().equals(text))return;
+            String q=text==null?"":text.trim().toLowerCase(Locale.ROOT);
+            filtered.setPredicate(item->q.isEmpty()||item.toString().toLowerCase(Locale.ROOT).contains(q));
+            if(cmbItem.isFocused()&&!filtered.isEmpty())cmbItem.show();
+        });
     }
 
     private void loadQuotation(int id){

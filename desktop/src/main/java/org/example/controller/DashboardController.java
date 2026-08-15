@@ -39,6 +39,7 @@ import javafx.scene.Cursor;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.animation.RotateTransition;
 import javafx.util.Duration;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -92,8 +93,23 @@ public class DashboardController {
 
     @FXML
     private Button btnSales;
+    @FXML private Button btnSalesRegister;
+    @FXML private Button btnCreateSale;
+    @FXML private Button btnSalesReturn;
     @FXML
     private Button btnQuotation;
+    @FXML private Button btnPurchaseRegister;
+    @FXML private Button btnCreatePurchase;
+    @FXML private Button btnPurchaseReturn;
+    @FXML private Button btnBankEntry;
+    @FXML private Button btnExpenseEntry;
+    @FXML private Button btnBankStatement;
+    @FXML private VBox salesSubmenu;
+    @FXML private VBox purchaseSubmenu;
+    @FXML private VBox bankExpenseSubmenu;
+    @FXML private Label lblSalesChevron;
+    @FXML private Label lblPurchaseChevron;
+    @FXML private Label lblBankExpenseChevron;
     @FXML
     private Button btnOperations;
     @FXML private Button btnBankExpense;
@@ -163,6 +179,7 @@ public class DashboardController {
 
 
         navigationManager = new NavigationManager(contentPane);
+        initializeSidebarAccordion();
 
         if (navigationManager.loadPage("/fxml/pages/DashboardHome.fxml")) {
             lblPageTitle.setText("Dashboard");
@@ -257,10 +274,28 @@ public class DashboardController {
         protect(btnReports, "REPORTS.VIEW"); protect(btnReminders, "REMINDERS.VIEW");
         protect(btnUserAccess, "USERS.VIEW"); protect(btnBackup, "BACKUP.VIEW");
         protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "BACKUP.VIEW"); protect(btnDocumentStudio, "SETTINGS.VIEW"); protect(btnImport, "IMPORT.VIEW");
+
+        // Quotations have their own permission but live inside the Sales accordion.
+        // Keep the parent expandable when either Sales or Quotations is available.
+        boolean salesAllowed = PermissionService.allowed("SALES.VIEW");
+        boolean quotationAllowed = PermissionService.allowed("QUOTATION.VIEW");
+        if (btnSales != null) btnSales.setDisable(!(salesAllowed || quotationAllowed));
+        for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn}) {
+            if (child != null) child.setDisable(!salesAllowed);
+        }
+        if (btnQuotation != null) btnQuotation.setDisable(!quotationAllowed);
+
+        inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
     }
 
     private void protect(Button button, String permission) {
         if (button != null) button.setDisable(!PermissionService.allowed(permission));
+    }
+
+    private void inheritGroupPermission(Button parent, Button... children) {
+        if (parent == null) return;
+        boolean disabled = parent.isDisable();
+        for (Button child : children) if (child != null) child.setDisable(disabled);
     }
 
     private void bindShellControls() {
@@ -270,7 +305,7 @@ public class DashboardController {
         contentPane.getScene().getAccelerators().put(
             new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN),
             () -> { txtSearch.requestFocus(); txtSearch.selectAll(); });
-        installShortcut(KeyCode.F2, "SALES.VIEW", () -> NavigationManager.getInstance().loadPage("/fxml/pages/Sale.fxml"));
+        installShortcut(KeyCode.F2, "SALES.VIEW", this::createSale);
         installShortcut(KeyCode.F3, "QUOTATION.VIEW", this::createQuotationFromShortcut);
         installShortcut(KeyCode.F4, "INVENTORY.VIEW", this::openItemMaster);
         installShortcut(KeyCode.F5, "MASTERS.VIEW", this::openMasters);
@@ -399,6 +434,133 @@ public class DashboardController {
         if (button != null && !button.getStyleClass().contains("menu-selected")) button.getStyleClass().add("menu-selected");
     }
 
+    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE }
+
+    /** Initializes the sidebar in a compact state so a new login shows only top-level modules. */
+    private void initializeSidebarAccordion() {
+        setGroupExpanded(NavGroup.SALES, false, false);
+        setGroupExpanded(NavGroup.PURCHASE, false, false);
+        setGroupExpanded(NavGroup.BANK_EXPENSE, false, false);
+    }
+
+    @FXML private void toggleSalesMenu() { toggleGroup(NavGroup.SALES); }
+    @FXML private void togglePurchaseMenu() { toggleGroup(NavGroup.PURCHASE); }
+    @FXML private void toggleBankExpenseMenu() { toggleGroup(NavGroup.BANK_EXPENSE); }
+
+    private void toggleGroup(NavGroup group) {
+        if (isGroupDisabled(group)) return;
+        boolean willOpen = !isGroupExpanded(group);
+        collapseAllSubmenus(group);
+        setGroupExpanded(group, willOpen, true);
+    }
+
+    private boolean isGroupDisabled(NavGroup group) {
+        Button parent = parentButton(group);
+        return parent != null && parent.isDisable();
+    }
+
+    private boolean isGroupExpanded(NavGroup group) {
+        VBox submenu = submenuFor(group);
+        return submenu != null && submenu.isManaged();
+    }
+
+    private void collapseAllSubmenus(NavGroup except) {
+        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE}) {
+            if (group != except) setGroupExpanded(group, false, true);
+        }
+    }
+
+    private void collapseAllSubmenus() { collapseAllSubmenus(NavGroup.NONE); }
+
+    private void setGroupExpanded(NavGroup group, boolean expanded, boolean animateChevron) {
+        VBox submenu = submenuFor(group);
+        Label chevron = chevronFor(group);
+        Button parent = parentButton(group);
+        if (submenu == null) return;
+
+        submenu.setManaged(expanded);
+        submenu.setVisible(expanded);
+        if (parent != null) {
+            if (expanded && !parent.getStyleClass().contains("nav-expanded")) parent.getStyleClass().add("nav-expanded");
+            if (!expanded) parent.getStyleClass().remove("nav-expanded");
+        }
+        if (chevron != null) {
+            double target = expanded ? 90.0 : 0.0;
+            if (animateChevron && chevron.getScene() != null) {
+                RotateTransition rt = new RotateTransition(Duration.millis(130), chevron);
+                rt.setToAngle(target);
+                rt.play();
+            } else chevron.setRotate(target);
+        }
+    }
+
+    private VBox submenuFor(NavGroup group) {
+        return switch (group) {
+            case SALES -> salesSubmenu;
+            case PURCHASE -> purchaseSubmenu;
+            case BANK_EXPENSE -> bankExpenseSubmenu;
+            default -> null;
+        };
+    }
+
+    private Label chevronFor(NavGroup group) {
+        return switch (group) {
+            case SALES -> lblSalesChevron;
+            case PURCHASE -> lblPurchaseChevron;
+            case BANK_EXPENSE -> lblBankExpenseChevron;
+            default -> null;
+        };
+    }
+
+    private Button parentButton(NavGroup group) {
+        return switch (group) {
+            case SALES -> btnSales;
+            case PURCHASE -> btnPurchase;
+            case BANK_EXPENSE -> btnBankExpense;
+            default -> null;
+        };
+    }
+
+    private NavGroup groupFor(Button button, String fxmlPath) {
+        if (button == btnSales || button == btnSalesRegister || button == btnCreateSale || button == btnSalesReturn || button == btnQuotation)
+            return NavGroup.SALES;
+        if (button == btnPurchase || button == btnPurchaseRegister || button == btnCreatePurchase || button == btnPurchaseReturn)
+            return NavGroup.PURCHASE;
+        if (button == btnBankExpense || button == btnBankEntry || button == btnExpenseEntry || button == btnBankStatement)
+            return NavGroup.BANK_EXPENSE;
+        String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
+        if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
+        if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
+        if (path.contains("bankexpense") || path.contains("bankstatement")) return NavGroup.BANK_EXPENSE;
+        return NavGroup.NONE;
+    }
+
+    private Button selectionButtonFor(Button button, String fxmlPath) {
+        String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
+        if (path.contains("saleslist")) return btnSalesRegister;
+        if (path.endsWith("/sale.fxml")) return btnCreateSale;
+        if (path.contains("salesreturns")) return btnSalesReturn;
+        if (path.contains("quotation")) return btnQuotation;
+        if (path.contains("purchaselist")) return btnPurchaseRegister;
+        if (path.endsWith("/purchase.fxml")) return btnCreatePurchase;
+        if (path.contains("purchasereturns")) return btnPurchaseReturn;
+        if (path.contains("bankstatement")) return btnBankStatement;
+        return button;
+    }
+
+    private void synchronizeSidebar(NavGroup group) {
+        if (group == NavGroup.NONE) collapseAllSubmenus();
+        else {
+            collapseAllSubmenus(group);
+            setGroupExpanded(group, true, true);
+        }
+    }
+
+    private void markGroupActive(NavGroup group) {
+        Button parent = parentButton(group);
+        if (parent != null && !parent.getStyleClass().contains("menu-group-active")) parent.getStyleClass().add("menu-group-active");
+    }
+
 
     private void clearSelection() {
 
@@ -423,8 +585,16 @@ public class DashboardController {
         if (btnPurchase != null)
             btnPurchase.getStyleClass().remove("menu-selected");
 
-        if (btnSales != null)
+        if (btnSales != null) {
             btnSales.getStyleClass().remove("menu-selected");
+            btnSales.getStyleClass().remove("menu-group-active");
+        }
+        if (btnPurchase != null) btnPurchase.getStyleClass().remove("menu-group-active");
+        if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-group-active");
+        for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
+                btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement}) {
+            if (child != null) child.getStyleClass().remove("menu-selected");
+        }
         if (btnQuotation != null)
             btnQuotation.getStyleClass().remove("menu-selected");
         if (btnOperations != null)
@@ -468,7 +638,11 @@ public class DashboardController {
                           String fxmlPath) {
 
         if (navigationManager.loadPage(fxmlPath)) {
-            selectMenu(button);
+            NavGroup group = groupFor(button, fxmlPath);
+            Button selectedButton = selectionButtonFor(button, fxmlPath);
+            synchronizeSidebar(group);
+            selectMenu(selectedButton);
+            markGroupActive(group);
             lblPageTitle.setText(pageTitle);
             updateShellPageIcon(pageTitle);
             if (lblBreadcrumb != null) {
@@ -532,7 +706,7 @@ public class DashboardController {
 
     @FXML
     private void openPurchase() {
-        openPage(btnPurchase,
+        openPage(btnPurchaseRegister,
             "Purchase",
             "/fxml/pages/PurchaseList.fxml");
 
@@ -540,7 +714,7 @@ public class DashboardController {
 
     @FXML
     private void openSales() {
-        openPage(btnSales,
+        openPage(btnSalesRegister,
             "Sales",
             "/fxml/pages/SalesList.fxml");
 
@@ -558,16 +732,16 @@ public class DashboardController {
 
     @FXML private void openBankEntry() {
         BankExpenseController.requestMode(BankExpenseController.Mode.BANK);
-        openPage(btnBankExpense, "Bank Entry", "/fxml/pages/BankExpense.fxml");
+        openPage(btnBankEntry, "Bank Entry", "/fxml/pages/BankExpense.fxml");
     }
 
     @FXML private void openExpenseEntry() {
         BankExpenseController.requestMode(BankExpenseController.Mode.EXPENSE);
-        openPage(btnBankExpense, "Expense Entry", "/fxml/pages/BankExpense.fxml");
+        openPage(btnExpenseEntry, "Expense Entry", "/fxml/pages/BankExpense.fxml");
     }
 
     @FXML private void openBankStatement() {
-        openPage(btnBankExpense, "Bank Statement", "/fxml/pages/BankStatement.fxml");
+        openPage(btnBankStatement, "Bank Statement", "/fxml/pages/BankStatement.fxml");
     }
 
     /** Lets administration child pages navigate inside the existing ERP shell. */
@@ -589,13 +763,15 @@ public class DashboardController {
         DashboardController c = CURRENT;
         if (c == null) return;
         if (mode != null) BankExpenseController.requestMode(mode);
-        javafx.application.Platform.runLater(() -> c.openPage(c.btnBankExpense, title, fxmlPath));
+        Button target = mode == BankExpenseController.Mode.EXPENSE ? c.btnExpenseEntry
+            : mode == BankExpenseController.Mode.BANK ? c.btnBankEntry : c.btnBankExpense;
+        javafx.application.Platform.runLater(() -> c.openPage(target, title, fxmlPath));
     }
 
-    @FXML private void createSale() { openPage(btnSales, "Create Sale", "/fxml/pages/Sale.fxml"); }
-    @FXML private void createPurchase() { openPage(btnPurchase, "Create Purchase", "/fxml/pages/Purchase.fxml"); }
-    @FXML private void openReturns() { openPage(btnSales, "Sales Return Register", "/fxml/pages/SalesReturns.fxml"); }
-    @FXML private void openPurchaseReturns() { openPage(btnPurchase, "Purchase Return", "/fxml/pages/PurchaseReturns.fxml"); }
+    @FXML private void createSale() { openPage(btnCreateSale, "Create Sale", "/fxml/pages/Sale.fxml"); }
+    @FXML private void createPurchase() { openPage(btnCreatePurchase, "Create Purchase", "/fxml/pages/Purchase.fxml"); }
+    @FXML private void openReturns() { openPage(btnSalesReturn, "Sales Return Register", "/fxml/pages/SalesReturns.fxml"); }
+    @FXML private void openPurchaseReturns() { openPage(btnPurchaseReturn, "Purchase Return", "/fxml/pages/PurchaseReturns.fxml"); }
     @FXML private void openFinance() { OperationsController.selectInitialTab(1); openOperations(); }
     @FXML private void openReminders() { OperationsController.selectInitialTab(2); openOperations(); }
     @FXML private void openReminderCenter() {

@@ -212,7 +212,12 @@ public class BackupRestoreController {
                         restore,
                         delete
                 );
-                actions.getStyleClass().addAll("backup-row-actions", "square-action");
+                actions.getStyleClass().addAll("backup-row-actions", "table-action-menu");
+                actions.setText("Actions");
+                actions.setGraphic(IconFactory.compactIcon("actions", 15));
+                actions.setContentDisplay(ContentDisplay.LEFT);
+                actions.setGraphicTextGap(6);
+                actions.setMinWidth(92);
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Backup actions"));
             }
@@ -730,6 +735,6 @@ public class BackupRestoreController {
         IconFactory.applyTableHeaderIcon(colSize, "quantity");
         IconFactory.applyTableHeaderIcon(colStatus, "status");
         IconFactory.applyTableHeaderIcon(colSource, "source");
-        colActions.setText(""); IconFactory.applyTableHeaderIcon(colActions, "more");
+        colActions.setText("Actions"); IconFactory.applyTableHeaderIcon(colActions, "actions");
     }
 }

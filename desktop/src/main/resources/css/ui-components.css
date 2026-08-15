@@ -568,3 +568,36 @@
 .settings-card-tall-compact .settings-brand-assets-panel { -fx-padding: 8; }
 .settings-workspace-panel-scroll { -fx-min-height: 0; }
 /* ===== End 7.3.0 stabilization ===== */
+
+
+/* ===== DSE ERP 7.3.1 Unified Enterprise UI & Workflow Polish ===== */
+.erp-page-identity-header { -fx-min-height: 68; -fx-pref-height: 68; -fx-max-height: 68; -fx-padding: 12 14; }
+.dashboard-executive, .master-entity-page, .user-access-page, .bank-expense-page, .import-page { -fx-spacing: 12; }
+.purchase-register-page .purchase-register-top, .quotation-register-page .quotation-register-top { -fx-spacing: 10; }
+.purchase-register-page .purchase-register-split, .sales-register-page .sales-register-split { -fx-background-insets: 0; }
+.purchase-register-page .purchase-detail-drawer, .sales-register-page .sales-detail-drawer { -fx-background-radius: 12; -fx-border-radius: 12; }
+.master-data-redesign .master-modern-header { -fx-min-height: 0; }
+.master-data-redesign .master-category-panel, .master-data-redesign .master-kpi-row, .master-data-redesign .master-table-toolbar, .master-data-redesign .master-table-card { -fx-background-radius: 12; -fx-border-radius: 12; }
+.entity-kpi-row { -fx-padding: 10 12; }
+.entity-kpi-card { -fx-padding: 10 12; -fx-min-height: 78; -fx-background-radius: 11; -fx-border-radius: 11; -fx-border-width: 1; }
+.entity-kpi-icon, .finance-kpi-icon { -fx-min-width: 34; -fx-pref-width: 34; -fx-max-width: 34; -fx-min-height: 34; -fx-pref-height: 34; -fx-max-height: 34; }
+.finance-kpi-card { -fx-padding: 10 12; -fx-background-radius: 11; -fx-border-radius: 11; }
+.import-step-panel { -fx-padding: 9 12; -fx-background-radius: 10; -fx-border-radius: 10; -fx-border-width: 1; -fx-min-height: 72; }
+.table-action-menu, .reminder-action-button { -fx-min-width: 92; -fx-pref-width: 98; -fx-content-display: left; -fx-graphic-text-gap: 6; }
+.reminder-menu-edit .label { -fx-font-weight: 700; }
+.reminder-menu-complete .label { -fx-font-weight: 800; }
+.reminder-menu-snooze .label { -fx-font-weight: 700; }
+.reminder-menu-reopen .label { -fx-font-weight: 700; }
+.reminder-menu-delete .label { -fx-font-weight: 800; }
+.purchase-entry-reference-header, .quotation-entry-reference-header { -fx-min-height: 68; -fx-pref-height: 68; -fx-max-height: 68; }
+.purchase-attachment-card { -fx-padding: 10 12; }
+.safe-rollback-header { -fx-padding: 12 14; -fx-min-height: 68; -fx-pref-height: 68; -fx-max-height: 68; -fx-background-radius: 12; -fx-border-radius: 12; }
+.safe-rollback-header-icon { -fx-min-width: 42; -fx-pref-width: 42; -fx-max-width: 42; -fx-min-height: 42; -fx-pref-height: 42; -fx-max-height: 42; -fx-background-radius: 12; }
+.safe-rollback-title { -fx-font-size: 20px; }
+.safe-rollback-subtitle { -fx-font-size: 12px; }
+.auth-page > .left, .auth-page .auth-brand-panel { -fx-pref-width: 620; -fx-min-width: 360; }
+.auth-splash-shell .auth-content { -fx-padding: 24 34; }
+.splash-auth-card { -fx-max-width: 760; }
+/* Check boxes intentionally keep only their native check mark. */
+.check-box { -fx-graphic: null; }
+/* ===== End DSE ERP 7.3.1 ===== */

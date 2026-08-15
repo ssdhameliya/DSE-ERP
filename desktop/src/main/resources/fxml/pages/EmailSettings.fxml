@@ -2,14 +2,14 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.image.ImageView?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.EmailSettingsController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-email-settings,erp-screen-root">
 
     <left>
-        <VBox prefWidth="360" minWidth="320" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
-            <StackPane minHeight="100" prefHeight="100" maxWidth="330" styleClass="auth-company-logo-box"><ImageView fx:id="imgBrandLogo" fitWidth="310" fitHeight="90" preserveRatio="true" smooth="true" managed="false" visible="false"/><Label fx:id="lblBrandMark" text="◆" styleClass="auth-logo-mark"/></StackPane>
+        <VBox prefWidth="620" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel">
+            <StackPane minHeight="100" prefHeight="100" maxWidth="520" styleClass="auth-company-logo-box"><ImageView fx:id="imgBrandLogo" fitWidth="490" fitHeight="104" preserveRatio="true" smooth="true" managed="false" visible="false"/><Label fx:id="lblBrandMark" text="◆" styleClass="auth-logo-mark"/></StackPane>
             <Label fx:id="lblBrandName" text="DSE ERP" styleClass="auth-brand-title"/>
             <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
             <Label fx:id="lblBrandTagline" text="Business Management Suite" styleClass="auth-brand-subtitle"/>
             <Label fx:id="lblBrandDescription" text="Business Management Suite" wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Version 7.3.0" styleClass="auth-version"/>
+            <Label text="Version 7.3.1" styleClass="auth-version"/>
         </VBox>
     </left>
 

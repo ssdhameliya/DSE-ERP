@@ -79,7 +79,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private LineChart<String,Number> salesChart;
     @FXML private SplitPane mainSplit;
     @FXML private javafx.scene.layout.VBox detailDrawer;
-    @FXML private Label lblDetailInvoice,lblDetailDate,lblDetailStatus,lblDetailCustomer,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailCharges,lblDetailGstType,lblDetailGstin,lblDetailTransporter,lblDetailDoorDelivery,lblDetailVehicle,lblDetailContactPerson,lblDetailContactMobile;
+    @FXML private Label lblDetailInvoice,lblDetailDate,lblDetailStatus,lblDetailCustomer,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailCharges,lblDetailGstAmount,lblDetailTotalCharges,lblDetailChargeTax,lblDetailGstType,lblDetailGstin,lblDetailTransporter,lblDetailDoorDelivery,lblDetailVehicle,lblDetailContactPerson,lblDetailContactMobile;
 
     private final SalesService service=new SalesService();
     private final SupportApiClient support=new SupportApiClient();
@@ -233,7 +233,7 @@ public class SalesListController implements ScreenLifecycle {
         colAction.setCellFactory(c->new TableCell<>(){final MenuButton menu=new MenuButton();{
             menu.getProperties().put("erp.icon.semantic", "actions");
             menu.setGraphic(IconFactory.compactIcon("actions",15));
-            add("View Sale Invoice","view",e->viewSale(row()));add("Edit Sale","edit",e->edit(row()));add("Duplicate Sale","sale",e->duplicate(row()));add("Print / Download PDF","print",e->openPdf(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("View / Record Payments","payment",e->openPayment(row()));add("Create Sales Return","return",e->createReturn(row()));add("Attach Document","attachment",e->attach(row()));add("Notes / Remarks","document",e->notes(row()));add("Send Reminder","reminder",e->createReminder(row()));MenuItem cancel=add("Cancel Sale","cancel",e->cancelSale(row()));MenuItem del=add("Delete Sale","delete",e->delete(row()));del.getStyleClass().add("danger-menu-item");menu.setOnShowing(e->{Sales current=getTableRow()==null?null:getTableRow().getItem();String status=current==null?"":safe(current.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);cancel.setDisable("CANCELLED".equals(status)||"DELETED".equals(status));cancel.setVisible(true);del.setDisable("DELETED".equals(status));del.setVisible(true);});menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);menu.setTooltip(new Tooltip("Actions"));}
+            add("View Sale Invoice","view",e->viewSale(row()));add("Edit Sale","edit",e->edit(row()));add("Duplicate Sale","sale",e->duplicate(row()));add("Print / Download PDF","print",e->openPdf(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("View / Record Payments","payment",e->openPayment(row()));add("Create Sales Return","return",e->createReturn(row()));add("Attach Document","attachment",e->attach(row()));add("Notes / Remarks","document",e->notes(row()));add("Send Reminder","reminder",e->createReminder(row()));MenuItem cancel=add("Cancel Sale","cancel",e->cancelSale(row()));MenuItem del=add("Delete Sale","delete",e->delete(row()));del.getStyleClass().add("danger-menu-item");menu.setOnShowing(e->{Sales current=getTableRow()==null?null:getTableRow().getItem();String status=current==null?"":safe(current.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);cancel.setDisable("CANCELLED".equals(status)||"DELETED".equals(status));cancel.setVisible(true);del.setDisable("DELETED".equals(status));del.setVisible(true);});menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setMinWidth(92);menu.setTooltip(new Tooltip("Actions"));}
             private Sales row(){Sales value=getTableRow()==null?null:getTableRow().getItem();if(value==null)throw new IllegalStateException("This sales row is no longer available. Refresh the register and try again.");return value;}
             private MenuItem add(String t,String icon,javafx.event.EventHandler<ActionEvent> h){MenuItem i=new MenuItem(t);i.setGraphic(IconFactory.icon(icon));i.setOnAction(event->{try{h.handle(event);}catch(Throwable failure){error(failure);}});menu.getItems().add(i);return i;}
             protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:menu);setAlignment(Pos.CENTER);}});
@@ -307,6 +307,9 @@ public class SalesListController implements ScreenLifecycle {
         lblDetailPaid.setText(money(sale.getPaidAmount()));
         lblDetailBalance.setText(money(sale.getBalanceAmount()));
         lblDetailDue.setText(sale.getDueDate()==null?"Not set":sale.getDueDate().format(BusinessClock.dateFormatter())+" • "+dueLabel(sale));
+        if (lblDetailGstAmount != null) lblDetailGstAmount.setText(money(sale.getGstAmount()));
+        if (lblDetailTotalCharges != null) lblDetailTotalCharges.setText(money(sale.getChargesAmount()));
+        if (lblDetailChargeTax != null) lblDetailChargeTax.setText(money(sale.getChargesTaxAmount()));
         if (lblDetailCharges != null) {
             var charges = sale.getCharges();
             lblDetailCharges.setText(charges.isEmpty() ? "Not Applicable" : charges.stream()

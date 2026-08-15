@@ -7,9 +7,10 @@
             fitToWidth="true" hbarPolicy="NEVER" styleClass="doc-studio-scroll,approved-screen">
     <content>
         <VBox fx:id="root" spacing="16" styleClass="doc-studio-root,universal-doc-studio">
-            <padding><Insets top="18" right="20" bottom="24" left="20"/></padding>
+            <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
-            <HBox alignment="CENTER_LEFT" spacing="16" styleClass="doc-studio-hero,universal-doc-hero">
+            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="doc-studio-hero,universal-doc-hero,erp-page-identity-header">
+                <StackPane fx:id="documentStudioPageIcon" styleClass="erp-page-header-icon"/>
                 <VBox spacing="4" HBox.hgrow="ALWAYS">
                     <Label text="Document Studio" styleClass="doc-studio-title"/>
                     <Label text="Create, edit and automate business PDFs from one workspace. Import any PDF, start blank, or connect a reusable design to ERP data."
@@ -20,23 +21,23 @@
                 <Button text="ERP Template" onAction="#createErpTemplate" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
             </HBox>
 
-            <HBox spacing="12">
-                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi">
-                    <Label text="Documents &amp; Templates" styleClass="doc-studio-kpi-label"/>
-                    <Label fx:id="lblTotal" text="0" styleClass="doc-studio-kpi-value"/>
-                </VBox>
-                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi">
-                    <Label text="Active ERP Templates" styleClass="doc-studio-kpi-label"/>
-                    <Label fx:id="lblActive" text="0" styleClass="doc-studio-kpi-value"/>
-                </VBox>
-                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-wide">
-                    <Label text="Automatic Defaults" styleClass="doc-studio-kpi-label"/>
-                    <Label fx:id="lblPurchaseDefault" text="Purchase: Built-in • Quotation: Built-in" wrapText="true" styleClass="doc-studio-kpi-default"/>
-                </VBox>
-                <VBox spacing="3" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi">
-                    <Label text="Sales Safety" styleClass="doc-studio-kpi-label"/>
-                    <Label text="Existing Sales runtime unchanged" wrapText="true" styleClass="doc-studio-kpi-safe"/>
-                </VBox>
+            <HBox spacing="12" styleClass="doc-studio-kpi-row,erp-kpi-section">
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-blue">
+                    <StackPane fx:id="documentsKpiIcon" styleClass="doc-studio-kpi-icon"/>
+                    <VBox spacing="3"><Label text="Documents &amp; Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblTotal" text="0" styleClass="doc-studio-kpi-value"/></VBox>
+                </HBox>
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-green">
+                    <StackPane fx:id="activeKpiIcon" styleClass="doc-studio-kpi-icon"/>
+                    <VBox spacing="3"><Label text="Active ERP Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblActive" text="0" styleClass="doc-studio-kpi-value"/></VBox>
+                </HBox>
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-wide,doc-studio-kpi-purple">
+                    <StackPane fx:id="defaultsKpiIcon" styleClass="doc-studio-kpi-icon"/>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Automatic Defaults" styleClass="doc-studio-kpi-label"/><Label fx:id="lblPurchaseDefault" text="Purchase: Built-in • Quotation: Built-in" wrapText="true" styleClass="doc-studio-kpi-default"/></VBox>
+                </HBox>
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-safe-card">
+                    <StackPane fx:id="salesSafetyKpiIcon" styleClass="doc-studio-kpi-icon"/>
+                    <VBox spacing="3"><Label text="Sales Safety" styleClass="doc-studio-kpi-label"/><Label text="Existing Sales runtime unchanged" wrapText="true" styleClass="doc-studio-kpi-safe"/></VBox>
+                </HBox>
             </HBox>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="doc-studio-filterbar">

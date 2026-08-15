@@ -7,16 +7,47 @@
             <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="sidebar-scroll">
               <content><VBox spacing="1">
             <Button fx:id="btnDashboard" text="Dashboard" onAction="#openDashboard" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <VBox styleClass="nav-group"><Button fx:id="btnSales" text="Sales" onAction="#openSales" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button"/>
-                <VBox spacing="1" styleClass="nav-children"><Button text="Sales Register" onAction="#openSales" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button text="Create Sale" onAction="#createSale" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/><Button text="Sales Return" onAction="#openReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnQuotation" text="Quotations" onAction="#openQuotations" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnSales" text="Sales" onAction="#toggleSalesMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
+                        <tooltip><Tooltip text="Show or hide Sales menu"/></tooltip>
+                    </Button>
+                    <Label fx:id="lblSalesChevron" text="›" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="salesSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnSalesRegister" text="Sales Register" onAction="#openSales" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnCreateSale" text="Create Sale" onAction="#createSale" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                    <Button fx:id="btnSalesReturn" text="Sales Return" onAction="#openReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnQuotation" text="Quotations" onAction="#openQuotations" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
             </VBox>
-            <VBox styleClass="nav-group"><Button fx:id="btnPurchase" text="Purchase" onAction="#openPurchase" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button"/>
-                <VBox spacing="1" styleClass="nav-children"><Button text="Purchase Register" onAction="#openPurchase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button text="Create Purchase" onAction="#createPurchase" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/><Button text="Purchase Return" onAction="#openPurchaseReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnPurchase" text="Purchase" onAction="#togglePurchaseMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
+                        <tooltip><Tooltip text="Show or hide Purchase menu"/></tooltip>
+                    </Button>
+                    <Label fx:id="lblPurchaseChevron" text="›" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="purchaseSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnPurchaseRegister" text="Purchase Register" onAction="#openPurchase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnCreatePurchase" text="Create Purchase" onAction="#createPurchase" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                    <Button fx:id="btnPurchaseReturn" text="Purchase Return" onAction="#openPurchaseReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
             </VBox>
             <Button fx:id="btnItem" text="Item Master" onAction="#openItemMaster" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnMasters" text="Masters" onAction="#openMasters" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <VBox styleClass="nav-group"><Button fx:id="btnBankExpense" text="Bank &amp; Expense" onAction="#openBankEntry" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button"/>
-                <VBox spacing="1" styleClass="nav-children"><Button text="Bank Entry" onAction="#openBankEntry" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button text="Expense Entry" onAction="#openExpenseEntry" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button text="Bank Statement" onAction="#openBankStatement" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnBankExpense" text="Bank &amp; Expense" onAction="#toggleBankExpenseMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
+                        <tooltip><Tooltip text="Show or hide Bank &amp; Expense menu"/></tooltip>
+                    </Button>
+                    <Label fx:id="lblBankExpenseChevron" text="›" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="bankExpenseSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnBankEntry" text="Bank Entry" onAction="#openBankEntry" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnExpenseEntry" text="Expense Entry" onAction="#openExpenseEntry" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnBankStatement" text="Bank Statement" onAction="#openBankStatement" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
             </VBox>
             <Button fx:id="btnImport" text="Data Import" onAction="#openImport" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnInventory" text="Inventory" onAction="#openInventory" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>

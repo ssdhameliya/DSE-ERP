@@ -5,6 +5,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
@@ -92,6 +93,17 @@ public final class IconFactory {
             return;
         }
 
+        // CheckBox already has a native checked/unchecked affordance.  Do not
+        // decorate it with a second generic action/settings icon.
+        if (node instanceof CheckBox checkBox) {
+            Node graphic = checkBox.getGraphic();
+            if (graphic != null && Boolean.TRUE.equals(graphic.getProperties().get("erp.icon.factory"))) {
+                checkBox.setGraphic(null);
+            }
+            checkBox.getProperties().put("erp.icon.skip", true);
+            return;
+        }
+
         if (node instanceof ButtonBase button) {
             String semantic = semantic(button);
             String originalText = clean(button.getText());
@@ -141,14 +153,15 @@ public final class IconFactory {
         if (node instanceof MenuButton menu) {
             if (isTableActionMenu(menu)) {
                 String tooltipText = clean(menu.getText());
-                if (tooltipText.isBlank()) tooltipText = "Actions";
-                menu.setText("");
-                menu.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                if (tooltipText.isBlank() || tooltipText.equals("...") || tooltipText.equals("⋮")) tooltipText = "Actions";
+                menu.setText("Actions");
+                menu.setContentDisplay(ContentDisplay.LEFT);
                 menu.setGraphic(actionIcon("actions", 16));
-                menu.setMinWidth(42);
-                menu.setPrefWidth(46);
-                menu.setMaxWidth(50);
-                if (menu.getTooltip() == null) menu.setTooltip(new Tooltip(tooltipText));
+                menu.setGraphicTextGap(6);
+                menu.setMinWidth(92);
+                menu.setPrefWidth(98);
+                menu.setMaxWidth(112);
+                if (menu.getTooltip() == null) menu.setTooltip(new Tooltip("Open actions"));
             }
             decorateMenuItems(menu);
             if (!Boolean.TRUE.equals(menu.getProperties().get("erp.icons.bound"))) {
@@ -169,7 +182,9 @@ public final class IconFactory {
         String styles = String.join(" ", menu.getStyleClass()).toLowerCase(Locale.ROOT);
         String text = clean(menu.getText()).toLowerCase(Locale.ROOT);
         return styles.contains("row-actions") || styles.contains("table-action")
-            || styles.contains("user-action-menu") || text.equals("actions")
+            || styles.contains("user-action-menu") || styles.contains("approved-row-action")
+            || styles.contains("backup-row-actions") || styles.contains("bank-row-action")
+            || text.equals("actions") || text.equals("reminder actions")
             || text.equals("⋮") || text.equals("...");
     }
 
@@ -219,7 +234,9 @@ public final class IconFactory {
      */
     public static void applyTableHeaderIcon(TableColumn<?, ?> column, String semantic) {
         if (column == null) return;
-        column.setGraphic(compactIcon(semantic, 14));
+        String normalized = normalize(semantic);
+        if ("actions".equals(normalized) && clean(column.getText()).isBlank()) column.setText("Actions");
+        column.setGraphic(compactIcon(normalized, 14));
         column.getProperties().put("erp-header-preserve", true);
         column.getProperties().put("erp-header-semantic", normalize(semantic));
     }
@@ -395,7 +412,7 @@ public final class IconFactory {
             case "reminder" -> "fas-clock";
             case "complete" -> "fas-check-circle";
             case "more" -> "fas-ellipsis-h";
-            case "actions" -> "fas-tools";
+            case "actions" -> "fas-list-ul";
             case "backup" -> "fas-database";
             case "rollback" -> "fas-shield-alt";
             case "package" -> "fas-box-open";

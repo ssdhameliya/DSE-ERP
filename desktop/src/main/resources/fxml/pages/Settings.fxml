@@ -9,7 +9,7 @@
         <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
 
             <padding>
-                <Insets top="10" right="16" bottom="10" left="16"/>
+                <Insets top="12" right="14" bottom="12" left="14"/>
             </padding>
 
             <StackPane minWidth="42" prefWidth="42" maxWidth="42" minHeight="42" prefHeight="42" maxHeight="42" styleClass="settings-page-icon-box">
@@ -595,7 +595,7 @@
                             <HBox spacing="14">
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
-                                    <Label fx:id="lblCurrentVersion" text="7.3.0" styleClass="update-version-value"/>
+                                    <Label fx:id="lblCurrentVersion" text="7.3.1" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">

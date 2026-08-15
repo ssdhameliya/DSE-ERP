@@ -3,10 +3,10 @@
     <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="NEVER" styleClass="approved-page-scroll">
         <content>
             <VBox fx:id="dashboardContent" spacing="10" styleClass="approved-page,dashboard-executive">
-                <padding><Insets top="12" right="16" bottom="12" left="16"/></padding>
+                <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
                 <HBox alignment="CENTER_LEFT" spacing="14" styleClass="approved-page-header,approved-section-header,erp-page-identity-header">
-                    <StackPane fx:id="dashboardTitleIcon" styleClass="approved-title-icon"/>
+                    <StackPane fx:id="dashboardTitleIcon" styleClass="approved-title-icon,erp-page-header-icon"/>
                     <VBox spacing="3">
                         <Label text="Dashboard" styleClass="approved-page-title"/>
                         <Label text="Overview of your business at a glance" styleClass="approved-page-subtitle"/>

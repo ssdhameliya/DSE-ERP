@@ -2,7 +2,7 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.chart.*?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesListController" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-sales-list,erp-screen-root">
   <top>
     <VBox spacing="8" styleClass="sales-register-top">
-      <padding><Insets top="10" right="14" bottom="0" left="14"/></padding>
+      <padding><Insets top="10" right="14" bottom="4" left="14"/></padding>
 
       <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-register-hero,approved-section-header,erp-page-identity-header">
         <StackPane fx:id="salesTitleIcon" styleClass="sales-title-icon"/>
@@ -19,10 +19,10 @@
 
   <center>
     <SplitPane fx:id="mainSplit" dividerPositions="0.81" styleClass="register-split,sales-register-split">
-      <padding><Insets top="10" right="18" bottom="14" left="0"/></padding>
+      <padding><Insets top="10" right="14" bottom="14" left="14"/></padding>
       <items>
         <VBox spacing="10" minWidth="620" styleClass="register-workspace,sales-register-workspace">
-          <padding><Insets top="0" right="18" bottom="0" left="18"/></padding>
+          <padding><Insets top="0" right="12" bottom="0" left="0"/></padding>
 
           <HBox spacing="8" styleClass="sales-metric-row,sales-kpi-panel,erp-kpi-section">
             <HBox spacing="12" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" styleClass="sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS">
@@ -136,7 +136,7 @@
                 <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colAction" text="Actions" prefWidth="72" minWidth="68" maxWidth="76" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colAction" text="Actions" prefWidth="112" minWidth="108" maxWidth="120" styleClass="approved-table-column"/>
               </columns>
             </TableView>
 
@@ -196,8 +196,11 @@
             <Label text="Paid Amount" GridPane.rowIndex="1"/><Label fx:id="lblDetailPaid" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="summary-paid"/>
             <Label text="Balance" GridPane.rowIndex="2"/><Label fx:id="lblDetailBalance" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="summary-balance"/>
             <Label text="Due Date" GridPane.rowIndex="3"/><Label fx:id="lblDetailDue" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-            <Label text="Charges" GridPane.rowIndex="4" styleClass="sales-detail-charge-label"/>
-            <Label fx:id="lblDetailCharges" text="Not Applicable" GridPane.rowIndex="4" GridPane.columnIndex="1"
+            <Label text="GST Amount" GridPane.rowIndex="4"/><Label fx:id="lblDetailGstAmount" GridPane.rowIndex="4" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="Total Charges" GridPane.rowIndex="5"/><Label fx:id="lblDetailTotalCharges" GridPane.rowIndex="5" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="Charge GST" GridPane.rowIndex="6"/><Label fx:id="lblDetailChargeTax" GridPane.rowIndex="6" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="Charges" GridPane.rowIndex="7" styleClass="sales-detail-charge-label"/>
+            <Label fx:id="lblDetailCharges" text="Not Applicable" GridPane.rowIndex="7" GridPane.columnIndex="1"
                    wrapText="true" styleClass="sales-detail-charge-value"/>
           </GridPane>
           <Separator/>
@@ -211,6 +214,8 @@
             <Label text="GSTIN" GridPane.rowIndex="1"/><Label fx:id="lblDetailGstin" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
             <Label text="Transporter" GridPane.rowIndex="2"/><Label fx:id="lblDetailTransporter" GridPane.rowIndex="2" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
             <Label text="Vehicle No." GridPane.rowIndex="3"/><Label fx:id="lblDetailVehicle" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
+            <Label text="Contact Person" GridPane.rowIndex="4"/><Label fx:id="lblDetailContactPerson" GridPane.rowIndex="4" GridPane.columnIndex="1" wrapText="true" styleClass="sales-detail-meta-value"/>
+            <Label text="Contact Mobile" GridPane.rowIndex="5"/><Label fx:id="lblDetailContactMobile" GridPane.rowIndex="5" GridPane.columnIndex="1" styleClass="sales-detail-meta-value"/>
           </GridPane>
           <Separator/>
           <GridPane hgap="8" vgap="8" styleClass="sales-detail-action-grid">

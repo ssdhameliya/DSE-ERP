@@ -12,10 +12,10 @@
             >
 
     <top>
-        <VBox spacing="16" minHeight="118" styleClass="page-header,master-modern-header,approved-section-header,erp-page-identity-header">
-            <padding><Insets top="18" right="24" bottom="16" left="24"/></padding>
+        <VBox spacing="10" styleClass="page-header,master-modern-header,master-header-stack,erp-transparent-section-stack">
+            <padding><Insets top="14" right="14" bottom="8" left="14"/></padding>
 
-            <HBox alignment="CENTER_LEFT" spacing="12">
+            <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-section-header,erp-page-identity-header,master-identity-card">
                 <StackPane fx:id="masterPageIcon" styleClass="erp-page-header-icon"/>
                 <VBox spacing="4">
                     <Label text="Master Data Management" styleClass="page-title"/>
@@ -26,7 +26,8 @@
                         styleClass="approved-button,approved-secondary-button,master-action-button"/>
             </HBox>
 
-            <HBox spacing="12" alignment="CENTER_LEFT">
+            <HBox spacing="12" alignment="CENTER_LEFT" styleClass="master-table-toolbar,master-search-panel,erp-filter-section">
+                <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
                 <TextField fx:id="txtSearch"
                            promptText="Search categories or lookup values..."
                            prefHeight="42"
@@ -43,7 +44,7 @@
     <left>
         <VBox prefWidth="285" minWidth="260" maxWidth="320" spacing="14"
               styleClass="sidebar,master-category-panel">
-            <BorderPane.margin><Insets top="14" right="0" bottom="0" left="0"/></BorderPane.margin>
+            <BorderPane.margin><Insets top="6" right="0" bottom="14" left="14"/></BorderPane.margin>
             <padding><Insets top="18" right="16" bottom="18" left="16"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="10">
@@ -72,7 +73,7 @@
 
     <center>
         <HBox spacing="18">
-            <BorderPane.margin><Insets top="14" right="0" bottom="0" left="14"/></BorderPane.margin>
+            <BorderPane.margin><Insets top="6" right="14" bottom="14" left="12"/></BorderPane.margin>
             <padding><Insets top="0" right="0" bottom="0" left="0"/></padding>
 
             <VBox spacing="16" HBox.hgrow="ALWAYS">

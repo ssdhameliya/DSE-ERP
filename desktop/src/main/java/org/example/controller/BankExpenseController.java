@@ -40,7 +40,7 @@ public class BankExpenseController implements ScreenLifecycle {
 
     @FXML private Label lblTitle, lblSubtitle, formTitle, listTitle;
     @FXML private Button btnBankMode, btnExpenseMode, btnBankRecon, saveButton, addButton;
-    @FXML private Label kpi1Label,kpi1Value,kpi1Note,kpi2Label,kpi2Value,kpi2Note,kpi3Label,kpi3Value,kpi3Note,kpi4Label,kpi4Value,kpi4Note;
+    @FXML private Label kpi1Icon,kpi1Label,kpi1Value,kpi1Note,kpi2Icon,kpi2Label,kpi2Value,kpi2Note,kpi3Icon,kpi3Label,kpi3Value,kpi3Note,kpi4Icon,kpi4Label,kpi4Value,kpi4Note;
     @FXML private DatePicker entryDate;
     @FXML private VBox bankOnlyFields, expenseOnlyFields, billBox;
     @FXML private ComboBox<String> bankAccount, expenseCategory, expenseAccount, paymentMode, typeFilter, periodFilter;
@@ -68,6 +68,7 @@ public class BankExpenseController implements ScreenLifecycle {
     @FXML public void initialize() {
         entryDate.setValue(BusinessClock.today());
         creditRadio.setToggleGroup(typeGroup); debitRadio.setToggleGroup(typeGroup); creditRadio.setSelected(true);
+        installKpiIcons();
         loadMasterLookups();
         loadAccounts();
         configureTable();
@@ -80,6 +81,9 @@ public class BankExpenseController implements ScreenLifecycle {
         applyMode(mode);
         applyRequestedExpensePrefill();
     }
+
+    private void installKpiIcons(){setKpiIcon(kpi1Icon,"bank");setKpiIcon(kpi2Icon,"credit");setKpiIcon(kpi3Icon,"balance");setKpiIcon(kpi4Icon,"payment");}
+    private void setKpiIcon(Label label,String semantic){if(label!=null){label.setText("");label.setGraphic(IconFactory.icon(semantic,20));label.getProperties().put("erp-icon-preserve",true);}}
 
     private void applyRequestedExpensePrefill(){
         ExpensePrefill p=consumeExpensePrefill(); if(p==null)return;

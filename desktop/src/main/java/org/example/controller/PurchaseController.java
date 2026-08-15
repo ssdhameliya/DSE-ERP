@@ -7,6 +7,8 @@ import org.example.util.OwnedChoiceDialog;
 import org.example.util.OwnedAlert;
 
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -30,6 +32,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.converter.DoubleStringConverter;
+import javafx.util.StringConverter;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import org.example.util.IconFactory;
@@ -44,6 +47,7 @@ import java.io.File;
 
 public class PurchaseController {
     @FXML private Button btnAddSupplier;
+    @FXML private javafx.scene.layout.StackPane purchasePageIcon;
 
 
     @FXML
@@ -136,6 +140,8 @@ public class PurchaseController {
 
 
 
+    private final ObservableList<Item> allItems=FXCollections.observableArrayList();
+
     private final ItemService itemService =
         new ItemService();
 
@@ -162,6 +168,7 @@ public class PurchaseController {
 
     @FXML
     public void initialize(){
+        if(purchasePageIcon!=null)purchasePageIcon.getChildren().setAll(IconFactory.icon("purchase",24));
         if (btnAddSupplier != null) { btnAddSupplier.setGraphic(IconFactory.compactIcon("supplier", 20)); btnAddSupplier.getProperties().put("erp-icon-preserve", true); }
         configureExplicitTableHeaderIcons();
 
@@ -205,11 +212,8 @@ public class PurchaseController {
         );
 
 
-        cmbItem.setItems(
-            FXCollections.observableArrayList(
-                itemService.getAll()
-            )
-        );
+        allItems.setAll(itemService.getAll());
+        cmbItem.setItems(allItems);
 
 
         cmbItem.setCellFactory(list ->
@@ -249,6 +253,8 @@ public class PurchaseController {
                 }
             });
 
+
+        configureItemSearch();
 
         cmbSupplier.setCellFactory(list ->
             new ListCell<>(){
@@ -310,6 +316,22 @@ public class PurchaseController {
 
 
 
+    private void configureItemSearch(){
+        FilteredList<Item> filtered=new FilteredList<>(allItems,item->true);
+        cmbItem.setItems(filtered);cmbItem.setVisibleRowCount(12);
+        StringConverter<Item> converter=new StringConverter<>(){
+            @Override public String toString(Item item){return item==null?"":itemDisplay(item);}
+            @Override public Item fromString(String text){if(text==null)return null;String q=text.trim();return allItems.stream().filter(i->itemDisplay(i).equalsIgnoreCase(q)).findFirst().orElse(null);}
+        };
+        cmbItem.setConverter(converter);
+        cmbItem.getEditor().textProperty().addListener((obs,oldText,text)->{
+            Item selected=cmbItem.getValue();if(selected!=null&&itemDisplay(selected).equals(text))return;
+            String q=text==null?"":text.trim().toLowerCase(java.util.Locale.ROOT);
+            filtered.setPredicate(item->q.isEmpty()||itemDisplay(item).toLowerCase(java.util.Locale.ROOT).contains(q));
+            if(cmbItem.isFocused()&&!filtered.isEmpty())cmbItem.show();
+        });
+    }
+    private String itemDisplay(Item item){if(item==null)return "";String remarks=item.getRemarks()==null?"":item.getRemarks().trim();String base=item.getItemCode()+" - "+item.getDescription();return remarks.isBlank()?base:base+" • "+remarks;}
 
 
     private void setupTable(){

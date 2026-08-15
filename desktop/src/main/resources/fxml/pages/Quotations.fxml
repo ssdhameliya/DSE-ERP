@@ -104,7 +104,7 @@
                                 <TableColumn fx:id="colConverted" text="Converted To" prefWidth="115" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colSalesperson" text="Sales Person" prefWidth="120" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="100" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colActions" text="" prefWidth="88" sortable="false" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colActions" text="Actions" prefWidth="112" sortable="false" styleClass="approved-table-column"/>
                             </columns>
                         </TableView>
 

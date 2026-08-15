@@ -6852,3 +6852,164 @@ TABLE ACTION BUTTONS
 .pdf-existing-form-target > .label { -fx-font-size: 8px; -fx-font-weight: 800; -fx-text-fill: #10b981; -fx-opacity: .88; }
 .pdf-existing-form-selected { -fx-border-style: solid; -fx-effect: dropshadow(gaussian, rgba(16,185,129,.40), 10, .2, 0, 0); }
 /* ===== End 7.3.0 stabilization ===== */
+
+/* ===== DSE ERP 7.3.1 Unified UI - dark ===== */
+.entity-kpi-card, .import-step-panel { -fx-background-color:#111f31; -fx-border-color:#304967; }
+.finance-kpi-card { -fx-border-color:#304967; }
+.reminder-menu-edit .label { -fx-text-fill:#60a5fa; } .reminder-menu-complete .label { -fx-text-fill:#4ade80; } .reminder-menu-snooze .label { -fx-text-fill:#fbbf24; } .reminder-menu-reopen .label { -fx-text-fill:#c4b5fd; } .reminder-menu-delete .label { -fx-text-fill:#fb7185; }
+.purchase-register-page .purchase-register-workspace { -fx-background-color:#0b1726; }
+.auth-splash-shell { -fx-background-color:#071321; }
+/* ===== End 7.3.1 dark ===== */
+
+.safe-rollback-header { -fx-padding:12 14; -fx-background-radius:12; -fx-border-radius:12; }
+.safe-rollback-header-icon { -fx-min-width:42; -fx-pref-width:42; -fx-max-width:42; -fx-min-height:42; -fx-pref-height:42; -fx-max-height:42; -fx-background-radius:12; }
+.safe-rollback-title { -fx-font-size:20px; }
+
+/* ========================================================================
+   DSE ERP 7.3.1 — compact accordion sidebar navigation (dark)
+   ======================================================================== */
+.erp-sidebar .nav-parent-row {
+    -fx-max-width: infinity;
+    -fx-alignment: center-left;
+}
+.erp-sidebar .nav-parent-row .nav-parent {
+    -fx-padding: 9px 30px 9px 10px;
+}
+.erp-sidebar .nav-chevron {
+    -fx-text-fill: #8fa5bd;
+    -fx-font-size: 19px;
+    -fx-font-weight: 800;
+    -fx-padding: 0 10px 0 0;
+}
+.erp-sidebar .button.nav-parent.nav-expanded {
+    -fx-background-color: #142b47;
+    -fx-text-fill: #8fc1ff;
+}
+.erp-sidebar .button.nav-parent.menu-group-active {
+    -fx-background-color: #17385e;
+    -fx-text-fill: #9bc8ff;
+    -fx-font-weight: 800;
+    -fx-border-color: transparent transparent transparent #4c9aff;
+    -fx-border-width: 0 0 0 3px;
+}
+.erp-sidebar .button.nav-parent.menu-group-active .erp-ikonli-glyph {
+    -fx-icon-color: #8fc1ff;
+}
+.erp-sidebar .nav-children {
+    -fx-padding: 3px 0 7px 12px;
+    -fx-spacing: 2px;
+}
+.erp-sidebar .nav-children .button {
+    -fx-min-height: 38px;
+    -fx-pref-height: 38px;
+}
+
+
+/* ========================================================================
+   DSE ERP 7.3.1 FINAL UI / Reminder stabilization
+   Keeps business layouts intact while enforcing one outer-gutter contract.
+   ======================================================================== */
+/* Register page spacing: the workspace/drawer now respects the same 14px gutter as the hero. */
+.sales-register-page .sales-register-split,
+.purchase-register-page .purchase-register-split { -fx-padding: 10px 14px 14px 14px; -fx-background-color: transparent; }
+.sales-register-page .sales-register-workspace,
+.purchase-register-page .purchase-register-workspace { -fx-background-color: transparent; }
+.sales-register-page .sales-detail-drawer,
+.purchase-register-page .purchase-detail-drawer { -fx-border-width: 1px; -fx-border-radius: 12px; -fx-background-radius: 12px; }
+.sales-register-page .sales-register-split > .split-pane-divider,
+.purchase-register-page .purchase-register-split > .split-pane-divider { -fx-padding: 0 5px; -fx-background-color: transparent; }
+
+/* Purchase KPI density follows Sales Register, leaving more height for transaction rows. */
+.purchase-register-page .purchase-register-workspace > .standard-kpi-row { -fx-pref-height: 72px; -fx-min-height: 72px; -fx-max-height: 72px; -fx-spacing: 6px; -fx-padding: 6px 8px; }
+.purchase-register-page .purchase-register-workspace > .standard-kpi-row > .standard-kpi-card { -fx-pref-height: 58px; -fx-min-height: 58px; -fx-max-height: 58px; -fx-padding: 5px 8px; -fx-spacing: 6px; }
+.purchase-register-page .standard-kpi-card .standard-kpi-icon { -fx-min-width:30px; -fx-pref-width:30px; -fx-max-width:30px; -fx-min-height:30px; -fx-pref-height:30px; -fx-max-height:30px; -fx-background-radius:9px; }
+.purchase-register-page .standard-kpi-card .metric-label { -fx-font-size:9.5px; }
+.purchase-register-page .standard-kpi-card .metric-value { -fx-font-size:15px; }
+.purchase-register-page .standard-kpi-card .metric-note { -fx-font-size:8.5px; }
+
+/* Bank/Expense had an old 4px override. Force the approved Bank Statement-like gutter. */
+.bank-expense-page.erp-screen-root { -fx-padding: 14px; -fx-spacing: 12px; }
+
+/* Master Data: clear independent identity and search cards. */
+.master-data-redesign .master-header-stack { -fx-background-color: transparent; -fx-padding: 10px 14px 4px 14px; -fx-spacing: 10px; }
+.master-data-redesign .master-identity-card { -fx-padding: 11px 13px; -fx-background-color: linear-gradient(to right,#111f31,#13253a); -fx-border-color:#304967; -fx-border-width:1px; -fx-border-radius:12px; -fx-background-radius:12px; }
+.master-data-redesign .master-search-panel { -fx-padding: 10px 12px; -fx-background-color:#122842; -fx-border-color:#315273; -fx-border-width:1px; -fx-border-radius:12px; -fx-background-radius:12px; }
+
+/* Data Import: all four numbered steps remain individual cards inside one visible parent card. */
+.import-page .import-wizard-group-panel { -fx-background-color:#111f31; -fx-border-color:#304967; -fx-border-width:1px; -fx-border-radius:13px; -fx-background-radius:13px; -fx-padding:9px 10px; -fx-spacing:8px; }
+.import-page .import-wizard-group-panel .import-step-panel { -fx-background-color:#14263a; -fx-border-color:#304967; -fx-border-width:1px; -fx-border-radius:10px; -fx-background-radius:10px; -fx-padding:8px 10px; }
+.import-page .import-wizard-group-panel .wizard-line { -fx-min-width:10px; -fx-pref-width:18px; -fx-max-width:28px; }
+
+/* Document Studio KPI cards: visible semantic icon + colored card family. */
+.doc-studio-kpi-row { -fx-spacing:10px; }
+.doc-studio-kpi-row .doc-studio-kpi { -fx-min-height:76px; -fx-pref-height:76px; -fx-padding:10px 12px; -fx-border-width:1px; -fx-border-radius:12px; -fx-background-radius:12px; }
+.doc-studio-kpi-icon { -fx-min-width:34px; -fx-pref-width:34px; -fx-max-width:34px; -fx-min-height:34px; -fx-pref-height:34px; -fx-max-height:34px; -fx-alignment:center; }
+.doc-studio-kpi-blue { -fx-background-color:#152b45; -fx-border-color:#315a86; }
+.doc-studio-kpi-green { -fx-background-color:#123329; -fx-border-color:#22664d; }
+.doc-studio-kpi-purple { -fx-background-color:#24203f; -fx-border-color:#6250a0; }
+.doc-studio-kpi-safe-card { -fx-background-color:#123329; -fx-border-color:#22664d; }
+
+/* Reminder detail panel must be a real SplitPane child when a row is selected. */
+.reminder-center-page .reminder-workspace { -fx-background-color:transparent; }
+.reminder-center-page .reminder-workspace > .split-pane-divider { -fx-padding:0 5px; -fx-background-color:transparent; }
+.reminder-center-page .reminder-detail-scroll { -fx-background-color:transparent; -fx-border-color:transparent; }
+
+/* Global table action contract: never graphic-only; icon + literal 'Actions'. */
+.table-view .table-cell .menu-button.table-action-menu,
+.table-view .table-cell .menu-button.row-actions,
+.table-view .table-cell .menu-button.user-action-menu,
+.menu-button.table-action-menu,
+.menu-button.row-actions,
+.menu-button.user-action-menu { -fx-min-width:94px; -fx-pref-width:100px; -fx-max-width:116px; -fx-min-height:32px; -fx-pref-height:34px; -fx-content-display:left; -fx-alignment:center-left; -fx-padding:5px 8px; }
+.table-action-menu > .label,
+.row-actions > .label,
+.user-action-menu > .label { -fx-content-display:left; -fx-graphic-text-gap:6px; -fx-alignment:center-left; }
+.table-action-menu .arrow-button,
+.row-actions .arrow-button,
+.user-action-menu .arrow-button { -fx-padding:0 3px 0 2px; -fx-min-width:10px; -fx-pref-width:10px; -fx-max-width:10px; -fx-opacity:.75; }
+
+/* 7.3.1 final action-menu enforcement: semantic Actions glyph + literal label.
+   These selectors intentionally outrank legacy graphic-only row-menu rules. */
+.table-view .table-cell .menu-button.table-action-menu.row-actions,
+.table-view .table-cell .menu-button.table-action-menu.user-action-menu,
+.table-view .table-cell .menu-button.table-action-menu.backup-row-actions,
+.table-view .table-cell .menu-button.table-action-menu.bank-row-action,
+.table-view .table-cell .menu-button.table-action-menu.reminder-action-button,
+.approved-screen .menu-button.approved-row-action,
+.reminder-center-page .menu-button.approved-row-action.reminder-more-actions,
+.backup-restore-page .menu-button.backup-row-actions.table-action-menu {
+    -fx-min-width: 94px;
+    -fx-pref-width: 100px;
+    -fx-max-width: 116px;
+    -fx-min-height: 32px;
+    -fx-pref-height: 34px;
+    -fx-content-display: left;
+    -fx-alignment: center-left;
+    -fx-padding: 5px 8px;
+}
+.table-view .table-cell .menu-button.table-action-menu.row-actions > .label,
+.table-view .table-cell .menu-button.table-action-menu.user-action-menu > .label,
+.table-view .table-cell .menu-button.table-action-menu.backup-row-actions > .label,
+.table-view .table-cell .menu-button.table-action-menu.bank-row-action > .label,
+.table-view .table-cell .menu-button.table-action-menu.reminder-action-button > .label,
+.approved-screen .menu-button.approved-row-action > .label,
+.reminder-center-page .menu-button.approved-row-action.reminder-more-actions > .label,
+.backup-restore-page .menu-button.backup-row-actions.table-action-menu > .label {
+    -fx-content-display: left;
+    -fx-graphic-text-gap: 6px;
+    -fx-alignment: center-left;
+}
+.table-view .table-cell .menu-button.table-action-menu.row-actions > .arrow-button,
+.table-view .table-cell .menu-button.table-action-menu.user-action-menu > .arrow-button,
+.table-view .table-cell .menu-button.table-action-menu.backup-row-actions > .arrow-button,
+.table-view .table-cell .menu-button.table-action-menu.bank-row-action > .arrow-button,
+.table-view .table-cell .menu-button.table-action-menu.reminder-action-button > .arrow-button,
+.approved-screen .menu-button.approved-row-action > .arrow-button,
+.reminder-center-page .menu-button.approved-row-action.reminder-more-actions > .arrow-button,
+.backup-restore-page .menu-button.backup-row-actions.table-action-menu > .arrow-button {
+    -fx-padding: 0 3px 0 2px;
+    -fx-min-width: 10px;
+    -fx-pref-width: 10px;
+    -fx-max-width: 10px;
+    -fx-opacity: .75;
+}

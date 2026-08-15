@@ -43,6 +43,8 @@ public class ReminderCenterController {
     @FXML private TextField txtSearch;
     @FXML private ComboBox<String> cmbStatus, cmbPriority, cmbPeriod;
     @FXML private TableView<ReminderRow> table;
+    @FXML private SplitPane reminderWorkspace;
+    @FXML private ScrollPane reminderDetailScroll;
     @FXML private TableColumn<ReminderRow, String> colTitle, colReference,
             colDue, colPriority, colStatus, colCreatedBy;
     @FXML private TableColumn<ReminderRow, Void> colActions;
@@ -161,8 +163,8 @@ public class ReminderCenterController {
     private void rebuildDetailActionMenu() {
         ReminderRow row = table.getSelectionModel().getSelectedItem();
 
-        MenuItem snooze = menuItem("Snooze", "notification", event -> snooze(row));
-        MenuItem reopen = menuItem("Reopen", "refresh", event -> reopen(row));
+        MenuItem snooze = menuItem("Snooze", "snooze", event -> snooze(row));
+        MenuItem reopen = menuItem("Reopen", "reopen", event -> reopen(row));
         MenuItem delete = menuItem("Delete Reminder", "delete", event -> delete(row));
         delete.getStyleClass().add("reminder-danger-menu-item");
 
@@ -186,8 +188,8 @@ public class ReminderCenterController {
 
         MenuItem edit = menuItem("Edit Reminder", "edit", event -> edit(row.getItem()));
         MenuItem complete = menuItem("Mark Complete", "complete", event -> complete(row.getItem()));
-        MenuItem snooze = menuItem("Snooze", "notification", event -> snooze(row.getItem()));
-        MenuItem reopen = menuItem("Reopen", "refresh", event -> reopen(row.getItem()));
+        MenuItem snooze = menuItem("Snooze", "snooze", event -> snooze(row.getItem()));
+        MenuItem reopen = menuItem("Reopen", "reopen", event -> reopen(row.getItem()));
         MenuItem delete = menuItem("Delete", "delete", event -> delete(row.getItem()));
         delete.getStyleClass().add("reminder-danger-menu-item");
 
@@ -291,8 +293,15 @@ public class ReminderCenterController {
         ButtonType save = new ButtonType("Snooze", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);
         dialog.showAndWait().filter(save::equals).ifPresent(button -> {
-            try { insightsApi.reminderStatus(row.id, "SNOOZED", picker.getValue().toString()); refresh(); }
-            catch (Exception exception) { error("Reminder could not be snoozed", exception); }
+            if (picker.getValue() == null) {
+                warning("Select a valid snooze date.");
+                return;
+            }
+            try {
+                insightsApi.reminderStatus(row.id, "SNOOZED", picker.getValue().toString());
+                NotificationService.add("Reminder snoozed until " + BusinessClock.formatDate(picker.getValue()) + ": " + row.title.get());
+                refresh();
+            } catch (Exception exception) { error("Reminder could not be snoozed", exception); }
         });
     }
 
@@ -312,10 +321,11 @@ public class ReminderCenterController {
                 actions.setTooltip(new Tooltip("Open reminder actions"));
                 actions.getProperties().put("erp.icon.skip", true);
                 actions.setAccessibleText("Reminder actions");
-                actions.setText("•••");
-                actions.setGraphic(null);
-                actions.setContentDisplay(ContentDisplay.TEXT_ONLY);
-                actions.getStyleClass().addAll("reminder-action-button", "reminder-three-dot-button");
+                actions.setText("Actions");
+                actions.setGraphic(IconFactory.compactIcon("actions",15));
+                actions.setContentDisplay(ContentDisplay.LEFT);
+                actions.setGraphicTextGap(6);
+                actions.getStyleClass().addAll("reminder-action-button", "table-action-menu");
                 setAlignment(Pos.CENTER);
 
                 actions.setOnShowing(event -> rebuildActionMenu());
@@ -347,8 +357,8 @@ public class ReminderCenterController {
 
                 MenuItem edit = menuItem("Edit", "edit", event -> edit(row));
                 MenuItem complete = menuItem("Mark Complete", "complete", event -> complete(row));
-                MenuItem snooze = menuItem("Snooze", "notification", event -> snooze(row));
-                MenuItem reopen = menuItem("Reopen", "refresh", event -> reopen(row));
+                MenuItem snooze = menuItem("Snooze", "snooze", event -> snooze(row));
+                MenuItem reopen = menuItem("Reopen", "reopen", event -> reopen(row));
                 MenuItem delete = menuItem("Delete", "delete", event -> delete(row));
                 delete.getStyleClass().add("reminder-danger-menu-item");
 
@@ -447,6 +457,7 @@ public class ReminderCenterController {
             javafx.event.EventHandler<javafx.event.ActionEvent> handler
     ) {
         MenuItem item = new MenuItem(text, IconFactory.compactIcon(icon, 16));
+        item.getStyleClass().add("reminder-menu-"+icon.toLowerCase(Locale.ROOT));
         item.setOnAction(handler);
         return item;
     }
@@ -537,19 +548,20 @@ public class ReminderCenterController {
     private void showDetails(ReminderRow row) {
         clearDetailBadgeClasses();
 
-        if (detailMoreActions != null) {
-            rebuildDetailActionMenu();
-        }
-
         if (row == null) {
+            setDetailVisible(false);
             lblDetailTitle.setText("Select a reminder");
             lblDetailReference.setText("—");
             lblDetailDue.setText("—");
             lblDetailPriority.setText("—");
             lblDetailStatus.setText("—");
             lblDetailNotes.setText("Select a row to review its notes and available actions.");
+            if (detailMoreActions != null) rebuildDetailActionMenu();
             return;
         }
+
+        setDetailVisible(true);
+        if (detailMoreActions != null) rebuildDetailActionMenu();
 
         lblDetailTitle.setText(row.title.get());
         lblDetailReference.setText(blank(row.reference.get(), "No reference"));
@@ -564,6 +576,19 @@ public class ReminderCenterController {
         lblDetailStatus.getStyleClass().add(
                 "status-" + row.status.get().toLowerCase(Locale.ROOT)
         );
+    }
+
+    private void setDetailVisible(boolean visible) {
+        if (reminderDetailScroll == null) return;
+        reminderDetailScroll.setManaged(visible);
+        reminderDetailScroll.setVisible(visible);
+        if (reminderWorkspace != null) {
+            javafx.application.Platform.runLater(() -> {
+                reminderWorkspace.applyCss();
+                reminderWorkspace.layout();
+                reminderWorkspace.setDividerPositions(visible ? 0.74 : 1.0);
+            });
+        }
     }
 
     private void clearDetailBadgeClasses() {
@@ -635,12 +660,21 @@ public class ReminderCenterController {
         final String notes;
 
         ReminderRow(InsightsApiClient.ReminderDto d) {
-            id=d.id()==null?0:d.id(); title=new SimpleStringProperty(blank(d.title(),"")); reference=new SimpleStringProperty(blank(d.referenceNo(),"—")); due=new SimpleStringProperty(blank(d.dueDate(),"")); priority=new SimpleStringProperty(blank(d.priority(),"NORMAL")); status=new SimpleStringProperty(blank(d.status(),"OPEN")); createdBy=new SimpleStringProperty(blank(d.createdBy(),"System")); notes=blank(d.notes(),"");
+            id=d.id()==null?0:d.id();
+            title=new SimpleStringProperty(blank(d.title(),""));
+            reference=new SimpleStringProperty(cleanReference(d.referenceNo()));
+            due=new SimpleStringProperty(blank(d.dueDate(),""));
+            priority=new SimpleStringProperty(blank(d.priority(),"NORMAL").toUpperCase(Locale.ROOT));
+            status=new SimpleStringProperty(blank(d.status(),"OPEN").toUpperCase(Locale.ROOT));
+            createdBy=new SimpleStringProperty(blank(d.createdBy(),"System"));
+            notes=blank(d.notes(),"");
         }
-
-
     }
 
+    private static String cleanReference(String reference){
+        String value = reference == null ? "" : reference.trim();
+        return value.isBlank() || value.equalsIgnoreCase("null") || value.equals("—") ? "No reference" : value;
+    }
 
     private void configureExplicitTableHeaderIcons() {
         IconFactory.applyTableHeaderIcon(colTitle, "reminder");
@@ -649,7 +683,7 @@ public class ReminderCenterController {
         IconFactory.applyTableHeaderIcon(colPriority, "warning");
         IconFactory.applyTableHeaderIcon(colStatus, "status");
         IconFactory.applyTableHeaderIcon(colCreatedBy, "user");
-        colActions.setText("");
+        colActions.setText("Actions");
         IconFactory.applyTableHeaderIcon(colActions, "actions");
     }
 }

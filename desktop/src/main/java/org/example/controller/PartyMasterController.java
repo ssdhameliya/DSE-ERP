@@ -39,7 +39,11 @@ public abstract class PartyMasterController {
     @FXML
     protected TableColumn<Party, Boolean> colActive;
     @FXML
+    protected TableColumn<Party, Void> colActions;
+    @FXML
     protected Label lblRecordCount;
+    @FXML protected Label lblKpiTotal,lblKpiActive,lblKpiGst,lblKpiBalance;
+    @FXML protected StackPane kpiTotalIcon,kpiActiveIcon,kpiGstIcon,kpiBalanceIcon;
     @FXML protected StackPane partyPageIcon;
     private final PartyService service = new PartyService();
 
@@ -49,7 +53,12 @@ public abstract class PartyMasterController {
 
     @FXML
     public void initialize() {
-        if (partyPageIcon != null) partyPageIcon.getChildren().setAll(IconFactory.icon("CUSTOMER".equals(partyType()) ? "customer" : "supplier", 24));
+        String partySemantic="CUSTOMER".equals(partyType())?"customer":"supplier";
+        if (partyPageIcon != null) partyPageIcon.getChildren().setAll(IconFactory.icon(partySemantic, 24));
+        if(kpiTotalIcon!=null)kpiTotalIcon.getChildren().setAll(IconFactory.icon(partySemantic,20));
+        if(kpiActiveIcon!=null)kpiActiveIcon.getChildren().setAll(IconFactory.icon("complete",20));
+        if(kpiGstIcon!=null)kpiGstIcon.getChildren().setAll(IconFactory.icon("tax",20));
+        if(kpiBalanceIcon!=null)kpiBalanceIcon.getChildren().setAll(IconFactory.icon("balance",20));
         configureExplicitTableHeaderIcons();
         colCode.setCellValueFactory(new PropertyValueFactory<>("partyCode"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -60,11 +69,53 @@ public abstract class PartyMasterController {
         colAddress.setCellValueFactory(new PropertyValueFactory<>("address"));
         colOpeningBalance.setCellValueFactory(new PropertyValueFactory<>("openingBalance"));
         colActive.setCellValueFactory(new PropertyValueFactory<>("active"));
+        configureActionColumn();
         tableParties.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         tableParties.setFixedCellSize(40);
         configureTableInteractions();
         txtSearch.textProperty().addListener((o, oldValue, newValue) -> load());
         load();
+    }
+
+
+    /** Standard row-level Actions menu used consistently across customer and supplier masters. */
+    private void configureActionColumn() {
+        if (colActions == null) return;
+        colActions.setCellFactory(column -> new TableCell<>() {
+            private final MenuButton actions = new MenuButton("Actions");
+            private final MenuItem edit = new MenuItem("Edit " + displayName(), IconFactory.compactIcon("edit", 16));
+            private final MenuItem delete = new MenuItem("Delete " + displayName(), IconFactory.compactIcon("delete", 16));
+            {
+                actions.getStyleClass().addAll("row-actions", "table-action-menu");
+                actions.getProperties().put("erp.icon.skip", true);
+                actions.setGraphic(IconFactory.compactIcon("actions", 16));
+                actions.setContentDisplay(ContentDisplay.LEFT);
+                actions.setGraphicTextGap(6);
+                actions.setMinWidth(96);
+                actions.setPrefWidth(102);
+                actions.setTooltip(new Tooltip("Actions"));
+                edit.setOnAction(event -> runForRow(this, false));
+                delete.getStyleClass().add("danger-menu-item");
+                delete.setOnAction(event -> runForRow(this, true));
+                actions.getItems().addAll(edit, new SeparatorMenuItem(), delete);
+                setAlignment(javafx.geometry.Pos.CENTER);
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(empty ? null : actions);
+            }
+        });
+    }
+
+    private void runForRow(TableCell<Party, Void> cell, boolean delete) {
+        int index = cell.getIndex();
+        if (index < 0 || index >= tableParties.getItems().size()) return;
+        Party party = tableParties.getItems().get(index);
+        tableParties.getSelectionModel().select(party);
+        tableParties.scrollTo(party);
+        if (delete) deleteParty(); else editParty();
     }
 
     /** Enables double-click editing and a row-specific Add/Edit/Delete context menu. */
@@ -170,7 +221,12 @@ public abstract class PartyMasterController {
 
     private void load() {
         String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
-        tableParties.getItems().setAll(service.getByType(partyType()).stream().filter(p -> query.isEmpty() || p.getPartyCode().toLowerCase(Locale.ROOT).contains(query) || p.getName().toLowerCase(Locale.ROOT).contains(query) || (p.getPhone() != null && p.getPhone().contains(query))).toList());
+        var all=service.getByType(partyType());
+        tableParties.getItems().setAll(all.stream().filter(p -> query.isEmpty() || p.getPartyCode().toLowerCase(Locale.ROOT).contains(query) || p.getName().toLowerCase(Locale.ROOT).contains(query) || (p.getPhone() != null && p.getPhone().contains(query))).toList());
+        if(lblKpiTotal!=null)lblKpiTotal.setText(String.valueOf(all.size()));
+        if(lblKpiActive!=null)lblKpiActive.setText(String.valueOf(all.stream().filter(Party::isActive).count()));
+        if(lblKpiGst!=null)lblKpiGst.setText(String.valueOf(all.stream().filter(p->p.getGstin()!=null&&!p.getGstin().isBlank()).count()));
+        if(lblKpiBalance!=null)lblKpiBalance.setText(String.format(Locale.ENGLISH,"₹ %,.2f",all.stream().mapToDouble(Party::getOpeningBalance).sum()));
         int count = tableParties.getItems().size();
         lblRecordCount.setText("Showing " + count + " Record" + (count == 1 ? "" : "s"));
     }
@@ -225,5 +281,6 @@ public abstract class PartyMasterController {
         IconFactory.applyTableHeaderIcon(colAddress, "location");
         IconFactory.applyTableHeaderIcon(colOpeningBalance, "payment");
         IconFactory.applyTableHeaderIcon(colActive, "status");
+        if (colActions != null) IconFactory.applyTableHeaderIcon(colActions, "actions");
     }
 }

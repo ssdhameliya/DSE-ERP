@@ -3,7 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.BankExpenseController" spacing="12" styleClass="bank-expense-page,approved-screen,erp-screen-root">
-  <padding><Insets top="6" right="6" bottom="6" left="6"/></padding>
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
     <StackPane styleClass="erp-page-header-icon"><Label text="₹" styleClass="erp-page-header-symbol"/></StackPane>
     <VBox spacing="2"><Label fx:id="lblTitle" text="Bank Entry" styleClass="screen-title"/><Label fx:id="lblSubtitle" text="Manage all bank transactions in one place" styleClass="screen-subtitle"/></VBox>
@@ -16,10 +16,10 @@
   </HBox>
 
   <HBox spacing="10" styleClass="erp-kpi-section">
-    <VBox styleClass="finance-kpi-card,finance-kpi-blue" HBox.hgrow="ALWAYS"><Label fx:id="kpi1Label" styleClass="finance-kpi-label"/><Label fx:id="kpi1Value" styleClass="finance-kpi-value"/><Label fx:id="kpi1Note" styleClass="finance-kpi-note"/></VBox>
-    <VBox styleClass="finance-kpi-card,finance-kpi-purple" HBox.hgrow="ALWAYS"><Label fx:id="kpi2Label" styleClass="finance-kpi-label"/><Label fx:id="kpi2Value" styleClass="finance-kpi-value"/><Label fx:id="kpi2Note" styleClass="finance-kpi-note"/></VBox>
-    <VBox styleClass="finance-kpi-card,finance-kpi-green" HBox.hgrow="ALWAYS"><Label fx:id="kpi3Label" styleClass="finance-kpi-label"/><Label fx:id="kpi3Value" styleClass="finance-kpi-value"/><Label fx:id="kpi3Note" styleClass="finance-kpi-note"/></VBox>
-    <VBox styleClass="finance-kpi-card,finance-kpi-red" HBox.hgrow="ALWAYS"><Label fx:id="kpi4Label" styleClass="finance-kpi-label"/><Label fx:id="kpi4Value" styleClass="finance-kpi-value"/><Label fx:id="kpi4Note" styleClass="finance-kpi-note"/></VBox>
+    <VBox styleClass="finance-kpi-card,finance-kpi-blue" HBox.hgrow="ALWAYS"><HBox alignment="CENTER_LEFT" spacing="10"><Label fx:id="kpi1Icon" styleClass="finance-kpi-icon"/><Label fx:id="kpi1Label" styleClass="finance-kpi-label"/></HBox><Label fx:id="kpi1Value" styleClass="finance-kpi-value"/><Label fx:id="kpi1Note" styleClass="finance-kpi-note"/></VBox>
+    <VBox styleClass="finance-kpi-card,finance-kpi-purple" HBox.hgrow="ALWAYS"><HBox alignment="CENTER_LEFT" spacing="10"><Label fx:id="kpi2Icon" styleClass="finance-kpi-icon"/><Label fx:id="kpi2Label" styleClass="finance-kpi-label"/></HBox><Label fx:id="kpi2Value" styleClass="finance-kpi-value"/><Label fx:id="kpi2Note" styleClass="finance-kpi-note"/></VBox>
+    <VBox styleClass="finance-kpi-card,finance-kpi-green" HBox.hgrow="ALWAYS"><HBox alignment="CENTER_LEFT" spacing="10"><Label fx:id="kpi3Icon" styleClass="finance-kpi-icon"/><Label fx:id="kpi3Label" styleClass="finance-kpi-label"/></HBox><Label fx:id="kpi3Value" styleClass="finance-kpi-value"/><Label fx:id="kpi3Note" styleClass="finance-kpi-note"/></VBox>
+    <VBox styleClass="finance-kpi-card,finance-kpi-red" HBox.hgrow="ALWAYS"><HBox alignment="CENTER_LEFT" spacing="10"><Label fx:id="kpi4Icon" styleClass="finance-kpi-icon"/><Label fx:id="kpi4Label" styleClass="finance-kpi-label"/></HBox><Label fx:id="kpi4Value" styleClass="finance-kpi-value"/><Label fx:id="kpi4Note" styleClass="finance-kpi-note"/></VBox>
   </HBox>
 
   <HBox spacing="12" VBox.vgrow="ALWAYS">

@@ -2,10 +2,10 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Create Purchase: concise supplier, dates, payment terms, items, totals and attachments. --><ScrollPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="NEVER" fx:controller="org.example.controller.PurchaseController" styleClass="purchase-scroll,approved-ui,approved-screen,approved-screen-purchase,erp-screen-root">
   <content>
     <HBox spacing="15" styleClass="purchase-page">
-      <padding><Insets top="14" right="14" bottom="18" left="14"/></padding>
+      <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
       <VBox spacing="14" HBox.hgrow="ALWAYS">
-        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header,erp-compact-identity-header">
-          <StackPane styleClass="erp-page-header-icon"><Label text="▤" styleClass="erp-page-header-symbol"/></StackPane>
+        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header,purchase-entry-reference-header">
+          <StackPane fx:id="purchasePageIcon" styleClass="erp-page-header-icon"/>
           <VBox spacing="2"><Label text="Create Purchase" styleClass="screen-title"/><Label text="Create and manage a new supplier purchase" styleClass="screen-subtitle,erp-accent-subtitle"/></VBox>
         </HBox>
         <VBox spacing="12" styleClass="purchase-card">
@@ -25,27 +25,26 @@
             <VBox spacing="4" GridPane.rowIndex="1"><Label text="Billing Address"/><ComboBox promptText="Supplier billing address" maxWidth="Infinity" styleClass="approved-input"/></VBox>
             <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="Payment Terms"/><ComboBox fx:id="cmbPaymentTerms" maxWidth="Infinity" styleClass="approved-input"/></VBox>
             <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2"><Label text="Currency"/><ComboBox fx:id="cmbCurrency" maxWidth="Infinity" styleClass="approved-input"/></VBox>
-            <!-- Legacy fields stay hidden so older database records remain compatible. -->
-            <ComboBox fx:id="cmbWarehouse" visible="false" managed="false" styleClass="approved-input"/>
-            <TextField fx:id="txtReference" visible="false" managed="false" styleClass="approved-input"/>
-            <ComboBox fx:id="cmbGstTreatment" visible="false" managed="false" styleClass="approved-input"/>
-            <ComboBox fx:id="cmbTransporter" visible="false" managed="false" styleClass="approved-input"/>
-            <TextField fx:id="txtLrAwb" visible="false" managed="false" styleClass="approved-input"/>
+            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3"><Label text="Due Date"/><DatePicker fx:id="dpDueDate" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="2"><Label text="Warehouse"/><ComboBox fx:id="cmbWarehouse" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnIndex="1"><Label text="Reference No."/><TextField fx:id="txtReference" promptText="Supplier invoice / PO reference" styleClass="approved-input"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnIndex="2"><Label text="GST Treatment"/><ComboBox fx:id="cmbGstTreatment" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="2" GridPane.columnIndex="3"><Label text="Transporter"/><ComboBox fx:id="cmbTransporter" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="3"><Label text="LR / AWB No."/><TextField fx:id="txtLrAwb" styleClass="approved-input"/></VBox>
+            <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnSpan="3" GridPane.columnIndex="1"><Label text="Remarks"/><TextArea fx:id="txtRemarks" prefRowCount="2" wrapText="true" styleClass="approved-input"/></VBox>
             <ComboBox fx:id="cmbDiscountType" visible="false" managed="false" styleClass="approved-input"/>
             <TextField fx:id="txtDiscount" text="0.00" visible="false" managed="false" styleClass="approved-input"/>
-            <TextArea fx:id="txtRemarks" visible="false" managed="false" styleClass="approved-input"/>
-            <DatePicker fx:id="dpDueDate" visible="false" managed="false" styleClass="approved-input"/>
             <Label fx:id="lblInvoiceDisplay" visible="false" managed="false"/>
           </GridPane>
         </VBox>
         <VBox spacing="10" styleClass="purchase-card" VBox.vgrow="ALWAYS">
           <Label text="Purchase Items" styleClass="purchase-section-title"/>
-          <HBox spacing="7"><ComboBox fx:id="cmbItem" promptText="Select item" HBox.hgrow="ALWAYS" styleClass="approved-input"/><TextField fx:id="txtQuantity" promptText="Qty" prefWidth="85" styleClass="approved-input"/><TextField fx:id="txtRate" promptText="Rate" prefWidth="110" styleClass="approved-input"/><TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100" styleClass="approved-input"/><TextField fx:id="txtGST" promptText="Tax %" prefWidth="85" styleClass="approved-input"/><Button fx:id="btnAddLine" text="Add Item" onAction="#addLine" styleClass="approved-button,approved-primary-button"/><Button text="Cancel Edit" onAction="#cancelEdit" styleClass="approved-button,approved-secondary-button"/><Button text="Delete" onAction="#removeLine" styleClass="danger-button"/></HBox>
+          <HBox spacing="7"><ComboBox fx:id="cmbItem" promptText="Search Item Master..." editable="true" HBox.hgrow="ALWAYS" styleClass="approved-input"/><TextField fx:id="txtQuantity" promptText="Qty" prefWidth="85" styleClass="approved-input"/><TextField fx:id="txtRate" promptText="Rate" prefWidth="110" styleClass="approved-input"/><TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100" styleClass="approved-input"/><TextField fx:id="txtGST" promptText="Tax %" prefWidth="85" styleClass="approved-input"/><Button fx:id="btnAddLine" text="Add Item" onAction="#addLine" styleClass="approved-button,approved-primary-button"/><Button text="Cancel Edit" onAction="#cancelEdit" styleClass="approved-button,approved-secondary-button"/><Button text="Delete" onAction="#removeLine" styleClass="danger-button"/></HBox>
           <TableView fx:id="tableLines" prefHeight="455" minHeight="330" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-line-item">
             <columns><TableColumn text="#" prefWidth="45" styleClass="approved-table-column"/><TableColumn fx:id="colItem" text="Item Name *" prefWidth="360" styleClass="approved-table-column"/><TableColumn fx:id="colQuantity" text="Qty" prefWidth="100" styleClass="approved-table-column"/><TableColumn fx:id="colRate" text="Rate (₹)" prefWidth="125" styleClass="approved-table-column"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="100" styleClass="approved-table-column"/><TableColumn fx:id="colDiscountAmount" text="Discount" prefWidth="115" styleClass="approved-table-column"/><TableColumn fx:id="colGst" text="Tax (%)" prefWidth="90" styleClass="approved-table-column"/><TableColumn fx:id="colNetAmount" text="Taxable" prefWidth="150" styleClass="approved-table-column"/><TableColumn fx:id="colGstAmount" text="Tax" prefWidth="130" styleClass="approved-table-column"/><TableColumn fx:id="colTotal" text="Amount (₹)" prefWidth="160" styleClass="approved-table-column"/></columns>
           </TableView>
         </VBox>
-        <Label fx:id="lblAttachment" text="No document selected" visible="false" managed="false"/>
+        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="purchase-card,purchase-attachment-card"><Label text="Attachment" styleClass="purchase-section-title"/><Button text="Choose Document" onAction="#chooseAttachment" styleClass="approved-button,approved-secondary-button"/><Label fx:id="lblAttachment" text="No document selected" HBox.hgrow="ALWAYS" styleClass="muted-label"/></HBox>
       </VBox>
       <VBox spacing="14" prefWidth="315">
         <HBox spacing="8" alignment="CENTER_RIGHT"><Button text="Save as Draft" onAction="#saveDraft" styleClass="approved-button,approved-primary-button"/><MenuButton text="Save &amp; Print" styleClass="purchase-primary,approved-menu-button"><items><MenuItem text="Save" onAction="#savePurchase"/><MenuItem text="Save &amp; Print" onAction="#saveAndPrint"/><MenuItem text="Save as Draft" onAction="#saveDraft"/><MenuItem text="Save &amp; Email" onAction="#saveAndEmail"/><SeparatorMenuItem/><MenuItem text="Preview" onAction="#preview"/><MenuItem text="Cancel" onAction="#cancel"/></items></MenuButton></HBox>

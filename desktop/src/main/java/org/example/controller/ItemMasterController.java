@@ -140,7 +140,10 @@ public class ItemMasterController {
             {
                 actions.getStyleClass().add("table-action-menu");
                 actions.setGraphic(IconFactory.compactIcon("actions", 16));
-                actions.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                actions.setText("Actions");
+                actions.setContentDisplay(ContentDisplay.LEFT);
+                actions.setGraphicTextGap(6);
+                actions.setMinWidth(92);
                 actions.setTooltip(new Tooltip("Item actions"));
 
                 MenuItem edit = new MenuItem("Edit Item", IconFactory.compactIcon("edit", 16));

@@ -16,6 +16,7 @@ import org.example.documentstudio.service.TemplateStorageService;
 import org.example.documentstudio.util.PdfPreviewSupport;
 import org.example.navigation.ScreenLifecycle;
 import org.example.util.ModernDialog;
+import org.example.util.IconFactory;
 
 import java.awt.Desktop;
 import java.nio.file.Path;
@@ -27,6 +28,8 @@ import java.util.concurrent.CompletableFuture;
 /** Universal Document Library and entry point for DSE ERP 7.3.0. */
 public class DocumentStudioController implements ScreenLifecycle {
     @FXML private VBox root;
+    @FXML private StackPane documentStudioPageIcon;
+    @FXML private StackPane documentsKpiIcon, activeKpiIcon, defaultsKpiIcon, salesSafetyKpiIcon;
     @FXML private FlowPane cards;
     @FXML private VBox emptyState;
     @FXML private TextField txtSearch;
@@ -40,6 +43,11 @@ public class DocumentStudioController implements ScreenLifecycle {
 
     @FXML
     public void initialize() {
+        if(documentStudioPageIcon!=null)documentStudioPageIcon.getChildren().setAll(IconFactory.icon("pdf",24));
+        if(documentsKpiIcon!=null)documentsKpiIcon.getChildren().setAll(IconFactory.icon("document",18));
+        if(activeKpiIcon!=null)activeKpiIcon.getChildren().setAll(IconFactory.icon("complete",18));
+        if(defaultsKpiIcon!=null)defaultsKpiIcon.getChildren().setAll(IconFactory.icon("workflow",18));
+        if(salesSafetyKpiIcon!=null)salesSafetyKpiIcon.getChildren().setAll(IconFactory.icon("security",18));
         cmbType.setItems(FXCollections.observableArrayList());
         cmbType.getItems().add("All document types");
         cmbType.getItems().addAll(DocumentType.values());

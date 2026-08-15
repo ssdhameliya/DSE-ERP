@@ -2,8 +2,8 @@
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationEditorController" styleClass="approved-ui,approved-screen,quotation-editor-page,erp-screen-root">
   <top>
-    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
-      <padding><Insets top="18" right="24" bottom="16" left="24"/></padding>
+    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header,quotation-entry-reference-header">
+      <padding><Insets top="12" right="14" bottom="12" left="14"/></padding>
       <StackPane fx:id="quotationTitleIcon" styleClass="quotation-editor-title-icon"/>
       <VBox spacing="3" HBox.hgrow="ALWAYS"><Label fx:id="lblPageTitle" text="Create Quotation" styleClass="page-title"/><Label fx:id="lblPageSubtitle" text="Build a complete customer quotation in one workspace" styleClass="muted-label"/></VBox>
       <Button fx:id="btnPreview" text="Preview" onAction="#preview" styleClass="approved-button,approved-secondary-button"/>
@@ -38,7 +38,7 @@
                   <columnConstraints><ColumnConstraints percentWidth="40" hgrow="ALWAYS"/><ColumnConstraints percentWidth="14"/><ColumnConstraints percentWidth="14"/><ColumnConstraints percentWidth="14"/><ColumnConstraints percentWidth="18"/></columnConstraints>
                   <children>
                     <Label text="Item *"/><Label text="Quantity *" GridPane.columnIndex="1"/><Label text="GST %" GridPane.columnIndex="2"/><Label text="Discount %" GridPane.columnIndex="3"/>
-                    <ComboBox fx:id="cmbItem" promptText="Search or select item" onAction="#itemSelected" maxWidth="Infinity" GridPane.rowIndex="1"/>
+                    <ComboBox fx:id="cmbItem" editable="true" promptText="Search or select item" onAction="#itemSelected" maxWidth="Infinity" GridPane.rowIndex="1"/>
                     <TextField fx:id="txtQuantity" text="1.00" GridPane.columnIndex="1" GridPane.rowIndex="1"/><TextField fx:id="txtGst" text="0.00" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtDiscount" text="0.00" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
                     <Button fx:id="btnAdd" text="Add Item" onAction="#addItem" maxWidth="Infinity" GridPane.columnIndex="4" GridPane.rowIndex="1" styleClass="approved-button,approved-primary-button"/>
                   </children>
