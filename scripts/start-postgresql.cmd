@@ -8,7 +8,7 @@ if not defined DSE_POSTGRES_HOME (
   echo Set DSE_POSTGRES_HOME to your PostgreSQL 18 runtime for development.
   exit /b 1
 )
-echo DSE ERP 7.3.7 uses application-managed PostgreSQL.
+echo DSE ERP 7.3.8 uses application-managed PostgreSQL.
 echo Runtime: %DSE_POSTGRES_HOME%
 echo Start the JavaFX desktop; it will initialize/start PostgreSQL automatically.
 endlocal

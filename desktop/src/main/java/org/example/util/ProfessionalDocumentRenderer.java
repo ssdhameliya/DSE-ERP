@@ -524,7 +524,7 @@ public final class ProfessionalDocumentRenderer {
             // These rows intentionally mirror the approved icon/label/value grid.
             salesRefPair(info, "calendar", "Invoice Date", data.date);
             salesRefPair(info, "calendar", "PO Date", data.poDate);
-            salesRefPair(info, "reference", "Order No.", data.purchaseOrder);
+            salesRefPair(info, "reference", "PO No.", data.purchaseOrder);
             salesRefPair(info, "reference", "GST Type", data.gstType);
             salesRefPair(info, "user", "Sales Person", data.salesperson);
             salesRefPair(info, "currency", "Currency", "INR");

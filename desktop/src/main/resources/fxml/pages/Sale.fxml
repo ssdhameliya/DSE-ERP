@@ -109,7 +109,7 @@
                         <TextField fx:id="txtPoDate" editable="false" maxWidth="Infinity" promptText="Calculated from payment terms" styleClass="approved-input,sales-entry-po-date-field"/>
                     </VBox>
                     <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="4">
-                        <Label text="PO Order No." styleClass="sales-entry-field-label,field-label-invoice"/>
+                        <Label text="PO No." styleClass="sales-entry-field-label,field-label-invoice"/>
                         <TextField fx:id="txtOrderNo" promptText="Enter PO order no. (optional)"
                                    styleClass="approved-input,sales-entry-order-field"/>
                     </VBox>

@@ -14,6 +14,38 @@ public final class SalesTaxInvoiceService {
     private SalesTaxInvoiceService() {}
 
     public static Path generate(Sales source) throws Exception {
+        Sales sale = requireCompleteSale(source);
+        TaxInvoiceDocument document = map(sale);
+
+        Path outputDir = ConfigManager.getConfigFolder().resolve("Documents");
+        Files.createDirectories(outputDir);
+        Path output = outputDir.resolve("Sales-Tax-Invoice-" + safeFileName(sale.getInvoiceNo()) + ".pdf");
+
+        TaxInvoicePdfGenerator.generate(document, output, TaxInvoicePdfGenerator.Presentation.FULL);
+        validate(output);
+        return output;
+    }
+
+    /**
+     * Generates the Sales Register -> Sale Invoice body-only PDF. The complete
+     * invoice body is rendered at the same coordinates as the official PDF, but
+     * company header/footer branding is suppressed. Unlike the full tax invoice,
+     * this file uses its own name so it can never overwrite the official PDF.
+     */
+    public static Path generateBodyOnly(Sales source) throws Exception {
+        Sales sale = requireCompleteSale(source);
+        TaxInvoiceDocument document = map(sale);
+
+        Path outputDir = ConfigManager.getConfigFolder().resolve("Documents");
+        Files.createDirectories(outputDir);
+        Path output = outputDir.resolve("Sale-Invoice-" + safeFileName(sale.getInvoiceNo()) + ".pdf");
+
+        TaxInvoicePdfGenerator.generate(document, output, TaxInvoicePdfGenerator.Presentation.BODY_ONLY);
+        validate(output);
+        return output;
+    }
+
+    private static Sales requireCompleteSale(Sales source) throws Exception {
         if (source == null || source.getInvoiceNo() == null || source.getInvoiceNo().isBlank()) {
             throw new IllegalArgumentException("A valid sales record is required to create the tax invoice.");
         }
@@ -25,17 +57,12 @@ public final class SalesTaxInvoiceService {
             Sales loaded = new SalesDAO().getByInvoice(source.getInvoiceNo());
             if (loaded != null) sale = loaded;
         }
+        return sale;
+    }
 
+    private static TaxInvoiceDocument map(Sales sale) throws Exception {
         Path logo = resolveLogo();
-        TaxInvoiceDocument document = SalesToTaxInvoiceMapper.map(sale, logo == null ? "" : logo.toString());
-
-        Path outputDir = ConfigManager.getConfigFolder().resolve("Documents");
-        Files.createDirectories(outputDir);
-        Path output = outputDir.resolve("Sales-Tax-Invoice-" + safeFileName(sale.getInvoiceNo()) + ".pdf");
-
-        TaxInvoicePdfGenerator.generate(document, output);
-        validate(output);
-        return output;
+        return SalesToTaxInvoiceMapper.map(sale, logo == null ? "" : logo.toString());
     }
 
     private static Path resolveLogo() throws Exception {

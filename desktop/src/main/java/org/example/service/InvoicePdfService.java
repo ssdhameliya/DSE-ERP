@@ -64,6 +64,16 @@ public class InvoicePdfService {
         return result;
     }
 
+    /** Sales Register -> Sale Invoice: downloadable body-only PDF with official body geometry. */
+    public static Path salesBodyOnly(Sales invoice) throws Exception {
+        if (invoice == null || invoice.getInvoiceNo() == null || invoice.getInvoiceNo().isBlank()) {
+            throw new IllegalArgumentException("A valid sales record is required to create the Sale Invoice PDF.");
+        }
+        Path result = SalesTaxInvoiceService.generateBodyOnly(invoice);
+        validatePdf(result, invoice.getInvoiceNo());
+        return result;
+    }
+
     public static Path refund(String returnNo, boolean sales) throws Exception {
         if (returnNo == null || returnNo.isBlank()) throw new IllegalArgumentException("A valid return number is required.");
         // Keep the exported filename consistent with the event-specific title

@@ -73,7 +73,7 @@ public final class BrandAssetPolicy {
                 if (width < 500) warnings.add("A company logo of at least 500 px width is recommended for crisp PDFs and previews.");
             }
             case SIGNATURE -> {
-                if (width < 300 || height < 80) warnings.add("A signature of at least 300 × 80 px is recommended.");
+                if (width < 750 || height < 200) warnings.add("For a large, crisp PDF signature, 750 × 200 px or higher is recommended.");
             }
             case PAYMENT_QR -> {
                 if (width < 300 || height < 300) warnings.add("A QR image of at least 300 × 300 px is recommended.");
@@ -88,7 +88,7 @@ public final class BrandAssetPolicy {
         return switch (role) {
             case APPLICATION_BANNER -> "Recommended: 1600 × 320 (5:1). The preview is the same center-cropped, full-width presentation used on Splash/Login/Registration/Email screens.";
             case COMPANY_LOGO -> "Recommended: transparent PNG, at least 500 px wide. The full logo is always preserved and never cropped.";
-            case SIGNATURE -> "Recommended: transparent PNG, at least 300 × 80 px. The full signature is always preserved and never cropped.";
+            case SIGNATURE -> "Recommended: transparent PNG, 750 × 200 px or higher. Blank outer canvas is trimmed only while rendering the PDF; the stored signature file is never changed.";
             case PAYMENT_QR -> "Recommended: square PNG, at least 300 × 300 px. QR images are always displayed with contain semantics.";
         };
     }

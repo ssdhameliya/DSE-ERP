@@ -36,7 +36,10 @@ import org.example.invoice.model.TaxInvoiceDocument;
 import org.example.invoice.model.TaxInvoiceCharge;
 import org.example.invoice.model.TaxInvoiceItem;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
@@ -97,12 +100,28 @@ public final class TaxInvoicePdfGenerator {
     private static final float FOOTER_BLUE_PERCENT = 52f;
     private static final float FOOTER_PAGE_NUMBER_WIDTH = 68f;
     private static final int MAX_ITEMS_PER_PAGE = 20;
+    private static final float SIGNATURE_MAX_WIDTH = 174f;
+    private static final float SIGNATURE_MAX_HEIGHT = 60f;
+    private static final int SIGNATURE_TRIM_PADDING_PX = 3;
+
+    /**
+     * FULL is the official customer/export PDF. BODY_ONLY is the Sales Register
+     * "Sale Invoice" variant: company header/footer artwork is suppressed while
+     * their original layout space remains reserved, so TAX INVOICE through the
+     * closing Terms/Signature stack keeps identical coordinates.
+     */
+    public enum Presentation { FULL, BODY_ONLY }
 
     private TaxInvoicePdfGenerator() {
     }
 
     public static Path generate(TaxInvoiceDocument invoice, Path output) throws Exception {
+        return generate(invoice, output, Presentation.FULL);
+    }
+
+    public static Path generate(TaxInvoiceDocument invoice, Path output, Presentation presentation) throws Exception {
         validateCustomerFacingRemarks(invoice);
+        Presentation mode = presentation == null ? Presentation.FULL : presentation;
         Files.createDirectories(output.toAbsolutePath().normalize().getParent());
         try (PdfWriter writer = new PdfWriter(output.toString());
              PdfDocument pdf = new PdfDocument(writer);
@@ -111,14 +130,16 @@ public final class TaxInvoicePdfGenerator {
             configureTypography(doc);
             doc.setFontSize(7.0f);
 
-            addCompanyHeader(doc, invoice.company());
+            addCompanyHeader(doc, invoice.company(), mode == Presentation.FULL);
             addInvoiceTitleAndMeta(doc, invoice);
             addAddressCards(doc, invoice);
             addTransportStrip(doc, invoice);
-            addPaginatedItems(doc, invoice);
+            addPaginatedItems(doc, invoice, mode);
             addFixedClosingStack(doc, invoice);
-            addFooter(doc, invoice.company());
-            addPageNumbers(doc);
+            if (mode == Presentation.FULL) {
+                addFooter(doc, invoice.company());
+                addPageNumbers(doc);
+            }
         }
         return output;
     }
@@ -128,9 +149,14 @@ public final class TaxInvoicePdfGenerator {
      * contained in the fixed header box; a normal logo is composed with company text.
      * Image dimensions can never grow the page layout.
      */
-    private static void addCompanyHeader(Document doc, CompanyProfile company) {
+    private static void addCompanyHeader(Document doc, CompanyProfile company, boolean visible) {
         final float headerHeight = 82f;
         Image logo = configuredImage(company.logoPath());
+
+        if (!visible) {
+            addCompanyHeaderSpacer(doc, logo, headerHeight);
+            return;
+        }
 
         if (logo != null && logo.getImageWidth() > logo.getImageHeight() * 3.2f) {
             // The uploaded full-width header artwork must share the exact same
@@ -176,6 +202,33 @@ public final class TaxInvoicePdfGenerator {
                 .addCell(new Cell().setHeight(1).setBorder(Border.NO_BORDER).setBackgroundColor(GRID)));
     }
 
+    /**
+     * Reserves exactly the same header footprint as the visible company header.
+     * This is used only by the Sales Register body-only PDF so removing branding
+     * never moves TAX INVOICE or any subsequent section.
+     */
+    private static void addCompanyHeaderSpacer(Document doc, Image logo, float normalHeaderHeight) {
+        if (logo != null && logo.getImageWidth() > logo.getImageHeight() * 3.2f) {
+            float contentWidth = PageSize.A4.getWidth() - 48f;
+            float scaledHeight = logo.getImageHeight() * (contentWidth / logo.getImageWidth());
+            Table spacer = new Table(1).useAllAvailableWidth().setHeight(scaledHeight)
+                    .setMarginBottom(HEADER_TO_TITLE_GAP);
+            spacer.addCell(noBorder());
+            doc.add(spacer);
+            return;
+        }
+
+        Table header = new Table(1).useAllAvailableWidth().setHeight(normalHeaderHeight);
+        header.addCell(noBorder());
+        doc.add(header);
+        // Mirror the visible header's 2pt top margin, 1pt separator height and
+        // HEADER_TO_TITLE_GAP bottom margin without drawing any branding.
+        Table separatorSpacer = new Table(1).useAllAvailableWidth()
+                .setMarginTop(2).setMarginBottom(HEADER_TO_TITLE_GAP);
+        separatorSpacer.addCell(noBorder().setHeight(1));
+        doc.add(separatorSpacer);
+    }
+
     private static void addInvoiceTitleAndMeta(Document doc, TaxInvoiceDocument invoice) {
         // 4.0.7: title follows the exact same left/right content guides as all
         // primary invoice blocks. No centered percentage inset.
@@ -203,7 +256,7 @@ public final class TaxInvoicePdfGenerator {
                 .useAllAvailableWidth().setMarginTop(STANDARD_SECTION_GAP).setMarginBottom(STANDARD_SECTION_GAP);
         metaCards.addCell(metaCard(
                 "INVOICE NO", invoice.invoiceNo(),
-                "ORDER NO", invoice.orderNo().isBlank() ? "NA" : invoice.orderNo()));
+                "PO NO", invoice.orderNo().isBlank() ? "NA" : invoice.orderNo()));
         metaCards.addCell(noBorder());
         metaCards.addCell(metaCard(
                 "INVOICE DATE", formatDate(invoice.invoiceDate()),
@@ -236,17 +289,13 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static void addAddressCards(Document doc, TaxInvoiceDocument invoice) {
-        boolean same = sameParty(invoice.billing(), invoice.delivery());
-        Table addresses = same
-                ? new Table(1).useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP)
-                : new Table(UnitValue.createPercentArray(new float[]{49, 2, 49})).useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP);
-        if (same) {
-            addresses.addCell(addressCard("BILLING & DELIVERY ADDRESS", invoice.billing()));
-        } else {
-            addresses.addCell(addressCard("BILLING ADDRESS", invoice.billing()));
-            addresses.addCell(noBorder());
-            addresses.addCell(addressCard("DELIVERY ADDRESS", invoice.delivery()));
-        }
+        // 7.3.8: Billing and Delivery are always shown as independent audit-friendly
+        // cards, even when "Same as Billing" produced identical party values.
+        Table addresses = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
+                .useAllAvailableWidth().setMarginBottom(STANDARD_SECTION_GAP);
+        addresses.addCell(addressCard("BILLING ADDRESS", invoice.billing()));
+        addresses.addCell(noBorder());
+        addresses.addCell(addressCard("DELIVERY ADDRESS", invoice.delivery()));
         doc.add(addresses);
     }
 
@@ -338,15 +387,7 @@ public final class TaxInvoicePdfGenerator {
         return !joinNonBlank("", invoice.transporter(), invoice.transporterGstin(), invoice.vehicleNumber(), invoice.contactPerson(), invoice.contactPersonMobile()).isBlank();
     }
 
-    private static boolean sameParty(InvoiceParty left, InvoiceParty right) {
-        if (left == null || right == null) return false;
-        return normalized(left.name()).equals(normalized(right.name()))
-                && normalized(left.address()).equals(normalized(right.address()))
-                && normalized(left.gstin()).equals(normalized(right.gstin()));
-    }
-
     private static String labelled(String label, String value) { return value == null || value.isBlank() ? "" : label + " : " + value.trim(); }
-    private static String normalized(String value) { return value == null ? "" : value.replaceAll("\\s+"," ").trim().toUpperCase(Locale.ROOT); }
 
     /**
      * 7.1.9 multi-page pagination contract.
@@ -359,7 +400,7 @@ public final class TaxInvoicePdfGenerator {
      * intermediate page. Only the final page may use blank grid rows, and only to
      * consume the flexible item area above the Bank/Calculation closing stack.
      */
-    private static void addPaginatedItems(Document doc, TaxInvoiceDocument invoice) {
+    private static void addPaginatedItems(Document doc, TaxInvoiceDocument invoice, Presentation presentation) {
         List<TaxInvoiceItem> items = new ArrayList<>(invoice.items());
         if (items.isEmpty()) return;
 
@@ -401,9 +442,9 @@ public final class TaxInvoicePdfGenerator {
             addExpandedContentItemsTable(doc, remaining.subList(0, fit), pageCapacity, standardRowMinHeight);
             offset += fit;
 
-            addFooter(doc, invoice.company());
+            if (presentation == Presentation.FULL) addFooter(doc, invoice.company());
             doc.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
-            addCompanyHeader(doc, invoice.company());
+            addCompanyHeader(doc, invoice.company(), presentation == Presentation.FULL);
             addInvoiceTitleAndMeta(doc, invoice);
             addAddressCards(doc, invoice);
             addTransportStrip(doc, invoice);
@@ -854,30 +895,26 @@ public final class TaxInvoicePdfGenerator {
         table.addCell(terms);
         table.addCell(noBorder());
 
-        // Signature shares the same dynamic 65/2/33 row as Terms & Conditions, but
-        // uses a much wider balanced inner content zone to avoid wasting side space.
+        // 7.3.8: Let the signature use the complete 33% card instead of the old
+        // 4/40/4 inner table. Blank/transparent canvas around the source artwork is
+        // trimmed in-memory only; the stored Settings asset is never changed.
         Cell signatureOuter = roundedFilled(new Cell()
                 .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
-                .setPaddingLeft(0).setPaddingRight(0).setBorder(Border.NO_BORDER), ColorConstants.WHITE);
-        Table signatureLayout = new Table(UnitValue.createPercentArray(new float[]{4, 40, 4})).useAllAvailableWidth();
-        signatureLayout.addCell(noBorder());
-        Cell signature = noBorder().setPadding(0).setTextAlignment(TextAlignment.CENTER)
-                .setVerticalAlignment(VerticalAlignment.MIDDLE);
-        signature.add(new Paragraph("For, " + invoice.company().name()).setBold().setFontColor(NAVY)
+                .setPaddingLeft(3).setPaddingRight(3).setBorder(Border.NO_BORDER)
+                .setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE),
+                ColorConstants.WHITE);
+        signatureOuter.add(new Paragraph("For, " + invoice.company().name()).setBold().setFontColor(NAVY)
                 .setFontSize(8.8f).setTextAlignment(TextAlignment.CENTER).setMarginBottom(3));
-        Image signatureImage = configuredImage(invoice.company().signaturePath());
+        Image signatureImage = configuredSignatureImage(invoice.company().signaturePath());
         if (signatureImage != null) {
-            signatureImage.scaleToFit(174f, 46f);
+            signatureImage.scaleToFit(SIGNATURE_MAX_WIDTH, SIGNATURE_MAX_HEIGHT);
             signatureImage.setHorizontalAlignment(HorizontalAlignment.CENTER);
-            signature.add(signatureImage);
+            signatureOuter.add(signatureImage);
         } else {
-            signature.add(new Paragraph(" ").setFontSize(16f).setMargin(0));
+            signatureOuter.add(new Paragraph(" ").setFontSize(20f).setMargin(0));
         }
-        signature.add(new Paragraph("AUTHORIZED SIGNATORY").setBold().setFontSize(6.2f)
+        signatureOuter.add(new Paragraph("AUTHORIZED SIGNATORY").setBold().setFontSize(6.2f)
                 .setTextAlignment(TextAlignment.CENTER).setMarginTop(2).setMarginBottom(0));
-        signatureLayout.addCell(signature);
-        signatureLayout.addCell(noBorder());
-        signatureOuter.add(signatureLayout);
         table.addCell(signatureOuter);
         return table;
     }
@@ -945,7 +982,7 @@ public final class TaxInvoicePdfGenerator {
         Table addressBand = new Table(1).useAllAvailableWidth().setHeight(10.5f);
         addressBand.addCell(noBorder().setPaddingLeft(8f).setPaddingRight(8f)
                 .setVerticalAlignment(VerticalAlignment.MIDDLE)
-                .add(new Paragraph(company.address()).setTextAlignment(TextAlignment.CENTER)
+                .add(new Paragraph("Address : " + company.address()).setTextAlignment(TextAlignment.CENTER)
                         .setFontColor(NAVY).setBold().setFontSize(5.8f).setFixedLeading(6.4f)
                         .setMargin(0)));
         addressBand.setFixedPosition(pageNo, left, FOOTER_ADDRESS_Y, contentWidth);
@@ -1084,6 +1121,55 @@ public final class TaxInvoicePdfGenerator {
             return input == null ? null : new Image(ImageDataFactory.create(input.readAllBytes()));
         } catch (Exception ignored) {
             return null;
+        }
+    }
+
+    private static Image configuredSignatureImage(String configuredPath) {
+        if (configuredPath == null || configuredPath.isBlank()) return null;
+        try {
+            Path path = Path.of(configuredPath).toAbsolutePath().normalize();
+            if (!Files.isRegularFile(path)) return null;
+
+            BufferedImage source = ImageIO.read(path.toFile());
+            if (source == null) return configuredImage(configuredPath);
+
+            int minX = source.getWidth();
+            int minY = source.getHeight();
+            int maxX = -1;
+            int maxY = -1;
+            for (int y = 0; y < source.getHeight(); y++) {
+                for (int x = 0; x < source.getWidth(); x++) {
+                    int argb = source.getRGB(x, y);
+                    int alpha = (argb >>> 24) & 0xff;
+                    int red = (argb >>> 16) & 0xff;
+                    int green = (argb >>> 8) & 0xff;
+                    int blue = argb & 0xff;
+                    boolean transparent = alpha <= 12;
+                    boolean nearWhite = red >= 248 && green >= 248 && blue >= 248;
+                    if (!transparent && !nearWhite) {
+                        minX = Math.min(minX, x);
+                        minY = Math.min(minY, y);
+                        maxX = Math.max(maxX, x);
+                        maxY = Math.max(maxY, y);
+                    }
+                }
+            }
+
+            if (maxX < minX || maxY < minY) return configuredImage(configuredPath);
+            minX = Math.max(0, minX - SIGNATURE_TRIM_PADDING_PX);
+            minY = Math.max(0, minY - SIGNATURE_TRIM_PADDING_PX);
+            maxX = Math.min(source.getWidth() - 1, maxX + SIGNATURE_TRIM_PADDING_PX);
+            maxY = Math.min(source.getHeight() - 1, maxY + SIGNATURE_TRIM_PADDING_PX);
+
+            BufferedImage cropped = source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
+            try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                if (!ImageIO.write(cropped, "png", bytes)) return configuredImage(configuredPath);
+                return new Image(ImageDataFactory.create(bytes.toByteArray()));
+            }
+        } catch (Exception ignored) {
+            // A signature image must never make invoice generation fail. Fall back to
+            // the original, untrimmed asset if the optional whitespace pass cannot run.
+            return configuredImage(configuredPath);
         }
     }
 
