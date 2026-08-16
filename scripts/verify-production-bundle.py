@@ -9,7 +9,7 @@ for p in required:
     if not p.is_file(): errors.append(f'missing file: {p}')
 pg=root/'runtime'/'postgresql'
 win=platform.system().lower().startswith('win')
-for name in ['initdb','pg_ctl','psql','createdb']:
+for name in ['initdb','pg_ctl','pg_isready','psql','createdb']:
     exe=pg/'bin'/(name+'.exe' if win else name)
     if not exe.is_file(): errors.append(f'missing PostgreSQL command: {exe}')
 share=pg/'share'

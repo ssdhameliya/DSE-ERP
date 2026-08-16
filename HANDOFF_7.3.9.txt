@@ -1,0 +1,25 @@
+DSE ERP 7.3.9 HANDOFF
+
+Baseline:
+DSE-ERP-7.3.8-INTELLIJ-WINDOWS-NATIVE-RUNTIME-SALE-INVOICE-FIXED(3).zip
+
+Release priority:
+JavaFX responsiveness, especially macOS Retina typing/search/settings stalls.
+
+Key changes:
+- macOS no longer forced to JavaFX software renderer.
+- Windows software-renderer workaround preserved.
+- Create Sale startup API calls moved off FX thread.
+- Create Sale item search debounced/pre-indexed.
+- Bank Statement batch/data/metrics loads moved off FX thread.
+- Settings startup asset work moved off FX thread.
+- Settings Save reduced to one config file write.
+- macOS hotspot Gaussian effects removed while preserving layout/visual structure.
+- Prism settings added to performance runtime diagnostics.
+- Packaged PostgreSQL runtime isolation/readiness/update-safety hardened.
+
+Database:
+No schema migration. Schema generation remains 1. Existing PostgreSQL data is retained.
+
+Verification:
+See VERIFICATION_7.3.9_PERFORMANCE.md.

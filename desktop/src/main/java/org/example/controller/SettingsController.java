@@ -37,6 +37,7 @@ import org.example.update.UpdateService;
 import org.example.update.BuildInfo;
 import org.example.util.IconFactory;
 import org.example.util.PerformanceMonitor;
+import org.example.util.UiTaskExecutor;
 import javafx.application.Platform;
 
 import java.io.File;
@@ -45,10 +46,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.AtomicMoveNotSupportedException;
-import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Settings entered here are persisted locally.
@@ -62,6 +64,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private static volatile Section requestedSection = Section.COMPANY;
+    private boolean batchingSettingsSave;
 
     public static void requestSection(Section section) {
         requestedSection = section == null ? Section.COMPANY : section;
@@ -324,12 +327,7 @@ public class SettingsController implements ScreenLifecycle {
             long workspaceMs=(System.nanoTime()-started)/1_000_000L;
             if(workspaceMs>=20)PerformanceMonitor.event("controller-phase","settings-workspace-init | "+workspaceMs+" ms");
             javafx.animation.PauseTransition previews = new javafx.animation.PauseTransition(javafx.util.Duration.millis(250));
-            previews.setOnFinished(previewEvent -> {
-                long previewStarted=System.nanoTime();
-                refreshAllAssetPreviews();
-                long previewMs=(System.nanoTime()-previewStarted)/1_000_000L;
-                if(previewMs>=20)PerformanceMonitor.event("controller-phase","settings-preview-init | "+previewMs+" ms");
-            });
+            previews.setOnFinished(previewEvent -> refreshAllAssetPreviewsAsync());
             previews.play();
         });
         deferredSettings.play();
@@ -786,7 +784,7 @@ public class SettingsController implements ScreenLifecycle {
             temporary = null;
 
             removeOlderAssetVersions(assetsFolder, baseName, destination);
-            ConfigManager.set(configKey, destination.toAbsolutePath().toString());
+            putSetting(configKey, destination.toAbsolutePath().toString());
             showImagePreview(destination, imageView, placeholder, fileLabel, role);
         } catch (Exception exception) {
             showError("The image could not be saved: " + exception.getMessage());
@@ -859,7 +857,7 @@ public class SettingsController implements ScreenLifecycle {
                 ""
             );
 
-        ConfigManager.set(
+        putSetting(
             configKey,
             ""
         );
@@ -888,11 +886,68 @@ public class SettingsController implements ScreenLifecycle {
         }
     }
 
-    private void refreshAllAssetPreviews() {
-        refreshAssetPreview(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER);
-        refreshAssetPreview(LOGO_PATH_KEY, imgCompanyLogo, placeholderCompanyLogo, lblLogoFile, BrandAssetPolicy.Role.COMPANY_LOGO);
-        refreshAssetPreview(SIGNATURE_PATH_KEY, imgSignature, placeholderSignature, lblSignatureFile, BrandAssetPolicy.Role.SIGNATURE);
-        refreshAssetPreview(QR_PATH_KEY, imgPaymentQr, placeholderPaymentQr, lblQrFile, BrandAssetPolicy.Role.PAYMENT_QR);
+    private void refreshAllAssetPreviewsAsync() {
+        List<AssetPreviewRequest> requests = List.of(
+            new AssetPreviewRequest(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER),
+            new AssetPreviewRequest(LOGO_PATH_KEY, imgCompanyLogo, placeholderCompanyLogo, lblLogoFile, BrandAssetPolicy.Role.COMPANY_LOGO),
+            new AssetPreviewRequest(SIGNATURE_PATH_KEY, imgSignature, placeholderSignature, lblSignatureFile, BrandAssetPolicy.Role.SIGNATURE),
+            new AssetPreviewRequest(QR_PATH_KEY, imgPaymentQr, placeholderPaymentQr, lblQrFile, BrandAssetPolicy.Role.PAYMENT_QR)
+        );
+        UiTaskExecutor.submitLatest(
+            "settings-asset-previews",
+            () -> loadAssetPreviews(requests),
+            this::applyAssetPreviews,
+            error -> PerformanceMonitor.event("background-work-failed", "settings-asset-previews | " + safeMessage(error))
+        );
+    }
+
+    private List<AssetPreviewResult> loadAssetPreviews(List<AssetPreviewRequest> requests) {
+        long started = System.nanoTime();
+        List<AssetPreviewResult> results = new ArrayList<>(requests.size());
+        for (AssetPreviewRequest request : requests) {
+            String configuredPath = ConfigManager.get(request.configKey(), "");
+            if (configuredPath.isBlank()) {
+                results.add(new AssetPreviewResult(request, null, null, null));
+                continue;
+            }
+            try {
+                Path path = Path.of(configuredPath);
+                if (!Files.isRegularFile(path)) {
+                    results.add(new AssetPreviewResult(request, null, null, null));
+                    continue;
+                }
+                byte[] bytes = Files.readAllBytes(path);
+                Image image = new Image(new ByteArrayInputStream(bytes));
+                if (image.isError()) {
+                    results.add(new AssetPreviewResult(request, null, null, null));
+                    continue;
+                }
+                BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(path, request.role());
+                results.add(new AssetPreviewResult(request, image, path, inspection));
+            } catch (Exception ignored) {
+                results.add(new AssetPreviewResult(request, null, null, null));
+            }
+        }
+        long elapsed = (System.nanoTime() - started) / 1_000_000L;
+        if (elapsed >= 20) PerformanceMonitor.event("controller-phase", "settings-preview-background | " + elapsed + " ms");
+        return results;
+    }
+
+    private void applyAssetPreviews(List<AssetPreviewResult> results) {
+        if (results == null) return;
+        for (AssetPreviewResult result : results) {
+            AssetPreviewRequest request = result.request();
+            if (result.image() == null || result.path() == null || result.inspection() == null) {
+                clearImagePreview(request.imageView(), request.placeholder(), request.fileLabel());
+                continue;
+            }
+            request.imageView().setImage(result.image());
+            request.imageView().setVisible(true);
+            request.imageView().setManaged(true);
+            request.placeholder().setVisible(false);
+            request.placeholder().setManaged(false);
+            request.fileLabel().setText(result.path().getFileName() + " • " + result.inspection().dimensions());
+        }
     }
 
     private void refreshAssetPreview(
@@ -926,11 +981,12 @@ public class SettingsController implements ScreenLifecycle {
         Label fileLabel,
         BrandAssetPolicy.Role role
     ) {
+        // User-selected image changes are infrequent. Keep this immediate path
+        // synchronous so the preview updates before the chooser action returns;
+        // startup previews use refreshAllAssetPreviewsAsync() above.
         try {
-            Image image;
-            try (InputStream input = Files.newInputStream(path)) {
-                image = new Image(input);
-            }
+            byte[] bytes = Files.readAllBytes(path);
+            Image image = new Image(new ByteArrayInputStream(bytes));
             if (image.isError()) {
                 clearImagePreview(imageView, placeholder, fileLabel);
                 return;
@@ -948,6 +1004,27 @@ public class SettingsController implements ScreenLifecycle {
             clearImagePreview(imageView, placeholder, fileLabel);
         }
     }
+
+    private static String safeMessage(Throwable error) {
+        if (error == null) return "unknown error";
+        String message = error.getMessage();
+        return message == null || message.isBlank() ? error.toString() : message;
+    }
+
+    private record AssetPreviewRequest(
+        String configKey,
+        ImageView imageView,
+        VBox placeholder,
+        Label fileLabel,
+        BrandAssetPolicy.Role role
+    ) { }
+
+    private record AssetPreviewResult(
+        AssetPreviewRequest request,
+        Image image,
+        Path path,
+        BrandAssetPolicy.Inspection inspection
+    ) { }
 
     private void clearImagePreview(
         ImageView imageView,
@@ -1150,6 +1227,11 @@ public class SettingsController implements ScreenLifecycle {
         UpdateDialogs.showSystemHealth(panelUpdates.getScene().getWindow());
     }
 
+    private void putSetting(String key, String value) {
+        if (batchingSettingsSave) ConfigManager.setWithoutSaving(key, value);
+        else ConfigManager.set(key, value);
+    }
+
     /* =========================================================
        SAVE
        ========================================================= */
@@ -1183,40 +1265,46 @@ public class SettingsController implements ScreenLifecycle {
             return false;
         }
 
-        saveCompanyDetails();
-        savePaymentDetails();
-        saveInvoiceIdentity();
-        saveEmailSettings();
-        saveNotificationSettings();
-        saveUpdateSettings();
+        batchingSettingsSave = true;
+        try {
+            saveCompanyDetails();
+            savePaymentDetails();
+            saveInvoiceIdentity();
+            saveEmailSettings();
+            saveNotificationSettings();
+            saveUpdateSettings();
+            ConfigManager.save();
+        } finally {
+            batchingSettingsSave = false;
+        }
 
         return true;
     }
 
     private void saveCompanyDetails() {
 
-        ConfigManager.set(
+        putSetting(
             "company.name",
             txtCompanyName
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.phone",
             txtPhone
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.email",
             txtEmail
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.gstin",
             txtGstin
                 .getText()
@@ -1224,7 +1312,7 @@ public class SettingsController implements ScreenLifecycle {
                 .toUpperCase()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.pan",
             txtCompanyPan
                 .getText()
@@ -1232,17 +1320,17 @@ public class SettingsController implements ScreenLifecycle {
                 .toUpperCase()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.businessType",
             valueOrEmpty(cmbBusinessType)
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.industry",
             valueOrEmpty(cmbIndustry)
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.financialYearStart",
             dpFinancialYearStart.getValue() == null
                 ? ""
@@ -1251,42 +1339,42 @@ public class SettingsController implements ScreenLifecycle {
                 .toString()
         );
 
-        ConfigManager.set("application.displayName", txtApplicationName.getText().trim());
-        ConfigManager.set("application.tagline", txtApplicationTagline.getText().trim());
-        ConfigManager.set("application.startingText", txtApplicationStartingText.getText().trim());
+        putSetting("application.displayName", txtApplicationName.getText().trim());
+        putSetting("application.tagline", txtApplicationTagline.getText().trim());
+        putSetting("application.startingText", txtApplicationStartingText.getText().trim());
     }
 
     private void savePaymentDetails() {
 
-        ConfigManager.set(
+        putSetting(
             "payment.upiId",
             txtUpiId
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "payment.accountHolder",
             txtAccountHolder
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "payment.bankName",
             txtBankName
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "payment.accountNumber",
             txtAccountNumber
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "payment.ifsc",
             txtIfsc
                 .getText()
@@ -1294,7 +1382,7 @@ public class SettingsController implements ScreenLifecycle {
                 .toUpperCase()
         );
 
-        ConfigManager.set(
+        putSetting(
             "payment.branch",
             txtBranch
                 .getText()
@@ -1304,59 +1392,59 @@ public class SettingsController implements ScreenLifecycle {
 
     private void saveInvoiceIdentity() {
 
-        ConfigManager.set(
+        putSetting(
             "company.address",
             txtCompanyAddress
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.state",
             txtCompanyState
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.website",
             txtCompanyWebsite
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.tagline",
             txtCompanyTagline
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.shipAddress",
             txtShipAddress
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.terms",
             txtInvoiceTerms
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.currency",
             valueOrEmpty(cmbCurrency)
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.timeZone",
             valueOrEmpty(cmbTimeZone)
         );
 
-        ConfigManager.set(
+        putSetting(
             "company.dateFormat",
             valueOrEmpty(cmbDateFormat)
         );
@@ -1364,19 +1452,19 @@ public class SettingsController implements ScreenLifecycle {
 
     private void saveEmailSettings() {
 
-        ConfigManager.set(
+        putSetting(
             "smtp.email",
             txtSmtpEmail
                 .getText()
                 .trim()
         );
 
-        ConfigManager.set(
+        putSetting(
             "smtp.appPassword",
             txtSmtpPassword.getText()
         );
 
-        ConfigManager.set(
+        putSetting(
             "smtp.host",
             txtSmtpHost
                 .getText()
@@ -1388,7 +1476,7 @@ public class SettingsController implements ScreenLifecycle {
                 .getText()
                 .trim();
 
-        ConfigManager.set(
+        putSetting(
             "smtp.port",
             port.isBlank()
                 ? "587"
@@ -1398,7 +1486,7 @@ public class SettingsController implements ScreenLifecycle {
 
     private void saveNotificationSettings() {
 
-        ConfigManager.set(
+        putSetting(
             "notifications.enabled",
             Boolean.toString(chkNotifications.isSelected())
         );
@@ -1418,7 +1506,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void saveNotificationCategory(CheckBox box, String category) {
-        if (box != null) ConfigManager.set("notifications.category." + category, Boolean.toString(box.isSelected()));
+        if (box != null) putSetting("notifications.category." + category, Boolean.toString(box.isSelected()));
     }
 
     private void setNotificationCategoriesDisabled(boolean disabled) {
@@ -1627,11 +1715,11 @@ public class SettingsController implements ScreenLifecycle {
 
     private void saveUpdateSettings() {
         if (txtGitHubOwner == null) return;
-        ConfigManager.set("update.github.owner", txtGitHubOwner.getText().trim());
-        ConfigManager.set("update.github.repository", txtGitHubRepository.getText().trim());
-        ConfigManager.set("update.channel", cmbUpdateChannel.getValue() == null ? "STABLE" : cmbUpdateChannel.getValue());
-        ConfigManager.set("update.checkAtStartup", String.valueOf(chkUpdateAtStartup.isSelected()));
-        ConfigManager.set("update.downloadInBackground", String.valueOf(chkDownloadInBackground.isSelected()));
+        putSetting("update.github.owner", txtGitHubOwner.getText().trim());
+        putSetting("update.github.repository", txtGitHubRepository.getText().trim());
+        putSetting("update.channel", cmbUpdateChannel.getValue() == null ? "STABLE" : cmbUpdateChannel.getValue());
+        putSetting("update.checkAtStartup", String.valueOf(chkUpdateAtStartup.isSelected()));
+        putSetting("update.downloadInBackground", String.valueOf(chkDownloadInBackground.isSelected()));
     }
 
     private String formatUpdateTimestamp(String raw) {

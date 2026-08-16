@@ -174,7 +174,9 @@ public final class Main {
                 + " | arch=" + System.getProperty("os.arch")
                 + " | java=" + System.getProperty("java.version")
                 + " | javafx=" + System.getProperty("javafx.version")
-                + " | scale=" + stage.getOutputScaleX() + "x" + stage.getOutputScaleY());
+                + " | scale=" + stage.getOutputScaleX() + "x" + stage.getOutputScaleY()
+                + " | prism.order=" + System.getProperty("prism.order", "javafx-default")
+                + " | prism.verbose=" + System.getProperty("prism.verbose", "false"));
         runtimeHealthMonitor.start();
         UpdateLifecycle.afterDatabaseInitialization(stage);
         if (stage.getScene() == null) SceneManager.showLogin();

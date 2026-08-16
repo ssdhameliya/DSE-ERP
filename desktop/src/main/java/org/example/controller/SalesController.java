@@ -15,6 +15,8 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.StringConverter;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.fxml.FXMLLoader;
@@ -45,10 +47,14 @@ import org.example.service.SalesService;
 import org.example.util.IconFactory;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
+import org.example.util.UiTaskExecutor;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.Map;
+import java.util.function.Supplier;
 
 public class SalesController {
     @FXML private Button btnAddCustomer;
@@ -184,7 +190,9 @@ public class SalesController {
 
     private int editingIndex = -1;
     private final ObservableList<Item> allItems = FXCollections.observableArrayList();
+    private final Map<Item, String> itemSearchIndex = new IdentityHashMap<>();
     private final ContextMenu itemSuggestions = new ContextMenu();
+    private final PauseTransition itemSearchDebounce = new PauseTransition(Duration.millis(90));
     private Item selectedItem;
     private boolean updatingItemSearch;
     private final ObservableList<SalesCharge> invoiceCharges = FXCollections.observableArrayList();
@@ -196,7 +204,6 @@ public class SalesController {
 
     @FXML
     public void initialize() {
-        List<String> initializationErrors = new ArrayList<>();
         if (btnAddCustomer != null) { btnAddCustomer.setGraphic(IconFactory.compactIcon("customer", 20)); btnAddCustomer.getProperties().put("erp-icon-preserve", true); }
         if (chkSameAsBilling != null) {
             // Keep this control as a conventional checkbox + label. A zero-size,
@@ -222,12 +229,6 @@ public class SalesController {
         setupEditableColumns();
         Platform.runLater(this::decorateActions);
         cmbSalesPerson.getItems().setAll("Admin","Ajay Shah","Rahul Mehta");cmbSalesPerson.setValue("Admin");
-        safeLoad("Payment Terms", initializationErrors, () -> cmbPaymentTerms.getItems().setAll(lookupService.getValuesByCategoryCode("PAYMENT_TERMS")));
-        selectDefaultPaymentTerms();
-        safeLoad("Charges", initializationErrors, () -> {
-            availableChargeTypes.setAll(lookupService.getValuesByCategoryCode("CHARGES"));
-            if (cmbChargeType != null) cmbChargeType.getItems().setAll(availableChargeTypes);
-        });
         if (btnManageCharges != null) {
             btnManageCharges.setGraphic(IconFactory.compactIcon("payment", 15));
             btnManageCharges.getProperties().put("erp-icon-preserve", true);
@@ -267,11 +268,9 @@ public class SalesController {
             });
         }
 
-        // Master-driven values use stable category codes, so renaming the visible
-        // category in Master Data does not break Create Sale.
-        safeLoad("GST Types", initializationErrors, () -> cmbGstType.getItems().setAll(lookupService.getValuesByCategoryCode("GST_TYPE")));
-        if (!cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
-        safeLoad("Transporters", initializationErrors, () -> cmbTransporter.getItems().setAll(lookupService.getByCategoryCode("TRANSPORTER")));
+        // Master-driven values are loaded in the background below. Configure
+        // the selector/listeners immediately so the page is interactive before
+        // any API-backed master data arrives.
         configureTransporterSelector();
         cmbGstType.valueProperty().addListener((o,a,b) -> updateGstHeaders());
         updateGstHeaders();
@@ -317,20 +316,6 @@ public class SalesController {
                 }
 
             });
-
-        //-------------------------------------------------------
-        // Load Customers
-        //-------------------------------------------------------
-
-        safeLoad("Customers", initializationErrors, () -> cmbCustomer.setItems(
-            FXCollections.observableArrayList(partyService.getByType("CUSTOMER"))
-        ));
-
-        //-------------------------------------------------------
-        // Load Items
-        //-------------------------------------------------------
-
-        safeLoad("Items", initializationErrors, () -> allItems.setAll(itemService.getAll()));
 
         //-------------------------------------------------------
         // Customer Combo
@@ -389,6 +374,10 @@ public class SalesController {
             });
 
         cmbCustomer.valueProperty().addListener((observable, oldCustomer, customer) -> {
+            // loadSale() and the asynchronous bootstrap both re-bind persisted
+            // edit selections. During that re-bind the saved invoice addresses
+            // must not be replaced by today's master-data address.
+            if (loadingSaleForEdit && editingSale != null) return;
             if (customer == null) {
                 txtBillingAddress.clear();
                 if (txtBillingGstin != null) txtBillingGstin.clear();
@@ -412,9 +401,130 @@ public class SalesController {
 
         configureItemSearch();
 
+        // The form itself is created immediately. API-backed master data and the
+        // next invoice number are loaded away from the JavaFX Application Thread.
         newSale();
+        loadSaleBootstrapAsync();
 
     }
+
+    private void loadSaleBootstrapAsync() {
+        UiTaskExecutor.submitLatest(
+            "create-sale-bootstrap",
+            this::loadSaleBootstrap,
+            this::applySaleBootstrap,
+            this::handleSaleBootstrapFailure
+        );
+    }
+
+    private SaleBootstrap loadSaleBootstrap() {
+        List<String> errors = new ArrayList<>();
+        List<String> paymentTerms = loadOrDefault("Payment Terms", errors,
+            () -> lookupService.getValuesByCategoryCode("PAYMENT_TERMS"), List.of());
+        List<String> charges = loadOrDefault("Charges", errors,
+            () -> lookupService.getValuesByCategoryCode("CHARGES"), List.of());
+        List<String> gstTypes = loadOrDefault("GST Types", errors,
+            () -> lookupService.getValuesByCategoryCode("GST_TYPE"), List.of());
+        List<Lookup> transporters = loadOrDefault("Transporters", errors,
+            () -> lookupService.getByCategoryCode("TRANSPORTER"), List.of());
+        List<Party> customers = loadOrDefault("Customers", errors,
+            () -> partyService.getByType("CUSTOMER"), List.of());
+        List<Item> items = loadOrDefault("Items", errors,
+            itemService::getAll, List.of());
+        String invoiceNo = loadOrDefault("Next Invoice No", errors,
+            salesService::nextInvoiceNo, "");
+        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters,
+            customers, items, invoiceNo, List.copyOf(errors));
+    }
+
+    private <T> T loadOrDefault(String label, List<String> errors, Supplier<T> loader, T fallback) {
+        try {
+            T value = loader.get();
+            return value == null ? fallback : value;
+        } catch (Exception exception) {
+            errors.add(label + ": " + rootMessage(exception));
+            return fallback;
+        }
+    }
+
+    private void applySaleBootstrap(SaleBootstrap bootstrap) {
+        if (bootstrap == null) return;
+
+        cmbPaymentTerms.getItems().setAll(bootstrap.paymentTerms());
+        availableChargeTypes.setAll(bootstrap.chargeTypes());
+        if (cmbChargeType != null) cmbChargeType.getItems().setAll(availableChargeTypes);
+        cmbGstType.getItems().setAll(bootstrap.gstTypes());
+        cmbTransporter.getItems().setAll(bootstrap.transporters());
+        cmbCustomer.setItems(FXCollections.observableArrayList(bootstrap.customers()));
+
+        allItems.setAll(bootstrap.items());
+        itemSearchIndex.clear();
+        for (Item item : allItems) itemSearchIndex.put(item, buildItemSearchHaystack(item));
+
+        if (editingSale == null) {
+            selectDefaultPaymentTerms();
+            if (!cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
+            if (!bootstrap.invoiceNo().isBlank()) {
+                txtInvoiceNo.setText(bootstrap.invoiceNo());
+                if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(bootstrap.invoiceNo());
+            } else if ("Loading...".equals(txtInvoiceNo.getText())) {
+                txtInvoiceNo.clear();
+            }
+            updatePoDateFromPaymentTerms();
+        } else {
+            // loadSale() can run immediately after FXMLLoader.load(). If master
+            // data arrives later, re-bind selections to the persisted edit values
+            // without replacing historical addresses, dates or line items.
+            boolean previousLoadingState = loadingSaleForEdit;
+            loadingSaleForEdit = true;
+            try {
+                String terms = editingSale.getPaymentTerms();
+                cmbPaymentTerms.setValue(terms == null || terms.isBlank() ? "15 Days" : terms);
+                String gstType = editingSale.getGstType();
+                if (gstType != null && !gstType.isBlank()) cmbGstType.setValue(gstType);
+                if (editingSale.getTransporter() != null && !editingSale.getTransporter().isBlank()) {
+                    cmbTransporter.getItems().stream()
+                        .filter(value -> value.getLookupValue().equalsIgnoreCase(editingSale.getTransporter()))
+                        .findFirst().ifPresent(cmbTransporter::setValue);
+                }
+                if (editingSale.getCustomer() != null) {
+                    int customerId = editingSale.getCustomer().getId();
+                    cmbCustomer.getItems().stream()
+                        .filter(party -> party.getId() == customerId)
+                        .findFirst().ifPresent(cmbCustomer::setValue);
+                }
+            } finally {
+                loadingSaleForEdit = previousLoadingState;
+            }
+        }
+
+        if (!bootstrap.errors().isEmpty()) showSaleBootstrapWarning(bootstrap.errors());
+    }
+
+    private void handleSaleBootstrapFailure(Throwable error) {
+        showSaleBootstrapWarning(List.of("Startup: " + rootMessage(error)));
+    }
+
+    private void showSaleBootstrapWarning(List<String> errors) {
+        if (errors == null || errors.isEmpty()) return;
+        System.err.println("Create Sale initialization: " + String.join(" | ", errors));
+        new OwnedAlert(Alert.AlertType.WARNING,
+            "Create Sale opened, but some API-backed master data could not be loaded.\n\n" +
+            String.join("\n", errors) +
+            "\n\nCheck that the Spring server is running and review its console for the matching endpoint error.")
+            .showAndWait();
+    }
+
+    private record SaleBootstrap(
+        List<String> paymentTerms,
+        List<String> chargeTypes,
+        List<String> gstTypes,
+        List<Lookup> transporters,
+        List<Party> customers,
+        List<Item> items,
+        String invoiceNo,
+        List<String> errors
+    ) { }
 
     /**
      * Suggests intra-state versus inter-state tax from the first two GSTIN
@@ -444,10 +554,14 @@ public class SalesController {
     private void configureItemSearch() {
         if (itemSearchIconBox != null) itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
         itemSuggestions.getStyleClass().addAll("sales-entry-item-suggestions","erp-item-suggestions");
+        itemSearchDebounce.setOnFinished(event -> refreshItemSuggestions(txtItemSearch.getText()));
         txtItemSearch.textProperty().addListener((obs, oldText, text) -> {
             if (updatingItemSearch) return;
             selectedItem = null;
-            refreshItemSuggestions(text);
+            // Rebuilding a ContextMenu (including icons) for every physical
+            // keystroke is expensive on high-DPI displays. A short debounce keeps
+            // typing immediate while still feeling instant to the user.
+            itemSearchDebounce.playFromStart();
         });
         txtItemSearch.focusedProperty().addListener((obs, oldValue, focused) -> {
             if (focused && !txtItemSearch.getText().isBlank()) refreshItemSuggestions(txtItemSearch.getText());
@@ -507,6 +621,12 @@ public class SalesController {
     }
 
     private String itemSearchHaystack(Item item) {
+        String indexed = itemSearchIndex.get(item);
+        if (indexed != null) return indexed;
+        return buildItemSearchHaystack(item);
+    }
+
+    private String buildItemSearchHaystack(Item item) {
         return (safeItem(item.getItemCode()) + " " + safeItem(item.getDescription()) + " "
             + safeItem(item.getRemarks()) + " " + safeItem(item.getHsn())).toLowerCase(java.util.Locale.ROOT);
     }
@@ -1073,9 +1193,9 @@ public class SalesController {
 
         editingSale = null;
 
-        txtInvoiceNo.setText(
-            salesService.nextInvoiceNo()
-        );
+        // Invoice numbering is API-backed and is loaded by loadSaleBootstrapAsync().
+        // Never block the JavaFX Application Thread while the screen is opening.
+        txtInvoiceNo.setText("Loading...");
 
         // Establish both drivers first, then calculate PO Date. The order is
         // intentional: PO Date must never be calculated against a null/stale

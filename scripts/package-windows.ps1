@@ -60,6 +60,7 @@ $RequiredBundleFiles = @(
     (Join-Path $Input 'runtime\runtime-manifest.properties'),
     (Join-Path $Input 'runtime\postgresql\bin\initdb.exe'),
     (Join-Path $Input 'runtime\postgresql\bin\pg_ctl.exe'),
+    (Join-Path $Input 'runtime\postgresql\bin\pg_isready.exe'),
     (Join-Path $Input 'runtime\postgresql\bin\psql.exe'),
     (Join-Path $Input 'runtime\postgresql\bin\createdb.exe'),
     (Join-Path $Input 'runtime\postgresql\bin\pg_dump.exe'),

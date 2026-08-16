@@ -14,6 +14,8 @@ theme=LIGHT
 # PostgreSQL runtime. Fresh workspaces use DSE ERP managed PostgreSQL; explicit db.url/DSE_DB_URL remains external.
 runtime.postgres.mode=managed
 runtime.postgres.stopOnExit=false
+# Packaged builds stop managed PostgreSQL on exit for upgrade safety. Advanced support override only:
+runtime.postgres.keepAliveOnExit=false
 db.url=jdbc:postgresql://localhost:5432/dse_erp
 db.username=dse_erp_app
 

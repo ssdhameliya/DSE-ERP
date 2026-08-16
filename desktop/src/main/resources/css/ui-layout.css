@@ -536,3 +536,34 @@
     -fx-font-family: "System";
     -fx-font-size: 13px;
 }
+
+/* =========================================================
+   7.3.9 macOS Retina performance guardrails
+   ---------------------------------------------------------
+   The macOS build now uses JavaFX's native graphics pipeline rather than the
+   Windows-only software workaround. These selectors also remove the remaining
+   expensive Gaussian effects from the three screens that showed sustained
+   FX-pulse stalls in measured production logs. Borders/backgrounds remain, so
+   visual hierarchy is preserved without forcing large off-screen blur passes.
+   ========================================================= */
+.platform-macos .settings-card,
+.platform-macos .settings-asset-card,
+.platform-macos .settings-primary-button,
+.platform-macos .settings-page-shell .text-field:focused,
+.platform-macos .settings-page-shell .password-field:focused,
+.platform-macos .settings-page-shell .combo-box:focused,
+.platform-macos .settings-page-shell .date-picker:focused,
+.platform-macos .settings-page-shell .text-area:focused,
+.platform-macos .sales-entry-page .sales-entry-card,
+.platform-macos .sales-entry-page .text-field:focused,
+.platform-macos .sales-entry-page .text-area:focused,
+.platform-macos .sales-entry-page .combo-box:focused,
+.platform-macos .sales-entry-page .date-picker:focused,
+.platform-macos .bank-recon-header,
+.platform-macos .bank-recon-kpi-panel,
+.platform-macos .bank-recon-filter-panel,
+.platform-macos .bank-recon-table-panel,
+.platform-macos .bank-recon-flow-panel,
+.platform-macos .bank-recon-how-panel {
+    -fx-effect: null;
+}

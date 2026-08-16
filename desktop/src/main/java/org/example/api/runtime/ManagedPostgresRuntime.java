@@ -106,7 +106,7 @@ public final class ManagedPostgresRuntime {
                 startedByDesktop = true;
             }
 
-            waitForPort(port, Duration.ofSeconds(25));
+            waitForReady(home, port, Duration.ofSeconds(25));
             ensureRoleAndDatabase(home, port, state);
             String url = "jdbc:postgresql://127.0.0.1:" + port + "/" + DATABASE;
             ConfigManager.applyRuntimeDatabase(url, APP_USER, state.appPassword());
@@ -157,33 +157,49 @@ public final class ManagedPostgresRuntime {
 
     private static Path locatePostgresHome() {
         List<Path> candidates = new ArrayList<>();
-        String explicit = System.getProperty("dse.erp.postgres.home", System.getenv("DSE_POSTGRES_HOME"));
-        if (explicit == null || explicit.isBlank()) {
-            // Keep development and native packaging on the same runtime override name.
-            // package-windows.ps1/package-macos.sh already use DSE_POSTGRES_RUNTIME_DIR.
-            explicit = System.getenv("DSE_POSTGRES_RUNTIME_DIR");
-        }
-        if (explicit != null && !explicit.isBlank()) candidates.add(Path.of(explicit));
+        boolean packaged = isPackagedRuntime();
 
-        String configuredBin = ConfigManager.get("postgres.binPath", "").trim();
-        if (!configuredBin.isBlank()) {
-            Path binPath = Path.of(configuredBin).toAbsolutePath().normalize();
-            candidates.add("bin".equalsIgnoreCase(String.valueOf(binPath.getFileName()))
-                    ? binPath.getParent() : binPath);
-        }
+        /*
+         * Production installations must be self-contained.  A stale IntelliJ
+         * postgres.binPath or developer DSE_POSTGRES_RUNTIME_DIR must never make
+         * an EXE/DMG execute tools from an old source tree.  Only the explicit
+         * JVM system property remains as an intentional support override.
+         */
+        if (packaged) {
+            try {
+                Path code = Path.of(ManagedPostgresRuntime.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+                        .toAbsolutePath().normalize();
+                Path folder = Files.isDirectory(code) ? code : code.getParent();
+                if (folder != null) candidates.add(folder.resolve("runtime/postgresql"));
+            } catch (Exception ignored) {}
+            String supportOverride = System.getProperty("dse.erp.postgres.home", "").trim();
+            if (!supportOverride.isBlank()) candidates.add(Path.of(supportOverride));
+        } else {
+            String explicit = System.getProperty("dse.erp.postgres.home", System.getenv("DSE_POSTGRES_HOME"));
+            if (explicit == null || explicit.isBlank()) {
+                // Development/release machines may point at a prepared PostgreSQL runtime.
+                explicit = System.getenv("DSE_POSTGRES_RUNTIME_DIR");
+            }
+            if (explicit != null && !explicit.isBlank()) candidates.add(Path.of(explicit));
 
-        try {
-            Path code = Path.of(ManagedPostgresRuntime.class.getProtectionDomain().getCodeSource().getLocation().toURI())
-                    .toAbsolutePath().normalize();
-            Path folder = Files.isDirectory(code) ? code : code.getParent();
-            if (folder != null) candidates.add(folder.resolve("runtime/postgresql"));
-        } catch (Exception ignored) {}
+            String configuredBin = ConfigManager.get("postgres.binPath", "").trim();
+            if (!configuredBin.isBlank()) {
+                Path binPath = Path.of(configuredBin).toAbsolutePath().normalize();
+                candidates.add("bin".equalsIgnoreCase(String.valueOf(binPath.getFileName()))
+                        ? binPath.getParent() : binPath);
+            }
 
-        Path cwd = Path.of("").toAbsolutePath().normalize();
-        candidates.add(cwd.resolve("runtime/postgresql"));
-        candidates.add(cwd.resolve("../runtime/postgresql").normalize());
+            try {
+                Path code = Path.of(ManagedPostgresRuntime.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+                        .toAbsolutePath().normalize();
+                Path folder = Files.isDirectory(code) ? code : code.getParent();
+                if (folder != null) candidates.add(folder.resolve("runtime/postgresql"));
+            } catch (Exception ignored) {}
 
-        if (!isPackagedRuntime()) {
+            Path cwd = Path.of("").toAbsolutePath().normalize();
+            candidates.add(cwd.resolve("runtime/postgresql"));
+            candidates.add(cwd.resolve("../runtime/postgresql").normalize());
+
             String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (os.contains("win")) {
                 addDevelopmentWindowsCandidates(candidates);
@@ -262,7 +278,7 @@ public final class ManagedPostgresRuntime {
     public static void verifyBundledRuntime() {
         if (!isPackagedRuntime()) return;
         Path home = locatePostgresHome();
-        for (String command : List.of("initdb", "pg_ctl", "psql", "createdb")) {
+        for (String command : List.of("initdb", "pg_ctl", "pg_isready", "psql", "createdb")) {
             if (!Files.isRegularFile(bin(home, command))) {
                 throw new IllegalStateException("DSE ERP installation is incomplete: PostgreSQL command missing: " + command);
             }
@@ -442,6 +458,8 @@ public final class ManagedPostgresRuntime {
     private static void ensureRoleAndDatabase(Path home, int port, RuntimeState state) throws Exception {
         Properties env = new Properties();
         env.setProperty("PGPASSWORD", state.ownerPassword());
+        env.setProperty("PGSSLMODE", "disable");
+        env.setProperty("PGCONNECT_TIMEOUT", "3");
 
         String roleExists;
         try {
@@ -463,6 +481,8 @@ public final class ManagedPostgresRuntime {
         }
         Properties appEnv = new Properties();
         appEnv.setProperty("PGPASSWORD", state.appPassword());
+        appEnv.setProperty("PGSSLMODE", "disable");
+        appEnv.setProperty("PGCONNECT_TIMEOUT", "3");
         run(List.of(bin(home, "psql").toString(), "-h", "127.0.0.1", "-p", Integer.toString(port),
                 "-U", APP_USER, "-d", DATABASE, "-v", "ON_ERROR_STOP=1", "-tAc", "SELECT 1"),
                 appEnv, Duration.ofSeconds(15));
@@ -496,13 +516,27 @@ public final class ManagedPostgresRuntime {
         }
     }
 
-    private static void waitForPort(int port, Duration timeout) throws InterruptedException {
+    private static void waitForReady(Path home, int port, Duration timeout) throws InterruptedException {
         long deadline = System.nanoTime() + timeout.toNanos();
+        String lastOutput = "no response";
         while (System.nanoTime() < deadline) {
-            if (isPortListening(port)) return;
+            try {
+                ProcessResult ready = run(List.of(
+                        bin(home, "pg_isready").toString(),
+                        "-h", "127.0.0.1",
+                        "-p", Integer.toString(port),
+                        "-t", "1"), null, Duration.ofSeconds(3), false);
+                lastOutput = ready.output().strip();
+                if (ready.exitCode() == 0) return;
+            } catch (InterruptedException interrupted) {
+                throw interrupted;
+            } catch (Exception exception) {
+                lastOutput = exception.getMessage() == null ? exception.toString() : exception.getMessage();
+            }
             Thread.sleep(250);
         }
-        throw new IllegalStateException("Managed PostgreSQL did not start on 127.0.0.1:" + port);
+        throw new IllegalStateException("Managed PostgreSQL process is present but not accepting PostgreSQL connections on 127.0.0.1:"
+                + port + ". pg_isready: " + lastOutput);
     }
 
     private static ProcessResult run(List<String> command, Properties environment, Duration timeout) throws Exception {
@@ -555,13 +589,16 @@ public final class ManagedPostgresRuntime {
     }
 
     public static synchronized void shutdownIfConfigured() {
-        if (!startedByDesktop || activeHome == null || activeData == null) return;
-        boolean stop = Boolean.parseBoolean(ConfigManager.get("runtime.postgres.stopOnExit", "false"));
+        if (activeHome == null || activeData == null) return;
+        boolean keepAlive = Boolean.parseBoolean(ConfigManager.get("runtime.postgres.keepAliveOnExit", "false"));
+        boolean configuredStop = Boolean.parseBoolean(ConfigManager.get("runtime.postgres.stopOnExit", "false"));
+        boolean stop = !keepAlive && (isPackagedRuntime() || configuredStop);
         if (!stop) return;
         try {
             run(List.of(bin(activeHome, "pg_ctl").toString(), "-D", activeData.toString(), "-w", "-t", "15", "stop", "-m", "fast"),
                     null, Duration.ofSeconds(20));
             startedByDesktop = false;
+            prepared = false;
         } catch (Exception exception) {
             System.err.println("Managed PostgreSQL shutdown failed: " + exception.getMessage());
         }

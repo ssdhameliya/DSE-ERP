@@ -21,6 +21,7 @@ import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
+import org.example.util.UiTaskExecutor;
 
 import java.io.File;
 import java.time.LocalDate;
@@ -172,25 +173,68 @@ public class BankStatementController {
         try{
             var p=parser.parse(file.toPath());
             var req=new BankStatementApiClient.ImportRequest(p.bankName(),p.accountNumber(),p.accountHolder(),p.statementFrom(),p.statementTo(),p.currency(),p.openingBalance(),p.closingBalance(),p.sourceFingerprint(),p.sourceFileName(),p.sourceCsv(),user(),p.rows());
-            var r=api.importStatement(req); info("Bank statement imported","Imported: "+r.importedRows()+"\nOverlapping duplicates skipped: "+r.duplicateRows()); loadBatches(); selectBatch(r.batch().id());
+            var r=api.importStatement(req); info("Bank statement imported","Imported: "+r.importedRows()+"\nOverlapping duplicates skipped: "+r.duplicateRows()); loadBatches(r.batch().id());
         }catch(Exception e){error(e);}
     }
-    private void loadBatches(){try{Long selected=cmbBatch.getValue()==null?null:cmbBatch.getValue().id();var list=api.batches();cmbBatch.getItems().setAll(list);if(selected!=null)selectBatch(selected);else if(!list.isEmpty())cmbBatch.setValue(list.getFirst());}catch(Exception e){error(e);}}
+    private void loadBatches(){loadBatches(null);}
+
+    private void loadBatches(Long preferredBatchId){
+        Long selected = preferredBatchId != null
+            ? preferredBatchId
+            : cmbBatch.getValue()==null ? null : cmbBatch.getValue().id();
+        UiTaskExecutor.submitLatest(
+            "bank-statement-batches",
+            api::batches,
+            list -> {
+                cmbBatch.getItems().setAll(list);
+                if(selected!=null)selectBatch(selected);
+                else if(!list.isEmpty())cmbBatch.setValue(list.getFirst());
+                else {
+                    all.clear();
+                    applyFilters();
+                    clearMetrics();
+                }
+            },
+            this::error
+        );
+    }
+
     private void selectBatch(Long id){for(var b:cmbBatch.getItems())if(Objects.equals(b.id(),id)){cmbBatch.setValue(b);return;}}
-    private void loadBatch(long id){try{
+
+    private void loadBatch(long id){
         applyBatchPeriod();
-        all.clear();
-        all.addAll(api.transactions(id));
-        applyFilters();
-        loadMetrics(id);
-    }catch(Exception e){error(e);}}
+        UiTaskExecutor.submitLatest(
+            "bank-statement-batch-load",
+            () -> new BatchLoad(api.transactions(id), api.metrics(id)),
+            loaded -> {
+                if(cmbBatch.getValue()==null || !Objects.equals(cmbBatch.getValue().id(), id)) return;
+                all.clear();
+                all.addAll(loaded.transactions());
+                applyFilters();
+                applyMetrics(loaded.metrics());
+            },
+            this::error
+        );
+    }
+
     private void applyBatchPeriod(){
         var b=cmbBatch.getValue();
         if(b==null)return;
         fromDate.setValue(parseDate(b.statementFrom()));
         toDate.setValue(parseDate(b.statementTo()));
     }
-    private void loadMetrics(long id){var m=api.metrics(id);kpiTotal.setText(""+m.total());kpiUnmatched.setText(""+m.unmatched());kpiSuggested.setText(""+m.suggested());kpiMatched.setText(""+m.matched());kpiExpense.setText(""+m.expenses());kpiCredits.setText(money(m.totalCredits()));kpiDebits.setText(money(m.totalDebits()));kpiReconciled.setText(String.format(Locale.ENGLISH,"%.1f%%",m.reconciledPercent()));lblProgressText.setText(m.reconciled()+" / "+m.total()+" reconciled");reconciliationProgress.setProgress(m.total()==0?0:m.reconciledPercent()/100d);lblBatchStatus.setText(m.batchStatus());}
+    private void applyMetrics(BankStatementApiClient.Metrics m){
+        if(m==null){clearMetrics();return;}
+        kpiTotal.setText(""+m.total());kpiUnmatched.setText(""+m.unmatched());kpiSuggested.setText(""+m.suggested());kpiMatched.setText(""+m.matched());kpiExpense.setText(""+m.expenses());
+        kpiCredits.setText(money(m.totalCredits()));kpiDebits.setText(money(m.totalDebits()));kpiReconciled.setText(String.format(Locale.ENGLISH,"%.1f%%",m.reconciledPercent()));
+        lblProgressText.setText(m.reconciled()+" / "+m.total()+" reconciled");reconciliationProgress.setProgress(m.total()==0?0:m.reconciledPercent()/100d);lblBatchStatus.setText(m.batchStatus());
+    }
+
+    private void clearMetrics(){
+        kpiTotal.setText("0");kpiUnmatched.setText("0");kpiSuggested.setText("0");kpiMatched.setText("0");kpiExpense.setText("0");
+        kpiCredits.setText("0.00");kpiDebits.setText("0.00");kpiReconciled.setText("0.0%");
+        lblProgressText.setText("0 / 0 reconciled");reconciliationProgress.setProgress(0);lblBatchStatus.setText("No statement selected");
+    }
 
     @FXML private void applyFilters(){
         String q=txtSearch.getText()==null?"":txtSearch.getText().trim().toLowerCase(Locale.ROOT); String status=cmbStatus.getValue(); String direction=cmbDirection==null?"All":cmbDirection.getValue(); LocalDate from=fromDate.getValue(),to=toDate.getValue(); List<Row> rows=new ArrayList<>();
@@ -479,6 +523,8 @@ public class BankStatementController {
     private static String up(String s){return s==null?"":s.trim().toUpperCase(Locale.ROOT);} private static LocalDate parseDate(String s){try{return LocalDate.parse(s);}catch(Exception e){return null;}}
     private void info(String h,String t){Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,t);a.setHeaderText(h);a.showAndWait();}
     private void error(Throwable e){Alert a=new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?e.toString():e.getMessage());a.setHeaderText("Bank Statement operation failed");a.showAndWait();}
+
+    private record BatchLoad(List<BankStatementApiClient.TransactionDto> transactions, BankStatementApiClient.Metrics metrics) { }
 
     public static final class Row{
         final BankStatementApiClient.TransactionDto dto;final BooleanProperty selected=new SimpleBooleanProperty(false);final StringProperty date,valueDate,reference,description,status,match;final DoubleProperty debit,credit,balance;
