@@ -50,7 +50,7 @@
             <CheckBox fx:id="chkSelectAll" text="Select all visible" onAction="#selectAllVisible"/>
             <Label fx:id="lblSelected" text="0 selected" styleClass="bank-recon-progress-label"/>
             <Region HBox.hgrow="ALWAYS"/>
-            <MenuButton fx:id="bulkActions" text="Bulk Actions" disable="true" styleClass="approved-button,approved-secondary-button">
+            <MenuButton fx:id="bulkActions" text="Bulk Actions" disable="true" styleClass="approved-button,approved-secondary-button,erp-action-toolbar-menu">
               <items>
                 <MenuItem text="Mark selected for review" onAction="#bulkMarkReview"/>
                 <MenuItem text="Ignore selected" onAction="#bulkIgnore"/>

@@ -303,7 +303,7 @@ public class PurchaseController {
     private String itemSearchHaystack(Item item){return (safeItem(item.getItemCode())+" "+safeItem(item.getDescription())+" "+safeItem(item.getRemarks())+" "+safeItem(item.getHsn())).toLowerCase(java.util.Locale.ROOT);}
     private String itemDisplay(Item item){if(item==null)return "";String remarks=safeItem(item.getRemarks()),description=safeItem(item.getDescription());if(remarks.isBlank())return description;if(description.isBlank())return remarks;return remarks+" • "+description;}
     private String safeItem(String value){return value==null?"":value.trim();}
-    private String itemNameForDisplay(String itemCode,String persistedDescription){String code=safeItem(itemCode);if(!code.isBlank())for(Item item:allItems)if(code.equalsIgnoreCase(safeItem(item.getItemCode()))){String name=safeItem(item.getDescription());if(!name.isBlank())return name;}String fallback=safeItem(persistedDescription);int separator=fallback.indexOf(" - ");return separator>=0&&separator+3<fallback.length()?fallback.substring(separator+3).trim():fallback;}
+    private String itemNameForDisplay(String itemCode,String persistedDescription){String code=safeItem(itemCode);if(!code.isBlank())for(Item item:allItems)if(code.equalsIgnoreCase(safeItem(item.getItemCode()))){String name=itemDisplay(item);if(!name.isBlank())return name;}String fallback=safeItem(persistedDescription);int separator=fallback.indexOf(" - ");return separator>=0&&separator+3<fallback.length()?fallback.substring(separator+3).trim():fallback;}
 
 
 

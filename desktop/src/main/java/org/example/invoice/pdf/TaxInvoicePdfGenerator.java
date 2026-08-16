@@ -706,7 +706,7 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Table buildFinancialTable(TaxInvoiceDocument invoice) {
-        Table outer = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
+        Table outer = new Table(UnitValue.createPercentArray(new float[]{65, 2, 33}))
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
         Cell left = roundedFilled(new Cell()
@@ -724,7 +724,7 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Table buildClosingTotalsTable(TaxInvoiceDocument invoice) {
-        Table closing = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
+        Table closing = new Table(UnitValue.createPercentArray(new float[]{65, 2, 33}))
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
         Table words = new Table(UnitValue.createPercentArray(new float[]{12, 88})).useAllAvailableWidth();
@@ -737,21 +737,17 @@ public final class TaxInvoicePdfGenerator {
         closing.addCell(roundedFilled(noBorder().setPadding(0).add(words), GREEN));
         closing.addCell(noBorder());
 
-        // Center the complete GRAND TOTAL statement, not only the numeric value.
-        // Equal 18% outer gutters surround a 64% content group. Inside that group,
-        // label/value proportions are 70/30 (~45/19 of the card), matching the
-        // requested visual balance while keeping equal left/right breathing room.
-        Table grand = new Table(UnitValue.createPercentArray(new float[]{18, 64, 18})).useAllAvailableWidth();
-        grand.addCell(noBorder());
-        Table grandContent = new Table(UnitValue.createPercentArray(new float[]{70, 30})).useAllAvailableWidth();
-        grandContent.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.LEFT)
+        // The 33% Grand Total card uses its full width: label at the left edge,
+        // amount at the far right edge. No centered nested wrapper is used.
+        Table grand = new Table(UnitValue.createPercentArray(new float[]{62, 38})).useAllAvailableWidth();
+        grand.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.LEFT)
+                .setPaddingLeft(6).setPaddingRight(3)
                 .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
                 .add(new Paragraph("G R A N D   T O T A L").setBold().setFontSize(7.2f).setMargin(0)));
-        grandContent.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.RIGHT)
+        grand.addCell(noBorder().setFontColor(NAVY).setTextAlignment(TextAlignment.RIGHT)
+                .setPaddingLeft(3).setPaddingRight(6)
                 .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)
                 .add(new Paragraph(money(invoice.totals().grandTotal())).setBold().setFontSize(8.1f).setMargin(0)));
-        grand.addCell(noBorder().setPadding(0).add(grandContent));
-        grand.addCell(noBorder());
         closing.addCell(roundedFilled(noBorder().setPadding(0).add(grand), GREEN));
         return closing;
     }
@@ -842,7 +838,7 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Table buildTermsAndSignatureTable(TaxInvoiceDocument invoice) {
-        Table table = new Table(UnitValue.createPercentArray(new float[]{49, 2, 49}))
+        Table table = new Table(UnitValue.createPercentArray(new float[]{65, 2, 33}))
                 .useAllAvailableWidth().setKeepTogether(true).setMargin(0);
 
         // Restore the original dynamic Terms & Conditions card. The table row itself
@@ -858,7 +854,7 @@ public final class TaxInvoicePdfGenerator {
         table.addCell(terms);
         table.addCell(noBorder());
 
-        // Signature keeps the same dynamic 49/2/49 row as Terms & Conditions, but
+        // Signature shares the same dynamic 65/2/33 row as Terms & Conditions, but
         // uses a much wider balanced inner content zone to avoid wasting side space.
         Cell signatureOuter = roundedFilled(new Cell()
                 .setPaddingTop(COMPACT_VERTICAL_PADDING).setPaddingBottom(COMPACT_VERTICAL_PADDING)

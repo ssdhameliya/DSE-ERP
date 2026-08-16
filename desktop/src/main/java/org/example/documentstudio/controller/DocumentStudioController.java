@@ -234,7 +234,7 @@ public class DocumentStudioController implements ScreenLifecycle {
     private VBox card(DocumentTemplate template) {
         VBox card = new VBox(9);
         card.getStyleClass().add("doc-template-card");
-        card.setPrefWidth(300); card.setMinWidth(270); card.setMaxWidth(330);
+        card.setPrefWidth(320); card.setMinWidth(300); card.setMaxWidth(350);
 
         StackPane preview = new StackPane();
         preview.getStyleClass().add("doc-template-preview"); preview.setPrefHeight(165);
@@ -255,7 +255,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         HBox actions = new HBox(7);
         Button edit = new Button("Edit"); edit.setOnAction(e -> openDesigner(template));
         Button previewButton = new Button("Preview"); previewButton.setOnAction(e -> previewTemplate(template));
-        MenuButton more = new MenuButton("More");
+        MenuButton more = new MenuButton("Actions");
         MenuItem setDefault = new MenuItem("Set as Default");
         setDefault.setDisable(!template.isErpConnected()); setDefault.setOnAction(e -> setDefault(template));
         MenuItem duplicate = new MenuItem("Duplicate"); duplicate.setOnAction(e -> duplicate(template));

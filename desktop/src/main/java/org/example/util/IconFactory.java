@@ -11,7 +11,13 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputControl;
+import javafx.scene.control.ComboBoxBase;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.geometry.Pos;
@@ -205,7 +211,8 @@ public final class IconFactory {
                 || styles.contains("help") || styles.contains("placeholder") || styles.contains("error")) return;
         boolean fieldStyle = styles.contains("field-label") || styles.contains("form-label") || styles.contains("filter-label")
                 || styles.contains("meta-label") || styles.contains("detail-label") || styles.contains("field-caption")
-                || styles.contains("inline-label") || label.getParent() instanceof GridPane;
+                || styles.contains("inline-label") || label.getParent() instanceof GridPane
+                || isStructurallyPairedFieldLabel(label);
         if (!fieldStyle) return;
         String semantic = semanticForLabel(text);
         if (semantic == null) return;
@@ -215,6 +222,28 @@ public final class IconFactory {
         label.setContentDisplay(ContentDisplay.LEFT);
         label.setGraphicTextGap(5);
         label.getProperties().put("erp.label.icon.semantic", semantic);
+    }
+
+    /**
+     * Recognizes direct label/input pairs used throughout ordinary pages and
+     * programmatic Add/Edit dialogs even when no field-label style class exists.
+     */
+    private static boolean isStructurallyPairedFieldLabel(Label label) {
+        Parent parent = label == null ? null : label.getParent();
+        if (!(parent instanceof VBox || parent instanceof HBox)) return false;
+        if (!(parent instanceof Pane pane)) return false;
+        if (pane.getChildren().size() > 6) return false;
+        for (Node sibling : pane.getChildren()) {
+            if (sibling != label && isFieldInput(sibling)) return true;
+        }
+        return false;
+    }
+
+    private static boolean isFieldInput(Node node) {
+        return node instanceof TextInputControl
+                || node instanceof ComboBoxBase<?>
+                || node instanceof Spinner<?>
+                || node instanceof ChoiceBox<?>;
     }
 
     private static boolean isTableActionMenu(MenuButton menu) {
@@ -412,6 +441,9 @@ public final class IconFactory {
     private static String literal(String semantic) {
         return switch (semantic) {
             case "dashboard" -> "fas-th-large";
+            case "business" -> "fas-building";
+            case "application" -> "fas-desktop";
+            case "chevron" -> "fas-chevron-right";
             case "sale" -> "fas-shopping-cart";
             case "purchase" -> "fas-briefcase";
             case "quotation" -> "fas-file-alt";
@@ -524,10 +556,10 @@ public final class IconFactory {
         return switch (semantic) {
             case "sale", "complete", "add", "import", "whatsapp", "save", "validate", "excel" -> "green";
             case "purchase", "item", "filter", "reminder", "calendar", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
-            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print" -> "purple";
+            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
-            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance" -> "blue";
+            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
             case "credit" -> "green";
             case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart", "workflow", "version" -> "purple";
             case "compatibility", "database-backup", "snapshot", "recovery" -> "blue";
@@ -556,6 +588,7 @@ public final class IconFactory {
     private static String semantic(String text) {
         String value = text == null ? "" : text.toLowerCase(Locale.ROOT).trim();
         if (value.isBlank()) return null;
+        if (value.equals("×") || value.equals("✕") || value.equals("x")) return "cancel";
         if (value.equals("first") || value.equals("|‹") || value.equals("«")) return "first";
         if (value.equals("previous") || value.equals("‹")) return "previous";
         if (value.equals("next") || value.equals("›")) return "next";
@@ -594,6 +627,11 @@ public final class IconFactory {
         if (value.contains("offline package") || value.contains("install update")) return "update";
         if (value.equals("menu")) return "menu";
         if (value.contains("notification")) return "notification";
+        if (value.contains("company name") || value.contains("business name")) return "business";
+        if (value.startsWith("pan") || value.contains(" pan")) return "identity";
+        if (value.contains("business type") || value.contains("industry")) return "category";
+        if (value.contains("application name")) return "application";
+        if (value.contains("tagline")) return "notes";
         if (value.contains("workspace")) return "workspace";
         if (value.contains("date") || value.contains("time zone") || value.equals("time")) return "calendar";
         if (value.contains("reference") || value.contains("cheque") || value.contains("order no")) return "reference";

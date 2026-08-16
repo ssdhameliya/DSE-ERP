@@ -108,9 +108,11 @@ public class DashboardController {
     @FXML private VBox salesSubmenu;
     @FXML private VBox purchaseSubmenu;
     @FXML private VBox bankExpenseSubmenu;
+    @FXML private VBox settingsSubmenu;
     @FXML private Label lblSalesChevron;
     @FXML private Label lblPurchaseChevron;
     @FXML private Label lblBankExpenseChevron;
+    @FXML private Label lblSettingsChevron;
     @FXML
     private Button btnOperations;
     @FXML private Button btnBankExpense;
@@ -125,6 +127,13 @@ public class DashboardController {
 
     @FXML
     private Button btnSettings;
+    @FXML private Button btnSettingsCompany;
+    @FXML private Button btnSettingsPayment;
+    @FXML private Button btnSettingsInvoice;
+    @FXML private Button btnSettingsNotifications;
+    @FXML private Button btnSettingsEmail;
+    @FXML private Button btnSettingsWorkspace;
+    @FXML private Button btnSettingsUpdates;
 
     @FXML
     private Label lblPageTitle;
@@ -269,6 +278,8 @@ public class DashboardController {
 
         inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
         inheritGroupPermission(btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement);
+        inheritGroupPermission(btnSettings, btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice,
+                btnSettingsNotifications, btnSettingsEmail, btnSettingsWorkspace, btnSettingsUpdates);
     }
 
     private void protect(Button button, String permission) {
@@ -394,6 +405,10 @@ public class DashboardController {
             : text.contains("report") ? "report"
             : text.contains("email") || text.contains("communication") ? "email"
             : text.contains("document studio") ? "document"
+            : text.contains("company") ? "business"
+            : text.contains("invoice") || text.contains("delivery") ? "document"
+            : text.contains("workspace") || text.contains("storage") ? "workspace"
+            : text.contains("application update") ? "update"
             : text.contains("notification") ? "notification"
             : text.contains("reminder") ? "reminder"
             : text.contains("rollback") ? "rollback"
@@ -430,18 +445,31 @@ public class DashboardController {
         if (button != null && !button.getStyleClass().contains("menu-selected")) button.getStyleClass().add("menu-selected");
     }
 
-    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE }
+    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE, SETTINGS }
 
     /** Initializes the sidebar in a compact state so a new login shows only top-level modules. */
     private void initializeSidebarAccordion() {
+        configureChevron(lblSalesChevron);
+        configureChevron(lblPurchaseChevron);
+        configureChevron(lblBankExpenseChevron);
+        configureChevron(lblSettingsChevron);
         setGroupExpanded(NavGroup.SALES, false, false);
         setGroupExpanded(NavGroup.PURCHASE, false, false);
         setGroupExpanded(NavGroup.BANK_EXPENSE, false, false);
+        setGroupExpanded(NavGroup.SETTINGS, false, false);
+    }
+
+    private void configureChevron(Label chevron) {
+        if (chevron == null) return;
+        chevron.setText("");
+        chevron.setGraphic(IconFactory.compactIcon("chevron", 13));
+        chevron.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
 
     @FXML private void toggleSalesMenu() { toggleGroup(NavGroup.SALES); }
     @FXML private void togglePurchaseMenu() { toggleGroup(NavGroup.PURCHASE); }
     @FXML private void toggleBankExpenseMenu() { toggleGroup(NavGroup.BANK_EXPENSE); }
+    @FXML private void toggleSettingsMenu() { toggleGroup(NavGroup.SETTINGS); }
 
     private void toggleGroup(NavGroup group) {
         if (isGroupDisabled(group)) return;
@@ -461,7 +489,7 @@ public class DashboardController {
     }
 
     private void collapseAllSubmenus(NavGroup except) {
-        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE}) {
+        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.SETTINGS}) {
             if (group != except) setGroupExpanded(group, false, true);
         }
     }
@@ -495,6 +523,7 @@ public class DashboardController {
             case SALES -> salesSubmenu;
             case PURCHASE -> purchaseSubmenu;
             case BANK_EXPENSE -> bankExpenseSubmenu;
+            case SETTINGS -> settingsSubmenu;
             default -> null;
         };
     }
@@ -504,6 +533,7 @@ public class DashboardController {
             case SALES -> lblSalesChevron;
             case PURCHASE -> lblPurchaseChevron;
             case BANK_EXPENSE -> lblBankExpenseChevron;
+            case SETTINGS -> lblSettingsChevron;
             default -> null;
         };
     }
@@ -513,6 +543,7 @@ public class DashboardController {
             case SALES -> btnSales;
             case PURCHASE -> btnPurchase;
             case BANK_EXPENSE -> btnBankExpense;
+            case SETTINGS -> btnSettings;
             default -> null;
         };
     }
@@ -524,10 +555,15 @@ public class DashboardController {
             return NavGroup.PURCHASE;
         if (button == btnBankExpense || button == btnBankEntry || button == btnExpenseEntry || button == btnBankStatement)
             return NavGroup.BANK_EXPENSE;
+        if (button == btnSettings || button == btnSettingsCompany || button == btnSettingsPayment
+                || button == btnSettingsInvoice || button == btnSettingsNotifications || button == btnSettingsEmail
+                || button == btnSettingsWorkspace || button == btnSettingsUpdates)
+            return NavGroup.SETTINGS;
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
         if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
         if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
         if (path.contains("bankexpense") || path.contains("bankstatement")) return NavGroup.BANK_EXPENSE;
+        if (path.contains("settings")) return NavGroup.SETTINGS;
         return NavGroup.NONE;
     }
 
@@ -587,8 +623,11 @@ public class DashboardController {
         }
         if (btnPurchase != null) btnPurchase.getStyleClass().remove("menu-group-active");
         if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-group-active");
+        if (btnSettings != null) btnSettings.getStyleClass().remove("menu-group-active");
         for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
-                btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement}) {
+                btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement,
+                btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail,
+                btnSettingsWorkspace, btnSettingsUpdates}) {
             if (child != null) child.getStyleClass().remove("menu-selected");
         }
         if (btnQuotation != null)
@@ -820,10 +859,40 @@ public class DashboardController {
 
     @FXML
     private void openSettings() {
-        openPage(btnSettings,
-            "Settings",
-            "/fxml/pages/Settings.fxml");
+        openSettingsSection(btnSettingsCompany, SettingsController.Section.COMPANY, "Company & Billing");
+    }
 
+    @FXML private void openSettingsCompany() {
+        openSettingsSection(btnSettingsCompany, SettingsController.Section.COMPANY, "Company & Billing");
+    }
+
+    @FXML private void openSettingsPayment() {
+        openSettingsSection(btnSettingsPayment, SettingsController.Section.PAYMENT, "Payment & Bank");
+    }
+
+    @FXML private void openSettingsInvoice() {
+        openSettingsSection(btnSettingsInvoice, SettingsController.Section.INVOICE, "Invoice & Delivery");
+    }
+
+    @FXML private void openSettingsNotifications() {
+        openSettingsSection(btnSettingsNotifications, SettingsController.Section.NOTIFICATIONS, "Notifications");
+    }
+
+    @FXML private void openSettingsEmail() {
+        openSettingsSection(btnSettingsEmail, SettingsController.Section.EMAIL, "Email Settings");
+    }
+
+    @FXML private void openSettingsWorkspace() {
+        openSettingsSection(btnSettingsWorkspace, SettingsController.Section.WORKSPACE, "Workspace & Storage");
+    }
+
+    @FXML private void openSettingsUpdates() {
+        openSettingsSection(btnSettingsUpdates, SettingsController.Section.UPDATES, "Application Updates");
+    }
+
+    private void openSettingsSection(Button selectedButton, SettingsController.Section section, String title) {
+        SettingsController.requestSection(section);
+        openPage(selectedButton, "Settings • " + title, "/fxml/pages/Settings.fxml");
     }
 
     @FXML

@@ -46,44 +46,7 @@
     <center>
         <VBox spacing="8" styleClass="settings-content,settings-workspace-layout">
 
-            <!-- Compact horizontal settings navigator. The redundant workspace heading was
-                 intentionally removed so the selected category starts higher on screen. -->
-            <VBox spacing="0" styleClass="settings-category-shell">
-                <ScrollPane fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="NEVER" pannable="true" styleClass="settings-category-scroll">
-                    <content>
-                        <HBox spacing="8" alignment="CENTER_LEFT" styleClass="settings-category-strip">
-                            <HBox fx:id="navCompany" onMouseClicked="#showCompany" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item,settings-navigation-item-selected">
-                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-company"><SVGPath content="M3 4h14v13H3V4zm3 3h2v2H6V7zm4 0h2v2h-2V7zm4 0h1v2h-1V7zM6 11h2v2H6v-2zm4 0h2v2h-2v-2zm4 0h1v2h-1v-2z" styleClass="settings-navigation-svg"/></StackPane>
-                                <VBox spacing="1"><Label text="Company &amp; Billing" styleClass="settings-navigation-title"/><Label text="Identity &amp; branding" styleClass="settings-navigation-description"/></VBox>
-                            </HBox>
-                            <HBox fx:id="navPayment" onMouseClicked="#showPayment" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
-                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-payment"><SVGPath content="M2 5h16v11H2V5zm0 3h16M5 12h4" styleClass="settings-navigation-svg"/></StackPane>
-                                <VBox spacing="1"><Label text="Payment &amp; Bank" styleClass="settings-navigation-title"/><Label text="Bank &amp; UPI" styleClass="settings-navigation-description"/></VBox>
-                            </HBox>
-                            <HBox fx:id="navInvoice" onMouseClicked="#showInvoice" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
-                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-invoice"><SVGPath content="M5 2h8l4 4v12H5V2zm8 0v5h5M8 10h6M8 13h6M8 16h4" styleClass="settings-navigation-svg"/></StackPane>
-                                <VBox spacing="1"><Label text="Invoice &amp; Delivery" styleClass="settings-navigation-title"/><Label text="Terms &amp; numbering" styleClass="settings-navigation-description"/></VBox>
-                            </HBox>
-                            <HBox fx:id="navNotifications" onMouseClicked="#showNotifications" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
-                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-notification"><SVGPath content="M5 14h10l-1.5-2.5V8a3.5 3.5 0 0 0-7 0v3.5L5 14zm3.5 2h3" styleClass="settings-navigation-svg"/></StackPane>
-                                <VBox spacing="1"><Label text="Notifications" styleClass="settings-navigation-title"/><Label text="Activity alerts" styleClass="settings-navigation-description"/></VBox>
-                            </HBox>
-                            <HBox fx:id="navEmail" onMouseClicked="#showEmail" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
-                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-email"><SVGPath content="M2 4h16v12H2V4zm2 2l6 4.5L16 6" styleClass="settings-navigation-svg"/></StackPane>
-                                <VBox spacing="1"><Label text="Email Settings" styleClass="settings-navigation-title"/><Label text="SMTP &amp; delivery" styleClass="settings-navigation-description"/></VBox>
-                            </HBox>
-                            <HBox fx:id="navWorkspace" onMouseClicked="#showWorkspace" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
-                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-workspace"><SVGPath content="M2 5h7l2 2h7v10H2V5zm2 4h12" styleClass="settings-navigation-svg"/></StackPane>
-                                <VBox spacing="1"><Label text="Workspace &amp; Storage" styleClass="settings-navigation-title"/><Label text="Database &amp; files" styleClass="settings-navigation-description"/></VBox>
-                            </HBox>
-                            <HBox fx:id="navUpdates" onMouseClicked="#showUpdates" alignment="CENTER" spacing="8" styleClass="settings-category-tile,settings-navigation-item">
-                                <StackPane styleClass="settings-navigation-icon-box,settings-icon-update"><SVGPath content="M10 2a8 8 0 1 0 7.5 5.2h-2.2A6 6 0 1 1 10 4V1l4 3-4 3V4z" styleClass="settings-navigation-svg"/></StackPane>
-                                <VBox spacing="1"><Label text="Application Updates" styleClass="settings-navigation-title"/><Label text="Release &amp; history" styleClass="settings-navigation-description"/></VBox>
-                            </HBox>
-                        </HBox>
-                    </content>
-                </ScrollPane>
-            </VBox>
+            <!-- 7.3.7: Settings categories are selected from the main sidebar accordion. -->
 
             <!-- Active category gets the full application width below the navigator. -->
             <ScrollPane fx:id="panelScroll" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS" styleClass="clean-scroll,settings-panel-scroll,settings-workspace-panel-scroll">
@@ -600,7 +563,7 @@
                             <HBox spacing="14">
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
                                     <Label text="Current Version" styleClass="settings-form-label"/>
-                                    <Label fx:id="lblCurrentVersion" text="7.3.6" styleClass="update-version-value"/>
+                                    <Label fx:id="lblCurrentVersion" text="7.3.7" styleClass="update-version-value"/>
                                     <Label text="Installed application" styleClass="settings-help-text"/>
                                 </VBox>
                                 <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">

@@ -7531,3 +7531,34 @@
 .universal-footer-company,.universal-footer-detail,.universal-footer-clock { -fx-text-fill: #e6f0fb; }
 .date-picker > .text-field { -fx-text-fill: -app-input-text; -fx-prompt-text-fill: -app-input-prompt; }
 .date-picker > .arrow-button { -fx-background-color: #1b3048; }
+
+
+/* 7.3.7 dark DatePicker state palette; structural geometry lives in ui-components.css. */
+.date-picker-popup > * > .month-year-pane > .spinner > .button {
+    -fx-background-color: #193554;
+    -fx-border-color: #36516d;
+    -fx-border-width: 1px;
+}
+.date-picker-popup > * > .month-year-pane > .spinner > .button:hover {
+    -fx-background-color: #23476f;
+}
+.date-picker-popup > * > .month-year-pane > .spinner > .button:pressed {
+    -fx-background-color: #2f5b8b;
+}
+.date-picker-popup > * > .month-year-pane > .spinner > .button .left-arrow,
+.date-picker-popup > * > .month-year-pane > .spinner > .button .right-arrow {
+    -fx-background-color: #f4f8ff;
+}
+.date-picker-popup .day-cell:focused {
+    -fx-background-color: #173a62;
+    -fx-text-fill: #dbeafe;
+}
+.date-picker-popup .day-cell:selected {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: #ffffff;
+}
+.date-picker-popup .previous-month,
+.date-picker-popup .next-month {
+    -fx-background-color: #0e1b2b;
+    -fx-text-fill: #62758d;
+}

@@ -59,10 +59,11 @@ public final class QuotationEditorController {
     }
 
     private void configureTable(){
-        colItem.setCellValueFactory(v->v.getValue().description);colCode.setCellValueFactory(v->v.getValue().code);
+        colItem.setCellValueFactory(v->new SimpleStringProperty(lineDisplay(v.getValue().code.get(),v.getValue().description.get())));
+        colCode.setCellValueFactory(v->v.getValue().code);
+        tableLines.getColumns().remove(colCode);
         colQty.setCellValueFactory(v->v.getValue().quantity);colRate.setCellValueFactory(v->v.getValue().rate);colGst.setCellValueFactory(v->v.getValue().gst);colDiscount.setCellValueFactory(v->v.getValue().discount);colAmount.setCellValueFactory(v->v.getValue().total);
         IconFactory.applyTableHeaderIcon(colItem,"item");
-        IconFactory.applyTableHeaderIcon(colCode,"identity");
         IconFactory.applyTableHeaderIcon(colQty,"quantity");
         IconFactory.applyTableHeaderIcon(colRate,"currency");
         IconFactory.applyTableHeaderIcon(colGst,"tax");
@@ -71,6 +72,14 @@ public final class QuotationEditorController {
         IconFactory.applyTableHeaderIcon(colAction,"actions");
         for(TableColumn<LineRow,Number> column:List.of(colQty,colRate,colGst,colDiscount,colAmount))column.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);setText(empty||value==null?null:String.format(Locale.ENGLISH,"%,.2f",value.doubleValue()));setAlignment(Pos.CENTER_RIGHT);}});
         colAction.setCellFactory(c->new TableCell<>(){final Button remove=new Button("Remove",IconFactory.compactIcon("delete",14));{remove.getStyleClass().addAll("approved-button","danger-button");remove.setOnAction(e->{LineRow row=getTableRow()==null?null:(LineRow)getTableRow().getItem();if(row!=null)tableLines.getItems().remove(row);});}@Override protected void updateItem(Void value,boolean empty){super.updateItem(value,empty);setGraphic(empty?null:remove);}});
+    }
+
+    private String lineDisplay(String code,String persistedDescription){
+        String normalized=safe(code).trim();
+        for(ItemChoice item:allItemChoices){
+            if(item.code.equalsIgnoreCase(normalized)) return item.toString();
+        }
+        return safe(persistedDescription).trim();
     }
 
     private void loadChoices(){
@@ -134,6 +143,6 @@ public final class QuotationEditorController {
     private void error(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?"Quotation operation failed.":e.getMessage()).showAndWait();}
 
     private static final class CustomerChoice{final int id;final String name;CustomerChoice(Party p){id=p.getId();name=p.getName();}@Override public String toString(){return name;}}
-    private static final class ItemChoice{final String code,description,remarks;final double rate,gst,discount;ItemChoice(Item i){code=safe(i.getItemCode());description=safe(i.getDescription());remarks=safe(i.getRemarks());rate=i.getSellingPrice();gst=i.getGst();discount=i.getDiscountPercent();}String searchText(){return (code+" "+description+" "+remarks).toLowerCase(Locale.ROOT);}@Override public String toString(){if(remarks.isBlank())return description;if(description.isBlank())return remarks;return remarks+" • "+description;}}
+    private static final class ItemChoice{final String code,description,remarks,hsn;final double rate,gst,discount;ItemChoice(Item i){code=safe(i.getItemCode());description=safe(i.getDescription());remarks=safe(i.getRemarks());hsn=safe(i.getHsn());rate=i.getSellingPrice();gst=i.getGst();discount=i.getDiscountPercent();}String searchText(){return (code+" "+description+" "+remarks+" "+hsn).toLowerCase(Locale.ROOT);}@Override public String toString(){if(remarks.isBlank())return description;if(description.isBlank())return remarks;return remarks+" • "+description;}}
     public static final class LineRow{final StringProperty code=new SimpleStringProperty(),description=new SimpleStringProperty();final DoubleProperty quantity=new SimpleDoubleProperty(),rate=new SimpleDoubleProperty(),gst=new SimpleDoubleProperty(),discount=new SimpleDoubleProperty(),discountAmount=new SimpleDoubleProperty(),gstAmount=new SimpleDoubleProperty(),total=new SimpleDoubleProperty();LineRow(QuotationApiClient.LineDto l){this(l.code(),l.description(),l.quantity(),l.rate(),l.gst(),l.discount());}LineRow(String c,String d,double q,double r,double g,double disc){code.set(c);description.set(d);quantity.set(q);rate.set(r);gst.set(g);discount.set(disc);double gross=q*r,discountValue=gross*disc/100,taxable=gross-discountValue;discountAmount.set(discountValue);gstAmount.set(taxable*g/100);total.set(taxable+gstAmount.get());}}
 }

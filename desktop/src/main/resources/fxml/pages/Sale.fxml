@@ -162,7 +162,7 @@
                         </VBox>
                     </placeholder>
                     <columns>
-                        <TableColumn fx:id="colItem" text="Item Name" prefWidth="320" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colItem" text="Description" prefWidth="320" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colQuantity" text="Qty" prefWidth="75" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colRate" text="Rate (₹)" prefWidth="105" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colDiscount" text="Discount %" prefWidth="105" styleClass="approved-table-column"/>

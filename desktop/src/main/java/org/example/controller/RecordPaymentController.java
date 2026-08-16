@@ -41,31 +41,34 @@ import java.util.stream.Collectors;
 public class RecordPaymentController implements ScreenLifecycle {
     private final SupportApiClient supportApi = new SupportApiClient();
     public record PaymentRow(int id, String date, String reference, String from, String mode,
-                             double amount, String status, String notes, String receiptPath) {}
+                             double amount, String status, String notes, String receiptPath, String paymentType) {}
 
     @FXML private Label invoiceNo, invoiceStatus, customer, customerPhone, customerEmail, invoiceDate, dueDate,
             total, paid, balance, after, summaryTotal, summaryPaid, summaryBalance, paidPercent,
             timelineCreated, timelineEmail, timelineWhatsapp, timelinePayment, timelineCurrent,
-            attachmentName, historyCount;
+            attachmentName, historyCount, recordPaymentTitle, summaryTitle, attachmentTitle, historyTitle;
     @FXML private ProgressBar paymentProgress;
     @FXML private DatePicker paymentDate, historyFromDate, historyToDate;
     @FXML private ComboBox<String> mode, bankAccount, historyModeFilter;
     @FXML private TextField reference, amount, receivedFrom;
     @FXML private TextArea notes;
-    @FXML private RadioButton fullPayment, partialPayment, advancePayment;
+    @FXML private RadioButton fullPayment, partialPayment;
+    @FXML private Button btnSavePayment;
     @FXML private VBox historySection, proofDropZone;
     @FXML private TableView<PaymentRow> historyTable;
     @FXML private TableColumn<PaymentRow, String> historyDate, historyReference, historyFrom,
             historyMode, historyStatus, historyNotes;
     @FXML private TableColumn<PaymentRow, Number> historyAmount;
-    @FXML private TableColumn<PaymentRow, Void> historyReceipt, historyAction;
+    @FXML private TableColumn<PaymentRow, Void> historyAction;
 
     private final List<PaymentRow> allPayments = new ArrayList<>();
     private Sales sale;
     private Path selectedAttachment;
+    private PaymentRow editingPayment;
     private final LookupService lookupService = new LookupService();
 
     @FXML public void initialize() {
+        decorateSectionTitles();
         configureHistoryTable();
         configurePaymentForm();
         loadSelectedInvoice();
@@ -104,12 +107,11 @@ public class RecordPaymentController implements ScreenLifecycle {
         mode.setItems(FXCollections.observableArrayList(modes));
         if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer"); else if(!modes.isEmpty())mode.getSelectionModel().selectFirst();
         ToggleGroup group = new ToggleGroup();
-        fullPayment.setToggleGroup(group); partialPayment.setToggleGroup(group); advancePayment.setToggleGroup(group);
+        fullPayment.setToggleGroup(group); partialPayment.setToggleGroup(group);
         partialPayment.setSelected(true);
         amount.textProperty().addListener((o,a,b)->updateBalancePreview());
         fullPayment.setOnAction(e -> selectFull());
         partialPayment.setOnAction(e -> selectPartial());
-        advancePayment.setOnAction(e -> selectAdvance());
 
         List<String> historyModes=new ArrayList<>(); historyModes.add("All Modes"); historyModes.addAll(modes);
         historyModeFilter.setItems(FXCollections.observableArrayList(historyModes));
@@ -128,6 +130,20 @@ public class RecordPaymentController implements ScreenLifecycle {
         mode.valueProperty().addListener((o,a,b)->bankAccount.setDisable(b==null||!(b.toLowerCase(Locale.ROOT).contains("bank")||b.equalsIgnoreCase("NEFT")||b.equalsIgnoreCase("RTGS"))));
     }
 
+    private void decorateSectionTitles() {
+        setSectionIcon(recordPaymentTitle, "payment");
+        setSectionIcon(summaryTitle, "report");
+        setSectionIcon(attachmentTitle, "attachment");
+        setSectionIcon(historyTitle, "history");
+    }
+
+    private static void setSectionIcon(Label label, String semantic) {
+        if (label == null) return;
+        label.setGraphic(IconFactory.compactIcon(semantic, 16));
+        label.setContentDisplay(ContentDisplay.LEFT);
+        label.setGraphicTextGap(7);
+    }
+
     private void configureHistoryTable() {
         historyDate.setCellValueFactory(v->new SimpleStringProperty(v.getValue().date()));
         historyReference.setCellValueFactory(v->new SimpleStringProperty(v.getValue().reference()));
@@ -141,26 +157,29 @@ public class RecordPaymentController implements ScreenLifecycle {
         });
         historyStatus.setCellValueFactory(v->new SimpleStringProperty(v.getValue().status()));
         historyNotes.setCellValueFactory(v->new SimpleStringProperty(v.getValue().notes()));
-        historyReceipt.setCellFactory(c->new TableCell<>() {
-            private final Button button = new Button("View Proof");
-            { button.getStyleClass().addAll("approved-button","approved-secondary-button");
-              button.setGraphic(IconFactory.compactIcon("attachment",14));
-              button.setOnAction(e->openReceipt(getTableView().getItems().get(getIndex()))); }
+        historyAction.setCellFactory(c->new TableCell<>() {
+            private final MenuButton actions = new MenuButton("Actions");
+            private final MenuItem edit = new MenuItem("Edit Payment", IconFactory.compactIcon("edit",14));
+            private final MenuItem view = new MenuItem("View Proof", IconFactory.compactIcon("attachment",14));
+            private final MenuItem folder = new MenuItem("Open Proof Folder", IconFactory.compactIcon("folder",14));
+            {
+                actions.getStyleClass().addAll("approved-button","approved-secondary-button","row-actions");
+                actions.setGraphic(IconFactory.compactIcon("actions",14));
+                actions.getItems().addAll(edit,view,folder);
+                edit.setOnAction(e->editPayment(row()));
+                view.setOnAction(e->openReceipt(row()));
+                folder.setOnAction(e->openReceiptFolder(row()));
+            }
+            private PaymentRow row(){int i=getIndex();return i<0||i>=getTableView().getItems().size()?null:getTableView().getItems().get(i);}
             @Override protected void updateItem(Void v, boolean empty) {
                 super.updateItem(v,empty);
-                if (empty) setGraphic(null);
-                else {
-                    PaymentRow row=getTableView().getItems().get(getIndex());
-                    button.setDisable(row.receiptPath()==null || row.receiptPath().isBlank());
-                    setGraphic(button);
-                }
+                if(empty){setGraphic(null);return;}
+                PaymentRow row=row();
+                boolean noProof=row==null||row.receiptPath()==null||row.receiptPath().isBlank();
+                view.setDisable(noProof);folder.setDisable(noProof);
+                edit.setDisable(row==null||"BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType()));
+                setGraphic(actions);
             }
-        });
-        historyAction.setCellFactory(c->new TableCell<>() {
-            private final Button button = new Button("⋯");
-            { button.getStyleClass().addAll("approved-button","approved-secondary-button");
-              button.setOnAction(e->showRowMenu(button,getTableView().getItems().get(getIndex()))); }
-            @Override protected void updateItem(Void v, boolean empty) { super.updateItem(v,empty); setGraphic(empty?null:button); }
         });
         IconFactory.applyTableHeaderIcon(historyDate, "calendar");
         IconFactory.applyTableHeaderIcon(historyMode, "payment");
@@ -169,7 +188,6 @@ public class RecordPaymentController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(historyAmount, "currency");
         IconFactory.applyTableHeaderIcon(historyStatus, "status");
         IconFactory.applyTableHeaderIcon(historyNotes, "notes");
-        IconFactory.applyTableHeaderIcon(historyReceipt, "attachment");
         IconFactory.applyTableHeaderIcon(historyAction, "actions");
         historyTable.setFixedCellSize(42);
     }
@@ -193,25 +211,51 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     private void updateBalancePreview() {
-        after.setText(money(Math.max(0,sale.getBalanceAmount()-parseAmount(amount.getText()))));
+        if(sale==null)return;
+        double allowable=sale.getBalanceAmount()+(editingPayment==null?0:editingPayment.amount());
+        after.setText(money(Math.max(0,allowable-parseAmount(amount.getText()))));
     }
 
-    @FXML private void selectFull(){ amount.setText(String.format(Locale.ROOT,"%.2f",sale.getBalanceAmount())); }
-    @FXML private void selectPartial(){ if(parseAmount(amount.getText())>=sale.getBalanceAmount()) amount.clear(); amount.requestFocus(); }
-    @FXML private void selectAdvance(){ amount.clear(); amount.requestFocus(); }
+    @FXML private void selectFull(){ amount.setText(String.format(Locale.ROOT,"%.2f",sale.getBalanceAmount()+(editingPayment==null?0:editingPayment.amount()))); }
+    @FXML private void selectPartial(){ double allowable=sale.getBalanceAmount()+(editingPayment==null?0:editingPayment.amount());if(parseAmount(amount.getText())>=allowable) amount.clear(); amount.requestFocus(); }
 
     @FXML private void save() {
+        if(editingPayment!=null){saveEditedPayment();return;}
         Path storedProof=null;
         try {
             validate();
             double value=Double.parseDouble(amount.getText().trim());
             storedProof=selectedAttachment==null?null:storeAttachment(selectedAttachment);
-            supportApi.recordPayment(new SupportApiClient.PaymentRequest("SALE",sale.getId(),paymentDate.getValue().toString(),value,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim(),fullPayment.isSelected()?"FULL":advancePayment.isSelected()?"ADVANCE":"PARTIAL",storedProof==null?null:storedProof.toString(),"Admin"));
+            supportApi.recordPayment(new SupportApiClient.PaymentRequest("SALE",sale.getId(),paymentDate.getValue().toString(),value,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim(),fullPayment.isSelected()?"FULL":"PARTIAL",storedProof==null?null:storedProof.toString(),"Admin"));
             NotificationService.add("Payment received for "+sale.getInvoiceNo());
             new OwnedAlert(Alert.AlertType.INFORMATION,"Payment saved successfully.").showAndWait();
-            resetForm(); refreshInvoiceAmounts(); loadHistory(); refreshTimeline();
+            refreshInvoiceAmounts(); resetForm(); loadHistory(); refreshTimeline();
         } catch(Exception e){
             if(storedProof!=null) try{Files.deleteIfExists(storedProof);}catch(Exception ignored){}
+            new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
+        }
+    }
+
+    private void saveEditedPayment(){
+        try{
+            validate();
+            double newValue=parseAmount(amount.getText());
+            double difference=newValue-editingPayment.amount();
+            String confirmation="ACCOUNTING CONFIRMATION\n\n"+
+                    "Old Amount: "+money(editingPayment.amount())+"\n"+
+                    "New Amount: "+money(newValue)+"\n"+
+                    "Difference: "+signedMoney(difference)+"\n\n"+
+                    "This changes the invoice balance and payment status.\n\nContinue?";
+            ButtonType choice=new OwnedAlert(Alert.AlertType.CONFIRMATION,confirmation,ButtonType.YES,ButtonType.NO)
+                    .showAndWait().orElse(ButtonType.NO);
+            if(choice!=ButtonType.YES)return;
+            supportApi.updatePayment(editingPayment.id(),new SupportApiClient.PaymentUpdateRequest(
+                    paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),
+                    notes.getText().trim(),receivedFrom.getText().trim()));
+            NotificationService.add("Payment updated for "+sale.getInvoiceNo());
+            new OwnedAlert(Alert.AlertType.INFORMATION,"Payment updated and invoice totals recalculated.").showAndWait();
+            refreshInvoiceAmounts();resetForm();loadHistory();refreshTimeline();
+        }catch(Exception e){
             new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
         }
     }
@@ -222,8 +266,9 @@ public class RecordPaymentController implements ScreenLifecycle {
         if(receivedFrom.getText()==null || receivedFrom.getText().isBlank()) throw new IllegalArgumentException("Enter who made the payment.");
         double value=parseAmount(amount.getText());
         if(value<=0) throw new IllegalArgumentException("Received amount must be greater than zero.");
-        if(!advancePayment.isSelected() && value>sale.getBalanceAmount()+0.005)
-            throw new IllegalArgumentException("Enter an amount up to "+money(sale.getBalanceAmount())+".");
+        double allowable=sale.getBalanceAmount()+(editingPayment==null?0:editingPayment.amount());
+        if(value>allowable+0.005)
+            throw new IllegalArgumentException("Enter an amount up to "+money(allowable)+".");
         if("Bank Transfer".equalsIgnoreCase(mode.getValue()) && bankAccount.getValue()==null)
             throw new IllegalArgumentException("Select or configure a bank account.");
         if(selectedAttachment!=null && Files.size(selectedAttachment)>5*1024*1024)
@@ -240,16 +285,20 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     private void resetForm() {
+        editingPayment=null;
+        if(btnSavePayment!=null)btnSavePayment.setText("Save Payment");
         reference.clear(); notes.clear(); paymentDate.setValue(BusinessClock.today()); selectedAttachment=null;
+        if(sale!=null&&sale.getCustomer()!=null)receivedFrom.setText(sale.getCustomer().getName());
         attachmentName.setText("No file selected");
-        amount.setText(String.format(Locale.ROOT,"%.2f",sale.getBalanceAmount()));
+        partialPayment.setSelected(true);
+        amount.setText(String.format(Locale.ROOT,"%.2f",sale==null?0:sale.getBalanceAmount()));
     }
 
     private void loadHistory() {
         allPayments.clear();
         try {
             for (var r : supportApi.payments("SALE", sale.getId()))
-                allPayments.add(new PaymentRow(r.id(),r.date(),safe(r.reference()),safeOr(r.receivedFrom(),sale.getCustomer().getName()),safe(r.mode()),r.amount(),"Recorded",safe(r.notes()),safe(r.attachment())));
+                allPayments.add(new PaymentRow(r.id(),r.date(),safe(r.reference()),safeOr(r.receivedFrom(),sale.getCustomer().getName()),safe(r.mode()),r.amount(),"Recorded",safe(r.notes()),safe(r.attachment()),safe(r.paymentType())));
         } catch(Exception e){ new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait(); }
         historyCount.setText(allPayments.size()+" Payment"+(allPayments.size()==1?"":"s"));
         applyHistoryFilter();
@@ -293,6 +342,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     @FXML private void resetPayment(){ resetForm(); }
 
     @FXML private void browseFile() {
+        if(editingPayment!=null){new OwnedAlert(Alert.AlertType.INFORMATION,"The existing proof is retained while editing payment accounting details.").showAndWait();return;}
         FileChooser ch=new FileChooser(); ch.setTitle("Choose payment proof");
         ch.getExtensionFilters().add(new FileChooser.ExtensionFilter("Proof files","*.pdf","*.png","*.jpg","*.jpeg"));
         File f=ch.showOpenDialog(amount.getScene().getWindow());
@@ -307,12 +357,32 @@ public class RecordPaymentController implements ScreenLifecycle {
         }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 
-    private void showRowMenu(Button owner, PaymentRow row) {
-        ContextMenu menu=new ContextMenu();
-        MenuItem view=new MenuItem("View payment proof"); view.setDisable(row.receiptPath().isBlank()); view.setOnAction(e->openReceipt(row));
-        MenuItem openFolder=new MenuItem("Open proof folder"); openFolder.setDisable(row.receiptPath().isBlank());
-        openFolder.setOnAction(e->{try{Desktop.getDesktop().open(Path.of(row.receiptPath()).getParent().toFile());}catch(Exception ex){new OwnedAlert(Alert.AlertType.ERROR,ex.getMessage()).showAndWait();}});
-        menu.getItems().addAll(view,openFolder); menu.show(owner, javafx.geometry.Side.BOTTOM,0,0);
+    private void editPayment(PaymentRow row){
+        if(row==null)return;
+        if("BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType())){
+            new OwnedAlert(Alert.AlertType.WARNING,"Bank-reconciled payments must be changed from Bank Statement using the reversal/reconciliation workflow.").showAndWait();
+            return;
+        }
+        editingPayment=row;
+        try{paymentDate.setValue(LocalDate.parse(row.date()));}catch(Exception ignored){paymentDate.setValue(BusinessClock.today());}
+        if(!mode.getItems().contains(row.mode()))mode.getItems().add(row.mode());
+        mode.setValue(row.mode());
+        reference.setText(row.reference());
+        receivedFrom.setText(row.from());
+        amount.setText(String.format(Locale.ROOT,"%.2f",row.amount()));
+        notes.setText(row.notes());
+        selectedAttachment=null;
+        attachmentName.setText(row.receiptPath()==null||row.receiptPath().isBlank()?"No proof attached":"Existing proof retained: "+Path.of(row.receiptPath()).getFileName());
+        partialPayment.setSelected(true);
+        if(btnSavePayment!=null)btnSavePayment.setText("Update Payment");
+        amount.requestFocus();amount.selectAll();
+        updateBalancePreview();
+    }
+
+    private void openReceiptFolder(PaymentRow row){
+        if(row==null||row.receiptPath()==null||row.receiptPath().isBlank())return;
+        try{Path parent=Path.of(row.receiptPath()).getParent();if(parent==null||!Files.isDirectory(parent))throw new IOException("The proof folder is unavailable.");Desktop.getDesktop().open(parent.toFile());}
+        catch(Exception ex){new OwnedAlert(Alert.AlertType.ERROR,ex.getMessage()).showAndWait();}
     }
 
     @FXML private void downloadPdf(){ try{Path p=InvoicePdfService.sales(sale); Desktop.getDesktop().open(p.getParent().toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
@@ -368,7 +438,9 @@ public class RecordPaymentController implements ScreenLifecycle {
         proofDropZone.setOnDragDropped(event -> {
             Dragboard board = event.getDragboard();
             boolean completed = false;
-            if (board.hasFiles() && !board.getFiles().isEmpty()) {
+            if (editingPayment != null) {
+                new OwnedAlert(Alert.AlertType.INFORMATION,"The existing proof is retained while editing payment accounting details.").showAndWait();
+            } else if (board.hasFiles() && !board.getFiles().isEmpty()) {
                 Path candidate = board.getFiles().get(0).toPath();
                 String lower = candidate.getFileName().toString().toLowerCase(Locale.ROOT);
                 if (lower.endsWith(".pdf") || lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
@@ -386,6 +458,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     private String mask(String v){return v.length()<=4?v:"••••"+v.substring(v.length()-4);}
     private double parseAmount(String v){try{return Double.parseDouble(v==null?"":v.trim());}catch(Exception e){return 0;}}
     private String money(double v){return String.format("₹ %,.2f",Math.max(0,v));}
+    private String signedMoney(double v){return String.format(Locale.ROOT,"%s₹ %,.2f",v<0?"-":v>0?"+":"",Math.abs(v));}
     private String safe(String v){return v==null?"":v;}
     private String safeOr(String v,String fallback){return v==null||v.isBlank()?fallback:v;}
     private String csv(String v){return "\""+safe(v).replace("\"","\"\"")+"\"";}

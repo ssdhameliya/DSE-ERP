@@ -12,7 +12,7 @@
                     <Button fx:id="btnSales" text="Sales" onAction="#toggleSalesMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
                         <tooltip><Tooltip text="Show or hide Sales menu"/></tooltip>
                     </Button>
-                    <Label fx:id="lblSalesChevron" text="›" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                    <Label fx:id="lblSalesChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
                 </StackPane>
                 <VBox fx:id="salesSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
                     <Button fx:id="btnSalesRegister" text="Sales Register" onAction="#openSales" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -26,7 +26,7 @@
                     <Button fx:id="btnPurchase" text="Purchase" onAction="#togglePurchaseMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
                         <tooltip><Tooltip text="Show or hide Purchase menu"/></tooltip>
                     </Button>
-                    <Label fx:id="lblPurchaseChevron" text="›" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                    <Label fx:id="lblPurchaseChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
                 </StackPane>
                 <VBox fx:id="purchaseSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
                     <Button fx:id="btnPurchaseRegister" text="Purchase Register" onAction="#openPurchase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -41,7 +41,7 @@
                     <Button fx:id="btnBankExpense" text="Bank &amp; Expense" onAction="#toggleBankExpenseMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
                         <tooltip><Tooltip text="Show or hide Bank &amp; Expense menu"/></tooltip>
                     </Button>
-                    <Label fx:id="lblBankExpenseChevron" text="›" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                    <Label fx:id="lblBankExpenseChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
                 </StackPane>
                 <VBox fx:id="bankExpenseSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
                     <Button fx:id="btnBankEntry" text="Bank Entry" onAction="#openBankEntry" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -58,7 +58,23 @@
             <Button fx:id="btnUserAccess" text="User Access" onAction="#openUserAccess" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button text="Communication" onAction="#openCommunication" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnDocumentStudio" text="Document Studio" onAction="#openDocumentStudio" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <Button fx:id="btnSettings" text="Settings" onAction="#openSettings" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnSettings" text="Settings" onAction="#toggleSettingsMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
+                        <tooltip><Tooltip text="Show or hide Settings menu"/></tooltip>
+                    </Button>
+                    <Label fx:id="lblSettingsChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="settingsSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnSettingsCompany" text="Company &amp; Billing" onAction="#openSettingsCompany" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsPayment" text="Payment &amp; Bank" onAction="#openSettingsPayment" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsInvoice" text="Invoice &amp; Delivery" onAction="#openSettingsInvoice" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsNotifications" text="Notifications" onAction="#openSettingsNotifications" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsEmail" text="Email Settings" onAction="#openSettingsEmail" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsWorkspace" text="Workspace &amp; Storage" onAction="#openSettingsWorkspace" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsUpdates" text="Application Updates" onAction="#openSettingsUpdates" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
+            </VBox>
             <Button fx:id="btnSafeRollback" text="Safe Rollback" onAction="#openSafeRollback" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,safe-rollback-nav-button"/>
             <Button fx:id="btnBackup" text="Backup &amp; Restore" onAction="#openBackup" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
             <Button fx:id="btnOperations" text="Operations" onAction="#openOperations" visible="false" managed="false" styleClass="approved-button,approved-secondary-button"/>

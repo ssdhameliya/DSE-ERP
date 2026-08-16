@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.navigation.ScreenLifecycle;
 
 import org.example.util.OwnedAlert;
 
@@ -52,10 +53,20 @@ import java.util.List;
 /**
  * Settings entered here are persisted locally.
  *
- * The controller preserves the existing five settings sections:
- * Company, Payment, Invoice, Notifications and Email.
+ * The controller preserves the existing seven settings sections and their
+ * existing persistence logic while sidebar navigation chooses the active panel.
  */
-public class SettingsController {
+public class SettingsController implements ScreenLifecycle {
+    public enum Section {
+        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, WORKSPACE, UPDATES
+    }
+
+    private static volatile Section requestedSection = Section.COMPANY;
+
+    public static void requestSection(Section section) {
+        requestedSection = section == null ? Section.COMPANY : section;
+    }
+
 
     @FXML private StackPane panelHost;
     @FXML private ScrollPane panelScroll;
@@ -304,8 +315,8 @@ public class SettingsController {
         configureBrandAssetPresenters();
         configureChoiceFields();
         loadSettings();
-        showCompany();
         initializeSinglePanelHost();
+        showRequestedSection();
         javafx.animation.PauseTransition deferredSettings = new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
         deferredSettings.setOnFinished(event -> {
             long started=System.nanoTime();
@@ -336,6 +347,23 @@ public class SettingsController {
         panelCompany.setVisible(true);
         if (panelScroll != null) {
             Platform.runLater(() -> panelScroll.setVvalue(0.0));
+        }
+    }
+
+    @Override
+    public void onScreenShown(boolean reusedFromCache) {
+        showRequestedSection();
+    }
+
+    private void showRequestedSection() {
+        switch (requestedSection) {
+            case PAYMENT -> showPayment();
+            case INVOICE -> showInvoice();
+            case NOTIFICATIONS -> showNotifications();
+            case EMAIL -> showEmail();
+            case WORKSPACE -> showWorkspace();
+            case UPDATES -> showUpdates();
+            case COMPANY -> showCompany();
         }
     }
 

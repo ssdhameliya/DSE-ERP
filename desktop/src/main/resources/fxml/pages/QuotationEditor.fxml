@@ -43,7 +43,7 @@
                 </GridPane>
                 <TableView fx:id="tableLines" prefHeight="360" styleClass="erp-table-profile-line-item">
                   <columns>
-                    <TableColumn fx:id="colItem" text="Item Name" prefWidth="230"/><TableColumn fx:id="colCode" text="Code" prefWidth="100"/><TableColumn fx:id="colQty" text="Qty" prefWidth="80"/><TableColumn fx:id="colRate" text="Rate" prefWidth="100"/><TableColumn fx:id="colGst" text="GST %" prefWidth="80"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="95"/><TableColumn fx:id="colAmount" text="Amount" prefWidth="120"/><TableColumn fx:id="colAction" text="Action" prefWidth="90"/>
+                    <TableColumn fx:id="colItem" text="Description" prefWidth="230"/><TableColumn fx:id="colCode" text="Code" prefWidth="100"/><TableColumn fx:id="colQty" text="Qty" prefWidth="80"/><TableColumn fx:id="colRate" text="Rate" prefWidth="100"/><TableColumn fx:id="colGst" text="GST %" prefWidth="80"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="95"/><TableColumn fx:id="colAmount" text="Amount" prefWidth="120"/><TableColumn fx:id="colAction" text="Action" prefWidth="90"/>
                   </columns>
                 </TableView>
               </VBox>

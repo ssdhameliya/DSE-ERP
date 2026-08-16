@@ -128,7 +128,15 @@ public final class ProfessionalUiEnhancer {
 
         if (!table.getColumns().isEmpty()) {
             TableColumn first = (TableColumn) table.getColumns().getFirst();
-            String heading = first.getText() == null ? "" : first.getText().trim();
+            // decorateColumns() renders semantic headers as graphics and clears
+            // TableColumn.text. Always inspect the preserved original label here;
+            // otherwise every decorated first business column looks blank and can
+            // be mistaken for a legacy selection/index column (for example the
+            // Create Sale "Description" column).
+            Object storedFirstLabel = first.getProperties().get("erp-header-label");
+            String heading = storedFirstLabel instanceof String value
+                ? value.trim()
+                : first.getText() == null ? "" : first.getText().trim();
             String columnId = first.getId() == null ? "" : first.getId().toLowerCase(Locale.ROOT);
             // Keep real workflow checkboxes (for example multi-item returns), but convert
             // passive selection columns in register/master tables into readable row numbers.

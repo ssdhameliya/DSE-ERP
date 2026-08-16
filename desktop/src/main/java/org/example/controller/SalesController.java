@@ -532,7 +532,7 @@ public class SalesController {
         if (!code.isBlank()) {
             for (Item item : allItems) {
                 if (code.equalsIgnoreCase(safeItem(item.getItemCode()))) {
-                    String name = safeItem(item.getDescription());
+                    String name = itemSearchDisplay(item);
                     if (!name.isBlank()) return name;
                 }
             }
