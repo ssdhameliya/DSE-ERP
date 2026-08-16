@@ -36,6 +36,7 @@ import javafx.stage.Stage;
 
 import org.example.model.*;
 import org.example.config.ConfigManager;
+import org.example.api.master.MasterApiClient;
 import org.example.service.LookupService;
 
 import org.example.navigation.NavigationManager;
@@ -178,6 +179,7 @@ public class SalesController {
         new SalesService();
 
     private final LookupService lookupService = new LookupService();
+    private final MasterApiClient masterApi = new MasterApiClient();
 
     //-------------------------------------------------------
     // Editing
@@ -192,9 +194,11 @@ public class SalesController {
     private final ObservableList<Item> allItems = FXCollections.observableArrayList();
     private final Map<Item, String> itemSearchIndex = new IdentityHashMap<>();
     private final ContextMenu itemSuggestions = new ContextMenu();
-    private final PauseTransition itemSearchDebounce = new PauseTransition(Duration.millis(90));
+    private final PauseTransition itemSearchDebounce = new PauseTransition(Duration.millis(160));
+    private final PauseTransition customerSearchDebounce = new PauseTransition(Duration.millis(180));
     private Item selectedItem;
     private boolean updatingItemSearch;
+    private boolean updatingCustomerSearch;
     private final ObservableList<SalesCharge> invoiceCharges = FXCollections.observableArrayList();
     private final ObservableList<String> availableChargeTypes = FXCollections.observableArrayList();
 
@@ -304,15 +308,22 @@ public class SalesController {
 
                 txtLineDiscount.setText(String.valueOf(newLine.getDiscountPercent()));
 
-                for (Item item : allItems) {
-
-                    if (item.getItemCode()
-                        .equals(newLine.getItemCode())) {
-
-                        selectItem(item);
-
-                        break;
-                    }
+                Item cachedItem = allItems.stream()
+                    .filter(item -> safeItem(item.getItemCode()).equalsIgnoreCase(safeItem(newLine.getItemCode())))
+                    .findFirst().orElse(null);
+                if (cachedItem != null) {
+                    selectItem(cachedItem);
+                } else if (!safeItem(newLine.getItemCode()).isBlank()) {
+                    String code = newLine.getItemCode();
+                    UiTaskExecutor.submitLatest(
+                        "create-sale-line-item-lookup",
+                        () -> itemService.search(code, 12),
+                        matches -> matches.stream()
+                            .filter(item -> safeItem(item.getItemCode()).equalsIgnoreCase(safeItem(code)))
+                            .findFirst()
+                            .ifPresent(item -> { mergeItemCache(List.of(item)); selectItem(item); }),
+                        error -> System.err.println("Create Sale line item lookup: " + rootMessage(error))
+                    );
                 }
 
             });
@@ -373,12 +384,29 @@ public class SalesController {
 
             });
 
+        cmbCustomer.setEditable(true);
+        cmbCustomer.setConverter(new StringConverter<>() {
+            @Override public String toString(Party party) { return party == null ? "" : safeParty(party.getPartyCode()) + " - " + safeParty(party.getName()); }
+            @Override public Party fromString(String text) {
+                if (text == null || text.isBlank()) return null;
+                return cmbCustomer.getItems().stream().filter(p -> customerDisplay(p).equalsIgnoreCase(text.trim()) || safeParty(p.getPartyCode()).equalsIgnoreCase(text.trim()) || safeParty(p.getName()).equalsIgnoreCase(text.trim())).findFirst().orElse(null);
+            }
+        });
+        customerSearchDebounce.setOnFinished(event -> searchCustomers(cmbCustomer.getEditor().getText()));
+        cmbCustomer.getEditor().textProperty().addListener((obs, oldText, text) -> {
+            if (!updatingCustomerSearch && cmbCustomer.getEditor().isFocused()) customerSearchDebounce.playFromStart();
+        });
+        cmbCustomer.showingProperty().addListener((obs, oldValue, showing) -> {
+            if (showing && cmbCustomer.getItems().isEmpty()) searchCustomers("");
+        });
+
         cmbCustomer.valueProperty().addListener((observable, oldCustomer, customer) -> {
             // loadSale() and the asynchronous bootstrap both re-bind persisted
             // edit selections. During that re-bind the saved invoice addresses
             // must not be replaced by today's master-data address.
             if (loadingSaleForEdit && editingSale != null) return;
             if (customer == null) {
+                if (cmbCustomer.isEditable() && cmbCustomer.getEditor().isFocused() && !cmbCustomer.getEditor().getText().isBlank()) return;
                 txtBillingAddress.clear();
                 if (txtBillingGstin != null) txtBillingGstin.clear();
                 if (txtDeliveryGstin != null) txtDeliveryGstin.clear();
@@ -419,22 +447,36 @@ public class SalesController {
 
     private SaleBootstrap loadSaleBootstrap() {
         List<String> errors = new ArrayList<>();
-        List<String> paymentTerms = loadOrDefault("Payment Terms", errors,
-            () -> lookupService.getValuesByCategoryCode("PAYMENT_TERMS"), List.of());
-        List<String> charges = loadOrDefault("Charges", errors,
-            () -> lookupService.getValuesByCategoryCode("CHARGES"), List.of());
-        List<String> gstTypes = loadOrDefault("GST Types", errors,
-            () -> lookupService.getValuesByCategoryCode("GST_TYPE"), List.of());
-        List<Lookup> transporters = loadOrDefault("Transporters", errors,
-            () -> lookupService.getByCategoryCode("TRANSPORTER"), List.of());
-        List<Party> customers = loadOrDefault("Customers", errors,
-            () -> partyService.getByType("CUSTOMER"), List.of());
-        List<Item> items = loadOrDefault("Items", errors,
-            itemService::getAll, List.of());
-        String invoiceNo = loadOrDefault("Next Invoice No", errors,
-            salesService::nextInvoiceNo, "");
-        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters,
-            customers, items, invoiceNo, List.copyOf(errors));
+        List<String> paymentTerms = List.of(), charges = List.of(), gstTypes = List.of();
+        List<Lookup> transporters = List.of(); List<Party> customers = List.of();
+        try {
+            if (ConfigManager.isApiDataEnabled()) {
+                MasterApiClient.SalesEntryBootstrap master = masterApi.salesEntryBootstrap();
+                paymentTerms = master.paymentTerms()==null?List.of():master.paymentTerms();
+                charges = master.chargeTypes()==null?List.of():master.chargeTypes();
+                gstTypes = master.gstTypes()==null?List.of():master.gstTypes();
+                transporters = master.transporters()==null?List.of():master.transporters();
+                customers = master.customers()==null?List.of():master.customers();
+            } else {
+                paymentTerms = lookupService.getValuesByCategoryCode("PAYMENT_TERMS");
+                charges = lookupService.getValuesByCategoryCode("CHARGES");
+                gstTypes = lookupService.getValuesByCategoryCode("GST_TYPE");
+                transporters = lookupService.getByCategoryCode("TRANSPORTER");
+                customers = partyService.search("CUSTOMER","",40);
+            }
+        } catch (Exception exception) {
+            errors.add("Master bootstrap: " + rootMessage(exception));
+            // Keep Create Sale usable if an older/local server does not yet expose
+            // the consolidated bootstrap endpoint. These fallbacks still execute
+            // on UiTaskExecutor, never on the JavaFX Application Thread.
+            paymentTerms = loadOrDefault("Payment Terms", errors, () -> lookupService.getValuesByCategoryCode("PAYMENT_TERMS"), List.of());
+            charges = loadOrDefault("Charges", errors, () -> lookupService.getValuesByCategoryCode("CHARGES"), List.of());
+            gstTypes = loadOrDefault("GST Types", errors, () -> lookupService.getValuesByCategoryCode("GST_TYPE"), List.of());
+            transporters = loadOrDefault("Transporters", errors, () -> lookupService.getByCategoryCode("TRANSPORTER"), List.of());
+            customers = loadOrDefault("Customers", errors, () -> partyService.search("CUSTOMER", "", 40), List.of());
+        }
+        String invoiceNo = loadOrDefault("Next Invoice No", errors, salesService::nextInvoiceNo, "");
+        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters, customers, invoiceNo, List.copyOf(errors));
     }
 
     private <T> T loadOrDefault(String label, List<String> errors, Supplier<T> loader, T fallback) {
@@ -456,10 +498,6 @@ public class SalesController {
         cmbGstType.getItems().setAll(bootstrap.gstTypes());
         cmbTransporter.getItems().setAll(bootstrap.transporters());
         cmbCustomer.setItems(FXCollections.observableArrayList(bootstrap.customers()));
-
-        allItems.setAll(bootstrap.items());
-        itemSearchIndex.clear();
-        for (Item item : allItems) itemSearchIndex.put(item, buildItemSearchHaystack(item));
 
         if (editingSale == null) {
             selectDefaultPaymentTerms();
@@ -489,9 +527,17 @@ public class SalesController {
                 }
                 if (editingSale.getCustomer() != null) {
                     int customerId = editingSale.getCustomer().getId();
-                    cmbCustomer.getItems().stream()
+                    Party loadedCustomer = cmbCustomer.getItems().stream()
                         .filter(party -> party.getId() == customerId)
-                        .findFirst().ifPresent(cmbCustomer::setValue);
+                        .findFirst().orElse(null);
+                    if (loadedCustomer != null) cmbCustomer.setValue(loadedCustomer);
+                    else {
+                        String customerQuery = editingSale.getCustomer().getPartyCode();
+                        UiTaskExecutor.submitLatest("create-sale-edit-customer-lookup",
+                            () -> partyService.search("CUSTOMER", customerQuery, 20),
+                            customers -> customers.stream().filter(party -> party.getId() == customerId).findFirst().ifPresent(party -> { cmbCustomer.getItems().add(party); cmbCustomer.setValue(party); }),
+                            error -> System.err.println("Create Sale edit customer lookup: " + rootMessage(error)));
+                    }
                 }
             } finally {
                 loadingSaleForEdit = previousLoadingState;
@@ -521,7 +567,6 @@ public class SalesController {
         List<String> gstTypes,
         List<Lookup> transporters,
         List<Party> customers,
-        List<Item> items,
         String invoiceNo,
         List<String> errors
     ) { }
@@ -577,21 +622,57 @@ public class SalesController {
     }
 
     private void refreshItemSuggestions(String text) {
-        String query = text == null ? "" : text.trim().toLowerCase(java.util.Locale.ROOT);
+        String query = text == null ? "" : text.trim();
         if (query.isBlank() || !txtItemSearch.isFocused()) { itemSuggestions.hide(); return; }
-        List<Item> matches = allItems.stream()
-            .filter(item -> itemSearchHaystack(item).contains(query))
-            .limit(12)
-            .toList();
-        itemSuggestions.getItems().clear();
-        for (Item item : matches) {
-            MenuItem option = new MenuItem(itemSearchDisplay(item), IconFactory.compactIcon("item", 15));
-            option.setOnAction(event -> selectItem(item));
-            itemSuggestions.getItems().add(option);
-        }
-        if (matches.isEmpty()) itemSuggestions.hide();
-        else if (!itemSuggestions.isShowing()) itemSuggestions.show(txtItemSearch, Side.BOTTOM, 0, 2);
+        UiTaskExecutor.submitLatest(
+            "create-sale-item-search",
+            () -> itemService.search(query, 12),
+            matches -> {
+                if (!txtItemSearch.isFocused() || !safeItem(txtItemSearch.getText()).equalsIgnoreCase(query)) return;
+                mergeItemCache(matches);
+                itemSuggestions.getItems().clear();
+                for (Item item : matches) {
+                    MenuItem option = new MenuItem(itemSearchDisplay(item), IconFactory.compactIcon("item", 15));
+                    option.setOnAction(event -> selectItem(item));
+                    itemSuggestions.getItems().add(option);
+                }
+                if (matches.isEmpty()) itemSuggestions.hide();
+                else if (!itemSuggestions.isShowing()) itemSuggestions.show(txtItemSearch, Side.BOTTOM, 0, 2);
+            },
+            error -> System.err.println("Create Sale item search: " + rootMessage(error))
+        );
     }
+
+    private void mergeItemCache(List<Item> items) {
+        if (items == null) return;
+        for (Item item : items) {
+            Item existing = allItems.stream().filter(x -> safeItem(x.getItemCode()).equalsIgnoreCase(safeItem(item.getItemCode()))).findFirst().orElse(null);
+            if (existing != null) { allItems.remove(existing); itemSearchIndex.remove(existing); }
+            allItems.add(item); itemSearchIndex.put(item, buildItemSearchHaystack(item));
+        }
+    }
+
+    private void searchCustomers(String text) {
+        String query = text == null ? "" : text.trim();
+        UiTaskExecutor.submitLatest(
+            "create-sale-customer-search",
+            () -> partyService.search("CUSTOMER", query, 30),
+            customers -> {
+                if (cmbCustomer.getEditor().isFocused() && !safeParty(cmbCustomer.getEditor().getText()).equalsIgnoreCase(query)) return;
+                Party selected = cmbCustomer.getValue();
+                updatingCustomerSearch = true;
+                try {
+                    cmbCustomer.getItems().setAll(customers);
+                    if (selected != null) cmbCustomer.getItems().stream().filter(party -> party.getId() == selected.getId()).findFirst().ifPresent(cmbCustomer::setValue);
+                } finally { updatingCustomerSearch = false; }
+                if (!customers.isEmpty() && cmbCustomer.getEditor().isFocused() && !cmbCustomer.isShowing()) cmbCustomer.show();
+            },
+            error -> System.err.println("Create Sale customer search: " + rootMessage(error))
+        );
+    }
+
+    private static String safeParty(String value) { return value == null ? "" : value.trim(); }
+    private static String customerDisplay(Party party) { return party == null ? "" : safeParty(party.getPartyCode()) + " - " + safeParty(party.getName()); }
 
     private void selectItem(Item item) {
         selectedItem = item;
@@ -699,7 +780,7 @@ public class SalesController {
             dialog.setScene(scene);
             dialog.showAndWait();
             Party selected = cmbCustomer.getValue();
-            cmbCustomer.getItems().setAll(partyService.getByType("CUSTOMER"));
+            cmbCustomer.getItems().setAll(partyService.search("CUSTOMER","",40));
             if (selected != null) cmbCustomer.getSelectionModel().select(selected);
         } catch (Exception ex) {
             new OwnedAlert(Alert.AlertType.ERROR,
@@ -1420,7 +1501,7 @@ public class SalesController {
     private double number(TextField field){try{return field==null||field.getText()==null||field.getText().isBlank()?0:Double.parseDouble(field.getText().replace(",",""));}catch(Exception e){return 0;}}
 
     @FXML private void addMultipleItems(){new OwnedAlert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
-    @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->allItems.stream().filter(i->i.getItemCode().equalsIgnoreCase(code.trim())).findFirst().ifPresentOrElse(this::selectItem,()->warn("Item code not found")));}
+    @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->{String value=code.trim();if(value.isBlank())return;UiTaskExecutor.submitLatest("create-sale-barcode-search",()->itemService.search(value,12),matches->matches.stream().filter(i->safeItem(i.getItemCode()).equalsIgnoreCase(value)).findFirst().ifPresentOrElse(i->{mergeItemCache(List.of(i));selectItem(i);},()->warn("Item code not found")),error->warn("Item search failed: "+rootMessage(error)));});}
     @FXML private void attachFile(){javafx.stage.FileChooser c=new javafx.stage.FileChooser();java.io.File f=c.showOpenDialog(tableLines.getScene().getWindow());if(f!=null)txtAttachment.setText(f.getAbsolutePath());}
     @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
     @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}

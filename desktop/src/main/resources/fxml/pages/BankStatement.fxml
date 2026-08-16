@@ -86,6 +86,11 @@
           <HBox alignment="CENTER_LEFT" spacing="10" styleClass="bank-recon-footer">
             <Label fx:id="lblShowing" text="Showing 0 records" styleClass="finance-showing-label"/>
             <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Rows" styleClass="finance-showing-label"/>
+            <ComboBox fx:id="cmbPageSize" prefWidth="82"/>
+            <Button fx:id="btnPrevPage" text="Previous" onAction="#previousPage" styleClass="approved-button,approved-secondary-button"/>
+            <Label fx:id="lblPage" text="Page 0 of 0" styleClass="finance-showing-label"/>
+            <Button fx:id="btnNextPage" text="Next" onAction="#nextPage" styleClass="approved-button,approved-secondary-button"/>
             <Label fx:id="lblBatchStatus" text="IMPORTED" styleClass="bank-recon-status-badge"/>
           </HBox>
         </VBox>

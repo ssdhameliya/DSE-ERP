@@ -1,6 +1,8 @@
 package org.example.rollback;
 
 import org.example.backup.BackupManager;
+import org.example.api.runtime.ManagedPostgresRuntime;
+import org.example.api.runtime.RuntimeBootstrapper;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.update.BuildInfo;
@@ -45,7 +47,7 @@ public final class RollbackService {
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
             .withZone(ZoneId.systemDefault());
 
-    /* Versions already shipped on the unchanged schema generation used through 7.3.9. */
+    /* Versions already shipped on the unchanged schema generation used through 7.3.10. */
     private static final Map<String, Integer> KNOWN_SCHEMA = Map.ofEntries(
             Map.entry("7.2.2", 1),
             Map.entry("7.2.4", 1),
@@ -61,7 +63,8 @@ public final class RollbackService {
             Map.entry("7.3.6", 1),
             Map.entry("7.3.7", 1),
             Map.entry("7.3.8", 1),
-            Map.entry("7.3.9", 1)
+            Map.entry("7.3.9", 1),
+            Map.entry("7.3.10", 1)
     );
 
     private final UpdateService updateService = new UpdateService();
@@ -230,6 +233,8 @@ public final class RollbackService {
 
     public UpdateInstallerLauncher.LaunchResult launch(Preparation preparation) throws Exception {
         Objects.requireNonNull(preparation, "preparation");
+        RuntimeBootstrapper.shutdownManagedServer();
+        ManagedPostgresRuntime.shutdownForUpdate();
         UpdateInstallerLauncher.LaunchResult result = UpdateInstallerLauncher.launch(
                 preparation.installer(), preparation.targetVersion());
         appendAudit("ROLLBACK_INSTALLER", preparation.targetVersion(), "STARTED",

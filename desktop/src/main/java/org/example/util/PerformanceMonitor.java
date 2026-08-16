@@ -4,7 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -63,7 +63,8 @@ public final class PerformanceMonitor {
     }
 
     private static void log(String operation, String detail) {
-        String line = Instant.now() + " | " + operation + " | " + detail + System.lineSeparator();
+        String timestamp = BusinessClock.zonedNow().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String line = timestamp + " | " + operation + " | " + detail + System.lineSeparator();
         LOG_WRITER.execute(() -> write(line));
     }
 

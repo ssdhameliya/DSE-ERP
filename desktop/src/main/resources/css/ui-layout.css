@@ -538,7 +538,7 @@
 }
 
 /* =========================================================
-   7.3.9 macOS Retina performance guardrails
+   7.3.10 macOS Retina performance guardrails
    ---------------------------------------------------------
    The macOS build now uses JavaFX's native graphics pipeline rather than the
    Windows-only software workaround. These selectors also remove the remaining

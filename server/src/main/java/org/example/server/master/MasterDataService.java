@@ -4,6 +4,7 @@ import org.example.server.persistence.entity.*;
 import org.example.server.persistence.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 import jakarta.annotation.PostConstruct;
 import org.example.server.security.CurrentUser;
 import jakarta.persistence.EntityManager;
@@ -44,6 +45,14 @@ public class MasterDataService {
     public List<MasterDtos.PartyDto> parties(String type) {
         requirePartyAccess(type);
         return parties.findByPartyTypeOrderByNameAsc(normal(type)).stream().map(this::partyDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MasterDtos.PartyDto> searchParties(String type, String query, int limit) {
+        requirePartyAccess(type);
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        return parties.searchActive(normal(type), query == null ? "" : query.trim(), PageRequest.of(0, safeLimit))
+            .stream().map(this::partyDto).toList();
     }
 
     @Transactional
@@ -96,6 +105,24 @@ public class MasterDataService {
             .stream()
             .map(this::itemDto)
             .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MasterDtos.ItemDto> searchItems(String query, int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        return items.searchActive(query == null ? "" : query.trim(), PageRequest.of(0, safeLimit))
+            .stream().map(this::itemDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public MasterDtos.SalesEntryBootstrap salesEntryBootstrap() {
+        return new MasterDtos.SalesEntryBootstrap(
+            valuesByCategoryCode("PAYMENT_TERMS"),
+            valuesByCategoryCode("CHARGES"),
+            valuesByCategoryCode("GST_TYPE"),
+            lookupsByCategoryCode("TRANSPORTER"),
+            searchParties("CUSTOMER", "", 40)
+        );
     }
 
 

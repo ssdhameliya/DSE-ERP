@@ -1,6 +1,8 @@
 package org.example.update;
 
 import org.example.backup.BackupManager;
+import org.example.api.runtime.ManagedPostgresRuntime;
+import org.example.api.runtime.RuntimeBootstrapper;
 import org.example.config.ConfigManager;
 import java.awt.Desktop;
 import java.net.URI;
@@ -73,6 +75,11 @@ public final class UpdateService {
     public Path createPreUpdateBackup() throws Exception {return BackupManager.createBackup("Before-Update","PRE_UPDATE");}
 
     public UpdateInstallerLauncher.LaunchResult launchInstaller(Path installer, String targetVersion) throws Exception {
+        // The updater must never replace runtime/postgresql while the postmaster
+        // is still running from that directory. This is mandatory for managed
+        // workspaces and intentionally fails closed if shutdown cannot be proven.
+        RuntimeBootstrapper.shutdownManagedServer();
+        ManagedPostgresRuntime.shutdownForUpdate();
         return UpdateInstallerLauncher.launch(installer, targetVersion);
     }
 

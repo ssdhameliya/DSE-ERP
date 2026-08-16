@@ -6,6 +6,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyEvent;
 import org.example.model.AppUser;
 import org.example.service.NotificationService;
 import org.example.service.OtpService;
@@ -62,6 +63,9 @@ public class LoginController {
     private final UserService users = new UserService();
     private AppUser pendingUser;
     private String resetChallengeId;
+    private boolean passwordFirstKeyLogged;
+    private boolean passwordFirstTextLogged;
+    private long passwordFocusNanos;
 
     @FXML public void initialize() {
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
@@ -124,7 +128,29 @@ public class LoginController {
         installLiveClear(txtConfirmPassword, lblConfirmPasswordError);
 
         txtUsername.textProperty().addListener((obs, oldValue, newValue) -> resetPendingLogin());
-        txtPassword.textProperty().addListener((obs, oldValue, newValue) -> resetPendingLogin());
+        txtPassword.focusedProperty().addListener((obs, oldValue, focused) -> {
+            if (focused) {
+                passwordFocusNanos = System.nanoTime();
+                passwordFirstKeyLogged = false;
+                passwordFirstTextLogged = false;
+                PerformanceMonitor.event("login-password-focus", "ready");
+            }
+        });
+        txtPassword.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (!passwordFirstKeyLogged && !event.getCode().isModifierKey()) {
+                passwordFirstKeyLogged = true;
+                long ms = passwordFocusNanos == 0 ? -1 : (System.nanoTime() - passwordFocusNanos) / 1_000_000L;
+                PerformanceMonitor.event("login-password-first-key", "focus-to-key=" + ms + " ms | key=" + event.getCode());
+            }
+        });
+        txtPassword.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!passwordFirstTextLogged && newValue != null && !newValue.isEmpty()) {
+                passwordFirstTextLogged = true;
+                long ms = passwordFocusNanos == 0 ? -1 : (System.nanoTime() - passwordFocusNanos) / 1_000_000L;
+                PerformanceMonitor.event("login-password-first-text", "focus-to-text=" + ms + " ms");
+            }
+            resetPendingLogin();
+        });
         txtResetIdentity.textProperty().addListener((obs, oldValue, newValue) -> resetChallengeId = null);
         cmbRole.valueProperty().addListener((obs, oldValue, newValue) -> {
             clearFieldError(cmbRole, lblRoleError);
@@ -134,7 +160,17 @@ public class LoginController {
         chkRemember.selectedProperty().addListener((obs, oldValue, selected) -> {
             if (!selected) clearRememberedLogin();
         });
-        javafx.application.Platform.runLater(this::installResponsiveBranding);
+        javafx.application.Platform.runLater(() -> {
+            // Prime the PasswordField CSS/skin once after the login scene is attached.
+            // This avoids paying the first-control initialization cost on the user's
+            // first password keystroke, especially on macOS Retina.
+            long started = System.nanoTime();
+            txtPassword.applyCss();
+            txtPassword.getSkin();
+            long ms = (System.nanoTime() - started) / 1_000_000L;
+            if (ms >= 5) PerformanceMonitor.event("login-password-warmup", ms + " ms");
+            installResponsiveBranding();
+        });
     }
 
     private void applyBranding() {

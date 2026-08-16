@@ -8,6 +8,7 @@ public class MasterDataController {
  private final MasterDataService service; public MasterDataController(MasterDataService s){service=s;}
  @GetMapping("/health") public Map<String,Object> health(){return Map.of("status","UP","phase",2);}
  @GetMapping("/parties") public List<MasterDtos.PartyDto> parties(@RequestParam String type){return service.parties(type);}
+ @GetMapping("/parties/search") public List<MasterDtos.PartyDto> searchParties(@RequestParam String type,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="25") int limit){return service.searchParties(type,q,limit);}
  @PostMapping("/parties") public MasterDtos.PartyDto saveParty(@RequestBody MasterDtos.PartyDto d){return service.saveParty(d);}
  @PutMapping("/parties") public MasterDtos.PartyDto updateParty(@RequestBody MasterDtos.PartyDto d){return service.updateParty(d);}
  @DeleteMapping("/parties/{id}") public MasterDtos.OperationResponse deleteParty(@PathVariable int id){service.deleteParty(id);return new MasterDtos.OperationResponse(true,"OK");}
@@ -15,6 +16,8 @@ public class MasterDataController {
  @GetMapping("/parties/next-code") public MasterDtos.NextCodeResponse partyNext(@RequestParam String type){return new MasterDtos.NextCodeResponse(service.nextPartyCode(type));}
 
  @GetMapping("/items") public List<MasterDtos.ItemDto> items(){return service.items();}
+ @GetMapping("/items/search") public List<MasterDtos.ItemDto> searchItems(@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="25") int limit){return service.searchItems(q,limit);}
+ @GetMapping("/sales-entry-bootstrap") public MasterDtos.SalesEntryBootstrap salesEntryBootstrap(){return service.salesEntryBootstrap();}
  @PostMapping("/items") public MasterDtos.ItemDto saveItem(@RequestBody MasterDtos.ItemDto d){return service.saveItem(d);}
  @PutMapping("/items") public MasterDtos.ItemDto updateItem(@RequestBody MasterDtos.ItemDto d){return service.updateItem(d);}
  @DeleteMapping("/items/{code}") public MasterDtos.OperationResponse deleteItem(@PathVariable String code){service.deleteItem(code);return new MasterDtos.OperationResponse(true,"OK");}

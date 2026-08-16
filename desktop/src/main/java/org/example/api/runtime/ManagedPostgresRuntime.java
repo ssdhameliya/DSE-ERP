@@ -588,6 +588,38 @@ public final class ManagedPostgresRuntime {
         return result;
     }
 
+    /**
+     * Stops the managed database before an application installer is allowed to
+     * replace the bundled PostgreSQL runtime. Unlike normal application exit,
+     * this operation is mandatory and verifies that the server is no longer
+     * accepting PostgreSQL connections.
+     */
+    public static synchronized void shutdownForUpdate() {
+        if (activeHome == null || activeData == null) return;
+        Exception fastFailure = null;
+        try {
+            run(List.of(bin(activeHome, "pg_ctl").toString(), "-D", activeData.toString(),
+                    "-w", "-t", "20", "stop", "-m", "fast"), null, Duration.ofSeconds(25));
+        } catch (Exception exception) {
+            fastFailure = exception;
+            try {
+                run(List.of(bin(activeHome, "pg_ctl").toString(), "-D", activeData.toString(),
+                        "-w", "-t", "15", "stop", "-m", "immediate"), null, Duration.ofSeconds(20));
+            } catch (Exception immediateFailure) {
+                immediateFailure.addSuppressed(exception);
+                throw new IllegalStateException("Managed PostgreSQL could not be stopped safely before the update installer starts.", immediateFailure);
+            }
+        }
+        RuntimeState state = loadState(WorkspaceManager.getConfigurationFolder().resolve("runtime-postgres.properties"));
+        if (isPortListening(state.port())) {
+            throw new IllegalStateException("Managed PostgreSQL is still listening on port " + state.port()
+                    + " after shutdown. The update installer will not be started.", fastFailure);
+        }
+        startedByDesktop = false;
+        prepared = false;
+        ConfigManager.clearRuntimeDatabase();
+    }
+
     public static synchronized void shutdownIfConfigured() {
         if (activeHome == null || activeData == null) return;
         boolean keepAlive = Boolean.parseBoolean(ConfigManager.get("runtime.postgres.keepAliveOnExit", "false"));

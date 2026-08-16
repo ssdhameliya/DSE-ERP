@@ -7,6 +7,7 @@ import org.example.util.OwnedAlert;
 
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -51,6 +52,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.EnumMap;
 
 /**
  * Settings entered here are persisted locally.
@@ -65,6 +67,9 @@ public class SettingsController implements ScreenLifecycle {
 
     private static volatile Section requestedSection = Section.COMPANY;
     private boolean batchingSettingsSave;
+    private boolean rootInitialized;
+    private boolean fragmentLoading;
+    private final EnumMap<Section, VBox> loadedPanels = new EnumMap<>(Section.class);
 
     public static void requestSection(Section section) {
         requestedSection = section == null ? Section.COMPANY : section;
@@ -313,39 +318,117 @@ public class SettingsController implements ScreenLifecycle {
 
     @FXML
     public void initialize() {
-        if (btnCheckUpdates != null) { btnCheckUpdates.setGraphic(IconFactory.icon("update", 16)); btnCheckUpdates.getProperties().put("erp-icon-preserve", true); }
-
-        configureBrandAssetPresenters();
-        configureChoiceFields();
-        loadSettings();
-        initializeSinglePanelHost();
+        // Every lazily loaded fragment injects into this same controller and
+        // invokes initialize(). Only the root Settings.fxml performs startup.
+        if (fragmentLoading || rootInitialized) return;
+        rootInitialized = true;
         showRequestedSection();
-        javafx.animation.PauseTransition deferredSettings = new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
-        deferredSettings.setOnFinished(event -> {
-            long started=System.nanoTime();
-            refreshWorkspacePanel();
-            long workspaceMs=(System.nanoTime()-started)/1_000_000L;
-            if(workspaceMs>=20)PerformanceMonitor.event("controller-phase","settings-workspace-init | "+workspaceMs+" ms");
-            javafx.animation.PauseTransition previews = new javafx.animation.PauseTransition(javafx.util.Duration.millis(250));
-            previews.setOnFinished(previewEvent -> refreshAllAssetPreviewsAsync());
-            previews.play();
-        });
-        deferredSettings.play();
     }
 
-    /**
-     * Keeps only the active settings section in the scene graph. All seven
-     * sections remain cached in this controller, but hidden sections no longer
-     * participate in CSS, layout or accessibility passes on every pulse.
-     */
-    private void initializeSinglePanelHost() {
-        if (panelHost == null || panelCompany == null) return;
-        panelHost.getChildren().setAll(panelCompany);
-        panelCompany.setManaged(true);
-        panelCompany.setVisible(true);
-        if (panelScroll != null) {
-            Platform.runLater(() -> panelScroll.setVvalue(0.0));
+    private VBox ensureSectionLoaded(Section section) {
+        VBox cached = loadedPanels.get(section);
+        if (cached != null) return cached;
+        String file = switch (section) {
+            case COMPANY -> "CompanySettingsPanel.fxml";
+            case PAYMENT -> "PaymentSettingsPanel.fxml";
+            case INVOICE -> "InvoiceSettingsPanel.fxml";
+            case NOTIFICATIONS -> "NotificationsSettingsPanel.fxml";
+            case EMAIL -> "EmailSettingsPanel.fxml";
+            case WORKSPACE -> "WorkspaceSettingsPanel.fxml";
+            case UPDATES -> "UpdatesSettingsPanel.fxml";
+        };
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/pages/settings/" + file));
+            loader.setController(this);
+            fragmentLoading = true;
+            VBox panel = loader.load();
+            loadedPanels.put(section, panel);
+            initializeLoadedSection(section);
+            return panel;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Unable to load Settings section " + section + ": " + exception.getMessage(), exception);
+        } finally {
+            fragmentLoading = false;
         }
+    }
+
+    private void initializeLoadedSection(Section section) {
+        switch (section) {
+            case COMPANY -> {
+                cmbBusinessType.setItems(FXCollections.observableArrayList("Proprietorship","Partnership","Private Limited Company","Public Limited Company","Limited Liability Partnership","Trust","Society","Other"));
+                cmbIndustry.setItems(FXCollections.observableArrayList("Manufacturing","Trading","Retail","Wholesale","Construction","Engineering","Textile","Automotive","Information Technology","Professional Services","Logistics","Healthcare","Food & Beverage","Other"));
+                txtCompanyName.setText(ConfigManager.get("company.name", ""));
+                txtPhone.setText(ConfigManager.get("company.phone", ""));
+                txtEmail.setText(ConfigManager.get("company.email", ""));
+                txtGstin.setText(ConfigManager.get("company.gstin", ""));
+                txtCompanyPan.setText(ConfigManager.get("company.pan", ""));
+                txtApplicationName.setText(ConfigManager.get("application.displayName", "DSE ERP"));
+                txtApplicationTagline.setText(ConfigManager.get("application.tagline", "Business Management Suite"));
+                txtApplicationStartingText.setText(ConfigManager.get("application.startingText", "Starting DSE ERP..."));
+                selectComboValue(cmbBusinessType, ConfigManager.get("company.businessType", "Proprietorship"));
+                selectComboValue(cmbIndustry, ConfigManager.get("company.industry", "Manufacturing"));
+                dpFinancialYearStart.setValue(parseDate(ConfigManager.get("company.financialYearStart", "")));
+                BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
+                BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
+                refreshAllAssetPreviewsAsync();
+            }
+            case PAYMENT -> {
+                txtUpiId.setText(ConfigManager.get("payment.upiId", ""));
+                txtAccountHolder.setText(ConfigManager.get("payment.accountHolder", ""));
+                txtBankName.setText(ConfigManager.get("payment.bankName", ""));
+                txtAccountNumber.setText(ConfigManager.get("payment.accountNumber", ""));
+                txtIfsc.setText(ConfigManager.get("payment.ifsc", ""));
+                txtBranch.setText(ConfigManager.get("payment.branch", ""));
+                BrandImagePresenter.contain(imgPaymentQr, paymentQrPreview);
+                refreshAllAssetPreviewsAsync();
+            }
+            case INVOICE -> {
+                cmbCurrency.setItems(FXCollections.observableArrayList("INR - Indian Rupee","USD - US Dollar","EUR - Euro","GBP - British Pound","AED - UAE Dirham"));
+                cmbTimeZone.setItems(FXCollections.observableArrayList("Asia/Kolkata","Asia/Dubai","Europe/London","America/New_York","America/Los_Angeles","UTC"));
+                cmbDateFormat.setItems(FXCollections.observableArrayList("dd/MM/yyyy","dd-MM-yyyy","yyyy-MM-dd","MM/dd/yyyy","dd MMM yyyy"));
+                txtCompanyAddress.setText(ConfigManager.get("company.address", ""));
+                txtCompanyState.setText(ConfigManager.get("company.state", ""));
+                txtCompanyWebsite.setText(ConfigManager.get("company.website", ""));
+                txtCompanyTagline.setText(ConfigManager.get("company.tagline", "Business Solution - Simplified"));
+                txtShipAddress.setText(ConfigManager.get("company.shipAddress", ""));
+                txtInvoiceTerms.setText(ConfigManager.get("company.terms", ""));
+                selectComboValue(cmbCurrency, ConfigManager.get("company.currency", "INR - Indian Rupee"));
+                selectComboValue(cmbTimeZone, ConfigManager.get("company.timeZone", BusinessClock.zone().getId()));
+                selectComboValue(cmbDateFormat, ConfigManager.get("company.dateFormat", "dd/MM/yyyy"));
+                BrandImagePresenter.contain(imgSignature, signaturePreview);
+                refreshAllAssetPreviewsAsync();
+            }
+            case NOTIFICATIONS -> {
+                chkNotifications.setSelected(Boolean.parseBoolean(ConfigManager.get("notifications.enabled", "true")));
+                loadNotificationCategory(chkNotifySales, "sales"); loadNotificationCategory(chkNotifyPurchases, "purchases");
+                loadNotificationCategory(chkNotifyQuotations, "quotations"); loadNotificationCategory(chkNotifyReturns, "returns");
+                loadNotificationCategory(chkNotifyPayments, "payments"); loadNotificationCategory(chkNotifyInventory, "inventory");
+                loadNotificationCategory(chkNotifyReminders, "reminders"); loadNotificationCategory(chkNotifyCommunication, "communication");
+                loadNotificationCategory(chkNotifySystem, "system");
+                chkNotifications.selectedProperty().addListener((obs, oldValue, enabled) -> setNotificationCategoriesDisabled(!enabled));
+                setNotificationCategoriesDisabled(!chkNotifications.isSelected());
+            }
+            case EMAIL -> {
+                txtSmtpEmail.setText(ConfigManager.get("smtp.email", ""));
+                txtSmtpPassword.setText(ConfigManager.get("smtp.appPassword", ""));
+                txtSmtpHost.setText(ConfigManager.get("smtp.host", ""));
+                txtSmtpPort.setText(ConfigManager.get("smtp.port", "587"));
+            }
+            case WORKSPACE -> refreshWorkspacePanel();
+            case UPDATES -> {
+                cmbUpdateChannel.setItems(FXCollections.observableArrayList("STABLE", "BETA"));
+                txtGitHubOwner.setText(ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER));
+                txtGitHubRepository.setText(ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY));
+                selectComboValue(cmbUpdateChannel, ConfigManager.get("update.channel", "STABLE"));
+                chkUpdateAtStartup.setSelected(Boolean.parseBoolean(ConfigManager.get("update.checkAtStartup", "true")));
+                chkDownloadInBackground.setSelected(Boolean.parseBoolean(ConfigManager.get("update.downloadInBackground", "false")));
+                lblCurrentVersion.setText(BuildInfo.version());
+                lblLatestVersion.setText("Check GitHub Releases");
+                lblLastChecked.setText(formatUpdateTimestamp(ConfigManager.get("update.lastChecked", "")));
+                if (btnCheckUpdates != null) { btnCheckUpdates.setGraphic(IconFactory.icon("update", 16)); btnCheckUpdates.getProperties().put("erp-icon-preserve", true); }
+            }
+        }
+        PerformanceMonitor.event("controller-phase", "settings-section-loaded | " + section);
     }
 
     @Override
@@ -363,261 +446,6 @@ public class SettingsController implements ScreenLifecycle {
             case UPDATES -> showUpdates();
             case COMPANY -> showCompany();
         }
-    }
-
-    private void configureBrandAssetPresenters() {
-        BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
-        BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
-        BrandImagePresenter.contain(imgSignature, signaturePreview);
-        BrandImagePresenter.contain(imgPaymentQr, paymentQrPreview);
-    }
-
-    private void configureChoiceFields() {
-
-        cmbBusinessType.setItems(
-            FXCollections.observableArrayList(
-                "Proprietorship",
-                "Partnership",
-                "Private Limited Company",
-                "Public Limited Company",
-                "Limited Liability Partnership",
-                "Trust",
-                "Society",
-                "Other"
-            )
-        );
-
-        cmbIndustry.setItems(
-            FXCollections.observableArrayList(
-                "Manufacturing",
-                "Trading",
-                "Retail",
-                "Wholesale",
-                "Construction",
-                "Engineering",
-                "Textile",
-                "Automotive",
-                "Information Technology",
-                "Professional Services",
-                "Logistics",
-                "Healthcare",
-                "Food & Beverage",
-                "Other"
-            )
-        );
-
-        cmbCurrency.setItems(
-            FXCollections.observableArrayList(
-                "INR - Indian Rupee",
-                "USD - US Dollar",
-                "EUR - Euro",
-                "GBP - British Pound",
-                "AED - UAE Dirham"
-            )
-        );
-
-        cmbTimeZone.setItems(
-            FXCollections.observableArrayList(
-                "Asia/Kolkata",
-                "Asia/Dubai",
-                "Europe/London",
-                "America/New_York",
-                "America/Los_Angeles",
-                "UTC"
-            )
-        );
-
-        cmbDateFormat.setItems(
-            FXCollections.observableArrayList(
-                "dd/MM/yyyy",
-                "dd-MM-yyyy",
-                "yyyy-MM-dd",
-                "MM/dd/yyyy",
-                "dd MMM yyyy"
-            )
-        );
-
-
-        cmbUpdateChannel.setItems(
-            FXCollections.observableArrayList("STABLE", "BETA")
-        );
-    }
-
-    private void loadSettings() {
-
-        txtCompanyName.setText(
-            ConfigManager.get("company.name", "")
-        );
-
-        txtPhone.setText(
-            ConfigManager.get("company.phone", "")
-        );
-
-        txtEmail.setText(
-            ConfigManager.get("company.email", "")
-        );
-
-        txtGstin.setText(
-            ConfigManager.get("company.gstin", "")
-        );
-
-        txtCompanyPan.setText(
-            ConfigManager.get("company.pan", "")
-        );
-
-        txtApplicationName.setText(ConfigManager.get("application.displayName", "DSE ERP"));
-        txtApplicationTagline.setText(ConfigManager.get("application.tagline", "Business Management Suite"));
-        txtApplicationStartingText.setText(ConfigManager.get("application.startingText", "Starting DSE ERP..."));
-
-        txtCompanyAddress.setText(
-            ConfigManager.get("company.address", "")
-        );
-
-        txtCompanyState.setText(
-            ConfigManager.get("company.state", "")
-        );
-
-        txtCompanyWebsite.setText(
-            ConfigManager.get("company.website", "")
-        );
-
-        txtCompanyTagline.setText(
-            ConfigManager.get(
-                "company.tagline",
-                "Business Solution - Simplified"
-            )
-        );
-
-        txtShipAddress.setText(
-            ConfigManager.get("company.shipAddress", "")
-        );
-
-        txtInvoiceTerms.setText(
-            ConfigManager.get("company.terms", "")
-        );
-
-        selectComboValue(
-            cmbBusinessType,
-            ConfigManager.get(
-                "company.businessType",
-                "Proprietorship"
-            )
-        );
-
-        selectComboValue(
-            cmbIndustry,
-            ConfigManager.get(
-                "company.industry",
-                "Manufacturing"
-            )
-        );
-
-        dpFinancialYearStart.setValue(
-            parseDate(
-                ConfigManager.get(
-                    "company.financialYearStart",
-                    ""
-                )
-            )
-        );
-
-        selectComboValue(
-            cmbCurrency,
-            ConfigManager.get(
-                "company.currency",
-                "INR - Indian Rupee"
-            )
-        );
-
-        selectComboValue(
-            cmbTimeZone,
-            ConfigManager.get(
-                "company.timeZone",
-                BusinessClock.zone().getId()
-            )
-        );
-
-        selectComboValue(
-            cmbDateFormat,
-            ConfigManager.get(
-                "company.dateFormat",
-                "dd/MM/yyyy"
-            )
-        );
-
-        txtSmtpEmail.setText(
-            ConfigManager.get("smtp.email", "")
-        );
-
-        txtSmtpPassword.setText(
-            ConfigManager.get("smtp.appPassword", "")
-        );
-
-        txtSmtpHost.setText(
-            ConfigManager.get("smtp.host", "")
-        );
-
-        txtSmtpPort.setText(
-            ConfigManager.get("smtp.port", "587")
-        );
-
-        txtUpiId.setText(
-            ConfigManager.get("payment.upiId", "")
-        );
-
-        txtAccountHolder.setText(
-            ConfigManager.get(
-                "payment.accountHolder",
-                ""
-            )
-        );
-
-        txtBankName.setText(
-            ConfigManager.get("payment.bankName", "")
-        );
-
-        txtAccountNumber.setText(
-            ConfigManager.get(
-                "payment.accountNumber",
-                ""
-            )
-        );
-
-        txtIfsc.setText(
-            ConfigManager.get("payment.ifsc", "")
-        );
-
-        txtBranch.setText(
-            ConfigManager.get("payment.branch", "")
-        );
-
-        chkNotifications.setSelected(
-            Boolean.parseBoolean(
-                ConfigManager.get(
-                    "notifications.enabled",
-                    "true"
-                )
-            )
-        );
-        loadNotificationCategory(chkNotifySales, "sales");
-        loadNotificationCategory(chkNotifyPurchases, "purchases");
-        loadNotificationCategory(chkNotifyQuotations, "quotations");
-        loadNotificationCategory(chkNotifyReturns, "returns");
-        loadNotificationCategory(chkNotifyPayments, "payments");
-        loadNotificationCategory(chkNotifyInventory, "inventory");
-        loadNotificationCategory(chkNotifyReminders, "reminders");
-        loadNotificationCategory(chkNotifyCommunication, "communication");
-        loadNotificationCategory(chkNotifySystem, "system");
-        chkNotifications.selectedProperty().addListener((obs, oldValue, enabled) -> setNotificationCategoriesDisabled(!enabled));
-        setNotificationCategoriesDisabled(!chkNotifications.isSelected());
-        txtGitHubOwner.setText(ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER));
-        txtGitHubRepository.setText(ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY));
-        selectComboValue(cmbUpdateChannel, ConfigManager.get("update.channel", "STABLE"));
-        chkUpdateAtStartup.setSelected(Boolean.parseBoolean(ConfigManager.get("update.checkAtStartup", "true")));
-        chkDownloadInBackground.setSelected(Boolean.parseBoolean(ConfigManager.get("update.downloadInBackground", "false")));
-        lblCurrentVersion.setText(BuildInfo.version());
-        lblLatestVersion.setText("Check GitHub Releases");
-        lblLastChecked.setText(formatUpdateTimestamp(ConfigManager.get("update.lastChecked", "")));
     }
 
     private void selectComboValue(
@@ -887,12 +715,16 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void refreshAllAssetPreviewsAsync() {
-        List<AssetPreviewRequest> requests = List.of(
-            new AssetPreviewRequest(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER),
-            new AssetPreviewRequest(LOGO_PATH_KEY, imgCompanyLogo, placeholderCompanyLogo, lblLogoFile, BrandAssetPolicy.Role.COMPANY_LOGO),
-            new AssetPreviewRequest(SIGNATURE_PATH_KEY, imgSignature, placeholderSignature, lblSignatureFile, BrandAssetPolicy.Role.SIGNATURE),
-            new AssetPreviewRequest(QR_PATH_KEY, imgPaymentQr, placeholderPaymentQr, lblQrFile, BrandAssetPolicy.Role.PAYMENT_QR)
-        );
+        List<AssetPreviewRequest> requests = new ArrayList<>();
+        if (imgApplicationBrand != null && placeholderApplicationBrand != null && lblApplicationBrandFile != null)
+            requests.add(new AssetPreviewRequest(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER));
+        if (imgCompanyLogo != null && placeholderCompanyLogo != null && lblLogoFile != null)
+            requests.add(new AssetPreviewRequest(LOGO_PATH_KEY, imgCompanyLogo, placeholderCompanyLogo, lblLogoFile, BrandAssetPolicy.Role.COMPANY_LOGO));
+        if (imgSignature != null && placeholderSignature != null && lblSignatureFile != null)
+            requests.add(new AssetPreviewRequest(SIGNATURE_PATH_KEY, imgSignature, placeholderSignature, lblSignatureFile, BrandAssetPolicy.Role.SIGNATURE));
+        if (imgPaymentQr != null && placeholderPaymentQr != null && lblQrFile != null)
+            requests.add(new AssetPreviewRequest(QR_PATH_KEY, imgPaymentQr, placeholderPaymentQr, lblQrFile, BrandAssetPolicy.Role.PAYMENT_QR));
+        if (requests.isEmpty()) return;
         UiTaskExecutor.submitLatest(
             "settings-asset-previews",
             () -> loadAssetPreviews(requests),
@@ -1109,52 +941,37 @@ public class SettingsController implements ScreenLifecycle {
     @FXML
     private void showCompany() {
 
-        selectSection(
-            navCompany,
-            panelCompany
-        );
+        selectSection(navCompany, ensureSectionLoaded(Section.COMPANY));
     }
 
     @FXML
     private void showPayment() {
 
-        selectSection(
-            navPayment,
-            panelPayment
-        );
+        selectSection(navPayment, ensureSectionLoaded(Section.PAYMENT));
     }
 
     @FXML
     private void showInvoice() {
 
-        selectSection(
-            navInvoice,
-            panelInvoice
-        );
+        selectSection(navInvoice, ensureSectionLoaded(Section.INVOICE));
     }
 
     @FXML
     private void showNotifications() {
 
-        selectSection(
-            navNotifications,
-            panelNotifications
-        );
+        selectSection(navNotifications, ensureSectionLoaded(Section.NOTIFICATIONS));
     }
 
     @FXML
     private void showEmail() {
 
-        selectSection(
-            navEmail,
-            panelEmail
-        );
+        selectSection(navEmail, ensureSectionLoaded(Section.EMAIL));
     }
 
 
     @FXML
     private void showWorkspace() {
-        selectSection(navWorkspace, panelWorkspace);
+        selectSection(navWorkspace, ensureSectionLoaded(Section.WORKSPACE));
         refreshWorkspacePanel();
     }
 
@@ -1200,7 +1017,7 @@ public class SettingsController implements ScreenLifecycle {
 
     @FXML
     private void showUpdates() {
-        selectSection(navUpdates, panelUpdates);
+        selectSection(navUpdates, ensureSectionLoaded(Section.UPDATES));
         lblCurrentVersion.setText(BuildInfo.version());
         lblLastChecked.setText(formatUpdateTimestamp(ConfigManager.get("update.lastChecked", "")));
     }
@@ -1245,11 +1062,8 @@ public class SettingsController implements ScreenLifecycle {
 
         SharedApplicationFooter.refreshAll();
 
-        if (chkNotifications.isSelected()) {
-
-            NotificationService.add(
-                "Application settings were updated."
-            );
+        if (chkNotifications != null && chkNotifications.isSelected()) {
+            NotificationService.add("Application settings were updated.");
         }
 
         new OwnedAlert(
@@ -1267,12 +1081,12 @@ public class SettingsController implements ScreenLifecycle {
 
         batchingSettingsSave = true;
         try {
-            saveCompanyDetails();
-            savePaymentDetails();
-            saveInvoiceIdentity();
-            saveEmailSettings();
-            saveNotificationSettings();
-            saveUpdateSettings();
+            if (loadedPanels.containsKey(Section.COMPANY)) saveCompanyDetails();
+            if (loadedPanels.containsKey(Section.PAYMENT)) savePaymentDetails();
+            if (loadedPanels.containsKey(Section.INVOICE)) saveInvoiceIdentity();
+            if (loadedPanels.containsKey(Section.EMAIL)) saveEmailSettings();
+            if (loadedPanels.containsKey(Section.NOTIFICATIONS)) saveNotificationSettings();
+            if (loadedPanels.containsKey(Section.UPDATES)) saveUpdateSettings();
             ConfigManager.save();
         } finally {
             batchingSettingsSave = false;
@@ -1514,15 +1328,8 @@ public class SettingsController implements ScreenLifecycle {
         for (CheckBox box : boxes) if (box != null) box.setDisable(disabled);
     }
 
-    private String valueOrEmpty(
-        ComboBox<String> comboBox
-    ) {
-
-        return comboBox.getValue() == null
-            ? ""
-            : comboBox
-            .getValue()
-            .trim();
+    private String valueOrEmpty(ComboBox<String> comboBox) {
+        return comboBox == null || comboBox.getValue() == null ? "" : comboBox.getValue().trim();
     }
 
     /* =========================================================
@@ -1531,7 +1338,7 @@ public class SettingsController implements ScreenLifecycle {
 
     @FXML
     private void testEmail() {
-
+        ensureSectionLoaded(Section.EMAIL);
         if (!saveValues()) {
             return;
         }
@@ -1580,17 +1387,14 @@ public class SettingsController implements ScreenLifecycle {
        ========================================================= */
 
     private boolean validateSettings() {
-
-        if (!validatePaymentDetails()) {
+        if (loadedPanels.containsKey(Section.PAYMENT) && !validatePaymentDetails()) {
             showPayment();
             return false;
         }
-
-        if (!validateEmailSettings()) {
+        if (loadedPanels.containsKey(Section.EMAIL) && !validateEmailSettings()) {
             showEmail();
             return false;
         }
-
         return true;
     }
 

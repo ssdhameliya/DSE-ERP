@@ -20,6 +20,7 @@ public final class MasterApiClient {
  public MasterApiClient(){String b=ConfigManager.getDataApiBaseUrl(); while(b.endsWith("/"))b=b.substring(0,b.length()-1);base=b;}
 
  public List<Party> parties(String type){return get("/api/master/parties?type="+enc(type),new TypeReference<List<PartyDto>>(){}).stream().map(this::party).toList();}
+ public List<Party> searchParties(String type,String query,int limit){return get("/api/master/parties/search?type="+enc(type)+"&q="+enc(query)+"&limit="+Math.max(1,Math.min(limit,100)),new TypeReference<List<PartyDto>>(){}).stream().map(this::party).toList();}
  public void saveParty(Party p){post("/api/master/parties",partyDto(p),PartyDto.class);}
  public void updateParty(Party p){put("/api/master/parties",partyDto(p),PartyDto.class);}
  public void deleteParty(int id){delete("/api/master/parties/"+id);}
@@ -27,6 +28,8 @@ public final class MasterApiClient {
  public String nextPartyCode(String type){return get("/api/master/parties/next-code?type="+enc(type),NextCodeResponse.class).code();}
 
  public List<Item> items(){return get("/api/master/items",new TypeReference<List<ItemDto>>(){}).stream().map(this::item).toList();}
+ public List<Item> searchItems(String query,int limit){return get("/api/master/items/search?q="+enc(query)+"&limit="+Math.max(1,Math.min(limit,100)),new TypeReference<List<ItemDto>>(){}).stream().map(this::item).toList();}
+ public SalesEntryBootstrap salesEntryBootstrap(){SalesEntryBootstrapDto d=get("/api/master/sales-entry-bootstrap",SalesEntryBootstrapDto.class);return new SalesEntryBootstrap(d.paymentTerms,d.chargeTypes,d.gstTypes,d.transporters==null?List.of():d.transporters.stream().map(this::lookup).toList(),d.customers==null?List.of():d.customers.stream().map(this::party).toList());}
  public void saveItem(Item i){post("/api/master/items",itemDto(i),ItemDto.class);}
  public void updateItem(Item i){put("/api/master/items",itemDto(i),ItemDto.class);}
  public void deleteItem(String code){delete("/api/master/items/"+encPath(code));}
@@ -64,6 +67,8 @@ public final class MasterApiClient {
  public record PartyDto(Integer id,String partyType,String partyCode,String name,String contactPerson,String phone,String email,String gstin,String address,double openingBalance,boolean active){}
  public record ItemDto(Integer id,String itemCode,String description,String category,String brand,String material,String size,String unit,String hsn,double gst,double discountPercent,double purchasePrice,double sellingPrice,double openingStock,double minimumStock,double reservedStock,String location,String remarks,boolean active){}
  public record LookupDto(Integer id,String lookupType,String lookupCode,String lookupValue,String description,int displayOrder,boolean active){}
+ public record SalesEntryBootstrap(List<String> paymentTerms,List<String> chargeTypes,List<String> gstTypes,List<Lookup> transporters,List<Party> customers){}
+ private record SalesEntryBootstrapDto(List<String> paymentTerms,List<String> chargeTypes,List<String> gstTypes,List<LookupDto> transporters,List<PartyDto> customers){}
  public record CategoryDto(Integer id,String categoryCode,String categoryName,String description,int displayOrder,boolean active,long valueCount){}
  public record RenameCategoryRequest(String oldName,String newName){}
  public record CategoryUpsertRequest(String code,String name,String description){}

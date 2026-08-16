@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelInvoice" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact,settings-invoice-compact">
+
+                            <VBox spacing="3">
+
+                                <Label text="Invoice &amp; Delivery" styleClass="settings-section-title"/>
+
+                                <Label text="Company address, invoice identity, regional formatting and delivery defaults" wrapText="true" styleClass="settings-section-description"/>
+
+                            </VBox>
+
+                            <GridPane hgap="12" vgap="8">
+
+                                <columnConstraints>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                </columnConstraints>
+
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="0">
+
+                                    <Label text="Company Address" styleClass="settings-form-label"/>
+
+                                    <TextArea fx:id="txtCompanyAddress" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="0">
+
+                                    <Label text="Default Ship-to Address" styleClass="settings-form-label"/>
+
+                                    <TextArea fx:id="txtShipAddress" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
+
+                                    <Label text="State / Place of Supply" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtCompanyState" promptText="Gujarat (24)" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1">
+
+                                    <Label text="Currency" styleClass="settings-form-label"/>
+
+                                    <ComboBox fx:id="cmbCurrency" promptText="Select currency" maxWidth="Infinity" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="2">
+
+                                    <Label text="Time Zone" styleClass="settings-form-label"/>
+
+                                    <ComboBox fx:id="cmbTimeZone" promptText="Select time zone" maxWidth="Infinity" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="2">
+
+                                    <Label text="Date Format" styleClass="settings-form-label"/>
+
+                                    <ComboBox fx:id="cmbDateFormat" promptText="Select date format" maxWidth="Infinity" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="3">
+
+                                    <Label text="Website" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtCompanyWebsite" promptText="www.company.com" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="3">
+
+                                    <Label text="Business Tagline" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtCompanyTagline" promptText="Enter business tagline" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnSpan="2" GridPane.rowIndex="4">
+
+                                    <Label text="Invoice Terms" styleClass="settings-form-label"/>
+
+                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
+
+                                </VBox>
+
+                            </GridPane>
+
+                            <Separator/>
+                            <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-invoice-assets-panel">
+                                <VBox spacing="4">
+                                    <Label text="Invoice Branding &amp; Signature" styleClass="settings-subsection-title"/>
+                                    <Label text="These assets are used on invoices, quotations, returns and generated business PDFs." wrapText="true" styleClass="settings-help-text"/>
+                                </VBox>
+                                <HBox spacing="10" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
+                                    <!-- INVOICE LOGO -->
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                        <Label text="Invoice Logo" styleClass="settings-form-label"/>
+                                        <Label text="Invoices, quotations, returns and generated PDFs • Full invoice logo preserved (PNG preferred)" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="companyLogoPreview" minHeight="68" prefHeight="68" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgCompanyLogo" preserveRatio="true" smooth="true"/>
+                                            <VBox fx:id="placeholderCompanyLogo" alignment="CENTER" spacing="8">
+                                                <SVGPath content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z" styleClass="settings-placeholder-icon"/>
+                                                <Label text="No logo selected" styleClass="settings-help-text"/>
+                                            </VBox>
+                                        </StackPane>
+                                        <Label fx:id="lblLogoFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                        <HBox spacing="8">
+                                            <Button text="Upload / Change" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button"/>
+                                            <Button text="Remove" onAction="#removeCompanyLogo" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                        </HBox>
+                                    </VBox>
+
+                                    <!-- AUTHORIZED SIGNATURE -->
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                        <Label text="Authorized Signature" styleClass="settings-form-label"/>
+                                        <Label text="Authorized sign-off on supported business documents • Transparent PNG preferred" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="signaturePreview" minHeight="68" prefHeight="68" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgSignature" preserveRatio="true" smooth="true"/>
+                                            <VBox fx:id="placeholderSignature" alignment="CENTER" spacing="8">
+                                                <SVGPath content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14" styleClass="settings-placeholder-icon"/>
+                                                <Label text="No signature selected" styleClass="settings-help-text"/>
+                                            </VBox>
+                                        </StackPane>
+                                        <Label fx:id="lblSignatureFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                        <HBox spacing="8">
+                                            <Button text="Upload / Change" onAction="#uploadSignature" styleClass="settings-secondary-button"/>
+                                            <Button text="Remove" onAction="#removeSignature" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                        </HBox>
+                                    </VBox>
+                                </HBox>
+                            </VBox>
+
+                        </VBox>
+
+                        

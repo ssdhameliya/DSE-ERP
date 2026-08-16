@@ -29,11 +29,12 @@ import java.util.*;
 
 public class BankStatementController {
     @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon,flowImportIcon,flowReviewIcon,flowAuditIcon;
-    @FXML private Button btnImport,btnSearch,btnReset,btnRefresh;
+    @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage;
     @FXML private CheckBox chkSelectAll;
     @FXML private MenuButton bulkActions;
     @FXML private ComboBox<BankStatementApiClient.BatchDto> cmbBatch;
     @FXML private ComboBox<String> cmbStatus,cmbDirection;
+    @FXML private ComboBox<Integer> cmbPageSize;
     @FXML private DatePicker fromDate,toDate;
     @FXML private TextField txtSearch;
     @FXML private TableView<Row> table;
@@ -41,13 +42,16 @@ public class BankStatementController {
     @FXML private TableColumn<Row,Boolean> colSelect;
     @FXML private TableColumn<Row,Number> colDebit,colCredit,colBalance;
     @FXML private TableColumn<Row,Void> colAction;
-    @FXML private Label kpiTotal,kpiUnmatched,kpiSuggested,kpiMatched,kpiExpense,kpiCredits,kpiDebits,kpiReconciled,lblShowing,lblProgressText,lblBatchStatus;
+    @FXML private Label kpiTotal,kpiUnmatched,kpiSuggested,kpiMatched,kpiExpense,kpiCredits,kpiDebits,kpiReconciled,lblShowing,lblProgressText,lblBatchStatus,lblPage;
     @FXML private Label lblSelected;
     @FXML private ProgressBar reconciliationProgress;
 
     private final BankStatementApiClient api = new BankStatementApiClient();
     private final KotakBankStatementCsvParser parser = new KotakBankStatementCsvParser();
-    private final List<BankStatementApiClient.TransactionDto> all = new ArrayList<>();
+    private int currentPage;
+    private int totalPages;
+    private long totalRows;
+    private boolean suppressFilterReload;
 
     @FXML public void initialize() {
         installIcons();
@@ -55,10 +59,13 @@ public class BankStatementController {
         cmbStatus.setValue("All Status");
         cmbDirection.setItems(FXCollections.observableArrayList("All","Credit","Debit"));
         cmbDirection.setValue("All");
+        cmbPageSize.setItems(FXCollections.observableArrayList(25,50,100));
+        cmbPageSize.setValue(50);
         configureTable();
-        cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null) applyFilters(); });
-        cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null) applyFilters(); });
-        cmbBatch.valueProperty().addListener((o,a,b)->{ if(b!=null) loadBatch(b.id()); });
+        cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
+        cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
+        cmbPageSize.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
+        cmbBatch.valueProperty().addListener((o,a,b)->{ if(b!=null){applyBatchPeriod();currentPage=0;loadBatch(b.id());} });
         loadBatches();
     }
 
@@ -170,11 +177,17 @@ public class BankStatementController {
     @FXML private void importStatement(){
         FileChooser f=new FileChooser();f.setTitle("Import Bank Statement CSV");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV","*.csv"));
         File file=f.showOpenDialog(table.getScene().getWindow()); if(file==null)return;
-        try{
-            var p=parser.parse(file.toPath());
-            var req=new BankStatementApiClient.ImportRequest(p.bankName(),p.accountNumber(),p.accountHolder(),p.statementFrom(),p.statementTo(),p.currency(),p.openingBalance(),p.closingBalance(),p.sourceFingerprint(),p.sourceFileName(),p.sourceCsv(),user(),p.rows());
-            var r=api.importStatement(req); info("Bank statement imported","Imported: "+r.importedRows()+"\nOverlapping duplicates skipped: "+r.duplicateRows()); loadBatches(r.batch().id());
-        }catch(Exception e){error(e);}
+        String importedBy=user();
+        UiTaskExecutor.submitLatest(
+            "bank-statement-import",
+            () -> {
+                var parsed=parser.parse(file.toPath());
+                var request=new BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,parsed.rows());
+                return api.importStatement(request);
+            },
+            result -> { info("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows()); loadBatches(result.batch().id()); },
+            this::error
+        );
     }
     private void loadBatches(){loadBatches(null);}
 
@@ -190,8 +203,8 @@ public class BankStatementController {
                 if(selected!=null)selectBatch(selected);
                 else if(!list.isEmpty())cmbBatch.setValue(list.getFirst());
                 else {
-                    all.clear();
-                    applyFilters();
+                    table.getItems().clear();
+                    totalPages=0;totalRows=0;updatePageFooter();
                     clearMetrics();
                 }
             },
@@ -202,16 +215,19 @@ public class BankStatementController {
     private void selectBatch(Long id){for(var b:cmbBatch.getItems())if(Objects.equals(b.id(),id)){cmbBatch.setValue(b);return;}}
 
     private void loadBatch(long id){
-        applyBatchPeriod();
+        String status=selectedStatus(),direction=selectedDirection(),from=dateText(fromDate.getValue()),to=dateText(toDate.getValue()),query=safe(txtSearch.getText()).trim();
+        int requestedPage=currentPage,pageSize=cmbPageSize.getValue()==null?50:cmbPageSize.getValue();
         UiTaskExecutor.submitLatest(
             "bank-statement-batch-load",
-            () -> new BatchLoad(api.transactions(id), api.metrics(id)),
+            () -> api.page(id,requestedPage,pageSize,status,direction,from,to,query),
             loaded -> {
                 if(cmbBatch.getValue()==null || !Objects.equals(cmbBatch.getValue().id(), id)) return;
-                all.clear();
-                all.addAll(loaded.transactions());
-                applyFilters();
-                applyMetrics(loaded.metrics());
+                currentPage=loaded.page(); totalPages=loaded.totalPages(); totalRows=loaded.totalRows();
+                List<Row> rows=loaded.rows()==null?List.of():loaded.rows().stream().map(Row::new).toList();
+                rows.forEach(row->row.selected.addListener((o,a,b)->updateSelectionState()));
+                table.getItems().setAll(rows);
+                chkSelectAll.setSelected(false);chkSelectAll.setIndeterminate(false);updateSelectionState();
+                applyMetrics(loaded.metrics()); updatePageFooter();
             },
             this::error
         );
@@ -236,15 +252,30 @@ public class BankStatementController {
         lblProgressText.setText("0 / 0 reconciled");reconciliationProgress.setProgress(0);lblBatchStatus.setText("No statement selected");
     }
 
-    @FXML private void applyFilters(){
-        String q=txtSearch.getText()==null?"":txtSearch.getText().trim().toLowerCase(Locale.ROOT); String status=cmbStatus.getValue(); String direction=cmbDirection==null?"All":cmbDirection.getValue(); LocalDate from=fromDate.getValue(),to=toDate.getValue(); List<Row> rows=new ArrayList<>();
-        for(var t:all){LocalDate d=parseDate(t.transactionDate());if(from!=null&&d!=null&&d.isBefore(from))continue;if(to!=null&&d!=null&&d.isAfter(to))continue;if(status!=null&&!status.startsWith("All")&&!status.equalsIgnoreCase(t.status()))continue;if("Credit".equalsIgnoreCase(direction)&&t.credit()<=0)continue;if("Debit".equalsIgnoreCase(direction)&&t.debit()<=0)continue;String hay=(safe(t.description())+" "+safe(t.reference())+" "+t.debit()+" "+t.credit()+" "+safe(t.status())).toLowerCase(Locale.ROOT);if(!q.isBlank()&&!hay.contains(q))continue;rows.add(new Row(t));}
-        rows.forEach(row->row.selected.addListener((o,a,b)->updateSelectionState()));
-        chkSelectAll.setSelected(false);chkSelectAll.setIndeterminate(false);
-        table.getItems().setAll(rows);lblShowing.setText("Showing "+rows.size()+" of "+all.size()+" records");updateSelectionState();
+    @FXML private void applyFilters(){resetPageAndLoad();}
+    @FXML private void resetFilters(){
+        suppressFilterReload=true;
+        try{applyBatchPeriod();cmbStatus.setValue("All Status");if(cmbDirection!=null)cmbDirection.setValue("All");txtSearch.clear();currentPage=0;}
+        finally{suppressFilterReload=false;}
+        reloadCurrentPage();
     }
-    @FXML private void resetFilters(){applyBatchPeriod();cmbStatus.setValue("All Status");if(cmbDirection!=null)cmbDirection.setValue("All");txtSearch.clear();applyFilters();}
-    @FXML private void refresh(){if(cmbBatch.getValue()!=null)loadBatch(cmbBatch.getValue().id());else loadBatches();}
+    @FXML private void refresh(){reloadCurrentPage();}
+    @FXML private void previousPage(){if(currentPage>0){currentPage--;reloadCurrentPage();}}
+    @FXML private void nextPage(){if(currentPage+1<totalPages){currentPage++;reloadCurrentPage();}}
+    private void resetPageAndLoad(){currentPage=0;reloadCurrentPage();}
+    private void reloadCurrentPage(){if(cmbBatch.getValue()!=null)loadBatch(cmbBatch.getValue().id());else loadBatches();}
+    private String selectedStatus(){String v=cmbStatus==null?null:cmbStatus.getValue();return v==null||v.startsWith("All")?"":up(v);}
+    private String selectedDirection(){String v=cmbDirection==null?null:cmbDirection.getValue();return v==null||v.equalsIgnoreCase("All")?"ALL":up(v);}
+    private static String dateText(LocalDate value){return value==null?"":value.toString();}
+    private void updatePageFooter(){
+        int shown=table.getItems().size();
+        long start=shown==0?0:(long)currentPage*(cmbPageSize.getValue()==null?50:cmbPageSize.getValue())+1;
+        long end=shown==0?0:start+shown-1;
+        lblShowing.setText(shown==0?"Showing 0 records":"Showing "+start+"–"+end+" of "+totalRows+" records");
+        if(lblPage!=null)lblPage.setText(totalPages<=0?"Page 0 of 0":"Page "+(currentPage+1)+" of "+totalPages);
+        if(btnPrevPage!=null)btnPrevPage.setDisable(currentPage<=0);
+        if(btnNextPage!=null)btnNextPage.setDisable(totalPages<=0||currentPage+1>=totalPages);
+    }
 
     @FXML private void selectAllVisible(){boolean selected=chkSelectAll.isSelected();table.getItems().forEach(row->row.selected.set(selected));updateSelectionState();}
     private List<Row> selectedRows(){return table.getItems().stream().filter(row->row.selected.get()).toList();}
@@ -260,36 +291,49 @@ public class BankStatementController {
             Alert confirmation=new OwnedAlert(Alert.AlertType.CONFIRMATION,
                     "Selected: "+selected.size()+"\nEligible: "+rows.size()+"\nSkipped: "+skipped+"\n\nReason: "+reason);
             confirmation.setHeaderText(title);
-            confirmation.showAndWait().filter(ButtonType.OK::equals).ifPresent(x->{
-                int completed=0,failed=0;String firstFailure="";
-                for(Row row:rows){
-                    try{
-                        if("REVIEW".equals(action))api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,user()));
-                        else api.ignore(row.dto.id(),new BankStatementApiClient.IgnoreRequest(reason,user()));
-                        completed++;
-                    }catch(Exception e){failed++;if(firstFailure.isBlank())firstFailure=safe(e.getMessage());}
-                }
-                String result="Updated: "+completed+"\nSkipped: "+skipped+"\nFailed: "+failed;
-                if(!firstFailure.isBlank())result+="\n\nFirst failure: "+firstFailure;
-                if(failed==0)info(title,result);else new OwnedAlert(Alert.AlertType.WARNING,result).showAndWait();
-                refresh();
-            });
+            confirmation.showAndWait().filter(ButtonType.OK::equals).ifPresent(x->
+                UiTaskExecutor.submitLatest(
+                    "bank-statement-bulk-"+action.toLowerCase(Locale.ROOT),
+                    () -> {
+                        int completed=0,failed=0;String firstFailure="";
+                        for(Row row:rows){
+                            try{
+                                if("REVIEW".equals(action))api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,user()));
+                                else api.ignore(row.dto.id(),new BankStatementApiClient.IgnoreRequest(reason,user()));
+                                completed++;
+                            }catch(Exception e){failed++;if(firstFailure.isBlank())firstFailure=safe(e.getMessage());}
+                        }
+                        return new BulkResult(completed,failed,firstFailure);
+                    },
+                    bulk -> {
+                        String result="Updated: "+bulk.completed()+"\nSkipped: "+skipped+"\nFailed: "+bulk.failed();
+                        if(!bulk.firstFailure().isBlank())result+="\n\nFirst failure: "+bulk.firstFailure();
+                        if(bulk.failed()==0)info(title,result);else new OwnedAlert(Alert.AlertType.WARNING,result).showAndWait();
+                        refresh();
+                    },
+                    this::error
+                )
+            );
         });
     }
 
     private void match(Row row){
-        try{
-            List<BankStatementApiClient.CandidateDto> cs=api.suggest(row.dto.id());
-            if(cs.isEmpty()){info("Match Transaction","No open Sales/Purchase transaction was found. You can move debit transactions to Expense or review later.");refresh();return;}
-            var top=cs.getFirst();
-            if(Boolean.getBoolean("dse.legacyBankMatchDialog")&&top.confidence()>=75&&Math.abs(top.outstanding()-bankAmount(row.dto))<=.01){
-                Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Suggested Match\n\n"+top+"\n\nWhy suggested: amount/reference/party/date signals.\n\nConfirm this match?");
-                a.setHeaderText(String.format(Locale.ENGLISH,"High Confidence Match • %.0f%%",top.confidence()));
-                ButtonType find=new ButtonType("Find Another",ButtonBar.ButtonData.OTHER);ButtonType confirm=new ButtonType("Confirm Match",ButtonBar.ButtonData.OK_DONE);a.getButtonTypes().setAll(confirm,find,ButtonType.CANCEL);
-                var r=a.showAndWait();if(r.isPresent()&&r.get()==confirm){confirm(row,List.of(top));return;}if(r.isEmpty()||r.get()==ButtonType.CANCEL)return;
-            }
-            showCandidateWorkspace(row,cs);
-        }catch(Exception e){error(e);}
+        UiTaskExecutor.submitLatest(
+            "bank-statement-suggest-"+row.dto.id(),
+            () -> api.suggest(row.dto.id()),
+            cs -> {
+                if(cs.isEmpty()){info("Match Transaction","No open Sales/Purchase transaction was found. You can move debit transactions to Expense or review later.");refresh();return;}
+                var top=cs.getFirst();
+                if(Boolean.getBoolean("dse.legacyBankMatchDialog")&&top.confidence()>=75&&Math.abs(top.outstanding()-bankAmount(row.dto))<=.01){
+                    Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Suggested Match\n\n"+top+"\n\nWhy suggested: amount/reference/party/date signals.\n\nConfirm this match?");
+                    a.setHeaderText(String.format(Locale.ENGLISH,"High Confidence Match • %.0f%%",top.confidence()));
+                    ButtonType find=new ButtonType("Find Another",ButtonBar.ButtonData.OTHER);ButtonType confirm=new ButtonType("Confirm Match",ButtonBar.ButtonData.OK_DONE);a.getButtonTypes().setAll(confirm,find,ButtonType.CANCEL);
+                    var r=a.showAndWait();if(r.isPresent()&&r.get()==confirm){confirm(row,List.of(top));return;}if(r.isEmpty()||r.get()==ButtonType.CANCEL)return;
+                }
+                showCandidateWorkspace(row,cs);
+            },
+            this::error
+        );
     }
 
     private void showCandidateWorkspace(Row bankRow,List<BankStatementApiClient.CandidateDto> candidates){
@@ -387,7 +431,13 @@ public class BankStatementController {
     }
 
     private void confirmAllocations(Row row,List<BankStatementApiClient.AllocationRequest> allocations){
-        try{var result=api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(user(),allocations));info("Match Successful",result.message()+"\n\nBank Entry and invoice payment allocations were updated together.");refresh();}catch(Exception e){error(e);}
+        String performedBy=user();
+        UiTaskExecutor.submitLatest(
+            "bank-statement-match-"+row.dto.id(),
+            () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,allocations)),
+            result -> {info("Match Successful",result.message()+"\n\nBank Entry and invoice payment allocations were updated together.");refresh();},
+            this::error
+        );
     }
     private void showCandidatePicker(Row row,List<BankStatementApiClient.CandidateDto> cs){
         Label title=new Label("Find a Sales / Purchase transaction"); title.getStyleClass().add("bank-dialog-title");
@@ -411,7 +461,11 @@ public class BankStatementController {
     private void confirm(Row row,List<BankStatementApiClient.CandidateDto> selected){
         double remaining=bankAmount(row.dto);List<BankStatementApiClient.AllocationRequest> alloc=new ArrayList<>();
         for(var c:selected){double suggested=Math.min(c.outstanding(),remaining);TextInputDialog d=new OwnedTextInputDialog(String.format(Locale.ROOT,"%.2f",suggested));d.setTitle("Allocate Payment");d.setHeaderText(c.documentNo()+" • "+c.partyName()+" • Outstanding "+money(c.outstanding()));d.setContentText("Allocation amount:");Optional<String>v=d.showAndWait();if(v.isEmpty())return;double amount=Double.parseDouble(v.get().replace(",","").trim());alloc.add(new BankStatementApiClient.AllocationRequest(c.type(),c.id(),amount));remaining-=amount;}
-        try{var r=api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(user(),alloc));info("Match Successful",r.message()+"\n\nBank Entry created and Sales/Purchase payment allocation updated.");refresh();}catch(Exception e){error(e);}
+        String performedBy=user();
+        UiTaskExecutor.submitLatest("bank-statement-match-"+row.dto.id(),
+            () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,alloc)),
+            r -> {info("Match Successful",r.message()+"\n\nBank Entry created and Sales/Purchase payment allocation updated.");refresh();},
+            this::error);
     }
 
     private void moveToExpense(Row row){
@@ -453,13 +507,22 @@ public class BankStatementController {
         VBox content=new VBox(12,dialogHero("view","View / Edit Transaction","Detailed information of the imported bank transaction."),details,evidence,noteCard); content.setPadding(new Insets(8)); content.setPrefWidth(760);
         Dialog<ButtonType>d=new OwnedDialog<>(); d.setTitle("Bank Transaction"); d.setHeaderText(null);d.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-transaction-dialog"); d.getDialogPane().setContent(content);
         ButtonType save=new ButtonType("Save Note",ButtonBar.ButtonData.OK_DONE); d.getDialogPane().getButtonTypes().addAll(save,ButtonType.CLOSE);
-        d.showAndWait().filter(x->x==save).ifPresent(x->{try{api.updateNote(t.id(),new BankStatementApiClient.NoteRequest(note.getText().trim(),user()));info("Bank Transaction","ERP note saved successfully.");audit(row);}catch(Exception e){error(e);}});
+        d.showAndWait().filter(x->x==save).ifPresent(x->{
+            String value=note.getText().trim(),performedBy=user();
+            UiTaskExecutor.submitLatest("bank-statement-note-"+t.id(),
+                () -> api.updateNote(t.id(),new BankStatementApiClient.NoteRequest(value,performedBy)),
+                ignored -> {info("Bank Transaction","ERP note saved successfully.");audit(row);},this::error);
+        });
     }
     private void viewStatementSource(){
-        var b=cmbBatch.getValue(); if(b==null)return;
-        try{
-            var src=api.source(b.id());
-            GridPane meta=new GridPane();meta.setHgap(14);meta.setVgap(7);meta.getStyleClass().add("bank-dialog-grid");int r=0;
+        var batch=cmbBatch.getValue(); if(batch==null)return;
+        UiTaskExecutor.submitLatest("bank-statement-source-"+batch.id(),
+            () -> api.source(batch.id()),
+            source -> renderStatementSource(batch,source),
+            this::error);
+    }
+    private void renderStatementSource(BankStatementApiClient.BatchDto b,BankStatementApiClient.SourceDto src){
+        GridPane meta=new GridPane();meta.setHgap(14);meta.setVgap(7);meta.getStyleClass().add("bank-dialog-grid");int r=0;
             addDialogRow(meta,r++,"Bank",safe(b.bankName()));addDialogRow(meta,r++,"Account",safe(b.bankAccount()));addDialogRow(meta,r++,"Account Holder",safe(b.accountHolder()));
             addDialogRow(meta,r++,"Statement Period",safe(b.statementFrom())+"  to  "+safe(b.statementTo()));addDialogRow(meta,r++,"Source File",safe(src.fileName()));addDialogRow(meta,r++,"SHA-256",safe(src.fingerprint()));
             ListView<String> preview=new ListView<>();String[] csvLines=safe(src.csvContent()).split("\\R",-1);for(int i=0;i<csvLines.length;i++)preview.getItems().add(String.format("%4d   %s",i+1,csvLines[i]));preview.setPrefHeight(300);preview.getStyleClass().add("bank-evidence-preview");
@@ -470,20 +533,27 @@ public class BankStatementController {
             VBox previewCard=new VBox(8,new Label("CSV Evidence Preview"),preview);previewCard.getStyleClass().add("bank-dialog-section");
             VBox content=new VBox(12,dialogHero("document","Statement Source & Evidence","Review the source file and evidence of this imported statement."),evidenceCard,help,previewCard);content.setPadding(new Insets(8));content.setPrefWidth(780);
             Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Imported Bank Statement");d.setHeaderText(null);d.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-evidence-dialog");d.getDialogPane().setContent(content);d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);d.showAndWait();
-        }catch(Exception e){error(e);}
     }
     private Label sectionTitle(String text){Label l=new Label(text);l.getStyleClass().add("bank-dialog-title");return l;}
     private void addDialogRow(GridPane g,int row,String label,String value){Label a=new Label(label);a.getStyleClass().add("bank-dialog-label");Label b=new Label(value==null||value.isBlank()?"Not available":value);b.setWrapText(true);b.getStyleClass().add("bank-dialog-value");g.add(a,0,row);g.add(b,1,row);GridPane.setHgrow(b,Priority.ALWAYS);}
     private void markReview(Row row){
         requiredReason("Mark for Review","Explain what must be checked before this transaction is reconciled.").ifPresent(reason->{
-            try{api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,user()));refresh();}catch(Exception e){error(e);}
+            String performedBy=user();
+            UiTaskExecutor.submitLatest("bank-statement-review-"+row.dto.id(),
+                () -> api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,performedBy)),
+                ignored -> refresh(),this::error);
         });
     }
     private void ignore(Row row){
         requiredReason("Ignore Bank Transaction","Enter the reason this statement line should be excluded from reconciliation. The reason is retained in the audit history.").ifPresent(reason->{
             Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"This transaction will remain visible in the imported statement and audit trail, but will be excluded from reconciliation totals.\n\nReason: "+reason);
             a.setHeaderText("Confirm ignored transaction");
-            a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{try{api.ignore(row.dto.id(),new BankStatementApiClient.IgnoreRequest(reason,user()));refresh();}catch(Exception e){error(e);}});
+            a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{
+                String performedBy=user();
+                UiTaskExecutor.submitLatest("bank-statement-ignore-"+row.dto.id(),
+                    () -> api.ignore(row.dto.id(),new BankStatementApiClient.IgnoreRequest(reason,performedBy)),
+                    ignored -> refresh(),this::error);
+            });
         });
     }
     private Optional<String> requiredReason(String title,String prompt){
@@ -492,10 +562,14 @@ public class BankStatementController {
         if(value.isEmpty())info(title,"A reason is required so the decision can be understood from the audit history.");
         return value;
     }
-    private void reverse(Row row){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Reverse this reconciliation? Linked payment/finance records will be safely reversed and the bank transaction will return to UNMATCHED.");a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{try{api.reverse(row.dto.id(),user());refresh();}catch(Exception e){error(e);}});}
+    private void reverse(Row row){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Reverse this reconciliation? Linked payment/finance records will be safely reversed and the bank transaction will return to UNMATCHED.");a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{String performedBy=user();UiTaskExecutor.submitLatest("bank-statement-reverse-"+row.dto.id(),()->api.reverse(row.dto.id(),performedBy),ignored->refresh(),this::error);});}
     private void audit(Row row){
-        try{
-            var items=api.audit(row.dto.id());
+        UiTaskExecutor.submitLatest("bank-statement-audit-"+row.dto.id(),
+            () -> api.audit(row.dto.id()),
+            items -> renderAudit(row,items),
+            this::error);
+    }
+    private void renderAudit(Row row,List<BankStatementApiClient.AuditDto> items){
             VBox list=new VBox(8);
             if(items.isEmpty())list.getChildren().add(new Label("No audit history found for this transaction."));
             for(var a:items){
@@ -510,7 +584,6 @@ public class BankStatementController {
             VBox content=new VBox(10,sectionTitle("Complete Reconciliation History"),new Label("Bank transaction: "+safe(row.dto.reference())+"  •  "+safe(row.dto.description())),scroll);content.setPadding(new Insets(8));
             content.getChildren().add(0,dialogHero("security","Audit Trail & Evidence","Complete history of reconciliation and evidence for this bank transaction."));content.setPrefWidth(760);
             Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Audit History");d.setHeaderText(null);d.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-audit-dialog");d.getDialogPane().setContent(content);d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);d.showAndWait();
-        }catch(Exception e){error(e);}
     }
 
     private StackPane dialogIcon(String semantic,double size){StackPane pane=new StackPane(IconFactory.icon(semantic,size*.55));pane.getStyleClass().add("bank-dialog-icon");pane.setMinSize(size,size);pane.setPrefSize(size,size);pane.setMaxSize(size,size);return pane;}
@@ -524,7 +597,7 @@ public class BankStatementController {
     private void info(String h,String t){Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,t);a.setHeaderText(h);a.showAndWait();}
     private void error(Throwable e){Alert a=new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?e.toString():e.getMessage());a.setHeaderText("Bank Statement operation failed");a.showAndWait();}
 
-    private record BatchLoad(List<BankStatementApiClient.TransactionDto> transactions, BankStatementApiClient.Metrics metrics) { }
+    private record BulkResult(int completed,int failed,String firstFailure) { }
 
     public static final class Row{
         final BankStatementApiClient.TransactionDto dto;final BooleanProperty selected=new SimpleBooleanProperty(false);final StringProperty date,valueDate,reference,description,status,match;final DoubleProperty debit,credit,balance;

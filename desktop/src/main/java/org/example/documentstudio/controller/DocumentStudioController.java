@@ -53,7 +53,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         if(oneEditorModeIcon!=null)oneEditorModeIcon.getChildren().setAll(IconFactory.icon("edit",18));
         cmbType.setItems(FXCollections.observableArrayList());
         cmbType.getItems().add("All document types");
-        cmbType.getItems().addAll(DocumentType.values());
+        cmbType.getItems().addAll(Arrays.asList(DocumentType.values()));
         cmbType.getSelectionModel().selectFirst();
         cmbStatus.setItems(FXCollections.observableArrayList("All status", TemplateStatus.DRAFT,
                 TemplateStatus.ACTIVE, TemplateStatus.ARCHIVED));

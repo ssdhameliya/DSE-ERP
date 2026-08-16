@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelUpdates" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,update-settings-panel">
+
+                            <VBox spacing="3">
+                                <Label text="Application Updates" styleClass="settings-section-title"/>
+                                <Label text="Check GitHub Releases, prepare verified installers and protect the database before updating" wrapText="true" styleClass="settings-section-description"/>
+                            </VBox>
+
+                            <HBox spacing="14">
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
+                                    <Label text="Current Version" styleClass="settings-form-label"/>
+                                    <Label fx:id="lblCurrentVersion" text="7.3.10" styleClass="update-version-value"/>
+                                    <Label text="Installed application" styleClass="settings-help-text"/>
+                                </VBox>
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
+                                    <Label text="Latest Version" styleClass="settings-form-label"/>
+                                    <Label fx:id="lblLatestVersion" text="Check GitHub Releases" styleClass="update-version-value"/>
+                                    <Label text="Selected release channel" styleClass="settings-help-text"/>
+                                </VBox>
+                                <VBox spacing="5" HBox.hgrow="ALWAYS" styleClass="update-version-card">
+                                    <Label text="Last Checked" styleClass="settings-form-label"/>
+                                    <Label fx:id="lblLastChecked" text="Never" wrapText="true" styleClass="update-version-value-small"/>
+                                    <Label text="Automatic checks run at most twice daily" styleClass="settings-help-text"/>
+                                </VBox>
+                            </HBox>
+
+                            <VBox spacing="14" styleClass="settings-information-card">
+                                <Label text="GitHub Release Source" styleClass="settings-subsection-title"/>
+                                <GridPane hgap="18" vgap="14">
+                                    <columnConstraints>
+                                        <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                        <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+                                    </columnConstraints>
+                                    <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                                        <Label text="Repository Owner" styleClass="settings-form-label"/>
+                                        <TextField fx:id="txtGitHubOwner" promptText="GitHub account or organisation" styleClass="approved-input"/>
+                                    </VBox>
+                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                        <Label text="Repository Name" styleClass="settings-form-label"/>
+                                        <TextField fx:id="txtGitHubRepository" promptText="Example: dse-erp" styleClass="approved-input"/>
+                                    </VBox>
+                                    <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                                        <Label text="Update Channel" styleClass="settings-form-label"/>
+                                        <ComboBox fx:id="cmbUpdateChannel" maxWidth="Infinity" styleClass="approved-input"/>
+                                    </VBox>
+                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                        <Label text="Platform" styleClass="settings-form-label"/>
+                                        <Label text="Windows EXE/MSI or macOS DMG/PKG is selected automatically" wrapText="true" styleClass="settings-help-text"/>
+                                    </VBox>
+                                </GridPane>
+                            </VBox>
+
+                            <VBox spacing="10" styleClass="settings-information-card">
+                                <CheckBox fx:id="chkUpdateAtStartup" text="Check automatically at startup" selected="true"/>
+                                <CheckBox fx:id="chkDownloadInBackground" text="Allow background downloads after approval"/>
+                                <Label text="Every online installer must have a matching SHA-256 entry in checksums.txt. A verified PostgreSQL safety backup is created before the installer starts." wrapText="true" styleClass="settings-help-text"/>
+                            </VBox>
+
+                            <FlowPane hgap="10" vgap="10">
+                                <Button fx:id="btnCheckUpdates" text="Check for Updates" onAction="#checkForUpdates" styleClass="settings-action-button,settings-primary-button"/>
+                                <Button text="View Update History" onAction="#viewUpdateHistory" styleClass="settings-action-button,settings-secondary-button"/>
+                                <Button text="Install Offline Package" onAction="#installOfflineUpdate" styleClass="settings-action-button,settings-secondary-button"/>
+                                <Button text="System Health" onAction="#showSystemHealth" styleClass="settings-action-button,settings-secondary-button"/>
+                            </FlowPane>
+
+                        </VBox>
+
+
+                    

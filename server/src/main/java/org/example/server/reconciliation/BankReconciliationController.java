@@ -7,6 +7,7 @@ public class BankReconciliationController {
  @GetMapping("/imports") public List<BankReconciliationDtos.BatchDto> batches(){return service.batches();}
  @GetMapping("/imports/{id}/source") public BankReconciliationDtos.SourceDto source(@PathVariable Long id){return service.source(id);}
  @GetMapping("/imports/{id}/transactions") public List<BankReconciliationDtos.TransactionDto> transactions(@PathVariable Long id){return service.transactions(id);}
+ @GetMapping("/imports/{id}/page") public BankReconciliationDtos.TransactionPage page(@PathVariable Long id,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="50") int size,@RequestParam(defaultValue="") String status,@RequestParam(defaultValue="ALL") String direction,@RequestParam(defaultValue="") String fromDate,@RequestParam(defaultValue="") String toDate,@RequestParam(defaultValue="") String q){return service.transactionPage(id,page,size,status,direction,fromDate,toDate,q);}
  @GetMapping("/imports/{id}/metrics") public BankReconciliationDtos.Metrics metrics(@PathVariable Long id){return service.metrics(id);}
  @PostMapping("/transactions/{id}/suggest") public List<BankReconciliationDtos.CandidateDto> suggest(@PathVariable Long id){return service.suggest(id);}
  @GetMapping("/transactions/{id}/candidates") public List<BankReconciliationDtos.CandidateDto> candidates(@PathVariable Long id){return service.candidates(id);}

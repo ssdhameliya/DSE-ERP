@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.SVGPath?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelCompany" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact">
+
+                            <VBox spacing="3">
+
+                                <Label text="Company &amp; Billing" styleClass="settings-section-title"/>
+
+                                <Label text="Business identity, primary contact details and document branding" wrapText="true" styleClass="settings-section-description"/>
+
+                            </VBox>
+
+                            <GridPane hgap="12" vgap="8">
+
+                                <columnConstraints>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                                </columnConstraints>
+
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="0">
+
+                                    <Label text="Company Name" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtCompanyName" promptText="Enter company name" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="0">
+
+                                    <Label text="Phone" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtPhone" promptText="Enter phone number" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.rowIndex="0">
+
+                                    <Label text="Company Email" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtEmail" promptText="company@example.com" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="3" GridPane.rowIndex="0">
+
+                                    <Label text="GSTIN" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtGstin" promptText="Enter GSTIN" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
+
+                                    <Label text="PAN" styleClass="settings-form-label"/>
+
+                                    <TextField fx:id="txtCompanyPan" promptText="Enter PAN" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1">
+
+                                    <Label text="Business Type" styleClass="settings-form-label"/>
+
+                                    <ComboBox fx:id="cmbBusinessType" promptText="Select business type" maxWidth="Infinity" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.rowIndex="1">
+
+                                    <Label text="Industry" styleClass="settings-form-label"/>
+
+                                    <ComboBox fx:id="cmbIndustry" promptText="Select industry" maxWidth="Infinity" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="3" GridPane.rowIndex="1">
+
+                                    <Label text="Financial Year Start" styleClass="settings-form-label"/>
+
+                                    <DatePicker fx:id="dpFinancialYearStart" promptText="Select date" maxWidth="Infinity" styleClass="approved-input"/>
+
+                                </VBox>
+
+                                <!-- Application identity is intentionally kept at the bottom of the primary Company & Billing form. -->
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                                    <Label text="Application Name" styleClass="settings-form-label"/>
+                                    <TextField fx:id="txtApplicationName" promptText="DSE ERP" styleClass="approved-input"/>
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                    <Label text="Application Tagline" styleClass="settings-form-label"/>
+                                    <TextField fx:id="txtApplicationTagline" promptText="Business Management Suite" styleClass="approved-input"/>
+                                </VBox>
+
+                                <VBox spacing="5" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="2">
+                                    <Label text="Startup Message" styleClass="settings-form-label"/>
+                                    <TextField fx:id="txtApplicationStartingText" promptText="Starting DSE ERP..." styleClass="approved-input"/>
+                                    <Label text="Used on splash and sign-in screens; document branding remains independent." wrapText="true" styleClass="settings-help-text"/>
+                                </VBox>
+
+                            </GridPane>
+
+                            <Separator/>
+
+                            <!-- UNIFIED BRAND & IDENTITY ASSETS -->
+                            <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-brand-assets-panel">
+                                <VBox spacing="4">
+                                    <Label text="Brand &amp; Identity Assets" styleClass="settings-subsection-title"/>
+                                    <Label text="Manage the application brand image used by splash, sign-in, registration and email / OTP screens." wrapText="true" styleClass="settings-help-text"/>
+                                </VBox>
+
+                                <HBox spacing="10" alignment="TOP_CENTER" maxWidth="Infinity" styleClass="settings-brand-assets-row">
+                                    <!-- APPLICATION BRAND IMAGE -->
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card,settings-application-brand-card">
+                                        <Label text="Application Brand Image" styleClass="settings-form-label"/>
+                                        <Label text="Splash, login, registration and email / OTP screens • Recommended 1600 × 320 (5:1)" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="applicationBrandPreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgApplicationBrand" preserveRatio="false" smooth="true"/>
+                                            <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
+                                                <Label text="◆" styleClass="settings-placeholder-icon"/>
+                                                <Label text="No application brand image selected" styleClass="settings-help-text"/>
+                                            </VBox>
+                                        </StackPane>
+                                        <Label fx:id="lblApplicationBrandFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                        <HBox spacing="8">
+                                            <Button text="Upload / Change" onAction="#uploadApplicationBrand" styleClass="settings-secondary-button"/>
+                                            <Button text="Remove" onAction="#removeApplicationBrand" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                        </HBox>
+                                    </VBox>
+
+                                </HBox>
+                            </VBox>
+
+                        </VBox>
+
+                        
