@@ -168,8 +168,7 @@ public final class ProfessionalDocumentRenderer {
         Table header = new Table(1).useAllAvailableWidth().setMarginBottom(5);
         Cell cell = new Cell().setBorder(Border.NO_BORDER).setPadding(0)
             .setTextAlignment(TextAlignment.CENTER);
-        try (InputStream stream = ProfessionalDocumentRenderer.class
-                .getResourceAsStream("/pdf/jasvi/company-header.png")) {
+        try (InputStream stream = ResourceLocator.open("/pdf/jasvi/company-header.png")) {
             if (stream != null) {
                 cell.add(new Image(ImageDataFactory.create(stream.readAllBytes()))
                     .setAutoScale(true).setMaxHeight(92)
@@ -1229,8 +1228,7 @@ public final class ProfessionalDocumentRenderer {
             .setVerticalAlignment(VerticalAlignment.MIDDLE);
         Table row = new Table(UnitValue.createPercentArray(new float[]{12, 88})).useAllAvailableWidth();
         Cell icon = new Cell().setBorder(Border.NO_BORDER).setPadding(0);
-        try (InputStream stream = ProfessionalDocumentRenderer.class
-                .getResourceAsStream("/pdf/icons/" + iconName)) {
+        try (InputStream stream = ResourceLocator.open("/pdf/icons/" + iconName)) {
             if (stream != null) {
                 icon.add(new Image(ImageDataFactory.create(stream.readAllBytes()))
                     .setWidth(7).setHeight(7).setHorizontalAlignment(HorizontalAlignment.RIGHT));
@@ -1576,8 +1574,7 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
             .useAllAvailableWidth().setMarginTop(1);
         Cell iconCell = new Cell().setBorder(Border.NO_BORDER).setPadding(0)
             .setVerticalAlignment(VerticalAlignment.MIDDLE);
-        try (InputStream stream = ProfessionalDocumentRenderer.class
-                .getResourceAsStream("/pdf/icons/" + iconName)) {
+        try (InputStream stream = ResourceLocator.open("/pdf/icons/" + iconName)) {
             if (stream != null) {
                 iconCell.add(new Image(ImageDataFactory.create(stream.readAllBytes()))
                     .setWidth(8).setHeight(8).setHorizontalAlignment(HorizontalAlignment.CENTER));
@@ -1615,8 +1612,7 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
         String resourcePath = iconName.startsWith("/")
             ? iconName
             : "/pdf/icons/" + iconName;
-        try (InputStream stream = ProfessionalDocumentRenderer.class
-                .getResourceAsStream(resourcePath)) {
+        try (InputStream stream = ResourceLocator.open(resourcePath)) {
             if (stream != null) {
                 cell.add(new Image(ImageDataFactory.create(stream.readAllBytes()))
                     .setAutoScale(true).setMaxWidth(maxWidth).setMaxHeight(maxHeight)

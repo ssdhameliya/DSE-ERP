@@ -57,24 +57,108 @@ public final class UpdateInstallerLauncher {
                 function Write-UpdateLog([string]$Message) {
                     Add-Content -Path $log -Value (('[{0}] {1}' -f (Get-Date -Format s), $Message)) -Encoding UTF8
                 }
+                function Resolve-ApplicationPath {
+                    if ($ApplicationPath -and (Test-Path -LiteralPath $ApplicationPath -PathType Leaf)) {
+                        return [System.IO.Path]::GetFullPath($ApplicationPath)
+                    }
+                    $fallback = Join-Path $env:LOCALAPPDATA 'DSE ERP\\DSE ERP.exe'
+                    if (Test-Path -LiteralPath $fallback -PathType Leaf) {
+                        return [System.IO.Path]::GetFullPath($fallback)
+                    }
+                    return ''
+                }
+                function Resolve-PostgresRuntime([string]$AppPath) {
+                    if (-not $AppPath) { return '' }
+                    $appRoot = Split-Path -Parent $AppPath
+                    return (Join-Path $appRoot 'app\\runtime\\postgresql')
+                }
+                function Assert-PostgresReleased([string]$Runtime) {
+                    if (-not $Runtime -or -not (Test-Path -LiteralPath $Runtime -PathType Container)) {
+                        throw "Bundled PostgreSQL runtime could not be located before update: $Runtime"
+                    }
+                    $runtimeFull = [System.IO.Path]::GetFullPath($Runtime).TrimEnd('\\')
+                    $locked = @(Get-CimInstance Win32_Process -Filter "Name='postgres.exe'" -ErrorAction Stop | Where-Object {
+                        if (-not $_.ExecutablePath) { return $false }
+                        try {
+                            $exe = [System.IO.Path]::GetFullPath($_.ExecutablePath)
+                            return $exe.StartsWith($runtimeFull, [System.StringComparison]::OrdinalIgnoreCase)
+                        } catch { return $false }
+                    })
+                    if ($locked.Count -gt 0) {
+                        $ids = ($locked | ForEach-Object { $_.ProcessId }) -join ', '
+                        throw "Bundled PostgreSQL is still running (PID(s): $ids). Installer launch blocked to protect runtime files."
+                    }
+                }
+                function Assert-RuntimeHealthy([string]$Runtime) {
+                    if (-not $Runtime -or -not (Test-Path -LiteralPath $Runtime -PathType Container)) {
+                        throw "Installed PostgreSQL runtime is missing: $Runtime"
+                    }
+                    $required = @(
+                        'bin\\postgres.exe',
+                        'bin\\pg_ctl.exe',
+                        'bin\\pg_isready.exe',
+                        'bin\\psql.exe',
+                        'bin\\createdb.exe',
+                        'bin\\libpq.dll',
+                        'bin\\libssl-3-x64.dll',
+                        'bin\\libcrypto-3-x64.dll'
+                    )
+                    $missing = @($required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Runtime $_) -PathType Leaf) })
+                    if ($missing.Count -gt 0) {
+                        throw "Installed PostgreSQL runtime verification failed. Missing: $($missing -join ', ')"
+                    }
+                    $rollbackFiles = @(Get-ChildItem -LiteralPath $Runtime -Filter '*.rbf' -Recurse -File -ErrorAction SilentlyContinue)
+                    if ($rollbackFiles.Count -gt 0) {
+                        throw "Installed PostgreSQL runtime contains rollback/locked-file artifacts (*.rbf). DSE ERP will not restart."
+                    }
+                }
+                function Try-RestartExistingApplication([string]$AppPath) {
+                    if (-not $AppPath -or -not (Test-Path -LiteralPath $AppPath -PathType Leaf)) { return }
+                    try {
+                        $runtime = Resolve-PostgresRuntime $AppPath
+                        Assert-RuntimeHealthy $runtime
+                        Write-UpdateLog "Restarting verified existing application after failed update: $AppPath"
+                        Start-Process -FilePath $AppPath
+                    } catch {
+                        Write-UpdateLog "Existing application was not restarted because runtime verification failed: $($_.Exception.Message)"
+                    }
+                }
+                $resolvedApp = Resolve-ApplicationPath
+                $postgresRuntime = Resolve-PostgresRuntime $resolvedApp
                 try {
                     Write-UpdateLog "Waiting for DSE ERP process $ProcessId to close."
-                    try { Wait-Process -Id $ProcessId -Timeout 180 -ErrorAction Stop } catch { Start-Sleep -Seconds 3 }
+                    try {
+                        Wait-Process -Id $ProcessId -Timeout 180 -ErrorAction Stop
+                    } catch {
+                        if (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) {
+                            throw "DSE ERP process $ProcessId did not exit within 180 seconds. Installer launch blocked."
+                        }
+                    }
+                    Assert-PostgresReleased $postgresRuntime
+                    Write-UpdateLog "PostgreSQL runtime is fully released: $postgresRuntime"
                     Write-UpdateLog "Starting silent installer: $Installer"
                     $process = Start-Process -FilePath $Installer -ArgumentList @('/quiet','/norestart') -Wait -PassThru
                     Write-UpdateLog "Installer exit code: $($process.ExitCode)"
                     if ($process.ExitCode -ne 0) { throw "Installer returned exit code $($process.ExitCode)." }
                     Start-Sleep -Seconds 2
-                    if ($ApplicationPath -and (Test-Path $ApplicationPath)) {
-                        Write-UpdateLog "Restarting application: $ApplicationPath"
-                        Start-Process -FilePath $ApplicationPath
+
+                    $resolvedApp = Resolve-ApplicationPath
+                    $postgresRuntime = Resolve-PostgresRuntime $resolvedApp
+                    Assert-RuntimeHealthy $postgresRuntime
+                    Assert-PostgresReleased $postgresRuntime
+                    Write-UpdateLog "Installed PostgreSQL runtime verification passed."
+
+                    if ($resolvedApp) {
+                        Write-UpdateLog "Restarting application: $resolvedApp"
+                        Start-Process -FilePath $resolvedApp
                     } else {
-                        $fallback = Join-Path $env:LOCALAPPDATA 'DSE ERP\\DSE ERP.exe'
-                        if (Test-Path $fallback) { Start-Process -FilePath $fallback }
+                        throw "DSE ERP executable could not be located after installation."
                     }
                 } catch {
-                    Write-UpdateLog "Automatic update failed: $($_.Exception.Message)"
-                    Start-Process -FilePath $Installer
+                    Write-UpdateLog "Automatic update failed safely: $($_.Exception.Message)"
+                    # Never relaunch the installer interactively after an automatic failure.
+                    # A file-lock failure must fail closed rather than attempting replacement again.
+                    Try-RestartExistingApplication $resolvedApp
                     exit 1
                 }
                 """;

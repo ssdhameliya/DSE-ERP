@@ -157,7 +157,7 @@ public class InvoicePdfService {
 
         Path logo = ConfigManager.getConfigFolder().resolve("logo.png");
         if (Files.notExists(logo)) {
-            try (var input = InvoicePdfService.class.getResourceAsStream("/logo.png")) {
+            try (var input = org.example.util.ResourceLocator.open("/logo.png")) {
                 if (input == null) throw new IllegalStateException("Application logo is missing");
                 Files.copy(input, logo);
             }

@@ -50,7 +50,7 @@ public class InventoryController implements ScreenLifecycle {
 
  private void openItemDialog(Item item){
   try{
-   FXMLLoader loader=new FXMLLoader(getClass().getResource("/fxml/pages/Itemdialog.fxml"));
+   FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Itemdialog.fxml"));
    Parent root=loader.load();
    ItemDialogController controller=loader.getController();
    if(item!=null)controller.setItem(item);

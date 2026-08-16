@@ -770,7 +770,7 @@ public class SalesController {
     @FXML
     private void addCustomer() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/pages/PartyDialog.fxml"));
+            FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
             Parent root = loader.load();
             loader.<PartyDialogController>getController().configure("CUSTOMER", null);
             Stage dialog = new Stage();

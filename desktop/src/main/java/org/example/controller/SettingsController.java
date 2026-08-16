@@ -338,7 +338,7 @@ public class SettingsController implements ScreenLifecycle {
             case UPDATES -> "UpdatesSettingsPanel.fxml";
         };
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/pages/settings/" + file));
+            FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/settings/" + file));
             loader.setController(this);
             fragmentLoading = true;
             VBox panel = loader.load();

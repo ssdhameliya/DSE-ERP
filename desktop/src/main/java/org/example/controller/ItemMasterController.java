@@ -196,7 +196,7 @@ public class ItemMasterController {
 
     private void openItemDialog(Item item) {
         try {
-            URL url = getClass().getResource("/fxml/pages/Itemdialog.fxml");
+            URL url = org.example.util.ResourceLocator.require("/fxml/pages/Itemdialog.fxml");
             if (url == null) throw new RuntimeException("Itemdialog.fxml not found");
             FXMLLoader loader = new FXMLLoader(url);
             Parent root = loader.load();

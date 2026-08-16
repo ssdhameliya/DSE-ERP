@@ -201,7 +201,7 @@ public abstract class PartyMasterController {
 
     private void open(Party party) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/pages/PartyDialog.fxml"));
+            FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
             Parent root = loader.load();
             PartyDialogController controller = loader.getController();
             controller.configure(partyType(), party);

@@ -10,7 +10,7 @@ public class BusinessOperationsController {
  @PostMapping("/sales") public OperationDtos.SaleDto saveSale(@RequestBody OperationDtos.SaleDto d){return s.saveSale(d);}
  @PutMapping("/sales") public OperationDtos.SaleDto updateSale(@RequestBody OperationDtos.SaleDto d){return s.updateSale(d);}
  @DeleteMapping("/sales") public OperationDtos.OperationResponse deleteSale(@RequestParam String invoiceNo){s.deleteSale(invoiceNo);return ok("Sale deleted");}
- @PostMapping("/sales/cancel") public OperationDtos.OperationResponse cancelSale(@RequestParam String invoiceNo){s.cancelSale(invoiceNo);return ok("Sale cancelled");}
+ @PostMapping("/sales/cancel") public OperationDtos.OperationResponse cancelSale(@RequestParam String invoiceNo){s.cancelSale(invoiceNo);return ok("Sale deleted");}
  @PostMapping("/sales/email-sent/{id}") public OperationDtos.OperationResponse saleEmail(@PathVariable int id){s.markSaleEmail(id);return ok("Updated");}
  @GetMapping("/sales/next-invoice") public OperationDtos.NextNumber nextSale(){return new OperationDtos.NextNumber(s.nextSalesInvoice());}
 

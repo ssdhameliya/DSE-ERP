@@ -41,16 +41,12 @@ public final class ThemeManager {
         if (currentTheme == Theme.DARK) {
 
             scene.getStylesheets().add(
-                ThemeManager.class
-                    .getResource("/css/dark-theme.css")
-                    .toExternalForm());
+                org.example.util.ResourceLocator.require("/css/dark-theme.css").toExternalForm());
 
         } else {
 
             scene.getStylesheets().add(
-                ThemeManager.class
-                    .getResource("/css/light-theme.css")
-                    .toExternalForm());
+                org.example.util.ResourceLocator.require("/css/light-theme.css").toExternalForm());
 
         }
 
@@ -68,7 +64,7 @@ public final class ThemeManager {
     }
 
     private static void addOnce(Scene scene, String resource) {
-        String url = ThemeManager.class.getResource(resource).toExternalForm();
+        String url = org.example.util.ResourceLocator.require(resource).toExternalForm();
         if (!scene.getStylesheets().contains(url)) scene.getStylesheets().add(url);
     }
 

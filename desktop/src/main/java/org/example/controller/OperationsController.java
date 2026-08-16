@@ -90,7 +90,7 @@ public class OperationsController {
     /** Opens a full registration-style user form and refreshes the user table. */
     @FXML private void openUserRegistration() {
         try {
-            Parent root = FXMLLoader.load(getClass().getResource("/fxml/pages/UserDialog.fxml"));
+            Parent root = FXMLLoader.load(org.example.util.ResourceLocator.require("/fxml/pages/UserDialog.fxml"));
             Stage stage = new Stage();
             PlatformUiSupport.configureDialogStage(stage, tabs, "Add User", true);
             Scene scene = new Scene(root);

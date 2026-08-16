@@ -1063,7 +1063,8 @@ public class ImportController {
     private String semanticIconForField(String field) {
         return switch (field == null ? "" : field) {
             case "invoice_date", "transaction_date", "value_date" -> "calendar";
-            case "party_code", "contact_person", "name" -> "customer";
+            case "party_code" -> "reference";
+            case "contact_person", "name" -> "customer";
             case "item_code", "description", "remarks" -> "item";
             case "category", "category_code", "category_name", "value", "value_code" -> "category";
             case "unit" -> "unit";
@@ -2077,7 +2078,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 7.3.10 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 7.3.11 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

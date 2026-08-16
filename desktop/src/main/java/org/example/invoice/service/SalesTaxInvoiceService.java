@@ -77,7 +77,7 @@ public final class SalesTaxInvoiceService {
 
         Path fallback = ConfigManager.getConfigFolder().resolve("logo.png");
         if (Files.notExists(fallback)) {
-            try (var input = SalesTaxInvoiceService.class.getResourceAsStream("/logo.png")) {
+            try (var input = org.example.util.ResourceLocator.open("/logo.png")) {
                 if (input != null) Files.copy(input, fallback);
             }
         }

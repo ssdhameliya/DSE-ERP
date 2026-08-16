@@ -747,7 +747,7 @@ public class MasterDataController implements ScreenLifecycle {
 
         try {
 
-            URL resource = getClass().getResource(
+            URL resource = org.example.util.ResourceLocator.require(
                 "/fxml/pages/lookupDialog.fxml"
             );
 
@@ -829,7 +829,7 @@ public class MasterDataController implements ScreenLifecycle {
 
         try {
 
-            URL resource = getClass().getResource(
+            URL resource = org.example.util.ResourceLocator.require(
                 "/fxml/pages/lookupDialog.fxml"
             );
 

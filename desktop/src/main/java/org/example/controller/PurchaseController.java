@@ -775,7 +775,7 @@ public class PurchaseController {
     @FXML
     private void addSupplier() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/pages/PartyDialog.fxml"));
+            FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
             Parent root = loader.load();
             loader.<PartyDialogController>getController().configure("SUPPLIER", null);
             Stage dialog = new Stage();

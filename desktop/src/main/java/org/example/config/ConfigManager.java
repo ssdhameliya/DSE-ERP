@@ -31,7 +31,7 @@ public final class ConfigManager {
                     properties.load(input);
                 }
             } else {
-                try (InputStream defaults = ConfigManager.class.getResourceAsStream("/config.properties")) {
+                try (InputStream defaults = org.example.util.ResourceLocator.open("/config.properties")) {
                     if (defaults != null) properties.load(defaults);
                 }
                 properties.remove("smtp.appPassword");
@@ -103,7 +103,7 @@ public final class ConfigManager {
     private static String requirePostgresUrl(String url) {
         String value = url == null ? "" : url.trim();
         if (!value.startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("DSE ERP 7.3.10 production runtime requires PostgreSQL. Invalid database URL: " + value);
+            throw new IllegalStateException("DSE ERP 7.3.11 production runtime requires PostgreSQL. Invalid database URL: " + value);
         }
         return value;
     }

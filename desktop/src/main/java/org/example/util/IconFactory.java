@@ -206,17 +206,21 @@ public final class IconFactory {
         if (text.isBlank()) return;
         String styles = String.join(" ", label.getStyleClass()).toLowerCase(Locale.ROOT);
         if (styles.contains("erp-table-header-label") || styles.contains("page-title") || styles.contains("screen-title")
-                || styles.contains("section-title") || styles.contains("metric-value") || styles.contains("metric-note")
+                || styles.contains("metric-value") || styles.contains("metric-note")
                 || styles.contains("subtitle") || styles.contains("description") || styles.contains("caption")
                 || styles.contains("help") || styles.contains("placeholder") || styles.contains("error")) return;
+        boolean panelTitleStyle = styles.contains("section-title") || styles.contains("approved-card-title") || styles.contains("backup-section-title")
+                || styles.contains("safe-rollback-section-title") || styles.contains("setup-section-title")
+                || styles.contains("purchase-section-title") || styles.contains("finance-section-title")
+                || styles.contains("dialog-section-title") || styles.contains("backup-step-title");
         boolean fieldStyle = styles.contains("field-label") || styles.contains("form-label") || styles.contains("filter-label")
                 || styles.contains("meta-label") || styles.contains("detail-label") || styles.contains("field-caption")
                 || styles.contains("inline-label") || label.getParent() instanceof GridPane
                 || isStructurallyPairedFieldLabel(label);
-        if (!fieldStyle) return;
+        if (!fieldStyle && !panelTitleStyle) return;
         String semantic = semanticForLabel(text);
         if (semantic == null) return;
-        Node graphic = compactIcon(semantic, 13);
+        Node graphic = compactIcon(semantic, panelTitleStyle ? 14 : 13);
         graphic.getStyleClass().add("erp-field-label-icon");
         label.setGraphic(graphic);
         label.setContentDisplay(ContentDisplay.LEFT);
@@ -627,6 +631,27 @@ public final class IconFactory {
         if (value.contains("offline package") || value.contains("install update")) return "update";
         if (value.equals("menu")) return "menu";
         if (value.contains("notification")) return "notification";
+        if (value.contains("quick action")) return "actions";
+        if (value.contains("top customer")) return "customer";
+        if (value.contains("recent activity") || value.contains("activity")) return "history";
+        if (value.contains("ageing") || value.contains("aging") || value.contains("receivable") || value.contains("payable")) return "balance";
+        if (value.contains("performance") || value.contains("summary")) return "report";
+        if (value.contains("financial year") || value.contains("fiscal year")) return "calendar";
+        if (value.contains("branch")) return "business";
+        if (value.contains("smtp host") || value.equals("host")) return "link";
+        if (value.contains("port")) return "reference";
+        if (value.contains("repository owner")) return "user";
+        if (value.contains("repository name") || value.contains("repository")) return "link";
+        if (value.contains("transporter")) return "delivery";
+        if (value.contains("vehicle")) return "delivery";
+        if (value.contains("contact person")) return "customer";
+        if (value.contains("priority")) return "warning";
+        if (value.contains("title")) return "document";
+        if (value.contains("source file")) return "folder";
+        if (value.contains("sha-256") || value.contains("sha256") || value.contains("sha-56") || value.contains("checksum")) return "validate";
+        if (value.contains("party code")) return "reference";
+        if (value.equals("number") || value.endsWith(" number") || value.contains("no.")) return "reference";
+        if (value.contains("category")) return "category";
         if (value.contains("company name") || value.contains("business name")) return "business";
         if (value.startsWith("pan") || value.contains(" pan")) return "identity";
         if (value.contains("business type") || value.contains("industry")) return "category";

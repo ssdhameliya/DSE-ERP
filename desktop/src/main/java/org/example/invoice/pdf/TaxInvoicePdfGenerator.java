@@ -1117,7 +1117,7 @@ public final class TaxInvoicePdfGenerator {
     }
 
     private static Image classpathImage(String resource) {
-        try (InputStream input = TaxInvoicePdfGenerator.class.getResourceAsStream(resource)) {
+        try (InputStream input = org.example.util.ResourceLocator.open(resource)) {
             return input == null ? null : new Image(ImageDataFactory.create(input.readAllBytes()));
         } catch (Exception ignored) {
             return null;

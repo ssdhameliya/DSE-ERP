@@ -85,10 +85,7 @@ public class NavigationManager {
         PerformanceMonitor.start(timingKey);
         contentPane.getStyleClass().add("navigation-loading");
         try {
-            URL url = getClass().getResource(fxml);
-            if (url == null) {
-                throw new IllegalStateException("Application screen was not found: " + fxml);
-            }
+            URL url = org.example.util.ResourceLocator.require(fxml);
             boolean cacheable = !NON_CACHEABLE.contains(fxml);
             CachedPage cached = cacheable ? pageCache.get(fxml) : null;
             boolean reused = cached != null;

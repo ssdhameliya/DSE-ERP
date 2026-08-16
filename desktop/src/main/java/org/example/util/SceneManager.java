@@ -31,7 +31,7 @@ public class SceneManager {
 
     public static void showSetupWizard(Runnable onCompleted) {
         try {
-            var url = SceneManager.class.getResource("/fxml/pages/SetupWizard.fxml");
+            var url = ResourceLocator.require("/fxml/pages/SetupWizard.fxml");
             FXMLLoader loader = new FXMLLoader(url);
             Parent root = loader.load();
             SetupWizardController controller = loader.getController();
@@ -125,7 +125,7 @@ public class SceneManager {
 
             System.out.println("Loading FXML: " + fxml);
 
-            var url = SceneManager.class.getResource(fxml);
+            var url = ResourceLocator.require(fxml);
 
             System.out.println("URL = " + url);
 
@@ -152,9 +152,7 @@ public class SceneManager {
             primaryStage.show();
 
         } catch (Exception e) {
-
-            e.printStackTrace();
-
+            throw new IllegalStateException("Unable to load application screen: " + fxml, e);
         }
 
     }

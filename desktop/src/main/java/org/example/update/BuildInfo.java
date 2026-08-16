@@ -25,7 +25,7 @@ public final class BuildInfo {
     }
     private static Properties load() {
         Properties result = new Properties();
-        try (InputStream in = BuildInfo.class.getResourceAsStream("/app-version.properties")) {
+        try (InputStream in = org.example.util.ResourceLocator.open("/app-version.properties")) {
             if (in != null) result.load(in);
         } catch (Exception ignored) {}
         return result;
