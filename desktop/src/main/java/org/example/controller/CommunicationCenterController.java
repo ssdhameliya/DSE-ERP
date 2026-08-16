@@ -32,7 +32,6 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private List<Row> all=List.of();
     @FXML public void initialize(){
         installKpiIcons();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         configureExplicitTableHeaderIcons();
         colTime.setCellValueFactory(v->v.getValue().time);
         colEntity.setCellValueFactory(v->v.getValue().entity);
@@ -128,7 +127,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
         if(colActions==null)return;
         colActions.setCellFactory(c->new TableCell<>(){
             final Button resend=new Button("Re-send",IconFactory.compactIcon("refresh",15));
-            {resend.getProperties().put("erp.icon.skip", true);resend.getStyleClass().addAll("approved-button","action-email","communication-resend-button");resend.setContentDisplay(ContentDisplay.LEFT);resend.setGraphicTextGap(7);resend.setMinWidth(118);resend.setPrefWidth(122);resend.setMaxWidth(132);resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
+            {resend.getProperties().put("erp.icon.skip", true);resend.getStyleClass().addAll("approved-button","action-email","communication-resend-button");resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
             @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);Row row=empty?null:getTableRow().getItem();setGraphic(row==null||!"EMAIL".equalsIgnoreCase(row.channel.get())?null:resend);setAlignment(Pos.CENTER);}
         });
     }
@@ -208,8 +207,8 @@ public class CommunicationCenterController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(colTime, "calendar");
         IconFactory.applyTableHeaderIcon(colEntity, "document");
         IconFactory.applyTableHeaderIcon(colChannel, "communication");
-        IconFactory.applyTableHeaderIcon(colRecipient, "customer");
-        IconFactory.applyTableHeaderIcon(colSubject, "document");
+        IconFactory.applyTableHeaderIcon(colRecipient, "user");
+        IconFactory.applyTableHeaderIcon(colSubject, "notes");
         IconFactory.applyTableHeaderIcon(colStatus, "status");
         IconFactory.applyTableHeaderIcon(colError, "error");
         IconFactory.applyTableHeaderIcon(colUser, "user");

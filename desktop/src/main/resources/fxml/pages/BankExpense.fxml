@@ -23,7 +23,7 @@
   </HBox>
 
   <HBox spacing="12" VBox.vgrow="ALWAYS">
-    <VBox prefWidth="310" minWidth="285" maxWidth="340" spacing="8" styleClass="finance-entry-card">
+    <VBox prefWidth="360" minWidth="340" maxWidth="390" spacing="8" styleClass="finance-entry-card">
       <Label fx:id="formTitle" text="Add Bank Entry" styleClass="finance-section-title"/>
       <Label text="Date *" styleClass="finance-field-label"/><DatePicker fx:id="entryDate" maxWidth="Infinity"/>
       <VBox fx:id="bankOnlyFields" spacing="8">
@@ -56,7 +56,7 @@
         <Region HBox.hgrow="ALWAYS"/>
         <Button fx:id="addButton" text="Add Entry" onAction="#focusForm" styleClass="approved-button,approved-primary-button"/>
       </HBox>
-      <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="finance-table">
+      <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="finance-table,erp-table-profile-register">
         <columns>
           <TableColumn fx:id="colDate" text="Date"/>
           <TableColumn fx:id="colType" text="Type"/>
@@ -66,7 +66,7 @@
           <TableColumn fx:id="colReference" text="Reference"/>
           <TableColumn fx:id="colAmount" text="Amount"/>
           <TableColumn fx:id="colMatch" text="Match / Link"/>
-          <TableColumn fx:id="colAction" text="Action" sortable="false"/>
+          <TableColumn fx:id="colAction" text="Actions" minWidth="156" prefWidth="160" maxWidth="168" sortable="false" resizable="false"/>
         </columns>
       </TableView>
       <HBox alignment="CENTER_LEFT">

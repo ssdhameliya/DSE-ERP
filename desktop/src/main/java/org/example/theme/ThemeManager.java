@@ -29,8 +29,10 @@ public final class ThemeManager {
     public static void applyTheme(Scene scene) {
         installWindowHook();
 
-        // Shared geometry and component behavior are theme-neutral and are
-        // installed exactly once. Light/Dark stylesheets only provide colors.
+        // CSS ownership contract: shared layout/component styles load first and
+        // are the canonical home for geometry/behavior. Theme sheets load last
+        // for palette/state styling only. Responsive/platform geometry is owned
+        // by the shared layout/component sheets and must not be reintroduced here.
         addOnce(scene, "/css/ui-layout.css");
         addOnce(scene, "/css/ui-components.css");
         scene.getStylesheets().removeIf(css ->

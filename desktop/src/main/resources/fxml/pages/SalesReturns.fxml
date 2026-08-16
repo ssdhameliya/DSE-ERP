@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- Sales Return Register: database KPIs, date/status filters and transactional actions. --><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SalesReturnsController" spacing="14" styleClass="register-page,sales-register-page,approved-ui,approved-screen,approved-screen-sales-returns,erp-screen-root">
-  <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
     <StackPane styleClass="erp-page-header-icon"><Label text="↩" styleClass="erp-page-header-symbol"/></StackPane>
@@ -18,7 +18,6 @@
   </HBox>
 
   <VBox spacing="10" styleClass="filter-surface,approved-filter-bar,erp-filter-section">
-    <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
     <HBox spacing="10" alignment="CENTER_LEFT">
       <TextField fx:id="search" promptText="Search return, invoice or customer..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
       <ComboBox fx:id="customerFilter" promptText="All Customers" prefWidth="190" styleClass="approved-input"/>

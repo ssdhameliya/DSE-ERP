@@ -334,13 +334,9 @@ public class SettingsController {
         panelHost.getChildren().setAll(panelCompany);
         panelCompany.setManaged(true);
         panelCompany.setVisible(true);
-        Platform.runLater(() -> {
-            if (panelScroll != null) panelScroll.setVvalue(0.0);
-            panelCompany.applyCss();
-            panelCompany.autosize();
-            panelHost.applyCss();
-            panelHost.layout();
-        });
+        if (panelScroll != null) {
+            Platform.runLater(() -> panelScroll.setVvalue(0.0));
+        }
     }
 
     private void configureBrandAssetPresenters() {
@@ -998,20 +994,10 @@ public class SettingsController {
             if (panelHost.getChildren().size() != 1 || panelHost.getChildren().getFirst() != selectedPanel) {
                 panelHost.getChildren().setAll(selectedPanel);
             }
-            // Force a fresh viewport/layout pass on every category switch. This prevents
-            // the first two taller panels from retaining stale viewport metrics.
-            Platform.runLater(() -> {
-                if (panelScroll != null) panelScroll.setVvalue(0.0);
-                selectedPanel.applyCss();
-                selectedPanel.autosize();
-                panelHost.applyCss();
-                panelHost.layout();
-                if (panelScroll != null) {
-                    panelScroll.applyCss();
-                    panelScroll.layout();
-                    panelScroll.setVvalue(0.0);
-                }
-            });
+            // Section visibility changes are synchronous; JavaFX owns the normal CSS/layout pulse.
+            if (panelScroll != null) {
+                Platform.runLater(() -> panelScroll.setVvalue(0.0));
+            }
         }
     }
 

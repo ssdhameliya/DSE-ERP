@@ -152,9 +152,9 @@ public class PurchaseReturnDetailsController {
 
     private void configureExplicitTableHeaderIcons() {
         IconFactory.applyTableHeaderIcon(cName, "item");
-        IconFactory.applyTableHeaderIcon(cCode, "document");
+        IconFactory.applyTableHeaderIcon(cCode, "identity");
         IconFactory.applyTableHeaderIcon(cUnit, "unit");
-        IconFactory.applyTableHeaderIcon(cReason, "document");
+        IconFactory.applyTableHeaderIcon(cReason, "notes");
         IconFactory.applyTableHeaderIcon(cQty, "quantity");
         IconFactory.applyTableHeaderIcon(cRate, "currency");
         IconFactory.applyTableHeaderIcon(cTax, "tax");

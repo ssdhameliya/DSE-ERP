@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.image.ImageView?><?import javafx.scene.layout.*?><?import javafx.scene.shape.SVGPath?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SettingsController" styleClass="settings-page-shell,approved-ui,approved-screen,approved-screen-settings,erp-screen-root">
-    <padding><Insets top="14" right="16" bottom="14" left="16"/></padding>
-
+<?import javafx.scene.control.*?><?import javafx.scene.image.ImageView?><?import javafx.scene.layout.*?><?import javafx.scene.shape.SVGPath?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.SettingsController" styleClass="settings-page-shell,approved-ui,approved-screen,approved-screen-settings,erp-screen-root">
     <!-- =====================================================
          HEADER
          ===================================================== -->
@@ -9,9 +7,6 @@
     <top>
         <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
 
-            <padding>
-                <Insets top="12" right="14" bottom="12" left="14"/>
-            </padding>
 
             <StackPane minWidth="42" prefWidth="42" maxWidth="42" minHeight="42" prefHeight="42" maxHeight="42" styleClass="settings-page-icon-box">
                 <SVGPath content="M8.8 2h2.4l.5 2a6.8 6.8 0 0 1 1.5.9l2-.6 1.2 2.1-1.5 1.4c.1.5.1 1 0 1.5l1.5 1.4-1.2 2.1-2-.6c-.5.4-1 .7-1.5.9l-.5 2H8.8l-.5-2a6.8 6.8 0 0 1-1.5-.9l-2 .6-1.2-2.1 1.5-1.4a6 6 0 0 1 0-1.5L3.6 6.4l1.2-2.1 2 .6c.5-.4 1-.7 1.5-.9l.5-2zM10 7a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" styleClass="settings-page-icon-svg"/>
@@ -50,7 +45,6 @@
 
     <center>
         <VBox spacing="8" styleClass="settings-content,settings-workspace-layout">
-            <padding><Insets top="10" right="0" bottom="0" left="0"/></padding>
 
             <!-- Compact horizontal settings navigator. The redundant workspace heading was
                  intentionally removed so the selected category starts higher on screen. -->
@@ -95,13 +89,12 @@
             <ScrollPane fx:id="panelScroll" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS" styleClass="clean-scroll,settings-panel-scroll,settings-workspace-panel-scroll">
                 <content>
 <StackPane fx:id="panelHost" maxWidth="Infinity" styleClass="settings-panel-host">
-                    <padding><Insets top="0" right="0" bottom="12" left="0"/></padding>
 
                         <!-- =============================================
                              COMPANY & BILLING
                              ============================================= -->
 
-                        <VBox fx:id="panelCompany" spacing="10" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact">
+                        <VBox fx:id="panelCompany" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact">
 
                             <VBox spacing="3">
 
@@ -209,15 +202,15 @@
                             <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-brand-assets-panel">
                                 <VBox spacing="4">
                                     <Label text="Brand &amp; Identity Assets" styleClass="settings-subsection-title"/>
-                                    <Label text="Manage the application brand image, company document logo and authorized signature together from one panel. Each asset keeps its existing purpose and storage setting." wrapText="true" styleClass="settings-help-text"/>
+                                    <Label text="Manage the application brand image used by splash, sign-in, registration and email / OTP screens." wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
 
-                                <HBox spacing="10" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
+                                <HBox spacing="10" alignment="TOP_CENTER" maxWidth="Infinity" styleClass="settings-brand-assets-row">
                                     <!-- APPLICATION BRAND IMAGE -->
-                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card,settings-application-brand-card">
                                         <Label text="Application Brand Image" styleClass="settings-form-label"/>
                                         <Label text="Splash, login, registration and email / OTP screens • Recommended 1600 × 320 (5:1)" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane fx:id="applicationBrandPreview" minHeight="72" prefHeight="72" maxWidth="Infinity" styleClass="settings-image-preview">
+                                        <StackPane fx:id="applicationBrandPreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
                                             <ImageView fx:id="imgApplicationBrand" preserveRatio="false" smooth="true"/>
                                             <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
                                                 <Label text="◆" styleClass="settings-placeholder-icon"/>
@@ -231,41 +224,6 @@
                                         </HBox>
                                     </VBox>
 
-                                    <!-- COMPANY LOGO -->
-                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
-                                        <Label text="Company Logo" styleClass="settings-form-label"/>
-                                        <Label text="Quotations, invoices, returns and generated PDFs • Full logo preserved (PNG preferred)" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane fx:id="companyLogoPreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgCompanyLogo" preserveRatio="true" smooth="true"/>
-                                            <VBox fx:id="placeholderCompanyLogo" alignment="CENTER" spacing="8">
-                                                <SVGPath content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z" styleClass="settings-placeholder-icon"/>
-                                                <Label text="No logo selected" styleClass="settings-help-text"/>
-                                            </VBox>
-                                        </StackPane>
-                                        <Label fx:id="lblLogoFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
-                                        <HBox spacing="8">
-                                            <Button text="Upload / Change" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button"/>
-                                            <Button text="Remove" onAction="#removeCompanyLogo" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
-                                        </HBox>
-                                    </VBox>
-
-                                    <!-- AUTHORIZED SIGNATURE -->
-                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
-                                        <Label text="Authorized Signature" styleClass="settings-form-label"/>
-                                        <Label text="Authorized sign-off on supported business documents • Transparent PNG preferred" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane fx:id="signaturePreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgSignature" preserveRatio="true" smooth="true"/>
-                                            <VBox fx:id="placeholderSignature" alignment="CENTER" spacing="8">
-                                                <SVGPath content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14" styleClass="settings-placeholder-icon"/>
-                                                <Label text="No signature selected" styleClass="settings-help-text"/>
-                                            </VBox>
-                                        </StackPane>
-                                        <Label fx:id="lblSignatureFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
-                                        <HBox spacing="8">
-                                            <Button text="Upload / Change" onAction="#uploadSignature" styleClass="settings-secondary-button"/>
-                                            <Button text="Remove" onAction="#removeSignature" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
-                                        </HBox>
-                                    </VBox>
                                 </HBox>
                             </VBox>
 
@@ -275,7 +233,7 @@
                              PAYMENT & BANK
                              ============================================= -->
 
-                        <VBox fx:id="panelPayment" visible="false" managed="false" spacing="10" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact">
+                        <VBox fx:id="panelPayment" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact">
 
                             <VBox spacing="3">
 
@@ -401,7 +359,7 @@
                              INVOICE & DELIVERY
                              ============================================= -->
 
-                        <VBox fx:id="panelInvoice" visible="false" managed="false" spacing="20" maxWidth="Infinity" styleClass="settings-card">
+                        <VBox fx:id="panelInvoice" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,settings-card-tall-compact,settings-invoice-compact">
 
                             <VBox spacing="3">
 
@@ -411,30 +369,30 @@
 
                             </VBox>
 
-                            <GridPane hgap="18" vgap="15">
+                            <GridPane hgap="12" vgap="8">
 
                                 <columnConstraints>
                                     <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                     <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                 </columnConstraints>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="0">
 
                                     <Label text="Company Address" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtCompanyAddress" prefRowCount="3" wrapText="true" styleClass="approved-input"/>
+                                    <TextArea fx:id="txtCompanyAddress" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="0">
 
                                     <Label text="Default Ship-to Address" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtShipAddress" prefRowCount="3" wrapText="true" styleClass="approved-input"/>
+                                    <TextArea fx:id="txtShipAddress" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
 
                                     <Label text="State / Place of Supply" styleClass="settings-form-label"/>
 
@@ -442,7 +400,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1">
 
                                     <Label text="Currency" styleClass="settings-form-label"/>
 
@@ -450,7 +408,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="2">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="2">
 
                                     <Label text="Time Zone" styleClass="settings-form-label"/>
 
@@ -458,7 +416,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="2">
 
                                     <Label text="Date Format" styleClass="settings-form-label"/>
 
@@ -466,7 +424,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="3">
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="3">
 
                                     <Label text="Website" styleClass="settings-form-label"/>
 
@@ -474,7 +432,7 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                                <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="3">
 
                                     <Label text="Business Tagline" styleClass="settings-form-label"/>
 
@@ -482,15 +440,60 @@
 
                                 </VBox>
 
-                                <VBox spacing="7" GridPane.columnSpan="2" GridPane.rowIndex="4">
+                                <VBox spacing="5" GridPane.columnSpan="2" GridPane.rowIndex="4">
 
                                     <Label text="Invoice Terms" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="5" wrapText="true" styleClass="approved-input"/>
+                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
                             </GridPane>
+
+                            <Separator/>
+                            <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-invoice-assets-panel">
+                                <VBox spacing="4">
+                                    <Label text="Invoice Branding &amp; Signature" styleClass="settings-subsection-title"/>
+                                    <Label text="These assets are used on invoices, quotations, returns and generated business PDFs." wrapText="true" styleClass="settings-help-text"/>
+                                </VBox>
+                                <HBox spacing="10" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
+                                    <!-- INVOICE LOGO -->
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                        <Label text="Invoice Logo" styleClass="settings-form-label"/>
+                                        <Label text="Invoices, quotations, returns and generated PDFs • Full invoice logo preserved (PNG preferred)" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="companyLogoPreview" minHeight="68" prefHeight="68" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgCompanyLogo" preserveRatio="true" smooth="true"/>
+                                            <VBox fx:id="placeholderCompanyLogo" alignment="CENTER" spacing="8">
+                                                <SVGPath content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z" styleClass="settings-placeholder-icon"/>
+                                                <Label text="No logo selected" styleClass="settings-help-text"/>
+                                            </VBox>
+                                        </StackPane>
+                                        <Label fx:id="lblLogoFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                        <HBox spacing="8">
+                                            <Button text="Upload / Change" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button"/>
+                                            <Button text="Remove" onAction="#removeCompanyLogo" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                        </HBox>
+                                    </VBox>
+
+                                    <!-- AUTHORIZED SIGNATURE -->
+                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card">
+                                        <Label text="Authorized Signature" styleClass="settings-form-label"/>
+                                        <Label text="Authorized sign-off on supported business documents • Transparent PNG preferred" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="signaturePreview" minHeight="68" prefHeight="68" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgSignature" preserveRatio="true" smooth="true"/>
+                                            <VBox fx:id="placeholderSignature" alignment="CENTER" spacing="8">
+                                                <SVGPath content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14" styleClass="settings-placeholder-icon"/>
+                                                <Label text="No signature selected" styleClass="settings-help-text"/>
+                                            </VBox>
+                                        </StackPane>
+                                        <Label fx:id="lblSignatureFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                        <HBox spacing="8">
+                                            <Button text="Upload / Change" onAction="#uploadSignature" styleClass="settings-secondary-button"/>
+                                            <Button text="Remove" onAction="#removeSignature" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                        </HBox>
+                                    </VBox>
+                                </HBox>
+                            </VBox>
 
                         </VBox>
 
@@ -498,7 +501,7 @@
                              NOTIFICATIONS
                              ============================================= -->
 
-                        <VBox fx:id="panelNotifications" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card">
+                        <VBox fx:id="panelNotifications" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card">
 
                             <VBox spacing="3">
 
@@ -535,7 +538,7 @@
                              EMAIL
                              ============================================= -->
 
-                        <VBox fx:id="panelEmail" visible="false" managed="false" spacing="16" maxWidth="Infinity" styleClass="settings-card,settings-email-compact">
+                        <VBox fx:id="panelEmail" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,settings-email-compact">
                             <VBox spacing="3"><Label text="Email &amp; App Preferences" styleClass="settings-section-title"/><Label text="SMTP delivery configuration for invoices, receipts and system messages" wrapText="true" styleClass="settings-section-description"/></VBox>
                             <VBox spacing="12" styleClass="settings-subcard">
                                 <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Email Account" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Configuration is stored securely in your workspace" styleClass="page-subtitle"/></HBox>
@@ -552,7 +555,7 @@
                             </GridPane>
                         </VBox>
 
-                        <VBox fx:id="panelWorkspace" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,workspace-settings-panel">
+                        <VBox fx:id="panelWorkspace" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,workspace-settings-panel">
                             <VBox spacing="3">
                                 <Label text="Workspace &amp; Storage" styleClass="settings-section-title"/>
                                 <Label text="All business data is kept outside the installed application in one portable workspace." wrapText="true" styleClass="settings-section-description"/>
@@ -587,7 +590,7 @@
                              APPLICATION UPDATES
                              ============================================= -->
 
-                        <VBox fx:id="panelUpdates" visible="false" managed="false" spacing="18" maxWidth="Infinity" styleClass="settings-card,update-settings-panel">
+                        <VBox fx:id="panelUpdates" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,update-settings-panel">
 
                             <VBox spacing="3">
                                 <Label text="Application Updates" styleClass="settings-section-title"/>

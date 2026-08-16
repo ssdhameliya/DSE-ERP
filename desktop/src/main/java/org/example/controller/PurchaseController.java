@@ -265,7 +265,7 @@ public class PurchaseController {
 
 
     private void configureItemSearch(){
-        if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.headerIcon("search"));
+        if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
         itemSuggestions.getStyleClass().add("erp-item-suggestions");
         txtItemSearch.textProperty().addListener((obs,oldText,text)->{
             if(updatingItemSearch)return;
@@ -301,17 +301,17 @@ public class PurchaseController {
         return allItems.stream().filter(item->itemDisplay(item).equalsIgnoreCase(value)||safeItem(item.getItemCode()).equalsIgnoreCase(value)||safeItem(item.getDescription()).equalsIgnoreCase(value)||safeItem(item.getRemarks()).equalsIgnoreCase(value)).findFirst().orElse(null);
     }
     private String itemSearchHaystack(Item item){return (safeItem(item.getItemCode())+" "+safeItem(item.getDescription())+" "+safeItem(item.getRemarks())+" "+safeItem(item.getHsn())).toLowerCase(java.util.Locale.ROOT);}
-    private String itemDisplay(Item item){if(item==null)return "";String remarks=safeItem(item.getRemarks());String base=safeItem(item.getItemCode())+(safeItem(item.getDescription()).isBlank()?"":" - "+safeItem(item.getDescription()));return remarks.isBlank()?base:base+" • "+remarks;}
+    private String itemDisplay(Item item){if(item==null)return "";String remarks=safeItem(item.getRemarks()),description=safeItem(item.getDescription());if(remarks.isBlank())return description;if(description.isBlank())return remarks;return remarks+" • "+description;}
     private String safeItem(String value){return value==null?"":value.trim();}
+    private String itemNameForDisplay(String itemCode,String persistedDescription){String code=safeItem(itemCode);if(!code.isBlank())for(Item item:allItems)if(code.equalsIgnoreCase(safeItem(item.getItemCode()))){String name=safeItem(item.getDescription());if(!name.isBlank())return name;}String fallback=safeItem(persistedDescription);int separator=fallback.indexOf(" - ");return separator>=0&&separator+3<fallback.length()?fallback.substring(separator+3).trim():fallback;}
 
 
 
     private void setupTable(){
 
 
-        colItem.setCellValueFactory(
-            new PropertyValueFactory<>("itemDescription")
-        );
+        colItem.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
+            itemNameForDisplay(value.getValue().getItemCode(), value.getValue().getItemDescription())));
 
 
         colQuantity.setCellValueFactory(

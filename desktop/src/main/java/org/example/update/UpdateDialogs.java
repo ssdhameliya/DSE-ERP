@@ -1,6 +1,7 @@
 package org.example.update;
 
 import org.example.util.BusinessClock;
+import org.example.util.IconFactory;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
@@ -128,11 +129,17 @@ public final class UpdateDialogs {
 
     public static void showHistory(Window owner) {
         TableView<UpdateHistoryStore.Entry> table = new TableView<>();
+        table.getStyleClass().addAll("approved-table", "erp-table-profile-history");
         TableColumn<UpdateHistoryStore.Entry,String> version = column("Version", e -> e.version());
         TableColumn<UpdateHistoryStore.Entry,String> installed = column("Date & Time", e -> DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a").withZone(BusinessClock.zone()).format(e.timestamp()));
         TableColumn<UpdateHistoryStore.Entry,String> channel = column("Channel", UpdateHistoryStore.Entry::channel);
         TableColumn<UpdateHistoryStore.Entry,String> result = column("Result", UpdateHistoryStore.Entry::result);
         TableColumn<UpdateHistoryStore.Entry,String> detail = column("Details", UpdateHistoryStore.Entry::detail);
+        IconFactory.applyTableHeaderIcon(version, "version");
+        IconFactory.applyTableHeaderIcon(installed, "calendar");
+        IconFactory.applyTableHeaderIcon(channel, "communication");
+        IconFactory.applyTableHeaderIcon(result, "status");
+        IconFactory.applyTableHeaderIcon(detail, "notes");
         table.getColumns().addAll(version, installed, channel, result, detail);
         table.getItems().setAll(UpdateHistoryStore.read()); table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         Dialog<Void> dialog = baseDialog(owner, "Update History", table, 920, 560); dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE); dialog.showAndWait();

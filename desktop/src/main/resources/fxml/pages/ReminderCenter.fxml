@@ -117,7 +117,7 @@
                     <TableColumn fx:id="colPriority" text="Priority" prefWidth="105" styleClass="approved-table-column"/>
                     <TableColumn fx:id="colStatus" text="Status" prefWidth="115" styleClass="approved-table-column"/>
                     <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="125" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colActions" text="Actions" prefWidth="124" minWidth="120" maxWidth="132" sortable="false" resizable="false" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colActions" text="Actions" prefWidth="160" minWidth="156" maxWidth="168" sortable="false" resizable="false" styleClass="approved-table-column"/>
                 </columns>
             </TableView>
             <HBox alignment="CENTER_RIGHT" styleClass="table-footer,reminder-table-footer">
@@ -130,11 +130,12 @@
         <ScrollPane fx:id="reminderDetailScroll" managed="false" visible="false" fitToWidth="true" hbarPolicy="NEVER" minWidth="350" prefWidth="385" maxWidth="430" styleClass="reminder-detail-scroll">
             <content>
                 <VBox spacing="16" styleClass="detail-drawer,reminder-detail-panel">
-                    <HBox alignment="CENTER_LEFT">
-                        <VBox spacing="3">
+                    <HBox alignment="CENTER_LEFT" spacing="8">
+                        <VBox spacing="3" HBox.hgrow="ALWAYS">
                             <Label text="Reminder Details" styleClass="section-title,reminder-section-title"/>
                             <Label text="Review the selected reminder before taking action." styleClass="reminder-section-caption"/>
                         </VBox>
+                        <Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-secondary-button,reminder-detail-close"/>
                     </HBox>
 
                     <VBox spacing="5" styleClass="reminder-detail-heading-card">
@@ -167,8 +168,6 @@
                         <Label text="Notes" styleClass="metric-title,reminder-detail-label"/>
                         <Label fx:id="lblDetailNotes" wrapText="true" minHeight="88" styleClass="reminder-notes-box"/>
                     </VBox>
-
-                    <Region minHeight="10" VBox.vgrow="ALWAYS"/>
 
                     <VBox spacing="9" styleClass="reminder-detail-actions">
                         <HBox spacing="9">

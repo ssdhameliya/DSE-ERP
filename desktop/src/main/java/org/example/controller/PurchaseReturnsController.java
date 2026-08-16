@@ -97,10 +97,10 @@ public class PurchaseReturnsController {
                 add("View Original Purchase", "purchase", e -> original(row())); add("Record Refund", "payment", e -> recordRefund(row()));
                 add("Attach Document", "attachment", e -> attach(row())); add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row())); add("Delete Return", "delete", e -> delete(row()));
-                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setMinWidth(122);menu.setPrefWidth(130);menu.setMaxWidth(148);menu.setTooltip(new Tooltip("Actions"));
+                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));
             }
             private Row row() { return getTableView().getItems().get(getIndex()); }
-            private void add(String name, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) { MenuItem item = new MenuItem(name, IconFactory.icon(icon)); item.setOnAction(handler); menu.getItems().add(item); }
+            private void add(String name, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) { MenuItem item = new MenuItem(name, IconFactory.compactIcon(icon, 16)); item.setOnAction(handler); menu.getItems().add(item); }
             @Override protected void updateItem(Void value, boolean empty) { super.updateItem(value, empty); setGraphic(empty ? null : menu); }
         });
     }
@@ -108,9 +108,9 @@ public class PurchaseReturnsController {
     private void installRows() {
         table.setRowFactory(view -> {
             TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if (e.getClickCount() == 2 && !row.isEmpty()) view(row.getItem()); });
-            MenuItem add = new MenuItem("Add Purchase Return", IconFactory.icon("add")); add.setOnAction(e -> create());
-            MenuItem edit = new MenuItem("Edit Return", IconFactory.icon("edit")); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
-            MenuItem delete = new MenuItem("Delete Return", IconFactory.icon("delete")); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
+            MenuItem add = new MenuItem("Add Purchase Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
+            MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
+            MenuItem delete = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
             ContextMenu menu = new ContextMenu(edit, delete); row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu)); return row;
         });
     }
@@ -159,14 +159,14 @@ public class PurchaseReturnsController {
 
 
     private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(cNo, "document");
+        IconFactory.applyTableHeaderIcon(cNo, "return");
         IconFactory.applyTableHeaderIcon(cDate, "calendar");
-        IconFactory.applyTableHeaderIcon(cInvoice, "document");
+        IconFactory.applyTableHeaderIcon(cInvoice, "purchase");
         IconFactory.applyTableHeaderIcon(cSupplier, "supplier");
         IconFactory.applyTableHeaderIcon(cTotal, "currency");
         IconFactory.applyTableHeaderIcon(cStatus, "status");
-        IconFactory.applyTableHeaderIcon(cRefund, "payment");
-        IconFactory.applyTableHeaderIcon(cRefundStatus, "payment");
+        IconFactory.applyTableHeaderIcon(cRefund, "currency");
+        IconFactory.applyTableHeaderIcon(cRefundStatus, "status");
         cAction.setText("Actions"); IconFactory.applyTableHeaderIcon(cAction, "actions");
     }
 

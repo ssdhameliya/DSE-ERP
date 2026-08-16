@@ -112,20 +112,18 @@ public final class ProfessionalUiEnhancer {
         if (table.getParent() instanceof HBox) HBox.setHgrow(table, Priority.ALWAYS);
 
         decorateColumns(table.getColumns());
-        installHeaderLifecycleRefresh(table);
         installCellValueTooltips(table);
-        installAdaptiveColumnFill(table);
+        // Native constrained resize is the single register/master sizing authority.
+        // Avoid a second asynchronous width pass after the page becomes visible.
 
         // Controllers add a number of business columns after FXML loading.
         // Keep header decoration live so those columns receive the exact same
         // icon-and-label treatment without requiring screen-specific code.
         if (!Boolean.TRUE.equals(table.getProperties().get("erp-column-listener"))) {
             table.getProperties().put("erp-column-listener", true);
-            table.getColumns().addListener((ListChangeListener<TableColumn>) change -> {
-                decorateColumns(table.getColumns());
-                captureAdaptiveBaselines(table, true);
-                resizeColumnsToUseAvailableWidth(table);
-            });
+            table.getColumns().addListener((ListChangeListener<TableColumn>) change ->
+                decorateColumns(table.getColumns())
+            );
         }
 
         if (!table.getColumns().isEmpty()) {
@@ -150,10 +148,8 @@ public final class ProfessionalUiEnhancer {
                 first.setMaxWidth(0);
             } else if (selectionColumn && !Boolean.TRUE.equals(first.getProperties().get("erp-row-number"))) {
                 first.getProperties().put("erp-row-number", true);
-                first.getProperties().put("erp-header-label", "No.");
-                first.getProperties().put("erp-header-semantic", "quantity");
-                first.setText("");
-                first.setGraphic(tableHeader("No.", "quantity"));
+                first.setText("No.");
+                IconFactory.applyTableHeaderIcon(first, "quantity");
                 first.setMinWidth(62);
                 first.setPrefWidth(62);
                 first.setMaxWidth(62);
@@ -173,210 +169,6 @@ public final class ProfessionalUiEnhancer {
         // Row context menus are owned by each controller. A global menu caused
         // duplicate/overlapping actions, especially on macOS.
 
-    }
-
-
-    /**
-     * Uses otherwise-empty space inside the TableView without changing any
-     * surrounding screen layout. Existing preferred widths remain the readable
-     * baseline. When the table is wider than those baselines, the surplus is
-     * distributed across ordinary data columns. When it is narrower, baseline
-     * widths are restored and JavaFX may show a horizontal scrollbar.
-     */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void installAdaptiveColumnFill(TableView<?> table) {
-        if (Boolean.TRUE.equals(table.getProperties().get("erp-adaptive-column-fill"))) return;
-        if (Boolean.TRUE.equals(table.getProperties().get("erp-preserve-resize-policy"))) return;
-
-        String profile = String.valueOf(
-            table.getProperties().getOrDefault("erp-table-profile", "responsive")
-        );
-        // Imported spreadsheets and permission matrices own dynamic/specialized
-        // sizing and must not be altered by the shared register-table behavior.
-        if ("import".equals(profile)) return;
-
-        table.getProperties().put("erp-adaptive-column-fill", true);
-        captureAdaptiveBaselines(table, false);
-
-        table.widthProperty().addListener((obs, oldWidth, newWidth) ->
-            resizeColumnsToUseAvailableWidth(table)
-        );
-        table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
-            if (newSkin != null) {
-                captureAdaptiveBaselines(table, false);
-                resizeColumnsToUseAvailableWidth(table);
-            }
-        });
-        if (table.getItems() != null) {
-            table.getItems().addListener((ListChangeListener) change -> {
-                captureAdaptiveBaselines(table, true);
-                resizeColumnsToUseAvailableWidth(table);
-            });
-        }
-        table.itemsProperty().addListener((obs, oldItems, newItems) -> {
-            if (newItems != null) newItems.addListener((ListChangeListener) change -> {
-                captureAdaptiveBaselines(table, true);
-                resizeColumnsToUseAvailableWidth(table);
-            });
-        });
-
-        resizeColumnsToUseAvailableWidth(table);
-    }
-
-    /**
-     * Captures each visible leaf column's normal preferred width. Baselines are
-     * intentionally independent of later adaptive expansion so repeated window
-     * resizes never compound column widths.
-     */
-    @SuppressWarnings("rawtypes")
-    private static void captureAdaptiveBaselines(TableView table, boolean includeNewColumns) {
-        for (Object value : table.getVisibleLeafColumns()) {
-            TableColumn column = (TableColumn) value;
-            Object existing = column.getProperties().get("erp-adaptive-base-pref");
-            if (!includeNewColumns && existing instanceof Number) continue;
-            double baseline = existing instanceof Number number
-                ? Math.max(column.getMinWidth(), number.doubleValue())
-                : Math.max(column.getMinWidth(), column.getPrefWidth());
-            baseline = Math.max(baseline, estimatedReadableWidth(table, column));
-            column.getProperties().put("erp-adaptive-base-pref", baseline);
-        }
-    }
-
-    /** Samples visible business values so table baselines are not based on headers alone. */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static double estimatedReadableWidth(TableView table, TableColumn column) {
-        String semantic = String.valueOf(column.getProperties().getOrDefault("erp-header-semantic", ""));
-        if ("actions".equalsIgnoreCase(semantic)) return 140;
-        String heading = adaptiveHeading(column);
-        double best = Math.max(78, heading.length() * 7.4 + 38);
-        int rows = Math.min(40, table.getItems() == null ? 0 : table.getItems().size());
-        for (int index = 0; index < rows; index++) {
-            try {
-                Object value = column.getCellData(index);
-                if (value == null) continue;
-                String text = String.valueOf(value).replaceAll("[\r\n]+", " ").trim();
-                if (text.isBlank()) continue;
-                best = Math.max(best, text.length() * 7.1 + 28);
-            } catch (Exception ignored) { }
-        }
-        double cap = heading.contains("description") || heading.contains("address") || heading.contains("subject") || heading.contains("error") ? 320
-            : heading.contains("email") || heading.contains("name") || heading.contains("recipient") ? 260 : 220;
-        return Math.min(cap, best);
-    }
-
-    /**
-     * Expands only columns inside the table. It never resizes the TableView,
-     * SplitPane, parent containers, filters, cards, pagination, or the screen.
-     */
-    @SuppressWarnings("rawtypes")
-    private static void resizeColumnsToUseAvailableWidth(TableView table) {
-        if (table.getWidth() <= 1 || table.getVisibleLeafColumns().isEmpty()) return;
-
-        captureAdaptiveBaselines(table, false);
-
-        java.util.List<TableColumn> visible = new java.util.ArrayList<>();
-        java.util.List<TableColumn> flexible = new java.util.ArrayList<>();
-        double baselineTotal = 0;
-
-        for (Object value : table.getVisibleLeafColumns()) {
-            TableColumn column = (TableColumn) value;
-            if (!column.isVisible()) continue;
-
-            Object stored = column.getProperties().get("erp-adaptive-base-pref");
-            double baseline = stored instanceof Number number
-                ? number.doubleValue()
-                : Math.max(column.getMinWidth(), column.getPrefWidth());
-            baseline = Math.max(column.getMinWidth(), baseline);
-
-            visible.add(column);
-            baselineTotal += baseline;
-            if (isAdaptiveFlexibleColumn(column)) flexible.add(column);
-        }
-
-        if (visible.isEmpty()) return;
-
-        // A small allowance prevents a one-pixel rounding overflow from creating
-        // a horizontal scrollbar when the columns otherwise fit exactly.
-        double available = Math.max(0, table.getWidth() - 3);
-
-        // Restore readable baseline widths whenever the viewport is too narrow.
-        // UNCONSTRAINED profiles can then expose a real horizontal scrollbar.
-        if (available <= baselineTotal || flexible.isEmpty()) {
-            for (TableColumn column : visible) {
-                Number stored = (Number) column.getProperties().get("erp-adaptive-base-pref");
-                if (stored != null) column.setPrefWidth(
-                    Math.max(column.getMinWidth(), stored.doubleValue())
-                );
-            }
-            return;
-        }
-
-        java.util.Map<TableColumn,Double> widths = new java.util.LinkedHashMap<>();
-        for (TableColumn column : visible) {
-            Number stored = (Number) column.getProperties().get("erp-adaptive-base-pref");
-            if (stored != null) widths.put(column, Math.max(column.getMinWidth(), stored.doubleValue()));
-        }
-        double remaining = available - baselineTotal;
-        java.util.List<TableColumn> active = new java.util.ArrayList<>(flexible);
-        int guard = 0;
-        while (remaining > .25 && !active.isEmpty() && guard++ < 12) {
-            double weight = active.stream().mapToDouble(ProfessionalUiEnhancer::adaptiveColumnWeight).sum();
-            double consumed = 0;
-            java.util.List<TableColumn> capped = new java.util.ArrayList<>();
-            for (TableColumn column : active) {
-                double share = weight <= 0 ? remaining / active.size() : remaining * adaptiveColumnWeight(column) / weight;
-                double current = widths.getOrDefault(column,column.getPrefWidth());
-                double next = Math.min(column.getMaxWidth(), current + share);
-                consumed += Math.max(0,next-current); widths.put(column,next);
-                if (next + .25 >= column.getMaxWidth()) capped.add(column);
-            }
-            remaining -= consumed; active.removeAll(capped);
-            if (consumed <= .01) break;
-        }
-        // Apply the final widths in one pass. Redistributing capped-column surplus
-        // prevents the unused strip previously visible at the right edge.
-        widths.forEach(TableColumn::setPrefWidth);
-    }
-
-    /** Keeps utility columns compact while allowing business data to absorb space. */
-    @SuppressWarnings("rawtypes")
-    private static boolean isAdaptiveFlexibleColumn(TableColumn column) {
-        String heading = adaptiveHeading(column);
-        String semantic = String.valueOf(
-            column.getProperties().getOrDefault("erp-header-semantic", "")
-        ).toLowerCase(Locale.ROOT);
-
-        if ("actions".equals(semantic)) return false;
-        if (heading.equals("#") || heading.equals("no.") || heading.equals("no")
-            || heading.equals("select") || heading.equals("✓")) return false;
-        if (column.getMaxWidth() <= 150) return false;
-        return column.isResizable();
-    }
-
-    /** Gives descriptive fields more of the available surplus than numeric fields. */
-    @SuppressWarnings("rawtypes")
-    private static double adaptiveColumnWeight(TableColumn column) {
-        String heading = adaptiveHeading(column);
-        String semantic = String.valueOf(
-            column.getProperties().getOrDefault("erp-header-semantic", "")
-        ).toLowerCase(Locale.ROOT);
-
-        if ("customer".equals(semantic) || "supplier".equals(semantic)
-            || heading.contains("description") || heading.contains("address")
-            || heading.contains("subject") || heading.contains("name")) return 1.8;
-        if ("document".equals(semantic) || "status".equals(semantic)
-            || "email".equals(semantic) || "whatsapp".equals(semantic)
-            || "reminder".equals(semantic)) return 1.25;
-        if ("currency".equals(semantic) || "calendar".equals(semantic)
-            || "quantity".equals(semantic)) return 0.85;
-        return 1.0;
-    }
-
-    @SuppressWarnings("rawtypes")
-    private static String adaptiveHeading(TableColumn column) {
-        Object stored = column.getProperties().get("erp-header-label");
-        String heading = stored instanceof String value ? value : column.getText();
-        return heading == null ? "" : heading.trim().toLowerCase(Locale.ROOT);
     }
 
 
@@ -461,23 +253,32 @@ public final class ProfessionalUiEnhancer {
         String profileClass = "erp-table-profile-" + profile;
         if (!table.getStyleClass().contains(profileClass)) table.getStyleClass().add(profileClass);
 
-        int columns = table.getColumns().size();
         switch (profile) {
             case "import" -> table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
-            case "permission" -> table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-            case "register" -> table.setColumnResizePolicy(columns >= 9
-                ? TableView.UNCONSTRAINED_RESIZE_POLICY
-                : TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-            case "master", "history", "administration" -> table.setColumnResizePolicy(columns >= 8
-                ? TableView.UNCONSTRAINED_RESIZE_POLICY
-                : TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-            case "line-item", "detail", "dialog" ->
+            case "permission", "summary", "responsive" ->
+                table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+            case "register", "master", "history", "administration", "line-item", "detail", "dialog" ->
                 table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
             default -> table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         }
     }
 
     private static String detectTableProfile(TableView<?> table) {
+        // Phase 10 contract: an explicit FXML/programmatic profile is authoritative.
+        // Heuristics are retained only as a compatibility fallback for legacy dynamic tables.
+        for (String styleClass : table.getStyleClass()) {
+            String normalized = styleClass == null ? "" : styleClass.toLowerCase(Locale.ROOT).trim();
+            if (!normalized.startsWith("erp-table-profile-")) continue;
+            String explicit = normalized.substring("erp-table-profile-".length());
+            switch (explicit) {
+                case "register", "master", "history", "administration", "line-item",
+                     "detail", "dialog", "summary", "permission", "import", "responsive" -> {
+                    return explicit;
+                }
+                default -> { }
+            }
+        }
+
         String styles = String.join(" ", table.getStyleClass()).toLowerCase(Locale.ROOT);
         String id = table.getId() == null ? "" : table.getId().toLowerCase(Locale.ROOT);
         String key = styles + " " + id;
@@ -498,52 +299,43 @@ public final class ProfessionalUiEnhancer {
         return table.getColumns().size() >= 9 ? "register" : "responsive";
     }
 
-    /**
-     * Re-applies table headers after the control is attached and after JavaFX creates
-     * or replaces its skin. This is intentionally idempotent and fixes the startup
-     * difference between launching directly in light mode and switching themes later.
-     */
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void installHeaderLifecycleRefresh(TableView table) {
-        if (Boolean.TRUE.equals(table.getProperties().get("erp-header-lifecycle"))) return;
-        table.getProperties().put("erp-header-lifecycle", true);
-
-        // Column graphics do not depend on a Scene. A single skin callback is
-        // sufficient for JavaFX-created header nodes and avoids two deferred
-        // full-column traversals for every navigation.
-        table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
-            if (newSkin != null && !Boolean.TRUE.equals(table.getProperties().get("erp-header-skin-pass"))) {
-                table.getProperties().put("erp-header-skin-pass", true);
-                Platform.runLater(() -> decorateColumns(table.getColumns()));
-            }
-        });
-    }
-
-    /** Recursively applies the same icon vocabulary to leaf and grouped headers. */
+    /** Recursively applies one shared renderer to leaf and grouped headers. */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void decorateColumns(java.util.List<TableColumn> columns) {
         for (TableColumn column : columns) {
             if (!column.getColumns().isEmpty()) decorateColumns(column.getColumns());
-            String storedHeading = (String) column.getProperties().get("erp-header-label");
-            String heading = storedHeading != null ? storedHeading
+
+            Object storedLabel = column.getProperties().get("erp-header-label");
+            String heading = storedLabel instanceof String value ? value
                 : column.getText() == null ? "" : column.getText().trim();
             String columnId = column.getId() == null ? "" : column.getId().trim();
-            String semantic = headerSemantic(heading, columnId);
+
+            // A few workflow tables intentionally use an interactive header (for
+            // example a Select-all CheckBox). Preserve those custom graphics, but
+            // route every semantic header through the canonical IconFactory renderer.
+            if (Boolean.TRUE.equals(column.getProperties().get("erp-header-preserve"))
+                && !Boolean.TRUE.equals(column.getProperties().get("erp-header-explicit"))) {
+                continue;
+            }
+
+            Object explicit = column.getProperties().get("erp-header-semantic");
+            String semantic = Boolean.TRUE.equals(column.getProperties().get("erp-header-explicit"))
+                && explicit instanceof String value && !value.isBlank() ? value : null;
+            if (semantic == null) semantic = headerSemantic(heading, columnId);
             if (semantic == null && !heading.isBlank()) semantic = fallbackHeaderSemantic(heading, columnId);
-            if (semantic != null && !Boolean.TRUE.equals(column.getProperties().get("erp-header-preserve"))) {
+
+            if (semantic != null) {
                 String signature = heading + "|" + semantic;
-                if (signature.equals(column.getProperties().get("erp-header-signature")) && column.getGraphic() != null) {
-                    applyResponsiveWidth(column, heading, semantic);
-                    continue;
+                if (!signature.equals(column.getProperties().get("erp-header-signature")) || column.getGraphic() == null) {
+                    column.getProperties().put("erp-header-signature", signature);
+                    column.getProperties().put("erp-header-label", heading);
+                    column.getProperties().put("erp-header-semantic", semantic);
+                    column.setText("");
+                    column.setGraphic(IconFactory.tableHeader(heading, semantic));
+                    if (!column.getStyleClass().contains("erp-icon-table-column")) {
+                        column.getStyleClass().add("erp-icon-table-column");
+                    }
                 }
-                column.getProperties().put("erp-header-signature", signature);
-                column.getProperties().put("erp-header-label", heading);
-                column.setText("");
-                column.setGraphic(tableHeader(heading, semantic));
-                if (!column.getStyleClass().contains("erp-icon-table-column")) {
-                    column.getStyleClass().add("erp-icon-table-column");
-                }
-                column.getProperties().put("erp-header-semantic", semantic);
                 applyResponsiveWidth(column, heading, semantic);
             }
 
@@ -561,38 +353,25 @@ public final class ProfessionalUiEnhancer {
     @SuppressWarnings("rawtypes")
     private static void applyResponsiveWidth(TableColumn column, String heading, String semantic) {
         String h = heading == null ? "" : heading.toLowerCase(Locale.ROOT);
-        TableView<?> table = column.getTableView();
-        String profile = table == null ? "responsive"
-            : String.valueOf(table.getProperties().getOrDefault("erp-table-profile", "responsive"));
-        double min;
-        if ("actions".equals(semantic)) min = 136;
-        else if ("quantity".equals(semantic) && (h.equals("no.") || h.equals("#") || h.equals("qty"))) min = 68;
-        else if ("status".equals(semantic) || "whatsapp".equals(semantic)) min = 116;
-        else if ("email".equals(semantic)) min = 170;
-        else if ("calendar".equals(semantic) || "reminder".equals(semantic)) min = 118;
-        else if ("currency".equals(semantic) || h.contains("amount") || h.contains("balance") || h.contains("paid")) min = 126;
-        else if ("phone".equals(semantic)) min = 122;
-        else if ("customer".equals(semantic) || "supplier".equals(semantic) || h.contains("description")
-            || h.contains("subject") || h.contains("address") || h.contains("error")) min = 160;
-        else min = 104;
 
-        if ("summary".equals(profile)) min = Math.min(min, 132);
-        if ("dialog".equals(profile) || "detail".equals(profile)) min = Math.min(min, 118);
-        if (column.getMinWidth() < min) column.setMinWidth(min);
-        if (column.getPrefWidth() < min) column.setPrefWidth(min);
-        if ("actions".equals(semantic)) { column.setMinWidth(136); column.setPrefWidth(Math.max(column.getPrefWidth(), 140)); column.setMaxWidth(156); column.setSortable(false); }
-        if (h.equals("no.") || h.equals("#")) column.setMaxWidth(72);
-    }
+        // Ordinary business columns keep the widths declared by their screen. This is
+        // essential when a details drawer opens: JavaFX can shrink the data columns
+        // naturally instead of being blocked by semantic minimums added after FXML load.
+        if ("actions".equals(semantic)) {
+            column.setMinWidth(156);
+            column.setPrefWidth(160);
+            column.setMaxWidth(168);
+            column.setResizable(false);
+            column.setSortable(false);
+            return;
+        }
 
-    /** Builds a stable icon-and-label header that survives JavaFX skin rebuilds. */
-    public static Node tableHeader(String label, String semantic) {
-        Label title = new Label(label);
-        title.getStyleClass().add("erp-table-header-label");
-        HBox header = new HBox(6, IconFactory.compactIcon(semantic, 14), title);
-        header.setAlignment(Pos.CENTER_LEFT);
-        header.setMouseTransparent(true);
-        header.getStyleClass().add("erp-table-header-content");
-        return header;
+        if (h.equals("no.") || h.equals("#")) {
+            column.setMinWidth(62);
+            column.setPrefWidth(62);
+            column.setMaxWidth(72);
+            column.setResizable(false);
+        }
     }
 
     private static boolean isStatusHeading(String heading) {
@@ -608,6 +387,39 @@ public final class ProfessionalUiEnhancer {
         String id = columnId == null ? "" : columnId.toLowerCase(Locale.ROOT)
             .replaceAll("[^a-z0-9]+", " ").trim();
         String key = (value + " " + id).trim();
+
+        // Deterministic meanings for headings that are ambiguous under substring
+        // matching. This keeps the same business vocabulary on every screen.
+        String exactSemantic = switch (value) {
+            case "access", "allowed", "capability", "what this allows" -> "permission";
+            case "account" -> "bank";
+            case "action", "actions" -> "actions";
+            case "address", "branch", "department", "location" -> "location";
+            case "balance", "opening balance" -> "balance";
+            case "brand", "category", "type" -> "category";
+            case "code", "customer code", "supplier code", "item code" -> "identity";
+            case "contact person" -> "user";
+            case "converted to", "document", "invoice", "invoice no.", "original invoice",
+                 "purchase no.", "quotation no.", "return no.", "voucher no." -> "document";
+            case "customer / supplier", "party", "received from" -> "customer";
+            case "description", "description / narration", "details", "notes", "reason",
+                 "remarks", "subject" -> "notes";
+            case "email / username", "recipient" -> "email";
+            case "follow up", "payment due", "reminder", "valid upto" -> "reminder";
+            case "mfa" -> "security";
+            case "mode" -> "category";
+            case "payment mode" -> "payment";
+            case "priority" -> "warning";
+            case "reference", "reference / cheque no.", "reference no.", "target" -> "reference";
+            case "refund status", "result", "result / error", "return status" -> "status";
+            case "resend" -> "refresh";
+            case "role", "role name" -> "role";
+            case "source" -> "source";
+            case "users" -> "user";
+            case "value" -> "master";
+            default -> null;
+        };
+        if (exactSemantic != null) return exactSemantic;
 
         if (value.equals("no.") || value.equals("no") || value.equals("sr.")
             || value.equals("sr. no.") || value.equals("row") || value.equals("#")
@@ -625,7 +437,9 @@ public final class ProfessionalUiEnhancer {
             || key.contains("reminder") || key.contains("valid upto") || key.contains("valid until")) return "reminder";
         if (key.contains("priority") || key.contains("severity")) return "warning";
         if (key.contains("status") || key.contains("state") || key.contains("result error")) return "status";
-        if (key.contains("mfa") || key.contains("access") || key.contains("permission") || key.contains("role")) return "lock";
+        if (key.contains("mfa")) return "security";
+        if (key.contains("permission") || key.contains("access")) return "permission";
+        if (key.contains("role")) return "role";
 
         if (key.contains("date") || key.contains("created on") || key.contains("created at")
             || key.contains("updated") || key.contains("last login") || key.contains("timestamp")
@@ -640,7 +454,13 @@ public final class ProfessionalUiEnhancer {
         if (key.contains("address") || key.contains("location") || key.contains("branch")
             || key.contains("department") || key.contains("city") || key.contains("state")) return "location";
 
-        if (key.contains("gst") || key.contains("tax") || key.contains("vat")) return "tax";
+        if (value.equals("paid") || key.contains(" paid ") || key.startsWith("paid ")) return "complete";
+        if (key.contains("balance")) return "balance";
+        if (key.contains("discount")) return "discount";
+        if (key.equals("unit") || key.contains(" uom") || key.startsWith("uom ")) return "unit";
+        if (key.contains("gst") || key.contains("tax") || key.contains("vat") || key.contains("taxable")) return "tax";
+        if (key.contains("credit")) return "credit";
+        if (key.contains("debit")) return "debit";
         if (key.contains("pan") || key.contains("hsn") || key.contains("sku") || key.contains("barcode")
             || key.endsWith(" code") || key.equals("code") || key.contains(" id")) return "identity";
 
@@ -650,17 +470,19 @@ public final class ProfessionalUiEnhancer {
             || key.endsWith(" no.")) return "document";
         if (key.contains("return") || key.contains("refund")) return "return";
         if (key.contains("backup")) return "backup";
-        if (key.contains("source") || key.contains("channel") || key.contains("mode")) return "import";
+        if (key.contains("source")) return "source";
+        if (key.contains("channel")) return "communication";
+        if (key.contains("payment mode")) return "payment";
+        if (key.contains("mode")) return "category";
 
         if (key.contains("item") || key.contains("product") || key.contains("material")) return "item";
         if (key.contains("qty") || key.contains("quantity") || key.contains("stock")
             || key.contains("unit") || key.contains("available") || key.contains("reserved")
             || key.contains("size") || key.contains("in stock")) return "quantity";
         if (key.equals("type") || key.contains("movement type") || key.contains("transaction type")) return "category";
-        if (key.contains("category") || key.contains("brand")) return "master";
+        if (key.contains("category") || key.contains("brand")) return "category";
 
-        if (key.contains("amount") || value.equals("paid") || key.startsWith("paid ") || key.contains(" paid ")
-            || key.contains("balance") || key.contains("rate") || key.contains("price")
+        if (key.contains("amount") || key.contains("rate") || key.contains("price")
             || key.contains("total") || key.contains("opening balance") || key.contains("allocate")
             || key.contains("receivable") || key.contains("payable")) return "currency";
         if (key.contains("reason") || key.contains("note") || key.contains("remark")
@@ -691,6 +513,18 @@ public final class ProfessionalUiEnhancer {
         if (key.contains("returned") || key.contains("return qty")) return "return";
         if (key.contains("refund")) return "payment";
         if (key.contains("selected") || key.contains("select")) return "select";
+        if (key.contains("account")) return "bank";
+        if (key.contains("allowed") || key.contains("capability") || key.contains("what this allows")) return "permission";
+        if (key.contains("compatibility")) return "compatibility";
+        if (key.contains("database")) return "database";
+        if (key.contains("installer")) return "installer";
+        if (key.contains("match") || key.contains("link")) return "link";
+        if (key.contains("receipt")) return "document";
+        if (key.contains("recipient")) return "email";
+        if (key.contains("resend")) return "refresh";
+        if (key.equals("result") || key.contains("result ")) return "status";
+        if (key.contains("role")) return "role";
+        if (key.contains("target")) return "reference";
         if (key.contains("name") || key.contains("title")) return "master";
         return null;
     }

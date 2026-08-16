@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 public class DocumentStudioController implements ScreenLifecycle {
     @FXML private VBox root;
     @FXML private StackPane documentStudioPageIcon;
-    @FXML private StackPane documentsKpiIcon, activeKpiIcon, defaultsKpiIcon, salesSafetyKpiIcon;
+    @FXML private StackPane documentsKpiIcon, activeKpiIcon, defaultsKpiIcon, salesSafetyKpiIcon, generalPdfModeIcon, erpTemplateModeIcon, oneEditorModeIcon;
     @FXML private FlowPane cards;
     @FXML private VBox emptyState;
     @FXML private TextField txtSearch;
@@ -48,6 +48,9 @@ public class DocumentStudioController implements ScreenLifecycle {
         if(activeKpiIcon!=null)activeKpiIcon.getChildren().setAll(IconFactory.icon("complete",18));
         if(defaultsKpiIcon!=null)defaultsKpiIcon.getChildren().setAll(IconFactory.icon("workflow",18));
         if(salesSafetyKpiIcon!=null)salesSafetyKpiIcon.getChildren().setAll(IconFactory.icon("security",18));
+        if(generalPdfModeIcon!=null)generalPdfModeIcon.getChildren().setAll(IconFactory.icon("pdf",18));
+        if(erpTemplateModeIcon!=null)erpTemplateModeIcon.getChildren().setAll(IconFactory.icon("document",18));
+        if(oneEditorModeIcon!=null)oneEditorModeIcon.getChildren().setAll(IconFactory.icon("edit",18));
         cmbType.setItems(FXCollections.observableArrayList());
         cmbType.getItems().add("All document types");
         cmbType.getItems().addAll(DocumentType.values());
@@ -260,9 +263,12 @@ public class DocumentStudioController implements ScreenLifecycle {
         archive.setDisable(template.getStatus() == TemplateStatus.ARCHIVED); archive.setOnAction(e -> archive(template));
         MenuItem delete = new MenuItem("Delete"); delete.setOnAction(e -> delete(template));
         more.getItems().addAll(setDefault, duplicate, archive, new SeparatorMenuItem(), delete);
-        edit.getStyleClass().addAll("approved-button", "approved-primary-button");
-        previewButton.getStyleClass().addAll("approved-button", "approved-secondary-button");
-        more.getStyleClass().add("approved-menu-button");
+        edit.getStyleClass().addAll("approved-button", "approved-primary-button", "doc-template-action-button");
+        previewButton.getStyleClass().addAll("approved-button", "approved-secondary-button", "doc-template-action-button");
+        more.getStyleClass().addAll("approved-menu-button", "doc-template-more-button");
+        edit.setGraphic(IconFactory.compactIcon("edit", 15));
+        previewButton.setGraphic(IconFactory.compactIcon("view", 15));
+        more.setGraphic(IconFactory.compactIcon("actions", 15));
         HBox.setHgrow(edit, Priority.ALWAYS); edit.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(previewButton, Priority.ALWAYS); previewButton.setMaxWidth(Double.MAX_VALUE);
         actions.getChildren().addAll(edit, previewButton, more);

@@ -91,7 +91,6 @@ public class ReminderCenterController {
     }
 
     private void configureTable() {
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
         filtered = new FilteredList<>(source, row -> true);
         table.setItems(filtered);
@@ -214,12 +213,25 @@ public class ReminderCenterController {
 
     @FXML
     private void refresh() {
+        ReminderRow selected = table.getSelectionModel().getSelectedItem();
+        long selectedId = selected == null ? -1L : selected.id;
+
         source.clear();
         try { for (var d : insightsApi.reminders()) source.add(new ReminderRow(d)); }
         catch (Exception exception) { error("Reminders could not be loaded", exception); }
         updateMetrics();
         applyFilters();
-        if (!filtered.isEmpty()) table.getSelectionModel().selectFirst(); else showDetails(null);
+
+        ReminderRow restored = selectedId < 0 ? null : filtered.stream()
+                .filter(row -> row.id == selectedId)
+                .findFirst()
+                .orElse(null);
+        if (restored != null) {
+            table.getSelectionModel().select(restored);
+        } else {
+            table.getSelectionModel().clearSelection();
+            showDetails(null);
+        }
     }
 
     @FXML
@@ -649,16 +661,18 @@ public class ReminderCenterController {
         );
     }
 
+    @FXML
+    private void closeDetails() {
+        table.getSelectionModel().clearSelection();
+        showDetails(null);
+    }
+
     private void setDetailVisible(boolean visible) {
         if (reminderDetailScroll == null) return;
         reminderDetailScroll.setManaged(visible);
         reminderDetailScroll.setVisible(visible);
         if (reminderWorkspace != null) {
-            javafx.application.Platform.runLater(() -> {
-                reminderWorkspace.applyCss();
-                reminderWorkspace.layout();
-                reminderWorkspace.setDividerPositions(visible ? 0.74 : 1.0);
-            });
+            reminderWorkspace.setDividerPositions(visible ? 0.74 : 1.0);
         }
     }
 
@@ -753,7 +767,7 @@ public class ReminderCenterController {
 
     private void configureExplicitTableHeaderIcons() {
         IconFactory.applyTableHeaderIcon(colTitle, "reminder");
-        IconFactory.applyTableHeaderIcon(colReference, "document");
+        IconFactory.applyTableHeaderIcon(colReference, "reference");
         IconFactory.applyTableHeaderIcon(colDue, "calendar");
         IconFactory.applyTableHeaderIcon(colPriority, "warning");
         IconFactory.applyTableHeaderIcon(colStatus, "status");

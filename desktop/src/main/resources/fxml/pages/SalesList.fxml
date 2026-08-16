@@ -19,7 +19,7 @@
 
   <center>
     <SplitPane fx:id="mainSplit" dividerPositions="0.81" styleClass="register-split,sales-register-split">
-      <padding><Insets top="10" right="14" bottom="14" left="14"/></padding>
+      
       <items>
         <VBox spacing="10" minWidth="620" styleClass="register-workspace,sales-register-workspace">
           <padding><Insets top="0" right="12" bottom="0" left="0"/></padding>
@@ -76,7 +76,6 @@
           </HBox>
 
           <VBox spacing="10" styleClass="filter-surface,sales-filter-surface,approved-filter-bar,erp-filter-section">
-            <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
             <HBox spacing="9" alignment="CENTER_LEFT">
               <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="360" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
               <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced"/>
@@ -141,7 +140,6 @@
             </TableView>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="table-footer,sales-table-footer">
-              <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
               <Label fx:id="lblPageInfo" styleClass="muted-text,register-record-count"/>
               <Region HBox.hgrow="ALWAYS"/>
               <Label text="Rows per page" styleClass="sales-page-label,register-page-size-label"/>
@@ -154,7 +152,6 @@
             </HBox>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="export-bar,sales-export-bar">
-              <padding><Insets top="11" right="12" bottom="11" left="12"/></padding>
               <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportSale" styleClass="secondary-button,sales-export-button"/>
               <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="secondary-button,sales-export-button"/>
               <Button fx:id="btnPrintRegister" text="Print" onAction="#printRegister" styleClass="secondary-button,sales-export-button"/>
@@ -178,7 +175,6 @@
         </VBox>
 
         <VBox fx:id="detailDrawer" spacing="12" prefWidth="300" minWidth="280" maxWidth="310" styleClass="detail-drawer,sales-detail-drawer">
-          <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
           <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
           <Label fx:id="lblDetailInvoice" styleClass="drawer-document,sales-detail-invoice"/>
           <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>

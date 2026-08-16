@@ -94,7 +94,7 @@ public class SalesReturnsController {
                 add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row()));
                 add("Delete Return", "delete", e -> delete(row()));
-                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setMinWidth(122);menu.setPrefWidth(130);menu.setMaxWidth(148);menu.setTooltip(new Tooltip("Actions"));
+                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));
             }
             private Row row() { return getTableView().getItems().get(getIndex()); }
             private void add(String text, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) {
@@ -200,14 +200,14 @@ public class SalesReturnsController {
 
 
     private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(no, "document");
+        IconFactory.applyTableHeaderIcon(no, "return");
         IconFactory.applyTableHeaderIcon(date, "calendar");
-        IconFactory.applyTableHeaderIcon(invoice, "document");
+        IconFactory.applyTableHeaderIcon(invoice, "sale");
         IconFactory.applyTableHeaderIcon(customer, "customer");
         IconFactory.applyTableHeaderIcon(reason, "notes");
         IconFactory.applyTableHeaderIcon(amount, "currency");
         IconFactory.applyTableHeaderIcon(status, "status");
-        IconFactory.applyTableHeaderIcon(refundStatus, "payment");
+        IconFactory.applyTableHeaderIcon(refundStatus, "status");
         action.setText("Actions"); IconFactory.applyTableHeaderIcon(action, "actions");
     }
 }

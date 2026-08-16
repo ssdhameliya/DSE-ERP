@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.CommunicationCenterController" spacing="14" styleClass="register-page,approved-ui,approved-screen,approved-screen-communication-center,erp-screen-root">
-  <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header"><StackPane styleClass="erp-page-header-icon"><Label text="✉" styleClass="erp-page-header-symbol"/></StackPane><VBox><Label text="Communication Center" styleClass="screen-title"/><Label text="Track invoice emails, WhatsApp activity and delivery failures" styleClass="screen-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Email Settings" onAction="#openEmailSettings" styleClass="secondary-button"/></HBox>
   <HBox spacing="12" styleClass="standard-kpi-row,erp-kpi-section">
 <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-blue" HBox.hgrow="ALWAYS"><StackPane fx:id="communicationTotalIcon" styleClass="standard-kpi-icon"/><VBox spacing="4"><Label text="Total Activity" styleClass="metric-label"/><Label fx:id="lblTotal" styleClass="metric-value"/><Label text="All communication events" styleClass="metric-note"/></VBox></HBox>

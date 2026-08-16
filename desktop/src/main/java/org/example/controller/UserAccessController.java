@@ -80,7 +80,6 @@ public class UserAccessController {
         colDepartment.setCellValueFactory(v->v.getValue().department); colAccess.setCellValueFactory(v->v.getValue().access); colBranch.setCellValueFactory(v->v.getValue().branch);
         colStatus.setCellValueFactory(v->v.getValue().status); colLastLogin.setCellValueFactory(v->v.getValue().lastLogin); colMfa.setCellValueFactory(v->v.getValue().mfa);
         colActions.setCellFactory(c->userActionCell());
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         colUser.setMinWidth(82); colUser.setPrefWidth(95);
         colEmail.setMinWidth(135); colEmail.setPrefWidth(170);
         colRole.setMinWidth(68); colRole.setPrefWidth(78);
@@ -90,14 +89,12 @@ public class UserAccessController {
         colStatus.setMinWidth(72); colStatus.setPrefWidth(82);
         colLastLogin.setMinWidth(98); colLastLogin.setPrefWidth(112);
         colMfa.setMinWidth(48); colMfa.setPrefWidth(56);
-        colActions.setMinWidth(120); colActions.setPrefWidth(124); colActions.setMaxWidth(132);
         table.setRowFactory(tv->{ TableRow<UserRow> row=new TableRow<>(); row.setOnMouseClicked(e->{if(!row.isEmpty()&&e.getButton()==MouseButton.PRIMARY&&e.getClickCount()==2)edit(row.getItem());}); return row;});
     }
     private void configureRoleTable(){
         colRoleName.setCellValueFactory(v->v.getValue().name); colRoleDescription.setCellValueFactory(v->v.getValue().description);
         colRoleUsers.setCellValueFactory(v->v.getValue().users); colRoleStatus.setCellValueFactory(v->v.getValue().status); colRoleActions.setCellFactory(c->roleActionCell());
-        roleTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78); colRoleActions.setMinWidth(120); colRoleActions.setPrefWidth(124); colRoleActions.setMaxWidth(132);
+        colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78);
         roleTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null){cmbPermissionRole.setValue(b.name.get());lblRoleHint.setText(b.description.get());}});
     }
     private void configurePermissionTable(){
@@ -173,7 +170,7 @@ public class UserAccessController {
 
     private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.role.get());showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
     private TableCell<RoleRow,Void> roleActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}RoleRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit Role","edit",e->{roleTable.getSelectionModel().select(row);editRole();}),mi("Manage Permissions","permission",e->{cmbPermissionRole.setValue(row.name.get());showPermissionMatrix();}),mi("Delete Role","delete",e->{roleTable.getSelectionModel().select(row);deleteRole();}));setGraphic(menu);}};}
-    private MenuButton createActionMenu(){MenuButton m=new MenuButton("Actions");m.setGraphic(IconFactory.compactIcon("actions",15));m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.setMinWidth(122);m.setPrefWidth(130);m.setMaxWidth(148);m.getStyleClass().add("table-action-menu");return m;}
+    private MenuButton createActionMenu(){MenuButton m=new MenuButton("Actions");m.setGraphic(IconFactory.compactIcon("actions",15));m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.getStyleClass().add("table-action-menu");return m;}
     private MenuItem mi(String text,String icon,javafx.event.EventHandler<javafx.event.ActionEvent>handler){MenuItem i=new MenuItem(text,IconFactory.compactIcon(icon,16));i.setOnAction(handler);return i;}
     private void filter(){String q=txtSearch.getText()==null?"":txtSearch.getText().toLowerCase(Locale.ROOT);filtered.setPredicate(r->{boolean text=q.isBlank()||(r.user.get()+" "+r.fullName+" "+r.email.get()+" "+r.department.get()+" "+r.branch.get()).toLowerCase(Locale.ROOT).contains(q);boolean role=cmbRole.getValue()==null||cmbRole.getValue().startsWith("All")||r.role.get().equals(cmbRole.getValue());boolean status=cmbStatus.getValue()==null||cmbStatus.getValue().startsWith("All")||r.status.get().equals(cmbStatus.getValue());boolean branch=cmbBranch.getValue()==null||cmbBranch.getValue().startsWith("All")||r.branch.get().equals(cmbBranch.getValue());return text&&role&&status&&branch;});}
     private void audit(int userId,String action,String detail){try{adminApi.audit(userId,action,detail+" | by="+(SessionService.current()==null?"System":SessionService.current().getUsername()));}catch(Exception ignored){}}
@@ -182,7 +179,7 @@ public class UserAccessController {
 
     private void configureIcons(){
         IconFactory.applyTableHeaderIcon(colUser,"user");IconFactory.applyTableHeaderIcon(colEmail,"email");IconFactory.applyTableHeaderIcon(colRole,"role");IconFactory.applyTableHeaderIcon(colDepartment,"category");IconFactory.applyTableHeaderIcon(colAccess,"security");IconFactory.applyTableHeaderIcon(colBranch,"location");IconFactory.applyTableHeaderIcon(colStatus,"status");IconFactory.applyTableHeaderIcon(colLastLogin,"calendar");IconFactory.applyTableHeaderIcon(colMfa,"security");IconFactory.applyTableHeaderIcon(colActions,"actions");
-        IconFactory.applyTableHeaderIcon(colRoleName,"role");IconFactory.applyTableHeaderIcon(colRoleDescription,"document");IconFactory.applyTableHeaderIcon(colRoleUsers,"users");IconFactory.applyTableHeaderIcon(colRoleStatus,"status");IconFactory.applyTableHeaderIcon(colRoleActions,"actions");IconFactory.applyTableHeaderIcon(colPermissionModule,"category");IconFactory.applyTableHeaderIcon(colPermissionAction,"security");IconFactory.applyTableHeaderIcon(colPermissionDescription,"document");IconFactory.applyTableHeaderIcon(colPermissionAllowed,"complete");
+        IconFactory.applyTableHeaderIcon(colRoleName,"role");IconFactory.applyTableHeaderIcon(colRoleDescription,"notes");IconFactory.applyTableHeaderIcon(colRoleUsers,"users");IconFactory.applyTableHeaderIcon(colRoleStatus,"status");IconFactory.applyTableHeaderIcon(colRoleActions,"actions");IconFactory.applyTableHeaderIcon(colPermissionModule,"category");IconFactory.applyTableHeaderIcon(colPermissionAction,"security");IconFactory.applyTableHeaderIcon(colPermissionDescription,"notes");IconFactory.applyTableHeaderIcon(colPermissionAllowed,"complete");
     }
 
     public static final class UserRow{final int id;final SimpleStringProperty user,email,role,department,access,branch,status,lastLogin,mfa;final String fullName;final boolean active,locked;UserRow(AdminApiClient.UserDto r){id=r.id();user=new SimpleStringProperty(r.username());fullName=blank(r.fullName(),r.username());email=new SimpleStringProperty(blank(r.email(),"—"));role=new SimpleStringProperty(blank(r.role(),"SALES"));department=new SimpleStringProperty(blank(r.department(),"—"));access=new SimpleStringProperty(blank(r.accessLevel(),"STANDARD"));branch=new SimpleStringProperty(blank(r.branch(),"—"));active=r.active();locked=r.locked();status=new SimpleStringProperty(locked?"Locked":active?"Active":"Inactive");lastLogin=new SimpleStringProperty(blank(r.lastLogin(),"Never"));mfa=new SimpleStringProperty(r.mfaEnabled()?"Enabled":"—");}}

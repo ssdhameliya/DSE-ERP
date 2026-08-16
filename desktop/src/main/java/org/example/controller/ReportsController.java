@@ -137,8 +137,6 @@ public class ReportsController implements ScreenLifecycle {
     private void export(String title,String name,String ext,boolean pdf){FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,ext));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();String suffix=pdf?".pdf":".xlsx";if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitLatest("reports-export",()->{if(pdf)reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());else reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());return target;},done->new OwnedAlert(Alert.AlertType.INFORMATION,"Report created successfully:\n"+done).showAndWait(),e->error("Could not create report: "+e.getMessage()));}
     private String money(double n){return "₹ "+String.format("%,.2f",n);}private void error(String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message);a.setHeaderText("Reporting error");a.showAndWait();}
     private void configureReportTables(){
-        tblSales.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        tblPurchases.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         colSaleNo.setMinWidth(110); colSaleDate.setMinWidth(95); colSaleParty.setMinWidth(135); colSaleAmount.setMinWidth(105); colSaleStatus.setMinWidth(100);
         colPurchaseNo.setMinWidth(110); colPurchaseDate.setMinWidth(95); colPurchaseParty.setMinWidth(135); colPurchaseAmount.setMinWidth(105); colPurchaseStatus.setMinWidth(100);
     }

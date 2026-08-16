@@ -70,7 +70,6 @@ public abstract class PartyMasterController {
         colOpeningBalance.setCellValueFactory(new PropertyValueFactory<>("openingBalance"));
         colActive.setCellValueFactory(new PropertyValueFactory<>("active"));
         configureActionColumn();
-        tableParties.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         tableParties.setFixedCellSize(40);
         configureTableInteractions();
         txtSearch.textProperty().addListener((o, oldValue, newValue) -> load());
@@ -91,9 +90,7 @@ public abstract class PartyMasterController {
                 actions.setGraphic(IconFactory.compactIcon("actions", 16));
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                actions.setMinWidth(122);
-                actions.setPrefWidth(130);
-                actions.setMaxWidth(148);
+                
                 actions.setTooltip(new Tooltip("Actions"));
                 edit.setOnAction(event -> runForRow(this, false));
                 delete.getStyleClass().add("danger-menu-item");
@@ -273,14 +270,15 @@ public abstract class PartyMasterController {
 
 
     private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colCode, "document");
-        IconFactory.applyTableHeaderIcon(colName, "customer");
+        String partySemantic = "CUSTOMER".equals(partyType()) ? "customer" : "supplier";
+        IconFactory.applyTableHeaderIcon(colCode, "identity");
+        IconFactory.applyTableHeaderIcon(colName, partySemantic);
         IconFactory.applyTableHeaderIcon(colContact, "user");
         IconFactory.applyTableHeaderIcon(colPhone, "phone");
         IconFactory.applyTableHeaderIcon(colEmail, "email");
         IconFactory.applyTableHeaderIcon(colGstin, "tax");
         IconFactory.applyTableHeaderIcon(colAddress, "location");
-        IconFactory.applyTableHeaderIcon(colOpeningBalance, "payment");
+        IconFactory.applyTableHeaderIcon(colOpeningBalance, "balance");
         IconFactory.applyTableHeaderIcon(colActive, "status");
         if (colActions != null) IconFactory.applyTableHeaderIcon(colActions, "actions");
     }

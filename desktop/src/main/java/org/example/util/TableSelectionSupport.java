@@ -23,9 +23,8 @@ public final class TableSelectionSupport {
 
     public static <T> Set<T> install(TableView<T> table, TableColumn<T, Boolean> column) {
         Set<T> selected = Collections.newSetFromMap(new IdentityHashMap<>());
-        column.setText("");
-        column.getProperties().put("erp-header-label", "No.");
-        column.setGraphic(ProfessionalUiEnhancer.tableHeader("No.", "quantity"));
+        column.setText("No.");
+        IconFactory.applyTableHeaderIcon(column, "quantity");
         column.setSortable(false);
         column.setReorderable(false);
         column.setMinWidth(62);

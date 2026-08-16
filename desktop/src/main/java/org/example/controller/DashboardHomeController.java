@@ -370,7 +370,7 @@ public class DashboardHomeController {
 
 
     private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colType, "status");
+        IconFactory.applyTableHeaderIcon(colType, "category");
         IconFactory.applyTableHeaderIcon(colNumber, "document");
         IconFactory.applyTableHeaderIcon(colParty, "customer");
         IconFactory.applyTableHeaderIcon(colDate, "calendar");

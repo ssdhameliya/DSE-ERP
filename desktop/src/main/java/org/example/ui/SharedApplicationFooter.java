@@ -1,12 +1,12 @@
 package org.example.ui;
 
-import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import org.example.config.ConfigManager;
 import org.example.service.BrandingService;
 import org.example.util.ClockService;
+import org.example.util.IconFactory;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
@@ -28,29 +28,25 @@ public final class SharedApplicationFooter extends HBox {
     private final Label clock = new Label();
 
     public SharedApplicationFooter() {
-        setAlignment(Pos.CENTER_LEFT);
-        setSpacing(10);
-        setMinHeight(38);
-        setPrefHeight(38);
-        getStyleClass().addAll("universal-app-footer", "auth-footer");
+        getStyleClass().add("universal-app-footer");
         trust.getStyleClass().add("universal-footer-trust");
         company.getStyleClass().add("universal-footer-company");
         phone.getStyleClass().add("universal-footer-detail");
         email.getStyleClass().add("universal-footer-detail");
         website.getStyleClass().add("universal-footer-detail");
-        clock.getStyleClass().addAll("universal-footer-clock", "auth-footer-clock");
+        clock.getStyleClass().add("universal-footer-clock");
+
+        company.setGraphic(IconFactory.compactIcon("identity", 13));
+        phone.setGraphic(IconFactory.compactIcon("phone", 13));
+        email.setGraphic(IconFactory.compactIcon("email", 13));
+        website.setGraphic(IconFactory.compactIcon("link", 13));
+        clock.setGraphic(IconFactory.compactIcon("calendar", 13));
+        for (Label label : List.of(company, phone, email, website, clock)) label.setGraphicTextGap(6);
 
         for (Label label : List.of(trust, company, phone, email, website, clock)) {
             label.setMaxWidth(Double.MAX_VALUE);
             HBox.setHgrow(label, Priority.ALWAYS);
         }
-        trust.setAlignment(Pos.CENTER_LEFT);
-        company.setAlignment(Pos.CENTER_LEFT);
-        phone.setAlignment(Pos.CENTER);
-        email.setAlignment(Pos.CENTER);
-        website.setAlignment(Pos.CENTER);
-        clock.setAlignment(Pos.CENTER_RIGHT);
-        setStyle("-fx-padding: 8 14 8 14;");
         INSTANCES.add(new WeakReference<>(this));
         refresh();
         ClockService.start(clock);
@@ -64,16 +60,16 @@ public final class SharedApplicationFooter extends HBox {
 
     public void refresh() {
         company.setText(nonBlank(BrandingService.companyName(), BrandingService.applicationName()));
-        updateOptional(phone, ConfigManager.get("company.phone", ""), "☎ " );
-        updateOptional(email, ConfigManager.get("company.email", ""), "✉ " );
-        updateOptional(website, ConfigManager.get("company.website", ""), "🌐 " );
+        updateOptional(phone, ConfigManager.get("company.phone", ""));
+        updateOptional(email, ConfigManager.get("company.email", ""));
+        updateOptional(website, ConfigManager.get("company.website", ""));
         rebuildChildren();
     }
 
-    private static void updateOptional(Label label, String value, String prefix) {
+    private static void updateOptional(Label label, String value) {
         String clean = value == null ? "" : value.trim();
         boolean show = !clean.isBlank();
-        label.setText(show ? prefix + clean : "");
+        label.setText(show ? clean : "");
         label.setVisible(show);
         label.setManaged(show);
     }

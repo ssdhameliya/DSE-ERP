@@ -26,6 +26,7 @@ public class OwnedDialog<R> extends Dialog<R> {
                 ThemeManager.applyTheme(getDialogPane().getScene());
                 PlatformUiSupport.installResponsiveClasses(getDialogPane().getScene());
             }
+            IconFactory.decorate(getDialogPane());
             DialogActionStyler.style(getDialogPane());
         }));
     }

@@ -30,6 +30,7 @@ public class OwnedAlert extends Alert {
                 ThemeManager.applyTheme(getDialogPane().getScene());
                 PlatformUiSupport.installResponsiveClasses(getDialogPane().getScene());
             }
+            IconFactory.decorate(getDialogPane());
             String shownSemantic = inferSemantic();
             StackPane shownGraphic = new StackPane(SemanticIconManager.compact(shownSemantic, 24));
             shownGraphic.getStyleClass().addAll("alert-semantic-icon", "alert-semantic-" + shownSemantic);

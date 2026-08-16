@@ -2,9 +2,9 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.ReportsController" spacing="8" styleClass="reports-content,reports-single-page,approved-ui,approved-screen,approved-screen-reports,erp-screen-root">
-  <HBox alignment="CENTER_LEFT" spacing="12" minHeight="70" prefHeight="70" styleClass="reports-header,approved-section-header,erp-page-identity-header">
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="reports-header,approved-section-header,erp-page-identity-header">
     <StackPane fx:id="reportPageIcon" styleClass="erp-page-header-icon"/>
-    <VBox spacing="3" alignment="CENTER_LEFT" minHeight="56" styleClass="reports-title-block">
+    <VBox spacing="3" alignment="CENTER_LEFT" styleClass="reports-title-block">
       <Label text="Reports Dashboard" styleClass="page-title"/>
       <Label text="Real-time financial and operational summary" styleClass="page-subtitle,reports-header-subtitle"/>
     </VBox>
@@ -13,7 +13,7 @@
     <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
     <MenuButton fx:id="btnExport" text="Export" minWidth="140" prefWidth="140" styleClass="primary-button,approved-menu-button,reports-export-button"><items><MenuItem fx:id="miExcel" text="Export Excel" onAction="#exportExcel"/><MenuItem fx:id="miPdf" text="Export PDF" onAction="#exportPdf"/></items></MenuButton>
   </HBox>
-  <GridPane hgap="12" vgap="12" minHeight="92" prefHeight="92" maxHeight="92" styleClass="report-kpi-grid,erp-kpi-section">
+  <GridPane hgap="12" vgap="12" styleClass="report-kpi-grid,erp-kpi-section">
     <columnConstraints><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/></columnConstraints>
     <HBox GridPane.columnIndex="0" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,sales-metric-total,kpi-sales"><StackPane fx:id="reportSalesIcon" styleClass="sales-metric-icon"/><VBox spacing="3"><Label text="Total Sales" styleClass="metric-label"/><Label fx:id="lblSales" styleClass="kpi-value,metric-value,report-responsive-value"/><Label text="Selected period" styleClass="page-subtitle,metric-note"/></VBox></HBox>
     <HBox GridPane.columnIndex="1" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,sales-metric-today,kpi-purchase"><StackPane fx:id="reportPurchaseIcon" styleClass="sales-metric-icon"/><VBox spacing="3"><Label text="Total Purchases" styleClass="metric-label"/><Label fx:id="lblPurchase" styleClass="kpi-value,metric-value,report-responsive-value"/><Label text="Selected period" styleClass="page-subtitle,metric-note"/></VBox></HBox>

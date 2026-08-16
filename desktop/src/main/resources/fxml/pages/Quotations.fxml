@@ -3,7 +3,7 @@
 
     <top>
         <VBox spacing="10" styleClass="quotation-register-top,erp-transparent-section-stack">
-            <padding><Insets top="10" right="18" bottom="9" left="18"/></padding>
+            <padding><Insets top="10" right="14" bottom="4" left="14"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
                 <StackPane fx:id="pageIcon" styleClass="quotation-page-icon"/>
@@ -49,7 +49,7 @@
             <items>
                 <VBox spacing="12" styleClass="quotation-register-workspace">
                     <VBox spacing="12" styleClass="quotation-filter-card,approved-filter-bar">
-                        <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+                        
 
                         <HBox spacing="10" alignment="CENTER_LEFT">
                             <TextField fx:id="txtSearch" promptText="Search quotation, customer, mobile or GSTIN..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
@@ -109,7 +109,6 @@
                         </TableView>
 
                         <HBox spacing="10" alignment="CENTER_LEFT" styleClass="quotation-export-bar">
-                            <padding><Insets top="12" right="14" bottom="12" left="14"/></padding>
                             <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportExcel" styleClass="quotation-export-button,approved-button,approved-secondary-button"/>
                             <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="quotation-export-button,approved-button,approved-secondary-button"/>
                             <Region HBox.hgrow="ALWAYS"/>
@@ -119,7 +118,6 @@
                 </VBox>
 
                 <VBox fx:id="detailDrawer" spacing="11" styleClass="detail-drawer,quotation-detail-drawer">
-                    <padding><Insets top="16" right="14" bottom="16" left="14"/></padding>
                     <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Quotation Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="quotation-detail-close-button,approved-button,approved-danger-button"/></HBox>
                     <Label fx:id="lblDetailNo" styleClass="drawer-document"/>
                     <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>

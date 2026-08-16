@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?>
 <VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.RoleManagementController" spacing="12" styleClass="user-access-page,approved-ui,erp-screen-root">
-  <padding><Insets top="14" right="18" bottom="14" left="18"/></padding>
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
     <StackPane styleClass="erp-page-header-icon,user-access-header-icon"><Label text="♜" styleClass="erp-page-header-symbol"/></StackPane>
     <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Role Management" styleClass="screen-title"/><Label text="Review the protected business roles used by authentication and access control" styleClass="screen-subtitle"/></VBox>

@@ -4,7 +4,7 @@
     <center>
         <VBox spacing="10" styleClass="backup-page-content">
             <padding>
-                <Insets top="12" right="16" bottom="10" left="16"/>
+                <Insets top="14" right="14" bottom="14" left="14"/>
             </padding>
 
             <!-- Header -->
@@ -165,7 +165,7 @@
                         <TableColumn fx:id="colSize" text="Size" prefWidth="100" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colStatus" text="Status" prefWidth="130" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colSource" text="Source" prefWidth="120" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colActions" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
+                        <TableColumn fx:id="colActions" text="Actions" styleClass="approved-table-column" minWidth="148" prefWidth="154" maxWidth="166" sortable="false" resizable="false"/>
                     </columns>
                 </TableView>
 

@@ -13,7 +13,7 @@
       fx:id="salesEntryRoot"
       spacing="10"
       styleClass="purchase-page,sales-entry-page,sales-entry-fixed-root">
-    <padding><Insets top="12" right="14" bottom="10" left="14"/></padding>
+    <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
     <HBox alignment="CENTER_LEFT" spacing="12" styleClass="sales-entry-header,approved-section-header,erp-page-identity-header">
         <StackPane styleClass="sales-entry-title-icon"><Label text=""/></StackPane>
@@ -133,23 +133,8 @@
                 <!-- Entry controls mirror the editable line-item table columns.
                      The Discount (₹) slot is intentionally blank because it is calculated.
                      Add/Remove actions stay anchored at the far-right edge. -->
-                <GridPane hgap="0" alignment="CENTER_LEFT" style="-fx-padding: 1 0 2 0;" styleClass="sales-entry-line-toolbar,approved-toolbar">
-                    <columnConstraints>
-                        <!-- These constraints are bound at runtime to the live TableColumn widths.
-                             This keeps the editor aligned even when constrained-resize expands the table. -->
-                        <ColumnConstraints fx:id="entryItemColumn" prefWidth="320"/>
-                        <ColumnConstraints fx:id="entryQtyColumn" prefWidth="75"/>
-                        <ColumnConstraints fx:id="entryRateColumn" prefWidth="105"/>
-                        <ColumnConstraints fx:id="entryDiscountColumn" prefWidth="105"/>
-                        <ColumnConstraints fx:id="entryDiscountAmountColumn" prefWidth="105"/>
-                        <ColumnConstraints fx:id="entryGstColumn" prefWidth="78"/>
-                        <ColumnConstraints fx:id="entryTaxableColumn" prefWidth="120"/>
-                        <ColumnConstraints fx:id="entryGstAmountColumn" prefWidth="125"/>
-                        <ColumnConstraints fx:id="entryAmountColumn" prefWidth="125"/>
-                    </columnConstraints>
-
-                    <StackPane maxWidth="Infinity" GridPane.columnIndex="0" styleClass="sales-entry-item-search-shell,erp-item-search-shell">
-                        <GridPane.margin><Insets right="8"/></GridPane.margin>
+                <HBox spacing="8" alignment="CENTER_LEFT" styleClass="sales-entry-line-toolbar,approved-toolbar">
+                    <StackPane HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="sales-entry-item-search-shell,erp-item-search-shell">
                         <TextField fx:id="txtItemSearch" promptText="Search Item Master..." maxWidth="Infinity"
                                    styleClass="approved-input,sales-entry-item-search,erp-item-search"/>
                         <StackPane fx:id="itemSearchIconBox" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24"
@@ -158,31 +143,15 @@
                             <StackPane.margin><Insets right="8"/></StackPane.margin>
                         </StackPane>
                     </StackPane>
-                    <TextField fx:id="txtQuantity" promptText="Qty" maxWidth="Infinity"
-                               GridPane.columnIndex="1" styleClass="approved-input">
-                        <GridPane.margin><Insets right="8"/></GridPane.margin>
-                    </TextField>
-                    <TextField fx:id="txtRate" promptText="Rate (₹)" maxWidth="Infinity"
-                               GridPane.columnIndex="2" styleClass="approved-input">
-                        <GridPane.margin><Insets right="8"/></GridPane.margin>
-                    </TextField>
-                    <TextField fx:id="txtLineDiscount" promptText="Discount %" maxWidth="Infinity"
-                               GridPane.columnIndex="3" styleClass="approved-input">
-                        <GridPane.margin><Insets right="8"/></GridPane.margin>
-                    </TextField>
-                    <TextField fx:id="txtGST" promptText="GST %" maxWidth="Infinity"
-                               GridPane.columnIndex="5" styleClass="approved-input">
-                        <GridPane.margin><Insets right="8"/></GridPane.margin>
-                    </TextField>
-
-                    <HBox spacing="8" alignment="CENTER_RIGHT" GridPane.columnIndex="6" GridPane.columnSpan="3" maxWidth="Infinity">
-                        <Region HBox.hgrow="ALWAYS"/>
-                        <Button fx:id="btnAddLine" text="Add Item" onAction="#addLine"
-                                styleClass="sales-entry-add-button,approved-button,approved-primary-button"/>
-                        <Button fx:id="btnRemoveLine" text="Remove" onAction="#removeLine"
-                                styleClass="sales-entry-remove-button,approved-button,approved-danger-button"/>
-                    </HBox>
-                </GridPane>
+                    <TextField fx:id="txtQuantity" promptText="Qty" prefWidth="78" minWidth="72" maxWidth="88" styleClass="approved-input"/>
+                    <TextField fx:id="txtRate" promptText="Rate (₹)" prefWidth="105" minWidth="92" maxWidth="118" styleClass="approved-input"/>
+                    <TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100" minWidth="92" maxWidth="112" styleClass="approved-input"/>
+                    <TextField fx:id="txtGST" promptText="GST %" prefWidth="80" minWidth="74" maxWidth="90" styleClass="approved-input"/>
+                    <Button fx:id="btnAddLine" text="Add Item" onAction="#addLine"
+                            styleClass="sales-entry-add-button,approved-button,approved-primary-button"/>
+                    <Button fx:id="btnRemoveLine" text="Remove" onAction="#removeLine"
+                            styleClass="sales-entry-remove-button,approved-button,approved-danger-button"/>
+                </HBox>
 
                 <TableView fx:id="tableLines" minHeight="190" VBox.vgrow="ALWAYS"
                            styleClass="sales-entry-table,approved-table,erp-table-profile-line-item">
@@ -222,7 +191,7 @@
 
         </VBox>
 
-        <VBox spacing="10" prefWidth="300" minWidth="285" maxWidth="330">
+        <VBox spacing="8" prefWidth="365" minWidth="345" maxWidth="410" styleClass="sales-entry-right-rail">
             <VBox spacing="10" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-summary-card">
                 <Label text="Invoice Summary" styleClass="flow-title,sales-entry-section-title,sales-entry-section-summary"/>
                 <HBox styleClass="sales-summary-row,sales-summary-subtotal"><Label text="Sub Total" styleClass="sales-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblNetAmount" styleClass="money-strong,sales-summary-value"/></HBox>

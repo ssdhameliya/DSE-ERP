@@ -3,7 +3,6 @@
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.QuotationEditorController" styleClass="approved-ui,approved-screen,quotation-editor-page,erp-screen-root">
   <top>
     <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header,quotation-entry-reference-header">
-      <padding><Insets top="12" right="14" bottom="12" left="14"/></padding>
       <StackPane fx:id="quotationTitleIcon" styleClass="quotation-editor-title-icon"/>
       <VBox spacing="3" HBox.hgrow="ALWAYS"><Label fx:id="lblPageTitle" text="Create Quotation" styleClass="page-title"/><Label fx:id="lblPageSubtitle" text="Build a complete customer quotation in one workspace" styleClass="muted-label"/></VBox>
       <Button fx:id="btnPreview" text="Preview" onAction="#preview" styleClass="approved-button,approved-secondary-button"/>
@@ -15,7 +14,6 @@
     <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="quotation-editor-scroll">
       <content>
         <VBox spacing="16" styleClass="quotation-editor-content">
-          <padding><Insets top="8" right="24" bottom="28" left="24"/></padding>
           <HBox spacing="16" alignment="TOP_LEFT">
             <VBox spacing="16" HBox.hgrow="ALWAYS">
               <VBox spacing="12" styleClass="quotation-editor-card">
@@ -43,9 +41,9 @@
                     <Button fx:id="btnAdd" text="Add Item" onAction="#addItem" maxWidth="Infinity" GridPane.columnIndex="4" GridPane.rowIndex="1" styleClass="approved-button,approved-primary-button"/>
                   </children>
                 </GridPane>
-                <TableView fx:id="tableLines" prefHeight="360">
+                <TableView fx:id="tableLines" prefHeight="360" styleClass="erp-table-profile-line-item">
                   <columns>
-                    <TableColumn fx:id="colItem" text="Item Details" prefWidth="230"/><TableColumn fx:id="colCode" text="Code" prefWidth="100"/><TableColumn fx:id="colQty" text="Qty" prefWidth="80"/><TableColumn fx:id="colRate" text="Rate" prefWidth="100"/><TableColumn fx:id="colGst" text="GST %" prefWidth="80"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="95"/><TableColumn fx:id="colAmount" text="Amount" prefWidth="120"/><TableColumn fx:id="colAction" text="Action" prefWidth="90"/>
+                    <TableColumn fx:id="colItem" text="Item Name" prefWidth="230"/><TableColumn fx:id="colCode" text="Code" prefWidth="100"/><TableColumn fx:id="colQty" text="Qty" prefWidth="80"/><TableColumn fx:id="colRate" text="Rate" prefWidth="100"/><TableColumn fx:id="colGst" text="GST %" prefWidth="80"/><TableColumn fx:id="colDiscount" text="Discount %" prefWidth="95"/><TableColumn fx:id="colAmount" text="Amount" prefWidth="120"/><TableColumn fx:id="colAction" text="Action" prefWidth="90"/>
                   </columns>
                 </TableView>
               </VBox>

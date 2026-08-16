@@ -203,27 +203,6 @@ public class DashboardController {
 
     }
 
-
-    /** Keeps the shared shell readable with macOS font metrics and Retina scaling. */
-    private void installResponsiveShellSizing() {
-        if (contentPane.getScene() == null) return;
-        Runnable resize = () -> {
-            double width = contentPane.getScene().getWidth();
-            double searchWidth = Math.max(150, Math.min(390, width * (PlatformUiSupport.isMac() ? 0.17 : 0.20)));
-            txtSearch.setPrefWidth(searchWidth);
-            if (sidebarRoot != null) sidebarRoot.setPrefWidth(width < 1050 ? 164 : width < 1250 ? 178 : PlatformUiSupport.isMac() ? 198 : 215);
-            if (menuUser != null) {
-                menuUser.setMinWidth(150);
-                menuUser.setPrefWidth(Math.min(235, Math.max(170, menuUser.prefWidth(-1) + 18)));
-                menuUser.setMaxWidth(250);
-            }
-            if (lblCompanyFooter != null) PlatformUiSupport.configureTextOverflow(lblCompanyFooter);
-        };
-        contentPane.getScene().widthProperty().addListener((obs, oldValue, newValue) -> resize.run());
-        contentPane.getScene().heightProperty().addListener((obs, oldValue, newValue) -> resize.run());
-        resize.run();
-    }
-
     /** Reads all four shell counters off the JavaFX thread in one database round-trip. */
     private void refreshShellIndicatorsAsync() {
         if (!indicatorRefreshRunning.compareAndSet(false, true)) return;
@@ -305,7 +284,7 @@ public class DashboardController {
     private void bindShellControls() {
         if (contentPane.getScene() == null) return;
         PlatformUiSupport.installResponsiveClasses(contentPane.getScene());
-        installResponsiveShellSizing();
+        if (lblCompanyFooter != null) PlatformUiSupport.configureTextOverflow(lblCompanyFooter);
         contentPane.getScene().getAccelerators().put(
             new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN),
             () -> { txtSearch.requestFocus(); txtSearch.selectAll(); });
@@ -321,7 +300,14 @@ public class DashboardController {
             sidebarUser.setCursor(Cursor.HAND);
             sidebarUser.setOnMouseClicked(e -> showProfile());
         }
-        for(Node node:contentPane.getScene().getRoot().lookupAll(".button")) if(node instanceof Button b) applyIcon(b);
+        // Decorate only the persistent shell. Loaded page buttons are owned by their
+        // controllers/SharedUiFramework and must not be re-inferred from visible text here.
+        if (sidebarRoot != null) {
+            for (Node node : sidebarRoot.lookupAll(".button")) if (node instanceof Button b) applyIcon(b);
+        }
+        if (topBar != null) {
+            for (Node node : topBar.lookupAll(".button")) if (node instanceof Button b) applyIcon(b);
+        }
         for (Node node : contentPane.getScene().getRoot().lookupAll(".toolbar-menu")) {
             if (node instanceof Button button) button.setGraphic(IconFactory.icon("menu"));
         }
@@ -1171,13 +1157,20 @@ public class DashboardController {
 
     private void configureProfileMenuIcons() {
         if (menuUser == null) return;
-        String[] icons = {"user","settings","backup","reminder","users","import",null,"lock",null,"logout"};
-        int index = 0;
         for (javafx.scene.control.MenuItem item : menuUser.getItems()) {
-            if (item instanceof javafx.scene.control.SeparatorMenuItem) { index++; continue; }
-            String semantic = index < icons.length ? icons[index] : "document";
-            if (semantic != null) item.setGraphic(IconFactory.compactIcon(semantic, 15));
-            index++;
+            if (item instanceof javafx.scene.control.SeparatorMenuItem) continue;
+            String text = item.getText() == null ? "" : item.getText().toLowerCase(java.util.Locale.ROOT);
+            String semantic = text.contains("profile") ? "user"
+                : text.contains("setting") ? "settings"
+                : text.contains("backup") ? "backup"
+                : text.contains("reminder") ? "reminder"
+                : text.contains("user access") ? "user"
+                : text.contains("import") ? "import"
+                : text.contains("document studio") ? "document"
+                : text.contains("password") ? "lock"
+                : text.contains("logout") ? "lock"
+                : "document";
+            item.setGraphic(IconFactory.compactIcon(semantic, 15));
         }
     }
 

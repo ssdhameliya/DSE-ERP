@@ -143,9 +143,7 @@ public class ItemMasterController {
                 actions.setText("Actions");
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                actions.setMinWidth(122);
-                actions.setPrefWidth(130);
-                actions.setMaxWidth(148);
+                
                 actions.setTooltip(new Tooltip("Item actions"));
 
                 MenuItem edit = new MenuItem("Edit Item", IconFactory.compactIcon("edit", 16));
@@ -168,7 +166,6 @@ public class ItemMasterController {
         });
 
         tableItems.setItems(items);
-        tableItems.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         colMaterial.setVisible(false); colSize.setVisible(false); colLocation.setVisible(false); colRemarks.setVisible(false);
 
         // Search listener
@@ -333,10 +330,10 @@ public class ItemMasterController {
 
 
     private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colCode, "document");
+        IconFactory.applyTableHeaderIcon(colCode, "identity");
         IconFactory.applyTableHeaderIcon(colDescription, "item");
         IconFactory.applyTableHeaderIcon(colCategory, "category");
-        IconFactory.applyTableHeaderIcon(colBrand, "item");
+        IconFactory.applyTableHeaderIcon(colBrand, "category");
         IconFactory.applyTableHeaderIcon(colMaterial, "item");
         IconFactory.applyTableHeaderIcon(colSize, "quantity");
         IconFactory.applyTableHeaderIcon(colUnit, "unit");
@@ -348,7 +345,7 @@ public class ItemMasterController {
         IconFactory.applyTableHeaderIcon(colOpeningStock, "quantity");
         IconFactory.applyTableHeaderIcon(colMinimumStock, "minimum");
         IconFactory.applyTableHeaderIcon(colLocation, "location");
-        IconFactory.applyTableHeaderIcon(colRemarks, "document");
+        IconFactory.applyTableHeaderIcon(colRemarks, "notes");
         IconFactory.applyTableHeaderIcon(colAction, "actions");
     }
 }

@@ -177,7 +177,6 @@ public class BackupRestoreController {
         });
 
         colActions.setCellFactory(column -> createActionCell());
-        backupTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         backupTable.setItems(backupRows);
 
         Label placeholder = new Label(
@@ -217,9 +216,7 @@ public class BackupRestoreController {
                 actions.setGraphic(IconFactory.compactIcon("actions", 15));
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                actions.setMinWidth(122);
-                actions.setPrefWidth(130);
-                actions.setMaxWidth(148);
+                
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Backup actions"));
             }

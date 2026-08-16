@@ -170,7 +170,6 @@ public class BankExpenseController implements ScreenLifecycle {
         }
         typeFilter.getSelectionModel().selectFirst();
         colType.setText(bank ? "Type" : "Category"); colMode.setVisible(!bank);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         configureHeaderIcons(); loadMetrics(); applyFilters();
     }
 
@@ -185,9 +184,8 @@ public class BankExpenseController implements ScreenLifecycle {
         colAmount.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(Number n, boolean empty){ super.updateItem(n,empty); if(empty||n==null){setText(null);setStyle("");return;} EntryRow row=getTableRow()==null?null:getTableRow().getItem(); setText(money(n.doubleValue())); boolean positive=row!=null && row.rawType.contains("DEPOSIT"); setStyle("-fx-text-fill:" + (positive ? "#22c55e" : "#ef4444") + ";-fx-font-weight:800;"); }});
         colMatch.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String text, boolean empty){ super.updateItem(text,empty); setText(null); setGraphic(null); if(empty||text==null||text.isBlank()||getIndex()<0||getIndex()>=getTableView().getItems().size())return; EntryRow row=getTableView().getItems().get(getIndex()); Hyperlink link=new Hyperlink(text); link.getStyleClass().add("bank-match-link"); link.setGraphic(IconFactory.compactIcon("link",13)); link.setOnAction(e->openLinked(row)); setGraphic(link);} });
         colType.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String s, boolean empty){ super.updateItem(s,empty); setText(empty?null:s); getStyleClass().removeAll("finance-chip-green","finance-chip-red","finance-chip-purple","finance-chip-blue","finance-chip-orange","finance-chip-teal"); if(!empty&&s!=null)getStyleClass().add(chipStyle(s)); }});
-        colAction.setCellFactory(c->new TableCell<>() { private final Button edit=new Button("Edit"), del=new Button("Delete"); private final javafx.scene.layout.HBox box=new javafx.scene.layout.HBox(5,edit,del); { edit.getStyleClass().addAll("approved-button","approved-secondary-button","finance-row-action"); del.getStyleClass().addAll("approved-button","approved-danger-button","finance-row-action"); edit.setOnAction(e->editRow(getTableView().getItems().get(getIndex()))); del.setOnAction(e->deleteRow(getTableView().getItems().get(getIndex()))); } @Override protected void updateItem(Void v, boolean empty){super.updateItem(v,empty);setGraphic(empty?null:box);} });
+        colAction.setCellFactory(c->new TableCell<>() { private final MenuButton actions=new MenuButton("Actions"); private EntryRow row; { actions.getStyleClass().addAll("bank-row-action","table-action-menu","approved-row-action"); actions.setGraphic(IconFactory.compactIcon("actions",15)); actions.setOnShowing(e->rebuild()); } private void rebuild(){actions.getItems().clear();if(row==null)return;String noun=mode==Mode.EXPENSE?"Expense":"Bank Entry";MenuItem edit=new MenuItem("Edit "+noun,IconFactory.compactIcon("edit",15));edit.setOnAction(e->editRow(row));MenuItem del=new MenuItem("Delete "+noun,IconFactory.compactIcon("delete",15));del.getStyleClass().add("danger-menu-item");del.setOnAction(e->deleteRow(row));actions.getItems().setAll(edit,del);} @Override protected void updateItem(Void v, boolean empty){super.updateItem(v,empty);row=empty||getIndex()<0||getIndex()>=getTableView().getItems().size()?null:getTableView().getItems().get(getIndex());if(row==null){actions.hide();actions.getItems().clear();setGraphic(null);}else{rebuild();setGraphic(actions);}} });
         table.setPlaceholder(new Label("No entries found"));
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         colDate.setMinWidth(85);       colDate.setPrefWidth(95);
         colType.setMinWidth(100);      colType.setPrefWidth(115);
         colDescription.setMinWidth(180); colDescription.setPrefWidth(260);
@@ -196,11 +194,10 @@ public class BankExpenseController implements ScreenLifecycle {
         colReference.setMinWidth(115); colReference.setPrefWidth(150);
         colAmount.setMinWidth(110);    colAmount.setPrefWidth(130);
         colMatch.setMinWidth(125);     colMatch.setPrefWidth(150);
-        colAction.setMinWidth(120);    colAction.setPrefWidth(135);
         configureHeaderIcons();
     }
 
-    private void configureHeaderIcons(){ IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colType, mode==Mode.EXPENSE?"category":"status"); IconFactory.applyTableHeaderIcon(colDescription,"document"); IconFactory.applyTableHeaderIcon(colAccount,"bank"); IconFactory.applyTableHeaderIcon(colMode,"payment"); IconFactory.applyTableHeaderIcon(colReference,"reference"); IconFactory.applyTableHeaderIcon(colAmount,"currency"); IconFactory.applyTableHeaderIcon(colMatch,"link"); IconFactory.applyTableHeaderIcon(colAction,"actions"); }
+    private void configureHeaderIcons(){ IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colType, mode==Mode.EXPENSE?"category":"status"); IconFactory.applyTableHeaderIcon(colDescription,"notes"); IconFactory.applyTableHeaderIcon(colAccount,"bank"); IconFactory.applyTableHeaderIcon(colMode,"payment"); IconFactory.applyTableHeaderIcon(colReference,"reference"); IconFactory.applyTableHeaderIcon(colAmount,"currency"); IconFactory.applyTableHeaderIcon(colMatch,"link"); IconFactory.applyTableHeaderIcon(colAction,"actions"); }
 
     private void loadMetrics() {
         try {

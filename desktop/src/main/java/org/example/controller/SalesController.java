@@ -146,15 +146,6 @@ public class SalesController {
     // Entry-toolbar columns are bound to the table's live widths so the
     // Search/Qty/Rate/Discount/GST editors remain visually aligned with
     // their corresponding headers under constrained table resizing.
-    @FXML private ColumnConstraints entryItemColumn;
-    @FXML private ColumnConstraints entryQtyColumn;
-    @FXML private ColumnConstraints entryRateColumn;
-    @FXML private ColumnConstraints entryDiscountColumn;
-    @FXML private ColumnConstraints entryDiscountAmountColumn;
-    @FXML private ColumnConstraints entryGstColumn;
-    @FXML private ColumnConstraints entryTaxableColumn;
-    @FXML private ColumnConstraints entryGstAmountColumn;
-    @FXML private ColumnConstraints entryAmountColumn;
 
     @FXML
     private Button btnAddLine;
@@ -219,11 +210,9 @@ public class SalesController {
             chkSameAsBilling.setGraphicTextGap(0);
             chkSameAsBilling.getProperties().put("erp-icon-preserve", true);
         }
-        tableLines.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         configureExplicitTableHeaderIcons();
 
         setupTable();
-        bindItemEntryColumnsToTable();
         configureEmptyState();
 
         setupAmountFormatting();
@@ -453,7 +442,7 @@ public class SalesController {
     }
 
     private void configureItemSearch() {
-        if (itemSearchIconBox != null) itemSearchIconBox.getChildren().setAll(IconFactory.headerIcon("search"));
+        if (itemSearchIconBox != null) itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
         itemSuggestions.getStyleClass().addAll("sales-entry-item-suggestions","erp-item-suggestions");
         txtItemSearch.textProperty().addListener((obs, oldText, text) -> {
             if (updatingItemSearch) return;
@@ -524,11 +513,11 @@ public class SalesController {
 
     private String itemSearchDisplay(Item item) {
         if (item == null) return "";
-        String code = safeItem(item.getItemCode());
-        String description = safeItem(item.getDescription());
         String remark = itemRemark(item);
-        String base = code + (description.isBlank() ? "" : " - " + description);
-        return remark.isBlank() ? base : base + "  •  " + remark;
+        String description = safeItem(item.getDescription());
+        if (remark.isBlank()) return description;
+        if (description.isBlank()) return remark;
+        return remark + " • " + description;
     }
 
     private String itemRemark(Item item) {
@@ -537,6 +526,22 @@ public class SalesController {
     }
 
     private String safeItem(String value) { return value == null ? "" : value.trim(); }
+
+    private String itemNameForDisplay(String itemCode, String persistedDescription) {
+        String code = safeItem(itemCode);
+        if (!code.isBlank()) {
+            for (Item item : allItems) {
+                if (code.equalsIgnoreCase(safeItem(item.getItemCode()))) {
+                    String name = safeItem(item.getDescription());
+                    if (!name.isBlank()) return name;
+                }
+            }
+        }
+        String fallback = safeItem(persistedDescription);
+        int separator = fallback.indexOf(" - ");
+        return separator >= 0 && separator + 3 < fallback.length()
+            ? fallback.substring(separator + 3).trim() : fallback;
+    }
 
     private void configureTransporterSelector() {
         cmbTransporter.setConverter(new StringConverter<>() {
@@ -586,29 +591,11 @@ public class SalesController {
     // Setup Table
     //-------------------------------------------------------
 
-    private void bindItemEntryColumnsToTable() {
-        bindEntryColumn(entryItemColumn, colItem);
-        bindEntryColumn(entryQtyColumn, colQuantity);
-        bindEntryColumn(entryRateColumn, colRate);
-        bindEntryColumn(entryDiscountColumn, colDiscount);
-        bindEntryColumn(entryDiscountAmountColumn, colDiscountAmount);
-        bindEntryColumn(entryGstColumn, colGst);
-        bindEntryColumn(entryTaxableColumn, colNetAmount);
-        bindEntryColumn(entryGstAmountColumn, colGstAmount);
-        bindEntryColumn(entryAmountColumn, colTotal);
-    }
-
-    private void bindEntryColumn(ColumnConstraints constraint, TableColumn<?, ?> tableColumn) {
-        if (constraint == null || tableColumn == null) return;
-        constraint.minWidthProperty().bind(tableColumn.widthProperty());
-        constraint.prefWidthProperty().bind(tableColumn.widthProperty());
-        constraint.maxWidthProperty().bind(tableColumn.widthProperty());
-    }
 
     private void setupTable() {
 
-        colItem.setCellValueFactory(
-            new PropertyValueFactory<>("itemDescription"));
+        colItem.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
+            itemNameForDisplay(value.getValue().getItemCode(), value.getValue().getItemDescription())));
 
         colQuantity.setCellValueFactory(
             new PropertyValueFactory<>("quantity"));

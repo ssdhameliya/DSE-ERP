@@ -50,10 +50,14 @@ public final class PlatformUiSupport {
 
     private static void updateSizeClasses(Scene scene) {
         Node root = scene.getRoot();
-        boolean compact = scene.getWidth() < 1500 || scene.getHeight() < 850;
-        boolean ultraCompact = scene.getWidth() < 1220 || scene.getHeight() < 720;
-        boolean smallDisplay = scene.getWidth() < 1050 || scene.getHeight() < 650;
+        double width = scene.getWidth();
+        double height = scene.getHeight();
+        boolean compact = width < 1500 || height < 850;
+        boolean narrow = width < 1250;
+        boolean ultraCompact = width < 1220 || height < 720;
+        boolean smallDisplay = width < 1050 || height < 650;
         toggle(root, "compact-shell", compact);
+        toggle(root, "narrow-shell", narrow);
         toggle(root, "ultra-compact-shell", ultraCompact);
         toggle(root, "small-display", smallDisplay);
         setVisibleManaged(root.lookup("#shellClockCard"), !compact);

@@ -306,10 +306,6 @@ public class MasterDataController implements ScreenLifecycle {
         colDescription.setCellValueFactory(
             new PropertyValueFactory<>("description")
         );
-
-        tblLookup.setColumnResizePolicy(
-            TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
-        );
     }
 
     private void configureListeners() {

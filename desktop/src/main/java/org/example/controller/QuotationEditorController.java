@@ -59,11 +59,10 @@ public final class QuotationEditorController {
     }
 
     private void configureTable(){
-        tableLines.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         colItem.setCellValueFactory(v->v.getValue().description);colCode.setCellValueFactory(v->v.getValue().code);
         colQty.setCellValueFactory(v->v.getValue().quantity);colRate.setCellValueFactory(v->v.getValue().rate);colGst.setCellValueFactory(v->v.getValue().gst);colDiscount.setCellValueFactory(v->v.getValue().discount);colAmount.setCellValueFactory(v->v.getValue().total);
         IconFactory.applyTableHeaderIcon(colItem,"item");
-        IconFactory.applyTableHeaderIcon(colCode,"document");
+        IconFactory.applyTableHeaderIcon(colCode,"identity");
         IconFactory.applyTableHeaderIcon(colQty,"quantity");
         IconFactory.applyTableHeaderIcon(colRate,"currency");
         IconFactory.applyTableHeaderIcon(colGst,"tax");
@@ -82,7 +81,7 @@ public final class QuotationEditorController {
     }
 
     private void configureItemSearch(){
-        if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.headerIcon("search"));
+        if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
         itemSuggestions.getStyleClass().add("erp-item-suggestions");
         txtItemSearch.textProperty().addListener((obs,oldText,text)->{if(updatingItemSearch)return;selectedItem=null;refreshItemSuggestions(text);});
         txtItemSearch.focusedProperty().addListener((obs,oldValue,focused)->{if(focused&&!txtItemSearch.getText().isBlank())refreshItemSuggestions(txtItemSearch.getText());else if(!focused)itemSuggestions.hide();});
@@ -135,6 +134,6 @@ public final class QuotationEditorController {
     private void error(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?"Quotation operation failed.":e.getMessage()).showAndWait();}
 
     private static final class CustomerChoice{final int id;final String name;CustomerChoice(Party p){id=p.getId();name=p.getName();}@Override public String toString(){return name;}}
-    private static final class ItemChoice{final String code,description,remarks;final double rate,gst,discount;ItemChoice(Item i){code=safe(i.getItemCode());description=safe(i.getDescription());remarks=safe(i.getRemarks());rate=i.getSellingPrice();gst=i.getGst();discount=i.getDiscountPercent();}String searchText(){return (code+" "+description+" "+remarks).toLowerCase(Locale.ROOT);}@Override public String toString(){String base=code+(description.isBlank()?"":" - "+description);return remarks.isBlank()?base:base+" • "+remarks;}}
+    private static final class ItemChoice{final String code,description,remarks;final double rate,gst,discount;ItemChoice(Item i){code=safe(i.getItemCode());description=safe(i.getDescription());remarks=safe(i.getRemarks());rate=i.getSellingPrice();gst=i.getGst();discount=i.getDiscountPercent();}String searchText(){return (code+" "+description+" "+remarks).toLowerCase(Locale.ROOT);}@Override public String toString(){if(remarks.isBlank())return description;if(description.isBlank())return remarks;return remarks+" • "+description;}}
     public static final class LineRow{final StringProperty code=new SimpleStringProperty(),description=new SimpleStringProperty();final DoubleProperty quantity=new SimpleDoubleProperty(),rate=new SimpleDoubleProperty(),gst=new SimpleDoubleProperty(),discount=new SimpleDoubleProperty(),discountAmount=new SimpleDoubleProperty(),gstAmount=new SimpleDoubleProperty(),total=new SimpleDoubleProperty();LineRow(QuotationApiClient.LineDto l){this(l.code(),l.description(),l.quantity(),l.rate(),l.gst(),l.discount());}LineRow(String c,String d,double q,double r,double g,double disc){code.set(c);description.set(d);quantity.set(q);rate.set(r);gst.set(g);discount.set(disc);double gross=q*r,discountValue=gross*disc/100,taxable=gross-discountValue;discountAmount.set(discountValue);gstAmount.set(taxable*g/100);total.set(taxable+gstAmount.get());}}
 }

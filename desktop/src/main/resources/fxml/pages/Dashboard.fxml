@@ -1,9 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><?import javafx.scene.shape.Circle?><?import javafx.scene.shape.SVGPath?><!-- Shared ERP shell: module navigation, global toolbar and page host. --><?import org.example.ui.SharedApplicationFooter?>
+<?import javafx.scene.control.*?><?import javafx.scene.layout.*?><?import javafx.scene.shape.Circle?><?import javafx.scene.shape.SVGPath?><!-- Shared ERP shell: module navigation, global toolbar and page host. --><?import org.example.ui.SharedApplicationFooter?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardController" styleClass="erp-shell,approved-ui,approved-screen,approved-screen-dashboard,erp-screen-root">
     <left>
-        <VBox fx:id="sidebarRoot" prefWidth="215" minWidth="175" maxWidth="235" styleClass="erp-sidebar">
-            <padding><Insets top="18" right="12" bottom="18" left="12"/></padding>
+        <VBox fx:id="sidebarRoot" styleClass="erp-sidebar">
 
             <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="sidebar-scroll">
               <content><VBox spacing="1">
@@ -69,8 +68,7 @@
     </left>
     <top>
         <!-- The header is intentionally identical for every ERP page. -->
-        <HBox fx:id="topBar" spacing="10" alignment="CENTER_LEFT" styleClass="erp-topbar">
-            <padding><Insets top="12" right="20" bottom="12" left="20"/></padding>
+        <HBox fx:id="topBar" alignment="CENTER_LEFT" styleClass="erp-topbar">
             <StackPane fx:id="shellPageIcon" styleClass="shell-page-icon"/>
             <VBox><Label fx:id="lblPageTitle" text="Dashboard" styleClass="erp-page-title"/><Label fx:id="lblBreadcrumb" text="Welcome back, Admin!" styleClass="erp-breadcrumb"/></VBox>
             <Region HBox.hgrow="ALWAYS"/>

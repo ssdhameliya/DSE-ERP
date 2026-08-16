@@ -160,6 +160,7 @@ public final class ReturnEditorService {
 
     private static TableView<ReturnLine> buildTable() {
         TableView<ReturnLine> table = new TableView<>();
+        table.getStyleClass().addAll("approved-table", "erp-table-profile-dialog");
         // Deliberate exception to numbered register rows: a return transaction
         // can select several invoice lines with a different quantity per line.
         table.getProperties().put("erp-keep-selection", true);

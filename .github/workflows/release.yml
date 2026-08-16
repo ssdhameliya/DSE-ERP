@@ -69,6 +69,9 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      - name: Verify project on Windows
+        shell: pwsh
+        run: mvn -B -ntp clean verify
       - name: Ensure WiX Toolset is available
         shell: pwsh
         run: |
@@ -117,9 +120,9 @@ jobs:
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
-      - name: Compile JavaFX layout smoke checks
+      - name: Verify project on macOS
         shell: zsh {0}
-        run: mvn -q test-compile
+        run: mvn -B -ntp clean verify
       - name: Build macOS Apple Silicon DMG
         shell: zsh {0}
         run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
@@ -153,9 +156,9 @@ jobs:
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
-      - name: Compile JavaFX layout smoke checks
+      - name: Verify project on macOS
         shell: zsh {0}
-        run: mvn -q test-compile
+        run: mvn -B -ntp clean verify
       - name: Build macOS Intel DMG
         shell: zsh {0}
         run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'

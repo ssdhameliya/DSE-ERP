@@ -11,7 +11,25 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    name: Verify (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-latest
+            arch: x64
+          - name: Windows x64
+            os: windows-latest
+            arch: x64
+          - name: macOS Apple Silicon
+            os: macos-15
+            arch: aarch64
+          - name: macOS Intel
+            os: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -20,14 +38,76 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+          architecture: ${{ matrix.arch }}
           cache: maven
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
       - name: Enforce no new desktop JDBC debt
-        run: python3 scripts/audit-desktop-jdbc.py
+        run: python scripts/audit-desktop-jdbc.py
       - name: Enforce Phase 2 desktop data boundary
-        run: python3 scripts/audit-phase2-data-boundary.py
+        run: python scripts/audit-phase2-data-boundary.py
       - name: Enforce PostgreSQL-only desktop runtime
-        run: python3 scripts/audit-postgres-only.py
+        run: python scripts/audit-postgres-only.py
       - name: Enforce final Spring/Hibernate data architecture
-        run: python3 scripts/audit-final-data-architecture.py
+        run: python scripts/audit-final-data-architecture.py
+      - name: Verify final UI source contract
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import xml.etree.ElementTree as ET
+
+          root = Path('desktop/src/main/resources')
+          fxml = sorted((root / 'fxml').rglob('*.fxml'))
+          if len(fxml) != 43:
+              raise SystemExit(f'Expected 43 FXML files, found {len(fxml)}')
+          for path in fxml:
+              ET.parse(path)
+
+          for css_name in ('ui-layout.css', 'ui-components.css', 'light-theme.css', 'dark-theme.css'):
+              text = (root / 'css' / css_name).read_text(encoding='utf-8')
+              if text.count('{') != text.count('}'):
+                  raise SystemExit(f'Unbalanced CSS braces in {css_name}')
+              if '-fx-font-weight: 850' in text:
+                  raise SystemExit(f'Invalid JavaFX font weight remains in {css_name}')
+
+          responsive = ('platform-macos', 'platform-windows', 'compact-shell', 'ultra-compact-shell', 'small-display', 'compact-layout', 'narrow-shell')
+          palette = {'-fx-background-color', '-fx-text-fill', '-fx-border-color', '-fx-fill', '-fx-stroke', '-fx-accent', '-fx-focus-color', '-fx-faint-focus-color'}
+          for css_name in ('light-theme.css', 'dark-theme.css'):
+              text = (root / 'css' / css_name).read_text(encoding='utf-8')
+              for match in re.finditer(r'([^{}]+)\{([^{}]*)\}', text, re.S):
+                  selector = re.sub(r'/\*.*?\*/', '', match.group(1), flags=re.S)
+                  if not any(marker in selector for marker in responsive):
+                      continue
+                  for prop in re.findall(r'(-fx-[\w-]+)\s*:', match.group(2)):
+                      if prop not in palette:
+                          raise SystemExit(f'{css_name}: responsive non-palette property remains: {selector.strip()} -> {prop}')
+
+          platform_support = Path('desktop/src/main/java/org/example/util/PlatformUiSupport.java').read_text(encoding='utf-8')
+          for contract in ('width < 1250', '"narrow-shell"', 'width < 1050', '"small-display"'):
+              if contract not in platform_support:
+                  raise SystemExit(f'Missing responsive contract: {contract}')
+          dashboard = Path('desktop/src/main/java/org/example/controller/DashboardController.java').read_text(encoding='utf-8')
+          if 'installResponsiveShellSizing' in dashboard:
+              raise SystemExit('Dashboard still owns responsive shell sizing')
+
+          shared_css = (root / 'css' / 'ui-layout.css').read_text(encoding='utf-8') + (root / 'css' / 'ui-components.css').read_text(encoding='utf-8')
+          for selector in ('.platform-macos .erp-sidebar', '.narrow-shell .erp-sidebar', '.small-display .erp-sidebar', '.platform-macos .erp-global-search', '.compact-shell .erp-global-search'):
+              if selector not in shared_css:
+                  raise SystemExit(f'Missing responsive CSS selector: {selector}')
+
+          profiles = ((1024, 768), (1280, 720), (1366, 768), (1440, 900), (1512, 982), (1600, 900), (1920, 1080), (2560, 1440))
+          for width, height in profiles:
+              classes = {
+                  'compact-shell': width < 1500 or height < 850,
+                  'narrow-shell': width < 1250,
+                  'ultra-compact-shell': width < 1220 or height < 720,
+                  'small-display': width < 1050 or height < 650,
+              }
+              active = ','.join(name for name, enabled in classes.items() if enabled) or 'full-size'
+              print(f'RESPONSIVE_PROFILE {width}x{height} -> {active}')
+          print(f'UI_SOURCE_CONTRACT_OK fxml={len(fxml)} profiles={len(profiles)}')
       - name: Verify project
         run: mvn -B -ntp clean verify

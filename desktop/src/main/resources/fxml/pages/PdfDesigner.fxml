@@ -8,7 +8,6 @@
             fx:id="root" styleClass="pdf-designer-root,approved-screen">
     <top>
         <VBox spacing="8" styleClass="pdf-designer-top">
-            <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
             <HBox spacing="8" alignment="CENTER_LEFT">
                 <Button text="Back" onAction="#backToLibrary" styleClass="approved-button,approved-secondary-button"/>
                 <VBox spacing="1">

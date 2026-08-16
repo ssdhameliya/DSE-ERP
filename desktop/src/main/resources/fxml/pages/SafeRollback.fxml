@@ -70,14 +70,14 @@
                             <Button text="Open Package Folder" onAction="#openPackageFolder" styleClass="approved-button,safe-rollback-secondary"/>
                         </HBox>
                         <Label fx:id="lblStatus" text="Checking rollback packages…" wrapText="true" styleClass="safe-rollback-status-line"/>
-                        <TableView fx:id="candidateTable" prefHeight="300" minHeight="250" maxWidth="Infinity" styleClass="approved-table,safe-rollback-table">
+                        <TableView fx:id="candidateTable" prefHeight="300" minHeight="250" maxWidth="Infinity" styleClass="approved-table,safe-rollback-table,erp-table-profile-administration">
                             <columns>
                                 <TableColumn fx:id="colVersion" text="Version" prefWidth="100"/>
                                 <TableColumn fx:id="colPackage" text="Installer Package" prefWidth="340"/>
                                 <TableColumn fx:id="colSchema" text="Database" prefWidth="110"/>
                                 <TableColumn fx:id="colCompatibility" text="Compatibility" prefWidth="125"/>
                                 <TableColumn fx:id="colStatus" text="Status" prefWidth="95"/>
-                                <TableColumn fx:id="colActions" text="Actions" prefWidth="135" sortable="false" resizable="false"/>
+                                <TableColumn fx:id="colActions" text="Actions" minWidth="156" prefWidth="160" maxWidth="168" sortable="false" resizable="false"/>
                             </columns>
                             <placeholder><Label text="No previous installer retained yet. Use Download Previous Release or Import Previous Installer." wrapText="true" styleClass="safe-rollback-empty"/></placeholder>
                         </TableView>
@@ -117,7 +117,7 @@
 
                     <VBox spacing="12" maxWidth="Infinity" styleClass="safe-rollback-card">
                         <HBox alignment="CENTER_LEFT" spacing="10"><StackPane fx:id="activityIconHolder" styleClass="safe-rollback-section-icon,safe-rollback-icon-purple"/><VBox spacing="2"><Label text="Rollback Activity" styleClass="safe-rollback-section-title"/><Label text="Audit trail of package preparation and rollback actions." styleClass="safe-rollback-section-description"/></VBox><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblHistoryCount" text="0 events" styleClass="safe-rollback-history-count"/></HBox>
-                        <TableView fx:id="historyTable" prefHeight="250" minHeight="200" maxWidth="Infinity" styleClass="approved-table,safe-rollback-table">
+                        <TableView fx:id="historyTable" prefHeight="250" minHeight="200" maxWidth="Infinity" styleClass="approved-table,safe-rollback-table,erp-table-profile-history">
                             <columns>
                                 <TableColumn fx:id="colHistoryTime" text="Date &amp; Time" prefWidth="175"/>
                                 <TableColumn fx:id="colHistoryAction" text="Action" prefWidth="150"/>

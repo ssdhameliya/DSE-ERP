@@ -22,15 +22,15 @@ public final class BrandImagePresenter {
     private BrandImagePresenter() { }
 
     public static void applicationBanner(ImageView view, Region container) {
-        configureApplicationBanner(view, container, false);
+        configureApplicationBanner(view, container);
     }
 
-    /** Settings preview variant: the preview owns a true 5:1 viewport and clips all artwork. */
+    /** Settings preview variant: the container owns its height; the banner is fitted inside it. */
     public static void applicationBannerPreview(ImageView view, Region container) {
-        configureApplicationBanner(view, container, true);
+        configureApplicationBanner(view, container);
     }
 
-    private static void configureApplicationBanner(ImageView view, Region container, boolean sizeContainer) {
+    private static void configureApplicationBanner(ImageView view, Region container) {
         if (view == null || container == null) return;
         view.setSmooth(true);
         view.setPreserveRatio(false);
@@ -41,14 +41,8 @@ public final class BrandImagePresenter {
         Runnable resize = () -> {
             double width = Math.max(1.0, container.getWidth() - DEFAULT_INSET);
             double height = width / APPLICATION_BANNER_RATIO;
-            if (sizeContainer && width > 2) {
-                double target = height + DEFAULT_INSET;
-                container.setMinHeight(target);
-                container.setPrefHeight(target);
-                container.setMaxHeight(target);
-            }
             double availableHeight = Math.max(1.0, container.getHeight() - DEFAULT_INSET);
-            if (!sizeContainer && height > availableHeight) {
+            if (height > availableHeight) {
                 height = availableHeight;
                 width = height * APPLICATION_BANNER_RATIO;
             }

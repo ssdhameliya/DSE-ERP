@@ -324,10 +324,6 @@ public class ImportController {
         tblPreview.setPlaceholder(
             new Label("Select an import file to preview its data.")
         );
-
-        tblPreview.setColumnResizePolicy(
-            TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
-        );
     }
 
     /* =========================================================
@@ -1012,17 +1008,6 @@ public class ImportController {
 
         List<String> mappedFields =
             getMappedFieldsInDomainOrder();
-
-        boolean useConstrainedColumns =
-            mappedFields.size() <= 6;
-
-        tblPreview.setColumnResizePolicy(
-            useConstrainedColumns
-                ? TableView
-                  .CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN
-                : TableView
-                  .UNCONSTRAINED_RESIZE_POLICY
-        );
 
         for (String field : mappedFields) {
 

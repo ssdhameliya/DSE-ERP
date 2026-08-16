@@ -74,7 +74,7 @@
                     </VBox>
                 </HBox>
 
-                <TableView fx:id="recentTable" visible="false" managed="false" styleClass="approved-table"><columns><TableColumn fx:id="colNumber" text="Invoice No." styleClass="approved-table-column"/><TableColumn fx:id="colDate" text="Date" styleClass="approved-table-column"/><TableColumn fx:id="colParty" text="Customer / Supplier" styleClass="approved-table-column"/><TableColumn fx:id="colAmount" text="Amount" styleClass="approved-table-column"/><TableColumn fx:id="colType" text="Type" styleClass="approved-table-column"/></columns></TableView>
+                <TableView fx:id="recentTable" visible="false" managed="false" styleClass="approved-table,erp-table-profile-summary"><columns><TableColumn fx:id="colNumber" text="Invoice No." styleClass="approved-table-column"/><TableColumn fx:id="colDate" text="Date" styleClass="approved-table-column"/><TableColumn fx:id="colParty" text="Customer / Supplier" styleClass="approved-table-column"/><TableColumn fx:id="colAmount" text="Amount" styleClass="approved-table-column"/><TableColumn fx:id="colType" text="Type" styleClass="approved-table-column"/></columns></TableView>
             </VBox>
         </content>
     </ScrollPane>

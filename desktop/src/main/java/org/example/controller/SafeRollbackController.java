@@ -103,27 +103,18 @@ public class SafeRollbackController {
     }
 
     private void configureTables() {
-        candidateTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        historyTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
-        // Keep both tables fully responsive. Width weights are applied whenever the
-        // containing panel changes size so there is no unused strip on the right.
-        installResponsiveColumns(candidateTable,
-                new TableColumn[]{colVersion, colPackage, colSchema, colCompatibility, colStatus, colActions},
-                new double[]{0.11, 0.31, 0.14, 0.16, 0.13, 0.15});
-        installResponsiveColumns(historyTable,
-                new TableColumn[]{colHistoryTime, colHistoryAction, colHistoryVersion, colHistoryResult, colHistoryDetail},
-                new double[]{0.17, 0.16, 0.10, 0.11, 0.46});
+        // Phase 11: shared table profiles are the single resize authority.
 
         IconFactory.applyTableHeaderIcon(colVersion, "version");
         IconFactory.applyTableHeaderIcon(colPackage, "package");
         IconFactory.applyTableHeaderIcon(colSchema, "database");
         IconFactory.applyTableHeaderIcon(colCompatibility, "compatibility");
         IconFactory.applyTableHeaderIcon(colStatus, "status");
-        IconFactory.applyTableHeaderIcon(colActions, "rollback");
-        IconFactory.applyTableHeaderIcon(colHistoryTime, "history");
+        IconFactory.applyTableHeaderIcon(colActions, "actions");
+        IconFactory.applyTableHeaderIcon(colHistoryTime, "calendar");
         IconFactory.applyTableHeaderIcon(colHistoryAction, "workflow");
-        IconFactory.applyTableHeaderIcon(colHistoryVersion, "version");
+        IconFactory.applyTableHeaderIcon(colHistoryVersion, "reference");
         IconFactory.applyTableHeaderIcon(colHistoryResult, "status");
         IconFactory.applyTableHeaderIcon(colHistoryDetail, "info");
 
@@ -141,24 +132,37 @@ public class SafeRollbackController {
             }
         });
         colActions.setCellFactory(column -> new TableCell<>() {
-            private final Button action = new Button("Roll Back");
+            private final MenuButton actions = new MenuButton("Actions");
+            private RollbackService.Candidate candidate;
             {
-                action.getStyleClass().addAll("rollback-action-button", "approved-button");
-                action.setGraphic(IconFactory.compactIcon("rollback", 16));
-                action.setOnAction(event -> {
-                    RollbackService.Candidate candidate = getTableView().getItems().get(getIndex());
-                    confirmAndRollback(candidate);
-                });
+                actions.getStyleClass().addAll("table-action-menu", "approved-row-action", "safe-rollback-row-actions");
+                actions.setGraphic(IconFactory.compactIcon("actions", 15));
+                actions.setOnShowing(event -> rebuildMenu());
+            }
+            private void rebuildMenu() {
+                actions.getItems().clear();
+                if (candidate == null) return;
+                MenuItem rollback = new MenuItem("Roll Back to " + candidate.version(), IconFactory.compactIcon("rollback", 15));
+                rollback.setDisable(!candidate.compatibility().safe());
+                rollback.setOnAction(event -> confirmAndRollback(candidate));
+                MenuItem compatibility = new MenuItem("View Compatibility", IconFactory.compactIcon("compatibility", 15));
+                compatibility.setOnAction(event -> info("Compatibility", candidate.compatibility().message()));
+                MenuItem folder = new MenuItem("Open Package Folder", IconFactory.compactIcon("folder", 15));
+                folder.setOnAction(event -> openPackageFolder());
+                actions.getItems().setAll(rollback, compatibility, new SeparatorMenuItem(), folder);
             }
             @Override protected void updateItem(Void ignored, boolean empty) {
                 super.updateItem(ignored, empty);
-                if (empty || getIndex() >= getTableView().getItems().size()) {
+                candidate = empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()
+                        ? null : getTableView().getItems().get(getIndex());
+                if (candidate == null) {
+                    actions.hide();
+                    actions.getItems().clear();
                     setGraphic(null);
                 } else {
-                    RollbackService.Candidate candidate = getTableView().getItems().get(getIndex());
-                    action.setDisable(!candidate.compatibility().safe());
-                    action.setTooltip(new Tooltip(candidate.compatibility().message()));
-                    setGraphic(action);
+                    rebuildMenu();
+                    actions.setTooltip(new Tooltip(candidate.compatibility().message()));
+                    setGraphic(actions);
                     setAlignment(Pos.CENTER);
                 }
             }
@@ -169,21 +173,6 @@ public class SafeRollbackController {
         colHistoryVersion.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().targetVersion()));
         colHistoryResult.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().result()));
         colHistoryDetail.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().detail()));
-    }
-
-    private void installResponsiveColumns(TableView<?> table, TableColumn<?, ?>[] columns, double[] weights) {
-        if (table == null || columns == null || weights == null || columns.length != weights.length) return;
-        Runnable resize = () -> {
-            double available = Math.max(0, table.getWidth() - 4);
-            if (available <= 0) return;
-            for (int i = 0; i < columns.length; i++) {
-                TableColumn<?, ?> column = columns[i];
-                double target = available * weights[i];
-                column.setPrefWidth(Math.max(column.getMinWidth(), target));
-            }
-        };
-        table.widthProperty().addListener((obs, oldWidth, newWidth) -> resize.run());
-        Platform.runLater(resize);
     }
 
     @FXML

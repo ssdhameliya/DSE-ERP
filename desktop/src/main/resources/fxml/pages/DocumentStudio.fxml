@@ -48,16 +48,16 @@
             </HBox>
 
             <HBox spacing="12" styleClass="doc-studio-mode-guide">
-                <VBox spacing="4" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
-                    <Label text="1  GENERAL PDF" styleClass="doc-studio-mode-title"/>
+                <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
+                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="generalPdfModeIcon" styleClass="doc-studio-mode-icon"/><Label text="GENERAL PDF" styleClass="doc-studio-mode-title"/></HBox>
                     <Label text="Import any PDF, edit existing text safely, add images/shapes, manage pages and export a new PDF." wrapText="true" styleClass="doc-studio-tip"/>
                 </VBox>
-                <VBox spacing="4" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
-                    <Label text="2  ERP TEMPLATE" styleClass="doc-studio-mode-title"/>
+                <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
+                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="erpTemplateModeIcon" styleClass="doc-studio-mode-icon"/><Label text="ERP TEMPLATE" styleClass="doc-studio-mode-title"/></HBox>
                     <Label text="Connect the same designer to Purchase, Quotation, Delivery, Receipt, Returns and future ERP data providers." wrapText="true" styleClass="doc-studio-tip"/>
                 </VBox>
-                <VBox spacing="4" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
-                    <Label text="3  ONE EDITOR" styleClass="doc-studio-mode-title"/>
+                <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
+                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="oneEditorModeIcon" styleClass="doc-studio-mode-icon"/><Label text="ONE EDITOR" styleClass="doc-studio-mode-title"/></HBox>
                     <Label text="Design, Data Preview and Final PDF all use the same canvas and rendering engine." wrapText="true" styleClass="doc-studio-tip"/>
                 </VBox>
             </HBox>

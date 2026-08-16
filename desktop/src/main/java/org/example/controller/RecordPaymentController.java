@@ -162,10 +162,9 @@ public class RecordPaymentController implements ScreenLifecycle {
               button.setOnAction(e->showRowMenu(button,getTableView().getItems().get(getIndex()))); }
             @Override protected void updateItem(Void v, boolean empty) { super.updateItem(v,empty); setGraphic(empty?null:button); }
         });
-        historyTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         IconFactory.applyTableHeaderIcon(historyDate, "calendar");
         IconFactory.applyTableHeaderIcon(historyMode, "payment");
-        IconFactory.applyTableHeaderIcon(historyReference, "document");
+        IconFactory.applyTableHeaderIcon(historyReference, "reference");
         IconFactory.applyTableHeaderIcon(historyFrom, "customer");
         IconFactory.applyTableHeaderIcon(historyAmount, "currency");
         IconFactory.applyTableHeaderIcon(historyStatus, "status");

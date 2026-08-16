@@ -89,7 +89,6 @@ public class SalesListController implements ScreenLifecycle {
     private Sales selected;
 
     @FXML public void initialize(){
-        tableSales.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();
         configureExplicitTableHeaderIcons();
         simplifyFilters();
@@ -179,7 +178,7 @@ public class SalesListController implements ScreenLifecycle {
         setHeaderIcon(colGstin,"tax");
         setHeaderIcon(colTotal,"currency");
         setHeaderIcon(colPaid,"complete");
-        setHeaderIcon(colBalance,"payment");
+        setHeaderIcon(colBalance,"balance");
         setHeaderIcon(colDue,"reminder");
         setHeaderIcon(colStatus,"status");
         setHeaderIcon(colMail,"email");
@@ -193,8 +192,8 @@ public class SalesListController implements ScreenLifecycle {
     private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);}};}
     private TableCell<Sales,Double> totalMoneyCell(){return coloredMoneyCell("register-amount-total","register-amount-total");}
     private TableCell<Sales,Double> balanceMoneyCell(){return coloredMoneyCell("register-balance-open","register-balance-settled");}
-    private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-total-amount","register-balance-pending","register-balance-settled","register-amount-total","register-balance-open");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
-    private TableCell<Sales,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("sales-paid-positive","sales-paid-zero","register-paid-positive","register-paid-zero");if(!e&&v!=null)getStyleClass().add(v>.009?"register-paid-positive":"register-paid-zero");}};}
+    private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-amount-total","register-balance-open","register-balance-settled");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
+    private TableCell<Sales,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-paid-positive","register-paid-zero");if(!e&&v!=null)getStyleClass().add(v>.009?"register-paid-positive":"register-paid-zero");}};}
     private TableCell<Sales,String> statusCell(String semantic){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("pill-success","pill-warning","pill-danger","pill-neutral");if(!e&&v!=null){boolean good=v.equalsIgnoreCase("COMPLETED")||v.equalsIgnoreCase("PAID")||v.equalsIgnoreCase("SENT");boolean pending=v.equalsIgnoreCase("IN PROGRESS")||v.equalsIgnoreCase("PARTIAL")||v.equalsIgnoreCase("PENDING");getStyleClass().add(good?"pill-success":pending?"pill-warning":"pill-danger");String icon = good ? semantic : (pending ? ("status".equals(semantic)?"reminder":semantic) : "error");setGraphic(IconFactory.compactIcon(icon,15));}}};}
     private TableCell<Sales,String> dueCell(){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("due-overdue","due-soon","due-paid");if(!e&&v!=null){boolean paid=v.equals("Paid"),overdue=v.startsWith("Overdue");getStyleClass().add(overdue?"due-overdue":paid?"due-paid":"due-soon");setGraphic(IconFactory.compactIcon(overdue?"error":paid?"complete":"reminder",15));}}};}
     private String documentStatus(Sales sale){
@@ -227,11 +226,10 @@ public class SalesListController implements ScreenLifecycle {
 
     private void configurePaging(){cmbPageSize.getItems().setAll(10,25,50,100);cmbPageSize.setValue(25);cmbPageSize.valueProperty().addListener((o,a,b)->{currentPage=0;renderPage();});}
     private void configureActions(){
-        colAction.setMinWidth(120);colAction.setPrefWidth(124);colAction.setMaxWidth(132);
         colAction.setCellFactory(c->new TableCell<>(){final MenuButton menu=new MenuButton();{
             menu.getProperties().put("erp.icon.semantic", "actions");
             menu.setGraphic(IconFactory.compactIcon("actions",15));
-            add("View Sale Invoice","view",e->viewSale(row()));add("Edit Sale","edit",e->edit(row()));add("Duplicate Sale","sale",e->duplicate(row()));add("Print / Download PDF","print",e->openPdf(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("View / Record Payments","payment",e->openPayment(row()));add("Create Sales Return","return",e->createReturn(row()));add("Attach Document","attachment",e->attach(row()));add("Notes / Remarks","document",e->notes(row()));add("Send Reminder","reminder",e->createReminder(row()));MenuItem cancel=add("Cancel Sale","cancel",e->cancelSale(row()));MenuItem del=add("Delete Sale","delete",e->delete(row()));del.getStyleClass().add("danger-menu-item");menu.setOnShowing(e->{Sales current=getTableRow()==null?null:getTableRow().getItem();String status=current==null?"":safe(current.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);cancel.setDisable("CANCELLED".equals(status)||"DELETED".equals(status));cancel.setVisible(true);del.setDisable("DELETED".equals(status));del.setVisible(true);});menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setMinWidth(122);menu.setPrefWidth(130);menu.setMaxWidth(148);menu.setTooltip(new Tooltip("Actions"));}
+            add("View Sale Invoice","view",e->viewSale(row()));add("Edit Sale","edit",e->edit(row()));add("Duplicate Sale","sale",e->duplicate(row()));add("Print / Download PDF","print",e->openPdf(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("View / Record Payments","payment",e->openPayment(row()));add("Create Sales Return","return",e->createReturn(row()));add("Attach Document","attachment",e->attach(row()));add("Notes / Remarks","document",e->notes(row()));add("Send Reminder","reminder",e->createReminder(row()));MenuItem cancel=add("Cancel Sale","cancel",e->cancelSale(row()));MenuItem del=add("Delete Sale","delete",e->delete(row()));del.getStyleClass().add("danger-menu-item");menu.setOnShowing(e->{Sales current=getTableRow()==null?null:getTableRow().getItem();String status=current==null?"":safe(current.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);boolean locked=isFinanciallyLocked(current);cancel.setDisable(locked||"CANCELLED".equals(status)||"DELETED".equals(status));cancel.setVisible(!locked);del.setDisable(locked||"DELETED".equals(status));del.setVisible(!locked);});menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));}
             private Sales row(){Sales value=getTableRow()==null?null:getTableRow().getItem();if(value==null)throw new IllegalStateException("This sales row is no longer available. Refresh the register and try again.");return value;}
             private MenuItem add(String t,String icon,javafx.event.EventHandler<ActionEvent> h){MenuItem i=new MenuItem(t);i.setGraphic(IconFactory.icon(icon));i.setOnAction(event->{try{h.handle(event);}catch(Throwable failure){error(failure);}});menu.getItems().add(i);return i;}
             protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:menu);setAlignment(Pos.CENTER);}});
@@ -398,8 +396,8 @@ public class SalesListController implements ScreenLifecycle {
         String status = safe(sale.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);
         if ("CANCELLED".equals(status)) { info("This sale is already cancelled."); return; }
         if ("DELETED".equals(status)) { info("Deleted sales cannot be cancelled."); return; }
-        String paidWarning = sale.getPaidAmount() > .009 ? "\n\nExisting payment records will remain for audit." : "";
-        if(!confirm("Cancel "+sale.getInvoiceNo()+"?\n\nStock will be restored, document status will become CANCELLED and outstanding balance will become zero."+paidWarning))return;
+        if (isFinanciallyLocked(sale)) { info("Paid, partially paid, or settled sales cannot be cancelled. Use the sales return/reversal workflow instead."); return; }
+        if(!confirm("Cancel "+sale.getInvoiceNo()+"?\n\nStock will be restored and document status will become CANCELLED."))return;
         try{
             service.cancel(sale.getInvoiceNo());
             log("SALE",sale.getId(),"CANCELLED",sale.getInvoiceNo());
@@ -414,6 +412,7 @@ public class SalesListController implements ScreenLifecycle {
         if (sale == null) return;
         String status = safe(sale.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);
         if ("DELETED".equals(status)) { info("This sale is already marked as deleted."); return; }
+        if (isFinanciallyLocked(sale)) { info("Paid, partially paid, or settled sales cannot be deleted. Use the sales return/reversal workflow instead."); return; }
         String stockText = "CANCELLED".equals(status)
             ? "Stock was already restored when this sale was cancelled."
             : "Stock will be restored.";

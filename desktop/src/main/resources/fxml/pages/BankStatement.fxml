@@ -67,19 +67,19 @@
         </VBox>
 
         <VBox VBox.vgrow="ALWAYS" styleClass="bank-recon-table-panel">
-          <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="approved-table,bank-recon-table">
+          <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="approved-table,bank-recon-table,erp-table-profile-responsive">
             <columns>
               <TableColumn fx:id="colSelect" text="" prefWidth="54" sortable="false"/>
-              <TableColumn fx:id="colDate" text="Date" prefWidth="105"/>
-              <TableColumn fx:id="colValueDate" text="Value Date" prefWidth="105"/>
-              <TableColumn fx:id="colReference" text="Reference / Cheque No." prefWidth="170"/>
-              <TableColumn fx:id="colDescription" text="Description / Narration" prefWidth="285"/>
-              <TableColumn fx:id="colDebit" text="Debit" prefWidth="105"/>
-              <TableColumn fx:id="colCredit" text="Credit" prefWidth="105"/>
-              <TableColumn fx:id="colBalance" text="Balance" prefWidth="115"/>
-              <TableColumn fx:id="colStatus" text="Status" prefWidth="115"/>
-              <TableColumn fx:id="colMatch" text="Match / Link" prefWidth="155"/>
-              <TableColumn fx:id="colAction" text="Actions" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
+              <TableColumn fx:id="colDate" text="Date" prefWidth="92"/>
+              <TableColumn fx:id="colValueDate" text="Value Date" prefWidth="92"/>
+              <TableColumn fx:id="colReference" text="Reference / Cheque No." prefWidth="145"/>
+              <TableColumn fx:id="colDescription" text="Description / Narration" prefWidth="225"/>
+              <TableColumn fx:id="colDebit" text="Debit" prefWidth="92"/>
+              <TableColumn fx:id="colCredit" text="Credit" prefWidth="92"/>
+              <TableColumn fx:id="colBalance" text="Balance" prefWidth="105"/>
+              <TableColumn fx:id="colStatus" text="Status" prefWidth="105"/>
+              <TableColumn fx:id="colMatch" text="Match / Link" prefWidth="135"/>
+              <TableColumn fx:id="colAction" text="Actions" minWidth="156" prefWidth="160" maxWidth="168" sortable="false" resizable="false"/>
             </columns>
             <placeholder><VBox alignment="CENTER" spacing="8"><Label text="No bank statement transactions to display" styleClass="bank-recon-empty-title"/><Label text="Import a CSV statement or select an existing statement batch." styleClass="bank-recon-empty-note"/></VBox></placeholder>
           </TableView>

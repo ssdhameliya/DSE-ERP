@@ -10,7 +10,11 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
+import javafx.geometry.Pos;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Locale;
@@ -90,6 +94,10 @@ public final class IconFactory {
         if (node instanceof DialogPane pane
                 && (Boolean.TRUE.equals(pane.getProperties().get("erp-dialog-custom"))
                     || pane.getStyleClass().contains("modern-dialog"))) {
+            // Custom dialogs own their buttons/action presentation, but field labels
+            // still participate in the shared semantic icon vocabulary. Walk only
+            // labels here so automatic button inference cannot regress dialog actions.
+            decorateFieldLabelsOnly(pane);
             return;
         }
 
@@ -102,6 +110,10 @@ public final class IconFactory {
             }
             checkBox.getProperties().put("erp.icon.skip", true);
             return;
+        }
+
+        if (node instanceof Label label) {
+            decorateFieldLabel(label);
         }
 
         if (node instanceof ButtonBase button) {
@@ -158,9 +170,7 @@ public final class IconFactory {
                 menu.setContentDisplay(ContentDisplay.LEFT);
                 menu.setGraphic(actionIcon("actions", 16));
                 menu.setGraphicTextGap(6);
-                menu.setMinWidth(122);
-                menu.setPrefWidth(130);
-                menu.setMaxWidth(148);
+                // Geometry belongs to ui-components.css. Java supplies only semantics/behaviour.
                 if (menu.getTooltip() == null) menu.setTooltip(new Tooltip("Open actions"));
             }
             decorateMenuItems(menu);
@@ -176,6 +186,36 @@ public final class IconFactory {
         }
     }
 
+
+    private static void decorateFieldLabelsOnly(Node node) {
+        if (node instanceof Label label) decorateFieldLabel(label);
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) decorateFieldLabelsOnly(child);
+        }
+    }
+
+    private static void decorateFieldLabel(Label label) {
+        if (label == null || label.getGraphic() != null || Boolean.TRUE.equals(label.getProperties().get("erp.label.icon.skip"))) return;
+        String text = clean(label.getText());
+        if (text.isBlank()) return;
+        String styles = String.join(" ", label.getStyleClass()).toLowerCase(Locale.ROOT);
+        if (styles.contains("erp-table-header-label") || styles.contains("page-title") || styles.contains("screen-title")
+                || styles.contains("section-title") || styles.contains("metric-value") || styles.contains("metric-note")
+                || styles.contains("subtitle") || styles.contains("description") || styles.contains("caption")
+                || styles.contains("help") || styles.contains("placeholder") || styles.contains("error")) return;
+        boolean fieldStyle = styles.contains("field-label") || styles.contains("form-label") || styles.contains("filter-label")
+                || styles.contains("meta-label") || styles.contains("detail-label") || styles.contains("field-caption")
+                || styles.contains("inline-label") || label.getParent() instanceof GridPane;
+        if (!fieldStyle) return;
+        String semantic = semanticForLabel(text);
+        if (semantic == null) return;
+        Node graphic = compactIcon(semantic, 13);
+        graphic.getStyleClass().add("erp-field-label-icon");
+        label.setGraphic(graphic);
+        label.setContentDisplay(ContentDisplay.LEFT);
+        label.setGraphicTextGap(5);
+        label.getProperties().put("erp.label.icon.semantic", semantic);
+    }
 
     private static boolean isTableActionMenu(MenuButton menu) {
         if (menu == null) return false;
@@ -228,56 +268,38 @@ public final class IconFactory {
     }
 
     /**
-     * Applies a deterministic semantic icon to a TableColumn header.
-     * The preserve marker prevents the legacy global enhancer from replacing
-     * the explicitly selected icon during navigation or theme changes.
+     * Declares an explicit semantic for a TableColumn and renders it through the
+     * same shared header renderer used by the global table enhancer. Controllers
+     * keep choosing business meaning; IconFactory owns the presentation.
      */
     public static void applyTableHeaderIcon(TableColumn<?, ?> column, String semantic) {
         if (column == null) return;
         String normalized = normalize(semantic);
-        if ("actions".equals(normalized) && clean(column.getText()).isBlank()) column.setText("Actions");
-        // Table headers use the stable semantic glyph itself. The glyph carries
-        // its semantic colour (calendar/orange, paid/green, email/teal, etc.) so
-        // different columns remain visually distinct instead of looking like the
-        // same white symbol inside similarly shaped badges.
-        column.setGraphic(compactIcon(normalized, 14));
-        column.getProperties().put("erp-header-preserve", true);
-        column.getProperties().put("erp-header-semantic", normalize(semantic));
+        Object stored = column.getProperties().get("erp-header-label");
+        String heading = stored instanceof String value ? value : column.getText();
+        heading = heading == null ? "" : heading.trim();
+        if ("actions".equals(normalized) && heading.isBlank()) heading = "Actions";
+
+        column.getProperties().put("erp-header-label", heading);
+        column.getProperties().put("erp-header-semantic", normalized);
+        column.getProperties().put("erp-header-explicit", true);
+        column.getProperties().remove("erp-header-preserve");
+        column.setText("");
+        column.setGraphic(tableHeader(heading, normalized));
+        if (!column.getStyleClass().contains("erp-icon-table-column")) {
+            column.getStyleClass().add("erp-icon-table-column");
+        }
     }
 
-    /**
-     * Creates a self-contained coloured badge for a table header.
-     *
-     * <p>JavaFX table skins do not consistently propagate a TableColumn style
-     * class to the header label.  An icon whose colour depends on that inherited
-     * selector can therefore disappear after a skin/theme rebuild.  This badge
-     * owns its colour and geometry, so it remains visible in both themes and
-     * after every navigation.</p>
-     */
-    public static Node headerIcon(String name) {
-        String semantic = normalize(name);
-        String accent = switch (colour(semantic)) {
-            case "green" -> "#16a34a";
-            case "orange" -> "#f59e0b";
-            case "purple" -> "#7c3aed";
-            case "pink" -> "#e11d48";
-            case "teal" -> "#0d9488";
-            case "blue" -> "#2563eb";
-            default -> "#4f46e5";
-        };
-        FontIcon glyph = new FontIcon(literal(semantic));
-        glyph.setIconSize(12);
-        glyph.setStyle("-fx-icon-color: white;");
-        glyph.setMouseTransparent(true);
-
-        StackPane badge = new StackPane(glyph);
-        badge.getStyleClass().addAll("erp-table-header-icon", "erp-header-" + colour(semantic));
-        badge.setStyle("-fx-background-color: " + accent + "; -fx-background-radius: 9px;");
-        badge.setMinSize(20, 20);
-        badge.setPrefSize(20, 20);
-        badge.setMaxSize(20, 20);
-        badge.setMouseTransparent(true);
-        return badge;
+    /** One canonical icon-plus-label renderer for every ERP TableColumn header. */
+    public static Node tableHeader(String label, String semantic) {
+        Label title = new Label(label == null ? "" : label);
+        title.getStyleClass().add("erp-table-header-label");
+        HBox header = new HBox(6, compactIcon(semantic, 14), title);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setMouseTransparent(true);
+        header.getStyleClass().add("erp-table-header-content");
+        return header;
     }
 
     /** Public label lookup used by tables, dialogs and future ERP controls. */
@@ -308,6 +330,15 @@ public final class IconFactory {
         if (value.contains("user") || value.contains("access")) return "user";
         if (value.contains("communication") || value.contains("email") || value.contains("whatsapp")) return "communication";
         if (value.contains("master")) return "master";
+        if (value.equals("undo")) return "reset";
+        if (value.equals("redo")) return "reopen";
+        if (value.contains("fit page") || value.contains("fit width")) return "view";
+        if (value.contains("heading")) return "document";
+        if (value.equals("text")) return "notes";
+        if (value.equals("image") || value.contains("imported image") || value.contains("company logo") || value.contains("app brand") || value.contains("signature")) return "attachment";
+        if (value.contains("payment qr")) return "payment";
+        if (value.contains("rectangle")) return "category";
+        if (value.equals("line")) return "link";
         if (value.contains("dashboard")) return "dashboard";
         String resolved = semantic(title);
         return resolved == null ? "document" : resolved;
@@ -369,7 +400,9 @@ public final class IconFactory {
             case "percent", "percentage" -> "tax";
             case "measure", "measurement", "uom" -> "unit";
             case "warehouse" -> "inventory";
-            case "analytics" -> "report";
+            case "analytics", "chart" -> "report";
+            case "sales" -> "sale";
+            case "export" -> "download";
             case "send" -> "sent";
             default -> value.isBlank() ? "unknown" : value;
         };
@@ -527,6 +560,15 @@ public final class IconFactory {
         if (value.equals("previous") || value.equals("‹")) return "previous";
         if (value.equals("next") || value.equals("›")) return "next";
         if (value.equals("last") || value.equals("›|") || value.equals("»")) return "last";
+        if (value.equals("undo")) return "reset";
+        if (value.equals("redo")) return "reopen";
+        if (value.contains("fit page") || value.contains("fit width")) return "view";
+        if (value.contains("heading")) return "document";
+        if (value.equals("text")) return "notes";
+        if (value.equals("image") || value.contains("imported image") || value.contains("company logo") || value.contains("app brand") || value.contains("signature")) return "attachment";
+        if (value.contains("payment qr")) return "payment";
+        if (value.contains("rectangle")) return "category";
+        if (value.equals("line")) return "link";
         if (value.contains("dashboard")) return "dashboard";
         if (value.equals("today") || value.equals("yesterday") || value.contains("days")
             || value.contains("month") || value.contains("custom range")) return "calendar";
@@ -553,7 +595,17 @@ public final class IconFactory {
         if (value.equals("menu")) return "menu";
         if (value.contains("notification")) return "notification";
         if (value.contains("workspace")) return "workspace";
-        if (value.contains("bank") || value.contains("upi")) return "bank";
+        if (value.contains("date") || value.contains("time zone") || value.equals("time")) return "calendar";
+        if (value.contains("reference") || value.contains("cheque") || value.contains("order no")) return "reference";
+        if (value.contains("phone") || value.contains("mobile") || value.contains("contact no")) return "phone";
+        if (value.contains("address") || value.contains("state") || value.contains("place of supply") || value.contains("location")) return "location";
+        if (value.contains("website") || value.contains("url") || value.contains("link")) return "link";
+        if (value.contains("currency")) return "currency";
+        if (value.contains("account") || value.contains("bank") || value.contains("upi")) return "bank";
+        if (value.contains("mode")) return "payment";
+        if (value.contains("received from")) return "customer";
+        if (value.contains("description") || value.contains("narration")) return "notes";
+        if (value.contains("terms")) return "document";
         if (value.contains("delivery")) return "delivery";
         if (value.contains("application update") || value.contains("check update") || value.equals("update")) return "update";
         if (value.contains("permission")) return "permission";

@@ -22,6 +22,7 @@ public class OwnedChoiceDialog<T> extends ChoiceDialog<T> {
                 ThemeManager.applyTheme(getDialogPane().getScene());
                 PlatformUiSupport.installResponsiveClasses(getDialogPane().getScene());
             }
+            IconFactory.decorate(getDialogPane());
         }));
     }
 }

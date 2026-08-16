@@ -87,7 +87,7 @@ public class BankStatementController {
         chkSelectAll.indeterminateProperty().addListener((o,a,b)->headerSelection.setIndeterminate(b));
         colSelect.setText(null);
         colSelect.setGraphic(headerSelection);
-        colSelect.setStyle("-fx-alignment: CENTER;");
+        colSelect.getStyleClass().add("bank-select-column");
         colSelect.getProperties().put("erp-header-preserve",true);
         colDate.setCellValueFactory(v->v.getValue().date); colValueDate.setCellValueFactory(v->v.getValue().valueDate);
         colReference.setCellValueFactory(v->v.getValue().reference); colDescription.setCellValueFactory(v->v.getValue().description);
@@ -130,7 +130,7 @@ public class BankStatementController {
     }
 
     private MenuButton actionMenu(Row row){
-        MenuButton m=new MenuButton("Actions"); m.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action","table-action-menu"); m.setGraphic(IconFactory.compactIcon("actions",15)); m.setContentDisplay(ContentDisplay.LEFT); m.setGraphicTextGap(6); m.setMinWidth(96); m.setPrefWidth(102); m.setMaxWidth(118);
+        MenuButton m=new MenuButton("Actions"); m.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action","table-action-menu"); m.setGraphic(IconFactory.compactIcon("actions",15)); m.setContentDisplay(ContentDisplay.LEFT); m.setGraphicTextGap(6); 
         String s=up(row.dto.status());
         section(m,"VIEW");
         add(m,"View Transaction Details","view",()->viewEdit(row));
@@ -260,6 +260,8 @@ public class BankStatementController {
         }
 
         TableView<CandidateRow> candidatesTable=new TableView<>(FXCollections.observableArrayList(rows));
+        candidatesTable.getStyleClass().addAll("approved-table", "erp-table-profile-dialog");
+        candidatesTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         candidatesTable.setEditable(true);
         candidatesTable.setPrefSize(1100,430);
         TableColumn<CandidateRow,Boolean> selected=new TableColumn<>("Select");
@@ -298,7 +300,7 @@ public class BankStatementController {
         IconFactory.applyTableHeaderIcon(score,"status");IconFactory.applyTableHeaderIcon(type,"category");
         IconFactory.applyTableHeaderIcon(document,"document");IconFactory.applyTableHeaderIcon(party,"customer");
         IconFactory.applyTableHeaderIcon(date,"calendar");IconFactory.applyTableHeaderIcon(total,"currency");
-        IconFactory.applyTableHeaderIcon(paid,"payment");IconFactory.applyTableHeaderIcon(outstanding,"bank");
+        IconFactory.applyTableHeaderIcon(paid,"complete");IconFactory.applyTableHeaderIcon(outstanding,"balance");
         IconFactory.applyTableHeaderIcon(allocation,"currency");
 
         Label title=sectionTitle("Match Bank Transaction");
