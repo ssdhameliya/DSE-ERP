@@ -3,6 +3,7 @@ package org.example.server.quotation;
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
 import org.example.server.util.BusinessClock;
+import org.example.server.operations.BusinessOperationsService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,8 +13,12 @@ import java.util.*;
 @Service
 public class QuotationService {
     private final JpaNativeRepository jdbc;
+    private final BusinessOperationsService operations;
 
-    public QuotationService(JpaNativeRepository jdbc) { this.jdbc = jdbc; }
+    public QuotationService(JpaNativeRepository jdbc, BusinessOperationsService operations) {
+        this.jdbc = jdbc;
+        this.operations = operations;
+    }
 
     @Transactional
     public List<QuotationDtos.QuoteDto> list() {
@@ -203,12 +208,9 @@ public class QuotationService {
         return p + String.format(Locale.ROOT, "%04d", n == null ? 1 : n);
     }
 
-    // Kept unchanged intentionally: Sales numbering is a protected live flow in this Purchase-first release.
+    /** Quotation conversion uses the same Master Data Sales numbering as Create Sale. */
     private String nextSale() {
-        Integer n = jdbc.queryForObject(
-                "SELECT COALESCE(MAX(CAST(substring(invoice_no from '[0-9]+$') AS INTEGER)),0)+1 FROM sales_header WHERE invoice_no LIKE 'SAL-%'",
-                Integer.class);
-        return "SAL-" + String.format(Locale.ROOT, "%05d", n == null ? 1 : n);
+        return operations.nextSalesInvoice();
     }
 
     private LocalDate date(String v) { return v == null || v.isBlank() ? null : LocalDate.parse(v); }

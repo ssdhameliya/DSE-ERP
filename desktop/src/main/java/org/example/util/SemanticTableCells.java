@@ -7,12 +7,8 @@ import javafx.scene.control.TableCell;
 import java.util.Locale;
 
 /**
- * One cross-application renderer for semantic register/status cells.
- * The column meaning chooses the icon; the value chooses the state colour.
- *
- * <p>The state colour is deliberately applied to both the value and its icon.
- * This renderer owns only register/status cells and does not change IconFactory's
- * global business-semantic colour vocabulary.</p>
+ * Value-aware renderer for register status cells.
+ * The value selects both the icon meaning and the colour.
  */
 public final class SemanticTableCells {
     private SemanticTableCells() {}
@@ -20,47 +16,92 @@ public final class SemanticTableCells {
     public static <S> TableCell<S, String> status(String semantic) {
         final String role = semantic == null ? "status" : semantic.toLowerCase(Locale.ROOT);
         return new TableCell<>() {
-            @Override
-            protected void updateItem(String value, boolean empty) {
+            @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 reset(this, empty ? null : value);
                 if (empty || value == null || value.isBlank()) return;
-
-                State state = classify(value);
-                applyState(this, state, iconFor(role, value, state));
+                Presentation presentation = presentation(role, value);
+                apply(this, presentation);
             }
         };
     }
 
     public static <S> TableCell<S, String> dueDate() {
         return new TableCell<>() {
-            @Override
-            protected void updateItem(String value, boolean empty) {
+            @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 reset(this, empty ? null : value);
                 if (empty || value == null || value.isBlank()) return;
-
-                String normalized = value.trim().toLowerCase(Locale.ROOT);
-                State state;
-                String icon;
-                if (normalized.equals("paid") || normalized.startsWith("paid ")) {
-                    state = State.SUCCESS;
-                    icon = "payment";
-                } else if (normalized.contains("overdue") || normalized.contains("past due")) {
-                    state = State.DANGER;
-                    icon = "warning";
-                } else if (normalized.contains("deleted") || normalized.contains("cancel")) {
-                    state = State.DANGER;
-                    icon = "delete";
-                } else if (normalized.contains("not set") || normalized.contains("n/a")) {
-                    state = State.NEUTRAL;
-                    icon = "calendar";
+                String v = value.trim().toUpperCase(Locale.ROOT);
+                Presentation p;
+                if (v.startsWith("PAID") || v.contains("CLOSED") || v.contains("SETTLED")) {
+                    p = new Presentation("complete", State.SUCCESS);
+                } else if (v.contains("OVERDUE") || v.contains("PAST DUE")) {
+                    p = new Presentation("warning", State.DANGER);
+                } else if (v.contains("DELETED")) {
+                    p = new Presentation("delete", State.DANGER);
+                } else if (v.contains("CANCEL")) {
+                    p = new Presentation("cancel", State.DANGER);
+                } else if (v.contains("NOT SET") || v.contains("N/A")) {
+                    p = new Presentation("calendar", State.NEUTRAL);
+                } else if (v.contains("TODAY")) {
+                    p = new Presentation("calendar", State.WARNING);
                 } else {
-                    state = State.WARNING;
-                    icon = "reminder";
+                    p = new Presentation("reminder", State.WARNING);
                 }
-                applyState(this, state, icon);
+                apply(this, p);
             }
+        };
+    }
+
+    private static Presentation presentation(String role, String value) {
+        String v = value.trim().toUpperCase(Locale.ROOT);
+        State state = classify(v);
+        return switch (role) {
+            case "email" -> {
+                if (v.contains("FAIL") || v.contains("ERROR")) yield new Presentation("warning", State.DANGER);
+                if (v.contains("SENT")) yield new Presentation("sent", State.SUCCESS);
+                if (v.contains("PROCESS") || v.contains("QUEUE")) yield new Presentation("refresh", State.INFO);
+                yield new Presentation("email", State.WARNING);
+            }
+            case "document" -> {
+                if (v.contains("DELETE")) yield new Presentation("delete", State.DANGER);
+                if (v.contains("CANCEL") || v.contains("REJECT")) yield new Presentation("cancel", State.DANGER);
+                if (v.contains("RETURN")) yield new Presentation("return", State.SUCCESS);
+                if (v.contains("DRAFT")) yield new Presentation("draft", State.WARNING);
+                if (v.contains("COMPLETE") || v.contains("POSTED") || v.contains("APPROVED")) yield new Presentation("complete", State.SUCCESS);
+                if (v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
+                yield new Presentation("document", state);
+            }
+            case "return" -> {
+                if (v.contains("CANCEL") || v.contains("REJECT") || v.contains("FAIL")) yield new Presentation("cancel", State.DANGER);
+                if (v.contains("COMPLETE") || v.contains("RETURNED") || v.contains("APPROVED")) yield new Presentation("complete", State.SUCCESS);
+                if (v.contains("PARTIAL") || v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
+                yield new Presentation("return", State.WARNING);
+            }
+            case "refund" -> {
+                if (v.contains("FAIL") || v.contains("CANCEL") || v.contains("REJECT")) yield new Presentation("warning", State.DANGER);
+                if (v.contains("REFUNDED") || v.contains("COMPLETE") || v.contains("PAID")) yield new Presentation("payment", State.SUCCESS);
+                if (v.contains("PARTIAL") || v.contains("PROCESS")) yield new Presentation("status", State.INFO);
+                yield new Presentation("reminder", State.WARNING);
+            }
+            case "payment" -> {
+                if (v.contains("PAID") || v.contains("SETTLED") || v.contains("COMPLETE")) yield new Presentation("payment", State.SUCCESS);
+                if (v.contains("PARTIAL")) yield new Presentation("status", State.INFO);
+                if (v.contains("OVERDUE") || v.contains("FAIL")) yield new Presentation("warning", State.DANGER);
+                yield new Presentation("reminder", State.WARNING);
+            }
+            default -> new Presentation(iconForState(state), state);
+        };
+    }
+
+    private static String iconForState(State state) {
+        return switch (state) {
+            case SUCCESS -> "complete";
+            case INFO -> "status";
+            case WARNING -> "reminder";
+            case DANGER -> "warning";
+            case NEUTRAL -> "document";
         };
     }
 
@@ -69,61 +110,40 @@ public final class SemanticTableCells {
         cell.setGraphic(null);
         cell.setStyle("");
         cell.setAlignment(Pos.CENTER_LEFT);
-        cell.getStyleClass().removeAll("pill-success", "pill-info", "pill-warning", "pill-danger", "pill-neutral");
+        cell.getStyleClass().removeAll("pill-success","pill-info","pill-warning","pill-danger","pill-neutral");
         if (!cell.getStyleClass().contains("semantic-register-cell")) cell.getStyleClass().add("semantic-register-cell");
     }
 
-    private static void applyState(TableCell<?, String> cell, State state, String icon) {
-        cell.getStyleClass().add(state.styleClass);
-        cell.setStyle("-fx-text-fill: " + state.color + ";");
-        Node graphic = IconFactory.compactIcon(icon, 15);
-        // Ikonli FontIcon honours -fx-icon-color. Inline state colour intentionally
-        // wins over the normal semantic icon colour only inside register status cells.
-        graphic.setStyle("-fx-icon-color: " + state.color + ";");
+    private static void apply(TableCell<?, String> cell, Presentation p) {
+        cell.getStyleClass().add(p.state.styleClass);
+        cell.setStyle("-fx-text-fill: " + p.state.color + "; -fx-font-weight: 800;");
+        Node graphic = IconFactory.compactIcon(p.icon, 15);
+        graphic.setStyle("-fx-icon-color: " + p.state.color + ";");
         cell.setGraphic(graphic);
     }
 
-    private static String iconFor(String role, String value, State state) {
-        String normalized = value.toLowerCase(Locale.ROOT);
-        return switch (role) {
-            case "email" -> state == State.DANGER ? "warning" : "email";
-            case "whatsapp" -> state == State.DANGER ? "warning" : "whatsapp";
-            case "payment" -> state == State.SUCCESS ? "payment" : state == State.DANGER ? "warning" : "reminder";
-            case "document" -> normalized.contains("return") ? "return"
-                    : normalized.contains("delete") ? "delete"
-                    : normalized.contains("cancel") ? "cancel"
-                    : state == State.SUCCESS ? "complete"
-                    : state == State.DANGER ? "warning" : "document";
-            case "account" -> normalized.contains("lock") ? "lock" : state == State.SUCCESS ? "user" : "warning";
-            case "return" -> state == State.SUCCESS ? "return-complete" : state == State.DANGER ? "warning" : "return";
-            case "refund" -> state == State.SUCCESS ? "payment" : state == State.DANGER ? "warning" : "reminder";
-            case "priority" -> state == State.DANGER ? "warning" : state == State.WARNING ? "reminder" : "status";
-            case "channel" -> normalized.contains("whatsapp") ? "whatsapp" : normalized.contains("email") ? "email" : "communication";
-            default -> state == State.SUCCESS ? "complete" : state == State.DANGER ? "warning" : state == State.INFO ? "status" : "reminder";
-        };
-    }
-
-    private static State classify(String value) {
-        String v = value.trim().toUpperCase(Locale.ROOT);
+    private static State classify(String v) {
         if (v.contains("FAILED") || v.contains("ERROR") || v.contains("CANCEL") || v.contains("DELETE")
                 || v.contains("OVERDUE") || v.contains("LOCKED") || v.contains("REJECT")) return State.DANGER;
         if (v.contains("PARTIAL") || v.contains("IN PROGRESS") || v.contains("PROCESSING")) return State.INFO;
         if (v.contains("NOT SENT") || v.contains("PENDING") || v.contains("DRAFT") || v.contains("OPEN")
                 || v.contains("DUE") || v.contains("SNOOZE")) return State.WARNING;
-        if (v.contains("SENT") || v.contains("PAID") || v.contains("COMPLETED") || v.contains("RETURNED") || v.contains("ACTIVE")
-                || v.contains("APPROVED") || v.contains("ACCEPTED") || v.contains("VERIFIED") || v.contains("SUCCESS")) return State.SUCCESS;
+        if (v.contains("SENT") || v.contains("PAID") || v.contains("COMPLETED") || v.contains("RETURNED")
+                || v.contains("ACTIVE") || v.contains("APPROVED") || v.contains("ACCEPTED")
+                || v.contains("VERIFIED") || v.contains("SUCCESS") || v.contains("POSTED")) return State.SUCCESS;
         return State.NEUTRAL;
     }
 
-    private enum State {
-        SUCCESS("pill-success", "#16a34a"),
-        INFO("pill-info", "#2563eb"),
-        WARNING("pill-warning", "#d97706"),
-        DANGER("pill-danger", "#dc2626"),
-        NEUTRAL("pill-neutral", "#64748b");
+    private record Presentation(String icon, State state) {}
 
+    private enum State {
+        SUCCESS("pill-success","#16a34a"),
+        INFO("pill-info","#2563eb"),
+        WARNING("pill-warning","#d97706"),
+        DANGER("pill-danger","#dc2626"),
+        NEUTRAL("pill-neutral","#64748b");
         private final String styleClass;
         private final String color;
-        State(String styleClass, String color) { this.styleClass = styleClass; this.color = color; }
+        State(String styleClass,String color){this.styleClass=styleClass;this.color=color;}
     }
 }

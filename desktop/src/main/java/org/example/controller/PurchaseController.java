@@ -19,10 +19,12 @@ import org.example.model.Item;
 import org.example.model.Party;
 import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
+import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.service.ItemService;
 import org.example.service.PartyService;
 import org.example.service.PurchaseService;
+import org.example.service.LookupService;
 import org.example.service.NotificationService;
 import org.example.service.InvoicePdfService;
 import org.example.service.EmailService;
@@ -81,6 +83,7 @@ public class PurchaseController {
 
     @FXML
     private TextArea txtRemarks;
+    @FXML private TextArea txtBillingAddress;
 
 
     private PurchaseLine editingLine = null;
@@ -153,6 +156,8 @@ public class PurchaseController {
 
     private final PurchaseService purchaseService =
         new PurchaseService();
+    private final LookupService lookupService = new LookupService();
+    private final SupportApiClient supportApi = new SupportApiClient();
 
     private Purchase editingPurchase = null;
     private final ContextMenu itemSuggestions = new ContextMenu();
@@ -583,6 +588,10 @@ public class PurchaseController {
         if(dpInvoiceDate.getValue()==null){warn("Select invoice date");return null;}
         if(cmbSupplier.getValue()==null){warn("Select supplier");return null;}
         if(tableLines.getItems().isEmpty()){warn("Add items");return null;}
+        if(cmbPaymentTerms.getValue()==null||cmbPaymentTerms.getValue().isBlank()){
+            warn("Configure and select Payment Terms from Master Data.");
+            return null;
+        }
 
         Purchase purchase=new Purchase();
         purchase.setInvoiceNo(txtInvoiceNo.getText());
@@ -598,14 +607,14 @@ public class PurchaseController {
         purchase.setTotalAmount(net+gst);
         purchase.setRemarks(txtRemarks.getText());
         purchase.setDueDate(dpDueDate.getValue());
-        purchase.setDeliveryDate(dpDeliveryDate.getValue());
-        purchase.setWarehouse(cmbWarehouse.getValue());
+        purchase.setDeliveryDate(dpDueDate.getValue());
+        purchase.setWarehouse(editingPurchase==null?safeValue(cmbWarehouse.getValue(),"Main Warehouse"):safeValue(editingPurchase.getWarehouse(),cmbWarehouse.getValue()));
         purchase.setPaymentTerms(cmbPaymentTerms.getValue());
-        purchase.setCurrency(cmbCurrency.getValue());
+        purchase.setCurrency(editingPurchase==null?safeValue(cmbCurrency.getValue(),"INR - Indian Rupee"):safeValue(editingPurchase.getCurrency(),cmbCurrency.getValue()));
         purchase.setReferenceNo(txtReference.getText());
-        purchase.setGstTreatment(cmbGstTreatment.getValue());
+        purchase.setGstTreatment(editingPurchase==null?safeValue(cmbGstTreatment.getValue(),"Business Purchase"):safeValue(editingPurchase.getGstTreatment(),cmbGstTreatment.getValue()));
         purchase.setTransporter(cmbTransporter.getValue());
-        purchase.setLrAwbNo(txtLrAwb.getText());
+        purchase.setLrAwbNo(editingPurchase==null?"":safeValue(editingPurchase.getLrAwbNo(),""));
         purchase.setDiscountType("Item Level");
         purchase.setDiscountAmount(discount);
         purchase.setAttachmentPath(attachmentRemoved?null:(editingPurchase==null?null:editingPurchase.getAttachmentPath()));
@@ -640,7 +649,52 @@ public class PurchaseController {
     private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
 
     private void saveMetadata(Purchase p) { purchaseService.update(p); }
+
+    @FXML private void saveNote(){
+        String note=txtRemarks==null?"":txtRemarks.getText();
+        if(editingPurchase==null||editingPurchase.getId()<=0){
+            NotificationService.add("Purchase note is ready and will be saved with the Purchase.");
+            return;
+        }
+        try{
+            supportApi.notes("PURCHASE",editingPurchase.getId(),note);
+            editingPurchase.setRemarks(note);
+            NotificationService.add("Purchase note saved for "+editingPurchase.getInvoiceNo()+".");
+        }catch(Exception e){warn("Unable to save purchase note: "+e.getMessage());}
+    }
+
     @FXML private void chooseAttachment(){FileChooser f=new FileChooser();f.setTitle("Choose purchase attachment");File selected=f.showOpenDialog(tableLines.getScene().getWindow());if(selected!=null){attachment=selected;attachmentRemoved=false;lblAttachment.setText(selected.getName());}}
+    @FXML private void saveAttachment(){
+        if(editingPurchase==null||editingPurchase.getId()<=0){
+            NotificationService.add(attachmentRemoved?"Purchase attachment removal will be saved with the Purchase.":"Purchase attachment is ready and will be saved with the Purchase.");
+            return;
+        }
+        Path copied=null;
+        try{
+            String oldRef=editingPurchase.getAttachmentPath();
+            if(attachmentRemoved){
+                supportApi.attachment("PURCHASE",editingPurchase.getId(),"");
+                deleteManagedAttachmentQuietly(oldRef,null);
+                editingPurchase.setAttachmentPath(null);
+                attachment=null; attachmentRemoved=false;
+                if(lblAttachment!=null)lblAttachment.setText("No document selected");
+                NotificationService.add("Purchase attachment removed for "+editingPurchase.getInvoiceNo()+".");
+                return;
+            }
+            if(attachment==null){warn("Choose an attachment first.");return;}
+            copied=copyManagedPurchaseAttachment(attachment.toPath(),editingPurchase.getInvoiceNo());
+            String managed=WorkspaceManager.getWorkspaceRoot().toAbsolutePath().normalize().relativize(copied.toAbsolutePath().normalize()).toString();
+            supportApi.attachment("PURCHASE",editingPurchase.getId(),managed);
+            deleteManagedAttachmentQuietly(oldRef,copied);
+            editingPurchase.setAttachmentPath(managed);
+            attachment=null; attachmentRemoved=false;
+            if(lblAttachment!=null)lblAttachment.setText(copied.getFileName().toString());
+            NotificationService.add("Purchase attachment saved for "+editingPurchase.getInvoiceNo()+".");
+        }catch(Exception e){
+            if(copied!=null){try{Files.deleteIfExists(copied);}catch(Exception ignored){}}
+            warn("Unable to save purchase attachment: "+e.getMessage());
+        }
+    }
     @FXML private void viewAttachment(){
         try{Path path=attachment!=null?attachment.toPath():attachmentRemoved||editingPurchase==null?null:resolvePurchaseAttachment(editingPurchase.getAttachmentPath());if(path==null||!Files.isRegularFile(path)){warn("No purchase attachment is available.");return;}java.awt.Desktop.getDesktop().open(path.toFile());}
         catch(Exception e){warn("Unable to open the purchase attachment: "+e.getMessage());}
@@ -678,6 +732,7 @@ public class PurchaseController {
 
 
         cmbSupplier.setValue(null);
+        if(txtBillingAddress!=null)txtBillingAddress.clear();
 
         clearItemSearch();
 
@@ -702,15 +757,29 @@ public class PurchaseController {
     }
 
     private void populateLookups() {
-        cmbWarehouse.getItems().setAll("Main Warehouse", "Secondary Warehouse", "Transit Warehouse");
-        cmbPaymentTerms.getItems().setAll("Due on Receipt", "7 Days", "15 Days", "30 Days", "45 Days", "60 Days");
-        cmbCurrency.getItems().setAll("INR - Indian Rupee", "USD - US Dollar", "EUR - Euro", "GBP - British Pound");
-        cmbGstTreatment.getItems().setAll("Business Purchase", "Registered Business", "Composition Dealer", "Unregistered Business", "Import");
-        cmbTransporter.getItems().setAll("Self Transport", "Road Transport", "Courier", "Air Freight", "Customer Pickup");
-        cmbDiscountType.getItems().setAll("Percentage", "Fixed Amount", "No Discount");
-        cmbWarehouse.setValue("Main Warehouse"); cmbPaymentTerms.setValue("15 Days");
-        cmbCurrency.setValue("INR - Indian Rupee"); cmbGstTreatment.setValue("Business Purchase");
-        cmbTransporter.setValue("Self Transport"); cmbDiscountType.setValue("Percentage");
+        List<String> paymentTerms;
+        List<String> transporters;
+        try { paymentTerms = lookupService.getValuesByCategoryCode("PAYMENT_TERMS"); }
+        catch(Exception e){ paymentTerms = List.of(); }
+        try { transporters = lookupService.getValuesByCategoryCode("TRANSPORTER"); }
+        catch(Exception e){ transporters = List.of(); }
+
+        cmbPaymentTerms.getItems().setAll(paymentTerms);
+        cmbTransporter.getItems().setAll(transporters);
+
+        // Hidden compatibility fields retain stable defaults; they are no longer user-facing.
+        cmbWarehouse.getItems().setAll("Main Warehouse");
+        cmbCurrency.getItems().setAll("INR - Indian Rupee");
+        cmbGstTreatment.getItems().setAll("Business Purchase");
+        cmbDiscountType.getItems().setAll("Item Level");
+        cmbWarehouse.setValue("Main Warehouse");
+        cmbCurrency.setValue("INR - Indian Rupee");
+        cmbGstTreatment.setValue("Business Purchase");
+        cmbDiscountType.setValue("Item Level");
+
+        if(cmbPaymentTerms.getItems().contains("15 Days"))cmbPaymentTerms.setValue("15 Days");
+        else if(!cmbPaymentTerms.getItems().isEmpty())cmbPaymentTerms.getSelectionModel().selectFirst();
+        if(!cmbTransporter.getItems().isEmpty())cmbTransporter.getSelectionModel().selectFirst();
     }
 
     /** Keeps the stored purchase due date synchronized with date and payment terms. */
@@ -750,16 +819,9 @@ public class PurchaseController {
     }
 
     private void populateSupplierAddress(Party supplier) {
-        if (tableLines.getScene() == null) return;
-        for (Node node : tableLines.getScene().getRoot().lookupAll(".combo-box")) {
-            if (node instanceof ComboBox<?> box && "Supplier billing address".equals(box.getPromptText())) {
-                @SuppressWarnings("unchecked") ComboBox<String> addressBox = (ComboBox<String>) box;
-                addressBox.getItems().clear();
-                if (supplier != null && supplier.getAddress() != null && !supplier.getAddress().isBlank()) addressBox.getItems().add(supplier.getAddress());
-                if (addressBox.getItems().isEmpty()) addressBox.getItems().add("Address not available - update Supplier Master");
-                addressBox.getSelectionModel().selectFirst();
-            }
-        }
+        if(txtBillingAddress==null)return;
+        String address=supplier==null?"":safeValue(supplier.getAddress(),"");
+        txtBillingAddress.setText(address);
     }
 
     private void cleanPurchaseActions() {
@@ -931,6 +993,7 @@ public class PurchaseController {
                 ? ""
                 : purchase.getRemarks()
         );
+        if(txtBillingAddress!=null)txtBillingAddress.setText(purchase.getSupplier()==null?"":safeValue(purchase.getSupplier().getAddress(),""));
 
 
 
@@ -956,6 +1019,7 @@ public class PurchaseController {
 
     }
     private void select(ComboBox<String> box,String value){if(value!=null&&!value.isBlank()){if(!box.getItems().contains(value))box.getItems().add(value);box.setValue(value);}}private String value(String v){return v==null?"":v;}
+    private String safeValue(String value,String fallback){return value==null||value.isBlank()?(fallback==null?"":fallback):value;}
     private void setupAmountFormatting() {
 
 

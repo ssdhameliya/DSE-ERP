@@ -8565,7 +8565,7 @@
 .pdf-only-preview-page-label { -fx-font-weight: 800; }
 .pdf-only-preview-scroll { -fx-background-insets: 0; -fx-padding: 8px; }
 
-/* v7.3.17 authentication/startup geometry contract: presentation only. */
+/* v7.3.18 authentication/startup geometry contract: presentation only. */
 .auth-standard-shell .auth-unified-brand-panel {
     -fx-pref-width: 600px; -fx-min-width: 360px; -fx-padding: 30px 42px 24px 42px;
 }
@@ -8580,3 +8580,130 @@
 .auth-standard-shell .auth-input { -fx-min-height: 44px; -fx-pref-height: 44px; }
 .auth-standard-shell .auth-primary-button, .auth-standard-shell .auth-secondary-button { -fx-min-height: 44px; }
 .auth-standard-shell .auth-message { -fx-min-height: 18px; }
+
+/* v7.3.18 — targeted Sales/Purchase/Bank/Settings UI polish. */
+.bank-select-all {
+    -fx-font-weight: 800;
+    -fx-font-size: 12px;
+}
+.bank-recon-selection-count {
+    -fx-font-weight: 900;
+    -fx-font-size: 12px;
+    -fx-text-fill: #2563eb;
+    -fx-padding: 3px 8px;
+    -fx-background-color: rgba(37, 99, 235, 0.10);
+    -fx-background-radius: 999px;
+}
+.bank-direct-action {
+    -fx-min-height: 34px;
+    -fx-font-weight: 800;
+}
+.bank-recon-kpi-note {
+    -fx-font-size: 10.5px;
+    -fx-font-weight: 700;
+    -fx-opacity: 0.90;
+    -fx-text-alignment: RIGHT;
+    -fx-alignment: CENTER_RIGHT;
+    -fx-max-width: 72px;
+}
+.bank-recon-progress-label {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: 800;
+}
+.bank-recon-status-badge {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: 900;
+    -fx-padding: 4px 9px;
+    -fx-background-radius: 999px;
+}
+.bank-recon-status-badge.bank-batch-imported {
+    -fx-text-fill: #2563eb;
+    -fx-background-color: rgba(37, 99, 235, 0.12);
+}
+.bank-recon-status-badge.bank-batch-partial {
+    -fx-text-fill: #d97706;
+    -fx-background-color: rgba(217, 119, 6, 0.14);
+}
+.bank-recon-status-badge.bank-batch-full {
+    -fx-text-fill: #16a34a;
+    -fx-background-color: rgba(22, 163, 74, 0.14);
+}
+.bank-recon-how-panel {
+    -fx-padding: 11px 14px;
+    -fx-spacing: 10px;
+}
+.bank-recon-how-icon {
+    -fx-min-width: 30px;
+    -fx-min-height: 30px;
+    -fx-pref-width: 30px;
+    -fx-pref-height: 30px;
+}
+.bank-recon-how-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: 900;
+}
+.bank-recon-how-text {
+    -fx-font-size: 12px;
+    -fx-font-weight: 650;
+}
+.bank-recon-flow-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: 900;
+}
+.bank-flow-step-title {
+    -fx-font-size: 11.5px;
+    -fx-font-weight: 900;
+}
+.bank-flow-step-note {
+    -fx-font-size: 10.5px;
+    -fx-font-weight: 650;
+}
+.bank-action-dialog-list {
+    -fx-padding: 2px 0 0 0;
+}
+.bank-action-dialog-button {
+    -fx-min-height: 38px;
+    -fx-font-weight: 800;
+}
+.purchase-entry-right-rail {
+    -fx-padding: 0 0 2px 0;
+}
+.purchase-note-attachment-card .text-area {
+    -fx-min-height: 72px;
+}
+.purchase-bottom-actions {
+    -fx-padding: 4px 0 0 0;
+}
+.purchase-add-supplier {
+    -fx-min-width: 126px;
+}
+.purchase-detail-drawer .detail-label {
+    -fx-font-weight: 800;
+}
+.purchase-detail-drawer .drawer-due {
+    -fx-text-fill: #d97706;
+    -fx-font-weight: 800;
+}
+.purchase-detail-drawer .drawer-tax {
+    -fx-text-fill: #2563eb;
+    -fx-font-weight: 800;
+}
+.settings-invoice-compact .settings-brand-assets-row {
+    -fx-spacing: 14px;
+    -fx-alignment: TOP_LEFT;
+}
+.settings-invoice-compact .settings-brand-asset-card {
+    -fx-min-width: 280px;
+    -fx-pref-width: 420px;
+    -fx-padding: 10px 12px;
+}
+.settings-invoice-compact .settings-image-preview {
+    -fx-min-height: 120px;
+    -fx-pref-height: 126px;
+    -fx-max-height: 140px;
+    -fx-padding: 8px;
+}
+.settings-invoice-compact .settings-asset-filename {
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}

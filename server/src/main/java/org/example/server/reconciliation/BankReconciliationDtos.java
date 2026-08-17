@@ -14,6 +14,7 @@ public final class BankReconciliationDtos {
  public record AllocationRequest(String targetType,Integer targetId,double amount){}
  public record MatchRequest(String user,List<AllocationRequest> allocations){}
  public record ExpenseRequest(String category,String accountName,String paymentMode,String notes,String billPath,String user){}
+ public record BankEntryRequest(String accountName,String paymentMode,String notes,String user){}
  public record IgnoreRequest(String note,String user){}
  public record NoteRequest(String note,String user){}
  public record OperationResult(boolean success,String message,String status,Integer financeEntryId){}

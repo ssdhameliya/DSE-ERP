@@ -27,9 +27,13 @@ public class BankExpenseController implements ScreenLifecycle {
     public enum Mode { BANK, EXPENSE }
     private static volatile Mode requestedMode;
     private static volatile ExpensePrefill requestedExpensePrefill;
+    private static volatile BankEntryPrefill requestedBankEntryPrefill;
     public record ExpensePrefill(long statementTransactionId,String date,double amount,String reference,String description,String accountName,String paymentMode){}
+    public record BankEntryPrefill(long statementTransactionId,String date,double debit,double credit,String reference,String description,String accountName,String paymentMode){}
     public static void requestExpensePrefill(ExpensePrefill prefill){ requestedExpensePrefill=prefill; requestedMode=Mode.EXPENSE; }
+    public static void requestBankEntryPrefill(BankEntryPrefill prefill){ requestedBankEntryPrefill=prefill; requestedMode=Mode.BANK; }
     private static ExpensePrefill consumeExpensePrefill(){ExpensePrefill p=requestedExpensePrefill;requestedExpensePrefill=null;return p;}
+    private static BankEntryPrefill consumeBankEntryPrefill(){BankEntryPrefill p=requestedBankEntryPrefill;requestedBankEntryPrefill=null;return p;}
     public static void requestMode(Mode mode) { requestedMode = mode == null ? Mode.BANK : mode; }
 
     private static Mode consumeRequestedMode() {
@@ -80,6 +84,7 @@ public class BankExpenseController implements ScreenLifecycle {
         mode = initialMode == null ? Mode.BANK : initialMode;
         applyMode(mode);
         applyRequestedExpensePrefill();
+        applyRequestedBankEntryPrefill();
     }
 
     private void installKpiIcons(){setKpiIcon(kpi1Icon,"bank");setKpiIcon(kpi2Icon,"credit");setKpiIcon(kpi3Icon,"balance");setKpiIcon(kpi4Icon,"payment");}
@@ -93,6 +98,19 @@ public class BankExpenseController implements ScreenLifecycle {
         if(p.accountName()!=null&&!p.accountName().isBlank()){ if(!expenseAccount.getItems().contains(p.accountName()))expenseAccount.getItems().add(0,p.accountName()); expenseAccount.setValue(p.accountName()); }
         if(p.paymentMode()!=null&&!p.paymentMode().isBlank()){ if(!paymentMode.getItems().contains(p.paymentMode()))paymentMode.getItems().add(0,p.paymentMode()); paymentMode.setValue(p.paymentMode()); }
         saveButton.setText("Create Expense from Statement");
+    }
+
+    private void applyRequestedBankEntryPrefill(){
+        BankEntryPrefill p=consumeBankEntryPrefill(); if(p==null)return;
+        mode=Mode.BANK; applyMode(Mode.BANK); reconciliationStatementId=p.statementTransactionId();
+        try{entryDate.setValue(LocalDate.parse(p.date()));}catch(Exception ignored){}
+        double value=p.credit()>0?p.credit():p.debit();
+        amount.setText(String.format(Locale.ROOT,"%.2f",value));
+        referenceNo.setText(safe(p.reference(),"")); description.setText(safe(p.description(),""));
+        if(p.credit()>0)creditRadio.setSelected(true);else debitRadio.setSelected(true);
+        if(p.accountName()!=null&&!p.accountName().isBlank()){ if(!bankAccount.getItems().contains(p.accountName()))bankAccount.getItems().add(0,p.accountName()); bankAccount.setValue(p.accountName()); }
+        if(p.paymentMode()!=null&&!p.paymentMode().isBlank()){ if(!paymentMode.getItems().contains(p.paymentMode()))paymentMode.getItems().add(0,p.paymentMode()); paymentMode.setValue(p.paymentMode()); }
+        saveButton.setText("Create Bank Entry from Statement");
     }
 
     private void loadMasterLookups() {
@@ -126,6 +144,7 @@ public class BankExpenseController implements ScreenLifecycle {
             applyFilters();
         }
         applyRequestedExpensePrefill();
+        applyRequestedBankEntryPrefill();
     }
 
     private void loadAccounts() {
@@ -227,6 +246,9 @@ public class BankExpenseController implements ScreenLifecycle {
             String account= mode==Mode.BANK ? bankAccount.getValue() : expenseAccount.getValue();
             if (mode==Mode.EXPENSE && reconciliationStatementId!=null && editingId==null) {
                 bankStatementApi.expense(reconciliationStatementId,new BankStatementApiClient.ExpenseRequest(category,account,paymentMode.getValue(),description.getText().trim(),selectedBill==null?null:selectedBill.getAbsolutePath(),currentUser()));
+                reconciliationStatementId=null;
+            } else if (mode==Mode.BANK && reconciliationStatementId!=null && editingId==null) {
+                bankStatementApi.bankEntry(reconciliationStatementId,new BankStatementApiClient.BankEntryRequest(account,paymentMode.getValue(),description.getText().trim(),currentUser()));
                 reconciliationStatementId=null;
             } else {
                 OperationsApiClient.FinanceEntry dto = new OperationsApiClient.FinanceEntry(editingId, null, rawType, entryDate.getValue().toString(), category, referenceNo.getText().trim(), value, paymentMode.getValue(), description.getText().trim(), account, selectedBill==null?null:selectedBill.getAbsolutePath(), false);

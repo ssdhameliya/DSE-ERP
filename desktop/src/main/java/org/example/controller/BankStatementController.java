@@ -32,7 +32,7 @@ public class BankStatementController {
     @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon,flowImportIcon,flowReviewIcon,flowAuditIcon;
     @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage;
     @FXML private CheckBox chkSelectAll;
-    @FXML private MenuButton bulkActions;
+    @FXML private Button btnBulkReview,btnBulkIgnore,btnMoveExpense,btnMoveBankEntry;
     @FXML private ComboBox<BankStatementApiClient.BatchDto> cmbBatch;
     @FXML private ComboBox<String> cmbStatus,cmbDirection;
     @FXML private ComboBox<Integer> cmbPageSize;
@@ -79,6 +79,10 @@ public class BankStatementController {
         if(btnSearch!=null) btnSearch.setGraphic(IconFactory.compactIcon("search",15));
         if(btnReset!=null) btnReset.setGraphic(IconFactory.compactIcon("return",15));
         if(btnRefresh!=null) btnRefresh.setGraphic(IconFactory.compactIcon("refresh",15));
+        if(btnBulkReview!=null) btnBulkReview.setGraphic(IconFactory.compactIcon("status",15));
+        if(btnBulkIgnore!=null) btnBulkIgnore.setGraphic(IconFactory.compactIcon("cancel",15));
+        if(btnMoveExpense!=null) btnMoveExpense.setGraphic(IconFactory.compactIcon("payment",15));
+        if(btnMoveBankEntry!=null) btnMoveBankEntry.setGraphic(IconFactory.compactIcon("bank",15));
     }
     private void setIcon(StackPane pane,String name,int size){ if(pane!=null)pane.getChildren().setAll(IconFactory.icon(name,size)); }
 
@@ -121,7 +125,7 @@ public class BankStatementController {
         colAction.setCellFactory(c->new TableCell<>(){
             @Override protected void updateItem(Void v,boolean empty){
                 super.updateItem(v,empty); if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}
-                setGraphic(actionMenu(getTableView().getItems().get(getIndex())));
+                setGraphic(actionButton(getTableView().getItems().get(getIndex())));
             }
         });
         IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colValueDate,"calendar");
@@ -138,41 +142,67 @@ public class BankStatementController {
         }});
     }
 
-    private MenuButton actionMenu(Row row){
-        MenuButton m=new MenuButton("Actions"); m.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action","table-action-menu"); m.setGraphic(IconFactory.compactIcon("actions",15)); m.setContentDisplay(ContentDisplay.LEFT); m.setGraphicTextGap(6); 
-        String s=up(row.dto.status());
-        section(m,"VIEW");
-        add(m,"View Transaction Details","view",()->viewEdit(row));
-        add(m,"View Imported Statement","document",this::viewStatementSource);
-        add(m,"View Audit History","document",()->audit(row));
-        if(Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(s)){
-            section(m,"RECONCILIATION");
-            add(m,s.equals("SUGGESTED")?"Review Suggested Match":"Match Transaction","link",()->match(row));
-            if(row.dto.debit()>0)add(m,"Move to Expense","payment",()->moveToExpense(row));
-            section(m,"STATUS");
-            if(!"REVIEW".equals(s)) add(m,"Mark for Review","status",()->markReview(row));
-            add(m,"Mark as Ignored","cancel",()->ignore(row));
-        } else if("MATCHED".equals(s)){
-            section(m,"RECONCILIATION");
-            add(m,"View Match / Linked Invoice","link",()->openLinked(row));
-            add(m,"View Bank Entry","bank",()->openFinance(row,BankExpenseController.Mode.BANK));
-            section(m,"REVERSAL");
-            add(m,"Unmatch / Reverse","return",()->reverse(row));
-        } else if("EXPENSE".equals(s)){
-            section(m,"RECONCILIATION");
-            add(m,"View Expense","payment",()->openFinance(row,BankExpenseController.Mode.EXPENSE));
-            section(m,"REVERSAL");
-            add(m,"Unmatch / Reverse","return",()->reverse(row));
-        } else if("IGNORED".equals(s)) {
-            section(m,"STATUS");
-            add(m,"Return to Unmatched","return",()->reverse(row));
-        }
-        return m;
+    private Button actionButton(Row row){
+        Button button=new Button("Open");
+        button.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action");
+        button.setGraphic(IconFactory.compactIcon("actions",15));
+        button.setContentDisplay(ContentDisplay.LEFT);
+        button.setGraphicTextGap(6);
+        button.setOnAction(e->showActionDialog(row));
+        return button;
     }
-    private void add(MenuButton m,String text,String icon,Runnable action){MenuItem i=new MenuItem(text);i.setGraphic(IconFactory.compactIcon(icon,15));i.setOnAction(e->action.run());m.getItems().add(i);}
-    private void section(MenuButton m,String text){
-        if(!m.getItems().isEmpty())m.getItems().add(new SeparatorMenuItem());
-        MenuItem heading=new MenuItem(text);heading.setDisable(true);heading.getStyleClass().add("bank-menu-section");m.getItems().add(heading);
+
+    private void showActionDialog(Row row){
+        if(row==null)return;
+        String status=up(row.dto.status());
+        VBox actions=new VBox(8);
+        actions.getStyleClass().add("bank-action-dialog-list");
+        addDialogAction(actions,"View Transaction Details","view",()->viewEdit(row));
+        addDialogAction(actions,"View Imported Statement","document",this::viewStatementSource);
+        addDialogAction(actions,"View Audit History","history",()->audit(row));
+        if(Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(status)){
+            addDialogAction(actions,status.equals("SUGGESTED")?"Review Suggested Match":"Match Transaction","link",()->match(row));
+            if(row.dto.debit()>0)addDialogAction(actions,"Move to Expense","payment",()->moveToExpense(row));
+            addDialogAction(actions,"Move to Bank Entry","bank",()->moveToBankEntry(row));
+            if(!"REVIEW".equals(status))addDialogAction(actions,"Mark for Review","status",()->markReview(row));
+            addDialogAction(actions,"Mark as Ignored","cancel",()->ignore(row));
+        } else if("MATCHED".equals(status)){
+            addDialogAction(actions,"View Match / Linked Record","link",()->openLinked(row));
+            if("BANK_ENTRY".equals(up(row.dto.linkedTargetType()))) addDialogAction(actions,"View Bank Entry","bank",()->openFinance(row,BankExpenseController.Mode.BANK));
+            addDialogAction(actions,"Unmatch / Reverse","return",()->reverse(row));
+        } else if("EXPENSE".equals(status)){
+            addDialogAction(actions,"View Expense","payment",()->openFinance(row,BankExpenseController.Mode.EXPENSE));
+            addDialogAction(actions,"Unmatch / Reverse","return",()->reverse(row));
+        } else if("IGNORED".equals(status)){
+            addDialogAction(actions,"Return to Unmatched","return",()->reverse(row));
+        }
+        VBox content=new VBox(12,
+                dialogHero("actions","Transaction Actions",safe(row.dto.reference()).isBlank()?safe(row.dto.description()):safe(row.dto.reference())),
+                actions);
+        content.setPadding(new Insets(8));
+        content.setPrefWidth(470);
+        Dialog<ButtonType> dialog=new OwnedDialog<>();
+        dialog.setTitle("Bank Transaction Actions");
+        dialog.setHeaderText(null);
+        dialog.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-action-dialog");
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        // Each action closes this chooser before opening its destination/modal, preventing stacked dialogs.
+        for(javafx.scene.Node node:actions.getChildren()) if(node instanceof Button b){
+            var original=b.getOnAction();
+            b.setOnAction(e->{ dialog.close(); if(original!=null)original.handle(e); });
+        }
+        dialog.showAndWait();
+    }
+
+    private void addDialogAction(VBox box,String text,String semantic,Runnable action){
+        Button button=new Button(text);
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setAlignment(Pos.CENTER_LEFT);
+        button.getStyleClass().addAll("approved-button","approved-secondary-button","bank-action-dialog-button");
+        button.setGraphic(IconFactory.compactIcon(semantic,16));
+        button.setOnAction(e->action.run());
+        box.getChildren().add(button);
     }
 
     @FXML private void importStatement(){
@@ -244,13 +274,16 @@ public class BankStatementController {
         if(m==null){clearMetrics();return;}
         kpiTotal.setText(""+m.total());kpiUnmatched.setText(""+m.unmatched());kpiSuggested.setText(""+m.suggested());kpiMatched.setText(""+m.matched());kpiExpense.setText(""+m.expenses());
         kpiCredits.setText(money(m.totalCredits()));kpiDebits.setText(money(m.totalDebits()));kpiReconciled.setText(String.format(Locale.ENGLISH,"%.1f%%",m.reconciledPercent()));
-        lblProgressText.setText(m.reconciled()+" / "+m.total()+" reconciled");reconciliationProgress.setProgress(m.total()==0?0:m.reconciledPercent()/100d);lblBatchStatus.setText(m.batchStatus());
+        lblProgressText.setText(m.reconciled()+" / "+m.total()+" reconciled");
+        reconciliationProgress.setProgress(m.total()==0?0:m.reconciledPercent()/100d);
+        lblBatchStatus.setText(m.batchStatus());
+        applyBatchStatusStyle(m.batchStatus());
     }
 
     private void clearMetrics(){
         kpiTotal.setText("0");kpiUnmatched.setText("0");kpiSuggested.setText("0");kpiMatched.setText("0");kpiExpense.setText("0");
         kpiCredits.setText("0.00");kpiDebits.setText("0.00");kpiReconciled.setText("0.0%");
-        lblProgressText.setText("0 / 0 reconciled");reconciliationProgress.setProgress(0);lblBatchStatus.setText("No statement selected");
+        lblProgressText.setText("0 / 0 reconciled");reconciliationProgress.setProgress(0);lblBatchStatus.setText("No statement selected");applyBatchStatusStyle("");
     }
 
     @FXML private void applyFilters(){resetPageAndLoad();}
@@ -278,9 +311,44 @@ public class BankStatementController {
         if(btnNextPage!=null)btnNextPage.setDisable(totalPages<=0||currentPage+1>=totalPages);
     }
 
+    private void applyBatchStatusStyle(String status){
+        if(lblBatchStatus==null)return;
+        lblBatchStatus.getStyleClass().removeAll("bank-batch-imported","bank-batch-partial","bank-batch-full");
+        String value=up(status);
+        if(value.contains("PARTIAL"))lblBatchStatus.getStyleClass().add("bank-batch-partial");
+        else if(value.contains("FULL")||value.contains("RECONCILED"))lblBatchStatus.getStyleClass().add("bank-batch-full");
+        else if(!value.isBlank())lblBatchStatus.getStyleClass().add("bank-batch-imported");
+    }
+
     @FXML private void selectAllVisible(){boolean selected=chkSelectAll.isSelected();table.getItems().forEach(row->row.selected.set(selected));updateSelectionState();}
     private List<Row> selectedRows(){return table.getItems().stream().filter(row->row.selected.get()).toList();}
-    private void updateSelectionState(){int count=selectedRows().size();if(lblSelected!=null)lblSelected.setText(count+" selected");if(bulkActions!=null)bulkActions.setDisable(count==0);if(chkSelectAll!=null){chkSelectAll.setIndeterminate(count>0&&count<table.getItems().size());if(!chkSelectAll.isIndeterminate())chkSelectAll.setSelected(count>0&&!table.getItems().isEmpty());}}
+    private void updateSelectionState(){
+        List<Row> selected=selectedRows(); int count=selected.size();
+        if(lblSelected!=null)lblSelected.setText(count+" SELECTED");
+        if(btnBulkReview!=null)btnBulkReview.setDisable(count==0);
+        if(btnBulkIgnore!=null)btnBulkIgnore.setDisable(count==0);
+        boolean one=count==1 && Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(selected.getFirst().dto.status()));
+        if(btnMoveExpense!=null)btnMoveExpense.setDisable(!one || selected.getFirst().dto.debit()<=0);
+        if(btnMoveBankEntry!=null)btnMoveBankEntry.setDisable(!one);
+        if(chkSelectAll!=null){
+            chkSelectAll.setIndeterminate(count>0&&count<table.getItems().size());
+            if(!chkSelectAll.isIndeterminate())chkSelectAll.setSelected(count>0&&!table.getItems().isEmpty());
+        }
+    }
+    @FXML private void moveSelectedToExpense(){
+        List<Row> rows=selectedRows();
+        if(rows.size()!=1){info("Move to Expense","Select exactly one debit transaction to create the Expense Entry.");return;}
+        Row row=rows.getFirst();
+        if(row.dto.debit()<=0 || !Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))){info("Move to Expense","Only one open debit transaction can be moved to Expense Entry.");return;}
+        moveToExpense(row);
+    }
+    @FXML private void moveSelectedToBankEntry(){
+        List<Row> rows=selectedRows();
+        if(rows.size()!=1){info("Move to Bank Entry","Select exactly one open transaction to create the Bank Entry.");return;}
+        Row row=rows.getFirst();
+        if(!Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))){info("Move to Bank Entry","Only an open transaction can be moved to Bank Entry.");return;}
+        moveToBankEntry(row);
+    }
     @FXML private void bulkMarkReview(){bulkWithReason("Mark Selected for Review","Explain what must be checked for these bank transactions.","REVIEW");}
     @FXML private void bulkIgnore(){bulkWithReason("Ignore Selected Transactions","Enter the audit reason for excluding the selected bank transactions.","IGNORE");}
     private void bulkWithReason(String title,String prompt,String action){
@@ -470,14 +538,27 @@ public class BankStatementController {
     }
 
     private void moveToExpense(Row row){
-        BankExpenseController.requestExpensePrefill(new BankExpenseController.ExpensePrefill(row.dto.id(),row.dto.transactionDate(),row.dto.debit(),row.dto.reference(),row.dto.description(),cmbBatch.getValue()==null?"":cmbBatch.getValue().bankName()+" - "+cmbBatch.getValue().bankAccount(),"Bank Statement"));
+        BankExpenseController.requestExpensePrefill(new BankExpenseController.ExpensePrefill(row.dto.id(),row.dto.transactionDate(),row.dto.debit(),row.dto.reference(),row.dto.description(),batchAccountName(),"Bank Statement"));
         DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);
+    }
+    private void moveToBankEntry(Row row){
+        BankExpenseController.requestBankEntryPrefill(new BankExpenseController.BankEntryPrefill(row.dto.id(),row.dto.transactionDate(),row.dto.debit(),row.dto.credit(),row.dto.reference(),row.dto.description(),batchAccountName(),"Bank Statement"));
+        DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);
+    }
+    private String batchAccountName(){
+        var batch=cmbBatch==null?null:cmbBatch.getValue();
+        if(batch==null)return "";
+        String bank=safe(batch.bankName()).trim(),account=safe(batch.bankAccount()).trim();
+        if(bank.isBlank())return account;
+        if(account.isBlank())return bank;
+        return bank+" - "+account;
     }
     private void openFinance(Row row,BankExpenseController.Mode mode){DashboardController.navigateFromChild(mode==BankExpenseController.Mode.BANK?"Bank Entry":"Expense Entry","/fxml/pages/BankExpense.fxml",mode);}
     private void openLinked(Row row){
         var t=row.dto; String type=up(t.linkedTargetType()); Integer id=t.linkedTargetId();
         if(type.isBlank()){ if(t.suggestedMatchType()!=null){type=up(t.suggestedMatchType());id=t.suggestedMatchId();} }
         if("EXPENSE".equals(type)){openFinance(row,BankExpenseController.Mode.EXPENSE);return;}
+        if("BANK_ENTRY".equals(type)){openFinance(row,BankExpenseController.Mode.BANK);return;}
         if("SALE".equals(type)){
             String no=safe(t.linkedDocumentNo()); if(no.isBlank()&&id!=null)no=""+id; SalesScreenContext.select(no); NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml"); return;
         }
@@ -512,7 +593,7 @@ public class BankStatementController {
             String value=note.getText().trim(),performedBy=user();
             UiTaskExecutor.submitLatest("bank-statement-note-"+t.id(),
                 () -> api.updateNote(t.id(),new BankStatementApiClient.NoteRequest(value,performedBy)),
-                ignored -> {info("Bank Transaction","ERP note saved successfully.");audit(row);},this::error);
+                ignored -> {refresh();},this::error);
         });
     }
     private void viewStatementSource(){

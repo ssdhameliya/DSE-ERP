@@ -108,7 +108,7 @@
                     </VBox>
                     <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="3">
                         <Label text="PO Date" styleClass="sales-entry-field-label,field-label-due"/>
-                        <TextField fx:id="txtPoDate" editable="false" maxWidth="Infinity" promptText="Calculated from payment terms" styleClass="approved-input,sales-entry-po-date-field"/>
+                        <DatePicker fx:id="txtPoDate" editable="false" mouseTransparent="true" focusTraversable="false" maxWidth="Infinity" promptText="Calculated from payment terms" styleClass="approved-input,sales-entry-po-date-field"/>
                     </VBox>
                     <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="4">
                         <Label text="PO No." styleClass="sales-entry-field-label,field-label-invoice"/>
@@ -125,6 +125,7 @@
                 <TextField fx:id="txtTransport" text="0" visible="false" managed="false"/>
                 <TextField fx:id="txtReference" visible="false" managed="false"/>
                 <TextField fx:id="txtAttachment" visible="false" managed="false"/>
+                <TextField fx:id="txtTransportNote" visible="false" managed="false"/>
                 <ComboBox fx:id="cmbChargeType" visible="false" managed="false"/>
                 <TextField fx:id="txtChargeAmount" text="0" visible="false" managed="false"/>
             </VBox>
@@ -248,11 +249,6 @@
                         <TextField fx:id="txtContactPersonMobile" promptText="Mobile number..." styleClass="approved-input"/>
                     </VBox>
 
-                    <VBox spacing="4" GridPane.rowIndex="4" GridPane.columnSpan="2">
-                        <Label text="Note" styleClass="sales-entry-field-label"/>
-                        <TextField fx:id="txtTransportNote" promptText="Transport note..." maxWidth="Infinity"
-                                   styleClass="approved-input"/>
-                    </VBox>
                 </GridPane>
             </VBox>
 
@@ -260,8 +256,12 @@
                 <Label text="Notes &amp; Attachment"
                        styleClass="flow-title,sales-entry-section-title,sales-entry-section-actions"/>
                 <TextArea fx:id="txtInvoiceMessage" promptText="Optional invoice note..." wrapText="true"
-                          prefRowCount="2" prefHeight="54" minHeight="54" maxHeight="54" maxWidth="Infinity"
+                          prefRowCount="3" prefHeight="78" minHeight="68" maxHeight="96" maxWidth="Infinity"
                           styleClass="approved-input,sales-entry-note-area"/>
+                <HBox alignment="CENTER_RIGHT" spacing="6">
+                    <Button fx:id="btnSaveInvoiceNote" text="Save Note" onAction="#saveInvoiceNote"
+                            styleClass="approved-button,approved-secondary-button"/>
+                </HBox>
                 <HBox alignment="CENTER_LEFT" spacing="6">
                     <Label fx:id="lblAttachmentName" text="No attachment" maxWidth="Infinity" HBox.hgrow="ALWAYS"
                            textOverrun="ELLIPSIS" styleClass="sales-entry-attachment-name"/>

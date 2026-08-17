@@ -86,7 +86,7 @@ public class SalesController {
 
     @FXML
     private DatePicker dpInvoiceDate;
-    @FXML private TextField txtPoDate;
+    @FXML private DatePicker txtPoDate;
     @FXML private ComboBox<String> cmbSalesPerson,cmbPaymentTerms;
     @FXML private ComboBox<String> cmbGstType,cmbChargeType;
     @FXML private ComboBox<Lookup> cmbTransporter;
@@ -165,7 +165,7 @@ public class SalesController {
     @FXML private Button btnRemoveLine, btnSaveDraft;
     @FXML private Button btnManageCharges;
     @FXML private Label lblChargeManagerSummary, lblAttachmentName;
-    @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove;
+    @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove, btnSaveInvoiceNote;
 
 
 
@@ -251,6 +251,7 @@ public class SalesController {
         if (btnAttachmentAdd != null) { btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment", 14)); btnAttachmentAdd.getProperties().put("erp-icon-preserve", true); }
         if (btnAttachmentPreview != null) { btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view", 14)); btnAttachmentPreview.getProperties().put("erp-icon-preserve", true); }
         if (btnAttachmentRemove != null) { btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete", 14)); btnAttachmentRemove.getProperties().put("erp-icon-preserve", true); }
+        if (btnSaveInvoiceNote != null) { btnSaveInvoiceNote.setGraphic(IconFactory.compactIcon("save", 14)); btnSaveInvoiceNote.getProperties().put("erp-icon-preserve", true); }
         refreshAttachmentUi();
         updateChargeManagerSummary();
 
@@ -1217,8 +1218,7 @@ public class SalesController {
 
         sale.setRemarks(txtRemarks == null ? "" : txtRemarks.getText());
         sale.setDueDate(calculatePaymentDueDate(dpInvoiceDate.getValue(), cmbPaymentTerms.getValue()));
-        String poDateText = txtPoDate == null ? "" : txtPoDate.getText();
-        sale.setPoDate(poDateText == null || poDateText.isBlank() ? null : BusinessClock.parseDate(poDateText));
+        sale.setPoDate(txtPoDate == null ? null : txtPoDate.getValue());
         sale.setOrderNo(txtOrderNo == null ? "" : txtOrderNo.getText());
         sale.setSalesperson(cmbSalesPerson.getValue());
         sale.setNotes(txtInvoiceMessage == null || txtInvoiceMessage.getText() == null ? "" : txtInvoiceMessage.getText());
@@ -1240,7 +1240,7 @@ public class SalesController {
         sale.setContactPerson(txtContactPerson == null ? "" : txtContactPerson.getText());
         sale.setContactPersonMobile(txtContactPersonMobile == null ? "" : txtContactPersonMobile.getText());
         sale.setCharges(invoiceCharges);
-        sale.setTransportNote(txtTransportNote == null ? "" : txtTransportNote.getText());
+        sale.setTransportNote(editingSale == null ? "" : editingSale.getTransportNote());
         sale.setReferenceNo(txtReference == null || txtReference.getText() == null ? "" : txtReference.getText());
 
         return sale;
@@ -1263,7 +1263,7 @@ public class SalesController {
         if (txtPoDate == null) return;
         LocalDate invoiceDate = dpInvoiceDate == null ? null : dpInvoiceDate.getValue();
         String terms = cmbPaymentTerms == null ? null : cmbPaymentTerms.getValue();
-        txtPoDate.setText(BusinessClock.formatDate(calculatePaymentDueDate(invoiceDate, terms)));
+        txtPoDate.setValue(calculatePaymentDueDate(invoiceDate, terms));
     }
 
     /**
@@ -1543,6 +1543,19 @@ public class SalesController {
 
     @FXML private void addMultipleItems(){new OwnedAlert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
     @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->{String value=code.trim();if(value.isBlank())return;UiTaskExecutor.submitLatest("create-sale-barcode-search",()->itemService.search(value,12),matches->matches.stream().filter(i->safeItem(i.getItemCode()).equalsIgnoreCase(value)).findFirst().ifPresentOrElse(i->{mergeItemCache(List.of(i));selectItem(i);},()->warn("Item code not found")),error->warn("Item search failed: "+rootMessage(error)));});}
+    @FXML private void saveInvoiceNote(){
+        String note=txtInvoiceMessage==null?"":txtInvoiceMessage.getText();
+        if(editingSale==null||editingSale.getId()<=0){
+            NotificationService.add("Invoice note is ready and will be saved with the Sale.");
+            return;
+        }
+        try{
+            supportApi.notes("SALE",editingSale.getId(),note);
+            editingSale.setNotes(note);
+            NotificationService.add("Invoice note saved for "+editingSale.getInvoiceNo()+".");
+        }catch(Exception e){warn("Unable to save invoice note: "+rootMessage(e));}
+    }
+
     @FXML private void attachFile(){
         if (viewMode) return;
         javafx.stage.FileChooser chooser=new javafx.stage.FileChooser();
@@ -1708,7 +1721,7 @@ public class SalesController {
         dpInvoiceDate.setValue(
             sale.getInvoiceDate()
         );
-        if (txtPoDate != null) txtPoDate.setText(BusinessClock.formatDate(sale.getPoDate()));
+        if (txtPoDate != null) txtPoDate.setValue(sale.getPoDate());
         cmbSalesPerson.setValue(sale.getSalesperson().isBlank()?"Admin":sale.getSalesperson());
         txtInvoiceMessage.setText(sale.getNotes());
         pendingAttachment=null;

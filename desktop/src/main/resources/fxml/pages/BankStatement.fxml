@@ -24,14 +24,14 @@
           <ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/>
           <ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/>
         </columnConstraints>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-blue" GridPane.columnIndex="0"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiTotalIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Transactions" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiTotal" text="0" styleClass="bank-recon-kpi-value"/><Label text="Imported rows" styleClass="bank-recon-kpi-note"/></VBox>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-red" GridPane.columnIndex="1"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiUnmatchedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Unmatched" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiUnmatched" text="0" styleClass="bank-recon-kpi-value"/><Label text="Needs reconciliation" styleClass="bank-recon-kpi-note"/></VBox>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-orange" GridPane.columnIndex="2"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiSuggestedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Suggested" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiSuggested" text="0" styleClass="bank-recon-kpi-value"/><Label text="System suggestions" styleClass="bank-recon-kpi-note"/></VBox>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-green" GridPane.columnIndex="3"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiMatchedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Matched" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiMatched" text="0" styleClass="bank-recon-kpi-value"/><Label text="Linked to ERP" styleClass="bank-recon-kpi-note"/></VBox>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-purple" GridPane.columnIndex="4"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiExpenseIcon" styleClass="bank-recon-kpi-icon"/><Label text="Expenses" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiExpense" text="0" styleClass="bank-recon-kpi-value"/><Label text="Expense entries" styleClass="bank-recon-kpi-note"/></VBox>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-green" GridPane.columnIndex="5"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiCreditsIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Credits" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiCredits" text="0.00" styleClass="bank-recon-kpi-value"/><Label text="Money in" styleClass="bank-recon-kpi-note"/></VBox>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-red" GridPane.columnIndex="6"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiDebitsIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Debits" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiDebits" text="0.00" styleClass="bank-recon-kpi-value"/><Label text="Money out" styleClass="bank-recon-kpi-note"/></VBox>
-        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-teal" GridPane.columnIndex="7"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiReconciledIcon" styleClass="bank-recon-kpi-icon"/><Label text="Reconciled" styleClass="bank-recon-kpi-caption"/></HBox><Label fx:id="kpiReconciled" text="0.0%" styleClass="bank-recon-kpi-value"/><Label text="Batch completion" styleClass="bank-recon-kpi-note"/></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-blue" GridPane.columnIndex="0"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiTotalIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Transactions" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiTotal" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Imported rows" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-red" GridPane.columnIndex="1"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiUnmatchedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Unmatched" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiUnmatched" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Needs reconciliation" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-orange" GridPane.columnIndex="2"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiSuggestedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Suggested" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiSuggested" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="System suggestions" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-green" GridPane.columnIndex="3"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiMatchedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Matched" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiMatched" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Linked to ERP" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-purple" GridPane.columnIndex="4"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiExpenseIcon" styleClass="bank-recon-kpi-icon"/><Label text="Expenses" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiExpense" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Expense entries" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-green" GridPane.columnIndex="5"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiCreditsIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Credits" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiCredits" text="0.00" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Money in" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-red" GridPane.columnIndex="6"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiDebitsIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Debits" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiDebits" text="0.00" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Money out" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
+        <VBox spacing="5" styleClass="bank-recon-kpi,kpi-teal" GridPane.columnIndex="7"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiReconciledIcon" styleClass="bank-recon-kpi-icon"/><Label text="Reconciled" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiReconciled" text="0.0%" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Batch completion" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
       </GridPane>
     </VBox>
   </top>
@@ -47,15 +47,13 @@
             <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
           </HBox>
           <HBox spacing="10" alignment="CENTER_LEFT" styleClass="bank-bulk-toolbar">
-            <CheckBox fx:id="chkSelectAll" text="Select all visible" onAction="#selectAllVisible"/>
-            <Label fx:id="lblSelected" text="0 selected" styleClass="bank-recon-progress-label"/>
+            <CheckBox fx:id="chkSelectAll" text="Select all visible" onAction="#selectAllVisible" styleClass="bank-select-all"/>
+            <Label fx:id="lblSelected" text="0 selected" styleClass="bank-recon-selection-count"/>
             <Region HBox.hgrow="ALWAYS"/>
-            <MenuButton fx:id="bulkActions" text="Bulk Actions" disable="true" styleClass="approved-button,approved-secondary-button,erp-action-toolbar-menu">
-              <items>
-                <MenuItem text="Mark selected for review" onAction="#bulkMarkReview"/>
-                <MenuItem text="Ignore selected" onAction="#bulkIgnore"/>
-              </items>
-            </MenuButton>
+            <Button fx:id="btnBulkReview" text="Reviewed" onAction="#bulkMarkReview" disable="true" styleClass="approved-button,approved-secondary-button,bank-direct-action"/>
+            <Button fx:id="btnBulkIgnore" text="Ignore" onAction="#bulkIgnore" disable="true" styleClass="approved-button,approved-secondary-button,bank-direct-action"/>
+            <Button fx:id="btnMoveExpense" text="Move to Expense" onAction="#moveSelectedToExpense" disable="true" styleClass="approved-button,approved-secondary-button,bank-direct-action"/>
+            <Button fx:id="btnMoveBankEntry" text="Move to Bank Entry" onAction="#moveSelectedToBankEntry" disable="true" styleClass="approved-button,approved-primary-button,bank-direct-action"/>
           </HBox>
           <HBox spacing="8" alignment="CENTER_LEFT">
             <VBox spacing="2" HBox.hgrow="ALWAYS"><Label text="From Date" styleClass="bank-recon-field-caption"/><DatePicker fx:id="fromDate" promptText="From" maxWidth="Infinity"/></VBox>
@@ -97,8 +95,8 @@
 
         <HBox spacing="8" alignment="CENTER_LEFT" styleClass="bank-recon-how-panel">
           <StackPane fx:id="howIcon" styleClass="bank-recon-how-icon"/>
-          <Label text="How Matching Works:" styleClass="bank-recon-how-title"/>
-          <Label text="Match Transaction  →  DSE ERP searches automatically  →  Review Suggested Match  →  Confirm or Find Another  →  Bank Entry / Expense Entry is linked." wrapText="true" styleClass="bank-recon-how-text"/>
+          <Label text="How Matching Works" styleClass="bank-recon-how-title"/>
+          <Label text="Match Transaction  →  DSE ERP searches automatically  →  Review the suggestion  →  Confirm or find another  →  linked Bank / Expense Entry is stored." wrapText="true" styleClass="bank-recon-how-text"/>
         </HBox>
       </VBox>
 
@@ -109,9 +107,10 @@
         <VBox spacing="6" styleClass="bank-flow-step,bank-flow-orange"><HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="flowReviewIcon" styleClass="bank-flow-icon"/><Label text="2  Review Statement" styleClass="bank-flow-step-title"/></HBox><Label text="Review transactions and DSE ERP suggestions before posting." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
         <Label text="↓" styleClass="bank-flow-arrow"/>
         <HBox spacing="7">
-          <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="bank-flow-step,bank-flow-green"><Label text="3A  Match" styleClass="bank-flow-step-title"/><Label text="Create Bank Entry + payment allocation to Sales / Purchase." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
-          <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="bank-flow-step,bank-flow-purple"><Label text="3B  Expense" styleClass="bank-flow-step-title"/><Label text="Move an unmatched debit to the existing Expense Entry screen." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
+          <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="bank-flow-step,bank-flow-green"><Label text="3A  Match" styleClass="bank-flow-step-title"/><Label text="Allocate bank money to an open Sales / Purchase document." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
+          <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="bank-flow-step,bank-flow-purple"><Label text="3B  Expense" styleClass="bank-flow-step-title"/><Label text="Create a real Expense Entry from an unmatched debit." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
         </HBox>
+        <VBox spacing="6" styleClass="bank-flow-step,bank-flow-blue"><Label text="3C  Bank Entry" styleClass="bank-flow-step-title"/><Label text="Create a real Bank Entry from the selected statement transaction." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
         <Label text="↓" styleClass="bank-flow-arrow"/>
         <VBox spacing="6" styleClass="bank-flow-step,bank-flow-blue"><HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="flowAuditIcon" styleClass="bank-flow-icon"/><Label text="4  Audit Trail &amp; Evidence" styleClass="bank-flow-step-title"/></HBox><Label text="Imported bank evidence remains retained with complete reconciliation history." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
         <VBox spacing="8" styleClass="bank-recon-status-guide">
