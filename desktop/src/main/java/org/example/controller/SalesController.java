@@ -394,7 +394,13 @@ public class SalesController {
         });
         customerSearchDebounce.setOnFinished(event -> searchCustomers(cmbCustomer.getEditor().getText()));
         cmbCustomer.getEditor().textProperty().addListener((obs, oldText, text) -> {
-            if (!updatingCustomerSearch && cmbCustomer.getEditor().isFocused()) customerSearchDebounce.playFromStart();
+            if (updatingCustomerSearch || !cmbCustomer.getEditor().isFocused()) return;
+            Party committed = cmbCustomer.getValue();
+            if (committed != null && customerDisplay(committed).equalsIgnoreCase(safeParty(text))) {
+                customerSearchDebounce.stop();
+                return;
+            }
+            customerSearchDebounce.playFromStart();
         });
         cmbCustomer.showingProperty().addListener((obs, oldValue, showing) -> {
             if (showing && cmbCustomer.getItems().isEmpty()) searchCustomers("");
@@ -405,6 +411,15 @@ public class SalesController {
             // edit selections. During that re-bind the saved invoice addresses
             // must not be replaced by today's master-data address.
             if (loadingSaleForEdit && editingSale != null) return;
+            if (customer != null) {
+                customerSearchDebounce.stop();
+                UiTaskExecutor.cancel("create-sale-customer-search");
+                updatingCustomerSearch = true;
+                try {
+                    String display = customerDisplay(customer);
+                    if (!display.equals(cmbCustomer.getEditor().getText())) cmbCustomer.getEditor().setText(display);
+                } finally { updatingCustomerSearch = false; }
+            }
             if (customer == null) {
                 if (cmbCustomer.isEditable() && cmbCustomer.getEditor().isFocused() && !cmbCustomer.getEditor().getText().isBlank()) return;
                 txtBillingAddress.clear();
@@ -662,7 +677,9 @@ public class SalesController {
                 Party selected = cmbCustomer.getValue();
                 updatingCustomerSearch = true;
                 try {
-                    cmbCustomer.getItems().setAll(customers);
+                    java.util.List<Party> stable = new java.util.ArrayList<>(customers);
+                    if (selected != null && stable.stream().noneMatch(party -> party.getId() == selected.getId())) stable.add(0, selected);
+                    cmbCustomer.getItems().setAll(stable);
                     if (selected != null) cmbCustomer.getItems().stream().filter(party -> party.getId() == selected.getId()).findFirst().ifPresent(cmbCustomer::setValue);
                 } finally { updatingCustomerSearch = false; }
                 if (!customers.isEmpty() && cmbCustomer.getEditor().isFocused() && !cmbCustomer.isShowing()) cmbCustomer.show();
@@ -771,7 +788,7 @@ public class SalesController {
     private void addCustomer() {
         try {
             FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
-            Parent root = loader.load();
+            Parent root = loader.load(); org.example.util.ProfessionalUiEnhancer.enhance(root);
             loader.<PartyDialogController>getController().configure("CUSTOMER", null);
             Stage dialog = new Stage();
             PlatformUiSupport.configureDialogStage(dialog, cmbCustomer, "Add Customer", true);

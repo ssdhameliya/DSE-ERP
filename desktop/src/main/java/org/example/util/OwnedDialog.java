@@ -3,6 +3,7 @@ package org.example.util;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogEvent;
 import javafx.stage.Modality;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
@@ -21,12 +22,12 @@ public class OwnedDialog<R> extends Dialog<R> {
         } else {
             initModality(Modality.APPLICATION_MODAL);
         }
-        setOnShown(event -> Platform.runLater(() -> {
+        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> {
             if (getDialogPane().getScene() != null) {
                 ThemeManager.applyTheme(getDialogPane().getScene());
                 PlatformUiSupport.installResponsiveClasses(getDialogPane().getScene());
             }
-            IconFactory.decorate(getDialogPane());
+            ProfessionalUiEnhancer.enhance(getDialogPane());
             DialogActionStyler.style(getDialogPane());
         }));
     }

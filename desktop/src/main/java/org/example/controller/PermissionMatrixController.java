@@ -5,6 +5,7 @@ import javafx.collections.*;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import org.example.util.OwnedAlert;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import org.example.api.admin.AdminApiClient;
 import org.example.util.IconFactory;
@@ -86,7 +87,7 @@ public class PermissionMatrixController {
     @FXML private void revokeAll(){if(!"ADMIN".equalsIgnoreCase(cmbRole.getValue()))visibleRows.forEach(x->x.allowed.set(false));update();}
     @FXML private void back(){DashboardController.navigateFromChildPage("Role Management","/fxml/pages/RoleManagement.fxml");}
     private void update(){long g=visibleRows.stream().filter(x->x.allowed.get()).count();lblGranted.setText(String.valueOf(g));lblDenied.setText(String.valueOf(visibleRows.size()-g));}
-    private void showError(Exception e){new Alert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
+    private void showError(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     private static String displayModule(String v){return v==null?"":v.replace('_',' ').toUpperCase(Locale.ROOT);}
     private static String displayAction(String v){return v==null?"":Arrays.stream(v.toLowerCase(Locale.ROOT).split("_")).map(x->x.isBlank()?x:Character.toUpperCase(x.charAt(0))+x.substring(1)).reduce((a,b)->a+" "+b).orElse("");}
     public static class Row{final long id;final StringProperty module=new SimpleStringProperty(),action=new SimpleStringProperty(),description=new SimpleStringProperty();final BooleanProperty allowed=new SimpleBooleanProperty();Row(long i,String m,String a,String d,boolean x){id=i;module.set(m);action.set(a);description.set(d==null?"":d);allowed.set(x);}}

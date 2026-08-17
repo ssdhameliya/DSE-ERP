@@ -199,7 +199,7 @@ public class ItemMasterController {
             URL url = org.example.util.ResourceLocator.require("/fxml/pages/Itemdialog.fxml");
             if (url == null) throw new RuntimeException("Itemdialog.fxml not found");
             FXMLLoader loader = new FXMLLoader(url);
-            Parent root = loader.load();
+            Parent root = loader.load(); org.example.util.ProfessionalUiEnhancer.enhance(root);
             ItemDialogController controller = loader.getController();
             if (item != null) controller.setItem(item);
             Stage stage = new Stage();

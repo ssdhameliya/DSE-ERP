@@ -91,6 +91,7 @@ public class OperationsController {
     @FXML private void openUserRegistration() {
         try {
             Parent root = FXMLLoader.load(org.example.util.ResourceLocator.require("/fxml/pages/UserDialog.fxml"));
+            org.example.util.ProfessionalUiEnhancer.enhance(root);
             Stage stage = new Stage();
             PlatformUiSupport.configureDialogStage(stage, tabs, "Add User", true);
             Scene scene = new Scene(root);

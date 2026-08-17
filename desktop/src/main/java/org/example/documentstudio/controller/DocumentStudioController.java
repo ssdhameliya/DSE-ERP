@@ -108,7 +108,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files", "*.pdf"));
         var file = chooser.showOpenDialog(root.getScene().getWindow());
         if (file == null) return;
-        TextInputDialog nameDialog = new TextInputDialog(stripExtension(file.getName()));
+        TextInputDialog nameDialog = new org.example.util.OwnedTextInputDialog(stripExtension(file.getName()));
         nameDialog.setTitle("Document Name");
         nameDialog.setHeaderText("Import as a general editable PDF");
         nameDialog.setContentText("Document name:");
@@ -124,7 +124,7 @@ public class DocumentStudioController implements ScreenLifecycle {
 
     @FXML
     private void createBlank() {
-        TextInputDialog nameDialog = new TextInputDialog("Untitled Document");
+        TextInputDialog nameDialog = new org.example.util.OwnedTextInputDialog("Untitled Document");
         nameDialog.setTitle("Blank PDF");
         nameDialog.setHeaderText("Create a blank A4 PDF document");
         nameDialog.setContentText("Document name:");
@@ -140,7 +140,7 @@ public class DocumentStudioController implements ScreenLifecycle {
     @FXML
     private void createErpTemplate() {
         List<DocumentType> erpTypes = Arrays.stream(DocumentType.values()).filter(DocumentType::isErpConnected).toList();
-        ChoiceDialog<DocumentType> typeDialog = new ChoiceDialog<>(DocumentType.PURCHASE_INVOICE, erpTypes);
+        ChoiceDialog<DocumentType> typeDialog = new org.example.util.OwnedChoiceDialog<>(DocumentType.PURCHASE_INVOICE, erpTypes);
         typeDialog.setTitle("ERP Document Template");
         typeDialog.setHeaderText("Choose the ERP document type");
         typeDialog.setContentText("Document type:");
@@ -148,7 +148,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         if (selectedType.isEmpty()) return;
         DocumentType type = selectedType.get();
 
-        ChoiceDialog<String> sourceDialog = new ChoiceDialog<>("Import Existing PDF", "Import Existing PDF", "Start Blank A4");
+        ChoiceDialog<String> sourceDialog = new org.example.util.OwnedChoiceDialog<>("Import Existing PDF", "Import Existing PDF", "Start Blank A4");
         sourceDialog.setTitle("Template Source");
         sourceDialog.setHeaderText("How would you like to start " + type.label() + "?");
         sourceDialog.setContentText("Start from:");
@@ -206,7 +206,7 @@ public class DocumentStudioController implements ScreenLifecycle {
     }
 
     private Optional<String> askPdfPassword(String title, String header, String message) {
-        Dialog<String> dialog = new Dialog<>();
+        Dialog<String> dialog = new org.example.util.OwnedDialog<>();
         dialog.setTitle(title);
         dialog.setHeaderText(header);
         ButtonType unlock = new ButtonType("Unlock & Import", ButtonBar.ButtonData.OK_DONE);
@@ -224,7 +224,7 @@ public class DocumentStudioController implements ScreenLifecycle {
     }
 
     private String askName(String initial, String type) {
-        TextInputDialog dialog = new TextInputDialog(initial);
+        TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial);
         dialog.setTitle("Template Name");
         dialog.setHeaderText("Name your " + type + " template");
         dialog.setContentText("Template name:");

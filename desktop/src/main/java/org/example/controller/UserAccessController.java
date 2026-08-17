@@ -147,7 +147,7 @@ public class UserAccessController {
     @FXML private void addUser(){openUserDialog(null);} @FXML private void editSelected(){edit(table.getSelectionModel().getSelectedItem());}
     private void edit(UserRow row){if(row!=null)openUserDialog(row.id);}
     private void openUserDialog(Integer userId){
-        try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/UserDialog.fxml"));Parent root=loader.load();UserDialogController controller=loader.getController();if(userId!=null)controller.editUser(userId);
+        try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/UserDialog.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);UserDialogController controller=loader.getController();if(userId!=null)controller.editUser(userId);
             Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage, table, userId==null?"Add New User":"Edit User", true);Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.setMinWidth(860);stage.setMinHeight(620);stage.showAndWait();refresh();}
         catch(Exception e){error("User form could not be opened",e);}
     }

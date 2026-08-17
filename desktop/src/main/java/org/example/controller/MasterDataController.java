@@ -890,6 +890,7 @@ public class MasterDataController implements ScreenLifecycle {
         String title
     ) {
 
+        org.example.util.ProfessionalUiEnhancer.enhance(root);
         Stage stage = new Stage();
 
         PlatformUiSupport.configureDialogStage(stage, tblLookup, title, false);

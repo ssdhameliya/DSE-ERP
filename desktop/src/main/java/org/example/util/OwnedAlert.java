@@ -2,6 +2,7 @@ package org.example.util;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
+import javafx.scene.control.DialogEvent;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Modality;
@@ -25,12 +26,12 @@ public class OwnedAlert extends Alert {
         if (PlatformUiSupport.isMac()) initStyle(StageStyle.UTILITY);
         if (owner != null) { initOwner(owner); initModality(Modality.WINDOW_MODAL); }
         else initModality(Modality.APPLICATION_MODAL);
-        setOnShown(event -> Platform.runLater(() -> {
+        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> {
             if (getDialogPane().getScene() != null) {
                 ThemeManager.applyTheme(getDialogPane().getScene());
                 PlatformUiSupport.installResponsiveClasses(getDialogPane().getScene());
             }
-            IconFactory.decorate(getDialogPane());
+            ProfessionalUiEnhancer.enhance(getDialogPane());
             String shownSemantic = inferSemantic();
             StackPane shownGraphic = new StackPane(SemanticIconManager.compact(shownSemantic, 24));
             shownGraphic.getStyleClass().addAll("alert-semantic-icon", "alert-semantic-" + shownSemantic);

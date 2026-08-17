@@ -776,7 +776,7 @@ public class PurchaseController {
     private void addSupplier() {
         try {
             FXMLLoader loader = new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
-            Parent root = loader.load();
+            Parent root = loader.load(); org.example.util.ProfessionalUiEnhancer.enhance(root);
             loader.<PartyDialogController>getController().configure("SUPPLIER", null);
             Stage dialog = new Stage();
             PlatformUiSupport.configureDialogStage(dialog, cmbSupplier, "Add Supplier", true);

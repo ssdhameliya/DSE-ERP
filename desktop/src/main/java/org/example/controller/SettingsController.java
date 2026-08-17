@@ -342,6 +342,7 @@ public class SettingsController implements ScreenLifecycle {
             loader.setController(this);
             fragmentLoading = true;
             VBox panel = loader.load();
+            org.example.util.ProfessionalUiEnhancer.enhance(panel);
             loadedPanels.put(section, panel);
             initializeLoadedSection(section);
             return panel;

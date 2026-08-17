@@ -205,21 +205,32 @@ public final class IconFactory {
         String text = clean(label.getText());
         if (text.isBlank()) return;
         String styles = String.join(" ", label.getStyleClass()).toLowerCase(Locale.ROOT);
+        boolean fieldCaptionStyle = styles.contains("field-caption");
         if (styles.contains("erp-table-header-label") || styles.contains("page-title") || styles.contains("screen-title")
                 || styles.contains("metric-value") || styles.contains("metric-note")
-                || styles.contains("subtitle") || styles.contains("description") || styles.contains("caption")
+                || styles.contains("subtitle") || styles.contains("description")
+                || (styles.contains("caption") && !fieldCaptionStyle)
                 || styles.contains("help") || styles.contains("placeholder") || styles.contains("error")) return;
-        boolean panelTitleStyle = styles.contains("section-title") || styles.contains("approved-card-title") || styles.contains("backup-section-title")
+        boolean panelTitleStyle = styles.contains("section-title") || styles.contains("card-title")
+                || styles.contains("panel-title") || styles.contains("subsection-title")
+                || styles.contains("drawer-section") || styles.contains("summary-title")
+                || styles.contains("history-title") || styles.contains("attachment-title")
+                || styles.contains("approved-card-title") || styles.contains("backup-section-title")
                 || styles.contains("safe-rollback-section-title") || styles.contains("setup-section-title")
                 || styles.contains("purchase-section-title") || styles.contains("finance-section-title")
-                || styles.contains("dialog-section-title") || styles.contains("backup-step-title");
+                || styles.contains("dialog-section-title") || styles.contains("backup-step-title")
+                || styles.contains("doc-studio-section-title") || styles.contains("settings-section-title")
+                || styles.contains("settings-subsection-title") || styles.contains("bank-recon-how-title")
+                || styles.contains("bank-flow-step-title") || styles.contains("section-accent-title");
         boolean fieldStyle = styles.contains("field-label") || styles.contains("form-label") || styles.contains("filter-label")
                 || styles.contains("meta-label") || styles.contains("detail-label") || styles.contains("field-caption")
-                || styles.contains("inline-label") || label.getParent() instanceof GridPane
+                || styles.contains("inline-label") || styles.contains("field-blue") || styles.contains("field-orange")
+                || styles.contains("field-cyan") || styles.contains("field-green") || styles.contains("field-red")
+                || styles.contains("location-label") || isGridFieldLabel(label)
                 || isStructurallyPairedFieldLabel(label);
         if (!fieldStyle && !panelTitleStyle) return;
         String semantic = semanticForLabel(text);
-        if (semantic == null) return;
+        if (semantic == null) semantic = panelTitleStyle ? "document" : "identity";
         Node graphic = compactIcon(semantic, panelTitleStyle ? 14 : 13);
         graphic.getStyleClass().add("erp-field-label-icon");
         label.setGraphic(graphic);
@@ -232,6 +243,21 @@ public final class IconFactory {
      * Recognizes direct label/input pairs used throughout ordinary pages and
      * programmatic Add/Edit dialogs even when no field-label style class exists.
      */
+    /** Recognizes label/input pairs placed directly in the same GridPane row. */
+    private static boolean isGridFieldLabel(Label label) {
+        Parent parent = label == null ? null : label.getParent();
+        if (!(parent instanceof GridPane grid)) return false;
+        Integer rowIndex = GridPane.getRowIndex(label);
+        int row = rowIndex == null ? 0 : rowIndex;
+        for (Node sibling : grid.getChildren()) {
+            if (sibling == label || !isFieldInput(sibling)) continue;
+            Integer siblingRowIndex = GridPane.getRowIndex(sibling);
+            int siblingRow = siblingRowIndex == null ? 0 : siblingRowIndex;
+            if (siblingRow == row) return true;
+        }
+        return false;
+    }
+
     private static boolean isStructurallyPairedFieldLabel(Label label) {
         Parent parent = label == null ? null : label.getParent();
         if (!(parent instanceof VBox || parent instanceof HBox)) return false;
@@ -263,9 +289,11 @@ public final class IconFactory {
 
     private static void decorateMenuItems(MenuButton menu) {
         for (MenuItem item : menu.getItems()) {
-            String semantic = semantic(item.getText());
+            String label = clean(item.getText());
+            String semantic = semantic(label);
+            if (semantic == null && !label.isBlank()) semantic = "document";
             if (semantic == null) continue;
-            item.setText(clean(item.getText()));
+            item.setText(label);
             if (item.getGraphic() == null || Boolean.TRUE.equals(item.getProperties().get("erp.icon.decorated"))) {
                 item.setGraphic(actionIcon(semantic, 16));
                 item.getProperties().put("erp.icon.decorated", true);
@@ -642,12 +670,13 @@ public final class IconFactory {
         if (value.contains("port")) return "reference";
         if (value.contains("repository owner")) return "user";
         if (value.contains("repository name") || value.contains("repository")) return "link";
-        if (value.contains("transporter")) return "delivery";
+        if (value.contains("warehouse")) return "inventory";
+        if (value.contains("contact person")) return "user";
         if (value.contains("vehicle")) return "delivery";
-        if (value.contains("contact person")) return "customer";
+        if (value.contains("source file")) return "folder";
+        if (value.contains("transporter")) return "delivery";
         if (value.contains("priority")) return "warning";
         if (value.contains("title")) return "document";
-        if (value.contains("source file")) return "folder";
         if (value.contains("sha-256") || value.contains("sha256") || value.contains("sha-56") || value.contains("checksum")) return "validate";
         if (value.contains("party code")) return "reference";
         if (value.equals("number") || value.endsWith(" number") || value.contains("no.")) return "reference";

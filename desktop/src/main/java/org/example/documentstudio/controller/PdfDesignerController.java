@@ -241,7 +241,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     }
 
     @FXML private void addHeading() {
-        TextInputDialog dialog = new TextInputDialog(defaultHeading());
+        TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(defaultHeading());
         dialog.setTitle("Add Heading");
         dialog.setHeaderText("Add a heading to the document");
         dialog.setContentText("Heading:");
@@ -255,7 +255,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     }
 
     @FXML private void addText() {
-        TextInputDialog dialog = new TextInputDialog("New Text");
+        TextInputDialog dialog = new org.example.util.OwnedTextInputDialog("New Text");
         dialog.setTitle("Add Text");
         dialog.setHeaderText("Add text to the PDF template");
         dialog.setContentText("Text:");
@@ -769,7 +769,7 @@ public class PdfDesignerController implements ScreenLifecycle {
                 .filter(type -> type != DocumentType.GENERAL_PDF)
                 .toList();
         DocumentType initial = template.getDocumentType().isGeneral() ? DocumentType.PURCHASE_INVOICE : template.getDocumentType();
-        ChoiceDialog<DocumentType> dialog = new ChoiceDialog<>(initial, choices);
+        ChoiceDialog<DocumentType> dialog = new org.example.util.OwnedChoiceDialog<>(initial, choices);
         dialog.setTitle("Connect ERP Data");
         dialog.setHeaderText(template.getDocumentType().isGeneral() ? "Turn this PDF into a reusable ERP template" : "Change the ERP document type");
         dialog.setContentText("Document type:");

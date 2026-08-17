@@ -55,9 +55,11 @@ public final class ProfessionalUiEnhancer {
             while (change.next()) {
                 if (!change.wasAdded()) continue;
                 for (Node added : change.getAddedSubList()) {
-                    walk(added);
-                    IconFactory.decorate(added);
-                    TablePerformanceOptimizer.apply(added);
+                    // Route dynamic content through the same idempotent entry point.
+                    // Cached/navigation pages are already marked erp-ui-enhanced and
+                    // therefore return immediately instead of being recursively walked
+                    // again each time they are attached to the dashboard content pane.
+                    enhance(added);
                 }
             }
         });
