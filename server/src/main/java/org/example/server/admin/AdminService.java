@@ -2,6 +2,7 @@ package org.example.server.admin;
 
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
+import org.example.server.util.BusinessClock;
 import org.example.server.security.TokenService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,11 +30,11 @@ public class AdminService {
     @Transactional(readOnly = true)
     public List<AdminDtos.UserDto> users() {
         return jdbc.query("SELECT u.id,u.username,u.full_name,u.email,COALESCE(r.role_name,u.role,'SALES')," +
-                        "u.department,u.access_level,u.branch,u.active,u.locked,u.mfa_enabled,u.last_login " +
+                        "u.department,u.access_level,u.branch,u.active,u.locked,u.mfa_enabled,COALESCE(NULLIF(u.last_login_utc,''),CAST(u.last_login AS text)) " +
                         "FROM users u LEFT JOIN roles r ON r.id=u.role_id ORDER BY u.full_name,u.username",
                 (row, index) -> new AdminDtos.UserDto(row.getInt(1), row.getString(2), row.getString(3), row.getString(4),
                         row.getString(5), row.getString(6), row.getString(7), row.getString(8), flag(row.getObject(9)),
-                        flag(row.getObject(10)), flag(row.getObject(11)), Objects.toString(row.getObject(12), "")));
+                        flag(row.getObject(10)), flag(row.getObject(11)), BusinessClock.toUtcText(row.getObject(12))));
     }
 
     @Transactional(readOnly = true)
@@ -150,8 +151,8 @@ public class AdminService {
 
     @Transactional
     public void audit(AdminDtos.AuditRequest request) {
-        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by) VALUES('USER',?,?,?,?)",
-                request.userId(), request.action(), request.detail(), CurrentUser.require().username());
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
+                request.userId(), request.action(), request.detail(), CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
     private static String role(String value) {

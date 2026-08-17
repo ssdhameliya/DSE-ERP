@@ -2,6 +2,7 @@ package org.example.server.runtime;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.example.shared.RuntimeContract;
+import org.example.server.util.BusinessClock;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,6 +34,8 @@ public class RuntimeController {
             result.put("version", version);
             result.put("apiRevision", apiRevision);
             result.put("database", "postgresql");
+            result.put("databaseTimeZone", runtimeService.databaseTimeZone());
+            addBusinessTime(result);
             result.put("message", ready ? "READY" : "Database health check failed");
         } catch (Exception exception) {
             result.put("ready", false);
@@ -40,8 +43,18 @@ public class RuntimeController {
             result.put("version", version);
             result.put("apiRevision", apiRevision);
             result.put("database", "postgresql");
+            result.put("databaseTimeZone", "unavailable");
+            addBusinessTime(result);
             result.put("message", "Database unavailable: " + exception.getMessage());
         }
         return result;
     }
+    private static void addBusinessTime(Map<String, Object> result) {
+        result.put("businessZone", BusinessClock.zone().getId());
+        result.put("businessDate", BusinessClock.today().toString());
+        result.put("utcTime", BusinessClock.nowUtcText());
+        result.put("dateFormat", BusinessClock.datePattern());
+        result.put("timePolicy", "ISO_DATE_UTC_INSTANT");
+    }
+
 }

@@ -1,2 +1,2 @@
-invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,remarks
-INV001,2026-07-20,1,1000,180,1180,Sample invoice
+invoice_no,invoice_date,party_code,item_code,quantity,rate,gst_percent,gst_type,payment_terms,paid_amount,remarks,charge_1_type,charge_1_amount,charge_1_taxable,charge_1_gst_percent,charge_2_type,charge_2_amount,charge_2_taxable,charge_2_gst_percent,attachment_file
+SAL-GST-0001,2026-08-17,CUS-0001,ITEM-0001,2,1500,18,GST,15 Days,0,Sample sale with optional charges,Freight,250,true,18,Packing,100,false,0,

@@ -2,6 +2,7 @@ package org.example.server.support;
 
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
+import org.example.server.util.BusinessClock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,8 +38,10 @@ public class PaymentIntegrityService {
                 request.documentId());
         if (rows.isEmpty()) throw new IllegalArgumentException(type.label + " document was not found");
         Target target = rows.getFirst();
-        if ("CANCELLED".equalsIgnoreCase(target.status))
-            throw new IllegalStateException("Payments cannot be recorded against a cancelled document");
+        if (inactive(target.status))
+            throw new IllegalStateException("Payments cannot be recorded against a deleted or cancelled document");
+        if (type == DocumentType.PURCHASE && purchaseLifecycleLocked(target.status))
+            throw new IllegalStateException("Draft or returned purchases cannot receive ordinary payments. Post the draft or resolve the Purchase Return first.");
         BigDecimal outstanding = target.total.subtract(target.paid).setScale(2, RoundingMode.HALF_UP);
         if (outstanding.compareTo(ZERO) <= 0) throw new IllegalStateException("This document is already fully paid");
         if (amount.compareTo(outstanding) > 0)
@@ -50,8 +53,8 @@ public class PaymentIntegrityService {
                 clean(request.receivedFrom()), clean(request.paymentType()), clean(request.attachment()), CurrentUser.require().username());
         BigDecimal paid = target.paid.add(amount).setScale(2, RoundingMode.HALF_UP);
         String status = paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
-        if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                paid, status, request.documentId()) != 1) throw new IllegalStateException("Payment target changed while saving");
+        if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=? WHERE id=?",
+                paid, status, BusinessClock.nowUtcText(), request.documentId()) != 1) throw new IllegalStateException("Payment target changed while saving");
     }
 
     @Transactional
@@ -87,8 +90,10 @@ public class PaymentIntegrityService {
                 existing.documentId);
         if (targetRows.isEmpty()) throw new IllegalArgumentException(existing.type.label + " document was not found");
         Target target = targetRows.getFirst();
-        if ("CANCELLED".equalsIgnoreCase(target.status))
-            throw new IllegalStateException("Payments cannot be edited against a cancelled document");
+        if (inactive(target.status))
+            throw new IllegalStateException("Payments cannot be edited against a deleted or cancelled document");
+        if (existing.type == DocumentType.PURCHASE && purchaseLifecycleLocked(target.status))
+            throw new IllegalStateException("Payments cannot be edited while the Purchase is Draft or has an active Purchase Return.");
 
         BigDecimal otherPaid = jdbc.queryForObject(
                 "SELECT COALESCE(SUM(amount),0) FROM payment_record WHERE document_type=? AND document_id=? AND id<>?",
@@ -116,16 +121,16 @@ public class PaymentIntegrityService {
                 : paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
 
         if (jdbc.update("UPDATE " + existing.type.table +
-                        " SET paid_amount=?,payment_status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                paid, status, existing.documentId) != 1) {
+                        " SET paid_amount=?,payment_status=?,updated_at=? WHERE id=?",
+                paid, status, BusinessClock.nowUtcText(), existing.documentId) != 1) {
             throw new IllegalStateException("Payment target changed while saving");
         }
 
         BigDecimal difference = newAmount.subtract(existing.amount).setScale(2, RoundingMode.HALF_UP);
         String detail = "Payment #" + paymentId + " edited; old amount=" + existing.amount.toPlainString()
                 + "; new amount=" + newAmount.toPlainString() + "; difference=" + difference.toPlainString();
-        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by) VALUES(?,?,?,?,?)",
-                existing.type.name(), existing.documentId, "PAYMENT_EDITED", detail, CurrentUser.require().username());
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES(?,?,?,?,?,?)",
+                existing.type.name(), existing.documentId, "PAYMENT_EDITED", detail, CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
     private static BigDecimal money(double value) {
@@ -152,6 +157,16 @@ public class PaymentIntegrityService {
 
     private static String clean(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static boolean inactive(String value) {
+        String status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        return status.equals("CANCELLED") || status.equals("DELETED");
+    }
+
+    private static boolean purchaseLifecycleLocked(String value) {
+        String status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        return status.equals("DRAFT") || status.equals("RETURNED");
     }
 
     private record Target(BigDecimal total, BigDecimal paid, String status) {

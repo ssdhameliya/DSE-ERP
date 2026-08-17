@@ -12,6 +12,7 @@ import org.example.documentstudio.model.*;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.example.documentstudio.service.PdfPermissionException;
 import org.example.documentstudio.service.PdfTemplateRenderer;
+import org.example.documentstudio.service.DocumentFlowRegistry;
 import org.example.documentstudio.service.TemplateStorageService;
 import org.example.documentstudio.util.PdfPreviewSupport;
 import org.example.navigation.ScreenLifecycle;
@@ -72,10 +73,12 @@ public class DocumentStudioController implements ScreenLifecycle {
         lblTotal.setText(Integer.toString(all.size()));
         lblActive.setText(Long.toString(all.stream().filter(t -> t.getStatus() == TemplateStatus.ACTIVE).count()));
         String purchase = TemplateStorageService.defaultFor(DocumentType.PURCHASE_INVOICE)
-                .map(DocumentTemplate::getName).orElse("Built-in Purchase");
+                .map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.PURCHASE_INVOICE));
+        String purchaseReturn = TemplateStorageService.defaultFor(DocumentType.PURCHASE_RETURN)
+                .map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.PURCHASE_RETURN));
         String quotation = TemplateStorageService.defaultFor(DocumentType.QUOTATION)
-                .map(DocumentTemplate::getName).orElse("Built-in Quotation");
-        lblPurchaseDefault.setText("Purchase: " + purchase + "   •   Quotation: " + quotation);
+                .map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.QUOTATION));
+        lblPurchaseDefault.setText("Purchase: " + purchase + "   •   Purchase Return: " + purchaseReturn + "   •   Quotation: " + quotation);
         applyFilters();
     }
 
@@ -248,8 +251,10 @@ public class DocumentStudioController implements ScreenLifecycle {
         identity.getChildren().addAll(category, type);
 
         HBox badges = new HBox(6);
+        boolean automatic = DocumentFlowRegistry.isAutomatic(template.getDocumentType());
         badges.getChildren().add(badge(template.getStatus().name(), "doc-template-status-" + template.getStatus().name().toLowerCase()));
-        if (template.isDefaultTemplate()) badges.getChildren().add(badge("★ DEFAULT", "doc-template-default"));
+        badges.getChildren().add(badge(automatic ? "AUTOMATIC" : "DESIGN ONLY", automatic ? "doc-template-status-active" : "doc-template-version"));
+        if (automatic && template.isDefaultTemplate()) badges.getChildren().add(badge("★ DEFAULT", "doc-template-default"));
         badges.getChildren().add(badge("v" + template.getVersion(), "doc-template-version"));
 
         HBox actions = new HBox(7);
@@ -257,7 +262,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         Button previewButton = new Button("Preview"); previewButton.setOnAction(e -> previewTemplate(template));
         MenuButton more = new MenuButton("Actions");
         MenuItem setDefault = new MenuItem("Set as Default");
-        setDefault.setDisable(!template.isErpConnected()); setDefault.setOnAction(e -> setDefault(template));
+        setDefault.setDisable(!DocumentFlowRegistry.isAutomatic(template.getDocumentType())); setDefault.setOnAction(e -> setDefault(template));
         MenuItem duplicate = new MenuItem("Duplicate"); duplicate.setOnAction(e -> duplicate(template));
         MenuItem archive = new MenuItem(template.getStatus() == TemplateStatus.ARCHIVED ? "Keep Archived" : "Archive");
         archive.setDisable(template.getStatus() == TemplateStatus.ARCHIVED); archive.setOnAction(e -> archive(template));
@@ -299,8 +304,9 @@ public class DocumentStudioController implements ScreenLifecycle {
     }
 
     private void setDefault(DocumentTemplate template) {
-        if (!template.isErpConnected()) {
-            ModernDialog.info(root, "General PDF", "No default ERP binding", "General PDF documents are saved/exported directly and are not used as automatic ERP templates.");
+        if (!DocumentFlowRegistry.isAutomatic(template.getDocumentType())) {
+            ModernDialog.info(root, "Design-only template", "No automatic ERP binding",
+                    template.getDocumentType().label() + " can be designed and previewed, but it is not connected to a live automatic document flow yet.");
             return;
         }
         try {

@@ -4,12 +4,34 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+
+import java.time.DateTimeException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<AuthDtos.OperationResponse> badRequest(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
+    }
+
+
+    @ExceptionHandler(DateTimeException.class)
+    ResponseEntity<AuthDtos.OperationResponse> invalidDateTime(DateTimeException ex) {
+        return ResponseEntity.badRequest().body(new AuthDtos.OperationResponse(false,
+                "Invalid date/time value. DSE ERP APIs use ISO dates (yyyy-MM-dd) and UTC/offset timestamps."));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<AuthDtos.OperationResponse> unreadableRequest(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(new AuthDtos.OperationResponse(false,
+                "Invalid request data. Check date/time values and try again."));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    ResponseEntity<AuthDtos.OperationResponse> conflict(IllegalStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
     }
 
     @ExceptionHandler(SecurityException.class)

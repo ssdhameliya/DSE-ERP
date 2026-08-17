@@ -162,7 +162,7 @@ public class ImportController {
         "is_active"
     );
 
-    private static final List<String> DOCUMENT_FIELDS = List.of(
+    private static final List<String> PURCHASE_DOCUMENT_FIELDS = List.of(
         "invoice_no",
         "invoice_date",
         "party_code",
@@ -174,6 +174,30 @@ public class ImportController {
         "payment_terms",
         "paid_amount",
         "remarks"
+    );
+
+    /** Sales-only optional invoice-level fields extend the existing import contract without changing Purchases. */
+    private static final List<String> SALES_DOCUMENT_FIELDS = List.of(
+        "invoice_no",
+        "invoice_date",
+        "party_code",
+        "item_code",
+        "quantity",
+        "rate",
+        "gst_percent",
+        "gst_type",
+        "payment_terms",
+        "paid_amount",
+        "remarks",
+        "charge_1_type",
+        "charge_1_amount",
+        "charge_1_taxable",
+        "charge_1_gst_percent",
+        "charge_2_type",
+        "charge_2_amount",
+        "charge_2_taxable",
+        "charge_2_gst_percent",
+        "attachment_file"
     );
 
     private static final List<String> MASTER_FIELDS = List.of(
@@ -337,7 +361,8 @@ public class ImportController {
         return switch (module) {
             case "Customers/CRM" -> CUSTOMER_FIELDS;
             case "Suppliers/HRM" -> SUPPLIER_FIELDS;
-            case "Sales", "Purchases" -> DOCUMENT_FIELDS;
+            case "Sales" -> SALES_DOCUMENT_FIELDS;
+            case "Purchases" -> PURCHASE_DOCUMENT_FIELDS;
             case "Master Categories and Values" -> MASTER_FIELDS;
             case "Bank Statement" -> BANK_STATEMENT_FIELDS;
             default -> ITEM_FIELDS;
@@ -402,11 +427,15 @@ public class ImportController {
                  "minimum_stock",
                  "opening_balance",
                  "paid_amount",
+                 "charge_1_amount",
+                 "charge_1_gst_percent",
+                 "charge_2_amount",
+                 "charge_2_gst_percent",
                  "display_order",
                  "amount",
                  "balance" -> "Number";
 
-            case "is_active" -> "Boolean";
+            case "is_active", "charge_1_taxable", "charge_2_taxable" -> "Boolean";
 
             case "email" -> "Email";
 
@@ -566,6 +595,15 @@ public class ImportController {
             case "amount" -> normalizedHeader.equals("amount");
             case "direction" -> normalizedHeader.equals("drcr") || normalizedHeader.equals("debitcredit");
             case "balance" -> normalizedHeader.equals("balance");
+            case "charge1type" -> normalizedHeader.equals("charge1") || normalizedHeader.equals("charge1name") || normalizedHeader.equals("additionalcharge1");
+            case "charge1amount" -> normalizedHeader.equals("charge1value") || normalizedHeader.equals("additionalcharge1amount");
+            case "charge1taxable" -> normalizedHeader.equals("charge1istaxable") || normalizedHeader.equals("charge1tax");
+            case "charge1gstpercent" -> normalizedHeader.equals("charge1gst") || normalizedHeader.equals("charge1gstrate");
+            case "charge2type" -> normalizedHeader.equals("charge2") || normalizedHeader.equals("charge2name") || normalizedHeader.equals("additionalcharge2");
+            case "charge2amount" -> normalizedHeader.equals("charge2value") || normalizedHeader.equals("additionalcharge2amount");
+            case "charge2taxable" -> normalizedHeader.equals("charge2istaxable") || normalizedHeader.equals("charge2tax");
+            case "charge2gstpercent" -> normalizedHeader.equals("charge2gst") || normalizedHeader.equals("charge2gstrate");
+            case "attachmentfile" -> normalizedHeader.equals("attachment") || normalizedHeader.equals("documentfile") || normalizedHeader.equals("attachmentpath");
 
             default -> false;
         };
@@ -1070,7 +1108,11 @@ public class ImportController {
             case "unit" -> "unit";
             case "hsn", "gst", "gst_percent", "gstin", "discount_percent" -> "tax";
             case "quantity", "opening_stock", "minimum_stock" -> "quantity";
-            case "purchase_price", "selling_price", "rate", "amount", "balance", "opening_balance", "paid_amount" -> "currency";
+            case "purchase_price", "selling_price", "rate", "amount", "balance", "opening_balance", "paid_amount",
+                 "charge_1_amount", "charge_2_amount" -> "currency";
+            case "charge_1_type", "charge_2_type" -> "expense";
+            case "charge_1_taxable", "charge_2_taxable", "charge_1_gst_percent", "charge_2_gst_percent" -> "tax";
+            case "attachment_file" -> "attachment";
             case "email" -> "email";
             case "phone" -> "phone";
             case "address", "location" -> "location";
@@ -1094,14 +1136,17 @@ public class ImportController {
                      "address",
                      "remarks",
                      "category_description",
-                     "value_description" -> 220;
+                     "value_description",
+                     "attachment_file" -> 220;
 
                 case "email" -> 190;
 
                 case "name",
                      "contact_person",
                      "category_name",
-                     "value" -> 170;
+                     "value",
+                     "charge_1_type",
+                     "charge_2_type" -> 170;
 
                 case "invoice_no",
                      "party_code",
@@ -2078,7 +2123,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 7.3.12 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 7.3.17 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},
@@ -2259,9 +2304,11 @@ public class ImportController {
         if ("Sales".equals(module)) {
             return List.of(
                 List.of("SAL-GST-0001", BusinessClock.formatDate(BusinessClock.today()), "CUS-0001", "ITEM-0001",
-                    "2", "1500", "18", "GST", "15 Days", "0", "Sample intra-state sale; tax calculated as CGST 9% + SGST 9%"),
+                    "2", "1500", "18", "GST", "15 Days", "0", "Sample intra-state sale with two optional charges",
+                    "Freight", "250", "true", "18", "Packing", "100", "false", "0", ""),
                 List.of("SAL-IGST-0002", BusinessClock.formatDate(BusinessClock.today()), "CUS-0002", "ITEM-0001",
-                    "1", "2000", "18", "IGST", "15 Days", "0", "Sample inter-state sale; tax calculated as IGST 18%")
+                    "1", "2000", "18", "IGST", "15 Days", "0", "Sample inter-state sale; attachment is optional",
+                    "", "", "", "", "", "", "", "", "")
             );
         }
         if ("Purchases".equals(module)) {
@@ -2319,7 +2366,16 @@ public class ImportController {
                     "GST",
                     "15 Days",
                     "0",
-                    "Sample sales invoice"
+                    "Sample sales invoice",
+                    "Freight",
+                    "250",
+                    "true",
+                    "18",
+                    "Packing",
+                    "100",
+                    "false",
+                    "0",
+                    ""
                 );
 
             case "Purchases" ->

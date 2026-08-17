@@ -28,9 +28,6 @@ import org.example.util.IconFactory;
 import java.awt.Desktop;
 import java.nio.file.*;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.concurrent.Callable;
@@ -38,12 +35,6 @@ import java.util.function.Consumer;
 
 public class BackupRestoreController {
     private final SupportApiClient supportApi = new SupportApiClient();
-
-    private static final DateTimeFormatter FILE_TIMESTAMP =
-            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-
-    private static final DateTimeFormatter DISPLAY_TIMESTAMP =
-            DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a");
 
     @FXML private Label lblDatabase;
     @FXML private Label lblStatus;
@@ -668,7 +659,7 @@ public class BackupRestoreController {
     private String formatModified(Path path) {
         try {
             Instant instant = Files.getLastModifiedTime(path).toInstant();
-            return DISPLAY_TIMESTAMP.format(instant.atZone(BusinessClock.zone()));
+            return BusinessClock.formatInstant(instant, "hh:mm a");
         } catch (Exception ignored) {
             return "Unknown";
         }

@@ -35,8 +35,11 @@ import javafx.application.Platform;
 import javafx.scene.Node;
 import org.example.util.IconFactory;
 import org.example.theme.ThemeManager;
+import org.example.config.WorkspaceManager;
 import org.example.util.PlatformUiSupport;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -163,6 +166,7 @@ public class PurchaseController {
     @FXML private TextField txtReference,txtLrAwb,txtDiscount;
     @FXML private Label lblAttachment;
     private File attachment;
+    private boolean attachmentRemoved;
 
 
 
@@ -513,186 +517,138 @@ public class PurchaseController {
 
     @FXML
     private void savePurchase(){ savePurchase("COMPLETED",false,false); }
-    @FXML private void saveDraft(){ savePurchase("DRAFT",false,false); }
+    @FXML private void saveDraft(){
+        if(editingPurchase!=null && !"DRAFT".equalsIgnoreCase(editingPurchase.getDocumentStatus())){
+            new OwnedAlert(Alert.AlertType.INFORMATION,"A posted purchase cannot be moved back to Draft. Use Save to update permitted details.").showAndWait();
+            return;
+        }
+        savePurchase("DRAFT",false,false);
+    }
     @FXML private void saveAndPrint(){ savePurchase("COMPLETED",true,false); }
     @FXML private void saveAndEmail(){ savePurchase("COMPLETED",false,true); }
     private void savePurchase(String documentStatus, boolean print, boolean email){
 
         Purchase purchase = buildPurchase();
-
-        if(purchase == null)
-            return;
+        if(purchase == null) return;
         purchase.setDocumentStatus(documentStatus);
 
+        Path copiedAttachment = null;
+        String oldAttachment = editingPurchase == null ? null : editingPurchase.getAttachmentPath();
+        boolean persisted = false;
         try {
+            if(editingPurchase != null){
+                purchase.setId(editingPurchase.getId());
+            } else if (purchaseService.existsInvoice(purchase.getInvoiceNo())) {
+                // Re-check immediately before saving in case another window used the number.
+                String freshInvoiceNo = purchaseService.nextInvoiceNo();
+                txtInvoiceNo.setText(freshInvoiceNo);
+                purchase.setInvoiceNo(freshInvoiceNo);
+            }
+
+            if (attachment != null) {
+                copiedAttachment = copyManagedPurchaseAttachment(attachment.toPath(), purchase.getInvoiceNo());
+                purchase.setAttachmentPath(WorkspaceManager.getWorkspaceRoot().relativize(copiedAttachment).toString());
+            } else if (attachmentRemoved) {
+                purchase.setAttachmentPath(null);
+            }
 
             if(editingPurchase != null){
-
-                purchase.setId(editingPurchase.getId());
-
                 purchaseService.update(purchase);
-
-                NotificationService.add(
-                    "Purchase "
-                        + purchase.getInvoiceNo()
-                        + " updated"
-                );
-            }
-            else {
-                /*
-                 * A second instance of the screen can remain open while another
-                 * purchase is saved. Re-check the number immediately before the
-                 * insert and advance it if necessary.
-                 */
-                if (purchaseService.existsInvoice(purchase.getInvoiceNo())) {
-                    String freshInvoiceNo = purchaseService.nextInvoiceNo();
-                    txtInvoiceNo.setText(freshInvoiceNo);
-                    purchase.setInvoiceNo(freshInvoiceNo);
-                }
+                NotificationService.add("Purchase " + purchase.getInvoiceNo() + " updated");
+            } else {
                 purchaseService.save(purchase);
-                NotificationService.add(
-                    "Purchase "
-                        + purchase.getInvoiceNo()
-                        + " saved"
-                );
-
+                NotificationService.add("Purchase " + purchase.getInvoiceNo() + " saved");
             }
+            persisted = true;
+            if (copiedAttachment != null || attachmentRemoved) deleteManagedAttachmentQuietly(oldAttachment, copiedAttachment);
+
             if (!org.example.config.ConfigManager.isApiDataEnabled()) saveMetadata(purchase);
             Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
             if(print) java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());
-            if(email){if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())throw new IllegalStateException("Supplier email is missing");EmailService.send(full.getSupplier().getEmail(),"Purchase "+full.getInvoiceNo(),"Please find the purchase document attached.",InvoicePdfService.purchase(full));purchaseService.markEmailSent(full.getId());}
+            if(email){
+                if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())throw new IllegalStateException("Supplier email is missing");
+                EmailService.send(full.getSupplier().getEmail(),"Purchase "+full.getInvoiceNo(),"Please find the purchase document attached.",InvoicePdfService.purchase(full));
+                purchaseService.markEmailSent(full.getId());
+            }
 
-
-            new OwnedAlert(
-                Alert.AlertType.INFORMATION,
-                "Purchase saved successfully"
-            ).showAndWait();
-
-
-
-            NavigationManager.getInstance()
-                .loadPage(
-                    "/fxml/pages/PurchaseList.fxml"
-                );
-
-
+            new OwnedAlert(Alert.AlertType.INFORMATION,"Purchase saved successfully").showAndWait();
+            NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
+        } catch(Exception e){
+            if(!persisted && copiedAttachment != null){try{Files.deleteIfExists(copiedAttachment);}catch(Exception ignored){}}
+            new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
         }
-        catch(Exception e){
-
-            new OwnedAlert(
-                Alert.AlertType.ERROR,
-                e.getMessage()
-            ).showAndWait();
-
-        }
-
     }
 
     private Purchase buildPurchase(){
-        if(dpInvoiceDate.getValue()==null){
+        if(dpInvoiceDate.getValue()==null){warn("Select invoice date");return null;}
+        if(cmbSupplier.getValue()==null){warn("Select supplier");return null;}
+        if(tableLines.getItems().isEmpty()){warn("Add items");return null;}
 
-            warn("Select invoice date");
+        Purchase purchase=new Purchase();
+        purchase.setInvoiceNo(txtInvoiceNo.getText());
+        purchase.setInvoiceDate(dpInvoiceDate.getValue());
+        purchase.setSupplier(cmbSupplier.getValue());
+        purchase.setLines(List.copyOf(tableLines.getItems()));
 
-            return null;
-
-        }
-
-        if(cmbSupplier.getValue()==null){
-
-            warn("Select supplier");
-
-            return null;
-
-        }
-
-
-        if(tableLines.getItems().isEmpty()){
-
-            warn("Add items");
-
-            return null;
-
-        }
-
-
-
-        Purchase purchase =
-            new Purchase();
-
-
-        purchase.setInvoiceNo(
-            txtInvoiceNo.getText()
-        );
-
-
-        purchase.setInvoiceDate(
-            dpInvoiceDate.getValue()
-        );
-
-
-        purchase.setSupplier(
-            cmbSupplier.getValue()
-        );
-
-
-        purchase.setLines(
-            List.copyOf(
-                tableLines.getItems()
-            )
-        );
-
-
-
-        double net =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    PurchaseLine::getNetAmount
-                )
-                .sum();
-
-
-
-        double discount = tableLines.getItems().stream().mapToDouble(PurchaseLine::getDiscountAmount).sum();
-
-        double gst =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    PurchaseLine::getGstAmount
-                )
-                .sum();
-
-
-
-        double total =
-            net + gst;
-
-
-
+        double net=tableLines.getItems().stream().mapToDouble(PurchaseLine::getNetAmount).sum();
+        double discount=tableLines.getItems().stream().mapToDouble(PurchaseLine::getDiscountAmount).sum();
+        double gst=tableLines.getItems().stream().mapToDouble(PurchaseLine::getGstAmount).sum();
         purchase.setSubtotal(net);
-
         purchase.setGstAmount(gst);
-
-        purchase.setTotalAmount(total);
-
-
-        purchase.setRemarks(
-            txtRemarks.getText()
-        );
-        purchase.setDueDate(dpDueDate.getValue());purchase.setDeliveryDate(dpDeliveryDate.getValue());purchase.setWarehouse(cmbWarehouse.getValue());purchase.setPaymentTerms(cmbPaymentTerms.getValue());purchase.setCurrency(cmbCurrency.getValue());purchase.setReferenceNo(txtReference.getText());purchase.setGstTreatment(cmbGstTreatment.getValue());purchase.setTransporter(cmbTransporter.getValue());purchase.setLrAwbNo(txtLrAwb.getText());purchase.setDiscountType("Item Level");purchase.setDiscountAmount(discount);purchase.setTotalAmount(net+gst);purchase.setAttachmentPath(attachment != null ? attachment.getAbsolutePath() : (editingPurchase == null ? null : editingPurchase.getAttachmentPath()));
-
-
-
+        purchase.setTotalAmount(net+gst);
+        purchase.setRemarks(txtRemarks.getText());
+        purchase.setDueDate(dpDueDate.getValue());
+        purchase.setDeliveryDate(dpDeliveryDate.getValue());
+        purchase.setWarehouse(cmbWarehouse.getValue());
+        purchase.setPaymentTerms(cmbPaymentTerms.getValue());
+        purchase.setCurrency(cmbCurrency.getValue());
+        purchase.setReferenceNo(txtReference.getText());
+        purchase.setGstTreatment(cmbGstTreatment.getValue());
+        purchase.setTransporter(cmbTransporter.getValue());
+        purchase.setLrAwbNo(txtLrAwb.getText());
+        purchase.setDiscountType("Item Level");
+        purchase.setDiscountAmount(discount);
+        purchase.setAttachmentPath(attachmentRemoved?null:(editingPurchase==null?null:editingPurchase.getAttachmentPath()));
         return purchase;
-
     }
 
+    private Path copyManagedPurchaseAttachment(Path source,String invoiceNo)throws Exception{
+        if(source==null||!Files.isRegularFile(source))throw new IllegalStateException("Selected purchase attachment is no longer available.");
+        Path folder=WorkspaceManager.getAttachmentsFolder().resolve("Purchase").resolve(safeAttachmentSegment(invoiceNo));
+        Files.createDirectories(folder);
+        String name=sanitizeAttachmentFileName(source.getFileName()==null?"attachment":source.getFileName().toString());
+        Path target=folder.resolve(System.currentTimeMillis()+"-"+name);
+        return Files.copy(source,target,StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private void deleteManagedAttachmentQuietly(String reference,Path replacement){
+        try{
+            if(reference==null||reference.isBlank())return;
+            Path old=resolvePurchaseAttachment(reference);
+            Path attachments=WorkspaceManager.getAttachmentsFolder().toAbsolutePath().normalize();
+            if(old!=null&&old.toAbsolutePath().normalize().startsWith(attachments)
+                    &&(replacement==null||!old.toAbsolutePath().normalize().equals(replacement.toAbsolutePath().normalize())))Files.deleteIfExists(old);
+        }catch(Exception ignored){}
+    }
+
+    private Path resolvePurchaseAttachment(String reference){
+        if(reference==null||reference.isBlank())return null;
+        Path path=Path.of(reference);
+        return path.isAbsolute()?path:WorkspaceManager.getWorkspaceRoot().resolve(path).normalize();
+    }
+    private String safeAttachmentSegment(String value){return value==null?"purchase":value.replaceAll("[^A-Za-z0-9._-]","_");}
+    private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
+
     private void saveMetadata(Purchase p) { purchaseService.update(p); }
-    @FXML private void chooseAttachment(){FileChooser f=new FileChooser();attachment=f.showOpenDialog(tableLines.getScene().getWindow());if(attachment!=null)lblAttachment.setText(attachment.getName());}
+    @FXML private void chooseAttachment(){FileChooser f=new FileChooser();f.setTitle("Choose purchase attachment");File selected=f.showOpenDialog(tableLines.getScene().getWindow());if(selected!=null){attachment=selected;attachmentRemoved=false;lblAttachment.setText(selected.getName());}}
+    @FXML private void viewAttachment(){
+        try{Path path=attachment!=null?attachment.toPath():attachmentRemoved||editingPurchase==null?null:resolvePurchaseAttachment(editingPurchase.getAttachmentPath());if(path==null||!Files.isRegularFile(path)){warn("No purchase attachment is available.");return;}java.awt.Desktop.getDesktop().open(path.toFile());}
+        catch(Exception e){warn("Unable to open the purchase attachment: "+e.getMessage());}
+    }
+    @FXML private void removeAttachment(){attachment=null;attachmentRemoved=true;if(lblAttachment!=null)lblAttachment.setText("No document selected");}
     @FXML private void clearLines(){tableLines.getItems().clear();recalculate();}
     @FXML private void preview(){new OwnedAlert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}
-    public void prepareDuplicate(){editingPurchase=null;txtInvoiceNo.setText(purchaseService.nextInvoiceNo());}
+    public void prepareDuplicate(){editingPurchase=null;attachment=null;attachmentRemoved=false;if(lblAttachment!=null)lblAttachment.setText("No document selected");txtInvoiceNo.setText(purchaseService.nextInvoiceNo());}
     private double parse(String v){try{return v==null||v.isBlank()?0:Double.parseDouble(v);}catch(Exception e){return 0;}}private String str(LocalDate d){return d==null?null:d.toString();}
 
 
@@ -704,6 +660,7 @@ public class PurchaseController {
 
         editingPurchase = null;
         attachment = null;
+        attachmentRemoved = false;
         if (lblAttachment != null) lblAttachment.setText("");
         if (txtReference != null) txtReference.clear();
         if (txtLrAwb != null) txtLrAwb.clear();
@@ -939,6 +896,7 @@ public class PurchaseController {
         }
         editingPurchase = purchase;
         attachment = null;
+        attachmentRemoved = false;
 
 
         txtInvoiceNo.setText(
@@ -989,7 +947,7 @@ public class PurchaseController {
 
         }
 
-        dpDueDate.setValue(purchase.getDueDate());dpDeliveryDate.setValue(purchase.getDeliveryDate());select(cmbWarehouse,purchase.getWarehouse());select(cmbPaymentTerms,purchase.getPaymentTerms());select(cmbCurrency,purchase.getCurrency());select(cmbGstTreatment,purchase.getGstTreatment());select(cmbTransporter,purchase.getTransporter());select(cmbDiscountType,purchase.getDiscountType());txtReference.setText(value(purchase.getReferenceNo()));txtLrAwb.setText(value(purchase.getLrAwbNo()));txtDiscount.setText(String.valueOf(purchase.getDiscountAmount()));if (lblAttachment != null) lblAttachment.setText(purchase.getAttachmentPath() == null ? "" : purchase.getAttachmentPath());
+        dpDueDate.setValue(purchase.getDueDate());dpDeliveryDate.setValue(purchase.getDeliveryDate());select(cmbWarehouse,purchase.getWarehouse());select(cmbPaymentTerms,purchase.getPaymentTerms());select(cmbCurrency,purchase.getCurrency());select(cmbGstTreatment,purchase.getGstTreatment());select(cmbTransporter,purchase.getTransporter());select(cmbDiscountType,purchase.getDiscountType());txtReference.setText(value(purchase.getReferenceNo()));txtLrAwb.setText(value(purchase.getLrAwbNo()));txtDiscount.setText(String.valueOf(purchase.getDiscountAmount()));if (lblAttachment != null) { String ref=purchase.getAttachmentPath(); if(ref==null||ref.isBlank())lblAttachment.setText(""); else { try{lblAttachment.setText(Path.of(ref).getFileName().toString());}catch(Exception ignored){lblAttachment.setText(ref);} } }
 
 
         recalculate();

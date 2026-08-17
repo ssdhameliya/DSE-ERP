@@ -43,6 +43,7 @@ public class SalesHeaderEntity {
  @Column(name="charge_amount") private Double chargeAmount;
  @Column(name="contact_person_mobile") private String contactPersonMobile;
  @Column(name="document_status") private String documentStatus;
+ @Column(name="attachment_path") private String attachmentPath;
  public Integer getId(){return id;} public void setId(Integer v){id=v;}
  public String getInvoiceNo(){return invoiceNo;} public void setInvoiceNo(String v){invoiceNo=v;}
  public String getInvoiceDate(){return invoiceDate;} public void setInvoiceDate(String v){invoiceDate=v;}
@@ -83,4 +84,5 @@ public class SalesHeaderEntity {
  public Double getChargeAmount(){return chargeAmount;} public void setChargeAmount(Double v){chargeAmount=v;}
  public String getContactPersonMobile(){return contactPersonMobile;} public void setContactPersonMobile(String v){contactPersonMobile=v;}
  public String getDocumentStatus(){return documentStatus;} public void setDocumentStatus(String v){documentStatus=v;}
+ public String getAttachmentPath(){return attachmentPath;} public void setAttachmentPath(String v){attachmentPath=v;}
 }

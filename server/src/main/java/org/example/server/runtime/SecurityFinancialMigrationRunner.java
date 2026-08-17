@@ -41,7 +41,11 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V7_3_2__reminder_reliability",
                     "db/migration/V7_3_2__reminder_reliability.sql"),
             new Migration("V7_3_2_1__permission_catalog_alignment",
-                    "db/migration/V7_3_2_1__permission_catalog_alignment.sql")
+                    "db/migration/V7_3_2_1__permission_catalog_alignment.sql"),
+            new Migration("V7_3_17__purchase_inventory_lifecycle",
+                    "db/migration/V7_3_17__purchase_inventory_lifecycle.sql"),
+            new Migration("V7_3_17_1__canonical_login_timestamp",
+                    "db/migration/V7_3_17_1__canonical_login_timestamp.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -92,6 +96,8 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("reminder_register", "completed_at");
         requireColumn("reminder_register", "created_by");
         requireColumn("reminder_register", "updated_at");
+        requireColumn("purchase_header", "inventory_posted");
+        requireColumn("users", "last_login_utc");
     }
 
     private void requireColumn(String table, String column) {

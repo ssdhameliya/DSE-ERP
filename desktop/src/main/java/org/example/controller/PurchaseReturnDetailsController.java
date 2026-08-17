@@ -1,4 +1,5 @@
 package org.example.controller;
+import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedTextInputDialog;
@@ -74,7 +75,7 @@ public class PurchaseReturnDetailsController {
     /** Reloads the return header and item information from the ERP database. */
     private void load() {
         String key=PurchaseReturnContext.value();if(key==null)return;
-        try{ReturnApiClient.Details d=returnApi.details(key);no.setText(d.no());date.setText(d.date());purchase.setText(d.invoice());supplier.setText(d.party());type.setText(d.type());terms.setText(fallback(d.paymentTerms(),"Not specified"));currency.setText(fallback(d.currency(),"INR - Indian Rupee"));created.setText(text(d.createdAt()));updated.setText(text(d.updatedAt()));attachment.setText(text(d.attachment()));notes.setText(text(d.notes()));List<Item> items=d.lines()==null?List.of():d.lines().stream().map(x->new Item(x.name(),x.code(),x.quantity(),x.unit(),x.rate(),x.tax(),x.amount(),text(x.reason()))).toList();table.getItems().setAll(items);total.setText(currency(d.total()));refund.setText(currency(d.refund()));status.setText(text(d.status()));refundStatus.setText(text(d.refundStatus()));}catch(Exception exception){showError(exception);}
+        try{ReturnApiClient.Details d=returnApi.details(key);no.setText(d.no());date.setText(formatBusinessDate(d.date()));purchase.setText(d.invoice());supplier.setText(d.party());type.setText(d.type());terms.setText(fallback(d.paymentTerms(),"Not specified"));currency.setText(fallback(d.currency(),"INR - Indian Rupee"));created.setText(text(d.createdAt()).isBlank()?"—":BusinessClock.formatTimestamp(d.createdAt()));updated.setText(text(d.updatedAt()).isBlank()?"—":BusinessClock.formatTimestamp(d.updatedAt()));attachment.setText(text(d.attachment()));notes.setText(text(d.notes()));List<Item> items=d.lines()==null?List.of():d.lines().stream().map(x->new Item(x.name(),x.code(),x.quantity(),x.unit(),x.rate(),x.tax(),x.amount(),text(x.reason()))).toList();table.getItems().setAll(items);total.setText(currency(d.total()));refund.setText(currency(d.refund()));status.setText(text(d.status()));refundStatus.setText(text(d.refundStatus()));}catch(Exception exception){showError(exception);}
     }
 
     /** Shows the real document-level return and refund state. */
@@ -142,6 +143,15 @@ public class PurchaseReturnDetailsController {
     }
 
     private String fallback(String value,String defaultValue){String result=text(value).trim();return result.isEmpty()?defaultValue:result;}
+
+    private String formatBusinessDate(String value) {
+        try {
+            if (value == null || value.isBlank()) return "";
+            return BusinessClock.formatDate(java.time.LocalDate.parse(value.substring(0, Math.min(10, value.length()))));
+        } catch (Exception ignored) {
+            return text(value);
+        }
+    }
 
     private void showError(Exception exception) {
         new OwnedAlert(Alert.AlertType.ERROR,

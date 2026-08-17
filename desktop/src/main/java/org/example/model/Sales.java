@@ -69,6 +69,7 @@ public class Sales {
     private List<SalesCharge> charges = new ArrayList<>();
     private String contactPersonMobile;
     private String documentStatus;
+    private String attachmentPath;
 
 
     public int getId() {
@@ -276,6 +277,8 @@ public class Sales {
     }
     public double getChargesAmount() { return getCharges().stream().mapToDouble(SalesCharge::getAmount).sum(); }
     public double getChargesTaxAmount() { return getCharges().stream().mapToDouble(SalesCharge::getTaxAmount).sum(); }
+    public String getAttachmentPath() { return attachmentPath == null ? "" : attachmentPath; }
+    public void setAttachmentPath(String attachmentPath) { this.attachmentPath = attachmentPath; }
     public String getContactPersonMobile() { return contactPersonMobile == null ? "" : contactPersonMobile; }
     public void setContactPersonMobile(String contactPersonMobile) { this.contactPersonMobile = contactPersonMobile; }
     public String getDocumentStatus() { return documentStatus == null || documentStatus.isBlank() ? "PENDING" : documentStatus; }

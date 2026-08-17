@@ -3,6 +3,7 @@ package org.example.api.runtime;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.shared.RuntimeContract;
+import org.example.util.BusinessClock;
 
 import java.io.IOException;
 import java.net.URI;
@@ -106,6 +107,27 @@ public final class RuntimeBootstrapper {
             throw new IllegalStateException("DSE ERP backend version mismatch. Desktop is "
                     + RuntimeContract.APP_VERSION + " but server is " + status.version()
                     + ". A stale backend is running and must not be reused.");
+        }
+        String desktopZone = BusinessClock.zone().getId();
+        if (status.businessZone() != null && !status.businessZone().isBlank() && !desktopZone.equals(status.businessZone())) {
+            throw new IllegalStateException("DSE ERP business timezone mismatch. Desktop uses " + desktopZone
+                    + " but server uses " + status.businessZone()
+                    + ". Save Application Settings and restart DSE ERP so desktop and server use one timezone.");
+        }
+        String desktopDateFormat = BusinessClock.datePattern();
+        if (status.dateFormat() != null && !status.dateFormat().isBlank() && !desktopDateFormat.equals(status.dateFormat())) {
+            throw new IllegalStateException("DSE ERP date-format mismatch. Desktop uses " + desktopDateFormat
+                    + " but server uses " + status.dateFormat()
+                    + ". Save Application Settings and restart DSE ERP so desktop and server use one date policy.");
+        }
+        if (status.timePolicy() != null && !status.timePolicy().isBlank()
+                && !"ISO_DATE_UTC_INSTANT".equals(status.timePolicy())) {
+            throw new IllegalStateException("DSE ERP backend time policy is not compatible with this desktop: " + status.timePolicy());
+        }
+        if (status.databaseTimeZone() != null && !status.databaseTimeZone().isBlank()
+                && !"UTC".equalsIgnoreCase(status.databaseTimeZone()) && !"Etc/UTC".equalsIgnoreCase(status.databaseTimeZone())) {
+            throw new IllegalStateException("DSE ERP database session timezone must be UTC for canonical timestamps, but server reports "
+                    + status.databaseTimeZone() + ". Restart DSE ERP so the managed backend opens aligned UTC database sessions.");
         }
     }
 

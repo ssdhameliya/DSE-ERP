@@ -9,6 +9,7 @@ import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.service.PdfTemplateRenderer;
 import org.example.documentstudio.service.TemplateStorageService;
 import org.example.documentstudio.service.DocumentDataService;
+import org.example.documentstudio.service.DocumentOutputService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,32 +28,7 @@ public class InvoicePdfService {
         if (invoice == null || invoice.getInvoiceNo() == null || invoice.getInvoiceNo().isBlank()) {
             throw new IllegalArgumentException("A valid purchase record is required to create the PDF.");
         }
-
-        var customTemplate = TemplateStorageService.defaultFor(DocumentType.PURCHASE_INVOICE);
-        if (customTemplate.isPresent()) {
-            try {
-                Path output = ensureOutputDirectory().resolve("Purchase-Tax-Invoice-" + invoice.getInvoiceNo() + ".pdf");
-                Path result = PdfTemplateRenderer.renderPurchase(customTemplate.get(), invoice, output);
-                validatePdf(result, invoice.getInvoiceNo());
-                return result;
-            } catch (Exception templateError) {
-                logPurchaseTemplateFallback(invoice.getInvoiceNo(), templateError);
-            }
-        }
-
-        String logoPath = ensureLogo().toString();
-        Path outputDir = ensureOutputDirectory();
-
-        // Output file path
-        String outputPath = outputDir.resolve("Purchase-Tax-Invoice-" + invoice.getInvoiceNo() + ".pdf").toString();
-
-        // Generate PDF using improved template
-        ProfessionalDocumentRenderer.render(Path.of(outputPath), Path.of(logoPath), invoice.getInvoiceNo(), ProfessionalDocumentRenderer.Kind.PURCHASE_INVOICE);
-
-        Path result = Path.of(outputPath);
-        validatePdf(result, invoice.getInvoiceNo());
-        return result;
-
+        return DocumentOutputService.generate(DocumentType.PURCHASE_INVOICE, invoice.getInvoiceNo());
     }
 
     public static Path sales(Sales invoice) throws Exception {
@@ -76,10 +52,9 @@ public class InvoicePdfService {
 
     public static Path refund(String returnNo, boolean sales) throws Exception {
         if (returnNo == null || returnNo.isBlank()) throw new IllegalArgumentException("A valid return number is required.");
-        // Keep the exported filename consistent with the event-specific title
-        // shown in the supplied return document designs.
-        Path result=ensureOutputDirectory().resolve((sales?"Sales-Return-Credit-Note-":"Purchase-Return-Note-")+returnNo+".pdf");
-        ProfessionalDocumentRenderer.render(result,ensureLogo(),returnNo,sales?ProfessionalDocumentRenderer.Kind.SALES_REFUND:ProfessionalDocumentRenderer.Kind.PURCHASE_REFUND);
+        if (!sales) return DocumentOutputService.generate(DocumentType.PURCHASE_RETURN, returnNo);
+        Path result=ensureOutputDirectory().resolve("Sales-Return-Credit-Note-"+returnNo+".pdf");
+        ProfessionalDocumentRenderer.render(result,ensureLogo(),returnNo,ProfessionalDocumentRenderer.Kind.SALES_REFUND);
         validatePdf(result,returnNo);return result;
     }
 

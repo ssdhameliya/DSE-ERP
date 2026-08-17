@@ -16,21 +16,17 @@ import org.example.navigation.NavigationManager;
 import org.example.rollback.RollbackService;
 import org.example.update.BuildInfo;
 import org.example.util.IconFactory;
+import org.example.util.BusinessClock;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedTextInputDialog;
 
 import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 /** Controller for Settings-adjacent production-safe application rollback. */
 public class SafeRollbackController {
-    private static final DateTimeFormatter DISPLAY = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
-            .withZone(ZoneId.systemDefault());
-
     private final RollbackService service = new RollbackService();
 
     @FXML private StackPane headerIconHolder;
@@ -168,7 +164,7 @@ public class SafeRollbackController {
             }
         });
 
-        colHistoryTime.setCellValueFactory(v -> new SimpleStringProperty(DISPLAY.format(v.getValue().timestamp())));
+        colHistoryTime.setCellValueFactory(v -> new SimpleStringProperty(BusinessClock.formatInstant(v.getValue().timestamp(), "hh:mm a")));
         colHistoryAction.setCellValueFactory(v -> new SimpleStringProperty(pretty(v.getValue().action())));
         colHistoryVersion.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().targetVersion()));
         colHistoryResult.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().result()));

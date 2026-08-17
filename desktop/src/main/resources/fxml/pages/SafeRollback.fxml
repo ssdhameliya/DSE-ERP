@@ -31,7 +31,7 @@
                         </columnConstraints>
                         <HBox alignment="CENTER_LEFT" spacing="12" styleClass="safe-rollback-metric" GridPane.columnIndex="0">
                             <StackPane fx:id="versionIconHolder" styleClass="safe-rollback-metric-icon,safe-rollback-icon-blue"/>
-                            <VBox spacing="3"><Label text="CURRENT VERSION" styleClass="safe-rollback-metric-label"/><Label fx:id="lblCurrentVersion" text="7.3.12" styleClass="safe-rollback-metric-value"/><Label text="Running application" styleClass="safe-rollback-caption"/></VBox>
+                            <VBox spacing="3"><Label text="CURRENT VERSION" styleClass="safe-rollback-metric-label"/><Label fx:id="lblCurrentVersion" text="7.3.17" styleClass="safe-rollback-metric-value"/><Label text="Running application" styleClass="safe-rollback-caption"/></VBox>
                         </HBox>
                         <HBox alignment="CENTER_LEFT" spacing="12" styleClass="safe-rollback-metric" GridPane.columnIndex="1">
                             <StackPane fx:id="schemaIconHolder" styleClass="safe-rollback-metric-icon,safe-rollback-icon-purple"/>

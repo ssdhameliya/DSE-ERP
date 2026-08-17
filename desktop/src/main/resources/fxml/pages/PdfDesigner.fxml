@@ -25,7 +25,9 @@
                 <Button fx:id="btnConnectData" text="Connect ERP Data" onAction="#connectErpData" styleClass="approved-button,approved-secondary-button,pdf-data-connect-button"/>
                 <Label fx:id="lblPreviewData" text="Preview:"/>
                 <ComboBox fx:id="cmbSampleDocument" prefWidth="245" promptText="General PDF - no ERP data"/>
-                <Button fx:id="btnPreview" text="Final PDF" onAction="#togglePreview" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnOriginalView" text="Original" onAction="#showOriginal" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnDesignView" text="Design" onAction="#showDesign" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnPreview" text="Final Preview" onAction="#togglePreview" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Export PDF" onAction="#exportTestPdf" styleClass="approved-button,approved-primary-button"/>
                 <Separator orientation="VERTICAL"/>
                 <Button text="Fit Page" onAction="#fitPage" styleClass="approved-button,approved-secondary-button"/>
@@ -57,7 +59,7 @@
                                                 <ToggleButton fx:id="btnEditExistingText" text="Edit Existing PDF Text" onAction="#toggleExistingTextMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,pdf-tool-emphasis"/>
                                                 <ToggleButton fx:id="btnEditImportedImage" text="Edit Imported Image" onAction="#toggleImportedImageMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                                                 <ToggleButton fx:id="btnEditFormField" text="Edit PDF Form Field" onAction="#toggleFormFieldMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                                                <Button text="Replace / Hide Area" onAction="#addWhiteout" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                                <ToggleButton fx:id="btnAreaSelect" text="Select / Hide Area" onAction="#toggleAreaSelectionMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                                                 <Label text="Modify detected PDF text, raster images and form fields non-destructively. Complex vectors/scans can be covered with Replace / Hide Area; the imported source remains protected." wrapText="true" styleClass="pdf-designer-help"/>
                                             </VBox>
                                         </content>

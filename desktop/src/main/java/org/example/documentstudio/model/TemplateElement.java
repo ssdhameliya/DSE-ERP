@@ -27,6 +27,8 @@ public class TemplateElement {
     private boolean preserveAspectRatio = true;
     private String imageFit = "FIT";
     private boolean locked;
+    private String replacementGroupId = "";
+    private String replacementSourceKey = "";
     private List<String> tableColumns = new ArrayList<>(List.of(
             "serial", "hsn", "description", "qty", "unit", "rate", "gst", "amount"));
     private double rowHeight = 22;
@@ -59,6 +61,7 @@ public class TemplateElement {
         c.textColor = textColor; c.fillColor = fillColor; c.strokeColor = strokeColor;
         c.strokeWidth = strokeWidth; c.imagePath = imagePath; c.opacity = opacity; c.rotation = rotation;
         c.preserveAspectRatio = preserveAspectRatio; c.imageFit = imageFit; c.locked = locked;
+        c.replacementGroupId = replacementGroupId; c.replacementSourceKey = replacementSourceKey;
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
         c.rowHeight = rowHeight; c.headerHeight = headerHeight;
         return c;
@@ -113,6 +116,10 @@ public class TemplateElement {
     }
     public boolean isLocked() { return locked; }
     public void setLocked(boolean locked) { this.locked = locked; }
+    public String getReplacementGroupId() { return replacementGroupId == null ? "" : replacementGroupId; }
+    public void setReplacementGroupId(String replacementGroupId) { this.replacementGroupId = replacementGroupId == null ? "" : replacementGroupId; }
+    public String getReplacementSourceKey() { return replacementSourceKey == null ? "" : replacementSourceKey; }
+    public void setReplacementSourceKey(String replacementSourceKey) { this.replacementSourceKey = replacementSourceKey == null ? "" : replacementSourceKey; }
     public List<String> getTableColumns() { return tableColumns == null ? List.of() : tableColumns; }
     public void setTableColumns(List<String> tableColumns) { this.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns); }
     public double getRowHeight() { return rowHeight; }

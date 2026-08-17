@@ -8564,3 +8564,19 @@
 .pdf-only-preview-toolbar { -fx-padding: 0 0 6px 0; }
 .pdf-only-preview-page-label { -fx-font-weight: 800; }
 .pdf-only-preview-scroll { -fx-background-insets: 0; -fx-padding: 8px; }
+
+/* v7.3.17 authentication/startup geometry contract: presentation only. */
+.auth-standard-shell .auth-unified-brand-panel {
+    -fx-pref-width: 600px; -fx-min-width: 360px; -fx-padding: 30px 42px 24px 42px;
+}
+.auth-standard-shell .auth-unified-content { -fx-padding: 28px 34px 28px 34px; }
+.auth-standard-shell .auth-unified-card {
+    -fx-max-width: 720px; -fx-padding: 26px 30px 24px 30px; -fx-background-radius: 14px; -fx-border-radius: 14px;
+}
+.auth-standard-shell .auth-section-icon {
+    -fx-min-width: 58px; -fx-pref-width: 58px; -fx-max-width: 58px;
+    -fx-min-height: 58px; -fx-pref-height: 58px; -fx-max-height: 58px; -fx-alignment: center;
+}
+.auth-standard-shell .auth-input { -fx-min-height: 44px; -fx-pref-height: 44px; }
+.auth-standard-shell .auth-primary-button, .auth-standard-shell .auth-secondary-button { -fx-min-height: 44px; }
+.auth-standard-shell .auth-message { -fx-min-height: 18px; }

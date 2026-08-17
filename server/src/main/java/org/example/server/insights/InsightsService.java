@@ -2,6 +2,7 @@ package org.example.server.insights;
 
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
+import org.example.server.util.BusinessClock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.*;
@@ -9,28 +10,36 @@ import java.util.*;
 
 @Service
 public class InsightsService {
+ private static final String ACTIVE_SALES = "UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED')";
+ private static final String POSTED_PURCHASES = "UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED','DRAFT')";
  private final JpaNativeRepository jdbc; public InsightsService(JpaNativeRepository jdbc){this.jdbc=jdbc;}
 
  @Transactional(readOnly=true) public InsightDtos.DashboardBundle dashboard(String period){
    String cond=periodSql(period,"invoice_date");
    long products=l("SELECT COUNT(*) FROM item_master"), customers=l("SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t')");
-   long invoices=l("SELECT COUNT(*) FROM sales_header WHERE "+cond), purchases=l("SELECT COUNT(*) FROM purchase_header WHERE "+cond), low=l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)");
-   double sales=n("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE "+cond), purchase=n("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE "+cond);
-   double recv=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header"), pay=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM purchase_header");
-   long openRecv=l("SELECT COUNT(*) FROM sales_header WHERE total_amount>COALESCE(paid_amount,0)"), openPay=l("SELECT COUNT(*) FROM purchase_header WHERE total_amount>COALESCE(paid_amount,0)");
-   double cash=n("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header")-n("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header")-n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
+   long invoices=l("SELECT COUNT(*) FROM sales_header WHERE "+ACTIVE_SALES+" AND ("+cond+")"), purchases=l("SELECT COUNT(*) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND ("+cond+")"), low=l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)");
+   double sales=n("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE "+ACTIVE_SALES+" AND ("+cond+")"), purchase=n("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND ("+cond+")");
+   double recv=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE "+ACTIVE_SALES), pay=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM purchase_header WHERE "+POSTED_PURCHASES);
+   long openRecv=l("SELECT COUNT(*) FROM sales_header WHERE "+ACTIVE_SALES+" AND total_amount>COALESCE(paid_amount,0)"), openPay=l("SELECT COUNT(*) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND total_amount>COALESCE(paid_amount,0)");
+   double cash=n("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header WHERE "+ACTIVE_SALES)-n("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES)-n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
    long openRem=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')");
-   long overdue=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END < CURRENT_DATE");
+   long overdue=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END < ?",BusinessClock.today());
    var snap=new InsightDtos.DashboardSnapshot(period,products,customers,invoices,purchases,low,sales,purchase,recv,pay,openRecv,openPay,cash,openRem,overdue);
-   List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString(1),rs.getString(2),rs.getString(3),String.valueOf(rs.getObject(4)),rs.getDouble(5)));
+   List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id WHERE UPPER(COALESCE(h.document_status,'')) NOT IN ('DELETED','CANCELLED','DRAFT')) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString(1),rs.getString(2),rs.getString(3),String.valueOf(rs.getObject(4)),rs.getDouble(5)));
    String pc=periodSql(period,"s.invoice_date");
-   List<String> top=jdbc.query("SELECT p.name,COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE "+pc+" GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5",(rs,i)->rs.getString(1)+"|"+rs.getDouble(2));
+   List<String> top=jdbc.query("SELECT p.name,COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') AND ("+pc+") GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5",(rs,i)->rs.getString(1)+"|"+rs.getDouble(2));
    if(top.isEmpty())top=List.of("No customer sales for "+period.toLowerCase(Locale.ROOT));
-   List<String> ageing=List.of(age("Overdue (> 30 Days)","CAST(due_date AS DATE) < CURRENT_DATE - INTERVAL '30 days'"),age("21 - 30 Days","CAST(due_date AS DATE) BETWEEN CURRENT_DATE - INTERVAL '30 days' AND CURRENT_DATE - INTERVAL '21 days'"),age("11 - 20 Days","CAST(due_date AS DATE) BETWEEN CURRENT_DATE - INTERVAL '20 days' AND CURRENT_DATE - INTERVAL '11 days'"),age("1 - 10 Days","CAST(due_date AS DATE) BETWEEN CURRENT_DATE - INTERVAL '10 days' AND CURRENT_DATE - INTERVAL '1 day'"),age("Not Due","due_date IS NULL OR CAST(due_date AS DATE) >= CURRENT_DATE"));
+   LocalDate today=BusinessClock.today();
+   List<String> ageing=List.of(
+     age("Overdue (> 30 Days)","CAST(due_date AS DATE) < DATE '"+today.minusDays(30)+"'"),
+     age("21 - 30 Days","CAST(due_date AS DATE) BETWEEN DATE '"+today.minusDays(30)+"' AND DATE '"+today.minusDays(21)+"'"),
+     age("11 - 20 Days","CAST(due_date AS DATE) BETWEEN DATE '"+today.minusDays(20)+"' AND DATE '"+today.minusDays(11)+"'"),
+     age("1 - 10 Days","CAST(due_date AS DATE) BETWEEN DATE '"+today.minusDays(10)+"' AND DATE '"+today.minusDays(1)+"'"),
+     age("Not Due","due_date IS NULL OR CAST(due_date AS DATE) >= DATE '"+today+"'"));
    return new InsightDtos.DashboardBundle(snap,recent,top,ageing,notifications(5));
  }
- private String age(String label,String cond){return label+"|"+n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE total_amount-COALESCE(paid_amount,0)>0 AND ("+cond+")");}
- private String periodSql(String p,String c){return switch(p==null?"":p){case "This Month"->"CAST("+c+" AS DATE)>=date_trunc('month',CURRENT_DATE)::date";case "This Quarter"->"CAST("+c+" AS DATE)>=date_trunc('quarter',CURRENT_DATE)::date";case "This Year"->"CAST("+c+" AS DATE)>=date_trunc('year',CURRENT_DATE)::date";default->"1=1";};}
+ private String age(String label,String cond){return label+"|"+n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE "+ACTIVE_SALES+" AND total_amount-COALESCE(paid_amount,0)>0 AND ("+cond+")");}
+ private String periodSql(String p,String c){LocalDate today=BusinessClock.today();LocalDate start=switch(p==null?"":p){case "This Month"->today.withDayOfMonth(1);case "This Quarter"->{int m=((today.getMonthValue()-1)/3)*3+1;yield LocalDate.of(today.getYear(),m,1);}case "This Year"->LocalDate.of(today.getYear(),1,1);default->null;};return start==null?"1=1":"CAST("+c+" AS DATE)>=DATE '"+start+"'";}
 
 
  @Transactional(readOnly=true) public InsightDtos.ShellCounts shellCounts(){
@@ -45,17 +54,17 @@ public class InsightsService {
  }
 
 
- @Transactional(readOnly=true) public InsightDtos.ReportFilters reportFilters(){return new InsightDtos.ReportFilters(strings("SELECT name FROM party_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') ORDER BY name"),strings("SELECT description FROM item_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') ORDER BY description"),strings("SELECT DISTINCT salesperson FROM sales_header WHERE COALESCE(salesperson,'')<>'' ORDER BY salesperson"));}
+ @Transactional(readOnly=true) public InsightDtos.ReportFilters reportFilters(){return new InsightDtos.ReportFilters(strings("SELECT name FROM party_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') ORDER BY name"),strings("SELECT description FROM item_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') ORDER BY description"),strings("SELECT DISTINCT salesperson FROM sales_header WHERE "+ACTIVE_SALES+" AND COALESCE(salesperson,'')<>'' ORDER BY salesperson"));}
  @Transactional(readOnly=true) public InsightDtos.ReportBundle report(String from,String to){
    Object[] a={LocalDate.parse(from),LocalDate.parse(to)}; String between=" BETWEEN ? AND ?";
-   double sales=n("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE CAST(invoice_date AS DATE)"+between,a), purchase=n("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE CAST(invoice_date AS DATE)"+between,a); double profit=sales-purchase;
-   double recv=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE CAST(invoice_date AS DATE)"+between,a),stock=n("SELECT COALESCE(SUM(opening_stock*purchase_price),0) FROM item_master");
+   double sales=n("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE "+ACTIVE_SALES+" AND CAST(invoice_date AS DATE)"+between,a), purchase=n("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND CAST(invoice_date AS DATE)"+between,a); double profit=sales-purchase;
+   double recv=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE "+ACTIVE_SALES+" AND CAST(invoice_date AS DATE)"+between,a),stock=n("SELECT COALESCE(SUM(opening_stock*purchase_price),0) FROM item_master");
    long low=l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)"),customers=l("SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t')");
-   List<InsightDtos.PointDto> cp=points("SELECT COALESCE(pm.name,'Unknown Customer'),SUM(sh.total_amount) amount FROM sales_header sh LEFT JOIN party_master pm ON pm.id=sh.customer_id WHERE CAST(sh.invoice_date AS DATE) BETWEEN ? AND ? GROUP BY pm.id,pm.name ORDER BY amount DESC LIMIT 5",a);
-   List<InsightDtos.PointDto> ip=points("SELECT COALESCE(im.description,sl.item_code),SUM(sl.line_total) amount FROM sales_line sl JOIN sales_header sh ON sh.id=sl.sales_id LEFT JOIN item_master im ON im.item_code=sl.item_code WHERE CAST(sh.invoice_date AS DATE) BETWEEN ? AND ? GROUP BY sl.item_code,im.description ORDER BY amount DESC LIMIT 5",a);
-   List<InsightDtos.ReportRow> sr=rows("SELECT sh.invoice_no,CAST(sh.invoice_date AS DATE),pm.name,sh.total_amount,COALESCE(sh.payment_status,'PENDING') FROM sales_header sh LEFT JOIN party_master pm ON pm.id=sh.customer_id WHERE CAST(sh.invoice_date AS DATE) BETWEEN ? AND ? ORDER BY sh.invoice_date DESC,sh.id DESC LIMIT 8",a);
-   List<InsightDtos.ReportRow> pr=rows("SELECT ph.invoice_no,CAST(ph.invoice_date AS DATE),pm.name,ph.total_amount,COALESCE(ph.payment_status,'PENDING') FROM purchase_header ph LEFT JOIN party_master pm ON pm.id=ph.supplier_id WHERE CAST(ph.invoice_date AS DATE) BETWEEN ? AND ? ORDER BY ph.invoice_date DESC,ph.id DESC LIMIT 8",a);
-   double sp=n("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header WHERE CAST(invoice_date AS DATE) BETWEEN ? AND ?",a),pay=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM purchase_header WHERE CAST(invoice_date AS DATE) BETWEEN ? AND ?",a),pp=n("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header WHERE CAST(invoice_date AS DATE) BETWEEN ? AND ?",a);
+   List<InsightDtos.PointDto> cp=points("SELECT COALESCE(pm.name,'Unknown Customer'),SUM(sh.total_amount) amount FROM sales_header sh LEFT JOIN party_master pm ON pm.id=sh.customer_id WHERE UPPER(COALESCE(sh.document_status,'')) NOT IN ('DELETED','CANCELLED') AND CAST(sh.invoice_date AS DATE) BETWEEN ? AND ? GROUP BY pm.id,pm.name ORDER BY amount DESC LIMIT 5",a);
+   List<InsightDtos.PointDto> ip=points("SELECT COALESCE(im.description,sl.item_code),SUM(sl.line_total) amount FROM sales_line sl JOIN sales_header sh ON sh.id=sl.sales_id LEFT JOIN item_master im ON im.item_code=sl.item_code WHERE UPPER(COALESCE(sh.document_status,'')) NOT IN ('DELETED','CANCELLED') AND CAST(sh.invoice_date AS DATE) BETWEEN ? AND ? GROUP BY sl.item_code,im.description ORDER BY amount DESC LIMIT 5",a);
+   List<InsightDtos.ReportRow> sr=rows("SELECT sh.invoice_no,CAST(sh.invoice_date AS DATE),pm.name,sh.total_amount,COALESCE(sh.payment_status,'PENDING') FROM sales_header sh LEFT JOIN party_master pm ON pm.id=sh.customer_id WHERE UPPER(COALESCE(sh.document_status,'')) NOT IN ('DELETED','CANCELLED') AND CAST(sh.invoice_date AS DATE) BETWEEN ? AND ? ORDER BY sh.invoice_date DESC,sh.id DESC LIMIT 8",a);
+   List<InsightDtos.ReportRow> pr=rows("SELECT ph.invoice_no,CAST(ph.invoice_date AS DATE),pm.name,ph.total_amount,COALESCE(ph.payment_status,'PENDING') FROM purchase_header ph LEFT JOIN party_master pm ON pm.id=ph.supplier_id WHERE UPPER(COALESCE(ph.document_status,'')) NOT IN ('DELETED','CANCELLED','DRAFT') AND CAST(ph.invoice_date AS DATE) BETWEEN ? AND ? ORDER BY ph.invoice_date DESC,ph.id DESC LIMIT 8",a);
+   double sp=n("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header WHERE "+ACTIVE_SALES+" AND CAST(invoice_date AS DATE) BETWEEN ? AND ?",a),pay=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND CAST(invoice_date AS DATE) BETWEEN ? AND ?",a),pp=n("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND CAST(invoice_date AS DATE) BETWEEN ? AND ?",a);
    return new InsightDtos.ReportBundle(sales,purchase,profit,recv,stock,low,customers,cp,ip,sr,pr,sp,pay,pp,l("SELECT COUNT(*) FROM item_master"),l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=0"));
  }
 
@@ -84,13 +93,13 @@ public class InsightsService {
  @Transactional
  public InsightDtos.ReminderDto createReminder(InsightDtos.ReminderDto d){
    ReminderInput input=validateReminder(d);
-   String now=LocalDateTime.now().toString();
+   String now=BusinessClock.nowUtcText();
    String creator=CurrentUser.require().username();
    Long newId=jdbc.queryForObject(
-     "INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,updated_at) " +
-     "VALUES(?,?,?,?,?,'OPEN',?,?) RETURNING id",
+     "INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,created_at,updated_at) " +
+     "VALUES(?,?,?,?,?,'OPEN',?,?,?) RETURNING id",
      Long.class,
-     input.title(),input.reference(),input.dueDate(),input.priority(),input.notes(),creator,now
+     input.title(),input.reference(),input.dueDate(),input.priority(),input.notes(),creator,now,now
    );
    if(newId==null||newId<=0) throw new IllegalStateException("Reminder was created but no valid id was returned");
    return reminder(newId);
@@ -102,7 +111,7 @@ public class InsightsService {
    ReminderInput input=validateReminder(d);
    int changed=jdbc.update(
      "UPDATE reminder_register SET title=?,reference_no=?,due_date=?,priority=?,notes=?,updated_at=? WHERE id=?",
-     input.title(),input.reference(),input.dueDate(),input.priority(),input.notes(),LocalDateTime.now().toString(),id
+     input.title(),input.reference(),input.dueDate(),input.priority(),input.notes(),BusinessClock.nowUtcText(),id
    );
    if(changed!=1) throw new IllegalArgumentException("Reminder was not found or could not be updated");
    return reminder(id);
@@ -113,7 +122,7 @@ public class InsightsService {
    if(id<=0) throw new IllegalArgumentException("Reminder id must be greater than zero");
    String normalized=status==null?"OPEN":status.trim().toUpperCase(Locale.ROOT);
    if(!Set.of("OPEN","SNOOZED","COMPLETED").contains(normalized)) throw new IllegalArgumentException("Unsupported reminder status: "+normalized);
-   String now=LocalDateTime.now().toString();
+   String now=BusinessClock.nowUtcText();
    int changed;
    if("SNOOZED".equals(normalized)){
      String until=validatedReminderDate(snoozedUntil,"Snooze date");

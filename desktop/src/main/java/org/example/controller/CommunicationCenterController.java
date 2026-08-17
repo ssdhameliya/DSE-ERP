@@ -1,4 +1,5 @@
 package org.example.controller;
+import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
 
@@ -65,7 +66,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private List<Row> readRows() {
         List<Row> x=new ArrayList<>();
         for (var r : supportApi.communications())
-            x.add(new Row(r.createdAt(),r.documentLabel(),r.entityType(),r.entityId(),r.channel(),r.recipient(),r.subject(),r.status(),r.errorMessage(),r.createdBy()));
+            x.add(new Row(BusinessClock.formatTimestamp(r.createdAt()),r.documentLabel(),r.entityType(),r.entityId(),r.channel(),r.recipient(),r.subject(),r.status(),r.errorMessage(),r.createdBy()));
         return x;
     }
     private void applyRows(List<Row> x){

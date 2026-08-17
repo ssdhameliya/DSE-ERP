@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<ScrollPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+ fx:controller="org.example.controller.PurchasePaymentController" fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER"
+ styleClass="clean-scroll,approved-ui,approved-screen,erp-screen-root">
+ <content>
+  <VBox spacing="12" styleClass="sales-flow-page">
+   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+
+   <HBox alignment="CENTER_LEFT" spacing="10" maxWidth="Infinity" styleClass="erp-page-identity-header">
+    <VBox spacing="2">
+     <Label text="Supplier Payment" styleClass="page-title,payment-page-title"/>
+     <Label text="Record supplier payment • review history • manage payment proof" styleClass="payment-page-subtitle"/>
+    </VBox>
+    <Region HBox.hgrow="ALWAYS"/>
+    <Button text="Email Purchase" onAction="#emailInvoice" styleClass="approved-button,action-email"/>
+    <Button text="Print" onAction="#printInvoice" styleClass="approved-button,approved-secondary-button"/>
+    <Button text="Back to Register" onAction="#cancel" styleClass="approved-button,back-register-button"/>
+   </HBox>
+
+   <HBox spacing="14">
+    <VBox spacing="12" HBox.hgrow="ALWAYS">
+     <VBox spacing="10" styleClass="flow-card,invoice-overview-card">
+      <HBox spacing="18" alignment="CENTER_LEFT">
+       <VBox prefWidth="250" minWidth="220"><Label text="Purchase Invoice No." styleClass="meta-label,meta-blue"/><HBox spacing="8"><Label fx:id="invoiceNo" styleClass="meta-value,invoice-number"/><Label fx:id="invoiceStatus" styleClass="status-pill"/></HBox></VBox>
+       <VBox prefWidth="270"><Label text="Supplier" styleClass="meta-label,meta-purple"/><Label fx:id="supplier" styleClass="meta-value,customer-name"/><Label fx:id="supplierPhone" styleClass="contact-value"/><Label fx:id="supplierEmail" styleClass="contact-value"/></VBox>
+       <VBox prefWidth="145"><Label text="Invoice Date" styleClass="meta-label,meta-cyan"/><Label fx:id="invoiceDate" styleClass="meta-value"/></VBox>
+       <VBox prefWidth="145"><Label text="Due Date" styleClass="meta-label,meta-orange"/><Label fx:id="dueDate" styleClass="meta-value"/></VBox>
+       <VBox prefWidth="185"><Label text="Total Amount" styleClass="meta-label,meta-green"/><Label fx:id="total" styleClass="money-hero"/></VBox>
+      </HBox>
+     </VBox>
+
+     <VBox spacing="10" styleClass="flow-card,payment-entry-card">
+      <Label fx:id="recordPaymentTitle" text="Record Supplier Payment" styleClass="flow-title,section-accent-title"/>
+      <GridPane hgap="16" vgap="9">
+       <columnConstraints><ColumnConstraints percentWidth="33.33"/><ColumnConstraints percentWidth="33.33"/><ColumnConstraints percentWidth="33.34"/></columnConstraints>
+       <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="0"><Label text="Payment Date *" styleClass="field-label,field-blue"/><DatePicker fx:id="paymentDate" maxWidth="Infinity" styleClass="payment-input"/></VBox>
+       <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0"><Label text="Payment Mode *" styleClass="field-label,field-purple"/><ComboBox fx:id="mode" maxWidth="Infinity" styleClass="payment-input"/></VBox>
+       <VBox spacing="4" GridPane.columnIndex="2" GridPane.rowIndex="0"><Label text="Reference / UTR / Cheque No." styleClass="field-label,field-orange"/><TextField fx:id="reference" styleClass="payment-input"/></VBox>
+       <VBox spacing="4" GridPane.columnIndex="0" GridPane.rowIndex="1"><Label text="Paid To *" styleClass="field-label,field-cyan"/><TextField fx:id="paidTo" styleClass="payment-input"/></VBox>
+       <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="1"><Label text="Bank Account" styleClass="field-label,field-green"/><ComboBox fx:id="bankAccount" maxWidth="Infinity" styleClass="payment-input"/></VBox>
+       <VBox spacing="4" GridPane.columnIndex="2" GridPane.rowIndex="1"><Label text="Amount Paid *" styleClass="field-label,field-red"/><TextField fx:id="amount" styleClass="payment-input,amount-input"/></VBox>
+      </GridPane>
+
+      <HBox spacing="12" alignment="CENTER_LEFT">
+       <RadioButton fx:id="fullPayment" text="FULL PAYMENT" styleClass="payment-type-radio"/>
+       <RadioButton fx:id="partialPayment" text="PARTIAL PAYMENT" styleClass="payment-type-radio"/>
+       <Region HBox.hgrow="ALWAYS"/>
+       <VBox alignment="CENTER_RIGHT"><Label text="Balance After Payment" styleClass="balance-after-payment-label"/><Label fx:id="after" styleClass="money-strong"/></VBox>
+      </HBox>
+
+      <HBox spacing="14" alignment="BOTTOM_CENTER">
+       <VBox spacing="4" HBox.hgrow="ALWAYS">
+        <Label text="Notes" styleClass="field-label,field-purple"/>
+        <TextArea fx:id="notes" promptText="Supplier payment notes (optional)" prefRowCount="2" maxHeight="72"/>
+       </VBox>
+       <HBox alignment="CENTER_RIGHT" spacing="10">
+        <Button text="Reset" onAction="#resetPayment" styleClass="approved-button,approved-secondary-button"/>
+        <Button fx:id="btnSavePayment" text="Save Payment" onAction="#save" styleClass="blue-button"/>
+       </HBox>
+      </HBox>
+     </VBox>
+    </VBox>
+
+    <VBox spacing="12" prefWidth="390">
+     <VBox spacing="12" styleClass="flow-card,summary-card">
+      <Label fx:id="summaryTitle" text="Purchase Summary" styleClass="summary-title"/>
+      <HBox><Label text="Total Amount" styleClass="summary-label,total-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="summaryTotal" styleClass="summary-value,total-value"/></HBox>
+      <HBox><Label text="Paid Amount" styleClass="summary-label,paid-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="summaryPaid" styleClass="summary-value,paid-value"/></HBox>
+      <HBox><Label text="Balance Amount" styleClass="summary-label,balance-label"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="summaryBalance" styleClass="summary-value,balance-value"/></HBox>
+      <Separator/>
+      <ProgressBar fx:id="paymentProgress" maxWidth="Infinity" styleClass="payment-progress"/>
+      <Label fx:id="paidPercent" alignment="CENTER" maxWidth="Infinity" styleClass="paid-percent"/>
+      <HBox visible="false" managed="false"><Label fx:id="paid"/><Label fx:id="balance"/></HBox>
+     </VBox>
+
+     <VBox spacing="8" styleClass="flow-card,proof-side-card">
+      <Label fx:id="attachmentTitle" text="Attach Payment / Bank Proof" styleClass="attachment-title"/>
+      <VBox fx:id="proofDropZone" alignment="CENTER" spacing="8" minHeight="165" styleClass="proof-drop-zone">
+       <Label text="Drag &amp; drop proof here" styleClass="proof-hint"/>
+       <Button text="Browse File" onAction="#browseFile" styleClass="approved-button,approved-secondary-button"/>
+       <Label fx:id="attachmentName" text="No file selected" styleClass="attachment-file-name"/>
+       <Label text="JPG, PNG or PDF • Maximum 5 MB" styleClass="caption"/>
+      </VBox>
+     </VBox>
+    </VBox>
+   </HBox>
+
+   <VBox spacing="8" VBox.vgrow="ALWAYS" styleClass="flow-card,payment-history-card">
+    <HBox alignment="CENTER_LEFT" spacing="8">
+     <Label fx:id="historyTitle" text="Purchase Payment History" styleClass="history-title"/>
+     <Label fx:id="historyCount" text="0 Payments" styleClass="history-count"/>
+     <Region HBox.hgrow="ALWAYS"/>
+     <Label text="Bank Statement matches appear here automatically and remain protected from direct editing." styleClass="caption"/>
+    </HBox>
+    <TableView fx:id="historyTable" prefHeight="240" minHeight="190" maxHeight="Infinity" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-register">
+     <columns>
+      <TableColumn fx:id="historyDate" text="Payment Date" prefWidth="135"/>
+      <TableColumn fx:id="historyMode" text="Payment Mode" prefWidth="155"/>
+      <TableColumn fx:id="historyReference" text="Reference No." prefWidth="165"/>
+      <TableColumn fx:id="historyPaidTo" text="Paid To" prefWidth="190"/>
+      <TableColumn fx:id="historyAmount" text="Amount (₹)" prefWidth="145"/>
+      <TableColumn fx:id="historyStatus" text="Status" prefWidth="125"/>
+      <TableColumn fx:id="historyNotes" text="Notes" prefWidth="220"/>
+      <TableColumn fx:id="historyAction" text="Actions" prefWidth="145"/>
+     </columns>
+    </TableView>
+   </VBox>
+  </VBox>
+ </content>
+</ScrollPane>

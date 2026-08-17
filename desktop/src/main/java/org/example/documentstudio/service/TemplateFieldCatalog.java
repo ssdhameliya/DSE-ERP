@@ -127,6 +127,7 @@ public final class TemplateFieldCatalog {
         if (type == null || type == DocumentType.GENERAL_PDF) return List.of();
         return switch (type) {
             case PURCHASE_INVOICE, PURCHASE_ORDER -> combine(COMPANY, PURCHASE, TOTALS, PAYMENT);
+            case PURCHASE_RETURN -> combine(COMPANY, RETURN, TOTALS, PAYMENT);
             case QUOTATION -> combine(COMPANY, QUOTATION, TOTALS, PAYMENT);
             case DELIVERY_CHALLAN -> combine(COMPANY, DELIVERY);
             case CREDIT_NOTE, DEBIT_NOTE, SALES_RETURN -> combine(COMPANY, RETURN, TOTALS);

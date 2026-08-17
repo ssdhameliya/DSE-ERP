@@ -13,6 +13,7 @@ import org.example.service.BrandImagePresenter;
 import org.example.util.ClockService;
 import org.example.util.IconFactory;
 import org.example.util.SceneManager;
+import org.example.update.BuildInfo;
 
 import java.util.regex.Pattern;
 
@@ -20,7 +21,7 @@ public class RegistrationController {
     private static final Pattern EMAIL = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
     @FXML private ImageView imgBrandLogo;
     @FXML private StackPane brandLogoBox;
-    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription;
+    @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription, lblVersion;
     @FXML private Label lblClock, lblMessage, lblNameError, lblUsernameError, lblEmailError, lblRoleError, lblPasswordError, lblConfirmError, lblOtpError;
     @FXML private TextField txtName, txtUsername, txtEmail, txtOtp;
     @FXML private ComboBox<AuthApiClient.RoleOption> cmbRole;
@@ -32,6 +33,7 @@ public class RegistrationController {
 
     @FXML public void initialize() {
         BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox); applyBranding();
+        if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
         btnSendOtp.setGraphic(IconFactory.icon("email")); btnCreate.setGraphic(IconFactory.icon("add")); btnBack.setGraphic(IconFactory.icon("return"));
         bindClear(txtName,lblNameError); bindClear(txtUsername,lblUsernameError); bindClear(txtEmail,lblEmailError); bindClear(txtPassword,lblPasswordError); bindClear(txtConfirm,lblConfirmError); bindClear(txtOtp,lblOtpError);
         cmbRole.valueProperty().addListener((o,a,b) -> { if (b != null) clearField(cmbRole, lblRoleError); invalidateChallenge(); });

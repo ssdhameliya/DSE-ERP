@@ -17,4 +17,10 @@ public class RuntimeService {
         Integer one = repository.queryForObject("SELECT 1", Integer.class);
         return one != null && one == 1;
     }
+
+    @Transactional(readOnly = true)
+    public String databaseTimeZone() {
+        String zone = repository.queryForObject("SHOW TIME ZONE", String.class);
+        return zone == null ? "" : zone;
+    }
 }

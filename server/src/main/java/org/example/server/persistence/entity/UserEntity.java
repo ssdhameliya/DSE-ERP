@@ -22,6 +22,7 @@ public class UserEntity {
     @Column(name = "failed_attempts") private Integer failedAttempts = 0;
     @Column(name = "mfa_enabled") private Integer mfaEnabled = 0;
     @Column(name = "last_login") private java.time.LocalDateTime lastLogin;
+    @Column(name = "last_login_utc") private String lastLoginUtc;
 
     public Integer getId() { return id; }
     public String getUsername() { return username; }
@@ -49,5 +50,5 @@ public class UserEntity {
     public String getAccessLevel() { return accessLevel; }
     public boolean isLocked() { return Integer.valueOf(1).equals(locked); }
     public boolean isMfaEnabled() { return Integer.valueOf(1).equals(mfaEnabled); }
-    public void recordSuccessfulLogin() { this.lastLogin = BusinessClock.now(); this.failedAttempts = 0; }
+    public void recordSuccessfulLogin() { this.lastLogin = BusinessClock.now(); this.lastLoginUtc = BusinessClock.nowUtcText(); this.failedAttempts = 0; }
 }

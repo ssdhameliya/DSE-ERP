@@ -36,7 +36,9 @@ import javafx.stage.Stage;
 
 import org.example.model.*;
 import org.example.config.ConfigManager;
+import org.example.config.WorkspaceManager;
 import org.example.api.master.MasterApiClient;
+import org.example.api.support.SupportApiClient;
 import org.example.service.LookupService;
 
 import org.example.navigation.NavigationManager;
@@ -50,6 +52,10 @@ import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 import org.example.util.UiTaskExecutor;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
@@ -158,7 +164,8 @@ public class SalesController {
     private Button btnAddLine;
     @FXML private Button btnRemoveLine, btnSaveDraft;
     @FXML private Button btnManageCharges;
-    @FXML private Label lblChargeManagerSummary;
+    @FXML private Label lblChargeManagerSummary, lblAttachmentName;
+    @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove;
 
 
 
@@ -180,6 +187,7 @@ public class SalesController {
 
     private final LookupService lookupService = new LookupService();
     private final MasterApiClient masterApi = new MasterApiClient();
+    private final SupportApiClient supportApi = new SupportApiClient();
 
     //-------------------------------------------------------
     // Editing
@@ -187,6 +195,9 @@ public class SalesController {
 
     private Sales editingSale = null;
     private boolean loadingSaleForEdit = false;
+    private File pendingAttachment;
+    private boolean attachmentRemovalPending;
+    private boolean viewMode;
 
     private SalesLine editingLine = null;
 
@@ -237,6 +248,10 @@ public class SalesController {
             btnManageCharges.setGraphic(IconFactory.compactIcon("payment", 15));
             btnManageCharges.getProperties().put("erp-icon-preserve", true);
         }
+        if (btnAttachmentAdd != null) { btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment", 14)); btnAttachmentAdd.getProperties().put("erp-icon-preserve", true); }
+        if (btnAttachmentPreview != null) { btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view", 14)); btnAttachmentPreview.getProperties().put("erp-icon-preserve", true); }
+        if (btnAttachmentRemove != null) { btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete", 14)); btnAttachmentRemove.getProperties().put("erp-icon-preserve", true); }
+        refreshAttachmentUi();
         updateChargeManagerSummary();
 
         // PO Date follows Invoice Date + Payment Terms for new sales and when
@@ -1065,9 +1080,13 @@ public class SalesController {
 
             }
 
+            String attachmentWarning = null;
+            try { persistAttachmentAfterSave(sale); }
+            catch (Exception attachmentError) { attachmentWarning = rootMessage(attachmentError); }
+
             new OwnedAlert(
-                Alert.AlertType.INFORMATION,
-                "Sales saved successfully"
+                attachmentWarning == null ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
+                attachmentWarning == null ? "Sales saved successfully" : "Sales saved successfully, but the attachment could not be updated.\n\n" + attachmentWarning
             ).showAndWait();
 
             NavigationManager.getInstance()
@@ -1144,6 +1163,7 @@ public class SalesController {
             sale.setInvoiceType(editingSale.getInvoiceType());
             sale.setSource(editingSale.getSource());
             sale.setDocumentStatus(editingSale.getDocumentStatus());
+            sale.setAttachmentPath(editingSale.getAttachmentPath());
         }
 
         sale.setInvoiceNo(
@@ -1317,6 +1337,10 @@ public class SalesController {
 
         txtRemarks.clear();
         if (txtInvoiceMessage != null) txtInvoiceMessage.clear();
+        pendingAttachment = null;
+        attachmentRemovalPending = false;
+        if (txtAttachment != null) txtAttachment.clear();
+        refreshAttachmentUi();
         if (txtReference != null) txtReference.clear();
         txtBillingAddress.clear();
         txtDeliveryAddress.clear();
@@ -1519,7 +1543,108 @@ public class SalesController {
 
     @FXML private void addMultipleItems(){new OwnedAlert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
     @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->{String value=code.trim();if(value.isBlank())return;UiTaskExecutor.submitLatest("create-sale-barcode-search",()->itemService.search(value,12),matches->matches.stream().filter(i->safeItem(i.getItemCode()).equalsIgnoreCase(value)).findFirst().ifPresentOrElse(i->{mergeItemCache(List.of(i));selectItem(i);},()->warn("Item code not found")),error->warn("Item search failed: "+rootMessage(error)));});}
-    @FXML private void attachFile(){javafx.stage.FileChooser c=new javafx.stage.FileChooser();java.io.File f=c.showOpenDialog(tableLines.getScene().getWindow());if(f!=null)txtAttachment.setText(f.getAbsolutePath());}
+    @FXML private void attachFile(){
+        if (viewMode) return;
+        javafx.stage.FileChooser chooser=new javafx.stage.FileChooser();
+        chooser.setTitle("Attach document to sale");
+        File file=chooser.showOpenDialog(tableLines.getScene().getWindow());
+        if(file==null)return;
+        pendingAttachment=file;
+        attachmentRemovalPending=false;
+        if(txtAttachment!=null)txtAttachment.setText(file.getAbsolutePath());
+        refreshAttachmentUi();
+    }
+
+    @FXML private void previewAttachment(){
+        try{
+            Path file=pendingAttachment!=null?pendingAttachment.toPath():resolveAttachmentPath(currentAttachmentReference());
+            if(file==null||!Files.isRegularFile(file)){warn("The attachment is not available. You can replace it with a new file.");return;}
+            java.awt.Desktop.getDesktop().open(file.toFile());
+        }catch(Exception e){warn("Attachment preview failed: "+rootMessage(e));}
+    }
+
+    @FXML private void removeAttachment(){
+        if(viewMode)return;
+        pendingAttachment=null;
+        attachmentRemovalPending=true;
+        if(txtAttachment!=null)txtAttachment.clear();
+        refreshAttachmentUi();
+    }
+
+    private void refreshAttachmentUi(){
+        if(lblAttachmentName==null)return;
+        String reference=currentAttachmentReference();
+        boolean available=pendingAttachment!=null||(!attachmentRemovalPending&&reference!=null&&!reference.isBlank());
+        String name=pendingAttachment!=null?pendingAttachment.getName():attachmentDisplayName(reference);
+        lblAttachmentName.setText(available?name:"No attachment");
+        lblAttachmentName.setTooltip(available?new Tooltip(name):null);
+        if(btnAttachmentAdd!=null){btnAttachmentAdd.setText(available?"Replace":"Add");btnAttachmentAdd.setDisable(viewMode);}
+        if(btnAttachmentPreview!=null)btnAttachmentPreview.setDisable(!available);
+        if(btnAttachmentRemove!=null)btnAttachmentRemove.setDisable(viewMode||!available);
+    }
+
+    private String currentAttachmentReference(){
+        if(attachmentRemovalPending)return "";
+        if(editingSale!=null)return editingSale.getAttachmentPath();
+        return "";
+    }
+
+    private String attachmentDisplayName(String reference){
+        if(reference==null||reference.isBlank())return "No attachment";
+        try{Path path=Path.of(reference);Path name=path.getFileName();return name==null?reference:name.toString();}
+        catch(Exception ignored){return reference;}
+    }
+
+    private Path resolveAttachmentPath(String reference){
+        if(reference==null||reference.isBlank())return null;
+        Path path=Path.of(reference);
+        return path.isAbsolute()?path:WorkspaceManager.getWorkspaceRoot().resolve(path).normalize();
+    }
+
+    private String persistAttachmentAfterSave(Sales sale)throws Exception{
+        Sales persisted=sale.getId()>0?sale:salesService.getByInvoice(sale.getInvoiceNo());
+        if(persisted==null||persisted.getId()<=0)throw new IllegalStateException("Saved sale could not be reloaded for attachment update.");
+        String oldReference=editingSale==null?persisted.getAttachmentPath():editingSale.getAttachmentPath();
+        if(attachmentRemovalPending){
+            supportApi.attachment("SALE",persisted.getId(),"");
+            deleteManagedAttachmentQuietly(oldReference);
+            persisted.setAttachmentPath("");
+            if(editingSale!=null)editingSale.setAttachmentPath("");
+            attachmentRemovalPending=false;
+            refreshAttachmentUi();
+            return "";
+        }
+        if(pendingAttachment==null)return "";
+        Path source=pendingAttachment.toPath();
+        if(!Files.isRegularFile(source))throw new IllegalStateException("Selected attachment is no longer available.");
+        Path folder=WorkspaceManager.getAttachmentsFolder().resolve("Sales").resolve(safeAttachmentSegment(sale.getInvoiceNo()));
+        Files.createDirectories(folder);
+        String name=sanitizeAttachmentFileName(pendingAttachment.getName());
+        Path target=folder.resolve(System.currentTimeMillis()+"-"+name);
+        Files.copy(source,target,StandardCopyOption.REPLACE_EXISTING);
+        String reference=WorkspaceManager.getWorkspaceRoot().relativize(target).toString();
+        try{supportApi.attachment("SALE",persisted.getId(),reference);}
+        catch(Exception error){Files.deleteIfExists(target);throw error;}
+        deleteManagedAttachmentQuietly(oldReference);
+        persisted.setAttachmentPath(reference);
+        if(editingSale!=null)editingSale.setAttachmentPath(reference);
+        pendingAttachment=null;
+        if(txtAttachment!=null)txtAttachment.setText(reference);
+        refreshAttachmentUi();
+        return reference;
+    }
+
+    private void deleteManagedAttachmentQuietly(String reference){
+        try{
+            if(reference==null||reference.isBlank())return;
+            Path path=resolveAttachmentPath(reference);
+            Path attachments=WorkspaceManager.getAttachmentsFolder().toAbsolutePath().normalize();
+            if(path!=null&&path.toAbsolutePath().normalize().startsWith(attachments))Files.deleteIfExists(path);
+        }catch(Exception ignored){}
+    }
+
+    private String safeAttachmentSegment(String value){return value==null?"sale":value.replaceAll("[^A-Za-z0-9._-]","_");}
+    private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
     @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
     @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}
 
@@ -1586,6 +1711,10 @@ public class SalesController {
         if (txtPoDate != null) txtPoDate.setText(BusinessClock.formatDate(sale.getPoDate()));
         cmbSalesPerson.setValue(sale.getSalesperson().isBlank()?"Admin":sale.getSalesperson());
         txtInvoiceMessage.setText(sale.getNotes());
+        pendingAttachment=null;
+        attachmentRemovalPending=false;
+        if(txtAttachment!=null)txtAttachment.setText(sale.getAttachmentPath());
+        refreshAttachmentUi();
         cmbPaymentTerms.setValue(sale.getPaymentTerms().isBlank() ? "15 Days" : sale.getPaymentTerms());
         if (cmbGstType != null) cmbGstType.setValue(sale.getGstType().isBlank()
             ? (cmbGstType.getItems().isEmpty() ? null : cmbGstType.getItems().get(0)) : sale.getGstType());
@@ -1683,6 +1812,7 @@ public class SalesController {
 
     public void setViewMode(boolean value) {
 
+        viewMode=value;
         txtInvoiceNo.setDisable(value);
 
         dpInvoiceDate.setDisable(value);
@@ -1700,6 +1830,7 @@ public class SalesController {
         txtLineDiscount.setDisable(value);
 
         txtRemarks.setDisable(value);
+        if(txtInvoiceMessage!=null){txtInvoiceMessage.setEditable(!value);txtInvoiceMessage.setDisable(false);}
         txtBillingAddress.setDisable(value);
         txtDeliveryAddress.setDisable(value);
         if (cmbGstType != null) cmbGstType.setDisable(value);
@@ -1721,6 +1852,7 @@ public class SalesController {
         if (btnAddCustomer != null) btnAddCustomer.setDisable(value);
 
         btnSaveSale.setDisable(value);
+        refreshAttachmentUi();
 
         tableLines.setDisable(value);
 

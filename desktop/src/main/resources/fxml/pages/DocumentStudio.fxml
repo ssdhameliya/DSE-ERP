@@ -32,7 +32,7 @@
                 </HBox>
                 <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-wide,doc-studio-kpi-purple">
                     <StackPane fx:id="defaultsKpiIcon" styleClass="doc-studio-kpi-icon"/>
-                    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Automatic Defaults" styleClass="doc-studio-kpi-label"/><Label fx:id="lblPurchaseDefault" text="Purchase: Built-in • Quotation: Built-in" wrapText="true" styleClass="doc-studio-kpi-default"/></VBox>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Automatic Defaults" styleClass="doc-studio-kpi-label"/><Label fx:id="lblPurchaseDefault" text="Purchase: Built-in • Purchase Return: Built-in • Quotation: Built-in" wrapText="true" styleClass="doc-studio-kpi-default"/></VBox>
                 </HBox>
                 <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-safe-card">
                     <StackPane fx:id="salesSafetyKpiIcon" styleClass="doc-studio-kpi-icon"/>

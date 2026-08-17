@@ -1,6 +1,7 @@
 package org.example.documentstudio.service;
 
 import org.example.api.quotation.QuotationApiClient;
+import org.example.api.returns.ReturnApiClient;
 import org.example.config.ConfigManager;
 import org.example.dao.ItemDAO;
 import org.example.documentstudio.model.DocumentType;
@@ -11,6 +12,7 @@ import org.example.model.Item;
 import org.example.model.Party;
 import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
+import org.example.util.BusinessClock;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,7 +28,6 @@ import java.util.Map;
 
 /** Converts ERP records into stable universal Document Studio field keys. */
 public final class TemplateDataFactory {
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
 
     private TemplateDataFactory() {}
@@ -62,6 +63,51 @@ public final class TemplateDataFactory {
         put(v, "totals.balanceAmount", money(purchase.getBalanceAmount()));
         put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(purchase.getTotalAmount()));
         return new TemplateData(v, images, purchaseItems(purchase), safe(purchase.getGstTreatment()));
+    }
+
+    public static TemplateData fromPurchaseReturn(ReturnApiClient.Details details, Purchase originalPurchase) {
+        if (details == null) throw new IllegalArgumentException("Purchase return is required.");
+        Map<String, String> v = new LinkedHashMap<>();
+        Map<String, Path> images = new LinkedHashMap<>();
+        addCompanyAndPayment(v, images);
+
+        put(v, "return.number", details.no());
+        put(v, "return.date", displayDate(details.date()));
+        put(v, "return.referenceNo", details.invoice());
+        String reason = safe(details.notes());
+        if (reason.isBlank() && details.lines() != null) {
+            reason = details.lines().stream().map(ReturnApiClient.Line::reason).filter(x -> x != null && !x.isBlank()).distinct().reduce((a,b) -> a + "; " + b).orElse("");
+        }
+        put(v, "return.reason", reason);
+        put(v, "party.name", details.party());
+        if (originalPurchase != null && originalPurchase.getSupplier() != null) {
+            Party supplier = originalPurchase.getSupplier();
+            put(v, "party.name", safe(details.party()).isBlank() ? supplier.getName() : details.party());
+            put(v, "party.address", supplier.getAddress());
+            put(v, "party.gstin", supplier.getGstin());
+        } else {
+            put(v, "party.address", "");
+            put(v, "party.gstin", "");
+        }
+
+        List<TaxInvoiceItem> items = new ArrayList<>();
+        double subtotal = 0, gst = 0;
+        int serial = 1;
+        if (details.lines() != null) for (ReturnApiClient.Line line : details.lines()) {
+            double gross = line.quantity() * line.rate();
+            double taxAmount = gross * line.tax() / 100.0;
+            subtotal += gross;
+            gst += taxAmount;
+            items.add(new TaxInvoiceItem(serial++, "", safe(line.name()), safe(line.code()), line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax()));
+        }
+        put(v, "totals.subtotal", money(subtotal));
+        put(v, "totals.discountAmount", "0.00");
+        put(v, "totals.gstAmount", money(gst));
+        put(v, "totals.grandTotal", money(details.total()));
+        put(v, "totals.paidAmount", money(details.refund()));
+        put(v, "totals.balanceAmount", money(Math.max(0, details.total() - details.refund())));
+        put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(details.total()));
+        return new TemplateData(v, images, items, originalPurchase == null ? "" : safe(originalPurchase.getGstTreatment()));
     }
 
     public static TemplateData fromQuotation(QuotationApiClient.QuoteDto quote, List<QuotationApiClient.LineDto> lines) {
@@ -108,6 +154,7 @@ public final class TemplateDataFactory {
         return switch (type) {
             case GENERAL_PDF -> new TemplateData(Map.of(), Map.of(), List.of(), "");
             case PURCHASE_INVOICE, PURCHASE_ORDER -> samplePurchase();
+            case PURCHASE_RETURN -> samplePurchaseReturn();
             case QUOTATION -> sampleQuotation();
             case DELIVERY_CHALLAN -> sampleDelivery();
             case CREDIT_NOTE, DEBIT_NOTE, SALES_RETURN -> sampleReturn(type);
@@ -144,6 +191,20 @@ public final class TemplateDataFactory {
         v.put("supplier.phone", "+91 90000 00000");
         v.put("supplier.email", "accounts@supplier.example");
         addSampleTotals(v, 29800, 0, 5364, 35164);
+        return new TemplateData(v, images, sampleItems(), "Registered Business");
+    }
+
+    private static TemplateData samplePurchaseReturn() {
+        Map<String, String> v = commonSample();
+        Map<String, Path> images = configuredImages();
+        v.put("return.number", "PUR-RET-2026-0012");
+        v.put("return.date", "15-08-2026");
+        v.put("return.referenceNo", "PINV-2026-00125");
+        v.put("return.reason", "Material returned to supplier");
+        v.put("party.name", "ABC Components Pvt Ltd");
+        v.put("party.address", "Industrial Estate, Ahmedabad, Gujarat");
+        v.put("party.gstin", "24AABCA1234A1Z5");
+        addSampleTotals(v, 5000, 0, 900, 5900);
         return new TemplateData(v, images, sampleItems(), "Registered Business");
     }
 
@@ -329,14 +390,15 @@ public final class TemplateDataFactory {
     }
 
     private static String money(double value) { synchronized (MONEY) { return MONEY.format(value); } }
-    private static String formatDate(LocalDate value) { return value == null ? "" : DATE.format(value); }
+    private static String formatDate(LocalDate value) { return BusinessClock.formatDate(value); }
     private static String displayDate(String value) {
         if (value == null || value.isBlank()) return "";
-        try { return DATE.format(LocalDate.parse(value.substring(0, Math.min(10, value.length())))); }
+        try { return BusinessClock.formatDate(LocalDate.parse(value.substring(0, Math.min(10, value.length())))); }
         catch (Exception ignored) { return value; }
     }
     private static void put(Map<String, String> values, String key, String value) { values.put(key, value == null ? "" : value); }
     private static String safe(String value) { return value == null ? "" : value.trim(); }
+    private static String safeOr(String value, String fallback) { String result=safe(value); return result.isBlank()?safe(fallback):result; }
     private static String normalize(String value) { return safe(value).toUpperCase(Locale.ROOT); }
     private static String firstNonBlank(String... values) {
         for (String value : values) if (value != null && !value.isBlank()) return value.trim();

@@ -6,22 +6,19 @@ import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
 import org.example.model.Sales;
 import org.example.model.SalesLine;
+import org.example.util.BusinessClock;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /** Builds consistent, database-backed WhatsApp messages for ERP documents. */
 public final class PaymentMessageService {
-
-    private static final DateTimeFormatter MESSAGE_DATE =
-        DateTimeFormatter.ofPattern("dd-MMM-uuuu", Locale.ENGLISH);
 
     /* Unicode escapes keep the WhatsApp template stable on every Windows/JDK encoding. */
     private static final String DIVIDER = "\u2501".repeat(18);
@@ -190,7 +187,7 @@ public final class PaymentMessageService {
     }
 
     private static String formatDate(LocalDate value) {
-        return value == null ? "Not available" : MESSAGE_DATE.format(value);
+        return value == null ? "Not available" : BusinessClock.formatDate(value);
     }
 
     private static LocalDate parseDate(String value) {

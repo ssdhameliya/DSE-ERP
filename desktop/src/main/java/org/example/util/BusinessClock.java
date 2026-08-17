@@ -68,6 +68,40 @@ public final class BusinessClock {
         return DateTimeFormatter.ofPattern(pattern, Locale.getDefault()).withZone(zone()).format(value);
     }
 
+    /** Formats canonical or legacy persisted timestamps in the Application Settings timezone. */
+    public static String formatTimestamp(String value) {
+        if (value == null || value.isBlank()) return "";
+        try { return formatInstant(parseTimestamp(value), "hh:mm a"); }
+        catch (RuntimeException ignored) { return value; }
+    }
+
+    /** Returns the configured business-local date represented by a canonical or legacy timestamp. */
+    public static LocalDate localDateOfTimestamp(String value) {
+        if (value == null || value.isBlank()) return null;
+        try { return parseTimestamp(value).atZone(zone()).toLocalDate(); }
+        catch (RuntimeException ignored) { return null; }
+    }
+
+    /** Parses canonical UTC/offset timestamps and legacy local TEXT timestamps using the configured business zone. */
+    public static Instant parseTimestamp(String value) {
+        if (value == null || value.isBlank()) return null;
+        String text = value.trim();
+        try { return Instant.parse(text); } catch (DateTimeParseException ignored) { }
+        try { return OffsetDateTime.parse(text).toInstant(); } catch (DateTimeParseException ignored) { }
+        String offsetCompatible = text.replace(' ', 'T');
+        if (offsetCompatible.matches(".*[+-]\\d{2}$")) offsetCompatible += ":00";
+        try { return OffsetDateTime.parse(offsetCompatible).toInstant(); } catch (DateTimeParseException ignored) { }
+        try { return LocalDateTime.parse(offsetCompatible, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(zone()).toInstant(); } catch (DateTimeParseException ignored) { }
+        for (DateTimeFormatter formatter : List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"))) {
+            try { return LocalDateTime.parse(text, formatter).atZone(zone()).toInstant(); }
+            catch (DateTimeParseException ignored) { }
+        }
+        throw new IllegalArgumentException("Unsupported timestamp format: " + value);
+    }
+
     /** Parses text dates using the saved date format first, then safe compatibility formats. */
     public static LocalDate parseDate(String value) {
         if (value == null || value.isBlank()) return null;

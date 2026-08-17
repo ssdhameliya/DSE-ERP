@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.UserDialogController" prefWidth="920" prefHeight="680" styleClass="user-account-dialog,approved-ui,approved-screen,approved-screen-user-dialog,erp-screen-root">
  <left><VBox prefWidth="275" alignment="CENTER" spacing="16" styleClass="user-dialog-brand">
-   <Label text="◈" styleClass="user-dialog-logo"/><Label text="DSE ERP 7.3.12" styleClass="title"/>
+   <Label text="◈" styleClass="user-dialog-logo"/><Label text="DSE ERP 7.3.17" styleClass="title"/>
    <Label text="USER ACCESS" styleClass="metric-title"/><Label text="Create and maintain secure application accounts with database-backed roles." wrapText="true" textAlignment="CENTER" styleClass="subtitle" maxWidth="210"/>
  </VBox></left>
  <center><VBox spacing="15" styleClass="user-dialog-form"><padding><Insets top="26" right="34" bottom="24" left="34"/></padding>

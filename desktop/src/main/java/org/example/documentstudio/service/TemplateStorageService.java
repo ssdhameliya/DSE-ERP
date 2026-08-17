@@ -62,12 +62,22 @@ public final class TemplateStorageService {
         }
     }
 
-    public static Optional<DocumentTemplate> defaultFor(DocumentType type) {
-        return listAll().stream()
+    public static synchronized Optional<DocumentTemplate> defaultFor(DocumentType type) {
+        List<DocumentTemplate> defaults = listAll().stream()
                 .filter(t -> t.getDocumentType() == type)
                 .filter(t -> t.getStatus() == TemplateStatus.ACTIVE)
                 .filter(DocumentTemplate::isDefaultTemplate)
-                .findFirst();
+                .toList();
+        if (defaults.isEmpty()) return Optional.empty();
+        DocumentTemplate keeper = defaults.getFirst();
+        // Older workspaces may contain duplicate defaults. Keep the most recently updated one
+        // and self-heal the metadata so runtime selection is deterministic thereafter.
+        for (int i = 1; i < defaults.size(); i++) {
+            DocumentTemplate other = defaults.get(i);
+            other.setDefaultTemplate(false);
+            try { save(other); } catch (IOException error) { logFailure("repair-default:" + type, null, error); }
+        }
+        return Optional.of(keeper);
     }
 
     public static DocumentTemplate importPdf(Path sourcePdf, String name, DocumentType type) throws IOException {
@@ -135,9 +145,12 @@ public final class TemplateStorageService {
     /** Convert a General PDF into an ERP template (or change its ERP document type). */
     public static synchronized void changeDocumentType(DocumentTemplate template, DocumentType type) throws IOException {
         if (template == null || type == null) throw new IOException("Template and document type are required.");
+        DocumentType previous = template.getDocumentType();
         template.setDocumentType(type);
         template.setCategory(type.isGeneral() ? TemplateCategory.GENERAL_PDF : TemplateCategory.ERP_TEMPLATE);
-        if (type.isGeneral()) template.setDefaultTemplate(false);
+        // A default belongs to its document type. Moving a template to another type must never
+        // silently carry the live ERP default flag into the new flow.
+        if (previous != type) template.setDefaultTemplate(false);
         save(template);
     }
 
@@ -199,6 +212,8 @@ public final class TemplateStorageService {
 
     public static synchronized void activateAndSetDefault(DocumentTemplate template) throws IOException {
         if (template == null) return;
+        if (!DocumentFlowRegistry.isAutomatic(template.getDocumentType()))
+            throw new IOException(template.getDocumentType().label() + " is design-only and cannot be an automatic ERP default yet.");
         for (DocumentTemplate other : listAll()) {
             if (other.getDocumentType() == template.getDocumentType() && other.isDefaultTemplate()
                     && !other.getId().equals(template.getId())) {
@@ -262,6 +277,12 @@ public final class TemplateStorageService {
         Path file = folder(template).resolve(template.getSourceFile());
         if (!Files.isRegularFile(file)) throw new IOException("Template source PDF is missing: " + file);
         return file;
+    }
+
+    /** Returns the immutable imported PDF when available; blank templates fall back to source.pdf. */
+    public static Path originalPdf(DocumentTemplate template) throws IOException {
+        Path original = folder(template).resolve(ORIGINAL);
+        return Files.isRegularFile(original) ? original : sourcePdf(template);
     }
 
     public static Path assetsFolder(DocumentTemplate template) throws IOException {

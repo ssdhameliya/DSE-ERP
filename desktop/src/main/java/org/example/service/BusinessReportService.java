@@ -19,7 +19,6 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,7 +26,6 @@ import java.util.List;
  * Produces consistent management reports from the live ERP data.
  */
 public final class BusinessReportService {
-    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd MMM uuuu");
     private static final PDType1Font BOLD = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
     private static final PDType1Font REGULAR = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
 
@@ -68,7 +66,7 @@ public final class BusinessReportService {
             summary.setColumnWidth(0, 26 * 256);
             summary.setColumnWidth(1, 20 * 256);
             row(summary, 0, title, "Business Performance Report");
-            row(summary, 1, null, "Period", from.format(DATE) + " - " + to.format(DATE));
+            row(summary, 1, null, "Period", BusinessClock.formatDate(from) + " - " + BusinessClock.formatDate(to));
             row(summary, 3, header, "Metric", "Value");
             metricRow(summary, 4, "Sales", data.salesTotal, money);
             metricRow(summary, 5, "Purchases", data.purchaseTotal, money);
@@ -102,7 +100,7 @@ public final class BusinessReportService {
         c.addRect(0, 760, 595, 82);
         c.fill();
         text(c, BOLD, 20, Color.WHITE, 42, 800, ConfigManager.get("company.name", "JavaApp ERP"));
-        text(c, REGULAR, 10, Color.WHITE, 42, 781, "Business Performance Report | " + from.format(DATE) + " to " + to.format(DATE));
+        text(c, REGULAR, 10, Color.WHITE, 42, 781, "Business Performance Report | " + BusinessClock.formatDate(from) + " to " + BusinessClock.formatDate(to));
     }
 
     private static float section(PDPageContentStream c, String value, float y) throws IOException {
@@ -166,7 +164,7 @@ public final class BusinessReportService {
     }
 
     private static void footer(PDPageContentStream c) throws IOException {
-        text(c, REGULAR, 8, Color.GRAY, 42, 28, "Generated " + BusinessClock.today().format(DATE) + " | Confidential business report");
+        text(c, REGULAR, 8, Color.GRAY, 42, 28, "Generated " + BusinessClock.formatDate(BusinessClock.today()) + " | Confidential business report");
     }
 
     private static CellStyle style(Workbook wb, IndexedColors fill, boolean bold, IndexedColors fontColor) {

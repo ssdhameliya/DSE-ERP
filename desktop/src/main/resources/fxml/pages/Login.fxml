@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.image.ImageView?>
 <?import org.example.ui.SharedApplicationFooter?>
-<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LoginController" styleClass="auth-page,approved-ui,approved-screen,approved-screen-login,erp-screen-root">
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.LoginController" styleClass="auth-page,auth-standard-shell,approved-ui,approved-screen,approved-screen-login,erp-screen-root">
 
     <left>
         <VBox fx:id="brandPanel" prefWidth="600" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel,auth-unified-brand-panel">

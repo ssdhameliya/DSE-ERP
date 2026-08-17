@@ -1,6 +1,7 @@
 package org.example.documentstudio.service;
 
 import org.example.api.quotation.QuotationApiClient;
+import org.example.api.returns.ReturnApiClient;
 import org.example.dao.PurchaseDAO;
 import org.example.documentstudio.model.DocumentSample;
 import org.example.documentstudio.model.DocumentType;
@@ -30,6 +31,11 @@ public final class DocumentDataService {
                         .limit(150)
                         .map(p -> new DocumentSample(p.getInvoiceNo(), p.getInvoiceNo() + supplierSuffix(p)))
                         .toList();
+                case PURCHASE_RETURN -> new ReturnApiClient().list("PURCHASE RETURN").stream()
+                        .filter(Objects::nonNull)
+                        .limit(150)
+                        .map(r -> new DocumentSample(r.no(), r.no() + textSuffix(r.party())))
+                        .toList();
                 case QUOTATION -> new QuotationApiClient().list().stream()
                         .filter(Objects::nonNull)
                         .limit(150)
@@ -46,6 +52,7 @@ public final class DocumentDataService {
         if (sampleId == null || sampleId.isBlank()) return TemplateDataFactory.sampleFor(type);
         return switch (type) {
             case PURCHASE_INVOICE, PURCHASE_ORDER -> loadPurchase(sampleId);
+            case PURCHASE_RETURN -> loadPurchaseReturn(sampleId);
             case QUOTATION -> loadQuotation(sampleId);
             default -> TemplateDataFactory.sampleFor(type);
         };
@@ -64,6 +71,21 @@ public final class DocumentDataService {
             throw error;
         } catch (Exception error) {
             throw new IllegalStateException("The selected purchase could not be loaded.", error);
+        }
+    }
+
+    private static TemplateData loadPurchaseReturn(String returnNo) {
+        try {
+            ReturnApiClient.Details details = new ReturnApiClient().details(returnNo);
+            Purchase original = null;
+            if (details != null && details.invoice() != null && !details.invoice().isBlank()) {
+                try { original = new PurchaseDAO().getByInvoice(details.invoice()); } catch (Exception ignored) { }
+            }
+            return TemplateDataFactory.fromPurchaseReturn(details, original);
+        } catch (RuntimeException error) {
+            throw error;
+        } catch (Exception error) {
+            throw new IllegalStateException("The selected purchase return could not be loaded.", error);
         }
     }
 

@@ -17,6 +17,7 @@ import org.example.api.bank.BankStatementApiClient;
 import org.example.bank.KotakBankStatementCsvParser;
 import org.example.navigation.NavigationManager;
 import org.example.service.SessionService;
+import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
@@ -573,7 +574,7 @@ public class BankStatementController {
             VBox list=new VBox(8);
             if(items.isEmpty())list.getChildren().add(new Label("No audit history found for this transaction."));
             for(var a:items){
-                Label event=new Label(safe(a.eventType())+"  •  "+safe(a.createdAt()));event.getStyleClass().add("bank-audit-event");
+                Label event=new Label(safe(a.eventType())+"  •  "+BusinessClock.formatTimestamp(a.createdAt()));event.getStyleClass().add("bank-audit-event");
                 Label detail=new Label(safe(a.detail()));detail.setWrapText(true);detail.getStyleClass().add("bank-audit-detail");
                 Label who=new Label("Performed by: "+safe(a.performedBy())+(safe(a.previousStatus()).isBlank()?"":"   •   "+safe(a.previousStatus())+" → "+safe(a.newStatus())));who.getStyleClass().add("bank-audit-meta");
                 Label badge=new Label(safe(a.newStatus()).isBlank()?"SUCCESS":safe(a.newStatus()));badge.getStyleClass().add("bank-audit-badge");

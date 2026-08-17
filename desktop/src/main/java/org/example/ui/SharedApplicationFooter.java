@@ -20,7 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public final class SharedApplicationFooter extends HBox {
     private static final List<WeakReference<SharedApplicationFooter>> INSTANCES = new CopyOnWriteArrayList<>();
 
-    private final Label trust = new Label("Secure • Local • Reliable");
+    private final Label trust = new Label("Secure   Local   Reliable");
     private final Label company = new Label();
     private final Label phone = new Label();
     private final Label email = new Label();
@@ -52,11 +52,6 @@ public final class SharedApplicationFooter extends HBox {
         ClockService.start(clock);
     }
 
-    private Label separator() {
-        Label label = new Label("•");
-        label.getStyleClass().add("universal-footer-separator");
-        return label;
-    }
 
     public void refresh() {
         company.setText(nonBlank(BrandingService.companyName(), BrandingService.applicationName()));
@@ -83,10 +78,7 @@ public final class SharedApplicationFooter extends HBox {
         if (email.isManaged()) fields.add(email);
         if (website.isManaged()) fields.add(website);
         fields.add(clock);
-        for (int i = 0; i < fields.size(); i++) {
-            if (i > 0) getChildren().add(separator());
-            getChildren().add(fields.get(i));
-        }
+        getChildren().addAll(fields);
     }
 
     private static String nonBlank(String value, String fallback) {

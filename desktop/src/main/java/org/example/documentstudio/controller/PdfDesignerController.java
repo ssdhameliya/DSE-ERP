@@ -11,15 +11,18 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.controller.DashboardController;
 import org.example.documentstudio.model.*;
+import org.example.documentstudio.service.DocumentFlowRegistry;
 import org.example.documentstudio.service.PdfTemplateRenderer;
 import org.example.documentstudio.service.DocumentDataService;
 import org.example.documentstudio.service.PdfTextExtractionService;
@@ -61,8 +64,8 @@ public class PdfDesignerController implements ScreenLifecycle {
     @FXML private Label lblPreviewData;
     @FXML private ComboBox<String> cmbImageFit;
     @FXML private ColorPicker colorText, colorFill, colorStroke;
-    @FXML private Button btnPreview, btnApplyProperties, btnConvertExisting, btnConvertImportedImage, btnSaveDefault, btnConnectData;
-    @FXML private ToggleButton btnEditExistingText, btnEditImportedImage, btnEditFormField;
+    @FXML private Button btnPreview, btnApplyProperties, btnConvertExisting, btnConvertImportedImage, btnSaveDefault, btnConnectData, btnOriginalView, btnDesignView;
+    @FXML private ToggleButton btnEditExistingText, btnEditImportedImage, btnEditFormField, btnAreaSelect;
     @FXML private Slider zoomSlider, sldOpacity;
     @FXML private CheckBox chkSnap, chkBold, chkLocked, chkPreserveRatio;
     @FXML private TextField txtFieldSearch;
@@ -79,8 +82,13 @@ public class PdfDesignerController implements ScreenLifecycle {
 
     private DocumentTemplate template;
     private Path sourcePdf;
+    private Path originalPdf;
     private Path previewPdf;
     private boolean previewMode;
+    private boolean originalMode;
+    private boolean areaSelectionMode;
+    private Rectangle areaSelectionRect;
+    private double areaStartX, areaStartY;
     private boolean existingTextMode;
     private boolean existingImageMode;
     private boolean formFieldMode;
@@ -119,6 +127,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         }
         try {
             sourcePdf = TemplateStorageService.sourcePdf(template);
+            originalPdf = TemplateStorageService.originalPdf(template);
             var size = PdfPreviewSupport.pageSize(sourcePdf, 0);
             pageWidth = size.width();
             pageHeight = size.height();
@@ -149,6 +158,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             }
         });
         Platform.runLater(this::installKeyboardShortcuts);
+        installAreaSelectionHandlers();
         renderCanvas();
     }
 
@@ -313,6 +323,70 @@ public class PdfDesignerController implements ScreenLifecycle {
         addElement(e);
     }
 
+    @FXML private void toggleAreaSelectionMode() {
+        if (previewMode) {
+            if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
+            return;
+        }
+        areaSelectionMode = btnAreaSelect != null && btnAreaSelect.isSelected();
+        if (areaSelectionMode) {
+            existingTextMode = false; existingImageMode = false; formFieldMode = false;
+            btnEditExistingText.setSelected(false); btnEditImportedImage.setSelected(false); btnEditFormField.setSelected(false);
+            clearSelection();
+            lblSaveState.setText("Drag over the original value to hide it");
+        } else {
+            lblSaveState.setText("Ready");
+            renderCanvas();
+        }
+    }
+
+    private void installAreaSelectionHandlers() {
+        canvasPane.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> {
+            if (!areaSelectionMode || previewMode) return;
+            var local = canvasPane.sceneToLocal(event.getSceneX(), event.getSceneY());
+            areaStartX = clamp(local.getX(), 0, canvasPane.getWidth());
+            areaStartY = clamp(local.getY(), 0, canvasPane.getHeight());
+            areaSelectionRect = new Rectangle(areaStartX, areaStartY, 1, 1);
+            areaSelectionRect.setFill(Color.rgb(37, 99, 235, 0.14));
+            areaSelectionRect.setStroke(Color.web("#2563EB"));
+            areaSelectionRect.getStrokeDashArray().setAll(5.0, 4.0);
+            areaSelectionRect.setMouseTransparent(true);
+            canvasPane.getChildren().add(areaSelectionRect);
+            event.consume();
+        });
+        canvasPane.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> {
+            if (!areaSelectionMode || areaSelectionRect == null || previewMode) return;
+            var local = canvasPane.sceneToLocal(event.getSceneX(), event.getSceneY());
+            double x = clamp(local.getX(), 0, canvasPane.getWidth());
+            double y = clamp(local.getY(), 0, canvasPane.getHeight());
+            areaSelectionRect.setX(Math.min(areaStartX, x));
+            areaSelectionRect.setY(Math.min(areaStartY, y));
+            areaSelectionRect.setWidth(Math.abs(x - areaStartX));
+            areaSelectionRect.setHeight(Math.abs(y - areaStartY));
+            event.consume();
+        });
+        canvasPane.addEventFilter(MouseEvent.MOUSE_RELEASED, event -> {
+            if (!areaSelectionMode || areaSelectionRect == null || previewMode) return;
+            Rectangle selection = areaSelectionRect;
+            areaSelectionRect = null;
+            double width = selection.getWidth(), height = selection.getHeight();
+            if (width >= 4 && height >= 4) {
+                TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex,
+                        selection.getX() / scale, selection.getY() / scale, width / scale, height / scale);
+                String group = "MANUAL_AREA|" + UUID.randomUUID();
+                mask.setReplacementGroupId(group);
+                mask.setReplacementSourceKey(group);
+                areaSelectionMode = false;
+                if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
+                addElement(mask);
+                lblSaveState.setText("Area hidden — add Text or an ERP Field on top");
+            } else {
+                canvasPane.getChildren().remove(selection);
+            }
+            event.consume();
+        });
+    }
+
     @FXML private void addRectangle() {
         TemplateElement e = newElement(ElementType.RECTANGLE, 190, 75);
         e.setFillColor("#FFFFFF");
@@ -429,14 +503,17 @@ public class PdfDesignerController implements ScreenLifecycle {
         }
         checkpoint();
         PdfTextRegion region = selectedPdfText;
-        TemplateElement mask = replacementMask(region);
+        String replacementKey = textReplacementKey(region);
+        TemplateElement mask = replacementMask(region, replacementKey);
         TemplateElement fieldElement = TemplateElement.of(field.image() ? ElementType.IMAGE_FIELD : ElementType.FIELD,
                 pageIndex, region.x(), region.y(), Math.max(region.width(), field.image() ? 145 : 90),
                 Math.max(region.height(), field.image() ? 70 : region.fontSize() * 1.35));
         fieldElement.setFieldKey(field.key());
         fieldElement.setText(field.label());
         fieldElement.setFontSize(region.fontSize());
-        List<TemplateElement> updated = new ArrayList<>(template.getElements());
+        fieldElement.setReplacementGroupId(replacementKey);
+        fieldElement.setReplacementSourceKey(replacementKey);
+        List<TemplateElement> updated = replacementBase(replacementKey);
         updated.add(mask);
         updated.add(fieldElement);
         template.setElements(updated);
@@ -470,6 +547,8 @@ public class PdfDesignerController implements ScreenLifecycle {
         if (selected == null || previewMode) return;
         checkpoint();
         TemplateElement copy = selected.copy();
+        copy.setReplacementGroupId("");
+        copy.setReplacementSourceKey("");
         copy.setX(Math.min(pageWidth - copy.getWidth(), selected.getX() + 12));
         copy.setY(Math.min(pageHeight - copy.getHeight(), selected.getY() + 12));
         List<TemplateElement> updated = new ArrayList<>(template.getElements());
@@ -490,7 +569,11 @@ public class PdfDesignerController implements ScreenLifecycle {
         }
         checkpoint();
         String id = selected.getId();
-        template.setElements(template.getElements().stream().filter(e -> !e.getId().equals(id)).toList());
+        String group = selected.getReplacementGroupId();
+        template.setElements(template.getElements().stream().filter(e -> {
+            if (!group.isBlank() && group.equals(e.getReplacementGroupId())) return false;
+            return !e.getId().equals(id);
+        }).toList());
         clearSelection();
         autosave();
         renderCanvas();
@@ -546,8 +629,9 @@ public class PdfDesignerController implements ScreenLifecycle {
             PdfTextRegion region = selectedPdfText;
             if (region == null) return;
             checkpoint();
-            TemplateElement mask = replacementMask(region);
-            List<TemplateElement> updated = new ArrayList<>(template.getElements());
+            String replacementKey = textReplacementKey(region);
+            TemplateElement mask = replacementMask(region, replacementKey);
+            List<TemplateElement> updated = replacementBase(replacementKey);
             updated.add(mask);
 
             String replacement = txtContent.getText() == null ? "" : txtContent.getText();
@@ -560,6 +644,8 @@ public class PdfDesignerController implements ScreenLifecycle {
                 replacementElement.setFontSize(parse(txtFontSize, region.fontSize()));
                 replacementElement.setBold(chkBold.isSelected());
                 replacementElement.setTextColor(hex(colorText.getValue()));
+                replacementElement.setReplacementGroupId(replacementKey);
+                replacementElement.setReplacementSourceKey(replacementKey);
                 updated.add(replacementElement);
             }
             template.setElements(updated);
@@ -573,26 +659,58 @@ public class PdfDesignerController implements ScreenLifecycle {
         }
     }
 
-    private TemplateElement replacementMask(PdfTextRegion region) {
+    private TemplateElement replacementMask(PdfTextRegion region, String replacementKey) {
+        double padX = Math.max(2.0, region.fontSize() * 0.16);
+        double padY = Math.max(2.0, region.fontSize() * 0.20);
+        double x = Math.max(0, region.x() - padX);
+        double y = Math.max(0, region.y() - padY);
         TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex,
-                Math.max(0, region.x() - 1), Math.max(0, region.y() - 1),
-                Math.min(pageWidth - Math.max(0, region.x() - 1), region.width() + 2),
-                Math.min(pageHeight - Math.max(0, region.y() - 1), region.height() + 2));
+                x, y,
+                Math.min(pageWidth - x, region.width() + padX * 2),
+                Math.min(pageHeight - y, region.height() + padY * 2));
         mask.setLocked(true);
+        mask.setReplacementGroupId(replacementKey);
+        mask.setReplacementSourceKey(replacementKey);
         return mask;
     }
+
+    private String textReplacementKey(PdfTextRegion region) {
+        return "PDF_TEXT|" + region.pageIndex() + "|" + roundedKey(region.x()) + "|" + roundedKey(region.y())
+                + "|" + roundedKey(region.width()) + "|" + roundedKey(region.height());
+    }
+
+    private String formReplacementKey(PdfFormFieldRegion region) {
+        return "PDF_FORM|" + region.pageIndex() + "|" + safeKey(region.fieldName()) + "|" + roundedKey(region.x()) + "|" + roundedKey(region.y());
+    }
+
+    private List<TemplateElement> replacementBase(String replacementKey) {
+        List<TemplateElement> updated = new ArrayList<>();
+        for (TemplateElement element : template.getElements()) {
+            if (replacementKey.equals(element.getReplacementGroupId()) || replacementKey.equals(element.getReplacementSourceKey())) continue;
+            updated.add(element);
+        }
+        return updated;
+    }
+
+    private String roundedKey(double value) { return String.format(Locale.ROOT, "%.1f", value); }
+    private String safeKey(String value) { return value == null ? "" : value.replaceAll("[^A-Za-z0-9._-]", "_"); }
 
     private void replaceExistingFormField() {
         try {
             PdfFormFieldRegion region = selectedPdfForm;
             if (region == null) return;
             checkpoint();
+            String replacementKey = formReplacementKey(region);
+            double padX = 2.0, padY = 2.0;
+            double maskX = Math.max(0, region.x() - padX), maskY = Math.max(0, region.y() - padY);
             TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex,
-                    Math.max(0, region.x() - 1), Math.max(0, region.y() - 1),
-                    Math.min(pageWidth - Math.max(0, region.x() - 1), region.width() + 2),
-                    Math.min(pageHeight - Math.max(0, region.y() - 1), region.height() + 2));
+                    maskX, maskY,
+                    Math.min(pageWidth - maskX, region.width() + padX * 2),
+                    Math.min(pageHeight - maskY, region.height() + padY * 2));
             mask.setLocked(true);
-            List<TemplateElement> updated = new ArrayList<>(template.getElements());
+            mask.setReplacementGroupId(replacementKey);
+            mask.setReplacementSourceKey(replacementKey);
+            List<TemplateElement> updated = replacementBase(replacementKey);
             updated.add(mask);
             String replacement = txtContent.getText() == null ? "" : txtContent.getText();
             TemplateElement replacementElement = null;
@@ -604,6 +722,8 @@ public class PdfDesignerController implements ScreenLifecycle {
                 replacementElement.setFontSize(parse(txtFontSize, Math.max(8, Math.min(12, region.height() * 0.55))));
                 replacementElement.setBold(chkBold.isSelected());
                 replacementElement.setTextColor(hex(colorText.getValue()));
+                replacementElement.setReplacementGroupId(replacementKey);
+                replacementElement.setReplacementSourceKey(replacementKey);
                 updated.add(replacementElement);
             }
             template.setElements(updated);
@@ -689,31 +809,67 @@ public class PdfDesignerController implements ScreenLifecycle {
                 ModernDialog.success(root, "General PDF saved", template.getName() + " is saved in the Document Library. Use Export PDF to create a standalone PDF file.");
                 return;
             }
+            if (!DocumentFlowRegistry.isAutomatic(template.getDocumentType())) {
+                TemplateStorageService.save(template);
+                lblSaveState.setText("Saved ✓");
+                ModernDialog.success(root, "Template saved",
+                        template.getName() + " is saved as a design-only template. Automatic runtime default is not enabled for " + template.getDocumentType().label() + ".");
+                return;
+            }
             TemplateStorageService.activateAndSetDefault(template);
             refreshMeta();
             lblSaveState.setText("Saved & Default ✓");
-            String runtime = template.getDocumentType().isAutomaticRuntime()
-                    ? "It will now be used automatically for " + template.getDocumentType().label() + " PDF generation."
-                    : "It is saved as the default design for " + template.getDocumentType().label() + ". Automatic runtime replacement is not enabled for this document type yet.";
-            ModernDialog.success(root, "Default template updated", runtime + " Sales PDF generation remains unchanged unless separately enabled in a future release.");
+            ModernDialog.success(root, "Default template updated",
+                    "It will now be used automatically for " + template.getDocumentType().label() + " PDF generation. Sales PDF generation remains unchanged.");
         } catch (Exception error) {
             ModernDialog.error(root, "Save failed", "Document Studio", rootMessage(error));
         }
     }
 
+    @FXML private void showOriginal() {
+        if (template == null) return;
+        try {
+            originalPdf = TemplateStorageService.originalPdf(template);
+            originalMode = true;
+            previewMode = true; // existing mutation guards also protect Original mode
+            previewPdf = null;
+            existingTextMode = false; existingImageMode = false; formFieldMode = false; areaSelectionMode = false;
+            btnEditExistingText.setSelected(false); btnEditImportedImage.setSelected(false); btnEditFormField.setSelected(false);
+            if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
+            setDesignEditingEnabled(false);
+            clearSelection();
+            btnPreview.setText("Final Preview");
+            var info = PdfPreviewSupport.pageSize(originalPdf, 0);
+            configurePages(info.pageCount());
+            renderCanvas();
+        } catch (Exception error) {
+            ModernDialog.error(root, "Original PDF could not be shown", "Document Studio", rootMessage(error));
+        }
+    }
+
+    @FXML private void showDesign() {
+        if (template == null) return;
+        originalMode = false;
+        previewMode = false;
+        previewPdf = null;
+        areaSelectionMode = false;
+        if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
+        setDesignEditingEnabled(true);
+        clearSelection();
+        btnPreview.setText("Final Preview");
+        configurePages(sourcePageCount);
+        renderCanvas();
+    }
+
     @FXML private void togglePreview() {
         if (template == null) return;
-        if (previewMode) {
-            previewMode = false;
-            previewPdf = null;
-            btnPreview.setText(template.getDocumentType().isErpConnected() ? "Data Preview" : "Final PDF");
-            btnEditExistingText.setDisable(false);
-            btnEditImportedImage.setDisable(false);
-            btnEditFormField.setDisable(false);
-            configurePages(sourcePageCount);
-            renderCanvas();
+        if (previewMode && !originalMode) {
+            showDesign();
             return;
         }
+        // Moving directly from Original to Final Preview is allowed.
+        originalMode = false;
+        previewMode = false;
         try {
             TemplateStorageService.save(template);
             previewPdf = WorkspaceManager.getTempFolder().resolve("document-studio-preview-" + template.getId() + ".pdf");
@@ -723,20 +879,29 @@ public class PdfDesignerController implements ScreenLifecycle {
             existingTextMode = false;
             existingImageMode = false;
             formFieldMode = false;
+            areaSelectionMode = false;
             btnEditExistingText.setSelected(false);
             btnEditImportedImage.setSelected(false);
             btnEditFormField.setSelected(false);
-            btnEditExistingText.setDisable(true);
-            btnEditImportedImage.setDisable(true);
-            btnEditFormField.setDisable(true);
+            if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
+            setDesignEditingEnabled(false);
             clearSelection();
             btnPreview.setText("Back to Design");
             var info = PdfPreviewSupport.pageSize(previewPdf, 0);
             configurePages(info.pageCount());
             renderCanvas();
         } catch (Exception error) {
+            previewMode = false;
+            setDesignEditingEnabled(true);
             ModernDialog.error(root, "Preview failed", "The document could not be rendered", rootMessage(error));
         }
+    }
+
+    private void setDesignEditingEnabled(boolean enabled) {
+        btnEditExistingText.setDisable(!enabled);
+        btnEditImportedImage.setDisable(!enabled);
+        btnEditFormField.setDisable(!enabled);
+        if (btnAreaSelect != null) btnAreaSelect.setDisable(!enabled);
     }
 
     private TemplateData previewData() {
@@ -848,16 +1013,18 @@ public class PdfDesignerController implements ScreenLifecycle {
 
     private void updateModeControls() {
         if (template == null) return;
+        boolean automatic = DocumentFlowRegistry.isAutomatic(template.getDocumentType());
         boolean erp = template.getDocumentType().isErpConnected();
-        if (btnSaveDefault != null) btnSaveDefault.setText(erp ? "Save & Set Default" : "Save Document");
+        if (btnSaveDefault != null) btnSaveDefault.setText(automatic ? "Save & Set Default" : "Save Document");
         if (btnConnectData != null) btnConnectData.setText(erp ? "Change ERP Data" : "Connect ERP Data");
-        if (btnPreview != null) btnPreview.setText(erp ? "Data Preview" : "Final PDF");
+        if (btnPreview != null) btnPreview.setText("Final Preview");
     }
 
     private String defaultHeading() {
         if (template == null) return "Document";
         return switch (template.getDocumentType()) {
             case PURCHASE_INVOICE -> "Purchase Invoice";
+            case PURCHASE_RETURN -> "Purchase Return";
             case PURCHASE_ORDER -> "Purchase Order";
             case QUOTATION -> "Quotation";
             case DELIVERY_CHALLAN -> "Delivery Challan";
@@ -928,7 +1095,7 @@ public class PdfDesignerController implements ScreenLifecycle {
 
     private void renderCanvas() {
         if (template == null || sourcePdf == null) return;
-        Path pdf = previewMode && previewPdf != null ? previewPdf : sourcePdf;
+        Path pdf = originalMode && originalPdf != null ? originalPdf : (previewMode && previewPdf != null ? previewPdf : sourcePdf);
         int sequence = renderSequence.incrementAndGet();
         try {
             var size = PdfPreviewSupport.pageSize(pdf, pageIndex);
@@ -1501,7 +1668,7 @@ public class PdfDesignerController implements ScreenLifecycle {
 
     private void clearProperties() {
         if (lblSelection == null) return;
-        lblSelection.setText(previewMode ? "Preview mode — displaying rendered ERP data" :
+        lblSelection.setText(originalMode ? "Original PDF — protected read-only source" : previewMode ? "Final Preview — rendered output" :
                 (existingTextMode ? "Click highlighted PDF text to replace or convert it" :
                         existingImageMode ? "Click a highlighted raster image to convert it into an editable object" :
                                 formFieldMode ? "Click a highlighted PDF form field to replace its value" : "Select an object on the page"));
@@ -1639,7 +1806,8 @@ public class PdfDesignerController implements ScreenLifecycle {
             c.setText(e.getText()); c.setFieldKey(e.getFieldKey()); c.setFontSize(e.getFontSize()); c.setBold(e.isBold());
             c.setTextColor(e.getTextColor()); c.setFillColor(e.getFillColor()); c.setStrokeColor(e.getStrokeColor()); c.setStrokeWidth(e.getStrokeWidth());
             c.setImagePath(e.getImagePath()); c.setOpacity(e.getOpacity()); c.setRotation(e.getRotation()); c.setPreserveAspectRatio(e.isPreserveAspectRatio()); c.setImageFit(e.getImageFit());
-            c.setLocked(e.isLocked()); c.setTableColumns(e.getTableColumns()); c.setRowHeight(e.getRowHeight()); c.setHeaderHeight(e.getHeaderHeight());
+            c.setLocked(e.isLocked()); c.setReplacementGroupId(e.getReplacementGroupId()); c.setReplacementSourceKey(e.getReplacementSourceKey());
+            c.setTableColumns(e.getTableColumns()); c.setRowHeight(e.getRowHeight()); c.setHeaderHeight(e.getHeaderHeight());
             out.add(c);
         }
         return out;
