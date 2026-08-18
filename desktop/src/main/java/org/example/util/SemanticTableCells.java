@@ -60,7 +60,9 @@ public final class SemanticTableCells {
         return switch (role) {
             case "email" -> {
                 if (v.contains("FAIL") || v.contains("ERROR")) yield new Presentation("warning", State.DANGER);
-                if (v.contains("SENT")) yield new Presentation("sent", State.SUCCESS);
+                // NOT SENT contains the word SENT, so it must be classified first.
+                if (v.contains("NOT SENT") || v.contains("UNSENT")) yield new Presentation("email", State.WARNING);
+                if (v.contains("SENT") || v.contains("DELIVERED")) yield new Presentation("sent", State.SUCCESS);
                 if (v.contains("PROCESS") || v.contains("QUEUE")) yield new Presentation("refresh", State.INFO);
                 yield new Presentation("email", State.WARNING);
             }
@@ -117,9 +119,11 @@ public final class SemanticTableCells {
     private static void apply(TableCell<?, String> cell, Presentation p) {
         cell.getStyleClass().add(p.state.styleClass);
         cell.setStyle("-fx-text-fill: " + p.state.color + "; -fx-font-weight: 800;");
-        Node graphic = IconFactory.compactIcon(p.icon, 15);
-        graphic.setStyle("-fx-icon-color: " + p.state.color + ";");
+        // Status cells must use the dedicated status glyph renderer. compactIcon() is
+        // intended for actions/headers and can collapse to a tiny square at table scale.
+        Node graphic = IconFactory.statusIcon(p.icon, p.state.color);
         cell.setGraphic(graphic);
+        cell.setGraphicTextGap(5);
     }
 
     private static State classify(String v) {

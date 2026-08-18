@@ -4233,7 +4233,16 @@
 
 .modern-dialog-message {
     -fx-font-size: 13px;
-    -fx-max-width: 410px;
+    -fx-line-spacing: 2px;
+    -fx-max-width: 430px;
+}
+
+.modern-dialog-semantic {
+    -fx-alignment: CENTER;
+    -fx-min-height: 56px;
+    -fx-min-width: 56px;
+    -fx-pref-height: 56px;
+    -fx-pref-width: 56px;
 }
 
 .modern-dialog .button-bar {
@@ -6411,6 +6420,17 @@
     -fx-padding: 12 14 12 14;
 }
 
+.erp-toast-close {
+    -fx-background-color: transparent;
+    -fx-background-radius: 7px;
+    -fx-font-size: 17px;
+    -fx-min-height: 28px;
+    -fx-min-width: 28px;
+    -fx-padding: 0;
+    -fx-pref-height: 28px;
+    -fx-pref-width: 28px;
+}
+
 .erp-screen-root {
     -fx-max-height: infinity;
     -fx-max-width: infinity;
@@ -8454,14 +8474,6 @@
 .settings-invoice-compact .settings-invoice-assets-panel {
     -fx-padding: 8px 0 0 0;
 }
-.settings-invoice-compact .settings-brand-asset-card {
-    -fx-padding: 8px 10px;
-}
-.settings-invoice-compact .settings-image-preview {
-    -fx-min-height: 68px;
-    -fx-pref-height: 68px;
-    -fx-max-height: 76px;
-}
 .settings-invoice-compact .settings-asset-purpose {
     -fx-min-height: 0;
 }
@@ -8658,13 +8670,6 @@
     -fx-font-size: 10.5px;
     -fx-font-weight: 650;
 }
-.bank-action-dialog-list {
-    -fx-padding: 2px 0 0 0;
-}
-.bank-action-dialog-button {
-    -fx-min-height: 38px;
-    -fx-font-weight: 800;
-}
 .purchase-entry-right-rail {
     -fx-padding: 0 0 2px 0;
 }
@@ -8689,19 +8694,17 @@
     -fx-font-weight: 800;
 }
 .settings-invoice-compact .settings-brand-assets-row {
-    -fx-spacing: 14px;
     -fx-alignment: TOP_LEFT;
 }
 .settings-invoice-compact .settings-brand-asset-card {
-    -fx-min-width: 280px;
-    -fx-pref-width: 420px;
-    -fx-padding: 10px 12px;
+    -fx-min-width: 0;
+    -fx-padding: 9px 11px;
 }
 .settings-invoice-compact .settings-image-preview {
-    -fx-min-height: 120px;
-    -fx-pref-height: 126px;
-    -fx-max-height: 140px;
-    -fx-padding: 8px;
+    -fx-min-height: 76px;
+    -fx-pref-height: 84px;
+    -fx-max-height: 92px;
+    -fx-padding: 6px;
 }
 .settings-invoice-compact .settings-asset-filename {
     -fx-font-size: 11px;

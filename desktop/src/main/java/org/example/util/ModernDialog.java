@@ -31,8 +31,6 @@ import java.util.Optional;
 public final class ModernDialog {
     private static final ButtonType CONFIRM =
         new ButtonType("Confirm", ButtonBar.ButtonData.OK_DONE);
-    private static final ButtonType CONTINUE =
-        new ButtonType("Continue", ButtonBar.ButtonData.OK_DONE);
     private static final ButtonType CLOSE =
         new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
     private static final ButtonType CANCEL =
@@ -52,17 +50,22 @@ public final class ModernDialog {
     }
 
     public static void success(Node owner, String title, String message) {
-        show(owner, "complete", title, "Operation successful", message, CLOSE);
+        // A successful action should not block the user's workflow. One action
+        // produces one visible response: a short, non-modal toast.
         ToastManager.success(owner, title, message);
     }
 
     public static void warning(Node owner, String title, String heading, String message) {
-        show(owner, "warning", title, heading, message, CANCEL, CONTINUE);
+        // Warning is informational unless the caller explicitly asks for a
+        // confirmation. A single acknowledgement avoids fake Continue/Cancel
+        // choices that cannot change controller behavior.
+        show(owner, "warning", title, heading, message, CLOSE);
     }
 
     public static void error(Node owner, String title, String heading, String message) {
+        // Errors require acknowledgement, so keep the modal dialog only. Do not
+        // stack a second toast behind/on top of the same error.
         show(owner, "error", title, heading, message, CLOSE);
-        ToastManager.error(owner, title, message);
     }
 
     private static Optional<ButtonType> show(

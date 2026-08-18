@@ -45,7 +45,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V7_3_17__purchase_inventory_lifecycle",
                     "db/migration/V7_3_17__purchase_inventory_lifecycle.sql"),
             new Migration("V7_3_17_1__canonical_login_timestamp",
-                    "db/migration/V7_3_17_1__canonical_login_timestamp.sql")
+                    "db/migration/V7_3_17_1__canonical_login_timestamp.sql"),
+            new Migration("V7_3_18__purchase_invoice_format",
+                    "db/migration/V7_3_18__purchase_invoice_format.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

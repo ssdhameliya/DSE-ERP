@@ -65,6 +65,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private File selectedBill;
     private Integer editingId;
     private Long reconciliationStatementId;
+    private Double reconciliationAmount;
     private final BankStatementApiClient bankStatementApi = new BankStatementApiClient();
     private int currentPage = 0;
     private static final int PAGE_SIZE = 8;
@@ -83,34 +84,44 @@ public class BankExpenseController implements ScreenLifecycle {
         Mode initialMode = consumeRequestedMode();
         mode = initialMode == null ? Mode.BANK : initialMode;
         applyMode(mode);
-        applyRequestedExpensePrefill();
-        applyRequestedBankEntryPrefill();
+        // Statement transfer context is applied once the page is attached in onScreenShown().
+        // This avoids an initialize/onScreenShown lifecycle race on the cached BankExpense page.
     }
 
     private void installKpiIcons(){setKpiIcon(kpi1Icon,"bank");setKpiIcon(kpi2Icon,"credit");setKpiIcon(kpi3Icon,"balance");setKpiIcon(kpi4Icon,"payment");}
     private void setKpiIcon(Label label,String semantic){if(label!=null){label.setText("");label.setGraphic(IconFactory.icon(semantic,20));label.getProperties().put("erp-icon-preserve",true);}}
 
     private void applyRequestedExpensePrefill(){
-        ExpensePrefill p=consumeExpensePrefill(); if(p==null)return;
-        mode=Mode.EXPENSE; applyMode(Mode.EXPENSE); reconciliationStatementId=p.statementTransactionId();
+        ExpensePrefill p=requestedExpensePrefill; if(p==null)return;
+        if(mode!=Mode.EXPENSE)applyMode(Mode.EXPENSE);
+        reconciliationStatementId=p.statementTransactionId();
+        reconciliationAmount=p.amount();
         try{entryDate.setValue(LocalDate.parse(p.date()));}catch(Exception ignored){}
-        amount.setText(String.format(Locale.ROOT,"%.2f",p.amount())); referenceNo.setText(safe(p.reference(),"")); description.setText(safe(p.description(),""));
+        amount.setText(String.format(Locale.ROOT,"%.2f",p.amount()));
+        amount.setEditable(false);
+        referenceNo.setText(safe(p.reference(),""));
+        description.setText(safe(p.description(),""));
         if(p.accountName()!=null&&!p.accountName().isBlank()){ if(!expenseAccount.getItems().contains(p.accountName()))expenseAccount.getItems().add(0,p.accountName()); expenseAccount.setValue(p.accountName()); }
         if(p.paymentMode()!=null&&!p.paymentMode().isBlank()){ if(!paymentMode.getItems().contains(p.paymentMode()))paymentMode.getItems().add(0,p.paymentMode()); paymentMode.setValue(p.paymentMode()); }
         saveButton.setText("Create Expense from Statement");
+        requestedExpensePrefill=null;
     }
 
     private void applyRequestedBankEntryPrefill(){
-        BankEntryPrefill p=consumeBankEntryPrefill(); if(p==null)return;
-        mode=Mode.BANK; applyMode(Mode.BANK); reconciliationStatementId=p.statementTransactionId();
-        try{entryDate.setValue(LocalDate.parse(p.date()));}catch(Exception ignored){}
+        BankEntryPrefill p=requestedBankEntryPrefill; if(p==null)return;
+        if(mode!=Mode.BANK)applyMode(Mode.BANK);
+        reconciliationStatementId=p.statementTransactionId();
         double value=p.credit()>0?p.credit():p.debit();
+        reconciliationAmount=value;
+        try{entryDate.setValue(LocalDate.parse(p.date()));}catch(Exception ignored){}
         amount.setText(String.format(Locale.ROOT,"%.2f",value));
+        amount.setEditable(false);
         referenceNo.setText(safe(p.reference(),"")); description.setText(safe(p.description(),""));
         if(p.credit()>0)creditRadio.setSelected(true);else debitRadio.setSelected(true);
         if(p.accountName()!=null&&!p.accountName().isBlank()){ if(!bankAccount.getItems().contains(p.accountName()))bankAccount.getItems().add(0,p.accountName()); bankAccount.setValue(p.accountName()); }
         if(p.paymentMode()!=null&&!p.paymentMode().isBlank()){ if(!paymentMode.getItems().contains(p.paymentMode()))paymentMode.getItems().add(0,p.paymentMode()); paymentMode.setValue(p.paymentMode()); }
         saveButton.setText("Create Bank Entry from Statement");
+        requestedBankEntryPrefill=null;
     }
 
     private void loadMasterLookups() {
@@ -238,9 +249,10 @@ public class BankExpenseController implements ScreenLifecycle {
 
     @FXML private void saveEntry() {
         try {
-            double value = Double.parseDouble(amount.getText().trim());
-            if (value <= 0) throw new IllegalArgumentException("Amount must be greater than zero.");
-            if (entryDate.getValue() == null) throw new IllegalArgumentException("Select a date.");
+            validate();
+            double value = reconciliationAmount != null
+                    ? reconciliationAmount
+                    : Double.parseDouble(amount.getText().replace(",", "").trim());
             String rawType= mode==Mode.BANK ? (creditRadio.isSelected()?"BANK DEPOSIT":"BANK WITHDRAWAL") : "EXPENSE";
             String category= mode==Mode.EXPENSE ? text(expenseCategory) : (creditRadio.isSelected()?"Deposit":"Withdrawal");
             String account= mode==Mode.BANK ? bankAccount.getValue() : expenseAccount.getValue();
@@ -268,7 +280,7 @@ public class BankExpenseController implements ScreenLifecycle {
 
     private void validate(){ if(entryDate.getValue()==null)throw new IllegalArgumentException("Select a date."); if(description.getText().trim().isEmpty())throw new IllegalArgumentException("Enter a description."); if(amount.getText().trim().isEmpty())throw new IllegalArgumentException("Enter an amount."); double v; try{v=Double.parseDouble(amount.getText().replace(",","").trim());}catch(Exception e){throw new IllegalArgumentException("Enter a valid amount.");} if(v<=0)throw new IllegalArgumentException("Amount must be greater than zero."); if(paymentMode.getItems().isEmpty())throw new IllegalArgumentException("No Payment Mode is configured in Master Data."); if(paymentMode.getValue()==null)throw new IllegalArgumentException("Select payment mode."); if(mode==Mode.BANK&&bankAccount.getValue()==null)throw new IllegalArgumentException("Select bank account."); if(mode==Mode.EXPENSE&&expenseCategory.getItems().isEmpty())throw new IllegalArgumentException("No Expense Category is configured in Master Data."); if(mode==Mode.EXPENSE&&(expenseCategory.getValue()==null||expenseCategory.getValue().isBlank()||expenseAccount.getValue()==null))throw new IllegalArgumentException("Select expense category and account."); }
 
-    @FXML private void clearForm(){ reconciliationStatementId=null; if(entryDate!=null)entryDate.setValue(BusinessClock.today()); if(referenceNo!=null)referenceNo.clear(); if(description!=null)description.clear(); if(amount!=null)amount.clear(); if(creditRadio!=null)creditRadio.setSelected(true); if(expenseCategory!=null)expenseCategory.getSelectionModel().clearSelection(); editingId=null; selectedBill=null; if(billName!=null)billName.setText("No file selected"); if(saveButton!=null)saveButton.setText(mode==Mode.EXPENSE?"Save Expense":"Save Entry"); }
+    @FXML private void clearForm(){ reconciliationStatementId=null; reconciliationAmount=null; if(entryDate!=null)entryDate.setValue(BusinessClock.today()); if(referenceNo!=null)referenceNo.clear(); if(description!=null)description.clear(); if(amount!=null){amount.clear();amount.setEditable(true);} if(creditRadio!=null)creditRadio.setSelected(true); if(expenseCategory!=null)expenseCategory.getSelectionModel().clearSelection(); editingId=null; selectedBill=null; if(billName!=null)billName.setText("No file selected"); if(saveButton!=null)saveButton.setText(mode==Mode.EXPENSE?"Save Expense":"Save Entry"); }
     @FXML private void focusForm(){ if(mode==Mode.EXPENSE)expenseCategory.requestFocus(); else bankAccount.requestFocus(); }
     @FXML private void chooseBill(){ FileChooser f=new FileChooser(); f.setTitle("Choose expense bill"); f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bill files","*.pdf","*.png","*.jpg","*.jpeg")); selectedBill=f.showOpenDialog(table.getScene().getWindow()); if(selectedBill!=null)billName.setText(selectedBill.getName()); }
 

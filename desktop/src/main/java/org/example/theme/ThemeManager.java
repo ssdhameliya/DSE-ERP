@@ -55,6 +55,8 @@ public final class ThemeManager {
         if (scene.getRoot() != null) {
             PlatformUiSupport.installResponsiveClasses(scene);
             if (scene.getRoot() instanceof DialogPane pane
+                    && !Boolean.TRUE.equals(pane.getProperties().get("erp-dialog-custom"))
+                    && !pane.getStyleClass().contains("modern-dialog")
                     && !pane.getStyleClass().contains("erp-modern-dialog")
                     && !pane.getStyleClass().contains("app-dialog")) {
                 pane.getStyleClass().add("erp-modern-dialog");

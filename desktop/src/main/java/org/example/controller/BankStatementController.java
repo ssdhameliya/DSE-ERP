@@ -125,7 +125,7 @@ public class BankStatementController {
         colAction.setCellFactory(c->new TableCell<>(){
             @Override protected void updateItem(Void v,boolean empty){
                 super.updateItem(v,empty); if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}
-                setGraphic(actionButton(getTableView().getItems().get(getIndex())));
+                setGraphic(actionMenu(getTableView().getItems().get(getIndex())));
             }
         });
         IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colValueDate,"calendar");
@@ -142,67 +142,56 @@ public class BankStatementController {
         }});
     }
 
-    private Button actionButton(Row row){
-        Button button=new Button("Open");
-        button.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action");
-        button.setGraphic(IconFactory.compactIcon("actions",15));
-        button.setContentDisplay(ContentDisplay.LEFT);
-        button.setGraphicTextGap(6);
-        button.setOnAction(e->showActionDialog(row));
-        return button;
-    }
-
-    private void showActionDialog(Row row){
-        if(row==null)return;
-        String status=up(row.dto.status());
-        VBox actions=new VBox(8);
-        actions.getStyleClass().add("bank-action-dialog-list");
-        addDialogAction(actions,"View Transaction Details","view",()->viewEdit(row));
-        addDialogAction(actions,"View Imported Statement","document",this::viewStatementSource);
-        addDialogAction(actions,"View Audit History","history",()->audit(row));
-        if(Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(status)){
-            addDialogAction(actions,status.equals("SUGGESTED")?"Review Suggested Match":"Match Transaction","link",()->match(row));
-            if(row.dto.debit()>0)addDialogAction(actions,"Move to Expense","payment",()->moveToExpense(row));
-            addDialogAction(actions,"Move to Bank Entry","bank",()->moveToBankEntry(row));
-            if(!"REVIEW".equals(status))addDialogAction(actions,"Mark for Review","status",()->markReview(row));
-            addDialogAction(actions,"Mark as Ignored","cancel",()->ignore(row));
-        } else if("MATCHED".equals(status)){
-            addDialogAction(actions,"View Match / Linked Record","link",()->openLinked(row));
-            if("BANK_ENTRY".equals(up(row.dto.linkedTargetType()))) addDialogAction(actions,"View Bank Entry","bank",()->openFinance(row,BankExpenseController.Mode.BANK));
-            addDialogAction(actions,"Unmatch / Reverse","return",()->reverse(row));
-        } else if("EXPENSE".equals(status)){
-            addDialogAction(actions,"View Expense","payment",()->openFinance(row,BankExpenseController.Mode.EXPENSE));
-            addDialogAction(actions,"Unmatch / Reverse","return",()->reverse(row));
-        } else if("IGNORED".equals(status)){
-            addDialogAction(actions,"Return to Unmatched","return",()->reverse(row));
+    private MenuButton actionMenu(Row row){
+        // Keep the compact in-row menu used by the live v7.3.17 Bank Statement.
+        // The v7.3.18 modal action chooser was an unintended UX redesign.
+        MenuButton m=new MenuButton("Actions");
+        m.getStyleClass().addAll("approved-button","approved-secondary-button","bank-row-action","table-action-menu");
+        m.setGraphic(IconFactory.compactIcon("actions",15));
+        m.setContentDisplay(ContentDisplay.LEFT);
+        m.setGraphicTextGap(6);
+        String s=up(row.dto.status());
+        section(m,"VIEW");
+        add(m,"View Transaction Details","view",()->viewEdit(row));
+        add(m,"View Imported Statement","document",this::viewStatementSource);
+        add(m,"View Audit History","history",()->audit(row));
+        if(Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(s)){
+            section(m,"RECONCILIATION");
+            add(m,s.equals("SUGGESTED")?"Review Suggested Match":"Match Transaction","link",()->match(row));
+            if(row.dto.debit()>0)add(m,"Move to Expense","payment",()->moveToExpense(row));
+            section(m,"STATUS");
+            if(!"REVIEW".equals(s)) add(m,"Mark for Review","status",()->markReview(row));
+            add(m,"Mark as Ignored","cancel",()->ignore(row));
+        } else if("MATCHED".equals(s)){
+            section(m,"RECONCILIATION");
+            add(m,"View Match / Linked Record","link",()->openLinked(row));
+            if("BANK_ENTRY".equals(up(row.dto.linkedTargetType())))
+                add(m,"View Bank Entry","bank",()->openFinance(row,BankExpenseController.Mode.BANK));
+            section(m,"REVERSAL");
+            add(m,"Unmatch / Reverse","return",()->reverse(row));
+        } else if("EXPENSE".equals(s)){
+            section(m,"RECONCILIATION");
+            add(m,"View Expense","payment",()->openFinance(row,BankExpenseController.Mode.EXPENSE));
+            section(m,"REVERSAL");
+            add(m,"Unmatch / Reverse","return",()->reverse(row));
+        } else if("IGNORED".equals(s)){
+            section(m,"STATUS");
+            add(m,"Return to Unmatched","return",()->reverse(row));
         }
-        VBox content=new VBox(12,
-                dialogHero("actions","Transaction Actions",safe(row.dto.reference()).isBlank()?safe(row.dto.description()):safe(row.dto.reference())),
-                actions);
-        content.setPadding(new Insets(8));
-        content.setPrefWidth(470);
-        Dialog<ButtonType> dialog=new OwnedDialog<>();
-        dialog.setTitle("Bank Transaction Actions");
-        dialog.setHeaderText(null);
-        dialog.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-action-dialog");
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        // Each action closes this chooser before opening its destination/modal, preventing stacked dialogs.
-        for(javafx.scene.Node node:actions.getChildren()) if(node instanceof Button b){
-            var original=b.getOnAction();
-            b.setOnAction(e->{ dialog.close(); if(original!=null)original.handle(e); });
-        }
-        dialog.showAndWait();
+        return m;
     }
-
-    private void addDialogAction(VBox box,String text,String semantic,Runnable action){
-        Button button=new Button(text);
-        button.setMaxWidth(Double.MAX_VALUE);
-        button.setAlignment(Pos.CENTER_LEFT);
-        button.getStyleClass().addAll("approved-button","approved-secondary-button","bank-action-dialog-button");
-        button.setGraphic(IconFactory.compactIcon(semantic,16));
-        button.setOnAction(e->action.run());
-        box.getChildren().add(button);
+    private void add(MenuButton m,String text,String icon,Runnable action){
+        MenuItem i=new MenuItem(text);
+        i.setGraphic(IconFactory.compactIcon(icon,15));
+        i.setOnAction(e->action.run());
+        m.getItems().add(i);
+    }
+    private void section(MenuButton m,String text){
+        if(!m.getItems().isEmpty())m.getItems().add(new SeparatorMenuItem());
+        MenuItem heading=new MenuItem(text);
+        heading.setDisable(true);
+        heading.getStyleClass().add("bank-menu-section");
+        m.getItems().add(heading);
     }
 
     @FXML private void importStatement(){

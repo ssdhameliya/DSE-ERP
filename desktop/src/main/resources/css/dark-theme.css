@@ -1900,6 +1900,27 @@
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,.48), 30, .14, 0, 9);
 }
 
+
+.modern-dialog-error,
+.modern-dialog-delete {
+    -fx-border-color: #7f3141;
+}
+
+.modern-dialog-warning {
+    -fx-border-color: #8a651d;
+}
+
+.modern-dialog-complete {
+    -fx-border-color: #236a4a;
+}
+
+.modern-dialog-confirmation,
+.modern-dialog-notification,
+.modern-dialog-backup,
+.modern-dialog-restore {
+    -fx-border-color: #355b8a;
+}
+
 .modern-dialog-titlebar {
     -fx-background-color: #16263a;
     -fx-border-color: transparent transparent #31465f transparent;
@@ -1984,6 +2005,15 @@
 .erp-toast {
     -fx-background-color: #152438;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,.42), 20, .14, 0, 6);
+}
+
+.erp-toast-close {
+    -fx-text-fill: #a9b8cc;
+}
+
+.erp-toast-close:hover {
+    -fx-background-color: #3b2028;
+    -fx-text-fill: #ff9ca5;
 }
 
 .erp-toast-success {
