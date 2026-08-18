@@ -19,12 +19,12 @@
         <StackPane styleClass="auth-section-icon"><Label text="✉"/></StackPane>
         <Label text="Yahoo Email Setup" styleClass="auth-title"/>
         <Label text="Required for secure OTP sign-in and optional invoice emails." styleClass="auth-description"/>
-        <VBox spacing="5" maxWidth="600"><Label text="Yahoo email address *" styleClass="auth-field-label"/><TextField fx:id="txtSmtpEmail" promptText="name@yahoo.com" styleClass="auth-input"/><Label fx:id="lblEmailError" managed="false" visible="false" styleClass="field-error"/></VBox>
-        <VBox spacing="5" maxWidth="600"><Label text="Yahoo app password *" styleClass="auth-field-label"/><PasswordField fx:id="txtSmtpPassword" promptText="Yahoo app password" styleClass="auth-input"/><Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/></VBox>
-        <HBox spacing="12" maxWidth="600" alignment="CENTER_LEFT" styleClass="auth-info-box"><Label text="i" styleClass="auth-info-icon"/><Label text="Create this in Yahoo Account Security → Generate app password. Your normal Yahoo password will not work." wrapText="true" HBox.hgrow="ALWAYS"/></HBox>
+        <VBox spacing="5" maxWidth="620"><Label text="Yahoo email address *" styleClass="auth-field-label"/><TextField fx:id="txtSmtpEmail" promptText="name@yahoo.com" styleClass="auth-input"/><Label fx:id="lblEmailError" managed="false" visible="false" styleClass="field-error"/></VBox>
+        <VBox spacing="5" maxWidth="620"><Label text="Yahoo app password *" styleClass="auth-field-label"/><PasswordField fx:id="txtSmtpPassword" promptText="Yahoo app password" styleClass="auth-input"/><Label fx:id="lblPasswordError" managed="false" visible="false" styleClass="field-error"/></VBox>
+        <HBox spacing="12" maxWidth="620" alignment="CENTER_LEFT" styleClass="auth-info-box"><Label text="i" styleClass="auth-info-icon"/><Label text="Create this in Yahoo Account Security → Generate app password. Your normal Yahoo password will not work." wrapText="true" HBox.hgrow="ALWAYS"/></HBox>
         <Button fx:id="btnSave" text="Save Email Settings" onAction="#save" maxWidth="360" styleClass="auth-primary-button"/>
         <Button fx:id="btnBack" text="Back to login" onAction="#back" maxWidth="220" styleClass="auth-secondary-button"/>
-        <Label fx:id="lblMessage" wrapText="true" maxWidth="600" styleClass="auth-message"/>
+        <Label fx:id="lblMessage" wrapText="true" maxWidth="620" styleClass="auth-message"/>
     </VBox></StackPane></center>
     <bottom><SharedApplicationFooter/></bottom>
 </BorderPane>

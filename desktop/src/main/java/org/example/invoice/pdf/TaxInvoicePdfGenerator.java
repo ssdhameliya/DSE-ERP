@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Generates the JASVI Industries sales tax invoice.
@@ -103,6 +104,7 @@ public final class TaxInvoicePdfGenerator {
     private static final float SIGNATURE_MAX_WIDTH = 174f;
     private static final float SIGNATURE_MAX_HEIGHT = 60f;
     private static final int SIGNATURE_TRIM_PADDING_PX = 3;
+    private static final ConcurrentHashMap<AssetCacheKey, byte[]> ASSET_IMAGE_CACHE = new ConcurrentHashMap<>();
 
     /**
      * FULL is the official customer/export PDF. BODY_ONLY is the Sales Register
@@ -1129,10 +1131,23 @@ public final class TaxInvoicePdfGenerator {
         try {
             Path path = Path.of(configuredPath).toAbsolutePath().normalize();
             if (!Files.isRegularFile(path)) return null;
+            return new Image(ImageDataFactory.create(cachedSignatureBytes(path)));
+        } catch (Exception ignored) {
+            // A signature image must never make invoice generation fail.
+            return configuredImage(configuredPath);
+        }
+    }
 
-            BufferedImage source = ImageIO.read(path.toFile());
-            if (source == null) return configuredImage(configuredPath);
+    private static byte[] cachedSignatureBytes(Path path) throws Exception {
+        AssetCacheKey key = assetCacheKey(path, "signature-trim");
+        byte[] cached = ASSET_IMAGE_CACHE.get(key);
+        if (cached != null) return cached;
 
+        BufferedImage source = ImageIO.read(path.toFile());
+        byte[] prepared;
+        if (source == null) {
+            prepared = Files.readAllBytes(path);
+        } else {
             int minX = source.getWidth();
             int minY = source.getHeight();
             int maxX = -1;
@@ -1155,33 +1170,59 @@ public final class TaxInvoicePdfGenerator {
                 }
             }
 
-            if (maxX < minX || maxY < minY) return configuredImage(configuredPath);
-            minX = Math.max(0, minX - SIGNATURE_TRIM_PADDING_PX);
-            minY = Math.max(0, minY - SIGNATURE_TRIM_PADDING_PX);
-            maxX = Math.min(source.getWidth() - 1, maxX + SIGNATURE_TRIM_PADDING_PX);
-            maxY = Math.min(source.getHeight() - 1, maxY + SIGNATURE_TRIM_PADDING_PX);
+            if (maxX < minX || maxY < minY) {
+                prepared = Files.readAllBytes(path);
+            } else {
+                minX = Math.max(0, minX - SIGNATURE_TRIM_PADDING_PX);
+                minY = Math.max(0, minY - SIGNATURE_TRIM_PADDING_PX);
+                maxX = Math.min(source.getWidth() - 1, maxX + SIGNATURE_TRIM_PADDING_PX);
+                maxY = Math.min(source.getHeight() - 1, maxY + SIGNATURE_TRIM_PADDING_PX);
 
-            BufferedImage cropped = source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
-            try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
-                if (!ImageIO.write(cropped, "png", bytes)) return configuredImage(configuredPath);
-                return new Image(ImageDataFactory.create(bytes.toByteArray()));
+                BufferedImage cropped = source.getSubimage(
+                        minX, minY, maxX - minX + 1, maxY - minY + 1);
+                try (ByteArrayOutputStream bytes = new ByteArrayOutputStream()) {
+                    if (ImageIO.write(cropped, "png", bytes)) prepared = bytes.toByteArray();
+                    else prepared = Files.readAllBytes(path);
+                }
             }
-        } catch (Exception ignored) {
-            // A signature image must never make invoice generation fail. Fall back to
-            // the original, untrimmed asset if the optional whitespace pass cannot run.
-            return configuredImage(configuredPath);
         }
+
+        cacheAssetBytes(key, prepared);
+        return prepared;
     }
 
     private static Image configuredImage(String configuredPath) {
         if (configuredPath == null || configuredPath.isBlank()) return null;
         try {
             Path path = Path.of(configuredPath).toAbsolutePath().normalize();
-            return Files.isRegularFile(path) ? new Image(ImageDataFactory.create(path.toString())) : null;
+            if (!Files.isRegularFile(path)) return null;
+            AssetCacheKey key = assetCacheKey(path, "raw");
+            byte[] bytes = ASSET_IMAGE_CACHE.get(key);
+            if (bytes == null) {
+                bytes = Files.readAllBytes(path);
+                cacheAssetBytes(key, bytes);
+            }
+            return new Image(ImageDataFactory.create(bytes));
         } catch (Exception ignored) {
             return null;
         }
     }
+
+    private static AssetCacheKey assetCacheKey(Path path, String variant) throws Exception {
+        Path normalized = path.toAbsolutePath().normalize();
+        return new AssetCacheKey(normalized.toString(), Files.size(normalized),
+                Files.getLastModifiedTime(normalized).toMillis(), variant);
+    }
+
+    private static void cacheAssetBytes(AssetCacheKey key, byte[] bytes) {
+        ASSET_IMAGE_CACHE.keySet().removeIf(existing ->
+                existing.path().equals(key.path())
+                        && existing.variant().equals(key.variant())
+                        && !existing.equals(key));
+        ASSET_IMAGE_CACHE.put(key, bytes);
+    }
+
+    private record AssetCacheKey(String path, long size, long modified, String variant) { }
 
     private static String formatDate(java.time.LocalDate value) {
         return value == null ? "-" : value.format(DATE);

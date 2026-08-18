@@ -65,6 +65,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     private Sales sale;
     private Path selectedAttachment;
     private PaymentRow editingPayment;
+    private boolean proofRemovalPending;
     private final LookupService lookupService = new LookupService();
 
     @FXML public void initialize() {
@@ -252,6 +253,7 @@ public class RecordPaymentController implements ScreenLifecycle {
             supportApi.updatePayment(editingPayment.id(),new SupportApiClient.PaymentUpdateRequest(
                     paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),
                     notes.getText().trim(),receivedFrom.getText().trim()));
+            persistEditedProof();
             NotificationService.add("Payment updated for "+sale.getInvoiceNo());
             org.example.util.ToastManager.success(amount,"Payment updated","Payment updated and invoice totals recalculated.");
             refreshInvoiceAmounts();resetForm();loadHistory();refreshTimeline();
@@ -259,6 +261,16 @@ public class RecordPaymentController implements ScreenLifecycle {
             new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
         }
     }
+
+    private void persistEditedProof() throws IOException {
+        if(editingPayment==null)return;
+        String old=safe(editingPayment.receiptPath());
+        if(proofRemovalPending){supportApi.updatePaymentAttachment(editingPayment.id(),"");deleteManagedProofQuietly(old,null);proofRemovalPending=false;return;}
+        if(selectedAttachment==null)return;
+        Path stored=storeAttachment(selectedAttachment);
+        try{supportApi.updatePaymentAttachment(editingPayment.id(),stored.toString());deleteManagedProofQuietly(old,stored);selectedAttachment=null;}catch(Exception error){try{Files.deleteIfExists(stored);}catch(Exception ignored){}throw error;}
+    }
+    private void deleteManagedProofQuietly(String reference,Path replacement){try{if(reference==null||reference.isBlank())return;Path old=Path.of(reference).toAbsolutePath().normalize();Path root=ConfigManager.getConfigFolder().resolve("PaymentProofs").toAbsolutePath().normalize();if(old.startsWith(root)&&(replacement==null||!old.equals(replacement.toAbsolutePath().normalize())))Files.deleteIfExists(old);}catch(Exception ignored){}}
 
     private void validate() throws IOException {
         if(paymentDate.getValue()==null) throw new IllegalArgumentException("Select a payment date.");
@@ -287,7 +299,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     private void resetForm() {
         editingPayment=null;
         if(btnSavePayment!=null)btnSavePayment.setText("Save Payment");
-        reference.clear(); notes.clear(); paymentDate.setValue(BusinessClock.today()); selectedAttachment=null;
+        reference.clear(); notes.clear(); paymentDate.setValue(BusinessClock.today()); selectedAttachment=null; proofRemovalPending=false;
         if(sale!=null&&sale.getCustomer()!=null)receivedFrom.setText(sale.getCustomer().getName());
         attachmentName.setText("No file selected");
         partialPayment.setSelected(true);
@@ -342,11 +354,21 @@ public class RecordPaymentController implements ScreenLifecycle {
     @FXML private void resetPayment(){ resetForm(); }
 
     @FXML private void browseFile() {
-        if(editingPayment!=null){new OwnedAlert(Alert.AlertType.INFORMATION,"The existing proof is retained while editing payment accounting details.").showAndWait();return;}
         FileChooser ch=new FileChooser(); ch.setTitle("Choose payment proof");
         ch.getExtensionFilters().add(new FileChooser.ExtensionFilter("Proof files","*.pdf","*.png","*.jpg","*.jpeg"));
         File f=ch.showOpenDialog(amount.getScene().getWindow());
-        if(f!=null){selectedAttachment=f.toPath(); attachmentName.setText(f.getName());}
+        if(f!=null){selectedAttachment=f.toPath();proofRemovalPending=false;attachmentName.setText(f.getName());}
+    }
+
+    @FXML private void previewProof(){
+        try{Path path=selectedAttachment;if(path==null&&editingPayment!=null&&!proofRemovalPending&&!safe(editingPayment.receiptPath()).isBlank())path=Path.of(editingPayment.receiptPath());if(path==null)throw new IOException("No payment proof is attached.");if(!Files.isRegularFile(path))throw new IOException("The payment proof is unavailable.");Desktop.getDesktop().open(path.toFile());}
+        catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
+    }
+
+    @FXML private void removeProof(){
+        boolean hasSelected=selectedAttachment!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.receiptPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;
+        if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
+        selectedAttachment=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");
     }
 
     private void openReceipt(PaymentRow row) {
@@ -371,8 +393,8 @@ public class RecordPaymentController implements ScreenLifecycle {
         receivedFrom.setText(row.from());
         amount.setText(String.format(Locale.ROOT,"%.2f",row.amount()));
         notes.setText(row.notes());
-        selectedAttachment=null;
-        attachmentName.setText(row.receiptPath()==null||row.receiptPath().isBlank()?"No proof attached":"Existing proof retained: "+Path.of(row.receiptPath()).getFileName());
+        selectedAttachment=null; proofRemovalPending=false;
+        attachmentName.setText(row.receiptPath()==null||row.receiptPath().isBlank()?"No proof attached":"Existing proof: "+Path.of(row.receiptPath()).getFileName());
         partialPayment.setSelected(true);
         if(btnSavePayment!=null)btnSavePayment.setText("Update Payment");
         amount.requestFocus();amount.selectAll();
@@ -438,13 +460,12 @@ public class RecordPaymentController implements ScreenLifecycle {
         proofDropZone.setOnDragDropped(event -> {
             Dragboard board = event.getDragboard();
             boolean completed = false;
-            if (editingPayment != null) {
-                new OwnedAlert(Alert.AlertType.INFORMATION,"The existing proof is retained while editing payment accounting details.").showAndWait();
-            } else if (board.hasFiles() && !board.getFiles().isEmpty()) {
+            if (board.hasFiles() && !board.getFiles().isEmpty()) {
                 Path candidate = board.getFiles().get(0).toPath();
                 String lower = candidate.getFileName().toString().toLowerCase(Locale.ROOT);
                 if (lower.endsWith(".pdf") || lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
                     selectedAttachment = candidate;
+                    proofRemovalPending = false;
                     attachmentName.setText(candidate.getFileName().toString());
                     completed = true;
                 } else {

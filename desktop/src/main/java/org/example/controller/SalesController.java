@@ -255,20 +255,6 @@ public class SalesController {
         refreshAttachmentUi();
         updateChargeManagerSummary();
 
-        // PO Date follows Invoice Date + Payment Terms for new sales and when
-        // either driver is changed by the user. During loadSale() we suppress
-        // these listeners so the historical saved PO Date is preserved exactly.
-        if (dpInvoiceDate != null) {
-            dpInvoiceDate.valueProperty().addListener((o, oldDate, newDate) -> {
-                if (!loadingSaleForEdit) updatePoDateFromPaymentTerms();
-            });
-        }
-        if (cmbPaymentTerms != null) {
-            cmbPaymentTerms.valueProperty().addListener((o, oldTerms, newTerms) -> {
-                if (!loadingSaleForEdit) updatePoDateFromPaymentTerms();
-            });
-        }
-
         // Delivery Address can follow Billing Address or be entered independently.
         if (chkSameAsBilling != null) {
             chkSameAsBilling.selectedProperty().addListener((o, oldValue, same) -> syncDeliveryAddressState());
@@ -539,7 +525,6 @@ public class SalesController {
             } else if ("Loading...".equals(txtInvoiceNo.getText())) {
                 txtInvoiceNo.clear();
             }
-            updatePoDateFromPaymentTerms();
         } else {
             // loadSale() can run immediately after FXMLLoader.load(). If master
             // data arrives later, re-bind selections to the persisted edit values
@@ -1259,13 +1244,6 @@ public class SalesController {
         return matcher.find() ? invoiceDate.plusDays(Integer.parseInt(matcher.group(1))) : invoiceDate;
     }
 
-    private void updatePoDateFromPaymentTerms() {
-        if (txtPoDate == null) return;
-        LocalDate invoiceDate = dpInvoiceDate == null ? null : dpInvoiceDate.getValue();
-        String terms = cmbPaymentTerms == null ? null : cmbPaymentTerms.getValue();
-        txtPoDate.setValue(calculatePaymentDueDate(invoiceDate, terms));
-    }
-
     /**
      * New Sales always begin from a deterministic payment-term state before PO
      * Date is calculated. This avoids an initialization-order race where the
@@ -1315,14 +1293,14 @@ public class SalesController {
         // Never block the JavaFX Application Thread while the screen is opening.
         txtInvoiceNo.setText("Loading...");
 
-        // Establish both drivers first, then calculate PO Date. The order is
-        // intentional: PO Date must never be calculated against a null/stale
-        // payment term when a fresh Sales screen is opened.
+        // Payment terms continue to determine invoice Due Date, but PO Date is
+        // an independent business value entered by the user. Never overwrite it
+        // when invoice date or payment terms change.
         loadingSaleForEdit = true;
         selectDefaultPaymentTerms();
         dpInvoiceDate.setValue(BusinessClock.today());
+        if (txtPoDate != null) txtPoDate.setValue(null);
         loadingSaleForEdit = false;
-        updatePoDateFromPaymentTerms();
 
         cmbCustomer.setValue(null);
 
@@ -1578,6 +1556,9 @@ public class SalesController {
 
     @FXML private void removeAttachment(){
         if(viewMode)return;
+        boolean hasAttachment = pendingAttachment != null
+            || (!attachmentRemovalPending && currentAttachmentReference() != null && !currentAttachmentReference().isBlank());
+        if (hasAttachment && !confirmAction("Remove attachment", "Remove the selected sales attachment?")) return;
         pendingAttachment=null;
         attachmentRemovalPending=true;
         if(txtAttachment!=null)txtAttachment.clear();
@@ -1662,6 +1643,18 @@ public class SalesController {
     @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}
 
 
+    private boolean confirmAction(String title, String message) {
+        OwnedAlert alert = new OwnedAlert(
+            Alert.AlertType.CONFIRMATION,
+            message,
+            ButtonType.CANCEL,
+            ButtonType.OK
+        );
+        alert.setTitle(title);
+        alert.setHeaderText(title);
+        return alert.showAndWait().filter(ButtonType.OK::equals).isPresent();
+    }
+
 //--------------------------------------------------
 // WARNING
 //--------------------------------------------------
@@ -1682,6 +1675,8 @@ public class SalesController {
 
     @FXML
     private void cancel() {
+        boolean dirty = !tableLines.getItems().isEmpty() || pendingAttachment != null || attachmentRemovalPending;
+        if (dirty && !confirmAction("Discard changes", "Discard unsaved changes and return to the Sales register?")) return;
 
         NavigationManager.getInstance()
             .loadPage("/fxml/pages/SalesList.fxml");
@@ -2071,6 +2066,7 @@ public class SalesController {
 
 
         if(line!=null){
+            if (!confirmAction("Remove line", "Remove the selected sales line?")) return;
 
             tableLines.getItems().remove(line);
 

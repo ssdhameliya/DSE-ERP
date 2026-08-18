@@ -1,12 +1,13 @@
 package org.example.service;
 
-import javafx.scene.image.Image;
-
-import java.io.InputStream;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Iterator;
 import java.util.Locale;
 
 /** Upload-time validation policy for the four user-managed image roles. */
@@ -41,17 +42,30 @@ public final class BrandAssetPolicy {
             throw new IllegalArgumentException("The image is larger than 10 MB. Please optimize the image before uploading it.");
         }
 
-        Image image;
-        try (InputStream input = Files.newInputStream(path)) {
-            image = new Image(input);
+        int width;
+        int height;
+        try (ImageInputStream input = ImageIO.createImageInputStream(path.toFile())) {
+            if (input == null) {
+                throw new IllegalArgumentException("The selected file could not be opened as an image.");
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                throw new IllegalArgumentException("The selected file is not a supported PNG or JPEG image.");
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input, true, true);
+                width = reader.getWidth(0);
+                height = reader.getHeight(0);
+            } finally {
+                reader.dispose();
+            }
         }
-        if (image.isError() || image.getWidth() <= 0 || image.getHeight() <= 0) {
-            throw new IllegalArgumentException("The selected file could not be decoded as a PNG or JPEG image.");
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("The selected file has invalid image dimensions.");
         }
 
-        int width = (int) Math.round(image.getWidth());
-        int height = (int) Math.round(image.getHeight());
-        double ratio = image.getWidth() / image.getHeight();
+        double ratio = (double) width / (double) height;
         List<String> warnings = new ArrayList<>();
 
         if (bytes > WARN_BYTES) {

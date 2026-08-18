@@ -80,7 +80,7 @@
       <Label fx:id="attachmentTitle" text="Attach Receipt / Bank Proof" styleClass="attachment-title"/>
       <VBox fx:id="proofDropZone" alignment="CENTER" spacing="8" minHeight="165" styleClass="proof-drop-zone">
        <Label text="Drag &amp; drop proof here" styleClass="proof-hint"/>
-       <Button text="Browse File" onAction="#browseFile" styleClass="approved-button,approved-secondary-button"/>
+       <HBox spacing="8" alignment="CENTER"><Button text="Add / Replace" onAction="#browseFile" styleClass="approved-button,approved-primary-button"/><Button text="Preview" onAction="#previewProof" styleClass="approved-button,approved-secondary-button"/><Button text="Remove" onAction="#removeProof" styleClass="approved-button,approved-danger-button"/></HBox>
        <Label fx:id="attachmentName" text="No file selected" styleClass="attachment-file-name"/>
        <Label text="JPG, PNG or PDF • Maximum 5 MB" styleClass="caption"/>
       </VBox>

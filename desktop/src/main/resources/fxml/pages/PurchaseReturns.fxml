@@ -27,18 +27,45 @@
       <Button text="Export" onAction="#export" styleClass="secondary-button"/>
     </HBox>
   </VBox>
-  <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register">
-    <columns>
-      <TableColumn fx:id="cNo" text="Return No." prefWidth="150" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cDate" text="Return Date" prefWidth="100" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cInvoice" text="Purchase No." prefWidth="135" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cSupplier" text="Supplier" prefWidth="180" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cTotal" text="Total Amount (₹)" prefWidth="125" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cRefund" text="Refund Amount (₹)" prefWidth="130" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cStatus" text="Return Status" prefWidth="125" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cRefundStatus" text="Refund Status" prefWidth="125" styleClass="approved-table-column"/>
-      <TableColumn fx:id="cAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
-    </columns>
-  </TableView>
-  <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo" styleClass="register-record-count"/></HBox>
+  <SplitPane fx:id="mainSplit" dividerPositions="1" VBox.vgrow="ALWAYS" styleClass="register-split,purchase-return-register-split">
+    <items>
+      <VBox minWidth="620">
+        <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register">
+          <columns>
+            <TableColumn fx:id="cNo" text="Return No." prefWidth="150" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cDate" text="Return Date" prefWidth="100" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cInvoice" text="Purchase No." prefWidth="135" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cSupplier" text="Supplier" prefWidth="180" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cTotal" text="Total Amount (₹)" prefWidth="125" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cRefund" text="Refund Amount (₹)" prefWidth="130" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cStatus" text="Return Status" prefWidth="125" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cRefundStatus" text="Refund Status" prefWidth="125" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
+          </columns>
+        </TableView>
+        <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo" styleClass="register-record-count"/></HBox>
+      </VBox>
+      <VBox fx:id="detailDrawer" spacing="11" prefWidth="300" minWidth="280" maxWidth="320" styleClass="detail-drawer,return-detail-drawer">
+        <HBox alignment="CENTER_LEFT"><Label text="Purchase Return Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-danger-button"/></HBox>
+        <Label fx:id="lblDetailNo" styleClass="drawer-document"/><Label fx:id="lblDetailSupplier" styleClass="drawer-customer"/>
+        <Separator/>
+        <GridPane hgap="12" vgap="8">
+          <Label text="Return Date" styleClass="detail-label,field-label-calendar"/><Label fx:id="lblDetailDate" GridPane.columnIndex="1"/>
+          <Label text="Purchase No." GridPane.rowIndex="1" styleClass="detail-label,field-label-invoice"/><Label fx:id="lblDetailInvoice" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+          <Label text="Return Amount" GridPane.rowIndex="2" styleClass="detail-label,field-label-amount"/><Label fx:id="lblDetailAmount" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="drawer-money"/>
+          <Label text="Refund Amount" GridPane.rowIndex="3" styleClass="detail-label,field-label-payment"/><Label fx:id="lblDetailRefund" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+          <Label text="Return Status" GridPane.rowIndex="4" styleClass="detail-label,field-label-status"/><Label fx:id="lblDetailStatus" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+          <Label text="Refund Status" GridPane.rowIndex="5" styleClass="detail-label,field-label-status"/><Label fx:id="lblDetailRefundStatus" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+        </GridPane>
+        <Separator/><Label text="Reason" styleClass="drawer-section"/><Label fx:id="lblDetailReason" wrapText="true"/>
+        <Separator/><Label text="Quick Actions" styleClass="drawer-section"/>
+        <Button text="View / Print PDF" onAction="#pdfSelected" styleClass="approved-button,approved-secondary-button"/>
+        <Button text="Email Supplier" onAction="#emailSelected" styleClass="approved-button,approved-secondary-button"/>
+        <Button text="Full Details" onAction="#fullDetailsSelected" styleClass="approved-button,approved-secondary-button"/>
+        <Button text="View Original Purchase" onAction="#originalSelected" styleClass="approved-button,approved-secondary-button"/>
+        <Button text="Record Refund" onAction="#refundSelected" styleClass="approved-button,approved-primary-button"/>
+        <Region VBox.vgrow="ALWAYS"/>
+      </VBox>
+    </items>
+  </SplitPane>
 </VBox>

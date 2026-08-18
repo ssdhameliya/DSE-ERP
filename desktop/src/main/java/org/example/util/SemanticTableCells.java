@@ -46,8 +46,12 @@ public final class SemanticTableCells {
                     p = new Presentation("calendar", State.NEUTRAL);
                 } else if (v.contains("TODAY")) {
                     p = new Presentation("calendar", State.WARNING);
-                } else {
+                } else if (v.matches(".*\\b([1-7])\\s+DAYS?\\b.*") || v.contains("SOON")) {
                     p = new Presentation("reminder", State.WARNING);
+                } else {
+                    // Future due dates that are not immediate use a calendar rather
+                    // than the same clock glyph used for pending/soon states.
+                    p = new Presentation("calendar", State.INFO);
                 }
                 apply(this, p);
             }
@@ -72,26 +76,34 @@ public final class SemanticTableCells {
                 if (v.contains("RETURN")) yield new Presentation("return", State.SUCCESS);
                 if (v.contains("DRAFT")) yield new Presentation("draft", State.WARNING);
                 if (v.contains("COMPLETE") || v.contains("POSTED") || v.contains("APPROVED")) yield new Presentation("complete", State.SUCCESS);
-                if (v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
+                if (v.contains("IN PROGRESS") || v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
+                if (v.contains("PENDING") || v.contains("OPEN")) yield new Presentation("reminder", State.WARNING);
                 yield new Presentation("document", state);
             }
             case "return" -> {
+                if (v.contains("DELETE")) yield new Presentation("delete", State.DANGER);
                 if (v.contains("CANCEL") || v.contains("REJECT") || v.contains("FAIL")) yield new Presentation("cancel", State.DANGER);
-                if (v.contains("COMPLETE") || v.contains("RETURNED") || v.contains("APPROVED")) yield new Presentation("return", State.SUCCESS);
-                if (v.contains("PARTIAL") || v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
-                yield new Presentation("reminder", State.WARNING);
+                if (v.contains("COMPLETE") || v.contains("RETURNED")) yield new Presentation("return", State.SUCCESS);
+                if (v.contains("APPROVED") || v.contains("ACCEPTED")) yield new Presentation("complete", State.SUCCESS);
+                if (v.contains("PARTIAL") || v.contains("IN PROGRESS") || v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
+                if (v.contains("PENDING") || v.contains("OPEN") || v.contains("CREATED") || v.contains("WAIT")) yield new Presentation("reminder", State.WARNING);
+                yield new Presentation("document", state);
             }
             case "refund" -> {
                 if (v.contains("FAIL") || v.contains("CANCEL") || v.contains("REJECT")) yield new Presentation("warning", State.DANGER);
-                if (v.contains("REFUNDED") || v.contains("COMPLETE") || v.contains("PAID")) yield new Presentation("payment", State.SUCCESS);
-                if (v.contains("PARTIAL") || v.contains("PROCESS")) yield new Presentation("status", State.INFO);
-                yield new Presentation("reminder", State.WARNING);
+                if (v.contains("REFUNDED") || v.contains("COMPLETE") || v.contains("PAID")) yield new Presentation("refund", State.SUCCESS);
+                if (v.contains("PARTIAL")) yield new Presentation("partial", State.INFO);
+                if (v.contains("IN PROGRESS") || v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
+                if (v.contains("PENDING") || v.contains("OPEN") || v.contains("WAIT")) yield new Presentation("reminder", State.WARNING);
+                yield new Presentation("payment", state);
             }
             case "payment" -> {
-                if (v.contains("PAID") || v.contains("SETTLED") || v.contains("COMPLETE")) yield new Presentation("payment", State.SUCCESS);
-                if (v.contains("PARTIAL")) yield new Presentation("status", State.INFO);
                 if (v.contains("OVERDUE") || v.contains("FAIL")) yield new Presentation("warning", State.DANGER);
-                yield new Presentation("reminder", State.WARNING);
+                if (v.contains("PAID") || v.contains("SETTLED") || v.contains("COMPLETE")) yield new Presentation("payment", State.SUCCESS);
+                if (v.contains("PARTIAL")) yield new Presentation("partial", State.INFO);
+                if (v.contains("IN PROGRESS") || v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
+                if (v.contains("PENDING") || v.contains("OPEN") || v.contains("DUE")) yield new Presentation("reminder", State.WARNING);
+                yield new Presentation("payment", state);
             }
             default -> new Presentation(iconForState(state), state);
         };

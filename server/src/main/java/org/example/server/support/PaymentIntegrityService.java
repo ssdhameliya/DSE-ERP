@@ -133,6 +133,26 @@ public class PaymentIntegrityService {
                 existing.type.name(), existing.documentId, "PAYMENT_EDITED", detail, CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
+    @Transactional
+    public void updateAttachment(int paymentId, String path) {
+        if (paymentId <= 0) throw new IllegalArgumentException("A valid payment is required");
+        List<AttachmentPayment> payments = jdbc.query(
+                "SELECT document_type,document_id,COALESCE(payment_type,'PARTIAL'),COALESCE(attachment_path,'') FROM payment_record WHERE id=? FOR UPDATE",
+                (row,index) -> new AttachmentPayment(DocumentType.parse(row.getString(1)),row.getInt(2),clean(row.getString(3)),clean(row.getString(4))),
+                paymentId);
+        if (payments.isEmpty()) throw new IllegalArgumentException("Payment record was not found");
+        AttachmentPayment existing = payments.getFirst();
+        if (CurrentUser.isSales() && existing.type == DocumentType.PURCHASE)
+            throw new SecurityException("Purchase payments require Manager or Admin access");
+        if ("BANK_RECONCILIATION".equalsIgnoreCase(existing.paymentType))
+            throw new IllegalStateException("Bank-reconciled payment proofs must be changed through the Bank Statement workflow");
+        if (jdbc.update("UPDATE payment_record SET attachment_path=? WHERE id=?", clean(path), paymentId) != 1)
+            throw new IllegalStateException("Payment record changed while saving proof");
+        String detail = clean(path) == null ? "Payment #" + paymentId + " proof removed" : "Payment #" + paymentId + " proof updated";
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES(?,?,?,?,?,?)",
+                existing.type.name(), existing.documentId, "PAYMENT_PROOF_UPDATED", detail, CurrentUser.require().username(), BusinessClock.nowUtcText());
+    }
+
     private static BigDecimal money(double value) {
         if (!Double.isFinite(value)) throw new IllegalArgumentException("Payment amount must be a finite number");
         return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
@@ -173,6 +193,9 @@ public class PaymentIntegrityService {
     }
 
     private record ExistingPayment(DocumentType type, int documentId, BigDecimal amount, String paymentType) {
+    }
+
+    private record AttachmentPayment(DocumentType type, int documentId, String paymentType, String attachmentPath) {
     }
 
     private enum DocumentType {

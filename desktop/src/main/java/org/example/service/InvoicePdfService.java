@@ -114,29 +114,17 @@ public class InvoicePdfService {
         return output;
     }
 
-    private static Path ensureLogo() throws Exception {
-        // The branding image uploaded in Settings -> Company & Billing is the
-        // single source of truth for every generated PDF.
+    private static Path ensureLogo() {
+        // Company invoice branding is optional and must never fall back to the
+        // DSE ERP application logo. Settings -> Company & Billing is the only
+        // source of truth for document branding.
         String configuredLogo = ConfigManager.get("company.logoPath", "").trim();
-        if (!configuredLogo.isBlank()) {
-            try {
-                Path configuredPath = Path.of(configuredLogo).toAbsolutePath().normalize();
-                if (Files.isRegularFile(configuredPath)) {
-                    return configuredPath;
-                }
-            } catch (Exception ignored) {
-                // Fall through to the bundled logo so PDF generation never fails
-                // because an old configuration path is no longer available.
-            }
+        if (configuredLogo.isBlank()) return null;
+        try {
+            Path configuredPath = Path.of(configuredLogo).toAbsolutePath().normalize();
+            return Files.isRegularFile(configuredPath) ? configuredPath : null;
+        } catch (Exception ignored) {
+            return null;
         }
-
-        Path logo = ConfigManager.getConfigFolder().resolve("logo.png");
-        if (Files.notExists(logo)) {
-            try (var input = org.example.util.ResourceLocator.open("/logo.png")) {
-                if (input == null) throw new IllegalStateException("Application logo is missing");
-                Files.copy(input, logo);
-            }
-        }
-        return logo;
     }
 }

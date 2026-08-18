@@ -101,8 +101,8 @@
 
                                         <HBox spacing="8">
 
-                                            <Button text="Upload / Change" onAction="#uploadPaymentQr" styleClass="settings-secondary-button"/>
-
+                                            <Button text="Add / Replace" onAction="#uploadPaymentQr" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
+                                            <Button text="Preview" onAction="#previewPaymentQr" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
                                             <Button text="Remove" onAction="#removePaymentQr" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
                                         </HBox>

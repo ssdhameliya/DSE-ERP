@@ -64,6 +64,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     private Purchase purchase;
     private Path selectedProof;
     private PaymentRow editingPayment;
+    private boolean proofRemovalPending;
 
     @FXML public void initialize() {
         decorateSectionTitles();
@@ -287,6 +288,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             supportApi.updatePayment(editingPayment.id(), new SupportApiClient.PaymentUpdateRequest(
                     paymentDate.getValue().toString(), newValue, mode.getValue(), reference.getText().trim(),
                     persistedNotes(), paidTo.getText().trim()));
+            persistEditedProof();
             NotificationService.add("Supplier payment updated for " + purchase.getInvoiceNo());
             org.example.util.ToastManager.success(amount, "Payment updated", "Payment updated and purchase totals recalculated.");
             refreshInvoiceAmounts();
@@ -296,6 +298,9 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();
         }
     }
+
+    private void persistEditedProof() throws IOException {if(editingPayment==null)return;String old=safe(editingPayment.proofPath());if(proofRemovalPending){supportApi.updatePaymentAttachment(editingPayment.id(),"");deleteManagedProofQuietly(old,null);proofRemovalPending=false;return;}if(selectedProof==null)return;Path stored=storeProof(selectedProof);try{supportApi.updatePaymentAttachment(editingPayment.id(),stored.toString());deleteManagedProofQuietly(old,stored);selectedProof=null;}catch(Exception error){try{Files.deleteIfExists(stored);}catch(Exception ignored){}throw error;}}
+    private void deleteManagedProofQuietly(String reference,Path replacement){try{if(reference==null||reference.isBlank())return;Path old=Path.of(reference).toAbsolutePath().normalize();Path root=ConfigManager.getConfigFolder().resolve("PaymentProofs").toAbsolutePath().normalize();if(old.startsWith(root)&&(replacement==null||!old.equals(replacement.toAbsolutePath().normalize())))Files.deleteIfExists(old);}catch(Exception ignored){}}
 
     private void validatePayment() throws IOException {
         if (paymentDate.getValue() == null) throw new IllegalArgumentException("Select a payment date.");
@@ -347,7 +352,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         reference.clear();
         notes.clear();
         paymentDate.setValue(BusinessClock.today());
-        selectedProof = null;
+        selectedProof = null; proofRemovalPending = false;
         if (purchase != null && purchase.getSupplier() != null) paidTo.setText(safe(purchase.getSupplier().getName()));
         if (attachmentName != null) attachmentName.setText("No file selected");
         partialPayment.setSelected(true);
@@ -388,15 +393,11 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     @FXML private void resetPayment() { resetForm(); }
 
     @FXML private void browseFile() {
-        if (editingPayment != null) {
-            new OwnedAlert(Alert.AlertType.INFORMATION, "The existing proof is retained while editing payment accounting details.").showAndWait();
-            return;
-        }
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Choose supplier payment proof");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Proof files", "*.pdf", "*.png", "*.jpg", "*.jpeg"));
         File file = chooser.showOpenDialog(amount.getScene().getWindow());
-        if (file != null) setSelectedProof(file.toPath());
+        if (file != null) { proofRemovalPending=false; setSelectedProof(file.toPath()); }
     }
 
     private void wireProofDropZone() {
@@ -409,9 +410,9 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         });
         proofDropZone.setOnDragDropped(event -> {
             boolean completed = false;
-            if (editingPayment == null && event.getDragboard().hasFiles() && event.getDragboard().getFiles().size() == 1) {
+            if (event.getDragboard().hasFiles() && event.getDragboard().getFiles().size() == 1) {
                 Path path = event.getDragboard().getFiles().getFirst().toPath();
-                if (isAllowedProof(path)) { setSelectedProof(path); completed = true; }
+                if (isAllowedProof(path)) { proofRemovalPending=false; setSelectedProof(path); completed = true; }
             }
             event.setDropCompleted(completed);
             event.consume();
@@ -427,6 +428,9 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         selectedProof = path;
         attachmentName.setText(path == null ? "No file selected" : path.getFileName().toString());
     }
+
+    @FXML private void previewProof(){try{Path path=selectedProof;if(path==null&&editingPayment!=null&&!proofRemovalPending&&!safe(editingPayment.proofPath()).isBlank())path=Path.of(editingPayment.proofPath());if(path==null)throw new IOException("No payment proof is attached.");if(!Files.isRegularFile(path))throw new IOException("The payment proof is unavailable.");Desktop.getDesktop().open(path.toFile());}catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}}
+    @FXML private void removeProof(){boolean hasSelected=selectedProof!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.proofPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;selectedProof=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");}
 
     private void editPayment(PaymentRow row) {
         if (row == null) return;
@@ -449,9 +453,9 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             bankAccount.setValue(storedAccount);
         }
         notes.setText(userNotes(row.notes()));
-        selectedProof = null;
+        selectedProof = null; proofRemovalPending=false;
         attachmentName.setText(row.proofPath() == null || row.proofPath().isBlank()
-                ? "No proof attached" : "Existing proof retained: " + Path.of(row.proofPath()).getFileName());
+                ? "No proof attached" : "Existing proof: " + Path.of(row.proofPath()).getFileName());
         partialPayment.setSelected(true);
         if (btnSavePayment != null) btnSavePayment.setText("Update Payment");
         amount.requestFocus();

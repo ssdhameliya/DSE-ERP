@@ -10,6 +10,9 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
@@ -36,7 +39,7 @@ public class SalesReturnsController {
                       double amount, double refund, String reason, String status,
                       String refundStatus) {}
 
-    @FXML private Label total, month, pending, approved, refund, pageInfo;
+    @FXML private Label total, month, pending, approved, refund, pageInfo, lblDetailNo, lblDetailDate, lblDetailInvoice, lblDetailCustomer, lblDetailAmount, lblDetailRefund, lblDetailReason, lblDetailStatus, lblDetailRefundStatus;
     @FXML private TextField search;
     @FXML private ComboBox<String> customerFilter, statusFilter;
     @FXML private DatePicker dpFrom, dpTo;
@@ -44,12 +47,15 @@ public class SalesReturnsController {
     @FXML private TableColumn<Row, String> no, date, invoice, customer, reason, status, refundStatus;
     @FXML private TableColumn<Row, Number> amount;
     @FXML private TableColumn<Row, Void> action;
+    @FXML private SplitPane mainSplit;
+    @FXML private VBox detailDrawer;
     private final List<Row> all = new ArrayList<>();
+    private Row selected;
 
     @FXML public void initialize() {
         configureExplicitTableHeaderIcons();
         no.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().no()));
-        date.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().date()));
+        date.setCellValueFactory(x -> new SimpleStringProperty(BusinessClock.formatDate(x.getValue().date())));
         invoice.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().invoice()));
         customer.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().customer()));
         amount.setCellValueFactory(x -> new SimpleDoubleProperty(x.getValue().amount()));
@@ -65,7 +71,8 @@ public class SalesReturnsController {
         refundStatus.setCellFactory(column -> SemanticTableCells.status("refund"));
         installActions();
         installRows();
-        dpFrom.setValue(BusinessClock.today().minusDays(7));
+        configureDrawer();
+        dpFrom.setValue(BusinessClock.today().minusMonths(6));
         dpTo.setValue(BusinessClock.today());
         search.textProperty().addListener((o, a, b) -> filter());
         customerFilter.valueProperty().addListener((o, a, b) -> filter());
@@ -84,9 +91,9 @@ public class SalesReturnsController {
         action.setCellFactory(column -> new TableCell<>() {
             final MenuButton menu = new MenuButton();
             {
-                add("View Details", "view", e -> details(row()));
+                add("View Details", "view", e -> showDetails(row()));
                 add("Edit Return", "edit", e -> edit(row()));
-                add("Print / PDF", "print", e -> details(row()));
+                add("Print / PDF", "print", e -> pdf(row()));
                 add("Send Email", "email", e -> email(row()));
                 add("View Original Sale", "sale", e -> original(row()));
                 add("Record Refund", "payment", e -> recordRefund(row()));
@@ -98,7 +105,7 @@ public class SalesReturnsController {
             }
             private Row row() { return getTableView().getItems().get(getIndex()); }
             private void add(String text, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) {
-                MenuItem item = new MenuItem(text, IconFactory.icon(icon)); item.setOnAction(handler); menu.getItems().add(item);
+                MenuItem item = new MenuItem(text, IconFactory.compactIcon(icon, 16)); item.setOnAction(handler); menu.getItems().add(item);
             }
             @Override protected void updateItem(Void value, boolean empty) { super.updateItem(value, empty); setGraphic(empty ? null : menu); }
         });
@@ -107,10 +114,10 @@ public class SalesReturnsController {
     private void installRows() {
         table.setRowFactory(view -> {
             TableRow<Row> row = new TableRow<>();
-            row.setOnMouseClicked(event -> { if (event.getClickCount() == 2 && !row.isEmpty()) details(row.getItem()); });
-            MenuItem add = new MenuItem("Add Sales Return", IconFactory.icon("add")); add.setOnAction(e -> create());
-            MenuItem edit = new MenuItem("Edit Return", IconFactory.icon("edit")); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
-            MenuItem remove = new MenuItem("Delete Return", IconFactory.icon("delete")); remove.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
+            row.setOnMouseClicked(event -> { if (event.getButton()==javafx.scene.input.MouseButton.PRIMARY && event.getClickCount() == 2 && !row.isEmpty()) { showDetails(row.getItem()); event.consume(); } });
+            MenuItem add = new MenuItem("Add Sales Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
+            MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
+            MenuItem remove = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); remove.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
             ContextMenu menu = new ContextMenu(edit, remove);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu));
             return row;
@@ -164,13 +171,36 @@ public class SalesReturnsController {
         table.getItems().setAll(visible); pageInfo.setText("Showing " + visible.size() + " of " + all.size() + " returns");
     }
 
-    @FXML private void reset() { search.clear(); customerFilter.setValue("All Customers"); statusFilter.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusDays(7)); dpTo.setValue(BusinessClock.today()); filter(); }
+    @FXML private void reset() { search.clear(); customerFilter.setValue("All Customers"); statusFilter.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusMonths(6)); dpTo.setValue(BusinessClock.today()); filter(); }
     @FXML private void refresh() { load(); }
     @FXML private void create() {
         info("Create a sales return from the Sales Register so the original invoice, stock and customer balance stay linked.");
         NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");
     }
-    private void details(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(), true).toFile()); } catch (Exception e) { error(e); } }
+    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(), true).toFile()); } catch (Exception e) { error(e); } }
+    private void configureDrawer() {
+        if (detailDrawer == null) return;
+        detailDrawer.setManaged(false); detailDrawer.setVisible(false);
+        if (mainSplit != null) mainSplit.setDividerPositions(1);
+        decorateDrawerNode(detailDrawer);
+        applyValueIcon(lblDetailNo,"return"); applyValueIcon(lblDetailCustomer,"customer"); applyValueIcon(lblDetailDate,"calendar"); applyValueIcon(lblDetailInvoice,"sale"); applyValueIcon(lblDetailAmount,"currency"); applyValueIcon(lblDetailRefund,"payment"); applyValueIcon(lblDetailReason,"document");
+    }
+    private void decorateDrawerNode(Node node) {
+        if (node instanceof Label label && label.getGraphic()==null) { String semantic=drawerSemantic(label.getText()); if(semantic!=null){label.setGraphic(IconFactory.compactIcon(semantic,14));label.setGraphicTextGap(6);label.getProperties().put("erp-icon-preserve",true);} }
+        if (node instanceof ButtonBase button && button.getGraphic()==null) { String semantic=drawerSemantic(button.getText()); if(semantic!=null){button.setGraphic(IconFactory.compactIcon(semantic,14));button.setGraphicTextGap(6);button.getProperties().put("erp-icon-preserve",true);} }
+        if (node instanceof Parent parent) for (Node child: parent.getChildrenUnmodifiable()) decorateDrawerNode(child);
+    }
+    private void applyValueIcon(Label label,String semantic){if(label!=null&&label.getGraphic()==null){label.setGraphic(IconFactory.compactIcon(semantic,15));label.setGraphicTextGap(7);label.getProperties().put("erp-icon-preserve",true);}}
+    private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("invoice"))return"sale";if(t.contains("customer"))return"customer";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("original"))return"sale";if(t.contains("close"))return"cancel";return null;}
+    private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
+    private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
+    private void showDetails(Row row) { if(row==null)return; selected=row; detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));}
+    @FXML private void closeDetails(){selected=null;if(detailDrawer!=null){detailDrawer.setManaged(false);detailDrawer.setVisible(false);}if(mainSplit!=null)mainSplit.setDividerPositions(1);if(table!=null)table.getSelectionModel().clearSelection();}
+    @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
+    @FXML private void emailSelected(){if(selected!=null)email(selected);}
+    @FXML private void originalSelected(){if(selected!=null)original(selected);}
+    @FXML private void refundSelected(){if(selected!=null)recordRefund(selected);}
+
     private void edit(Row row) { input(row.reason(), "Edit return reason - " + row.no(), "Reason:").ifPresent(value -> update(row.no(), "reason", value)); }
     private void notes(Row row) { input("", "Return notes - " + row.no(), "Notes:").ifPresent(value -> update(row.no(), "notes", value)); }
     private void attach(Row row) { FileChooser chooser = new FileChooser(); File file = chooser.showOpenDialog(table.getScene().getWindow()); if (file != null) update(row.no(), "attachment_path", file.getAbsolutePath()); }

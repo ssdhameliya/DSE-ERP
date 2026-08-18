@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Creates every customer and supplier PDF from one branded A4 template.
@@ -82,6 +83,7 @@ public final class ProfessionalDocumentRenderer {
     private static final DeviceRgb JASVI_PALE_YELLOW = new DeviceRgb(255, 249, 221);
     private static final DeviceRgb JASVI_TEXT = new DeviceRgb(24, 37, 59);
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
+    private static final ConcurrentHashMap<AssetCacheKey, byte[]> ASSET_IMAGE_CACHE = new ConcurrentHashMap<>();
 
     private ProfessionalDocumentRenderer() {
     }
@@ -569,27 +571,25 @@ public final class ProfessionalDocumentRenderer {
     }
 
     /**
-     * Resolves the Company & Billing logo saved by Settings. The method keeps the
-     * caller-provided/bundled logo only as a safe fallback for older installations.
+     * Resolves the optional Company & Billing logo saved by Settings.
+     * Application branding is intentionally never used as an invoice fallback.
      */
-    private static Path configuredDocumentLogo(Path fallback) {
+    private static Path configuredDocumentLogo(Path ignoredFallback) {
         String configured = ConfigManager.get("company.logoPath", "").trim();
-        if (!configured.isBlank()) {
-            try {
-                Path path = Path.of(configured).toAbsolutePath().normalize();
-                if (Files.isRegularFile(path)) return path;
-            } catch (Exception ignored) {
-                // A stale setting must not prevent invoice generation.
-            }
+        if (configured.isBlank()) return null;
+        try {
+            Path path = Path.of(configured).toAbsolutePath().normalize();
+            return Files.isRegularFile(path) ? path : null;
+        } catch (Exception ignored) {
+            return null;
         }
-        return fallback;
     }
 
     /** Adds a configured logo without allowing a missing asset to break rendering. */
     private static void addLogo(Cell cell, Path logo, Color accent, float width, float height) {
         if (logo != null && Files.isRegularFile(logo)) {
             try {
-                Image image = new Image(ImageDataFactory.create(logo.toAbsolutePath().toString()));
+                Image image = new Image(cachedRawAssetImageData(logo));
                 image.scaleToFit(width, height);
                 cell.add(image);
                 return;
@@ -1178,15 +1178,48 @@ public final class ProfessionalDocumentRenderer {
     /** Loads a configured image and bounds its embedded PDF resolution. */
     private static ImageData configuredAssetImageData(Path path, int maxDimension)
         throws Exception {
-        BufferedImage source = ImageIO.read(path.toFile());
-        if (source == null) {
-            throw new IllegalArgumentException("Unsupported configured image: " + path);
+        AssetCacheKey key = assetCacheKey(path, "scaled-" + maxDimension);
+        byte[] cached = ASSET_IMAGE_CACHE.get(key);
+        if (cached == null) {
+            BufferedImage source = ImageIO.read(path.toFile());
+            if (source == null) {
+                throw new IllegalArgumentException("Unsupported configured image: " + path);
+            }
+            BufferedImage selected = scaleImage(source, maxDimension, false);
+            try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                ImageIO.write(selected, "png", output);
+                cached = output.toByteArray();
+            }
+            cacheAssetBytes(key, cached);
         }
-        BufferedImage selected = scaleImage(source, maxDimension, false);
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        ImageIO.write(selected, "png", output);
-        return ImageDataFactory.create(output.toByteArray());
+        return ImageDataFactory.create(cached);
     }
+
+    private static ImageData cachedRawAssetImageData(Path path) throws Exception {
+        AssetCacheKey key = assetCacheKey(path, "raw");
+        byte[] cached = ASSET_IMAGE_CACHE.get(key);
+        if (cached == null) {
+            cached = Files.readAllBytes(path);
+            cacheAssetBytes(key, cached);
+        }
+        return ImageDataFactory.create(cached);
+    }
+
+    private static AssetCacheKey assetCacheKey(Path path, String variant) throws Exception {
+        Path normalized = path.toAbsolutePath().normalize();
+        return new AssetCacheKey(normalized.toString(), Files.size(normalized),
+            Files.getLastModifiedTime(normalized).toMillis(), variant);
+    }
+
+    private static void cacheAssetBytes(AssetCacheKey key, byte[] bytes) {
+        ASSET_IMAGE_CACHE.keySet().removeIf(existing ->
+            existing.path().equals(key.path())
+                && existing.variant().equals(key.variant())
+                && !existing.equals(key));
+        ASSET_IMAGE_CACHE.put(key, bytes);
+    }
+
+    private record AssetCacheKey(String path, long size, long modified, String variant) { }
 
     /** Preserves aspect ratio while preparing an image for compact PDF embedding. */
     private static BufferedImage scaleImage(BufferedImage source, int maxDimension,

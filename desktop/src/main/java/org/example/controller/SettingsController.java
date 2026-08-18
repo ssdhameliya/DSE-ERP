@@ -26,6 +26,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.Window;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.service.EmailService;
@@ -47,7 +48,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.AtomicMoveNotSupportedException;
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -67,6 +68,7 @@ public class SettingsController implements ScreenLifecycle {
 
     private static volatile Section requestedSection = Section.COMPANY;
     private boolean batchingSettingsSave;
+    private long assetPreviewRevision;
     private boolean rootInitialized;
     private boolean fragmentLoading;
     private final EnumMap<Section, VBox> loadedPanels = new EnumMap<>(Section.class);
@@ -370,7 +372,6 @@ public class SettingsController implements ScreenLifecycle {
                 selectComboValue(cmbIndustry, ConfigManager.get("company.industry", "Manufacturing"));
                 dpFinancialYearStart.setValue(parseDate(ConfigManager.get("company.financialYearStart", "")));
                 BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
-                BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
                 refreshAllAssetPreviewsAsync();
             }
             case PAYMENT -> {
@@ -396,6 +397,9 @@ public class SettingsController implements ScreenLifecycle {
                 selectComboValue(cmbCurrency, ConfigManager.get("company.currency", "INR - Indian Rupee"));
                 selectComboValue(cmbTimeZone, ConfigManager.get("company.timeZone", BusinessClock.zone().getId()));
                 selectComboValue(cmbDateFormat, ConfigManager.get("company.dateFormat", "dd/MM/yyyy"));
+                // Logo and signature controls both belong to InvoiceSettingsPanel.fxml.
+                // Configure them only after that fragment has injected its controls.
+                BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
                 BrandImagePresenter.contain(imgSignature, signaturePreview);
                 refreshAllAssetPreviewsAsync();
             }
@@ -497,6 +501,9 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     @FXML
+    private void previewApplicationBrand() { previewConfiguredAsset(APPLICATION_BRAND_PATH_KEY, "application branding image"); }
+
+    @FXML
     private void removeApplicationBrand() {
         removeConfiguredAsset(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile);
     }
@@ -513,6 +520,9 @@ public class SettingsController implements ScreenLifecycle {
             BrandAssetPolicy.Role.COMPANY_LOGO
         );
     }
+
+    @FXML
+    private void previewCompanyLogo() { previewConfiguredAsset(LOGO_PATH_KEY, "company logo"); }
 
     @FXML
     private void removeCompanyLogo() {
@@ -539,6 +549,9 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     @FXML
+    private void previewSignature() { previewConfiguredAsset(SIGNATURE_PATH_KEY, "authorized signature"); }
+
+    @FXML
     private void removeSignature() {
 
         removeConfiguredAsset(
@@ -563,6 +576,9 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     @FXML
+    private void previewPaymentQr() { previewConfiguredAsset(QR_PATH_KEY, "payment QR image"); }
+
+    @FXML
     private void removePaymentQr() {
 
         removeConfiguredAsset(
@@ -571,6 +587,19 @@ public class SettingsController implements ScreenLifecycle {
             placeholderPaymentQr,
             lblQrFile
         );
+    }
+
+    private void previewConfiguredAsset(String configKey, String label) {
+        try {
+            String configured = ConfigManager.get(configKey, "");
+            if (configured == null || configured.isBlank()) throw new IllegalStateException("No " + label + " is attached.");
+            Path path = Path.of(configured).toAbsolutePath().normalize();
+            if (!Files.isRegularFile(path)) throw new IllegalStateException("The configured " + label + " is unavailable.");
+            if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Preview is not supported on this computer.");
+            Desktop.getDesktop().open(path.toFile());
+        } catch (Exception error) {
+            showError(safeMessage(error));
+        }
     }
 
     private void selectAndStoreImage(
@@ -586,40 +615,105 @@ public class SettingsController implements ScreenLifecycle {
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
                 "Image files", "*.png", "*.jpg", "*.jpeg"));
 
-        File selected = chooser.showOpenDialog(txtCompanyName.getScene().getWindow());
+        Window owner = resolveAssetChooserOwner(imageView);
+        File selected = chooser.showOpenDialog(owner);
         if (selected == null) return;
 
-        Path temporary = null;
+        Path selectedPath = selected.toPath().toAbsolutePath().normalize();
+        UiTaskExecutor.cancel("settings-asset-store-" + configKey);
+        String taskKey = "settings-asset-inspect-" + configKey;
+        UiTaskExecutor.submitLatest(
+            taskKey,
+            () -> new AssetSelection(selectedPath, BrandAssetPolicy.inspect(selectedPath, role)),
+            selection -> {
+                if (selection.inspection().hasWarnings()
+                        && !confirmImageWarnings(role, selection.inspection())) {
+                    return;
+                }
+                storeSelectedImageAsync(configKey, baseName, imageView, placeholder,
+                        fileLabel, role, selection);
+            },
+            error -> showError("The image could not be inspected: " + safeMessage(error))
+        );
+    }
+
+    private void storeSelectedImageAsync(
+        String configKey,
+        String baseName,
+        ImageView imageView,
+        VBox placeholder,
+        Label fileLabel,
+        BrandAssetPolicy.Role role,
+        AssetSelection selection
+    ) {
+        String previousConfiguredPath = ConfigManager.get(configKey, "");
+        String taskKey = "settings-asset-store-" + configKey;
+        UiTaskExecutor.submitLatest(
+            taskKey,
+            () -> storeSelectedImage(configKey, baseName, role, selection, previousConfiguredPath),
+            result -> {
+                ++assetPreviewRevision; // invalidate an older queued preview refresh
+                applyImagePreview(result.path(), result.previewImage(), result.inspection(),
+                        imageView, placeholder, fileLabel);
+            },
+            error -> showError("The image could not be saved: " + safeMessage(error))
+        );
+    }
+
+    private AssetStoreResult storeSelectedImage(
+        String configKey,
+        String baseName,
+        BrandAssetPolicy.Role role,
+        AssetSelection selection,
+        String previousConfiguredPath
+    ) throws Exception {
+        String extension = getSafeExtension(selection.path().getFileName().toString());
+        Path assetsFolder = ConfigManager.getConfigurationFolder().resolve("assets");
+        Files.createDirectories(assetsFolder);
+
+        // Use a new managed filename for every replacement. Consumers never see a
+        // partially overwritten image and Windows cannot hold us on a stale file handle.
+        String revision = Long.toUnsignedString(System.nanoTime());
+        Path destination = assetsFolder.resolve(baseName + "-" + revision + extension);
+        Path temporary = Files.createTempFile(assetsFolder, "." + baseName + "-", ".uploading");
+        boolean configCommitted = false;
         try {
-            BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(selected.toPath(), role);
-            if (inspection.hasWarnings() && !confirmImageWarnings(role, inspection)) return;
+            Files.copy(selection.path(), temporary, StandardCopyOption.REPLACE_EXISTING);
+            if (Thread.currentThread().isInterrupted()) throw new InterruptedException("Image upload was superseded.");
 
-            String extension = getSafeExtension(selected.getName());
-            Path assetsFolder = ConfigManager.getConfigFolder().resolve("assets");
-            Files.createDirectories(assetsFolder);
-            Path destination = assetsFolder.resolve(baseName + extension);
-
-            temporary = Files.createTempFile(assetsFolder, baseName + "-", extension + ".uploading");
-            Files.copy(selected.toPath(), temporary, StandardCopyOption.REPLACE_EXISTING);
-
-            // Decode the copied file before replacing the currently working asset.
-            // A corrupt upload therefore cannot remove production branding.
-            BrandAssetPolicy.inspect(temporary, role);
+            // Decode exactly one bounded preview from the copied bytes before committing.
+            // Corrupt files therefore cannot replace a previously working asset.
+            Image previewImage = loadPreviewImage(temporary, role);
+            if (Thread.currentThread().isInterrupted()) throw new InterruptedException("Image upload was superseded.");
             try {
-                Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE);
             } catch (AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, destination, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(temporary, destination);
             }
-            temporary = null;
 
-            removeOlderAssetVersions(assetsFolder, baseName, destination);
-            putSetting(configKey, destination.toAbsolutePath().toString());
-            showImagePreview(destination, imageView, placeholder, fileLabel, role);
-        } catch (Exception exception) {
-            showError("The image could not be saved: " + exception.getMessage());
+            if (Thread.currentThread().isInterrupted()) {
+                Files.deleteIfExists(destination);
+                throw new InterruptedException("Image upload was superseded.");
+            }
+            try {
+                ConfigManager.set(configKey, destination.toAbsolutePath().toString());
+                String persisted = ConfigManager.get(configKey, "");
+                if (!destination.toAbsolutePath().toString().equals(persisted)) {
+                    throw new IllegalStateException("The saved image path could not be verified.");
+                }
+                configCommitted = true;
+            } catch (Exception configError) {
+                ConfigManager.setWithoutSaving(configKey, previousConfiguredPath);
+                try { Files.deleteIfExists(destination); } catch (Exception ignored) { }
+                throw configError;
+            }
+
+            removeOlderManagedAssetVersions(assetsFolder, baseName, destination);
+            return new AssetStoreResult(destination, previewImage, selection.inspection());
         } finally {
-            if (temporary != null) {
-                try { Files.deleteIfExists(temporary); } catch (Exception ignored) { }
+            try { Files.deleteIfExists(temporary); } catch (Exception ignored) { }
+            if (!configCommitted) {
+                try { Files.deleteIfExists(destination); } catch (Exception ignored) { }
             }
         }
     }
@@ -657,20 +751,33 @@ public class SettingsController implements ScreenLifecycle {
         return ".png";
     }
 
-    private void removeOlderAssetVersions(
+    private void removeOlderManagedAssetVersions(
         Path assetsFolder,
         String baseName,
         Path keep
     ) {
-        for (String extension : List.of(".png", ".jpg", ".jpeg")) {
-            Path candidate = assetsFolder.resolve(baseName + extension);
-            if (keep != null && candidate.toAbsolutePath().normalize().equals(keep.toAbsolutePath().normalize())) continue;
-            try {
-                Files.deleteIfExists(candidate);
-            } catch (Exception ignored) {
-                // Cleanup is best-effort after the replacement asset is safe.
-            }
+        try (var files = Files.list(assetsFolder)) {
+            files.filter(Files::isRegularFile)
+                .filter(path -> isManagedAssetVersion(path.getFileName().toString(), baseName))
+                .filter(path -> keep == null || !path.toAbsolutePath().normalize()
+                        .equals(keep.toAbsolutePath().normalize()))
+                .forEach(path -> {
+                    try { Files.deleteIfExists(path); } catch (Exception ignored) { }
+                });
+        } catch (Exception ignored) {
+            // Cleanup is best-effort only after the new path is safely persisted.
         }
+    }
+
+    private boolean isManagedAssetVersion(String fileName, String baseName) {
+        if (fileName == null || baseName == null) return false;
+        String lower = fileName.toLowerCase();
+        String base = baseName.toLowerCase();
+        boolean supported = lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+        return supported && (lower.equals(base + ".png")
+                || lower.equals(base + ".jpg")
+                || lower.equals(base + ".jpeg")
+                || lower.startsWith(base + "-"));
     }
 
     private void removeConfiguredAsset(
@@ -679,6 +786,9 @@ public class SettingsController implements ScreenLifecycle {
         VBox placeholder,
         Label fileLabel
     ) {
+
+        UiTaskExecutor.cancel("settings-asset-inspect-" + configKey);
+        UiTaskExecutor.cancel("settings-asset-store-" + configKey);
 
         String configuredPath =
             ConfigManager.get(
@@ -716,6 +826,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void refreshAllAssetPreviewsAsync() {
+        long revision = ++assetPreviewRevision;
         List<AssetPreviewRequest> requests = new ArrayList<>();
         if (imgApplicationBrand != null && placeholderApplicationBrand != null && lblApplicationBrandFile != null)
             requests.add(new AssetPreviewRequest(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER));
@@ -729,7 +840,9 @@ public class SettingsController implements ScreenLifecycle {
         UiTaskExecutor.submitLatest(
             "settings-asset-previews",
             () -> loadAssetPreviews(requests),
-            this::applyAssetPreviews,
+            results -> {
+                if (revision == assetPreviewRevision) applyAssetPreviews(results);
+            },
             error -> PerformanceMonitor.event("background-work-failed", "settings-asset-previews | " + safeMessage(error))
         );
     }
@@ -749,13 +862,8 @@ public class SettingsController implements ScreenLifecycle {
                     results.add(new AssetPreviewResult(request, null, null, null));
                     continue;
                 }
-                byte[] bytes = Files.readAllBytes(path);
-                Image image = new Image(new ByteArrayInputStream(bytes));
-                if (image.isError()) {
-                    results.add(new AssetPreviewResult(request, null, null, null));
-                    continue;
-                }
                 BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(path, request.role());
+                Image image = loadPreviewImage(path, request.role());
                 results.add(new AssetPreviewResult(request, image, path, inspection));
             } catch (Exception ignored) {
                 results.add(new AssetPreviewResult(request, null, null, null));
@@ -815,27 +923,67 @@ public class SettingsController implements ScreenLifecycle {
         BrandAssetPolicy.Role role
     ) {
         // User-selected image changes are infrequent. Keep this immediate path
-        // synchronous so the preview updates before the chooser action returns;
-        // startup previews use refreshAllAssetPreviewsAsync() above.
+        // synchronous, but decode only a preview-sized bitmap rather than the full
+        // source image. Startup previews use refreshAllAssetPreviewsAsync() above.
         try {
-            byte[] bytes = Files.readAllBytes(path);
-            Image image = new Image(new ByteArrayInputStream(bytes));
-            if (image.isError()) {
-                clearImagePreview(imageView, placeholder, fileLabel);
-                return;
-            }
-
-            imageView.setImage(image);
-            imageView.setVisible(true);
-            imageView.setManaged(true);
-            placeholder.setVisible(false);
-            placeholder.setManaged(false);
-
             BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(path, role);
-            fileLabel.setText(path.getFileName() + " • " + inspection.dimensions());
+            Image image = loadPreviewImage(path, role);
+            applyImagePreview(path, image, inspection, imageView, placeholder, fileLabel);
         } catch (Exception exception) {
             clearImagePreview(imageView, placeholder, fileLabel);
         }
+    }
+
+    private Window resolveAssetChooserOwner(ImageView imageView) {
+        if (imageView != null && imageView.getScene() != null) {
+            return imageView.getScene().getWindow();
+        }
+        if (panelHost != null && panelHost.getScene() != null) {
+            return panelHost.getScene().getWindow();
+        }
+        return null;
+    }
+
+    private Image loadPreviewImage(Path path, BrandAssetPolicy.Role role) throws Exception {
+        double requestedWidth = switch (role) {
+            case APPLICATION_BANNER -> 1200.0;
+            case COMPANY_LOGO -> 720.0;
+            case SIGNATURE -> 720.0;
+            case PAYMENT_QR -> 420.0;
+        };
+        double requestedHeight = switch (role) {
+            case APPLICATION_BANNER -> 320.0;
+            case COMPANY_LOGO -> 260.0;
+            case SIGNATURE -> 260.0;
+            case PAYMENT_QR -> 420.0;
+        };
+
+        try (InputStream input = Files.newInputStream(path)) {
+            Image image = new Image(input, requestedWidth, requestedHeight, true, true);
+            if (image.isError() || image.getWidth() <= 0 || image.getHeight() <= 0) {
+                Throwable cause = image.getException();
+                throw new IllegalArgumentException(
+                        cause == null ? "The selected image could not be decoded." : cause.getMessage(),
+                        cause);
+            }
+            return image;
+        }
+    }
+
+    private void applyImagePreview(
+        Path path,
+        Image image,
+        BrandAssetPolicy.Inspection inspection,
+        ImageView imageView,
+        VBox placeholder,
+        Label fileLabel
+    ) {
+        imageView.setImage(image);
+        imageView.setVisible(true);
+        imageView.setManaged(true);
+        placeholder.setVisible(false);
+        placeholder.setManaged(false);
+        fileLabel.setText(path.getFileName() + " • " + inspection.dimensions());
     }
 
     private static String safeMessage(Throwable error) {
@@ -843,6 +991,17 @@ public class SettingsController implements ScreenLifecycle {
         String message = error.getMessage();
         return message == null || message.isBlank() ? error.toString() : message;
     }
+
+    private record AssetSelection(
+        Path path,
+        BrandAssetPolicy.Inspection inspection
+    ) { }
+
+    private record AssetStoreResult(
+        Path path,
+        Image previewImage,
+        BrandAssetPolicy.Inspection inspection
+    ) { }
 
     private record AssetPreviewRequest(
         String configKey,

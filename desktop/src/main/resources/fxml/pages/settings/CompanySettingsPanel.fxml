@@ -128,7 +128,8 @@
                                         </StackPane>
                                         <Label fx:id="lblApplicationBrandFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
                                         <HBox spacing="8">
-                                            <Button text="Upload / Change" onAction="#uploadApplicationBrand" styleClass="settings-secondary-button"/>
+                                            <Button text="Add / Replace" onAction="#uploadApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
+                                            <Button text="Preview" onAction="#previewApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
                                             <Button text="Remove" onAction="#removeApplicationBrand" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
                                         </HBox>
                                     </VBox>

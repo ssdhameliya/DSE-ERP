@@ -10,7 +10,10 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
@@ -34,9 +37,9 @@ public class PurchaseReturnsController {
     private final ReturnApiClient returnApi=new ReturnApiClient();
     private final SupportApiClient supportApi=new SupportApiClient();
     public record Row(String no, String date, String invoice, String supplier,
-                      double total, double refund, String status, String refundStatus) {}
+                      double total, double refund, String reason, String status, String refundStatus) {}
 
-    @FXML private Label total, count, monthCount, refund, average, pageInfo;
+    @FXML private Label total, count, monthCount, refund, average, pageInfo, lblDetailNo, lblDetailDate, lblDetailInvoice, lblDetailSupplier, lblDetailAmount, lblDetailRefund, lblDetailReason, lblDetailStatus, lblDetailRefundStatus;
     @FXML private StackPane iconTotal,iconMonth,iconCount,iconRefund,iconAverage;
     @FXML private TextField search;
     @FXML private ComboBox<String> supplier, status;
@@ -45,13 +48,16 @@ public class PurchaseReturnsController {
     @FXML private TableColumn<Row, String> cNo, cDate, cInvoice, cSupplier, cStatus, cRefundStatus;
     @FXML private TableColumn<Row, Number> cTotal, cRefund;
     @FXML private TableColumn<Row, Void> cAction;
+    @FXML private SplitPane mainSplit;
+    @FXML private VBox detailDrawer;
     private List<Row> all = List.of();
+    private Row selected;
 
     @FXML public void initialize() {
         installKpiIcons();
         configureExplicitTableHeaderIcons();
         cNo.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().no()));
-        cDate.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().date()));
+        cDate.setCellValueFactory(x -> new SimpleStringProperty(BusinessClock.formatDate(x.getValue().date())));
         cInvoice.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().invoice()));
         cSupplier.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().supplier()));
         cTotal.setCellValueFactory(x -> new SimpleDoubleProperty(x.getValue().total()));
@@ -60,8 +66,8 @@ public class PurchaseReturnsController {
         cRefundStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().refundStatus()));
         for (TableColumn<Row, Number> column : List.of(cTotal, cRefund)) column.setCellFactory(x -> moneyCell());
         cStatus.setCellFactory(x -> SemanticTableCells.status("return")); cRefundStatus.setCellFactory(x -> SemanticTableCells.status("refund"));
-        installActions(); installRows();
-        dpFrom.setValue(BusinessClock.today().minusDays(7)); dpTo.setValue(BusinessClock.today());
+        installActions(); installRows(); configureDrawer();
+        dpFrom.setValue(BusinessClock.today().minusMonths(6)); dpTo.setValue(BusinessClock.today());
         supplier.valueProperty().addListener((o, a, b) -> filter());
         status.valueProperty().addListener((o, a, b) -> filter());
         search.textProperty().addListener((o, a, b) -> filter());
@@ -92,7 +98,7 @@ public class PurchaseReturnsController {
         cAction.setCellFactory(column -> new TableCell<>() {
             final MenuButton menu = new MenuButton();
             {
-                add("View Details", "view", e -> view(row())); add("Edit Return", "edit", e -> edit(row()));
+                add("View Details", "view", e -> showDetails(row())); add("Edit Return", "edit", e -> edit(row()));
                 add("Print / PDF", "print", e -> pdf(row())); add("Send Email", "email", e -> email(row()));
                 add("View Original Purchase", "purchase", e -> original(row())); add("Record Refund", "payment", e -> recordRefund(row()));
                 add("Attach Document", "attachment", e -> attach(row())); add("Notes / Remarks", "document", e -> notes(row()));
@@ -107,7 +113,7 @@ public class PurchaseReturnsController {
 
     private void installRows() {
         table.setRowFactory(view -> {
-            TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if (e.getClickCount() == 2 && !row.isEmpty()) view(row.getItem()); });
+            TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if (e.getButton()==javafx.scene.input.MouseButton.PRIMARY && e.getClickCount() == 2 && !row.isEmpty()) { showDetails(row.getItem()); e.consume(); } });
             MenuItem add = new MenuItem("Add Purchase Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem delete = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
@@ -117,7 +123,7 @@ public class PurchaseReturnsController {
 
     @FXML private void load() {
         List<Row> rows=new ArrayList<>();
-        try{for(ReturnApiClient.Summary r:returnApi.list("PURCHASE RETURN"))rows.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.status()),safe(r.refundStatus())));}catch(Exception e){error(e);}
+        try{for(ReturnApiClient.Summary r:returnApi.list("PURCHASE RETURN"))rows.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));}catch(Exception e){error(e);}
         all=rows; supplier.setItems(FXCollections.observableArrayList("All Suppliers"));supplier.getItems().addAll(rows.stream().map(Row::supplier).filter(x->!x.isBlank()).distinct().sorted().toList());if(supplier.getValue()==null)supplier.setValue("All Suppliers");
         status.setItems(FXCollections.observableArrayList("All Status","PENDING","APPROVED","COMPLETED","PARTIAL","CANCELLED"));if(status.getValue()==null)status.setValue("All Status");
         double sum=rows.stream().mapToDouble(Row::total).sum(),refunded=rows.stream().mapToDouble(Row::refund).sum();total.setText(money(sum));count.setText(String.valueOf(rows.size()));int thisMonth=(int)rows.stream().filter(row->parse(row.date()).getYear()==BusinessClock.today().getYear()&&parse(row.date()).getMonthValue()==BusinessClock.today().getMonthValue()).count();if(monthCount!=null)monthCount.setText(String.valueOf(thisMonth));refund.setText(money(refunded));average.setText(money(rows.isEmpty()?0:sum/rows.size()));filter();
@@ -132,9 +138,23 @@ public class PurchaseReturnsController {
         table.getItems().setAll(visible); pageInfo.setText("Showing " + visible.size() + " of " + all.size() + " returns");
     }
 
-    @FXML private void reset() { search.clear(); supplier.setValue("All Suppliers"); status.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusDays(7)); dpTo.setValue(BusinessClock.today()); filter(); }
+    @FXML private void reset() { search.clear(); supplier.setValue("All Suppliers"); status.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusMonths(6)); dpTo.setValue(BusinessClock.today()); filter(); }
     @FXML private void create() { info("Create a purchase return from the Purchase Register so stock and supplier balances remain linked."); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void view(Row row) { PurchaseReturnContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseReturnDetails.fxml"); }
+    private void configureDrawer() {if(detailDrawer==null)return;detailDrawer.setManaged(false);detailDrawer.setVisible(false);if(mainSplit!=null)mainSplit.setDividerPositions(1);decorateDrawerNode(detailDrawer);applyValueIcon(lblDetailNo,"return");applyValueIcon(lblDetailSupplier,"supplier");applyValueIcon(lblDetailDate,"calendar");applyValueIcon(lblDetailInvoice,"purchase");applyValueIcon(lblDetailAmount,"currency");applyValueIcon(lblDetailRefund,"payment");applyValueIcon(lblDetailReason,"document");}
+    private void decorateDrawerNode(Node node){if(node instanceof Label l&&l.getGraphic()==null){String sem=drawerSemantic(l.getText());if(sem!=null){l.setGraphic(IconFactory.compactIcon(sem,14));l.setGraphicTextGap(6);l.getProperties().put("erp-icon-preserve",true);}}if(node instanceof ButtonBase b&&b.getGraphic()==null){String sem=drawerSemantic(b.getText());if(sem!=null){b.setGraphic(IconFactory.compactIcon(sem,14));b.setGraphicTextGap(6);b.getProperties().put("erp-icon-preserve",true);}}if(node instanceof Parent p)for(Node child:p.getChildrenUnmodifiable())decorateDrawerNode(child);}
+    private void applyValueIcon(Label l,String sem){if(l!=null&&l.getGraphic()==null){l.setGraphic(IconFactory.compactIcon(sem,15));l.setGraphicTextGap(7);l.getProperties().put("erp-icon-preserve",true);}}
+    private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("purchase")||t.contains("original"))return"purchase";if(t.contains("supplier"))return"supplier";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("detail"))return"view";if(t.contains("close"))return"cancel";return null;}
+    private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
+    private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
+    private void showDetails(Row row){if(row==null)return;selected=row;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));}
+    @FXML private void closeDetails(){selected=null;if(detailDrawer!=null){detailDrawer.setManaged(false);detailDrawer.setVisible(false);}if(mainSplit!=null)mainSplit.setDividerPositions(1);if(table!=null)table.getSelectionModel().clearSelection();}
+    @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
+    @FXML private void emailSelected(){if(selected!=null)email(selected);}
+    @FXML private void fullDetailsSelected(){if(selected!=null)view(selected);}
+    @FXML private void originalSelected(){if(selected!=null)original(selected);}
+    @FXML private void refundSelected(){if(selected!=null)recordRefund(selected);}
+
     private void original(Row row) { PurchaseScreenContext.select(row.invoice()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void edit(Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
     private void notes(Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }

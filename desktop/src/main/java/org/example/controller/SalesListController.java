@@ -210,7 +210,7 @@ public class SalesListController implements ScreenLifecycle {
         cmbMailStatus.getItems().setAll("All","Sent","Not Sent");cmbMailStatus.setValue("All");
         cmbWhatsappStatus.getItems().setAll("All","Sent","Not Sent");cmbWhatsappStatus.setValue("All");
         cmbInvoiceType.getItems().setAll("All","TAX INVOICE","PROFORMA","CASH MEMO");cmbInvoiceType.setValue("All");
-        dpFrom.setValue(BusinessClock.today().minusDays(6));
+        dpFrom.setValue(BusinessClock.today().minusMonths(6));
         dpTo.setValue(BusinessClock.today());
         dpFrom.setPromptText("Any date");
         dpTo.setPromptText("Any date");
@@ -230,7 +230,7 @@ public class SalesListController implements ScreenLifecycle {
             menu.setGraphic(IconFactory.compactIcon("actions",15));
             add("Sale Invoice","pdf",e->openSaleInvoicePdf(row()));add("View Sale","view",e->viewSale(row()));add("Edit Sale","edit",e->edit(row()));add("Duplicate Sale","sale",e->duplicate(row()));add("Print / Download PDF","print",e->openPdf(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("View / Record Payments","payment",e->openPayment(row()));add("Create Sales Return","return",e->createReturn(row()));add("Send Reminder","reminder",e->createReminder(row()));MenuItem del=add("Delete Sale","delete",e->delete(row()));del.getStyleClass().add("danger-menu-item");menu.setOnShowing(e->{Sales current=getTableRow()==null?null:getTableRow().getItem();String status=current==null?"":safe(current.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);boolean locked=isFinanciallyLocked(current);del.setDisable(locked||"DELETED".equals(status));del.setVisible(!locked);});menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));}
             private Sales row(){Sales value=getTableRow()==null?null:getTableRow().getItem();if(value==null)throw new IllegalStateException("This sales row is no longer available. Refresh the register and try again.");return value;}
-            private MenuItem add(String t,String icon,javafx.event.EventHandler<ActionEvent> h){MenuItem i=new MenuItem(t);i.setGraphic(IconFactory.icon(icon));i.setOnAction(event->{try{h.handle(event);}catch(Throwable failure){error(failure);}});menu.getItems().add(i);return i;}
+            private MenuItem add(String t,String icon,javafx.event.EventHandler<ActionEvent> h){MenuItem i=new MenuItem(t);i.setGraphic(IconFactory.compactIcon(icon, 16));i.setOnAction(event->{try{h.handle(event);}catch(Throwable failure){error(failure);}});menu.getItems().add(i);return i;}
             protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:menu);setAlignment(Pos.CENTER);}});
     }
 
@@ -364,7 +364,7 @@ public class SalesListController implements ScreenLifecycle {
     private void applyDateRange(LocalDate from,LocalDate to){dpFrom.setValue(from);dpTo.setValue(to);applyFilters();}
 
     @FXML private void toggleAdvanced(){advancedFilters.setManaged(btnAdvanced.isSelected());advancedFilters.setVisible(btnAdvanced.isSelected());}
-    @FXML private void resetFilters(){txtSearch.clear();txtInvoice.clear();txtAmountFrom.clear();txtAmountTo.clear();dpFrom.setValue(BusinessClock.today().minusDays(6));dpTo.setValue(BusinessClock.today());cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbPaymentDue.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");applyFilters();}
+    @FXML private void resetFilters(){txtSearch.clear();txtInvoice.clear();txtAmountFrom.clear();txtAmountTo.clear();dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbPaymentDue.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");applyFilters();}
     private void renderChips(){activeFilterChips.getChildren().clear();addChip("From",dpFrom.getValue());addChip("To",dpTo.getValue());addChip("Payment",nonAll(cmbPaymentStatus));addChip("Due",nonAll(cmbPaymentDue));addChip("Email",nonAll(cmbMailStatus));addChip("WhatsApp",nonAll(cmbWhatsappStatus));}
     private Object nonAll(ComboBox<String>b){return b.getValue()==null||b.getValue().equals("All")?null:b.getValue();}private void addChip(String name,Object value){if(value==null)return;Label chip=new Label(name+": "+value);chip.getStyleClass().add("filter-chip");activeFilterChips.getChildren().add(chip);}
 

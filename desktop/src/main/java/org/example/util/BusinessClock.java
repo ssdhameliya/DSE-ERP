@@ -62,6 +62,24 @@ public final class BusinessClock {
         return value == null ? "" : value.format(dateFormatter());
     }
 
+    /**
+     * Formats ISO and legacy day/month date strings through the configured
+     * business date pattern. This guarantees leading zeroes for dd/MM/yyyy.
+     */
+    public static String formatDate(String value) {
+        if (value == null || value.isBlank()) return "";
+        String text = value.trim();
+        for (DateTimeFormatter parser : List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("d/M/uuuu"),
+                DateTimeFormatter.ofPattern("dd/MM/uuuu"))) {
+            try {
+                return formatDate(LocalDate.parse(text, parser));
+            } catch (DateTimeParseException ignored) { }
+        }
+        return text;
+    }
+
     public static String formatInstant(Instant value, String timePattern) {
         if (value == null) return "";
         String pattern = datePattern() + (timePattern == null || timePattern.isBlank() ? "" : " " + timePattern.trim());

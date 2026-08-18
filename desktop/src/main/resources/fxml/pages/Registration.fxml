@@ -19,7 +19,7 @@
         <StackPane styleClass="auth-section-icon"><Label text="+"/></StackPane>
         <Label text="Create New Account" styleClass="auth-title"/>
         <Label text="Choose Manager or Sale. Administrator accounts remain protected." styleClass="auth-description"/>
-        <GridPane hgap="14" vgap="7" maxWidth="680">
+        <GridPane hgap="14" vgap="7" maxWidth="620">
             <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
             <VBox spacing="4" GridPane.columnIndex="0"><Label text="Full name *" styleClass="auth-field-label"/><TextField fx:id="txtName" promptText="Full name" styleClass="auth-input"/><Label fx:id="lblNameError" managed="false" visible="false" styleClass="field-error"/></VBox>
             <VBox spacing="4" GridPane.columnIndex="1"><Label text="Username *" styleClass="auth-field-label"/><TextField fx:id="txtUsername" promptText="Username" styleClass="auth-input"/><Label fx:id="lblUsernameError" managed="false" visible="false" styleClass="field-error"/></VBox>
@@ -29,10 +29,10 @@
             <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="1"><Label text="Confirm password *" styleClass="auth-field-label"/><PasswordField fx:id="txtConfirm" promptText="Confirm password" styleClass="auth-input"/><Label fx:id="lblConfirmError" managed="false" visible="false" styleClass="field-error"/></VBox>
         </GridPane>
         <Button fx:id="btnSendOtp" text="Send email OTP" onAction="#sendOtp" maxWidth="300" styleClass="auth-secondary-button,auth-email-button"/>
-        <VBox spacing="4" maxWidth="680"><Label text="Verification code *" styleClass="auth-field-label"/><TextField fx:id="txtOtp" promptText="Enter OTP" styleClass="auth-input"/><Label fx:id="lblOtpError" managed="false" visible="false" styleClass="field-error"/></VBox>
+        <VBox spacing="4" maxWidth="620"><Label text="Verification code *" styleClass="auth-field-label"/><TextField fx:id="txtOtp" promptText="Enter OTP" styleClass="auth-input"/><Label fx:id="lblOtpError" managed="false" visible="false" styleClass="field-error"/></VBox>
         <Button fx:id="btnCreate" text="Create verified account" onAction="#register" maxWidth="380" styleClass="auth-primary-button"/>
         <Button fx:id="btnBack" text="Back to login" onAction="#back" maxWidth="220" styleClass="auth-secondary-button"/>
-        <Label fx:id="lblMessage" wrapText="true" maxWidth="680" styleClass="auth-message"/>
+        <Label fx:id="lblMessage" wrapText="true" maxWidth="620" styleClass="auth-message"/>
     </VBox></StackPane></center>
     <bottom><SharedApplicationFooter/></bottom>
 </BorderPane>

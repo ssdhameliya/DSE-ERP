@@ -21,6 +21,8 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.geometry.Pos;
+import org.kordamp.ikonli.Ikon;
+import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Locale;
@@ -73,14 +75,39 @@ public final class IconFactory {
     public static Node statusIcon(String name, String color) {
         String semantic = normalize(name);
         if ("save".equals(semantic)) semantic = "complete";
-        FontIcon glyph = new FontIcon(literal(semantic));
+
+        // Status icons are created from the FontAwesome enum, not an icon-literal
+        // string. This binds the glyph to the correct Ikonli font handler directly
+        // and prevents table cells from falling back to a missing-glyph square.
+        FontIcon glyph = new FontIcon(statusIkon(semantic));
         glyph.setIconSize(16);
-        glyph.setStyle("-fx-icon-color: " + color + ";");
+        glyph.setIconColor(javafx.scene.paint.Color.web(color));
         glyph.getStyleClass().add("erp-status-glyph");
         glyph.setMouseTransparent(true);
         glyph.getProperties().put("erp.icon.factory", true);
         glyph.getProperties().put("erp.icon.semantic", semantic);
         return glyph;
+    }
+
+    private static Ikon statusIkon(String semantic) {
+        return switch (semantic) {
+            case "complete" -> FontAwesomeSolid.CHECK_CIRCLE;
+            case "warning", "error" -> FontAwesomeSolid.EXCLAMATION_CIRCLE;
+            case "delete" -> FontAwesomeSolid.TRASH_ALT;
+            case "cancel" -> FontAwesomeSolid.TIMES;
+            case "calendar" -> FontAwesomeSolid.CALENDAR_ALT;
+            case "reminder", "snooze" -> FontAwesomeSolid.CLOCK;
+            case "email" -> FontAwesomeSolid.ENVELOPE;
+            case "sent" -> FontAwesomeSolid.PAPER_PLANE;
+            case "refresh" -> FontAwesomeSolid.SYNC_ALT;
+            case "return" -> FontAwesomeSolid.UNDO_ALT;
+            case "refund" -> FontAwesomeSolid.UNDO;
+            case "partial" -> FontAwesomeSolid.ADJUST;
+            case "payment" -> FontAwesomeSolid.CREDIT_CARD;
+            case "status" -> FontAwesomeSolid.TASKS;
+            case "draft", "document" -> FontAwesomeSolid.FILE_ALT;
+            default -> FontAwesomeSolid.QUESTION_CIRCLE;
+        };
     }
 
     /** Adds the shared icon vocabulary to every newly loaded page and dialog. */
@@ -471,6 +498,8 @@ public final class IconFactory {
             case "purchase" -> "fas-briefcase";
             case "quotation" -> "fas-file-alt";
             case "payment" -> "fas-credit-card";
+            case "refund" -> "fas-undo";
+            case "partial" -> "fas-adjust";
             case "customer" -> "fas-user";
             case "user" -> "fas-user-circle";
             case "supplier" -> "fas-users";

@@ -507,6 +507,7 @@ public class PurchaseController {
 
 
         if(line!=null){
+            if (!confirmAction("Remove line", "Remove the selected purchase line?")) return;
 
             tableLines.getItems().remove(line);
 
@@ -699,8 +700,18 @@ public class PurchaseController {
         try{Path path=attachment!=null?attachment.toPath():attachmentRemoved||editingPurchase==null?null:resolvePurchaseAttachment(editingPurchase.getAttachmentPath());if(path==null||!Files.isRegularFile(path)){warn("No purchase attachment is available.");return;}java.awt.Desktop.getDesktop().open(path.toFile());}
         catch(Exception e){warn("Unable to open the purchase attachment: "+e.getMessage());}
     }
-    @FXML private void removeAttachment(){attachment=null;attachmentRemoved=true;if(lblAttachment!=null)lblAttachment.setText("No document selected");}
-    @FXML private void clearLines(){tableLines.getItems().clear();recalculate();}
+    @FXML private void removeAttachment(){
+        boolean hasAttachment = attachment != null
+            || (!attachmentRemoved && editingPurchase != null && editingPurchase.getAttachmentPath() != null
+                && !editingPurchase.getAttachmentPath().isBlank());
+        if (hasAttachment && !confirmAction("Remove attachment", "Remove the selected purchase attachment?")) return;
+        attachment=null;attachmentRemoved=true;if(lblAttachment!=null)lblAttachment.setText("No document selected");
+    }
+    @FXML private void clearLines(){
+        if(tableLines.getItems().isEmpty()) return;
+        if(!confirmAction("Clear purchase items", "Remove all current lines from this purchase?")) return;
+        tableLines.getItems().clear();recalculate();
+    }
     @FXML private void preview(){new OwnedAlert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}
     public void prepareDuplicate(){editingPurchase=null;attachment=null;attachmentRemoved=false;if(lblAttachment!=null)lblAttachment.setText("No document selected");txtInvoiceNo.setText(purchaseService.nextInvoiceNo());}
     private double parse(String v){try{return v==null||v.isBlank()?0:Double.parseDouble(v);}catch(Exception e){return 0;}}private String str(LocalDate d){return d==null?null:d.toString();}
@@ -906,6 +917,18 @@ public class PurchaseController {
 
 
 
+    private boolean confirmAction(String title, String message) {
+        OwnedAlert alert = new OwnedAlert(
+            Alert.AlertType.CONFIRMATION,
+            message,
+            ButtonType.CANCEL,
+            ButtonType.OK
+        );
+        alert.setTitle(title);
+        alert.setHeaderText(title);
+        return alert.showAndWait().filter(ButtonType.OK::equals).isPresent();
+    }
+
     private void warn(String msg){
 
         new OwnedAlert(
@@ -921,7 +944,8 @@ public class PurchaseController {
 
     @FXML
     private void cancel(){
-
+        boolean dirty = !tableLines.getItems().isEmpty() || attachment != null || attachmentRemoved;
+        if (dirty && !confirmAction("Discard changes", "Discard unsaved changes and return to the Purchase register?")) return;
 
         NavigationManager.getInstance()
             .loadPage(

@@ -108,7 +108,7 @@
                     </VBox>
                     <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="3">
                         <Label text="PO Date" styleClass="sales-entry-field-label,field-label-due"/>
-                        <DatePicker fx:id="txtPoDate" editable="false" mouseTransparent="true" focusTraversable="false" maxWidth="Infinity" promptText="Calculated from payment terms" styleClass="approved-input,sales-entry-po-date-field"/>
+                        <DatePicker fx:id="txtPoDate" editable="true" maxWidth="Infinity" promptText="Select PO date (optional)" styleClass="approved-input,sales-entry-po-date-field"/>
                     </VBox>
                     <VBox spacing="4" GridPane.rowIndex="3" GridPane.columnIndex="4">
                         <Label text="PO No." styleClass="sales-entry-field-label,field-label-invoice"/>

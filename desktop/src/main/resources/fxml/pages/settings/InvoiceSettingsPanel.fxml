@@ -118,7 +118,8 @@
                                         </StackPane>
                                         <Label fx:id="lblLogoFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
                                         <HBox spacing="8">
-                                            <Button text="Upload / Change" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button"/>
+                                            <Button text="Add / Replace" onAction="#uploadCompanyLogo" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
+                                            <Button text="Preview" onAction="#previewCompanyLogo" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
                                             <Button text="Remove" onAction="#removeCompanyLogo" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
                                         </HBox>
                                     </VBox>
@@ -136,7 +137,8 @@
                                         </StackPane>
                                         <Label fx:id="lblSignatureFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
                                         <HBox spacing="8">
-                                            <Button text="Upload / Change" onAction="#uploadSignature" styleClass="settings-secondary-button"/>
+                                            <Button text="Add / Replace" onAction="#uploadSignature" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
+                                            <Button text="Preview" onAction="#previewSignature" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
                                             <Button text="Remove" onAction="#removeSignature" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
                                         </HBox>
                                     </VBox>
