@@ -32,6 +32,7 @@ public class MasterDataController {
  @PostMapping("/lookups") public MasterDtos.LookupDto saveLookup(@RequestBody MasterDtos.LookupDto d){return service.saveLookup(d);}
  @PutMapping("/lookups") public MasterDtos.LookupDto updateLookup(@RequestBody MasterDtos.LookupDto d){return service.updateLookup(d);}
  @DeleteMapping("/lookups/{id}") public MasterDtos.OperationResponse deleteLookup(@PathVariable int id){service.deleteLookup(id);return new MasterDtos.OperationResponse(true,"OK");}
+ @PutMapping("/lookups/{id}/active") public MasterDtos.LookupDto setLookupActive(@PathVariable int id,@RequestParam boolean active){return service.setLookupActive(id,active);}
  @GetMapping("/lookups/next-code") public MasterDtos.NextCodeResponse lookupNext(@RequestParam String type){return new MasterDtos.NextCodeResponse(service.nextLookupCode(type));}
 
  @GetMapping("/categories") public List<MasterDtos.CategoryDto> categories(){return service.categories();}
@@ -39,4 +40,5 @@ public class MasterDataController {
  @PutMapping("/categories/upsert") public MasterDtos.CategoryDto upsertCategory(@RequestBody MasterDtos.CategoryUpsertRequest d){return service.upsertCategory(d);}
  @PutMapping("/categories/rename") public MasterDtos.CategoryDto rename(@RequestBody MasterDtos.RenameCategoryRequest r){return service.renameCategory(r.oldName(),r.newName());}
  @DeleteMapping("/categories") public MasterDtos.OperationResponse deleteCategory(@RequestParam String name){service.deleteCategory(name);return new MasterDtos.OperationResponse(true,"OK");}
+ @PutMapping("/categories/active") public MasterDtos.CategoryDto setCategoryActive(@RequestParam String name,@RequestParam boolean active){return service.setCategoryActive(name,active);}
 }

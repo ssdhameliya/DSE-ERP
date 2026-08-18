@@ -31,10 +31,10 @@
     </HBox>
   </VBox>
 
-  <SplitPane fx:id="mainSplit" dividerPositions="1" VBox.vgrow="ALWAYS" styleClass="register-split,sales-return-register-split">
+  <SplitPane fx:id="mainSplit" dividerPositions="1" minHeight="0" VBox.vgrow="ALWAYS" styleClass="register-split,sales-return-register-split">
     <items>
       <VBox minWidth="620">
-        <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register">
+        <TableView fx:id="table" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,erp-table-profile-register">
           <columns>
             <TableColumn fx:id="no" text="Return No." prefWidth="145" styleClass="approved-table-column"/>
             <TableColumn fx:id="date" text="Return Date" prefWidth="100" styleClass="approved-table-column"/>
@@ -49,7 +49,7 @@
         </TableView>
         <HBox alignment="CENTER_LEFT" styleClass="table-footer"><Label fx:id="pageInfo" styleClass="register-record-count"/></HBox>
       </VBox>
-      <VBox fx:id="detailDrawer" spacing="11" prefWidth="300" minWidth="280" maxWidth="320" styleClass="detail-drawer,return-detail-drawer">
+      <VBox fx:id="detailDrawer" spacing="11" prefWidth="300" minWidth="280" maxWidth="320" styleClass="detail-drawer,erp-detail-drawer-card,return-detail-drawer" minHeight="0">
         <HBox alignment="CENTER_LEFT"><Label text="Sales Return Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-danger-button"/></HBox>
         <Label fx:id="lblDetailNo" styleClass="drawer-document"/><Label fx:id="lblDetailCustomer" styleClass="drawer-customer"/>
         <Separator/>

@@ -121,8 +121,8 @@
             <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" visible="false" managed="false" styleClass="sales-filter-chips,approved-filter-bar"/>
           </VBox>
 
-          <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
-            <TableView fx:id="tableSales" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,erp-table-profile-register">
+          <VBox spacing="0" minHeight="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
+            <TableView fx:id="tableSales" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,erp-table-profile-register">
               <columns>
                 <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="98" minWidth="88" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colDate" text="Date" prefWidth="82" minWidth="76" styleClass="approved-table-column"/>
@@ -174,7 +174,7 @@
           </VBox>
         </VBox>
 
-        <VBox fx:id="detailDrawer" spacing="12" prefWidth="300" minWidth="280" maxWidth="310" styleClass="detail-drawer,sales-detail-drawer">
+        <VBox fx:id="detailDrawer" spacing="12" prefWidth="300" minWidth="280" maxWidth="320" minHeight="0" styleClass="detail-drawer,erp-detail-drawer-card,sales-detail-drawer">
           <HBox><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
           <Label fx:id="lblDetailInvoice" styleClass="drawer-document,sales-detail-invoice"/>
           <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>

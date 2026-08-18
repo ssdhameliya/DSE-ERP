@@ -8710,3 +8710,55 @@
     -fx-font-size: 11px;
     -fx-font-weight: 700;
 }
+
+/* 7.30.27 shared record-details drawer contract */
+.erp-detail-drawer-card {
+    -fx-padding: 14;
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-min-width: 280;
+    -fx-pref-width: 300;
+    -fx-max-width: 320;
+}
+.erp-detail-drawer-scroll {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.reminder-detail-fixed-header,
+.reminder-detail-fixed-actions {
+    -fx-padding: 12 12 10 12;
+}
+.reminder-detail-body {
+    -fx-padding: 2 12 12 12;
+}
+
+/* 7.30.27 Document Studio properties: no hidden horizontal overflow. */
+.pdf-properties-card {
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+.pdf-position-grid .text-field {
+    -fx-max-width: Infinity;
+}
+
+/* 7.30.27 Master Data activity visibility */
+.master-category-activity {
+    -fx-font-size: 10px;
+    -fx-opacity: .82;
+}
+.master-category-state,
+.master-lookup-active,
+.master-lookup-inactive {
+    -fx-font-weight: 700;
+}
+
+/* 7.30.27 shared password reveal control */
+.password-reveal-wrapper { -fx-alignment: CENTER_LEFT; }
+.password-reveal-input { -fx-padding: 7 40 7 10; }
+.password-reveal-button {
+    -fx-min-width: 30; -fx-pref-width: 30; -fx-max-width: 30;
+    -fx-min-height: 28; -fx-pref-height: 28; -fx-max-height: 28;
+    -fx-padding: 4; -fx-background-color: transparent; -fx-border-color: transparent;
+}

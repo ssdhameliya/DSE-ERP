@@ -111,9 +111,11 @@ public class PurchaseReturnsController {
         });
     }
 
+    private boolean interactiveTableTarget(Node target, TableRow<?> row){for(Node node=target;node!=null&&node!=row;node=node.getParent())if(node instanceof ButtonBase||node instanceof TextInputControl||node instanceof ComboBoxBase<?>)return true;return false;}
+
     private void installRows() {
         table.setRowFactory(view -> {
-            TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if (e.getButton()==javafx.scene.input.MouseButton.PRIMARY && e.getClickCount() == 2 && !row.isEmpty()) { showDetails(row.getItem()); e.consume(); } });
+            TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY || e.getClickCount()!=1 || row.isEmpty() || interactiveTableTarget(e.getPickResult().getIntersectedNode(),row))return; Row clicked=row.getItem(); if(detailDrawer.isVisible() && selected==clicked)closeDetails(); else{table.getSelectionModel().select(clicked);showDetails(clicked);}e.consume(); });
             MenuItem add = new MenuItem("Add Purchase Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem delete = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });

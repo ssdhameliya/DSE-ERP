@@ -371,7 +371,6 @@ public class SettingsController implements ScreenLifecycle {
                 selectComboValue(cmbBusinessType, ConfigManager.get("company.businessType", "Proprietorship"));
                 selectComboValue(cmbIndustry, ConfigManager.get("company.industry", "Manufacturing"));
                 dpFinancialYearStart.setValue(parseDate(ConfigManager.get("company.financialYearStart", "")));
-                BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
                 refreshAllAssetPreviewsAsync();
             }
             case PAYMENT -> {
@@ -401,6 +400,7 @@ public class SettingsController implements ScreenLifecycle {
                 // Configure them only after that fragment has injected its controls.
                 BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
                 BrandImagePresenter.contain(imgSignature, signaturePreview);
+                BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
                 refreshAllAssetPreviewsAsync();
             }
             case NOTIFICATIONS -> {

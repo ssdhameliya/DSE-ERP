@@ -111,7 +111,7 @@ public final class ItemSpreadsheetService {
     private String[] csv(String line){return line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)",-1);}
     private String cv(String[] v,int i){return i<v.length?v[i].trim().replaceAll("^\"|\"$","").replace("\"\"","\""):"";}
     private double cn(String[]v,int i){String x=cv(v,i).replace(",","");if(x.isBlank())return 0;try{return Double.parseDouble(x);}catch(Exception e){throw new IllegalArgumentException(HEADERS[i]+" must be a number");}}
-    private Item readCsvItem(String[]v){Item i=new Item();i.setItemCode(cv(v,0));i.setDescription(cv(v,1));if(i.getItemCode().isBlank())throw new IllegalArgumentException("Item Code is required");if(i.getDescription().isBlank())throw new IllegalArgumentException("Description is required");i.setCategory(cv(v,2));i.setUnit(cv(v,3));i.setHsn(cv(v,4));if(i.getHsn().isBlank())throw new IllegalArgumentException("HSN Code is required");i.setGst(cn(v,5));i.setDiscountPercent(cn(v,6));i.setPurchasePrice(cn(v,7));i.setSellingPrice(cn(v,8));i.setRemarks(cv(v,9));i.setOpeningStock(cn(v,10));i.setMinimumStock(cn(v,11));i.setLocation(cv(v,12));i.setBrand(null);i.setMaterial(null);i.setSize(null);return i;}
+    private Item readCsvItem(String[]v){Item i=new Item();i.setItemCode(cv(v,0));i.setDescription(cv(v,1));if(i.getItemCode().isBlank())throw new IllegalArgumentException("Item Code is required");if(i.getDescription().isBlank())throw new IllegalArgumentException("Description is required");i.setCategory(cv(v,2));i.setUnit(cv(v,3));i.setHsn(cv(v,4));if(i.getHsn().isBlank())throw new IllegalArgumentException("HSN Code is required");i.setGst(cn(v,5));i.setDiscountPercent(cn(v,6));i.setPurchasePrice(cn(v,7));i.setSellingPrice(cn(v,8));i.setRemarks(cv(v,9));if(i.getRemarks().isBlank())throw new IllegalArgumentException("Remarks are required");i.setOpeningStock(cn(v,10));i.setMinimumStock(cn(v,11));i.setLocation(cv(v,12));i.setBrand(null);i.setMaterial(null);i.setSize(null);return i;}
 
     private void persistAll(List<Item> items) throws IOException {
         try { new MasterApiClient().saveItems(items); }
@@ -136,6 +136,7 @@ public final class ItemSpreadsheetService {
         item.setPurchasePrice(number(row, 7, f));
         item.setSellingPrice(number(row, 8, f));
         item.setRemarks(text(row, 9, f));
+        if (item.getRemarks().isBlank()) throw new IllegalArgumentException("Remarks are required");
         item.setOpeningStock(number(row, 10, f));
         item.setMinimumStock(number(row, 11, f));
         item.setLocation(text(row, 12, f));

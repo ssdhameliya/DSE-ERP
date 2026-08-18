@@ -45,13 +45,14 @@ public class ReminderCenterController {
     @FXML private ComboBox<String> cmbStatus, cmbPriority, cmbPeriod;
     @FXML private TableView<ReminderRow> table;
     @FXML private SplitPane reminderWorkspace;
-    @FXML private ScrollPane reminderDetailScroll;
+    @FXML private VBox reminderDetailPanel;
     @FXML private TableColumn<ReminderRow, String> colTitle, colReference,
             colDue, colPriority, colStatus, colCreatedBy;
     @FXML private TableColumn<ReminderRow, Void> colActions;
 
     private final ObservableList<ReminderRow> source = FXCollections.observableArrayList();
     private FilteredList<ReminderRow> filtered;
+    private ReminderRow detailRow;
 
     @FXML
     public void initialize() {
@@ -95,18 +96,19 @@ public class ReminderCenterController {
         filtered = new FilteredList<>(source, row -> true);
         table.setItems(filtered);
 
-        table.getSelectionModel().selectedItemProperty().addListener(
-                (observable, oldRow, newRow) -> showDetails(newRow)
-        );
-
         table.setRowFactory(tableView -> {
             TableRow<ReminderRow> row = new TableRow<>();
 
             row.setOnMouseClicked(event -> {
-                if (!row.isEmpty()
-                        && event.getButton() == MouseButton.PRIMARY
-                        && event.getClickCount() == 2) {
+                if (row.isEmpty() || event.getButton() != MouseButton.PRIMARY || interactiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
+                if (event.getClickCount() == 1) {
+                    ReminderRow clicked = row.getItem();
+                    if (reminderDetailPanel.isVisible() && detailRow == clicked) closeDetails();
+                    else { table.getSelectionModel().select(clicked); showDetails(clicked); }
+                    event.consume();
+                } else if (event.getClickCount() == 2) {
                     edit(row.getItem());
+                    event.consume();
                 }
             });
 
@@ -121,6 +123,8 @@ public class ReminderCenterController {
             return row;
         });
     }
+
+    private boolean interactiveTableTarget(Node target, TableRow<?> row) { for (Node node=target; node!=null && node!=row; node=node.getParent()) if (node instanceof ButtonBase || node instanceof TextInputControl || node instanceof ComboBoxBase<?>) return true; return false; }
 
     private void configureListeners() {
         txtSearch.textProperty().addListener((observable, oldValue, newValue) -> applyFilters());
@@ -228,6 +232,7 @@ public class ReminderCenterController {
                 .orElse(null);
         if (restored != null) {
             table.getSelectionModel().select(restored);
+            if (detailRow != null) showDetails(restored);
         } else {
             table.getSelectionModel().clearSelection();
             showDetails(null);
@@ -629,6 +634,7 @@ public class ReminderCenterController {
     }
 
     private void showDetails(ReminderRow row) {
+        detailRow = row;
         clearDetailBadgeClasses();
 
         if (row == null) {
@@ -668,9 +674,9 @@ public class ReminderCenterController {
     }
 
     private void setDetailVisible(boolean visible) {
-        if (reminderDetailScroll == null) return;
-        reminderDetailScroll.setManaged(visible);
-        reminderDetailScroll.setVisible(visible);
+        if (reminderDetailPanel == null) return;
+        reminderDetailPanel.setManaged(visible);
+        reminderDetailPanel.setVisible(visible);
         if (reminderWorkspace != null) {
             reminderWorkspace.setDividerPositions(visible ? 0.74 : 1.0);
         }

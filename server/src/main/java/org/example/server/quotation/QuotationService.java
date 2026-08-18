@@ -200,12 +200,8 @@ public class QuotationService {
     }
 
     private String nextNo() {
-        int y = BusinessClock.today().getYear();
-        String p = "QT-" + y + "-";
-        Integer n = jdbc.queryForObject(
-                "SELECT COALESCE(MAX(CAST(substring(quotation_no from '[0-9]+$') AS INTEGER)),0)+1 FROM quotation_header WHERE quotation_no LIKE ?",
-                Integer.class, p + "%");
-        return p + String.format(Locale.ROOT, "%04d", n == null ? 1 : n);
+        List<String> existing = jdbc.query("SELECT quotation_no FROM quotation_header WHERE quotation_no IS NOT NULL", (r, i) -> r.getString(1));
+        return operations.nextConfiguredReference("REF_QUOTATION", "QT-YYYY-XXXX", existing);
     }
 
     /** Quotation conversion uses the same Master Data Sales numbering as Create Sale. */

@@ -111,10 +111,12 @@ public class SalesReturnsController {
         });
     }
 
+    private boolean interactiveTableTarget(Node target, TableRow<?> row) { for (Node node=target; node!=null && node!=row; node=node.getParent()) if (node instanceof ButtonBase || node instanceof TextInputControl || node instanceof ComboBoxBase<?>) return true; return false; }
+
     private void installRows() {
         table.setRowFactory(view -> {
             TableRow<Row> row = new TableRow<>();
-            row.setOnMouseClicked(event -> { if (event.getButton()==javafx.scene.input.MouseButton.PRIMARY && event.getClickCount() == 2 && !row.isEmpty()) { showDetails(row.getItem()); event.consume(); } });
+            row.setOnMouseClicked(event -> { if (event.getButton()!=javafx.scene.input.MouseButton.PRIMARY || event.getClickCount()!=1 || row.isEmpty() || interactiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return; Row clicked=row.getItem(); if(detailDrawer.isVisible() && selected==clicked) closeDetails(); else { table.getSelectionModel().select(clicked); showDetails(clicked); } event.consume(); });
             MenuItem add = new MenuItem("Add Sales Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem remove = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); remove.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });

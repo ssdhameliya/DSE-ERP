@@ -47,7 +47,7 @@ public final class RollbackService {
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
             .withZone(ZoneId.systemDefault());
 
-    /* Versions in the same backward-compatible rollback schema generation used through 7.30.26. */
+    /* Versions in the same backward-compatible rollback schema generation used through 7.30.27. */
     private static final Map<String, Integer> KNOWN_SCHEMA = Map.ofEntries(
             Map.entry("7.2.2", 1),
             Map.entry("7.2.4", 1),
@@ -79,7 +79,8 @@ public final class RollbackService {
             Map.entry("7.30.23", 1),
             Map.entry("7.30.24", 1),
             Map.entry("7.30.25", 1),
-            Map.entry("7.30.26", 1)
+            Map.entry("7.30.26", 1),
+            Map.entry("7.30.27", 1)
     );
 
     private final UpdateService updateService = new UpdateService();

@@ -105,37 +105,7 @@
 
                             </GridPane>
 
-                            <Separator/>
 
-                            <!-- UNIFIED BRAND & IDENTITY ASSETS -->
-                            <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-brand-assets-panel">
-                                <VBox spacing="4">
-                                    <Label text="Brand &amp; Identity Assets" styleClass="settings-subsection-title"/>
-                                    <Label text="Manage the application brand image used by splash, sign-in, registration and email / OTP screens." wrapText="true" styleClass="settings-help-text"/>
-                                </VBox>
-
-                                <HBox spacing="10" alignment="TOP_CENTER" maxWidth="Infinity" styleClass="settings-brand-assets-row">
-                                    <!-- APPLICATION BRAND IMAGE -->
-                                    <VBox spacing="6" minWidth="0" prefWidth="0" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="settings-asset-card,settings-brand-asset-card,settings-application-brand-card">
-                                        <Label text="Application Brand Image" styleClass="settings-form-label"/>
-                                        <Label text="Splash, login, registration and email / OTP screens • Recommended 1600 × 320 (5:1)" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane fx:id="applicationBrandPreview" minHeight="96" prefHeight="96" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgApplicationBrand" preserveRatio="false" smooth="true"/>
-                                            <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
-                                                <Label text="◆" styleClass="settings-placeholder-icon"/>
-                                                <Label text="No application brand image selected" styleClass="settings-help-text"/>
-                                            </VBox>
-                                        </StackPane>
-                                        <Label fx:id="lblApplicationBrandFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
-                                        <HBox spacing="8">
-                                            <Button text="Add / Replace" onAction="#uploadApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
-                                            <Button text="Preview" onAction="#previewApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
-                                            <Button text="Remove" onAction="#removeApplicationBrand" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
-                                        </HBox>
-                                    </VBox>
-
-                                </HBox>
-                            </VBox>
 
                         </VBox>
 

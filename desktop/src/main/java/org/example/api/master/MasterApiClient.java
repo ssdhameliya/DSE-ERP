@@ -43,13 +43,15 @@ public final class MasterApiClient {
  public List<Lookup> lookupsByCategoryCode(String code){return get("/api/master/lookups/by-category-code?code="+enc(code),new TypeReference<List<LookupDto>>(){}).stream().map(this::lookup).toList();}
  public void saveLookup(Lookup l){post("/api/master/lookups",lookupDto(l),LookupDto.class);}
  public void updateLookup(Lookup l){put("/api/master/lookups",lookupDto(l),LookupDto.class);}
- public void deleteLookup(int id){delete("/api/master/lookups/"+id);}
+ public void deleteLookup(int id){delete("/api/master/lookups/"+id);} 
+ public LookupDto setLookupActive(int id,boolean active){return put("/api/master/lookups/"+id+"/active?active="+active,null,LookupDto.class);}
  public String nextLookupCode(String type){return get("/api/master/lookups/next-code?type="+enc(type),NextCodeResponse.class).code();}
  public List<CategoryDto> categories(){return get("/api/master/categories",new TypeReference<List<CategoryDto>>(){});}
  public void addCategory(String name){postNoBody("/api/master/categories?name="+enc(name));}
  public CategoryDto upsertCategory(String code,String name,String description){return put("/api/master/categories/upsert",new CategoryUpsertRequest(code,name,description),CategoryDto.class);}
  public void renameCategory(String oldName,String newName){put("/api/master/categories/rename",new RenameCategoryRequest(oldName,newName),CategoryDto.class);}
  public void deleteCategory(String name){delete("/api/master/categories?name="+enc(name));}
+ public CategoryDto setCategoryActive(String name,boolean active){return put("/api/master/categories/active?name="+enc(name)+"&active="+active,null,CategoryDto.class);}
 
  private Party party(PartyDto d){Party p=new Party();p.setId(n(d.id));p.setPartyType(d.partyType);p.setPartyCode(d.partyCode);p.setName(d.name);p.setContactPerson(d.contactPerson);p.setPhone(d.phone);p.setEmail(d.email);p.setGstin(d.gstin);p.setAddress(d.address);p.setOpeningBalance(d.openingBalance);p.setActive(d.active);return p;}
  private PartyDto partyDto(Party p){return new PartyDto(p.getId(),p.getPartyType(),p.getPartyCode(),p.getName(),p.getContactPerson(),p.getPhone(),p.getEmail(),p.getGstin(),p.getAddress(),p.getOpeningBalance(),p.isActive());}
@@ -69,7 +71,7 @@ public final class MasterApiClient {
  public record LookupDto(Integer id,String lookupType,String lookupCode,String lookupValue,String description,int displayOrder,boolean active){}
  public record SalesEntryBootstrap(List<String> paymentTerms,List<String> chargeTypes,List<String> gstTypes,List<Lookup> transporters,List<Party> customers){}
  private record SalesEntryBootstrapDto(List<String> paymentTerms,List<String> chargeTypes,List<String> gstTypes,List<LookupDto> transporters,List<PartyDto> customers){}
- public record CategoryDto(Integer id,String categoryCode,String categoryName,String description,int displayOrder,boolean active,long valueCount){}
+ public record CategoryDto(Integer id,String categoryCode,String categoryName,String description,int displayOrder,boolean active,long valueCount,long activeValueCount){}
  public record RenameCategoryRequest(String oldName,String newName){}
  public record CategoryUpsertRequest(String code,String name,String description){}
  public record NextCodeResponse(String code){} public record ExistsResponse(boolean exists){} public record ValuesResponse(List<String> values){} public record OperationResponse(boolean success,String message){}

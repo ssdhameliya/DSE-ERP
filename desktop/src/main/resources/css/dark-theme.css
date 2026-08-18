@@ -7589,3 +7589,49 @@
     -fx-background-color: #0e1b2b;
     -fx-text-fill: #62758d;
 }
+
+/* 7.30.27 shared details drawer surfaces */
+.erp-detail-drawer-card {
+    -fx-background-color: #101f31;
+    -fx-border-color: #29435f;
+}
+
+/* 7.30.27 complete notification category palette */
+.settings-notification-category.notification-category-sales,
+.notification-category-sales { -fx-text-fill: #fdba74; }
+.settings-notification-category.notification-category-purchases,
+.notification-category-purchases { -fx-text-fill: #f9a8d4; }
+.settings-notification-category.notification-category-quotations,
+.notification-category-quotations { -fx-text-fill: #d8b4fe; -fx-background-color: #3b2458; }
+.settings-notification-category.notification-category-returns,
+.notification-category-returns { -fx-text-fill: #7dd3fc; -fx-background-color: #123b55; }
+.settings-notification-category.notification-category-payments,
+.notification-category-payments { -fx-text-fill: #6ee7b7; -fx-background-color: #174d39; }
+.settings-notification-category.notification-category-inventory,
+.notification-category-inventory { -fx-text-fill: #63e6a7; }
+.settings-notification-category.notification-category-reminders,
+.notification-category-reminders { -fx-text-fill: #fcd34d; -fx-background-color: #4b3510; }
+.settings-notification-category.notification-category-communication,
+.notification-category-communication { -fx-text-fill: #5eead4; -fx-background-color: #134e4a; }
+.settings-notification-category.notification-category-system,
+.notification-category-system { -fx-text-fill: #cbd5e1; -fx-background-color: #263649; }
+.notification-category-quotations { -fx-background-color: #3b2458; }
+.notification-category-returns { -fx-background-color: #123b55; }
+.notification-category-payments { -fx-background-color: #174d39; }
+.notification-category-reminders { -fx-background-color: #4b3510; }
+.notification-category-communication { -fx-background-color: #134e4a; }
+.notification-category-system { -fx-background-color: #263649; }
+.notification-new-badge { -fx-background-color: #1d4f91; -fx-text-fill: #bfdbfe; }
+
+/* Meaningful colour surfaces for secondary actions. */
+.erp-action-button.erp-button-secondary.erp-semantic-blue { -fx-background-color: #16365f; -fx-border-color: #2f5f96; -fx-text-fill: #bfdbfe; }
+.erp-action-button.erp-button-secondary.erp-semantic-green { -fx-background-color: #174d39; -fx-border-color: #2f7258; -fx-text-fill: #a7f3d0; }
+.erp-action-button.erp-button-secondary.erp-semantic-orange { -fx-background-color: #4b3510; -fx-border-color: #765516; -fx-text-fill: #fde68a; }
+.erp-action-button.erp-button-secondary.erp-semantic-purple { -fx-background-color: #37275a; -fx-border-color: #5c4684; -fx-text-fill: #ddd6fe; }
+.erp-action-button.erp-button-secondary.erp-semantic-pink { -fx-background-color: #4f2332; -fx-border-color: #7b374d; -fx-text-fill: #fecdd3; }
+.erp-action-button.erp-button-secondary.erp-semantic-teal { -fx-background-color: #134e4a; -fx-border-color: #28736d; -fx-text-fill: #99f6e4; }
+.erp-action-button.erp-button-secondary.erp-semantic-indigo { -fx-background-color: #29345f; -fx-border-color: #45569a; -fx-text-fill: #c7d2fe; }
+.master-state-active, .master-lookup-active { -fx-text-fill: #63e6a7; }
+.master-state-inactive, .master-lookup-inactive { -fx-text-fill: #fda4af; }
+.master-category-activity { -fx-text-fill: #91a6bf; }
+.pdf-properties-card { -fx-background-color: #101f31; -fx-border-color: #29435f; }

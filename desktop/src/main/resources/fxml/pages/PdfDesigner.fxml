@@ -58,9 +58,9 @@
                                             <VBox spacing="7">
                                                 <ToggleButton fx:id="btnEditExistingText" text="Edit Existing PDF Text" onAction="#toggleExistingTextMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,pdf-tool-emphasis"/>
                                                 <ToggleButton fx:id="btnEditImportedImage" text="Edit Imported Image" onAction="#toggleImportedImageMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                                                <ToggleButton fx:id="btnEditFormField" text="Edit PDF Form Field" onAction="#toggleFormFieldMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                                <ToggleButton fx:id="btnEditFormField" text="Edit PDF Content" onAction="#toggleFormFieldMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                                                 <ToggleButton fx:id="btnAreaSelect" text="Select / Hide Area" onAction="#toggleAreaSelectionMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                                                <Label text="Modify detected PDF text, raster images and form fields non-destructively. Complex vectors/scans can be covered with Replace / Hide Area; the imported source remains protected." wrapText="true" styleClass="pdf-designer-help"/>
+                                                <Label text="Edit interactive fields or printed PDF content non-destructively. Text and raster images are selectable; flattened scans, outlined text and complex vectors can be replaced precisely with Select / Hide Area plus editable Text, Image or ERP Data." wrapText="true" styleClass="pdf-designer-help"/>
                                             </VBox>
                                         </content>
                                     </TitledPane>
@@ -140,7 +140,7 @@
     </center>
 
     <right>
-        <BorderPane prefWidth="410" minWidth="385" maxWidth="460" styleClass="pdf-designer-panel,pdf-designer-properties-shell,pdf-designer-right-wide">
+        <BorderPane prefWidth="450" minWidth="420" maxWidth="520" styleClass="pdf-designer-panel,pdf-designer-properties-shell,pdf-designer-right-wide,pdf-properties-card">
             <top>
                 <VBox spacing="5" styleClass="pdf-designer-properties-header">
                     <padding><Insets top="12" right="12" bottom="8" left="12"/></padding>
@@ -169,14 +169,14 @@
                                         <TextArea fx:id="txtContent" prefRowCount="4" wrapText="true"/>
                                         <Separator/>
                                         <Label text="POSITION &amp; SIZE" styleClass="field-caption"/>
-                                        <GridPane hgap="8" vgap="7">
+                                        <GridPane hgap="10" vgap="8" styleClass="pdf-position-grid">
                                             <Label text="X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                                            <Label text="Y" GridPane.columnIndex="2" GridPane.rowIndex="0"/><TextField fx:id="txtY" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
-                                            <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                                            <Label text="Height" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtHeight" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                                            <Label text="Y" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtY" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                            <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="2"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+                                            <Label text="Height" GridPane.columnIndex="0" GridPane.rowIndex="3"/><TextField fx:id="txtHeight" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
                                             <columnConstraints>
-                                                <ColumnConstraints minWidth="45"/><ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
-                                                <ColumnConstraints minWidth="52"/><ColumnConstraints percentWidth="42" hgrow="ALWAYS"/>
+                                                <ColumnConstraints minWidth="72" prefWidth="78"/>
+                                                <ColumnConstraints hgrow="ALWAYS"/>
                                             </columnConstraints>
                                         </GridPane>
                                         <Separator/>

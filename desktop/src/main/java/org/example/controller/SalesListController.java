@@ -92,10 +92,27 @@ public class SalesListController implements ScreenLifecycle {
         configureExplicitTableHeaderIcons();
         simplifyFilters();
         detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1.0);
-        tableSales.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null)showDetails(b);});
-        // Keep row selection single-purpose. Invoice/payment actions are available from the explicit Action menu and detail drawer.
-        tableSales.setRowFactory(view -> new TableRow<>());
+        // One shared drawer interaction: first click opens, clicking the same row again closes,
+        // and clicking a different row replaces the drawer contents immediately.
+        tableSales.setRowFactory(view -> {
+            TableRow<Sales> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (event.getButton() != javafx.scene.input.MouseButton.PRIMARY || event.getClickCount() != 1 || row.isEmpty() || interactiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
+                Sales clicked = row.getItem();
+                if (detailDrawer.isVisible() && selected != null && selected.getId() == clicked.getId()) closeDetails();
+                else { tableSales.getSelectionModel().select(clicked); showDetails(clicked); }
+                event.consume();
+            });
+            return row;
+        });
         txtSearch.textProperty().addListener((o,a,b)->applyFilters());
+    }
+
+    private boolean interactiveTableTarget(Node target, TableRow<?> row) {
+        for (Node node = target; node != null && node != row; node = node.getParent()) {
+            if (node instanceof ButtonBase || node instanceof TextInputControl || node instanceof ComboBoxBase<?>) return true;
+        }
+        return false;
     }
 
     private void showPaymentDetails(Sales sale) {
@@ -127,7 +144,19 @@ public class SalesListController implements ScreenLifecycle {
         setButtonIcon(btnSevenDaysRange,"calendar");
         setButtonIcon(btnThirtyDaysRange,"calendar");
         setButtonIcon(btnCustomRange,"calendar"); setButtonIcon(btnCloseDetails,"close");
+        decorateSalesDrawerValues();
     }
+
+    private void decorateSalesDrawerValues(){
+        drawerValue(lblDetailInvoice,"document"); drawerValue(lblDetailDate,"calendar"); drawerValue(lblDetailCustomer,"customer");
+        drawerValue(lblDetailContact,"user"); drawerValue(lblDetailAmount,"currency"); drawerValue(lblDetailPaid,"payment");
+        drawerValue(lblDetailBalance,"balance"); drawerValue(lblDetailDue,"calendar"); drawerValue(lblDetailGstAmount,"tax");
+        drawerValue(lblDetailTotalCharges,"charges"); drawerValue(lblDetailChargeTax,"tax"); drawerValue(lblDetailCharges,"charges");
+        drawerValue(lblDetailGstType,"tax"); drawerValue(lblDetailGstin,"tax"); drawerValue(lblDetailTransporter,"transport");
+        drawerValue(lblDetailVehicle,"vehicle"); drawerValue(lblDetailContactPerson,"user"); drawerValue(lblDetailContactMobile,"phone");
+    }
+    private void drawerValue(Label label,String semantic){if(label==null)return;label.setGraphic(IconFactory.compactIcon(semantic,14));label.setGraphicTextGap(7);label.getStyleClass().add("erp-drawer-value");}
+
 
     private void setIcon(StackPane holder,String semantic,int size){
         if(holder==null)return;

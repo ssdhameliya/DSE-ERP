@@ -516,6 +516,7 @@ public final class IconFactory {
             case "error" -> "fas-exclamation-triangle";
             case "settings" -> "fas-cog";
             case "view" -> "fas-eye";
+            case "hide" -> "fas-eye-slash";
             case "edit" -> "fas-pen";
             case "delete" -> "fas-trash-alt";
             case "print" -> "fas-print";
@@ -611,7 +612,7 @@ public final class IconFactory {
             case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
-            case "payment", "customer", "user", "dashboard", "view", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
+            case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
             case "credit" -> "green";
             case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart", "workflow", "version" -> "purple";
             case "compatibility", "database-backup", "snapshot", "recovery" -> "blue";

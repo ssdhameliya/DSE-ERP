@@ -375,11 +375,8 @@ public class ImportController {
 
         return switch (module) {
 
-            case "Customers/CRM", "Suppliers/HRM" ->
-                Set.of(
-                    "party_code",
-                    "name"
-                );
+            case "Customers/CRM" -> Set.of("party_code", "name");
+            case "Suppliers/HRM" -> Set.of("party_code", "name", "email");
 
             case "Sales", "Purchases" ->
                 Set.of(
@@ -406,7 +403,8 @@ public class ImportController {
                     "item_code",
                     "description",
                     "unit",
-                    "hsn"
+                    "hsn",
+                    "remarks"
                 );
         };
     }
@@ -2123,7 +2121,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 7.30.26 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 7.30.27 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

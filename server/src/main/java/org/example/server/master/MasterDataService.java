@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
 import jakarta.annotation.PostConstruct;
 import org.example.server.security.CurrentUser;
+import org.example.server.operations.BusinessOperationsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
@@ -18,15 +19,17 @@ public class MasterDataService {
     private final ItemRepository items;
     private final LookupRepository lookups;
     private final MasterCategoryRepository categories;
+    private final BusinessOperationsService referenceNumbers;
 
     @PersistenceContext
     private EntityManager entityManager;
 
-    public MasterDataService(PartyRepository p, ItemRepository i, LookupRepository l, MasterCategoryRepository c) {
+    public MasterDataService(PartyRepository p, ItemRepository i, LookupRepository l, MasterCategoryRepository c, BusinessOperationsService referenceNumbers) {
         parties = p;
         items = i;
         lookups = l;
         categories = c;
+        this.referenceNumbers = referenceNumbers;
     }
 
     @PostConstruct
@@ -34,6 +37,15 @@ public class MasterDataService {
         ensureCategory("PAYMENT_MODE","PAYMENT MODE","Payment methods used by Bank, Expense and Invoice Payment",130);
         ensureCategory("EXPENSE_CATEGORY","EXPENSE CATEGORY","Expense classifications used by Expense Entry",140);
         ensureCategory("BANK_ACCOUNT","BANK ACCOUNT","Bank account master: lookup value = account number, description = bank name",150);
+        ensureCategory("REFERENCE_FORMAT","REFERENCE FORMAT","Auto-generated reference number patterns. Use YYYY / YY for year and XX... for sequence digits.",160);
+        ensureReferenceFormat("REF_SALES",legacyFormat("SALES_INVOICE_FORMAT","IN/DD-MM-YYYY/XXXX"),"Sales invoice reference",10);
+        ensureReferenceFormat("REF_PURCHASE",legacyFormat("PURCHASE_INVOICE_FORMAT","PUR/DD-MM-YYYY/XXXX"),"Purchase invoice reference",20);
+        ensureReferenceFormat("REF_QUOTATION","QT-YYYY-XXXX","Quotation reference",30);
+        ensureReferenceFormat("REF_SALES_RETURN","SAL-RET-YYYY-XXXX","Sales Return reference",40);
+        ensureReferenceFormat("REF_PURCHASE_RETURN","PUR-RET-YYYY-XXXX","Purchase Return reference",50);
+        ensureReferenceFormat("REF_ITEM","ITMXXX","Item code reference",60);
+        ensureReferenceFormat("REF_CUSTOMER","CUSXXX","Customer reference",70);
+        ensureReferenceFormat("REF_SUPPLIER","SUPXXX","Supplier reference",80);
     }
 
     private void ensureCategory(String code,String name,String description,int order){
@@ -41,6 +53,23 @@ public class MasterDataService {
         MasterCategoryEntity e=new MasterCategoryEntity();e.setCategoryCode(code);e.setCategoryName(name);e.setDescription(description);e.setDisplayOrder(order);e.setActive(1);categories.save(e);
     }
 
+
+
+    private String legacyFormat(String categoryCode,String fallback){
+        MasterCategoryEntity category=categories.findByCategoryCode(categoryCode).orElse(null);
+        if(category==null) return fallback;
+        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(category.getCategoryName()).stream()
+            .map(LookupEntity::getLookupValue).filter(value->value!=null&&!value.isBlank()).findFirst().orElse(fallback);
+    }
+    private void ensureReferenceFormat(String lookupCode,String value,String description,int order){
+        MasterCategoryEntity category=categories.findByCategoryCode("REFERENCE_FORMAT").orElse(null);
+        if(category==null) return;
+        boolean exists=lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(category.getCategoryName()).stream()
+            .anyMatch(row->row.getLookupCode()!=null&&row.getLookupCode().equalsIgnoreCase(lookupCode));
+        if(exists) return;
+        LookupEntity row=new LookupEntity();row.setLookupType(category.getCategoryName());row.setLookupCode(lookupCode);row.setLookupValue(value);
+        row.setDescription(description);row.setDisplayOrder(order);row.setActive(1);lookups.save(row);
+    }
     @Transactional(readOnly = true)
     public List<MasterDtos.PartyDto> parties(String type) {
         requirePartyAccess(type);
@@ -89,8 +118,11 @@ public class MasterDataService {
     @Transactional(readOnly = true)
     public String nextPartyCode(String type) {
         requirePartyAccess(type);
-        String t = normal(type), prefix = "CUSTOMER".equals(t) ? "CUS" : "SUP";
-        return prefix + String.format("%03d", parties.countByPartyType(t) + 1);
+        String t = normal(type);
+        String key = "CUSTOMER".equals(t) ? "REF_CUSTOMER" : "REF_SUPPLIER";
+        String fallback = "CUSTOMER".equals(t) ? "CUSXXX" : "SUPXXX";
+        List<String> existing = parties.findByPartyTypeOrderByNameAsc(t).stream().map(PartyEntity::getPartyCode).filter(Objects::nonNull).toList();
+        return referenceNumbers.nextConfiguredReference(key, fallback, existing);
     }
 
     private void requirePartyAccess(String type) {
@@ -153,24 +185,8 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public String nextItemCode() {
-        int max = 0;
-
-        for (ItemEntity e : items.findAll()) {
-            String s = e.getItemCode();
-
-            if (s != null) {
-                String n = s.replaceAll("\\D+", "");
-
-                if (!n.isBlank()) {
-                    try {
-                        max = Math.max(max, Integer.parseInt(n));
-                    } catch (NumberFormatException ignored) {
-                    }
-                }
-            }
-        }
-
-        return String.format("ITM%03d", max + 1);
+        List<String> existing = items.findAll().stream().map(ItemEntity::getItemCode).filter(Objects::nonNull).toList();
+        return referenceNumbers.nextConfiguredReference("REF_ITEM", "ITMXXX", existing);
     }
 
     @Transactional(readOnly = true)
@@ -232,6 +248,14 @@ public class MasterDataService {
         lookups.saveAndFlush(e);
     }
 
+    @Transactional
+    public MasterDtos.LookupDto setLookupActive(int id, boolean active) {
+        LookupEntity e = lookups.findById(id).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        requireActiveCategoryForActiveLookup(e.getLookupType(), active);
+        e.setActive(active ? 1 : 0);
+        return lookupDto(lookups.saveAndFlush(e));
+    }
+
     @Transactional(readOnly = true)
     public String nextLookupCode(String type) {
         String prefix = switch (type) {
@@ -255,7 +279,7 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<MasterDtos.CategoryDto> categories() {
-        return categories.findAllByOrderByDisplayOrderAscCategoryNameAsc().stream().map(c -> categoryDto(c, lookups.countByLookupType(c.getCategoryName()))).toList();
+        return categories.findAllByOrderByDisplayOrderAscCategoryNameAsc().stream().map(c -> categoryDto(c, lookups.countByLookupType(c.getCategoryName()), lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(c.getCategoryName()).stream().filter(v -> v.getActive() == null || v.getActive() != 0).count())).toList();
     }
 
     @Transactional
@@ -267,7 +291,7 @@ public class MasterDataService {
         e.setCategoryName(n);
         e.setDisplayOrder(0);
         e.setActive(1);
-        return categoryDto(categories.saveAndFlush(e), 0);
+        return categoryDto(categories.saveAndFlush(e), 0, 0);
     }
 
     @Transactional
@@ -282,7 +306,18 @@ public class MasterDataService {
         for (LookupEntity l : vals) l.setLookupType(n);
         lookups.saveAllAndFlush(vals);
         categories.saveAndFlush(c);
-        return categoryDto(c, vals.size());
+        return categoryDto(c, vals.size(), vals.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
+    }
+
+    @Transactional
+    public MasterDtos.CategoryDto setCategoryActive(String name, boolean active) {
+        MasterCategoryEntity category = categories.findByCategoryName(name)
+            .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        category.setActive(active ? 1 : 0);
+        category = categories.saveAndFlush(category);
+        List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(category.getCategoryName());
+        long activeCount = values.stream().filter(value -> value.getActive() == null || value.getActive() != 0).count();
+        return categoryDto(category, values.size(), activeCount);
     }
 
     @Transactional
@@ -370,7 +405,8 @@ public class MasterDataService {
         e.setCategoryCode(code); e.setCategoryName(normal(d.name())); e.setDescription(d.description());
         if (e.getActive() == null) e.setActive(1); if (e.getDisplayOrder() == null) e.setDisplayOrder(0);
         e = categories.save(e);
-        return categoryDto(e, lookups.countByLookupType(e.getCategoryName()));
+        List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(e.getCategoryName());
+        return categoryDto(e, values.size(), values.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
     }
 
     private String normal(String v) {
@@ -388,6 +424,9 @@ public class MasterDataService {
     }
 
     private void copy(MasterDtos.PartyDto d, PartyEntity e, boolean includeCode) {
+        if ("SUPPLIER".equals(normal(d.partyType())) && (d.email() == null || d.email().isBlank())) {
+            throw new IllegalArgumentException("Supplier email is required");
+        }
         if (includeCode) {
             e.setPartyType(normal(d.partyType()));
             e.setPartyCode(d.partyCode());
@@ -408,6 +447,7 @@ public class MasterDataService {
 
     private void copy(MasterDtos.ItemDto d, ItemEntity e, boolean includeCode) {
         if(d.hsn()==null||d.hsn().isBlank()) throw new IllegalArgumentException("HSN Code is required");
+        if(d.remarks()==null||d.remarks().isBlank()) throw new IllegalArgumentException("Remarks are required");
         if (includeCode) e.setItemCode(d.itemCode());
         e.setDescription(d.description());
         e.setCategory(d.category());
@@ -453,8 +493,8 @@ public class MasterDataService {
         return new MasterDtos.LookupDto(e.getId(), e.getLookupType(), e.getLookupCode(), e.getLookupValue(), e.getDescription(), e.getDisplayOrder() == null ? 0 : e.getDisplayOrder(), e.getActive() == null || e.getActive() != 0);
     }
 
-    private MasterDtos.CategoryDto categoryDto(MasterCategoryEntity e, long count) {
-        return new MasterDtos.CategoryDto(e.getId(), e.getCategoryCode(), e.getCategoryName(), e.getDescription(), e.getDisplayOrder() == null ? 0 : e.getDisplayOrder(), e.getActive() == null || e.getActive() != 0, count);
+    private MasterDtos.CategoryDto categoryDto(MasterCategoryEntity e, long count, long activeCount) {
+        return new MasterDtos.CategoryDto(e.getId(), e.getCategoryCode(), e.getCategoryName(), e.getDescription(), e.getDisplayOrder() == null ? 0 : e.getDisplayOrder(), e.getActive() == null || e.getActive() != 0, count, activeCount);
     }
 
     private double n(Double v) {

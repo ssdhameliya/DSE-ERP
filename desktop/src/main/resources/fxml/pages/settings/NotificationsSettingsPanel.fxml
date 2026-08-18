@@ -21,15 +21,15 @@
 
                                 <GridPane hgap="16" vgap="10" styleClass="settings-notification-grid">
                                     <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                                    <CheckBox fx:id="chkNotifySales" text="Sales and invoices" selected="true" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifyPurchases" text="Purchases and supplier invoices" selected="true" GridPane.columnIndex="1" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifyQuotations" text="Quotations and follow-ups" selected="true" GridPane.rowIndex="1" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifyReturns" text="Sales and purchase returns" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifyPayments" text="Payments and refunds" selected="true" GridPane.rowIndex="2" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifyInventory" text="Inventory and low stock" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifyReminders" text="Reminders" selected="true" GridPane.rowIndex="3" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifyCommunication" text="Email and WhatsApp" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="3" styleClass="settings-notification-category"/>
-                                    <CheckBox fx:id="chkNotifySystem" text="Imports, backups and updates" selected="true" GridPane.rowIndex="4" styleClass="settings-notification-category"/>
+                                    <CheckBox fx:id="chkNotifySales" text="Sales and invoices" selected="true" styleClass="settings-notification-category,notification-category-sales"/>
+                                    <CheckBox fx:id="chkNotifyPurchases" text="Purchases and supplier invoices" selected="true" GridPane.columnIndex="1" styleClass="settings-notification-category,notification-category-purchases"/>
+                                    <CheckBox fx:id="chkNotifyQuotations" text="Quotations and follow-ups" selected="true" GridPane.rowIndex="1" styleClass="settings-notification-category,notification-category-quotations"/>
+                                    <CheckBox fx:id="chkNotifyReturns" text="Sales and purchase returns" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="1" styleClass="settings-notification-category,notification-category-returns"/>
+                                    <CheckBox fx:id="chkNotifyPayments" text="Payments and refunds" selected="true" GridPane.rowIndex="2" styleClass="settings-notification-category,notification-category-payments"/>
+                                    <CheckBox fx:id="chkNotifyInventory" text="Inventory and low stock" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="2" styleClass="settings-notification-category,notification-category-inventory"/>
+                                    <CheckBox fx:id="chkNotifyReminders" text="Reminders" selected="true" GridPane.rowIndex="3" styleClass="settings-notification-category,notification-category-reminders"/>
+                                    <CheckBox fx:id="chkNotifyCommunication" text="Email and WhatsApp" selected="true" GridPane.columnIndex="1" GridPane.rowIndex="3" styleClass="settings-notification-category,notification-category-communication"/>
+                                    <CheckBox fx:id="chkNotifySystem" text="Imports, backups and updates" selected="true" GridPane.rowIndex="4" styleClass="settings-notification-category,notification-category-system"/>
                                 </GridPane>
 
                             </VBox>

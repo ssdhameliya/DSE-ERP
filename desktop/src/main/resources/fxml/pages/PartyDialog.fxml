@@ -39,7 +39,7 @@
                 </VBox>
 
                 <VBox spacing="5" GridPane.rowIndex="2" GridPane.columnIndex="0">
-                    <Label text="Email" styleClass="field-label"/>
+                    <Label fx:id="lblEmailCaption" text="Email" styleClass="field-label"/>
                     <TextField fx:id="txtEmail" promptText="Enter email address" styleClass="approved-input"/>
                     <Label fx:id="errEmail" managed="false" visible="false" styleClass="validation-message"/>
                 </VBox>

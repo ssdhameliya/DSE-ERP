@@ -1219,8 +1219,19 @@ public class PdfDesignerController implements ScreenLifecycle {
     }
 
     private void showNoFormFieldsDetected() {
-        ModernDialog.info(root, "No PDF form fields detected", "Imported PDF",
-                "This page does not contain interactive AcroForm widgets. Printed labels and values can still be edited with Edit Existing PDF Text.");
+        // A normal business PDF is usually printed/static rather than an AcroForm.
+        // Fall through to the existing-text editor instead of presenting this as an error.
+        formFieldMode = false;
+        existingImageMode = false;
+        existingTextMode = true;
+        if (btnEditFormField != null) btnEditFormField.setSelected(false);
+        if (btnEditImportedImage != null) btnEditImportedImage.setSelected(false);
+        if (btnEditExistingText != null) btnEditExistingText.setSelected(true);
+        lblSaveState.setText("No interactive fields — edit printed PDF text");
+        ensureTextRegions(pageIndex, false);
+        ModernDialog.info(root, "Printed PDF detected", "Edit PDF Content",
+                "This page has no interactive form widgets, so Document Studio switched to Edit Existing PDF Text automatically. " +
+                "Click printed text to replace it. For flattened scans, vector artwork, or any area that cannot be selected, use Select / Hide Area and place editable Text, Image, or ERP Data on top.");
     }
 
     private void addImageTargetsIfReady(int sequence) {

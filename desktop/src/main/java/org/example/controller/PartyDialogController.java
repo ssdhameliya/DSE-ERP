@@ -17,7 +17,7 @@ public class PartyDialogController {
     private static final Pattern PHONE = Pattern.compile("^[0-9+()\\-\\s]{7,18}$");
     private static final Pattern GSTIN = Pattern.compile("^[0-9A-Za-z]{15}$");
 
-    @FXML private Label lblTitle, lblSubtitle;
+    @FXML private Label lblTitle, lblSubtitle, lblEmailCaption;
     @FXML private Label errName, errPhone, errEmail, errGstin, errAddress, errOpeningBalance;
     @FXML private TextField txtCode, txtName, txtContact, txtPhone, txtEmail, txtGstin, txtOpeningBalance;
     @FXML private TextArea txtAddress;
@@ -48,6 +48,7 @@ public class PartyDialogController {
                 ? "Update " + entity.toLowerCase() + " information"
                 : "Add a new " + entity.toLowerCase() + " to your records");
         btnSave.setText(editingMode ? "Update " + entity : "Save " + entity);
+        if (lblEmailCaption != null) lblEmailCaption.setText(customer ? "Email" : "Email *");
         headerIconHolder.getChildren().setAll(IconFactory.icon(customer ? "customer" : "supplier", 24));
         headerIconHolder.getStyleClass().removeAll("customer-title-icon", "supplier-title-icon");
         headerIconHolder.getStyleClass().add(customer ? "customer-title-icon" : "supplier-title-icon");
@@ -129,7 +130,11 @@ public class PartyDialogController {
             valid = false;
         }
         String email = txtEmail.getText() == null ? "" : txtEmail.getText().trim();
-        if (!email.isBlank() && !EMAIL.matcher(email).matches()) {
+        boolean supplier = "SUPPLIER".equals(type);
+        if (supplier && email.isBlank()) {
+            showError(txtEmail, errEmail, "Supplier email is required.");
+            valid = false;
+        } else if (!email.isBlank() && !EMAIL.matcher(email).matches()) {
             showError(txtEmail, errEmail, "Enter a valid email address.");
             valid = false;
         }

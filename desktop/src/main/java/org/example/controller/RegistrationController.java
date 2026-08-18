@@ -35,6 +35,20 @@ public class RegistrationController {
         BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox); applyBranding();
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
         btnSendOtp.setGraphic(IconFactory.icon("email")); btnCreate.setGraphic(IconFactory.icon("add")); btnBack.setGraphic(IconFactory.icon("return"));
+        ListCell<AuthApiClient.RoleOption> roleButtonCell = new ListCell<>() {
+            @Override protected void updateItem(AuthApiClient.RoleOption item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(null);
+            }
+        };
+        roleButtonCell.getStyleClass().add("auth-role-selected-cell");
+        roleButtonCell.setText("Select role");
+        cmbRole.setButtonCell(roleButtonCell);
+        cmbRole.valueProperty().addListener((obs, oldRole, newRole) -> {
+            roleButtonCell.setText(newRole == null || newRole.displayName() == null || newRole.displayName().isBlank()
+                    ? "Select role" : newRole.displayName());
+            roleButtonCell.requestLayout();
+        });
         bindClear(txtName,lblNameError); bindClear(txtUsername,lblUsernameError); bindClear(txtEmail,lblEmailError); bindClear(txtPassword,lblPasswordError); bindClear(txtConfirm,lblConfirmError); bindClear(txtOtp,lblOtpError);
         cmbRole.valueProperty().addListener((o,a,b) -> { if (b != null) clearField(cmbRole, lblRoleError); invalidateChallenge(); });
         txtName.textProperty().addListener((o,a,b)->invalidateChallenge());

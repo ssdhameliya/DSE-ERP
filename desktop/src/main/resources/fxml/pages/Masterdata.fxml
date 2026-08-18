@@ -104,7 +104,7 @@
                             <Label text="Selected" styleClass="kpi-title"/>
                         </HBox>
                         <Label fx:id="lblSelectedCategory" text="-" styleClass="kpi-value-small"/>
-                        <Label text="Active Category" styleClass="master-kpi-caption"/>
+                        <Label text="Category Status" styleClass="master-kpi-caption"/>
                     </VBox>
 
                     <VBox spacing="5" HBox.hgrow="ALWAYS"
@@ -168,7 +168,9 @@
                                          styleClass="approved-table-column"/>
                             <TableColumn fx:id="colValue" text="Value" prefWidth="190"
                                          styleClass="approved-table-column"/>
-                            <TableColumn fx:id="colDescription" text="Description" prefWidth="390"
+                            <TableColumn fx:id="colDescription" text="Description" prefWidth="330"
+                                         styleClass="approved-table-column"/>
+                            <TableColumn fx:id="colLookupStatus" text="Status" prefWidth="120" minWidth="110"
                                          styleClass="approved-table-column"/>
                         </columns>
                     </TableView>

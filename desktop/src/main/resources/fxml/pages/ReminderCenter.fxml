@@ -95,7 +95,7 @@
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="2">
                     <Label text="Reminders" styleClass="section-title,reminder-section-title"/>
-                    <Label text="Double-click a row to edit, or use the Actions menu." styleClass="reminder-section-caption"/>
+                    <Label text="Single-click a row to open or close details; double-click to edit." styleClass="reminder-section-caption"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
             </HBox>
@@ -127,58 +127,60 @@
         </VBox>
 
         <!-- Details card -->
-        <ScrollPane fx:id="reminderDetailScroll" managed="false" visible="false" fitToWidth="true" hbarPolicy="NEVER" minWidth="350" prefWidth="385" maxWidth="430" styleClass="reminder-detail-scroll">
-            <content>
-                <VBox spacing="16" styleClass="detail-drawer,reminder-detail-panel">
-                    <HBox alignment="CENTER_LEFT" spacing="8">
-                        <VBox spacing="3" HBox.hgrow="ALWAYS">
-                            <Label text="Reminder Details" styleClass="section-title,reminder-section-title"/>
-                            <Label text="Review the selected reminder before taking action." styleClass="reminder-section-caption"/>
-                        </VBox>
-                        <Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-secondary-button,reminder-detail-close"/>
-                    </HBox>
-
-                    <VBox spacing="5" styleClass="reminder-detail-heading-card">
-                        <Label fx:id="lblDetailTitle" text="Select a reminder" wrapText="true" styleClass="metric-value,reminder-detail-title"/>
-                        <Label text="Selected reminder information" styleClass="reminder-detail-kicker"/>
-                    </VBox>
-
-                    <Separator styleClass="reminder-detail-separator"/>
-
-                    <GridPane hgap="14" vgap="13" styleClass="reminder-detail-grid">
-                        <columnConstraints>
-                            <ColumnConstraints minWidth="88" prefWidth="96"/>
-                            <ColumnConstraints hgrow="ALWAYS"/>
-                        </columnConstraints>
-
-                        <Label text="Reference" styleClass="metric-title,reminder-detail-label"/>
-                        <Label fx:id="lblDetailReference" GridPane.columnIndex="1" wrapText="true" styleClass="reminder-detail-value"/>
-
-                        <Label text="Due Date" GridPane.rowIndex="1" styleClass="metric-title,reminder-detail-label"/>
-                        <Label fx:id="lblDetailDue" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="reminder-detail-value"/>
-
-                        <Label text="Priority" GridPane.rowIndex="2" styleClass="metric-title,reminder-detail-label"/>
-                        <Label fx:id="lblDetailPriority" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="reminder-detail-badge"/>
-
-                        <Label text="Status" GridPane.rowIndex="3" styleClass="metric-title,reminder-detail-label"/>
-                        <Label fx:id="lblDetailStatus" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="reminder-detail-badge"/>
-                    </GridPane>
-
-                    <VBox spacing="7">
-                        <Label text="Notes" styleClass="metric-title,reminder-detail-label"/>
-                        <Label fx:id="lblDetailNotes" wrapText="true" minHeight="88" styleClass="reminder-notes-box"/>
-                    </VBox>
-
-                    <VBox spacing="9" styleClass="reminder-detail-actions">
-                        <HBox spacing="9">
-                            <Button text="Edit Reminder" onAction="#editSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-edit-button"/>
-                            <Button text="Mark Complete" onAction="#completeSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="primary-button,reminder-complete-button"/>
-                        </HBox>
-
-                        <MenuButton fx:id="detailMoreActions" text="Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
-                    </VBox>
+        <VBox fx:id="reminderDetailPanel" managed="false" visible="false" minWidth="280" prefWidth="300" maxWidth="320" minHeight="0"
+              spacing="0" styleClass="detail-drawer,erp-detail-drawer-card,reminder-detail-panel">
+            <HBox alignment="CENTER_LEFT" spacing="8" styleClass="reminder-detail-fixed-header">
+                <VBox spacing="3" HBox.hgrow="ALWAYS">
+                    <Label text="Reminder Details" styleClass="section-title,reminder-section-title"/>
+                    <Label text="Review the selected reminder before taking action." styleClass="reminder-section-caption"/>
                 </VBox>
-            </content>
-        </ScrollPane>
+                <Button text="Close" onAction="#closeDetails" styleClass="approved-button,approved-secondary-button,reminder-detail-close"/>
+            </HBox>
+
+            <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="reminder-detail-scroll,erp-detail-drawer-scroll">
+                <content>
+                    <VBox spacing="16" styleClass="reminder-detail-body">
+                        <VBox spacing="5" styleClass="reminder-detail-heading-card">
+                            <Label fx:id="lblDetailTitle" text="Select a reminder" wrapText="true" styleClass="metric-value,reminder-detail-title"/>
+                            <Label text="Selected reminder information" styleClass="reminder-detail-kicker"/>
+                        </VBox>
+
+                        <Separator styleClass="reminder-detail-separator"/>
+
+                        <GridPane hgap="14" vgap="13" styleClass="reminder-detail-grid">
+                            <columnConstraints>
+                                <ColumnConstraints minWidth="88" prefWidth="96"/>
+                                <ColumnConstraints hgrow="ALWAYS"/>
+                            </columnConstraints>
+
+                            <Label text="Reference" styleClass="metric-title,reminder-detail-label"/>
+                            <Label fx:id="lblDetailReference" GridPane.columnIndex="1" wrapText="true" styleClass="reminder-detail-value"/>
+
+                            <Label text="Due Date" GridPane.rowIndex="1" styleClass="metric-title,reminder-detail-label"/>
+                            <Label fx:id="lblDetailDue" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="reminder-detail-value"/>
+
+                            <Label text="Priority" GridPane.rowIndex="2" styleClass="metric-title,reminder-detail-label"/>
+                            <Label fx:id="lblDetailPriority" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="reminder-detail-badge"/>
+
+                            <Label text="Status" GridPane.rowIndex="3" styleClass="metric-title,reminder-detail-label"/>
+                            <Label fx:id="lblDetailStatus" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="reminder-detail-badge"/>
+                        </GridPane>
+
+                        <VBox spacing="7">
+                            <Label text="Notes" styleClass="metric-title,reminder-detail-label"/>
+                            <Label fx:id="lblDetailNotes" wrapText="true" minHeight="88" styleClass="reminder-notes-box"/>
+                        </VBox>
+                    </VBox>
+                </content>
+            </ScrollPane>
+
+            <VBox spacing="9" styleClass="reminder-detail-actions,reminder-detail-fixed-actions">
+                <HBox spacing="9">
+                    <Button text="Edit Reminder" onAction="#editSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-edit-button"/>
+                    <Button text="Mark Complete" onAction="#completeSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="primary-button,reminder-complete-button"/>
+                </HBox>
+                <MenuButton fx:id="detailMoreActions" text="Actions" maxWidth="Infinity" styleClass="reminder-secondary-button,reminder-more-actions,approved-menu-button,approved-row-action,erp-action-menu"/>
+            </VBox>
+        </VBox>
     </SplitPane>
 </VBox>

@@ -146,11 +146,13 @@ public class ItemMasterController {
                 
                 actions.setTooltip(new Tooltip("Item actions"));
 
+                MenuItem create = new MenuItem("Create Item", IconFactory.compactIcon("add", 16));
+                create.setOnAction(e -> openItemDialog(null));
                 MenuItem edit = new MenuItem("Edit Item", IconFactory.compactIcon("edit", 16));
                 edit.setOnAction(e -> openItemDialog(currentItem()));
                 MenuItem delete = new MenuItem("Delete Item", IconFactory.compactIcon("delete", 16));
                 delete.setOnAction(e -> deleteItem(currentItem()));
-                actions.getItems().addAll(edit, delete);
+                actions.getItems().addAll(create, edit, new SeparatorMenuItem(), delete);
             }
 
             private Item currentItem() {
@@ -166,7 +168,7 @@ public class ItemMasterController {
         });
 
         tableItems.setItems(items);
-        colMaterial.setVisible(false); colSize.setVisible(false); colLocation.setVisible(false); colRemarks.setVisible(false);
+        colBrand.setVisible(false); colMaterial.setVisible(false); colSize.setVisible(false); colLocation.setVisible(false); colRemarks.setVisible(true);
 
         // Search listener
         txtSearch.textProperty().addListener((obs, oldValue, newValue) -> loadItems());
@@ -184,7 +186,7 @@ public class ItemMasterController {
             delete.setOnAction(event -> { if (!row.isEmpty()) deleteItem(row.getItem()); });
             MenuItem clear = new MenuItem("Clear Selection", IconFactory.icon("cancel"));
             clear.setOnAction(event -> tableItems.getSelectionModel().clearSelection());
-            ContextMenu context = new ContextMenu(edit, delete, new SeparatorMenuItem(), clear);
+            ContextMenu context = new ContextMenu(add, edit, delete, new SeparatorMenuItem(), clear);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty())
                 .then((ContextMenu) null).otherwise(context));
             return row;

@@ -10,9 +10,17 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Button;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.BorderPane;
 import javafx.geometry.Pos;
 import javafx.application.Platform;
 import javafx.scene.input.MouseEvent;
@@ -40,10 +48,98 @@ public final class ProfessionalUiEnhancer {
     private static void walk(Node node) {
         if (node instanceof TableView<?> table) enhanceTable(table);
         if (node instanceof DialogPane pane) enhanceDialog(pane);
+        if (node instanceof PasswordField passwordField) schedulePasswordReveal(passwordField);
         if (node instanceof Parent parent) {
             installDynamicChildEnhancement(parent);
             for (Node child : parent.getChildrenUnmodifiable()) walk(child);
         }
+    }
+
+
+    /**
+     * Adds one consistent reveal button to every PasswordField without changing
+     * the controller's original PasswordField reference or stored value.
+     */
+    private static void schedulePasswordReveal(PasswordField field) {
+        if (field == null || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.pending"))) return;
+        field.getProperties().put("erp.password.reveal.pending", true);
+        Platform.runLater(() -> installPasswordReveal(field));
+    }
+
+    private static void installPasswordReveal(PasswordField field) {
+        if (field == null || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.installed"))) return;
+        Parent parent = field.getParent();
+        if (!(parent instanceof Pane pane)) return;
+        int index = pane.getChildren().indexOf(field);
+        if (index < 0) return;
+
+        TextField plain = new TextField();
+        plain.getStyleClass().setAll(field.getStyleClass());
+        if (!plain.getStyleClass().contains("password-reveal-input")) plain.getStyleClass().add("password-reveal-input");
+        if (!field.getStyleClass().contains("password-reveal-input")) field.getStyleClass().add("password-reveal-input");
+        plain.textProperty().bindBidirectional(field.textProperty());
+        plain.promptTextProperty().bind(field.promptTextProperty());
+        plain.setMaxWidth(Double.MAX_VALUE);
+        field.setMaxWidth(Double.MAX_VALUE);
+        plain.setVisible(false);
+        plain.setManaged(false);
+
+        Button reveal = new Button();
+        reveal.getStyleClass().addAll("password-reveal-button", "approved-button", "approved-icon-button");
+        reveal.setGraphic(IconFactory.compactIcon("view", 14));
+        reveal.setFocusTraversable(false);
+        reveal.setAccessibleText("Show password");
+        reveal.setTooltip(new Tooltip("Show password"));
+
+        StackPane wrapper = new StackPane(plain, field, reveal);
+        wrapper.getStyleClass().add("password-reveal-wrapper");
+        wrapper.setMaxWidth(Double.MAX_VALUE);
+        StackPane.setAlignment(reveal, Pos.CENTER_RIGHT);
+        StackPane.setMargin(reveal, new javafx.geometry.Insets(0, 7, 0, 0));
+        copyLayoutConstraints(field, wrapper);
+
+        pane.getChildren().remove(index);
+        pane.getChildren().add(index, wrapper);
+
+        reveal.setOnAction(event -> {
+            boolean show = !plain.isVisible();
+            int caret = show ? field.getCaretPosition() : plain.getCaretPosition();
+            plain.setVisible(show); plain.setManaged(show);
+            field.setVisible(!show); field.setManaged(!show);
+            reveal.setGraphic(IconFactory.compactIcon(show ? "hide" : "view", 14));
+            reveal.setAccessibleText(show ? "Hide password" : "Show password");
+            reveal.setTooltip(new Tooltip(show ? "Hide password" : "Show password"));
+            TextField target = show ? plain : field;
+            target.requestFocus();
+            target.positionCaret(Math.max(0, Math.min(caret, target.getLength())));
+        });
+
+        field.getProperties().put("erp.password.reveal.installed", true);
+        wrapper.getProperties().put("erp.password.reveal.wrapper", true);
+    }
+
+    private static void copyLayoutConstraints(Node source, Node target) {
+        GridPane.setRowIndex(target, GridPane.getRowIndex(source));
+        GridPane.setColumnIndex(target, GridPane.getColumnIndex(source));
+        GridPane.setRowSpan(target, GridPane.getRowSpan(source));
+        GridPane.setColumnSpan(target, GridPane.getColumnSpan(source));
+        GridPane.setHalignment(target, GridPane.getHalignment(source));
+        GridPane.setValignment(target, GridPane.getValignment(source));
+        GridPane.setHgrow(target, GridPane.getHgrow(source));
+        GridPane.setVgrow(target, GridPane.getVgrow(source));
+        GridPane.setMargin(target, GridPane.getMargin(source));
+        HBox.setHgrow(target, HBox.getHgrow(source));
+        HBox.setMargin(target, HBox.getMargin(source));
+        VBox.setVgrow(target, VBox.getVgrow(source));
+        VBox.setMargin(target, VBox.getMargin(source));
+        StackPane.setAlignment(target, StackPane.getAlignment(source));
+        StackPane.setMargin(target, StackPane.getMargin(source));
+        AnchorPane.setTopAnchor(target, AnchorPane.getTopAnchor(source));
+        AnchorPane.setRightAnchor(target, AnchorPane.getRightAnchor(source));
+        AnchorPane.setBottomAnchor(target, AnchorPane.getBottomAnchor(source));
+        AnchorPane.setLeftAnchor(target, AnchorPane.getLeftAnchor(source));
+        BorderPane.setAlignment(target, BorderPane.getAlignment(source));
+        BorderPane.setMargin(target, BorderPane.getMargin(source));
     }
 
 

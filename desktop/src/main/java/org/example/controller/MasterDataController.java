@@ -16,6 +16,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
 import javafx.geometry.Pos;
@@ -121,6 +122,9 @@ public class MasterDataController implements ScreenLifecycle {
     private TableColumn<Lookup, String> colDescription;
 
     @FXML
+    private TableColumn<Lookup, String> colLookupStatus;
+
+    @FXML
     private Label lblRecordCount;
 
     @FXML
@@ -155,6 +159,7 @@ public class MasterDataController implements ScreenLifecycle {
     private static final int PAGE_SIZE = 10;
     private List<Lookup> filteredLookups = List.of();
     private boolean updatingPagination;
+    private final java.util.Map<String, MasterCategoryService.Category> categoryByName = new java.util.LinkedHashMap<>();
 
     /* =========================================================
        INITIALIZATION
@@ -219,16 +224,24 @@ public class MasterDataController implements ScreenLifecycle {
                 }
 
                 String semantic = categorySemantic(category);
+                MasterCategoryService.Category meta = categoryByName.get(category);
+                boolean active = meta == null || meta.active();
+                long totalValues = meta == null ? 0 : meta.valueCount();
+                long activeValues = meta == null ? 0 : meta.activeValueCount();
+
                 Label name = new Label(category);
                 name.getStyleClass().add("master-category-name");
+                Label activity = new Label(activeValues + " active out of " + totalValues);
+                activity.getStyleClass().add("master-category-activity");
+                VBox text = new VBox(2, name, activity);
+                HBox.setHgrow(text, Priority.ALWAYS);
 
-                Region spacer = new Region();
-                HBox.setHgrow(spacer, Priority.ALWAYS);
+                Label state = new Label(active ? "ACTIVE" : "INACTIVE");
+                state.getStyleClass().addAll("master-category-state", active ? "master-state-active" : "master-state-inactive");
+                state.setGraphic(IconFactory.statusIcon(active ? "complete" : "cancel", active ? "#16a34a" : "#dc2626"));
+                state.setGraphicTextGap(5);
 
-                Label state = new Label("●");
-                state.getStyleClass().add("master-category-state");
-
-                HBox content = new HBox(10, IconFactory.icon(semantic, 18), name, spacer, state);
+                HBox content = new HBox(10, IconFactory.icon(semantic, 18), text, state);
                 content.setAlignment(Pos.CENTER_LEFT);
                 content.getStyleClass().add("master-category-cell-content");
 
@@ -306,6 +319,23 @@ public class MasterDataController implements ScreenLifecycle {
         colDescription.setCellValueFactory(
             new PropertyValueFactory<>("description")
         );
+
+        if (colLookupStatus != null) {
+            colLookupStatus.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(value.getValue().isActive() ? "Active" : "Inactive"));
+            colLookupStatus.setCellFactory(column -> new TableCell<>() {
+                @Override protected void updateItem(String value, boolean empty) {
+                    super.updateItem(value, empty);
+                    setText(empty ? null : value);
+                    setGraphic(null);
+                    getStyleClass().removeAll("master-lookup-active", "master-lookup-inactive");
+                    if (empty || value == null) return;
+                    boolean active = "Active".equalsIgnoreCase(value);
+                    setGraphic(IconFactory.statusIcon(active ? "complete" : "cancel", active ? "#16a34a" : "#dc2626"));
+                    setGraphicTextGap(6);
+                    getStyleClass().add(active ? "master-lookup-active" : "master-lookup-inactive");
+                }
+            });
+        }
     }
 
     private void configureListeners() {
@@ -316,6 +346,7 @@ public class MasterDataController implements ScreenLifecycle {
 
                 if (newValue != null) {
                     if (kpiSelectedIcon != null) kpiSelectedIcon.getChildren().setAll(IconFactory.icon(categorySemantic(newValue), 24));
+                    updateCategoryActionState(newValue);
                     loadTable();
                 } else {
                     clearTable();
@@ -328,6 +359,7 @@ public class MasterDataController implements ScreenLifecycle {
         if (txtCategorySearch != null) {
             txtCategorySearch.textProperty().addListener((observable, oldValue, newValue) -> filterCategories(newValue));
         }
+        tblLookup.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> updateLookupActionState(newValue));
     }
 
     private final List<String> allCategories = new ArrayList<>();
@@ -409,8 +441,11 @@ public class MasterDataController implements ScreenLifecycle {
         String previouslySelected = lstTypes.getSelectionModel().getSelectedItem();
         try {
             List<MasterCategoryService.Category> rows = categoryService.getAll();
+            categoryByName.clear();
+            rows.forEach(row -> categoryByName.put(row.name(), row));
             List<String> categories = rows.stream().map(MasterCategoryService.Category::name).toList();
             allCategories.clear(); allCategories.addAll(categories);
+            lstTypes.refresh();
             filterCategories(txtCategorySearch == null ? "" : txtCategorySearch.getText());
             updateCategoryCounts(categories.size());
             loadCategoryChart();
@@ -536,8 +571,11 @@ public class MasterDataController implements ScreenLifecycle {
         setLabelText(lblDashboardValueCount, countText);
         setLabelText(lblSummaryValueCount, countText);
 
-        setLabelText(lblSelectedCategory, selectedType);
-        setLabelText(lblSummarySelectedCategory, selectedType);
+        MasterCategoryService.Category category = categoryByName.get(selectedType);
+        String selectedLabel = selectedType;
+        if (category != null) selectedLabel += category.active() ? " • ACTIVE" : " • INACTIVE";
+        setLabelText(lblSelectedCategory, selectedLabel);
+        setLabelText(lblSummarySelectedCategory, selectedLabel);
 
         setLabelText(
             lblRecordCount,
@@ -707,19 +745,53 @@ public class MasterDataController implements ScreenLifecycle {
     @FXML
     private void deleteCategory() {
         String selectedCategory = lstTypes.getSelectionModel().getSelectedItem();
-        if (selectedCategory == null) { showWarning("Select a Master Category to deactivate."); return; }
+        if (selectedCategory == null) { showWarning("Select a Master Category first."); return; }
+        MasterCategoryService.Category meta = categoryByName.get(selectedCategory);
+        boolean currentlyActive = meta == null || meta.active();
+        if (!currentlyActive) {
+            Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                "Reactivate category '" + selectedCategory + "'? Existing lookup values stay in their current Active/Inactive state so you can enable only the values you want.", ButtonType.YES, ButtonType.NO);
+            confirmation.setTitle("Reactivate Master Category"); confirmation.setHeaderText("Confirm category reactivation");
+            if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
+            try {
+                categoryService.setActive(selectedCategory, true); loadCategories(); lstTypes.getSelectionModel().select(selectedCategory); loadTable();
+                setStatus("Category reactivated successfully.");
+                showSuccess("Category Reactivated", "Master category '" + selectedCategory + "' is active again. Reactivate individual lookup values as needed.");
+            } catch (Exception exception) {
+                showWarning("Category could not be reactivated:\n" + exception.getMessage()); setStatus("Category could not be reactivated.");
+            }
+            return;
+        }
         Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
             "Deactivate category '" + selectedCategory + "' and all of its values? Existing records will remain unchanged.", ButtonType.YES, ButtonType.NO);
         confirmation.setTitle("Deactivate Master Category"); confirmation.setHeaderText("Confirm category deactivation");
         if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
         try {
-            categoryService.delete(selectedCategory); loadCategories();
-            if (!lstTypes.getItems().isEmpty()) lstTypes.getSelectionModel().selectFirst(); else clearTable();
+            categoryService.delete(selectedCategory); loadCategories(); lstTypes.getSelectionModel().select(selectedCategory); loadTable();
             setStatus("Category deactivated successfully.");
             showSuccess("Category Deactivated", "Master category '" + selectedCategory + "' and its values are now inactive for future use.");
         } catch (Exception exception) {
             showWarning("Category could not be deactivated:\n" + exception.getMessage()); setStatus("Category could not be deactivated.");
         }
+    }
+
+    private void updateCategoryActionState(String categoryName) {
+        if (btnDeleteCategory == null) return;
+        MasterCategoryService.Category meta = categoryByName.get(categoryName);
+        boolean active = meta == null || meta.active();
+        btnDeleteCategory.setText(active ? "Deactivate Category" : "Reactivate Category");
+        UiActionIcons.apply(btnDeleteCategory, active ? "delete" : "restore");
+        btnRenameCategory.setDisable(categoryName == null);
+        btnDeleteCategory.setDisable(categoryName == null);
+    }
+
+    private void updateLookupActionState(Lookup lookup) {
+        if (btnDeleteLookup == null) return;
+        boolean active = lookup == null || lookup.isActive();
+        btnDeleteLookup.setText(active ? "Deactivate" : "Reactivate");
+        UiActionIcons.apply(btnDeleteLookup, active ? "delete" : "restore");
+        btnEditLookup.setDisable(lookup == null);
+        btnDeleteLookup.setDisable(lookup == null);
     }
 
 
@@ -907,63 +979,31 @@ public class MasterDataController implements ScreenLifecycle {
 
     @FXML
     private void deleteLookup() {
-
-        Lookup selectedLookup =
-            tblLookup.getSelectionModel()
-                .getSelectedItem();
-
-        if (selectedLookup == null) {
-
-            showWarning(
-                "Select a master record to deactivate."
-            );
-
-            return;
-        }
-
-        Alert confirmation = new OwnedAlert(
-            Alert.AlertType.CONFIRMATION,
-            "Deactivate '"
-                + selectedLookup.getLookupValue()
-                + "'? Existing records will keep this value, but it will not be offered for future use.",
-            ButtonType.YES,
-            ButtonType.NO
-        );
-
-        confirmation.setTitle("Deactivate Master Record");
-        confirmation.setHeaderText("Confirm deactivation");
-
-        if (confirmation.showAndWait()
-            .orElse(ButtonType.NO) != ButtonType.YES) {
-
-            return;
-        }
-
+        Lookup selectedLookup = tblLookup.getSelectionModel().getSelectedItem();
+        if (selectedLookup == null) { showWarning("Select a master record first."); return; }
+        boolean activate = !selectedLookup.isActive();
+        String verb = activate ? "Reactivate" : "Deactivate";
+        String detail = activate
+            ? "Reactivate '" + selectedLookup.getLookupValue() + "' for future use?"
+            : "Deactivate '" + selectedLookup.getLookupValue() + "'? Existing records will keep this value, but it will not be offered for future use.";
+        Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION, detail, ButtonType.YES, ButtonType.NO);
+        confirmation.setTitle(verb + " Master Record"); confirmation.setHeaderText("Confirm " + verb.toLowerCase(Locale.ROOT));
+        if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
         try {
-
-            service.delete(selectedLookup.getId());
-
+            if (activate) service.setActive(selectedLookup, true); else service.delete(selectedLookup.getId());
+            String selectedType = lstTypes.getSelectionModel().getSelectedItem();
             loadCategories();
+            if (selectedType != null) lstTypes.getSelectionModel().select(selectedType);
             loadTable();
-
-            setStatus(
-                "Lookup deactivated successfully."
-            );
-            showSuccess("Master Record Deactivated",
-                "Master record '" + selectedLookup.getLookupValue() + "' is now inactive for future use.");
-
+            setStatus("Lookup " + (activate ? "reactivated" : "deactivated") + " successfully.");
+            showSuccess("Master Record " + (activate ? "Reactivated" : "Deactivated"),
+                "Master record '" + selectedLookup.getLookupValue() + "' is now " + (activate ? "active" : "inactive") + " for future use.");
         } catch (Exception exception) {
-
-            showError(
-                "Lookup could not be deactivated:\n"
-                    + exception.getMessage()
-            );
-
-            setStatus(
-                "Lookup could not be deactivated."
-            );
+            showError("Lookup could not be " + (activate ? "reactivated" : "deactivated") + ":\n" + exception.getMessage());
+            setStatus("Lookup status could not be changed.");
         }
     }
+
 
     /* =========================================================
        REFRESH
@@ -1047,6 +1087,7 @@ public class MasterDataController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(colCode, "identity");
         IconFactory.applyTableHeaderIcon(colValue, "category");
         IconFactory.applyTableHeaderIcon(colDescription, "notes");
+        if (colLookupStatus != null) IconFactory.applyTableHeaderIcon(colLookupStatus, "status");
     }
     @FXML
     private void exportLookup() {

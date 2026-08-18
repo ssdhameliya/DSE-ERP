@@ -7782,3 +7782,49 @@
 .universal-footer-company,.universal-footer-detail,.universal-footer-clock { -fx-text-fill: #1f3b56; }
 .date-picker > .text-field { -fx-text-fill: -app-input-text; -fx-prompt-text-fill: -app-input-prompt; }
 .date-picker > .arrow-button { -fx-background-color: #e8eef7; }
+
+/* 7.30.27 shared details drawer surfaces */
+.erp-detail-drawer-card {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cbd5e1;
+}
+
+/* 7.30.27 complete notification category palette */
+.settings-notification-category.notification-category-sales,
+.notification-category-sales { -fx-text-fill: #c2410c; }
+.settings-notification-category.notification-category-purchases,
+.notification-category-purchases { -fx-text-fill: #be185d; }
+.settings-notification-category.notification-category-quotations,
+.notification-category-quotations { -fx-text-fill: #7c3aed; -fx-background-color: #f3e8ff; }
+.settings-notification-category.notification-category-returns,
+.notification-category-returns { -fx-text-fill: #0369a1; -fx-background-color: #e0f2fe; }
+.settings-notification-category.notification-category-payments,
+.notification-category-payments { -fx-text-fill: #047857; -fx-background-color: #d1fae5; }
+.settings-notification-category.notification-category-inventory,
+.notification-category-inventory { -fx-text-fill: #15803d; }
+.settings-notification-category.notification-category-reminders,
+.notification-category-reminders { -fx-text-fill: #b45309; -fx-background-color: #fef3c7; }
+.settings-notification-category.notification-category-communication,
+.notification-category-communication { -fx-text-fill: #0f766e; -fx-background-color: #ccfbf1; }
+.settings-notification-category.notification-category-system,
+.notification-category-system { -fx-text-fill: #475569; -fx-background-color: #e2e8f0; }
+.notification-category-quotations { -fx-background-color: #f3e8ff; }
+.notification-category-returns { -fx-background-color: #e0f2fe; }
+.notification-category-payments { -fx-background-color: #d1fae5; }
+.notification-category-reminders { -fx-background-color: #fef3c7; }
+.notification-category-communication { -fx-background-color: #ccfbf1; }
+.notification-category-system { -fx-background-color: #e2e8f0; }
+.notification-new-badge { -fx-background-color: #dbeafe; -fx-text-fill: #1d4ed8; }
+
+/* Meaningful colour surfaces for secondary actions. */
+.erp-action-button.erp-button-secondary.erp-semantic-blue { -fx-background-color: #eff6ff; -fx-border-color: #bfdbfe; -fx-text-fill: #1d4ed8; }
+.erp-action-button.erp-button-secondary.erp-semantic-green { -fx-background-color: #ecfdf5; -fx-border-color: #a7f3d0; -fx-text-fill: #047857; }
+.erp-action-button.erp-button-secondary.erp-semantic-orange { -fx-background-color: #fffbeb; -fx-border-color: #fde68a; -fx-text-fill: #b45309; }
+.erp-action-button.erp-button-secondary.erp-semantic-purple { -fx-background-color: #f5f3ff; -fx-border-color: #ddd6fe; -fx-text-fill: #6d28d9; }
+.erp-action-button.erp-button-secondary.erp-semantic-pink { -fx-background-color: #fff1f2; -fx-border-color: #fecdd3; -fx-text-fill: #be123c; }
+.erp-action-button.erp-button-secondary.erp-semantic-teal { -fx-background-color: #f0fdfa; -fx-border-color: #99f6e4; -fx-text-fill: #0f766e; }
+.erp-action-button.erp-button-secondary.erp-semantic-indigo { -fx-background-color: #eef2ff; -fx-border-color: #c7d2fe; -fx-text-fill: #4338ca; }
+.master-state-active, .master-lookup-active { -fx-text-fill: #15803d; }
+.master-state-inactive, .master-lookup-inactive { -fx-text-fill: #b91c1c; }
+.master-category-activity { -fx-text-fill: #64748b; }
+.pdf-properties-card { -fx-background-color: #ffffff; -fx-border-color: #cbd5e1; }

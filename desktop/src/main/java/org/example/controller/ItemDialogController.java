@@ -20,7 +20,7 @@ public class ItemDialogController {
     @FXML private Button btnSave, btnCancel;
     @FXML private Label lblTitle, lblSubtitle;
     @FXML private Label errDescription, errCategory, errUnit, errGst, errDiscount, errHSN, errSellingPrice,
-            errPurchasePrice, errOpeningStock, errMinimumStock;
+            errPurchasePrice, errOpeningStock, errMinimumStock, errRemarks;
     @FXML private StackPane headerIconHolder;
 
     private final LookupService lookupService = new LookupService();
@@ -50,7 +50,7 @@ public class ItemDialogController {
         if (!cmbDiscount.getItems().isEmpty()) cmbDiscount.getSelectionModel().selectFirst();
     }
 
-    private String generateItemCode() { return "ITM" + System.currentTimeMillis(); }
+    private String generateItemCode() { return service.nextCode(); }
 
     public void setItem(Item item) {
         this.editingItem = item;
@@ -156,7 +156,11 @@ public class ItemDialogController {
             }
         }
 
-        valid &= validateNumber(txtSellingPrice, errSellingPrice, "Selling price", true);
+        if (txtRemarks.getText() == null || txtRemarks.getText().trim().isBlank()) {
+            showError(txtRemarks, errRemarks, "Remarks are required.");
+            valid = false;
+        }
+        valid &= validateNumber(txtSellingPrice, errSellingPrice, "Selling price", false);
         valid &= validateNumber(txtPurchasePrice, errPurchasePrice, "Purchase price", false);
         valid &= validateNumber(txtOpeningStock, errOpeningStock, "Opening stock", true);
         valid &= validateNumber(txtMinimumStock, errMinimumStock, "Minimum stock", false);
@@ -191,6 +195,7 @@ public class ItemDialogController {
         cmbGST.valueProperty().addListener((o, a, b) -> clearError(cmbGST, errGst));
         cmbDiscount.valueProperty().addListener((o, a, b) -> clearError(cmbDiscount, errDiscount));
         txtSellingPrice.textProperty().addListener((o, a, b) -> clearError(txtSellingPrice, errSellingPrice));
+        txtRemarks.textProperty().addListener((o, a, b) -> clearError(txtRemarks, errRemarks));
         txtPurchasePrice.textProperty().addListener((o, a, b) -> clearError(txtPurchasePrice, errPurchasePrice));
         txtOpeningStock.textProperty().addListener((o, a, b) -> clearError(txtOpeningStock, errOpeningStock));
         txtMinimumStock.textProperty().addListener((o, a, b) -> clearError(txtMinimumStock, errMinimumStock));
@@ -219,6 +224,7 @@ public class ItemDialogController {
         clearError(cmbGST, errGst);
         clearError(cmbDiscount, errDiscount);
         clearError(txtSellingPrice, errSellingPrice);
+        clearError(txtRemarks, errRemarks);
         clearError(txtPurchasePrice, errPurchasePrice);
         clearError(txtOpeningStock, errOpeningStock);
         clearError(txtMinimumStock, errMinimumStock);
