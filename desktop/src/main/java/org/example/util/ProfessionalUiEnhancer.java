@@ -87,6 +87,9 @@ public final class ProfessionalUiEnhancer {
         Button reveal = new Button();
         reveal.getStyleClass().addAll("password-reveal-button", "approved-button", "approved-icon-button");
         reveal.setGraphic(IconFactory.compactIcon("view", 14));
+        reveal.getProperties().put("erp.icon.skip", true);
+        reveal.getProperties().put("erp-icon-preserve", true);
+        reveal.getProperties().put("erp.icon.semantic", "view");
         reveal.setFocusTraversable(false);
         reveal.setAccessibleText("Show password");
         reveal.setTooltip(new Tooltip("Show password"));
@@ -107,6 +110,7 @@ public final class ProfessionalUiEnhancer {
             plain.setVisible(show); plain.setManaged(show);
             field.setVisible(!show); field.setManaged(!show);
             reveal.setGraphic(IconFactory.compactIcon(show ? "hide" : "view", 14));
+            reveal.getProperties().put("erp.icon.semantic", show ? "hide" : "view");
             reveal.setAccessibleText(show ? "Hide password" : "Show password");
             reveal.setTooltip(new Tooltip(show ? "Hide password" : "Show password"));
             TextField target = show ? plain : field;

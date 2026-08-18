@@ -29,6 +29,16 @@
                     <Label text="Remarks" GridPane.columnIndex="2" GridPane.rowIndex="2"/><TextArea fx:id="txtRemarks" promptText="Commercial terms or customer notes..." prefRowCount="2" wrapText="true" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
                   </children>
                 </GridPane>
+                <Separator/>
+                <VBox spacing="7" styleClass="quotation-attachment-area">
+                  <Label text="Attached Document" styleClass="quotation-section-title"/>
+                  <Label fx:id="lblAttachmentName" text="No document attached" wrapText="true" styleClass="muted-label"/>
+                  <HBox spacing="8">
+                    <Button fx:id="btnAttachmentAdd" text="Add / Replace" onAction="#chooseAttachment" styleClass="approved-button,approved-primary-button"/>
+                    <Button fx:id="btnAttachmentPreview" text="Preview" onAction="#previewAttachment" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnAttachmentRemove" text="Remove" onAction="#removeAttachment" styleClass="approved-button,danger-button"/>
+                  </HBox>
+                </VBox>
               </VBox>
               <VBox spacing="12" styleClass="quotation-editor-card">
                 <HBox alignment="CENTER_LEFT"><Label text="ITEMS &amp; PRICING" styleClass="quotation-section-title"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="lblLineCount" text="0 line item(s)" styleClass="muted-label"/></HBox>

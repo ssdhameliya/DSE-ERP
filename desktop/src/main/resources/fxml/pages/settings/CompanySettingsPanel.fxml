@@ -107,6 +107,54 @@
 
 
 
-                        </VBox>
+                        
+                            <Separator/>
+                            <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-application-branding-panel">
+                                <VBox spacing="4">
+                                    <Label text="Application Branding" styleClass="settings-subsection-title"/>
+                                    <Label text="Used consistently on Splash, Login, Forgot Password, Registration and Email / OTP setup screens." wrapText="true" styleClass="settings-help-text"/>
+                                </VBox>
+                                <GridPane hgap="14" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
+                                    <columnConstraints>
+                                        <ColumnConstraints percentWidth="68" hgrow="ALWAYS"/>
+                                        <ColumnConstraints percentWidth="32" hgrow="ALWAYS"/>
+                                    </columnConstraints>
+                                    <VBox spacing="7" minWidth="0" maxWidth="Infinity" GridPane.columnIndex="0" styleClass="settings-asset-card,settings-brand-asset-card">
+                                        <Label text="Application Banner" styleClass="settings-form-label"/>
+                                        <Label text="Wide application artwork • Recommended 1600 × 320" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="applicationBrandPreview" minHeight="88" prefHeight="96" maxHeight="104" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgApplicationBrand" preserveRatio="false" smooth="true"/>
+                                            <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
+                                                <Label text="▰" styleClass="settings-placeholder-icon"/>
+                                                <Label text="No application banner selected" styleClass="settings-help-text"/>
+                                            </VBox>
+                                        </StackPane>
+                                        <Label fx:id="lblApplicationBrandFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                        <HBox spacing="8">
+                                            <Button text="Add / Replace" onAction="#uploadApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
+                                            <Button text="Preview" onAction="#previewApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
+                                            <Button text="Remove" onAction="#removeApplicationBrand" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                        </HBox>
+                                    </VBox>
+                                    <VBox spacing="7" minWidth="0" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="settings-asset-card,settings-brand-asset-card">
+                                        <Label text="Application Mark / Splash Logo" styleClass="settings-form-label"/>
+                                        <Label text="Small square mark shown below the banner • Recommended 512 × 512" wrapText="true" styleClass="settings-asset-purpose"/>
+                                        <StackPane fx:id="applicationMarkPreview" minHeight="88" prefHeight="96" maxHeight="104" maxWidth="Infinity" styleClass="settings-image-preview">
+                                            <ImageView fx:id="imgApplicationMark" preserveRatio="true" smooth="true"/>
+                                            <VBox fx:id="placeholderApplicationMark" alignment="CENTER" spacing="6">
+                                                <Label text="◆" styleClass="settings-placeholder-icon"/>
+                                                <Label text="No application mark selected" styleClass="settings-help-text"/>
+                                            </VBox>
+                                        </StackPane>
+                                        <Label fx:id="lblApplicationMarkFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
+                                        <HBox spacing="8">
+                                            <Button text="Add / Replace" onAction="#uploadApplicationMark" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
+                                            <Button text="Preview" onAction="#previewApplicationMark" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
+                                            <Button text="Remove" onAction="#removeApplicationMark" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
+                                        </HBox>
+                                    </VBox>
+                                </GridPane>
+                            </VBox>
+</VBox>
 
                         

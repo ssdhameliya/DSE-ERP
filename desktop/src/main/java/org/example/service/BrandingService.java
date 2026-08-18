@@ -22,6 +22,11 @@ public final class BrandingService {
         return configuredImage("application.brandImagePath");
     }
 
+    /** Square application mark used below the wide banner on auth/startup screens. */
+    public static Image applicationMarkImage() {
+        return configuredImage("application.markImagePath");
+    }
+
     public static Image companyLogo() { return configuredImage("company.logoPath"); }
     public static Image authorizedSignature() { return configuredImage("company.signaturePath"); }
     public static Image paymentQrImage() { return configuredImage("payment.qrImagePath"); }

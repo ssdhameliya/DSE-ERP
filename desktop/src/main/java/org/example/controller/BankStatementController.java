@@ -380,7 +380,7 @@ public class BankStatementController {
             "bank-statement-suggest-"+row.dto.id(),
             () -> api.suggest(row.dto.id()),
             cs -> {
-                if(cs.isEmpty()){info("Match Transaction","No open Sales/Purchase transaction was found. You can move debit transactions to Expense or review later.");refresh();return;}
+                if(cs.isEmpty()){info("Match Transaction","No eligible Sale, Purchase or Return refund transaction was found. You can move debit transactions to Expense or review later.");refresh();return;}
                 var top=cs.getFirst();
                 if(Boolean.getBoolean("dse.legacyBankMatchDialog")&&top.confidence()>=75&&Math.abs(top.outstanding()-bankAmount(row.dto))<=.01){
                     Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Suggested Match\n\n"+top+"\n\nWhy suggested: amount/reference/party/date signals.\n\nConfirm this match?");
@@ -427,10 +427,10 @@ public class BankStatementController {
         party.setPrefWidth(190);
         TableColumn<CandidateRow,String> date=new TableColumn<>("Date");
         date.setCellValueFactory(v->v.getValue().date);
-        TableColumn<CandidateRow,Number> total=new TableColumn<>("Invoice Total");
+        TableColumn<CandidateRow,Number> total=new TableColumn<>("Document Total");
         total.setCellValueFactory(v->v.getValue().total);
         total.setPrefWidth(105);
-        TableColumn<CandidateRow,Number> paid=new TableColumn<>("Paid");
+        TableColumn<CandidateRow,Number> paid=new TableColumn<>("Paid / Refunded");
         paid.setCellValueFactory(v->v.getValue().paid);
         paid.setPrefWidth(90);
         TableColumn<CandidateRow,Number> outstanding=new TableColumn<>("Outstanding");
@@ -454,7 +454,7 @@ public class BankStatementController {
         bank.setWrapText(true);
         Label amount=new Label((bankRow.dto.credit()>0?"Bank Credit: ":"Bank Debit: ")+money(bankValue));
         amount.getStyleClass().add("bank-dialog-amount");
-        Label help=new Label("Select every invoice included in this payment and edit Allocation directly in the table. The total allocation must equal the bank amount and cannot exceed an invoice's outstanding amount.");
+        Label help=new Label("Select every eligible Sale, Purchase or Return refund included in this bank transaction and edit Allocation directly in the table. The total allocation must equal the bank amount and cannot exceed the outstanding amount.");
         help.setWrapText(true);help.getStyleClass().add("bank-dialog-help");
         Label allocationStatus=new Label();allocationStatus.getStyleClass().add("bank-dialog-help");
         Runnable refreshStatus=()->{
@@ -466,7 +466,7 @@ public class BankStatementController {
         VBox transactionCard=new VBox(4,new Label("BANK TRANSACTION"),bank,amount);transactionCard.getStyleClass().add("bank-dialog-section");
         Label matchId=new Label("Match ID\nBNK-"+safe(bankRow.dto.transactionDate()).replace("-","")+"-"+bankRow.dto.id());
         matchId.getStyleClass().add("bank-match-id");
-        HBox hero=dialogHero("link","Review and allocate the complete bank transaction","Match invoices to allocate the bank amount. The total allocation must equal the bank amount.");
+        HBox hero=dialogHero("link","Review and allocate the complete bank transaction","Match documents/refunds to allocate the bank amount. The total allocation must equal the bank amount.");
         Region heroSpace=new Region();HBox.setHgrow(heroSpace,Priority.ALWAYS);hero.getChildren().addAll(heroSpace,matchId);
         VBox content=new VBox(12,hero,transactionCard,help,candidatesTable,allocationStatus);
         content.setPadding(new Insets(8));content.setPrefWidth(1120);
@@ -482,7 +482,7 @@ public class BankStatementController {
                 if(value<=0||value-row.dto.outstanding()>.01){info("Allocation needs attention","Each selected allocation must be greater than zero and cannot exceed its outstanding amount.");return;}
                 allocations.add(new BankStatementApiClient.AllocationRequest(row.dto.type(),row.dto.id(),value));allocated+=value;
             }
-            if(allocations.isEmpty()){info("Match Transaction","Select at least one Sales or Purchase transaction.");return;}
+            if(allocations.isEmpty()){info("Match Transaction","Select at least one eligible Sale, Purchase or Return refund transaction.");return;}
             if(Math.abs(allocated-bankValue)>.01){info("Allocation needs attention","Allocated amount must equal the bank amount. Remaining: "+money(bankValue-allocated));return;}
             confirmAllocations(bankRow,allocations);
         });
@@ -493,12 +493,12 @@ public class BankStatementController {
         UiTaskExecutor.submitLatest(
             "bank-statement-match-"+row.dto.id(),
             () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,allocations)),
-            result -> {success("Match Successful",result.message()+"\n\nBank Entry and invoice payment allocations were updated together.");refresh();},
+            result -> {success("Match Successful",result.message()+"\n\nBank Entry and payment/refund allocations were updated together.");refresh();},
             this::error
         );
     }
     private void showCandidatePicker(Row row,List<BankStatementApiClient.CandidateDto> cs){
-        Label title=new Label("Find a Sales / Purchase transaction"); title.getStyleClass().add("bank-dialog-title");
+        Label title=new Label("Find a Sale / Purchase / Return refund transaction"); title.getStyleClass().add("bank-dialog-title");
         Label bank=new Label(row.dto.transactionDate()+"  •  "+safe(row.dto.reference())+"  •  "+safe(row.dto.description())); bank.setWrapText(true);
         Label amount=new Label((row.dto.credit()>0?"Bank Credit: ":"Bank Debit: ")+money(bankAmount(row.dto))); amount.getStyleClass().add("bank-dialog-amount");
         VBox bankBox=new VBox(4,new Label("BANK TRANSACTION"),bank,amount); bankBox.getStyleClass().add("bank-dialog-section");
@@ -514,7 +514,7 @@ public class BankStatementController {
         VBox content=new VBox(10,title,bankBox,hint,list); content.setPadding(new Insets(4));
         Dialog<ButtonType>d=new OwnedDialog<>(); d.setTitle("Match Transaction"); d.setHeaderText("Review possible matches or choose another transaction"); d.getDialogPane().setContent(content);
         ButtonType confirm=new ButtonType("Confirm Selection",ButtonBar.ButtonData.OK_DONE); d.getDialogPane().getButtonTypes().addAll(confirm,ButtonType.CANCEL);
-        d.showAndWait().filter(x->x==confirm).ifPresent(x->{var selected=new ArrayList<>(list.getSelectionModel().getSelectedItems());if(selected.isEmpty()){info("Match Transaction","Select at least one Sales or Purchase transaction before continuing.");return;}confirm(row,selected);});
+        d.showAndWait().filter(x->x==confirm).ifPresent(x->{var selected=new ArrayList<>(list.getSelectionModel().getSelectedItems());if(selected.isEmpty()){info("Match Transaction","Select at least one eligible Sale, Purchase or Return refund transaction before continuing.");return;}confirm(row,selected);});
     }
     private void confirm(Row row,List<BankStatementApiClient.CandidateDto> selected){
         double remaining=bankAmount(row.dto);List<BankStatementApiClient.AllocationRequest> alloc=new ArrayList<>();
@@ -522,7 +522,7 @@ public class BankStatementController {
         String performedBy=user();
         UiTaskExecutor.submitLatest("bank-statement-match-"+row.dto.id(),
             () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,alloc)),
-            r -> {success("Match Successful",r.message()+"\n\nBank Entry created and Sales/Purchase payment allocation updated.");refresh();},
+            r -> {success("Match Successful",r.message()+"\n\nBank Entry created and payment/refund allocation updated.");refresh();},
             this::error);
     }
 
@@ -553,6 +553,9 @@ public class BankStatementController {
         }
         if("PURCHASE".equals(type)){
             String no=safe(t.linkedDocumentNo()); if(no.isBlank()&&id!=null)no=""+id; PurchaseScreenContext.select(no); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); return;
+        }
+        if("SALES_RETURN".equals(type)||"PURCHASE_RETURN".equals(type)){
+            String no=safe(t.linkedDocumentNo()); if(!no.isBlank()){ReturnRefundContext.select(no);NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");return;}
         }
         audit(row);
     }

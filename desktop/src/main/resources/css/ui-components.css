@@ -5310,7 +5310,14 @@
 }
 
 .auth-version {
-    -fx-font-size: 11px;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
+    -fx-padding: 7 13 7 13;
+    -fx-background-color: rgba(14, 165, 233, 0.20);
+    -fx-border-color: rgba(125, 211, 252, 0.55);
+    -fx-border-width: 1;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
 }
 
 .auth-card {
@@ -8762,3 +8769,21 @@
     -fx-min-height: 28; -fx-pref-height: 28; -fx-max-height: 28;
     -fx-padding: 4; -fx-background-color: transparent; -fx-border-color: transparent;
 }
+
+/* Imported PDF vector/block editing targets (7.30.29). */
+.pdf-existing-block-target { -fx-background-color: rgba(6,182,212,.08); -fx-border-color: #06B6D4; -fx-border-width: 1.2; -fx-border-style: segments(6,4); -fx-cursor: hand; }
+.pdf-existing-block-target > .label { -fx-background-color: rgba(6,182,212,.92); -fx-text-fill: white; -fx-font-size: 9px; -fx-padding: 2 5; -fx-background-radius: 4; }
+.pdf-existing-block-target:hover, .pdf-existing-block-selected { -fx-background-color: rgba(6,182,212,.16); -fx-border-color: #22D3EE; -fx-border-width: 2; }
+
+/* v7.30.29 Master Data category rail: wide enough for complete category names; no horizontal scrolling. */
+.approved-screen-masterdata .master-category-list .scroll-bar:horizontal,
+.master-data-redesign .master-category-list .scroll-bar:horizontal {
+    -fx-min-height: 0;
+    -fx-pref-height: 0;
+    -fx-max-height: 0;
+    -fx-opacity: 0;
+}
+.approved-screen-masterdata .master-category-cell-content,
+.master-data-redesign .master-category-cell-content { -fx-max-width: Infinity; }
+.approved-screen-masterdata .master-category-name,
+.master-data-redesign .master-category-name { -fx-wrap-text: true; }

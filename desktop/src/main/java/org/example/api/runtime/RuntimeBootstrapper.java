@@ -334,8 +334,10 @@ public final class RuntimeBootstrapper {
                     WorkspaceManager.getConfigurationFolder().resolve("config.properties").toString());
             builder.environment().put("DSE_BUSINESS_CONFIG_FILE",
                     WorkspaceManager.getConfigurationFolder().resolve("config.properties").toString());
+            builder.environment().put("DSE_ATTACHMENTS_DIR", WorkspaceManager.getAttachmentsFolder().toString());
             builder.environment().put("DSE_BUSINESS_TIME_ZONE", org.example.util.BusinessClock.zone().getId());
             builder.environment().put("DSE_BUSINESS_DATE_FORMAT", org.example.util.BusinessClock.datePattern());
+            builder.environment().put("DSE_WORKSPACE_PATH", WorkspaceManager.getWorkspaceRoot().toString());
             return builder.start();
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to start packaged DSE ERP backend from " + jar, exception);

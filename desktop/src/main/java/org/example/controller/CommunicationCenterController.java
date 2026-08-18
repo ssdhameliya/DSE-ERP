@@ -128,7 +128,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
         if(colActions==null)return;
         colActions.setCellFactory(c->new TableCell<>(){
             final Button resend=new Button("Re-send",IconFactory.compactIcon("refresh",15));
-            {resend.getProperties().put("erp.icon.skip", true);resend.getStyleClass().addAll("approved-button","action-email","communication-resend-button");resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
+            {resend.getProperties().put("erp.icon.skip", true);resend.getProperties().put("erp-icon-preserve",true);resend.getProperties().put("erp.icon.semantic","refresh");resend.getStyleClass().addAll("approved-button","communication-resend-button");resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
             @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);Row row=empty?null:getTableRow().getItem();setGraphic(row==null||!"EMAIL".equalsIgnoreCase(row.channel.get())?null:resend);setAlignment(Pos.CENTER);}
         });
     }

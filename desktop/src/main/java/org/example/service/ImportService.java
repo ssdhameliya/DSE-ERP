@@ -2,7 +2,6 @@ package org.example.service;
 
 import org.example.util.BusinessClock;
 import org.example.config.ConfigManager;
-import org.example.config.WorkspaceManager;
 
 import org.apache.poi.ss.usermodel.*;
 import org.example.model.Party;
@@ -14,11 +13,11 @@ import org.example.model.SalesCharge;
 import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
 import org.example.api.master.MasterApiClient;
+import org.example.api.support.SupportApiClient;
 import org.example.util.SpreadsheetLayoutDetector;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -34,7 +33,6 @@ public class ImportService {
                                      String attachmentFile) {}
 
     private record SalesImportExtras(List<SalesCharge> charges, Path attachmentSource) {}
-    private record ManagedAttachment(String reference, Path target) {}
 
     // ---------------- Result wrapper ----------------
     public static final class ImportRowResult {
@@ -337,16 +335,13 @@ public class ImportService {
                     }
                     document.setLines(lines);
                     applySalesTotals(document);
-                    ManagedAttachment managedAttachment = null;
-                    try {
-                        if (extras.attachmentSource() != null) {
-                            managedAttachment = copySalesImportAttachment(extras.attachmentSource(), document.getInvoiceNo());
-                            document.setAttachmentPath(managedAttachment.reference());
-                        }
-                        service.save(document);
-                    } catch (Exception saveFailure) {
-                        if (managedAttachment != null) Files.deleteIfExists(managedAttachment.target());
-                        throw saveFailure;
+                    service.save(document);
+                    if (extras.attachmentSource() != null) {
+                        Sales persisted = service.getByInvoice(document.getInvoiceNo());
+                        if (persisted == null || persisted.getId() <= 0)
+                            throw new IllegalStateException("Imported sale was saved but could not be reloaded for attachment upload");
+                        String reference = new SupportApiClient().uploadDocumentAttachment("SALE", persisted.getId(), extras.attachmentSource());
+                        document.setAttachmentPath(reference);
                     }
                 } else {
                     PurchaseService service = new PurchaseService();
@@ -740,22 +735,6 @@ public class ImportService {
             else if (!selected.equals(parsed)) throw new IllegalArgumentException("Conflicting " + field + " values across rows for the same invoice");
         }
         return selected;
-    }
-
-    private ManagedAttachment copySalesImportAttachment(Path source, String invoiceNo) throws Exception {
-        Path folder = WorkspaceManager.getAttachmentsFolder().resolve("Sales").resolve(safeAttachmentSegment(invoiceNo));
-        Files.createDirectories(folder);
-        String fileName = source.getFileName() == null ? "attachment" : sanitizeAttachmentFileName(source.getFileName().toString());
-        Path target = folder.resolve(System.currentTimeMillis() + "-" + fileName);
-        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-        String reference = WorkspaceManager.getWorkspaceRoot().relativize(target).toString();
-        return new ManagedAttachment(reference, target);
-    }
-
-    private String safeAttachmentSegment(String value) { return value == null ? "sale" : value.replaceAll("[^A-Za-z0-9._-]", "_"); }
-    private String sanitizeAttachmentFileName(String value) {
-        String name = value == null ? "attachment" : value.replaceAll("[^A-Za-z0-9._() -]", "_").trim();
-        return name.isBlank() ? "attachment" : name;
     }
 
     private String sourceRows(List<?> rawRows) {

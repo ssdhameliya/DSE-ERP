@@ -9,6 +9,9 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
+import javafx.stage.FileChooser;
+import org.example.api.support.SupportApiClient;
+import org.example.config.WorkspaceManager;
 import org.example.api.master.MasterApiClient;
 import org.example.api.quotation.QuotationApiClient;
 import org.example.model.Item;
@@ -18,12 +21,15 @@ import org.example.service.SessionService;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 
+import java.awt.Desktop;
+import java.io.File;
+import java.nio.file.*;
 import java.time.LocalDate;
 import java.util.*;
 
 /** Full-page quotation workspace with inline line entry and a persistent summary. */
 public final class QuotationEditorController {
-    @FXML private Label lblPageTitle,lblPageSubtitle,lblSubtotal,lblDiscount,lblTaxable,lblGst,lblGrandTotal,lblLineCount;
+    @FXML private Label lblPageTitle,lblPageSubtitle,lblSubtotal,lblDiscount,lblTaxable,lblGst,lblGrandTotal,lblLineCount,lblAttachmentName;
     @FXML private ComboBox<CustomerChoice> cmbCustomer;
     @FXML private TextField txtItemSearch;
     @FXML private StackPane itemSearchIconBox;
@@ -35,22 +41,27 @@ public final class QuotationEditorController {
     @FXML private TableColumn<LineRow,String> colItem,colCode;
     @FXML private TableColumn<LineRow,Number> colQty,colRate,colGst,colDiscount,colAmount;
     @FXML private TableColumn<LineRow,Void> colAction;
-    @FXML private Button btnAdd,btnPreview,btnDraft,btnSaveSend;
+    @FXML private Button btnAdd,btnPreview,btnDraft,btnSaveSend,btnAttachmentAdd,btnAttachmentPreview,btnAttachmentRemove;
     @FXML private StackPane quotationTitleIcon;
 
     private final QuotationApiClient api=new QuotationApiClient();
     private final MasterApiClient masters=new MasterApiClient();
+    private final SupportApiClient supportApi=new SupportApiClient();
     private Integer quotationId;
     private boolean dirty;
     private final ObservableList<ItemChoice> allItemChoices=FXCollections.observableArrayList();
     private final ContextMenu itemSuggestions=new ContextMenu();
     private ItemChoice selectedItem;
     private boolean updatingItemSearch;
+    private Path selectedAttachment;
+    private boolean attachmentRemovalPending;
+    private String existingAttachment="";
 
     @FXML private void initialize(){
         if(quotationTitleIcon!=null)quotationTitleIcon.getChildren().setAll(IconFactory.icon("quotation",24));
         btnAdd.setGraphic(IconFactory.compactIcon("add",16));
         btnPreview.setGraphic(IconFactory.compactIcon("view",16));btnDraft.setGraphic(IconFactory.compactIcon("save",16));btnSaveSend.setGraphic(IconFactory.compactIcon("send",16));
+        if(btnAttachmentAdd!=null)btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment",15));if(btnAttachmentPreview!=null)btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view",15));if(btnAttachmentRemove!=null)btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete",15));
         cmbSource.setItems(FXCollections.observableArrayList("Direct","Email","WhatsApp","Website","Referral","Other"));cmbSource.setValue("Direct");
         dpDate.setValue(BusinessClock.today());dpValid.setValue(BusinessClock.today().plusDays(30));dpFollowUp.setValue(BusinessClock.today().plusDays(7));
         configureTable();loadChoices();configureItemSearch();quotationId=QuotationEditorContext.consume();if(quotationId!=null)loadQuotation(quotationId);
@@ -116,6 +127,7 @@ public final class QuotationEditorController {
             cmbCustomer.getItems().stream().filter(c->c.id==quote.customerId()).findFirst().ifPresent(cmbCustomer::setValue);
             dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));cmbSource.setValue(blank(quote.source())?"Direct":quote.source());txtRemarks.setText(safe(quote.remarks()));
             tableLines.getItems().setAll(api.lines(id).stream().map(LineRow::new).toList());
+            existingAttachment=safe(quote.attachment());selectedAttachment=null;attachmentRemovalPending=false;updateAttachmentLabel();
             lblPageTitle.setText("Edit Quotation");lblPageSubtitle.setText(quote.no()+"  |  "+quote.customer());dirty=false;updateTotals();
         }catch(Exception e){error(e);}
     }
@@ -132,10 +144,17 @@ public final class QuotationEditorController {
             double gross=tableLines.getItems().stream().mapToDouble(r->r.quantity.get()*r.rate.get()).sum(),discount=tableLines.getItems().stream().mapToDouble(r->r.discountAmount.get()).sum(),taxable=gross-discount,gst=tableLines.getItems().stream().mapToDouble(r->r.gstAmount.get()).sum(),total=taxable+gst;
             List<QuotationApiClient.LineDto> lines=tableLines.getItems().stream().map(r->new QuotationApiClient.LineDto(r.code.get(),r.description.get(),r.quantity.get(),r.rate.get(),r.gst.get(),r.discount.get(),r.total.get())).toList();
             QuotationApiClient.QuoteDto saved=api.save(new QuotationApiClient.SaveRequest(quotationId,dpDate.getValue().toString(),dpValid.getValue().toString(),customer.id,taxable,discount,gst,total,txtRemarks.getText(),dpFollowUp.getValue()==null?"":dpFollowUp.getValue().toString(),user(),cmbSource.getValue(),user(),lines));
-            quotationId=saved.id();if(send)api.markSent(saved.id(),cmbSource.getValue());dirty=false;org.example.util.ToastManager.success(tableLines,send?"Quotation sent":"Quotation saved",send?"Quotation saved and marked as sent.":"Quotation draft saved successfully.");backToRegister();
+            quotationId=saved.id();persistAttachment(saved.id());if(send)api.markSent(saved.id(),cmbSource.getValue());dirty=false;org.example.util.ToastManager.success(tableLines,send?"Quotation sent":"Quotation saved",send?"Quotation saved and marked as sent.":"Quotation draft saved successfully.");backToRegister();
         }catch(Exception e){error(e);}
     }
     private void backToRegister(){NavigationManager manager=NavigationManager.getInstance();if(manager!=null){manager.invalidate("/fxml/pages/Quotations.fxml");manager.loadPage("/fxml/pages/Quotations.fxml");}}
+    @FXML private void chooseAttachment(){FileChooser chooser=new FileChooser();chooser.setTitle("Attach quotation document");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documents","*.pdf","*.png","*.jpg","*.jpeg","*.doc","*.docx","*.xls","*.xlsx","*.csv","*.txt"));File file=chooser.showOpenDialog(tableLines.getScene().getWindow());if(file!=null){selectedAttachment=file.toPath();attachmentRemovalPending=false;updateAttachmentLabel();}}
+    @FXML private void previewAttachment(){try{Path file=selectedAttachment;if(file==null&&!attachmentRemovalPending&&quotationId!=null&&!existingAttachment.isBlank())file=materializeAttachment(supportApi.documentAttachment("QUOTATION",quotationId));if(file==null||!Files.isRegularFile(file))throw new IllegalStateException("No quotation attachment is available.");Desktop.getDesktop().open(file.toFile());}catch(Exception e){error(e);}}
+    @FXML private void removeAttachment(){if(selectedAttachment==null&&existingAttachment.isBlank())return;if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the quotation attachment?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;selectedAttachment=null;attachmentRemovalPending=!existingAttachment.isBlank();updateAttachmentLabel();}
+    private void persistAttachment(int id){if(attachmentRemovalPending){supportApi.deleteDocumentAttachment("QUOTATION",id);existingAttachment="";attachmentRemovalPending=false;}else if(selectedAttachment!=null){existingAttachment=supportApi.uploadDocumentAttachment("QUOTATION",id,selectedAttachment);selectedAttachment=null;}updateAttachmentLabel();}
+    private void updateAttachmentLabel(){if(lblAttachmentName==null)return;if(selectedAttachment!=null)lblAttachmentName.setText(selectedAttachment.getFileName().toString());else if(attachmentRemovalPending)lblAttachmentName.setText("Attachment will be removed when saved");else if(!existingAttachment.isBlank())lblAttachmentName.setText("Attached: "+fileName(existingAttachment));else lblAttachmentName.setText("No document attached");}
+    private Path materializeAttachment(SupportApiClient.DownloadedAttachment download)throws Exception{if(download==null||download.data()==null||download.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String name=fileName(download.fileName());if(name.isBlank())name="quotation-attachment";Path target=folder.resolve(System.currentTimeMillis()+"-"+name.replaceAll("[^A-Za-z0-9._-]","_"));Files.write(target,download.data());target.toFile().deleteOnExit();return target;}
+    private static String fileName(String value){if(value==null||value.isBlank())return "";String normalized=value.replace('\\','/');int slash=normalized.lastIndexOf('/');return slash>=0?normalized.substring(slash+1):normalized;}
     private void updateTotals(){double gross=tableLines.getItems().stream().mapToDouble(r->r.quantity.get()*r.rate.get()).sum(),discount=tableLines.getItems().stream().mapToDouble(r->r.discountAmount.get()).sum(),taxable=gross-discount,gst=tableLines.getItems().stream().mapToDouble(r->r.gstAmount.get()).sum();lblSubtotal.setText(money(gross));lblDiscount.setText("- "+money(discount));lblTaxable.setText(money(taxable));lblGst.setText(money(gst));lblGrandTotal.setText(money(taxable+gst));lblLineCount.setText(tableLines.getItems().size()+" line item(s)");}
     private static double positive(String v,String name){double n=Double.parseDouble(v.trim());if(!Double.isFinite(n)||n<=0)throw new IllegalArgumentException(name+" must be greater than zero.");return n;}
     private static double percent(String v,String name){double n=v==null||v.isBlank()?0:Double.parseDouble(v.trim());if(!Double.isFinite(n)||n<0||n>100)throw new IllegalArgumentException(name+" must be between 0 and 100.");return n;}

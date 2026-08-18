@@ -5,6 +5,8 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.application.Platform;
 import org.example.model.AppUser;
 import org.example.api.auth.AuthApiClient;
 import org.example.service.UserService;
@@ -19,8 +21,9 @@ import java.util.regex.Pattern;
 
 public class RegistrationController {
     private static final Pattern EMAIL = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
-    @FXML private ImageView imgBrandLogo;
-    @FXML private StackPane brandLogoBox;
+    @FXML private ImageView imgBrandLogo, imgBrandMark;
+    @FXML private StackPane brandLogoBox, brandMarkBox;
+    @FXML private VBox brandPanel;
     @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription, lblVersion;
     @FXML private Label lblClock, lblMessage, lblNameError, lblUsernameError, lblEmailError, lblRoleError, lblPasswordError, lblConfirmError, lblOtpError;
     @FXML private TextField txtName, txtUsername, txtEmail, txtOtp;
@@ -32,7 +35,7 @@ public class RegistrationController {
     private String challengeId;
 
     @FXML public void initialize() {
-        BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox); applyBranding();
+        BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox); BrandImagePresenter.contain(imgBrandMark, brandMarkBox); applyBranding();
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
         btnSendOtp.setGraphic(IconFactory.icon("email")); btnCreate.setGraphic(IconFactory.icon("add")); btnBack.setGraphic(IconFactory.icon("return"));
         ListCell<AuthApiClient.RoleOption> roleButtonCell = new ListCell<>() {
@@ -62,11 +65,22 @@ public class RegistrationController {
         } catch (Exception e) {
             message("Unable to load account roles: " + e.getMessage(), true);
         }
+        Platform.runLater(this::installResponsiveBranding);
     }
 
     private void applyBranding(){
         lblBrandName.setText(BrandingService.applicationName()); lblBrandTagline.setText(BrandingService.tagline()); lblBrandDescription.setText(BrandingService.loginDescription());
-        Image logo=BrandingService.applicationBrandImage(); if(logo!=null&&!logo.isError()){imgBrandLogo.setImage(logo);imgBrandLogo.setManaged(true);imgBrandLogo.setVisible(true);lblBrandMark.setManaged(false);lblBrandMark.setVisible(false);}
+        Image logo=BrandingService.applicationBrandImage(); if(logo!=null&&!logo.isError()){imgBrandLogo.setImage(logo);imgBrandLogo.setManaged(true);imgBrandLogo.setVisible(true);}
+        Image mark=BrandingService.applicationMarkImage(); boolean available=mark!=null&&!mark.isError();
+        imgBrandMark.setImage(available?mark:null); imgBrandMark.setManaged(available); imgBrandMark.setVisible(available);
+        if(brandMarkBox!=null){brandMarkBox.setManaged(available);brandMarkBox.setVisible(available);}
+        lblBrandMark.setManaged(false); lblBrandMark.setVisible(false);
+    }
+
+    private void installResponsiveBranding(){
+        if(brandPanel==null||brandPanel.getScene()==null)return;
+        Runnable resize=()->brandPanel.setPrefWidth(Math.max(360,Math.min(690,brandPanel.getScene().getWidth()*.46)));
+        brandPanel.getScene().widthProperty().addListener((o,a,b)->resize.run()); resize.run();
     }
 
     @FXML private void sendOtp() {

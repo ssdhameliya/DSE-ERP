@@ -16,6 +16,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextInputDialog;
 import javafx.stage.FileChooser;
 import org.example.api.returns.ReturnApiClient;
+import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.service.InvoicePdfService;
 import org.example.service.ReturnWorkflowService;
@@ -29,6 +30,7 @@ import java.util.Set;
 /** Details, refund processing and branded printing for one purchase return. */
 public class PurchaseReturnDetailsController {
     private final ReturnApiClient returnApi=new ReturnApiClient();
+    private final SupportApiClient supportApi=new SupportApiClient();
     public record Item(String name, String code, double qty, String unit,
                        double rate, double tax, double amount, String reason) {
     }
@@ -96,8 +98,8 @@ public class PurchaseReturnDetailsController {
         FileChooser chooser = new FileChooser();
         File file = chooser.showOpenDialog(table.getScene().getWindow());
         if (file != null) {
-            update("attachment_path", file.getAbsolutePath());
-            attachment.setText(file.getName());
+            try{supportApi.uploadReturnAttachment(no.getText(),file.toPath());attachment.setText(file.getName());load();}
+            catch(Exception exception){showError(exception);}
         }
     }
 
@@ -132,7 +134,7 @@ public class PurchaseReturnDetailsController {
         NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseReturns.fxml");
     }
 
-    private void update(String column,String value){if(!Set.of("notes","attachment_path").contains(column))return;try{returnApi.update(no.getText(),column,value);}catch(Exception exception){showError(exception);}}
+    private void update(String column,String value){if(!Set.of("notes").contains(column))return;try{returnApi.update(no.getText(),column,value);}catch(Exception exception){showError(exception);}}
 
     private String currency(double value) {
         return String.format("\u20B9 %,.2f", value);

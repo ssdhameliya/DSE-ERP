@@ -12,6 +12,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import org.example.api.support.SupportApiClient;
 import org.example.config.ConfigManager;
+import org.example.config.WorkspaceManager;
 import org.example.model.Purchase;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
@@ -180,14 +181,14 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             private final MenuButton actions = new MenuButton("Actions");
             private final MenuItem edit = new MenuItem("Edit Payment", IconFactory.compactIcon("edit", 14));
             private final MenuItem view = new MenuItem("View Proof", IconFactory.compactIcon("attachment", 14));
-            private final MenuItem folder = new MenuItem("Open Proof Folder", IconFactory.compactIcon("folder", 14));
+            private final MenuItem folder = new MenuItem("Remove Proof", IconFactory.compactIcon("delete", 14));
             {
                 actions.getStyleClass().addAll("approved-button", "approved-secondary-button", "row-actions");
                 actions.setGraphic(IconFactory.compactIcon("actions", 14));
                 actions.getItems().addAll(edit, view, folder);
                 edit.setOnAction(e -> editPayment(row()));
                 view.setOnAction(e -> openProof(row()));
-                folder.setOnAction(e -> openProofFolder(row()));
+                folder.setOnAction(e -> removeStoredProof(row()));
             }
             private PaymentRow row() {
                 int index = getIndex();
@@ -199,8 +200,8 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                 PaymentRow row = row();
                 boolean noProof = row == null || row.proofPath() == null || row.proofPath().isBlank();
                 view.setDisable(noProof);
-                folder.setDisable(noProof);
-                edit.setDisable(row == null || "BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType()));
+                boolean bankReconciliation=row!=null&&"BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType());folder.setDisable(noProof||bankReconciliation);
+                edit.setDisable(row == null || bankReconciliation);
                 setGraphic(actions);
             }
         });
@@ -251,25 +252,20 @@ public final class PurchasePaymentController implements ScreenLifecycle {
 
     @FXML private void save() {
         if (editingPayment != null) { saveEditedPayment(); return; }
-        Path storedProof = null;
         try {
             validatePayment();
             double value = parseAmount(amount.getText());
-            storedProof = selectedProof == null ? null : storeProof(selectedProof);
-            supportApi.recordPayment(new SupportApiClient.PaymentRequest(
+            int paymentId=supportApi.recordPaymentWithId(new SupportApiClient.PaymentRequest(
                     "PURCHASE", purchase.getId(), paymentDate.getValue().toString(), value, mode.getValue(),
                     reference.getText().trim(), persistedNotes(), paidTo.getText().trim(),
-                    fullPayment.isSelected() ? "FULL" : "PARTIAL",
-                    storedProof == null ? null : storedProof.toString(), "System"));
+                    fullPayment.isSelected() ? "FULL" : "PARTIAL", null, "System"));
+            String proofWarning=null;
+            if(selectedProof!=null){try{supportApi.uploadPaymentAttachment(paymentId,selectedProof);}catch(Exception proofError){proofWarning="Payment was saved, but the proof could not be uploaded: "+message(proofError);}}
             NotificationService.add("Supplier payment recorded for " + purchase.getInvoiceNo());
             org.example.util.ToastManager.success(amount, "Payment saved", "Supplier payment saved successfully.");
-            refreshInvoiceAmounts();
-            resetForm();
-            loadHistory();
-        } catch (Exception error) {
-            if (storedProof != null) try { Files.deleteIfExists(storedProof); } catch (Exception ignored) { }
-            new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();
-        }
+            refreshInvoiceAmounts(); resetForm(); loadHistory();
+            if(proofWarning!=null)new OwnedAlert(Alert.AlertType.WARNING,proofWarning).showAndWait();
+        } catch (Exception error) {new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();}
     }
 
     private void saveEditedPayment() {
@@ -299,8 +295,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         }
     }
 
-    private void persistEditedProof() throws IOException {if(editingPayment==null)return;String old=safe(editingPayment.proofPath());if(proofRemovalPending){supportApi.updatePaymentAttachment(editingPayment.id(),"");deleteManagedProofQuietly(old,null);proofRemovalPending=false;return;}if(selectedProof==null)return;Path stored=storeProof(selectedProof);try{supportApi.updatePaymentAttachment(editingPayment.id(),stored.toString());deleteManagedProofQuietly(old,stored);selectedProof=null;}catch(Exception error){try{Files.deleteIfExists(stored);}catch(Exception ignored){}throw error;}}
-    private void deleteManagedProofQuietly(String reference,Path replacement){try{if(reference==null||reference.isBlank())return;Path old=Path.of(reference).toAbsolutePath().normalize();Path root=ConfigManager.getConfigFolder().resolve("PaymentProofs").toAbsolutePath().normalize();if(old.startsWith(root)&&(replacement==null||!old.equals(replacement.toAbsolutePath().normalize())))Files.deleteIfExists(old);}catch(Exception ignored){}}
+    private void persistEditedProof() throws IOException {if(editingPayment==null)return;if(proofRemovalPending){supportApi.deletePaymentAttachment(editingPayment.id());proofRemovalPending=false;return;}if(selectedProof==null)return;supportApi.uploadPaymentAttachment(editingPayment.id(),selectedProof);selectedProof=null;}
 
     private void validatePayment() throws IOException {
         if (paymentDate.getValue() == null) throw new IllegalArgumentException("Select a payment date.");
@@ -336,15 +331,6 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         return userNotes.isBlank() ? account : account + " | " + userNotes;
     }
 
-    private Path storeProof(Path source) throws IOException {
-        String name = source.getFileName().toString();
-        int dot = name.lastIndexOf('.');
-        String ext = dot >= 0 ? name.substring(dot) : "";
-        Path dir = ConfigManager.getConfigFolder().resolve("PaymentProofs").resolve("Purchase").resolve(purchase.getInvoiceNo());
-        Files.createDirectories(dir);
-        Path target = dir.resolve(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmssSSS").format(BusinessClock.now()) + ext);
-        return Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-    }
 
     private void resetForm() {
         editingPayment = null;
@@ -429,7 +415,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         attachmentName.setText(path == null ? "No file selected" : path.getFileName().toString());
     }
 
-    @FXML private void previewProof(){try{Path path=selectedProof;if(path==null&&editingPayment!=null&&!proofRemovalPending&&!safe(editingPayment.proofPath()).isBlank())path=Path.of(editingPayment.proofPath());if(path==null)throw new IOException("No payment proof is attached.");if(!Files.isRegularFile(path))throw new IOException("The payment proof is unavailable.");Desktop.getDesktop().open(path.toFile());}catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}}
+    @FXML private void previewProof(){try{Path path=selectedProof;if(path==null&&editingPayment!=null&&!proofRemovalPending&&!safe(editingPayment.proofPath()).isBlank())path=materializePaymentProof(supportApi.paymentAttachment(editingPayment.id()));if(path==null)throw new IOException("No payment proof is attached.");if(!Files.isRegularFile(path))throw new IOException("The payment proof is unavailable.");Desktop.getDesktop().open(path.toFile());}catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}}
     @FXML private void removeProof(){boolean hasSelected=selectedProof!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.proofPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;selectedProof=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");}
 
     private void editPayment(PaymentRow row) {
@@ -464,25 +450,19 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     }
 
     private void openProof(PaymentRow row) {
-        try {
-            if (row == null || row.proofPath() == null || row.proofPath().isBlank()) return;
-            Path path = Path.of(row.proofPath());
-            if (!Files.isRegularFile(path)) throw new IOException("The stored payment proof is missing.");
-            Desktop.getDesktop().open(path.toFile());
-        } catch (Exception error) {
-            new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();
-        }
+        try{if(row==null||safe(row.proofPath()).isBlank())return;Path path=materializePaymentProof(supportApi.paymentAttachment(row.id()));if(path==null||!Files.isRegularFile(path))throw new IOException("The stored payment proof is missing.");Desktop.getDesktop().open(path.toFile());}
+        catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}
     }
 
-    private void openProofFolder(PaymentRow row) {
-        try {
-            if (row == null || row.proofPath() == null || row.proofPath().isBlank()) return;
-            Path parent = Path.of(row.proofPath()).getParent();
-            if (parent == null || !Files.isDirectory(parent)) throw new IOException("The proof folder is unavailable.");
-            Desktop.getDesktop().open(parent.toFile());
-        } catch (Exception error) {
-            new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();
-        }
+    private void removeStoredProof(PaymentRow row){
+        if(row==null||safe(row.proofPath()).isBlank()||"BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType()))return;
+        if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove this payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
+        try{supportApi.deletePaymentAttachment(row.id());loadHistory();org.example.util.ToastManager.success(historyTable,"Proof removed","Payment proof removed.");}
+        catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}
+    }
+
+    private Path materializePaymentProof(SupportApiClient.DownloadedAttachment download)throws IOException{
+        if(download==null||download.data()==null||download.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String raw=download.fileName()==null?"payment-proof":download.fileName();String name=raw.replaceAll("[^A-Za-z0-9._-]","_");if(name.isBlank())name="payment-proof";Path target=folder.resolve(System.currentTimeMillis()+"-"+name);Files.write(target,download.data());target.toFile().deleteOnExit();return target;
     }
 
     @FXML private void printInvoice() {

@@ -210,8 +210,8 @@ public final class PdfTemplateRenderer {
         cs.setLineWidth((float) Math.max(0.5, e.getStrokeWidth()));
         float x1 = (float) e.getX();
         float y1 = toPdfY(page, e.getY());
-        float x2 = (float) (e.getX() + e.getWidth());
-        float y2 = toPdfY(page, e.getY() + e.getHeight());
+        float x2 = (float) (e.getX() + (e.getWidth() <= 1.001 ? 0 : e.getWidth()));
+        float y2 = toPdfY(page, e.getY() + (e.getHeight() <= 1.001 ? 0 : e.getHeight()));
         cs.moveTo(x1, y1);
         cs.lineTo(x2, y2);
         cs.stroke();

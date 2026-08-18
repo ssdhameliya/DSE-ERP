@@ -20,6 +20,7 @@ public final class BrandAssetPolicy {
 
     public enum Role {
         APPLICATION_BANNER,
+        APPLICATION_MARK,
         COMPANY_LOGO,
         SIGNATURE,
         PAYMENT_QR
@@ -83,6 +84,10 @@ public final class BrandAssetPolicy {
                             + ". The application banner uses 5:1 and will center-crop the source to fill the complete width without stretching.");
                 }
             }
+            case APPLICATION_MARK -> {
+                if (width < 256 || height < 256) warnings.add("An application mark of at least 256 × 256 px is recommended.");
+                if (Math.abs(ratio - 1.0) > 0.15) warnings.add("Application marks work best as a square (1:1) image.");
+            }
             case COMPANY_LOGO -> {
                 if (width < 500) warnings.add("A company logo of at least 500 px width is recommended for crisp PDFs and previews.");
             }
@@ -101,6 +106,7 @@ public final class BrandAssetPolicy {
     public static String recommendation(Role role) {
         return switch (role) {
             case APPLICATION_BANNER -> "Recommended: 1600 × 320 (5:1). The preview is the same center-cropped, full-width presentation used on Splash/Login/Registration/Email screens.";
+            case APPLICATION_MARK -> "Recommended: transparent square PNG, 512 × 512. Used as the small application mark below the wide banner on authentication/startup screens.";
             case COMPANY_LOGO -> "Recommended: transparent PNG, at least 500 px wide. The full logo is always preserved and never cropped.";
             case SIGNATURE -> "Recommended: transparent PNG, 750 × 200 px or higher. Blank outer canvas is trimmed only while rendering the PDF; the stored signature file is never changed.";
             case PAYMENT_QR -> "Recommended: square PNG, at least 300 × 300 px. QR images are always displayed with contain semantics.";

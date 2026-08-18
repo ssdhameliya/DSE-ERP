@@ -3,7 +3,7 @@
 
     <top>
         <VBox spacing="10" styleClass="quotation-register-top,erp-transparent-section-stack">
-            <padding><Insets top="10" right="14" bottom="4" left="14"/></padding>
+            <padding><Insets top="14" right="14" bottom="0" left="14"/></padding>
 
             <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
                 <StackPane fx:id="pageIcon" styleClass="quotation-page-icon"/>
@@ -15,7 +15,15 @@
                 <Button fx:id="btnNewQuotation" text="New Quotation (F3)" onAction="#newQuotation" styleClass="quotation-primary-button"/>
             </HBox>
 
-            <HBox spacing="12" styleClass="quotation-metric-row,erp-kpi-section">
+
+        </VBox>
+    </top>
+
+    <center>
+        <SplitPane fx:id="mainSplit" dividerPositions="1" styleClass="quotation-register-split"><BorderPane.margin><Insets top="14" right="14" bottom="14" left="14"/></BorderPane.margin>
+            <items>
+                <VBox spacing="12" styleClass="quotation-register-workspace">
+                    <HBox spacing="12" styleClass="quotation-metric-row,erp-kpi-section">
                 <HBox spacing="12" alignment="CENTER_LEFT" styleClass="quotation-metric-card,quotation-metric-total" HBox.hgrow="ALWAYS">
                     <StackPane fx:id="totalMetricIcon" styleClass="quotation-metric-icon,total-quotation-icon"/>
                     <VBox spacing="4"><Label text="Total Quotations" styleClass="metric-label"/><Label fx:id="lblTotalValue" styleClass="metric-value"/><Label fx:id="lblTotalCount" styleClass="metric-note"/></VBox>
@@ -41,13 +49,6 @@
                     <VBox spacing="4"><Label text="Average Value" styleClass="metric-label"/><Label fx:id="lblAverage" styleClass="metric-value"/><Label text="All quotations" styleClass="metric-note"/></VBox>
                 </HBox>
             </HBox>
-        </VBox>
-    </top>
-
-    <center>
-        <SplitPane fx:id="mainSplit" dividerPositions="0.80" styleClass="quotation-register-split">
-            <items>
-                <VBox spacing="12" styleClass="quotation-register-workspace">
                     <VBox spacing="12" styleClass="quotation-filter-card,approved-filter-bar">
                         
 

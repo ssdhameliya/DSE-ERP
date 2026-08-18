@@ -258,12 +258,9 @@
                 <TextArea fx:id="txtInvoiceMessage" promptText="Optional invoice note..." wrapText="true"
                           prefRowCount="3" prefHeight="78" minHeight="68" maxHeight="96" maxWidth="Infinity"
                           styleClass="approved-input,sales-entry-note-area"/>
-                <HBox alignment="CENTER_RIGHT" spacing="6">
-                    <Button fx:id="btnSaveInvoiceNote" text="Save Note" onAction="#saveInvoiceNote"
-                            styleClass="approved-button,approved-secondary-button"/>
-                </HBox>
+                <Label text="Attached Document" styleClass="sales-entry-attachment-caption"/>
                 <HBox alignment="CENTER_LEFT" spacing="6">
-                    <Label fx:id="lblAttachmentName" text="No attachment" maxWidth="Infinity" HBox.hgrow="ALWAYS"
+                    <Label fx:id="lblAttachmentName" text="No attachment selected" maxWidth="Infinity" HBox.hgrow="ALWAYS"
                            textOverrun="ELLIPSIS" styleClass="sales-entry-attachment-name"/>
                     <Button fx:id="btnAttachmentAdd" text="Add" onAction="#attachFile" prefHeight="28"
                             styleClass="approved-button,approved-secondary-button"/>

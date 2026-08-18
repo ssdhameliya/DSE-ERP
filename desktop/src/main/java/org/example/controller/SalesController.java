@@ -53,9 +53,9 @@ import org.example.util.PlatformUiSupport;
 import org.example.util.UiTaskExecutor;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
@@ -165,7 +165,7 @@ public class SalesController {
     @FXML private Button btnRemoveLine, btnSaveDraft;
     @FXML private Button btnManageCharges;
     @FXML private Label lblChargeManagerSummary, lblAttachmentName;
-    @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove, btnSaveInvoiceNote;
+    @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove;
 
 
 
@@ -251,7 +251,6 @@ public class SalesController {
         if (btnAttachmentAdd != null) { btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment", 14)); btnAttachmentAdd.getProperties().put("erp-icon-preserve", true); }
         if (btnAttachmentPreview != null) { btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view", 14)); btnAttachmentPreview.getProperties().put("erp-icon-preserve", true); }
         if (btnAttachmentRemove != null) { btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete", 14)); btnAttachmentRemove.getProperties().put("erp-icon-preserve", true); }
-        if (btnSaveInvoiceNote != null) { btnSaveInvoiceNote.setGraphic(IconFactory.compactIcon("save", 14)); btnSaveInvoiceNote.getProperties().put("erp-icon-preserve", true); }
         refreshAttachmentUi();
         updateChargeManagerSummary();
 
@@ -1521,18 +1520,6 @@ public class SalesController {
 
     @FXML private void addMultipleItems(){new OwnedAlert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
     @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->{String value=code.trim();if(value.isBlank())return;UiTaskExecutor.submitLatest("create-sale-barcode-search",()->itemService.search(value,12),matches->matches.stream().filter(i->safeItem(i.getItemCode()).equalsIgnoreCase(value)).findFirst().ifPresentOrElse(i->{mergeItemCache(List.of(i));selectItem(i);},()->warn("Item code not found")),error->warn("Item search failed: "+rootMessage(error)));});}
-    @FXML private void saveInvoiceNote(){
-        String note=txtInvoiceMessage==null?"":txtInvoiceMessage.getText();
-        if(editingSale==null||editingSale.getId()<=0){
-            NotificationService.add("Invoice note is ready and will be saved with the Sale.");
-            return;
-        }
-        try{
-            supportApi.notes("SALE",editingSale.getId(),note);
-            editingSale.setNotes(note);
-            NotificationService.add("Invoice note saved for "+editingSale.getInvoiceNo()+".");
-        }catch(Exception e){warn("Unable to save invoice note: "+rootMessage(e));}
-    }
 
     @FXML private void attachFile(){
         if (viewMode) return;
@@ -1548,10 +1535,26 @@ public class SalesController {
 
     @FXML private void previewAttachment(){
         try{
-            Path file=pendingAttachment!=null?pendingAttachment.toPath():resolveAttachmentPath(currentAttachmentReference());
+            Path file;
+            if(pendingAttachment!=null) file=pendingAttachment.toPath();
+            else if(editingSale!=null&&editingSale.getId()>0) file=materializeAttachmentPreview(supportApi.documentAttachment("SALE",editingSale.getId()));
+            else file=null;
             if(file==null||!Files.isRegularFile(file)){warn("The attachment is not available. You can replace it with a new file.");return;}
             java.awt.Desktop.getDesktop().open(file.toFile());
         }catch(Exception e){warn("Attachment preview failed: "+rootMessage(e));}
+    }
+
+    private Path materializeAttachmentPreview(SupportApiClient.DownloadedAttachment downloaded) throws IOException {
+        if (downloaded == null || downloaded.data() == null || downloaded.data().length == 0) return null;
+        Path folder = WorkspaceManager.getTempFolder().resolve("AttachmentPreview");
+        Files.createDirectories(folder);
+        String raw = downloaded.fileName() == null ? "attachment" : downloaded.fileName();
+        String name = raw.replaceAll("[^A-Za-z0-9._() -]", "_").trim();
+        if (name.isBlank()) name = "attachment";
+        Path target = folder.resolve(System.currentTimeMillis() + "-" + name);
+        Files.write(target, downloaded.data());
+        target.toFile().deleteOnExit();
+        return target;
     }
 
     @FXML private void removeAttachment(){
@@ -1583,64 +1586,39 @@ public class SalesController {
         return "";
     }
 
+    private void persistAttachmentAfterSave(Sales sale){
+        if(sale==null)return;
+        Sales persisted=sale;
+        if(persisted.getId()<=0&&persisted.getInvoiceNo()!=null&&!persisted.getInvoiceNo().isBlank()){
+            Sales loaded=salesService.getByInvoice(persisted.getInvoiceNo());
+            if(loaded!=null)persisted=loaded;
+        }
+        int id=persisted.getId();
+        if(id<=0)throw new IllegalStateException("Sales attachment cannot be linked because the saved sale id is unavailable.");
+        if(attachmentRemovalPending){
+            supportApi.deleteDocumentAttachment("SALE",id);
+            sale.setAttachmentPath("");
+            if(editingSale!=null)editingSale.setAttachmentPath("");
+        }else if(pendingAttachment!=null){
+            String reference=supportApi.uploadDocumentAttachment("SALE",id,pendingAttachment.toPath());
+            sale.setAttachmentPath(reference);
+            if(editingSale!=null)editingSale.setAttachmentPath(reference);
+        }
+        pendingAttachment=null;
+        attachmentRemovalPending=false;
+        if(txtAttachment!=null)txtAttachment.setText(sale.getAttachmentPath()==null?"":sale.getAttachmentPath());
+        refreshAttachmentUi();
+    }
+
     private String attachmentDisplayName(String reference){
         if(reference==null||reference.isBlank())return "No attachment";
         try{Path path=Path.of(reference);Path name=path.getFileName();return name==null?reference:name.toString();}
         catch(Exception ignored){return reference;}
     }
 
-    private Path resolveAttachmentPath(String reference){
-        if(reference==null||reference.isBlank())return null;
-        Path path=Path.of(reference);
-        return path.isAbsolute()?path:WorkspaceManager.getWorkspaceRoot().resolve(path).normalize();
-    }
-
-    private String persistAttachmentAfterSave(Sales sale)throws Exception{
-        Sales persisted=sale.getId()>0?sale:salesService.getByInvoice(sale.getInvoiceNo());
-        if(persisted==null||persisted.getId()<=0)throw new IllegalStateException("Saved sale could not be reloaded for attachment update.");
-        String oldReference=editingSale==null?persisted.getAttachmentPath():editingSale.getAttachmentPath();
-        if(attachmentRemovalPending){
-            supportApi.attachment("SALE",persisted.getId(),"");
-            deleteManagedAttachmentQuietly(oldReference);
-            persisted.setAttachmentPath("");
-            if(editingSale!=null)editingSale.setAttachmentPath("");
-            attachmentRemovalPending=false;
-            refreshAttachmentUi();
-            return "";
-        }
-        if(pendingAttachment==null)return "";
-        Path source=pendingAttachment.toPath();
-        if(!Files.isRegularFile(source))throw new IllegalStateException("Selected attachment is no longer available.");
-        Path folder=WorkspaceManager.getAttachmentsFolder().resolve("Sales").resolve(safeAttachmentSegment(sale.getInvoiceNo()));
-        Files.createDirectories(folder);
-        String name=sanitizeAttachmentFileName(pendingAttachment.getName());
-        Path target=folder.resolve(System.currentTimeMillis()+"-"+name);
-        Files.copy(source,target,StandardCopyOption.REPLACE_EXISTING);
-        String reference=WorkspaceManager.getWorkspaceRoot().relativize(target).toString();
-        try{supportApi.attachment("SALE",persisted.getId(),reference);}
-        catch(Exception error){Files.deleteIfExists(target);throw error;}
-        deleteManagedAttachmentQuietly(oldReference);
-        persisted.setAttachmentPath(reference);
-        if(editingSale!=null)editingSale.setAttachmentPath(reference);
-        pendingAttachment=null;
-        if(txtAttachment!=null)txtAttachment.setText(reference);
-        refreshAttachmentUi();
-        return reference;
-    }
-
-    private void deleteManagedAttachmentQuietly(String reference){
-        try{
-            if(reference==null||reference.isBlank())return;
-            Path path=resolveAttachmentPath(reference);
-            Path attachments=WorkspaceManager.getAttachmentsFolder().toAbsolutePath().normalize();
-            if(path!=null&&path.toAbsolutePath().normalize().startsWith(attachments))Files.deleteIfExists(path);
-        }catch(Exception ignored){}
-    }
-
-    private String safeAttachmentSegment(String value){return value==null?"sale":value.replaceAll("[^A-Za-z0-9._-]","_");}
     private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
     @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
-    @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}
+    @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);persistAttachmentAfterSave(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}
 
 
     private boolean confirmAction(String title, String message) {

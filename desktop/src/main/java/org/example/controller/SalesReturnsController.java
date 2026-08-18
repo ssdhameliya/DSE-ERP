@@ -2,7 +2,6 @@ package org.example.controller;
 
 import org.example.util.BusinessClock;
 
-import org.example.util.OwnedTextInputDialog;
 
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -97,7 +96,6 @@ public class SalesReturnsController {
                 add("Send Email", "email", e -> email(row()));
                 add("View Original Sale", "sale", e -> original(row()));
                 add("Record Refund", "payment", e -> recordRefund(row()));
-                add("Attach Document", "attachment", e -> attach(row()));
                 add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row()));
                 add("Delete Return", "delete", e -> delete(row()));
@@ -205,14 +203,22 @@ public class SalesReturnsController {
 
     private void edit(Row row) { input(row.reason(), "Edit return reason - " + row.no(), "Reason:").ifPresent(value -> update(row.no(), "reason", value)); }
     private void notes(Row row) { input("", "Return notes - " + row.no(), "Notes:").ifPresent(value -> update(row.no(), "notes", value)); }
-    private void attach(Row row) { FileChooser chooser = new FileChooser(); File file = chooser.showOpenDialog(table.getScene().getWindow()); if (file != null) update(row.no(), "attachment_path", file.getAbsolutePath()); }
     private void original(Row row) { NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
-    private void recordRefund(Row row) { input(String.valueOf(Math.max(0, row.amount() - row.refund())), "Refund amount - " + row.no(), "Amount:").ifPresent(value -> { try { ReturnWorkflowService.recordRefund(row.no(), Double.parseDouble(value)); NotificationService.add(row.no() + " refund recorded."); load(); } catch (Exception e) { error(e); } }); }
+    private void recordRefund(Row row) { if(row==null)return; ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(), true); NotificationService.add(row.no() + " cancelled."); load(); } catch (Exception e) { error(e); } }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " and reverse every returned item?")) return; try { ReturnWorkflowService.delete(row.no(), true); load(); } catch (Exception e) { error(e); } }
     private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return."); EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",InvoicePdfService.refund(row.no(),true)); info("Sales return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
+    private Optional<String> input(String initial, String title, String prompt) {
+        TextInputDialog dialog = new TextInputDialog(initial == null ? "" : initial);
+        dialog.initOwner(table.getScene() == null ? null : table.getScene().getWindow());
+        dialog.setTitle(title);
+        dialog.setHeaderText(null);
+        dialog.setContentText(prompt);
+        return dialog.showAndWait().map(String::trim).filter(value -> !value.isBlank());
+    }
+
     private String partyEmail(String returnNo){ return supportApi.returnPartyEmail(returnNo); }
-    private void update(String returnNo,String column,String value){if(!Set.of("reason","notes","attachment_path").contains(column))return;try{returnApi.update(returnNo,column,value);load();}catch(Exception e){error(e);}}
+    private void update(String returnNo,String column,String value){if(!Set.of("reason","notes").contains(column))return;try{returnApi.update(returnNo,column,value);load();}catch(Exception e){error(e);}}
 
     @FXML private void export() {
         FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Sales_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
@@ -221,7 +227,6 @@ public class SalesReturnsController {
         catch (Exception e) { error(e); }
     }
 
-    private Optional<String> input(String initial,String title,String label){TextInputDialog dialog=new OwnedTextInputDialog(initial);dialog.setHeaderText(title);dialog.setContentText(label);return dialog.showAndWait();}
     private LocalDate parse(String value) { try { return LocalDate.parse(value); } catch (Exception e) { return LocalDate.MIN; } }
     private String csv(String value) { return '"' + safe(value).replace("\"", "\"\"") + '"'; }
     private String money(double value) { return String.format("₹ %,.2f", value); }

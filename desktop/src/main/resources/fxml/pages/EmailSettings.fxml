@@ -3,15 +3,17 @@
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.controller.EmailSettingsController" styleClass="auth-page,auth-standard-shell,approved-ui,approved-screen,approved-screen-email-settings,erp-screen-root">
 
     <left>
-        <VBox prefWidth="600" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel,auth-unified-brand-panel">
+        <VBox fx:id="brandPanel" prefWidth="600" minWidth="360" alignment="CENTER" spacing="18" styleClass="auth-brand-panel,auth-unified-brand-panel">
+            <Region VBox.vgrow="ALWAYS"/>
             <StackPane fx:id="brandLogoBox" minHeight="118" prefHeight="118" maxWidth="520" styleClass="auth-company-logo-box"><ImageView fx:id="imgBrandLogo" preserveRatio="false" smooth="true" managed="false" visible="false"/></StackPane>
-            <StackPane styleClass="auth-logo-badge"><Label fx:id="lblBrandMark" text="◆" styleClass="auth-logo-mark"/></StackPane>
+            <StackPane fx:id="brandMarkBox" managed="false" visible="false" styleClass="auth-logo-badge"><ImageView fx:id="imgBrandMark" preserveRatio="true" fitWidth="58" fitHeight="58" smooth="true"/><Label fx:id="lblBrandMark" text="◆" managed="false" visible="false" styleClass="auth-logo-mark"/></StackPane>
             <Label fx:id="lblBrandName" text="DSE ERP" styleClass="auth-brand-title"/>
             <Region prefHeight="2" maxWidth="80" styleClass="auth-brand-line"/>
             <Label fx:id="lblBrandTagline" text="Business Management Suite" styleClass="auth-brand-subtitle"/>
             <Label fx:id="lblBrandDescription" text="Business Management Suite" wrapText="true" textAlignment="CENTER" styleClass="auth-brand-quote"/>
-            <Region VBox.vgrow="ALWAYS"/>
+            <Region prefHeight="4"/>
             <Label fx:id="lblVersion" text="Version" styleClass="auth-version"/>
+            <Region VBox.vgrow="ALWAYS"/>
         </VBox>
     </left>
 

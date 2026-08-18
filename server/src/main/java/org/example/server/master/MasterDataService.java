@@ -38,8 +38,8 @@ public class MasterDataService {
         ensureCategory("EXPENSE_CATEGORY","EXPENSE CATEGORY","Expense classifications used by Expense Entry",140);
         ensureCategory("BANK_ACCOUNT","BANK ACCOUNT","Bank account master: lookup value = account number, description = bank name",150);
         ensureCategory("REFERENCE_FORMAT","REFERENCE FORMAT","Auto-generated reference number patterns. Use YYYY / YY for year and XX... for sequence digits.",160);
-        ensureReferenceFormat("REF_SALES",legacyFormat("SALES_INVOICE_FORMAT","IN/DD-MM-YYYY/XXXX"),"Sales invoice reference",10);
-        ensureReferenceFormat("REF_PURCHASE",legacyFormat("PURCHASE_INVOICE_FORMAT","PUR/DD-MM-YYYY/XXXX"),"Purchase invoice reference",20);
+        ensureReferenceFormat("REF_SALES","IN/DD-MM-YYYY/XXXX","Sales invoice reference",10);
+        ensureReferenceFormat("REF_PURCHASE","PUR/DD-MM-YYYY/XXXX","Purchase invoice reference",20);
         ensureReferenceFormat("REF_QUOTATION","QT-YYYY-XXXX","Quotation reference",30);
         ensureReferenceFormat("REF_SALES_RETURN","SAL-RET-YYYY-XXXX","Sales Return reference",40);
         ensureReferenceFormat("REF_PURCHASE_RETURN","PUR-RET-YYYY-XXXX","Purchase Return reference",50);
@@ -55,12 +55,6 @@ public class MasterDataService {
 
 
 
-    private String legacyFormat(String categoryCode,String fallback){
-        MasterCategoryEntity category=categories.findByCategoryCode(categoryCode).orElse(null);
-        if(category==null) return fallback;
-        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(category.getCategoryName()).stream()
-            .map(LookupEntity::getLookupValue).filter(value->value!=null&&!value.isBlank()).findFirst().orElse(fallback);
-    }
     private void ensureReferenceFormat(String lookupCode,String value,String description,int order){
         MasterCategoryEntity category=categories.findByCategoryCode("REFERENCE_FORMAT").orElse(null);
         if(category==null) return;
@@ -279,12 +273,15 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<MasterDtos.CategoryDto> categories() {
-        return categories.findAllByOrderByDisplayOrderAscCategoryNameAsc().stream().map(c -> categoryDto(c, lookups.countByLookupType(c.getCategoryName()), lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(c.getCategoryName()).stream().filter(v -> v.getActive() == null || v.getActive() != 0).count())).toList();
+        return categories.findAllByOrderByDisplayOrderAscCategoryNameAsc().stream()
+            .filter(c -> !Set.of("SALES_INVOICE_FORMAT","PURCHASE_INVOICE_FORMAT").contains(normal(c.getCategoryCode())))
+            .map(c -> categoryDto(c, lookups.countByLookupType(c.getCategoryName()), lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(c.getCategoryName()).stream().filter(v -> v.getActive() == null || v.getActive() != 0).count())).toList();
     }
 
     @Transactional
     public MasterDtos.CategoryDto addCategory(String name) {
         String n = normal(name), code = code(n);
+        if (Set.of("SALES INVOICE FORMAT","PURCHASE INVOICE FORMAT").contains(n)) throw new IllegalArgumentException("Invoice numbering is managed only by REFERENCE FORMAT.");
         if (categories.findByCategoryName(n).isPresent()) throw new IllegalArgumentException("Category already exists");
         MasterCategoryEntity e = new MasterCategoryEntity();
         e.setCategoryCode(code);
@@ -298,6 +295,7 @@ public class MasterDataService {
     public MasterDtos.CategoryDto renameCategory(String oldName, String newName) {
         MasterCategoryEntity c = categories.findByCategoryName(oldName).orElseThrow(() -> new IllegalArgumentException("Category not found"));
         String n = normal(newName);
+        if (Set.of("SALES INVOICE FORMAT","PURCHASE INVOICE FORMAT").contains(n)) throw new IllegalArgumentException("Invoice numbering is managed only by REFERENCE FORMAT.");
         List<LookupEntity> vals = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(oldName);
         if (!oldName.equalsIgnoreCase(n) && categories.findByCategoryName(n).isPresent()) {
             throw new IllegalArgumentException("Category already exists");

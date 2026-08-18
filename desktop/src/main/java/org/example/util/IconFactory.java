@@ -141,6 +141,13 @@ public final class IconFactory {
         }
 
         if (node instanceof ButtonBase button) {
+            // Explicit controller-owned graphics (password reveal, resend, etc.)
+            // must never be replaced by semantic inference from CSS/text.
+            if ((Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))
+                    || Boolean.TRUE.equals(button.getProperties().get("erp-icon-preserve")))
+                    && button.getGraphic() != null) {
+                return;
+            }
             String semantic = semantic(button);
             String originalText = clean(button.getText());
             // v3.0.4 guarantees a visible semantic graphic on every actionable

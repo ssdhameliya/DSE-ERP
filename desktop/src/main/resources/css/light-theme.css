@@ -4107,7 +4107,10 @@
 }
 
 .auth-version {
-    -fx-text-fill: rgba(255,255,255,.8);
+    -fx-text-fill: #ffffff;
+    -fx-background-color: rgba(255,255,255,.18);
+    -fx-border-color: rgba(255,255,255,.25);
+    -fx-border-radius: 14;
 }
 
 .auth-card {

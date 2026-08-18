@@ -41,7 +41,7 @@
     </top>
 
     <left>
-        <VBox prefWidth="285" minWidth="260" maxWidth="320" spacing="14"
+        <VBox prefWidth="372" minWidth="350" maxWidth="410" spacing="14"
               styleClass="sidebar,master-category-panel">
             <BorderPane.margin><Insets top="6" right="0" bottom="14" left="14"/></BorderPane.margin>
             

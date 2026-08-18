@@ -53,9 +53,9 @@ public class LoginController {
     @FXML private Label lblResetIdentityError, lblResetOtpError, lblNewPasswordError, lblConfirmPasswordError;
     @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription, lblBrandQuote;
     @FXML private Label lblFooterCompany, lblFooterPhone, lblFooterEmail, lblFooterWebsite;
-    @FXML private ImageView imgBrandLogo, imgLoginLogo;
+    @FXML private ImageView imgBrandLogo, imgBrandMark, imgLoginLogo;
     @FXML private VBox brandPanel;
-    @FXML private StackPane brandLogoBox, loginLogoBox;
+    @FXML private StackPane brandLogoBox, brandMarkBox, loginLogoBox;
     @FXML private Button btnLogin, btnRegister, btnEmailSettings, btnForgotPassword;
     @FXML private Button btnSendResetOtp, btnResetPassword, btnBackToLogin;
     @FXML private VBox loginPanel, resetPanel, otpPanel;
@@ -70,6 +70,7 @@ public class LoginController {
     @FXML public void initialize() {
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
         BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox);
+        BrandImagePresenter.contain(imgBrandMark, brandMarkBox);
         BrandImagePresenter.applicationBanner(imgLoginLogo, loginLogoBox);
         applyBranding();
 
@@ -179,6 +180,7 @@ public class LoginController {
         if (lblBrandDescription != null) lblBrandDescription.setText(BrandingService.loginDescription());
         if (lblBrandQuote != null) lblBrandQuote.setText(BrandingService.loginDescription());
         Image logo = BrandingService.applicationBrandImage();
+        Image mark = BrandingService.applicationMarkImage();
         if (lblFooterCompany != null) lblFooterCompany.setText(BrandingService.companyName());
         if (lblFooterPhone != null) lblFooterPhone.setText("Phone: " + configured("company.phone"));
         if (lblFooterEmail != null) lblFooterEmail.setText("Email: " + configured("company.email"));
@@ -186,10 +188,24 @@ public class LoginController {
         if (logo != null && !logo.isError()) {
             showLogo(imgBrandLogo, logo);
             showLogo(imgLoginLogo, logo);
-            if (lblBrandMark != null) { lblBrandMark.setManaged(false); lblBrandMark.setVisible(false); }
-        } else if (lblBrandMark != null) {
-            lblBrandMark.setManaged(true);
-            lblBrandMark.setVisible(true);
+        }
+        showApplicationMark(mark);
+    }
+
+    private void showApplicationMark(Image mark) {
+        boolean available = mark != null && !mark.isError();
+        if (imgBrandMark != null) {
+            imgBrandMark.setImage(available ? mark : null);
+            imgBrandMark.setManaged(available);
+            imgBrandMark.setVisible(available);
+        }
+        if (brandMarkBox != null) {
+            brandMarkBox.setManaged(available);
+            brandMarkBox.setVisible(available);
+        }
+        if (lblBrandMark != null) {
+            lblBrandMark.setManaged(false);
+            lblBrandMark.setVisible(false);
         }
     }
 

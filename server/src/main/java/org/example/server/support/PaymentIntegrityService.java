@@ -23,7 +23,7 @@ public class PaymentIntegrityService {
     }
 
     @Transactional
-    public void record(SupportDtos.PaymentRequest request) {
+    public int record(SupportDtos.PaymentRequest request) {
         if (request == null) throw new IllegalArgumentException("Payment details are required");
         DocumentType type = DocumentType.parse(request.documentType());
         if (request.documentId() <= 0) throw new IllegalArgumentException("A valid document is required");
@@ -47,14 +47,16 @@ public class PaymentIntegrityService {
         if (amount.compareTo(outstanding) > 0)
             throw new IllegalArgumentException("Payment exceeds the outstanding balance of " + outstanding.toPlainString());
 
-        jdbc.update("INSERT INTO payment_record(document_type,document_id,payment_date,amount,payment_mode,reference_no," +
-                        "notes,received_from,payment_type,attachment_path,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        Integer paymentId = jdbc.queryForObject("INSERT INTO payment_record(document_type,document_id,payment_date,amount,payment_mode,reference_no," +
+                        "notes,received_from,payment_type,attachment_path,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?) RETURNING id", Integer.class,
                 type.name(), request.documentId(), date, amount, mode, clean(request.reference()), clean(request.notes()),
-                clean(request.receivedFrom()), clean(request.paymentType()), clean(request.attachment()), CurrentUser.require().username());
+                clean(request.receivedFrom()), clean(request.paymentType()), null, CurrentUser.require().username());
         BigDecimal paid = target.paid.add(amount).setScale(2, RoundingMode.HALF_UP);
         String status = paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
         if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=? WHERE id=?",
                 paid, status, BusinessClock.nowUtcText(), request.documentId()) != 1) throw new IllegalStateException("Payment target changed while saving");
+        if (paymentId == null || paymentId <= 0) throw new IllegalStateException("Payment id was not returned after saving");
+        return paymentId;
     }
 
     @Transactional

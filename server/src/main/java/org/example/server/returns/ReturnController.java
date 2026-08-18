@@ -7,62 +7,20 @@ import java.util.*;
 @RequestMapping("/api/returns")
 public class ReturnController {
     private final ReturnService service;
+    public ReturnController(ReturnService service) { this.service = service; }
 
-    public ReturnController(ReturnService service) {
-        this.service = service;
-    }
+    @GetMapping public List<ReturnDtos.Summary> list(@RequestParam String type) { service.requireTypeAccess(type); return service.summaries(type); }
+    @GetMapping("/returned") public Map<String,Double> returned(@RequestParam String type,@RequestParam String invoice){service.requireTypeAccess(type);return service.returned(type,invoice);}
+    @PostMapping public ReturnDtos.Created create(@RequestBody ReturnDtos.CreateRequest request){service.requireTypeAccess(request==null?null:request.type());return service.create(request);}
+    @GetMapping("/{no}") public ReturnDtos.Details details(@PathVariable String no){service.requireAccess(no);return service.details(no);}
+    @PutMapping("/{no}") public ReturnDtos.Ok update(@PathVariable String no,@RequestBody ReturnDtos.UpdateRequest request){service.requireAccess(no);service.update(no,request.field(),request.value());return ok("Updated");}
 
-    @GetMapping
-    public List<ReturnDtos.Summary> list(@RequestParam String type) {
-        service.requireTypeAccess(type);
-        return service.summaries(type);
-    }
+    /** Legacy amount-only endpoint retained for compatibility; new UI uses the auditable refund ledger endpoint below. */
+    @PostMapping("/{no}/refund") public ReturnDtos.Ok refund(@PathVariable String no,@RequestBody ReturnDtos.RefundRequest request){service.requireAccess(no);service.refund(no,request.amount());return ok("Recorded");}
+    @GetMapping("/{no}/refunds") public List<ReturnDtos.RefundRow> refunds(@PathVariable String no){service.requireAccess(no);return service.refunds(no);}
+    @PostMapping("/{no}/refunds") public ReturnDtos.RefundCreated recordRefund(@PathVariable String no,@RequestBody ReturnDtos.RefundCreateRequest request){service.requireAccess(no);return new ReturnDtos.RefundCreated(service.recordRefund(no,request));}
 
-    @GetMapping("/returned")
-    public Map<String, Double> returned(@RequestParam String type, @RequestParam String invoice) {
-        service.requireTypeAccess(type);
-        return service.returned(type, invoice);
-    }
-
-    @PostMapping
-    public ReturnDtos.Created create(@RequestBody ReturnDtos.CreateRequest request) {
-        service.requireTypeAccess(request == null ? null : request.type());
-        return service.create(request);
-    }
-
-    @GetMapping("/{no}")
-    public ReturnDtos.Details details(@PathVariable String no) {
-        service.requireAccess(no);
-        return service.details(no);
-    }
-
-    @PutMapping("/{no}")
-    public ReturnDtos.Ok update(@PathVariable String no, @RequestBody ReturnDtos.UpdateRequest request) {
-        service.requireAccess(no);
-        service.update(no, request.field(), request.value());
-        return ok("Updated");
-    }
-
-    @PostMapping("/{no}/refund")
-    public ReturnDtos.Ok refund(@PathVariable String no, @RequestBody ReturnDtos.RefundRequest request) {
-        service.requireAccess(no);
-        service.refund(no, request.amount());
-        return ok("Recorded");
-    }
-
-    @PostMapping("/{no}/cancel")
-    public ReturnDtos.Ok cancel(@PathVariable String no, @RequestParam boolean sales) {
-        service.cancel(no, sales);
-        return ok("Cancelled");
-    }
-
-    @DeleteMapping("/{no}")
-    public ReturnDtos.Ok delete(@PathVariable String no, @RequestParam boolean sales) {
-        service.delete(no, sales);
-        return ok("Deleted");
-    }
-
-    private ReturnDtos.Ok ok(String message) {
-        return new ReturnDtos.Ok(true, message);
-    }
+    @PostMapping("/{no}/cancel") public ReturnDtos.Ok cancel(@PathVariable String no,@RequestParam boolean sales){service.cancel(no,sales);return ok("Cancelled");}
+    @DeleteMapping("/{no}") public ReturnDtos.Ok delete(@PathVariable String no,@RequestParam boolean sales){service.delete(no,sales);return ok("Deleted");}
+    private ReturnDtos.Ok ok(String message){return new ReturnDtos.Ok(true,message);}
 }

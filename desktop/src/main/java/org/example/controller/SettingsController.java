@@ -208,7 +208,9 @@ public class SettingsController implements ScreenLifecycle {
     private ImageView imgCompanyLogo;
 
     @FXML private ImageView imgApplicationBrand;
+    @FXML private ImageView imgApplicationMark;
     @FXML private StackPane applicationBrandPreview;
+    @FXML private StackPane applicationMarkPreview;
     @FXML private StackPane companyLogoPreview;
     @FXML private StackPane signaturePreview;
     @FXML private StackPane paymentQrPreview;
@@ -223,6 +225,7 @@ public class SettingsController implements ScreenLifecycle {
     private VBox placeholderCompanyLogo;
 
     @FXML private VBox placeholderApplicationBrand;
+    @FXML private VBox placeholderApplicationMark;
 
     @FXML
     private VBox placeholderSignature;
@@ -234,6 +237,7 @@ public class SettingsController implements ScreenLifecycle {
     private Label lblLogoFile;
 
     @FXML private Label lblApplicationBrandFile;
+    @FXML private Label lblApplicationMarkFile;
 
     @FXML
     private Label lblSignatureFile;
@@ -308,6 +312,9 @@ public class SettingsController implements ScreenLifecycle {
     private static final String APPLICATION_BRAND_PATH_KEY =
         "application.brandImagePath";
 
+    private static final String APPLICATION_MARK_PATH_KEY =
+        "application.markImagePath";
+
     private static final String SIGNATURE_PATH_KEY =
         "company.signaturePath";
 
@@ -371,6 +378,8 @@ public class SettingsController implements ScreenLifecycle {
                 selectComboValue(cmbBusinessType, ConfigManager.get("company.businessType", "Proprietorship"));
                 selectComboValue(cmbIndustry, ConfigManager.get("company.industry", "Manufacturing"));
                 dpFinancialYearStart.setValue(parseDate(ConfigManager.get("company.financialYearStart", "")));
+                BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
+                BrandImagePresenter.contain(imgApplicationMark, applicationMarkPreview);
                 refreshAllAssetPreviewsAsync();
             }
             case PAYMENT -> {
@@ -400,7 +409,6 @@ public class SettingsController implements ScreenLifecycle {
                 // Configure them only after that fragment has injected its controls.
                 BrandImagePresenter.contain(imgCompanyLogo, companyLogoPreview);
                 BrandImagePresenter.contain(imgSignature, signaturePreview);
-                BrandImagePresenter.applicationBannerPreview(imgApplicationBrand, applicationBrandPreview);
                 refreshAllAssetPreviewsAsync();
             }
             case NOTIFICATIONS -> {
@@ -506,6 +514,19 @@ public class SettingsController implements ScreenLifecycle {
     @FXML
     private void removeApplicationBrand() {
         removeConfiguredAsset(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile);
+    }
+
+    @FXML
+    private void uploadApplicationMark() {
+        selectAndStoreImage(APPLICATION_MARK_PATH_KEY, "application-mark", imgApplicationMark, placeholderApplicationMark, lblApplicationMarkFile, BrandAssetPolicy.Role.APPLICATION_MARK);
+    }
+
+    @FXML
+    private void previewApplicationMark() { previewConfiguredAsset(APPLICATION_MARK_PATH_KEY, "application mark"); }
+
+    @FXML
+    private void removeApplicationMark() {
+        removeConfiguredAsset(APPLICATION_MARK_PATH_KEY, imgApplicationMark, placeholderApplicationMark, lblApplicationMarkFile);
     }
 
     @FXML
@@ -830,6 +851,8 @@ public class SettingsController implements ScreenLifecycle {
         List<AssetPreviewRequest> requests = new ArrayList<>();
         if (imgApplicationBrand != null && placeholderApplicationBrand != null && lblApplicationBrandFile != null)
             requests.add(new AssetPreviewRequest(APPLICATION_BRAND_PATH_KEY, imgApplicationBrand, placeholderApplicationBrand, lblApplicationBrandFile, BrandAssetPolicy.Role.APPLICATION_BANNER));
+        if (imgApplicationMark != null && placeholderApplicationMark != null && lblApplicationMarkFile != null)
+            requests.add(new AssetPreviewRequest(APPLICATION_MARK_PATH_KEY, imgApplicationMark, placeholderApplicationMark, lblApplicationMarkFile, BrandAssetPolicy.Role.APPLICATION_MARK));
         if (imgCompanyLogo != null && placeholderCompanyLogo != null && lblLogoFile != null)
             requests.add(new AssetPreviewRequest(LOGO_PATH_KEY, imgCompanyLogo, placeholderCompanyLogo, lblLogoFile, BrandAssetPolicy.Role.COMPANY_LOGO));
         if (imgSignature != null && placeholderSignature != null && lblSignatureFile != null)
@@ -947,12 +970,14 @@ public class SettingsController implements ScreenLifecycle {
     private Image loadPreviewImage(Path path, BrandAssetPolicy.Role role) throws Exception {
         double requestedWidth = switch (role) {
             case APPLICATION_BANNER -> 1200.0;
+            case APPLICATION_MARK -> 420.0;
             case COMPANY_LOGO -> 720.0;
             case SIGNATURE -> 720.0;
             case PAYMENT_QR -> 420.0;
         };
         double requestedHeight = switch (role) {
             case APPLICATION_BANNER -> 320.0;
+            case APPLICATION_MARK -> 420.0;
             case COMPANY_LOGO -> 260.0;
             case SIGNATURE -> 260.0;
             case PAYMENT_QR -> 420.0;

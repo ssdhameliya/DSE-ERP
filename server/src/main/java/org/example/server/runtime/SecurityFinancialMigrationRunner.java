@@ -47,7 +47,15 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V7_3_17_1__canonical_login_timestamp",
                     "db/migration/V7_3_17_1__canonical_login_timestamp.sql"),
             new Migration("V7_3_18__purchase_invoice_format",
-                    "db/migration/V7_3_18__purchase_invoice_format.sql")
+                    "db/migration/V7_3_18__purchase_invoice_format.sql"),
+            new Migration("V7_30_28__central_reference_and_quotation_attachment",
+                    "db/migration/V7_30_28__central_reference_and_quotation_attachment.sql"),
+            new Migration("V7_30_29__return_refunds_and_reference_cleanup",
+                    "db/migration/V7_30_29__return_refunds_and_reference_cleanup.sql"),
+            new Migration("V7_30_30__quotation_runtime_repair",
+                    "db/migration/V7_30_30__quotation_runtime_repair.sql"),
+            new Migration("V7_30_31__release_schema_guard",
+                    "db/migration/V7_30_31__release_schema_guard.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -100,6 +108,27 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("reminder_register", "updated_at");
         requireColumn("purchase_header", "inventory_posted");
         requireColumn("users", "last_login_utc");
+        requireTable("return_refund");
+        requireColumn("return_refund", "attachment_path");
+        requireColumn("return_refund", "bank_statement_transaction_id");
+        requireColumn("quotation_header", "attachment_path");
+        requireColumn("quotation_header", "follow_up_date");
+        requireColumn("quotation_header", "converted_invoice_no");
+        requireColumn("quotation_header", "discount_amount");
+        requireColumn("quotation_line", "discount_percent");
+    }
+
+    private void requireTable(String table) {
+        Long count = database.queryForObject("""
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                  AND table_name = ?
+                """, Long.class, table);
+        if (count == null || count == 0) {
+            throw new IllegalStateException(
+                    "Required database table is missing after migration: " + table);
+        }
     }
 
     private void requireColumn(String table, String column) {

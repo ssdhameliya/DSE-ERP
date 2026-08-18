@@ -41,7 +41,6 @@ import org.example.config.WorkspaceManager;
 import org.example.util.PlatformUiSupport;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -538,8 +537,6 @@ public class PurchaseController {
         if(purchase == null) return;
         purchase.setDocumentStatus(documentStatus);
 
-        Path copiedAttachment = null;
-        String oldAttachment = editingPurchase == null ? null : editingPurchase.getAttachmentPath();
         boolean persisted = false;
         try {
             if(editingPurchase != null){
@@ -551,13 +548,6 @@ public class PurchaseController {
                 purchase.setInvoiceNo(freshInvoiceNo);
             }
 
-            if (attachment != null) {
-                copiedAttachment = copyManagedPurchaseAttachment(attachment.toPath(), purchase.getInvoiceNo());
-                purchase.setAttachmentPath(WorkspaceManager.getWorkspaceRoot().relativize(copiedAttachment).toString());
-            } else if (attachmentRemoved) {
-                purchase.setAttachmentPath(null);
-            }
-
             if(editingPurchase != null){
                 purchaseService.update(purchase);
                 NotificationService.add("Purchase " + purchase.getInvoiceNo() + " updated");
@@ -566,10 +556,17 @@ public class PurchaseController {
                 NotificationService.add("Purchase " + purchase.getInvoiceNo() + " saved");
             }
             persisted = true;
-            if (copiedAttachment != null || attachmentRemoved) deleteManagedAttachmentQuietly(oldAttachment, copiedAttachment);
+            Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
+            if (full == null || full.getId() <= 0) throw new IllegalStateException("Saved purchase could not be reloaded for attachment update.");
+            if (attachmentRemoved) {
+                supportApi.deleteDocumentAttachment("PURCHASE", full.getId());
+                full.setAttachmentPath("");
+            } else if (attachment != null) {
+                String reference = supportApi.uploadDocumentAttachment("PURCHASE", full.getId(), attachment.toPath());
+                full.setAttachmentPath(reference);
+            }
 
             if (!org.example.config.ConfigManager.isApiDataEnabled()) saveMetadata(purchase);
-            Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
             if(print) java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());
             if(email){
                 if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())throw new IllegalStateException("Supplier email is missing");
@@ -580,7 +577,6 @@ public class PurchaseController {
             org.example.util.ToastManager.success(tableLines,"Purchase saved","Purchase saved successfully.");
             NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
         } catch(Exception e){
-            if(!persisted && copiedAttachment != null){try{Files.deleteIfExists(copiedAttachment);}catch(Exception ignored){}}
             new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
         }
     }
@@ -622,31 +618,6 @@ public class PurchaseController {
         return purchase;
     }
 
-    private Path copyManagedPurchaseAttachment(Path source,String invoiceNo)throws Exception{
-        if(source==null||!Files.isRegularFile(source))throw new IllegalStateException("Selected purchase attachment is no longer available.");
-        Path folder=WorkspaceManager.getAttachmentsFolder().resolve("Purchase").resolve(safeAttachmentSegment(invoiceNo));
-        Files.createDirectories(folder);
-        String name=sanitizeAttachmentFileName(source.getFileName()==null?"attachment":source.getFileName().toString());
-        Path target=folder.resolve(System.currentTimeMillis()+"-"+name);
-        return Files.copy(source,target,StandardCopyOption.REPLACE_EXISTING);
-    }
-
-    private void deleteManagedAttachmentQuietly(String reference,Path replacement){
-        try{
-            if(reference==null||reference.isBlank())return;
-            Path old=resolvePurchaseAttachment(reference);
-            Path attachments=WorkspaceManager.getAttachmentsFolder().toAbsolutePath().normalize();
-            if(old!=null&&old.toAbsolutePath().normalize().startsWith(attachments)
-                    &&(replacement==null||!old.toAbsolutePath().normalize().equals(replacement.toAbsolutePath().normalize())))Files.deleteIfExists(old);
-        }catch(Exception ignored){}
-    }
-
-    private Path resolvePurchaseAttachment(String reference){
-        if(reference==null||reference.isBlank())return null;
-        Path path=Path.of(reference);
-        return path.isAbsolute()?path:WorkspaceManager.getWorkspaceRoot().resolve(path).normalize();
-    }
-    private String safeAttachmentSegment(String value){return value==null?"purchase":value.replaceAll("[^A-Za-z0-9._-]","_");}
     private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
 
     private void saveMetadata(Purchase p) { purchaseService.update(p); }
@@ -670,36 +641,28 @@ public class PurchaseController {
             NotificationService.add(attachmentRemoved?"Purchase attachment removal will be saved with the Purchase.":"Purchase attachment is ready and will be saved with the Purchase.");
             return;
         }
-        Path copied=null;
         try{
-            String oldRef=editingPurchase.getAttachmentPath();
             if(attachmentRemoved){
-                supportApi.attachment("PURCHASE",editingPurchase.getId(),"");
-                deleteManagedAttachmentQuietly(oldRef,null);
-                editingPurchase.setAttachmentPath(null);
+                supportApi.deleteDocumentAttachment("PURCHASE",editingPurchase.getId());
+                editingPurchase.setAttachmentPath("");
                 attachment=null; attachmentRemoved=false;
                 if(lblAttachment!=null)lblAttachment.setText("No document selected");
                 NotificationService.add("Purchase attachment removed for "+editingPurchase.getInvoiceNo()+".");
                 return;
             }
             if(attachment==null){warn("Choose an attachment first.");return;}
-            copied=copyManagedPurchaseAttachment(attachment.toPath(),editingPurchase.getInvoiceNo());
-            String managed=WorkspaceManager.getWorkspaceRoot().toAbsolutePath().normalize().relativize(copied.toAbsolutePath().normalize()).toString();
-            supportApi.attachment("PURCHASE",editingPurchase.getId(),managed);
-            deleteManagedAttachmentQuietly(oldRef,copied);
-            editingPurchase.setAttachmentPath(managed);
+            String reference=supportApi.uploadDocumentAttachment("PURCHASE",editingPurchase.getId(),attachment.toPath());
+            editingPurchase.setAttachmentPath(reference);
+            if(lblAttachment!=null)lblAttachment.setText(attachment.getName());
             attachment=null; attachmentRemoved=false;
-            if(lblAttachment!=null)lblAttachment.setText(copied.getFileName().toString());
             NotificationService.add("Purchase attachment saved for "+editingPurchase.getInvoiceNo()+".");
-        }catch(Exception e){
-            if(copied!=null){try{Files.deleteIfExists(copied);}catch(Exception ignored){}}
-            warn("Unable to save purchase attachment: "+e.getMessage());
-        }
+        }catch(Exception e){warn("Unable to save purchase attachment: "+e.getMessage());}
     }
     @FXML private void viewAttachment(){
-        try{Path path=attachment!=null?attachment.toPath():attachmentRemoved||editingPurchase==null?null:resolvePurchaseAttachment(editingPurchase.getAttachmentPath());if(path==null||!Files.isRegularFile(path)){warn("No purchase attachment is available.");return;}java.awt.Desktop.getDesktop().open(path.toFile());}
+        try{Path path;if(attachment!=null)path=attachment.toPath();else if(!attachmentRemoved&&editingPurchase!=null&&editingPurchase.getId()>0)path=materializePurchaseAttachment(supportApi.documentAttachment("PURCHASE",editingPurchase.getId()));else path=null;if(path==null||!Files.isRegularFile(path)){warn("No purchase attachment is available.");return;}java.awt.Desktop.getDesktop().open(path.toFile());}
         catch(Exception e){warn("Unable to open the purchase attachment: "+e.getMessage());}
     }
+    private Path materializePurchaseAttachment(SupportApiClient.DownloadedAttachment download)throws Exception{if(download==null||download.data()==null||download.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String name=sanitizeAttachmentFileName(download.fileName());Path target=folder.resolve(System.currentTimeMillis()+"-"+name);Files.write(target,download.data());target.toFile().deleteOnExit();return target;}
     @FXML private void removeAttachment(){
         boolean hasAttachment = attachment != null
             || (!attachmentRemoved && editingPurchase != null && editingPurchase.getAttachmentPath() != null

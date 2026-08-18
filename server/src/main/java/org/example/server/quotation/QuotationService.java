@@ -31,13 +31,13 @@ public class QuotationService {
                 "COALESCE(CAST(q.valid_until AS text),''),COALESCE(q.status,''),COALESCE(CAST(q.follow_up_date AS text),'')," +
                 "COALESCE(q.converted_invoice_no,''),COALESCE(q.salesperson,''),COALESCE(q.created_by,'')," +
                 "COALESCE(q.total_amount,0),COALESCE(p.phone,''),COALESCE(p.email,''),COALESCE(p.gstin,'')," +
-                "COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0) " +
+                "COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,'') " +
                 "FROM quotation_header q JOIN party_master p ON p.id=q.customer_id " +
                 "WHERE UPPER(COALESCE(q.status,''))<>'DELETED' ORDER BY q.quotation_date DESC,q.id DESC",
                 (r, i) -> new QuotationDtos.QuoteDto(r.getInt(1), r.getInt(2), r.getString(3), r.getString(4),
                         r.getString(5), r.getString(6), r.getString(7), r.getString(8), r.getString(9),
                         r.getString(10), r.getString(11), r.getDouble(12), r.getString(13), r.getString(14),
-                        r.getString(15), r.getString(16), r.getString(17), r.getDouble(18)));
+                        r.getString(15), r.getString(16), r.getString(17), r.getDouble(18), r.getString(19)));
     }
 
     @Transactional(readOnly = true)

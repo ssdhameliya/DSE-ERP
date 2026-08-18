@@ -2,7 +2,6 @@ package org.example.controller;
 
 import org.example.util.BusinessClock;
 
-import org.example.util.OwnedTextInputDialog;
 
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -101,7 +100,7 @@ public class PurchaseReturnsController {
                 add("View Details", "view", e -> showDetails(row())); add("Edit Return", "edit", e -> edit(row()));
                 add("Print / PDF", "print", e -> pdf(row())); add("Send Email", "email", e -> email(row()));
                 add("View Original Purchase", "purchase", e -> original(row())); add("Record Refund", "payment", e -> recordRefund(row()));
-                add("Attach Document", "attachment", e -> attach(row())); add("Notes / Remarks", "document", e -> notes(row()));
+ add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row())); add("Delete Return", "delete", e -> delete(row()));
                 menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));
             }
@@ -160,18 +159,29 @@ public class PurchaseReturnsController {
     private void original(Row row) { PurchaseScreenContext.select(row.invoice()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void edit(Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
     private void notes(Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }
-    private void attach(Row row) { FileChooser chooser = new FileChooser(); File file = chooser.showOpenDialog(table.getScene().getWindow()); if (file != null) update(row.no(), "attachment_path", file.getAbsolutePath()); }
     private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
     private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",InvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
+    private Optional<String> input(String title, String prompt) {
+        return input("", title, prompt);
+    }
+
+    private Optional<String> input(String initial, String title, String prompt) {
+        TextInputDialog dialog = new TextInputDialog(initial == null ? "" : initial);
+        dialog.initOwner(table.getScene() == null ? null : table.getScene().getWindow());
+        dialog.setTitle(title);
+        dialog.setHeaderText(null);
+        dialog.setContentText(prompt);
+        return dialog.showAndWait().map(String::trim).filter(value -> !value.isBlank());
+    }
+
     private String partyEmail(String returnNo){return supportApi.returnPartyEmail(returnNo);}
-    private void recordRefund(Row row) { TextInputDialog dialog = new OwnedTextInputDialog(String.valueOf(Math.max(0, row.total() - row.refund()))); dialog.setHeaderText("Refund amount - " + row.no()); dialog.showAndWait().ifPresent(value -> { try { ReturnWorkflowService.recordRefund(row.no(),Double.parseDouble(value)); NotificationService.add(row.no()+" refund recorded."); load(); } catch (Exception e) { error(e); } }); }
+    private void recordRefund(Row row) { if(row==null)return; ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(),false); NotificationService.add(row.no()+" cancelled."); load(); } catch(Exception e){error(e);} }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " and reverse every returned item?")) return; try { ReturnWorkflowService.delete(row.no(),false); load(); } catch (Exception e) { error(e); } }
-    private void update(String no,String column,String value){if(!Set.of("reason","notes","attachment_path","status").contains(column))return;try{returnApi.update(no,column,value);load();}catch(Exception e){error(e);}}
+    private void update(String no,String column,String value){if(!Set.of("reason","notes","status").contains(column))return;try{returnApi.update(no,column,value);load();}catch(Exception e){error(e);}}
 
     @FXML private void export() { FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Purchase_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv")); File file = chooser.showSaveDialog(table.getScene().getWindow()); if (file == null) return; try (PrintWriter out = new PrintWriter(file)) { out.println("Return No,Date,Purchase No,Supplier,Total,Refund,Status,Refund Status"); for (Row r : table.getItems()) out.printf("%s,%s,%s,%s,%.2f,%.2f,%s,%s%n", r.no(), r.date(), r.invoice(), csv(r.supplier()), r.total(), r.refund(), r.status(), r.refundStatus()); } catch (Exception e) { error(e); } }
 
-    private Optional<String> input(String title, String label) { TextInputDialog d = new OwnedTextInputDialog(); d.setHeaderText(title); d.setContentText(label); return d.showAndWait(); }
     private LocalDate parse(String value) { try { return LocalDate.parse(value); } catch (Exception e) { return LocalDate.MIN; } }
     private String safe(String value) { return value == null ? "" : value; }
     private String csv(String value) { return '"' + safe(value).replace("\"", "\"\"") + '"'; }

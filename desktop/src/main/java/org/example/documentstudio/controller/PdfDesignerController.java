@@ -65,7 +65,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     @FXML private ComboBox<String> cmbImageFit;
     @FXML private ColorPicker colorText, colorFill, colorStroke;
     @FXML private Button btnPreview, btnApplyProperties, btnConvertExisting, btnConvertImportedImage, btnSaveDefault, btnConnectData, btnOriginalView, btnDesignView;
-    @FXML private ToggleButton btnEditExistingText, btnEditImportedImage, btnEditFormField, btnAreaSelect;
+    @FXML private ToggleButton btnEditExistingText, btnEditImportedImage, btnEditFormField, btnEditPdfBlock, btnAreaSelect;
     @FXML private Slider zoomSlider, sldOpacity;
     @FXML private CheckBox chkSnap, chkBold, chkLocked, chkPreserveRatio;
     @FXML private TextField txtFieldSearch;
@@ -92,6 +92,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     private boolean existingTextMode;
     private boolean existingImageMode;
     private boolean formFieldMode;
+    private boolean pdfBlockMode;
     private int pageIndex;
     private double pageWidth = 595;
     private double pageHeight = 842;
@@ -102,12 +103,15 @@ public class PdfDesignerController implements ScreenLifecycle {
     private PdfTextRegion selectedPdfText;
     private PdfImageRegion selectedPdfImage;
     private PdfFormFieldRegion selectedPdfForm;
+    private PdfImageExtractionService.VectorRegion selectedPdfBlock;
     private final Map<Integer, List<PdfTextRegion>> textRegionCache = new HashMap<>();
     private final Set<Integer> textRegionLoading = new HashSet<>();
     private final Map<Integer, List<PdfImageRegion>> imageRegionCache = new HashMap<>();
     private final Set<Integer> imageRegionLoading = new HashSet<>();
     private final Map<Integer, List<PdfFormFieldRegion>> formRegionCache = new HashMap<>();
     private final Set<Integer> formRegionLoading = new HashSet<>();
+    private final Map<Integer, List<PdfImageExtractionService.VectorRegion>> blockRegionCache = new HashMap<>();
+    private final Set<Integer> blockRegionLoading = new HashSet<>();
     private final Deque<List<TemplateElement>> undo = new ArrayDeque<>();
     private final Deque<List<TemplateElement>> redo = new ArrayDeque<>();
     private final AtomicInteger renderSequence = new AtomicInteger();
@@ -330,8 +334,8 @@ public class PdfDesignerController implements ScreenLifecycle {
         }
         areaSelectionMode = btnAreaSelect != null && btnAreaSelect.isSelected();
         if (areaSelectionMode) {
-            existingTextMode = false; existingImageMode = false; formFieldMode = false;
-            btnEditExistingText.setSelected(false); btnEditImportedImage.setSelected(false); btnEditFormField.setSelected(false);
+            existingTextMode = false; existingImageMode = false; formFieldMode = false; pdfBlockMode = false;
+            btnEditExistingText.setSelected(false); btnEditImportedImage.setSelected(false); btnEditFormField.setSelected(false); if(btnEditPdfBlock!=null)btnEditPdfBlock.setSelected(false);
             clearSelection();
             lblSaveState.setText("Drag over the original value to hide it");
         } else {
@@ -430,9 +434,9 @@ public class PdfDesignerController implements ScreenLifecycle {
         existingTextMode = btnEditExistingText.isSelected();
         if (existingTextMode) {
             existingImageMode = false;
-            formFieldMode = false;
+            formFieldMode = false; pdfBlockMode = false;
             btnEditImportedImage.setSelected(false);
-            btnEditFormField.setSelected(false);
+            btnEditFormField.setSelected(false); if(btnEditPdfBlock!=null)btnEditPdfBlock.setSelected(false);
         }
         clearSelection();
         if (existingTextMode) {
@@ -452,9 +456,9 @@ public class PdfDesignerController implements ScreenLifecycle {
         existingImageMode = btnEditImportedImage.isSelected();
         if (existingImageMode) {
             existingTextMode = false;
-            formFieldMode = false;
+            formFieldMode = false; pdfBlockMode = false;
             btnEditExistingText.setSelected(false);
-            btnEditFormField.setSelected(false);
+            btnEditFormField.setSelected(false); if(btnEditPdfBlock!=null)btnEditPdfBlock.setSelected(false);
         }
         clearSelection();
         if (existingImageMode) {
@@ -474,9 +478,9 @@ public class PdfDesignerController implements ScreenLifecycle {
         formFieldMode = btnEditFormField.isSelected();
         if (formFieldMode) {
             existingTextMode = false;
-            existingImageMode = false;
+            existingImageMode = false; pdfBlockMode = false;
             btnEditExistingText.setSelected(false);
-            btnEditImportedImage.setSelected(false);
+            btnEditImportedImage.setSelected(false); if(btnEditPdfBlock!=null)btnEditPdfBlock.setSelected(false);
         }
         clearSelection();
         if (formFieldMode) {
@@ -486,6 +490,18 @@ public class PdfDesignerController implements ScreenLifecycle {
             lblSaveState.setText("Ready");
             renderCanvas();
         }
+    }
+
+    @FXML private void togglePdfBlockMode() {
+        if (previewMode) { if(btnEditPdfBlock!=null)btnEditPdfBlock.setSelected(false); return; }
+        pdfBlockMode = btnEditPdfBlock != null && btnEditPdfBlock.isSelected();
+        if(pdfBlockMode){
+            existingTextMode=false; existingImageMode=false; formFieldMode=false; areaSelectionMode=false;
+            btnEditExistingText.setSelected(false);btnEditImportedImage.setSelected(false);btnEditFormField.setSelected(false);if(btnAreaSelect!=null)btnAreaSelect.setSelected(false);
+        }
+        clearSelection();
+        if(pdfBlockMode){lblSaveState.setText("Detecting PDF blocks and table lines…");ensureBlockRegions(pageIndex,true);}
+        else{lblSaveState.setText("Ready");renderCanvas();}
     }
 
     @FXML private void convertExistingToField() {
@@ -589,6 +605,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             replaceExistingFormField();
             return;
         }
+        if(selectedPdfBlock!=null){convertExistingPdfBlock();return;}
         if (selected == null) return;
         try {
             checkpoint();
@@ -833,8 +850,8 @@ public class PdfDesignerController implements ScreenLifecycle {
             originalMode = true;
             previewMode = true; // existing mutation guards also protect Original mode
             previewPdf = null;
-            existingTextMode = false; existingImageMode = false; formFieldMode = false; areaSelectionMode = false;
-            btnEditExistingText.setSelected(false); btnEditImportedImage.setSelected(false); btnEditFormField.setSelected(false);
+            existingTextMode = false; existingImageMode = false; formFieldMode = false; pdfBlockMode = false; areaSelectionMode = false;
+            btnEditExistingText.setSelected(false); btnEditImportedImage.setSelected(false); btnEditFormField.setSelected(false); if (btnEditPdfBlock != null) btnEditPdfBlock.setSelected(false);
             if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
             setDesignEditingEnabled(false);
             clearSelection();
@@ -879,10 +896,12 @@ public class PdfDesignerController implements ScreenLifecycle {
             existingTextMode = false;
             existingImageMode = false;
             formFieldMode = false;
+            pdfBlockMode = false;
             areaSelectionMode = false;
             btnEditExistingText.setSelected(false);
             btnEditImportedImage.setSelected(false);
             btnEditFormField.setSelected(false);
+            if (btnEditPdfBlock != null) btnEditPdfBlock.setSelected(false);
             if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
             setDesignEditingEnabled(false);
             clearSelection();
@@ -901,6 +920,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         btnEditExistingText.setDisable(!enabled);
         btnEditImportedImage.setDisable(!enabled);
         btnEditFormField.setDisable(!enabled);
+        if (btnEditPdfBlock != null) btnEditPdfBlock.setDisable(!enabled);
         if (btnAreaSelect != null) btnAreaSelect.setDisable(!enabled);
     }
 
@@ -974,7 +994,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             configurePages(sourcePageCount);
             pageIndex = sourcePageCount - 1;
             lstPages.getSelectionModel().select(pageIndex);
-            textRegionCache.clear();
+            clearImportedRegionCaches();
             renderCanvas();
             lblSaveState.setText("Blank page added ✓");
         } catch (Exception error) {
@@ -990,7 +1010,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             sourcePageCount = TemplateStorageService.deletePage(template, pageIndex);
             pageIndex = Math.max(0, Math.min(pageIndex, sourcePageCount - 1));
             configurePages(sourcePageCount);
-            textRegionCache.clear(); clearSelection(); renderCanvas();
+            clearImportedRegionCaches(); clearSelection(); renderCanvas();
         } catch (Exception error) {
             ModernDialog.error(root, "Page could not be deleted", "Document Studio", rootMessage(error));
         }
@@ -1005,7 +1025,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             TemplateStorageService.rotatePage(template, pageIndex, degrees);
             var size = PdfPreviewSupport.pageSize(sourcePdf, pageIndex);
             pageWidth = size.width(); pageHeight = size.height();
-            textRegionCache.remove(pageIndex); renderCanvas();
+            clearImportedRegionCaches(pageIndex); renderCanvas();
         } catch (Exception error) {
             ModernDialog.error(root, "Page could not be rotated", "Document Studio", rootMessage(error));
         }
@@ -1135,6 +1155,7 @@ public class PdfDesignerController implements ScreenLifecycle {
                     if (existingTextMode) addTextTargetsIfReady(sequence);
                     if (existingImageMode) addImageTargetsIfReady(sequence);
                     if (formFieldMode) addFormTargetsIfReady(sequence);
+                    if (pdfBlockMode) addBlockTargetsIfReady(sequence);
                     restoreSelectionReference();
                 } else {
                     clearProperties();
@@ -1143,6 +1164,16 @@ public class PdfDesignerController implements ScreenLifecycle {
         } catch (Exception error) {
             canvasPane.getChildren().setAll(new Label("Unable to render PDF page: " + rootMessage(error)));
         }
+    }
+
+    private void clearImportedRegionCaches() {
+        textRegionCache.clear(); imageRegionCache.clear(); formRegionCache.clear(); blockRegionCache.clear();
+        textRegionLoading.clear(); imageRegionLoading.clear(); formRegionLoading.clear(); blockRegionLoading.clear();
+    }
+
+    private void clearImportedRegionCaches(int targetPage) {
+        textRegionCache.remove(targetPage); imageRegionCache.remove(targetPage); formRegionCache.remove(targetPage); blockRegionCache.remove(targetPage);
+        textRegionLoading.remove(targetPage); imageRegionLoading.remove(targetPage); formRegionLoading.remove(targetPage); blockRegionLoading.remove(targetPage);
     }
 
     private void ensureTextRegions(int targetPage, boolean showMessageWhenEmpty) {
@@ -1211,6 +1242,20 @@ public class PdfDesignerController implements ScreenLifecycle {
             if (showMessageWhenEmpty && regions.isEmpty()) showNoFormFieldsDetected();
             if (targetPage == pageIndex && formFieldMode && !previewMode) renderCanvas();
         }));
+    }
+
+    private void ensureBlockRegions(int targetPage, boolean showMessageWhenEmpty) {
+        if(blockRegionCache.containsKey(targetPage)){List<PdfImageExtractionService.VectorRegion> regions=blockRegionCache.get(targetPage);if(showMessageWhenEmpty&&regions.isEmpty())showNoBlocksDetected();renderCanvas();return;}
+        if(!blockRegionLoading.add(targetPage))return;
+        CompletableFuture.supplyAsync(()->{try{return PdfImageExtractionService.extractVectors(sourcePdf,targetPage);}catch(Exception error){System.err.println("[DocumentStudio] block detection failed: "+rootMessage(error));return List.<PdfImageExtractionService.VectorRegion>of();}})
+                .thenAccept(regions->Platform.runLater(()->{blockRegionLoading.remove(targetPage);blockRegionCache.put(targetPage,regions);lblSaveState.setText("Ready");if(showMessageWhenEmpty&&regions.isEmpty())showNoBlocksDetected();if(targetPage==pageIndex&&pdfBlockMode&&!previewMode)renderCanvas();}));
+    }
+
+    private void showNoBlocksDetected(){ModernDialog.info(root,"No simple PDF blocks detected","Imported PDF","No editable rectangles or straight-line groups were found on this page. Complex curves, scans and vector artwork remain available through Select / Hide Area so the source PDF stays protected.");}
+
+    private void addBlockTargetsIfReady(int sequence){
+        List<PdfImageExtractionService.VectorRegion> regions=blockRegionCache.get(pageIndex);if(regions==null){ensureBlockRegions(pageIndex,false);return;}
+        for(PdfImageExtractionService.VectorRegion region:regions){if(sequence!=renderSequence.get())return;if(isCovered(region.pageIndex(),region.x(),region.y(),region.width(),region.height()))continue;canvasPane.getChildren().add(existingBlockNode(region));}
     }
 
     private void showNoImagesDetected() {
@@ -1342,6 +1387,12 @@ public class PdfDesignerController implements ScreenLifecycle {
         return wrapper;
     }
 
+    private Node existingBlockNode(PdfImageExtractionService.VectorRegion region){
+        Label label=new Label(region.kind());label.setMouseTransparent(true);StackPane wrapper=new StackPane(label);wrapper.getStyleClass().add("pdf-existing-block-target");if(Objects.equals(selectedPdfBlock,region))wrapper.getStyleClass().add("pdf-existing-block-selected");
+        wrapper.setLayoutX(region.x()*scale);wrapper.setLayoutY(region.y()*scale);wrapper.setPrefSize(Math.max(8,region.width()*scale),Math.max(8,region.height()*scale));wrapper.setMinSize(Math.max(8,region.width()*scale),Math.max(8,region.height()*scale));wrapper.setMaxSize(Math.max(8,region.width()*scale),Math.max(8,region.height()*scale));
+        wrapper.setOnMouseClicked(event->{selectExistingBlock(region);event.consume();});return wrapper;
+    }
+
     private Node existingImageNode(PdfImageRegion region) {
         Label label = new Label("IMAGE");
         label.setMouseTransparent(true);
@@ -1375,7 +1426,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     private Node elementNode(TemplateElement e) {
         Node visual;
         if (e.getType() == ElementType.LINE) {
-            Line line = new Line(0, 0, e.getWidth() * scale, Math.max(1, e.getHeight() * scale));
+            Line line = new Line(0, 0, (e.getWidth() <= 1.001 ? 0 : e.getWidth() * scale), (e.getHeight() <= 1.001 ? 0 : e.getHeight() * scale));
             line.setStroke(Color.web(e.getStrokeColor()));
             line.setStrokeWidth(Math.max(1, e.getStrokeWidth() * scale));
             visual = line;
@@ -1486,6 +1537,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         selectedPdfText = null;
         selectedPdfImage = null;
         selectedPdfForm = null;
+        selectedPdfBlock = null;
         selected = e;
         selectedId = e.getId();
         populateProperties(e);
@@ -1494,6 +1546,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             node.getStyleClass().remove("pdf-existing-text-selected");
             node.getStyleClass().remove("pdf-existing-image-selected");
             node.getStyleClass().remove("pdf-existing-form-selected");
+            node.getStyleClass().remove("pdf-existing-block-selected");
             if (Objects.equals(node.getProperties().get("templateElementId"), selectedId))
                 node.getStyleClass().add("pdf-designer-object-selected");
         }
@@ -1504,6 +1557,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         selectedId = null;
         selectedPdfImage = null;
         selectedPdfForm = null;
+        selectedPdfBlock = null;
         selectedPdfText = region;
         populateExistingProperties(region);
         for (Node node : canvasPane.getChildren()) node.getStyleClass().remove("pdf-designer-object-selected");
@@ -1515,6 +1569,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         selectedId = null;
         selectedPdfText = null;
         selectedPdfForm = null;
+        selectedPdfBlock = null;
         selectedPdfImage = region;
         lblSelection.setText("IMPORTED PDF IMAGE  •  convert to edit/move/replace");
         lblExistingOriginal.setText("Raster image • " + fmt(region.width()) + " × " + fmt(region.height()) + " pt");
@@ -1536,11 +1591,21 @@ public class PdfDesignerController implements ScreenLifecycle {
         renderCanvas();
     }
 
+    private void selectExistingBlock(PdfImageExtractionService.VectorRegion region){
+        selected=null;selectedId=null;selectedPdfText=null;selectedPdfImage=null;selectedPdfForm=null;selectedPdfBlock=region;
+        lblSelection.setText("PDF "+region.kind()+"  •  convert to editable Studio objects");lblExistingOriginal.setText(region.primitives().size()+" vector part(s) • "+fmt(region.width())+" × "+fmt(region.height())+" pt");lblExistingOriginal.setVisible(true);lblExistingOriginal.setManaged(true);
+        existingTextSection.setVisible(false);existingTextSection.setManaged(false);existingFormSection.setVisible(false);existingFormSection.setManaged(false);btnConvertExisting.setVisible(false);btnConvertExisting.setManaged(false);btnConvertImportedImage.setVisible(false);btnConvertImportedImage.setManaged(false);
+        txtContent.setDisable(true);txtContent.setText("Original PDF vector block");txtX.setText(fmt(region.x()));txtY.setText(fmt(region.y()));txtWidth.setText(fmt(region.width()));txtHeight.setText(fmt(region.height()));txtFontSize.setText("10");
+        PdfImageExtractionService.VectorPrimitive first=region.primitives().isEmpty()?null:region.primitives().getFirst();txtStrokeWidth.setText(fmt(first==null?1:first.strokeWidth()));chkBold.setSelected(false);chkLocked.setSelected(false);colorFill.setValue(Color.web(first==null?"#FFFFFF":first.fillColor()));colorStroke.setValue(Color.web(first==null?"#172033":first.strokeColor()));
+        btnApplyProperties.setText("Convert PDF Block");propertiesTabs.getSelectionModel().select(0);propertiesTabs.getTabs().get(1).setDisable(true);renderCanvas();
+    }
+
     private void selectExistingForm(PdfFormFieldRegion region) {
         selected = null;
         selectedId = null;
         selectedPdfText = null;
         selectedPdfImage = null;
+        selectedPdfBlock = null;
         selectedPdfForm = region;
         lblSelection.setText("PDF FORM FIELD  •  " + region.fieldName());
         lblExistingOriginal.setText("Original value: " + (region.value() == null || region.value().isBlank() ? "(empty)" : region.value()));
@@ -1563,6 +1628,26 @@ public class PdfDesignerController implements ScreenLifecycle {
         renderCanvas();
     }
 
+    private void convertExistingPdfBlock(){
+        PdfImageExtractionService.VectorRegion region=selectedPdfBlock;if(region==null||previewMode)return;
+        try{
+            checkpoint();String group=region.sourceKey().isBlank()?"PDF_BLOCK|"+UUID.randomUUID():region.sourceKey();List<TemplateElement> updated=replacementBase(group);TemplateElement primary=null;
+            for(PdfImageExtractionService.VectorPrimitive primitive:region.primitives()){
+                if("LINE".equals(primitive.kind())){TemplateElement mask=lineMask(primitive,group);updated.add(mask);TemplateElement line=TemplateElement.of(ElementType.LINE,pageIndex,primitive.x(),primitive.y(),primitive.width(),primitive.height());line.setStrokeColor(primitive.strokeColor());line.setStrokeWidth(primitive.strokeWidth());line.setReplacementGroupId(group);line.setReplacementSourceKey(group);updated.add(line);if(primary==null)primary=line;}
+                else if("RECTANGLE".equals(primitive.kind())){
+                    if(primitive.filled()){TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,pageIndex,primitive.x(),primitive.y(),primitive.width(),primitive.height());mask.setLocked(true);mask.setReplacementGroupId(group);mask.setReplacementSourceKey(group);updated.add(mask);TemplateElement rect=TemplateElement.of(ElementType.RECTANGLE,pageIndex,primitive.x(),primitive.y(),primitive.width(),primitive.height());rect.setFillColor(primitive.fillColor());rect.setStrokeColor(primitive.strokeColor());rect.setStrokeWidth(primitive.stroked()?primitive.strokeWidth():0);rect.setReplacementGroupId(group);rect.setReplacementSourceKey(group);updated.add(rect);if(primary==null)primary=rect;preserveTextInside(updated,primitive,group);}
+                    else{for(PdfImageExtractionService.VectorPrimitive edge:rectangleEdges(primitive)){TemplateElement mask=lineMask(edge,group);updated.add(mask);TemplateElement line=TemplateElement.of(ElementType.LINE,pageIndex,edge.x(),edge.y(),edge.width(),edge.height());line.setStrokeColor(primitive.strokeColor());line.setStrokeWidth(primitive.strokeWidth());line.setReplacementGroupId(group);line.setReplacementSourceKey(group);updated.add(line);if(primary==null)primary=line;}}
+                }
+            }
+            if(primary==null)throw new IllegalStateException("This vector uses a complex path. Use Select / Hide Area for this block.");template.setElements(updated);selectedPdfBlock=null;selected=primary;selectedId=primary.getId();autosave();renderCanvas();lblSaveState.setText("PDF block converted to editable Studio objects");
+        }catch(Exception error){ModernDialog.error(root,"PDF block could not be converted","Document Studio",rootMessage(error));}
+    }
+
+    private TemplateElement lineMask(PdfImageExtractionService.VectorPrimitive line,String group){double pad=Math.max(1.4,line.strokeWidth()+1);double x=Math.max(0,line.x()-pad);double y=Math.max(0,line.y()-pad);TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,pageIndex,x,y,Math.min(pageWidth-x,Math.max(1,line.width())+pad*2),Math.min(pageHeight-y,Math.max(1,line.height())+pad*2));mask.setLocked(true);mask.setReplacementGroupId(group);mask.setReplacementSourceKey(group);return mask;}
+    private List<PdfImageExtractionService.VectorPrimitive> rectangleEdges(PdfImageExtractionService.VectorPrimitive p){return List.of(new PdfImageExtractionService.VectorPrimitive("LINE",p.x(),p.y(),p.width(),1,"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true),new PdfImageExtractionService.VectorPrimitive("LINE",p.x(),p.y()+p.height(),p.width(),1,"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true),new PdfImageExtractionService.VectorPrimitive("LINE",p.x(),p.y(),1,p.height(),"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true),new PdfImageExtractionService.VectorPrimitive("LINE",p.x()+p.width(),p.y(),1,p.height(),"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true));}
+    private void preserveTextInside(List<TemplateElement> updated,PdfImageExtractionService.VectorPrimitive block,String group){try{List<PdfTextRegion> text=textRegionCache.get(pageIndex);if(text==null){text=PdfTextExtractionService.extract(sourcePdf,pageIndex);textRegionCache.put(pageIndex,text);}String color=isDark(block.fillColor())?"#FFFFFF":"#172033";for(PdfTextRegion region:text){double cx=region.x()+region.width()/2,cy=region.y()+region.height()/2;if(cx<block.x()||cx>block.x()+block.width()||cy<block.y()||cy>block.y()+block.height())continue;TemplateElement e=TemplateElement.of(ElementType.TEXT,pageIndex,region.x(),region.y(),region.width(),Math.max(region.height(),region.fontSize()*1.45));e.setText(region.text());e.setFontSize(region.fontSize());e.setTextColor(color);e.setReplacementGroupId(group);e.setReplacementSourceKey(group);updated.add(e);}}catch(Exception ignored){}}
+    private boolean isDark(String hex){try{Color c=Color.web(hex);return .2126*c.getRed()+.7152*c.getGreen()+.0722*c.getBlue()<.48;}catch(Exception ignored){return false;}}
+
     private void restoreSelectionReference() {
         if (selectedId == null) return;
         selected = template.getElements().stream().filter(e -> e.getId().equals(selectedId)).findFirst().orElse(null);
@@ -1574,6 +1659,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         selectedPdfText = null;
         selectedPdfImage = null;
         selectedPdfForm = null;
+        selectedPdfBlock = null;
         btnConvertImportedImage.setVisible(false);
         btnConvertImportedImage.setManaged(false);
         existingFormSection.setVisible(false);
@@ -1635,6 +1721,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     private void populateExistingProperties(PdfTextRegion region) {
         selectedPdfImage = null;
         selectedPdfForm = null;
+        selectedPdfBlock = null;
         btnConvertImportedImage.setVisible(false);
         btnConvertImportedImage.setManaged(false);
         existingFormSection.setVisible(false);
@@ -1674,6 +1761,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         selectedPdfText = null;
         selectedPdfImage = null;
         selectedPdfForm = null;
+        selectedPdfBlock = null;
         clearProperties();
     }
 
@@ -1682,7 +1770,8 @@ public class PdfDesignerController implements ScreenLifecycle {
         lblSelection.setText(originalMode ? "Original PDF — protected read-only source" : previewMode ? "Final Preview — rendered output" :
                 (existingTextMode ? "Click highlighted PDF text to replace or convert it" :
                         existingImageMode ? "Click a highlighted raster image to convert it into an editable object" :
-                                formFieldMode ? "Click a highlighted PDF form field to replace its value" : "Select an object on the page"));
+                                formFieldMode ? "Click a highlighted PDF form field to replace its value" :
+                                        pdfBlockMode ? "Click a highlighted PDF block, rectangle or table/grid to convert it" : "Select an object on the page"));
         lblExistingOriginal.setText("");
         lblExistingOriginal.setVisible(false);
         lblExistingOriginal.setManaged(false);

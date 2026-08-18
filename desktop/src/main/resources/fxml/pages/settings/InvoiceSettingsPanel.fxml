@@ -98,7 +98,7 @@
                             <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-invoice-assets-panel">
                                 <VBox spacing="4">
                                     <Label text="Branding, Logo &amp; Signature" styleClass="settings-subsection-title"/>
-                                    <Label text="Manage the application / splash brand together with the invoice logo and authorized signature." wrapText="true" styleClass="settings-help-text"/>
+                                    <Label text="Manage the invoice logo and authorized signature used on generated business documents." wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
                                 <GridPane hgap="14" alignment="TOP_LEFT" maxWidth="Infinity" styleClass="settings-brand-assets-row">
                                     <columnConstraints>
@@ -143,24 +143,6 @@
                                         </HBox>
                                     </VBox>
 
-                                    <!-- APPLICATION / SPLASH BRAND IMAGE -->
-                                    <VBox spacing="7" minWidth="0" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.rowIndex="1" styleClass="settings-asset-card,settings-brand-asset-card,settings-application-brand-card">
-                                        <Label text="Application / Splash Brand" styleClass="settings-form-label"/>
-                                        <Label text="Splash, login, registration and email / OTP screens • Managed independently from the invoice logo" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane fx:id="applicationBrandPreview" minHeight="88" prefHeight="96" maxHeight="104" maxWidth="Infinity" styleClass="settings-image-preview">
-                                            <ImageView fx:id="imgApplicationBrand" preserveRatio="false" smooth="true"/>
-                                            <VBox fx:id="placeholderApplicationBrand" alignment="CENTER" spacing="8">
-                                                <Label text="◆" styleClass="settings-placeholder-icon"/>
-                                                <Label text="No application brand image selected" styleClass="settings-help-text"/>
-                                            </VBox>
-                                        </StackPane>
-                                        <Label fx:id="lblApplicationBrandFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
-                                        <HBox spacing="8">
-                                            <Button text="Add / Replace" onAction="#uploadApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
-                                            <Button text="Preview" onAction="#previewApplicationBrand" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
-                                            <Button text="Remove" onAction="#removeApplicationBrand" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
-                                        </HBox>
-                                    </VBox>
                                 </GridPane>
                             </VBox>
 

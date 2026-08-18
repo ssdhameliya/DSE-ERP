@@ -8,6 +8,8 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.application.Platform;
 import javafx.util.Duration;
 import org.example.update.BuildInfo;
 import org.example.service.BrandingService;
@@ -19,8 +21,9 @@ public class SplashController {
     @FXML private Label workspaceStatus, postgresStatus, springStatus, schemaStatus, applicationStatus;
     @FXML private Label workspaceTime, postgresTime, springTime, schemaTime, applicationTime;
     @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandQuote, lblStarting;
-    @FXML private ImageView imgBrandLogo;
-    @FXML private StackPane brandLogoBox;
+    @FXML private ImageView imgBrandLogo, imgBrandMark;
+    @FXML private StackPane brandLogoBox, brandMarkBox;
+    @FXML private VBox brandPanel;
 
     private long startedNanos;
     private Timeline clock;
@@ -33,6 +36,7 @@ public class SplashController {
         stageStartedNanos = startedNanos;
         versionLabel.setText("Version " + BuildInfo.version());
         BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox);
+        BrandImagePresenter.contain(imgBrandMark, brandMarkBox);
         applyBranding();
         systemValue.setText(systemMemoryLabel());
         databaseValue.setText("PostgreSQL");
@@ -40,6 +44,7 @@ public class SplashController {
         clock = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshElapsed()));
         clock.setCycleCount(Timeline.INDEFINITE);
         clock.play();
+        Platform.runLater(this::installResponsiveBranding);
     }
 
     public void refreshBranding() {
@@ -52,25 +57,35 @@ public class SplashController {
         if (lblBrandQuote != null) lblBrandQuote.setText(BrandingService.loginDescription());
         if (lblStarting != null) lblStarting.setText(BrandingService.startingText());
         Image logo = BrandingService.applicationBrandImage();
-        if (logo != null && !logo.isError() && imgBrandLogo != null) {
-            imgBrandLogo.setImage(logo);
-            imgBrandLogo.setManaged(true);
-            imgBrandLogo.setVisible(true);
-            if (lblBrandMark != null) {
-                lblBrandMark.setManaged(false);
-                lblBrandMark.setVisible(false);
-            }
-        } else {
-            if (imgBrandLogo != null) {
-                imgBrandLogo.setImage(null);
-                imgBrandLogo.setManaged(false);
-                imgBrandLogo.setVisible(false);
-            }
-            if (lblBrandMark != null) {
-                lblBrandMark.setManaged(true);
-                lblBrandMark.setVisible(true);
-            }
+        if (imgBrandLogo != null) {
+            boolean bannerAvailable = logo != null && !logo.isError();
+            imgBrandLogo.setImage(bannerAvailable ? logo : null);
+            imgBrandLogo.setManaged(bannerAvailable);
+            imgBrandLogo.setVisible(bannerAvailable);
         }
+        Image mark = BrandingService.applicationMarkImage();
+        boolean markAvailable = mark != null && !mark.isError();
+        if (imgBrandMark != null) {
+            imgBrandMark.setImage(markAvailable ? mark : null);
+            imgBrandMark.setManaged(markAvailable);
+            imgBrandMark.setVisible(markAvailable);
+        }
+        if (brandMarkBox != null) {
+            brandMarkBox.setManaged(markAvailable);
+            brandMarkBox.setVisible(markAvailable);
+        }
+        if (lblBrandMark != null) {
+            lblBrandMark.setManaged(false);
+            lblBrandMark.setVisible(false);
+        }
+    }
+
+    private void installResponsiveBranding() {
+        if (brandPanel == null || brandPanel.getScene() == null) return;
+        Runnable resize = () -> brandPanel.setPrefWidth(
+                Math.max(360, Math.min(690, brandPanel.getScene().getWidth() * .46)));
+        brandPanel.getScene().widthProperty().addListener((o, a, b) -> resize.run());
+        resize.run();
     }
 
     public void updateStage(int stage, String message) {
