@@ -7831,3 +7831,14 @@
 .master-state-inactive, .master-lookup-inactive { -fx-text-fill: #b91c1c; }
 .master-category-activity { -fx-text-fill: #64748b; }
 .pdf-properties-card { -fx-background-color: #ffffff; -fx-border-color: #cbd5e1; }
+.import-validation-pass-row { -fx-background-color: rgba(34,197,94,0.09); }
+.import-validation-fail-row { -fx-background-color: rgba(239,68,68,0.10); }
+.return-detail-drawer,
+.quotation-register-page .quotation-detail-drawer { -fx-background-color: #ffffff; -fx-border-color: #c8d5e6; }
+.quotation-attachment-name { -fx-text-fill: #1769aa; }
+
+/* 7.30.33 final quotation accents */
+.quotation-editor-page .quotation-attachment-inline, .quotation-register-page .quotation-attachment-card { -fx-background-color: #f3f8ff; -fx-border-color: #b7cfe6; }
+.quotation-editor-page .quotation-accent-title { -fx-text-fill: #38bdf8; }
+.quotation-editor-page .quotation-field-label { -fx-text-fill: #60a5fa; }
+.quotation-editor-page .quotation-attachment-title { -fx-text-fill: #2dd4bf; }

@@ -15,6 +15,7 @@ import org.example.model.PurchaseLine;
 import org.example.api.master.MasterApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.util.SpreadsheetLayoutDetector;
+import org.example.shared.ReferenceFormatRules;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -110,7 +111,9 @@ public class ImportService {
                                     BiConsumer<Integer,Integer> progress) throws Exception {
         List<Item> items = new ArrayList<>();
         List<String> errors = new ArrayList<>();
+        List<ImportRowResult> details = new ArrayList<>();
         ItemService service = new ItemService();
+        Map<String,String> referenceFormats = new MasterApiClient().referenceFormats();
 
         // --- Step 1: Read Excel ---
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
@@ -124,11 +127,9 @@ public class ImportService {
                 try {
                     Item item = new Item();
 
-                    String code = getCellValue(row, mapping.get("item_code"));
-                    if (code == null || code.isBlank()) {
-                        code = service.nextCode();
-                    }
-                    item.setItemCode(code.trim());
+                    String code = required(getCellValue(row, mapping.get("item_code")), "item_code").trim();
+                    requireReference(referenceFormats, "REF_ITEM", code, null, "Item Code");
+                    item.setItemCode(code);
 
                     String desc = getCellValue(row, mapping.get("description"));
                     if (desc == null || desc.isBlank()) {
@@ -137,7 +138,7 @@ public class ImportService {
                     item.setDescription(desc.trim());
 
                     item.setCategory(getCellValue(row, mapping.get("category")));
-                    item.setUnit(getCellValue(row, mapping.get("unit")));
+                    item.setUnit(required(getCellValue(row, mapping.get("unit")), "unit"));
                     item.setHsn(required(getCellValue(row, mapping.get("hsn")), "hsn"));
                     item.setGst(parseDouble(getCellValue(row, mapping.get("gst"))));
                     item.setDiscountPercent(parseDouble(getCellValue(row, mapping.get("discount_percent"))));
@@ -146,11 +147,12 @@ public class ImportService {
                     item.setOpeningStock(parseDouble(getCellValue(row, mapping.get("opening_stock"))));
                     item.setMinimumStock(parseDouble(getCellValue(row, mapping.get("minimum_stock"))));
                     item.setLocation(getCellValue(row, mapping.get("location")));
-                    item.setRemarks(getCellValue(row, mapping.get("remarks")));
+                    item.setRemarks(required(getCellValue(row, mapping.get("remarks")), "remarks"));
 
                     items.add(item);
                 } catch (Exception ex) {
-                    errors.add("Row " + i + ": " + ex.getMessage());
+                    errors.add("Row " + (i + 1) + ": " + ex.getMessage());
+                    details.add(new ImportRowResult(String.valueOf(i + 1), "", "FAILED", "NONE", ex.getMessage(), "", 0));
                 }
                 progress.accept(i, total);
             }
@@ -161,7 +163,18 @@ public class ImportService {
         int processed = 0, imported = 0, updated = 0, skipped = 0;
 
         if (dryRun) {
-            processed = (int) items.stream().map(Item::getItemCode).distinct().count();
+            Set<String> seen = new HashSet<>();
+            for (Item item : items) {
+                processed++;
+                String key = item.getItemCode().toUpperCase(Locale.ROOT);
+                if (!seen.add(key)) {
+                    String message = "Duplicate Item Code in workbook";
+                    errors.add(item.getItemCode() + ": " + message);
+                    details.add(new ImportRowResult("", item.getItemCode(), "FAILED", "NONE", message, "", 0));
+                } else {
+                    details.add(new ImportRowResult("", item.getItemCode(), "PASSED", "VALIDATED", "All validations passed", "", 0));
+                }
+            }
         } else {
             for (Item item : items) {
                 if (seenCodes.contains(item.getItemCode())) {
@@ -189,7 +202,7 @@ public class ImportService {
             }
         }
 
-        return new ImportResult(processed, imported, updated, skipped, errors);
+        return new ImportResult(processed, imported, updated, skipped, errors, details);
     }
 
     /** Imports sales invoices, grouping multiple spreadsheet rows by invoice number. */
@@ -209,6 +222,12 @@ public class ImportService {
         List<DocumentImportRow> rows = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         List<ImportRowResult> details = new ArrayList<>();
+        MasterApiClient masterApi = new MasterApiClient();
+        Map<String,String> referenceFormats = masterApi.referenceFormats();
+        Set<String> validPartyCodes = new HashSet<>();
+        masterApi.parties(sales ? "CUSTOMER" : "SUPPLIER").forEach(p -> validPartyCodes.add(p.getPartyCode().toUpperCase(Locale.ROOT)));
+        Set<String> validItemCodes = new HashSet<>();
+        masterApi.items().forEach(item -> validItemCodes.add(item.getItemCode().toUpperCase(Locale.ROOT)));
 
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
             SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
@@ -219,16 +238,19 @@ public class ImportService {
                 if (row == null) continue;
                 int sourceRow = i + 1;
                 try {
-                    String party = required(getCellValue(row, mapping.get("party_code")), "party_code");
-                    String item = required(getCellValue(row, mapping.get("item_code")), "item_code");
-                    String invoice = getCellValue(row, mapping.get("invoice_no"));
-                    if (invoice == null || invoice.isBlank()) {
-                        invoice = sales ? new SalesService().nextInvoiceNo() : new PurchaseService().nextInvoiceNo();
-                    }
+                    String party = required(getCellValue(row, mapping.get("party_code")), "party_code").trim();
+                    String item = required(getCellValue(row, mapping.get("item_code")), "item_code").trim();
+                    String invoice = required(getCellValue(row, mapping.get("invoice_no")), "invoice_no").trim();
+                    LocalDate invoiceDate = getRequiredDateValue(row, mapping.get("invoice_date"), "invoice_date");
+                    requireReference(referenceFormats, sales ? "REF_SALES" : "REF_PURCHASE", invoice, invoiceDate, sales ? "Sales Invoice No." : "Purchase Invoice No.");
+                    requireReference(referenceFormats, sales ? "REF_CUSTOMER" : "REF_SUPPLIER", party, null, sales ? "Customer Code" : "Supplier Code");
+                    requireReference(referenceFormats, "REF_ITEM", item, null, "Item Code");
+                    if (!validPartyCodes.contains(party.toUpperCase(Locale.ROOT))) throw new IllegalArgumentException((sales ? "Customer" : "Supplier") + " not found in master: " + party);
+                    if (!validItemCodes.contains(item.toUpperCase(Locale.ROOT))) throw new IllegalArgumentException("Item not found in master: " + item);
                     String taxType = normalizeTaxType(getCellValue(row, mapping.get("gst_type")), party, sales);
-                    rows.add(new DocumentImportRow(sourceRow, invoice.trim(),
-                        getRequiredDateValue(row, mapping.get("invoice_date"), "invoice_date"),
-                        party.trim(), item.trim(),
+                    rows.add(new DocumentImportRow(sourceRow, invoice,
+                        invoiceDate,
+                        party, item,
                         parsePositive(getCellValue(row, mapping.get("quantity")), "quantity"),
                         parsePositive(getCellValue(row, mapping.get("rate")), "rate"),
                         parseDouble(getCellValue(row, mapping.get("gst_percent"))),
@@ -257,11 +279,18 @@ public class ImportService {
 
         Map<String,List<DocumentImportRow>> grouped = new LinkedHashMap<>();
         rows.forEach(row -> grouped.computeIfAbsent(row.invoice(), key -> new ArrayList<>()).add(row));
+        Set<String> existingDocumentNumbers = new HashSet<>();
+        if (dryRun) {
+            if (sales) new SalesService().getAll().forEach(doc -> existingDocumentNumbers.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
+            else new PurchaseService().getAll().forEach(doc -> existingDocumentNumbers.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
+        }
 
         if (dryRun) {
             for (Map.Entry<String,List<DocumentImportRow>> entry : grouped.entrySet()) {
                 DocumentImportRow first = entry.getValue().get(0);
                 try {
+                    if (existingDocumentNumbers.contains(entry.getKey().toUpperCase(Locale.ROOT)))
+                        throw new IllegalArgumentException("Existing posted " + (sales ? "sales" : "purchase") + " invoice is protected and cannot be imported again");
                     SalesImportExtras extras = sales ? salesImportExtras(file, entry.getValue()) : new SalesImportExtras(List.of(), null);
                     String extrasText = sales ? String.format(Locale.ROOT, " | %d charge%s | attachment %s",
                         extras.charges().size(), extras.charges().size() == 1 ? "" : "s", extras.attachmentSource() == null ? "none" : "ready") : "";
@@ -406,6 +435,7 @@ public class ImportService {
     public ImportResult importMasterValues(Path file, Map<String,String> mapping, boolean dryRun, ImportMode mode,
                                            BiConsumer<Integer,Integer> progress) throws Exception {
         List<String> errors = new ArrayList<>();
+        List<ImportRowResult> details = new ArrayList<>();
         int processed = 0, imported = 0, updated = 0, skipped = 0;
         LookupService service = new LookupService();
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
@@ -416,11 +446,13 @@ public class ImportService {
                 Row row = sheet.getRow(i); if (row == null) continue;
                 try {
                     String categoryCode = required(getCellValue(row, mapping.get("category_code")), "category_code").toUpperCase(Locale.ROOT);
-                    String categoryName = defaultText(getCellValue(row, mapping.get("category_name")), categoryCode);
+                    String categoryName = required(getCellValue(row, mapping.get("category_name")), "category_name");
                     String value = required(getCellValue(row, mapping.get("value")), "value");
-                    String code = defaultText(getCellValue(row, mapping.get("value_code")), service.generateNextCode(categoryCode));
+                    String code = required(getCellValue(row, mapping.get("value_code")), "value_code");
                     processed++;
-                    if (!dryRun) {
+                    if (dryRun) {
+                        details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + code, "PASSED", "VALIDATED", "All validations passed", "", 0));
+                    } else {
                         new MasterApiClient().upsertCategory(categoryCode, categoryName, getCellValue(row, mapping.get("category_description")));
                         Lookup lookup = service.getByType(categoryCode).stream().filter(existing -> existing.getLookupCode().equalsIgnoreCase(code)).findFirst().orElse(null);
                         boolean exists = lookup != null;
@@ -432,11 +464,11 @@ public class ImportService {
                         if (exists && (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING)) { skipped++; }
                         else if (exists) { service.update(lookup); updated++; } else { service.save(lookup); imported++; }
                     }
-                } catch (Exception ex) { skipped++; errors.add("Row " + (i + 1) + ": " + ex.getMessage()); }
+                } catch (Exception ex) { skipped++; errors.add("Row " + (i + 1) + ": " + ex.getMessage()); details.add(new ImportRowResult(String.valueOf(i + 1), "", "FAILED", "NONE", ex.getMessage(), "", 0)); }
                 progress.accept(i, Math.max(1, total));
             }
         }
-        return new ImportResult(processed, imported, updated, skipped, errors);
+        return new ImportResult(processed, imported, updated, skipped, errors, details);
     }
 
 
@@ -445,7 +477,9 @@ public class ImportService {
                                        BiConsumer<Integer,Integer> progress, String partyType) throws Exception {
         List<Party> parties = new ArrayList<>();
         List<String> errors = new ArrayList<>();
+        List<ImportRowResult> details = new ArrayList<>();
         PartyService service = new PartyService();
+        Map<String,String> referenceFormats = new MasterApiClient().referenceFormats();
 
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
             SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
@@ -459,11 +493,9 @@ public class ImportService {
                     Party p = new Party();
                     p.setPartyType(partyType);
 
-                    String code = getCellValue(row, mapping.get("party_code"));
-                    if (code == null || code.isBlank()) {
-                        code = service.nextCode(partyType);
-                    }
-                    p.setPartyCode(code.trim());
+                    String code = required(getCellValue(row, mapping.get("party_code")), "party_code").trim();
+                    requireReference(referenceFormats, "CUSTOMER".equals(partyType) ? "REF_CUSTOMER" : "REF_SUPPLIER", code, null, "CUSTOMER".equals(partyType) ? "Customer Code" : "Supplier Code");
+                    p.setPartyCode(code);
 
                     String name = getCellValue(row, mapping.get("name"));
                     if (name == null || name.isBlank()) {
@@ -473,7 +505,10 @@ public class ImportService {
 
                     p.setContactPerson(getCellValue(row, mapping.get("contact_person")));
                     p.setPhone(getCellValue(row, mapping.get("phone")));
-                    p.setEmail(getCellValue(row, mapping.get("email")));
+                    String email = getCellValue(row, mapping.get("email"));
+                    if ("SUPPLIER".equals(partyType)) email = required(email, "email");
+                    if (email != null && !email.isBlank() && !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) throw new IllegalArgumentException("Invalid email");
+                    p.setEmail(email);
                     p.setGstin(getCellValue(row, mapping.get("gstin")));
                     p.setAddress(getCellValue(row, mapping.get("address")));
                     p.setOpeningBalance(parseDouble(getCellValue(row, mapping.get("opening_balance"))));
@@ -481,7 +516,8 @@ public class ImportService {
 
                     parties.add(p);
                 } catch (Exception ex) {
-                    errors.add("Row " + i + ": " + ex.getMessage());
+                    errors.add("Row " + (i + 1) + ": " + ex.getMessage());
+                    details.add(new ImportRowResult(String.valueOf(i + 1), "", "FAILED", "NONE", ex.getMessage(), "", 0));
                 }
                 progress.accept(i, total);
             }
@@ -494,7 +530,18 @@ public class ImportService {
         int skipped = 0;
 
         if (dryRun) {
-            processed = (int) parties.stream().map(Party::getPartyCode).distinct().count();
+            Set<String> seen = new HashSet<>();
+            for (Party party : parties) {
+                processed++;
+                String key = party.getPartyCode().toUpperCase(Locale.ROOT);
+                if (!seen.add(key)) {
+                    String message = "Duplicate code in workbook";
+                    errors.add(party.getPartyCode() + ": " + message);
+                    details.add(new ImportRowResult("", party.getPartyCode(), "FAILED", "NONE", message, "", 0));
+                } else {
+                    details.add(new ImportRowResult("", party.getPartyCode(), "PASSED", "VALIDATED", "All validations passed", "", 0));
+                }
+            }
         } else {
             for (Party p : parties) {
                 if (seenCodes.contains(p.getPartyCode())) {
@@ -522,7 +569,7 @@ public class ImportService {
             }
         }
 
-        return new ImportResult(processed, imported, updated, skipped, errors);
+        return new ImportResult(processed, imported, updated, skipped, errors, details);
 
     }
 
@@ -552,6 +599,13 @@ public class ImportService {
     }
 
     private static boolean blank(String value) { return value == null || value.isBlank(); }
+
+    private void requireReference(Map<String,String> formats, String key, String value, LocalDate documentDate, String label) {
+        String format = formats == null ? null : formats.get(key);
+        if (format == null || format.isBlank()) throw new IllegalStateException(label + " format is not configured in REFERENCE FORMAT (" + key + ")");
+        if (!ReferenceFormatRules.matches(format, value, documentDate))
+            throw new IllegalArgumentException(label + " '" + value + "' does not match " + key + " format " + format);
+    }
 
     // ---------------- Helpers ----------------
     private String getCellValue(Row row, String header) {

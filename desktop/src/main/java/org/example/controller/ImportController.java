@@ -114,6 +114,8 @@ public class ImportController {
     private List<String> currentHeaders = List.of();
 
     private boolean rebuildingMapping;
+    private volatile boolean preflightPassed;
+    private ImportService.ImportResult lastPreflightResult;
 
     /* =========================================================
        MODULE FIELD DEFINITIONS
@@ -283,7 +285,7 @@ public class ImportController {
     @FXML private void wizardBackToUpload(){ showWizardStep(2); }
     @FXML private void wizardBackToMap(){ showWizardStep(3); }
     @FXML private void wizardContinueUpload(){ if(selectedFile==null){showWarning("Choose a file","Select an import file before continuing.");return;} showWizardStep(3); }
-    @FXML private void wizardContinueMap(){ if(!requiredMappingsComplete()){showWarning("Required mappings are missing","Map all required fields before continuing.");return;} showWizardStep(4); }
+    @FXML private void wizardContinueMap(){ if(!requiredMappingsComplete()){showWarning("Required mappings are missing","Map all required fields before continuing.");return;} showWizardStep(4); runPreflightValidation(); }
     private void showWizardStep(int step){
         VBox[] panes={stepSelect,stepUpload,stepMap,stepReview};
         for(int i=0;i<panes.length;i++) {
@@ -900,6 +902,7 @@ public class ImportController {
         btnRunImport.setDisable(
             selectedFile == null
                 || !requiredMappingsComplete()
+                || (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed)
         );
 
         if (selectedFile == null) {
@@ -910,11 +913,10 @@ public class ImportController {
             lblReadyStatus.setText(
                 "Map all required fields before importing"
             );
+        } else if (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed) {
+            lblReadyStatus.setText("Run validation before importing");
         } else {
-            lblReadyStatus.setText(
-                "Ready to import "
-                    + selectedFile.getName()
-            );
+            lblReadyStatus.setText("All validations passed • Ready to import " + selectedFile.getName());
         }
     }
 
@@ -971,6 +973,7 @@ public class ImportController {
             rebuildingMapping = false;
         }
 
+        preflightPassed = false; lastPreflightResult = null;
         refreshAllMappingStatuses();
         updateMappingSummary();
         schedulePreviewRefresh();
@@ -994,6 +997,7 @@ public class ImportController {
             rebuildingMapping = false;
         }
 
+        preflightPassed = false; lastPreflightResult = null;
         refreshAllMappingStatuses();
         updateMappingSummary();
         schedulePreviewRefresh();
@@ -1596,6 +1600,112 @@ public class ImportController {
         }
     }
 
+    private void runPreflightValidation() {
+        if (selectedFile == null || !requiredMappingsComplete()) return;
+        if ("Bank Statement".equals(cmbImportModule.getValue())) {
+            preflightPassed = true;
+            updateMappingSummary();
+            return;
+        }
+        preflightPassed = false;
+        lastPreflightResult = null;
+        btnRunImport.setDisable(true);
+        lblReadyStatus.setText("Validating format, mandatory fields and master references...");
+        lblPreviewStatus.setText("Validation in progress...");
+        Map<String,String> mapping = collectCurrentMapping();
+        ImportService.ImportMode mode = switch (cmbImportMode.getSelectionModel().getSelectedIndex()) {
+            case 1 -> ImportService.ImportMode.CREATE_ONLY;
+            case 2 -> ImportService.ImportMode.UPSERT;
+            case 3 -> ImportService.ImportMode.SKIP_EXISTING;
+            default -> ImportService.ImportMode.UPDATE_NON_BLANK;
+        };
+        String module = cmbImportModule.getValue();
+        Task<ImportService.ImportResult> task = new Task<>() {
+            @Override protected ImportService.ImportResult call() throws Exception {
+                return executeImport(module, mapping, true, mode);
+            }
+        };
+        task.setOnSucceeded(e -> {
+            lastPreflightResult = task.getValue();
+            showValidationTable(lastPreflightResult);
+            preflightPassed = lastPreflightResult != null && lastPreflightResult.failedCount() == 0
+                && lastPreflightResult.details.stream().noneMatch(r -> "FAILED".equalsIgnoreCase(r.status));
+            lblReadyStatus.getStyleClass().removeAll("import-success-text","import-warning-text");
+            if (preflightPassed) {
+                lblReadyStatus.setText("All validations passed • Ready to import");
+                lblReadyStatus.getStyleClass().add("import-success-text");
+            } else {
+                lblReadyStatus.setText("Validation failed • Fix the red rows before import");
+                lblReadyStatus.getStyleClass().add("import-warning-text");
+            }
+            updateMappingSummary();
+        });
+        task.setOnFailed(e -> {
+            preflightPassed = false;
+            tblPreview.getItems().clear();
+            lblPreviewStatus.setText("Validation failed: " + safeMessage(task.getException()));
+            lblReadyStatus.setText("Validation failed • Import blocked");
+            btnRunImport.setDisable(true);
+        });
+        Thread thread = new Thread(task, "dse-import-preflight");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private void showValidationTable(ImportService.ImportResult result) {
+        tblPreview.getColumns().clear();
+        addValidationColumn("Rows", "rows", 80);
+        addValidationColumn("Record / Reference", "reference", 165);
+        addValidationColumn("Mandatory", "mandatory", 110);
+        addValidationColumn("Format", "format", 110);
+        addValidationColumn("Master Match", "master", 125);
+        addValidationColumn("Data / Duplicate", "data", 135);
+        addValidationColumn("Result / Error", "message", 330);
+        List<Map<String,String>> rows = new ArrayList<>();
+        if (result != null) {
+            for (ImportService.ImportRowResult row : result.details) {
+                Map<String,String> values = new LinkedHashMap<>();
+                values.put("rows", row.sourceRows);
+                values.put("reference", row.reference);
+                boolean failed = "FAILED".equalsIgnoreCase(row.status);
+                values.put("mandatory", failed ? "Review" : "✓ Passed");
+                values.put("format", failed ? "Review" : "✓ Passed");
+                values.put("master", failed ? "Review" : "✓ Passed");
+                values.put("data", failed ? "Review" : "✓ Passed");
+                values.put("message", failed ? (row.message == null ? "Validation failed" : row.message) : "✓ All validations passed");
+                values.put("_status", row.status);
+                rows.add(values);
+            }
+        }
+        tblPreview.setRowFactory(tv -> new TableRow<>() {
+            @Override protected void updateItem(Map<String,String> item, boolean empty) {
+                super.updateItem(item, empty);
+                getStyleClass().removeAll("import-validation-pass-row","import-validation-fail-row");
+                if (!empty && item != null) getStyleClass().add("FAILED".equalsIgnoreCase(item.get("_status")) ? "import-validation-fail-row" : "import-validation-pass-row");
+            }
+        });
+        tblPreview.getItems().setAll(rows);
+        int failed = result == null ? 0 : result.failedCount();
+        int passed = result == null ? 0 : Math.max(0, result.details.size() - failed);
+        lblPreviewCount.setText((passed + failed) + " checked • " + passed + " passed • " + failed + " failed");
+        lblPreviewStatus.getStyleClass().removeAll("import-success-text","import-warning-text");
+        if (failed == 0) {
+            lblPreviewStatus.setText("✓ All validations passed");
+            lblPreviewStatus.getStyleClass().add("import-success-text");
+        } else {
+            lblPreviewStatus.setText("✕ Validation errors found");
+            lblPreviewStatus.getStyleClass().add("import-warning-text");
+        }
+    }
+
+    private void addValidationColumn(String title, String key, double width) {
+        TableColumn<Map<String,String>,String> c = new TableColumn<>(title);
+        c.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getOrDefault(key, "")));
+        c.setMinWidth(width);
+        c.setPrefWidth(width);
+        tblPreview.getColumns().add(c);
+    }
+
     /* =========================================================
        BACKGROUND IMPORT
        ========================================================= */
@@ -1625,6 +1735,11 @@ public class ImportController {
                     + "running the import."
             );
 
+            return;
+        }
+
+        if (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed) {
+            showWarning("Validation required", "Run Review & Validate first. Import stays blocked until every row passes.");
             return;
         }
 
@@ -1839,6 +1954,7 @@ public class ImportController {
             running
                 || selectedFile == null
                 || !requiredMappingsComplete()
+                || (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed)
         );
 
         btnChooseFile.setDisable(running);
@@ -2121,7 +2237,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 7.30.32 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 7.30.33 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

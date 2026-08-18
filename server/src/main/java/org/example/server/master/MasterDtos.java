@@ -12,5 +12,6 @@ public final class MasterDtos {
  public record NextCodeResponse(String code){}
  public record ExistsResponse(boolean exists){}
  public record ValuesResponse(List<String> values){}
+ public record ReferenceFormatsResponse(java.util.Map<String,String> formats){}
  public record SalesEntryBootstrap(List<String> paymentTerms,List<String> chargeTypes,List<String> gstTypes,List<LookupDto> transporters,List<PartyDto> customers){}
 }

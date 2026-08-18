@@ -37,6 +37,7 @@ public final class MasterApiClient {
  public String nextItemCode(){return get("/api/master/items/next-code",NextCodeResponse.class).code();}
  public void saveItems(List<Item> rows){post("/api/master/items/bulk",rows.stream().map(this::itemDto).toList(),OperationResponse.class);}
 
+ public Map<String,String> referenceFormats(){ReferenceFormatsResponse r=get("/api/master/reference-formats",ReferenceFormatsResponse.class);return r==null||r.formats()==null?Map.of():Map.copyOf(r.formats());}
  public List<Lookup> lookups(String type){return get("/api/master/lookups?type="+enc(type),new TypeReference<List<LookupDto>>(){}).stream().map(this::lookup).toList();}
  public List<String> lookupValues(String type){return get("/api/master/lookups/values?type="+enc(type),ValuesResponse.class).values();}
  public List<String> lookupValuesByCategoryCode(String code){return get("/api/master/lookups/values-by-category-code?code="+enc(code),ValuesResponse.class).values();}
@@ -69,6 +70,7 @@ public final class MasterApiClient {
  public record PartyDto(Integer id,String partyType,String partyCode,String name,String contactPerson,String phone,String email,String gstin,String address,double openingBalance,boolean active){}
  public record ItemDto(Integer id,String itemCode,String description,String category,String brand,String material,String size,String unit,String hsn,double gst,double discountPercent,double purchasePrice,double sellingPrice,double openingStock,double minimumStock,double reservedStock,String location,String remarks,boolean active){}
  public record LookupDto(Integer id,String lookupType,String lookupCode,String lookupValue,String description,int displayOrder,boolean active){}
+ public record ReferenceFormatsResponse(Map<String,String> formats){}
  public record SalesEntryBootstrap(List<String> paymentTerms,List<String> chargeTypes,List<String> gstTypes,List<Lookup> transporters,List<Party> customers){}
  private record SalesEntryBootstrapDto(List<String> paymentTerms,List<String> chargeTypes,List<String> gstTypes,List<LookupDto> transporters,List<PartyDto> customers){}
  public record CategoryDto(Integer id,String categoryCode,String categoryName,String description,int displayOrder,boolean active,long valueCount,long activeValueCount){}

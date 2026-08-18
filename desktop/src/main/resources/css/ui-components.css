@@ -8787,3 +8787,34 @@
 .master-data-redesign .master-category-cell-content { -fx-max-width: Infinity; }
 .approved-screen-masterdata .master-category-name,
 .master-data-redesign .master-category-name { -fx-wrap-text: true; }
+
+/* 7.30.33 import preflight validation */
+.import-validation-pass-row .table-cell { -fx-text-fill: -fx-text-base-color; }
+.import-validation-pass-row { -fx-background-color: rgba(34,197,94,0.08); }
+.import-validation-fail-row { -fx-background-color: rgba(239,68,68,0.12); }
+.import-validation-fail-row .table-cell { -fx-text-fill: #ef4444; -fx-font-weight: 700; }
+
+/* 7.30.33 register detail drawer geometry */
+.return-detail-drawer,
+.quotation-detail-drawer {
+    -fx-padding: 16px;
+    -fx-background-radius: 14px;
+    -fx-border-radius: 14px;
+    -fx-border-width: 1px;
+}
+.quotation-register-page .quotation-detail-drawer { -fx-border-width: 1px; }
+.quotation-attachment-name { -fx-font-weight: 700; -fx-wrap-text: true; }
+
+/* 7.30.33 final UI polish: return drawers + quotation single-page workspace */
+.return-detail-drawer-spacious { -fx-padding: 18px; -fx-background-radius: 14px; -fx-border-radius: 14px; }
+.return-detail-section { -fx-padding: 4px 2px; }
+.return-detail-actions { -fx-padding: 2px 0 0 0; }
+.return-drawer-action { -fx-min-height: 36px; -fx-pref-height: 38px; -fx-alignment: CENTER_LEFT; }
+.quotation-editor-single-page { -fx-padding: 12px 14px 14px 14px; }
+.quotation-editor-single-page .quotation-editor-card { -fx-padding: 12px 14px; }
+.quotation-field-label { -fx-font-weight: 800; }
+.quotation-accent-title { -fx-font-size: 13px; -fx-font-weight: 900; }
+.quotation-attachment-inline { -fx-padding: 9px 10px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 1px; }
+.quotation-attachment-title { -fx-font-weight: 900; }
+.quotation-summary-color-card { -fx-padding: 16px; }
+.quotation-attachment-card { -fx-padding: 10px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 1px; }

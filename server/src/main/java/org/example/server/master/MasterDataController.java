@@ -25,6 +25,7 @@ public class MasterDataController {
  @GetMapping("/items/next-code") public MasterDtos.NextCodeResponse itemNext(){return new MasterDtos.NextCodeResponse(service.nextItemCode());}
  @PostMapping("/items/bulk") public MasterDtos.OperationResponse bulkItems(@RequestBody List<MasterDtos.ItemDto> rows){service.saveItems(rows);return new MasterDtos.OperationResponse(true,"OK");}
 
+ @GetMapping("/reference-formats") public MasterDtos.ReferenceFormatsResponse referenceFormats(){return new MasterDtos.ReferenceFormatsResponse(service.referenceFormats());}
  @GetMapping("/lookups") public List<MasterDtos.LookupDto> lookups(@RequestParam String type){return service.lookups(type);}
  @GetMapping("/lookups/values") public MasterDtos.ValuesResponse values(@RequestParam String type){return new MasterDtos.ValuesResponse(service.values(type));}
  @GetMapping("/lookups/values-by-category-code") public MasterDtos.ValuesResponse valuesByCode(@RequestParam String code){return new MasterDtos.ValuesResponse(service.valuesByCategoryCode(code));}

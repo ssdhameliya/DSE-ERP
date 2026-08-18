@@ -200,6 +200,18 @@ public class MasterDataService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String,String> referenceFormats() {
+        LinkedHashMap<String,String> result = new LinkedHashMap<>();
+        for (MasterDtos.LookupDto row : lookupsByCategoryCode("REFERENCE_FORMAT")) {
+            if (row.active() && row.lookupCode() != null && !row.lookupCode().isBlank()
+                    && row.lookupValue() != null && !row.lookupValue().isBlank()) {
+                result.put(row.lookupCode().trim().toUpperCase(Locale.ROOT), row.lookupValue().trim());
+            }
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    @Transactional(readOnly = true)
     public List<MasterDtos.LookupDto> lookupsByCategoryCode(String code) {
         MasterCategoryEntity c = categories.findByCategoryCode(code).orElse(null);
         if (c == null) return List.of();
