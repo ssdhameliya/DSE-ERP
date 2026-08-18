@@ -103,10 +103,9 @@ public class ItemDialogController {
                     created ? "Item created" : "Item updated",
                     item.getItemCode() + " - " + item.getDescription(),
                     "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
-            Alert success = new OwnedAlert(Alert.AlertType.INFORMATION,
+            org.example.util.ToastManager.success(txtItemCode,
+                    created ? "Item Created" : "Item Updated",
                     created ? "Item added successfully." : "Item updated successfully.");
-            success.setHeaderText(created ? "Item Created" : "Item Updated");
-            success.showAndWait();
             closeDialog();
         } catch (Exception ex) {
             Alert alert = new OwnedAlert(Alert.AlertType.ERROR, ex.getMessage());

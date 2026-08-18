@@ -260,8 +260,8 @@ public abstract class PartyMasterController {
             ItemSpreadsheetService spreadsheetService = new ItemSpreadsheetService();
             spreadsheetService.exportparties(service.getByType(partyType()), path);
 
-            new OwnedAlert(Alert.AlertType.INFORMATION,
-                displayName() + " master exported to:\n" + path).showAndWait();
+            org.example.util.ToastManager.success(tableParties, "Export complete",
+                displayName() + " master exported to:\n" + path);
         } catch (Exception ex) {
             error("Could not export the workbook: " + ex.getMessage());
         }

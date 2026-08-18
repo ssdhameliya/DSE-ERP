@@ -69,7 +69,7 @@ public class InventoryController implements ScreenLifecycle {
   Alert confirm=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Delete item '"+item.getDescription()+"'? This cannot be undone.",ButtonType.YES,ButtonType.NO);
   confirm.setHeaderText("Confirm item deletion");
   if(confirm.showAndWait().orElse(ButtonType.NO)==ButtonType.YES){
-   try{service.delete(item.getItemCode());NotificationService.add("Item '"+item.getDescription()+"' was deleted.");new OwnedAlert(Alert.AlertType.INFORMATION,"Item deleted successfully.").showAndWait();refresh();}catch(Exception e){error(e);}
+   try{service.delete(item.getItemCode());NotificationService.add("Item '"+item.getDescription()+"' was deleted.");org.example.util.ToastManager.success(tableItems,"Item deleted","Item deleted successfully.");refresh();}catch(Exception e){error(e);}
   }
  }
  private TableCell<Item,Double>numberCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e?null:String.format("%.2f",v));setAlignment(Pos.CENTER_RIGHT);}};}private TableCell<Item,Double>moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e?null:money.format(v));setAlignment(Pos.CENTER_RIGHT);}};}private TableCell<Item,String>statusCell(){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);getStyleClass().removeAll("pill-success","pill-warning","pill-danger");if(!e)getStyleClass().add("In Stock".equals(v)?"pill-success":"Low Stock".equals(v)?"pill-warning":"pill-danger");}};}

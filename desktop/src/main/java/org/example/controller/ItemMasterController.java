@@ -234,9 +234,7 @@ public class ItemMasterController {
             try {
                 service.delete(selected.getItemCode());
                 NotificationService.add("Item '" + selected.getDescription() + "' was deleted.");
-                Alert done = new OwnedAlert(Alert.AlertType.INFORMATION, "Item deleted successfully.");
-                done.setHeaderText("Item Deleted");
-                done.showAndWait();
+                org.example.util.ToastManager.success(tableItems, "Item Deleted", "Item deleted successfully.");
                 loadItems();
             } catch (Exception e) {
                 showError("Could not delete item: " + e.getMessage());
@@ -271,7 +269,7 @@ public class ItemMasterController {
         if (!path.toString().toLowerCase(Locale.ROOT).endsWith(".xlsx")) path = Path.of(path + ".xlsx");
         try {
             spreadsheetService.exportItems(service.getAll(), path);
-            new OwnedAlert(Alert.AlertType.INFORMATION, "Item master exported to:\n" + path).showAndWait();
+            org.example.util.ToastManager.success(tableItems, "Export complete", "Item master exported to:\n" + path);
         } catch (Exception ex) {
             showError("Could not export the workbook: " + ex.getMessage());
         }

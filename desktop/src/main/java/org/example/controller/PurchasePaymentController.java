@@ -261,7 +261,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                     fullPayment.isSelected() ? "FULL" : "PARTIAL",
                     storedProof == null ? null : storedProof.toString(), "System"));
             NotificationService.add("Supplier payment recorded for " + purchase.getInvoiceNo());
-            new OwnedAlert(Alert.AlertType.INFORMATION, "Supplier payment saved successfully.").showAndWait();
+            org.example.util.ToastManager.success(amount, "Payment saved", "Supplier payment saved successfully.");
             refreshInvoiceAmounts();
             resetForm();
             loadHistory();
@@ -288,7 +288,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                     paymentDate.getValue().toString(), newValue, mode.getValue(), reference.getText().trim(),
                     persistedNotes(), paidTo.getText().trim()));
             NotificationService.add("Supplier payment updated for " + purchase.getInvoiceNo());
-            new OwnedAlert(Alert.AlertType.INFORMATION, "Payment updated and purchase totals recalculated.").showAndWait();
+            org.example.util.ToastManager.success(amount, "Payment updated", "Payment updated and purchase totals recalculated.");
             refreshInvoiceAmounts();
             resetForm();
             loadHistory();
@@ -501,7 +501,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                             ConfigManager.get("company.name", "DSE ERP"), pdf);
             purchaseService.markEmailSent(purchase.getId());
             logCommunication(recipient, subject, "SENT", null);
-            new OwnedAlert(Alert.AlertType.INFORMATION, "Purchase invoice emailed successfully.").showAndWait();
+            org.example.util.ToastManager.success(amount, "Email sent", "Purchase invoice emailed successfully.");
         } catch (Exception error) {
             logCommunication(recipient, subject, "FAILED", stage + ": " + message(error));
             new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();

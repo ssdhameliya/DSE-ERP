@@ -1997,12 +1997,8 @@
     -fx-text-fill: #245fbd;
 }
 
-.erp-status-icon-badge {
-    -fx-background-color: derive(-erp-status-color, 88%);
-}
-
-.erp-status-icon-badge .erp-status-glyph {
-    -fx-icon-color: -erp-status-color;
+.erp-status-glyph {
+    -fx-effect: none;
 }
 
 .erp-button-primary {
@@ -5305,6 +5301,7 @@
 }
 
 .semantic-register-cell.pill-success,
+.semantic-register-cell.pill-info,
 .semantic-register-cell.pill-warning,
 .semantic-register-cell.pill-danger,
 .semantic-register-cell.pill-neutral {

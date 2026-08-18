@@ -1290,7 +1290,7 @@ public class DashboardController {
 
             new UserService().changePassword(SessionService.current().getId(), currentPassword.getText(), password);
             NotificationService.add("Your account password was changed.");
-            new OwnedAlert(Alert.AlertType.INFORMATION, "Password changed successfully.").showAndWait();
+            org.example.util.ToastManager.success(contentPane,"Password changed","Password changed successfully.");
         });
     }
 

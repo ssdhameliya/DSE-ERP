@@ -81,10 +81,10 @@ public final class ProfessionalUiEnhancer {
         if (!pane.getStyleClass().contains("erp-modern-dialog")) {
             pane.getStyleClass().add("erp-modern-dialog");
         }
-        String classes = String.join(" ", pane.getStyleClass()).toLowerCase(Locale.ROOT);
-        String semantic = classes.contains("error") ? "error"
-            : classes.contains("warning") ? "warning" : "notification";
-        if (pane.getGraphic() == null) pane.setGraphic(IconFactory.icon(semantic, 38));
+        // Do not inject a generic DialogPane graphic. JavaFX renders pane graphics
+        // in a separate .graphic-container outside custom business content, which
+        // produced the stray bell/notification icon seen on Bank Statement and
+        // other owned dialogs. A dialog may still set its own graphic explicitly.
 
         Platform.runLater(() -> pane.getButtonTypes().forEach(type -> {
             Node button = pane.lookupButton(type);

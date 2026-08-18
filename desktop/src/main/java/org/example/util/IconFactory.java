@@ -69,27 +69,18 @@ public final class IconFactory {
         return tile;
     }
 
-    /** Creates a compact status glyph with an explicit business-state colour. */
+    /** Creates a standalone status glyph with an explicit business-state colour. */
     public static Node statusIcon(String name, String color) {
         String semantic = normalize(name);
-        // A floppy-disk is meaningful on a Save button, but it looked like a
-        // tiny square when reused for a completed row. Status cells therefore
-        // use an unambiguous check-circle while retaining their business colour.
         if ("save".equals(semantic)) semantic = "complete";
         FontIcon glyph = new FontIcon(literal(semantic));
-        glyph.setIconSize(15);
+        glyph.setIconSize(16);
         glyph.setStyle("-fx-icon-color: " + color + ";");
         glyph.getStyleClass().add("erp-status-glyph");
         glyph.setMouseTransparent(true);
-
-        StackPane badge = new StackPane(glyph);
-        badge.getStyleClass().add("erp-status-icon-badge");
-        badge.setStyle("-erp-status-color: " + color + ";");
-        badge.setMinSize(22, 22);
-        badge.setPrefSize(22, 22);
-        badge.setMaxSize(22, 22);
-        badge.setMouseTransparent(true);
-        return badge;
+        glyph.getProperties().put("erp.icon.factory", true);
+        glyph.getProperties().put("erp.icon.semantic", semantic);
+        return glyph;
     }
 
     /** Adds the shared icon vocabulary to every newly loaded page and dialog. */

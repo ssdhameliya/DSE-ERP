@@ -132,7 +132,7 @@ public final class QuotationEditorController {
             double gross=tableLines.getItems().stream().mapToDouble(r->r.quantity.get()*r.rate.get()).sum(),discount=tableLines.getItems().stream().mapToDouble(r->r.discountAmount.get()).sum(),taxable=gross-discount,gst=tableLines.getItems().stream().mapToDouble(r->r.gstAmount.get()).sum(),total=taxable+gst;
             List<QuotationApiClient.LineDto> lines=tableLines.getItems().stream().map(r->new QuotationApiClient.LineDto(r.code.get(),r.description.get(),r.quantity.get(),r.rate.get(),r.gst.get(),r.discount.get(),r.total.get())).toList();
             QuotationApiClient.QuoteDto saved=api.save(new QuotationApiClient.SaveRequest(quotationId,dpDate.getValue().toString(),dpValid.getValue().toString(),customer.id,taxable,discount,gst,total,txtRemarks.getText(),dpFollowUp.getValue()==null?"":dpFollowUp.getValue().toString(),user(),cmbSource.getValue(),user(),lines));
-            quotationId=saved.id();if(send)api.markSent(saved.id(),cmbSource.getValue());dirty=false;new OwnedAlert(Alert.AlertType.INFORMATION,send?"Quotation saved and marked as sent.":"Quotation draft saved successfully.").showAndWait();backToRegister();
+            quotationId=saved.id();if(send)api.markSent(saved.id(),cmbSource.getValue());dirty=false;org.example.util.ToastManager.success(tableLines,send?"Quotation sent":"Quotation saved",send?"Quotation saved and marked as sent.":"Quotation draft saved successfully.");backToRegister();
         }catch(Exception e){error(e);}
     }
     private void backToRegister(){NavigationManager manager=NavigationManager.getInstance();if(manager!=null){manager.invalidate("/fxml/pages/Quotations.fxml");manager.loadPage("/fxml/pages/Quotations.fxml");}}

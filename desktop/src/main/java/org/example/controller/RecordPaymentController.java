@@ -228,7 +228,7 @@ public class RecordPaymentController implements ScreenLifecycle {
             storedProof=selectedAttachment==null?null:storeAttachment(selectedAttachment);
             supportApi.recordPayment(new SupportApiClient.PaymentRequest("SALE",sale.getId(),paymentDate.getValue().toString(),value,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim(),fullPayment.isSelected()?"FULL":"PARTIAL",storedProof==null?null:storedProof.toString(),"Admin"));
             NotificationService.add("Payment received for "+sale.getInvoiceNo());
-            new OwnedAlert(Alert.AlertType.INFORMATION,"Payment saved successfully.").showAndWait();
+            org.example.util.ToastManager.success(amount,"Payment saved","Payment saved successfully.");
             refreshInvoiceAmounts(); resetForm(); loadHistory(); refreshTimeline();
         } catch(Exception e){
             if(storedProof!=null) try{Files.deleteIfExists(storedProof);}catch(Exception ignored){}
@@ -253,7 +253,7 @@ public class RecordPaymentController implements ScreenLifecycle {
                     paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),
                     notes.getText().trim(),receivedFrom.getText().trim()));
             NotificationService.add("Payment updated for "+sale.getInvoiceNo());
-            new OwnedAlert(Alert.AlertType.INFORMATION,"Payment updated and invoice totals recalculated.").showAndWait();
+            org.example.util.ToastManager.success(amount,"Payment updated","Payment updated and invoice totals recalculated.");
             refreshInvoiceAmounts();resetForm();loadHistory();refreshTimeline();
         }catch(Exception e){
             new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
@@ -395,14 +395,14 @@ public class RecordPaymentController implements ScreenLifecycle {
             Path pdf=InvoicePdfService.sales(sale);
             EmailService.send(sale.getCustomer().getEmail(),"Payment receipt - "+sale.getInvoiceNo(),
                     "Thank you. We have recorded your payment of "+money(row.amount())+" for invoice "+sale.getInvoiceNo()+".",pdf);
-            new OwnedAlert(Alert.AlertType.INFORMATION,"Receipt sent successfully.").showAndWait();
+            org.example.util.ToastManager.success(amount,"Receipt sent","Receipt sent successfully.");
         }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 
     @FXML private void emailInvoice() {
         try {
             EmailService.send(sale.getCustomer().getEmail(),"Sales Invoice "+sale.getInvoiceNo(),PaymentMessageService.salesMessage(sale),InvoicePdfService.sales(sale));
-            new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice emailed successfully.").showAndWait();
+            org.example.util.ToastManager.success(amount,"Email sent","Invoice emailed successfully.");
         }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 

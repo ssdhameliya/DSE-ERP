@@ -205,7 +205,7 @@ public class BankStatementController {
                 var request=new BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,parsed.rows());
                 return api.importStatement(request);
             },
-            result -> { info("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows()); loadBatches(result.batch().id()); },
+            result -> { success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows()); loadBatches(result.batch().id()); },
             this::error
         );
     }
@@ -366,7 +366,7 @@ public class BankStatementController {
                     bulk -> {
                         String result="Updated: "+bulk.completed()+"\nSkipped: "+skipped+"\nFailed: "+bulk.failed();
                         if(!bulk.firstFailure().isBlank())result+="\n\nFirst failure: "+bulk.firstFailure();
-                        if(bulk.failed()==0)info(title,result);else new OwnedAlert(Alert.AlertType.WARNING,result).showAndWait();
+                        if(bulk.failed()==0)success(title,result);else new OwnedAlert(Alert.AlertType.WARNING,result).showAndWait();
                         refresh();
                     },
                     this::error
@@ -493,7 +493,7 @@ public class BankStatementController {
         UiTaskExecutor.submitLatest(
             "bank-statement-match-"+row.dto.id(),
             () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,allocations)),
-            result -> {info("Match Successful",result.message()+"\n\nBank Entry and invoice payment allocations were updated together.");refresh();},
+            result -> {success("Match Successful",result.message()+"\n\nBank Entry and invoice payment allocations were updated together.");refresh();},
             this::error
         );
     }
@@ -522,7 +522,7 @@ public class BankStatementController {
         String performedBy=user();
         UiTaskExecutor.submitLatest("bank-statement-match-"+row.dto.id(),
             () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,alloc)),
-            r -> {info("Match Successful",r.message()+"\n\nBank Entry created and Sales/Purchase payment allocation updated.");refresh();},
+            r -> {success("Match Successful",r.message()+"\n\nBank Entry created and Sales/Purchase payment allocation updated.");refresh();},
             this::error);
     }
 
@@ -666,6 +666,7 @@ public class BankStatementController {
     private static String money(double v){return String.format(Locale.ENGLISH,"%,.2f",v);} private static String safe(String s){return s==null?"":s;}
     private static String up(String s){return s==null?"":s.trim().toUpperCase(Locale.ROOT);} private static LocalDate parseDate(String s){try{return LocalDate.parse(s);}catch(Exception e){return null;}}
     private void info(String h,String t){Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,t);a.setHeaderText(h);a.showAndWait();}
+    private void success(String h,String t){org.example.util.ToastManager.success(table,h,t);}
     private void error(Throwable e){Alert a=new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?e.toString():e.getMessage());a.setHeaderText("Bank Statement operation failed");a.showAndWait();}
 
     private record BulkResult(int completed,int failed,String firstFailure) { }

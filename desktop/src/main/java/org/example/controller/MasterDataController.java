@@ -1013,10 +1013,7 @@ public class MasterDataController implements ScreenLifecycle {
     }
 
     private void showSuccess(String header, String message) {
-        Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION, message, ButtonType.OK);
-        alert.setTitle("Success");
-        alert.setHeaderText(header);
-        alert.showAndWait();
+        org.example.util.ToastManager.success(tblLookup, header, message);
     }
 
     private void showWarning(String message) {

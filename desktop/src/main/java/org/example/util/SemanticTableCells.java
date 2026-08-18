@@ -77,9 +77,9 @@ public final class SemanticTableCells {
             }
             case "return" -> {
                 if (v.contains("CANCEL") || v.contains("REJECT") || v.contains("FAIL")) yield new Presentation("cancel", State.DANGER);
-                if (v.contains("COMPLETE") || v.contains("RETURNED") || v.contains("APPROVED")) yield new Presentation("complete", State.SUCCESS);
+                if (v.contains("COMPLETE") || v.contains("RETURNED") || v.contains("APPROVED")) yield new Presentation("return", State.SUCCESS);
                 if (v.contains("PARTIAL") || v.contains("PROCESS")) yield new Presentation("refresh", State.INFO);
-                yield new Presentation("return", State.WARNING);
+                yield new Presentation("reminder", State.WARNING);
             }
             case "refund" -> {
                 if (v.contains("FAIL") || v.contains("CANCEL") || v.contains("REJECT")) yield new Presentation("warning", State.DANGER);

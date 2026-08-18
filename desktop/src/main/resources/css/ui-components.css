@@ -4190,9 +4190,8 @@
     -fx-icon-size: 16px;
 }
 
-.erp-status-icon-badge {
-    -fx-alignment: center;
-    -fx-background-radius: 10px;
+.erp-status-glyph {
+    -fx-padding: 0;
 }
 
 .modern-dialog {
@@ -6347,6 +6346,7 @@
 }
 
 .semantic-register-cell.pill-success,
+.semantic-register-cell.pill-info,
 .semantic-register-cell.pill-warning,
 .semantic-register-cell.pill-danger,
 .semantic-register-cell.pill-neutral {

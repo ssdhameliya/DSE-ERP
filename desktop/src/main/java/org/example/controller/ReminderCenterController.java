@@ -727,7 +727,7 @@ public class ReminderCenterController {
     }
 
     private void information(String message) {
-        new OwnedAlert(Alert.AlertType.INFORMATION, message).showAndWait();
+        org.example.util.ToastManager.success(table, "Completed", message);
     }
 
     private void error(String title, Exception exception) {
