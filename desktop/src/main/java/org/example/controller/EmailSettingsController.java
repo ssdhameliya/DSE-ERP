@@ -64,7 +64,7 @@ public class EmailSettingsController {
         ConfigManager.set("smtp.email",email); ConfigManager.set("smtp.appPassword",txtSmtpPassword.getText()); message("Email settings saved successfully.",false); leaveSettings();
     }
     @FXML private void back(){leaveSettings();}
-    private void leaveSettings(){if(txtSmtpEmail.getScene()!=null&&txtSmtpEmail.getScene().lookup("#contentPane")!=null&&NavigationManager.getInstance()!=null)NavigationManager.getInstance().loadPage("/fxml/pages/Settings.fxml");else SceneManager.showLogin();}
+    private void leaveSettings(){if(txtSmtpEmail.getScene()!=null&&NavigationManager.navigateOrReport("/fxml/pages/Settings.fxml"))return;SceneManager.showLogin();}
     private void error(Control f,Label l,String t){l.setText(t);l.setManaged(true);l.setVisible(true);if(!f.getStyleClass().contains("invalid-field"))f.getStyleClass().add("invalid-field");}
     private void clear(Control f,Label l){l.setManaged(false);l.setVisible(false);f.getStyleClass().remove("invalid-field");}
     private void message(String t,boolean error){lblMessage.setText(t);lblMessage.getStyleClass().removeAll("message-error","message-success");lblMessage.getStyleClass().add(error?"message-error":"message-success");}

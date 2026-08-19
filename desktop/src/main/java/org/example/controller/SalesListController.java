@@ -370,19 +370,9 @@ public class SalesListController implements ScreenLifecycle {
         navigateSalesPage("/fxml/pages/PaymentHistory.fxml", "Payment History");
     }
     private void navigateSalesPage(String fxml, String screenName) {
-        StackPane pane = tableSales.getScene() == null ? null : (StackPane) tableSales.getScene().lookup("#contentPane");
-        NavigationManager manager = NavigationManager.forPane(pane);
-        if (manager == null) {
-            warning(screenName + " could not be opened because the application navigation shell is not available.");
-            return;
+        if (!NavigationManager.navigateOrReport(fxml)) {
+            warning(screenName + " could not be opened. Please try again.");
         }
-        if (manager.loadPage(fxml)) return;
-        // loadPage can reject a click while another navigation is finishing. Retry once on the next FX pulse.
-        javafx.application.Platform.runLater(() -> {
-            if (!manager.loadPage(fxml)) {
-                warning(screenName + " could not be opened. Please try again.");
-            }
-        });
     }
 
     @FXML private void showToday(){applyDateRange(BusinessClock.today(),BusinessClock.today());}
@@ -401,9 +391,9 @@ public class SalesListController implements ScreenLifecycle {
     private void loadSavedViews(){savedViewsMenu.getItems().clear();try{Integer uid=SessionService.current()==null?null:SessionService.current().getId();for(SupportApiClient.SavedView v:support.savedViews("SALES_REGISTER",uid)){MenuItem i=new MenuItem(v.name());i.setOnAction(e->applySaved(v.data()));savedViewsMenu.getItems().add(i);}}catch(Exception ignored){}if(savedViewsMenu.getItems().isEmpty())savedViewsMenu.getItems().add(new MenuItem("No saved views"));}
     private void applySaved(String data){String[]x=data.split("\\|",-1);if(x.length<11)return;txtInvoice.setText(x[0]);cmbCustomer.setValue(x[1]);dpFrom.setValue(date(x[2]));dpTo.setValue(date(x[3]));cmbPaymentStatus.setValue(x[4]);cmbPaymentDue.setValue(x[5]);cmbMailStatus.setValue(x[6]);cmbWhatsappStatus.setValue(x[7]);cmbInvoiceType.setValue(x[8]);txtAmountFrom.setText(x[9]);txtAmountTo.setText(x[10]);applyFilters();}
 
-    @FXML private void newSale(){StackPane pane=(StackPane)tableSales.getScene().lookup("#contentPane");if(pane!=null)NavigationManager.forPane(pane).loadPage("/fxml/pages/Sale.fxml");}
-    private void edit(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);((SalesController)loader.getController()).loadSale(service.getByInvoice(sale.getInvoiceNo()));StackPane pane=(StackPane)tableSales.getScene().lookup("#contentPane");pane.getChildren().setAll(root);}catch(Exception e){error(e);}}
-    private void viewSale(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));controller.setViewMode(true);StackPane pane=(StackPane)tableSales.getScene().lookup("#contentPane");pane.getChildren().setAll(root);}catch(Exception e){error(e);}}
+    @FXML private void newSale(){NavigationManager.navigateOrReport("/fxml/pages/Sale.fxml");}
+    private void edit(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}}
+    private void viewSale(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));controller.setViewMode(true);NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}}
     private void openSaleInvoicePdf(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice not found. Refresh and try again.");Path pdf=InvoicePdfService.salesBodyOnly(full);java.awt.Desktop.getDesktop().open(pdf.toFile());log("SALE",sale.getId(),"PDF_OPENED_BODY_ONLY",sale.getInvoiceNo());}catch(Exception e){error(e);}}
     private void openPdf(Sales sale){try{Path p=InvoicePdfService.sales(service.getByInvoice(sale.getInvoiceNo()));java.awt.Desktop.getDesktop().open(p.toFile());log("SALE",sale.getId(),"PDF_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
     private void sendEmail(Sales sale){String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=InvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.config.ConfigManager.get("company.name","DSE ERP"),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}

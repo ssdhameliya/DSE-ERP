@@ -161,20 +161,99 @@ public class MasterDataService {
 
     @Transactional
     public MasterDtos.ItemDto updateItem(MasterDtos.ItemDto d) {
-        ItemEntity e = items.findByItemCode(d.itemCode()).orElseThrow(() -> new IllegalArgumentException("Item not found"));
+        ItemEntity e = items.findByItemCodeForUpdate(d.itemCode()).orElseThrow(() -> new IllegalArgumentException("Item not found"));
         copy(d, e, false);
         return itemDto(e);
     }
 
     @Transactional
     public void deleteItem(String code) {
-        ItemEntity e = items.findByItemCode(code).orElseThrow(() -> new IllegalArgumentException("Item not found"));
+        ItemEntity e = items.findByItemCodeForUpdate(code).orElseThrow(() -> new IllegalArgumentException("Item not found"));
+        List<String> usages = new ArrayList<>(itemDeleteUsages(code));
+        double stock = e.getOpeningStock() == null ? 0.0 : e.getOpeningStock();
+        double reserved = e.getReservedStock() == null ? 0.0 : e.getReservedStock();
+        if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) usages.add("Current inventory balance");
+        if (!usages.isEmpty()) throw new IllegalStateException("Item cannot be deleted while it has stock or is referenced by ERP transactions.");
         items.delete(e);
     }
 
     @Transactional(readOnly = true)
     public boolean itemExists(String code) {
         return items.existsByItemCode(code);
+    }
+
+    @Transactional(readOnly = true)
+    public MasterDtos.ItemBulkDeleteValidation validateBulkDeleteItems(List<String> requestedCodes) {
+        List<String> codes = normalizeItemCodes(requestedCodes);
+        if (codes.isEmpty()) throw new IllegalArgumentException("Select at least one item to delete.");
+        List<MasterDtos.ItemDeleteIssue> issues = new ArrayList<>();
+        for (String code : codes) {
+            ItemEntity item = items.findByItemCode(code).orElse(null);
+            if (item == null) {
+                issues.add(new MasterDtos.ItemDeleteIssue(code, code, List.of("Item no longer exists. Refresh Item Master and try again.")));
+                continue;
+            }
+            List<String> usages = new ArrayList<>(itemDeleteUsages(code));
+            double stock = item.getOpeningStock() == null ? 0.0 : item.getOpeningStock();
+            double reserved = item.getReservedStock() == null ? 0.0 : item.getReservedStock();
+            if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) {
+                usages.add("Current inventory balance (stock " + stock + ", reserved " + reserved + ")");
+            }
+            if (!usages.isEmpty()) {
+                issues.add(new MasterDtos.ItemDeleteIssue(code, Objects.toString(item.getDescription(), code), List.copyOf(usages)));
+            }
+        }
+        return new MasterDtos.ItemBulkDeleteValidation(issues.isEmpty(), codes.size(), List.copyOf(issues));
+    }
+
+    @Transactional
+    public int bulkDeleteItems(List<String> requestedCodes) {
+        List<String> codes = normalizeItemCodes(requestedCodes);
+        MasterDtos.ItemBulkDeleteValidation validation = validateBulkDeleteItems(codes);
+        if (!validation.valid()) {
+            throw new IllegalStateException("Bulk delete blocked because one or more selected items are referenced by ERP transactions.");
+        }
+        int deleted = 0;
+        for (String code : codes) {
+            ItemEntity item = items.findByItemCodeForUpdate(code).orElseThrow(() -> new IllegalStateException("Item changed during bulk delete: " + code));
+            List<String> usages = new ArrayList<>(itemDeleteUsages(code));
+            double stock = item.getOpeningStock() == null ? 0.0 : item.getOpeningStock();
+            double reserved = item.getReservedStock() == null ? 0.0 : item.getReservedStock();
+            if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) usages.add("Current inventory balance");
+            if (!usages.isEmpty()) throw new IllegalStateException("Bulk delete stopped because item " + code + " changed or became referenced. Nothing was deleted.");
+            items.delete(item);
+            deleted++;
+        }
+        items.flush();
+        return deleted;
+    }
+
+    private List<String> normalizeItemCodes(List<String> requestedCodes) {
+        if (requestedCodes == null) return List.of();
+        return requestedCodes.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(v -> !v.isBlank())
+            .distinct()
+            .toList();
+    }
+
+    private List<String> itemDeleteUsages(String code) {
+        List<String> usages = new ArrayList<>();
+        addItemUsage(usages, "sales_line", code, "Sales invoices");
+        addItemUsage(usages, "purchase_line", code, "Purchase invoices");
+        addItemUsage(usages, "quotation_line", code, "Quotations");
+        addItemUsage(usages, "return_register", code, "Sales/Purchase returns");
+        addItemUsage(usages, "stock_adjustment", code, "Stock adjustment history");
+        return List.copyOf(usages);
+    }
+
+    private void addItemUsage(List<String> usages, String table, String code, String label) {
+        Number count = (Number) entityManager.createNativeQuery("SELECT COUNT(*) FROM " + table + " WHERE item_code = :code")
+            .setParameter("code", code)
+            .getSingleResult();
+        long total = count == null ? 0L : count.longValue();
+        if (total > 0) usages.add(label + " (" + total + ")");
     }
 
     @Transactional(readOnly = true)
@@ -470,7 +549,10 @@ public class MasterDataService {
         e.setDiscountPercent(d.discountPercent());
         e.setPurchasePrice(d.purchasePrice());
         e.setSellingPrice(d.sellingPrice());
-        e.setOpeningStock(d.openingStock());
+        if (includeCode) {
+            if (!Double.isFinite(d.openingStock()) || d.openingStock() < 0) throw new IllegalArgumentException("Opening stock must be a finite non-negative number");
+            e.setOpeningStock(d.openingStock());
+        }
         e.setMinimumStock(d.minimumStock());
         e.setLocation(d.location());
         e.setRemarks(d.remarks());

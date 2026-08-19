@@ -5,6 +5,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.EmptyResultDataAccessException;
 
 import java.time.DateTimeException;
 
@@ -38,6 +41,24 @@ public class ApiExceptionHandler {
     ResponseEntity<AuthDtos.OperationResponse> forbidden(SecurityException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
+    }
+
+    @ExceptionHandler(EmptyResultDataAccessException.class)
+    ResponseEntity<AuthDtos.OperationResponse> notFound(EmptyResultDataAccessException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new AuthDtos.OperationResponse(false, "The requested record was not found. Refresh and try again."));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<AuthDtos.OperationResponse> dataConflict(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new AuthDtos.OperationResponse(false, "The operation conflicts with existing ERP data. Refresh the record and try again."));
+    }
+
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    ResponseEntity<AuthDtos.OperationResponse> concurrentChange(PessimisticLockingFailureException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new AuthDtos.OperationResponse(false, "This record is being changed by another operation. Refresh and try again."));
     }
 
     @ExceptionHandler(Exception.class)

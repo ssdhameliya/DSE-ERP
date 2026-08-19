@@ -139,10 +139,7 @@ public class QuotationService {
             if (!Double.isFinite(l.quantity()) || l.quantity() <= 0) {
                 throw new IllegalArgumentException("Quotation quantity must be a finite number greater than zero.");
             }
-            if (jdbc.update("UPDATE item_master SET opening_stock=COALESCE(opening_stock,0)-? WHERE item_code=? AND COALESCE(opening_stock,0)>=?",
-                    l.quantity(), l.code(), l.quantity()) != 1) {
-                throw new IllegalStateException("Insufficient stock for " + l.code() + ". Refresh and try again.");
-            }
+            operations.applyStockDelta(l.code(), -l.quantity(), true);
             jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,line_total) VALUES(?,?,?,?,?,?)",
                     sid, l.code(), l.quantity(), l.rate() * (1 - l.discount() / 100.0), l.gst(), l.total());
         }

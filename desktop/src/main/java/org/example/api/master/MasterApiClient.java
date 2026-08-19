@@ -36,6 +36,8 @@ public final class MasterApiClient {
  public boolean itemExists(String code){return get("/api/master/items/exists?code="+enc(code),ExistsResponse.class).exists();}
  public String nextItemCode(){return get("/api/master/items/next-code",NextCodeResponse.class).code();}
  public void saveItems(List<Item> rows){post("/api/master/items/bulk",rows.stream().map(this::itemDto).toList(),OperationResponse.class);}
+ public ItemBulkDeleteValidation validateBulkDeleteItems(List<String> codes){return post("/api/master/items/bulk-delete/validate",new ItemBulkDeleteRequest(codes==null?List.of():List.copyOf(codes)),ItemBulkDeleteValidation.class);}
+ public OperationResponse bulkDeleteItems(List<String> codes){return post("/api/master/items/bulk-delete",new ItemBulkDeleteRequest(codes==null?List.of():List.copyOf(codes)),OperationResponse.class);}
 
  public Map<String,String> referenceFormats(){ReferenceFormatsResponse r=get("/api/master/reference-formats",ReferenceFormatsResponse.class);return r==null||r.formats()==null?Map.of():Map.copyOf(r.formats());}
  public List<Lookup> lookups(String type){return get("/api/master/lookups?type="+enc(type),new TypeReference<List<LookupDto>>(){}).stream().map(this::lookup).toList();}
@@ -76,5 +78,8 @@ public final class MasterApiClient {
  public record CategoryDto(Integer id,String categoryCode,String categoryName,String description,int displayOrder,boolean active,long valueCount,long activeValueCount){}
  public record RenameCategoryRequest(String oldName,String newName){}
  public record CategoryUpsertRequest(String code,String name,String description){}
+ public record ItemBulkDeleteRequest(List<String> itemCodes){}
+ public record ItemDeleteIssue(String itemCode,String itemName,List<String> usages){}
+ public record ItemBulkDeleteValidation(boolean valid,int requestedCount,List<ItemDeleteIssue> issues){}
  public record NextCodeResponse(String code){} public record ExistsResponse(boolean exists){} public record ValuesResponse(List<String> values){} public record OperationResponse(boolean success,String message){}
 }

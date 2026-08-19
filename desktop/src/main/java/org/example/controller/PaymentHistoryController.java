@@ -154,16 +154,9 @@ public class PaymentHistoryController {
         navigate("/fxml/pages/SalesList.fxml", "Sales Register");
     }
     private void navigate(String fxml, String screenName) {
-        StackPane pane = table.getScene() == null ? null : (StackPane) table.getScene().lookup("#contentPane");
-        NavigationManager manager = NavigationManager.forPane(pane);
-        if (manager == null) {
-            error(screenName + " could not be opened because the application navigation shell is not available.");
-            return;
+        if (!NavigationManager.navigateOrReport(fxml)) {
+            error(screenName + " could not be opened. Please try again.");
         }
-        if (manager.loadPage(fxml)) return;
-        javafx.application.Platform.runLater(() -> {
-            if (!manager.loadPage(fxml)) error(screenName + " could not be opened. Please try again.");
-        });
     }
 
     private static String money(double value) { return String.format(Locale.of("en", "IN"), "₹%,.2f", value); }

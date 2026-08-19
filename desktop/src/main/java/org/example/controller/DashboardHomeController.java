@@ -350,11 +350,11 @@ public class DashboardHomeController {
     @FXML private void openImport(ActionEvent event) { open(event, "/fxml/pages/Import.fxml"); }
 
     private void open(ActionEvent event, String fxml) {
-        Node source = (Node) event.getSource();
-        StackPane content = (StackPane) source.getScene().lookup("#contentPane");
-        if (content != null) NavigationManager.forPane(content).loadPage(fxml);
+        NavigationManager.navigateOrReport(fxml);
     }
-    private void openFromNode(Node source,String fxml){StackPane content=(StackPane)source.getScene().lookup("#contentPane");if(content!=null)NavigationManager.forPane(content).loadPage(fxml);}
+    private void openFromNode(Node source, String fxml) {
+        NavigationManager.navigateOrReport(fxml);
+    }
 
 
 

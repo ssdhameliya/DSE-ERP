@@ -781,26 +781,43 @@ public class DashboardController {
 
     /** Lets administration child pages navigate inside the existing ERP shell. */
     public static void navigateFromChildPage(String title, String fxmlPath) {
-        DashboardController c = CURRENT;
-        if (c == null) return;
+        DashboardController c = currentVisibleShell();
+        if (c == null) {
+            javafx.application.Platform.runLater(() -> NavigationManager.navigateOrReport(fxmlPath));
+            return;
+        }
         javafx.application.Platform.runLater(() -> c.openPage(c.btnUserAccess, title, fxmlPath));
     }
 
     /** Lets Document Studio child pages keep the shell title and menu selection synchronized. */
     public static void navigateFromDocumentStudio(String title, String fxmlPath) {
-        DashboardController c = CURRENT;
-        if (c == null) return;
+        DashboardController c = currentVisibleShell();
+        if (c == null) {
+            javafx.application.Platform.runLater(() -> NavigationManager.navigateOrReport(fxmlPath));
+            return;
+        }
         javafx.application.Platform.runLater(() -> c.openPage(c.btnDocumentStudio, title, fxmlPath));
     }
 
     /** Lets a feature page navigate through the existing cached ERP shell. */
     public static void navigateFromChild(String title, String fxmlPath, BankExpenseController.Mode mode) {
-        DashboardController c = CURRENT;
-        if (c == null) return;
+        DashboardController c = currentVisibleShell();
         if (mode != null) BankExpenseController.requestMode(mode);
+        if (c == null) {
+            javafx.application.Platform.runLater(() -> NavigationManager.navigateOrReport(fxmlPath));
+            return;
+        }
         Button target = mode == BankExpenseController.Mode.EXPENSE ? c.btnExpenseEntry
             : mode == BankExpenseController.Mode.BANK ? c.btnBankEntry : c.btnBankExpense;
         javafx.application.Platform.runLater(() -> c.openPage(target, title, fxmlPath));
+    }
+
+    private static DashboardController currentVisibleShell() {
+        DashboardController c = CURRENT;
+        if (c == null || c.contentPane == null || c.contentPane.getScene() == null
+                || c.contentPane.getScene().getWindow() == null
+                || !c.contentPane.getScene().getWindow().isShowing()) return null;
+        return c;
     }
 
     @FXML private void createSale() { openPage(btnCreateSale, "Create Sale", "/fxml/pages/Sale.fxml"); }

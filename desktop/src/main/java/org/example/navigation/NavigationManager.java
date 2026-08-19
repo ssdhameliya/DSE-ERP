@@ -5,6 +5,8 @@ import org.example.util.BusinessClock;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
+import javafx.scene.Scene;
+import javafx.stage.Window;
 import javafx.application.Platform;
 import org.example.util.ProfessionalUiEnhancer;
 import org.example.util.ModernDialog;
@@ -42,29 +44,99 @@ public class NavigationManager {
     );
 
     public NavigationManager(StackPane contentPane) {
+        if (contentPane == null) throw new IllegalArgumentException("contentPane is required");
         this.contentPane = contentPane;
-        if (instance == null || instance.contentPane == null || instance.contentPane.getScene() == null) {
-            instance = this;
-        }
+        // The Dashboard shell is the only owner of NavigationManager. Always bind
+        // a newly-created shell so logout/login, updater restart and scene rebuilds
+        // cannot leave the singleton pointing at an old hidden StackPane.
+        bindActive(this, "constructor");
     }
 
     public static NavigationManager getInstance() {
-        return instance;
+        NavigationManager current = instance;
+        if (isPaneActive(current == null ? null : current.contentPane)) return current;
+
+        StackPane discovered = findActiveContentPane();
+        if (discovered != null) {
+            if (current != null && current.contentPane == discovered) return current;
+            return bindActive(new NavigationManager(discovered, false), "active-scene-discovery");
+        }
+        return current; // loadPage() will report a visible inactive-shell error.
     }
 
-    /** Reuses the shell navigation manager so feature screens cannot accidentally
-     * replace the shared cache by constructing a second manager. */
+    /** Reuses the active shell manager, but rebinds when the caller belongs to a
+     * newer visible Dashboard scene. This prevents navigation into a hidden pane. */
     public static NavigationManager forPane(StackPane pane) {
-        NavigationManager current = instance;
-        if (current != null) {
-            if (pane != null && current.contentPane != pane) {
-                PerformanceMonitor.event("navigation-manager", "reused-shared-cache | requested-pane="
-                    + Integer.toHexString(System.identityHashCode(pane)) + " | active-pane="
-                    + Integer.toHexString(System.identityHashCode(current.contentPane)));
+        NavigationManager current = getInstance();
+        if (pane != null && isPaneActive(pane)) {
+            if (current == null || current.contentPane != pane) {
+                return bindActive(new NavigationManager(pane, false), "forPane-active-scene");
             }
             return current;
         }
-        return pane == null ? null : new NavigationManager(pane);
+        if (current != null) return current;
+        return pane == null ? null : bindActive(new NavigationManager(pane, false), "forPane-fallback");
+    }
+
+    /** Safe entry point for child controllers. No navigation request may disappear
+     * silently: a missing active shell is logged and reported to the user. */
+    public static boolean navigateOrReport(String fxml) {
+        NavigationManager manager = getInstance();
+        if (manager == null) {
+            logNavigationEvent("FAILED", fxml, "No navigation manager is bound");
+            showGlobalNavigationError("Unable to find the active ERP window.");
+            return false;
+        }
+        return manager.loadPage(fxml);
+    }
+
+    private NavigationManager(StackPane contentPane, boolean bind) {
+        if (contentPane == null) throw new IllegalArgumentException("contentPane is required");
+        this.contentPane = contentPane;
+        if (bind) bindActive(this, "private-constructor");
+    }
+
+    private static synchronized NavigationManager bindActive(NavigationManager manager, String reason) {
+        NavigationManager previous = instance;
+        instance = manager;
+        if (previous != manager) {
+            // Cached JavaFX Nodes belong to the old scene graph. Drop them when a
+            // new shell takes ownership so no hidden-scene nodes are reattached.
+            pageCache.clear();
+            currentCachedPage = null;
+            currentPage = null;
+            ScreenRefreshPolicy.invalidateAll();
+            PerformanceMonitor.event("navigation-manager", "bound-active-shell | reason=" + reason
+                + " | pane=" + Integer.toHexString(System.identityHashCode(manager.contentPane)));
+        }
+        return manager;
+    }
+
+    private static boolean isPaneActive(StackPane pane) {
+        if (pane == null) return false;
+        Scene scene = pane.getScene();
+        if (scene == null) return false;
+        Window window = scene.getWindow();
+        return window != null && window.isShowing() && scene.getRoot() != null;
+    }
+
+    private static boolean isNavigationTargetUsable(StackPane pane) {
+        if (isPaneActive(pane)) return true;
+        // FXMLLoader invokes DashboardController.initialize() before the shell is
+        // attached to its Stage. That one bootstrap phase must be able to load the
+        // initial DashboardHome page; after a visible shell exists, hidden panes
+        // are never accepted.
+        return pane != null && pane.getScene() == null && findActiveContentPane() == null
+            && instance != null && instance.contentPane == pane;
+    }
+
+    private static StackPane findActiveContentPane() {
+        for (Window window : Window.getWindows()) {
+            if (window == null || !window.isShowing() || window.getScene() == null) continue;
+            Node node = window.getScene().lookup("#contentPane");
+            if (node instanceof StackPane pane) return pane;
+        }
+        return null;
     }
 
     /**
@@ -74,12 +146,32 @@ public class NavigationManager {
      * @return true only after the new page has fully loaded
      */
     public boolean loadPage(String fxml) {
-        if (fxml == null || fxml.isBlank()) return false;
+        if (fxml == null || fxml.isBlank()) {
+            logNavigationEvent("FAILED", String.valueOf(fxml), "Blank destination");
+            reportNavigationFailure("Navigation destination is missing.");
+            return false;
+        }
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(() -> loadPage(fxml));
             return true;
         }
-        if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) return false;
+
+        NavigationManager active = getInstance();
+        if (active != null && active != this) {
+            PerformanceMonitor.event("navigation-manager", "redirect-stale-manager | page=" + fxml);
+            return active.loadPage(fxml);
+        }
+        if (!isNavigationTargetUsable(contentPane)) {
+            logNavigationEvent("FAILED", fxml, "Navigation pane is not attached to the visible ERP shell");
+            reportNavigationFailure("The active ERP workspace could not be resolved. Please retry the action.");
+            return false;
+        }
+        if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) {
+            logNavigationEvent("DEFERRED", fxml, "Another navigation is in progress");
+            Platform.runLater(() -> loadPage(fxml));
+            return true;
+        }
+        logNavigationEvent("START", fxml, "pane=" + Integer.toHexString(System.identityHashCode(contentPane)));
         String timingKey = "navigation:" + fxml;
         boolean[] reusedPage = {false};
         PerformanceMonitor.start(timingKey);
@@ -132,10 +224,12 @@ public class NavigationManager {
             PerformanceMonitor.event("navigation-cache", fxml + " | " + (reused ? "hit" : "miss")
                 + " | size=" + pageCache.size());
             PerformanceMonitor.sampleGc("navigation:"+fxml);
+            logNavigationEvent("SUCCESS", fxml, reused ? "cache-hit" : "loaded");
             return true;
         } catch (Throwable error) {
             error.printStackTrace();
             logFailure(fxml, error);
+            logNavigationEvent("FAILED", fxml, rootMessage(error));
             ModernDialog.error(contentPane, "Screen could not be opened",
                 "The ERP remains open", "Unable to open this screen.\n\n" + rootMessage(error));
             return false;
@@ -145,6 +239,52 @@ public class NavigationManager {
             if (elapsed >= 0) PerformanceBudgets.record(fxml, elapsed,
                     reusedPage[0] ? PerformanceBudgets.CACHED_PAGE_MS
                             : PerformanceBudgets.FIRST_REGISTER_MS);
+            NAVIGATION_IN_PROGRESS.set(false);
+        }
+    }
+
+    /** Attaches a caller-prepared editor/view through the same active-shell
+     * contract used by normal FXML navigation. This replaces legacy direct
+     * contentPane.getChildren().setAll(...) navigation. */
+    public boolean showPreparedPage(String fxml, Node page, Object controller) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> showPreparedPage(fxml, page, controller));
+            return true;
+        }
+        if (page == null) {
+            logNavigationEvent("FAILED", fxml, "Prepared page is null");
+            reportNavigationFailure("The requested screen could not be prepared.");
+            return false;
+        }
+        NavigationManager active = getInstance();
+        if (active != null && active != this) return active.showPreparedPage(fxml, page, controller);
+        if (!isNavigationTargetUsable(contentPane)) {
+            logNavigationEvent("FAILED", fxml, "Prepared page target is not the active shell");
+            reportNavigationFailure("The active ERP workspace could not be resolved. Please retry the action.");
+            return false;
+        }
+        if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) {
+            logNavigationEvent("DEFERRED", fxml, "Another navigation is in progress");
+            Platform.runLater(() -> showPreparedPage(fxml, page, controller));
+            return true;
+        }
+        try {
+            logNavigationEvent("START", fxml, "prepared-page");
+            if (currentCachedPage != null) notifyHidden(currentCachedPage.controller());
+            CachedPage prepared = new CachedPage(page, controller);
+            contentPane.getChildren().setAll(page);
+            notifyShown(controller, false);
+            currentCachedPage = prepared;
+            currentPage = fxml;
+            logNavigationEvent("SUCCESS", fxml, "prepared-page");
+            return true;
+        } catch (Throwable error) {
+            logFailure(fxml, error);
+            logNavigationEvent("FAILED", fxml, rootMessage(error));
+            ModernDialog.error(contentPane, "Screen could not be opened", "The ERP remains open",
+                "Unable to open this screen.\n\n" + rootMessage(error));
+            return false;
+        } finally {
             NAVIGATION_IN_PROGRESS.set(false);
         }
     }
@@ -245,6 +385,51 @@ public class NavigationManager {
         while (root.getCause() != null && root.getCause() != root) root = root.getCause();
         String message = root.getMessage();
         return message == null || message.isBlank() ? root.getClass().getSimpleName() : message;
+    }
+
+    private void reportNavigationFailure(String message) {
+        if (isPaneActive(contentPane)) {
+            try {
+                ModernDialog.error(contentPane, "Navigation Error", "The ERP remains open", message);
+                return;
+            } catch (Throwable ignored) {
+                // Fall through to the global owned alert.
+            }
+        }
+        showGlobalNavigationError(message);
+    }
+
+    private static void showGlobalNavigationError(String message) {
+        try {
+            StackPane pane = findActiveContentPane();
+            if (pane != null) {
+                ModernDialog.error(pane, "Navigation Error", "The ERP remains open", message);
+                return;
+            }
+            org.example.util.OwnedAlert alert = new org.example.util.OwnedAlert(
+                javafx.scene.control.Alert.AlertType.ERROR, message, javafx.scene.control.ButtonType.OK);
+            alert.setTitle("Navigation Error");
+            alert.setHeaderText("The requested screen could not be opened");
+            alert.showAndWait();
+        } catch (Throwable ignored) {
+            // The persistent navigation log still records the failure even if JavaFX
+            // is already shutting down and no dialog can be created.
+        }
+    }
+
+    private static void logNavigationEvent(String state, String fxml, String detail) {
+        String destination = fxml == null ? "<null>" : fxml;
+        PerformanceMonitor.event("navigation", state + " | " + destination + " | " + detail);
+        try {
+            Path folder = org.example.config.ConfigManager.getConfigFolder();
+            Files.createDirectories(folder);
+            Path log = folder.resolve("navigation-events.log");
+            String line = BusinessClock.now() + " " + state + " destination=" + destination
+                + " detail=" + detail + System.lineSeparator();
+            Files.writeString(log, line, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (Exception ignored) {
+            // Navigation must not fail because diagnostics cannot be written.
+        }
     }
 
     /** Keeps intermittent production failures diagnosable without a console. */

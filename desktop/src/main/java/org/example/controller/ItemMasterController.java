@@ -15,6 +15,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.example.model.Item;
+import org.example.api.master.MasterApiClient;
 import org.example.service.ItemService;
 import org.example.service.ItemSpreadsheetService;
 import org.example.service.NotificationService;
@@ -26,17 +27,22 @@ import org.example.navigation.NavigationManager;
 import java.io.File;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class ItemMasterController {
 
     @FXML private TextField txtSearch;
     @FXML private TableView<Item> tableItems;
-    @FXML private Label lblRecordCount,lblKpiTotal,lblKpiCategories,lblKpiLowStock,lblKpiValue;
+    @FXML private Label lblRecordCount,lblKpiTotal,lblKpiCategories,lblKpiLowStock,lblKpiValue,lblSelectedCount;
+    @FXML private Button btnDeleteSelected;
     @FXML private StackPane itemPageIcon,itemTotalIcon,itemCategoryIcon,itemLowIcon,itemValueIcon;
 
 
+    @FXML private TableColumn<Item, Boolean> colSelect;
     @FXML private TableColumn<Item, String> colCode;
     @FXML private TableColumn<Item, String> colDescription;
     @FXML private TableColumn<Item, String> colCategory;
@@ -58,10 +64,13 @@ public class ItemMasterController {
     private final ObservableList<Item> items = FXCollections.observableArrayList();
     private final ItemService service = new ItemService();
     private final ItemSpreadsheetService spreadsheetService = new ItemSpreadsheetService();
+    private final Set<String> selectedItemCodes = new LinkedHashSet<>();
+    private final CheckBox selectAllVisible = new CheckBox();
 
     @FXML
     public void initialize() {
         installKpiIcons();configureExplicitTableHeaderIcons();
+        configureBulkSelection();
         // Column bindings
 
         colCode.setCellValueFactory(new PropertyValueFactory<>("itemCode"));
@@ -281,6 +290,7 @@ public class ItemMasterController {
         String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
         try {
             List<Item> list = service.getAll();
+            clearBulkSelection();
             items.setAll(list.stream()
                 .filter(item -> query.isEmpty()
                     || (item.getItemCode() != null && item.getItemCode().toLowerCase(Locale.ROOT).contains(query))
@@ -293,6 +303,114 @@ public class ItemMasterController {
         } catch (Exception e) {
             showError("Could not load items: " + e.getMessage());
         }
+    }
+
+    private void configureBulkSelection() {
+        selectAllVisible.setTooltip(new Tooltip("Select all currently visible Item Master records"));
+        selectAllVisible.setOnAction(event -> {
+            selectedItemCodes.clear();
+            if (selectAllVisible.isSelected()) {
+                for (Item item : tableItems.getItems()) {
+                    if (item != null && item.getItemCode() != null && !item.getItemCode().isBlank()) selectedItemCodes.add(item.getItemCode());
+                }
+            }
+            updateBulkSelectionUi();
+            tableItems.refresh();
+        });
+        colSelect.setText("");
+        colSelect.setGraphic(selectAllVisible);
+        colSelect.setSortable(false);
+        colSelect.setReorderable(false);
+        colSelect.setResizable(false);
+        colSelect.setCellFactory(column -> new TableCell<>() {
+            private final CheckBox box = new CheckBox();
+            {
+                box.setOnAction(event -> {
+                    Item row = getTableRow() == null ? null : getTableRow().getItem();
+                    if (row == null || row.getItemCode() == null || row.getItemCode().isBlank()) return;
+                    if (box.isSelected()) selectedItemCodes.add(row.getItemCode()); else selectedItemCodes.remove(row.getItemCode());
+                    updateBulkSelectionUi();
+                });
+            }
+            @Override protected void updateItem(Boolean value, boolean empty) {
+                super.updateItem(value, empty);
+                Item row = getTableRow() == null ? null : getTableRow().getItem();
+                if (empty || row == null || row.getItemCode() == null) { setGraphic(null); return; }
+                box.setSelected(selectedItemCodes.contains(row.getItemCode()));
+                setGraphic(box);
+            }
+        });
+        updateBulkSelectionUi();
+    }
+
+    private void clearBulkSelection() {
+        selectedItemCodes.clear();
+        selectAllVisible.setSelected(false);
+        updateBulkSelectionUi();
+    }
+
+    private void updateBulkSelectionUi() {
+        int count = selectedItemCodes.size();
+        if (lblSelectedCount != null) lblSelectedCount.setText(count + " selected");
+        if (btnDeleteSelected != null) btnDeleteSelected.setDisable(count == 0);
+        int visible = tableItems == null || tableItems.getItems() == null ? 0 : tableItems.getItems().size();
+        selectAllVisible.setSelected(visible > 0 && count == visible);
+        selectAllVisible.setIndeterminate(count > 0 && count < visible);
+    }
+
+    @FXML
+    private void deleteSelectedItems() {
+        List<String> codes = new ArrayList<>(selectedItemCodes);
+        if (codes.isEmpty()) { showWarning("Select one or more visible items to delete."); return; }
+
+        Alert first = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+            "Delete " + codes.size() + " selected Item Master record" + (codes.size() == 1 ? "" : "s") + "?\n\n" +
+            "The server will first verify that none of the selected items are used by Sales, Purchases, Returns, Quotations or stock history.",
+            ButtonType.YES, ButtonType.NO);
+        first.setHeaderText("Confirm bulk deletion");
+        if (first.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
+
+        try {
+            MasterApiClient.ItemBulkDeleteValidation validation = service.validateBulkDelete(codes);
+            if (validation == null || !validation.valid()) {
+                showBulkDeleteBlocked(validation);
+                return;
+            }
+
+            Alert finalConfirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                "Dependency validation passed for all " + codes.size() + " selected item" + (codes.size() == 1 ? "" : "s") + ".\n\n" +
+                "Final confirmation: permanently delete these records? This action cannot be undone.",
+                ButtonType.YES, ButtonType.NO);
+            finalConfirmation.setHeaderText("Final confirmation required");
+            if (finalConfirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
+
+            MasterApiClient.OperationResponse result = service.bulkDelete(codes);
+            clearBulkSelection();
+            loadItems();
+            String message = result == null || result.message() == null || result.message().isBlank()
+                ? codes.size() + " item" + (codes.size() == 1 ? "" : "s") + " deleted successfully."
+                : result.message() + ".";
+            org.example.util.ToastManager.success(tableItems, "Items Deleted", message);
+        } catch (Exception e) {
+            showError("Could not delete the selected items: " + e.getMessage());
+        }
+    }
+
+    private void showBulkDeleteBlocked(MasterApiClient.ItemBulkDeleteValidation validation) {
+        List<MasterApiClient.ItemDeleteIssue> issues = validation == null || validation.issues() == null ? List.of() : validation.issues();
+        StringBuilder details = new StringBuilder("Nothing was deleted. The following selected items are protected because they are already referenced by ERP data:\n\n");
+        int shown = Math.min(issues.size(), 20);
+        for (int i = 0; i < shown; i++) {
+            MasterApiClient.ItemDeleteIssue issue = issues.get(i);
+            details.append("• ").append(issue.itemCode());
+            if (issue.itemName() != null && !issue.itemName().isBlank() && !issue.itemName().equalsIgnoreCase(issue.itemCode())) details.append(" — ").append(issue.itemName());
+            details.append("\n  ").append(issue.usages() == null || issue.usages().isEmpty() ? "Referenced by ERP data" : String.join(", ", issue.usages())).append("\n");
+        }
+        if (issues.size() > shown) details.append("\n…and ").append(issues.size() - shown).append(" more protected item(s).");
+        Alert alert = new OwnedAlert(Alert.AlertType.WARNING, details.toString(), ButtonType.OK);
+        alert.setHeaderText("Bulk deletion blocked");
+        alert.getDialogPane().setMinWidth(620);
+        alert.showAndWait();
     }
 
     private void installKpiIcons() {

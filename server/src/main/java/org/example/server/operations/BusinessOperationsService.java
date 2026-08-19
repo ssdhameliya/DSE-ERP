@@ -24,12 +24,20 @@ public class BusinessOperationsService {
  @Transactional(readOnly=true) public OperationDtos.SaleDto sale(String invoice){return saleDto(sales.findByInvoiceNo(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice)),true);}
  @Transactional(readOnly=true) public boolean saleExists(String invoiceNo){return sales.findByInvoiceNo(invoiceNo).isPresent();}
 
- @Transactional public OperationDtos.SaleDto saveSale(OperationDtos.SaleDto d){SalesHeaderEntity h=new SalesHeaderEntity(); copySale(d,h); if(blank(h.getInvoiceNo())||sales.existsByInvoiceNo(h.getInvoiceNo()))h.setInvoiceNo(nextSalesInvoice()); h.setCreatedAt(BusinessClock.nowUtcText()); h.setEmailSent(0); h.setDocumentStatus(blank(h.getDocumentStatus())?"PENDING":h.getDocumentStatus()); h=sales.save(h); replaceSaleLines(h.getId(),d.lines(),false);replaceSaleCharges(h.getId(),normalizedCharges(d)); return saleDto(h,true);}
+ @Transactional public OperationDtos.SaleDto saveSale(OperationDtos.SaleDto d){if(d==null)throw new IllegalArgumentException("Sale data is required");validateDocumentLines(d.lines(),"Sale");SalesHeaderEntity h=new SalesHeaderEntity(); copySale(d,h); if(blank(h.getInvoiceNo())||sales.existsByInvoiceNo(h.getInvoiceNo()))h.setInvoiceNo(nextSalesInvoice()); h.setCreatedAt(BusinessClock.nowUtcText()); h.setEmailSent(0); h.setDocumentStatus(blank(h.getDocumentStatus())?"PENDING":h.getDocumentStatus()); h=sales.save(h); replaceSaleLines(h.getId(),d.lines(),false);replaceSaleCharges(h.getId(),normalizedCharges(d)); return saleDto(h,true);}
  @Transactional public OperationDtos.SaleDto updateSale(OperationDtos.SaleDto d){
-  SalesHeaderEntity h=sales.findByInvoiceNo(d.invoiceNo()).orElseThrow(()->new IllegalArgumentException("Sale not found: "+d.invoiceNo()));
+  if(d==null)throw new IllegalArgumentException("Sale data is required");
+  validateDocumentLines(d.lines(),"Sale");
+  SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(d.invoiceNo()).orElseThrow(()->new IllegalArgumentException("Sale not found: "+d.invoiceNo()));
+  String existingStatus=up(h.getDocumentStatus());
+  if(Set.of("DELETED","CANCELLED").contains(existingStatus))throw new IllegalStateException("Deleted or cancelled Sales invoices cannot be edited.");
   List<OperationDtos.ChargeDto> newCharges=normalizedCharges(d);
   boolean linesChanged=!sameSaleLines(h.getId(),d.lines());
   boolean chargesChanged=!sameSaleCharges(h.getId(),newCharges);
+  boolean totalsChanged=!sameNumber(h.getSubtotal(),d.subtotal())||!sameNumber(h.getGstAmount(),d.gstAmount())||!sameNumber(h.getTotalAmount(),d.totalAmount())||!sameNumber(h.getDiscountAmount(),d.discountAmount());
+  if(hasActiveReturn("SALES RETURN",h.getInvoiceNo())&&(linesChanged||totalsChanged))throw new IllegalStateException("A Sale with an active Sales Return cannot change items or financial totals. Reverse/cancel the return first.");
+  double recordedPaid=recordedPaymentTotal("SALE",h.getId());
+  if((linesChanged||totalsChanged)&&(n(h.getPaidAmount())>.0001||recordedPaid>.0001||Set.of("PAID","SETTLED","PARTIAL").contains(up(h.getPaymentStatus()))))throw new IllegalStateException("A paid or partially paid Sale cannot change items or financial totals. Use Sales Return / payment reversal first.");
 
   // Workflow/payment state is not owned by the invoice editor. Preserve it even
   // when an older/partial desktop client sends default values during an update.
@@ -58,7 +66,7 @@ public class BusinessOperationsService {
   if(chargesChanged)replaceSaleCharges(h.getId(),newCharges);
   return saleDto(h,true);
  }
- @Transactional public void deleteSale(String invoice){SalesHeaderEntity h=sales.findByInvoiceNo(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(!"DELETED".equalsIgnoreCase(h.getDocumentStatus())&&!"CANCELLED".equalsIgnoreCase(h.getDocumentStatus()))restoreSaleStock(h.getId());h.setDocumentStatus("DELETED");}
+ @Transactional public void deleteSale(String invoice){SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(hasActiveReturn("SALES RETURN",h.getInvoiceNo()))throw new IllegalStateException("A Sale with an active Sales Return cannot be deleted. Reverse/cancel the return first.");if(!"DELETED".equalsIgnoreCase(h.getDocumentStatus())&&!"CANCELLED".equalsIgnoreCase(h.getDocumentStatus()))restoreSaleStock(h.getId());h.setDocumentStatus("DELETED");}
  @Transactional public void cancelSale(String invoice){deleteSale(invoice);} // backward-compatible alias: legacy cancel now performs a soft delete
  @Transactional public void markSaleEmail(int id){SalesHeaderEntity h=sales.findById(id).orElseThrow();h.setEmailSent(1);}
  @Transactional(readOnly=true) public String nextSalesInvoice(){return configuredNext("REF_SALES","IN/DD-MM-YYYY/XXXX",sales.findAll().stream().map(SalesHeaderEntity::getInvoiceNo).filter(Objects::nonNull).toList());}
@@ -68,6 +76,8 @@ public class BusinessOperationsService {
  @Transactional(readOnly=true) public boolean purchaseExists(String invoiceNo){return purchases.findByInvoiceNo(invoiceNo).isPresent();}
 
  @Transactional public OperationDtos.PurchaseDto savePurchase(OperationDtos.PurchaseDto d){
+  if(d==null)throw new IllegalArgumentException("Purchase data is required");
+  validateDocumentLines(d.lines(),"Purchase");
   PurchaseHeaderEntity h=new PurchaseHeaderEntity();
   copyPurchase(d,h);
   if(blank(h.getInvoiceNo())||purchases.existsByInvoiceNo(h.getInvoiceNo()))h.setInvoiceNo(nextPurchaseInvoice());
@@ -81,6 +91,8 @@ public class BusinessOperationsService {
   return purchaseDto(h,true);
  }
  @Transactional public OperationDtos.PurchaseDto updatePurchase(OperationDtos.PurchaseDto d){
+  if(d==null)throw new IllegalArgumentException("Purchase data is required");
+  validateDocumentLines(d.lines(),"Purchase");
   PurchaseHeaderEntity h=purchases.findByInvoiceNoForUpdate(d.invoiceNo()).orElseThrow(()->new IllegalArgumentException("Purchase not found: "+d.invoiceNo()));
   String existingStatus=normalizePurchaseStatus(h.getDocumentStatus());
   if(isInactivePurchase(existingStatus))throw new IllegalStateException("Deleted or cancelled purchases cannot be edited.");
@@ -142,16 +154,16 @@ public class BusinessOperationsService {
      SELECT CAST(h.invoice_date AS DATE), 'PURCHASE', l.quantity, 'Purchase invoice', h.invoice_no, 'System'
      FROM purchase_line l JOIN purchase_header h ON h.id=l.purchase_id WHERE l.item_code=? AND COALESCE(h.inventory_posted,false)=true AND UPPER(COALESCE(h.document_status,'')) NOT IN ('DELETED','CANCELLED')
      UNION ALL
-     SELECT CASE WHEN COALESCE(return_date,'') ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN TO_DATE(return_date,'YYYY-MM-DD') WHEN COALESCE(return_date,'') ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN TO_DATE(return_date,'DD/MM/YYYY') WHEN COALESCE(return_date,'') ~ '^\\d{2}-\\d{2}-\\d{4}$' THEN TO_DATE(return_date,'DD-MM-YYYY') ELSE NULL END, return_type, CASE WHEN return_type='SALE RETURN' THEN quantity ELSE -quantity END, COALESCE(reason,'Return'), return_no, 'System'
-     FROM return_register WHERE item_code=?
+     SELECT CASE WHEN COALESCE(return_date,'') ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN TO_DATE(return_date,'YYYY-MM-DD') WHEN COALESCE(return_date,'') ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN TO_DATE(return_date,'DD/MM/YYYY') WHEN COALESCE(return_date,'') ~ '^\\d{2}-\\d{2}-\\d{4}$' THEN TO_DATE(return_date,'DD-MM-YYYY') ELSE NULL END, return_type, CASE WHEN UPPER(return_type) IN ('SALE RETURN','SALES RETURN') THEN quantity ELSE -quantity END, COALESCE(reason,'Return'), return_no, 'System'
+     FROM return_register WHERE item_code=? AND UPPER(COALESCE(status,'PENDING'))<>'CANCELLED'
      ORDER BY movement_day DESC
      """;
    return jdbc.query(sql,(r,i)->new OperationDtos.StockHistoryDto(String.valueOf(r.getObject(1)),r.getString(2),r.getDouble(3),r.getString(4),r.getString(5),r.getString(6)),itemCode,itemCode,itemCode,itemCode);
  }
  @Transactional public void adjustStock(OperationDtos.StockAdjustmentRequest d){
    if(d==null||blank(d.itemCode()))throw new IllegalArgumentException("Item code is required");
-   ItemEntity item=items.findByItemCode(d.itemCode()).orElseThrow(()->new IllegalArgumentException("Item not found: "+d.itemCode()));
-   double current=n(item.getOpeningStock()); double quantity=d.quantity(); if(quantity<0)throw new IllegalArgumentException("Quantity cannot be negative");
+   ItemEntity item=items.findByItemCodeForUpdate(d.itemCode()).orElseThrow(()->new IllegalArgumentException("Item not found: "+d.itemCode()));
+   double current=n(item.getOpeningStock()); double quantity=d.quantity(); if(!Double.isFinite(quantity)||quantity<0)throw new IllegalArgumentException("Quantity must be a finite non-negative number");
    String type=up(d.type()); double delta=switch(type){case "ADD"->quantity;case "REMOVE"->-quantity;case "SET"->quantity-current;default->throw new IllegalArgumentException("Invalid adjustment type");};
    if(current+delta<-.0001)throw new IllegalArgumentException("Adjustment would make stock negative");
    item.setOpeningStock(Math.max(0,current+delta));
@@ -190,18 +202,20 @@ public class BusinessOperationsService {
   return true;
  }
  private static boolean sameNumber(Number a,double b){return money(n(a)).compareTo(money(b))==0;}
- private void replaceSaleLines(int id,List<OperationDtos.LineDto> ls,boolean skipStock){salesLines.deleteBySalesId(id);if(ls==null)return;for(var d:ls){if(!skipStock)changeStock(d.itemCode(),-d.quantity(),true);SalesLineEntity l=new SalesLineEntity();l.setSalesId(id);l.setItemCode(d.itemCode());l.setQuantity(d.quantity());l.setRate(d.rate());l.setDiscountPercent(d.discountPercent());l.setDiscountAmount(d.discountAmount());l.setGstPercent(d.gstPercent());l.setLineTotal(d.totalAmount());salesLines.save(l);}}
+ private void replaceSaleLines(int id,List<OperationDtos.LineDto> ls,boolean skipStock){validateDocumentLines(ls,"Sale");salesLines.deleteBySalesId(id);if(ls==null)return;for(var d:ls){if(!skipStock)changeStock(d.itemCode(),-d.quantity(),true);SalesLineEntity l=new SalesLineEntity();l.setSalesId(id);l.setItemCode(d.itemCode());l.setQuantity(d.quantity());l.setRate(d.rate());l.setDiscountPercent(d.discountPercent());l.setDiscountAmount(d.discountAmount());l.setGstPercent(d.gstPercent());l.setLineTotal(d.totalAmount());salesLines.save(l);}}
  private void replaceSaleCharges(int salesId,List<OperationDtos.ChargeDto> charges){salesCharges.deleteBySalesId(salesId);int sequence=1;for(var d:charges){SalesChargeEntity e=new SalesChargeEntity();e.setSalesId(salesId);e.setSequenceNo(sequence++);e.setChargeCode(d.chargeType().trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+","_"));e.setChargeName(d.chargeType().trim());e.setAmount(money(d.amount()));e.setTaxable(d.taxable());e.setGstPercent(money(d.taxable()?d.gstPercent():0));salesCharges.save(e);}}
  private List<OperationDtos.ChargeDto> normalizedCharges(OperationDtos.SaleDto d){List<OperationDtos.ChargeDto> input=d.charges()==null?List.of():d.charges();if(input.isEmpty()&&d.chargeAmount()>0)input=List.of(new OperationDtos.ChargeDto(blank(d.chargeType())?"Charges":d.chargeType(),d.chargeAmount(),false,0));if(input.size()>2)throw new IllegalArgumentException("A sales invoice supports a maximum of two additional charges");List<OperationDtos.ChargeDto> out=new ArrayList<>();Set<String> names=new HashSet<>();for(var c:input){if(c==null||blank(c.chargeType()))throw new IllegalArgumentException("Charge type is required");if(!Double.isFinite(c.amount())||c.amount()<=0)throw new IllegalArgumentException("Charge amount must be greater than zero");if(!Double.isFinite(c.gstPercent())||c.gstPercent()<0||c.gstPercent()>100)throw new IllegalArgumentException("Charge GST percent must be between 0 and 100");String key=up(c.chargeType());if(!names.add(key))throw new IllegalArgumentException("The same charge type cannot be selected twice");out.add(new OperationDtos.ChargeDto(c.chargeType().trim(),money(c.amount()).doubleValue(),c.taxable(),c.taxable()?money(c.gstPercent()).doubleValue():0));}return List.copyOf(out);}
  private void restoreSaleStock(int id){for(var l:salesLines.findBySalesIdOrderByIdAsc(id))changeStock(l.getItemCode(),n(l.getQuantity()),false);}
- private void replacePurchaseLines(int id,List<OperationDtos.LineDto> ls,boolean skipStock){purchaseLines.deleteByPurchaseId(id);if(ls==null)return;for(var d:ls){if(!skipStock)changeStock(d.itemCode(),d.quantity(),false);PurchaseLineEntity l=new PurchaseLineEntity();l.setPurchaseId(id);l.setItemCode(d.itemCode());l.setQuantity(d.quantity());l.setRate(d.rate());l.setDiscountPercent(d.discountPercent());l.setDiscountAmount(d.discountAmount());l.setGstPercent(d.gstPercent());l.setLineTotal(d.totalAmount());purchaseLines.save(l);}}
+ private void replacePurchaseLines(int id,List<OperationDtos.LineDto> ls,boolean skipStock){validateDocumentLines(ls,"Purchase");purchaseLines.deleteByPurchaseId(id);if(ls==null)return;for(var d:ls){if(!skipStock)changeStock(d.itemCode(),d.quantity(),false);PurchaseLineEntity l=new PurchaseLineEntity();l.setPurchaseId(id);l.setItemCode(d.itemCode());l.setQuantity(d.quantity());l.setRate(d.rate());l.setDiscountPercent(d.discountPercent());l.setDiscountAmount(d.discountAmount());l.setGstPercent(d.gstPercent());l.setLineTotal(d.totalAmount());purchaseLines.save(l);}}
  private void restorePurchaseStock(int id){for(var l:purchaseLines.findByPurchaseIdOrderByIdAsc(id))changeStock(l.getItemCode(),-n(l.getQuantity()),true);}
  private void postPurchaseStock(int id){for(var l:purchaseLines.findByPurchaseIdOrderByIdAsc(id))changeStock(l.getItemCode(),n(l.getQuantity()),false);}
  private double recordedPaymentTotal(String type,int id){Double value=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM payment_record WHERE UPPER(document_type)=? AND document_id=?",Double.class,type,id);return n(value);}
- private boolean hasActiveReturn(String type,String invoice){Long count=jdbc.queryForObject("SELECT COUNT(*) FROM return_register WHERE UPPER(return_type)=? AND invoice_no=? AND UPPER(COALESCE(status,'PENDING'))<>'CANCELLED'",Long.class,type,invoice);return count!=null&&count>0;}
+ private boolean hasActiveReturn(String type,String invoice){Long count=jdbc.queryForObject("SELECT COUNT(*) FROM return_register WHERE (CASE WHEN UPPER(return_type)='SALE RETURN' THEN 'SALES RETURN' ELSE UPPER(return_type) END)=? AND invoice_no=? AND UPPER(COALESCE(status,'PENDING'))<>'CANCELLED'",Long.class,type,invoice);return count!=null&&count>0;}
  private static String normalizePurchaseStatus(String status){String value=up(status);return value.isBlank()?"COMPLETED":value;}
  private static boolean isInactivePurchase(String status){String value=up(status);return value.equals("DELETED")||value.equals("CANCELLED");}
  private static boolean shouldPostPurchaseInventory(String status){return !"DRAFT".equals(normalizePurchaseStatus(status))&&!isInactivePurchase(status);}
+@Transactional public void applyStockDelta(String code,double delta,boolean enforce){changeStock(code,delta,enforce);}
+ private void validateDocumentLines(List<OperationDtos.LineDto> ls,String document){if(ls==null)return;for(var d:ls){if(d==null)throw new IllegalArgumentException(document+" contains an empty item line");if(blank(d.itemCode()))throw new IllegalArgumentException(document+" item code is required");if(!Double.isFinite(d.quantity())||d.quantity()<=0)throw new IllegalArgumentException(document+" quantity for "+d.itemCode()+" must be a finite number greater than zero");if(!Double.isFinite(d.rate())||d.rate()<0)throw new IllegalArgumentException(document+" rate for "+d.itemCode()+" must be a finite non-negative number");if(!Double.isFinite(d.totalAmount())||d.totalAmount()<0)throw new IllegalArgumentException(document+" line total for "+d.itemCode()+" must be a finite non-negative number");}}
  private void changeStock(String code,double delta,boolean enforce){if(code==null||code.isBlank())throw new IllegalArgumentException("Item code is required");if(!Double.isFinite(delta))throw new IllegalArgumentException("Stock quantity must be finite");ItemEntity i=items.findByItemCodeForUpdate(code).orElseThrow(()->new IllegalArgumentException("Item not found: "+code));double now=n(i.getOpeningStock());double next=now+delta;if(enforce&&next<-.0001)throw new IllegalStateException("Insufficient stock for item "+code);i.setOpeningStock(Math.max(0,next));}
 
 private OperationDtos.SaleDto saleDto(SalesHeaderEntity h,boolean detail){var p=h.getCustomer();List<OperationDtos.LineDto> ls=detail?salesLines.findBySalesIdOrderByIdAsc(h.getId()).stream().map(this::line).toList():List.of();double qty=detail?ls.stream().mapToDouble(OperationDtos.LineDto::quantity).sum():salesLines.findBySalesIdOrderByIdAsc(h.getId()).stream().mapToDouble(x->n(x.getQuantity())).sum();List<OperationDtos.ChargeDto> charges=salesCharges.findBySalesIdOrderBySequenceNoAscIdAsc(h.getId()).stream().map(x->new OperationDtos.ChargeDto(x.getChargeName(),n(x.getAmount()),Boolean.TRUE.equals(x.getTaxable()),n(x.getGstPercent()))).toList();if(charges.isEmpty()&&n(h.getChargeAmount())>0)charges=List.of(new OperationDtos.ChargeDto(blank(h.getChargeType())?"Charges":h.getChargeType(),n(h.getChargeAmount()),false,0));return new OperationDtos.SaleDto(h.getId(),h.getInvoiceNo(),dateOnly(h.getInvoiceDate()),party(p),n(h.getSubtotal()),n(h.getDiscountAmount()),n(h.getGstAmount()),n(h.getTotalAmount()),h.getRemarks(),h.getCreatedAt(),n(h.getEmailSent())!=0,dateOnly(h.getDueDate()),n(h.getPaidAmount()),h.getPaymentStatus(),n(h.getWhatsappSent())!=0,h.getInvoiceType(),h.getSalesperson(),h.getSource(),h.getNotes(),h.getDeliveryAddress(),h.getPaymentTerms(),h.getTransporter(),h.getReferenceNo(),dateOnly(h.getPoDate()),h.getBillingAddress(),h.getGstType(),h.getDoorDelivery(),h.getVehicleNumber(),h.getContactPerson(),h.getTransportNote(),customerPoOrderNo(h.getOrderNo()),h.getGstin(),h.getBillingGstin(),h.getDeliveryGstin(),!Boolean.FALSE.equals(h.getSameAsBilling()),h.getTransporterGstin(),h.getChargeType(),n(h.getChargeAmount()),h.getContactPersonMobile(),h.getDocumentStatus(),h.getAttachmentPath(),qty,charges,ls);}

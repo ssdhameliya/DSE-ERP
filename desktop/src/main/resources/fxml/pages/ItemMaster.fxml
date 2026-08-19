@@ -32,6 +32,7 @@
         <TableView fx:id="tableItems" VBox.vgrow="ALWAYS" styleClass="professional-table,entity-table,erp-table-profile-master">
             <placeholder><VBox alignment="CENTER" spacing="8" styleClass="premium-empty-state"><Label text="No items found" styleClass="empty-state-title"/><Label text="Create a new item or adjust the current search." styleClass="muted-text"/></VBox></placeholder>
             <columns>
+                <TableColumn fx:id="colSelect" minWidth="46" prefWidth="46" maxWidth="46" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colCode" text="Item Code" prefWidth="110" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colDescription" text="Item Name" prefWidth="220" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colCategory" text="Category" prefWidth="110" styleClass="approved-table-column"/>
@@ -51,7 +52,9 @@
                 <TableColumn fx:id="colAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
             </columns>
         </TableView>
-        <HBox alignment="CENTER_RIGHT" styleClass="table-footer,entity-table-footer">
+        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="table-footer,entity-table-footer">
+            <Label fx:id="lblSelectedCount" text="0 selected" styleClass="record-count-pill"/>
+            <Button fx:id="btnDeleteSelected" text="Delete Selected" onAction="#deleteSelectedItems" disable="true" styleClass="danger-button"/>
             <Region HBox.hgrow="ALWAYS"/>
             <Label fx:id="lblRecordCount" styleClass="record-count-pill"/>
         </HBox>
