@@ -53,15 +53,15 @@ public class SceneManager {
 
     /** Shows the approved full startup dashboard while configuration/database services initialize. */
     public static void showSplash() {
-        load("/fxml/pages/Splash.fxml");
         if (primaryStage != null) {
             javafx.geometry.Rectangle2D usable = WindowUtilsFx.visualBoundsFor(primaryStage);
-            primaryStage.setTitle(BrandingService.applicationName() + " - Starting Up...");
             primaryStage.setWidth(usable.getWidth());
             primaryStage.setHeight(usable.getHeight());
             primaryStage.setX(usable.getMinX());
             primaryStage.setY(usable.getMinY());
+            primaryStage.setTitle(BrandingService.applicationName() + " - Starting Up...");
         }
+        load("/fxml/pages/Splash.fxml");
     }
 
     public static void showLogin() {
@@ -143,7 +143,9 @@ public class SceneManager {
             javafx.geometry.Rectangle2D usable = WindowUtilsFx.visualBoundsFor(primaryStage);
             double width = Math.min(Math.max(primaryStage.getWidth(), 960), usable.getWidth());
             double height = Math.min(Math.max(primaryStage.getHeight(), 640), usable.getHeight());
+            AuthLayoutManager.prepare(root, width);
             Scene scene = new Scene(root, width, height);
+            AuthLayoutManager.install(root, scene);
 
             ThemeManager.applyTheme(scene);
 

@@ -72,6 +72,9 @@ public class ItemMasterController {
     @FXML
     public void initialize() {
         installKpiIcons();configureExplicitTableHeaderIcons();
+        // Item Master owns its checkbox model. The global table enhancer must
+        // not replace colSelect with a TableView-selection-backed checkbox.
+        tableItems.getProperties().put("erp-keep-selection", true);
         configureBulkSelection();
         // Column bindings
 
@@ -370,7 +373,10 @@ public class ItemMasterController {
     private void updateBulkSelectionUi() {
         int count = selectedItemCodes.size();
         if (lblSelectedCount != null) lblSelectedCount.setText(count + " selected");
-        if (btnDeleteSelected != null) btnDeleteSelected.setDisable(count == 0);
+        if (btnDeleteSelected != null) {
+            btnDeleteSelected.setText("Delete Selected (" + count + ")");
+            btnDeleteSelected.setDisable(count == 0);
+        }
         int visible = tableItems == null || tableItems.getItems() == null ? 0 : tableItems.getItems().size();
         selectAllVisible.setSelected(visible > 0 && count == visible);
         selectAllVisible.setIndeterminate(count > 0 && count < visible);

@@ -547,7 +547,11 @@ public class BankStatementController {
         if(account.isBlank())return bank;
         return bank+" - "+account;
     }
-    private void openFinance(Row row,BankExpenseController.Mode mode){DashboardController.navigateFromChild(mode==BankExpenseController.Mode.BANK?"Bank Entry":"Expense Entry","/fxml/pages/BankExpense.fxml",mode);}
+    private void openFinance(Row row,BankExpenseController.Mode mode){
+        Integer financeId=row==null||row.dto.financeEntryId()==null?null:row.dto.financeEntryId();
+        if(financeId!=null)BankExpenseController.requestLinkedEntry(mode,financeId);else BankExpenseController.requestMode(mode);
+        DashboardController.navigateFromChild(mode==BankExpenseController.Mode.BANK?"Bank Entry":"Expense Entry","/fxml/pages/BankExpense.fxml",mode);
+    }
     private void openLinked(Row row){
         var t=row.dto;
         List<BankStatementApiClient.AllocationDto> linked=t.linkedAllocations()==null?List.of():t.linkedAllocations();
@@ -558,17 +562,19 @@ public class BankStatementController {
         openLinkedTarget(type,id,no,"Bank Statement #"+t.id(),row);
     }
     private void showLinkedAllocations(Row row,List<BankStatementApiClient.AllocationDto> linked){
-        Dialog<ButtonType> dialog=new OwnedDialog<>(table);dialog.setTitle("Linked Transactions");dialog.setHeaderText(linked.size()+" transactions are linked to this bank entry");
-        VBox box=new VBox(9);box.setPadding(new Insets(4));
-        for(var allocation:linked){HBox line=new HBox(12);line.setAlignment(Pos.CENTER_LEFT);Label document=new Label(safe(allocation.documentNo()).isBlank()?up(allocation.targetType())+" #"+allocation.targetId():allocation.documentNo());document.setMinWidth(210);Label type=new Label(up(allocation.targetType()).replace('_',' '));type.setMinWidth(130);Label amount=new Label(money(allocation.allocatedAmount()));amount.setMinWidth(110);Button view=new Button("View");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});line.getChildren().addAll(document,type,amount,view);box.getChildren().add(line);}
-        dialog.getDialogPane().setContent(box);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
+        Dialog<ButtonType> dialog=new OwnedDialog<>(table);dialog.setTitle("Linked Transactions");dialog.setHeaderText(null);
+        VBox rows=new VBox(8);
+        for(var allocation:linked){HBox line=new HBox(12);line.setAlignment(Pos.CENTER_LEFT);line.getStyleClass().add("linked-transaction-row");Label document=new Label(safe(allocation.documentNo()).isBlank()?up(allocation.targetType())+" #"+allocation.targetId():allocation.documentNo());document.getStyleClass().add("linked-transaction-document");HBox.setHgrow(document,Priority.ALWAYS);Label type=new Label(up(allocation.targetType()).replace('_',' '));type.getStyleClass().add("linked-transaction-type");Label amount=new Label(money(allocation.allocatedAmount()));amount.getStyleClass().add("linked-transaction-amount");Button view=new Button(linkActionLabel(allocation.targetType()));view.getStyleClass().addAll("approved-button","approved-primary-button");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});line.getChildren().addAll(document,type,amount,view);rows.getChildren().add(line);}
+        VBox content=new VBox(14,dialogHero("link","Linked Transactions",linked.size()+" transactions are linked to this bank entry. Open the exact linked workflow below."),rows);content.setPadding(new Insets(10));content.setPrefWidth(760);
+        dialog.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","linked-transactions-dialog");dialog.getDialogPane().setContent(content);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
     }
-    private void openAllocation(BankStatementApiClient.AllocationDto allocation,String source){if(allocation==null)return;openLinkedTarget(up(allocation.targetType()),allocation.targetId(),safe(allocation.documentNo()),source,null);}
+    private String linkActionLabel(String type){String t=up(type);if("SALE".equals(t)||"PURCHASE".equals(t))return "View Payment";if(t.endsWith("RETURN"))return "View Refund";return "View";}
+    private void openAllocation(BankStatementApiClient.AllocationDto allocation,String source){if(allocation==null)return;String type=up(allocation.targetType());Integer id=("EXPENSE".equals(type)||"BANK_ENTRY".equals(type))&&allocation.financeEntryId()!=null?allocation.financeEntryId():allocation.targetId();openLinkedTarget(type,id,safe(allocation.documentNo()),source,null);}
     private void openLinkedTarget(String type,Integer id,String documentNo,String source,Row row){
-        if("EXPENSE".equals(type)){if(row!=null)openFinance(row,BankExpenseController.Mode.EXPENSE);else DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);return;}
-        if("BANK_ENTRY".equals(type)){if(row!=null)openFinance(row,BankExpenseController.Mode.BANK);else DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);return;}
-        if("SALE".equals(type)){LinkedRecordContext.open("SALE",id,documentNo,"VIEW",source);NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");return;}
-        if("PURCHASE".equals(type)){LinkedRecordContext.open("PURCHASE",id,documentNo,"VIEW",source);NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");return;}
+        if("EXPENSE".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.EXPENSE,financeId);DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);return;}
+        if("BANK_ENTRY".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.BANK,financeId);DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);return;}
+        if("SALE".equals(type)){if(documentNo.isBlank()){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Sale document not found","The linked Sale no longer has a usable invoice number.");return;}SalesScreenContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml");return;}
+        if("PURCHASE".equals(type)){if(documentNo.isBlank()){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Purchase document not found","The linked Purchase no longer has a usable invoice number.");return;}PurchaseScreenContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/PurchasePayment.fxml");return;}
         if("SALES_RETURN".equals(type)||"PURCHASE_RETURN".equals(type)){if(documentNo.isBlank()){new OwnedAlert(Alert.AlertType.WARNING,"The linked Return record no longer has a document number.").showAndWait();return;}ReturnRefundContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");return;}
         if(row!=null)audit(row);else new OwnedAlert(Alert.AlertType.INFORMATION,"The linked record type is not available for direct navigation.").showAndWait();
     }

@@ -3,11 +3,9 @@ package org.example.util;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Dialog;
-import javafx.scene.control.DialogEvent;
 import javafx.stage.Modality;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
-import org.example.theme.ThemeManager;
 
 /** Dialog owned by the ERP window before it is shown. */
 public class OwnedDialog<R> extends Dialog<R> {
@@ -15,22 +13,13 @@ public class OwnedDialog<R> extends Dialog<R> {
 
     public OwnedDialog(Node ownerNode) {
         Window owner = DialogOwnerResolver.resolve(ownerNode);
-        if (PlatformUiSupport.isMac()) initStyle(StageStyle.UTILITY);
+        initStyle(PlatformUiSupport.isMac() ? StageStyle.UTILITY : StageStyle.TRANSPARENT);
         if (owner != null) {
             initOwner(owner);
             initModality(Modality.WINDOW_MODAL);
         } else {
             initModality(Modality.APPLICATION_MODAL);
         }
-        getDialogPane().getProperties().put(DialogPresentation.CUSTOM, true);
-        if (!getDialogPane().getStyleClass().contains(DialogPresentation.SHELL_CLASS)) getDialogPane().getStyleClass().add(DialogPresentation.SHELL_CLASS);
-        addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> {
-            if (getDialogPane().getScene() != null) {
-                ThemeManager.applyTheme(getDialogPane().getScene());
-                PlatformUiSupport.installResponsiveClasses(getDialogPane().getScene());
-            }
-            ProfessionalUiEnhancer.enhance(getDialogPane());
-            DialogActionStyler.style(getDialogPane());
-        }));
+        DialogPresentation.install(this);
     }
 }

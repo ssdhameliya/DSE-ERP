@@ -28,6 +28,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private static volatile Mode requestedMode;
     private static volatile ExpensePrefill requestedExpensePrefill;
     private static volatile BankEntryPrefill requestedBankEntryPrefill;
+    private static volatile Integer requestedLinkedEntryId;
     public record ExpensePrefill(long statementTransactionId,String date,double amount,String reference,String description,String accountName,String paymentMode){}
     public record BankEntryPrefill(long statementTransactionId,String date,double debit,double credit,String reference,String description,String accountName,String paymentMode){}
     public static void requestExpensePrefill(ExpensePrefill prefill){ requestedExpensePrefill=prefill; requestedMode=Mode.EXPENSE; }
@@ -35,6 +36,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private static ExpensePrefill consumeExpensePrefill(){ExpensePrefill p=requestedExpensePrefill;requestedExpensePrefill=null;return p;}
     private static BankEntryPrefill consumeBankEntryPrefill(){BankEntryPrefill p=requestedBankEntryPrefill;requestedBankEntryPrefill=null;return p;}
     public static void requestMode(Mode mode) { requestedMode = mode == null ? Mode.BANK : mode; }
+    public static void requestLinkedEntry(Mode mode,Integer entryId){requestedMode=mode==null?Mode.BANK:mode;requestedLinkedEntryId=entryId;}
 
     private static Mode consumeRequestedMode() {
         Mode requested = requestedMode;
@@ -156,6 +158,18 @@ public class BankExpenseController implements ScreenLifecycle {
         }
         applyRequestedExpensePrefill();
         applyRequestedBankEntryPrefill();
+        revealRequestedLinkedEntry();
+    }
+
+    private void revealRequestedLinkedEntry(){
+        Integer id=requestedLinkedEntryId;if(id==null)return;
+        requestedLinkedEntryId=null;
+        EntryRow found=filtered.stream().filter(r->r.id==id).findFirst().orElse(null);
+        if(found==null){periodFilter.setValue("All Time");searchField.clear();typeFilter.getSelectionModel().selectFirst();currentPage=0;reloadRows();found=filtered.stream().filter(r->r.id==id).findFirst().orElse(null);}
+        if(found==null){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Expense / Bank entry not found","The linked finance entry is no longer available.");return;}
+        int index=filtered.indexOf(found);currentPage=Math.max(0,index/PAGE_SIZE);renderPage();
+        table.getSelectionModel().select(found);table.scrollTo(found);editRow(found);
+        org.example.util.PerformanceMonitor.event("linked-navigation",(mode==Mode.EXPENSE?"EXPENSE":"BANK_ENTRY")+" -> "+id);
     }
 
     private void loadAccounts() {

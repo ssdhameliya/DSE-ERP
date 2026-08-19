@@ -117,10 +117,8 @@ public final class Main {
                 String safety = restoreResult.safetyBackup() == null
                         ? "No previous database existed."
                         : "Safety backup: " + restoreResult.safetyBackup();
-                Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION,
-                        "The staged database restore was applied successfully.\n\n" + safety);
-                alert.setHeaderText("Database restore completed");
-                alert.show();
+                org.example.util.ToastManager.success(stage, "Database restore completed",
+                        "The staged database restore was applied successfully. " + safety);
             }
         });
     }

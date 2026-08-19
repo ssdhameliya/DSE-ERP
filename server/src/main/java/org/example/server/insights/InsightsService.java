@@ -14,37 +14,55 @@ public class InsightsService {
  private static final String POSTED_PURCHASES = "UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED','DRAFT')";
  private final JpaNativeRepository jdbc; public InsightsService(JpaNativeRepository jdbc){this.jdbc=jdbc;}
 
- @Transactional(readOnly=true) public InsightDtos.DashboardBundle dashboard(String period){
-   String cond=periodSql(period,"invoice_date");
-   long[] master=jdbc.query("""
+ // Dashboard sections are deliberately not wrapped in one database transaction.
+ // A malformed historical value or one failing optional query must not leave the
+ // PostgreSQL transaction aborted and prevent the remaining independent sections.
+ public InsightDtos.DashboardBundle dashboard(String period){
+   String selectedPeriod=period==null||period.isBlank()?"This Month":period;
+   String cond=periodSql(selectedPeriod,"invoice_date");
+   long[] master=dashboardSection("master totals",()->jdbc.query("""
      SELECT
        (SELECT COUNT(*) FROM item_master),
        (SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)),
        (SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t'))
-     """,(r,i)->new long[]{r.getLong(1),r.getLong(2),r.getLong(3)}).getFirst();
-   double[] saleStats=jdbc.query("SELECT COUNT(*) FILTER (WHERE ("+cond+")), COALESCE(SUM(total_amount) FILTER (WHERE ("+cond+")),0), COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0), COUNT(*) FILTER (WHERE total_amount>COALESCE(paid_amount,0)), COALESCE(SUM(paid_amount),0) FROM sales_header WHERE "+ACTIVE_SALES,(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)}).getFirst();
-   double[] purchaseStats=jdbc.query("SELECT COUNT(*) FILTER (WHERE ("+cond+")), COALESCE(SUM(total_amount) FILTER (WHERE ("+cond+")),0), COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0), COUNT(*) FILTER (WHERE total_amount>COALESCE(paid_amount,0)), COALESCE(SUM(paid_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES,(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)}).getFirst();
-   double expense=n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
+     """,(r,i)->new long[]{r.getLong(1),r.getLong(2),r.getLong(3)}).getFirst(),new long[]{0,0,0});
+   double[] saleStats=dashboardSection("sales KPIs",()->jdbc.query("SELECT COUNT(*) FILTER (WHERE ("+cond+")), COALESCE(SUM(total_amount) FILTER (WHERE ("+cond+")),0), COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0), COUNT(*) FILTER (WHERE total_amount>COALESCE(paid_amount,0)), COALESCE(SUM(paid_amount),0) FROM sales_header WHERE "+ACTIVE_SALES,(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)}).getFirst(),new double[]{0,0,0,0,0});
+   double[] purchaseStats=dashboardSection("purchase KPIs",()->jdbc.query("SELECT COUNT(*) FILTER (WHERE ("+cond+")), COALESCE(SUM(total_amount) FILTER (WHERE ("+cond+")),0), COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0), COUNT(*) FILTER (WHERE total_amount>COALESCE(paid_amount,0)), COALESCE(SUM(paid_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES,(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)}).getFirst(),new double[]{0,0,0,0,0});
+   double expense=dashboardSection("expense total",()->n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'"),0d);
    double cash=saleStats[4]-purchaseStats[4]-expense;
-   long[] reminderStats=jdbc.query("SELECT COUNT(*) FILTER (WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')), COUNT(*) FILTER (WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END < ?)",(r,i)->new long[]{r.getLong(1),r.getLong(2)},BusinessClock.today()).getFirst();
-   var snap=new InsightDtos.DashboardSnapshot(period,master[0],master[2],(long)saleStats[0],(long)purchaseStats[0],master[1],saleStats[1],purchaseStats[1],saleStats[2],purchaseStats[2],(long)saleStats[3],(long)purchaseStats[3],cash,reminderStats[0],reminderStats[1]);
-   List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id WHERE UPPER(COALESCE(h.document_status,'')) NOT IN ('DELETED','CANCELLED','DRAFT')) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString(1),rs.getString(2),rs.getString(3),String.valueOf(rs.getObject(4)),rs.getDouble(5)));
-   String pc=periodSql(period,"s.invoice_date");
-   List<String> top=jdbc.query("SELECT p.name,COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') AND ("+pc+") GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5",(rs,i)->rs.getString(1)+"|"+rs.getDouble(2));
-   if(top.isEmpty())top=List.of("No customer sales for "+period.toLowerCase(Locale.ROOT));
+   String reminderDue=safeDateSql("due_date");
+   long[] reminderStats=dashboardSection("reminder KPIs",()->jdbc.query("SELECT COUNT(*) FILTER (WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')), COUNT(*) FILTER (WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND "+reminderDue+" < ?)",(r,i)->new long[]{r.getLong(1),r.getLong(2)},BusinessClock.today()).getFirst(),new long[]{0,0});
+   var snap=new InsightDtos.DashboardSnapshot(selectedPeriod,master[0],master[2],(long)saleStats[0],(long)purchaseStats[0],master[1],saleStats[1],purchaseStats[1],saleStats[2],purchaseStats[2],(long)saleStats[3],(long)purchaseStats[3],cash,reminderStats[0],reminderStats[1]);
+   List<InsightDtos.ActivityDto> recent=dashboardSection("recent activity",()->jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id WHERE UPPER(COALESCE(h.document_status,'')) NOT IN ('DELETED','CANCELLED','DRAFT')) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString(1),rs.getString(2),rs.getString(3),String.valueOf(rs.getObject(4)),rs.getDouble(5))),List.of());
+   String pc=periodSql(selectedPeriod,"s.invoice_date");
+   List<String> top=dashboardSection("top customers",()->jdbc.query("SELECT p.name,COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') AND ("+pc+") GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5",(rs,i)->rs.getString(1)+"|"+rs.getDouble(2)),List.of());
+   if(top.isEmpty())top=List.of("No customer sales for "+selectedPeriod.toLowerCase(Locale.ROOT));
    LocalDate today=BusinessClock.today();
-   String dueExpr="CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(due_date,'YYYY-MM-DD') WHEN due_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(due_date,'DD/MM/YYYY') WHEN due_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(due_date,'DD-MM-YYYY') END";
-   double[] buckets=jdbc.query("SELECT "
+   String dueExpr=safeDateSql("due_date");
+   double[] buckets=dashboardSection("receivables ageing",()->jdbc.query("SELECT "
      +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" < ?),0),"
      +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"
      +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"
      +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"
-     +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE due_date IS NULL OR "+dueExpr+" >= ?),0) "
-     +"FROM sales_header WHERE UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED') AND total_amount-COALESCE(paid_amount,0)>0",(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)},today.minusDays(30),today.minusDays(30),today.minusDays(21),today.minusDays(20),today.minusDays(11),today.minusDays(10),today.minusDays(1),today).getFirst();
+     +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" IS NULL OR "+dueExpr+" >= ?),0) "
+     +"FROM sales_header WHERE UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED') AND total_amount-COALESCE(paid_amount,0)>0",(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)},today.minusDays(30),today.minusDays(30),today.minusDays(21),today.minusDays(20),today.minusDays(11),today.minusDays(10),today.minusDays(1),today).getFirst(),new double[]{0,0,0,0,0});
    List<String> ageing=List.of("Overdue (> 30 Days)|"+buckets[0],"21 - 30 Days|"+buckets[1],"11 - 20 Days|"+buckets[2],"1 - 10 Days|"+buckets[3],"Not Due|"+buckets[4]);
-   return new InsightDtos.DashboardBundle(snap,recent,top,ageing,notifications(5));
+   List<InsightDtos.NotificationDto> activity=dashboardSection("notifications",()->notifications(5),List.of());
+   return new InsightDtos.DashboardBundle(snap,recent,top,ageing,activity);
  }
- private String periodSql(String p,String c){LocalDate today=BusinessClock.today();LocalDate start=switch(p==null?"":p){case "This Month"->today.withDayOfMonth(1);case "This Quarter"->{int m=((today.getMonthValue()-1)/3)*3+1;yield LocalDate.of(today.getYear(),m,1);}case "This Year"->LocalDate.of(today.getYear(),1,1);default->null;};return start==null?"1=1":"CAST("+c+" AS DATE)>=DATE '"+start+"'";}
+
+ private String periodSql(String p,String c){LocalDate today=BusinessClock.today();LocalDate start=switch(p==null?"":p){case "This Month"->today.withDayOfMonth(1);case "This Quarter"->{int m=((today.getMonthValue()-1)/3)*3+1;yield LocalDate.of(today.getYear(),m,1);}case "This Year"->LocalDate.of(today.getYear(),1,1);default->null;};return start==null?"1=1":"("+safeDateSql(c)+")>=DATE '"+start+"'";}
+ static String safeDateSql(String c){
+   String text="NULLIF(TRIM(CAST("+c+" AS text)),'')";
+   String slash="SPLIT_PART("+text+",'/',3)||'-'||SPLIT_PART("+text+",'/',2)||'-'||SPLIT_PART("+text+",'/',1)";
+   String dash="SPLIT_PART("+text+",'-',3)||'-'||SPLIT_PART("+text+",'-',2)||'-'||SPLIT_PART("+text+",'-',1)";
+   return "CASE WHEN "+text+" IS NULL THEN NULL "
+     +"WHEN "+text+" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AND pg_input_is_valid("+text+",'date'::regtype) THEN CAST("+text+" AS date) "
+     +"WHEN "+text+" ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' AND pg_input_is_valid("+slash+",'date'::regtype) THEN CAST("+slash+" AS date) "
+     +"WHEN "+text+" ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' AND pg_input_is_valid("+dash+",'date'::regtype) THEN CAST("+dash+" AS date) "
+     +"ELSE NULL END";
+ }
+ private <T> T dashboardSection(String section,java.util.function.Supplier<T> query,T fallback){try{return query.get();}catch(RuntimeException failure){System.err.println("[Dashboard] "+section+" unavailable: "+Objects.toString(failure.getMessage(),failure.getClass().getSimpleName()));return fallback;}}
 
 
  @Transactional(readOnly=true) public InsightDtos.ShellCounts shellCounts(){
@@ -84,7 +102,7 @@ public class InsightsService {
      "SELECT id,title,reference_no,due_date,priority,notes,status,created_by,snoozed_until " +
      "FROM reminder_register " +
      "ORDER BY CASE UPPER(COALESCE(NULLIF(TRIM(status),''),'OPEN')) WHEN 'OPEN' THEN 0 WHEN 'SNOOZED' THEN 1 WHEN 'COMPLETED' THEN 2 ELSE 3 END, " +
-     "CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END NULLS LAST, id DESC",
+     safeDateSql("due_date") + " NULLS LAST, id DESC",
      (r,i)->toReminder(r)
    );
  }

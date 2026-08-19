@@ -69,12 +69,10 @@ public class LookupDialogController {
         try {
             if (created) service.save(lookup); else service.update(lookup);
             saved = true;
-            new OwnedAlert(
-                    Alert.AlertType.INFORMATION,
-                    "Master value " + (created ? "saved" : "updated") + " successfully."
-                            + "\n\n" + lookup.getLookupCode() + " - " + lookup.getLookupValue()
-            ).showAndWait();
             close();
+            javafx.application.Platform.runLater(() -> org.example.util.ToastManager.success((javafx.stage.Window) null,
+                "Master value " + (created ? "saved" : "updated"),
+                lookup.getLookupCode() + " - " + lookup.getLookupValue()));
         } catch (Exception exception) {
             new OwnedAlert(
                     Alert.AlertType.ERROR,

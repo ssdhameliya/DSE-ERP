@@ -1251,11 +1251,7 @@ public class SettingsController implements ScreenLifecycle {
             NotificationService.add("Application settings were updated.");
         }
 
-        new OwnedAlert(
-            Alert.AlertType.INFORMATION,
-            "Settings saved successfully.",
-            ButtonType.OK
-        ).showAndWait();
+        org.example.util.ToastManager.success(panelWorkspace, "Settings saved", "Settings saved successfully.");
     }
 
     private boolean saveValues() {
@@ -1551,13 +1547,8 @@ public class SettingsController implements ScreenLifecycle {
                 "Your DSE ERP email configuration is working correctly."
             );
 
-            new OwnedAlert(
-                Alert.AlertType.INFORMATION,
-                "Test email sent successfully to "
-                    + recipient
-                    + ".",
-                ButtonType.OK
-            ).showAndWait();
+            org.example.util.ToastManager.success(panelWorkspace, "Test email sent",
+                "Test email sent successfully to " + recipient + ".");
 
         } catch (RuntimeException exception) {
 

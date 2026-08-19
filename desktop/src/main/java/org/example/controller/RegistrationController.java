@@ -65,7 +65,7 @@ public class RegistrationController {
         } catch (Exception e) {
             message("Unable to load account roles: " + e.getMessage(), true);
         }
-        Platform.runLater(this::installResponsiveBranding);
+        
     }
 
     private void applyBranding(){
@@ -77,11 +77,7 @@ public class RegistrationController {
         lblBrandMark.setManaged(false); lblBrandMark.setVisible(false);
     }
 
-    private void installResponsiveBranding(){
-        if(brandPanel==null||brandPanel.getScene()==null)return;
-        Runnable resize=()->brandPanel.setPrefWidth(Math.max(360,Math.min(690,brandPanel.getScene().getWidth()*.46)));
-        brandPanel.getScene().widthProperty().addListener((o,a,b)->resize.run()); resize.run();
-    }
+
 
     @FXML private void sendOtp() {
         if (!validateAccountFields()) { message("Please correct the highlighted fields.", true); return; }

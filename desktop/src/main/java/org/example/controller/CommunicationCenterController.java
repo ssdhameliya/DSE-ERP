@@ -171,7 +171,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
         };
     }
 
-    @FXML private void openEmailSettings(){NavigationManager.getInstance().loadPage("/fxml/pages/EmailSettings.fxml");}
+    @FXML private void openEmailSettings(){SettingsController.requestSection(SettingsController.Section.EMAIL);NavigationManager.getInstance().loadPage("/fxml/pages/Settings.fxml");}
     public static final class Row{
         final SimpleStringProperty time,entity,channel,recipient,subject,status,error,user;
         final String entityType;

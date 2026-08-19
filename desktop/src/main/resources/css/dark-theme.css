@@ -1893,7 +1893,7 @@
 .modern-dialog {
     -fx-background-color: #101c2b;
     -fx-border-color: #31465f;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,.48), 30, .14, 0, 9);
+    -erp-dialog-shadow: rgba(0,0,0,.48);
 }
 
 
@@ -1916,6 +1916,22 @@
 .modern-dialog-restore {
     -fx-border-color: #355b8a;
 }
+
+.modern-dialog-title-icon {
+    -fx-background-color: #18304c;
+    -fx-border-color: #355776;
+}
+.modern-dialog-title-icon .ikonli-font-icon { -fx-icon-color: #8eb7ff; }
+.modern-dialog-title-icon-delete,
+.modern-dialog-title-icon-error { -fx-background-color: #48242c; -fx-border-color: #7f3b49; }
+.modern-dialog-title-icon-delete .ikonli-font-icon,
+.modern-dialog-title-icon-error .ikonli-font-icon { -fx-icon-color: #ff8d98; }
+.modern-dialog-title-icon-warning { -fx-background-color: #403419; -fx-border-color: #806527; }
+.modern-dialog-title-icon-warning .ikonli-font-icon { -fx-icon-color: #f6c453; }
+.modern-dialog-title-icon-confirmation { -fx-background-color: #302654; -fx-border-color: #64509b; }
+.modern-dialog-title-icon-confirmation .ikonli-font-icon { -fx-icon-color: #c4b5fd; }
+.modern-dialog-title-icon-complete { -fx-background-color: #173c2d; -fx-border-color: #2d6c52; }
+.modern-dialog-title-icon-complete .ikonli-font-icon { -fx-icon-color: #7ee2ad; }
 
 .modern-dialog-titlebar {
     -fx-background-color: #16263a;
@@ -6778,15 +6794,6 @@
 .notification-dialog-content {
     -fx-background-color: #0e1d30;
     -fx-border-color: #3b78d8;
-}
-
-.notification-dialog-content .modern-dialog-titlebar {
-    -fx-background-color: linear-gradient(to right,#132943,#102138);
-    -fx-border-color: transparent transparent #315f9b transparent;
-}
-
-.notification-dialog-content .modern-dialog-title {
-    -fx-text-fill: #f4f8ff;
 }
 
 .notification-dialog-subtitle {

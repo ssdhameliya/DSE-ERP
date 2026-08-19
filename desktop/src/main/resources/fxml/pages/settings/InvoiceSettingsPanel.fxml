@@ -84,18 +84,18 @@
 
                                 </VBox>
 
-                                <VBox spacing="5" GridPane.columnSpan="2" GridPane.rowIndex="4">
+                                <VBox spacing="4" GridPane.columnSpan="2" GridPane.rowIndex="4">
 
                                     <Label text="Invoice Terms" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="6" minHeight="118" prefHeight="132" wrapText="true" styleClass="approved-input,settings-invoice-terms"/>
+                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="3" minHeight="70" prefHeight="78" maxHeight="92" wrapText="true" styleClass="approved-input,settings-invoice-terms"/>
 
                                 </VBox>
 
                             </GridPane>
 
                             <Separator/>
-                            <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-invoice-assets-panel">
+                            <VBox spacing="6" maxWidth="Infinity" styleClass="settings-information-card,settings-invoice-assets-panel">
                                 <VBox spacing="4">
                                     <Label text="Branding, Logo &amp; Signature" styleClass="settings-subsection-title"/>
                                     <Label text="Manage the invoice logo and authorized signature used on generated business documents." wrapText="true" styleClass="settings-help-text"/>
@@ -106,10 +106,10 @@
                                         <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                     </columnConstraints>
                                     <!-- INVOICE LOGO -->
-                                    <VBox spacing="7" minWidth="0" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="5" minWidth="0" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="0" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Invoice Logo" styleClass="settings-form-label"/>
                                         <Label text="Invoices, quotations, returns and generated PDFs • Full invoice logo preserved (PNG preferred)" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane fx:id="companyLogoPreview" minHeight="76" prefHeight="84" maxHeight="92" maxWidth="Infinity" styleClass="settings-image-preview">
+                                        <StackPane fx:id="companyLogoPreview" minHeight="54" prefHeight="60" maxHeight="66" maxWidth="Infinity" styleClass="settings-image-preview">
                                             <ImageView fx:id="imgCompanyLogo" preserveRatio="true" smooth="true"/>
                                             <VBox fx:id="placeholderCompanyLogo" alignment="CENTER" spacing="8">
                                                 <SVGPath content="M3 3h14v14H3V3zm2 2v10h10V5H5zm2 7l2.5-3 2 2 1.5-1.5L15 12H7z" styleClass="settings-placeholder-icon"/>
@@ -125,10 +125,10 @@
                                     </VBox>
 
                                     <!-- AUTHORIZED SIGNATURE -->
-                                    <VBox spacing="7" minWidth="0" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="settings-asset-card,settings-brand-asset-card">
+                                    <VBox spacing="5" minWidth="0" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="0" styleClass="settings-asset-card,settings-brand-asset-card">
                                         <Label text="Authorized Signature" styleClass="settings-form-label"/>
                                         <Label text="Authorized sign-off on supported business documents • Transparent PNG preferred" wrapText="true" styleClass="settings-asset-purpose"/>
-                                        <StackPane fx:id="signaturePreview" minHeight="76" prefHeight="84" maxHeight="92" maxWidth="Infinity" styleClass="settings-image-preview">
+                                        <StackPane fx:id="signaturePreview" minHeight="54" prefHeight="60" maxHeight="66" maxWidth="Infinity" styleClass="settings-image-preview">
                                             <ImageView fx:id="imgSignature" preserveRatio="true" smooth="true"/>
                                             <VBox fx:id="placeholderSignature" alignment="CENTER" spacing="8">
                                                 <SVGPath content="M3 15c4-5 5-9 7-9 1 0 1 2 0 4-1 3 1 4 3 2l3-3M3 17h14" styleClass="settings-placeholder-icon"/>

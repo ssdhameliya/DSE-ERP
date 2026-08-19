@@ -36,6 +36,10 @@ public final class DialogActionStyler {
                 "dialog-action-warning", "dialog-action-danger", "dialog-action-neutral"
             );
             button.getStyleClass().add("dialog-action-button");
+            if (pane.getStyleClass().contains(DialogPresentation.SHELL_CLASS)
+                    && !button.getStyleClass().contains("modern-dialog-button")) {
+                button.getStyleClass().add("modern-dialog-button");
+            }
             button.getStyleClass().add(roleFor(type, label, semantic));
             button.setMinWidth(Math.max(button.getMinWidth(), 104));
             if (button.getTooltip() == null && !label.isBlank()) button.setTooltip(new Tooltip(label));

@@ -98,12 +98,10 @@ public class PartyDialogController {
                     "INFO",
                     "CUSTOMER".equals(type) ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
                     party.getPartyCode());
-            new OwnedAlert(
-                    Alert.AlertType.INFORMATION,
-                    entityName + (created ? " saved successfully." : " updated successfully.")
-                            + "\n\n" + party.getPartyCode() + " - " + party.getName()
-            ).showAndWait();
             close();
+            javafx.application.Platform.runLater(() -> org.example.util.ToastManager.success((javafx.stage.Window) null,
+                entityName + (created ? " saved" : " updated"),
+                party.getPartyCode() + " - " + party.getName()));
         } catch (Exception exception) {
             new OwnedAlert(
                     Alert.AlertType.ERROR,

@@ -115,8 +115,6 @@ public class DashboardController {
     @FXML private Label lblPurchaseChevron;
     @FXML private Label lblBankExpenseChevron;
     @FXML private Label lblSettingsChevron;
-    @FXML
-    private Button btnOperations;
     @FXML private Button btnBankExpense;
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
@@ -646,8 +644,6 @@ public class DashboardController {
         }
         if (btnQuotation != null)
             btnQuotation.getStyleClass().remove("menu-selected");
-        if (btnOperations != null)
-            btnOperations.getStyleClass().remove("menu-selected");
         if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-selected");
         if (btnReminders != null) btnReminders.getStyleClass().remove("menu-selected");
         if (btnUserAccess != null) btnUserAccess.getStyleClass().remove("menu-selected");
@@ -774,11 +770,6 @@ public class DashboardController {
         openPage(btnQuotation, "Quotation Register", "/fxml/pages/Quotations.fxml");
     }
 
-    @FXML
-    private void openOperations() {
-        openPage(btnOperations, "Returns, Finance & Reminders", "/fxml/pages/Operations.fxml");
-    }
-
     @FXML private void openBankEntry() {
         BankExpenseController.requestMode(BankExpenseController.Mode.BANK);
         openPage(btnBankEntry, "Bank Entry", "/fxml/pages/BankExpense.fxml");
@@ -838,8 +829,6 @@ public class DashboardController {
     @FXML private void createPurchase() { openPage(btnCreatePurchase, "Create Purchase", "/fxml/pages/Purchase.fxml"); }
     @FXML private void openReturns() { openPage(btnSalesReturn, "Sales Return Register", "/fxml/pages/SalesReturns.fxml"); }
     @FXML private void openPurchaseReturns() { openPage(btnPurchaseReturn, "Purchase Return", "/fxml/pages/PurchaseReturns.fxml"); }
-    @FXML private void openFinance() { OperationsController.selectInitialTab(1); openOperations(); }
-    @FXML private void openReminders() { OperationsController.selectInitialTab(2); openOperations(); }
     @FXML private void openReminderCenter() {
         openPage(btnReminders, "Reminder Center", "/fxml/pages/ReminderCenter.fxml");
         refreshReminderBadge();
@@ -1006,33 +995,13 @@ public class DashboardController {
 
     @FXML
     private void showNotifications() {
-        Dialog<ButtonType> dialog = new OwnedDialog<>();
-        dialog.initStyle(StageStyle.TRANSPARENT);
-        if (btnNotifications != null && btnNotifications.getScene() != null
-                && btnNotifications.getScene().getWindow() != null) {
-            dialog.initOwner(btnNotifications.getScene().getWindow());
-            dialog.initModality(Modality.WINDOW_MODAL);
-        } else {
-            dialog.initModality(Modality.APPLICATION_MODAL);
-        }
+        Dialog<ButtonType> dialog = new OwnedDialog<>(btnNotifications);
+        dialog.setTitle("Notifications");
+        dialog.setHeaderText("Stay updated with the latest activities and alerts");
 
         DialogPane pane = dialog.getDialogPane();
-        pane.getProperties().put("erp-dialog-custom", true);
-        pane.getStyleClass().addAll("modern-dialog", "notification-center-dialog");
-        pane.setHeaderText(null);
-        pane.setGraphic(null);
-
-        // Register a real cancel/close result so JavaFX always releases the
-        // application-modal showAndWait() loop. The native button remains
-        // hidden because this dialog supplies its own styled Close controls.
-        pane.getButtonTypes().add(ButtonType.CLOSE);
-        Node nativeCloseButton = pane.lookupButton(ButtonType.CLOSE);
-        nativeCloseButton.setVisible(false);
-        nativeCloseButton.setManaged(false);
-        Runnable closeDialog = () -> {
-            dialog.setResult(ButtonType.CLOSE);
-            dialog.close();
-        };
+        pane.getStyleClass().add("notification-center-dialog");
+        org.example.util.DialogPresentation.configureWorkspace(dialog, "notification");
 
         ListView<NotificationService.NotificationItem> notificationList = new ListView<>();
         List<NotificationService.NotificationItem> allNotifications = new ArrayList<>(NotificationService.findRecent(100));
@@ -1135,69 +1104,44 @@ public class DashboardController {
         filters.setAlignment(Pos.CENTER_LEFT);
         filters.getStyleClass().add("notification-filter-bar");
 
-        Label title = new Label("Notifications");
-        title.getStyleClass().add("modern-dialog-title");
-        Label subtitle = new Label("Recent application activity");
-        subtitle.setText("Stay updated with the latest activities and alerts");
-        subtitle.getStyleClass().add("notification-dialog-subtitle");
-        VBox heading = new VBox(2, title, subtitle);
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        Button closeTop = new Button("×");
-        closeTop.getStyleClass().add("modern-dialog-close");
-        closeTop.setOnAction(event -> closeDialog.run());
-        Label unreadHeader = new Label(NotificationService.unreadCount() + "\nUnread");
+        Label unreadHeader = new Label(NotificationService.unreadCount() + " Unread");
         unreadHeader.getStyleClass().add("notification-unread-header");
-        HBox titleBar = new HBox(10, IconFactory.icon("notification", 34), heading, spacer, unreadHeader, closeTop);
-        titleBar.setAlignment(Pos.CENTER_LEFT);
-        titleBar.getStyleClass().add("modern-dialog-titlebar");
+        VBox content = new VBox(12, unreadHeader, filters, notificationList);
+        content.getStyleClass().add("notification-dialog-content");
+        pane.setContent(content);
 
-        Button markAll = new Button("Mark all read");
-        markAll.setGraphic(IconFactory.compactIcon("complete", 16));
-        markAll.getProperties().put("erp.icon.semantic", "complete");
-        markAll.setOnAction(event -> {
-            NotificationService.markAllRead();
-            allNotifications.clear();
-            allNotifications.addAll(NotificationService.findRecent(100));
-            applyNotificationFilter.run();
-            refreshNotificationBadge();
-            unreadHeader.setText("0\nUnread");
-        });
-        Button clear = new Button("Clear history");
-        clear.setGraphic(IconFactory.compactIcon("delete", 16));
-        clear.getProperties().put("erp.icon.semantic", "delete");
-        clear.setOnAction(event -> {
-            Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
-                "Clear the complete notification history? This cannot be undone.");
-            confirmation.setHeaderText("Confirm notification cleanup");
-            confirmation.showAndWait().filter(ButtonType.OK::equals).ifPresent(result -> {
+        ButtonType markAllType = new ButtonType("Mark All Read", javafx.scene.control.ButtonBar.ButtonData.OTHER);
+        ButtonType clearType = new ButtonType("Clear History", javafx.scene.control.ButtonBar.ButtonData.OTHER);
+        pane.getButtonTypes().addAll(markAllType, clearType, ButtonType.CLOSE);
+
+        Node markAllNode = pane.lookupButton(markAllType);
+        if (markAllNode instanceof Button markAll) {
+            markAll.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                event.consume();
+                NotificationService.markAllRead();
+                allNotifications.clear();
+                allNotifications.addAll(NotificationService.findRecent(100));
+                applyNotificationFilter.run();
+                refreshNotificationBadge();
+                unreadHeader.setText("0 Unread");
+            });
+        }
+        Node clearNode = pane.lookupButton(clearType);
+        if (clearNode instanceof Button clear) {
+            clear.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                event.consume();
+                Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                    "Clear the complete notification history? This cannot be undone.", ButtonType.YES, ButtonType.NO);
+                confirmation.setHeaderText("Confirm notification cleanup");
+                if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
                 NotificationService.clear();
                 allNotifications.clear();
                 notificationList.getItems().clear();
                 refreshNotificationBadge();
+                unreadHeader.setText("0 Unread");
             });
-        });
-        Button close = new Button("Close");
-        close.setGraphic(IconFactory.compactIcon("cancel", 16));
-        close.getProperties().put("erp.icon.semantic", "cancel");
-        close.setOnAction(event -> closeDialog.run());
-        Region actionSpacer = new Region();
-        HBox.setHgrow(actionSpacer, Priority.ALWAYS);
-        HBox actions = new HBox(10, markAll, clear, actionSpacer, close);
-        actions.setAlignment(Pos.CENTER_LEFT);
-        actions.getStyleClass().add("notification-dialog-actions");
+        }
 
-        VBox content = new VBox(titleBar, filters, notificationList, actions);
-        content.getStyleClass().add("notification-dialog-content");
-        pane.setContent(content);
-        dialog.setOnCloseRequest(event -> dialog.setResult(ButtonType.CLOSE));
-        dialog.setOnShown(event -> {
-            Scene scene = pane.getScene();
-            if (scene != null) {
-                scene.setFill(Color.TRANSPARENT);
-                ThemeManager.applyTheme(scene);
-            }
-        });
         dialog.showAndWait();
         refreshNotificationBadge();
     }

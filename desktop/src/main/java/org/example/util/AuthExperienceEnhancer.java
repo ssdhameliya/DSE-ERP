@@ -18,6 +18,7 @@ public final class AuthExperienceEnhancer {
             install(n, semantic, 18);
         });
     }
+
     private static String semantic(Parent root) {
         if (root.getStyleClass().contains("approved-screen-email-settings")) return "email";
         if (root.getStyleClass().contains("approved-screen-splash")) return "dashboard";

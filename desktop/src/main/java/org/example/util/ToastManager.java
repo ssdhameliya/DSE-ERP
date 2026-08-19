@@ -30,6 +30,11 @@ public final class ToastManager {
     public static void warning(Node owner, String title, String message) { show(owner, Type.WARNING, title, message); }
     public static void error(Node owner, String title, String message) { show(owner, Type.ERROR, title, message); }
 
+    public static void success(Window owner, String title, String message) { show(owner, Type.SUCCESS, title, message); }
+    public static void info(Window owner, String title, String message) { show(owner, Type.INFO, title, message); }
+    public static void warning(Window owner, String title, String message) { show(owner, Type.WARNING, title, message); }
+    public static void error(Window owner, String title, String message) { show(owner, Type.ERROR, title, message); }
+
     public static void show(Node owner, Type type, String title, String message) {
         if (!Platform.isFxApplicationThread()) {
             Platform.runLater(() -> show(owner, type, title, message));
@@ -43,6 +48,16 @@ public final class ToastManager {
             });
             return;
         }
+        showForWindow(window, type, title, message);
+    }
+
+    public static void show(Window owner, Type type, String title, String message) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> show(owner, type, title, message));
+            return;
+        }
+        Window window = owner != null ? owner : DialogOwnerResolver.resolve();
+        if (window == null) return;
         showForWindow(window, type, title, message);
     }
 

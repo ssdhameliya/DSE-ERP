@@ -170,7 +170,6 @@ public class LoginController {
             txtPassword.getSkin();
             long ms = (System.nanoTime() - started) / 1_000_000L;
             if (ms >= 5) PerformanceMonitor.event("login-password-warmup", ms + " ms");
-            installResponsiveBranding();
         });
     }
 
@@ -209,13 +208,7 @@ public class LoginController {
         }
     }
 
-    private void installResponsiveBranding() {
-        if (brandPanel == null || brandPanel.getScene() == null) return;
-        Runnable resize = () -> brandPanel.setPrefWidth(
-                Math.max(360, Math.min(690, brandPanel.getScene().getWidth() * .46)));
-        brandPanel.getScene().widthProperty().addListener((o, a, b) -> resize.run());
-        resize.run();
-    }
+
 
     private static void showLogo(ImageView view, Image logo) {
         if (view == null) return;

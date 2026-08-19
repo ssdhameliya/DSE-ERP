@@ -44,7 +44,7 @@ public class SplashController {
         clock = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshElapsed()));
         clock.setCycleCount(Timeline.INDEFINITE);
         clock.play();
-        Platform.runLater(this::installResponsiveBranding);
+        
     }
 
     public void refreshBranding() {
@@ -80,13 +80,6 @@ public class SplashController {
         }
     }
 
-    private void installResponsiveBranding() {
-        if (brandPanel == null || brandPanel.getScene() == null) return;
-        Runnable resize = () -> brandPanel.setPrefWidth(
-                Math.max(360, Math.min(690, brandPanel.getScene().getWidth() * .46)));
-        brandPanel.getScene().widthProperty().addListener((o, a, b) -> resize.run());
-        resize.run();
-    }
 
     public void updateStage(int stage, String message) {
         int next = Math.max(1, Math.min(5, stage));
