@@ -3141,25 +3141,68 @@
 }
 
 .ultra-compact-shell .modern-dialog-content {
-    -fx-min-width: 320px;
-    -fx-padding: 16px;
+    -fx-min-width: 330px;
+    -fx-max-width: 430px;
+    -fx-padding: 18px;
 }
 
 .small-display .modern-dialog-content {
-    -fx-min-width: 260px;
-    -fx-padding: 12px;
+    -fx-min-width: 270px;
+    -fx-max-width: 330px;
+    -fx-padding: 14px;
+    -fx-spacing: 12px;
 }
 
-.ultra-compact-shell .modern-dialog-message {
-    -fx-max-width: 320px;
+.ultra-compact-shell .modern-dialog-hero-icon {
+    -fx-min-height: 58px;
+    -fx-min-width: 58px;
+    -fx-pref-height: 58px;
+    -fx-pref-width: 58px;
+    -fx-max-height: 58px;
+    -fx-max-width: 58px;
+    -fx-background-radius: 29px;
+    -fx-border-radius: 29px;
 }
 
-.small-display .modern-dialog-message {
-    -fx-max-width: 240px;
+.small-display .modern-dialog-hero {
+    -fx-spacing: 10px;
+}
+
+.small-display .modern-dialog-hero-icon {
+    -fx-min-height: 50px;
+    -fx-min-width: 50px;
+    -fx-pref-height: 50px;
+    -fx-pref-width: 50px;
+    -fx-max-height: 50px;
+    -fx-max-width: 50px;
+    -fx-background-radius: 25px;
+    -fx-border-radius: 25px;
+}
+
+.ultra-compact-shell .modern-dialog-copy,
+.ultra-compact-shell .modern-dialog-message,
+.ultra-compact-shell .modern-dialog-helper {
+    -fx-max-width: 310px;
+}
+
+.small-display .modern-dialog-copy,
+.small-display .modern-dialog-message,
+.small-display .modern-dialog-helper {
+    -fx-max-width: 200px;
 }
 
 .small-display .modern-dialog-heading {
     -fx-font-size: 15px;
+}
+
+.small-display .modern-dialog-detail-card {
+    -fx-padding: 10px 11px;
+    -fx-spacing: 9px;
+}
+
+.small-display .modern-dialog-detail-message,
+.small-display .modern-dialog-detail-copy {
+    -fx-max-width: 230px;
 }
 
 .small-display .modern-dialog .modern-dialog-button {
@@ -4196,83 +4239,169 @@
 
 .modern-dialog {
     -fx-background-color: transparent;
-    -fx-background-radius: 18px;
-    -fx-border-radius: 18px;
+    -fx-background-radius: 16px;
+    -fx-border-radius: 16px;
     -fx-border-width: 1px;
     -fx-padding: 0;
-    -fx-effect: dropshadow(gaussian, -erp-dialog-shadow, 28, .12, 0, 8);
+    -fx-effect: dropshadow(gaussian, -erp-dialog-shadow, 32, .14, 0, 10);
 }
 
 /* DialogPane defaults must never add a second content inset around our shell. */
 .modern-dialog > .content {
     -fx-padding: 0;
+    -fx-background-color: transparent;
 }
 
 .modern-dialog-shell {
     -fx-padding: 0;
     -fx-spacing: 0;
+    -fx-background-radius: 16px;
 }
 
 .modern-dialog-titlebar {
     -fx-alignment: CENTER-LEFT;
-    -fx-background-radius: 18px 18px 0 0;
+    -fx-background-radius: 16px 16px 0 0;
     -fx-border-width: 0 0 1px 0;
-    -fx-padding: 14px 16px 12px 16px;
-    -fx-spacing: 10px;
+    -fx-padding: 14px 18px;
+    -fx-spacing: 12px;
+    -fx-min-height: 64px;
 }
 
 .modern-dialog-title-icon {
     -fx-alignment: CENTER;
-    -fx-min-height: 36px;
-    -fx-min-width: 36px;
-    -fx-pref-height: 36px;
-    -fx-pref-width: 36px;
-    -fx-max-height: 36px;
-    -fx-max-width: 36px;
-    -fx-background-radius: 11px;
-    -fx-border-radius: 11px;
+    -fx-min-height: 42px;
+    -fx-min-width: 42px;
+    -fx-pref-height: 42px;
+    -fx-pref-width: 42px;
+    -fx-max-height: 42px;
+    -fx-max-width: 42px;
+    -fx-background-radius: 21px;
+    -fx-border-radius: 21px;
     -fx-border-width: 1px;
 }
 
 .modern-dialog-title {
-    -fx-font-size: 14px;
+    -fx-font-size: 16px;
     -fx-font-weight: 800;
 }
 
 .modern-dialog-close {
-    -fx-font-size: 19px;
-    -fx-min-height: 30px;
-    -fx-min-width: 30px;
-    -fx-pref-height: 30px;
-    -fx-pref-width: 30px;
-    -fx-max-height: 30px;
-    -fx-max-width: 30px;
+    -fx-font-size: 20px;
+    -fx-font-weight: 600;
+    -fx-min-height: 34px;
+    -fx-min-width: 34px;
+    -fx-pref-height: 34px;
+    -fx-pref-width: 34px;
+    -fx-max-height: 34px;
+    -fx-max-width: 34px;
     -fx-padding: 0;
     -fx-background-radius: 9px;
+    -fx-border-radius: 9px;
+    -fx-border-width: 1px;
 }
 
 .modern-dialog-content {
     -fx-alignment: CENTER-LEFT;
     -fx-min-width: 430px;
     -fx-max-width: 520px;
-    -fx-padding: 20px 20px 18px 20px;
+    -fx-padding: 20px;
     -fx-spacing: 8px;
 }
 
-.modern-dialog-workspace-body {
-    -fx-padding: 18px 20px 20px 20px;
-    -fx-spacing: 12px;
+.modern-dialog-message-body {
+    -fx-min-width: 550px;
+    -fx-max-width: 590px;
+    -fx-padding: 24px 28px 22px 28px;
+    -fx-spacing: 18px;
+}
+
+.modern-dialog-hero {
+    -fx-alignment: TOP-LEFT;
+    -fx-spacing: 18px;
+}
+
+.modern-dialog-hero-icon {
+    -fx-alignment: CENTER;
+    -fx-min-height: 72px;
+    -fx-min-width: 72px;
+    -fx-pref-height: 72px;
+    -fx-pref-width: 72px;
+    -fx-max-height: 72px;
+    -fx-max-width: 72px;
+    -fx-background-radius: 36px;
+    -fx-border-radius: 36px;
+    -fx-border-width: 1px;
+}
+
+.modern-dialog-copy {
+    -fx-spacing: 7px;
+    -fx-max-width: 430px;
 }
 
 .modern-dialog-heading {
-    -fx-font-size: 18px;
+    -fx-font-size: 17px;
     -fx-font-weight: 800;
+    -fx-line-spacing: 1px;
 }
 
 .modern-dialog-message {
     -fx-font-size: 13px;
     -fx-line-spacing: 2px;
-    -fx-max-width: 470px;
+    -fx-max-width: 430px;
+}
+
+.modern-dialog-helper {
+    -fx-font-size: 12px;
+    -fx-line-spacing: 2px;
+    -fx-max-width: 430px;
+    -fx-padding: 2px 0 0 0;
+}
+
+.modern-dialog-divider {
+    -fx-min-height: 1px;
+    -fx-pref-height: 1px;
+    -fx-max-height: 1px;
+}
+
+.modern-dialog-detail-card {
+    -fx-alignment: TOP-LEFT;
+    -fx-padding: 13px 15px;
+    -fx-spacing: 12px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+
+.modern-dialog-detail-icon {
+    -fx-alignment: CENTER;
+    -fx-min-height: 34px;
+    -fx-min-width: 34px;
+    -fx-pref-height: 34px;
+    -fx-pref-width: 34px;
+    -fx-max-height: 34px;
+    -fx-max-width: 34px;
+    -fx-background-radius: 17px;
+}
+
+.modern-dialog-detail-copy {
+    -fx-spacing: 3px;
+    -fx-max-width: 450px;
+}
+
+.modern-dialog-detail-title {
+    -fx-font-size: 12.5px;
+    -fx-font-weight: 800;
+}
+
+.modern-dialog-detail-message {
+    -fx-font-size: 12px;
+    -fx-line-spacing: 2px;
+    -fx-max-width: 440px;
+}
+
+.modern-dialog-workspace-body {
+    -fx-padding: 18px 20px 20px 20px;
+    -fx-spacing: 12px;
 }
 
 .modern-dialog-input {
@@ -4281,19 +4410,24 @@
 }
 
 .modern-dialog .button-bar {
-    -fx-padding: 12px 16px 14px 16px;
+    -fx-padding: 14px 18px 16px 18px;
     -fx-border-width: 1px 0 0 0;
+    -fx-background-radius: 0 0 16px 16px;
 }
 
 .modern-dialog .button-bar > .container {
     -fx-spacing: 10px;
+    -fx-alignment: CENTER-RIGHT;
 }
 
 .modern-dialog .modern-dialog-button {
     -fx-background-radius: 8px;
     -fx-border-radius: 8px;
-    -fx-min-width: 116px;
-    -fx-pref-width: 128px;
+    -fx-min-width: 112px;
+    -fx-pref-width: 124px;
+    -fx-min-height: 38px;
+    -fx-font-weight: 700;
+    -fx-padding: 8px 16px;
 }
 
 .erp-modern-dialog {

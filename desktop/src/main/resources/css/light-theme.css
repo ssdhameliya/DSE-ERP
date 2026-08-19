@@ -2087,101 +2087,165 @@
 }
 
 .modern-dialog {
-    -fx-background-color: #ffffff;
-    -fx-border-color: #dbe5f1;
-    -erp-dialog-shadow: rgba(15,23,42,.24);
+    -fx-background-color: linear-gradient(to bottom, #ffffff 0%, #f8fbff 100%);
+    -fx-border-color: #cbd9e8;
+    -erp-dialog-shadow: rgba(15,23,42,.28);
 }
-
 
 .modern-dialog-error,
 .modern-dialog-delete {
-    -fx-border-color: #f0a4af;
+    -fx-border-color: #e69aa6;
 }
 
 .modern-dialog-warning {
-    -fx-border-color: #e8bf6c;
+    -fx-border-color: #e0b45f;
 }
 
 .modern-dialog-complete {
-    -fx-border-color: #8fd0ad;
+    -fx-border-color: #88caaa;
 }
 
 .modern-dialog-confirmation,
 .modern-dialog-notification,
 .modern-dialog-backup,
 .modern-dialog-restore {
-    -fx-border-color: #9bbbe6;
+    -fx-border-color: #93b6df;
+}
+
+.modern-dialog-titlebar {
+    -fx-background-color: linear-gradient(to bottom, #fbfdff 0%, #f2f6fb 100%);
+    -fx-border-color: transparent transparent #d9e4ef transparent;
 }
 
 .modern-dialog-title-icon {
-    -fx-background-color: #eaf2ff;
-    -fx-border-color: #cbdcf4;
+    -fx-background-color: #e9f2ff;
+    -fx-border-color: #c7daf2;
 }
-.modern-dialog-title-icon .ikonli-font-icon { -fx-icon-color: #2563eb; }
-.modern-dialog-title-icon-delete,
-.modern-dialog-title-icon-error { -fx-background-color: #fee8eb; -fx-border-color: #f3b5bd; }
-.modern-dialog-title-icon-delete .ikonli-font-icon,
-.modern-dialog-title-icon-error .ikonli-font-icon { -fx-icon-color: #dc2626; }
-.modern-dialog-title-icon-warning { -fx-background-color: #fff4d6; -fx-border-color: #efcf86; }
-.modern-dialog-title-icon-warning .ikonli-font-icon { -fx-icon-color: #d97706; }
-.modern-dialog-title-icon-confirmation { -fx-background-color: #f0eaff; -fx-border-color: #cdbcf7; }
-.modern-dialog-title-icon-confirmation .ikonli-font-icon { -fx-icon-color: #7c3aed; }
-.modern-dialog-title-icon-complete { -fx-background-color: #e8f7ee; -fx-border-color: #a9d9bc; }
-.modern-dialog-title-icon-complete .ikonli-font-icon { -fx-icon-color: #15803d; }
-
-.modern-dialog-titlebar {
-    -fx-background-color: #f8fafc;
-    -fx-border-color: transparent transparent #e2e8f0 transparent;
-}
+.modern-dialog-title-icon .erp-action-glyph { -fx-icon-color: #2563eb; }
+.modern-dialog-title-icon-error,
+.modern-dialog-title-icon-delete { -fx-background-color: #fee9ec; -fx-border-color: #efb2bb; }
+.modern-dialog-title-icon-error .erp-action-glyph,
+.modern-dialog-title-icon-delete .erp-action-glyph { -fx-icon-color: #dc3445; }
+.modern-dialog-title-icon-warning { -fx-background-color: #fff3d6; -fx-border-color: #e7c875; }
+.modern-dialog-title-icon-warning .erp-action-glyph { -fx-icon-color: #c77b08; }
+.modern-dialog-title-icon-confirmation { -fx-background-color: #f0eaff; -fx-border-color: #cabcf1; }
+.modern-dialog-title-icon-confirmation .erp-action-glyph { -fx-icon-color: #7357c9; }
+.modern-dialog-title-icon-complete { -fx-background-color: #e8f7ee; -fx-border-color: #a6d7bb; }
+.modern-dialog-title-icon-complete .erp-action-glyph { -fx-icon-color: #16834b; }
 
 .modern-dialog-title {
-    -fx-text-fill: #334155;
+    -fx-text-fill: #1f3147;
 }
 
 .modern-dialog-close {
-    -fx-background-color: transparent;
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #d7e1ec;
     -fx-text-fill: #64748b;
 }
 
 .modern-dialog-close:hover {
-    -fx-background-color: #fee2e2;
-    -fx-text-fill: #dc2626;
+    -fx-background-color: #fff0f1;
+    -fx-border-color: #efb5bd;
+    -fx-text-fill: #cf3342;
 }
 
+.modern-dialog-hero-icon {
+    -fx-background-color: #f0f6fd;
+    -fx-border-color: #d4e0ed;
+}
+.modern-dialog-hero-icon .erp-action-glyph { -fx-icon-color: #4d7fc3; }
+.modern-dialog-hero-icon-error,
+.modern-dialog-hero-icon-delete {
+    -fx-background-color: #fff0f2;
+    -fx-border-color: #f0c0c7;
+}
+.modern-dialog-hero-icon-error .erp-action-glyph,
+.modern-dialog-hero-icon-delete .erp-action-glyph { -fx-icon-color: #dc3445; }
+.modern-dialog-hero-icon-warning {
+    -fx-background-color: #fff8e8;
+    -fx-border-color: #ebd291;
+}
+.modern-dialog-hero-icon-warning .erp-action-glyph { -fx-icon-color: #c67d0b; }
+.modern-dialog-hero-icon-confirmation {
+    -fx-background-color: #f5f1ff;
+    -fx-border-color: #d6cbf2;
+}
+.modern-dialog-hero-icon-confirmation .erp-action-glyph { -fx-icon-color: #7258c2; }
+.modern-dialog-hero-icon-complete {
+    -fx-background-color: #eefaf3;
+    -fx-border-color: #b8dfc8;
+}
+.modern-dialog-hero-icon-complete .erp-action-glyph { -fx-icon-color: #16834b; }
+
 .modern-dialog-heading {
-    -fx-text-fill: #14213d;
+    -fx-text-fill: #17263a;
 }
 
 .modern-dialog-message {
-    -fx-text-fill: #52627a;
+    -fx-text-fill: #506176;
+}
+
+.modern-dialog-helper {
+    -fx-text-fill: #718096;
+}
+
+.modern-dialog-divider {
+    -fx-background-color: #dce6f0;
+}
+
+.modern-dialog-detail-card {
+    -fx-background-color: #f5f9fe;
+    -fx-border-color: #c9dcef;
+}
+
+.modern-dialog-detail-icon {
+    -fx-background-color: #e5effb;
+}
+.modern-dialog-detail-icon .erp-action-glyph { -fx-icon-color: #3d72b9; }
+
+.modern-dialog-detail-title {
+    -fx-text-fill: #25384f;
+}
+
+.modern-dialog-detail-message {
+    -fx-text-fill: #65758a;
 }
 
 .modern-dialog .button-bar {
-    -fx-background-color: #f8fafc;
-    -fx-border-color: #e2e8f0;
+    -fx-background-color: #f7fafe;
+    -fx-border-color: #dbe5ef;
 }
+
 .modern-dialog .modern-dialog-button {
-    -fx-background-color: #2563eb;
+    -fx-background-color: linear-gradient(to bottom, #347cff 0%, #1f67e6 100%);
+    -fx-border-color: #2f73eb;
     -fx-text-fill: white;
 }
-
-.modern-dialog .modern-dialog-cancel {
+.modern-dialog .modern-dialog-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #4388ff 0%, #2872ee 100%);
+}
+.modern-dialog .modern-dialog-button.dialog-action-neutral {
     -fx-background-color: #ffffff;
-    -fx-border-color: #cbd5e1;
+    -fx-border-color: #c8d5e3;
     -fx-text-fill: #334155;
 }
-
-.modern-dialog .modern-dialog-warning-action {
-    -fx-background-color: #f59e0b;
-    -fx-text-fill: #172033;
+.modern-dialog .modern-dialog-button.dialog-action-neutral:hover {
+    -fx-background-color: #f1f5f9;
 }
-
-.modern-dialog .modern-dialog-danger {
-    -fx-background-color: #dc2626;
+.modern-dialog .modern-dialog-button.dialog-action-warning {
+    -fx-background-color: #d98b0b;
+    -fx-border-color: #e4a536;
+    -fx-text-fill: white;
 }
-
-.modern-dialog .modern-dialog-success-action {
-    -fx-background-color: #16a34a;
+.modern-dialog .modern-dialog-button.dialog-action-danger {
+    -fx-background-color: #d83a47;
+    -fx-border-color: #e95a66;
+    -fx-text-fill: white;
+}
+.modern-dialog .modern-dialog-button.dialog-action-success {
+    -fx-background-color: #1f9b5d;
+    -fx-border-color: #38af74;
+    -fx-text-fill: white;
 }
 
 .erp-modern-dialog {

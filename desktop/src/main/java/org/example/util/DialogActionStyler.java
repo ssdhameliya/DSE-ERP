@@ -69,7 +69,7 @@ public final class DialogActionStyler {
         if (value.contains("later")) return "reminder";
         if (value.contains("restore")) return "restore";
         if (value.contains("delete") || value.contains("remove")) return "delete";
-        if (value.contains("cancel") || value.contains("close") || value.equals("no") || value.contains("back")) return "cancel";
+        if (value.contains("cancel") || value.contains("close") || value.equals("dismiss") || value.equals("no") || value.contains("back")) return "cancel";
         if (value.contains("save")) return "save";
         if (value.contains("print")) return "print";
         if (value.contains("email")) return "email";

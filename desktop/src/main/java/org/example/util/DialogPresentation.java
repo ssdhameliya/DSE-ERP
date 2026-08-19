@@ -135,8 +135,8 @@ public final class DialogPresentation {
             ThemeManager.applyTheme(pane.getScene());
             PlatformUiSupport.installResponsiveClasses(pane.getScene());
         }
-        DialogActionStyler.style(pane, semantic);
         normalizeActionLabels(pane, semantic);
+        DialogActionStyler.style(pane, semantic);
     }
 
     private static Node createShell(
@@ -149,7 +149,7 @@ public final class DialogPresentation {
         boolean workspace,
         boolean textInput
     ) {
-        StackPane iconWrap = new StackPane(IconFactory.icon(iconSemantic(semantic), 20));
+        StackPane iconWrap = new StackPane(IconFactory.compactIcon(iconSemantic(semantic), 20));
         iconWrap.getStyleClass().addAll("modern-dialog-title-icon", "modern-dialog-title-icon-" + semantic);
 
         Label titleLabel = new Label(title);
@@ -160,33 +160,157 @@ public final class DialogPresentation {
         closeButton.getStyleClass().add("modern-dialog-close");
         closeButton.setAccessibleText("Close dialog");
         closeButton.setOnAction(event -> dialog.close());
-        HBox titleBar = new HBox(10, iconWrap, titleLabel, spacer, closeButton);
+        HBox titleBar = new HBox(12, iconWrap, titleLabel, spacer, closeButton);
         titleBar.setAlignment(Pos.CENTER_LEFT);
         titleBar.getStyleClass().add("modern-dialog-titlebar");
 
+        VBox shell = new VBox(titleBar);
+        shell.getStyleClass().add("modern-dialog-shell");
+
+        if (workspace || textInput) {
+            VBox body = new VBox();
+            body.getStyleClass().add(workspace ? "modern-dialog-workspace-body" : "modern-dialog-content");
+
+            if (!heading.isBlank()) {
+                Label headline = new Label(heading);
+                headline.setWrapText(true);
+                headline.getStyleClass().add("modern-dialog-heading");
+                body.getChildren().add(headline);
+            }
+            if (!message.isBlank()) {
+                Label copy = new Label(message);
+                copy.setWrapText(true);
+                copy.getStyleClass().add("modern-dialog-message");
+                body.getChildren().add(copy);
+            }
+            if (customContent != null) {
+                if (textInput) customContent.getStyleClass().add("modern-dialog-input");
+                body.getChildren().add(customContent);
+            }
+            shell.getChildren().add(body);
+            return shell;
+        }
+
+        VBox body = createMessageBody(semantic, heading, message);
+        if (customContent != null) body.getChildren().add(customContent);
+        shell.getChildren().add(body);
+        return shell;
+    }
+
+    /** Creates the compact, premium message layout used by ordinary modal dialogs only. */
+    private static VBox createMessageBody(String semantic, String heading, String message) {
         VBox body = new VBox();
-        body.getStyleClass().add(workspace ? "modern-dialog-workspace-body" : "modern-dialog-content");
+        body.getStyleClass().addAll("modern-dialog-content", "modern-dialog-message-body");
+
+        StackPane heroIcon = new StackPane(IconFactory.compactIcon(iconSemantic(semantic), 28));
+        heroIcon.getStyleClass().addAll("modern-dialog-hero-icon", "modern-dialog-hero-icon-" + semantic);
+
+        VBox copyBox = new VBox();
+        copyBox.getStyleClass().add("modern-dialog-copy");
+        HBox.setHgrow(copyBox, Priority.ALWAYS);
 
         if (!heading.isBlank()) {
             Label headline = new Label(heading);
             headline.setWrapText(true);
             headline.getStyleClass().add("modern-dialog-heading");
-            body.getChildren().add(headline);
+            copyBox.getChildren().add(headline);
         }
-        if (!message.isBlank()) {
+
+        boolean error = "error".equals(semantic);
+        if (!message.isBlank() && !error) {
             Label copy = new Label(message);
             copy.setWrapText(true);
             copy.getStyleClass().add("modern-dialog-message");
-            body.getChildren().add(copy);
-        }
-        if (customContent != null) {
-            if (textInput) customContent.getStyleClass().add("modern-dialog-input");
-            body.getChildren().add(customContent);
+            copyBox.getChildren().add(copy);
         }
 
-        VBox shell = new VBox(titleBar, body);
-        shell.getStyleClass().add("modern-dialog-shell");
-        return shell;
+        if (error) {
+            Label summary = new Label("An unexpected error occurred while processing this request.");
+            summary.setWrapText(true);
+            summary.getStyleClass().add("modern-dialog-message");
+            copyBox.getChildren().add(summary);
+
+            Label helper = new Label("Please try again. If the issue continues, contact support.");
+            helper.setWrapText(true);
+            helper.getStyleClass().add("modern-dialog-helper");
+            copyBox.getChildren().add(helper);
+        }
+
+        HBox hero = new HBox(18, heroIcon, copyBox);
+        hero.setAlignment(Pos.TOP_LEFT);
+        hero.getStyleClass().add("modern-dialog-hero");
+        body.getChildren().add(hero);
+
+        if (error && !message.isBlank()) {
+            Region divider = new Region();
+            divider.getStyleClass().add("modern-dialog-divider");
+            body.getChildren().add(divider);
+            body.getChildren().add(createErrorDetailCard(message));
+        }
+
+        return body;
+    }
+
+    private static Node createErrorDetailCard(String message) {
+        StackPane detailIcon = new StackPane(IconFactory.compactIcon("info", 16));
+        detailIcon.getStyleClass().add("modern-dialog-detail-icon");
+
+        String code = extractHttpCode(message);
+        Label title = new Label(code.isBlank() ? "Request details" : code + "  \u2022  " + httpStatusSummary(code));
+        title.getStyleClass().add("modern-dialog-detail-title");
+
+        String detailText = stripHttpMarker(message);
+        if (detailText.isBlank()) detailText = "The request could not be completed.";
+        Label detail = new Label(detailText);
+        detail.setWrapText(true);
+        detail.getStyleClass().add("modern-dialog-detail-message");
+
+        VBox copy = new VBox(4, title, detail);
+        copy.getStyleClass().add("modern-dialog-detail-copy");
+        HBox.setHgrow(copy, Priority.ALWAYS);
+
+        HBox card = new HBox(12, detailIcon, copy);
+        card.setAlignment(Pos.TOP_LEFT);
+        card.getStyleClass().add("modern-dialog-detail-card");
+        return card;
+    }
+
+    private static String extractHttpCode(String message) {
+        String text = safe(message).toUpperCase(Locale.ROOT);
+        int index = text.indexOf("HTTP");
+        if (index < 0) return "";
+        int cursor = index + 4;
+        while (cursor < text.length() && !Character.isDigit(text.charAt(cursor))) cursor++;
+        StringBuilder digits = new StringBuilder(3);
+        while (cursor < text.length() && Character.isDigit(text.charAt(cursor)) && digits.length() < 3) {
+            digits.append(text.charAt(cursor++));
+        }
+        return digits.length() == 3 ? "HTTP " + digits : "";
+    }
+
+    private static String stripHttpMarker(String message) {
+        return safe(message)
+            .replaceAll("(?i)\\s*\\(?HTTP\\s*\\d{3}\\)?\\s*[:\\-]?\\s*", " ")
+            .replaceAll("\\s{2,}", " ")
+            .trim();
+    }
+
+    private static String httpStatusSummary(String code) {
+        String digits = code.replace("HTTP", "").trim();
+        return switch (digits) {
+            case "400" -> "Bad request";
+            case "401" -> "Authentication required";
+            case "403" -> "Access denied";
+            case "404" -> "Resource not found";
+            case "408", "504" -> "Request timed out";
+            case "409" -> "Request conflict";
+            case "422" -> "Validation failed";
+            case "429" -> "Too many requests";
+            case "500" -> "Server request failed";
+            case "502" -> "Gateway request failed";
+            case "503" -> "Service unavailable";
+            default -> "Request failed";
+        };
     }
 
     private static void finish(Dialog<?> dialog) {
@@ -199,8 +323,9 @@ public final class DialogPresentation {
         }
         String semantic = explicitString(pane, SEMANTIC);
         if (semantic.isBlank()) semantic = inferSemantic(dialog);
-        DialogActionStyler.style(pane, normalizeSemantic(semantic));
-        normalizeActionLabels(pane, normalizeSemantic(semantic));
+        semantic = normalizeSemantic(semantic);
+        normalizeActionLabels(pane, semantic);
+        DialogActionStyler.style(pane, semantic);
         if (scene != null && scene.getWindow() instanceof Stage stage) {
             boolean workspace = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE))
                 || pane.getStyleClass().contains("workspace-dialog");
@@ -226,6 +351,7 @@ public final class DialogPresentation {
                     case "delete" -> "Delete";
                     case "restore" -> "Restore";
                     case "confirmation" -> "Confirm";
+                    case "error", "warning", "notification" -> "Dismiss";
                     default -> button.getText();
                 });
             }

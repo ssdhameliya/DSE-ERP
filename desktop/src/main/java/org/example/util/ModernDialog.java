@@ -10,7 +10,7 @@ import java.util.Optional;
 /** Application-wide semantic dialog API. Visual construction lives in DialogPresentation. */
 public final class ModernDialog {
     private static final ButtonType CONFIRM = new ButtonType("Confirm", ButtonBar.ButtonData.OK_DONE);
-    private static final ButtonType CLOSE = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
+    private static final ButtonType CLOSE = new ButtonType("Dismiss", ButtonBar.ButtonData.OK_DONE);
     private static final ButtonType CANCEL = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
 
     private ModernDialog() {}
