@@ -4,6 +4,7 @@ import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
+import org.example.util.ModernDialog;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -738,10 +739,10 @@ public class ReminderCenterController {
 
     private void error(String title, Exception exception) {
         exception.printStackTrace();
-        new OwnedAlert(
-                Alert.AlertType.ERROR,
-                title + ".\n\n" + exception.getMessage()
-        ).showAndWait();
+        String detail = exception.getMessage() == null || exception.getMessage().isBlank()
+                ? "The request could not be completed."
+                : exception.getMessage().trim();
+        ModernDialog.error(table, "Reminder Center", title, detail);
     }
 
     public static final class ReminderRow {

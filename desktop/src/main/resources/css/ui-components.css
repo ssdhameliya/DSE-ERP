@@ -4282,6 +4282,7 @@
 
 .modern-dialog .button-bar {
     -fx-padding: 12px 16px 14px 16px;
+    -fx-border-width: 1px 0 0 0;
 }
 
 .modern-dialog .button-bar > .container {

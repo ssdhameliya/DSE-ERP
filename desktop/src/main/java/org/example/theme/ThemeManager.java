@@ -2,11 +2,8 @@ package org.example.theme;
 
 import javafx.scene.Scene;
 import javafx.stage.Window;
-import javafx.stage.Stage;
 import javafx.scene.control.DialogPane;
-import javafx.application.Platform;
 import org.example.util.PlatformUiSupport;
-import org.example.util.WindowUtilsFx;
 import javafx.collections.ListChangeListener;
 import org.example.config.ConfigManager;
 
@@ -78,11 +75,6 @@ public final class ThemeManager {
                 window.showingProperty().addListener((o, oldValue, showing) -> {
                     if (showing && window.getScene() != null) {
                         applyTheme(window.getScene());
-                        Platform.runLater(() -> {
-                            if (window instanceof Stage stage) {
-                                WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
-                            }
-                        });
                     }
                 });
                 if (window.getScene() != null) applyTheme(window.getScene());

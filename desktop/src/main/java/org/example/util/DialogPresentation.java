@@ -109,6 +109,10 @@ public final class DialogPresentation {
         boolean workspace = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE))
             || (!alert && !textInput && !messageConfigured);
 
+        if (!workspace && !heading.isBlank()
+            && (heading.equalsIgnoreCase(title) || heading.equalsIgnoreCase(defaultTitle(semantic)))) {
+            heading = defaultHeading(semantic);
+        }
         if (heading.isBlank()) heading = workspace ? "" : defaultHeading(semantic);
         if (message.isBlank() && alert && !originalHeader.isBlank()) {
             message = originalHeader;
@@ -198,7 +202,10 @@ public final class DialogPresentation {
         DialogActionStyler.style(pane, normalizeSemantic(semantic));
         normalizeActionLabels(pane, normalizeSemantic(semantic));
         if (scene != null && scene.getWindow() instanceof Stage stage) {
-            WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
+            boolean workspace = Boolean.TRUE.equals(pane.getProperties().get(WORKSPACE))
+                || pane.getStyleClass().contains("workspace-dialog");
+            if (workspace) WindowUtilsFx.fitDialogToOwnerScreen(stage, stage.getOwner());
+            else WindowUtilsFx.fitCompactDialogToOwnerScreen(stage, stage.getOwner());
         }
     }
 

@@ -41,7 +41,32 @@ public final class WindowUtilsFx {
         stage.setOnCloseRequest(ev -> save(stage));
     }
 
-    /** Keeps any dialog inside the monitor containing its owner and never larger than usable bounds. */
+    /**
+     * Sizes ordinary message/confirmation dialogs to their actual content.
+     * Compact dialogs must never inherit the 640x460 workspace minimum used by
+     * larger editor/workspace windows.
+     */
+    public static void fitCompactDialogToOwnerScreen(Stage stage, Window owner) {
+        if (stage == null) return;
+        Rectangle2D screen = visualBoundsFor(owner);
+        double margin = screen.getWidth() < 1100 || screen.getHeight() < 700 ? 16 : 36;
+        double maxW = Math.max(360, Math.min(620, screen.getWidth() - margin * 2));
+        double maxH = Math.max(220, Math.min(720, screen.getHeight() - margin * 2));
+
+        // Let the DialogPane/CSS compute the natural message size first; then
+        // cap it to the owner's usable monitor without imposing workspace mins.
+        stage.setMinWidth(0);
+        stage.setMinHeight(0);
+        if (stage.getScene() != null && stage.getScene().getRoot() != null) {
+            stage.getScene().getRoot().applyCss();
+            stage.sizeToScene();
+        }
+        if (stage.getWidth() > maxW) stage.setWidth(maxW);
+        if (stage.getHeight() > maxH) stage.setHeight(maxH);
+        centreInside(stage, owner, screen);
+    }
+
+    /** Keeps workspace/secondary dialogs inside the owner's monitor with a useful editing minimum. */
     public static void fitDialogToOwnerScreen(Stage stage, Window owner) {
         if (stage == null) return;
         Rectangle2D screen = visualBoundsFor(owner);
@@ -54,10 +79,18 @@ public final class WindowUtilsFx {
         if (stage.getHeight() > maxH) stage.setHeight(maxH);
         if (stage.getWidth() < stage.getMinWidth()) stage.setWidth(stage.getMinWidth());
         if (stage.getHeight() < stage.getMinHeight()) stage.setHeight(stage.getMinHeight());
-        double x = owner != null && owner.isShowing() ? owner.getX() + (owner.getWidth()-stage.getWidth())/2 : screen.getMinX()+(screen.getWidth()-stage.getWidth())/2;
-        double y = owner != null && owner.isShowing() ? owner.getY() + (owner.getHeight()-stage.getHeight())/2 : screen.getMinY()+(screen.getHeight()-stage.getHeight())/2;
-        stage.setX(Math.max(screen.getMinX(), Math.min(x, screen.getMaxX()-stage.getWidth())));
-        stage.setY(Math.max(screen.getMinY(), Math.min(y, screen.getMaxY()-stage.getHeight())));
+        centreInside(stage, owner, screen);
+    }
+
+    private static void centreInside(Stage stage, Window owner, Rectangle2D screen) {
+        double x = owner != null && owner.isShowing()
+            ? owner.getX() + (owner.getWidth() - stage.getWidth()) / 2
+            : screen.getMinX() + (screen.getWidth() - stage.getWidth()) / 2;
+        double y = owner != null && owner.isShowing()
+            ? owner.getY() + (owner.getHeight() - stage.getHeight()) / 2
+            : screen.getMinY() + (screen.getHeight() - stage.getHeight()) / 2;
+        stage.setX(Math.max(screen.getMinX(), Math.min(x, screen.getMaxX() - stage.getWidth())));
+        stage.setY(Math.max(screen.getMinY(), Math.min(y, screen.getMaxY() - stage.getHeight())));
     }
 
     public static Rectangle2D visualBoundsFor(Window window) {

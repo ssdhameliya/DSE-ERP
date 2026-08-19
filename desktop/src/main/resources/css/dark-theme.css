@@ -1962,8 +1962,8 @@
 
 .modern-dialog .button-bar {
     -fx-background-color: #0d1724;
+    -fx-border-color: #31465f;
 }
-
 .modern-dialog .modern-dialog-button {
     -fx-background-color: #2563eb;
     -fx-text-fill: white;

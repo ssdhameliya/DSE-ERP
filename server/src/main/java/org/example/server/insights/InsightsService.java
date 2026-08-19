@@ -57,9 +57,9 @@ public class InsightsService {
    String slash="SPLIT_PART("+text+",'/',3)||'-'||SPLIT_PART("+text+",'/',2)||'-'||SPLIT_PART("+text+",'/',1)";
    String dash="SPLIT_PART("+text+",'-',3)||'-'||SPLIT_PART("+text+",'-',2)||'-'||SPLIT_PART("+text+",'-',1)";
    return "CASE WHEN "+text+" IS NULL THEN NULL "
-     +"WHEN "+text+" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AND pg_input_is_valid("+text+",'date'::regtype) THEN CAST("+text+" AS date) "
-     +"WHEN "+text+" ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' AND pg_input_is_valid("+slash+",'date'::regtype) THEN CAST("+slash+" AS date) "
-     +"WHEN "+text+" ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' AND pg_input_is_valid("+dash+",'date'::regtype) THEN CAST("+dash+" AS date) "
+     +"WHEN "+text+" ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' AND pg_input_is_valid("+text+",'date') THEN CAST("+text+" AS date) "
+     +"WHEN "+text+" ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' AND pg_input_is_valid("+slash+",'date') THEN CAST("+slash+" AS date) "
+     +"WHEN "+text+" ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' AND pg_input_is_valid("+dash+",'date') THEN CAST("+dash+" AS date) "
      +"ELSE NULL END";
  }
  private <T> T dashboardSection(String section,java.util.function.Supplier<T> query,T fallback){try{return query.get();}catch(RuntimeException failure){System.err.println("[Dashboard] "+section+" unavailable: "+Objects.toString(failure.getMessage(),failure.getClass().getSimpleName()));return fallback;}}
