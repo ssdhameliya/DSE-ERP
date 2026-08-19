@@ -99,7 +99,7 @@ public class BusinessOperationsService {
 
   boolean linesChanged=!samePurchaseLines(h.getId(),d.lines());
   boolean totalsChanged=!sameNumber(h.getSubtotal(),d.subtotal())||!sameNumber(h.getGstAmount(),d.gstAmount())||!sameNumber(h.getTotalAmount(),d.totalAmount())||!sameNumber(h.getDiscountAmount(),d.discountAmount());
-  if("RETURNED".equals(existingStatus)&&(linesChanged||totalsChanged))
+  if(hasActiveReturn("PURCHASE RETURN",h.getInvoiceNo())&&(linesChanged||totalsChanged))
    throw new IllegalStateException("A purchase with an active Purchase Return cannot change items or financial totals. Reverse/cancel the return first.");
   double recordedPaid=recordedPaymentTotal("PURCHASE",h.getId());
   String existingPaymentStatus=up(h.getPaymentStatus());

@@ -2,6 +2,7 @@ package org.example.controller;
 
 import org.example.util.OwnedAlert;
 
+import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -317,8 +318,17 @@ public class ItemMasterController {
             updateBulkSelectionUi();
             tableItems.refresh();
         });
+        Label selectAllLabel = new Label("Select All Visible");
+        HBox selectAllHeader = new HBox(6, selectAllVisible, selectAllLabel);
+        selectAllHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         colSelect.setText("");
-        colSelect.setGraphic(selectAllVisible);
+        colSelect.setGraphic(selectAllHeader);
+        colSelect.getProperties().put("erp-header-preserve", true);
+        // A real observable value is required or JavaFX marks every body cell empty
+        // and the checkbox graphic never renders. Selection state itself remains
+        // authoritative in selectedItemCodes so refresh/filter behavior stays safe.
+        colSelect.setCellValueFactory(cell -> new ReadOnlyBooleanWrapper(
+            cell != null && cell.getValue() != null && cell.getValue().getItemCode() != null));
         colSelect.setSortable(false);
         colSelect.setReorderable(false);
         colSelect.setResizable(false);

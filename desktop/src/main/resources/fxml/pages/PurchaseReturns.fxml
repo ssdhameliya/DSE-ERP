@@ -38,7 +38,7 @@
       <Button text="View / Print PDF" onAction="#pdfSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
       <Button text="Email Supplier" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
       <Button text="View Original Purchase" onAction="#originalSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
-      <Button text="View / Record Refund" onAction="#refundSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button,return-drawer-action"/>
+      <Button fx:id="btnRefundSelected" text="View / Record Refund" onAction="#refundSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button,return-drawer-action"/>
     </VBox>
   </VBox>
  </items></SplitPane>

@@ -32,7 +32,7 @@
         <TableView fx:id="tableItems" VBox.vgrow="ALWAYS" styleClass="professional-table,entity-table,erp-table-profile-master">
             <placeholder><VBox alignment="CENTER" spacing="8" styleClass="premium-empty-state"><Label text="No items found" styleClass="empty-state-title"/><Label text="Create a new item or adjust the current search." styleClass="muted-text"/></VBox></placeholder>
             <columns>
-                <TableColumn fx:id="colSelect" minWidth="46" prefWidth="46" maxWidth="46" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colSelect" minWidth="145" prefWidth="145" maxWidth="155" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colCode" text="Item Code" prefWidth="110" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colDescription" text="Item Name" prefWidth="220" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colCategory" text="Category" prefWidth="110" styleClass="approved-table-column"/>

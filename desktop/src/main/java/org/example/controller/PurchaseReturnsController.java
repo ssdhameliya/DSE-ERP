@@ -47,6 +47,7 @@ public class PurchaseReturnsController {
     @FXML private TableColumn<Row, String> cNo, cDate, cInvoice, cSupplier, cStatus, cRefundStatus;
     @FXML private TableColumn<Row, Number> cTotal, cRefund;
     @FXML private TableColumn<Row, Void> cAction;
+    @FXML private Button btnRefundSelected;
     @FXML private SplitPane mainSplit;
     @FXML private VBox detailDrawer;
     private List<Row> all = List.of();
@@ -106,7 +107,7 @@ public class PurchaseReturnsController {
             }
             private Row row() { return getTableView().getItems().get(getIndex()); }
             private void add(String name, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) { MenuItem item = new MenuItem(name, IconFactory.compactIcon(icon, 16)); item.setOnAction(handler); menu.getItems().add(item); }
-            @Override protected void updateItem(Void value, boolean empty) { super.updateItem(value, empty); setGraphic(empty ? null : menu); }
+            @Override protected void updateItem(Void value, boolean empty) { super.updateItem(value, empty); if(!empty && getIndex()>=0 && getIndex()<getTableView().getItems().size()){ Row current=getTableView().getItems().get(getIndex()); for(MenuItem mi:menu.getItems()) if(mi.getText()!=null && mi.getText().startsWith("Record Refund")){mi.setDisable(isCancelled(current));mi.setText(isCancelled(current)?"Record Refund (Cancelled)":"Record Refund");}} setGraphic(empty ? null : menu); }
         });
     }
 
@@ -147,7 +148,7 @@ public class PurchaseReturnsController {
     private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("purchase")||t.contains("original"))return"purchase";if(t.contains("supplier"))return"supplier";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("detail"))return"view";if(t.contains("close"))return"cancel";return null;}
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
     private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
-    private void showDetails(Row row){if(row==null)return;selected=row;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));}
+    private void showDetails(Row row){if(row==null)return;selected=row;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(isCancelled(row));btnRefundSelected.setTooltip(isCancelled(row)?new Tooltip("Cancelled returns cannot be refunded."):null);}}
     @FXML private void closeDetails(){selected=null;if(detailDrawer!=null){detailDrawer.setManaged(false);detailDrawer.setVisible(false);}if(mainSplit!=null)mainSplit.setDividerPositions(1);if(table!=null)table.getSelectionModel().clearSelection();}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
@@ -173,14 +174,15 @@ public class PurchaseReturnsController {
     }
 
     private String partyEmail(String returnNo){return supportApi.returnPartyEmail(returnNo);}
-    private void recordRefund(Row row) { if(row==null)return; ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
+    private void recordRefund(Row row) { if(row==null)return; if(isCancelled(row)){ org.example.util.ModernDialog.warning(table, "Refund blocked", "Cancelled return", "A cancelled return cannot receive or record a refund."); return; } ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
+    private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(),false); NotificationService.add(row.no()+" cancelled."); load(); } catch(Exception e){error(e);} }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " and reverse every returned item?")) return; try { ReturnWorkflowService.delete(row.no(),false); load(); } catch (Exception e) { error(e); } }
-    private void update(String no,String column,String value){if(!Set.of("reason","notes","status").contains(column))return;try{returnApi.update(no,column,value);load();}catch(Exception e){error(e);}}
+    private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;try{returnApi.update(no,column,value);load();}catch(Exception e){error(e);}}
 
     @FXML private void export() { FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Purchase_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv")); File file = chooser.showSaveDialog(table.getScene().getWindow()); if (file == null) return; try (PrintWriter out = new PrintWriter(file)) { out.println("Return No,Date,Purchase No,Supplier,Total,Refund,Status,Refund Status"); for (Row r : table.getItems()) out.printf("%s,%s,%s,%s,%.2f,%.2f,%s,%s%n", r.no(), r.date(), r.invoice(), csv(r.supplier()), r.total(), r.refund(), r.status(), r.refundStatus()); } catch (Exception e) { error(e); } }
 
-    private LocalDate parse(String value) { try { return LocalDate.parse(value); } catch (Exception e) { return LocalDate.MIN; } }
+    private LocalDate parse(String value) { try { LocalDate parsed = BusinessClock.parseDate(value); return parsed == null ? LocalDate.MIN : parsed; } catch (Exception e) { return LocalDate.MIN; } }
     private String safe(String value) { return value == null ? "" : value; }
     private String csv(String value) { return '"' + safe(value).replace("\"", "\"\"") + '"'; }
     private String money(double value) { return String.format("₹ %,.2f", value); }

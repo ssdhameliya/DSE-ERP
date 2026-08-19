@@ -13,6 +13,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
@@ -240,38 +242,63 @@ public final class ProfessionalUiEnhancer {
                 ? value.trim()
                 : first.getText() == null ? "" : first.getText().trim();
             String columnId = first.getId() == null ? "" : first.getId().toLowerCase(Locale.ROOT);
-            // Keep real workflow checkboxes (for example multi-item returns), but convert
-            // passive selection columns in register/master tables into readable row numbers.
+            // Register/list tables use a persistent leading checkbox rather than a passive sequence number.
+            // Workflow-owned checkbox columns opt out via erp-keep-selection and keep their controller behavior.
             boolean keepSelection = Boolean.TRUE.equals(table.getProperties().get("erp-keep-selection"));
-            boolean selectionColumn = !keepSelection && (heading.equals("#")
+            boolean registerTable = table.getStyleClass().contains("erp-table-profile-register");
+            boolean selectionColumn = registerTable && !keepSelection && (heading.equals("#")
+                    || heading.equals("No.")
                     || heading.equals("✓")
                     || heading.equalsIgnoreCase("select")
                     || columnId.contains("select")
-                    // Legacy controllers create the leading selection column in
-                    // Java without an id or label, so a blank leading heading is
-                    // itself the reliable cross-screen selection-column marker.
+                    || Boolean.TRUE.equals(first.getProperties().get("erp-row-number"))
                     || heading.isBlank());
-            if (selectionColumn && table.getStyleClass().contains("erp-hide-leading-index")) {
-                first.setVisible(false);
-                first.setMinWidth(0);
-                first.setPrefWidth(0);
-                first.setMaxWidth(0);
-            } else if (selectionColumn && !Boolean.TRUE.equals(first.getProperties().get("erp-row-number"))) {
-                first.getProperties().put("erp-row-number", true);
-                first.setText("No.");
-                IconFactory.applyTableHeaderIcon(first, "quantity");
-                first.setMinWidth(62);
-                first.setPrefWidth(62);
-                first.setMaxWidth(62);
+            if (selectionColumn && !Boolean.TRUE.equals(first.getProperties().get("erp-global-checkbox"))) {
+                first.getProperties().remove("erp-row-number");
+                first.getProperties().put("erp-global-checkbox", true);
+                first.setVisible(true);
+                first.setText("");
                 first.setSortable(false);
+                first.setReorderable(false);
+                first.setResizable(false);
+                first.setMinWidth(54);
+                first.setPrefWidth(54);
+                first.setMaxWidth(54);
+                table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+                CheckBox all = new CheckBox();
+                all.setTooltip(new Tooltip("Select all visible rows"));
+                all.setOnAction(e -> {
+                    if (all.isSelected()) table.getSelectionModel().selectAll();
+                    else table.getSelectionModel().clearSelection();
+                });
+                first.setGraphic(all);
                 first.setCellFactory(ignored -> new TableCell<Object, Object>() {
+                    private final CheckBox box = new CheckBox();
+                    {
+                        box.setOnAction(e -> {
+                            int index = getIndex();
+                            if (index < 0 || index >= getTableView().getItems().size()) return;
+                            if (box.isSelected()) getTableView().getSelectionModel().select(index);
+                            else getTableView().getSelectionModel().clearSelection(index);
+                            e.consume();
+                        });
+                    }
                     @Override
                     protected void updateItem(Object item, boolean empty) {
                         super.updateItem(item, empty);
-                        setGraphic(null);
-                        setText(empty || getIndex() < 0 ? null : Integer.toString(getIndex() + 1));
+                        setText(null);
+                        if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                            setGraphic(null);
+                            return;
+                        }
+                        box.setSelected(getTableView().getSelectionModel().isSelected(getIndex()));
+                        setGraphic(box);
                         setAlignment(Pos.CENTER);
                     }
+                });
+                table.getSelectionModel().getSelectedIndices().addListener((ListChangeListener<Integer>) c -> {
+                    all.setSelected(!table.getItems().isEmpty() && table.getSelectionModel().getSelectedIndices().size() == table.getItems().size());
+                    table.refresh();
                 });
             }
         }

@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 echo.
 echo ==========================================
-echo   DSE ERP 7.30.36 - PRODUCTION WINDOWS BUILD
+echo   DSE ERP 7.30.39 - PRODUCTION WINDOWS BUILD
 echo ==========================================
 echo.
 echo This builds the customer Windows installer.
