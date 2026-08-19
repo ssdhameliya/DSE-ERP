@@ -4,6 +4,9 @@ import org.example.config.ConfigManager;
 import org.example.documentstudio.model.DocumentType;
 import org.example.util.ProfessionalDocumentRenderer;
 import org.example.util.ResourceLocator;
+import org.example.invoice.service.SalesTaxInvoiceService;
+import org.example.model.Sales;
+import org.example.service.SalesService;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +17,11 @@ public final class DocumentOutputService {
 
     public static Path generate(DocumentType type, String documentNo) throws Exception {
         if (documentNo == null || documentNo.isBlank()) throw new IllegalArgumentException("A valid document number is required.");
+        if (type == DocumentType.SALES_INVOICE) {
+            Sales sale = new SalesService().getByInvoice(documentNo);
+            if (sale == null) throw new IllegalArgumentException("Sales invoice " + documentNo + " was not found.");
+            return generateSales(sale);
+        }
         DocumentFlowRegistry.Flow flow = DocumentFlowRegistry.flow(type)
                 .orElseThrow(() -> new IllegalArgumentException(type + " is not connected to automatic document output."));
         Path output = ensureOutputDirectory().resolve(flow.outputPrefix() + safeFileName(documentNo) + ".pdf");
@@ -32,6 +40,31 @@ public final class DocumentOutputService {
         ProfessionalDocumentRenderer.render(output, ensureLogo(), documentNo, flow.fallbackKind());
         validatePdf(output, documentNo);
         return output;
+    }
+
+
+    /**
+     * Sales has a locked legacy fallback contract. A Studio template is used only when the user has
+     * explicitly activated one as the Sales Invoice default; otherwise the established Sale/email/
+     * WhatsApp renderer is called exactly as before.
+     */
+    public static Path generateSales(Sales invoice) throws Exception {
+        if (invoice == null || invoice.getInvoiceNo() == null || invoice.getInvoiceNo().isBlank())
+            throw new IllegalArgumentException("A valid sales record is required to create the PDF.");
+        var custom = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE);
+        if (custom.isPresent()) {
+            Path output = ensureOutputDirectory().resolve("Sales-Tax-Invoice-" + safeFileName(invoice.getInvoiceNo()) + ".pdf");
+            try {
+                PdfTemplateRenderer.render(custom.get(), TemplateDataFactory.fromSales(invoice), output);
+                validatePdf(output, invoice.getInvoiceNo());
+                return output;
+            } catch (Exception templateError) {
+                logFallback(DocumentType.SALES_INVOICE, invoice.getInvoiceNo(), templateError);
+            }
+        }
+        Path builtIn = SalesTaxInvoiceService.generate(invoice);
+        validatePdf(builtIn, invoice.getInvoiceNo());
+        return builtIn;
     }
 
     private static Path ensureOutputDirectory() throws Exception {

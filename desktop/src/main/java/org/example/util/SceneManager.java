@@ -35,6 +35,7 @@ public class SceneManager {
             FXMLLoader loader = new FXMLLoader(url);
             Parent root = loader.load();
             ProfessionalUiEnhancer.enhance(root);
+            AuthExperienceEnhancer.enhance(root);
             SetupWizardController controller = loader.getController();
             controller.setOnCompleted(onCompleted);
             javafx.geometry.Rectangle2D usable = javafx.stage.Screen.getPrimary().getVisualBounds();
@@ -134,6 +135,7 @@ public class SceneManager {
 
             Parent root = loader.load();
             ProfessionalUiEnhancer.enhance(root);
+            AuthExperienceEnhancer.enhance(root);
             if ("/fxml/pages/Splash.fxml".equals(fxml)) {
                 root.getProperties().put("dse.splash.controller", loader.getController());
             }

@@ -406,6 +406,7 @@ public class BankStatementController {
         }
 
         TableView<CandidateRow> candidatesTable=new TableView<>(FXCollections.observableArrayList(rows));
+        candidatesTable.getProperties().put("erp-keep-selection", true);
         candidatesTable.getStyleClass().addAll("approved-table", "erp-table-profile-dialog");
         candidatesTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         candidatesTable.setEditable(true);
@@ -442,7 +443,11 @@ public class BankStatementController {
         allocation.setOnEditCommit(e->{e.getRowValue().allocation.set(e.getNewValue()==null?0:e.getNewValue());e.getRowValue().selected.set(true);});
         allocation.setPrefWidth(110);
         candidatesTable.getColumns().setAll(selected,score,type,document,party,date,total,paid,outstanding,allocation);
-        selected.setGraphic(new CheckBox());selected.getProperties().put("erp-header-preserve",true);
+        CheckBox selectAllCandidates=new CheckBox();
+        selectAllCandidates.setTooltip(new Tooltip("Select all visible match candidates"));
+        selectAllCandidates.setOnAction(e->{ rows.forEach(r->r.selected.set(selectAllCandidates.isSelected())); candidatesTable.refresh(); });
+        rows.forEach(r->r.selected.addListener((o,a,b)->selectAllCandidates.setSelected(!rows.isEmpty()&&rows.stream().allMatch(x->x.selected.get()))));
+        selected.setGraphic(selectAllCandidates);selected.getProperties().put("erp-header-preserve",true);
         IconFactory.applyTableHeaderIcon(score,"status");IconFactory.applyTableHeaderIcon(type,"category");
         IconFactory.applyTableHeaderIcon(document,"document");IconFactory.applyTableHeaderIcon(party,"customer");
         IconFactory.applyTableHeaderIcon(date,"calendar");IconFactory.applyTableHeaderIcon(total,"currency");
@@ -544,21 +549,30 @@ public class BankStatementController {
     }
     private void openFinance(Row row,BankExpenseController.Mode mode){DashboardController.navigateFromChild(mode==BankExpenseController.Mode.BANK?"Bank Entry":"Expense Entry","/fxml/pages/BankExpense.fxml",mode);}
     private void openLinked(Row row){
-        var t=row.dto; String type=up(t.linkedTargetType()); Integer id=t.linkedTargetId();
-        if(type.isBlank()){ if(t.suggestedMatchType()!=null){type=up(t.suggestedMatchType());id=t.suggestedMatchId();} }
-        if("EXPENSE".equals(type)){openFinance(row,BankExpenseController.Mode.EXPENSE);return;}
-        if("BANK_ENTRY".equals(type)){openFinance(row,BankExpenseController.Mode.BANK);return;}
-        if("SALE".equals(type)){
-            String no=safe(t.linkedDocumentNo()); if(no.isBlank()&&id!=null)no=""+id; SalesScreenContext.select(no); NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml"); return;
-        }
-        if("PURCHASE".equals(type)){
-            String no=safe(t.linkedDocumentNo()); if(no.isBlank()&&id!=null)no=""+id; PurchaseScreenContext.select(no); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); return;
-        }
-        if("SALES_RETURN".equals(type)||"PURCHASE_RETURN".equals(type)){
-            String no=safe(t.linkedDocumentNo()); if(!no.isBlank()){ReturnRefundContext.select(no);NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");return;}
-        }
-        audit(row);
+        var t=row.dto;
+        List<BankStatementApiClient.AllocationDto> linked=t.linkedAllocations()==null?List.of():t.linkedAllocations();
+        if(linked.size()>1){showLinkedAllocations(row,linked);return;}
+        if(linked.size()==1){openAllocation(linked.getFirst(),"Bank Statement #"+t.id());return;}
+        String type=up(t.linkedTargetType()); Integer id=t.linkedTargetId(); String no=safe(t.linkedDocumentNo());
+        if(type.isBlank()&&t.suggestedMatchType()!=null){type=up(t.suggestedMatchType());id=t.suggestedMatchId();}
+        openLinkedTarget(type,id,no,"Bank Statement #"+t.id(),row);
     }
+    private void showLinkedAllocations(Row row,List<BankStatementApiClient.AllocationDto> linked){
+        Dialog<ButtonType> dialog=new OwnedDialog<>(table);dialog.setTitle("Linked Transactions");dialog.setHeaderText(linked.size()+" transactions are linked to this bank entry");
+        VBox box=new VBox(9);box.setPadding(new Insets(4));
+        for(var allocation:linked){HBox line=new HBox(12);line.setAlignment(Pos.CENTER_LEFT);Label document=new Label(safe(allocation.documentNo()).isBlank()?up(allocation.targetType())+" #"+allocation.targetId():allocation.documentNo());document.setMinWidth(210);Label type=new Label(up(allocation.targetType()).replace('_',' '));type.setMinWidth(130);Label amount=new Label(money(allocation.allocatedAmount()));amount.setMinWidth(110);Button view=new Button("View");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});line.getChildren().addAll(document,type,amount,view);box.getChildren().add(line);}
+        dialog.getDialogPane().setContent(box);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
+    }
+    private void openAllocation(BankStatementApiClient.AllocationDto allocation,String source){if(allocation==null)return;openLinkedTarget(up(allocation.targetType()),allocation.targetId(),safe(allocation.documentNo()),source,null);}
+    private void openLinkedTarget(String type,Integer id,String documentNo,String source,Row row){
+        if("EXPENSE".equals(type)){if(row!=null)openFinance(row,BankExpenseController.Mode.EXPENSE);else DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);return;}
+        if("BANK_ENTRY".equals(type)){if(row!=null)openFinance(row,BankExpenseController.Mode.BANK);else DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);return;}
+        if("SALE".equals(type)){LinkedRecordContext.open("SALE",id,documentNo,"VIEW",source);NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");return;}
+        if("PURCHASE".equals(type)){LinkedRecordContext.open("PURCHASE",id,documentNo,"VIEW",source);NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");return;}
+        if("SALES_RETURN".equals(type)||"PURCHASE_RETURN".equals(type)){if(documentNo.isBlank()){new OwnedAlert(Alert.AlertType.WARNING,"The linked Return record no longer has a document number.").showAndWait();return;}ReturnRefundContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");return;}
+        if(row!=null)audit(row);else new OwnedAlert(Alert.AlertType.INFORMATION,"The linked record type is not available for direct navigation.").showAndWait();
+    }
+
 
     private void viewEdit(Row row){
         var t=row.dto;

@@ -55,7 +55,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V7_30_30__quotation_runtime_repair",
                     "db/migration/V7_30_30__quotation_runtime_repair.sql"),
             new Migration("V7_30_31__release_schema_guard",
-                    "db/migration/V7_30_31__release_schema_guard.sql")
+                    "db/migration/V7_30_31__release_schema_guard.sql"),
+            new Migration("V7_30_40__performance_indexes",
+                    "db/migration/V7_30_40__performance_indexes.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

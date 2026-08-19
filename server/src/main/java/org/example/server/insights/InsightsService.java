@@ -16,38 +16,48 @@ public class InsightsService {
 
  @Transactional(readOnly=true) public InsightDtos.DashboardBundle dashboard(String period){
    String cond=periodSql(period,"invoice_date");
-   long products=l("SELECT COUNT(*) FROM item_master"), customers=l("SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t')");
-   long invoices=l("SELECT COUNT(*) FROM sales_header WHERE "+ACTIVE_SALES+" AND ("+cond+")"), purchases=l("SELECT COUNT(*) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND ("+cond+")"), low=l("SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)");
-   double sales=n("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE "+ACTIVE_SALES+" AND ("+cond+")"), purchase=n("SELECT COALESCE(SUM(total_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND ("+cond+")");
-   double recv=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE "+ACTIVE_SALES), pay=n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM purchase_header WHERE "+POSTED_PURCHASES);
-   long openRecv=l("SELECT COUNT(*) FROM sales_header WHERE "+ACTIVE_SALES+" AND total_amount>COALESCE(paid_amount,0)"), openPay=l("SELECT COUNT(*) FROM purchase_header WHERE "+POSTED_PURCHASES+" AND total_amount>COALESCE(paid_amount,0)");
-   double cash=n("SELECT COALESCE(SUM(paid_amount),0) FROM sales_header WHERE "+ACTIVE_SALES)-n("SELECT COALESCE(SUM(paid_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES)-n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
-   long openRem=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')");
-   long overdue=l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END < ?",BusinessClock.today());
-   var snap=new InsightDtos.DashboardSnapshot(period,products,customers,invoices,purchases,low,sales,purchase,recv,pay,openRecv,openPay,cash,openRem,overdue);
+   long[] master=jdbc.query("""
+     SELECT
+       (SELECT COUNT(*) FROM item_master),
+       (SELECT COUNT(*) FROM item_master WHERE COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)),
+       (SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t'))
+     """,(r,i)->new long[]{r.getLong(1),r.getLong(2),r.getLong(3)}).getFirst();
+   double[] saleStats=jdbc.query("SELECT COUNT(*) FILTER (WHERE ("+cond+")), COALESCE(SUM(total_amount) FILTER (WHERE ("+cond+")),0), COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0), COUNT(*) FILTER (WHERE total_amount>COALESCE(paid_amount,0)), COALESCE(SUM(paid_amount),0) FROM sales_header WHERE "+ACTIVE_SALES,(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)}).getFirst();
+   double[] purchaseStats=jdbc.query("SELECT COUNT(*) FILTER (WHERE ("+cond+")), COALESCE(SUM(total_amount) FILTER (WHERE ("+cond+")),0), COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0), COUNT(*) FILTER (WHERE total_amount>COALESCE(paid_amount,0)), COALESCE(SUM(paid_amount),0) FROM purchase_header WHERE "+POSTED_PURCHASES,(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)}).getFirst();
+   double expense=n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(voucher_type)='EXPENSE'");
+   double cash=saleStats[4]-purchaseStats[4]-expense;
+   long[] reminderStats=jdbc.query("SELECT COUNT(*) FILTER (WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED')), COUNT(*) FILTER (WHERE UPPER(COALESCE(status,'OPEN')) NOT IN ('COMPLETED','CANCELLED') AND CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN CAST(due_date AS DATE) END < ?)",(r,i)->new long[]{r.getLong(1),r.getLong(2)},BusinessClock.today()).getFirst();
+   var snap=new InsightDtos.DashboardSnapshot(period,master[0],master[2],(long)saleStats[0],(long)purchaseStats[0],master[1],saleStats[1],purchaseStats[1],saleStats[2],purchaseStats[2],(long)saleStats[3],(long)purchaseStats[3],cash,reminderStats[0],reminderStats[1]);
    List<InsightDtos.ActivityDto> recent=jdbc.query("SELECT * FROM (SELECT 'Sale' type,s.invoice_no doc_no,p.name party,s.invoice_date doc_date,s.total_amount amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') UNION ALL SELECT 'Purchase',h.invoice_no,p.name,h.invoice_date,h.total_amount FROM purchase_header h JOIN party_master p ON p.id=h.supplier_id WHERE UPPER(COALESCE(h.document_status,'')) NOT IN ('DELETED','CANCELLED','DRAFT')) x ORDER BY doc_date DESC,doc_no DESC LIMIT 8",(rs,i)->new InsightDtos.ActivityDto(rs.getString(1),rs.getString(2),rs.getString(3),String.valueOf(rs.getObject(4)),rs.getDouble(5)));
    String pc=periodSql(period,"s.invoice_date");
    List<String> top=jdbc.query("SELECT p.name,COALESCE(SUM(s.total_amount),0) amount FROM sales_header s JOIN party_master p ON p.id=s.customer_id WHERE UPPER(COALESCE(s.document_status,'')) NOT IN ('DELETED','CANCELLED') AND ("+pc+") GROUP BY p.id,p.name ORDER BY amount DESC LIMIT 5",(rs,i)->rs.getString(1)+"|"+rs.getDouble(2));
    if(top.isEmpty())top=List.of("No customer sales for "+period.toLowerCase(Locale.ROOT));
    LocalDate today=BusinessClock.today();
-   List<String> ageing=List.of(
-     age("Overdue (> 30 Days)","CAST(due_date AS DATE) < DATE '"+today.minusDays(30)+"'"),
-     age("21 - 30 Days","CAST(due_date AS DATE) BETWEEN DATE '"+today.minusDays(30)+"' AND DATE '"+today.minusDays(21)+"'"),
-     age("11 - 20 Days","CAST(due_date AS DATE) BETWEEN DATE '"+today.minusDays(20)+"' AND DATE '"+today.minusDays(11)+"'"),
-     age("1 - 10 Days","CAST(due_date AS DATE) BETWEEN DATE '"+today.minusDays(10)+"' AND DATE '"+today.minusDays(1)+"'"),
-     age("Not Due","due_date IS NULL OR CAST(due_date AS DATE) >= DATE '"+today+"'"));
+   String dueExpr="CASE WHEN due_date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN TO_DATE(due_date,'YYYY-MM-DD') WHEN due_date ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}$' THEN TO_DATE(due_date,'DD/MM/YYYY') WHEN due_date ~ '^[0-9]{2}-[0-9]{2}-[0-9]{4}$' THEN TO_DATE(due_date,'DD-MM-YYYY') END";
+   double[] buckets=jdbc.query("SELECT "
+     +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" < ?),0),"
+     +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"
+     +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"
+     +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"
+     +"COALESCE(SUM(total_amount-COALESCE(paid_amount,0)) FILTER (WHERE due_date IS NULL OR "+dueExpr+" >= ?),0) "
+     +"FROM sales_header WHERE UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED') AND total_amount-COALESCE(paid_amount,0)>0",(r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)},today.minusDays(30),today.minusDays(30),today.minusDays(21),today.minusDays(20),today.minusDays(11),today.minusDays(10),today.minusDays(1),today).getFirst();
+   List<String> ageing=List.of("Overdue (> 30 Days)|"+buckets[0],"21 - 30 Days|"+buckets[1],"11 - 20 Days|"+buckets[2],"1 - 10 Days|"+buckets[3],"Not Due|"+buckets[4]);
    return new InsightDtos.DashboardBundle(snap,recent,top,ageing,notifications(5));
  }
- private String age(String label,String cond){return label+"|"+n("SELECT COALESCE(SUM(total_amount-COALESCE(paid_amount,0)),0) FROM sales_header WHERE "+ACTIVE_SALES+" AND total_amount-COALESCE(paid_amount,0)>0 AND ("+cond+")");}
  private String periodSql(String p,String c){LocalDate today=BusinessClock.today();LocalDate start=switch(p==null?"":p){case "This Month"->today.withDayOfMonth(1);case "This Quarter"->{int m=((today.getMonthValue()-1)/3)*3+1;yield LocalDate.of(today.getYear(),m,1);}case "This Year"->LocalDate.of(today.getYear(),1,1);default->null;};return start==null?"1=1":"CAST("+c+" AS DATE)>=DATE '"+start+"'";}
 
 
  @Transactional(readOnly=true) public InsightDtos.ShellCounts shellCounts(){
-   int notifications=(int)unreadCount();
-   int email=(int)l("SELECT COUNT(*) FROM communication_log WHERE channel='EMAIL' AND COALESCE(is_read::text,'0') IN ('0','false','f')");
-   int whatsapp=(int)l("SELECT COUNT(*) FROM communication_log WHERE channel='WHATSAPP' AND COALESCE(is_read::text,'0') IN ('0','false','f')");
-   int reminders=(int)l("SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(NULLIF(TRIM(status),''),'OPEN')) IN ('OPEN','SNOOZED')");
-   return new InsightDtos.ShellCounts(notifications,email,whatsapp,reminders);
+   // One PostgreSQL round-trip replaces the four independent COUNT queries used
+   // by earlier releases. This endpoint is intentionally cheap because the shell
+   // refreshes it frequently for near-real-time badges.
+   return jdbc.query("""
+     SELECT
+       (SELECT COUNT(*) FROM notifications WHERE COALESCE(is_read::text,'0') IN ('0','false','f')),
+       (SELECT COUNT(*) FROM communication_log WHERE channel='EMAIL' AND COALESCE(is_read::text,'0') IN ('0','false','f')),
+       (SELECT COUNT(*) FROM communication_log WHERE channel='WHATSAPP' AND COALESCE(is_read::text,'0') IN ('0','false','f')),
+       (SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(NULLIF(TRIM(status),''),'OPEN')) IN ('OPEN','SNOOZED'))
+     """,(r,i)->new InsightDtos.ShellCounts(r.getInt(1),r.getInt(2),r.getInt(3),r.getInt(4))).getFirst();
  }
  @Transactional public void markCommunicationRead(String channel){
    jdbc.update("UPDATE communication_log SET is_read=1 WHERE channel=?",channel==null?"":channel.trim().toUpperCase(Locale.ROOT));

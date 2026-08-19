@@ -1,0 +1,3 @@
+-proc:none
+-XDrawDiagnostics
+desktop/src/main/java/org/example/controller/DashboardController.java

@@ -23,6 +23,9 @@ import org.example.service.ImportService;
 import org.example.util.IconFactory;
 import org.example.util.SpreadsheetLayoutDetector;
 import org.example.util.BusinessClock;
+import org.example.util.ModernDialog;
+import org.example.navigation.NavigationGuardRegistry;
+import org.example.navigation.NavigationManager;
 import org.example.config.WorkspaceManager;
 
 import java.io.File;
@@ -81,8 +84,8 @@ public class ImportController {
 
     @FXML private ProgressBar progressBar;
     @FXML private CheckBox chkDryRun;
-    @FXML private VBox stepSelect, stepUpload, stepMap, stepReview;
-    @FXML private Label step1Badge, step2Badge, step3Badge, step4Badge;
+    @FXML private VBox stepSelect, stepUpload, stepMap, stepReview, importCompletedPanel;
+    @FXML private Label step1Badge, step2Badge, step3Badge, step4Badge, lblImportCompletedSummary;
     @FXML private javafx.scene.layout.Region wizardLine1, wizardLine2, wizardLine3;
     @FXML private StackPane itemChoiceIcon, customerChoiceIcon, supplierChoiceIcon, salesChoiceIcon, purchaseChoiceIcon, masterChoiceIcon, selectedFileExcelIcon;
     @FXML private Button btnDownloadItemTemplate, btnDownloadCustomerTemplate, btnDownloadSupplierTemplate,
@@ -116,6 +119,10 @@ public class ImportController {
     private boolean rebuildingMapping;
     private volatile boolean preflightPassed;
     private ImportService.ImportResult lastPreflightResult;
+    private int currentWizardStep = 1;
+    private boolean importRunning;
+    private boolean importCompleted;
+    private String completedModule;
 
     /* =========================================================
        MODULE FIELD DEFINITIONS
@@ -260,6 +267,7 @@ public class ImportController {
         btnRunImport.setDisable(true);
 
         showWizardStep(1);
+        Platform.runLater(() -> NavigationGuardRegistry.install(btnRunImport, this::allowNavigationAway));
 
         cmbImportModule.valueProperty().addListener(
             (observable, oldValue, newValue) -> {
@@ -287,6 +295,8 @@ public class ImportController {
     @FXML private void wizardContinueUpload(){ if(selectedFile==null){showWarning("Choose a file","Select an import file before continuing.");return;} showWizardStep(3); }
     @FXML private void wizardContinueMap(){ if(!requiredMappingsComplete()){showWarning("Required mappings are missing","Map all required fields before continuing.");return;} showWizardStep(4); runPreflightValidation(); }
     private void showWizardStep(int step){
+        currentWizardStep = Math.max(1, Math.min(4, step));
+        if (importCompletedPanel != null && step != 4) { importCompletedPanel.setVisible(false); importCompletedPanel.setManaged(false); }
         VBox[] panes={stepSelect,stepUpload,stepMap,stepReview};
         for(int i=0;i<panes.length;i++) {
             if(panes[i]!=null){
@@ -1785,6 +1795,12 @@ public class ImportController {
 
             showResult(result);
 
+            if (!dryRun && result.failedCount() == 0) {
+                importCompleted = true;
+                completedModule = module;
+                showCompletedState(result);
+            }
+
             if (
                 !dryRun
                     && result.imported
@@ -1815,19 +1831,7 @@ public class ImportController {
             Throwable exception =
                 task.getException();
 
-            Alert alert =
-                new OwnedAlert(
-                    Alert.AlertType.ERROR
-                );
-
-            alert.setTitle("Import Error");
-            alert.setHeaderText("Import failed");
-
-            alert.setContentText(
-                safeMessage(exception)
-            );
-
-            alert.showAndWait();
+            ModernDialog.error(btnRunImport, "Import Error", "Import failed", safeMessage(exception));
         });
 
         Thread thread =
@@ -1947,6 +1951,7 @@ public class ImportController {
 
     private void setImportRunning(boolean running) {
 
+        importRunning = running;
         progressContainer.setManaged(running);
         progressContainer.setVisible(running);
 
@@ -2151,6 +2156,55 @@ public class ImportController {
         }
     }
 
+    private boolean allowNavigationAway(String destination) {
+        if (destination != null && destination.endsWith("/Import.fxml")) return true;
+        if (importRunning) {
+            ModernDialog.warning(btnRunImport, "Import in progress", "Please wait for the import to finish",
+                "Navigation is temporarily locked so the import cannot be left in an uncertain state.");
+            return false;
+        }
+        boolean hasProgress = currentWizardStep > 1 && selectedFile != null && !importCompleted;
+        if (!hasProgress) { NavigationGuardRegistry.clear(btnRunImport); return true; }
+        boolean leave = ModernDialog.confirm(btnRunImport, "Leave Data Import?", "Discard the current import setup?",
+            "You are in step " + currentWizardStep + " of 4. Leaving now will discard the selected file, mappings and validation progress.");
+        if (leave) NavigationGuardRegistry.clear(btnRunImport);
+        return leave;
+    }
+
+    private void showCompletedState(ImportService.ImportResult result) {
+        if (importCompletedPanel == null) return;
+        importCompletedPanel.setManaged(true);
+        importCompletedPanel.setVisible(true);
+        if (lblImportCompletedSummary != null) {
+            lblImportCompletedSummary.setText("Processed " + result.processed + " • " + result.imported + " created • "
+                + result.updated + " updated • " + result.skipped + " skipped");
+        }
+        btnRunImport.setDisable(true);
+        lblReadyStatus.setText("Import completed successfully");
+        lblReadyStatus.getStyleClass().removeAll("import-warning-text");
+        if (!lblReadyStatus.getStyleClass().contains("import-success-text")) lblReadyStatus.getStyleClass().add("import-success-text");
+    }
+
+    @FXML private void viewImportedRecords() {
+        String target = targetFor(completedModule == null ? cmbImportModule.getValue() : completedModule);
+        NavigationGuardRegistry.clear(btnRunImport);
+        NavigationManager.navigateOrReport(target);
+    }
+
+    @FXML private void startAnotherImport() {
+        importCompleted = false; completedModule = null; selectedFile = null; selectedLayout = null; currentHeaders = List.of();
+        preflightPassed = false; lastPreflightResult = null; mappingControls.clear(); mappingStatusLabels.clear(); requiredStatusLabels.clear();
+        lblChosenFile.setText("No file selected"); tblPreview.getItems().clear(); tblPreview.getColumns().clear();
+        if (importCompletedPanel != null) { importCompletedPanel.setVisible(false); importCompletedPanel.setManaged(false); }
+        NavigationGuardRegistry.install(btnRunImport, this::allowNavigationAway);
+        showWizardStep(1); updateMappingSummary();
+    }
+
+    @FXML private void closeImport() {
+        NavigationGuardRegistry.clear(btnRunImport);
+        NavigationManager.navigateOrReport("/fxml/pages/DashboardHome.fxml");
+    }
+
     private String targetFor(String module) {
 
         return switch (module) {
@@ -2237,7 +2291,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 7.30.39 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 7.30.43 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

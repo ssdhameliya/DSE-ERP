@@ -154,15 +154,37 @@ public final class PdfTemplateRenderer {
     private static void drawElement(PDDocument doc, PDPage page, PDPageContentStream cs,
                                     DocumentTemplate template, TemplateData data,
                                     TemplateElement e, List<TaxInvoiceItem> tableItems) throws IOException {
-        switch (e.getType()) {
-            case TEXT -> drawText(page, cs, e, e.getText());
-            case FIELD -> drawText(page, cs, e, data.value(e.getFieldKey()));
-            case IMAGE -> drawImage(doc, page, cs, e, TemplateStorageService.resolveAsset(template, e.getImagePath()));
-            case IMAGE_FIELD -> drawImage(doc, page, cs, e, data.image(e.getFieldKey()));
-            case RECTANGLE -> drawRectangle(page, cs, e, false);
-            case WHITEOUT -> drawRectangle(page, cs, e, true);
-            case LINE -> drawLine(page, cs, e);
-            case ITEM_TABLE -> drawItemTable(page, cs, e, tableItems == null ? List.of() : tableItems, data.gstType());
+        boolean transformable = e.getType() != ElementType.WHITEOUT;
+        if (transformable) {
+            cs.saveGraphicsState();
+            if (e.getOpacity() < 0.999) {
+                PDExtendedGraphicsState state = new PDExtendedGraphicsState();
+                state.setNonStrokingAlphaConstant((float) e.getOpacity());
+                state.setStrokingAlphaConstant((float) e.getOpacity());
+                cs.setGraphicsStateParameters(state);
+            }
+            if (Math.abs(e.getRotation()) > 0.01) {
+                float centerX = (float) (e.getX() + e.getWidth() / 2.0);
+                float centerY = toPdfY(page, e.getY() + e.getHeight() / 2.0);
+                cs.transform(Matrix.getTranslateInstance(centerX, centerY));
+                cs.transform(Matrix.getRotateInstance(Math.toRadians(e.getRotation()), 0, 0));
+                cs.transform(Matrix.getTranslateInstance(-centerX, -centerY));
+            }
+        }
+        try {
+            switch (e.getType()) {
+                case TEXT -> drawText(page, cs, e, e.getText());
+                case FIELD -> drawText(page, cs, e, data.value(e.getFieldKey()));
+                case IMAGE -> drawImage(doc, page, cs, e, TemplateStorageService.resolveAsset(template, e.getImagePath()));
+                case IMAGE_FIELD -> drawImage(doc, page, cs, e, data.image(e.getFieldKey()));
+                case RECTANGLE -> drawRectangle(page, cs, e, false);
+                case WHITEOUT -> drawRectangle(page, cs, e, true);
+                case LINE -> drawLine(page, cs, e);
+                case PATH -> drawPath(page, cs, e);
+                case ITEM_TABLE -> drawItemTable(page, cs, e, tableItems == null ? List.of() : tableItems, data.gstType());
+            }
+        } finally {
+            if (transformable) cs.restoreGraphicsState();
         }
     }
 
@@ -217,6 +239,37 @@ public final class PdfTemplateRenderer {
         cs.stroke();
     }
 
+
+    private static void drawPath(PDPage page, PDPageContentStream cs, TemplateElement e) throws IOException {
+        if (e.getPathCommands() == null || e.getPathCommands().isEmpty()) return;
+        for (PathCommand command : e.getPathCommands()) {
+            String type = command.getType();
+            switch (type) {
+                case "M" -> cs.moveTo(pathX(e, command.getX1()), pathY(page, e, command.getY1()));
+                case "L" -> cs.lineTo(pathX(e, command.getX1()), pathY(page, e, command.getY1()));
+                case "C" -> cs.curveTo(
+                        pathX(e, command.getX1()), pathY(page, e, command.getY1()),
+                        pathX(e, command.getX2()), pathY(page, e, command.getY2()),
+                        pathX(e, command.getX3()), pathY(page, e, command.getY3()));
+                case "Z" -> cs.closePath();
+                default -> { }
+            }
+        }
+        if (e.isPathFilled()) setNonStroke(cs, e.getFillColor());
+        if (e.isPathStroked()) { setStroke(cs, e.getStrokeColor()); cs.setLineWidth((float) Math.max(.5, e.getStrokeWidth())); }
+        if (e.isPathFilled() && e.isPathStroked()) cs.fillAndStroke();
+        else if (e.isPathFilled()) cs.fill();
+        else if (e.isPathStroked()) cs.stroke();
+    }
+
+    private static float pathX(TemplateElement e, double normalized) {
+        return (float) (e.getX() + normalized * e.getWidth());
+    }
+
+    private static float pathY(PDPage page, TemplateElement e, double normalized) {
+        return toPdfY(page, e.getY() + normalized * e.getHeight());
+    }
+
     private static void drawImage(PDDocument doc, PDPage page, PDPageContentStream cs,
                                   TemplateElement e, Path imagePath) throws IOException {
         if (imagePath == null || !Files.isRegularFile(imagePath)) return;
@@ -238,32 +291,15 @@ public final class PdfTemplateRenderer {
             drawW = iw * factor;
             drawH = ih * factor;
         }
-
         float drawX = boxX + (boxW - drawW) / 2f;
         float drawY = boxY + (boxH - drawH) / 2f;
-        float centerX = boxX + boxW / 2f;
-        float centerY = boxY + boxH / 2f;
-
         cs.saveGraphicsState();
         try {
-            if (e.getOpacity() < 0.999) {
-                PDExtendedGraphicsState state = new PDExtendedGraphicsState();
-                state.setNonStrokingAlphaConstant((float) e.getOpacity());
-                cs.setGraphicsStateParameters(state);
-            }
             if ("FILL".equals(fit)) {
                 cs.addRect(boxX, boxY, boxW, boxH);
-                // PDFBox clip() applies the clipping path and terminates the current path.
-                // PDPageContentStream has no public endPath() API.
                 cs.clip();
             }
-            if (Math.abs(e.getRotation()) > 0.01) {
-                cs.transform(Matrix.getTranslateInstance(centerX, centerY));
-                cs.transform(Matrix.getRotateInstance(Math.toRadians(e.getRotation()), 0, 0));
-                cs.drawImage(image, drawX - centerX, drawY - centerY, drawW, drawH);
-            } else {
-                cs.drawImage(image, drawX, drawY, drawW, drawH);
-            }
+            cs.drawImage(image, drawX, drawY, drawW, drawH);
         } finally {
             cs.restoreGraphicsState();
         }

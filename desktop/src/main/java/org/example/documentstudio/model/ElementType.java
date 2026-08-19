@@ -9,5 +9,6 @@ public enum ElementType {
     RECTANGLE,
     WHITEOUT,
     LINE,
+    PATH,
     ITEM_TABLE
 }

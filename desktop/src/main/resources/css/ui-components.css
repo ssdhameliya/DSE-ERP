@@ -8818,3 +8818,13 @@
 .quotation-attachment-title { -fx-font-weight: 900; }
 .quotation-summary-color-card { -fx-padding: 16px; }
 .quotation-attachment-card { -fx-padding: 10px; -fx-background-radius: 10px; -fx-border-radius: 10px; -fx-border-width: 1px; }
+
+/* 7.30.42 unified UX ownership contract */
+.auth-experience-v2 .auth-card { -fx-background-radius: 18; -fx-border-radius: 18; }
+.auth-experience-v2 .auth-section-icon { -fx-min-width: 58; -fx-min-height: 58; -fx-pref-width: 58; -fx-pref-height: 58; -fx-background-radius: 18; }
+.auth-experience-v2 .auth-field-label { -fx-font-weight: 800; }
+.import-completed-panel { -fx-padding: 18 20; -fx-background-radius: 16; -fx-border-radius: 16; -fx-border-width: 1; }
+.import-completed-icon { -fx-font-size: 30px; -fx-font-weight: 900; }
+.import-completed-title { -fx-font-size: 18px; }
+.modern-dialog .modern-dialog-content { -fx-padding: 18 20 14 20; }
+.modern-dialog .modern-dialog-titlebar { -fx-padding: 12 14; }

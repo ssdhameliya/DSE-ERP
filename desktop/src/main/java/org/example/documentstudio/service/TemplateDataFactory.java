@@ -12,6 +12,8 @@ import org.example.model.Item;
 import org.example.model.Party;
 import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
+import org.example.model.Sales;
+import org.example.model.SalesLine;
 import org.example.util.BusinessClock;
 
 import java.nio.file.Files;
@@ -31,6 +33,39 @@ public final class TemplateDataFactory {
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
 
     private TemplateDataFactory() {}
+
+
+    /** Live Sales data used only when a user explicitly activates a Sales Invoice Studio default. */
+    public static TemplateData fromSales(Sales sale) {
+        if (sale == null) throw new IllegalArgumentException("Sales invoice is required.");
+        Map<String, String> v = new LinkedHashMap<>();
+        Map<String, Path> images = new LinkedHashMap<>();
+        addCompanyAndPayment(v, images);
+        put(v, "sales.number", sale.getInvoiceNo());
+        put(v, "sales.date", formatDate(sale.getInvoiceDate()));
+        put(v, "sales.dueDate", formatDate(sale.getDueDate()));
+        put(v, "sales.referenceNo", sale.getReferenceNo());
+        put(v, "sales.paymentTerms", sale.getPaymentTerms());
+        put(v, "sales.transporter", sale.getTransporter());
+        put(v, "sales.salesperson", sale.getSalesperson());
+        put(v, "sales.source", sale.getSource());
+        put(v, "sales.notes", sale.getNotes());
+        put(v, "sales.remarks", sale.getRemarks());
+        put(v, "sales.documentStatus", sale.getDocumentStatus());
+        put(v, "sales.paymentStatus", sale.getPaymentStatus());
+        put(v, "sales.billingAddress", sale.getBillingAddress());
+        put(v, "sales.deliveryAddress", sale.getDeliveryAddress());
+        put(v, "sales.gstType", sale.getGstType());
+        party(v, sale.getCustomer(), "customer");
+        put(v, "totals.subtotal", money(sale.getSubtotal()));
+        put(v, "totals.discountAmount", money(sale.getDiscountAmount()));
+        put(v, "totals.gstAmount", money(sale.getGstAmount()));
+        put(v, "totals.grandTotal", money(sale.getTotalAmount()));
+        put(v, "totals.paidAmount", money(sale.getPaidAmount()));
+        put(v, "totals.balanceAmount", money(sale.getBalanceAmount()));
+        put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(sale.getTotalAmount()));
+        return new TemplateData(v, images, salesItems(sale), safe(sale.getGstType()));
+    }
 
     public static TemplateData fromPurchase(Purchase purchase) {
         if (purchase == null) throw new IllegalArgumentException("Purchase invoice is required.");
@@ -348,6 +383,28 @@ public final class TemplateDataFactory {
         put(v, prefix + ".contactPerson", p.getContactPerson());
         put(v, prefix + ".phone", p.getPhone());
         put(v, prefix + ".email", p.getEmail());
+    }
+
+
+    private static List<TaxInvoiceItem> salesItems(Sales sale) {
+        Map<String, Item> itemByCode = new HashMap<>();
+        try {
+            for (Item item : new ItemDAO().getAll()) {
+                if (item != null && item.getItemCode() != null) itemByCode.put(normalize(item.getItemCode()), item);
+            }
+        } catch (Exception ignored) { }
+        List<TaxInvoiceItem> items = new ArrayList<>();
+        int serial = 1;
+        for (SalesLine line : sale.getLines() == null ? List.<SalesLine>of() : sale.getLines()) {
+            if (line == null) continue;
+            Item master = itemByCode.get(normalize(line.getItemCode()));
+            String hsn = master == null ? "" : safe(master.getHsn());
+            String unit = master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS");
+            String remarks = master == null ? "" : safe(master.getRemarks());
+            items.add(new TaxInvoiceItem(serial++, hsn, cleanDescription(line.getItemDescription(), line.getItemCode()),
+                    remarks, line.getQuantity(), unit, line.getRate(), line.getDiscountPercent(), line.getGstPercent()));
+        }
+        return items;
     }
 
     private static List<TaxInvoiceItem> purchaseItems(Purchase purchase) {

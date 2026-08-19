@@ -8,7 +8,8 @@ public final class BankReconciliationDtos {
  public record ImportResult(BatchDto batch,int importedRows,int duplicateRows){}
  public record BatchDto(Long id,String bankName,String bankAccount,String accountHolder,String statementFrom,String statementTo,String currency,int transactionCount,double totalDebit,double totalCredit,int reconciledCount,double reconciliationPercent,String status,String sourceFileName,String importedAt){}
  public record SourceDto(String fileName,String fingerprint,String csvContent){}
- public record TransactionDto(Long id,Long importId,Integer sourceRowNumber,String transactionTimestamp,String transactionDate,String valueDate,String description,String reference,double debit,double credit,double balance,String status,String suggestedMatchType,Integer suggestedMatchId,Double suggestedConfidence,String matchLink,Integer financeEntryId,String linkedTargetType,Integer linkedTargetId,String linkedDocumentNo){}
+ public record AllocationDto(Long allocationId,String targetType,Integer targetId,String documentNo,double allocatedAmount,Integer paymentRecordId,Integer financeEntryId){}
+ public record TransactionDto(Long id,Long importId,Integer sourceRowNumber,String transactionTimestamp,String transactionDate,String valueDate,String description,String reference,double debit,double credit,double balance,String status,String suggestedMatchType,Integer suggestedMatchId,Double suggestedConfidence,String matchLink,Integer financeEntryId,String linkedTargetType,Integer linkedTargetId,String linkedDocumentNo,List<AllocationDto> linkedAllocations){}
  public record TransactionPage(List<TransactionDto> rows,Metrics metrics,int page,int size,long totalRows,int totalPages){}
  public record CandidateDto(String type,Integer id,String documentNo,String partyName,String documentDate,double totalAmount,double paidAmount,double outstanding,double confidence){}
  public record AllocationRequest(String targetType,Integer targetId,double amount){}

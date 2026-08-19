@@ -86,8 +86,8 @@ public final class ModernDialog {
         }
 
         DialogPane pane = dialog.getDialogPane();
-        pane.getProperties().put("erp-dialog-custom", true);
-        pane.getStyleClass().addAll("modern-dialog", "modern-dialog-" + semantic);
+        pane.getProperties().put(DialogPresentation.CUSTOM, true);
+        pane.getStyleClass().addAll(DialogPresentation.SHELL_CLASS, "modern-dialog-" + semantic);
         pane.setHeaderText(null);
         pane.setGraphic(null);
         pane.getButtonTypes().setAll(buttons);

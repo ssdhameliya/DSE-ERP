@@ -35,9 +35,7 @@ public class InvoicePdfService {
         if (invoice == null || invoice.getInvoiceNo() == null || invoice.getInvoiceNo().isBlank()) {
             throw new IllegalArgumentException("A valid sales record is required to create the PDF.");
         }
-        Path result = SalesTaxInvoiceService.generate(invoice);
-        validatePdf(result, invoice.getInvoiceNo());
-        return result;
+        return DocumentOutputService.generateSales(invoice);
     }
 
     /** Sales Register -> Sale Invoice: downloadable body-only PDF with official body geometry. */

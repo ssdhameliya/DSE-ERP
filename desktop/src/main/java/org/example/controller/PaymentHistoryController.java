@@ -150,7 +150,7 @@ public class PaymentHistoryController {
             error("The invoice is not available. Return to Sales Register and select the invoice again.");
             return;
         }
-        SalesScreenContext.select(sale.getInvoiceNo());
+        LinkedRecordContext.open("SALE",sale.getId(),sale.getInvoiceNo(),"VIEW","Payment History");
         navigate("/fxml/pages/SalesList.fxml", "Sales Register");
     }
     private void navigate(String fxml, String screenName) {

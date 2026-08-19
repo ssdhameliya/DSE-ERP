@@ -40,10 +40,11 @@ public class QuotationController implements org.example.navigation.ScreenLifecyc
   long started=System.nanoTime();all=rows;
   cmbCustomer.getItems().setAll("All customers");cmbCustomer.getItems().addAll(all.stream().map(q->q.customer.get()).distinct().sorted().toList());
   cmbSalesperson.getItems().setAll("All");cmbSalesperson.getItems().addAll(all.stream().map(q->q.salesperson.get()).filter(x->!x.isBlank()).distinct().sorted().toList());
-  updateStats();loadSavedViews();applyFilters();
+  updateStats();loadSavedViews();applyFilters();openLinkedRecordIfRequested();
   if(!org.example.util.PlatformUiSupport.isMac())javafx.application.Platform.runLater(this::updateCharts);
   long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)org.example.util.PerformanceMonitor.event("controller-phase","quotation-apply | "+ms+" ms");
  }
+ private void openLinkedRecordIfRequested(){LinkedRecordContext.Target target=LinkedRecordContext.consume("QUOTATION");if(target==null)return;QuoteRow quote=all.stream().filter(x->(target.recordId()!=null&&x.id==target.recordId())||(!target.documentNo().isBlank()&&target.documentNo().equalsIgnoreCase(x.no.get()))).findFirst().orElse(null);if(quote==null){info("The linked Quotation is no longer available"+(target.documentNo().isBlank()?".":": "+target.documentNo()));return;}txtSearch.clear();txtNumber.clear();cmbStatus.setValue("All");cmbFollowUp.setValue("All");cmbSource.setValue("All");cmbSalesperson.setValue("All");cmbCustomer.setValue("All customers");dpFrom.setValue(null);dpTo.setValue(null);dpValid.setValue(null);filtered=all;table.getItems().setAll(all);table.getSelectionModel().select(quote);table.scrollTo(quote);showDetails(quote);org.example.util.PerformanceMonitor.event("linked-navigation","QUOTATION -> "+quote.no.get()+" | source="+target.source());}
  @Override public void onScreenShown(boolean reused){if(!reused) return; if(org.example.util.ScreenRefreshPolicy.shouldRefresh("quotations",org.example.util.ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(60)))refresh();}
  @Override public void onScreenHidden(){org.example.util.UiTaskExecutor.cancelPrefix("quotation-");}
  // Filters may fire while dropdowns are still being populated; null means "All".

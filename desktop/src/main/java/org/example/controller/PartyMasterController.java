@@ -26,6 +26,7 @@ import org.example.navigation.NavigationManager;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.List;
 
 public abstract class PartyMasterController {
     @FXML
@@ -46,6 +47,8 @@ public abstract class PartyMasterController {
     @FXML protected StackPane kpiTotalIcon,kpiActiveIcon,kpiGstIcon,kpiBalanceIcon;
     @FXML protected StackPane partyPageIcon;
     private final PartyService service = new PartyService();
+
+    private final List<Party> cachedParties = new java.util.ArrayList<>();
 
     protected abstract String partyType();
 
@@ -72,7 +75,7 @@ public abstract class PartyMasterController {
         configureActionColumn();
         tableParties.setFixedCellSize(40);
         configureTableInteractions();
-        txtSearch.textProperty().addListener((o, oldValue, newValue) -> load());
+        txtSearch.textProperty().addListener((o, oldValue, newValue) -> applyLocalFilter());
         load();
     }
 
@@ -218,13 +221,23 @@ public abstract class PartyMasterController {
     }
 
     private void load() {
-        String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
         var all=service.getByType(partyType());
-        tableParties.getItems().setAll(all.stream().filter(p -> query.isEmpty() || p.getPartyCode().toLowerCase(Locale.ROOT).contains(query) || p.getName().toLowerCase(Locale.ROOT).contains(query) || (p.getPhone() != null && p.getPhone().contains(query))).toList());
+        cachedParties.clear();
+        cachedParties.addAll(all);
+        applyLocalFilter();
         if(lblKpiTotal!=null)lblKpiTotal.setText(String.valueOf(all.size()));
         if(lblKpiActive!=null)lblKpiActive.setText(String.valueOf(all.stream().filter(Party::isActive).count()));
         if(lblKpiGst!=null)lblKpiGst.setText(String.valueOf(all.stream().filter(p->p.getGstin()!=null&&!p.getGstin().isBlank()).count()));
         if(lblKpiBalance!=null)lblKpiBalance.setText(String.format(Locale.ENGLISH,"₹ %,.2f",all.stream().mapToDouble(Party::getOpeningBalance).sum()));
+    }
+
+    /** Filters the cached customer/supplier master without a network request per key press. */
+    private void applyLocalFilter() {
+        String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
+        tableParties.getItems().setAll(cachedParties.stream().filter(p -> query.isEmpty()
+            || (p.getPartyCode()!=null && p.getPartyCode().toLowerCase(Locale.ROOT).contains(query))
+            || (p.getName()!=null && p.getName().toLowerCase(Locale.ROOT).contains(query))
+            || (p.getPhone() != null && p.getPhone().contains(query))).toList());
         int count = tableParties.getItems().size();
         lblRecordCount.setText("Showing " + count + " Record" + (count == 1 ? "" : "s"));
     }

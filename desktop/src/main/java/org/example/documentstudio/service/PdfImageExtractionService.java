@@ -8,6 +8,7 @@ import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.contentstream.PDFGraphicsStreamEngine;
 import org.apache.pdfbox.util.Matrix;
+import org.example.documentstudio.model.PathCommand;
 import org.example.documentstudio.model.PdfImageRegion;
 
 import javax.imageio.ImageIO;
@@ -17,20 +18,26 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-/** Detects raster images and simple editable vector blocks in an imported PDF. */
+/** Detects raster images and editable vector objects in an imported PDF. */
 public final class PdfImageExtractionService {
     private PdfImageExtractionService() {}
 
-    /** A straight line or rectangular paint operation using Document Studio top-left coordinates. */
+    /** A paint operation using Document Studio top-left coordinates. PATH commands are normalized to its bounds. */
     public record VectorPrimitive(
             String kind, double x, double y, double width, double height,
             String fillColor, String strokeColor, double strokeWidth,
-            boolean filled, boolean stroked) {
+            boolean filled, boolean stroked, List<PathCommand> pathCommands) {
         public VectorPrimitive {
             kind = kind == null ? "LINE" : kind;
             fillColor = fillColor == null ? "#FFFFFF" : fillColor;
             strokeColor = strokeColor == null ? "#172033" : strokeColor;
             strokeWidth = Math.max(0.5, strokeWidth);
+            pathCommands = pathCommands == null ? List.of() : List.copyOf(pathCommands);
+        }
+        public VectorPrimitive(String kind, double x, double y, double width, double height,
+                               String fillColor, String strokeColor, double strokeWidth,
+                               boolean filled, boolean stroked) {
+            this(kind, x, y, width, height, fillColor, strokeColor, strokeWidth, filled, stroked, List.of());
         }
     }
 
@@ -58,9 +65,10 @@ public final class PdfImageExtractionService {
     }
 
     /**
-     * Detect simple rectangles and straight line networks. Curves, clipping paths and shadings are
-     * intentionally ignored so Document Studio can fall back to Select / Hide Area rather than
-     * pretending a complex vector can be safely reconstructed.
+     * Detect rectangles, straight/diagonal lines, polygons and Bezier paths. The imported PDF stays
+     * immutable: Document Studio later masks the original bounds and overlays an editable object.
+     * Clipping paths and shadings are still protected as background effects because changing them
+     * independently could alter unrelated PDF artwork.
      */
     public static List<VectorRegion> extractVectors(Path pdf, int pageIndex) throws IOException {
         if (pdf == null) return List.of();
@@ -81,6 +89,8 @@ public final class PdfImageExtractionService {
         for (VectorPrimitive primitive : raw) {
             if ("RECTANGLE".equals(primitive.kind())) {
                 result.add(region(pageIndex, "BLOCK", List.of(primitive), sequence++));
+            } else if ("PATH".equals(primitive.kind())) {
+                result.add(region(pageIndex, primitive.filled() ? "FILLED VECTOR / PATH" : "VECTOR / PATH", List.of(primitive), sequence++));
             } else {
                 lines.add(primitive);
             }
@@ -99,7 +109,7 @@ public final class PdfImageExtractionService {
                     if (nearOrIntersecting(current, lines.get(j))) { used[j] = true; queue.addLast(j); }
                 }
             }
-            result.add(region(pageIndex, group.size() >= 3 ? "TABLE / GRID" : "LINE", group, sequence++));
+            result.add(region(pageIndex, group.size() >= 3 ? "TABLE / GRID" : "LINE / VECTOR", group, sequence++));
         }
         return result.stream()
                 .filter(r -> r.width() >= 1 && r.height() >= 1)
@@ -138,10 +148,13 @@ public final class PdfImageExtractionService {
         private final List<PdfImageRegion> images = new ArrayList<>();
         private final List<VectorPrimitive> vectors = new ArrayList<>();
         private final List<double[]> pathLines = new ArrayList<>();
+        private final List<RawCommand> commands = new ArrayList<>();
         private Point2D currentPoint;
         private Point2D firstPoint;
         private boolean rectanglePath;
-        private boolean complexPath;
+        private boolean containsCurve;
+
+        private record RawCommand(String type, double x1, double y1, double x2, double y2, double x3, double y3) {}
 
         private GraphicsEngine(PDPage page, int pageIndex, Path tempFolder, boolean collectImages, boolean collectVectors) {
             super(page);
@@ -172,22 +185,41 @@ public final class PdfImageExtractionService {
 
         @Override public void appendRectangle(Point2D p0, Point2D p1, Point2D p2, Point2D p3) {
             resetPath(); rectanglePath = true;
-            firstPoint = p0; currentPoint = p0;
-            addLine(p0, p1); addLine(p1, p2); addLine(p2, p3); addLine(p3, p0);
+            move(p0); line(p1); line(p2); line(p3); line(p0);
             currentPoint = p0;
         }
-        @Override public void clip(int windingRule) { }
-        @Override public void moveTo(float x, float y) { currentPoint = new Point2D.Double(x, y); if (firstPoint == null) firstPoint = currentPoint; }
-        @Override public void lineTo(float x, float y) { Point2D next = new Point2D.Double(x, y); if (currentPoint != null) addLine(currentPoint, next); currentPoint = next; }
-        @Override public void curveTo(float x1, float y1, float x2, float y2, float x3, float y3) { complexPath = true; currentPoint = new Point2D.Double(x3, y3); }
+        @Override public void clip(int windingRule) { /* clipping remains part of immutable PDF background */ }
+        @Override public void moveTo(float x, float y) { move(new Point2D.Double(x, y)); }
+        @Override public void lineTo(float x, float y) { line(new Point2D.Double(x, y)); }
+        @Override public void curveTo(float x1, float y1, float x2, float y2, float x3, float y3) {
+            if (firstPoint == null) firstPoint = currentPoint == null ? new Point2D.Double(x3, y3) : currentPoint;
+            commands.add(new RawCommand("C", x1, y1, x2, y2, x3, y3));
+            containsCurve = true;
+            currentPoint = new Point2D.Double(x3, y3);
+        }
         @Override public Point2D getCurrentPoint() { return currentPoint; }
-        @Override public void closePath() { if (currentPoint != null && firstPoint != null && currentPoint.distance(firstPoint) > .01) addLine(currentPoint, firstPoint); currentPoint = firstPoint; }
+        @Override public void closePath() {
+            if (currentPoint != null && firstPoint != null && currentPoint.distance(firstPoint) > .01) addLine(currentPoint, firstPoint);
+            commands.add(new RawCommand("Z", 0,0,0,0,0,0));
+            currentPoint = firstPoint;
+        }
         @Override public void endPath() { resetPath(); }
         @Override public void strokePath() { paint(false, true); }
         @Override public void fillPath(int windingRule) { paint(true, false); }
         @Override public void fillAndStrokePath(int windingRule) { paint(true, true); }
         @Override public void shadingFill(COSName shadingName) { resetPath(); }
 
+        private void move(Point2D p) {
+            currentPoint = p;
+            firstPoint = p;
+            commands.add(new RawCommand("M", p.getX(), p.getY(), 0,0,0,0));
+        }
+        private void line(Point2D next) {
+            if (currentPoint != null) addLine(currentPoint, next);
+            if (firstPoint == null) firstPoint = next;
+            commands.add(new RawCommand("L", next.getX(), next.getY(), 0,0,0,0));
+            currentPoint = next;
+        }
         private void addLine(Point2D a, Point2D b) {
             if (a == null || b == null) return;
             pathLines.add(new double[]{a.getX(), a.getY(), b.getX(), b.getY()});
@@ -195,30 +227,70 @@ public final class PdfImageExtractionService {
 
         private void paint(boolean filled, boolean stroked) {
             try {
-                if (!collectVectors || complexPath || pathLines.isEmpty()) { resetPath(); return; }
+                if (!collectVectors || commands.isEmpty()) { resetPath(); return; }
                 String fill = filled ? color(getGraphicsState().getNonStrokingColor(), "#FFFFFF") : "#FFFFFF";
                 String stroke = stroked ? color(getGraphicsState().getStrokingColor(), "#172033") : fill;
                 double width = Math.max(.5, getGraphicsState().getLineWidth());
                 if (rectanglePath && pathLines.size() >= 4 && axisAligned(pathLines)) {
                     double[] bounds = bounds(pathLines);
-                    if (bounds[2] >= 2 && bounds[3] >= 2) vectors.add(new VectorPrimitive("RECTANGLE", bounds[0], bounds[1], bounds[2], bounds[3], fill, stroke, width, filled, stroked));
-                } else if (!filled) {
+                    if (bounds[2] >= 2 && bounds[3] >= 2)
+                        vectors.add(new VectorPrimitive("RECTANGLE", bounds[0], bounds[1], bounds[2], bounds[3], fill, stroke, width, filled, stroked));
+                } else if (!filled && !containsCurve && commands.stream().noneMatch(c -> "Z".equals(c.type()))) {
+                    // Keep individual rules editable, including diagonal/rotated lines.
                     for (double[] line : pathLines) {
                         double[] top = lineToTop(line);
                         double w = Math.abs(top[2] - top[0]); double h = Math.abs(top[3] - top[1]);
                         if (Math.hypot(w, h) < 2) continue;
-                        // Studio's line model is intentionally simple. Preserve business-form/table
-                        // horizontal and vertical rules exactly; diagonal/rotated vectors fall back
-                        // to Select / Hide Area rather than being reconstructed incorrectly.
-                        if (w > 0.75 && h > 0.75) continue;
-                        vectors.add(new VectorPrimitive("LINE", Math.min(top[0], top[2]), Math.min(top[1], top[3]), Math.max(1, w), Math.max(1, h), "#FFFFFF", stroke, width, false, true));
+                        double minX=Math.min(top[0],top[2]), minY=Math.min(top[1],top[3]);
+                        if (w > .75 && h > .75) {
+                            double bw=Math.max(1,w), bh=Math.max(1,h);
+                            List<PathCommand> diagonal=List.of(
+                                    PathCommand.move(norm(top[0],minX,bw),norm(top[1],minY,bh)),
+                                    PathCommand.line(norm(top[2],minX,bw),norm(top[3],minY,bh)));
+                            vectors.add(new VectorPrimitive("PATH",minX,minY,bw,bh,"#FFFFFF",stroke,width,false,true,diagonal));
+                        } else {
+                            vectors.add(new VectorPrimitive("LINE", minX, minY, Math.max(1, w), Math.max(1, h), "#FFFFFF", stroke, width, false, true));
+                        }
                     }
+                } else {
+                    VectorPrimitive path = pathPrimitive(fill, stroke, width, filled, stroked);
+                    if (path != null) vectors.add(path);
                 }
             } catch (Exception ignored) {
-                // Complex/unsupported color spaces remain safely editable through Select / Hide Area.
+                // Unsupported colour spaces remain safely editable via Select / Hide Area.
             } finally { resetPath(); }
         }
 
+        private VectorPrimitive pathPrimitive(String fill, String stroke, double strokeWidth, boolean filled, boolean stroked) {
+            List<double[]> points = new ArrayList<>();
+            for (RawCommand c : commands) {
+                switch (c.type()) {
+                    case "M", "L" -> points.add(pointToTop(c.x1(), c.y1()));
+                    case "C" -> { points.add(pointToTop(c.x1(), c.y1())); points.add(pointToTop(c.x2(), c.y2())); points.add(pointToTop(c.x3(), c.y3())); }
+                    default -> { }
+                }
+            }
+            if (points.isEmpty()) return null;
+            double minX = points.stream().mapToDouble(p -> p[0]).min().orElse(0);
+            double minY = points.stream().mapToDouble(p -> p[1]).min().orElse(0);
+            double maxX = points.stream().mapToDouble(p -> p[0]).max().orElse(minX + 1);
+            double maxY = points.stream().mapToDouble(p -> p[1]).max().orElse(minY + 1);
+            double w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+            List<PathCommand> normalized = new ArrayList<>();
+            for (RawCommand c : commands) {
+                switch (c.type()) {
+                    case "M" -> { double[] p = pointToTop(c.x1(), c.y1()); normalized.add(PathCommand.move(norm(p[0],minX,w), norm(p[1],minY,h))); }
+                    case "L" -> { double[] p = pointToTop(c.x1(), c.y1()); normalized.add(PathCommand.line(norm(p[0],minX,w), norm(p[1],minY,h))); }
+                    case "C" -> {
+                        double[] p1=pointToTop(c.x1(),c.y1()), p2=pointToTop(c.x2(),c.y2()), p3=pointToTop(c.x3(),c.y3());
+                        normalized.add(PathCommand.curve(norm(p1[0],minX,w),norm(p1[1],minY,h),norm(p2[0],minX,w),norm(p2[1],minY,h),norm(p3[0],minX,w),norm(p3[1],minY,h)));
+                    }
+                    case "Z" -> normalized.add(PathCommand.close());
+                }
+            }
+            return new VectorPrimitive("PATH", minX, minY, w, h, fill, stroke, strokeWidth, filled, stroked, normalized);
+        }
+        private double norm(double value, double min, double size) { return Math.max(0, Math.min(1, (value - min) / Math.max(1e-6, size))); }
 
         private boolean axisAligned(List<double[]> lines) {
             for (double[] line : lines) {
@@ -240,13 +312,13 @@ public final class PdfImageExtractionService {
             return new double[]{Math.max(0, minX), Math.max(0, minY), Math.max(1, maxX - minX), Math.max(1, maxY - minY)};
         }
 
-        private double[] lineToTop(double[] line) {
+        private double[] pointToTop(double x, double y) {
             var crop = page.getCropBox();
-            double x1 = line[0] - crop.getLowerLeftX();
-            double y1 = crop.getUpperRightY() - line[1];
-            double x2 = line[2] - crop.getLowerLeftX();
-            double y2 = crop.getUpperRightY() - line[3];
-            return new double[]{Math.max(0, x1), Math.max(0, y1), Math.max(0, x2), Math.max(0, y2)};
+            return new double[]{Math.max(0, x - crop.getLowerLeftX()), Math.max(0, crop.getUpperRightY() - y)};
+        }
+        private double[] lineToTop(double[] line) {
+            double[] a=pointToTop(line[0],line[1]), b=pointToTop(line[2],line[3]);
+            return new double[]{a[0],a[1],b[0],b[1]};
         }
 
         private String color(PDColor value, String fallback) throws IOException {
@@ -262,6 +334,6 @@ public final class PdfImageExtractionService {
         }
 
         private int clampColor(int v) { return Math.max(0, Math.min(255, v)); }
-        private void resetPath() { pathLines.clear(); currentPoint = null; firstPoint = null; rectanglePath = false; complexPath = false; }
+        private void resetPath() { pathLines.clear(); commands.clear(); currentPoint = null; firstPoint = null; rectanglePath = false; containsCurve = false; }
     }
 }

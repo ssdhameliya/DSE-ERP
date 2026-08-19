@@ -22,6 +22,8 @@ public class OwnedDialog<R> extends Dialog<R> {
         } else {
             initModality(Modality.APPLICATION_MODAL);
         }
+        getDialogPane().getProperties().put(DialogPresentation.CUSTOM, true);
+        if (!getDialogPane().getStyleClass().contains(DialogPresentation.SHELL_CLASS)) getDialogPane().getStyleClass().add(DialogPresentation.SHELL_CLASS);
         addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> {
             if (getDialogPane().getScene() != null) {
                 ThemeManager.applyTheme(getDialogPane().getScene());

@@ -22,10 +22,8 @@ import javafx.scene.layout.StackPane;
 import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
 import org.example.navigation.NavigationManager;
-import org.example.service.NotificationService;
 
 import java.text.NumberFormat;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.time.Instant;
@@ -182,11 +180,11 @@ public class DashboardHomeController {
         if (!dashboardLoadRunning.compareAndSet(false, true)) return;
         showLoading("Loading dashboard data…");
         String period = selectedPeriod();
-        Task<DashboardSnapshot> task = new Task<>() {
-            @Override protected DashboardSnapshot call() { return querySnapshot(period); }
+        Task<DashboardData> task = new Task<>() {
+            @Override protected DashboardData call() { return queryDashboard(period); }
         };
         task.setOnSucceeded(event -> {
-            try { applySnapshot(task.getValue()); }
+            try { applyDashboard(task.getValue()); }
             finally { dashboardLoadRunning.set(false); hideLoading(); }
         });
         task.setOnFailed(event -> {
@@ -219,9 +217,37 @@ public class DashboardHomeController {
         }
     }
 
-    private DashboardSnapshot querySnapshot(String period) {
-        var d = insightsApi.dashboard(period).snapshot();
-        return new DashboardSnapshot(d.period(),d.products(),d.customers(),d.invoices(),d.purchases(),d.lowStock(),d.salesValue(),d.purchaseValue(),d.receivables(),d.payables(),d.openReceivables(),d.openPayables(),d.cash(),d.openReminders(),d.overdueReminders());
+    /**
+     * Loads the complete dashboard bundle once. Prior releases fetched the same
+     * /dashboard endpoint twice (primary KPIs and secondary panels), doubling
+     * server/database work on every refresh.
+     */
+    private DashboardData queryDashboard(String period) {
+        var bundle = insightsApi.dashboard(period);
+        var d = bundle.snapshot();
+        DashboardSnapshot snapshot = new DashboardSnapshot(
+            d.period(), d.products(), d.customers(), d.invoices(), d.purchases(),
+            d.lowStock(), d.salesValue(), d.purchaseValue(), d.receivables(),
+            d.payables(), d.openReceivables(), d.openPayables(), d.cash(),
+            d.openReminders(), d.overdueReminders());
+        List<ActivityRow> recent = bundle.recent().stream()
+            .map(x -> new ActivityRow(x.type(), x.number(), x.party(), x.date(), money(x.amount())))
+            .toList();
+        List<String> customers = bundle.topCustomers().stream().map(this::formatPair).toList();
+        List<String> ageing = bundle.ageing().stream().map(this::formatPair).toList();
+        List<String> activities = bundle.activities().stream()
+            .map(x -> x.message() + "    " + Instant.ofEpochMilli(x.createdAt())
+                .atZone(BusinessClock.zone())
+                .format(DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a")))
+            .toList();
+        if (activities.isEmpty()) activities = List.of("No recent application activity");
+        return new DashboardData(snapshot, new SecondaryPanels(recent, customers, ageing, activities));
+    }
+
+    private void applyDashboard(DashboardData data) {
+        if (data == null) return;
+        applySnapshot(data.snapshot());
+        applySecondaryPanels(data.secondary());
     }
 
     private void applySnapshot(DashboardSnapshot d) {
@@ -247,24 +273,8 @@ public class DashboardHomeController {
             ? d.overdueReminders() + " overdue reminder" + plural(d.overdueReminders())
             : "No overdue reminders");
         configureTable();
-        loadSecondaryPanelsAsync();
         long applyMs = (System.nanoTime() - applyStarted) / 1_000_000L;
         if (applyMs >= 15) org.example.util.PerformanceMonitor.event("controller-phase", "dashboard-primary-apply | " + applyMs + " ms");
-    }
-
-    private void loadSecondaryPanelsAsync() {
-        org.example.util.UiTaskExecutor.submitLatest("dashboard-secondary", this::querySecondaryPanels, this::applySecondaryPanels,
-            failure -> org.example.util.PerformanceMonitor.event("dashboard-secondary-error", String.valueOf(failure.getMessage())));
-    }
-
-    private SecondaryPanels querySecondaryPanels() {
-        var b = insightsApi.dashboard(selectedPeriod());
-        List<ActivityRow> recent = b.recent().stream().map(x -> new ActivityRow(x.type(),x.number(),x.party(),x.date(),money(x.amount()))).toList();
-        List<String> customers = b.topCustomers().stream().map(this::formatPair).toList();
-        List<String> ageing = b.ageing().stream().map(this::formatPair).toList();
-        List<String> activities = b.activities().stream().map(x -> x.message() + "    " + Instant.ofEpochMilli(x.createdAt()).atZone(BusinessClock.zone()).format(DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a"))).toList();
-        if (activities.isEmpty()) activities = List.of("No recent application activity");
-        return new SecondaryPanels(recent, customers, ageing, activities);
     }
 
     private void applySecondaryPanels(SecondaryPanels data) {
@@ -277,14 +287,6 @@ public class DashboardHomeController {
         if (ms >= 15) org.example.util.PerformanceMonitor.event("controller-phase", "dashboard-secondary-apply | " + ms + " ms");
     }
 
-
-
-
-
-
-
-
-
     private String formatPair(String raw) {
         if (raw == null) return "";
         int split=raw.lastIndexOf('|');
@@ -293,8 +295,7 @@ public class DashboardHomeController {
     }
 
     private record SecondaryPanels(List<ActivityRow> recent, List<String> customers, List<String> ageing, List<String> activities) {}
-
-
+    private record DashboardData(DashboardSnapshot snapshot, SecondaryPanels secondary) {}
 
     private record DashboardSnapshot(String period,long products,long customers,long invoices,long purchases,long lowStock,double salesValue,double purchaseValue,double receivables,double payables,long openReceivables,long openPayables,double cash,long openReminders,long overdueReminders) {}
 
@@ -320,19 +321,6 @@ public class DashboardHomeController {
 
 
 
-
-    /** Replaces placeholder activity content with the latest persisted notifications. */
-    private void loadLiveActivities() {
-        List<String> activities = new ArrayList<>();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a");
-        for (NotificationService.NotificationItem entry : NotificationService.findRecent(5)) {
-            String created = Instant.ofEpochMilli(entry.createdAt())
-                .atZone(BusinessClock.zone()).format(formatter);
-            activities.add(entry.message() + "    " + created);
-        }
-        if (activities.isEmpty()) activities.add("No recent application activity");
-        activityList.getItems().setAll(activities);
-    }
 
     /** Builds the sales-vs-purchase graph from the database rather than sample data. */
     /** Formats one live receivable-ageing bucket. */

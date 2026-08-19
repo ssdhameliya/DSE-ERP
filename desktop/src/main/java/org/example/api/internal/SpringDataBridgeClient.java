@@ -16,8 +16,8 @@ import java.util.List;
  * It never opens a PostgreSQL socket and never receives database credentials.
  */
 public final class SpringDataBridgeClient {
-    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-    private final ObjectMapper json = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    private final HttpClient http = org.example.api.ApiRuntime.HTTP;
+    private final ObjectMapper json = org.example.api.ApiRuntime.JSON;
     private final String base;
 
     public SpringDataBridgeClient() {

@@ -318,7 +318,7 @@ public class BankExpenseController implements ScreenLifecycle {
         });
     }
 
-    private void openLinked(EntryRow row){ if(row==null)return; String type=safe(row.linkedTargetType,"").toUpperCase(Locale.ROOT); if("SALE".equals(type)&&!safe(row.linkedDocumentNo,"").isBlank()){SalesScreenContext.select(row.linkedDocumentNo);org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml");return;} if("PURCHASE".equals(type)&&!safe(row.linkedDocumentNo,"").isBlank()){PurchaseScreenContext.select(row.linkedDocumentNo);org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");return;} if(row.statementTransactionId!=null){DashboardController.navigateFromChild("Bank Statement","/fxml/pages/BankStatement.fxml",null);return;} info("Match / Link","No reconciliation link is available for this entry."); }
+    private void openLinked(EntryRow row){ if(row==null)return; String type=safe(row.linkedTargetType,"").toUpperCase(Locale.ROOT); if("SALE".equals(type)){LinkedRecordContext.open("SALE",row.linkedTargetId,row.linkedDocumentNo,"VIEW","Bank / Expense");org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");return;} if("PURCHASE".equals(type)){LinkedRecordContext.open("PURCHASE",row.linkedTargetId,row.linkedDocumentNo,"VIEW","Bank / Expense");org.example.navigation.NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");return;} if(row.statementTransactionId!=null){DashboardController.navigateFromChild("Bank Statement","/fxml/pages/BankStatement.fxml",null);return;} info("Match / Link","No reconciliation link is available for this entry."); }
 
 
 

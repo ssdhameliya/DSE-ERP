@@ -53,7 +53,7 @@ public class OwnedAlert extends Alert {
             initModality(Modality.APPLICATION_MODAL);
         }
 
-        getDialogPane().getProperties().put("erp-dialog-custom", true);
+        getDialogPane().getProperties().put(DialogPresentation.CUSTOM, true);
         // Build the custom shell exactly once during DIALOG_SHOWING, before
         // JavaFX displays the Alert pane. A second DIALOG_SHOWN modernization
         // pass made one action appear as two dialogs on affected screens.

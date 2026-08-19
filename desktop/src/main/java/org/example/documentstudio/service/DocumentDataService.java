@@ -7,6 +7,8 @@ import org.example.documentstudio.model.DocumentSample;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.TemplateData;
 import org.example.model.Purchase;
+import org.example.model.Sales;
+import org.example.service.SalesService;
 
 import java.util.List;
 import java.util.Objects;
@@ -25,6 +27,12 @@ public final class DocumentDataService {
         if (type == null || !type.isErpConnected()) return List.of();
         try {
             return switch (type) {
+                case SALES_INVOICE -> new SalesService().getAll().stream()
+                        .filter(Objects::nonNull)
+                        .filter(s -> s.getInvoiceNo() != null && !s.getInvoiceNo().isBlank())
+                        .limit(150)
+                        .map(s -> new DocumentSample(s.getInvoiceNo(), s.getInvoiceNo() + customerSuffix(s)))
+                        .toList();
                 case PURCHASE_INVOICE, PURCHASE_ORDER -> new PurchaseDAO().getAll().stream()
                         .filter(Objects::nonNull)
                         .filter(p -> p.getInvoiceNo() != null && !p.getInvoiceNo().isBlank())
@@ -51,6 +59,7 @@ public final class DocumentDataService {
     public static TemplateData load(DocumentType type, String sampleId) {
         if (sampleId == null || sampleId.isBlank()) return TemplateDataFactory.sampleFor(type);
         return switch (type) {
+            case SALES_INVOICE -> loadSales(sampleId);
             case PURCHASE_INVOICE, PURCHASE_ORDER -> loadPurchase(sampleId);
             case PURCHASE_RETURN -> loadPurchaseReturn(sampleId);
             case QUOTATION -> loadQuotation(sampleId);
@@ -60,6 +69,19 @@ public final class DocumentDataService {
 
     public static TemplateData sample(DocumentType type) {
         return TemplateDataFactory.sampleFor(type);
+    }
+
+
+    private static TemplateData loadSales(String invoiceNo) {
+        try {
+            Sales full = new SalesService().getByInvoice(invoiceNo);
+            if (full == null) throw new IllegalStateException("The selected Sale could not be loaded.");
+            return TemplateDataFactory.fromSales(full);
+        } catch (RuntimeException error) {
+            throw error;
+        } catch (Exception error) {
+            throw new IllegalStateException("The selected Sale could not be loaded.", error);
+        }
     }
 
     private static TemplateData loadPurchase(String invoiceNo) {
@@ -96,6 +118,14 @@ public final class DocumentDataService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The selected quotation could not be loaded."));
         return TemplateDataFactory.fromQuotation(quote, api.lines(quote.id()));
+    }
+
+    private static String customerSuffix(Sales sale) {
+        try {
+            if (sale.getCustomer() != null && sale.getCustomer().getName() != null && !sale.getCustomer().getName().isBlank())
+                return "  •  " + sale.getCustomer().getName();
+        } catch (Exception ignored) { }
+        return "";
     }
 
     private static String supplierSuffix(Purchase purchase) {

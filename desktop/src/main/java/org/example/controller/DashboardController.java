@@ -49,6 +49,7 @@ import org.example.navigation.NavigationManager;
 import org.example.theme.ThemeManager;
 import org.example.util.ClockService;
 import org.example.util.PerformanceMonitor;
+import org.example.util.ShellIndicatorBus;
 import org.example.util.PlatformUiSupport;
 
 import java.util.List;
@@ -76,6 +77,7 @@ public class DashboardController {
 
     /** Periodically refreshes the unread badge while the main shell is open. */
     private Timeline notificationRefresh;
+    private final Runnable shellIndicatorListener = this::refreshShellIndicatorsAsync;
     private final AtomicBoolean indicatorRefreshRunning = new AtomicBoolean();
 
 
@@ -179,7 +181,10 @@ public class DashboardController {
     private MenuButton menuUser;
 
     public void initialize() {
+        DashboardController previous = CURRENT;
+        if (previous != null && previous != this) previous.stopRecurringTasks();
         CURRENT = this;
+        ShellIndicatorBus.subscribe(shellIndicatorListener);
 
         ClockService.start(lblClock);
         // Company details do not change every second. Refreshing the complete
@@ -206,7 +211,7 @@ public class DashboardController {
         Platform.runLater(this::bindShellControls);
         applyRolePermissions();
         notificationRefresh = new Timeline(
-            new KeyFrame(Duration.seconds(60), event -> { PerformanceMonitor.event("recurring-task", "shell-indicators"); refreshShellIndicatorsAsync(); }));
+            new KeyFrame(Duration.seconds(3), event -> { PerformanceMonitor.event("recurring-task", "shell-indicators"); refreshShellIndicatorsAsync(); }));
         notificationRefresh.setCycleCount(Timeline.INDEFINITE);
         notificationRefresh.play();
 
@@ -235,6 +240,15 @@ public class DashboardController {
         badge.setText(count > 99 ? "99+" : Integer.toString(count));
         badge.setVisible(count > 0);
         badge.setManaged(count > 0);
+    }
+
+    /** Stops timers owned by an ERP shell that is no longer visible. */
+    private void stopRecurringTasks() {
+        ShellIndicatorBus.unsubscribe(shellIndicatorListener);
+        if (notificationRefresh != null) {
+            notificationRefresh.stop();
+            notificationRefresh = null;
+        }
     }
 
     /** Refreshes the shell footer from the current company configuration. */
@@ -970,8 +984,9 @@ public class DashboardController {
 
     /** Opens the selected result and preserves its document reference for detail screens. */
     private void openSearchResult(SearchResult result) {
-        if (result.module().equals("Sales Invoice")) SalesScreenContext.select(result.reference());
-        if (result.module().equals("Purchase Invoice")) PurchaseScreenContext.select(result.reference());
+        if (result.module().equals("Sales Invoice")) LinkedRecordContext.open("SALE",null,result.reference(),"VIEW","Global Search");
+        if (result.module().equals("Purchase Invoice")) LinkedRecordContext.open("PURCHASE",null,result.reference(),"VIEW","Global Search");
+        if (result.module().equals("Quotation")) LinkedRecordContext.open("QUOTATION",null,result.reference(),"VIEW","Global Search");
         openPage(null, result.module(), result.targetFxml());
     }
 

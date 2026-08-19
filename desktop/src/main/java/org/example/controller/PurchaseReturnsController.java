@@ -155,7 +155,7 @@ public class PurchaseReturnsController {
     @FXML private void originalSelected(){if(selected!=null)original(selected);}
     @FXML private void refundSelected(){if(selected!=null)recordRefund(selected);}
 
-    private void original(Row row) { PurchaseScreenContext.select(row.invoice()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
+    private void original(Row row) { if(row==null)return; LinkedRecordContext.open("PURCHASE",null,row.invoice(),"VIEW","Purchase Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void edit(Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
     private void notes(Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }
     private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
@@ -165,7 +165,7 @@ public class PurchaseReturnsController {
     }
 
     private Optional<String> input(String initial, String title, String prompt) {
-        TextInputDialog dialog = new TextInputDialog(initial == null ? "" : initial);
+        TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial == null ? "" : initial);
         dialog.initOwner(table.getScene() == null ? null : table.getScene().getWindow());
         dialog.setTitle(title);
         dialog.setHeaderText(null);

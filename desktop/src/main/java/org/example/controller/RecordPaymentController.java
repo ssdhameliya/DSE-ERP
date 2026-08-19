@@ -412,7 +412,7 @@ public class RecordPaymentController implements ScreenLifecycle {
 
     @FXML private void downloadPdf(){ try{Path p=InvoicePdfService.sales(sale); Desktop.getDesktop().open(p.getParent().toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
     @FXML private void printInvoice(){ try{Desktop.getDesktop().print(InvoicePdfService.sales(sale).toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
-    @FXML private void cancel(){ NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
+    @FXML private void cancel(){ if(sale!=null)LinkedRecordContext.open("SALE",sale.getId(),sale.getInvoiceNo(),"VIEW","Record Payment"); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
 
     @FXML private void sendReceipt() {
         try {

@@ -33,6 +33,9 @@ public class TemplateElement {
             "serial", "hsn", "description", "qty", "unit", "rate", "gst", "amount"));
     private double rowHeight = 22;
     private double headerHeight = 24;
+    private List<PathCommand> pathCommands = new ArrayList<>();
+    private boolean pathFilled;
+    private boolean pathStroked = true;
 
     public TemplateElement() {}
 
@@ -64,6 +67,8 @@ public class TemplateElement {
         c.replacementGroupId = replacementGroupId; c.replacementSourceKey = replacementSourceKey;
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
         c.rowHeight = rowHeight; c.headerHeight = headerHeight;
+        c.pathCommands = pathCommands == null ? new ArrayList<>() : pathCommands.stream().map(PathCommand::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        c.pathFilled = pathFilled; c.pathStroked = pathStroked;
         return c;
     }
 
@@ -126,6 +131,12 @@ public class TemplateElement {
     public void setRowHeight(double rowHeight) { this.rowHeight = Math.max(12, Math.min(60, rowHeight)); }
     public double getHeaderHeight() { return headerHeight; }
     public void setHeaderHeight(double headerHeight) { this.headerHeight = Math.max(14, Math.min(60, headerHeight)); }
+    public List<PathCommand> getPathCommands() { return pathCommands == null ? List.of() : pathCommands; }
+    public void setPathCommands(List<PathCommand> pathCommands) { this.pathCommands = new ArrayList<>(pathCommands == null ? List.of() : pathCommands); }
+    public boolean isPathFilled() { return pathFilled; }
+    public void setPathFilled(boolean pathFilled) { this.pathFilled = pathFilled; }
+    public boolean isPathStroked() { return pathStroked; }
+    public void setPathStroked(boolean pathStroked) { this.pathStroked = pathStroked; }
 
     private static String safeColor(String value, String fallback) {
         if (value == null || !value.matches("#[0-9a-fA-F]{6}")) return fallback;

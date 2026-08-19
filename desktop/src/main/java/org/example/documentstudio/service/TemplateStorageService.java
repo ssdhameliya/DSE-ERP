@@ -214,6 +214,7 @@ public final class TemplateStorageService {
         if (template == null) return;
         if (!DocumentFlowRegistry.isAutomatic(template.getDocumentType()))
             throw new IOException(template.getDocumentType().label() + " is design-only and cannot be an automatic ERP default yet.");
+        validateBeforeActivation(template);
         for (DocumentTemplate other : listAll()) {
             if (other.getDocumentType() == template.getDocumentType() && other.isDefaultTemplate()
                     && !other.getId().equals(template.getId())) {
@@ -224,6 +225,23 @@ public final class TemplateStorageService {
         template.setStatus(TemplateStatus.ACTIVE);
         template.setDefaultTemplate(true);
         save(template);
+    }
+
+
+    /** A default must successfully render before it can replace a built-in business-document flow. */
+    private static void validateBeforeActivation(DocumentTemplate template) throws IOException {
+        Path test = folder(template).resolve(".activation-validation.pdf");
+        try {
+            PdfTemplateRenderer.renderSample(template, test);
+            if (!Files.isRegularFile(test) || Files.size(test) < 100)
+                throw new IOException("Template validation did not produce a valid PDF.");
+        } catch (IOException error) {
+            throw new IOException("Template validation failed. The existing built-in document remains active. " + error.getMessage(), error);
+        } catch (Exception error) {
+            throw new IOException("Template validation failed. The existing built-in document remains active. " + String.valueOf(error.getMessage()), error);
+        } finally {
+            try { Files.deleteIfExists(test); } catch (Exception ignored) { }
+        }
     }
 
     public static synchronized void setDefault(String id) throws IOException {

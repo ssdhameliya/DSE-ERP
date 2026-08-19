@@ -56,12 +56,13 @@
                                     <TitledPane text="EDIT IMPORTED PDF" expanded="true" collapsible="false" styleClass="pdf-designer-tool-group">
                                         <content>
                                             <VBox spacing="7">
+                                                <ToggleButton fx:id="btnInspectPdfObject" text="Inspect / Edit Any PDF Object" onAction="#toggleInspectPdfObjectMode" maxWidth="Infinity" styleClass="approved-button,approved-primary-button,pdf-tool-emphasis"/>
                                                 <ToggleButton fx:id="btnEditExistingText" text="Edit Existing PDF Text" onAction="#toggleExistingTextMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,pdf-tool-emphasis"/>
                                                 <ToggleButton fx:id="btnEditImportedImage" text="Edit Imported Image" onAction="#toggleImportedImageMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                                                 <ToggleButton fx:id="btnEditFormField" text="Edit PDF Content" onAction="#toggleFormFieldMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                                                 <ToggleButton fx:id="btnEditPdfBlock" text="Edit PDF Block / Shape" onAction="#togglePdfBlockMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                                                 <ToggleButton fx:id="btnAreaSelect" text="Select / Hide Area" onAction="#toggleAreaSelectionMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                                                <Label text="Edit interactive fields or printed PDF content non-destructively. Text, raster images, simple rectangles, lines and table/grid blocks are selectable. Complex curves, flattened scans and outlined artwork remain safely replaceable with Select / Hide Area plus editable Text, Image or ERP Data." wrapText="true" styleClass="pdf-designer-help"/>
+                                                <Label text="Inspect mode highlights printed text, raster images, form fields, rectangles, straight/diagonal lines, polygons and Bezier vector paths in one workspace. Original X/Y/size/colors are loaded automatically. Clipping effects, shadings and flattened scans remain safely replaceable with Select / Hide Area." wrapText="true" styleClass="pdf-designer-help"/>
                                             </VBox>
                                         </content>
                                     </TitledPane>
@@ -171,10 +172,12 @@
                                         <Separator/>
                                         <Label text="POSITION &amp; SIZE" styleClass="field-caption"/>
                                         <GridPane hgap="10" vgap="8" styleClass="pdf-position-grid">
-                                            <Label text="X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                                            <Label text="Y" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtY" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                                            <Label text="Left / X" GridPane.columnIndex="0" GridPane.rowIndex="0"/><TextField fx:id="txtX" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                                            <Label text="Top / Y" GridPane.columnIndex="0" GridPane.rowIndex="1"/><TextField fx:id="txtY" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
                                             <Label text="Width" GridPane.columnIndex="0" GridPane.rowIndex="2"/><TextField fx:id="txtWidth" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
                                             <Label text="Height" GridPane.columnIndex="0" GridPane.rowIndex="3"/><TextField fx:id="txtHeight" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+                                            <Label text="Right" GridPane.columnIndex="0" GridPane.rowIndex="4"/><TextField fx:id="txtRight" editable="false" focusTraversable="false" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+                                            <Label text="Bottom" GridPane.columnIndex="0" GridPane.rowIndex="5"/><TextField fx:id="txtBottom" editable="false" focusTraversable="false" GridPane.columnIndex="1" GridPane.rowIndex="5"/>
                                             <columnConstraints>
                                                 <ColumnConstraints minWidth="72" prefWidth="78"/>
                                                 <ColumnConstraints hgrow="ALWAYS"/>
@@ -194,6 +197,11 @@
                                             <Label text="Border" GridPane.columnIndex="0" GridPane.rowIndex="2"/><ColorPicker fx:id="colorStroke" maxWidth="Infinity" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
                                             <columnConstraints><ColumnConstraints minWidth="60"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
                                         </GridPane>
+                                        <Label text="Opacity" styleClass="field-caption"/>
+                                        <HBox spacing="8" alignment="CENTER_LEFT"><Slider fx:id="sldOpacity" min="5" max="100" value="100" HBox.hgrow="ALWAYS"/><Label fx:id="lblOpacity" text="100%"/></HBox>
+                                        <Label text="Rotation (degrees)" styleClass="field-caption"/>
+                                        <TextField fx:id="txtRotation" text="0"/>
+                                        <Label text="Position, size, color, opacity and rotation are shared object properties. Right and Bottom are calculated from X/Y + size so imported geometry is visible immediately." wrapText="true" styleClass="pdf-designer-help"/>
                                         <VBox fx:id="tablePropertiesSection" spacing="7" visible="false" managed="false">
                                             <Separator/>
                                             <Label text="DYNAMIC TABLE" styleClass="field-caption"/>
@@ -221,10 +229,6 @@
                                         <Label text="Sizing Mode" styleClass="field-caption"/>
                                         <ComboBox fx:id="cmbImageFit" maxWidth="Infinity"/>
                                         <CheckBox fx:id="chkPreserveRatio" text="Preserve aspect ratio" selected="true"/>
-                                        <Label text="Opacity" styleClass="field-caption"/>
-                                        <HBox spacing="8" alignment="CENTER_LEFT"><Slider fx:id="sldOpacity" min="5" max="100" value="100" HBox.hgrow="ALWAYS"/><Label fx:id="lblOpacity" text="100%"/></HBox>
-                                        <Label text="Rotation (degrees)" styleClass="field-caption"/>
-                                        <TextField fx:id="txtRotation" text="0"/>
                                         <Label text="Image tools apply to uploaded images and configured brand assets. Fit keeps the whole image visible; Fill crops visually to the box; Stretch uses the full box." wrapText="true" styleClass="pdf-designer-help"/>
                                     </VBox>
                                 </content>

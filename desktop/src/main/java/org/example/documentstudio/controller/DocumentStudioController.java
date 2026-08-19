@@ -72,13 +72,15 @@ public class DocumentStudioController implements ScreenLifecycle {
         all = TemplateStorageService.listAll();
         lblTotal.setText(Integer.toString(all.size()));
         lblActive.setText(Long.toString(all.stream().filter(t -> t.getStatus() == TemplateStatus.ACTIVE).count()));
+        String sales = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE)
+                .map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.SALES_INVOICE));
         String purchase = TemplateStorageService.defaultFor(DocumentType.PURCHASE_INVOICE)
                 .map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.PURCHASE_INVOICE));
         String purchaseReturn = TemplateStorageService.defaultFor(DocumentType.PURCHASE_RETURN)
                 .map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.PURCHASE_RETURN));
         String quotation = TemplateStorageService.defaultFor(DocumentType.QUOTATION)
                 .map(DocumentTemplate::getName).orElse(DocumentFlowRegistry.builtInLabel(DocumentType.QUOTATION));
-        lblPurchaseDefault.setText("Purchase: " + purchase + "   •   Purchase Return: " + purchaseReturn + "   •   Quotation: " + quotation);
+        lblPurchaseDefault.setText("Sales: " + sales + "   •   Purchase: " + purchase + "   •   Purchase Return: " + purchaseReturn + "   •   Quotation: " + quotation);
         applyFilters();
     }
 
@@ -309,9 +311,13 @@ public class DocumentStudioController implements ScreenLifecycle {
                     template.getDocumentType().label() + " can be designed and previewed, but it is not connected to a live automatic document flow yet.");
             return;
         }
+        String fallback = DocumentFlowRegistry.builtInLabel(template.getDocumentType());
+        if (!ModernDialog.confirm(root, "Activate Default Template",
+                "Use " + template.getName() + " as the default " + template.getDocumentType().label() + "?",
+                "Only this explicit activation changes runtime PDFs. Without an active Studio default, DSE ERP continues using " + fallback + ".")) return;
         try {
             TemplateStorageService.setDefault(template.getId());
-            ModernDialog.success(root, "Default template updated", template.getName() + " is now the default for " + template.getDocumentType().label() + ".");
+            ModernDialog.success(root, "Default template updated", template.getName() + " is now the default for " + template.getDocumentType().label() + ". The built-in document remains the fallback.");
             refresh();
         } catch (Exception error) { ModernDialog.error(root, "Could not set default", "Document Studio", rootMessage(error)); }
     }

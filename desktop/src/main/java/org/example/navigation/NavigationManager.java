@@ -155,6 +155,10 @@ public class NavigationManager {
             Platform.runLater(() -> loadPage(fxml));
             return true;
         }
+        if (!NavigationGuardRegistry.allow(fxml)) {
+            logNavigationEvent("CANCELLED", fxml, "Blocked by active workflow guard");
+            return false;
+        }
 
         NavigationManager active = getInstance();
         if (active != null && active != this) {

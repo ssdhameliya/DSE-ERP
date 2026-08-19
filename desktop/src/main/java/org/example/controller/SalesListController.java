@@ -271,8 +271,19 @@ public class SalesListController implements ScreenLifecycle {
         allSales=loaded;
         cmbCustomer.getItems().setAll("All customers");cmbCustomer.getItems().addAll(allSales.stream().map(s->s.getCustomer().getName()).filter(Objects::nonNull).distinct().sorted().toList());if(cmbCustomer.getValue()==null)cmbCustomer.setValue("All customers");
         loadSavedViews();updateMetrics();applyFilters();
+        openLinkedRecordIfRequested();
         if(!PlatformUiSupport.isMac()) javafx.application.Platform.runLater(this::updateCharts);
         long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)PerformanceMonitor.event("controller-phase","sales-register-apply | "+ms+" ms");
+    }
+
+
+    private void openLinkedRecordIfRequested(){
+        LinkedRecordContext.Target target=LinkedRecordContext.consume("SALE");if(target==null)return;
+        Sales sale=allSales.stream().filter(x->(target.recordId()!=null&&x.getId()==target.recordId())||(!target.documentNo().isBlank()&&target.documentNo().equalsIgnoreCase(safe(x.getInvoiceNo())))).findFirst().orElse(null);
+        if(sale==null){warning("The linked Sale is no longer available"+(target.documentNo().isBlank()?".":": "+target.documentNo()));return;}
+        txtSearch.clear();txtInvoice.clear();cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbPaymentDue.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");dpFrom.setValue(null);dpTo.setValue(null);
+        filteredSales=allSales;int size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();int index=filteredSales.indexOf(sale);currentPage=Math.max(0,index/size);renderPage();tableSales.getSelectionModel().select(sale);tableSales.scrollTo(sale);showDetails(sale);
+        PerformanceMonitor.event("linked-navigation","SALE -> "+sale.getInvoiceNo()+" | source="+target.source());
     }
 
     @FXML public void applyFilters(){

@@ -176,6 +176,8 @@ public class ImportService {
                 }
             }
         } else {
+            Map<String,Item> existingItems = new HashMap<>();
+            service.getAll().forEach(existing -> existingItems.put(existing.getItemCode().toUpperCase(Locale.ROOT), existing));
             for (Item item : items) {
                 if (seenCodes.contains(item.getItemCode())) {
                     errors.add("Duplicate in sheet skipped: " + item.getItemCode());
@@ -186,13 +188,14 @@ public class ImportService {
                 processed++;
 
                 try {
-                    if (service.existsByCode(item.getItemCode())) {
+                    Item existing = existingItems.get(item.getItemCode().toUpperCase(Locale.ROOT));
+                    if (existing != null) {
                         if (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING) { skipped++; continue; }
-                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeItem(item, service.getAll().stream()
-                            .filter(existing -> existing.getItemCode().equalsIgnoreCase(item.getItemCode())).findFirst().orElse(null));
+                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeItem(item, existing);
                         service.update(item); updated++;
                     } else {
                         service.save(item);
+                        existingItems.put(item.getItemCode().toUpperCase(Locale.ROOT), item);
                         imported++;
                     }
                 } catch (Exception e) {
@@ -308,25 +311,30 @@ public class ImportService {
 
         PartyService partyService = new PartyService();
         ItemService itemService = new ItemService();
+        Map<String,Party> partyByCode = new HashMap<>();
+        partyService.getByType(sales ? "CUSTOMER" : "SUPPLIER").forEach(p -> partyByCode.put(p.getPartyCode().toUpperCase(Locale.ROOT), p));
+        Map<String,Item> itemByCode = new HashMap<>();
+        itemService.getAll().forEach(item -> itemByCode.put(item.getItemCode().toUpperCase(Locale.ROOT), item));
+        Set<String> existingDocuments = new HashSet<>();
+        SalesService salesService = sales ? new SalesService() : null;
+        PurchaseService purchaseService = sales ? null : new PurchaseService();
+        if (sales) salesService.getAll().forEach(doc -> existingDocuments.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
+        else purchaseService.getAll().forEach(doc -> existingDocuments.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
         int imported = 0, skipped = 0;
 
         for (Map.Entry<String,List<DocumentImportRow>> entry : grouped.entrySet()) {
             DocumentImportRow first = entry.getValue().get(0);
             String rowRange = sourceRows(entry.getValue());
             try {
-                Party party = partyService.getByType(sales ? "CUSTOMER" : "SUPPLIER").stream()
-                    .filter(candidate -> candidate.getPartyCode().equalsIgnoreCase(first.party())).findFirst()
-                    .orElseThrow(() -> new IllegalArgumentException("Party not found: " + first.party()));
+                Party party = partyByCode.get(first.party().toUpperCase(Locale.ROOT));
+                if (party == null) throw new IllegalArgumentException("Party not found: " + first.party());
 
                 String taxType = normalizeTaxType(first.taxType(), party.getPartyCode(), sales);
                 double representativeRate = first.gst();
 
-                Map<String,Item> itemByCode = new HashMap<>();
-                itemService.getAll().forEach(item -> itemByCode.put(item.getItemCode().toUpperCase(Locale.ROOT), item));
-
                 if (sales) {
-                    SalesService service = new SalesService();
-                    if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) {
+                    SalesService service = salesService;
+                    if (existingDocuments.contains(entry.getKey().toUpperCase(Locale.ROOT))) {
                         skipped++;
                         String message = "Existing posted sales invoice was protected and skipped";
                         errors.add(entry.getKey() + ": " + message);
@@ -365,6 +373,7 @@ public class ImportService {
                     document.setLines(lines);
                     applySalesTotals(document);
                     service.save(document);
+                    existingDocuments.add(entry.getKey().toUpperCase(Locale.ROOT));
                     if (extras.attachmentSource() != null) {
                         Sales persisted = service.getByInvoice(document.getInvoiceNo());
                         if (persisted == null || persisted.getId() <= 0)
@@ -373,8 +382,8 @@ public class ImportService {
                         document.setAttachmentPath(reference);
                     }
                 } else {
-                    PurchaseService service = new PurchaseService();
-                    if (service.getAll().stream().anyMatch(doc -> entry.getKey().equalsIgnoreCase(doc.getInvoiceNo()))) {
+                    PurchaseService service = purchaseService;
+                    if (existingDocuments.contains(entry.getKey().toUpperCase(Locale.ROOT))) {
                         skipped++;
                         String message = "Existing posted purchase invoice was protected and skipped";
                         errors.add(entry.getKey() + ": " + message);
@@ -414,6 +423,7 @@ public class ImportService {
                     document.setLines(lines);
                     applyPurchaseTotals(document);
                     service.save(document);
+                    existingDocuments.add(entry.getKey().toUpperCase(Locale.ROOT));
                 }
 
                 imported++;
@@ -543,6 +553,8 @@ public class ImportService {
                 }
             }
         } else {
+            Map<String,Party> existingParties = new HashMap<>();
+            service.getByType(partyType).forEach(existing -> existingParties.put(existing.getPartyCode().toUpperCase(Locale.ROOT), existing));
             for (Party p : parties) {
                 if (seenCodes.contains(p.getPartyCode())) {
                     errors.add("Duplicate in sheet skipped: " + p.getPartyCode());
@@ -553,13 +565,14 @@ public class ImportService {
                 processed++;
 
                 try {
-                    if (service.existsByCode(p.getPartyCode())) {
+                    Party existing = existingParties.get(p.getPartyCode().toUpperCase(Locale.ROOT));
+                    if (existing != null) {
                         if (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING) { skipped++; continue; }
-                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeParty(p, service.getByType(partyType).stream()
-                            .filter(existing -> existing.getPartyCode().equalsIgnoreCase(p.getPartyCode())).findFirst().orElse(null));
+                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeParty(p, existing);
                         service.update(p); updated++;
                     } else {
                         service.save(p);
+                        existingParties.put(p.getPartyCode().toUpperCase(Locale.ROOT), p);
                         imported++;
                     }
                 } catch (Exception e) {

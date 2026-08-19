@@ -16,6 +16,8 @@ public class OwnedTextInputDialog extends TextInputDialog {
         if (PlatformUiSupport.isMac()) initStyle(StageStyle.UTILITY);
         if (owner != null) { initOwner(owner); initModality(Modality.WINDOW_MODAL); }
         else initModality(Modality.APPLICATION_MODAL);
+        getDialogPane().getProperties().put(DialogPresentation.CUSTOM, true);
+        if (!getDialogPane().getStyleClass().contains(DialogPresentation.SHELL_CLASS)) getDialogPane().getStyleClass().add(DialogPresentation.SHELL_CLASS);
         addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> {
             if (getDialogPane().getScene() != null) {
                 ThemeManager.applyTheme(getDialogPane().getScene());

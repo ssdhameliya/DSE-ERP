@@ -245,8 +245,7 @@ public final class ProfessionalUiEnhancer {
             // Register/list tables use a persistent leading checkbox rather than a passive sequence number.
             // Workflow-owned checkbox columns opt out via erp-keep-selection and keep their controller behavior.
             boolean keepSelection = Boolean.TRUE.equals(table.getProperties().get("erp-keep-selection"));
-            boolean registerTable = table.getStyleClass().contains("erp-table-profile-register");
-            boolean selectionColumn = registerTable && !keepSelection && (heading.equals("#")
+            boolean selectionColumn = !keepSelection && (heading.equals("#")
                     || heading.equals("No.")
                     || heading.equals("✓")
                     || heading.equalsIgnoreCase("select")

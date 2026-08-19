@@ -204,14 +204,14 @@ public class SalesReturnsController {
 
     private void edit(Row row) { input(row.reason(), "Edit return reason - " + row.no(), "Reason:").ifPresent(value -> update(row.no(), "reason", value)); }
     private void notes(Row row) { input("", "Return notes - " + row.no(), "Notes:").ifPresent(value -> update(row.no(), "notes", value)); }
-    private void original(Row row) { NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
+    private void original(Row row) { if(row==null)return; LinkedRecordContext.open("SALE",null,row.invoice(),"VIEW","Sales Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
     private void recordRefund(Row row) { if(row==null)return; if(isCancelled(row)){ org.example.util.ModernDialog.warning(table, "Refund blocked", "Cancelled return", "A cancelled return cannot receive or record a refund."); return; } ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(), true); NotificationService.add(row.no() + " cancelled."); load(); } catch (Exception e) { error(e); } }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " and reverse every returned item?")) return; try { ReturnWorkflowService.delete(row.no(), true); load(); } catch (Exception e) { error(e); } }
     private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return."); EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",InvoicePdfService.refund(row.no(),true)); info("Sales return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
     private Optional<String> input(String initial, String title, String prompt) {
-        TextInputDialog dialog = new TextInputDialog(initial == null ? "" : initial);
+        TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial == null ? "" : initial);
         dialog.initOwner(table.getScene() == null ? null : table.getScene().getWindow());
         dialog.setTitle(title);
         dialog.setHeaderText(null);

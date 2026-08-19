@@ -63,6 +63,7 @@ public class ItemMasterController {
     @FXML private TableColumn<Item, Void> colAction;
 
     private final ObservableList<Item> items = FXCollections.observableArrayList();
+    private final ObservableList<Item> allItems = FXCollections.observableArrayList();
     private final ItemService service = new ItemService();
     private final ItemSpreadsheetService spreadsheetService = new ItemSpreadsheetService();
     private final Set<String> selectedItemCodes = new LinkedHashSet<>();
@@ -181,7 +182,7 @@ public class ItemMasterController {
         colBrand.setVisible(false); colMaterial.setVisible(false); colSize.setVisible(false); colLocation.setVisible(false); colRemarks.setVisible(true);
 
         // Search listener
-        txtSearch.textProperty().addListener((obs, oldValue, newValue) -> loadItems());
+        txtSearch.textProperty().addListener((obs, oldValue, newValue) -> applyLocalFilter());
 
         tableItems.setRowFactory(view -> {
             TableRow<Item> row = new TableRow<>();
@@ -288,22 +289,29 @@ public class ItemMasterController {
     }
 
     private void loadItems() {
-        String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
         try {
             List<Item> list = service.getAll();
+            allItems.setAll(list);
             clearBulkSelection();
-            items.setAll(list.stream()
-                .filter(item -> query.isEmpty()
-                    || (item.getItemCode() != null && item.getItemCode().toLowerCase(Locale.ROOT).contains(query))
-                    || (item.getDescription() != null && item.getDescription().toLowerCase(Locale.ROOT).contains(query))
-                    || (item.getCategory() != null && item.getCategory().toLowerCase(Locale.ROOT).contains(query))
-                    || (item.getBrand() != null && item.getBrand().toLowerCase(Locale.ROOT).contains(query)))
-                .toList());
-            lblRecordCount.setText("Showing " + items.size() + " Record" + (items.size() == 1 ? "" : "s"));
+            applyLocalFilter();
             updateKpis(list);
         } catch (Exception e) {
             showError("Could not load items: " + e.getMessage());
         }
+    }
+
+    /** Filters the already loaded master list without an API call per keystroke. */
+    private void applyLocalFilter() {
+        String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
+        items.setAll(allItems.stream()
+            .filter(item -> query.isEmpty()
+                || (item.getItemCode() != null && item.getItemCode().toLowerCase(Locale.ROOT).contains(query))
+                || (item.getDescription() != null && item.getDescription().toLowerCase(Locale.ROOT).contains(query))
+                || (item.getCategory() != null && item.getCategory().toLowerCase(Locale.ROOT).contains(query))
+                || (item.getBrand() != null && item.getBrand().toLowerCase(Locale.ROOT).contains(query)))
+            .toList());
+        clearBulkSelection();
+        lblRecordCount.setText("Showing " + items.size() + " Record" + (items.size() == 1 ? "" : "s"));
     }
 
     private void configureBulkSelection() {

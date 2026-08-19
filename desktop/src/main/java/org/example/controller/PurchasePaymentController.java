@@ -501,7 +501,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         } catch (Exception ignored) { }
     }
 
-    @FXML private void cancel() { NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
+    @FXML private void cancel() { if(purchase!=null)LinkedRecordContext.open("PURCHASE",purchase.getId(),purchase.getInvoiceNo(),"VIEW","Purchase Payment"); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
 
     private static double parseAmount(String value) {
         if (value == null || value.isBlank()) return 0;

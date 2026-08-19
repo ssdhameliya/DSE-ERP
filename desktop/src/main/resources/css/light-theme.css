@@ -7842,3 +7842,8 @@
 .quotation-editor-page .quotation-accent-title { -fx-text-fill: #38bdf8; }
 .quotation-editor-page .quotation-field-label { -fx-text-fill: #60a5fa; }
 .quotation-editor-page .quotation-attachment-title { -fx-text-fill: #2dd4bf; }
+
+/* 7.30.42 unified UX palette only */
+.auth-experience-v2 .auth-section-icon { -fx-background-color: rgba(239,246,255,0.96); -fx-border-color: #2563eb; -fx-border-radius: 18; }
+.import-completed-panel { -fx-background-color: rgba(236,253,245,0.96); -fx-border-color: #15803d; }
+.import-completed-icon, .import-completed-title { -fx-text-fill: #15803d; }

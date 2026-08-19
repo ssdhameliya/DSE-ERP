@@ -14,8 +14,8 @@ import java.util.*;
 
 /** Phase-2 REST client for customer/supplier, item and lookup/master data. */
 public final class MasterApiClient {
- private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
- private final ObjectMapper json=new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,false);
+ private final HttpClient http = org.example.api.ApiRuntime.HTTP;
+ private final ObjectMapper json = org.example.api.ApiRuntime.JSON;
  private final String base;
  public MasterApiClient(){String b=ConfigManager.getDataApiBaseUrl(); while(b.endsWith("/"))b=b.substring(0,b.length()-1);base=b;}
 

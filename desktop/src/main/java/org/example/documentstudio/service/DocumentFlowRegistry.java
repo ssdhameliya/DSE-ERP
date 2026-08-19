@@ -21,6 +21,8 @@ public final class DocumentFlowRegistry {
     private static final Map<DocumentType, Flow> FLOWS = new EnumMap<>(DocumentType.class);
 
     static {
+        register(DocumentType.SALES_INVOICE, "Sales-Tax-Invoice-", "Built-in Sales",
+                ProfessionalDocumentRenderer.Kind.SALES_INVOICE);
         register(DocumentType.PURCHASE_INVOICE, "Purchase-Tax-Invoice-", "Built-in Purchase",
                 ProfessionalDocumentRenderer.Kind.PURCHASE_INVOICE);
         register(DocumentType.PURCHASE_RETURN, "Purchase-Return-Note-", "Built-in Purchase Return",
