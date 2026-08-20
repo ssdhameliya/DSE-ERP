@@ -51,7 +51,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     @FXML private TextArea notes;
     @FXML private RadioButton fullPayment, partialPayment;
     @FXML private Button btnSavePayment;
-    @FXML private VBox proofDropZone;
+    @FXML private VBox proofDropZone, paymentEntryCard;
     @FXML private TableView<PaymentRow> historyTable;
     @FXML private TableColumn<PaymentRow, String> historyDate, historyReference, historyPaidTo,
             historyMode, historyStatus, historyNotes;
@@ -189,6 +189,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                 edit.setOnAction(e -> editPayment(row()));
                 view.setOnAction(e -> openProof(row()));
                 folder.setOnAction(e -> removeStoredProof(row()));
+                IconFactory.decorateActionMenu(actions);
             }
             private PaymentRow row() {
                 int index = getIndex();
@@ -230,6 +231,22 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         paymentProgress.setProgress(ratio);
         paidPercent.setText(String.format(Locale.ROOT, "%.0f%% paid", ratio * 100));
         updateBalancePreview();
+        updatePaymentEntryAvailability();
+    }
+
+    private boolean purchaseFullyPaid() {
+        if (purchase == null) return false;
+        String status = safe(purchase.getPaymentStatus()).trim().toUpperCase(Locale.ROOT);
+        return purchase.getBalanceAmount() <= .005 || status.equals("PAID") || status.equals("SETTLED");
+    }
+
+    private void updatePaymentEntryAvailability() {
+        boolean readOnly = editingPayment == null && purchaseFullyPaid();
+        if (paymentEntryCard != null) paymentEntryCard.setDisable(readOnly);
+        if (recordPaymentTitle != null) {
+            recordPaymentTitle.setText(readOnly ? "Payment Complete • History Available"
+                    : editingPayment != null ? "Edit Supplier Payment" : "Record Supplier Payment");
+        }
     }
 
     private void updateBalancePreview() {
@@ -252,6 +269,12 @@ public final class PurchasePaymentController implements ScreenLifecycle {
 
     @FXML private void save() {
         if (editingPayment != null) { saveEditedPayment(); return; }
+        if (purchaseFullyPaid()) {
+            new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "This Purchase is fully paid. Payment history remains available below.").showAndWait();
+            updatePaymentEntryAvailability();
+            return;
+        }
         try {
             validatePayment();
             double value = parseAmount(amount.getText());
@@ -343,6 +366,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         if (attachmentName != null) attachmentName.setText("No file selected");
         partialPayment.setSelected(true);
         amount.setText(String.format(Locale.ROOT, "%.2f", purchase == null ? 0 : purchase.getBalanceAmount()));
+        updatePaymentEntryAvailability();
     }
 
     private void loadHistory() {
@@ -426,6 +450,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             return;
         }
         editingPayment = row;
+        updatePaymentEntryAvailability();
         try { paymentDate.setValue(LocalDate.parse(row.date())); }
         catch (Exception ignored) { paymentDate.setValue(BusinessClock.today()); }
         if (!mode.getItems().contains(row.mode())) mode.getItems().add(row.mode());

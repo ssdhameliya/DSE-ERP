@@ -32,7 +32,7 @@
       </HBox>
      </VBox>
 
-     <VBox spacing="10" styleClass="flow-card,payment-entry-card">
+     <VBox fx:id="paymentEntryCard" spacing="10" styleClass="flow-card,payment-entry-card">
       <Label fx:id="recordPaymentTitle" text="Record Supplier Payment" styleClass="flow-title,section-accent-title"/>
       <GridPane hgap="16" vgap="9">
        <columnConstraints><ColumnConstraints percentWidth="33.33"/><ColumnConstraints percentWidth="33.33"/><ColumnConstraints percentWidth="33.34"/></columnConstraints>

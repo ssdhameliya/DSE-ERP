@@ -144,18 +144,54 @@ public class SalesListController implements ScreenLifecycle {
         setButtonIcon(btnSevenDaysRange,"calendar");
         setButtonIcon(btnThirtyDaysRange,"calendar");
         setButtonIcon(btnCustomRange,"calendar"); setButtonIcon(btnCloseDetails,"close");
-        decorateSalesDrawerValues();
+        decorateSalesDrawer();
     }
 
-    private void decorateSalesDrawerValues(){
-        drawerValue(lblDetailInvoice,"document"); drawerValue(lblDetailDate,"calendar"); drawerValue(lblDetailCustomer,"customer");
-        drawerValue(lblDetailContact,"user"); drawerValue(lblDetailAmount,"currency"); drawerValue(lblDetailPaid,"payment");
-        drawerValue(lblDetailBalance,"balance"); drawerValue(lblDetailDue,"calendar"); drawerValue(lblDetailGstAmount,"tax");
-        drawerValue(lblDetailTotalCharges,"charges"); drawerValue(lblDetailChargeTax,"tax"); drawerValue(lblDetailCharges,"charges");
-        drawerValue(lblDetailGstType,"tax"); drawerValue(lblDetailGstin,"tax"); drawerValue(lblDetailTransporter,"transport");
-        drawerValue(lblDetailVehicle,"vehicle"); drawerValue(lblDetailContactPerson,"user"); drawerValue(lblDetailContactMobile,"phone");
+    private void decorateSalesDrawer(){
+        // Keep compact identity icons on the top values and put the business
+        // semantic colour on each field caption. This is easier to scan than
+        // repeating an icon beside every value in the drawer.
+        drawerValue(lblDetailInvoice,"document");
+        drawerValue(lblDetailDate,"calendar");
+        drawerValue(lblDetailCustomer,"customer");
+        drawerValue(lblDetailContact,"user");
+        decorateSalesDrawerCaptions(detailDrawer);
     }
-    private void drawerValue(Label label,String semantic){if(label==null)return;label.setGraphic(IconFactory.compactIcon(semantic,14));label.setGraphicTextGap(7);label.getStyleClass().add("erp-drawer-value");}
+    private void decorateSalesDrawerCaptions(Node node){
+        if(node instanceof Label label && label.getGraphic()==null){
+            String semantic=salesDrawerCaptionSemantic(label.getText());
+            if(semantic!=null){
+                label.setGraphic(IconFactory.compactIcon(semantic,14));
+                label.setGraphicTextGap(6);
+                label.getStyleClass().add("erp-drawer-caption");
+                label.getProperties().put("erp-icon-preserve",true);
+            }
+        }
+        if(node instanceof Parent parent)for(Node child:parent.getChildrenUnmodifiable())decorateSalesDrawerCaptions(child);
+    }
+    private String salesDrawerCaptionSemantic(String text){
+        String value=safe(text).trim().toLowerCase(java.util.Locale.ROOT);
+        return switch(value){
+            case "invoice details" -> "document";
+            case "customer" -> "customer";
+            case "invoice amount", "total charges", "charges" -> "currency";
+            case "paid amount" -> "payment";
+            case "balance" -> "balance";
+            case "due date" -> "calendar";
+            case "gst amount", "charge gst", "gst type", "gstin", "tax & transport" -> "tax";
+            case "transporter", "vehicle no." -> "delivery";
+            case "contact person" -> "user";
+            case "contact mobile" -> "phone";
+            default -> null;
+        };
+    }
+    private void drawerValue(Label label,String semantic){
+        if(label==null)return;
+        label.setGraphic(IconFactory.compactIcon(semantic,14));
+        label.setGraphicTextGap(7);
+        label.getStyleClass().add("erp-drawer-value");
+        label.getProperties().put("erp-icon-preserve",true);
+    }
 
 
     private void setIcon(StackPane holder,String semantic,int size){
@@ -254,13 +290,74 @@ public class SalesListController implements ScreenLifecycle {
 
     private void configurePaging(){cmbPageSize.getItems().setAll(10,25,50,100);cmbPageSize.setValue(25);cmbPageSize.valueProperty().addListener((o,a,b)->{currentPage=0;renderPage();});}
     private void configureActions(){
-        colAction.setCellFactory(c->new TableCell<>(){final MenuButton menu=new MenuButton();{
-            menu.getProperties().put("erp.icon.semantic", "actions");
-            menu.setGraphic(IconFactory.compactIcon("actions",15));
-            add("Sale Invoice","pdf",e->openSaleInvoicePdf(row()));add("View Sale","view",e->viewSale(row()));add("Edit Sale","edit",e->edit(row()));add("Duplicate Sale","sale",e->duplicate(row()));add("Print / Download PDF","print",e->openPdf(row()));add("Send Email","email",e->sendEmail(row()));add("Send WhatsApp","whatsapp",e->sendWhatsapp(row()));add("View / Record Payments","payment",e->openPayment(row()));add("Create Sales Return","return",e->createReturn(row()));add("Send Reminder","reminder",e->createReminder(row()));MenuItem del=add("Delete Sale","delete",e->delete(row()));del.getStyleClass().add("danger-menu-item");menu.setOnShowing(e->{Sales current=getTableRow()==null?null:getTableRow().getItem();String status=current==null?"":safe(current.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);boolean locked=isFinanciallyLocked(current);del.setDisable(locked||"DELETED".equals(status));del.setVisible(!locked);});menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));}
-            private Sales row(){Sales value=getTableRow()==null?null:getTableRow().getItem();if(value==null)throw new IllegalStateException("This sales row is no longer available. Refresh the register and try again.");return value;}
-            private MenuItem add(String t,String icon,javafx.event.EventHandler<ActionEvent> h){MenuItem i=new MenuItem(t);i.setGraphic(IconFactory.compactIcon(icon, 16));i.setOnAction(event->{try{h.handle(event);}catch(Throwable failure){error(failure);}});menu.getItems().add(i);return i;}
-            protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:menu);setAlignment(Pos.CENTER);}});
+        colAction.setCellFactory(c -> new TableCell<>() {
+            final MenuButton menu = new MenuButton();
+            final MenuItem edit;
+            final MenuItem payment;
+            final MenuItem createReturn;
+            final MenuItem cancel;
+            final MenuItem delete;
+            {
+                menu.getProperties().put("erp.icon.semantic", "actions");
+                menu.setGraphic(IconFactory.compactIcon("actions", 15));
+                add("Sale Invoice", "pdf", e -> openSaleInvoicePdf(row()));
+                add("View Sale", "view", e -> viewSale(row()));
+                edit = add("Edit Sale", "edit", e -> edit(row()));
+                add("Duplicate Sale", "copy", e -> duplicate(row()));
+                add("Print / Download PDF", "print", e -> openPdf(row()));
+                add("Send Email", "email", e -> sendEmail(row()));
+                add("Send WhatsApp", "whatsapp", e -> sendWhatsapp(row()));
+                payment = add("View / Record Payments", "payment", e -> openPayment(row()));
+                createReturn = add("Create Sales Return", "return", e -> createReturn(row()));
+                add("Send Reminder", "reminder", e -> createReminder(row()));
+                cancel = add("Cancel Sale", "cancel", e -> cancelSale(row()));
+                delete = add("Delete Sale", "delete", e -> delete(row()));
+                delete.getStyleClass().add("danger-menu-item");
+                menu.setOnShowing(e -> updateActionAvailability());
+                menu.getStyleClass().add("row-actions");
+                menu.setGraphic(IconFactory.compactIcon("actions",16));
+                menu.setText("Actions");
+                menu.setContentDisplay(ContentDisplay.LEFT);
+                menu.setGraphicTextGap(6);
+                menu.setTooltip(new Tooltip("Actions"));IconFactory.decorateActionMenu(menu);
+            }
+            private void updateActionAvailability(){
+                Sales current = getTableRow()==null ? null : getTableRow().getItem();
+                if(current==null){
+                    edit.setDisable(true);payment.setDisable(true);createReturn.setDisable(true);cancel.setDisable(true);delete.setDisable(true);return;
+                }
+                String status=safe(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+                boolean inactive="CANCELLED".equals(status)||"DELETED".equals(status);
+                boolean locked=isFinanciallyLocked(current);
+                edit.setDisable(inactive);
+                payment.setDisable(inactive);
+                createReturn.setDisable(!isReturnEligible(current));
+                cancel.setDisable(locked||inactive);
+                delete.setDisable(locked||"DELETED".equals(status));
+                // Cancel/Delete stay visible after payment so users can understand the
+                // lifecycle rule; disabled state prevents the unsafe operation.
+                cancel.setVisible(true);
+                delete.setVisible(true);
+            }
+            private Sales row(){
+                Sales value=getTableRow()==null?null:getTableRow().getItem();
+                if(value==null)throw new IllegalStateException("This sales row is no longer available. Refresh the register and try again.");
+                return value;
+            }
+            private MenuItem add(String text,String icon,javafx.event.EventHandler<ActionEvent> handler){
+                MenuItem item=new MenuItem(text);
+                item.getProperties().put("erp.icon.semantic",icon);
+                item.setGraphic(IconFactory.compactIcon(icon,16));
+                item.setOnAction(event->{try{handler.handle(event);}catch(Throwable failure){error(failure);}});
+                menu.getItems().add(item);
+                return item;
+            }
+            @Override protected void updateItem(Void value,boolean empty){
+                super.updateItem(value,empty);
+                setGraphic(empty?null:menu);
+                setAlignment(Pos.CENTER);
+            }
+        });
     }
 
     @FXML public void refresh(){
@@ -416,8 +513,17 @@ public class SalesListController implements ScreenLifecycle {
     private boolean isFinanciallyLocked(Sales sale){
         if(sale==null)return false;
         String payment=safe(sale.getPaymentStatus()).toUpperCase(java.util.Locale.ROOT);
-        String document=safe(sale.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);
-        return sale.getPaidAmount()>.009 || sale.getBalanceAmount()<=.009 || payment.contains("PAID") || payment.contains("SETTLED") || document.contains("COMPLETED");
+        return sale.getPaidAmount()>.009 || sale.getBalanceAmount()<=.009 || payment.contains("PAID") || payment.contains("SETTLED") || payment.contains("PARTIAL");
+    }
+    private boolean isFullyPaid(Sales sale){
+        if(sale==null)return false;
+        String payment=safe(sale.getPaymentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+        return sale.getBalanceAmount()<=.009 || payment.contains("PAID") || payment.contains("SETTLED");
+    }
+    private boolean isReturnEligible(Sales sale){
+        if(sale==null||!isFullyPaid(sale))return false;
+        String document=safe(sale.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+        return !java.util.Set.of("CANCELLED","DELETED","RETURNED").contains(document);
     }
 
     private void cancelSale(Sales sale){
@@ -432,7 +538,7 @@ public class SalesListController implements ScreenLifecycle {
             log("SALE",sale.getId(),"CANCELLED",sale.getInvoiceNo());
             refresh();
             closeDetails();
-            info(sale.getInvoiceNo()+" deleted. Stock restored and record retained.");
+            info(sale.getInvoiceNo()+" cancelled. Stock restored and the document remains visible as CANCELLED.");
         }catch(Exception e){error(e);}
     }
     private void createReturn(Sales sale){Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null){warning("Sales invoice not found. Refresh and try again.");return;}List<ReturnEditorService.InvoiceItem> items=full.getLines().stream().map(line->new ReturnEditorService.InvoiceItem(line.getItemCode(),line.getItemDescription(),line.getQuantity(),line.getRate(),line.getGstPercent())).toList();ReturnEditorService.show(tableSales.getScene().getWindow(),ReturnEditorService.Type.SALES,sale.getInvoiceNo(),sale.getCustomer().getName(),sale.getCustomer().getId(),items).ifPresent(no->{refresh();info("Sales return created: "+no);});}
@@ -445,13 +551,13 @@ public class SalesListController implements ScreenLifecycle {
         String stockText = "CANCELLED".equals(status)
             ? "Stock was already restored when this sale was cancelled."
             : "Stock will be restored.";
-        if(!confirm("Delete "+sale.getInvoiceNo()+"?\n\nThe record will NOT be removed. It will remain in the Sales Register with status DELETED and zero outstanding balance.\n"+stockText))return;
+        if(!confirm("Delete "+sale.getInvoiceNo()+"?\n\nThe document will disappear from the normal Sales Register, but its backend audit record will be retained as DELETED.\n"+stockText))return;
         try{
             service.delete(sale.getInvoiceNo());
             log("SALE",sale.getId(),"DELETED",sale.getInvoiceNo());
             refresh();
             closeDetails();
-            info(sale.getInvoiceNo()+" marked as deleted. Audit record retained.");
+            info(sale.getInvoiceNo()+" deleted from the register. Backend audit record retained.");
         }catch(Exception e){error(e);}
     }
 

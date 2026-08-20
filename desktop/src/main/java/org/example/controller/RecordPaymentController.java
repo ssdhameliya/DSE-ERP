@@ -171,6 +171,7 @@ public class RecordPaymentController implements ScreenLifecycle {
                 edit.setOnAction(e->editPayment(row()));
                 view.setOnAction(e->openReceipt(row()));
                 folder.setOnAction(e->removeStoredProof(row()));
+                IconFactory.decorateActionMenu(actions);
             }
             private PaymentRow row(){int i=getIndex();return i<0||i>=getTableView().getItems().size()?null:getTableView().getItems().get(i);}
             @Override protected void updateItem(Void v, boolean empty) {

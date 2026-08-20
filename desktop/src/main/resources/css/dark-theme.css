@@ -7725,3 +7725,20 @@
 .auth-experience-v2 .auth-section-icon { -fx-background-color: rgba(30,58,95,0.88); -fx-border-color: #60a5fa; -fx-border-radius: 18; }
 .import-completed-panel { -fx-background-color: rgba(6,78,59,0.62); -fx-border-color: #4ade80; }
 .import-completed-icon, .import-completed-title { -fx-text-fill: #4ade80; }
+
+/* v8.0.2 — semantic table-action menus: action name follows its icon colour. */
+.context-menu .menu-item.erp-menu-semantic-blue .label,
+.context-menu .menu-item.erp-menu-semantic-blue:focused .label { -fx-text-fill: #73a9ff; -fx-font-weight: 700; }
+.context-menu .menu-item.erp-menu-semantic-green .label,
+.context-menu .menu-item.erp-menu-semantic-green:focused .label { -fx-text-fill: #4ade80; -fx-font-weight: 700; }
+.context-menu .menu-item.erp-menu-semantic-orange .label,
+.context-menu .menu-item.erp-menu-semantic-orange:focused .label { -fx-text-fill: #fbbf24; -fx-font-weight: 700; }
+.context-menu .menu-item.erp-menu-semantic-purple .label,
+.context-menu .menu-item.erp-menu-semantic-purple:focused .label { -fx-text-fill: #c4b5fd; -fx-font-weight: 700; }
+.context-menu .menu-item.erp-menu-semantic-pink .label,
+.context-menu .menu-item.erp-menu-semantic-pink:focused .label { -fx-text-fill: #fb7185; -fx-font-weight: 700; }
+.context-menu .menu-item.erp-menu-semantic-teal .label,
+.context-menu .menu-item.erp-menu-semantic-teal:focused .label { -fx-text-fill: #5eead4; -fx-font-weight: 700; }
+.context-menu .menu-item.erp-menu-semantic-indigo .label,
+.context-menu .menu-item.erp-menu-semantic-indigo:focused .label { -fx-text-fill: #a5b4fc; -fx-font-weight: 700; }
+.context-menu .menu-item:disabled .label { -fx-opacity: 0.48; }

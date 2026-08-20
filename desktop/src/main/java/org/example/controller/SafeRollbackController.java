@@ -134,6 +134,7 @@ public class SafeRollbackController {
                 actions.getStyleClass().addAll("table-action-menu", "approved-row-action", "safe-rollback-row-actions");
                 actions.setGraphic(IconFactory.compactIcon("actions", 15));
                 actions.setOnShowing(event -> rebuildMenu());
+                IconFactory.decorateActionMenu(actions);
             }
             private void rebuildMenu() {
                 actions.getItems().clear();

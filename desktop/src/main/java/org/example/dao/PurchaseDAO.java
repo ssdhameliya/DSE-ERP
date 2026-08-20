@@ -14,5 +14,6 @@ public class PurchaseDAO {
     public Purchase getByInvoice(String invoiceNo) { return api.purchase(invoiceNo); }
     public void update(Purchase purchase) { api.updatePurchase(purchase); }
     public void delete(String invoiceNo) { api.deletePurchase(invoiceNo); }
+    public void cancel(String invoiceNo) { api.cancelPurchase(invoiceNo); }
     public void markEmailSent(int purchaseId) { api.markPurchaseEmail(purchaseId); }
 }

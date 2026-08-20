@@ -42,6 +42,7 @@ public final class OperationsApiClient {
     public Purchase purchase(String invoice){ return purchase(get("/api/operations/purchases/by-invoice?invoiceNo="+enc(invoice), PurchaseDto.class)); }
     public boolean purchaseExists(String invoice){ return get("/api/operations/purchases/exists?invoiceNo="+enc(invoice), ExistsResponse.class).exists(); }
     public void deletePurchase(String invoice){ delete("/api/operations/purchases?invoiceNo="+enc(invoice)); }
+    public void cancelPurchase(String invoice){ postNoBody("/api/operations/purchases/cancel?invoiceNo="+enc(invoice)); }
     public void markPurchaseEmail(int id){ postNoBody("/api/operations/purchases/email-sent/"+id); }
     public String nextPurchaseInvoice(){ return get("/api/operations/purchases/next-invoice", NextNumber.class).value(); }
 

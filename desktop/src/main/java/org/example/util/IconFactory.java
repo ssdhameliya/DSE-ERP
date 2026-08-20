@@ -8,6 +8,7 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.Label;
@@ -194,7 +195,8 @@ public final class IconFactory {
             }
         }
         if (node instanceof MenuButton menu) {
-            if (isTableActionMenu(menu)) {
+            boolean actionMenu = isTableActionMenu(menu);
+            if (actionMenu) {
                 String tooltipText = clean(menu.getText());
                 if (tooltipText.isBlank() || tooltipText.equals("...") || tooltipText.equals("⋮")) tooltipText = "Actions";
                 menu.setText("Actions");
@@ -204,11 +206,11 @@ public final class IconFactory {
                 // Geometry belongs to ui-components.css. Java supplies only semantics/behaviour.
                 if (menu.getTooltip() == null) menu.setTooltip(new Tooltip("Open actions"));
             }
-            decorateMenuItems(menu);
+            decorateMenuItems(menu, actionMenu);
             if (!Boolean.TRUE.equals(menu.getProperties().get("erp.icons.bound"))) {
                 menu.getProperties().put("erp.icons.bound", true);
                 menu.showingProperty().addListener((obs, oldValue, showing) -> {
-                    if (showing) decorateMenuItems(menu);
+                    if (showing) decorateMenuItems(menu, isTableActionMenu(menu));
                 });
             }
         }
@@ -312,17 +314,70 @@ public final class IconFactory {
             || text.equals("⋮") || text.equals("...");
     }
 
-    private static void decorateMenuItems(MenuButton menu) {
+    private static void decorateMenuItems(MenuButton menu, boolean colourActionText) {
         for (MenuItem item : menu.getItems()) {
-            String label = clean(item.getText());
-            String semantic = semantic(label);
-            if (semantic == null && !label.isBlank()) semantic = "document";
+            String semantic = menuItemSemantic(item);
             if (semantic == null) continue;
-            item.setText(label);
-            if (item.getGraphic() == null || Boolean.TRUE.equals(item.getProperties().get("erp.icon.decorated"))) {
-                item.setGraphic(actionIcon(semantic, 16));
-                item.getProperties().put("erp.icon.decorated", true);
-            }
+            decorateMenuItem(item, semantic, colourActionText);
+        }
+    }
+
+    /**
+     * Applies the same semantic icon + text colour contract to row ContextMenus.
+     * This is intentionally opt-in so autocomplete/suggestion/context menus are
+     * never recoloured just because they happen to contain MenuItems.
+     */
+    public static void decorateActionMenu(ContextMenu menu) {
+        if (menu == null) return;
+        for (MenuItem item : menu.getItems()) {
+            String semantic = menuItemSemantic(item);
+            if (semantic != null) decorateMenuItem(item, semantic, true);
+        }
+    }
+
+    /**
+     * Opt-in hook for table-cell MenuButtons, which are commonly created lazily
+     * after the page-level decorator has already walked the scene graph. The
+     * showing listener keeps menus whose items are rebuilt per-row semantically
+     * coloured without touching ordinary ComboBox/autocomplete popup menus.
+     */
+    public static void decorateActionMenu(MenuButton menu) {
+        if (menu == null) return;
+        decorateMenuItems(menu, true);
+        if (!Boolean.TRUE.equals(menu.getProperties().get("erp.action-menu.semantic-bound"))) {
+            menu.getProperties().put("erp.action-menu.semantic-bound", true);
+            menu.showingProperty().addListener((obs, oldValue, showing) -> {
+                if (showing) decorateMenuItems(menu, true);
+            });
+        }
+    }
+
+    private static String menuItemSemantic(MenuItem item) {
+        if (item == null || item.getStyleClass().contains("bank-menu-section")) return null;
+        Object explicit = item.getProperties().get("erp.icon.semantic");
+        if (explicit instanceof String value && !value.isBlank()) return normalize(value);
+        Node graphic = item.getGraphic();
+        if (graphic != null) {
+            Object graphicSemantic = graphic.getProperties().get("erp.icon.semantic");
+            if (graphicSemantic instanceof String value && !value.isBlank()) return normalize(value);
+        }
+        String label = clean(item.getText());
+        String semantic = semantic(label);
+        if (semantic == null && !label.isBlank()) semantic = "document";
+        return semantic;
+    }
+
+    private static void decorateMenuItem(MenuItem item, String semantic, boolean colourActionText) {
+        String label = clean(item.getText());
+        item.setText(label);
+        item.getProperties().put("erp.icon.semantic", semantic);
+        if (item.getGraphic() == null || Boolean.TRUE.equals(item.getProperties().get("erp.icon.decorated"))) {
+            item.setGraphic(actionIcon(semantic, 16));
+            item.getProperties().put("erp.icon.decorated", true);
+        }
+        if (colourActionText) {
+            item.getStyleClass().removeIf(style -> style.startsWith("erp-menu-semantic-"));
+            item.getStyleClass().add("erp-menu-semantic-" + colour(semantic));
         }
     }
 

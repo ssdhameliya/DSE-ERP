@@ -17,6 +17,7 @@ import javafx.stage.FileChooser;
 import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
 import org.example.service.EmailService;
 import org.example.service.InvoicePdfService;
 import org.example.service.NotificationService;
@@ -32,7 +33,7 @@ import java.time.YearMonth;
 import java.util.*;
 
 /** Modern database-backed Purchase Return register. */
-public class PurchaseReturnsController {
+public class PurchaseReturnsController implements ScreenLifecycle {
     private final ReturnApiClient returnApi=new ReturnApiClient();
     private final SupportApiClient supportApi=new SupportApiClient();
     public record Row(String no, String date, String invoice, String supplier,
@@ -103,7 +104,7 @@ public class PurchaseReturnsController {
                 add("View Original Purchase", "purchase", e -> original(row())); add("Record Refund", "payment", e -> recordRefund(row()));
  add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row())); add("Delete Return", "delete", e -> delete(row()));
-                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));
+                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));IconFactory.decorateActionMenu(menu);
             }
             private Row row() { return getTableView().getItems().get(getIndex()); }
             private void add(String name, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) { MenuItem item = new MenuItem(name, IconFactory.compactIcon(icon, 16)); item.setOnAction(handler); menu.getItems().add(item); }
@@ -119,7 +120,7 @@ public class PurchaseReturnsController {
             MenuItem add = new MenuItem("Add Purchase Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem delete = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
-            ContextMenu menu = new ContextMenu(edit, delete); row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu)); return row;
+            ContextMenu menu = new ContextMenu(edit, delete); IconFactory.decorateActionMenu(menu); row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu)); return row;
         });
     }
 
@@ -141,6 +142,7 @@ public class PurchaseReturnsController {
     }
 
     @FXML private void reset() { search.clear(); supplier.setValue("All Suppliers"); status.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusMonths(6)); dpTo.setValue(BusinessClock.today()); filter(); }
+    @Override public void onScreenShown(boolean reusedFromCache) { if (reusedFromCache) load(); }
     @FXML private void create() { info("Create a purchase return from the Purchase Register so stock and supplier balances remain linked."); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void configureDrawer() {if(detailDrawer==null)return;detailDrawer.setManaged(false);detailDrawer.setVisible(false);if(mainSplit!=null)mainSplit.setDividerPositions(1);decorateDrawerNode(detailDrawer);applyValueIcon(lblDetailNo,"return");applyValueIcon(lblDetailSupplier,"supplier");applyValueIcon(lblDetailDate,"calendar");applyValueIcon(lblDetailInvoice,"purchase");applyValueIcon(lblDetailAmount,"currency");applyValueIcon(lblDetailRefund,"payment");applyValueIcon(lblDetailReason,"document");}
     private void decorateDrawerNode(Node node){if(node instanceof Label l&&l.getGraphic()==null){String sem=drawerSemantic(l.getText());if(sem!=null){l.setGraphic(IconFactory.compactIcon(sem,14));l.setGraphicTextGap(6);l.getProperties().put("erp-icon-preserve",true);}}if(node instanceof ButtonBase b&&b.getGraphic()==null){String sem=drawerSemantic(b.getText());if(sem!=null){b.setGraphic(IconFactory.compactIcon(sem,14));b.setGraphicTextGap(6);b.getProperties().put("erp-icon-preserve",true);}}if(node instanceof Parent p)for(Node child:p.getChildrenUnmodifiable())decorateDrawerNode(child);}
@@ -177,7 +179,7 @@ public class PurchaseReturnsController {
     private void recordRefund(Row row) { if(row==null)return; if(isCancelled(row)){ org.example.util.ModernDialog.warning(table, "Refund blocked", "Cancelled return", "A cancelled return cannot receive or record a refund."); return; } ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(),false); NotificationService.add(row.no()+" cancelled."); load(); } catch(Exception e){error(e);} }
-    private void delete(Row row) { if (!confirm("Delete " + row.no() + " and reverse every returned item?")) return; try { ReturnWorkflowService.delete(row.no(),false); load(); } catch (Exception e) { error(e); } }
+    private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; try { ReturnWorkflowService.delete(row.no(), false); NotificationService.add(row.no() + " deleted from register; audit record retained."); load(); } catch (Exception e) { error(e); } }
     private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;try{returnApi.update(no,column,value);load();}catch(Exception e){error(e);}}
 
     @FXML private void export() { FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Purchase_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv")); File file = chooser.showSaveDialog(table.getScene().getWindow()); if (file == null) return; try (PrintWriter out = new PrintWriter(file)) { out.println("Return No,Date,Purchase No,Supplier,Total,Refund,Status,Refund Status"); for (Row r : table.getItems()) out.printf("%s,%s,%s,%s,%.2f,%.2f,%s,%s%n", r.no(), r.date(), r.invoice(), csv(r.supplier()), r.total(), r.refund(), r.status(), r.refundStatus()); } catch (Exception e) { error(e); } }

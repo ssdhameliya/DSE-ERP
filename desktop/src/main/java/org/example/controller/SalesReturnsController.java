@@ -16,6 +16,7 @@ import javafx.stage.FileChooser;
 import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
 import org.example.service.EmailService;
 import org.example.service.InvoicePdfService;
 import org.example.service.NotificationService;
@@ -31,7 +32,7 @@ import java.time.YearMonth;
 import java.util.*;
 
 /** Modern database-backed Sales Return register. */
-public class SalesReturnsController {
+public class SalesReturnsController implements ScreenLifecycle {
     private final ReturnApiClient returnApi=new ReturnApiClient();
     private final SupportApiClient supportApi=new SupportApiClient();
     public record Row(String no, String date, String invoice, String customer,
@@ -100,7 +101,7 @@ public class SalesReturnsController {
                 add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row()));
                 add("Delete Return", "delete", e -> delete(row()));
-                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));
+                menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));IconFactory.decorateActionMenu(menu);
             }
             private Row row() { return getTableView().getItems().get(getIndex()); }
             private void add(String text, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) {
@@ -120,6 +121,7 @@ public class SalesReturnsController {
             MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem remove = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); remove.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
             ContextMenu menu = new ContextMenu(edit, remove);
+            IconFactory.decorateActionMenu(menu);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu));
             return row;
         });
@@ -174,6 +176,7 @@ public class SalesReturnsController {
 
     @FXML private void reset() { search.clear(); customerFilter.setValue("All Customers"); statusFilter.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusMonths(6)); dpTo.setValue(BusinessClock.today()); filter(); }
     @FXML private void refresh() { load(); }
+    @Override public void onScreenShown(boolean reusedFromCache) { if (reusedFromCache) load(); }
     @FXML private void create() {
         info("Create a sales return from the Sales Register so the original invoice, stock and customer balance stay linked.");
         NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");
@@ -208,7 +211,7 @@ public class SalesReturnsController {
     private void recordRefund(Row row) { if(row==null)return; if(isCancelled(row)){ org.example.util.ModernDialog.warning(table, "Refund blocked", "Cancelled return", "A cancelled return cannot receive or record a refund."); return; } ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(), true); NotificationService.add(row.no() + " cancelled."); load(); } catch (Exception e) { error(e); } }
-    private void delete(Row row) { if (!confirm("Delete " + row.no() + " and reverse every returned item?")) return; try { ReturnWorkflowService.delete(row.no(), true); load(); } catch (Exception e) { error(e); } }
+    private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; try { ReturnWorkflowService.delete(row.no(), true); NotificationService.add(row.no() + " deleted from register; audit record retained."); load(); } catch (Exception e) { error(e); } }
     private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return."); EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",InvoicePdfService.refund(row.no(),true)); info("Sales return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
     private Optional<String> input(String initial, String title, String prompt) {
         TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial == null ? "" : initial);

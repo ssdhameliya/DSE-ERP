@@ -167,6 +167,7 @@ public class ItemMasterController {
                 MenuItem delete = new MenuItem("Delete Item", IconFactory.compactIcon("delete", 16));
                 delete.setOnAction(e -> deleteItem(currentItem()));
                 actions.getItems().addAll(create, edit, new SeparatorMenuItem(), delete);
+                IconFactory.decorateActionMenu(actions);
             }
 
             private Item currentItem() {
@@ -201,6 +202,7 @@ public class ItemMasterController {
             MenuItem clear = new MenuItem("Clear Selection", IconFactory.icon("cancel"));
             clear.setOnAction(event -> tableItems.getSelectionModel().clearSelection());
             ContextMenu context = new ContextMenu(add, edit, delete, new SeparatorMenuItem(), clear);
+            IconFactory.decorateActionMenu(context);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty())
                 .then((ContextMenu) null).otherwise(context));
             return row;

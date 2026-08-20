@@ -213,6 +213,7 @@ public class ReminderCenterController {
                 new SeparatorMenuItem(),
                 delete
         );
+        IconFactory.decorateActionMenu(menu);
         return menu;
     }
 
@@ -418,6 +419,7 @@ public class ReminderCenterController {
                 setAlignment(Pos.CENTER);
 
                 actions.setOnShowing(event -> rebuildActionMenu());
+                IconFactory.decorateActionMenu(actions);
             }
 
             @Override

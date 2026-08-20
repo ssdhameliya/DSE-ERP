@@ -20,9 +20,17 @@ public class PurchaseService {
         if(useApi()){api.deletePurchase(invoiceNo);return;}
         Purchase document=dao.getByInvoice(invoiceNo);if(document==null)throw new IllegalArgumentException("Purchase document not found: "+invoiceNo);
         String ps=document.getPaymentStatus()==null?"":document.getPaymentStatus().trim().toUpperCase();
-        boolean locked=document.getPaidAmount()>.0001||ps.equals("PAID")||ps.equals("SETTLED")||ps.equals("PARTIAL");
+        boolean locked=document.getPaidAmount()>.0001||document.getBalanceAmount()<=.0001||ps.equals("PAID")||ps.equals("SETTLED")||ps.equals("PARTIAL");
         if(locked)throw new IllegalStateException("Paid, partially paid, or settled purchase documents cannot be deleted. Use the return/reversal workflow.");
         dao.delete(invoiceNo);
+    }
+    public void cancel(String invoiceNo){
+        if(useApi()){api.cancelPurchase(invoiceNo);return;}
+        Purchase document=dao.getByInvoice(invoiceNo);if(document==null)throw new IllegalArgumentException("Purchase document not found: "+invoiceNo);
+        String ps=document.getPaymentStatus()==null?"":document.getPaymentStatus().trim().toUpperCase();
+        boolean locked=document.getPaidAmount()>.0001||document.getBalanceAmount()<=.0001||ps.equals("PAID")||ps.equals("SETTLED")||ps.equals("PARTIAL");
+        if(locked)throw new IllegalStateException("Paid, partially paid, or settled purchase documents cannot be cancelled. Use the return/reversal workflow.");
+        dao.cancel(invoiceNo);
     }
     public void markEmailSent(int purchaseId){ if(useApi())api.markPurchaseEmail(purchaseId);else dao.markEmailSent(purchaseId); }
 }

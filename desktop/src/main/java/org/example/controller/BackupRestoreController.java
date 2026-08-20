@@ -210,6 +210,7 @@ public class BackupRestoreController {
                 
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Backup actions"));
+                IconFactory.decorateActionMenu(actions);
             }
 
             @Override

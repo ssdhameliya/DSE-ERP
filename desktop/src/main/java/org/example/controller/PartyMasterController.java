@@ -99,6 +99,7 @@ public abstract class PartyMasterController {
                 delete.getStyleClass().add("danger-menu-item");
                 delete.setOnAction(event -> runForRow(this, true));
                 actions.getItems().addAll(edit, new SeparatorMenuItem(), delete);
+                IconFactory.decorateActionMenu(actions);
                 setAlignment(javafx.geometry.Pos.CENTER);
             }
 
@@ -128,6 +129,7 @@ public abstract class PartyMasterController {
             edit.setGraphic(IconFactory.compactIcon("edit",15));
             delete.setGraphic(IconFactory.compactIcon("delete",15));
             ContextMenu menu = new ContextMenu(edit, delete);
+            IconFactory.decorateActionMenu(menu);
             edit.setOnAction(event -> { selectRow(row); editParty(); });
             delete.setOnAction(event -> { selectRow(row); deleteParty(); });
 

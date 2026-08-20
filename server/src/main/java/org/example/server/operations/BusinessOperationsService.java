@@ -24,6 +24,7 @@ public class BusinessOperationsService {
   Map<Integer,Double> quantities=saleQuantityTotals();
   Map<Integer,List<OperationDtos.ChargeDto>> charges=saleChargeSummaries();
   return sales.findAllByOrderByInvoiceDateDescIdDesc().stream()
+    .filter(h -> !"DELETED".equalsIgnoreCase(h.getDocumentStatus()))
     .map(h->saleSummaryDto(h,quantities.getOrDefault(h.getId(),0d),charges.getOrDefault(h.getId(),List.of())))
     .toList();
  }
@@ -73,7 +74,7 @@ public class BusinessOperationsService {
   return saleDto(h,true);
  }
  @Transactional public void deleteSale(String invoice){SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(hasActiveReturn("SALES RETURN",h.getInvoiceNo()))throw new IllegalStateException("A Sale with an active Sales Return cannot be deleted. Reverse/cancel the return first.");if(!"DELETED".equalsIgnoreCase(h.getDocumentStatus())&&!"CANCELLED".equalsIgnoreCase(h.getDocumentStatus()))restoreSaleStock(h.getId());h.setDocumentStatus("DELETED");}
- @Transactional public void cancelSale(String invoice){deleteSale(invoice);} // backward-compatible alias: legacy cancel now performs a soft delete
+ @Transactional public void cancelSale(String invoice){SalesHeaderEntity h=sales.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Sale not found: "+invoice));assertDocumentHasNoPayments("SALE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"cancelled");String status=up(h.getDocumentStatus());if("DELETED".equals(status))throw new IllegalStateException("Deleted Sales invoices cannot be cancelled.");if("CANCELLED".equals(status))return;if(hasActiveReturn("SALES RETURN",h.getInvoiceNo()))throw new IllegalStateException("A Sale with an active Sales Return cannot be cancelled. Reverse/cancel the return first.");restoreSaleStock(h.getId());h.setDocumentStatus("CANCELLED");}
  @Transactional public void markSaleEmail(int id){SalesHeaderEntity h=sales.findById(id).orElseThrow();h.setEmailSent(1);}
  @Transactional(readOnly=true) public String nextSalesInvoice(){return configuredNext("REF_SALES","IN/DD-MM-YYYY/XXXX",sales.findAll().stream().map(SalesHeaderEntity::getInvoiceNo).filter(Objects::nonNull).toList());}
 
@@ -81,6 +82,7 @@ public class BusinessOperationsService {
   Map<Integer,Double> paid=recordedPurchasePayments();
   Map<Integer,Double> quantities=purchaseQuantityTotals();
   return purchases.findAllByOrderByInvoiceDateDescIdDesc().stream()
+    .filter(h -> !"DELETED".equalsIgnoreCase(h.getDocumentStatus()))
     .map(h->purchaseSummaryDto(h,effectivePurchasePaid(h,paid.getOrDefault(h.getId(),0d)),quantities.getOrDefault(h.getId(),0d)))
     .toList();
  }
@@ -144,6 +146,7 @@ public class BusinessOperationsService {
   return purchaseDto(h,true);
  }
  @Transactional public void deletePurchase(String invoice){PurchaseHeaderEntity h=purchases.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Purchase not found: "+invoice));assertDocumentHasNoPayments("PURCHASE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"deleted");if(hasActiveReturn("PURCHASE RETURN",h.getInvoiceNo()))throw new IllegalStateException("A purchase with an active Purchase Return cannot be deleted. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restorePurchaseStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("DELETED");}
+ @Transactional public void cancelPurchase(String invoice){PurchaseHeaderEntity h=purchases.findByInvoiceNoForUpdate(invoice).orElseThrow(()->new IllegalArgumentException("Purchase not found: "+invoice));assertDocumentHasNoPayments("PURCHASE",h.getId(),n(h.getPaidAmount()),h.getPaymentStatus(),"cancelled");String status=normalizePurchaseStatus(h.getDocumentStatus());if("DELETED".equals(status))throw new IllegalStateException("Deleted purchases cannot be cancelled.");if("CANCELLED".equals(status))return;if(hasActiveReturn("PURCHASE RETURN",h.getInvoiceNo()))throw new IllegalStateException("A purchase with an active Purchase Return cannot be cancelled. Reverse/cancel the return first.");if(Boolean.TRUE.equals(h.getInventoryPosted())){restorePurchaseStock(h.getId());h.setInventoryPosted(false);}h.setDocumentStatus("CANCELLED");}
  @Transactional public void markPurchaseEmail(int id){PurchaseHeaderEntity h=purchases.findById(id).orElseThrow();h.setEmailSent(1);}
  @Transactional(readOnly=true) public String nextPurchaseInvoice(){return configuredNext("REF_PURCHASE","PUR/DD-MM-YYYY/XXXX",purchases.findAll().stream().map(PurchaseHeaderEntity::getInvoiceNo).filter(Objects::nonNull).toList());}
 
@@ -167,7 +170,7 @@ public class BusinessOperationsService {
      FROM purchase_line l JOIN purchase_header h ON h.id=l.purchase_id WHERE l.item_code=? AND COALESCE(h.inventory_posted,false)=true AND UPPER(COALESCE(h.document_status,'')) NOT IN ('DELETED','CANCELLED')
      UNION ALL
      SELECT CASE WHEN COALESCE(return_date,'') ~ '^\\d{4}-\\d{2}-\\d{2}$' THEN TO_DATE(return_date,'YYYY-MM-DD') WHEN COALESCE(return_date,'') ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN TO_DATE(return_date,'DD/MM/YYYY') WHEN COALESCE(return_date,'') ~ '^\\d{2}-\\d{2}-\\d{4}$' THEN TO_DATE(return_date,'DD-MM-YYYY') ELSE NULL END, return_type, CASE WHEN UPPER(return_type) IN ('SALE RETURN','SALES RETURN') THEN quantity ELSE -quantity END, COALESCE(reason,'Return'), return_no, 'System'
-     FROM return_register WHERE item_code=? AND UPPER(COALESCE(status,'PENDING'))<>'CANCELLED'
+     FROM return_register WHERE item_code=? AND UPPER(COALESCE(status,'PENDING')) NOT IN ('CANCELLED','DELETED')
      ORDER BY movement_day DESC
      """;
    return jdbc.query(sql,(r,i)->new OperationDtos.StockHistoryDto(String.valueOf(r.getObject(1)),r.getString(2),r.getDouble(3),r.getString(4),r.getString(5),r.getString(6)),itemCode,itemCode,itemCode,itemCode);
@@ -222,7 +225,7 @@ public class BusinessOperationsService {
  private void restorePurchaseStock(int id){for(var l:purchaseLines.findByPurchaseIdOrderByIdAsc(id))changeStock(l.getItemCode(),-n(l.getQuantity()),true);}
  private void postPurchaseStock(int id){for(var l:purchaseLines.findByPurchaseIdOrderByIdAsc(id))changeStock(l.getItemCode(),n(l.getQuantity()),false);}
  private double recordedPaymentTotal(String type,int id){Double value=jdbc.queryForObject("SELECT COALESCE(SUM(amount),0) FROM payment_record WHERE UPPER(document_type)=? AND document_id=?",Double.class,type,id);return n(value);}
- private boolean hasActiveReturn(String type,String invoice){Long count=jdbc.queryForObject("SELECT COUNT(*) FROM return_register WHERE (CASE WHEN UPPER(return_type)='SALE RETURN' THEN 'SALES RETURN' ELSE UPPER(return_type) END)=? AND invoice_no=? AND UPPER(COALESCE(status,'PENDING'))<>'CANCELLED'",Long.class,type,invoice);return count!=null&&count>0;}
+ private boolean hasActiveReturn(String type,String invoice){Long count=jdbc.queryForObject("SELECT COUNT(*) FROM return_register WHERE (CASE WHEN UPPER(return_type)='SALE RETURN' THEN 'SALES RETURN' ELSE UPPER(return_type) END)=? AND invoice_no=? AND UPPER(COALESCE(status,'PENDING')) NOT IN ('CANCELLED','DELETED')",Long.class,type,invoice);return count!=null&&count>0;}
  private static String normalizePurchaseStatus(String status){String value=up(status);return value.isBlank()?"COMPLETED":value;}
  private static boolean isInactivePurchase(String status){String value=up(status);return value.equals("DELETED")||value.equals("CANCELLED");}
  private static boolean shouldPostPurchaseInventory(String status){return !"DRAFT".equals(normalizePurchaseStatus(status))&&!isInactivePurchase(status);}

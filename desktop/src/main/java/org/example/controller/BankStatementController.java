@@ -178,6 +178,7 @@ public class BankStatementController {
             section(m,"STATUS");
             add(m,"Return to Unmatched","return",()->reverse(row));
         }
+        IconFactory.decorateActionMenu(m);
         return m;
     }
     private void add(MenuButton m,String text,String icon,Runnable action){
