@@ -19,6 +19,8 @@ public class DocumentTemplate {
     private String createdAt = Instant.now().toString();
     private String updatedAt = Instant.now().toString();
     private List<TemplateElement> elements = new ArrayList<>();
+    private String pdfCapability = "UNKNOWN";
+    private List<String> pdfWarnings = new ArrayList<>();
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id == null || id.isBlank() ? UUID.randomUUID().toString() : id; }
@@ -49,6 +51,10 @@ public class DocumentTemplate {
     public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
     public List<TemplateElement> getElements() { return elements == null ? List.of() : elements; }
     public void setElements(List<TemplateElement> elements) { this.elements = new ArrayList<>(elements == null ? List.of() : elements); }
+    public String getPdfCapability() { return pdfCapability == null || pdfCapability.isBlank() ? "UNKNOWN" : pdfCapability; }
+    public void setPdfCapability(String pdfCapability) { this.pdfCapability = pdfCapability == null || pdfCapability.isBlank() ? "UNKNOWN" : pdfCapability; }
+    public List<String> getPdfWarnings() { return pdfWarnings == null ? List.of() : List.copyOf(pdfWarnings); }
+    public void setPdfWarnings(List<String> pdfWarnings) { this.pdfWarnings = new ArrayList<>(pdfWarnings == null ? List.of() : pdfWarnings); }
 
     public void touch() { updatedAt = Instant.now().toString(); }
 }

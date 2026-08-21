@@ -21,7 +21,39 @@ import org.example.server.persistence.JpaNativeRepository;import org.example.ser
   deleteSupersededManagedReference(old,ref); return ref;
  }
  @Transactional(readOnly=true) public SupportDtos.AttachmentFile documentAttachmentFile(String type,int id){String normalized=requireAttachmentDocument(type);assertDocumentExists(normalized,id);return readAttachment(documentAttachmentReference(normalized,id));}
- @Transactional public void removeDocumentAttachment(String type,int id){String normalized=requireAttachmentDocument(type);assertDocumentExists(normalized,id);String old=documentAttachmentReference(normalized,id);setDocumentAttachmentReference(normalized,id,"");deleteManagedReferenceQuietly(old);}
+ @Transactional public void removeDocumentAttachment(String type,int id){String normalized=requireAttachmentDocument(type);assertDocumentExists(normalized,id);String old=documentAttachmentReference(normalized,id);setDocumentAttachmentReference(normalized,id,"");if(old!=null&&!old.isBlank())jdbc.update("DELETE FROM document_attachment WHERE document_type=? AND document_id=? AND storage_ref=?",normalized,id,old);deleteManagedReferenceQuietly(old);}
+ @Transactional(readOnly=true) public List<SupportDtos.AttachmentMeta> documentAttachments(String type,int id){
+  String normalized=requireAttachmentDocument(type);assertDocumentExists(normalized,id);
+  return jdbc.query("SELECT id,document_type,document_id,file_name,COALESCE(created_by,''),COALESCE(created_at,'') FROM document_attachment WHERE document_type=? AND document_id=? ORDER BY id",(r,i)->new SupportDtos.AttachmentMeta(r.getLong(1),r.getString(2),r.getInt(3),r.getString(4),r.getString(5),r.getString(6)),normalized,id);
+ }
+ @Transactional public SupportDtos.AttachmentMeta addDocumentAttachment(String type,int id,String fileName,byte[] data){
+  String normalized=requireAttachmentDocument(type);assertDocumentExists(normalized,id);
+  String ref=storeManagedAttachment(normalized+"Attachments",String.valueOf(id),fileName,data);
+  try{
+   String createdBy=CurrentUser.require().username(),createdAt=BusinessClock.nowUtcText();
+   long attachmentId=jdbc.queryForObject("INSERT INTO document_attachment(document_type,document_id,file_name,storage_ref,created_by,created_at) VALUES(?,?,?,?,?,?) RETURNING id",Long.class,normalized,id,safeFileName(fileName),ref,createdBy,createdAt);
+   if(documentAttachmentReference(normalized,id).isBlank())setDocumentAttachmentReference(normalized,id,ref);
+   return new SupportDtos.AttachmentMeta(attachmentId,normalized,id,safeFileName(fileName),createdBy,createdAt);
+  }catch(RuntimeException ex){deleteReferenceQuietly(ref);throw ex;}
+ }
+ @Transactional(readOnly=true) public SupportDtos.AttachmentFile documentAttachmentFile(String type,int id,long attachmentId){
+  String normalized=requireAttachmentDocument(type);assertDocumentExists(normalized,id);
+  List<String> refs=jdbc.query("SELECT storage_ref FROM document_attachment WHERE id=? AND document_type=? AND document_id=?",(r,i)->r.getString(1),attachmentId,normalized,id);
+  if(refs.isEmpty())throw new IllegalArgumentException("Attachment not found");
+  return readAttachment(refs.getFirst());
+ }
+ @Transactional public void removeDocumentAttachment(String type,int id,long attachmentId){
+  String normalized=requireAttachmentDocument(type);assertDocumentExists(normalized,id);
+  List<String> refs=jdbc.query("SELECT storage_ref FROM document_attachment WHERE id=? AND document_type=? AND document_id=? FOR UPDATE",(r,i)->r.getString(1),attachmentId,normalized,id);
+  if(refs.isEmpty())throw new IllegalArgumentException("Attachment not found");
+  String removedRef=refs.getFirst();
+  jdbc.update("DELETE FROM document_attachment WHERE id=? AND document_type=? AND document_id=?",attachmentId,normalized,id);
+  if(Objects.equals(documentAttachmentReference(normalized,id),removedRef)){
+   List<String> remaining=jdbc.query("SELECT storage_ref FROM document_attachment WHERE document_type=? AND document_id=? ORDER BY id LIMIT 1",(r,i)->r.getString(1),normalized,id);
+   setDocumentAttachmentReference(normalized,id,remaining.isEmpty()?"":remaining.getFirst());
+  }
+  deleteManagedReferenceQuietly(removedRef);
+ }
  @Transactional public String storeReturnAttachment(String no,String fileName,byte[] data){requireReturnAccess(no);String old=returnAttachmentReference(no);String ref=storeManagedAttachment(returnFolder(no),safeSegment(no),fileName,data);try{jdbc.update("UPDATE return_register SET attachment_path=?,updated_at=? WHERE return_no=?",ref,BusinessClock.nowUtcText(),no);}catch(RuntimeException ex){deleteReferenceQuietly(ref);throw ex;}deleteSupersededManagedReference(old,ref);return ref;}
  @Transactional(readOnly=true) public SupportDtos.AttachmentFile returnAttachmentFile(String no){requireReturnAccess(no);return readAttachment(returnAttachmentReference(no));}
  @Transactional public void removeReturnAttachment(String no){requireReturnAccess(no);String old=returnAttachmentReference(no);jdbc.update("UPDATE return_register SET attachment_path='',updated_at=? WHERE return_no=?",BusinessClock.nowUtcText(),no);deleteManagedReferenceQuietly(old);}

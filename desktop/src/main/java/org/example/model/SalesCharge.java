@@ -1,5 +1,7 @@
 package org.example.model;
 
+import org.example.shared.DocumentCalculationEngine;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -27,8 +29,8 @@ public class SalesCharge {
     public void setTaxable(boolean taxable) { this.taxable = taxable; }
     public double getGstPercent() { return taxable ? gstPercent : 0; }
     public void setGstPercent(double gstPercent) { this.gstPercent = money(Math.max(0, Math.min(100, gstPercent))); }
-    public double getTaxAmount() { return taxable ? money(amount * gstPercent / 100d) : 0; }
-    public double getTotalAmount() { return money(amount + getTaxAmount()); }
+    public double getTaxAmount() { return DocumentCalculationEngine.charge(amount, taxable, gstPercent).taxAmount(); }
+    public double getTotalAmount() { return DocumentCalculationEngine.charge(amount, taxable, gstPercent).totalAmount(); }
 
     public SalesCharge copy() { return new SalesCharge(getChargeType(), amount, taxable, gstPercent); }
 

@@ -1,5 +1,7 @@
 package org.example.model;
 
+import org.example.shared.DocumentCalculationEngine;
+
 
 public class PurchaseLine implements InvoiceLine {
 
@@ -158,13 +160,12 @@ public class PurchaseLine implements InvoiceLine {
 
 
     public void calculateAmounts() {
-
-        double grossAmount = quantity * rate;
-        discountAmount = grossAmount * discountPercent / 100.0;
-        netAmount = grossAmount - discountAmount;
-        gstAmount = netAmount * gstPercent / 100.0;
-        totalAmount = netAmount + gstAmount;
-
+        DocumentCalculationEngine.LineResult result = DocumentCalculationEngine.line(
+                quantity, rate, discountPercent, gstPercent);
+        discountAmount = result.discountAmount();
+        netAmount = result.taxableAmount();
+        gstAmount = result.taxAmount();
+        totalAmount = result.totalAmount();
     }
 
     @Override public String toString(){return itemDescription==null?itemCode:itemDescription;}

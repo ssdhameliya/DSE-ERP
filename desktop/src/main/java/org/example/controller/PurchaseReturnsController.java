@@ -100,7 +100,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
             final MenuButton menu = new MenuButton();
             {
                 add("View Details", "view", e -> showDetails(row())); add("Edit Return", "edit", e -> edit(row()));
-                add("Print / PDF", "print", e -> pdf(row())); add("Send Email", "email", e -> email(row()));
+                add("Print / PDF", "print", e -> pdf(row())); add("View / Download Excel", "excel", e -> excel(row())); add("Send Email", "email", e -> email(row()));
                 add("View Original Purchase", "purchase", e -> original(row())); add("Record Refund", "payment", e -> recordRefund(row()));
  add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row())); add("Delete Return", "delete", e -> delete(row()));
@@ -161,6 +161,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private void edit(Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
     private void notes(Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }
     private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
+    private void excel(Row row) { if(row==null)return; try { java.awt.Desktop.getDesktop().open(org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.PURCHASE_RETURN,row.no()).toFile()); } catch(Exception e) { error(e); } }
     private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",InvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
     private Optional<String> input(String title, String prompt) {
         return input("", title, prompt);

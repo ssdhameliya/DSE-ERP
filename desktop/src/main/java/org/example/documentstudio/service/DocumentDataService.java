@@ -39,6 +39,11 @@ public final class DocumentDataService {
                         .limit(150)
                         .map(p -> new DocumentSample(p.getInvoiceNo(), p.getInvoiceNo() + supplierSuffix(p)))
                         .toList();
+                case SALES_RETURN -> new ReturnApiClient().list("SALES RETURN").stream()
+                        .filter(Objects::nonNull)
+                        .limit(150)
+                        .map(r -> new DocumentSample(r.no(), r.no() + textSuffix(r.party())))
+                        .toList();
                 case PURCHASE_RETURN -> new ReturnApiClient().list("PURCHASE RETURN").stream()
                         .filter(Objects::nonNull)
                         .limit(150)
@@ -62,13 +67,24 @@ public final class DocumentDataService {
             case SALES_INVOICE -> loadSales(sampleId);
             case PURCHASE_INVOICE, PURCHASE_ORDER -> loadPurchase(sampleId);
             case PURCHASE_RETURN -> loadPurchaseReturn(sampleId);
+            case SALES_RETURN -> loadSalesReturn(sampleId);
             case QUOTATION -> loadQuotation(sampleId);
-            default -> TemplateDataFactory.sampleFor(type);
+            default -> throw new IllegalStateException((type == null ? "This document type" : type.label()) + " does not yet have a live ERP record connector. Sample data is available only inside Document Studio preview.");
         };
     }
 
     public static TemplateData sample(DocumentType type) {
         return TemplateDataFactory.sampleFor(type);
+    }
+
+    /** True when Excel/PDF Studio can select an actual persisted ERP record for this document type. */
+    public static boolean supportsRealData(DocumentType type) {
+        return type == DocumentType.SALES_INVOICE
+                || type == DocumentType.PURCHASE_INVOICE
+                || type == DocumentType.PURCHASE_ORDER
+                || type == DocumentType.PURCHASE_RETURN
+                || type == DocumentType.SALES_RETURN
+                || type == DocumentType.QUOTATION;
     }
 
 
@@ -108,6 +124,21 @@ public final class DocumentDataService {
             throw error;
         } catch (Exception error) {
             throw new IllegalStateException("The selected purchase return could not be loaded.", error);
+        }
+    }
+
+    private static TemplateData loadSalesReturn(String returnNo) {
+        try {
+            ReturnApiClient.Details details = new ReturnApiClient().details(returnNo);
+            Sales original = null;
+            if (details != null && details.invoice() != null && !details.invoice().isBlank()) {
+                try { original = new SalesService().getByInvoice(details.invoice()); } catch (Exception ignored) { }
+            }
+            return TemplateDataFactory.fromSalesReturn(details, original);
+        } catch (RuntimeException error) {
+            throw error;
+        } catch (Exception error) {
+            throw new IllegalStateException("The selected sales return could not be loaded.", error);
         }
     }
 

@@ -17,6 +17,8 @@ import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
+import org.example.documentstudio.model.DocumentType;
+import org.example.documentstudio.service.ExcelOutputService;
 import org.example.service.EmailService;
 import org.example.service.InvoicePdfService;
 import org.example.service.NotificationService;
@@ -95,6 +97,7 @@ public class SalesReturnsController implements ScreenLifecycle {
                 add("View Details", "view", e -> showDetails(row()));
                 add("Edit Return", "edit", e -> edit(row()));
                 add("Print / PDF", "print", e -> pdf(row()));
+                add("View / Download Excel", "document", e -> excel(row()));
                 add("Send Email", "email", e -> email(row()));
                 add("View Original Sale", "sale", e -> original(row()));
                 add("Record Refund", "payment", e -> recordRefund(row()));
@@ -182,6 +185,11 @@ public class SalesReturnsController implements ScreenLifecycle {
         NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");
     }
     private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(), true).toFile()); } catch (Exception e) { error(e); } }
+    private void excel(Row row) {
+        if (row == null) return;
+        try { java.awt.Desktop.getDesktop().open(ExcelOutputService.generate(DocumentType.SALES_RETURN, row.no()).toFile()); }
+        catch (Exception e) { error(e); }
+    }
     private void configureDrawer() {
         if (detailDrawer == null) return;
         detailDrawer.setManaged(false); detailDrawer.setVisible(false);

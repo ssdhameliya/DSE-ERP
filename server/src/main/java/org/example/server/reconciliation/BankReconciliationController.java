@@ -14,6 +14,8 @@ public class BankReconciliationController {
  @PostMapping("/transactions/{id}/match") public BankReconciliationDtos.OperationResult match(@PathVariable Long id,@RequestBody BankReconciliationDtos.MatchRequest r){return service.match(id,r);}
  @PostMapping("/transactions/{id}/expense") public BankReconciliationDtos.OperationResult expense(@PathVariable Long id,@RequestBody BankReconciliationDtos.ExpenseRequest r){return service.expense(id,r);}
  @PostMapping("/transactions/{id}/bank-entry") public BankReconciliationDtos.OperationResult bankEntry(@PathVariable Long id,@RequestBody BankReconciliationDtos.BankEntryRequest r){return service.bankEntry(id,r);}
+ @PostMapping("/transactions/bulk/expense") public BankReconciliationDtos.BulkOperationResult bulkExpense(@RequestBody BankReconciliationDtos.BulkExpenseRequest r){return service.bulkExpense(r);}
+ @PostMapping("/transactions/bulk/bank-entry") public BankReconciliationDtos.BulkOperationResult bulkBankEntry(@RequestBody BankReconciliationDtos.BulkBankEntryRequest r){return service.bulkBankEntry(r);}
  @PostMapping("/transactions/{id}/note") public BankReconciliationDtos.OperationResult note(@PathVariable Long id,@RequestBody BankReconciliationDtos.NoteRequest r){return service.updateNote(id,r);}
  @PostMapping("/transactions/{id}/ignore") public BankReconciliationDtos.OperationResult ignore(@PathVariable Long id,@RequestBody BankReconciliationDtos.IgnoreRequest r){return service.ignore(id,r);}
  @PostMapping("/transactions/{id}/review") public BankReconciliationDtos.OperationResult review(@PathVariable Long id,@RequestBody BankReconciliationDtos.NoteRequest r){return service.review(id,r);}

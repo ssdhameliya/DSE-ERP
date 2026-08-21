@@ -12,10 +12,12 @@ import org.example.model.SalesLine;
 import org.example.model.SalesCharge;
 import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
+import org.example.model.PurchaseCharge;
 import org.example.api.master.MasterApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.util.SpreadsheetLayoutDetector;
 import org.example.shared.ReferenceFormatRules;
+import org.example.shared.DocumentCalculationEngine;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -31,9 +33,10 @@ public class ImportService {
                                      double rate, double gst, String taxType, String terms, double paid, String remarks,
                                      String charge1Type, String charge1Amount, String charge1Taxable, String charge1GstPercent,
                                      String charge2Type, String charge2Amount, String charge2Taxable, String charge2GstPercent,
-                                     String attachmentFile) {}
+                                     String additionalCharges, String attachmentFile, String attachmentFiles) {}
 
     private record SalesImportExtras(List<SalesCharge> charges, Path attachmentSource) {}
+    private record PurchaseImportExtras(List<PurchaseCharge> charges, List<Path> attachmentSources) {}
 
     // ---------------- Result wrapper ----------------
     public static final class ImportRowResult {
@@ -261,15 +264,17 @@ public class ImportService {
                         defaultText(getCellValue(row, mapping.get("payment_terms")), "15 Days"),
                         parseDouble(getCellValue(row, mapping.get("paid_amount"))),
                         getCellValue(row, mapping.get("remarks")),
-                        sales ? getCellValue(row, mapping.get("charge_1_type")) : null,
-                        sales ? getCellValue(row, mapping.get("charge_1_amount")) : null,
-                        sales ? getCellValue(row, mapping.get("charge_1_taxable")) : null,
-                        sales ? getCellValue(row, mapping.get("charge_1_gst_percent")) : null,
-                        sales ? getCellValue(row, mapping.get("charge_2_type")) : null,
-                        sales ? getCellValue(row, mapping.get("charge_2_amount")) : null,
-                        sales ? getCellValue(row, mapping.get("charge_2_taxable")) : null,
-                        sales ? getCellValue(row, mapping.get("charge_2_gst_percent")) : null,
-                        sales ? getCellValue(row, mapping.get("attachment_file")) : null));
+                        getCellValue(row, mapping.get("charge_1_type")),
+                        getCellValue(row, mapping.get("charge_1_amount")),
+                        getCellValue(row, mapping.get("charge_1_taxable")),
+                        getCellValue(row, mapping.get("charge_1_gst_percent")),
+                        getCellValue(row, mapping.get("charge_2_type")),
+                        getCellValue(row, mapping.get("charge_2_amount")),
+                        getCellValue(row, mapping.get("charge_2_taxable")),
+                        getCellValue(row, mapping.get("charge_2_gst_percent")),
+                        getCellValue(row, mapping.get("additional_charges")),
+                        getCellValue(row, mapping.get("attachment_file")),
+                        getCellValue(row, mapping.get("attachment_files"))));
                 } catch (Exception ex) {
                     String error = "Row " + sourceRow + ": " + ex.getMessage();
                     errors.add(error);
@@ -294,9 +299,13 @@ public class ImportService {
                 try {
                     if (existingDocumentNumbers.contains(entry.getKey().toUpperCase(Locale.ROOT)))
                         throw new IllegalArgumentException("Existing posted " + (sales ? "sales" : "purchase") + " invoice is protected and cannot be imported again");
-                    SalesImportExtras extras = sales ? salesImportExtras(file, entry.getValue()) : new SalesImportExtras(List.of(), null);
-                    String extrasText = sales ? String.format(Locale.ROOT, " | %d charge%s | attachment %s",
-                        extras.charges().size(), extras.charges().size() == 1 ? "" : "s", extras.attachmentSource() == null ? "none" : "ready") : "";
+                    int chargeCount; int attachmentCount;
+                    if (sales) {
+                        SalesImportExtras extras=salesImportExtras(file,entry.getValue());chargeCount=extras.charges().size();attachmentCount=extras.attachmentSource()==null?0:1;
+                    } else {
+                        PurchaseImportExtras extras=purchaseImportExtras(file,entry.getValue());chargeCount=extras.charges().size();attachmentCount=extras.attachmentSources().size();
+                    }
+                    String extrasText=String.format(Locale.ROOT," | %d charge%s | %d attachment%s",chargeCount,chargeCount==1?"":"s",attachmentCount,attachmentCount==1?"":"s");
                     details.add(new ImportRowResult(sourceRows(entry.getValue()), entry.getKey(), "PASSED", "VALIDATED",
                         taxDescription(first.taxType(), first.gst()) + extrasText, first.taxType(), first.gst()));
                 } catch (Exception ex) {
@@ -392,18 +401,28 @@ public class ImportService {
                         continue;
                     }
 
+                    PurchaseImportExtras extras=purchaseImportExtras(file,entry.getValue());
                     Purchase document = new Purchase();
                     document.setInvoiceNo(entry.getKey());
                     document.setInvoiceDate(first.date());
                     document.setSupplier(party);
                     document.setDueDate(first.date().plusDays(termDays(first.terms())));
+                    document.setDeliveryDate(document.getDueDate());
                     document.setPaymentTerms(first.terms());
                     document.setPaidAmount(first.paid());
                     document.setPaymentStatus(first.paid() > 0 ? "PARTIAL" : "PENDING");
                     document.setRemarks(first.remarks());
+                    document.setNotes(first.remarks());
                     document.setCurrency("INR - Indian Rupee");
                     document.setWarehouse("Main Warehouse");
                     document.setGstTreatment(taxType);
+                    document.setGstType(taxType);
+                    document.setBillingAddress(party.getAddress());
+                    document.setDeliveryAddress(party.getAddress());
+                    document.setBillingGstin(party.getGstin());
+                    document.setDeliveryGstin(party.getGstin());
+                    document.setSameAsBilling(true);
+                    document.setCharges(extras.charges());
 
                     List<PurchaseLine> lines = new ArrayList<>();
                     for (DocumentImportRow importedRow : entry.getValue()) {
@@ -424,6 +443,12 @@ public class ImportService {
                     applyPurchaseTotals(document);
                     service.save(document);
                     existingDocuments.add(entry.getKey().toUpperCase(Locale.ROOT));
+                    if(!extras.attachmentSources().isEmpty()){
+                        Purchase persisted=service.getByInvoice(document.getInvoiceNo());
+                        if(persisted==null||persisted.getId()<=0)throw new IllegalStateException("Imported purchase was saved but could not be reloaded for attachment upload");
+                        SupportApiClient api=new SupportApiClient();
+                        for(Path source:extras.attachmentSources())api.addDocumentAttachment("PURCHASE",persisted.getId(),source);
+                    }
                 }
 
                 imported++;
@@ -736,6 +761,60 @@ public class ImportService {
         return new SalesImportExtras(List.copyOf(charges), source);
     }
 
+    private PurchaseImportExtras purchaseImportExtras(Path workbookFile,List<DocumentImportRow> rows){
+        List<PurchaseCharge> charges=new ArrayList<>();
+        PurchaseCharge first=purchaseCharge(rows,1),second=purchaseCharge(rows,2);
+        if(first!=null)charges.add(first);if(second!=null)charges.add(second);
+        String flexible=consistentText(rows,DocumentImportRow::additionalCharges,"additional_charges",false);
+        if(flexible!=null&&!flexible.isBlank())charges.addAll(parseAdditionalPurchaseCharges(flexible));
+        java.util.Set<String> names=new java.util.HashSet<>();
+        for(PurchaseCharge charge:charges){String key=charge.getChargeType().trim().toUpperCase(Locale.ROOT);if(!names.add(key))throw new IllegalArgumentException("Duplicate purchase charge type: "+charge.getChargeType());}
+        List<Path> attachments=new ArrayList<>();
+        String legacy=consistentText(rows,DocumentImportRow::attachmentFile,"attachment_file",false);
+        Path legacyPath=resolveAttachment(workbookFile,legacy);if(legacyPath!=null)attachments.add(legacyPath);
+        String many=consistentText(rows,DocumentImportRow::attachmentFiles,"attachment_files",false);
+        if(many!=null&&!many.isBlank())for(String value:many.split(";")){Path path=resolveAttachment(workbookFile,value);if(path!=null&&!attachments.contains(path))attachments.add(path);}
+        return new PurchaseImportExtras(List.copyOf(charges),List.copyOf(attachments));
+    }
+
+    private List<PurchaseCharge> parseAdditionalPurchaseCharges(String text){
+        List<PurchaseCharge> out=new ArrayList<>();
+        for(String raw:text.split(";")){
+            String entry=raw==null?"":raw.trim();if(entry.isBlank())continue;
+            String[] parts=entry.split("\\|",-1);
+            if(parts.length<2||parts.length>4)throw new IllegalArgumentException("additional_charges entry must be Type|Amount|Taxable|GSTPercent: "+entry);
+            String type=parts[0].trim();if(type.isBlank())throw new IllegalArgumentException("additional_charges charge type is required");
+            double amount;try{amount=Double.parseDouble(parts[1].trim().replace(",",""));}catch(Exception e){throw new IllegalArgumentException("additional_charges amount must be a number for "+type);}
+            if(!Double.isFinite(amount)||amount<=0)throw new IllegalArgumentException("additional_charges amount must be greater than zero for "+type);
+            boolean taxable=parts.length>=3&&!parts[2].trim().isBlank()?parseFlexibleBoolean(parts[2],"additional_charges taxable for "+type):false;
+            double gst=0;if(parts.length>=4&&!parts[3].trim().isBlank()){try{gst=Double.parseDouble(parts[3].trim());}catch(Exception e){throw new IllegalArgumentException("additional_charges GST percent must be numeric for "+type);}}
+            if(gst<0||gst>100)throw new IllegalArgumentException("additional_charges GST percent must be between 0 and 100 for "+type);
+            if(!taxable&&gst>0.0001)throw new IllegalArgumentException("additional_charges GST percent requires taxable=true for "+type);
+            out.add(new PurchaseCharge(type,amount,taxable,taxable?gst:0));
+        }
+        return out;
+    }
+
+    private boolean parseFlexibleBoolean(String value,String field){
+        String clean=value==null?"":value.trim().toLowerCase(Locale.ROOT);
+        return switch(clean){case "true","yes","y","1","taxable"->true;case "false","no","n","0","non-taxable","nontaxable"->false;default->throw new IllegalArgumentException(field+" must be true/false, yes/no, or 1/0");};
+    }
+
+    private PurchaseCharge purchaseCharge(List<DocumentImportRow> rows,int index){
+        java.util.function.Function<DocumentImportRow,String> typeGetter=index==1?DocumentImportRow::charge1Type:DocumentImportRow::charge2Type;
+        java.util.function.Function<DocumentImportRow,String> amountGetter=index==1?DocumentImportRow::charge1Amount:DocumentImportRow::charge2Amount;
+        java.util.function.Function<DocumentImportRow,String> taxableGetter=index==1?DocumentImportRow::charge1Taxable:DocumentImportRow::charge2Taxable;
+        java.util.function.Function<DocumentImportRow,String> gstGetter=index==1?DocumentImportRow::charge1GstPercent:DocumentImportRow::charge2GstPercent;
+        String prefix="charge_"+index,type=consistentText(rows,typeGetter,prefix+"_type",true);Double amount=consistentNumber(rows,amountGetter,prefix+"_amount",0,Double.MAX_VALUE),gst=consistentNumber(rows,gstGetter,prefix+"_gst_percent",0,100);Boolean taxable=consistentBoolean(rows,taxableGetter,prefix+"_taxable");
+        boolean supplied=!blank(type)||amount!=null||taxable!=null||gst!=null;if(!supplied)return null;double amountValue=amount==null?0:amount;if(amountValue<=0)throw new IllegalArgumentException(prefix+"_amount must be greater than zero when a charge is supplied");if(blank(type))throw new IllegalArgumentException(prefix+"_type is required when a charge amount is supplied");boolean taxableValue=Boolean.TRUE.equals(taxable);double gstValue=gst==null?0:gst;if(!taxableValue&&gstValue>0.0001)throw new IllegalArgumentException(prefix+"_gst_percent requires "+prefix+"_taxable=true");return new PurchaseCharge(type.trim(),amountValue,taxableValue,taxableValue?gstValue:0);
+    }
+
+    private Path resolveAttachment(Path workbookFile,String attachment){
+        if(attachment==null||attachment.isBlank())return null;Path source;try{source=Path.of(attachment.trim());}catch(Exception invalid){throw new IllegalArgumentException("attachment_file is not a valid path: "+attachment);}
+        if(!source.isAbsolute()){Path parent=workbookFile.toAbsolutePath().normalize().getParent();source=(parent==null?Path.of(""):parent).resolve(source).normalize();}
+        if(!Files.isRegularFile(source))throw new IllegalArgumentException("attachment_file was not found: "+attachment);return source;
+    }
+
     private SalesCharge salesCharge(List<DocumentImportRow> rows, int index) {
         java.util.function.Function<DocumentImportRow,String> typeGetter = index == 1 ? DocumentImportRow::charge1Type : DocumentImportRow::charge2Type;
         java.util.function.Function<DocumentImportRow,String> amountGetter = index == 1 ? DocumentImportRow::charge1Amount : DocumentImportRow::charge2Amount;
@@ -828,18 +907,34 @@ public class ImportService {
     }
 
     private void applySalesTotals(Sales document) {
-        double subtotal = document.getLines().stream().mapToDouble(SalesLine::getNetAmount).sum();
-        double lineTax = document.getLines().stream().mapToDouble(SalesLine::getGstAmount).sum();
-        double chargeAmount = document.getChargesAmount();
-        double chargeTax = document.getChargesTaxAmount();
-        document.setSubtotal(subtotal);
-        document.setGstAmount(lineTax + chargeTax);
-        document.setTotalAmount(subtotal + lineTax + chargeAmount + chargeTax);
+        List<DocumentCalculationEngine.LineInput> lines = document.getLines().stream()
+                .map(line -> new DocumentCalculationEngine.LineInput(
+                        line.getQuantity(), line.getRate(), line.getDiscountPercent(), line.getGstPercent()))
+                .toList();
+        List<DocumentCalculationEngine.ChargeInput> charges = document.getCharges().stream()
+                .map(charge -> new DocumentCalculationEngine.ChargeInput(
+                        charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
+                .toList();
+        DocumentCalculationEngine.Totals totals = DocumentCalculationEngine.totals(
+                lines, charges, DocumentCalculationEngine.taxMode(document.getGstType()));
+        document.setSubtotal(totals.itemTaxable());
+        document.setGstAmount(totals.taxAmount());
+        document.setTotalAmount(totals.grandTotal());
     }
 
     private void applyPurchaseTotals(Purchase document) {
-        double subtotal = document.getLines().stream().mapToDouble(PurchaseLine::getNetAmount).sum();
-        double tax = document.getLines().stream().mapToDouble(PurchaseLine::getGstAmount).sum();
-        document.setSubtotal(subtotal); document.setGstAmount(tax); document.setTotalAmount(subtotal + tax);
+        List<DocumentCalculationEngine.LineInput> lines = document.getLines().stream()
+                .map(line -> new DocumentCalculationEngine.LineInput(
+                        line.getQuantity(), line.getRate(), line.getDiscountPercent(), line.getGstPercent()))
+                .toList();
+        List<DocumentCalculationEngine.ChargeInput> charges = document.getCharges().stream()
+                .map(charge -> new DocumentCalculationEngine.ChargeInput(
+                        charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
+                .toList();
+        DocumentCalculationEngine.Totals totals = DocumentCalculationEngine.totals(
+                lines, charges, DocumentCalculationEngine.taxMode(document.getGstType()));
+        document.setSubtotal(totals.itemTaxable());
+        document.setGstAmount(totals.taxAmount());
+        document.setTotalAmount(totals.grandTotal());
     }
 }

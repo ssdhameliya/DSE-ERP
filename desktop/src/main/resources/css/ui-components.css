@@ -9010,3 +9010,81 @@
 .linked-transaction-document { -fx-font-weight: 800; }
 .linked-transaction-type { -fx-font-weight: 700; -fx-min-width: 120; }
 .linked-transaction-amount { -fx-font-weight: 800; -fx-min-width: 120; -fx-alignment: center-right; }
+
+/* v8.1.0 Document Studio PDF/Excel switch and Excel workbook designer. Scoped only to Document Studio. */
+.doc-studio-format-switch {
+    -fx-padding: 3px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+}
+.doc-studio-format-toggle {
+    -fx-min-width: 78px;
+    -fx-padding: 7px 14px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-font-weight: 800;
+}
+.excel-studio-root { -fx-min-width: 980px; -fx-min-height: 640px; }
+.excel-studio-sidebar { -fx-padding: 12px; -fx-border-width: 0 1px 0 0; }
+.excel-studio-help { -fx-font-size: 10.5px; -fx-wrap-text: true; }
+.excel-grid-pane { -fx-padding: 0; }
+.excel-grid-header, .excel-grid-row-header {
+    -fx-font-weight: 800;
+    -fx-font-size: 10px;
+    -fx-padding: 5px 7px;
+    -fx-border-width: 0 1px 1px 0;
+    -fx-min-height: 30px;
+}
+.excel-grid-header { -fx-min-width: 118px; -fx-alignment: center; }
+.excel-grid-row-header { -fx-min-width: 42px; -fx-alignment: center-right; }
+.excel-cell-editor {
+    -fx-background-radius: 0;
+    -fx-border-radius: 0;
+    -fx-border-width: 0 1px 1px 0;
+    -fx-padding: 4px 6px;
+    -fx-min-width: 118px;
+    -fx-pref-width: 118px;
+    -fx-min-height: 30px;
+}
+.excel-cell-editor:focused { -fx-border-width: 1.5px; -fx-padding: 3px 5px; }
+.excel-workbook-scroll > .viewport { -fx-background-color: transparent; }
+
+/* v8.2.2 PDF Studio map-first editor: mapped ERP values do not paint over the source PDF. */
+.pdf-object-field,
+.pdf-object-image_field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-style: segments(4,3);
+    -fx-border-width: 1;
+}
+.pdf-object-field:hover,
+.pdf-object-image_field:hover {
+    -fx-background-color: rgba(37,99,235,.025);
+    -fx-border-color: rgba(37,99,235,.60);
+}
+.pdf-object-field.pdf-designer-object-selected,
+.pdf-object-image_field.pdf-designer-object-selected {
+    -fx-background-color: rgba(37,99,235,.035);
+    -fx-border-color: #2563EB;
+    -fx-border-style: segments(5,3);
+}
+.pdf-resize-handle {
+    -fx-background-color: #2563EB;
+    -fx-background-radius: 5;
+    -fx-border-color: white;
+    -fx-border-width: 1;
+    -fx-border-radius: 5;
+    -fx-cursor: se-resize;
+    -fx-opacity: .72;
+}
+.pdf-designer-object:hover .pdf-resize-handle,
+.pdf-designer-object-selected .pdf-resize-handle {
+    -fx-opacity: 1;
+}
+.pdf-map-help-card {
+    -fx-padding: 10;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+}

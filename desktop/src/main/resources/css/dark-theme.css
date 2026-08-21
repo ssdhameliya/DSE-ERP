@@ -7742,3 +7742,57 @@
 .context-menu .menu-item.erp-menu-semantic-indigo .label,
 .context-menu .menu-item.erp-menu-semantic-indigo:focused .label { -fx-text-fill: #a5b4fc; -fx-font-weight: 700; }
 .context-menu .menu-item:disabled .label { -fx-opacity: 0.48; }
+
+/* v8.1.0 Document Studio Excel theme */
+.doc-studio-format-switch { -fx-background-color: #0d1a2a; -fx-border-color: #2b4668; }
+.doc-studio-format-toggle { -fx-background-color: transparent; -fx-text-fill: #9fb1c8; }
+.doc-studio-format-toggle:selected { -fx-background-color: #2563eb; -fx-text-fill: #ffffff; }
+.excel-studio-root { -fx-background-color: #0b1422; }
+.excel-studio-sidebar { -fx-background-color: #111f31; -fx-border-color: #29415e; }
+.excel-studio-help { -fx-text-fill: #9fb1c8; }
+.excel-grid-header, .excel-grid-row-header { -fx-background-color: #14243a; -fx-text-fill: #c7d5e6; -fx-border-color: #29415e; }
+.excel-cell-editor { -fx-background-color: #0f1d2e; -fx-text-fill: #edf5ff; -fx-border-color: #243b57; }
+.excel-cell-editor:focused { -fx-border-color: #4f8cff; }
+
+/* v8.2.0 Excel Studio - isolated image placeholder styling */
+.excel-cell-image-placeholder {
+    -fx-background-color: rgba(47, 129, 247, 0.14);
+    -fx-border-color: #4f8cff;
+    -fx-font-weight: 700;
+}
+
+/* v8.2.0 Purchase multi-attachment list - scoped to Purchase only */
+.purchase-attachment-list {
+    -fx-background-color: rgba(12, 27, 44, 0.72);
+    -fx-border-color: #29415e;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+.purchase-attachment-list .list-cell { -fx-background-color: transparent; -fx-text-fill: #dbe8f7; }
+.purchase-attachment-list .list-cell:selected { -fx-background-color: rgba(79, 140, 255, 0.20); }
+
+.pdf-map-help-card { -fx-background-color: rgba(37,99,235,.10); -fx-border-color: #315f9c; }
++
+/* Excel Studio spreadsheet interaction controls */
+.excel-command-strip { -fx-background-color:#101f31; -fx-border-color:#29415e; -fx-border-radius:9; -fx-background-radius:9; -fx-padding:6 8 6 8; }
+.excel-tool-group { -fx-alignment:center-left; -fx-padding:0 4 0 0; }
+.excel-formula-bar { -fx-background-color:#0e1c2c; -fx-border-color:#29415e; -fx-border-radius:8; -fx-background-radius:8; -fx-padding:5 7 5 7; }
+.excel-formula-address { -fx-text-fill:#dbeafe; -fx-font-weight:800; -fx-background-color:#183451; -fx-background-radius:6; -fx-padding:6 9 6 9; }
+.excel-cell-editor { -fx-padding:4 6 4 6; }
+.excel-cell-selected { -fx-border-color:#60a5fa; -fx-border-width:1.6; -fx-effect:innershadow(gaussian,rgba(96,165,250,.78),7,.72,0,0); }
+.excel-cell-range-selected { -fx-effect:innershadow(gaussian,rgba(96,165,250,.34),5,.48,0,0); }
+.excel-cell-editing { -fx-border-color:#f59e0b; -fx-border-width:2; -fx-background-color:#132941; }
+.excel-cell-merged { -fx-padding:4 6 4 6; }
+.excel-tool-purple { -fx-background-color:#443276; -fx-text-fill:#ede9fe; -fx-border-color:#6d55a5; }
+.excel-tool-indigo { -fx-background-color:#293f78; -fx-text-fill:#e0e7ff; -fx-border-color:#4966a8; }
+.excel-tool-blue { -fx-background-color:#174d83; -fx-text-fill:#dbeafe; -fx-border-color:#2f6fae; }
+.excel-tool-blue-strong { -fx-background-color:#2563eb; -fx-text-fill:white; -fx-border-color:#4f8cff; }
+.excel-tool-green { -fx-background-color:#126044; -fx-text-fill:#d1fae5; -fx-border-color:#23805f; }
+.excel-tool-teal { -fx-background-color:#125d66; -fx-text-fill:#ccfbf1; -fx-border-color:#23818b; }
+.excel-tool-amber { -fx-background-color:#6d4b09; -fx-text-fill:#fef3c7; -fx-border-color:#9b6d12; }
+.excel-tool-red { -fx-background-color:#6e2936; -fx-text-fill:#ffe4e6; -fx-border-color:#a63f51; }
+.excel-format-active { -fx-background-color:rgba(52,211,153,.18); -fx-border-color:#34d399; -fx-border-width:2; -fx-font-weight:800; }
+.excel-format-mixed { -fx-border-color:#f59e0b; -fx-border-width:1.5; -fx-border-style:dashed; }
+.excel-format-state { -fx-text-fill:#a9bad0; -fx-font-size:10.5px; -fx-font-weight:700; }
+.excel-cell-underlined .text { -fx-underline:true; }
+.excel-grid-header-selected, .excel-grid-row-header-selected { -fx-background-color:#17365d; -fx-text-fill:#bfdbfe; -fx-font-weight:800; -fx-border-color:#60a5fa; }

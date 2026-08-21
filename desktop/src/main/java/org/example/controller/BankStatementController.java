@@ -3,6 +3,7 @@ package org.example.controller;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
@@ -17,6 +18,7 @@ import org.example.api.bank.BankStatementApiClient;
 import org.example.bank.KotakBankStatementCsvParser;
 import org.example.navigation.NavigationManager;
 import org.example.service.SessionService;
+import org.example.service.LookupService;
 import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
@@ -49,6 +51,7 @@ public class BankStatementController {
 
     private final BankStatementApiClient api = new BankStatementApiClient();
     private final KotakBankStatementCsvParser parser = new KotakBankStatementCsvParser();
+    private final LookupService lookupService = new LookupService();
     private int currentPage;
     private int totalPages;
     private long totalRows;
@@ -317,9 +320,10 @@ public class BankStatementController {
         if(lblSelected!=null)lblSelected.setText(count+" SELECTED");
         if(btnBulkReview!=null)btnBulkReview.setDisable(count==0);
         if(btnBulkIgnore!=null)btnBulkIgnore.setDisable(count==0);
-        boolean one=count==1 && Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(selected.getFirst().dto.status()));
-        if(btnMoveExpense!=null)btnMoveExpense.setDisable(!one || selected.getFirst().dto.debit()<=0);
-        if(btnMoveBankEntry!=null)btnMoveBankEntry.setDisable(!one);
+        boolean allOpen=count>0 && selected.stream().allMatch(row->Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status())));
+        boolean allDebit=allOpen && selected.stream().allMatch(row->row.dto.debit()>0);
+        if(btnMoveExpense!=null)btnMoveExpense.setDisable(!allDebit);
+        if(btnMoveBankEntry!=null)btnMoveBankEntry.setDisable(!allOpen);
         if(chkSelectAll!=null){
             chkSelectAll.setIndeterminate(count>0&&count<table.getItems().size());
             if(!chkSelectAll.isIndeterminate())chkSelectAll.setSelected(count>0&&!table.getItems().isEmpty());
@@ -327,18 +331,51 @@ public class BankStatementController {
     }
     @FXML private void moveSelectedToExpense(){
         List<Row> rows=selectedRows();
-        if(rows.size()!=1){info("Move to Expense","Select exactly one debit transaction to create the Expense Entry.");return;}
-        Row row=rows.getFirst();
-        if(row.dto.debit()<=0 || !Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))){info("Move to Expense","Only one open debit transaction can be moved to Expense Entry.");return;}
-        moveToExpense(row);
+        if(rows.isEmpty()){info("Move to Expense","Select one or more debit transactions.");return;}
+        List<Row> invalid=rows.stream().filter(row->row.dto.debit()<=0||!Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))).toList();
+        if(!invalid.isEmpty()){info("Move to Expense",invalid.size()+" selected transaction(s) are not eligible. Only open debit transactions can be moved together.");return;}
+        showBulkExpenseDialog(rows);
     }
     @FXML private void moveSelectedToBankEntry(){
         List<Row> rows=selectedRows();
-        if(rows.size()!=1){info("Move to Bank Entry","Select exactly one open transaction to create the Bank Entry.");return;}
-        Row row=rows.getFirst();
-        if(!Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))){info("Move to Bank Entry","Only an open transaction can be moved to Bank Entry.");return;}
-        moveToBankEntry(row);
+        if(rows.isEmpty()){info("Move to Bank Entry","Select one or more open transactions.");return;}
+        List<Row> invalid=rows.stream().filter(row->!Set.of("UNMATCHED","SUGGESTED","REVIEW").contains(up(row.dto.status()))).toList();
+        if(!invalid.isEmpty()){info("Move to Bank Entry",invalid.size()+" selected transaction(s) are not eligible. Only open transactions can be moved together.");return;}
+        showBulkBankEntryDialog(rows);
     }
+
+    private void showBulkExpenseDialog(List<Row> rows){
+        List<String> categories=safeLookup("EXPENSE_CATEGORY");
+        if(categories.isEmpty()){info("Move to Expense","No Expense Category is configured in Master Data. Configure a category before using bulk move.");return;}
+        List<String> modes=safeLookup("PAYMENT_MODE");
+        Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Bulk Move to Expense");dialog.setHeaderText(rows.size()+" selected transactions • Total ₹ "+money(rows.stream().mapToDouble(r->r.dto.debit()).sum()));
+        ComboBox<String> category=new ComboBox<>(FXCollections.observableArrayList(categories));category.setPromptText("Select category *");category.setMaxWidth(Double.MAX_VALUE);
+        ComboBox<String> mode=new ComboBox<>(FXCollections.observableArrayList(modes));if(!modes.isEmpty())mode.getSelectionModel().selectFirst();mode.setMaxWidth(Double.MAX_VALUE);
+        TextField account=new TextField(batchAccountName());TextArea notes=new TextArea();notes.setPromptText("Optional note applied to all selected transactions");notes.setPrefRowCount(2);
+        GridPane grid=new GridPane();grid.setHgap(10);grid.setVgap(10);grid.addRow(0,new Label("Expense Category *"),category);grid.addRow(1,new Label("Bank Account"),account);grid.addRow(2,new Label("Payment Mode"),mode);grid.addRow(3,new Label("Common Note"),notes);GridPane.setHgrow(category,Priority.ALWAYS);GridPane.setHgrow(account,Priority.ALWAYS);GridPane.setHgrow(mode,Priority.ALWAYS);grid.setPrefWidth(560);
+        dialog.getDialogPane().setContent(grid);ButtonType move=new ButtonType("Move "+rows.size()+" Entries",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL,move);
+        Node moveButton=dialog.getDialogPane().lookupButton(move);moveButton.addEventFilter(javafx.event.ActionEvent.ACTION,e->{if(category.getValue()==null||category.getValue().isBlank()){e.consume();info("Category required","Select one Expense Category. The same category will be applied to every selected transaction.");}});
+        dialog.showAndWait().filter(move::equals).ifPresent(x->{
+            List<Long> ids=rows.stream().map(r->r.dto.id()).toList();String performedBy=user();
+            UiTaskExecutor.submitLatest("bank-statement-bulk-expense",()->api.bulkExpense(new BankStatementApiClient.BulkExpenseRequest(ids,category.getValue(),account.getText(),mode.getValue(),notes.getText(),null,performedBy)),
+                    result->{success("Bulk Expense Complete",result.message());refresh();},this::error);
+        });
+    }
+
+    private void showBulkBankEntryDialog(List<Row> rows){
+        List<String> modes=safeLookup("PAYMENT_MODE");
+        Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Bulk Move to Bank Entry");dialog.setHeaderText(rows.size()+" selected transactions • Total ₹ "+money(rows.stream().mapToDouble(r->bankAmount(r.dto)).sum()));
+        TextField account=new TextField(batchAccountName());ComboBox<String> mode=new ComboBox<>(FXCollections.observableArrayList(modes));if(!modes.isEmpty())mode.getSelectionModel().selectFirst();mode.setMaxWidth(Double.MAX_VALUE);
+        TextArea notes=new TextArea();notes.setPromptText("Optional note applied to all selected transactions");notes.setPrefRowCount(2);
+        GridPane grid=new GridPane();grid.setHgap(10);grid.setVgap(10);grid.addRow(0,new Label("Bank Account"),account);grid.addRow(1,new Label("Payment Mode"),mode);grid.addRow(2,new Label("Common Note"),notes);GridPane.setHgrow(account,Priority.ALWAYS);GridPane.setHgrow(mode,Priority.ALWAYS);grid.setPrefWidth(560);
+        dialog.getDialogPane().setContent(grid);ButtonType move=new ButtonType("Move "+rows.size()+" Entries",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL,move);
+        dialog.showAndWait().filter(move::equals).ifPresent(x->{
+            List<Long> ids=rows.stream().map(r->r.dto.id()).toList();String performedBy=user();
+            UiTaskExecutor.submitLatest("bank-statement-bulk-bank",()->api.bulkBankEntry(new BankStatementApiClient.BulkBankEntryRequest(ids,account.getText(),mode.getValue(),notes.getText(),performedBy)),
+                    result->{success("Bulk Bank Entry Complete",result.message());refresh();},this::error);
+        });
+    }
+    private List<String> safeLookup(String code){try{return lookupService.getValuesByCategoryCode(code);}catch(Exception ignored){return List.of();}}
     @FXML private void bulkMarkReview(){bulkWithReason("Mark Selected for Review","Explain what must be checked for these bank transactions.","REVIEW");}
     @FXML private void bulkIgnore(){bulkWithReason("Ignore Selected Transactions","Enter the audit reason for excluding the selected bank transactions.","IGNORE");}
     private void bulkWithReason(String title,String prompt,String action){

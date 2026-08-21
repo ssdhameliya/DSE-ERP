@@ -6,6 +6,7 @@ import org.example.config.ConfigManager;
 import org.example.dao.ItemDAO;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.TemplateData;
+import org.example.documentstudio.model.TemplateCharge;
 import org.example.invoice.calculation.AmountInWordsConverter;
 import org.example.invoice.model.TaxInvoiceItem;
 import org.example.model.Item;
@@ -14,6 +15,9 @@ import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
 import org.example.model.Sales;
 import org.example.model.SalesLine;
+import org.example.model.SalesCharge;
+import org.example.model.PurchaseCharge;
+import org.example.shared.DocumentCalculationEngine;
 import org.example.util.BusinessClock;
 
 import java.nio.file.Files;
@@ -44,27 +48,48 @@ public final class TemplateDataFactory {
         put(v, "sales.number", sale.getInvoiceNo());
         put(v, "sales.date", formatDate(sale.getInvoiceDate()));
         put(v, "sales.dueDate", formatDate(sale.getDueDate()));
+        put(v, "sales.invoiceType", sale.getInvoiceType());
         put(v, "sales.referenceNo", sale.getReferenceNo());
+        put(v, "sales.orderNo", sale.getOrderNo());
+        put(v, "sales.poDate", formatDate(sale.getPoDate()));
         put(v, "sales.paymentTerms", sale.getPaymentTerms());
         put(v, "sales.transporter", sale.getTransporter());
+        put(v, "sales.transporterGstin", sale.getTransporterGstin());
+        put(v, "sales.vehicleNo", sale.getVehicleNumber());
+        put(v, "sales.doorDelivery", sale.getDoorDelivery());
+        put(v, "sales.contactPerson", sale.getContactPerson());
+        put(v, "sales.contactMobile", sale.getContactPersonMobile());
+        put(v, "sales.transportNote", sale.getTransportNote());
         put(v, "sales.salesperson", sale.getSalesperson());
         put(v, "sales.source", sale.getSource());
         put(v, "sales.notes", sale.getNotes());
         put(v, "sales.remarks", sale.getRemarks());
         put(v, "sales.documentStatus", sale.getDocumentStatus());
         put(v, "sales.paymentStatus", sale.getPaymentStatus());
+        put(v, "sales.emailStatus", sale.isEmailSent() ? "SENT" : "PENDING");
+        put(v, "sales.whatsappStatus", sale.isWhatsappSent() ? "SENT" : "PENDING");
         put(v, "sales.billingAddress", sale.getBillingAddress());
         put(v, "sales.deliveryAddress", sale.getDeliveryAddress());
+        put(v, "sales.shippingAddress", sale.getDeliveryAddress());
+        put(v, "sales.billingGstin", sale.getBillingGstin());
+        put(v, "sales.deliveryGstin", sale.getDeliveryGstin());
+        put(v, "sales.shippingGstin", sale.getDeliveryGstin());
+        put(v, "sales.gstin", sale.getGstin());
         put(v, "sales.gstType", sale.getGstType());
+        put(v, "sales.createdAt", sale.getCreatedAt());
+        double totalSalesQuantity = sale.getLines() == null ? sale.getQuantity() : sale.getLines().stream().filter(java.util.Objects::nonNull).mapToDouble(SalesLine::getQuantity).sum();
+        put(v, "sales.totalQuantity", number(totalSalesQuantity));
+        put(v, "sales.sameAsBilling", sale.isSameAsBilling() ? "Yes" : "No");
         party(v, sale.getCustomer(), "customer");
         put(v, "totals.subtotal", money(sale.getSubtotal()));
         put(v, "totals.discountAmount", money(sale.getDiscountAmount()));
         put(v, "totals.gstAmount", money(sale.getGstAmount()));
+        putTaxTotals(v, sale.getGstAmount(), sale.getGstType());
         put(v, "totals.grandTotal", money(sale.getTotalAmount()));
         put(v, "totals.paidAmount", money(sale.getPaidAmount()));
         put(v, "totals.balanceAmount", money(sale.getBalanceAmount()));
         put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(sale.getTotalAmount()));
-        return new TemplateData(v, images, salesItems(sale), safe(sale.getGstType()));
+        return new TemplateData(v, images, salesItems(sale), salesCharges(sale), safe(sale.getGstType()));
     }
 
     public static TemplateData fromPurchase(Purchase purchase) {
@@ -83,8 +108,20 @@ public final class TemplateDataFactory {
         put(v, "purchase.warehouse", purchase.getWarehouse());
         put(v, "purchase.currency", purchase.getCurrency());
         put(v, "purchase.transporter", purchase.getTransporter());
+        put(v, "purchase.transporterGstin", purchase.getTransporterGstin());
+        put(v, "purchase.vehicleNo", purchase.getVehicleNumber());
+        put(v, "purchase.contactPerson", purchase.getContactPerson());
+        put(v, "purchase.contactMobile", purchase.getContactPersonMobile());
         put(v, "purchase.lrAwbNo", purchase.getLrAwbNo());
         put(v, "purchase.remarks", purchase.getRemarks());
+        put(v, "purchase.notes", purchase.getNotes());
+        put(v, "purchase.billingAddress", purchase.getBillingAddress());
+        put(v, "purchase.deliveryAddress", purchase.getDeliveryAddress());
+        put(v, "purchase.billingGstin", purchase.getBillingGstin());
+        put(v, "purchase.deliveryGstin", purchase.getDeliveryGstin());
+        put(v, "purchase.gstType", purchase.getGstType());
+        put(v, "purchase.orderNo", purchase.getOrderNo());
+        put(v, "purchase.poDate", formatDate(purchase.getPoDate()));
         put(v, "purchase.createdBy", purchase.getCreatedBy());
         put(v, "purchase.documentStatus", purchase.getDocumentStatus());
         put(v, "purchase.paymentStatus", purchase.getPaymentStatus());
@@ -93,11 +130,12 @@ public final class TemplateDataFactory {
         put(v, "totals.subtotal", money(purchase.getSubtotal()));
         put(v, "totals.discountAmount", money(purchase.getDiscountAmount()));
         put(v, "totals.gstAmount", money(purchase.getGstAmount()));
+        putTaxTotals(v, purchase.getGstAmount(), purchase.getGstType());
         put(v, "totals.grandTotal", money(purchase.getTotalAmount()));
         put(v, "totals.paidAmount", money(purchase.getPaidAmount()));
         put(v, "totals.balanceAmount", money(purchase.getBalanceAmount()));
         put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(purchase.getTotalAmount()));
-        return new TemplateData(v, images, purchaseItems(purchase), safe(purchase.getGstTreatment()));
+        return new TemplateData(v, images, purchaseItems(purchase), purchaseCharges(purchase), safe(purchase.getGstType()));
     }
 
     public static TemplateData fromPurchaseReturn(ReturnApiClient.Details details, Purchase originalPurchase) {
@@ -126,6 +164,7 @@ public final class TemplateDataFactory {
         }
 
         List<TaxInvoiceItem> items = new ArrayList<>();
+        Map<String, Item> itemByCode = itemMasterByCode();
         double subtotal = 0, gst = 0;
         int serial = 1;
         if (details.lines() != null) for (ReturnApiClient.Line line : details.lines()) {
@@ -133,16 +172,70 @@ public final class TemplateDataFactory {
             double taxAmount = gross * line.tax() / 100.0;
             subtotal += gross;
             gst += taxAmount;
-            items.add(new TaxInvoiceItem(serial++, "", safe(line.name()), safe(line.code()), line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax()));
+            String code = safe(line.code());
+            Item master = itemByCode.get(normalize(code));
+            items.add(itemWithMaster(serial++, code, safe(line.name()), "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
         }
         put(v, "totals.subtotal", money(subtotal));
         put(v, "totals.discountAmount", "0.00");
         put(v, "totals.gstAmount", money(gst));
+        putTaxTotals(v, gst, originalPurchase == null ? "GST" : originalPurchase.getGstType());
         put(v, "totals.grandTotal", money(details.total()));
         put(v, "totals.paidAmount", money(details.refund()));
         put(v, "totals.balanceAmount", money(Math.max(0, details.total() - details.refund())));
         put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(details.total()));
         return new TemplateData(v, images, items, originalPurchase == null ? "" : safe(originalPurchase.getGstTreatment()));
+    }
+
+    public static TemplateData fromSalesReturn(ReturnApiClient.Details details, Sales originalSale) {
+        if (details == null) throw new IllegalArgumentException("Sales return is required.");
+        Map<String, String> v = new LinkedHashMap<>();
+        Map<String, Path> images = new LinkedHashMap<>();
+        addCompanyAndPayment(v, images);
+
+        put(v, "return.number", details.no());
+        put(v, "return.date", displayDate(details.date()));
+        put(v, "return.referenceNo", details.invoice());
+        String reason = safe(details.notes());
+        if (reason.isBlank() && details.lines() != null) {
+            reason = details.lines().stream().map(ReturnApiClient.Line::reason)
+                    .filter(x -> x != null && !x.isBlank()).distinct()
+                    .reduce((a,b) -> a + "; " + b).orElse("");
+        }
+        put(v, "return.reason", reason);
+        put(v, "party.name", details.party());
+        if (originalSale != null && originalSale.getCustomer() != null) {
+            Party customer = originalSale.getCustomer();
+            put(v, "party.name", safe(details.party()).isBlank() ? customer.getName() : details.party());
+            put(v, "party.address", customer.getAddress());
+            put(v, "party.gstin", customer.getGstin());
+        } else {
+            put(v, "party.address", "");
+            put(v, "party.gstin", "");
+        }
+
+        List<TaxInvoiceItem> items = new ArrayList<>();
+        Map<String, Item> itemByCode = itemMasterByCode();
+        double subtotal = 0, gst = 0;
+        int serial = 1;
+        if (details.lines() != null) for (ReturnApiClient.Line line : details.lines()) {
+            double gross = line.quantity() * line.rate();
+            double taxAmount = gross * line.tax() / 100.0;
+            subtotal += gross;
+            gst += taxAmount;
+            String code = safe(line.code());
+            Item master = itemByCode.get(normalize(code));
+            items.add(itemWithMaster(serial++, code, safe(line.name()), "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
+        }
+        put(v, "totals.subtotal", money(subtotal));
+        put(v, "totals.discountAmount", "0.00");
+        put(v, "totals.gstAmount", money(gst));
+        putTaxTotals(v, gst, originalSale == null ? "GST" : originalSale.getGstType());
+        put(v, "totals.grandTotal", money(details.total()));
+        put(v, "totals.paidAmount", money(details.refund()));
+        put(v, "totals.balanceAmount", money(Math.max(0, details.total() - details.refund())));
+        put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(details.total()));
+        return new TemplateData(v, images, items, originalSale == null ? "" : safe(originalSale.getGstType()));
     }
 
     public static TemplateData fromQuotation(QuotationApiClient.QuoteDto quote, List<QuotationApiClient.LineDto> lines) {
@@ -176,6 +269,7 @@ public final class TemplateDataFactory {
         put(v, "totals.subtotal", money(taxable));
         put(v, "totals.discountAmount", money(quote.discount() > 0 ? quote.discount() : discount));
         put(v, "totals.gstAmount", money(gst));
+        putTaxTotals(v, gst, "GST");
         put(v, "totals.grandTotal", money(total));
         put(v, "totals.paidAmount", "0.00");
         put(v, "totals.balanceAmount", money(total));
@@ -226,7 +320,7 @@ public final class TemplateDataFactory {
         v.put("supplier.phone", "+91 90000 00000");
         v.put("supplier.email", "accounts@supplier.example");
         addSampleTotals(v, 29800, 0, 5364, 35164);
-        return new TemplateData(v, images, sampleItems(), "Registered Business");
+        return new TemplateData(v, images, sampleItems(), sampleCharges(), "Registered Business");
     }
 
     private static TemplateData samplePurchaseReturn() {
@@ -308,13 +402,46 @@ public final class TemplateDataFactory {
         v.put("sales.number", "INV-2026-00125");
         v.put("sales.date", "15-08-2026");
         v.put("sales.dueDate", "14-09-2026");
+        v.put("sales.invoiceType", "TAX INVOICE");
+        v.put("sales.referenceNo", "CUS-PO-4587");
+        v.put("sales.orderNo", "SO-2026-0042");
+        v.put("sales.poDate", "12-08-2026");
+        v.put("sales.paymentTerms", "30 Days");
+        v.put("sales.transporter", "Local Transport");
+        v.put("sales.transporterGstin", "24ABCDE1234F1Z5");
+        v.put("sales.vehicleNo", "GJ-01-AB-1234");
+        v.put("sales.doorDelivery", "Yes");
+        v.put("sales.contactPerson", "Purchase Manager");
+        v.put("sales.contactMobile", "+91 98765 43210");
+        v.put("sales.transportNote", "Handle with care");
+        v.put("sales.salesperson", "Admin");
+        v.put("sales.source", "Direct");
+        v.put("sales.notes", "Thank you for your business.");
+        v.put("sales.remarks", "Dispatch as agreed.");
+        v.put("sales.documentStatus", "COMPLETED");
+        v.put("sales.paymentStatus", "PENDING");
+        v.put("sales.emailStatus", "SENT");
+        v.put("sales.whatsappStatus", "PENDING");
+        v.put("sales.billingAddress", "Ahmedabad, Gujarat");
+        v.put("sales.deliveryAddress", "Sanand, Gujarat");
+        v.put("sales.shippingAddress", "Sanand, Gujarat");
+        v.put("sales.billingGstin", "24ABCDE1234F1Z5");
+        v.put("sales.deliveryGstin", "24ABCDE1234F1Z5");
+        v.put("sales.shippingGstin", "24ABCDE1234F1Z5");
+        v.put("sales.gstin", "24ABCDE1234F1Z5");
+        v.put("sales.gstType", "GST");
+        v.put("sales.createdAt", "15-08-2026 10:30");
+        v.put("sales.totalQuantity", "6");
+        v.put("sales.sameAsBilling", "No");
+        v.put("customer.code", "CUS-001");
+        v.put("customer.contactPerson", "Purchase Manager");
         v.put("customer.name", "ABC Engineering Pvt Ltd");
         v.put("customer.address", "Ahmedabad, Gujarat");
         v.put("customer.gstin", "24ABCDE1234F1Z5");
         v.put("customer.phone", "+91 98765 43210");
         v.put("customer.email", "accounts@abcengineering.example");
         addSampleTotals(v, 29800, 0, 5364, 35164);
-        return new TemplateData(v, images, sampleItems(), "Registered Business");
+        return new TemplateData(v, images, sampleItems(), sampleCharges(), "Registered Business");
     }
 
     private static TemplateData sampleCustom() {
@@ -336,10 +463,22 @@ public final class TemplateDataFactory {
         return images;
     }
 
+    private static void putTaxTotals(Map<String, String> values, double totalTax, String taxType) {
+        DocumentCalculationEngine.TaxMode mode = DocumentCalculationEngine.taxMode(taxType);
+        double tax = DocumentCalculationEngine.money(totalTax);
+        double cgst = mode == DocumentCalculationEngine.TaxMode.GST ? DocumentCalculationEngine.money(tax / 2d) : 0d;
+        double sgst = mode == DocumentCalculationEngine.TaxMode.GST ? DocumentCalculationEngine.money(tax - cgst) : 0d;
+        double igst = mode == DocumentCalculationEngine.TaxMode.IGST ? tax : 0d;
+        values.put("totals.cgstAmount", mode == DocumentCalculationEngine.TaxMode.GST ? money(cgst) : "0.00");
+        values.put("totals.sgstAmount", mode == DocumentCalculationEngine.TaxMode.GST ? money(sgst) : "0.00");
+        values.put("totals.igstAmount", mode == DocumentCalculationEngine.TaxMode.IGST ? money(igst) : "0.00");
+    }
+
     private static void addSampleTotals(Map<String, String> v, double subtotal, double discount, double gst, double total) {
         v.put("totals.subtotal", money(subtotal));
         v.put("totals.discountAmount", money(discount));
         v.put("totals.gstAmount", money(gst));
+        putTaxTotals(v, gst, "GST");
         v.put("totals.grandTotal", money(total));
         v.put("totals.paidAmount", "0.00");
         v.put("totals.balanceAmount", money(total));
@@ -387,56 +526,81 @@ public final class TemplateDataFactory {
 
 
     private static List<TaxInvoiceItem> salesItems(Sales sale) {
-        Map<String, Item> itemByCode = new HashMap<>();
-        try {
-            for (Item item : new ItemDAO().getAll()) {
-                if (item != null && item.getItemCode() != null) itemByCode.put(normalize(item.getItemCode()), item);
-            }
-        } catch (Exception ignored) { }
+        Map<String, Item> itemByCode = itemMasterByCode();
         List<TaxInvoiceItem> items = new ArrayList<>();
         int serial = 1;
         for (SalesLine line : sale.getLines() == null ? List.<SalesLine>of() : sale.getLines()) {
             if (line == null) continue;
-            Item master = itemByCode.get(normalize(line.getItemCode()));
-            String hsn = master == null ? "" : safe(master.getHsn());
-            String unit = master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS");
-            String remarks = master == null ? "" : safe(master.getRemarks());
-            items.add(new TaxInvoiceItem(serial++, hsn, cleanDescription(line.getItemDescription(), line.getItemCode()),
-                    remarks, line.getQuantity(), unit, line.getRate(), line.getDiscountPercent(), line.getGstPercent()));
+            String code = safe(line.getItemCode());
+            Item master = itemByCode.get(normalize(code));
+            items.add(itemWithMaster(serial++, code, cleanDescription(line.getItemDescription(), code),
+                    master == null ? "" : safe(master.getRemarks()), line.getQuantity(),
+                    master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS"),
+                    line.getRate(), line.getDiscountPercent(), line.getGstPercent(), master));
         }
         return items;
     }
 
     private static List<TaxInvoiceItem> purchaseItems(Purchase purchase) {
+        Map<String, Item> itemByCode = itemMasterByCode();
+        List<TaxInvoiceItem> items = new ArrayList<>();
+        int serial = 1;
+        for (PurchaseLine line : purchase.getLines() == null ? List.<PurchaseLine>of() : purchase.getLines()) {
+            if (line == null) continue;
+            String code = safe(line.getItemCode());
+            Item master = itemByCode.get(normalize(code));
+            items.add(itemWithMaster(serial++, code, cleanDescription(line.getItemDescription(), code),
+                    master == null ? "" : safe(master.getRemarks()), line.getQuantity(),
+                    master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS"),
+                    line.getRate(), line.getDiscountPercent(), line.getGstPercent(), master));
+        }
+        return items;
+    }
+
+    private static List<TaxInvoiceItem> quotationItems(List<QuotationApiClient.LineDto> lines) {
+        Map<String, Item> itemByCode = itemMasterByCode();
+        List<TaxInvoiceItem> items = new ArrayList<>();
+        int serial = 1;
+        for (QuotationApiClient.LineDto line : lines == null ? List.<QuotationApiClient.LineDto>of() : lines) {
+            if (line == null) continue;
+            String code = safe(line.code());
+            Item master = itemByCode.get(normalize(code));
+            items.add(itemWithMaster(serial++, code, safe(line.description()), master == null ? "" : safe(master.getRemarks()),
+                    line.quantity(), master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS"),
+                    line.rate(), line.discount(), line.gst(), master));
+        }
+        return items;
+    }
+
+    private static Map<String, Item> itemMasterByCode() {
         Map<String, Item> itemByCode = new HashMap<>();
         try {
             for (Item item : new ItemDAO().getAll()) {
                 if (item != null && item.getItemCode() != null) itemByCode.put(normalize(item.getItemCode()), item);
             }
         } catch (Exception ignored) { }
-        List<TaxInvoiceItem> items = new ArrayList<>();
-        int serial = 1;
-        for (PurchaseLine line : purchase.getLines() == null ? List.<PurchaseLine>of() : purchase.getLines()) {
-            if (line == null) continue;
-            Item master = itemByCode.get(normalize(line.getItemCode()));
-            String hsn = master == null ? "" : safe(master.getHsn());
-            String unit = master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS");
-            String remarks = master == null ? "" : safe(master.getRemarks());
-            items.add(new TaxInvoiceItem(serial++, hsn, cleanDescription(line.getItemDescription(), line.getItemCode()),
-                    remarks, line.getQuantity(), unit, line.getRate(), line.getDiscountPercent(), line.getGstPercent()));
-        }
-        return items;
+        return itemByCode;
     }
 
-    private static List<TaxInvoiceItem> quotationItems(List<QuotationApiClient.LineDto> lines) {
-        List<TaxInvoiceItem> items = new ArrayList<>();
-        int serial = 1;
-        for (QuotationApiClient.LineDto line : lines == null ? List.<QuotationApiClient.LineDto>of() : lines) {
-            if (line == null) continue;
-            items.add(new TaxInvoiceItem(serial++, "", safe(line.description()), safe(line.code()),
-                    line.quantity(), "NOS", line.rate(), line.discount(), line.gst()));
-        }
-        return items;
+    private static TaxInvoiceItem itemWithMaster(int serial, String code, String description, String remarks,
+                                                  double quantity, String unit, double rate, double discount, double gst,
+                                                  Item master) {
+        String hsn = master == null ? "" : safe(master.getHsn());
+        return new TaxInvoiceItem(serial, hsn, description, remarks, quantity, unit, rate, discount, gst,
+                code,
+                master == null ? "" : safe(master.getCategory()),
+                master == null ? "" : safe(master.getBrand()),
+                master == null ? "" : safe(master.getMaterial()),
+                master == null ? "" : safe(master.getSize()),
+                master == null ? "" : safe(master.getLocation()),
+                master == null ? 0 : master.getPurchasePrice(),
+                master == null ? 0 : master.getSellingPrice(),
+                master == null ? 0 : master.getAvailableStock(),
+                master == null ? 0 : master.getOpeningStock(),
+                master == null ? 0 : master.getMinimumStock(),
+                master == null ? 0 : master.getReservedStock(),
+                master == null ? 0 : master.getGst(),
+                master == null ? 0 : master.getDiscountPercent());
     }
 
     private static String cleanDescription(String value, String code) {
@@ -447,6 +611,7 @@ public final class TemplateDataFactory {
     }
 
     private static String money(double value) { synchronized (MONEY) { return MONEY.format(value); } }
+    private static String number(double value) { return Math.rint(value)==value?String.format(Locale.ROOT,"%.0f",value):String.format(Locale.ROOT,"%.2f",value); }
     private static String formatDate(LocalDate value) { return BusinessClock.formatDate(value); }
     private static String displayDate(String value) {
         if (value == null || value.isBlank()) return "";
@@ -454,6 +619,33 @@ public final class TemplateDataFactory {
         catch (Exception ignored) { return value; }
     }
     private static void put(Map<String, String> values, String key, String value) { values.put(key, value == null ? "" : value); }
+    private static List<TemplateCharge> salesCharges(Sales sale) {
+        if (sale == null || sale.getCharges() == null) return List.of();
+        List<TemplateCharge> out = new ArrayList<>();
+        for (SalesCharge c : sale.getCharges()) {
+            if (c == null) continue;
+            out.add(new TemplateCharge(c.getChargeType(), c.getAmount(), c.isTaxable(), c.getGstPercent(), c.getTaxAmount(), c.getTotalAmount()));
+        }
+        return List.copyOf(out);
+    }
+
+    private static List<TemplateCharge> purchaseCharges(Purchase purchase) {
+        if (purchase == null || purchase.getCharges() == null) return List.of();
+        List<TemplateCharge> out = new ArrayList<>();
+        for (PurchaseCharge c : purchase.getCharges()) {
+            if (c == null) continue;
+            out.add(new TemplateCharge(c.getChargeType(), c.getAmount(), c.isTaxable(), c.getGstPercent(), c.getTaxAmount(), c.getTotalAmount()));
+        }
+        return List.copyOf(out);
+    }
+
+    private static List<TemplateCharge> sampleCharges() {
+        return List.of(
+                new TemplateCharge("Freight", 250, true, 18, 45, 295),
+                new TemplateCharge("Packing", 100, false, 0, 0, 100),
+                new TemplateCharge("Insurance", 75, true, 18, 13.50, 88.50));
+    }
+
     private static String safe(String value) { return value == null ? "" : value.trim(); }
     private static String safeOr(String value, String fallback) { String result=safe(value); return result.isBlank()?safe(fallback):result; }
     private static String normalize(String value) { return safe(value).toUpperCase(Locale.ROOT); }

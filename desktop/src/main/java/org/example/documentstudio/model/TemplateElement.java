@@ -17,6 +17,15 @@ public class TemplateElement {
     private String fieldKey = "";
     private double fontSize = 10;
     private boolean bold;
+    private boolean italic;
+    private String fontFamily = "HELVETICA";
+    private String textFit = "SHRINK";
+    private String textAlignment = "LEFT";
+    private String pageRule = "AUTO";
+    private String valueFormat = "AS_IS";
+    private String valuePrefix = "";
+    private String valueSuffix = "";
+    private boolean hideWhenBlank;
     private String textColor = "#172033";
     private String fillColor = "#FFFFFF";
     private String strokeColor = "#94A3B8";
@@ -27,12 +36,14 @@ public class TemplateElement {
     private boolean preserveAspectRatio = true;
     private String imageFit = "FIT";
     private boolean locked;
+    private String objectGroupId = "";
     private String replacementGroupId = "";
     private String replacementSourceKey = "";
     private List<String> tableColumns = new ArrayList<>(List.of(
             "serial", "hsn", "description", "qty", "unit", "rate", "gst", "amount"));
     private double rowHeight = 22;
     private double headerHeight = 24;
+    private boolean useSourceTableDesign;
     private List<PathCommand> pathCommands = new ArrayList<>();
     private boolean pathFilled;
     private boolean pathStroked = true;
@@ -60,13 +71,16 @@ public class TemplateElement {
         c.type = type;
         c.pageIndex = pageIndex;
         c.x = x; c.y = y; c.width = width; c.height = height;
-        c.text = text; c.fieldKey = fieldKey; c.fontSize = fontSize; c.bold = bold;
+        c.text = text; c.fieldKey = fieldKey; c.fontSize = fontSize; c.bold = bold; c.italic = italic;
+        c.fontFamily = fontFamily; c.textFit = textFit; c.textAlignment = textAlignment; c.pageRule = pageRule;
+        c.valueFormat = valueFormat; c.valuePrefix = valuePrefix; c.valueSuffix = valueSuffix; c.hideWhenBlank = hideWhenBlank;
         c.textColor = textColor; c.fillColor = fillColor; c.strokeColor = strokeColor;
         c.strokeWidth = strokeWidth; c.imagePath = imagePath; c.opacity = opacity; c.rotation = rotation;
         c.preserveAspectRatio = preserveAspectRatio; c.imageFit = imageFit; c.locked = locked;
+        c.objectGroupId = objectGroupId;
         c.replacementGroupId = replacementGroupId; c.replacementSourceKey = replacementSourceKey;
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
-        c.rowHeight = rowHeight; c.headerHeight = headerHeight;
+        c.rowHeight = rowHeight; c.headerHeight = headerHeight; c.useSourceTableDesign = useSourceTableDesign;
         c.pathCommands = pathCommands == null ? new ArrayList<>() : pathCommands.stream().map(PathCommand::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         c.pathFilled = pathFilled; c.pathStroked = pathStroked;
         return c;
@@ -94,6 +108,39 @@ public class TemplateElement {
     public void setFontSize(double fontSize) { this.fontSize = Math.max(5, Math.min(72, fontSize)); }
     public boolean isBold() { return bold; }
     public void setBold(boolean bold) { this.bold = bold; }
+    public boolean isItalic() { return italic; }
+    public void setItalic(boolean italic) { this.italic = italic; }
+    public String getFontFamily() { return fontFamily == null || fontFamily.isBlank() ? "HELVETICA" : fontFamily; }
+    public void setFontFamily(String fontFamily) {
+        String value = fontFamily == null ? "HELVETICA" : fontFamily.trim().toUpperCase(java.util.Locale.ROOT);
+        this.fontFamily = switch (value) { case "TIMES", "COURIER" -> value; default -> "HELVETICA"; };
+    }
+    public String getTextFit() { return textFit == null || textFit.isBlank() ? "SHRINK" : textFit; }
+    public void setTextFit(String textFit) {
+        String value = textFit == null ? "SHRINK" : textFit.trim().toUpperCase(java.util.Locale.ROOT);
+        this.textFit = switch (value) { case "WRAP", "CLIP", "FIXED" -> value; default -> "SHRINK"; };
+    }
+    public String getTextAlignment() { return textAlignment == null || textAlignment.isBlank() ? "LEFT" : textAlignment; }
+    public void setTextAlignment(String textAlignment) {
+        String value = textAlignment == null ? "LEFT" : textAlignment.trim().toUpperCase(java.util.Locale.ROOT);
+        this.textAlignment = switch (value) { case "CENTER", "RIGHT" -> value; default -> "LEFT"; };
+    }
+    public String getPageRule() { return pageRule == null || pageRule.isBlank() ? "AUTO" : pageRule; }
+    public void setPageRule(String pageRule) {
+        String value = pageRule == null ? "AUTO" : pageRule.trim().toUpperCase(java.util.Locale.ROOT);
+        this.pageRule = switch (value) { case "FIRST", "EVERY", "CONTINUATION", "LAST", "FIXED" -> value; default -> "AUTO"; };
+    }
+    public String getValueFormat() { return valueFormat == null || valueFormat.isBlank() ? "AS_IS" : valueFormat; }
+    public void setValueFormat(String valueFormat) {
+        String value = valueFormat == null ? "AS_IS" : valueFormat.trim().toUpperCase(java.util.Locale.ROOT);
+        this.valueFormat = switch (value) { case "UPPERCASE", "LOWERCASE", "TITLE_CASE", "NUMBER", "CURRENCY", "DATE" -> value; default -> "AS_IS"; };
+    }
+    public String getValuePrefix() { return valuePrefix == null ? "" : valuePrefix; }
+    public void setValuePrefix(String valuePrefix) { this.valuePrefix = valuePrefix == null ? "" : valuePrefix; }
+    public String getValueSuffix() { return valueSuffix == null ? "" : valueSuffix; }
+    public void setValueSuffix(String valueSuffix) { this.valueSuffix = valueSuffix == null ? "" : valueSuffix; }
+    public boolean isHideWhenBlank() { return hideWhenBlank; }
+    public void setHideWhenBlank(boolean hideWhenBlank) { this.hideWhenBlank = hideWhenBlank; }
     public String getTextColor() { return textColor == null ? "#172033" : textColor; }
     public void setTextColor(String textColor) { this.textColor = safeColor(textColor, "#172033"); }
     public String getFillColor() { return fillColor == null ? "#FFFFFF" : fillColor; }
@@ -121,6 +168,8 @@ public class TemplateElement {
     }
     public boolean isLocked() { return locked; }
     public void setLocked(boolean locked) { this.locked = locked; }
+    public String getObjectGroupId() { return objectGroupId == null ? "" : objectGroupId; }
+    public void setObjectGroupId(String objectGroupId) { this.objectGroupId = objectGroupId == null ? "" : objectGroupId; }
     public String getReplacementGroupId() { return replacementGroupId == null ? "" : replacementGroupId; }
     public void setReplacementGroupId(String replacementGroupId) { this.replacementGroupId = replacementGroupId == null ? "" : replacementGroupId; }
     public String getReplacementSourceKey() { return replacementSourceKey == null ? "" : replacementSourceKey; }
@@ -130,7 +179,9 @@ public class TemplateElement {
     public double getRowHeight() { return rowHeight; }
     public void setRowHeight(double rowHeight) { this.rowHeight = Math.max(12, Math.min(60, rowHeight)); }
     public double getHeaderHeight() { return headerHeight; }
-    public void setHeaderHeight(double headerHeight) { this.headerHeight = Math.max(14, Math.min(60, headerHeight)); }
+    public void setHeaderHeight(double headerHeight) { this.headerHeight = Math.max(0, Math.min(80, headerHeight)); }
+    public boolean isUseSourceTableDesign() { return useSourceTableDesign; }
+    public void setUseSourceTableDesign(boolean useSourceTableDesign) { this.useSourceTableDesign = useSourceTableDesign; }
     public List<PathCommand> getPathCommands() { return pathCommands == null ? List.of() : pathCommands; }
     public void setPathCommands(List<PathCommand> pathCommands) { this.pathCommands = new ArrayList<>(pathCommands == null ? List.of() : pathCommands); }
     public boolean isPathFilled() { return pathFilled; }

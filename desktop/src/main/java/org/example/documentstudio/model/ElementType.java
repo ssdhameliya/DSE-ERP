@@ -6,9 +6,12 @@ public enum ElementType {
     FIELD,
     IMAGE,
     IMAGE_FIELD,
+    BARCODE,
+    QR_CODE,
     RECTANGLE,
     WHITEOUT,
     LINE,
     PATH,
-    ITEM_TABLE
+    ITEM_TABLE,
+    CHARGE_TABLE
 }

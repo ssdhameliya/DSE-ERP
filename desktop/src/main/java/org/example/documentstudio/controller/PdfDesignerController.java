@@ -11,12 +11,18 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Circle;
 import javafx.stage.FileChooser;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
@@ -45,10 +51,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * <p>7.3.0 keeps the safe 7.2.7 existing-PDF editing model and generalizes
  * the same canvas for General PDF, Purchase, Quotation and future ERP document types.
- * Existing PDF content is never rewritten in-place. Detected text is selected,
- * then a whiteout + editable replacement overlay is stored in the template.
- * This keeps the original customer PDF immutable while giving the user a true
- * edit/replace workflow.</p>
+ * Existing PDF content remains the protected source. v8.2.2 makes ERP mapping
+ * the primary workflow: fields can be dragged directly onto the PDF, mapped
+ * values stay transparent in the designer, and detected source text carries its
+ * original size/style/color into a replacement mapping. Source-aware masks are
+ * used only when the user deliberately replaces printed sample text.</p>
  */
 public class PdfDesignerController implements ScreenLifecycle {
     private static final double BASE_SCALE = 1.15;
@@ -62,12 +69,12 @@ public class PdfDesignerController implements ScreenLifecycle {
     @FXML private Label lblExistingOriginal, lblImageSource, lblOpacity;
     @FXML private ComboBox<DocumentSample> cmbSampleDocument;
     @FXML private Label lblPreviewData;
-    @FXML private ComboBox<String> cmbImageFit;
+    @FXML private ComboBox<String> cmbImageFit, cmbFontFamily, cmbTextFit, cmbTextAlignment, cmbPageRule, cmbValueFormat;
     @FXML private ColorPicker colorText, colorFill, colorStroke;
-    @FXML private Button btnPreview, btnApplyProperties, btnConvertExisting, btnConvertImportedImage, btnSaveDefault, btnConnectData, btnOriginalView, btnDesignView;
+    @FXML private Button btnPreview, btnApplyProperties, btnConvertExisting, btnConvertImportedImage, btnSaveDefault, btnConnectData, btnOriginalView, btnDesignView, btnRestoreOriginal;
     @FXML private ToggleButton btnInspectPdfObject, btnEditExistingText, btnEditImportedImage, btnEditFormField, btnEditPdfBlock, btnAreaSelect;
     @FXML private Slider zoomSlider, sldOpacity;
-    @FXML private CheckBox chkSnap, chkBold, chkLocked, chkPreserveRatio;
+    @FXML private CheckBox chkSnap, chkBold, chkItalic, chkLocked, chkPreserveRatio, chkUseSourceTableDesign, chkHideWhenBlank;
     @FXML private TextField txtFieldSearch;
     @FXML private ListView<TemplateFieldDefinition> lstFields;
     @FXML private ListView<String> lstPages;
@@ -76,7 +83,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     @FXML private Pane canvasPane;
     @FXML private TextArea txtContent;
     @FXML private TextField txtX, txtY, txtWidth, txtHeight, txtRight, txtBottom, txtFontSize, txtStrokeWidth;
-    @FXML private TextField txtTableColumns, txtRowHeight, txtHeaderHeight, txtRotation;
+    @FXML private TextField txtTableColumns, txtRowHeight, txtHeaderHeight, txtRotation, txtValuePrefix, txtValueSuffix;
     @FXML private TabPane leftTabs, propertiesTabs;
     @FXML private javafx.scene.layout.VBox existingTextSection, existingFormSection, tablePropertiesSection, imagePropertiesSection;
 
@@ -101,6 +108,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     private double scale = BASE_SCALE;
     private TemplateElement selected;
     private String selectedId;
+    private final LinkedHashSet<String> selectedIds = new LinkedHashSet<>();
     private PdfTextRegion selectedPdfText;
     private PdfImageRegion selectedPdfImage;
     private PdfFormFieldRegion selectedPdfForm;
@@ -112,12 +120,18 @@ public class PdfDesignerController implements ScreenLifecycle {
     private final Map<Integer, List<PdfFormFieldRegion>> formRegionCache = new HashMap<>();
     private final Set<Integer> formRegionLoading = new HashSet<>();
     private final Map<Integer, List<PdfImageExtractionService.VectorRegion>> blockRegionCache = new HashMap<>();
+    private final Map<Integer, Image> sourcePageImageCache = new HashMap<>();
     private final Set<Integer> blockRegionLoading = new HashSet<>();
     private final Deque<List<TemplateElement>> undo = new ArrayDeque<>();
     private final Deque<List<TemplateElement>> redo = new ArrayDeque<>();
+    private final List<TemplateElement> objectClipboard = new ArrayList<>();
     private final AtomicInteger renderSequence = new AtomicInteger();
     private boolean dragging;
+    private boolean resizing;
     private double dragSceneX, dragSceneY, dragStartX, dragStartY;
+    private final Map<String, double[]> dragStartPositions = new HashMap<>();
+    private double resizeSceneX, resizeSceneY, resizeStartW, resizeStartH;
+    private static final String FIELD_DRAG_PREFIX = "DSE_PDF_FIELD:";
 
     @FXML
     public void initialize() {
@@ -147,7 +161,12 @@ public class PdfDesignerController implements ScreenLifecycle {
         configurePages(sourcePageCount);
         configureSampleDocuments();
         configureProperties();
+        configureFieldDragAndDrop();
         updateModeControls();
+        if (template.getDocumentType().isErpConnected()) {
+            leftTabs.getSelectionModel().select(1);
+            lblSaveState.setText("Map mode — drag ERP fields directly onto the PDF");
+        }
 
         zoomSlider.valueProperty().addListener((obs, old, value) -> {
             scale = BASE_SCALE * value.doubleValue() / 100.0;
@@ -198,6 +217,82 @@ public class PdfDesignerController implements ScreenLifecycle {
         });
     }
 
+    private void configureFieldDragAndDrop() {
+        lstFields.setOnDragDetected(event -> {
+            TemplateFieldDefinition field = lstFields.getSelectionModel().getSelectedItem();
+            if (field == null || previewMode || originalMode) return;
+            Dragboard board = lstFields.startDragAndDrop(TransferMode.COPY);
+            ClipboardContent content = new ClipboardContent();
+            content.putString(FIELD_DRAG_PREFIX + field.key());
+            board.setContent(content);
+            lblSaveState.setText("Drop " + field.label() + " exactly where the live value should appear");
+            event.consume();
+        });
+        canvasPane.setOnDragOver(event -> {
+            if (!previewMode && !originalMode && draggedField(event.getDragboard()) != null) {
+                event.acceptTransferModes(TransferMode.COPY);
+                event.consume();
+            }
+        });
+        canvasPane.setOnDragDropped(event -> {
+            TemplateFieldDefinition field = draggedField(event.getDragboard());
+            if (field == null || previewMode || originalMode) return;
+            var local = canvasPane.sceneToLocal(event.getSceneX(), event.getSceneY());
+            double width = field.image() ? 145 : 120;
+            double height = field.image() ? 70 : 18;
+            double x = clamp(local.getX() / scale - width / 2.0, 0, Math.max(0, pageWidth - width));
+            double y = clamp(local.getY() / scale - height / 2.0, 0, Math.max(0, pageHeight - height));
+            addMappedField(field, x, y, width, height, null);
+            event.setDropCompleted(true);
+            event.consume();
+        });
+    }
+
+    private TemplateFieldDefinition draggedField(Dragboard board) {
+        if (board == null || !board.hasString()) return null;
+        String value = board.getString();
+        if (value == null || !value.startsWith(FIELD_DRAG_PREFIX)) return null;
+        return TemplateFieldCatalog.find(template.getDocumentType(), value.substring(FIELD_DRAG_PREFIX.length()));
+    }
+
+    private void addMappedField(TemplateFieldDefinition field, double x, double y, double width, double height, PdfTextRegion sourceRegion) {
+        if (field == null || previewMode || originalMode) return;
+        checkpoint();
+        TemplateElement e = TemplateElement.of(field.image() ? ElementType.IMAGE_FIELD : ElementType.FIELD, pageIndex, x, y, width, height);
+        e.setFieldKey(field.key());
+        e.setText(field.label());
+        e.setTextFit(field.image() ? "FIXED" : "SHRINK");
+        e.setTextAlignment("LEFT");
+        if (sourceRegion != null) inheritSourceTextAppearance(e, sourceRegion);
+        List<TemplateElement> updated = new ArrayList<>(template.getElements());
+        updated.add(e);
+        template.setElements(updated);
+        selectedPdfText = null;
+        selected = e;
+        selectedId = e.getId();
+        autosave();
+        lblSaveState.setText("Mapped " + field.label() + " — drag to move, use the corner handle to resize");
+        renderCanvas();
+    }
+
+    private void inheritSourceTextAppearance(TemplateElement e, PdfTextRegion region) {
+        e.setFontSize(region.fontSize());
+        e.setBold(region.bold());
+        e.setItalic(region.italic());
+        e.setTextColor(region.textColor());
+        e.setRotation(region.rotation());
+        e.setFontFamily(fontFamilyHint(region.fontName()));
+        e.setTextFit("SHRINK");
+        e.setTextAlignment("LEFT");
+    }
+
+    private String fontFamilyHint(String name) {
+        String upper = name == null ? "" : name.toUpperCase(Locale.ROOT);
+        if (upper.contains("TIMES") || upper.contains("SERIF") || upper.contains("GEORGIA")) return "TIMES";
+        if (upper.contains("COURIER") || upper.contains("MONO")) return "COURIER";
+        return "HELVETICA";
+    }
+
     private void configurePages(int count) {
         List<String> pages = new ArrayList<>();
         for (int i = 0; i < Math.max(1, count); i++) pages.add("Page " + (i + 1));
@@ -231,6 +326,11 @@ public class PdfDesignerController implements ScreenLifecycle {
         colorStroke.setValue(Color.web("#94A3B8"));
         cmbImageFit.setItems(FXCollections.observableArrayList("FIT", "FILL", "STRETCH"));
         cmbImageFit.getSelectionModel().select("FIT");
+        if (cmbFontFamily != null) { cmbFontFamily.setItems(FXCollections.observableArrayList("HELVETICA", "TIMES", "COURIER")); cmbFontFamily.getSelectionModel().select("HELVETICA"); }
+        if (cmbTextFit != null) { cmbTextFit.setItems(FXCollections.observableArrayList("SHRINK", "WRAP", "CLIP", "FIXED")); cmbTextFit.getSelectionModel().select("SHRINK"); }
+        if (cmbTextAlignment != null) { cmbTextAlignment.setItems(FXCollections.observableArrayList("LEFT", "CENTER", "RIGHT")); cmbTextAlignment.getSelectionModel().select("LEFT"); }
+        if (cmbPageRule != null) { cmbPageRule.setItems(FXCollections.observableArrayList("AUTO", "FIXED", "FIRST", "EVERY", "CONTINUATION", "LAST")); cmbPageRule.getSelectionModel().select("AUTO"); }
+        if (cmbValueFormat != null) { cmbValueFormat.setItems(FXCollections.observableArrayList("AS_IS", "UPPERCASE", "LOWERCASE", "TITLE_CASE", "NUMBER", "CURRENCY", "DATE")); cmbValueFormat.getSelectionModel().select("AS_IS"); }
         clearProperties();
     }
 
@@ -239,9 +339,27 @@ public class PdfDesignerController implements ScreenLifecycle {
         root.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN), this::undo);
         root.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.Y, KeyCombination.SHORTCUT_DOWN), this::redo);
         root.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN), this::duplicateSelected);
+        root.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN), this::copySelected);
+        root.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN), this::cutSelected);
+        root.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN), this::pasteObjects);
         root.getScene().addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.DELETE && selected != null && !isTextInput(event.getTarget())) {
                 deleteSelected();
+                event.consume();
+            }
+            if (selected != null && !selected.isLocked() && !previewMode && !originalMode && !isTextInput(event.getTarget())
+                    && (event.getCode() == KeyCode.LEFT || event.getCode() == KeyCode.RIGHT || event.getCode() == KeyCode.UP || event.getCode() == KeyCode.DOWN)) {
+                double step = event.isShiftDown() ? 10.0 : 1.0;
+                checkpoint();
+                for (TemplateElement element : selectedElements()) {
+                    if (element.isLocked()) continue;
+                    if (event.getCode() == KeyCode.LEFT) element.setX(Math.max(0, element.getX() - step));
+                    if (event.getCode() == KeyCode.RIGHT) element.setX(Math.min(Math.max(0, pageWidth - element.getWidth()), element.getX() + step));
+                    if (event.getCode() == KeyCode.UP) element.setY(Math.max(0, element.getY() - step));
+                    if (event.getCode() == KeyCode.DOWN) element.setY(Math.min(Math.max(0, pageHeight - element.getHeight()), element.getY() + step));
+                }
+                autosave();
+                renderCanvas();
                 event.consume();
             }
         });
@@ -249,6 +367,39 @@ public class PdfDesignerController implements ScreenLifecycle {
 
     private boolean isTextInput(Object target) {
         return target instanceof TextInputControl || target instanceof ComboBoxBase<?>;
+    }
+
+    @FXML private void showMapMode() {
+        if (previewMode || originalMode) showDesign();
+        leftTabs.getSelectionModel().select(1);
+        universalObjectMode = false; existingImageMode = false; formFieldMode = false; pdfBlockMode = false; areaSelectionMode = false;
+        if (btnInspectPdfObject != null) btnInspectPdfObject.setSelected(false);
+        if (btnEditImportedImage != null) btnEditImportedImage.setSelected(false);
+        if (btnEditFormField != null) btnEditFormField.setSelected(false);
+        if (btnEditPdfBlock != null) btnEditPdfBlock.setSelected(false);
+        if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
+        lblSaveState.setText("Map mode — drag ERP fields directly onto the PDF");
+        renderCanvas();
+    }
+
+    @FXML private void showAdvancedMode() {
+        if (previewMode || originalMode) showDesign();
+        leftTabs.getSelectionModel().select(0);
+        lblSaveState.setText("Advanced edit — source PDF stays protected until you explicitly convert/replace an object");
+    }
+
+    @FXML private void startExistingTextMapping() {
+        if (previewMode || originalMode) showDesign();
+        universalObjectMode = false; existingTextMode = true; existingImageMode = false; formFieldMode = false; pdfBlockMode = false; areaSelectionMode = false;
+        if (btnInspectPdfObject != null) btnInspectPdfObject.setSelected(false);
+        if (btnEditExistingText != null) btnEditExistingText.setSelected(true);
+        if (btnEditImportedImage != null) btnEditImportedImage.setSelected(false);
+        if (btnEditFormField != null) btnEditFormField.setSelected(false);
+        if (btnEditPdfBlock != null) btnEditPdfBlock.setSelected(false);
+        if (btnAreaSelect != null) btnAreaSelect.setSelected(false);
+        clearSelection();
+        lblSaveState.setText("Detecting printed PDF text — drag an ERP field onto the value you want to map");
+        ensureTextRegions(pageIndex, true);
     }
 
     @FXML private void backToLibrary() {
@@ -376,8 +527,9 @@ public class PdfDesignerController implements ScreenLifecycle {
             areaSelectionRect = null;
             double width = selection.getWidth(), height = selection.getHeight();
             if (width >= 4 && height >= 4) {
-                TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex,
-                        selection.getX() / scale, selection.getY() / scale, width / scale, height / scale);
+                double mx = selection.getX() / scale, my = selection.getY() / scale, mw = width / scale, mh = height / scale;
+                TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex, mx, my, mw, mh);
+                mask.setFillColor(sampleBackgroundColor(mx, my, mw, mh));
                 String group = "MANUAL_AREA|" + UUID.randomUUID();
                 mask.setReplacementGroupId(group);
                 mask.setReplacementSourceKey(group);
@@ -405,26 +557,60 @@ public class PdfDesignerController implements ScreenLifecycle {
         addElement(e);
     }
 
+    @FXML private void addBarcode() { addCodeObject(ElementType.BARCODE, "{{sales.number}}", 190, 54); }
+    @FXML private void addQrCode() { addCodeObject(ElementType.QR_CODE, "{{sales.number}}", 105, 105); }
+
+    private void addCodeObject(ElementType type, String initial, double width, double height) {
+        TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial);
+        dialog.setTitle(type == ElementType.QR_CODE ? "Add QR Code" : "Add Barcode");
+        dialog.setHeaderText("Enter fixed content or an ERP token");
+        dialog.setContentText("Value (example {{sales.number}}):");
+        dialog.showAndWait().map(String::trim).filter(value -> !value.isBlank()).ifPresent(value -> {
+            TemplateElement element = newElement(type, width, height);
+            element.setText(value);
+            element.setTextColor("#000000");
+            element.setFillColor("#FFFFFF");
+            addElement(element);
+        });
+    }
+
     @FXML private void addItemTable() {
         TemplateElement e = newElement(ElementType.ITEM_TABLE, Math.max(280, pageWidth - 70), Math.min(340, pageHeight * 0.4));
         e.setX(35);
         e.setY(Math.min(300, pageHeight * 0.35));
         e.setRowHeight(22);
         e.setHeaderHeight(24);
+        e.setFontSize(7.5);
+        e.setTextColor("#172033");
+        e.setUseSourceTableDesign(true);
+        addElement(e);
+    }
+
+    @FXML private void addChargeTable() {
+        TemplateElement e = newElement(ElementType.CHARGE_TABLE, Math.max(260, pageWidth - 90), Math.min(190, pageHeight * 0.24));
+        e.setX(45);
+        e.setY(Math.min(pageHeight - 230, pageHeight * 0.62));
+        e.setTableColumns(List.of("type", "amount", "taxable", "gstPercent", "taxAmount", "total"));
+        e.setRowHeight(20);
+        e.setHeaderHeight(22);
+        e.setFontSize(7.5);
+        e.setTextColor("#172033");
+        e.setUseSourceTableDesign(true);
+        e.setPageRule("LAST");
         addElement(e);
     }
 
     @FXML private void addSelectedField() {
         TemplateFieldDefinition field = lstFields.getSelectionModel().getSelectedItem();
         if (field == null) {
-            ModernDialog.info(root, "Choose a field", "ERP Data", "Select an ERP field from the DATA tab first.");
+            ModernDialog.info(root, "Choose a field", "ERP Data", "Select an ERP field from the MAP FIELDS tab first.");
             return;
         }
-        TemplateElement e = newElement(field.image() ? ElementType.IMAGE_FIELD : ElementType.FIELD,
-                field.image() ? 155 : 200, field.image() ? 85 : 32);
-        e.setFieldKey(field.key());
-        e.setText(field.label());
-        addElement(e);
+        double width = field.image() ? 155 : 120;
+        double height = field.image() ? 85 : 18;
+        double x = Math.max(20, (pageWidth - width) / 2.0);
+        double y = Math.max(20, Math.min(pageHeight - height - 20, pageHeight * 0.22));
+        addMappedField(field, x, y, width, height, null);
     }
 
     @FXML private void toggleInspectPdfObjectMode() {
@@ -534,26 +720,27 @@ public class PdfDesignerController implements ScreenLifecycle {
     @FXML private void convertExistingToField() {
         if (selectedPdfText == null) {
             ModernDialog.info(root, "Select existing PDF text", "Convert to ERP Field",
-                    "Turn on Edit Existing PDF Text, click the printed text you want to replace, then select an ERP field from the DATA tab.");
+                    "Turn on Edit Existing PDF Text, click the printed text you want to replace, then select an ERP field from MAP FIELDS.");
             return;
         }
         TemplateFieldDefinition field = lstFields.getSelectionModel().getSelectedItem();
         if (field == null) {
             leftTabs.getSelectionModel().select(1);
             ModernDialog.info(root, "Choose an ERP field", "Convert to ERP Field",
-                    "Select the matching field in the DATA tab, then choose Convert Selected PDF Text to Field again.");
+                    "Select the matching field in MAP FIELDS, then choose Convert Selected PDF Text to Field again.");
             return;
         }
         checkpoint();
         PdfTextRegion region = selectedPdfText;
         String replacementKey = textReplacementKey(region);
         TemplateElement mask = replacementMask(region, replacementKey);
+        double width = field.image() ? Math.max(region.width(), 90) : region.width();
+        double height = field.image() ? Math.max(region.height(), 50) : region.height();
         TemplateElement fieldElement = TemplateElement.of(field.image() ? ElementType.IMAGE_FIELD : ElementType.FIELD,
-                pageIndex, region.x(), region.y(), Math.max(region.width(), field.image() ? 145 : 90),
-                Math.max(region.height(), field.image() ? 70 : region.fontSize() * 1.35));
+                pageIndex, region.x(), region.y(), width, height);
         fieldElement.setFieldKey(field.key());
         fieldElement.setText(field.label());
-        fieldElement.setFontSize(region.fontSize());
+        inheritSourceTextAppearance(fieldElement, region);
         fieldElement.setReplacementGroupId(replacementKey);
         fieldElement.setReplacementSourceKey(replacementKey);
         List<TemplateElement> updated = replacementBase(replacementKey);
@@ -564,7 +751,54 @@ public class PdfDesignerController implements ScreenLifecycle {
         selected = fieldElement;
         selectedId = fieldElement.getId();
         autosave();
+        lblSaveState.setText("Mapped source text without changing its original geometry; background mask sampled from the PDF");
         renderCanvas();
+    }
+
+    private void mapExistingFormToField(PdfFormFieldRegion region, TemplateFieldDefinition field) {
+        if (region == null || field == null || previewMode || originalMode) return;
+        checkpoint();
+        String replacementKey = formReplacementKey(region);
+        double pad = 1.5;
+        double maskX = Math.max(0, region.x() - pad), maskY = Math.max(0, region.y() - pad);
+        TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex, maskX, maskY,
+                Math.min(pageWidth - maskX, region.width() + pad * 2),
+                Math.min(pageHeight - maskY, region.height() + pad * 2));
+        mask.setFillColor(sampleBackgroundColor(region.x(), region.y(), region.width(), region.height()));
+        mask.setLocked(true); mask.setReplacementGroupId(replacementKey); mask.setReplacementSourceKey(replacementKey);
+        TemplateElement mapped = TemplateElement.of(field.image() ? ElementType.IMAGE_FIELD : ElementType.FIELD,
+                pageIndex, region.x(), region.y(),
+                field.image() ? Math.max(80, region.width()) : region.width(),
+                field.image() ? Math.max(45, region.height()) : region.height());
+        mapped.setFieldKey(field.key()); mapped.setText(field.label());
+        mapped.setFontSize(Math.max(7, Math.min(12, region.height() * .58)));
+        mapped.setTextFit(field.image() ? "FIXED" : "SHRINK");
+        mapped.setReplacementGroupId(replacementKey); mapped.setReplacementSourceKey(replacementKey);
+        List<TemplateElement> updated = replacementBase(replacementKey);
+        updated.add(mask); updated.add(mapped); template.setElements(updated);
+        selectedPdfForm = null; selected = mapped; selectedId = mapped.getId();
+        selectedIds.clear(); selectedIds.add(mapped.getId());
+        autosave(); renderCanvas();
+        lblSaveState.setText("PDF form field mapped to " + field.label());
+    }
+
+    private void mapExistingImageToField(PdfImageRegion region, TemplateFieldDefinition field) {
+        if (region == null || field == null || !field.image() || previewMode || originalMode) return;
+        checkpoint();
+        String replacementKey = "PDF_IMAGE|" + region.pageIndex() + "|" + roundedKey(region.x()) + "|" + roundedKey(region.y());
+        TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex, region.x(), region.y(), region.width(), region.height());
+        mask.setFillColor(sampleBackgroundColor(region.x(), region.y(), region.width(), region.height()));
+        mask.setLocked(true); mask.setReplacementGroupId(replacementKey); mask.setReplacementSourceKey(replacementKey);
+        TemplateElement mapped = TemplateElement.of(ElementType.IMAGE_FIELD, pageIndex,
+                region.x(), region.y(), region.width(), region.height());
+        mapped.setFieldKey(field.key()); mapped.setText(field.label()); mapped.setImageFit("FIT");
+        mapped.setReplacementGroupId(replacementKey); mapped.setReplacementSourceKey(replacementKey);
+        List<TemplateElement> updated = replacementBase(replacementKey);
+        updated.add(mask); updated.add(mapped); template.setElements(updated);
+        selectedPdfImage = null; selected = mapped; selectedId = mapped.getId();
+        selectedIds.clear(); selectedIds.add(mapped.getId());
+        autosave(); renderCanvas();
+        lblSaveState.setText("Imported image mapped to " + field.label());
     }
 
     private TemplateElement newElement(ElementType type, double width, double height) {
@@ -582,6 +816,8 @@ public class PdfDesignerController implements ScreenLifecycle {
         selectedPdfText = null;
         selectedId = e.getId();
         selected = e;
+        selectedIds.clear();
+        selectedIds.add(e.getId());
         autosave();
         renderCanvas();
     }
@@ -589,36 +825,108 @@ public class PdfDesignerController implements ScreenLifecycle {
     @FXML private void duplicateSelected() {
         if (selected == null || previewMode) return;
         checkpoint();
-        TemplateElement copy = selected.copy();
-        copy.setReplacementGroupId("");
-        copy.setReplacementSourceKey("");
-        copy.setX(Math.min(pageWidth - copy.getWidth(), selected.getX() + 12));
-        copy.setY(Math.min(pageHeight - copy.getHeight(), selected.getY() + 12));
         List<TemplateElement> updated = new ArrayList<>(template.getElements());
-        updated.add(copy);
+        List<TemplateElement> copies = new ArrayList<>();
+        for (TemplateElement original : selectedElements()) {
+            TemplateElement copy = original.copy();
+            copy.setReplacementGroupId("");
+            copy.setReplacementSourceKey("");
+            copy.setX(Math.min(pageWidth - copy.getWidth(), original.getX() + 12));
+            copy.setY(Math.min(pageHeight - copy.getHeight(), original.getY() + 12));
+            updated.add(copy);
+            copies.add(copy);
+        }
         template.setElements(updated);
-        selected = copy;
+        if (copies.size() > 1 || copies.stream().anyMatch(copy -> !copy.getObjectGroupId().isBlank())) {
+            String duplicateGroup = UUID.randomUUID().toString();
+            copies.forEach(copy -> copy.setObjectGroupId(duplicateGroup));
+        }
+        selectedIds.clear();
+        copies.forEach(copy -> selectedIds.add(copy.getId()));
+        selected = copies.getLast();
         selectedPdfText = null;
-        selectedId = copy.getId();
+        selectedId = selected.getId();
         autosave();
         renderCanvas();
     }
 
+    private void copySelected() {
+        if (selected == null || previewMode || originalMode) return;
+        objectClipboard.clear();
+        selectedElements().forEach(element -> objectClipboard.add(element.copy()));
+        lblSaveState.setText(objectClipboard.size() + " object(s) copied");
+    }
+
+    private void cutSelected() {
+        if (selected == null || selectedElements().stream().anyMatch(TemplateElement::isLocked)) return;
+        copySelected();
+        deleteSelected();
+    }
+
+    private void pasteObjects() {
+        if (objectClipboard.isEmpty() || previewMode || originalMode) return;
+        checkpoint();
+        List<TemplateElement> updated = new ArrayList<>(template.getElements());
+        List<TemplateElement> pasted = new ArrayList<>();
+        for (TemplateElement stored : objectClipboard) {
+            TemplateElement copy = stored.copy();
+            copy.setReplacementGroupId("");
+            copy.setReplacementSourceKey("");
+            copy.setPageIndex(pageIndex);
+            copy.setX(Math.min(Math.max(0, pageWidth - copy.getWidth()), copy.getX() + 12));
+            copy.setY(Math.min(Math.max(0, pageHeight - copy.getHeight()), copy.getY() + 12));
+            updated.add(copy);
+            pasted.add(copy);
+        }
+        if (pasted.size() > 1 || pasted.stream().anyMatch(copy -> !copy.getObjectGroupId().isBlank())) {
+            String pastedGroup = UUID.randomUUID().toString();
+            pasted.forEach(copy -> copy.setObjectGroupId(pastedGroup));
+        }
+        template.setElements(updated);
+        selectedIds.clear();
+        pasted.forEach(element -> selectedIds.add(element.getId()));
+        selected = pasted.getLast();
+        selectedId = selected.getId();
+        objectClipboard.clear();
+        pasted.forEach(element -> objectClipboard.add(element.copy()));
+        autosave();
+        renderCanvas();
+        lblSaveState.setText(pasted.size() + " object(s) pasted");
+    }
+
     @FXML private void deleteSelected() {
         if (selected == null || previewMode) return;
-        if (selected.isLocked()) {
+        if (selectedElements().stream().anyMatch(TemplateElement::isLocked)) {
             ModernDialog.info(root, "Object is locked", "Unlock before deleting", "Clear Lock object or use Arrange → Toggle Lock first.");
             return;
         }
         checkpoint();
-        String id = selected.getId();
-        String group = selected.getReplacementGroupId();
+        Set<String> ids = new HashSet<>(selectedIds);
+        Set<String> groups = selectedElements().stream().map(TemplateElement::getReplacementGroupId)
+                .filter(group -> group != null && !group.isBlank()).collect(java.util.stream.Collectors.toSet());
         template.setElements(template.getElements().stream().filter(e -> {
-            if (!group.isBlank() && group.equals(e.getReplacementGroupId())) return false;
-            return !e.getId().equals(id);
+            if (groups.contains(e.getReplacementGroupId())) return false;
+            return !ids.contains(e.getId());
         }).toList());
         clearSelection();
         autosave();
+        renderCanvas();
+    }
+
+    @FXML private void restoreOriginalMapping() {
+        if (selected == null || previewMode || originalMode) return;
+        String group = selected.getReplacementGroupId();
+        if (group == null || group.isBlank()) {
+            ModernDialog.info(root, "Nothing to restore", "PDF Mapping", "This object was added by Studio and is not replacing original PDF content.");
+            return;
+        }
+        checkpoint();
+        template.setElements(template.getElements().stream()
+                .filter(e -> !group.equals(e.getReplacementGroupId()) && !group.equals(e.getReplacementSourceKey()))
+                .toList());
+        clearSelection();
+        autosave();
+        lblSaveState.setText("Original PDF content restored");
         renderCanvas();
     }
 
@@ -636,7 +944,8 @@ public class PdfDesignerController implements ScreenLifecycle {
         if (selected == null) return;
         try {
             checkpoint();
-            if (selected.getType() == ElementType.TEXT) selected.setText(txtContent.getText());
+            if (selected.getType() == ElementType.TEXT || selected.getType() == ElementType.BARCODE
+                    || selected.getType() == ElementType.QR_CODE) selected.setText(txtContent.getText());
             selected.setX(parse(txtX, selected.getX()));
             selected.setY(parse(txtY, selected.getY()));
             selected.setWidth(parse(txtWidth, selected.getWidth()));
@@ -644,16 +953,26 @@ public class PdfDesignerController implements ScreenLifecycle {
             selected.setFontSize(parse(txtFontSize, selected.getFontSize()));
             selected.setStrokeWidth(parse(txtStrokeWidth, selected.getStrokeWidth()));
             selected.setBold(chkBold.isSelected());
+            if (chkItalic != null) selected.setItalic(chkItalic.isSelected());
+            if (cmbFontFamily != null && cmbFontFamily.getValue() != null) selected.setFontFamily(cmbFontFamily.getValue());
+            if (cmbTextFit != null && cmbTextFit.getValue() != null) selected.setTextFit(cmbTextFit.getValue());
+            if (cmbTextAlignment != null && cmbTextAlignment.getValue() != null) selected.setTextAlignment(cmbTextAlignment.getValue());
+            if (cmbPageRule != null && cmbPageRule.getValue() != null) selected.setPageRule(cmbPageRule.getValue());
+            if (cmbValueFormat != null && cmbValueFormat.getValue() != null) selected.setValueFormat(cmbValueFormat.getValue());
+            if (txtValuePrefix != null) selected.setValuePrefix(txtValuePrefix.getText());
+            if (txtValueSuffix != null) selected.setValueSuffix(txtValueSuffix.getText());
+            if (chkHideWhenBlank != null) selected.setHideWhenBlank(chkHideWhenBlank.isSelected());
             selected.setLocked(chkLocked.isSelected());
             selected.setTextColor(hex(colorText.getValue()));
             selected.setFillColor(hex(colorFill.getValue()));
             selected.setStrokeColor(hex(colorStroke.getValue()));
-            if (selected.getType() == ElementType.ITEM_TABLE) {
+            if (selected.getType() == ElementType.ITEM_TABLE || selected.getType() == ElementType.CHARGE_TABLE) {
                 List<String> columns = Arrays.stream(txtTableColumns.getText().split(","))
                         .map(String::trim).filter(s -> !s.isBlank()).toList();
                 if (!columns.isEmpty()) selected.setTableColumns(columns);
                 selected.setRowHeight(parse(txtRowHeight, selected.getRowHeight()));
                 selected.setHeaderHeight(parse(txtHeaderHeight, selected.getHeaderHeight()));
+                if (chkUseSourceTableDesign != null) selected.setUseSourceTableDesign(chkUseSourceTableDesign.isSelected());
             }
             selected.setOpacity(sldOpacity.getValue() / 100.0);
             selected.setRotation(parse(txtRotation, selected.getRotation()));
@@ -683,13 +1002,18 @@ public class PdfDesignerController implements ScreenLifecycle {
             if (!replacement.isBlank()) {
                 replacementElement = TemplateElement.of(ElementType.TEXT, pageIndex,
                         parse(txtX, region.x()), parse(txtY, region.y()),
-                        parse(txtWidth, region.width()), parse(txtHeight, Math.max(region.height(), region.fontSize() * 1.45)));
+                        parse(txtWidth, region.width()), parse(txtHeight, region.height()));
                 replacementElement.setText(replacement);
+                inheritSourceTextAppearance(replacementElement, region);
                 replacementElement.setFontSize(parse(txtFontSize, region.fontSize()));
                 replacementElement.setBold(chkBold.isSelected());
+                if (chkItalic != null) replacementElement.setItalic(chkItalic.isSelected());
+                if (cmbFontFamily != null && cmbFontFamily.getValue() != null) replacementElement.setFontFamily(cmbFontFamily.getValue());
+                if (cmbTextFit != null && cmbTextFit.getValue() != null) replacementElement.setTextFit(cmbTextFit.getValue());
+                if (cmbTextAlignment != null && cmbTextAlignment.getValue() != null) replacementElement.setTextAlignment(cmbTextAlignment.getValue());
                 replacementElement.setTextColor(hex(colorText.getValue()));
                 replacementElement.setOpacity(sldOpacity.getValue()/100.0);
-                replacementElement.setRotation(parse(txtRotation, 0));
+                replacementElement.setRotation(parse(txtRotation, region.rotation()));
                 replacementElement.setReplacementGroupId(replacementKey);
                 replacementElement.setReplacementSourceKey(replacementKey);
                 updated.add(replacementElement);
@@ -706,19 +1030,52 @@ public class PdfDesignerController implements ScreenLifecycle {
     }
 
     private TemplateElement replacementMask(PdfTextRegion region, String replacementKey) {
-        double padX = Math.max(2.0, region.fontSize() * 0.16);
-        double padY = Math.max(2.0, region.fontSize() * 0.20);
-        double x = Math.max(0, region.x() - padX);
-        double y = Math.max(0, region.y() - padY);
+        // Keep the mask tight to the detected glyph bounds. v8.2.2 samples the
+        // source page around the text instead of painting an unconditional white
+        // rectangle, which preserves colored invoice cells and most flat fills.
+        double pad = Math.min(0.8, Math.max(0.25, region.fontSize() * 0.04));
+        double x = Math.max(0, region.x() - pad);
+        double y = Math.max(0, region.y() - pad);
         TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex,
                 x, y,
-                Math.min(pageWidth - x, region.width() + padX * 2),
-                Math.min(pageHeight - y, region.height() + padY * 2));
+                Math.min(pageWidth - x, region.width() + pad * 2),
+                Math.min(pageHeight - y, region.height() + pad * 2));
+        mask.setFillColor(sampleBackgroundColor(region.x(), region.y(), region.width(), region.height()));
         mask.setLocked(true);
         mask.setReplacementGroupId(replacementKey);
         mask.setReplacementSourceKey(replacementKey);
         return mask;
     }
+
+    private String sampleBackgroundColor(double x, double y, double width, double height) {
+        Image image = sourcePageImageCache.get(pageIndex);
+        if (image == null || image.getPixelReader() == null || pageWidth <= 0 || pageHeight <= 0) return "#FFFFFF";
+        var reader = image.getPixelReader();
+        int iw = Math.max(1, (int) Math.round(image.getWidth()));
+        int ih = Math.max(1, (int) Math.round(image.getHeight()));
+        int left = clampInt((int) Math.floor(x / pageWidth * iw), 0, iw - 1);
+        int right = clampInt((int) Math.ceil((x + width) / pageWidth * iw), 0, iw - 1);
+        int top = clampInt((int) Math.floor(y / pageHeight * ih), 0, ih - 1);
+        int bottom = clampInt((int) Math.ceil((y + height) / pageHeight * ih), 0, ih - 1);
+        int margin = Math.max(2, (int) Math.round(iw / pageWidth * 2.0));
+        Map<Integer, Integer> colors = new HashMap<>();
+        for (int py = Math.max(0, top - margin); py <= Math.min(ih - 1, bottom + margin); py++) {
+            for (int px = Math.max(0, left - margin); px <= Math.min(iw - 1, right + margin); px++) {
+                boolean ring = px < left || px > right || py < top || py > bottom;
+                if (!ring) continue;
+                int argb = reader.getArgb(px, py);
+                int r = ((argb >> 16) & 0xFF) / 16 * 16;
+                int g = ((argb >> 8) & 0xFF) / 16 * 16;
+                int b = (argb & 0xFF) / 16 * 16;
+                int key = (r << 16) | (g << 8) | b;
+                colors.merge(key, 1, Integer::sum);
+            }
+        }
+        int rgb = colors.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(0xFFFFFF);
+        return String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF);
+    }
+
+    private int clampInt(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
 
     private String textReplacementKey(PdfTextRegion region) {
         return "PDF_TEXT|" + region.pageIndex() + "|" + roundedKey(region.x()) + "|" + roundedKey(region.y())
@@ -753,6 +1110,7 @@ public class PdfDesignerController implements ScreenLifecycle {
                     maskX, maskY,
                     Math.min(pageWidth - maskX, region.width() + padX * 2),
                     Math.min(pageHeight - maskY, region.height() + padY * 2));
+            mask.setFillColor(sampleBackgroundColor(region.x(), region.y(), region.width(), region.height()));
             mask.setLocked(true);
             mask.setReplacementGroupId(replacementKey);
             mask.setReplacementSourceKey(replacementKey);
@@ -795,6 +1153,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             PdfImageRegion region = selectedPdfImage;
             TemplateElement mask = TemplateElement.of(ElementType.WHITEOUT, pageIndex,
                     Math.max(0, region.x()), Math.max(0, region.y()), region.width(), region.height());
+            mask.setFillColor(sampleBackgroundColor(region.x(), region.y(), region.width(), region.height()));
             mask.setLocked(true);
             TemplateElement image = TemplateElement.of(ElementType.IMAGE, pageIndex,
                     region.x(), region.y(), region.width(), region.height());
@@ -948,6 +1307,43 @@ public class PdfDesignerController implements ScreenLifecycle {
             previewMode = false;
             setDesignEditingEnabled(true);
             ModernDialog.error(root, "Preview failed", "The document could not be rendered", rootMessage(error));
+        }
+    }
+
+    @FXML private void compareChanges() {
+        if (template == null || sourcePdf == null) return;
+        try {
+            Path comparisonPdf = WorkspaceManager.getTempFolder().resolve("document-studio-compare-" + template.getId() + ".pdf");
+            PdfTemplateRenderer.render(template, previewData(), comparisonPdf);
+            Image original = PdfPreviewSupport.renderPage(sourcePdf, Math.min(pageIndex, sourcePageCount - 1), 105);
+            Image revised = PdfPreviewSupport.renderPage(comparisonPdf, Math.min(pageIndex, sourcePageCount - 1), 105);
+            int width = (int) Math.min(original.getWidth(), revised.getWidth());
+            int height = (int) Math.min(original.getHeight(), revised.getHeight());
+            javafx.scene.image.WritableImage difference = new javafx.scene.image.WritableImage(width, height);
+            var originalPixels = original.getPixelReader();
+            var revisedPixels = revised.getPixelReader();
+            var outputPixels = difference.getPixelWriter();
+            long changed = 0, total = (long) width * height;
+            for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) {
+                Color before = originalPixels.getColor(x, y), after = revisedPixels.getColor(x, y);
+                double delta = Math.abs(before.getRed() - after.getRed())
+                        + Math.abs(before.getGreen() - after.getGreen()) + Math.abs(before.getBlue() - after.getBlue());
+                if (delta > .12) { outputPixels.setColor(x, y, Color.color(1, .12, .12, .82)); changed++; }
+                else outputPixels.setColor(x, y, Color.color(before.getRed(), before.getGreen(), before.getBlue(), .24));
+            }
+            double percent = total == 0 ? 0 : changed * 100.0 / total;
+            ImageView view = new ImageView(difference); view.setPreserveRatio(true); view.setFitWidth(760);
+            ScrollPane scroll = new ScrollPane(view); scroll.setFitToWidth(true); scroll.setPrefViewportHeight(620);
+            Label summary = new Label(String.format(Locale.ROOT,
+                    "Red pixels show exported changes on page %d. Changed area: %.2f%%.", pageIndex + 1, percent));
+            summary.setWrapText(true);
+            VBox content = new VBox(10, summary, scroll); content.setPrefWidth(800);
+            Dialog<Void> dialog = new org.example.util.OwnedDialog<>();
+            dialog.setTitle("Original vs Final Preview"); dialog.setHeaderText("Visual difference review");
+            dialog.getDialogPane().setContent(content); dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            dialog.showAndWait();
+        } catch (Exception error) {
+            ModernDialog.error(root, "Comparison failed", "Document Studio", rootMessage(error));
         }
     }
 
@@ -1176,6 +1572,7 @@ public class PdfDesignerController implements ScreenLifecycle {
                 if (sequence != renderSequence.get()) return;
                 canvasPane.getChildren().clear();
                 if (image != null) {
+                    if (!previewMode && !originalMode && Objects.equals(pdf, sourcePdf)) sourcePageImageCache.put(pageIndex, image);
                     ImageView background = new ImageView(image);
                     background.setPreserveRatio(false);
                     background.setFitWidth(canvasW);
@@ -1375,7 +1772,9 @@ public class PdfDesignerController implements ScreenLifecycle {
 
     private void showNoTextDetected() {
         ModernDialog.info(root, "No editable text detected", "Imported PDF",
-                "This page may be scanned, flattened, or converted to outlines. Use Replace / Hide Area for scanned content. OCR is intentionally not used in this release so the original template stays predictable.");
+                PdfTextExtractionService.ocrAvailable()
+                        ? "No reliable native or OCR text was detected. Use Replace / Hide Area for this content."
+                        : "This page may be scanned, flattened, or converted to outlines. Install Tesseract OCR or configure DSE_OCR_COMMAND, then reopen the template; Select / Hide Area remains available without OCR.");
     }
 
     private void addTextTargetsIfReady(int sequence) {
@@ -1428,6 +1827,21 @@ public class PdfDesignerController implements ScreenLifecycle {
             }
             event.consume();
         });
+        wrapper.setOnDragOver(event -> {
+            if (draggedField(event.getDragboard()) != null && !previewMode && !originalMode) {
+                event.acceptTransferModes(TransferMode.COPY);
+                event.consume();
+            }
+        });
+        wrapper.setOnDragDropped(event -> {
+            TemplateFieldDefinition field = draggedField(event.getDragboard());
+            if (field == null || previewMode || originalMode) return;
+            selectedPdfText = region;
+            lstFields.getSelectionModel().select(field);
+            convertExistingToField();
+            event.setDropCompleted(true);
+            event.consume();
+        });
         return wrapper;
     }
 
@@ -1449,6 +1863,19 @@ public class PdfDesignerController implements ScreenLifecycle {
         wrapper.setMinSize(Math.max(12, region.width() * scale), Math.max(12, region.height() * scale));
         wrapper.setMaxSize(Math.max(12, region.width() * scale), Math.max(12, region.height() * scale));
         wrapper.setOnMouseClicked(event -> { selectExistingImage(region); event.consume(); });
+        wrapper.setOnDragOver(event -> {
+            TemplateFieldDefinition field = draggedField(event.getDragboard());
+            if (field != null && field.image() && !previewMode && !originalMode) {
+                event.acceptTransferModes(TransferMode.COPY); event.consume();
+            }
+        });
+        wrapper.setOnDragDropped(event -> {
+            TemplateFieldDefinition field = draggedField(event.getDragboard());
+            if (field == null || !field.image() || previewMode || originalMode) return;
+            lstFields.getSelectionModel().select(field);
+            mapExistingImageToField(region, field);
+            event.setDropCompleted(true); event.consume();
+        });
         return wrapper;
     }
 
@@ -1464,6 +1891,18 @@ public class PdfDesignerController implements ScreenLifecycle {
         wrapper.setMinSize(Math.max(16, region.width() * scale), Math.max(12, region.height() * scale));
         wrapper.setMaxSize(Math.max(16, region.width() * scale), Math.max(12, region.height() * scale));
         wrapper.setOnMouseClicked(event -> { selectExistingForm(region); event.consume(); });
+        wrapper.setOnDragOver(event -> {
+            if (draggedField(event.getDragboard()) != null && !previewMode && !originalMode) {
+                event.acceptTransferModes(TransferMode.COPY); event.consume();
+            }
+        });
+        wrapper.setOnDragDropped(event -> {
+            TemplateFieldDefinition field = draggedField(event.getDragboard());
+            if (field == null || previewMode || originalMode) return;
+            lstFields.getSelectionModel().select(field);
+            mapExistingFormToField(region, field);
+            event.setDropCompleted(true); event.consume();
+        });
         return wrapper;
     }
 
@@ -1501,24 +1940,57 @@ public class PdfDesignerController implements ScreenLifecycle {
         StackPane wrapper = new StackPane(visual);
         wrapper.getStyleClass().addAll("pdf-designer-object", "pdf-object-" + e.getType().name().toLowerCase());
         wrapper.getProperties().put("templateElementId", e.getId());
-        if (Objects.equals(e.getId(), selectedId)) wrapper.getStyleClass().add("pdf-designer-object-selected");
+        if (selectedIds.contains(e.getId())) wrapper.getStyleClass().add("pdf-designer-object-selected");
         if (e.isLocked()) wrapper.getStyleClass().add("pdf-designer-object-locked");
         wrapper.setLayoutX(e.getX() * scale);
         wrapper.setLayoutY(e.getY() * scale);
         wrapper.setPrefSize(Math.max(4, e.getWidth() * scale), Math.max(4, e.getHeight() * scale));
         wrapper.setMinSize(Math.max(4, e.getWidth() * scale), Math.max(4, e.getHeight() * scale));
         wrapper.setMaxSize(Math.max(4, e.getWidth() * scale), Math.max(4, e.getHeight() * scale));
+        if (e.getType() == ElementType.PATH && selectedIds.contains(e.getId()) && !e.isLocked())
+            addPathNodeHandles(wrapper, e);
+        if (!e.isLocked() && e.getType() != ElementType.WHITEOUT && e.getType() != ElementType.LINE && e.getType() != ElementType.PATH) {
+            Region handle = new Region();
+            handle.getStyleClass().add("pdf-resize-handle");
+            handle.setMinSize(10, 10); handle.setPrefSize(10, 10); handle.setMaxSize(10, 10);
+            StackPane.setAlignment(handle, Pos.BOTTOM_RIGHT);
+            handle.setOnMousePressed(event -> {
+                select(e);
+                resizing = true;
+                resizeSceneX = event.getSceneX(); resizeSceneY = event.getSceneY();
+                resizeStartW = e.getWidth(); resizeStartH = e.getHeight();
+                checkpoint();
+                event.consume();
+            });
+            handle.setOnMouseDragged(event -> {
+                if (!resizing || e.isLocked()) return;
+                double dw = (event.getSceneX() - resizeSceneX) / scale;
+                double dh = (event.getSceneY() - resizeSceneY) / scale;
+                double nw = Math.max(8, Math.min(pageWidth - e.getX(), resizeStartW + dw));
+                double nh = Math.max(8, Math.min(pageHeight - e.getY(), resizeStartH + dh));
+                if (chkSnap.isSelected()) { nw = Math.max(8, Math.round(nw / 4.0) * 4.0); nh = Math.max(8, Math.round(nh / 4.0) * 4.0); }
+                e.setWidth(nw); e.setHeight(nh);
+                wrapper.setPrefSize(nw * scale, nh * scale); wrapper.setMinSize(nw * scale, nh * scale); wrapper.setMaxSize(nw * scale, nh * scale);
+                populateProperties(e);
+                event.consume();
+            });
+            handle.setOnMouseReleased(event -> { if (resizing) autosave(); resizing = false; event.consume(); });
+            wrapper.getChildren().add(handle);
+        }
         if (e.getType() != ElementType.WHITEOUT) {
             wrapper.setOpacity(e.getOpacity());
             wrapper.setRotate(e.getRotation());
         }
         wrapper.setOnMousePressed(event -> {
-            select(e);
+            select(e, event.isShortcutDown());
             dragging = !e.isLocked();
             dragSceneX = event.getSceneX();
             dragSceneY = event.getSceneY();
             dragStartX = e.getX();
             dragStartY = e.getY();
+            dragStartPositions.clear();
+            for (TemplateElement element : selectedElements())
+                dragStartPositions.put(element.getId(), new double[]{element.getX(), element.getY()});
             if (dragging) checkpoint();
             event.consume();
         });
@@ -1532,10 +2004,16 @@ public class PdfDesignerController implements ScreenLifecycle {
                 nx = Math.round(nx / 4.0) * 4.0;
                 ny = Math.round(ny / 4.0) * 4.0;
             }
-            e.setX(nx);
-            e.setY(ny);
-            wrapper.setLayoutX(nx * scale);
-            wrapper.setLayoutY(ny * scale);
+            double appliedDx = nx - dragStartX, appliedDy = ny - dragStartY;
+            for (TemplateElement element : selectedElements()) {
+                if (element.isLocked()) continue;
+                double[] start = dragStartPositions.get(element.getId());
+                if (start == null) continue;
+                element.setX(clamp(start[0] + appliedDx, 0, Math.max(0, pageWidth - element.getWidth())));
+                element.setY(clamp(start[1] + appliedDy, 0, Math.max(0, pageHeight - element.getHeight())));
+            }
+            wrapper.setLayoutX(e.getX() * scale);
+            wrapper.setLayoutY(e.getY() * scale);
             populateProperties(e);
             event.consume();
         });
@@ -1544,10 +2022,44 @@ public class PdfDesignerController implements ScreenLifecycle {
             dragging = false;
         });
         wrapper.setOnMouseClicked(event -> {
-            select(e);
+            if (!selectedIds.contains(e.getId())) select(e);
             event.consume();
         });
         return wrapper;
+    }
+
+    private void addPathNodeHandles(StackPane wrapper, TemplateElement element) {
+        for (PathCommand command : element.getPathCommands()) {
+            switch (command.getType()) {
+                case "M", "L" -> wrapper.getChildren().add(pathNodeHandle(wrapper, element, command, 1));
+                case "C" -> {
+                    wrapper.getChildren().add(pathNodeHandle(wrapper, element, command, 1));
+                    wrapper.getChildren().add(pathNodeHandle(wrapper, element, command, 2));
+                    wrapper.getChildren().add(pathNodeHandle(wrapper, element, command, 3));
+                }
+                default -> { }
+            }
+        }
+    }
+
+    private Circle pathNodeHandle(StackPane wrapper, TemplateElement element, PathCommand command, int point) {
+        double nx = point == 1 ? command.getX1() : point == 2 ? command.getX2() : command.getX3();
+        double ny = point == 1 ? command.getY1() : point == 2 ? command.getY2() : command.getY3();
+        Circle handle = new Circle(4.5, point == 3 ? Color.web("#F59E0B") : Color.web("#38BDF8"));
+        handle.setStroke(Color.WHITE); handle.setStrokeWidth(1.2); handle.setManaged(false);
+        handle.setLayoutX(nx * element.getWidth() * scale); handle.setLayoutY(ny * element.getHeight() * scale);
+        handle.setOnMousePressed(event -> { checkpoint(); event.consume(); });
+        handle.setOnMouseDragged(event -> {
+            var local = wrapper.sceneToLocal(event.getSceneX(), event.getSceneY());
+            double x = clamp(local.getX() / Math.max(1, element.getWidth() * scale), 0, 1);
+            double y = clamp(local.getY() / Math.max(1, element.getHeight() * scale), 0, 1);
+            if (point == 1) { command.setX1(x); command.setY1(y); }
+            else if (point == 2) { command.setX2(x); command.setY2(y); }
+            else { command.setX3(x); command.setY3(y); }
+            handle.setLayoutX(local.getX()); handle.setLayoutY(local.getY()); event.consume();
+        });
+        handle.setOnMouseReleased(event -> { autosave(); renderCanvas(); event.consume(); });
+        return handle;
     }
 
     private Node customImage(TemplateElement e) {
@@ -1568,6 +2080,8 @@ public class PdfDesignerController implements ScreenLifecycle {
     private String elementDisplay(TemplateElement e) {
         return switch (e.getType()) {
             case TEXT -> e.getText();
+            case BARCODE -> "▥ Barcode\n" + e.getText();
+            case QR_CODE -> "▦ QR Code\n" + e.getText();
             case FIELD, IMAGE_FIELD -> {
                 TemplateFieldDefinition f = TemplateFieldCatalog.find(template.getDocumentType(), e.getFieldKey());
                 yield (e.getType() == ElementType.IMAGE_FIELD ? "▧ " : "") + (f == null ? e.getFieldKey() : f.label());
@@ -1578,6 +2092,7 @@ public class PdfDesignerController implements ScreenLifecycle {
             case LINE -> "";
             case PATH -> "";
             case ITEM_TABLE -> "Dynamic Item Table\n" + e.getTableColumns().size() + " columns • Auto pagination";
+            case CHARGE_TABLE -> "Dynamic Charge Table\n" + e.getTableColumns().size() + " columns • Unlimited charges";
         };
     }
 
@@ -1589,32 +2104,55 @@ public class PdfDesignerController implements ScreenLifecycle {
         if (e.getType() == ElementType.WHITEOUT) css.append("-fx-background-color:white;");
         else if (e.getType() == ElementType.RECTANGLE) css.append("-fx-background-color:").append(e.getFillColor()).append("; -fx-border-color:").append(e.getStrokeColor()).append(";");
         else if (e.getType() == ElementType.ITEM_TABLE) css.append("-fx-background-color:rgba(37,99,235,.10); -fx-border-color:#2563EB; -fx-alignment:center;");
-        else if (e.getType() == ElementType.FIELD || e.getType() == ElementType.IMAGE_FIELD) css.append("-fx-background-color:rgba(37,99,235,.10); -fx-border-color:rgba(37,99,235,.65); -fx-padding:3 5;");
+        else if (e.getType() == ElementType.CHARGE_TABLE) css.append("-fx-background-color:rgba(16,185,129,.08); -fx-border-color:#10B981; -fx-alignment:center;");
+        else if (e.getType() == ElementType.FIELD || e.getType() == ElementType.IMAGE_FIELD) css.append("-fx-background-color:transparent; -fx-border-color:transparent; -fx-padding:1 2;");
         return css.toString();
     }
 
     private void select(TemplateElement e) {
+        select(e, false);
+    }
+
+    private void select(TemplateElement e, boolean additive) {
         selectedPdfText = null;
         selectedPdfImage = null;
         selectedPdfForm = null;
         selectedPdfBlock = null;
         selected = e;
         selectedId = e.getId();
-        populateProperties(e);
+        if (!additive) selectedIds.clear();
+        if (additive && selectedIds.contains(e.getId()) && selectedIds.size() > 1) selectedIds.remove(e.getId());
+        else selectedIds.add(e.getId());
+        if (!additive && !e.getObjectGroupId().isBlank()) template.getElements().stream()
+                .filter(item -> e.getObjectGroupId().equals(item.getObjectGroupId()))
+                .forEach(item -> selectedIds.add(item.getId()));
+        if (!selectedIds.contains(selectedId)) {
+            selectedId = selectedIds.isEmpty() ? null : selectedIds.getLast();
+            selected = selectedId == null ? null : template.getElements().stream().filter(item -> selectedId.equals(item.getId())).findFirst().orElse(null);
+        }
+        if (selected == null) { clearProperties(); renderCanvas(); return; }
+        populateProperties(selected);
         for (Node node : canvasPane.getChildren()) {
             node.getStyleClass().remove("pdf-designer-object-selected");
             node.getStyleClass().remove("pdf-existing-text-selected");
             node.getStyleClass().remove("pdf-existing-image-selected");
             node.getStyleClass().remove("pdf-existing-form-selected");
             node.getStyleClass().remove("pdf-existing-block-selected");
-            if (Objects.equals(node.getProperties().get("templateElementId"), selectedId))
+            if (selectedIds.contains(String.valueOf(node.getProperties().get("templateElementId"))))
                 node.getStyleClass().add("pdf-designer-object-selected");
         }
+        if (selectedIds.size() > 1) lblSelection.setText(selectedIds.size() + " OBJECTS SELECTED");
+    }
+
+    private List<TemplateElement> selectedElements() {
+        if (template == null || selectedIds.isEmpty()) return selected == null ? List.of() : List.of(selected);
+        return template.getElements().stream().filter(element -> selectedIds.contains(element.getId())).toList();
     }
 
     private void selectExisting(PdfTextRegion region) {
         selected = null;
         selectedId = null;
+        selectedIds.clear();
         selectedPdfImage = null;
         selectedPdfForm = null;
         selectedPdfBlock = null;
@@ -1627,6 +2165,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     private void selectExistingImage(PdfImageRegion region) {
         selected = null;
         selectedId = null;
+        selectedIds.clear();
         selectedPdfText = null;
         selectedPdfForm = null;
         selectedPdfBlock = null;
@@ -1652,7 +2191,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     }
 
     private void selectExistingBlock(PdfImageExtractionService.VectorRegion region){
-        selected=null;selectedId=null;selectedPdfText=null;selectedPdfImage=null;selectedPdfForm=null;selectedPdfBlock=region;
+        selected=null;selectedId=null;selectedIds.clear();selectedPdfText=null;selectedPdfImage=null;selectedPdfForm=null;selectedPdfBlock=region;
         lblSelection.setText("PDF "+region.kind()+"  •  convert to editable Studio objects");lblExistingOriginal.setText(region.primitives().size()+" vector part(s) • "+fmt(region.width())+" × "+fmt(region.height())+" pt");lblExistingOriginal.setVisible(true);lblExistingOriginal.setManaged(true);
         existingTextSection.setVisible(false);existingTextSection.setManaged(false);existingFormSection.setVisible(false);existingFormSection.setManaged(false);btnConvertExisting.setVisible(false);btnConvertExisting.setManaged(false);btnConvertImportedImage.setVisible(false);btnConvertImportedImage.setManaged(false);
         txtContent.setDisable(true);txtContent.setText("Original PDF vector object");txtX.setText(fmt(region.x()));txtY.setText(fmt(region.y()));txtWidth.setText(fmt(region.width()));txtHeight.setText(fmt(region.height()));updateDerivedGeometry(region.x(),region.y(),region.width(),region.height());txtFontSize.setText("10");
@@ -1663,6 +2202,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     private void selectExistingForm(PdfFormFieldRegion region) {
         selected = null;
         selectedId = null;
+        selectedIds.clear();
         selectedPdfText = null;
         selectedPdfImage = null;
         selectedPdfBlock = null;
@@ -1722,6 +2262,7 @@ public class PdfDesignerController implements ScreenLifecycle {
                 } else if("RECTANGLE".equals(primitive.kind())){
                     if(primitive.filled()){
                         TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,pageIndex,primitive.x(),primitive.y(),primitive.width(),primitive.height());
+                        mask.setFillColor(sampleBackgroundColor(primitive.x(),primitive.y(),primitive.width(),primitive.height()));
                         mask.setLocked(true);mask.setReplacementGroupId(group);mask.setReplacementSourceKey(group);updated.add(mask);
                         TemplateElement rect=TemplateElement.of(ElementType.RECTANGLE,pageIndex,px,py,pw,ph);
                         rect.setFillColor(chosenFill);rect.setStrokeColor(chosenStroke);rect.setStrokeWidth(primitive.stroked()?chosenStrokeWidth:0);rect.setOpacity(sldOpacity.getValue()/100.0);rect.setRotation(parse(txtRotation,0));
@@ -1743,9 +2284,9 @@ public class PdfDesignerController implements ScreenLifecycle {
         }catch(Exception error){ModernDialog.error(root,"PDF object could not be converted","Document Studio",rootMessage(error));}
     }
 
-    private TemplateElement lineMask(PdfImageExtractionService.VectorPrimitive line,String group){double pad=Math.max(1.4,line.strokeWidth()+1);double x=Math.max(0,line.x()-pad);double y=Math.max(0,line.y()-pad);TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,pageIndex,x,y,Math.min(pageWidth-x,Math.max(1,line.width())+pad*2),Math.min(pageHeight-y,Math.max(1,line.height())+pad*2));mask.setLocked(true);mask.setReplacementGroupId(group);mask.setReplacementSourceKey(group);return mask;}
+    private TemplateElement lineMask(PdfImageExtractionService.VectorPrimitive line,String group){double pad=Math.max(1.4,line.strokeWidth()+1);double x=Math.max(0,line.x()-pad);double y=Math.max(0,line.y()-pad);double w=Math.min(pageWidth-x,Math.max(1,line.width())+pad*2),h=Math.min(pageHeight-y,Math.max(1,line.height())+pad*2);TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,pageIndex,x,y,w,h);mask.setFillColor(sampleBackgroundColor(x,y,w,h));mask.setLocked(true);mask.setReplacementGroupId(group);mask.setReplacementSourceKey(group);return mask;}
     private List<PdfImageExtractionService.VectorPrimitive> rectangleEdges(PdfImageExtractionService.VectorPrimitive p){return List.of(new PdfImageExtractionService.VectorPrimitive("LINE",p.x(),p.y(),p.width(),1,"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true),new PdfImageExtractionService.VectorPrimitive("LINE",p.x(),p.y()+p.height(),p.width(),1,"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true),new PdfImageExtractionService.VectorPrimitive("LINE",p.x(),p.y(),1,p.height(),"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true),new PdfImageExtractionService.VectorPrimitive("LINE",p.x()+p.width(),p.y(),1,p.height(),"#FFFFFF",p.strokeColor(),p.strokeWidth(),false,true));}
-    private void preserveTextInside(List<TemplateElement> updated,PdfImageExtractionService.VectorPrimitive block,String group){try{List<PdfTextRegion> text=textRegionCache.get(pageIndex);if(text==null){text=PdfTextExtractionService.extract(sourcePdf,pageIndex);textRegionCache.put(pageIndex,text);}String color=isDark(block.fillColor())?"#FFFFFF":"#172033";for(PdfTextRegion region:text){double cx=region.x()+region.width()/2,cy=region.y()+region.height()/2;if(cx<block.x()||cx>block.x()+block.width()||cy<block.y()||cy>block.y()+block.height())continue;TemplateElement e=TemplateElement.of(ElementType.TEXT,pageIndex,region.x(),region.y(),region.width(),Math.max(region.height(),region.fontSize()*1.45));e.setText(region.text());e.setFontSize(region.fontSize());e.setTextColor(color);e.setReplacementGroupId(group);e.setReplacementSourceKey(group);updated.add(e);}}catch(Exception ignored){}}
+    private void preserveTextInside(List<TemplateElement> updated,PdfImageExtractionService.VectorPrimitive block,String group){try{List<PdfTextRegion> text=textRegionCache.get(pageIndex);if(text==null){text=PdfTextExtractionService.extract(sourcePdf,pageIndex);textRegionCache.put(pageIndex,text);}for(PdfTextRegion region:text){double cx=region.x()+region.width()/2,cy=region.y()+region.height()/2;if(cx<block.x()||cx>block.x()+block.width()||cy<block.y()||cy>block.y()+block.height())continue;TemplateElement e=TemplateElement.of(ElementType.TEXT,pageIndex,region.x(),region.y(),region.width(),region.height());e.setText(region.text());inheritSourceTextAppearance(e,region);e.setReplacementGroupId(group);e.setReplacementSourceKey(group);updated.add(e);}}catch(Exception ignored){}}
     private boolean isDark(String hex){try{Color c=Color.web(hex);return .2126*c.getRed()+.7152*c.getGreen()+.0722*c.getBlue()<.48;}catch(Exception ignored){return false;}}
 
     private void restoreSelectionReference() {
@@ -1775,11 +2316,17 @@ public class PdfDesignerController implements ScreenLifecycle {
         btnConvertImportedImage.setManaged(false);
         btnConvertExisting.setVisible(false);
         btnConvertExisting.setManaged(false);
+        if (btnRestoreOriginal != null) {
+            boolean restorable = !e.getReplacementGroupId().isBlank();
+            btnRestoreOriginal.setVisible(restorable);
+            btnRestoreOriginal.setManaged(restorable);
+        }
         btnApplyProperties.setText("Apply");
 
-        boolean textEditable = e.getType() == ElementType.TEXT;
+        boolean textEditable = e.getType() == ElementType.TEXT || e.getType() == ElementType.BARCODE
+                || e.getType() == ElementType.QR_CODE;
         txtContent.setDisable(!textEditable);
-        if (e.getType() == ElementType.TEXT) txtContent.setText(e.getText());
+        if (textEditable) txtContent.setText(e.getText());
         else if (e.getType() == ElementType.FIELD || e.getType() == ElementType.IMAGE_FIELD) {
             TemplateFieldDefinition f = TemplateFieldCatalog.find(template.getDocumentType(), e.getFieldKey());
             txtContent.setText(f == null ? e.getFieldKey() : f.label() + "  [" + e.getFieldKey() + "]");
@@ -1792,17 +2339,27 @@ public class PdfDesignerController implements ScreenLifecycle {
         txtFontSize.setText(fmt(e.getFontSize()));
         txtStrokeWidth.setText(fmt(e.getStrokeWidth()));
         chkBold.setSelected(e.isBold());
+        if (chkItalic != null) chkItalic.setSelected(e.isItalic());
         chkLocked.setSelected(e.isLocked());
+        if (cmbFontFamily != null) cmbFontFamily.getSelectionModel().select(e.getFontFamily());
+        if (cmbTextFit != null) cmbTextFit.getSelectionModel().select(e.getTextFit());
+        if (cmbTextAlignment != null) cmbTextAlignment.getSelectionModel().select(e.getTextAlignment());
+        if (cmbPageRule != null) cmbPageRule.getSelectionModel().select(e.getPageRule());
+        if (cmbValueFormat != null) cmbValueFormat.getSelectionModel().select(e.getValueFormat());
+        if (txtValuePrefix != null) txtValuePrefix.setText(e.getValuePrefix());
+        if (txtValueSuffix != null) txtValueSuffix.setText(e.getValueSuffix());
+        if (chkHideWhenBlank != null) chkHideWhenBlank.setSelected(e.isHideWhenBlank());
         colorText.setValue(Color.web(e.getTextColor()));
         colorFill.setValue(Color.web(e.getFillColor()));
         colorStroke.setValue(Color.web(e.getStrokeColor()));
 
-        boolean table = e.getType() == ElementType.ITEM_TABLE;
+        boolean table = e.getType() == ElementType.ITEM_TABLE || e.getType() == ElementType.CHARGE_TABLE;
         tablePropertiesSection.setVisible(table);
         tablePropertiesSection.setManaged(table);
         txtTableColumns.setText(String.join(",", e.getTableColumns()));
         txtRowHeight.setText(fmt(e.getRowHeight()));
         txtHeaderHeight.setText(fmt(e.getHeaderHeight()));
+        if (chkUseSourceTableDesign != null) chkUseSourceTableDesign.setSelected(e.isUseSourceTableDesign());
 
         sldOpacity.setValue(e.getOpacity() * 100.0);
         txtRotation.setText(fmt(e.getRotation()));
@@ -1836,6 +2393,7 @@ public class PdfDesignerController implements ScreenLifecycle {
         existingTextSection.setManaged(true);
         btnConvertExisting.setVisible(true);
         btnConvertExisting.setManaged(true);
+        if (btnRestoreOriginal != null) { btnRestoreOriginal.setVisible(false); btnRestoreOriginal.setManaged(false); }
         btnApplyProperties.setText("Replace Existing Text");
         propertiesTabs.getSelectionModel().select(0);
         propertiesTabs.getTabs().get(1).setDisable(true);
@@ -1845,15 +2403,24 @@ public class PdfDesignerController implements ScreenLifecycle {
         txtX.setText(fmt(region.x()));
         txtY.setText(fmt(region.y()));
         txtWidth.setText(fmt(region.width()));
-        txtHeight.setText(fmt(Math.max(region.height(), region.fontSize() * 1.45))); updateDerivedGeometry(region.x(),region.y(),region.width(),Math.max(region.height(), region.fontSize() * 1.45));
+        txtHeight.setText(fmt(region.height())); updateDerivedGeometry(region.x(),region.y(),region.width(),region.height());
         txtFontSize.setText(fmt(region.fontSize()));
         txtStrokeWidth.setText("0");
-        chkBold.setSelected(false);
+        chkBold.setSelected(region.bold());
+        if (chkItalic != null) chkItalic.setSelected(region.italic());
         chkLocked.setSelected(false);
-        colorText.setValue(Color.web("#172033"));
-        colorFill.setValue(Color.WHITE);
+        colorText.setValue(Color.web(region.textColor()));
+        colorFill.setValue(Color.web(sampleBackgroundColor(region.x(), region.y(), region.width(), region.height())));
+        if (cmbFontFamily != null) cmbFontFamily.getSelectionModel().select(fontFamilyHint(region.fontName()));
+        if (cmbTextFit != null) cmbTextFit.getSelectionModel().select("SHRINK");
+        if (cmbTextAlignment != null) cmbTextAlignment.getSelectionModel().select("LEFT");
+        if (cmbPageRule != null) cmbPageRule.getSelectionModel().select("AUTO");
+        if (cmbValueFormat != null) cmbValueFormat.getSelectionModel().select("AS_IS");
+        if (txtValuePrefix != null) txtValuePrefix.clear();
+        if (txtValueSuffix != null) txtValueSuffix.clear();
+        if (chkHideWhenBlank != null) chkHideWhenBlank.setSelected(false);
         colorStroke.setValue(Color.WHITE);
-        sldOpacity.setValue(100); txtRotation.setText("0");
+        sldOpacity.setValue(100); txtRotation.setText(fmt(region.rotation()));
         tablePropertiesSection.setVisible(false);
         tablePropertiesSection.setManaged(false);
     }
@@ -1866,6 +2433,7 @@ public class PdfDesignerController implements ScreenLifecycle {
     private void clearSelection() {
         selected = null;
         selectedId = null;
+        selectedIds.clear();
         selectedPdfText = null;
         selectedPdfImage = null;
         selectedPdfForm = null;
@@ -1891,17 +2459,29 @@ public class PdfDesignerController implements ScreenLifecycle {
         btnConvertImportedImage.setManaged(false);
         btnConvertExisting.setVisible(false);
         btnConvertExisting.setManaged(false);
+        if (btnRestoreOriginal != null) { btnRestoreOriginal.setVisible(false); btnRestoreOriginal.setManaged(false); }
         btnApplyProperties.setText("Apply");
         txtContent.clear();
         txtX.clear(); txtY.clear(); txtWidth.clear(); txtHeight.clear(); if(txtRight!=null)txtRight.clear(); if(txtBottom!=null)txtBottom.clear();
         txtFontSize.clear(); txtStrokeWidth.clear(); txtTableColumns.clear(); txtRowHeight.clear(); txtHeaderHeight.clear(); txtRotation.clear();
+        if (txtValuePrefix != null) txtValuePrefix.clear(); if (txtValueSuffix != null) txtValueSuffix.clear();
         txtContent.setDisable(true);
         tablePropertiesSection.setVisible(false);
         tablePropertiesSection.setManaged(false);
+        if (chkUseSourceTableDesign != null) chkUseSourceTableDesign.setSelected(false);
         propertiesTabs.getTabs().get(1).setDisable(true);
         lblImageSource.setText("Select an image object");
         cmbImageFit.getSelectionModel().select("FIT");
         chkPreserveRatio.setSelected(true);
+        chkBold.setSelected(false);
+        if (chkItalic != null) chkItalic.setSelected(false);
+        chkLocked.setSelected(false);
+        if (cmbFontFamily != null) cmbFontFamily.getSelectionModel().select("HELVETICA");
+        if (cmbTextFit != null) cmbTextFit.getSelectionModel().select("SHRINK");
+        if (cmbTextAlignment != null) cmbTextAlignment.getSelectionModel().select("LEFT");
+        if (cmbPageRule != null) cmbPageRule.getSelectionModel().select("AUTO");
+        if (cmbValueFormat != null) cmbValueFormat.getSelectionModel().select("AS_IS");
+        if (chkHideWhenBlank != null) chkHideWhenBlank.setSelected(false);
         sldOpacity.setValue(100);
     }
 
@@ -1928,16 +2508,21 @@ public class PdfDesignerController implements ScreenLifecycle {
     private void reorderSelected(int direction) {
         if (selected == null || previewMode) return;
         List<TemplateElement> list = new ArrayList<>(template.getElements());
-        int index = indexOfId(list, selected.getId());
-        if (index < 0) return;
-        int target;
-        if (direction == Integer.MAX_VALUE) target = list.size() - 1;
-        else if (direction == Integer.MIN_VALUE) target = 0;
-        else target = clampIndex(index + direction, 0, list.size() - 1);
-        if (target == index) return;
         checkpoint();
-        TemplateElement element = list.remove(index);
-        list.add(target, element);
+        List<TemplateElement> moving = list.stream().filter(element -> selectedIds.contains(element.getId())).toList();
+        if (moving.isEmpty()) return;
+        int firstIndex = list.indexOf(moving.getFirst());
+        int lastIndex = list.indexOf(moving.getLast());
+        list.removeAll(moving);
+        if (direction == Integer.MAX_VALUE) list.addAll(moving);
+        else if (direction == Integer.MIN_VALUE) list.addAll(0, moving);
+        else if (direction > 0) {
+            int target = Math.min(list.size(), Math.max(0, lastIndex - moving.size() + 2));
+            list.addAll(target, moving);
+        } else {
+            int target = Math.max(0, Math.min(list.size(), firstIndex - 1));
+            list.addAll(target, moving);
+        }
         template.setElements(list);
         autosave();
         renderCanvas();
@@ -1956,8 +2541,11 @@ public class PdfDesignerController implements ScreenLifecycle {
     private void alignSelected(Double x, Double y) {
         if (selected == null || previewMode || selected.isLocked()) return;
         checkpoint();
-        if (x != null) selected.setX(x);
-        if (y != null) selected.setY(y);
+        for (TemplateElement element : selectedElements()) {
+            if (element.isLocked()) continue;
+            if (x != null) element.setX(clamp(x, 0, Math.max(0, pageWidth - element.getWidth())));
+            if (y != null) element.setY(clamp(y, 0, Math.max(0, pageHeight - element.getHeight())));
+        }
         autosave();
         renderCanvas();
     }
@@ -1965,9 +2553,33 @@ public class PdfDesignerController implements ScreenLifecycle {
     @FXML private void toggleSelectedLock() {
         if (selected == null || previewMode) return;
         checkpoint();
-        selected.setLocked(!selected.isLocked());
+        boolean lock = selectedElements().stream().anyMatch(element -> !element.isLocked());
+        selectedElements().forEach(element -> element.setLocked(lock));
         autosave();
         renderCanvas();
+    }
+
+    @FXML private void groupSelected() {
+        List<TemplateElement> elements = selectedElements();
+        if (elements.size() < 2 || previewMode || originalMode) {
+            ModernDialog.info(root, "Select multiple objects", "Group Objects", "Use Ctrl/Cmd-click to select at least two objects first.");
+            return;
+        }
+        checkpoint();
+        String group = UUID.randomUUID().toString();
+        elements.forEach(element -> element.setObjectGroupId(group));
+        autosave(); renderCanvas(); lblSaveState.setText(elements.size() + " objects grouped");
+    }
+
+    @FXML private void ungroupSelected() {
+        List<TemplateElement> elements = selectedElements();
+        if (elements.isEmpty() || previewMode || originalMode) return;
+        checkpoint();
+        Set<String> groups = elements.stream().map(TemplateElement::getObjectGroupId)
+                .filter(group -> !group.isBlank()).collect(java.util.stream.Collectors.toSet());
+        template.getElements().stream().filter(element -> groups.contains(element.getObjectGroupId()))
+                .forEach(element -> element.setObjectGroupId(""));
+        autosave(); renderCanvas(); lblSaveState.setText("Objects ungrouped");
     }
 
     private static int indexOfId(List<TemplateElement> list, String id) {

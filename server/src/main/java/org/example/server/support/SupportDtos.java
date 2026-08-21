@@ -10,5 +10,6 @@ public final class SupportDtos { private SupportDtos(){}
  public record ReportSummary(double salesTotal,double purchaseTotal,double stockValue,List<List<String>> salesByCustomer,List<List<String>> purchasesBySupplier,List<List<String>> lowStock){}
  public record Setting(String key,String value){} public record BackupMeta(String fileName,String source,String integrityStatus,Integer schemaVersion,String applicationId,long fileSize){}
  public record AttachmentFile(String fileName,byte[] data){}
+ public record AttachmentMeta(long id,String documentType,int documentId,String fileName,String createdBy,String createdAt){}
  public record Ok(boolean success,String message){} public record Bool(boolean value){} public record Text(String value){}
 }

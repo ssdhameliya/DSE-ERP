@@ -57,7 +57,13 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V7_30_31__release_schema_guard",
                     "db/migration/V7_30_31__release_schema_guard.sql"),
             new Migration("V7_30_40__performance_indexes",
-                    "db/migration/V7_30_40__performance_indexes.sql")
+                    "db/migration/V7_30_40__performance_indexes.sql"),
+            new Migration("V8_1_0__purchase_parity_excel_studio",
+                    "db/migration/V8_1_0__purchase_parity_excel_studio.sql"),
+            new Migration("V8_2_0__excel_purchase_documents",
+                    "db/migration/V8_2_0__excel_purchase_documents.sql"),
+            new Migration("V8_2_4__reminder_status_compatibility",
+                    "db/migration/V8_2_4__reminder_status_compatibility.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -104,6 +110,7 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
     private void verifyRequiredSchema() {
         requireColumn("sales_header", "same_as_billing");
         requireColumn("notifications", "category");
+        requireColumn("reminder_register", "status");
         requireColumn("reminder_register", "snoozed_until");
         requireColumn("reminder_register", "completed_at");
         requireColumn("reminder_register", "created_by");
@@ -118,6 +125,12 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("quotation_header", "converted_invoice_no");
         requireColumn("quotation_header", "discount_amount");
         requireColumn("quotation_line", "discount_percent");
+        requireColumn("purchase_header", "billing_address");
+        requireColumn("purchase_header", "delivery_address");
+        requireColumn("purchase_header", "gst_type");
+        requireColumn("purchase_header", "same_as_billing");
+        requireTable("purchase_charge");
+        requireTable("document_attachment");
     }
 
     private void requireTable(String table) {

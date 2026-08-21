@@ -27,10 +27,14 @@ public class Purchase {
     private boolean emailSent;
 
     private List<PurchaseLine> lines = new ArrayList<>();
+    private List<PurchaseCharge> charges = new ArrayList<>();
     private LocalDate dueDate;
     private double paidAmount;
     private String paymentStatus;
     private String documentStatus="COMPLETED", warehouse, paymentTerms, currency, referenceNo, gstTreatment, transporter, lrAwbNo, discountType, attachmentPath, createdBy;
+    private String billingAddress, deliveryAddress, billingGstin, deliveryGstin, gstType, transporterGstin, vehicleNumber, contactPerson, contactPersonMobile, notes, orderNo;
+    private boolean sameAsBilling = true;
+    private LocalDate poDate;
     private LocalDate deliveryDate;
     private double discountAmount;
 
@@ -131,8 +135,12 @@ public class Purchase {
     }
 
     public void setLines(List<PurchaseLine> lines) {
-        this.lines = lines;
+        this.lines = lines == null ? new ArrayList<>() : new ArrayList<>(lines);
     }
+    public List<PurchaseCharge> getCharges(){return charges;}
+    public void setCharges(List<PurchaseCharge> values){charges=values==null?new ArrayList<>():new ArrayList<>(values);}
+    public double getChargesAmount(){return charges==null?0:charges.stream().mapToDouble(PurchaseCharge::getAmount).sum();}
+    public double getChargesTaxAmount(){return charges==null?0:charges.stream().mapToDouble(PurchaseCharge::getTaxAmount).sum();}
     public LocalDate getDueDate(){return dueDate;} public void setDueDate(LocalDate value){dueDate=value;}
     public double getPaidAmount(){return paidAmount;} public void setPaidAmount(double value){paidAmount=value;}
     public double getBalanceAmount(){return Math.max(0,totalAmount-paidAmount);}
@@ -144,4 +152,18 @@ public class Purchase {
     public String getLrAwbNo(){return lrAwbNo;} public void setLrAwbNo(String v){lrAwbNo=v;} public String getDiscountType(){return discountType;} public void setDiscountType(String v){discountType=v;}
     public double getDiscountAmount(){return discountAmount;} public void setDiscountAmount(double v){discountAmount=v;} public String getAttachmentPath(){return attachmentPath;} public void setAttachmentPath(String v){attachmentPath=v;}
     public String getCreatedBy(){return createdBy;} public void setCreatedBy(String v){createdBy=v;} public LocalDate getDeliveryDate(){return deliveryDate;} public void setDeliveryDate(LocalDate v){deliveryDate=v;}
+    public String getBillingAddress(){return billingAddress;} public void setBillingAddress(String v){billingAddress=v;}
+    public String getDeliveryAddress(){return deliveryAddress;} public void setDeliveryAddress(String v){deliveryAddress=v;}
+    public String getBillingGstin(){return billingGstin;} public void setBillingGstin(String v){billingGstin=v;}
+    public String getDeliveryGstin(){return deliveryGstin;} public void setDeliveryGstin(String v){deliveryGstin=v;}
+    public String getGstType(){return gstType==null||gstType.isBlank()?gstTreatment:gstType;} public void setGstType(String v){gstType=v; if(v!=null&&!v.isBlank())gstTreatment=v;}
+    public String getTransporterGstin(){return transporterGstin;} public void setTransporterGstin(String v){transporterGstin=v;}
+    public String getVehicleNumber(){return vehicleNumber;} public void setVehicleNumber(String v){vehicleNumber=v;}
+    public String getContactPerson(){return contactPerson;} public void setContactPerson(String v){contactPerson=v;}
+    public String getContactPersonMobile(){return contactPersonMobile;} public void setContactPersonMobile(String v){contactPersonMobile=v;}
+    public String getNotes(){return notes==null?remarks:notes;} public void setNotes(String v){notes=v;}
+    public String getOrderNo(){return orderNo;} public void setOrderNo(String v){orderNo=v;}
+    public boolean isSameAsBilling(){return sameAsBilling;} public void setSameAsBilling(boolean v){sameAsBilling=v;}
+    public LocalDate getPoDate(){return poDate;} public void setPoDate(LocalDate v){poDate=v;}
+
 }

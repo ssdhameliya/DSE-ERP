@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.shared.DocumentCalculationEngine;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
@@ -1169,36 +1170,13 @@ public class SalesController {
             )
         );
 
-        double net =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    SalesLine::getNetAmount
-                )
-                .sum();
-
-        double discount = tableLines.getItems().stream().mapToDouble(SalesLine::getDiscountAmount).sum();
-
-        double gst =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    SalesLine::getGstAmount
-                )
-                .sum();
-
         String chargeError = validateCharges(invoiceCharges);
         if (chargeError != null) { warn(chargeError); return null; }
-        double charges = invoiceCharges.stream().mapToDouble(SalesCharge::getAmount).sum();
-        double chargeTax = invoiceCharges.stream().mapToDouble(SalesCharge::getTaxAmount).sum();
-        double total = net + gst + charges + chargeTax;
-
-        sale.setSubtotal(net);
-        sale.setDiscountAmount(discount);
-
-        sale.setGstAmount(gst + chargeTax);
-
-        sale.setTotalAmount(total);
+        DocumentCalculationEngine.Totals totals = salesDocumentTotals();
+        sale.setSubtotal(totals.itemTaxable());
+        sale.setDiscountAmount(totals.discountAmount());
+        sale.setGstAmount(totals.taxAmount());
+        sale.setTotalAmount(totals.grandTotal());
 
         sale.setRemarks(txtRemarks == null ? "" : txtRemarks.getText());
         sale.setDueDate(calculatePaymentDueDate(dpInvoiceDate.getValue(), cmbPaymentTerms.getValue()));
@@ -1344,55 +1322,30 @@ public class SalesController {
 //--------------------------------------------------
 
     private void recalculate() {
-
-        double net =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    SalesLine::getNetAmount
-                )
-                .sum();
-
-        double discount = tableLines.getItems().stream().mapToDouble(SalesLine::getDiscountAmount).sum();
-
-        double gst =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    SalesLine::getGstAmount
-                )
-                .sum();
-
-        double charges = invoiceCharges.stream().mapToDouble(SalesCharge::getAmount).sum();
-        double chargeTax = invoiceCharges.stream().mapToDouble(SalesCharge::getTaxAmount).sum();
-        double total = net + gst + charges + chargeTax;
-
-        lblNetAmount.setText(
-            String.format("₹ %.2f", net)
-        );
-
-        lblDiscount.setText(String.format("₹ %.2f", discount));
-
-        lblGst.setText(
-            String.format("₹ %.2f", gst + chargeTax)
-        );
-
-        lblGrandTotal.setText(
-            String.format("₹ %.2f", total)
-        );
-
+        DocumentCalculationEngine.Totals totals = salesDocumentTotals();
+        lblNetAmount.setText(String.format("₹ %.2f", totals.itemTaxable()));
+        lblDiscount.setText(String.format("₹ %.2f", totals.discountAmount()));
+        lblGst.setText(String.format("₹ %.2f", totals.taxAmount()));
+        lblGrandTotal.setText(String.format("₹ %.2f", totals.grandTotal()));
         if (lblTotalItems != null) lblTotalItems.setText(Integer.toString(tableLines.getItems().size()));
-        if (lblBottomDiscount != null) lblBottomDiscount.setText(String.format("₹ %.2f", discount));
-        if (lblBottomTax != null) lblBottomTax.setText(String.format("₹ %.2f", gst + chargeTax));
-        if (lblBottomCharges != null) lblBottomCharges.setText(String.format("₹ %.2f", charges));
-        if (lblBottomNet != null) lblBottomNet.setText(String.format("₹ %.2f", total));
-        double taxableCharges = invoiceCharges.stream().filter(SalesCharge::isTaxable).mapToDouble(SalesCharge::getAmount).sum();
-        if (lblTaxableAmount != null) lblTaxableAmount.setText(String.format("₹ %.2f", net + taxableCharges));
-        if (lblCharges != null) lblCharges.setText(String.format("₹ %.2f", charges));
-        if (lblChargeCaption != null) {
-            lblChargeCaption.setText(invoiceCharges.isEmpty()?"Additional Charges":"Additional Charges • "+invoiceCharges.size());
-        }
+        if (lblBottomDiscount != null) lblBottomDiscount.setText(String.format("₹ %.2f", totals.discountAmount()));
+        if (lblBottomTax != null) lblBottomTax.setText(String.format("₹ %.2f", totals.taxAmount()));
+        if (lblBottomCharges != null) lblBottomCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
+        if (lblBottomNet != null) lblBottomNet.setText(String.format("₹ %.2f", totals.grandTotal()));
+        if (lblTaxableAmount != null) lblTaxableAmount.setText(String.format("₹ %.2f", totals.taxableAmount()));
+        if (lblCharges != null) lblCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
+        if (lblChargeCaption != null) lblChargeCaption.setText(invoiceCharges.isEmpty()?"Additional Charges":"Additional Charges • "+invoiceCharges.size());
+    }
 
+    private DocumentCalculationEngine.Totals salesDocumentTotals(){
+        List<DocumentCalculationEngine.LineInput> lines = tableLines.getItems().stream()
+                .map(line -> new DocumentCalculationEngine.LineInput(line.getQuantity(), line.getRate(), line.getDiscountPercent(), line.getGstPercent()))
+                .toList();
+        List<DocumentCalculationEngine.ChargeInput> charges = invoiceCharges.stream()
+                .map(charge -> new DocumentCalculationEngine.ChargeInput(charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
+                .toList();
+        String taxType = cmbGstType == null ? "GST" : safeText(cmbGstType.getValue());
+        return DocumentCalculationEngine.totals(lines, charges, DocumentCalculationEngine.taxMode(taxType));
     }
 
     @FXML
@@ -2074,6 +2027,10 @@ public class SalesController {
                 }
             });
         }
+    }
+
+    private static String safeText(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String rootMessage(Throwable error) {

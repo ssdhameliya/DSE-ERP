@@ -16,6 +16,9 @@ public final class BankReconciliationDtos {
  public record MatchRequest(String user,List<AllocationRequest> allocations){}
  public record ExpenseRequest(String category,String accountName,String paymentMode,String notes,String billPath,String user){}
  public record BankEntryRequest(String accountName,String paymentMode,String notes,String user){}
+ public record BulkExpenseRequest(List<Long> transactionIds,String category,String accountName,String paymentMode,String notes,String billPath,String user){}
+ public record BulkBankEntryRequest(List<Long> transactionIds,String accountName,String paymentMode,String notes,String user){}
+ public record BulkOperationResult(boolean success,String message,String status,int processed,List<Integer> financeEntryIds){}
  public record IgnoreRequest(String note,String user){}
  public record NoteRequest(String note,String user){}
  public record OperationResult(boolean success,String message,String status,Integer financeEntryId){}

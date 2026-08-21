@@ -1,10 +1,12 @@
 package org.example.controller;
 
 import org.example.util.BusinessClock;
+import org.example.shared.DocumentCalculationEngine;
 
 import org.example.util.OwnedChoiceDialog;
 
 import org.example.util.OwnedAlert;
+import org.example.util.OwnedDialog;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -19,6 +21,7 @@ import org.example.model.Item;
 import org.example.model.Party;
 import org.example.model.Purchase;
 import org.example.model.PurchaseLine;
+import org.example.model.PurchaseCharge;
 import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.service.ItemService;
@@ -38,17 +41,27 @@ import javafx.scene.Node;
 import org.example.util.IconFactory;
 import org.example.theme.ThemeManager;
 import org.example.config.WorkspaceManager;
+import org.example.config.ConfigManager;
 import org.example.util.PlatformUiSupport;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Locale;
+import javafx.geometry.Pos;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.GridPane;
 import java.io.File;
 
 
 public class PurchaseController {
     @FXML private Button btnAddSupplier;
+    @FXML private Button btnManageCharges;
     @FXML private javafx.scene.layout.StackPane purchasePageIcon;
 
 
@@ -82,7 +95,10 @@ public class PurchaseController {
 
     @FXML
     private TextArea txtRemarks;
-    @FXML private TextArea txtBillingAddress;
+    @FXML private TextArea txtBillingAddress, txtDeliveryAddress;
+    @FXML private TextField txtBillingGstin, txtDeliveryGstin, txtTransporterGstin, txtVehicleNumber, txtContactPerson, txtContactPersonMobile, txtOrderNo;
+    @FXML private DatePicker txtPoDate;
+    @FXML private CheckBox chkSameAsBilling;
 
 
     private PurchaseLine editingLine = null;
@@ -101,6 +117,10 @@ public class PurchaseController {
 
     @FXML
     private Label lblGrandTotal;
+    @FXML private Label lblCharges, lblTaxCaption, lblChargeManagerSummary;
+    @FXML private Label lblCgst, lblSgst, lblIgst, lblBottomTaxCaption;
+    @FXML private HBox rowCgst, rowSgst, rowIgst;
+    @FXML private Label lblTotalItems, lblBottomDiscount, lblBottomTax, lblBottomCharges, lblBottomNet, lblTaxableAmount, lblChargeCaption;
 
 
 
@@ -166,11 +186,20 @@ public class PurchaseController {
     @FXML
     private Button btnAddLine;
     @FXML private DatePicker dpDueDate, dpDeliveryDate;
-    @FXML private ComboBox<String> cmbWarehouse,cmbPaymentTerms,cmbCurrency,cmbGstTreatment,cmbTransporter,cmbDiscountType;
+    @FXML private ComboBox<String> cmbWarehouse,cmbPaymentTerms,cmbCurrency,cmbGstTreatment,cmbTransporter,cmbDiscountType,cmbGstType;
     @FXML private TextField txtReference,txtLrAwb,txtDiscount;
     @FXML private Label lblAttachment;
-    private File attachment;
-    private boolean attachmentRemoved;
+    @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove;
+    @FXML private ListView<PurchaseAttachmentEntry> listAttachments;
+    private final ObservableList<PurchaseAttachmentEntry> attachmentEntries = FXCollections.observableArrayList();
+    private final java.util.Set<Long> attachmentRemovals = new java.util.LinkedHashSet<>();
+    private record PurchaseAttachmentEntry(long id,String name,File localFile){
+        boolean pending(){return id==0&&localFile!=null;}
+        boolean legacy(){return id<0;}
+        @Override public String toString(){return name==null||name.isBlank()?"Attachment":name;}
+    }
+    private final ObservableList<PurchaseCharge> invoiceCharges = FXCollections.observableArrayList();
+    private final ObservableList<String> availableChargeTypes = FXCollections.observableArrayList();
 
 
 
@@ -179,6 +208,21 @@ public class PurchaseController {
     public void initialize(){
         if(purchasePageIcon!=null)purchasePageIcon.getChildren().setAll(IconFactory.icon("purchase",24));
         if (btnAddSupplier != null) { btnAddSupplier.setGraphic(IconFactory.compactIcon("supplier", 20)); btnAddSupplier.getProperties().put("erp-icon-preserve", true); }
+        if (chkSameAsBilling != null) {
+            Region noActionIcon = new Region();
+            noActionIcon.setMinSize(0, 0); noActionIcon.setPrefSize(0, 0); noActionIcon.setMaxSize(0, 0);
+            chkSameAsBilling.setGraphic(noActionIcon); chkSameAsBilling.setGraphicTextGap(0);
+            chkSameAsBilling.getProperties().put("erp-icon-preserve", true);
+        }
+        if (btnManageCharges != null) { btnManageCharges.setGraphic(IconFactory.compactIcon("payment", 15)); btnManageCharges.getProperties().put("erp-icon-preserve", true); }
+        if (btnAttachmentAdd != null) { btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment", 14)); btnAttachmentAdd.getProperties().put("erp-icon-preserve", true); }
+        if (btnAttachmentPreview != null) { btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view", 14)); btnAttachmentPreview.getProperties().put("erp-icon-preserve", true); }
+        if (btnAttachmentRemove != null) { btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete", 14)); btnAttachmentRemove.getProperties().put("erp-icon-preserve", true); }
+        if (listAttachments != null) {
+            listAttachments.setItems(attachmentEntries);
+            listAttachments.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+            listAttachments.getSelectionModel().selectedItemProperty().addListener((o,a,b)->updateAttachmentButtons());
+        }
         configureExplicitTableHeaderIcons();
 
 
@@ -262,9 +306,14 @@ public class PurchaseController {
 
 
         populateLookups();
+        if (cmbGstType != null) cmbGstType.valueProperty().addListener((obs,a,b) -> updateGstHeaders());
+        if (chkSameAsBilling != null) chkSameAsBilling.selectedProperty().addListener((obs,a,b) -> syncDeliveryAddressState());
+        if (txtBillingAddress != null) txtBillingAddress.textProperty().addListener((obs,a,b) -> { if (chkSameAsBilling != null && chkSameAsBilling.isSelected() && txtDeliveryAddress != null) txtDeliveryAddress.setText(b); });
+        if (txtBillingGstin != null) txtBillingGstin.textProperty().addListener((obs,a,b) -> { if (chkSameAsBilling != null && chkSameAsBilling.isSelected() && txtDeliveryGstin != null) txtDeliveryGstin.setText(b); });
+        invoiceCharges.addListener((javafx.collections.ListChangeListener<PurchaseCharge>) change -> { updateChargeManagerSummary(); recalculate(); });
         dpInvoiceDate.valueProperty().addListener((obs, oldDate, newDate) -> updateDueDate());
         cmbPaymentTerms.valueProperty().addListener((obs, oldTerm, newTerm) -> updateDueDate());
-        cmbSupplier.valueProperty().addListener((obs, oldSupplier, supplier) -> populateSupplierAddress(supplier));
+        cmbSupplier.valueProperty().addListener((obs, oldSupplier, supplier) -> { populateSupplierAddress(supplier); suggestGstTypeFromGstin(); });
         Platform.runLater(this::cleanPurchaseActions);
         newPurchase();
 
@@ -558,13 +607,7 @@ public class PurchaseController {
             persisted = true;
             Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
             if (full == null || full.getId() <= 0) throw new IllegalStateException("Saved purchase could not be reloaded for attachment update.");
-            if (attachmentRemoved) {
-                supportApi.deleteDocumentAttachment("PURCHASE", full.getId());
-                full.setAttachmentPath("");
-            } else if (attachment != null) {
-                String reference = supportApi.uploadDocumentAttachment("PURCHASE", full.getId(), attachment.toPath());
-                full.setAttachmentPath(reference);
-            }
+            persistAttachmentChanges(full);
 
             if (!org.example.config.ConfigManager.isApiDataEnabled()) saveMetadata(purchase);
             if(print) java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());
@@ -584,27 +627,43 @@ public class PurchaseController {
     private Purchase buildPurchase(){
         if(dpInvoiceDate.getValue()==null){warn("Select invoice date");return null;}
         if(cmbSupplier.getValue()==null){warn("Select supplier");return null;}
-        if(tableLines.getItems().isEmpty()){warn("Add items");return null;}
-        if(cmbPaymentTerms.getValue()==null||cmbPaymentTerms.getValue().isBlank()){
-            warn("Configure and select Payment Terms from Master Data.");
-            return null;
+        if(txtDeliveryAddress!=null&&(txtDeliveryAddress.getText()==null||txtDeliveryAddress.getText().isBlank())){warn("Enter delivery address");return null;}
+        if(chkSameAsBilling!=null&&!chkSameAsBilling.isSelected()
+                && normalized(txtBillingAddress==null?"":txtBillingAddress.getText()).equals(normalized(txtDeliveryAddress==null?"":txtDeliveryAddress.getText()))
+                && normalized(txtBillingGstin==null?"":txtBillingGstin.getText()).equals(normalized(txtDeliveryGstin==null?"":txtDeliveryGstin.getText()))){
+            warn("Delivery address and GSTIN still match billing details. Select 'Same as Billing Address' or update the delivery details.");return null;
         }
+        if(tableLines.getItems().isEmpty()){warn("Add items");return null;}
+        if(cmbPaymentTerms.getValue()==null||cmbPaymentTerms.getValue().isBlank()){warn("Configure and select Payment Terms from Master Data.");return null;}
+        if(cmbGstType!=null&&(cmbGstType.getValue()==null||cmbGstType.getValue().isBlank())){warn("Configure and select GST Type from Master Data.");return null;}
+        String chargeError=validateCharges(invoiceCharges);if(chargeError!=null){warn(chargeError);return null;}
 
         Purchase purchase=new Purchase();
+        // Preserve lifecycle/payment state while editing. Purchase entry owns header, lines, charges and attachments only.
+        if(editingPurchase!=null){
+            purchase.setId(editingPurchase.getId());
+            purchase.setCreatedAt(editingPurchase.getCreatedAt());
+            purchase.setPaidAmount(editingPurchase.getPaidAmount());
+            purchase.setPaymentStatus(editingPurchase.getPaymentStatus());
+            purchase.setDocumentStatus(editingPurchase.getDocumentStatus());
+            purchase.setEmailSent(editingPurchase.isEmailSent());
+            purchase.setCreatedBy(editingPurchase.getCreatedBy());
+            purchase.setAttachmentPath(editingPurchase.getAttachmentPath());
+        }
         purchase.setInvoiceNo(txtInvoiceNo.getText());
         purchase.setInvoiceDate(dpInvoiceDate.getValue());
         purchase.setSupplier(cmbSupplier.getValue());
         purchase.setLines(List.copyOf(tableLines.getItems()));
 
-        double net=tableLines.getItems().stream().mapToDouble(PurchaseLine::getNetAmount).sum();
-        double discount=tableLines.getItems().stream().mapToDouble(PurchaseLine::getDiscountAmount).sum();
-        double gst=tableLines.getItems().stream().mapToDouble(PurchaseLine::getGstAmount).sum();
-        purchase.setSubtotal(net);
-        purchase.setGstAmount(gst);
-        purchase.setTotalAmount(net+gst);
+        DocumentCalculationEngine.Totals totals=documentTotals();
+        double discount=totals.discountAmount();
+        purchase.setSubtotal(totals.itemTaxable());
+        purchase.setGstAmount(totals.taxAmount());
+        purchase.setTotalAmount(totals.grandTotal());
+        purchase.setCharges(invoiceCharges.stream().map(PurchaseCharge::copy).toList());
         purchase.setRemarks(txtRemarks.getText());
         purchase.setDueDate(dpDueDate.getValue());
-        purchase.setDeliveryDate(dpDueDate.getValue());
+        purchase.setDeliveryDate(dpDeliveryDate==null?dpDueDate.getValue():dpDeliveryDate.getValue());
         purchase.setWarehouse(editingPurchase==null?safeValue(cmbWarehouse.getValue(),"Main Warehouse"):safeValue(editingPurchase.getWarehouse(),cmbWarehouse.getValue()));
         purchase.setPaymentTerms(cmbPaymentTerms.getValue());
         purchase.setCurrency(editingPurchase==null?safeValue(cmbCurrency.getValue(),"INR - Indian Rupee"):safeValue(editingPurchase.getCurrency(),cmbCurrency.getValue()));
@@ -614,7 +673,20 @@ public class PurchaseController {
         purchase.setLrAwbNo(editingPurchase==null?"":safeValue(editingPurchase.getLrAwbNo(),""));
         purchase.setDiscountType("Item Level");
         purchase.setDiscountAmount(discount);
-        purchase.setAttachmentPath(attachmentRemoved?null:(editingPurchase==null?null:editingPurchase.getAttachmentPath()));
+        purchase.setAttachmentPath(editingPurchase==null?purchase.getAttachmentPath():editingPurchase.getAttachmentPath());
+        purchase.setBillingAddress(value(txtBillingAddress==null?null:txtBillingAddress.getText()));
+        purchase.setDeliveryAddress(value(txtDeliveryAddress==null?null:txtDeliveryAddress.getText()));
+        purchase.setBillingGstin(value(txtBillingGstin==null?null:txtBillingGstin.getText()));
+        purchase.setDeliveryGstin(value(txtDeliveryGstin==null?null:txtDeliveryGstin.getText()));
+        purchase.setGstType(cmbGstType==null?purchase.getGstTreatment():safeValue(cmbGstType.getValue(),purchase.getGstTreatment()));
+        purchase.setTransporterGstin(value(txtTransporterGstin==null?null:txtTransporterGstin.getText()));
+        purchase.setVehicleNumber(value(txtVehicleNumber==null?null:txtVehicleNumber.getText()));
+        purchase.setContactPerson(value(txtContactPerson==null?null:txtContactPerson.getText()));
+        purchase.setContactPersonMobile(value(txtContactPersonMobile==null?null:txtContactPersonMobile.getText()));
+        purchase.setNotes(value(txtRemarks==null?null:txtRemarks.getText()));
+        purchase.setOrderNo(value(txtOrderNo==null?null:txtOrderNo.getText()));
+        purchase.setPoDate(txtPoDate==null?null:txtPoDate.getValue());
+        purchase.setSameAsBilling(chkSameAsBilling==null||chkSameAsBilling.isSelected());
         return purchase;
     }
 
@@ -635,48 +707,91 @@ public class PurchaseController {
         }catch(Exception e){warn("Unable to save purchase note: "+e.getMessage());}
     }
 
-    @FXML private void chooseAttachment(){FileChooser f=new FileChooser();f.setTitle("Choose purchase attachment");File selected=f.showOpenDialog(tableLines.getScene().getWindow());if(selected!=null){attachment=selected;attachmentRemoved=false;lblAttachment.setText(selected.getName());}}
-    @FXML private void saveAttachment(){
-        if(editingPurchase==null||editingPurchase.getId()<=0){
-            NotificationService.add(attachmentRemoved?"Purchase attachment removal will be saved with the Purchase.":"Purchase attachment is ready and will be saved with the Purchase.");
-            return;
+    @FXML private void chooseAttachment(){
+        FileChooser chooser=new FileChooser();
+        chooser.setTitle("Add purchase attachments");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documents","*.pdf","*.png","*.jpg","*.jpeg","*.doc","*.docx","*.xls","*.xlsx","*.csv","*.txt","*.*"));
+        List<File> files=chooser.showOpenMultipleDialog(tableLines.getScene().getWindow());
+        if(files==null||files.isEmpty())return;
+        for(File file:files){
+            if(file==null||!file.isFile())continue;
+            boolean duplicate=attachmentEntries.stream().anyMatch(a->a.localFile()!=null&&a.localFile().toPath().toAbsolutePath().normalize().equals(file.toPath().toAbsolutePath().normalize()));
+            if(!duplicate)attachmentEntries.add(new PurchaseAttachmentEntry(0,file.getName(),file));
         }
-        try{
-            if(attachmentRemoved){
-                supportApi.deleteDocumentAttachment("PURCHASE",editingPurchase.getId());
-                editingPurchase.setAttachmentPath("");
-                attachment=null; attachmentRemoved=false;
-                if(lblAttachment!=null)lblAttachment.setText("No document selected");
-                NotificationService.add("Purchase attachment removed for "+editingPurchase.getInvoiceNo()+".");
-                return;
-            }
-            if(attachment==null){warn("Choose an attachment first.");return;}
-            String reference=supportApi.uploadDocumentAttachment("PURCHASE",editingPurchase.getId(),attachment.toPath());
-            editingPurchase.setAttachmentPath(reference);
-            if(lblAttachment!=null)lblAttachment.setText(attachment.getName());
-            attachment=null; attachmentRemoved=false;
-            NotificationService.add("Purchase attachment saved for "+editingPurchase.getInvoiceNo()+".");
-        }catch(Exception e){warn("Unable to save purchase attachment: "+e.getMessage());}
+        updateAttachmentButtons();
     }
+
+    /** Applies staged attachment additions/removals only after the Purchase itself has saved successfully. */
+    private void persistAttachmentChanges(Purchase full){
+        if(full==null||full.getId()<=0)return;
+        for(Long id:new ArrayList<>(attachmentRemovals)){
+            if(id==null)continue;
+            if(id<0) supportApi.deleteDocumentAttachment("PURCHASE",full.getId());
+            else supportApi.deleteDocumentAttachment("PURCHASE",full.getId(),id);
+        }
+        for(PurchaseAttachmentEntry entry:new ArrayList<>(attachmentEntries)){
+            if(entry!=null&&entry.pending()&&entry.localFile()!=null) supportApi.addDocumentAttachment("PURCHASE",full.getId(),entry.localFile().toPath());
+        }
+        attachmentRemovals.clear();
+    }
+
+    @FXML private void saveAttachment(){
+        if(editingPurchase==null||editingPurchase.getId()<=0){NotificationService.add("Purchase attachments are ready and will be saved with the Purchase.");return;}
+        try{persistAttachmentChanges(editingPurchase);loadAttachmentEntries(editingPurchase);NotificationService.add("Purchase attachments saved for "+editingPurchase.getInvoiceNo()+".");}
+        catch(Exception e){warn("Unable to save purchase attachments: "+e.getMessage());}
+    }
+
     @FXML private void viewAttachment(){
-        try{Path path;if(attachment!=null)path=attachment.toPath();else if(!attachmentRemoved&&editingPurchase!=null&&editingPurchase.getId()>0)path=materializePurchaseAttachment(supportApi.documentAttachment("PURCHASE",editingPurchase.getId()));else path=null;if(path==null||!Files.isRegularFile(path)){warn("No purchase attachment is available.");return;}java.awt.Desktop.getDesktop().open(path.toFile());}
-        catch(Exception e){warn("Unable to open the purchase attachment: "+e.getMessage());}
+        PurchaseAttachmentEntry entry=listAttachments==null?null:listAttachments.getSelectionModel().getSelectedItem();
+        if(entry==null){warn("Select an attachment to preview.");return;}
+        try{
+            Path path;
+            if(entry.pending())path=entry.localFile().toPath();
+            else if(editingPurchase!=null&&editingPurchase.getId()>0){
+                SupportApiClient.DownloadedAttachment download=entry.legacy()?supportApi.documentAttachment("PURCHASE",editingPurchase.getId()):supportApi.documentAttachment("PURCHASE",editingPurchase.getId(),entry.id());
+                path=materializePurchaseAttachment(download);
+            }else path=null;
+            if(path==null||!Files.isRegularFile(path)){warn("The selected purchase attachment is not available.");return;}
+            java.awt.Desktop.getDesktop().open(path.toFile());
+        }catch(Exception e){warn("Unable to open the purchase attachment: "+e.getMessage());}
     }
     private Path materializePurchaseAttachment(SupportApiClient.DownloadedAttachment download)throws Exception{if(download==null||download.data()==null||download.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String name=sanitizeAttachmentFileName(download.fileName());Path target=folder.resolve(System.currentTimeMillis()+"-"+name);Files.write(target,download.data());target.toFile().deleteOnExit();return target;}
+
     @FXML private void removeAttachment(){
-        boolean hasAttachment = attachment != null
-            || (!attachmentRemoved && editingPurchase != null && editingPurchase.getAttachmentPath() != null
-                && !editingPurchase.getAttachmentPath().isBlank());
-        if (hasAttachment && !confirmAction("Remove attachment", "Remove the selected purchase attachment?")) return;
-        attachment=null;attachmentRemoved=true;if(lblAttachment!=null)lblAttachment.setText("No document selected");
+        PurchaseAttachmentEntry entry=listAttachments==null?null:listAttachments.getSelectionModel().getSelectedItem();
+        if(entry==null){warn("Select an attachment to remove.");return;}
+        if(!confirmAction("Remove attachment","Remove "+entry.name()+" from this Purchase?"))return;
+        if(!entry.pending())attachmentRemovals.add(entry.id());
+        attachmentEntries.remove(entry);
+        updateAttachmentButtons();
     }
+
+    private void loadAttachmentEntries(Purchase purchase){
+        attachmentEntries.clear();attachmentRemovals.clear();
+        if(purchase!=null&&purchase.getId()>0){
+            try{for(SupportApiClient.AttachmentMeta meta:supportApi.documentAttachments("PURCHASE",purchase.getId()))attachmentEntries.add(new PurchaseAttachmentEntry(meta.id(),meta.fileName(),null));}
+            catch(Exception ignored){}
+            if(attachmentEntries.isEmpty()&&purchase.getAttachmentPath()!=null&&!purchase.getAttachmentPath().isBlank()){
+                String name=purchase.getAttachmentPath();try{name=Path.of(name).getFileName().toString();}catch(Exception ignored){}
+                attachmentEntries.add(new PurchaseAttachmentEntry(-1,name,null));
+            }
+        }
+        updateAttachmentButtons();
+    }
+    private void updateAttachmentButtons(){
+        PurchaseAttachmentEntry selected=listAttachments==null?null:listAttachments.getSelectionModel().getSelectedItem();
+        if(btnAttachmentPreview!=null)btnAttachmentPreview.setDisable(selected==null);
+        if(btnAttachmentRemove!=null)btnAttachmentRemove.setDisable(selected==null);
+        if(lblAttachment!=null)lblAttachment.setText(attachmentEntries.isEmpty()?"No attachments":attachmentEntries.size()+" attachment"+(attachmentEntries.size()==1?"":"s"));
+    }
+
     @FXML private void clearLines(){
         if(tableLines.getItems().isEmpty()) return;
         if(!confirmAction("Clear purchase items", "Remove all current lines from this purchase?")) return;
         tableLines.getItems().clear();recalculate();
     }
     @FXML private void preview(){new OwnedAlert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}
-    public void prepareDuplicate(){editingPurchase=null;attachment=null;attachmentRemoved=false;if(lblAttachment!=null)lblAttachment.setText("No document selected");txtInvoiceNo.setText(purchaseService.nextInvoiceNo());}
+    public void prepareDuplicate(){editingPurchase=null;attachmentEntries.clear();attachmentRemovals.clear();updateAttachmentButtons();txtInvoiceNo.setText(purchaseService.nextInvoiceNo());}
     private double parse(String v){try{return v==null||v.isBlank()?0:Double.parseDouble(v);}catch(Exception e){return 0;}}private String str(LocalDate d){return d==null?null:d.toString();}
 
 
@@ -687,9 +802,9 @@ public class PurchaseController {
     private void newPurchase(){
 
         editingPurchase = null;
-        attachment = null;
-        attachmentRemoved = false;
-        if (lblAttachment != null) lblAttachment.setText("");
+        attachmentEntries.clear();
+        attachmentRemovals.clear();
+        updateAttachmentButtons();
         if (txtReference != null) txtReference.clear();
         if (txtLrAwb != null) txtLrAwb.clear();
 
@@ -707,6 +822,17 @@ public class PurchaseController {
 
         cmbSupplier.setValue(null);
         if(txtBillingAddress!=null)txtBillingAddress.clear();
+        if(txtDeliveryAddress!=null)txtDeliveryAddress.clear();
+        if(txtBillingGstin!=null)txtBillingGstin.clear();
+        if(txtDeliveryGstin!=null)txtDeliveryGstin.clear();
+        if(txtTransporterGstin!=null)txtTransporterGstin.clear();
+        if(txtVehicleNumber!=null)txtVehicleNumber.clear();
+        if(txtContactPerson!=null)txtContactPerson.clear();
+        if(txtContactPersonMobile!=null)txtContactPersonMobile.clear();
+        if(txtOrderNo!=null)txtOrderNo.clear();
+        if(txtPoDate!=null)txtPoDate.setValue(null);
+        if(chkSameAsBilling!=null)chkSameAsBilling.setSelected(true);syncDeliveryAddressState();
+        invoiceCharges.clear();
 
         clearItemSearch();
 
@@ -733,13 +859,18 @@ public class PurchaseController {
     private void populateLookups() {
         List<String> paymentTerms;
         List<String> transporters;
-        try { paymentTerms = lookupService.getValuesByCategoryCode("PAYMENT_TERMS"); }
-        catch(Exception e){ paymentTerms = List.of(); }
-        try { transporters = lookupService.getValuesByCategoryCode("TRANSPORTER"); }
-        catch(Exception e){ transporters = List.of(); }
+        List<String> gstTypes;
+        List<String> charges;
+        try { paymentTerms = lookupService.getValuesByCategoryCode("PAYMENT_TERMS"); } catch(Exception e){ paymentTerms = List.of(); }
+        try { transporters = lookupService.getValuesByCategoryCode("TRANSPORTER"); } catch(Exception e){ transporters = List.of(); }
+        try { gstTypes = lookupService.getValuesByCategoryCode("GST_TYPE"); } catch(Exception e){ gstTypes = List.of("GST","IGST"); }
+        try { charges = lookupService.getValuesByCategoryCode("CHARGES"); } catch(Exception e){ charges = List.of(); }
+        if (gstTypes.isEmpty()) gstTypes = List.of("GST","IGST");
 
         cmbPaymentTerms.getItems().setAll(paymentTerms);
         cmbTransporter.getItems().setAll(transporters);
+        if(cmbGstType!=null){cmbGstType.getItems().setAll(gstTypes);if(!cmbGstType.getItems().isEmpty())cmbGstType.getSelectionModel().selectFirst();}
+        availableChargeTypes.setAll(charges);
 
         // Hidden compatibility fields retain stable defaults; they are no longer user-facing.
         cmbWarehouse.getItems().setAll("Main Warehouse");
@@ -793,9 +924,23 @@ public class PurchaseController {
     }
 
     private void populateSupplierAddress(Party supplier) {
-        if(txtBillingAddress==null)return;
         String address=supplier==null?"":safeValue(supplier.getAddress(),"");
-        txtBillingAddress.setText(address);
+        String gstin=supplier==null?"":safeValue(supplier.getGstin(),"");
+        if(txtBillingAddress!=null)txtBillingAddress.setText(address);
+        if(txtBillingGstin!=null)txtBillingGstin.setText(gstin);
+        syncDeliveryFromBilling();
+    }
+
+    private void syncDeliveryFromBilling(){
+        if(chkSameAsBilling==null||!chkSameAsBilling.isSelected())return;
+        if(txtDeliveryAddress!=null&&txtBillingAddress!=null)txtDeliveryAddress.setText(txtBillingAddress.getText());
+        if(txtDeliveryGstin!=null&&txtBillingGstin!=null)txtDeliveryGstin.setText(txtBillingGstin.getText());
+    }
+    private void syncDeliveryAddressState(){
+        boolean same=chkSameAsBilling!=null&&chkSameAsBilling.isSelected();
+        if(same)syncDeliveryFromBilling();
+        if(txtDeliveryAddress!=null){txtDeliveryAddress.setEditable(!same);txtDeliveryAddress.setDisable(false);txtDeliveryAddress.setOpacity(same?0.88:1.0);}
+        if(txtDeliveryGstin!=null){txtDeliveryGstin.setEditable(!same);txtDeliveryGstin.setDisable(false);txtDeliveryGstin.setOpacity(same?0.88:1.0);}
     }
 
     private void cleanPurchaseActions() {
@@ -831,51 +976,127 @@ public class PurchaseController {
 
 
     private void recalculate(){
-
-
-        double net =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    PurchaseLine::getNetAmount
-                )
-                .sum();
-
-
-        double discount = tableLines.getItems().stream().mapToDouble(PurchaseLine::getDiscountAmount).sum();
-
-        double gst =
-            tableLines.getItems()
-                .stream()
-                .mapToDouble(
-                    PurchaseLine::getGstAmount
-                )
-                .sum();
-
-
-        double total =
-            net + gst;
-
-
-
-        lblNetAmount.setText(
-            String.format("₹ %.2f",net)
-        );
-
-
-        lblDiscount.setText(String.format("₹ %.2f", discount));
-
-        lblGst.setText(
-            String.format("₹ %.2f",gst)
-        );
-
-
-        lblGrandTotal.setText(
-            String.format("₹ %.2f",total)
-        );
-
+        DocumentCalculationEngine.Totals totals = documentTotals();
+        lblNetAmount.setText(String.format("₹ %.2f", totals.itemTaxable()));
+        lblDiscount.setText(String.format("₹ %.2f", totals.discountAmount()));
+        lblGst.setText(String.format("₹ %.2f", totals.taxAmount()));
+        if(lblCharges!=null)lblCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
+        lblGrandTotal.setText(String.format("₹ %.2f", totals.grandTotal()));
+        if(lblTotalItems!=null)lblTotalItems.setText(Integer.toString(tableLines.getItems().size()));
+        if(lblBottomDiscount!=null)lblBottomDiscount.setText(String.format("₹ %.2f", totals.discountAmount()));
+        if(lblBottomTax!=null)lblBottomTax.setText(String.format("₹ %.2f", totals.taxAmount()));
+        if(lblBottomCharges!=null)lblBottomCharges.setText(String.format("₹ %.2f", totals.chargeAmount()));
+        if(lblBottomNet!=null)lblBottomNet.setText(String.format("₹ %.2f", totals.grandTotal()));
+        if(lblTaxableAmount!=null)lblTaxableAmount.setText(String.format("₹ %.2f", totals.taxableAmount()));
+        if(lblChargeCaption!=null)lblChargeCaption.setText(invoiceCharges.isEmpty()?"Additional Charges":"Additional Charges • "+invoiceCharges.size());
+        if(lblCgst!=null)lblCgst.setText(String.format("₹ %.2f", totals.cgstAmount()));
+        if(lblSgst!=null)lblSgst.setText(String.format("₹ %.2f", totals.sgstAmount()));
+        if(lblIgst!=null)lblIgst.setText(String.format("₹ %.2f", totals.igstAmount()));
+        updateChargeManagerSummary();
+        updateGstHeaders();
     }
 
+    private DocumentCalculationEngine.Totals documentTotals(){
+        List<DocumentCalculationEngine.LineInput> lines = tableLines.getItems().stream()
+                .map(line -> new DocumentCalculationEngine.LineInput(line.getQuantity(), line.getRate(), line.getDiscountPercent(), line.getGstPercent()))
+                .toList();
+        List<DocumentCalculationEngine.ChargeInput> charges = invoiceCharges.stream()
+                .map(charge -> new DocumentCalculationEngine.ChargeInput(charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
+                .toList();
+        String taxType = cmbGstType == null ? "GST" : safeValue(cmbGstType.getValue(), "GST");
+        return DocumentCalculationEngine.totals(lines, charges, DocumentCalculationEngine.taxMode(taxType));
+    }
+
+    @FXML
+    private void manageCharges(){
+        List<PurchaseCharge> draft=invoiceCharges.stream().map(PurchaseCharge::copy)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        Dialog<ButtonType> dialog=new OwnedDialog<>();
+        dialog.setTitle("Purchase Additional Charges");
+        dialog.setHeaderText("Add purchase charges with the same GST / IGST calculation rules as the invoice");
+        dialog.getDialogPane().getStyleClass().add("sales-charge-dialog");
+        VBox rows=new VBox(9); rows.getStyleClass().add("sales-charge-editor-rows");
+        Label totals=new Label(); totals.getStyleClass().add("sales-charge-editor-total");
+        Button add=new Button("Add Charge",IconFactory.compactIcon("add",14));
+        add.getStyleClass().addAll("approved-button","approved-primary-button","sales-charge-add");
+        Label limit=new Label("Add as many purchase charges as required"); limit.getStyleClass().add("sales-charge-limit");
+        Region spacer=new Region(); HBox.setHgrow(spacer,Priority.ALWAYS);
+        HBox addBar=new HBox(10,add,spacer,limit); addBar.setAlignment(Pos.CENTER_LEFT);
+        Runnable updateTotals=()->{
+            double amount=draft.stream().mapToDouble(PurchaseCharge::getAmount).sum();
+            double tax=draft.stream().mapToDouble(PurchaseCharge::getTaxAmount).sum();
+            totals.setText(String.format("Charges ₹ %,.2f    GST ₹ %,.2f    Total ₹ %,.2f",amount,tax,amount+tax));
+        };
+        Runnable[] render=new Runnable[1];
+        render[0]=()->{
+            rows.getChildren().clear();
+            for(int index=0;index<draft.size();index++){
+                PurchaseCharge charge=draft.get(index);
+                ComboBox<String> type=new ComboBox<>(FXCollections.observableArrayList(availableChargeTypes));
+                if(!charge.getChargeType().isBlank()&&!type.getItems().contains(charge.getChargeType()))type.getItems().add(charge.getChargeType());
+                type.setValue(charge.getChargeType().isBlank()?null:charge.getChargeType());type.setPromptText("Select charge...");type.setMaxWidth(Double.MAX_VALUE);
+                TextField amount=new TextField(charge.getAmount()<=0?"":String.format(Locale.ROOT,"%.2f",charge.getAmount())); amount.setPromptText("Amount");
+                ComboBox<String> tax=new ComboBox<>(FXCollections.observableArrayList("Non-taxable","Taxable 0%","Taxable 5%","Taxable 12%","Taxable 18%","Taxable 28%"));
+                tax.setValue(charge.isTaxable()?"Taxable "+percentText(charge.getGstPercent()):"Non-taxable");
+                Button remove=new Button("Remove",IconFactory.compactIcon("delete",13)); remove.getStyleClass().addAll("approved-button","approved-danger-button","sales-charge-remove");
+                int rowIndex=index;
+                type.valueProperty().addListener((o,a,b)->charge.setChargeType(b));
+                amount.textProperty().addListener((o,a,b)->{charge.setAmount(parseAmount(b));updateTotals.run();});
+                tax.valueProperty().addListener((o,a,b)->{applyTaxTreatment(charge,b);updateTotals.run();});
+                remove.setOnAction(e->{draft.remove(rowIndex);render[0].run();});
+                GridPane row=new GridPane();row.setHgap(8);row.setVgap(3);row.getStyleClass().add("sales-charge-editor-row");
+                row.add(new Label("Charge "+(index+1)),0,0);row.add(new Label("Amount"),1,0);row.add(new Label("Tax Treatment"),2,0);
+                row.add(type,0,1);row.add(amount,1,1);row.add(tax,2,1);row.add(remove,3,1);GridPane.setHgrow(type,Priority.ALWAYS);rows.getChildren().add(row);
+            }
+            if(draft.isEmpty()){Label empty=new Label("No additional charges. Select Add Charge when required.");empty.getStyleClass().add("sales-charge-editor-empty");rows.getChildren().add(empty);}
+            updateTotals.run();
+        };
+        add.setOnAction(e->{draft.add(new PurchaseCharge("",0,true,18));render[0].run();});render[0].run();
+        ScrollPane scroller=new ScrollPane(rows);scroller.setFitToWidth(true);scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);scroller.setPrefViewportHeight(230);scroller.getStyleClass().add("sales-charge-editor-scroll");
+        VBox content=new VBox(12,scroller,addBar,new Separator(),totals);content.setPrefWidth(720);
+        dialog.getDialogPane().setContent(content);dialog.getDialogPane().setMinSize(700,450);dialog.setResizable(true);
+        ButtonType apply=new ButtonType("Apply Charges",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL,apply);
+        Node applyButton=dialog.getDialogPane().lookupButton(apply);
+        applyButton.addEventFilter(javafx.event.ActionEvent.ACTION,event->{String error=validateCharges(draft);if(error!=null){event.consume();warn(error);}});
+        dialog.showAndWait().filter(apply::equals).ifPresent(result->invoiceCharges.setAll(draft.stream().map(PurchaseCharge::copy).toList()));
+    }
+
+    private void updateChargeManagerSummary(){
+        if(lblChargeManagerSummary==null)return;
+        double amount=invoiceCharges.stream().mapToDouble(PurchaseCharge::getAmount).sum();
+        lblChargeManagerSummary.setText(invoiceCharges.isEmpty()?"No additional charges":String.format("%d charge%s · ₹ %,.2f",invoiceCharges.size(),invoiceCharges.size()==1?"":"s",amount));
+    }
+    private String validateCharges(List<PurchaseCharge> charges){
+        if(charges==null||charges.isEmpty())return null;
+        java.util.Set<String> names=new java.util.HashSet<>();
+        for(PurchaseCharge charge:charges){if(charge==null||charge.getChargeType().isBlank())return "Select a charge type for every charge row.";if(charge.getAmount()<=0)return "Charge amount must be greater than zero.";if(!names.add(normalized(charge.getChargeType())))return "The same charge type cannot be selected twice.";}
+        return null;
+    }
+    private void applyTaxTreatment(PurchaseCharge charge,String treatment){if(treatment==null||treatment.startsWith("Non")){charge.setTaxable(false);charge.setGstPercent(0);return;}charge.setTaxable(true);java.util.regex.Matcher m=java.util.regex.Pattern.compile("([0-9.]+)").matcher(treatment);charge.setGstPercent(m.find()?Double.parseDouble(m.group(1)):0);}
+    private double parseAmount(String value){try{return value==null||value.isBlank()?0:Double.parseDouble(value.replace(",","").trim());}catch(Exception e){return 0;}}
+    private String percentText(double value){return Math.rint(value)==value?String.format(Locale.ROOT,"%.0f%%",value):String.format(Locale.ROOT,"%.2f%%",value);}
+    private String normalized(String value){return value==null?"":value.trim().toUpperCase(Locale.ROOT);}
+
+    private void updateGstHeaders(){
+        String type=cmbGstType==null?"":safeValue(cmbGstType.getValue(),"");
+        boolean igst=DocumentCalculationEngine.taxMode(type)==DocumentCalculationEngine.TaxMode.IGST;
+        if(colGst!=null)colGst.setText(igst?"IGST %":"GST %");
+        if(colGstAmount!=null)colGstAmount.setText(igst?"IGST Amount (₹)":"GST Amount (₹)");
+        if(txtGST!=null)txtGST.setPromptText(igst?"IGST %":"GST %");
+        if(lblTaxCaption!=null)lblTaxCaption.setText(igst?"Total IGST":"Total GST");
+        if(lblBottomTaxCaption!=null)lblBottomTaxCaption.setText(igst?"IGST":"GST");
+        setTaxRowVisible(rowCgst,!igst);
+        setTaxRowVisible(rowSgst,!igst);
+        setTaxRowVisible(rowIgst,igst);
+    }
+    private void setTaxRowVisible(HBox row,boolean visible){if(row!=null){row.setVisible(visible);row.setManaged(visible);}}
+    private void suggestGstTypeFromGstin(){
+        if(cmbGstType==null||cmbGstType.getItems().isEmpty()||txtBillingGstin==null)return;
+        String company=ConfigManager.get("company.gstin","").trim(),supplier=txtBillingGstin.getText()==null?"":txtBillingGstin.getText().trim();
+        if(company.length()<2||supplier.length()<2||!company.substring(0,2).matches("\\d{2}")||!supplier.substring(0,2).matches("\\d{2}"))return;
+        boolean interstate=!company.substring(0,2).equals(supplier.substring(0,2));
+        cmbGstType.getItems().stream().filter(v->{String n=v==null?"":v.toUpperCase(Locale.ROOT);return interstate?(n.contains("IGST")||n.contains("INTER")):(n.contains("GST")&&!n.contains("IGST")||n.contains("INTRA")||n.contains("CGST")||n.contains("SGST"));}).findFirst().ifPresent(cmbGstType::setValue);
+    }
 
 
 
@@ -907,7 +1128,7 @@ public class PurchaseController {
 
     @FXML
     private void cancel(){
-        boolean dirty = !tableLines.getItems().isEmpty() || attachment != null || attachmentRemoved;
+        boolean dirty = !tableLines.getItems().isEmpty() || !attachmentEntries.isEmpty() || !attachmentRemovals.isEmpty();
         if (dirty && !confirmAction("Discard changes", "Discard unsaved changes and return to the Purchase register?")) return;
 
         NavigationManager.getInstance()
@@ -944,8 +1165,8 @@ public class PurchaseController {
 
         }
         editingPurchase = purchase;
-        attachment = null;
-        attachmentRemoved = false;
+        attachmentEntries.clear();
+        attachmentRemovals.clear();
 
 
         txtInvoiceNo.setText(
@@ -980,9 +1201,19 @@ public class PurchaseController {
                 ? ""
                 : purchase.getRemarks()
         );
-        if(txtBillingAddress!=null)txtBillingAddress.setText(purchase.getSupplier()==null?"":safeValue(purchase.getSupplier().getAddress(),""));
-
-
+        if(txtBillingAddress!=null)txtBillingAddress.setText(safeValue(purchase.getBillingAddress(),purchase.getSupplier()==null?"":purchase.getSupplier().getAddress()));
+        if(txtDeliveryAddress!=null)txtDeliveryAddress.setText(safeValue(purchase.getDeliveryAddress(),purchase.getBillingAddress()));
+        if(txtBillingGstin!=null)txtBillingGstin.setText(safeValue(purchase.getBillingGstin(),purchase.getSupplier()==null?"":purchase.getSupplier().getGstin()));
+        if(txtDeliveryGstin!=null)txtDeliveryGstin.setText(safeValue(purchase.getDeliveryGstin(),purchase.getBillingGstin()));
+        if(chkSameAsBilling!=null)chkSameAsBilling.setSelected(purchase.isSameAsBilling());syncDeliveryAddressState();
+        if(cmbGstType!=null)select(cmbGstType,safeValue(purchase.getGstType(),purchase.getGstTreatment()));
+        if(txtTransporterGstin!=null)txtTransporterGstin.setText(value(purchase.getTransporterGstin()));
+        if(txtVehicleNumber!=null)txtVehicleNumber.setText(value(purchase.getVehicleNumber()));
+        if(txtContactPerson!=null)txtContactPerson.setText(value(purchase.getContactPerson()));
+        if(txtContactPersonMobile!=null)txtContactPersonMobile.setText(value(purchase.getContactPersonMobile()));
+        if(txtOrderNo!=null)txtOrderNo.setText(value(purchase.getOrderNo()));
+        if(txtPoDate!=null)txtPoDate.setValue(purchase.getPoDate());
+        invoiceCharges.setAll(purchase.getCharges()==null?List.of():purchase.getCharges().stream().map(PurchaseCharge::copy).toList());
 
         tableLines.getItems().clear();
 
@@ -997,7 +1228,7 @@ public class PurchaseController {
 
         }
 
-        dpDueDate.setValue(purchase.getDueDate());dpDeliveryDate.setValue(purchase.getDeliveryDate());select(cmbWarehouse,purchase.getWarehouse());select(cmbPaymentTerms,purchase.getPaymentTerms());select(cmbCurrency,purchase.getCurrency());select(cmbGstTreatment,purchase.getGstTreatment());select(cmbTransporter,purchase.getTransporter());select(cmbDiscountType,purchase.getDiscountType());txtReference.setText(value(purchase.getReferenceNo()));txtLrAwb.setText(value(purchase.getLrAwbNo()));txtDiscount.setText(String.valueOf(purchase.getDiscountAmount()));if (lblAttachment != null) { String ref=purchase.getAttachmentPath(); if(ref==null||ref.isBlank())lblAttachment.setText(""); else { try{lblAttachment.setText(Path.of(ref).getFileName().toString());}catch(Exception ignored){lblAttachment.setText(ref);} } }
+        dpDueDate.setValue(purchase.getDueDate());dpDeliveryDate.setValue(purchase.getDeliveryDate());select(cmbWarehouse,purchase.getWarehouse());select(cmbPaymentTerms,purchase.getPaymentTerms());select(cmbCurrency,purchase.getCurrency());select(cmbGstTreatment,purchase.getGstTreatment());select(cmbTransporter,purchase.getTransporter());select(cmbDiscountType,purchase.getDiscountType());txtReference.setText(value(purchase.getReferenceNo()));txtLrAwb.setText(value(purchase.getLrAwbNo()));txtDiscount.setText(String.valueOf(purchase.getDiscountAmount()));loadAttachmentEntries(purchase);
 
 
         recalculate();

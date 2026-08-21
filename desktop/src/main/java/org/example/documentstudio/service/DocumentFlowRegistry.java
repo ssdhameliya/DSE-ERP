@@ -39,7 +39,23 @@ public final class DocumentFlowRegistry {
     }
 
     public static Optional<Flow> flow(DocumentType type) { return Optional.ofNullable(FLOWS.get(type)); }
+
+    /** Existing PDF/runtime automation. Kept intentionally narrow so PDF fallback behavior is unchanged. */
     public static boolean isAutomatic(DocumentType type) { return type != null && FLOWS.containsKey(type); }
+
+    /**
+     * Excel has a built-in workbook fallback for every ERP-connected document type.
+     * This is deliberately independent from the PDF registry because some document types do not yet
+     * have a ProfessionalDocumentRenderer.Kind.
+     */
+    public static boolean isExcelAutomatic(DocumentType type) {
+        return type != null && type.isErpConnected();
+    }
+
+    public static String excelBuiltInLabel(DocumentType type) {
+        return isExcelAutomatic(type) ? "Built-in " + type.label() + " Excel" : "Design only";
+    }
+
     public static String builtInLabel(DocumentType type) {
         return flow(type).map(Flow::builtInLabel).orElse("Design only");
     }

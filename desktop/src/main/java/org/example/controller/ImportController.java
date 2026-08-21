@@ -171,21 +171,16 @@ public class ImportController {
         "is_active"
     );
 
+    /** Purchase import intentionally mirrors the Sales one-sheet document contract. */
     private static final List<String> PURCHASE_DOCUMENT_FIELDS = List.of(
-        "invoice_no",
-        "invoice_date",
-        "party_code",
-        "item_code",
-        "quantity",
-        "rate",
-        "gst_percent",
-        "gst_type",
-        "payment_terms",
-        "paid_amount",
-        "remarks"
+        "invoice_no", "invoice_date", "party_code", "item_code", "quantity", "rate", "gst_percent", "gst_type",
+        "payment_terms", "paid_amount", "remarks",
+        "charge_1_type", "charge_1_amount", "charge_1_taxable", "charge_1_gst_percent",
+        "charge_2_type", "charge_2_amount", "charge_2_taxable", "charge_2_gst_percent",
+        "additional_charges", "attachment_file", "attachment_files"
     );
 
-    /** Sales-only optional invoice-level fields extend the existing import contract without changing Purchases. */
+    /** Sales optional invoice-level fields. Purchase deliberately uses the same shape for parity. */
     private static final List<String> SALES_DOCUMENT_FIELDS = List.of(
         "invoice_no",
         "invoice_date",
@@ -1122,9 +1117,9 @@ public class ImportController {
             case "quantity", "opening_stock", "minimum_stock" -> "quantity";
             case "purchase_price", "selling_price", "rate", "amount", "balance", "opening_balance", "paid_amount",
                  "charge_1_amount", "charge_2_amount" -> "currency";
-            case "charge_1_type", "charge_2_type" -> "expense";
+            case "charge_1_type", "charge_2_type", "additional_charges" -> "expense";
             case "charge_1_taxable", "charge_2_taxable", "charge_1_gst_percent", "charge_2_gst_percent" -> "tax";
-            case "attachment_file" -> "attachment";
+            case "attachment_file", "attachment_files" -> "attachment";
             case "email" -> "email";
             case "phone" -> "phone";
             case "address", "location" -> "location";
@@ -1149,7 +1144,9 @@ public class ImportController {
                      "remarks",
                      "category_description",
                      "value_description",
-                     "attachment_file" -> 220;
+                     "attachment_file",
+                     "attachment_files",
+                     "additional_charges" -> 220;
 
                 case "email" -> 190;
 
@@ -2291,7 +2288,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 8.0.2 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 8.2.4 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},
@@ -2299,6 +2296,8 @@ public class ImportController {
                 {"Financial documents", "Existing posted Sales and Purchase invoices are always protected and skipped."},
                 {"GST / IGST", "For Sales/Purchases use gst_type = GST for intra-state or IGST for inter-state. Enter gst_percent only; DSE ERP calculates tax amounts from line values."},
                 {"GST calculation", "GST is calculated as CGST + SGST (equal halves); IGST applies the full GST rate as IGST. Do not enter tax amounts manually."},
+                {"Unlimited Purchase charges", "Purchases may use additional_charges with entries separated by semicolons. Each entry is Type|Amount|Taxable|GSTPercent, for example Freight|250|true|18;Packing|100|false|0."},
+                {"Multiple Purchase attachments", "Use attachment_files for semicolon-separated file paths. Paths may be absolute or relative to the import workbook. The older attachment_file column remains supported."},
                 {"Safe process", "Run Validate only first, review the preview and generated result report, then import."},
                 {"Identifiers", identifierGuidance(cmbImportModule.getValue())}
             };
@@ -2472,9 +2471,13 @@ public class ImportController {
         if ("Purchases".equals(module)) {
             return List.of(
                 List.of("PUR-GST-0001", BusinessClock.formatDate(BusinessClock.today()), "SUP-0001", "ITEM-0001",
-                    "10", "1200", "18", "GST", "15 Days", "0", "Sample intra-state purchase; tax calculated as CGST 9% + SGST 9%"),
+                    "10", "1200", "18", "GST", "15 Days", "0", "Sample intra-state purchase with unlimited charge syntax",
+                    "Freight", "250", "true", "18", "Packing", "100", "false", "0",
+                    "Insurance|75|true|18;Handling|50|false|0", "", ""),
                 List.of("PUR-IGST-0002", BusinessClock.formatDate(BusinessClock.today()), "SUP-0002", "ITEM-0001",
-                    "5", "1200", "18", "IGST", "15 Days", "0", "Sample inter-state purchase; tax calculated as IGST 18%")
+                    "5", "1200", "18", "IGST", "15 Days", "0", "Sample inter-state purchase; multiple attachments are optional",
+                    "", "", "", "", "", "", "", "",
+                    "Freight|250|true|18", "", "invoice.pdf;quality-certificate.pdf")
             );
         }
         return List.of(exampleRowFor(module));
@@ -2538,17 +2541,8 @@ public class ImportController {
 
             case "Purchases" ->
                 List.of(
-                    "PUR-0001",
-                    "2026-07-28",
-                    "SUP-0001",
-                    "ITEM-0001",
-                    "10",
-                    "1200",
-                    "18",
-                    "GST",
-                    "15 Days",
-                    "0",
-                    "Sample purchase invoice"
+                    "PUR-0001", "2026-07-28", "SUP-0001", "ITEM-0001", "10", "1200", "18", "GST", "15 Days", "0",
+                    "Sample purchase invoice", "Freight", "250", "true", "18", "Packing", "100", "false", "0", ""
                 );
 
             case "Master Categories and Values" ->

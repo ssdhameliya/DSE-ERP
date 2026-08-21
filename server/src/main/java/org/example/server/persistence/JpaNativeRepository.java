@@ -159,6 +159,15 @@ public class JpaNativeRepository {
         public long getLong(String key){ Object v=value(key); return v==null?0L:((Number)v).longValue(); }
         public double getDouble(int index){ Object v=value(index); return v==null?0d:((Number)v).doubleValue(); }
         public double getDouble(String key){ Object v=value(key); return v==null?0d:((Number)v).doubleValue(); }
+        public boolean getBoolean(int index){ return asBoolean(value(index)); }
+        public boolean getBoolean(String key){ return asBoolean(value(key)); }
+        private static boolean asBoolean(Object value){
+            if(value==null) return false;
+            if(value instanceof Boolean b) return b;
+            if(value instanceof Number n) return n.doubleValue()!=0d;
+            String text=String.valueOf(value).trim();
+            return "true".equalsIgnoreCase(text)||"t".equalsIgnoreCase(text)||"yes".equalsIgnoreCase(text)||"y".equalsIgnoreCase(text)||"1".equals(text);
+        }
         public NativeMetaData getMetaData(){ return new NativeMetaData(values.size()); }
     }
     public record NativeMetaData(int columnCount) { public int getColumnCount(){ return columnCount; } }
