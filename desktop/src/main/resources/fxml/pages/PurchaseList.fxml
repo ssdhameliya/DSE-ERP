@@ -58,10 +58,10 @@
         <Label text="Quick Actions" styleClass="drawer-section,erp-drawer-caption"/>
         <GridPane hgap="8" vgap="8">
           <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
-          <Button text="View / Record Payments" onAction="#paySelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
-          <Button text="Preview / Download PDF" onAction="#pdfSelected" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
-          <Button text="View / Download Excel" onAction="#excelSelected" maxWidth="Infinity" GridPane.rowIndex="1" styleClass="approved-button,approved-secondary-button"/>
-          <Button text="Email Supplier" onAction="#emailSelected" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
+          <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+          <Button text="Edit Purchase" onAction="#editSelected" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="approved-button,approved-primary-button"/>
+          <Button text="Record Payment" onAction="#paySelected" maxWidth="Infinity" GridPane.rowIndex="1" styleClass="approved-button,approved-primary-button"/>
+          <Button text="View / Download Excel" onAction="#excelSelected" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
         </GridPane>
       </VBox>
     </content>

@@ -29,7 +29,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.example.api.insights.InsightsApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.config.ConfigManager;
 import org.example.model.Sales;
@@ -59,7 +58,7 @@ import java.util.function.Predicate;
 public class SalesListController implements ScreenLifecycle {
     @FXML private Label lblTotalSales,lblInvoiceCount,lblTodaySales,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblDueSoon,lblDueSoonCount,lblEmailRate;
     @FXML private StackPane salesTitleIcon,totalSalesIcon,todaySalesIcon,pendingSalesIcon,overdueSalesIcon,dueSoonIcon,emailRateIcon;
-    @FXML private Button btnNewSale,btnResetFilters,btnRefreshSales,btnApplyFilters,btnExportExcel,btnExportPdf,btnPrintRegister;
+    @FXML private Button btnNewSale,btnResetFilters,btnRefreshSales,btnExportExcel,btnExportPdf,btnPrintRegister;
     @FXML private Button btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnCloseDetails;
     @FXML private TextField txtSearch,txtInvoice,txtAmountFrom,txtAmountTo;
     @FXML private ComboBox<String> cmbCustomer,cmbPaymentStatus,cmbPaymentDue,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType;
@@ -79,7 +78,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private LineChart<String,Number> salesChart;
     @FXML private SplitPane mainSplit;
     @FXML private javafx.scene.layout.VBox detailDrawer;
-    @FXML private Label lblDetailInvoice,lblDetailDate,lblDetailStatus,lblDetailCustomer,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailCharges,lblDetailGstAmount,lblDetailTotalCharges,lblDetailChargeTax,lblDetailGstType,lblDetailGstin,lblDetailTransporter,lblDetailDoorDelivery,lblDetailVehicle,lblDetailContactPerson,lblDetailContactMobile;
+    @FXML private Label lblDetailInvoice,lblDetailDate,lblDetailStatus,lblDetailCustomer,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailCharges,lblDetailGstAmount,lblDetailTotalCharges,lblDetailChargeTax,lblDetailGstType,lblDetailGstin,lblDetailBillingAddress,lblDetailDeliveryAddress,lblDetailTransporter,lblDetailDoorDelivery,lblDetailVehicle,lblDetailContactPerson,lblDetailContactMobile;
 
     private final SalesService service=new SalesService();
     private final SupportApiClient support=new SupportApiClient();
@@ -136,7 +135,6 @@ public class SalesListController implements ScreenLifecycle {
         setButtonIcon(btnNewSale,"sale");
         setButtonIcon(btnResetFilters,"refresh");
         setButtonIcon(btnRefreshSales,"refresh");
-        setButtonIcon(btnApplyFilters,"filter");
         setButtonIcon(btnExportExcel,"excel");
         setButtonIcon(btnExportPdf,"pdf");
         setButtonIcon(btnPrintRegister,"print");
@@ -180,6 +178,7 @@ public class SalesListController implements ScreenLifecycle {
             case "balance" -> "balance";
             case "due date" -> "calendar";
             case "gst amount", "charge gst", "gst type", "gstin", "tax & transport" -> "tax";
+            case "billing address", "delivery address" -> "location";
             case "transporter", "vehicle no." -> "delivery";
             case "contact person" -> "user";
             case "contact mobile" -> "phone";
@@ -311,7 +310,6 @@ public class SalesListController implements ScreenLifecycle {
                 add("Send WhatsApp", "whatsapp", e -> sendWhatsapp(row()));
                 payment = add("View / Record Payments", "payment", e -> openPayment(row()));
                 createReturn = add("Create Sales Return", "return", e -> createReturn(row()));
-                add("Send Reminder", "reminder", e -> createReminder(row()));
                 cancel = add("Cancel Sale", "cancel", e -> cancelSale(row()));
                 delete = add("Delete Sale", "delete", e -> delete(row()));
                 delete.getStyleClass().add("danger-menu-item");
@@ -460,6 +458,15 @@ public class SalesListController implements ScreenLifecycle {
         }
         if (lblDetailGstType != null) lblDetailGstType.setText(safe(sale.getGstType()).isBlank() ? "Not Applicable" : sale.getGstType());
         if (lblDetailGstin != null) lblDetailGstin.setText(safe(sale.getGstin()).isBlank() ? "Not Applicable" : sale.getGstin());
+        if (lblDetailBillingAddress != null) {
+            String billing = safe(sale.getBillingAddress());
+            if (billing.isBlank() && sale.getCustomer() != null) billing = safe(sale.getCustomer().getAddress());
+            lblDetailBillingAddress.setText(billing.isBlank() ? "Not set" : billing);
+        }
+        if (lblDetailDeliveryAddress != null) {
+            String delivery = safe(sale.getDeliveryAddress());
+            lblDetailDeliveryAddress.setText(delivery.isBlank() ? "Not set" : delivery);
+        }
         if (lblDetailTransporter != null) lblDetailTransporter.setText(safe(sale.getTransporter()).isBlank() ? "Not Applicable" : sale.getTransporter());
         if (lblDetailDoorDelivery != null) lblDetailDoorDelivery.setText(safe(sale.getDoorDelivery()).isBlank() ? "Not Applicable" : sale.getDoorDelivery());
         if (lblDetailVehicle != null) lblDetailVehicle.setText(safe(sale.getVehicleNumber()).isBlank() ? "Not Applicable" : sale.getVehicleNumber());
@@ -468,7 +475,7 @@ public class SalesListController implements ScreenLifecycle {
     }
     @FXML private void closeDetails(){selected=null;detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1);tableSales.getSelectionModel().clearSelection();}
     private Sales requireSelected(){if(selected==null){warning("Select an invoice first.");return null;}return selected;}
-    @FXML private void emailSelected(){Sales s=requireSelected();if(s!=null)sendEmail(s);}@FXML private void whatsappSelected(){Sales s=requireSelected();if(s!=null)sendWhatsapp(s);}@FXML private void editSelectedSale(){Sales s=requireSelected();if(s!=null)edit(s);}@FXML private void recordSelectedPayment(){Sales s=requireSelected();if(s!=null)openPayment(s);}@FXML private void remindSelected(){Sales s=requireSelected();if(s!=null)createReminder(s);}
+    @FXML private void emailSelected(){Sales s=requireSelected();if(s!=null)sendEmail(s);}@FXML private void whatsappSelected(){Sales s=requireSelected();if(s!=null)sendWhatsapp(s);}@FXML private void editSelectedSale(){Sales s=requireSelected();if(s!=null)edit(s);}@FXML private void recordSelectedPayment(){Sales s=requireSelected();if(s!=null)openPayment(s);}@FXML private void excelSelected(){Sales s=requireSelected();if(s!=null)openExcel(s);}
     private void openInvoiceDetails(Sales s){openPayment(s);}
     private void openPayment(Sales s){
         if (s == null || safe(s.getInvoiceNo()).isBlank()) {
@@ -517,7 +524,6 @@ public class SalesListController implements ScreenLifecycle {
     private void sendEmail(Sales sale){String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=InvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.config.ConfigManager.get("company.name","DSE ERP"),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}
     private void sendWhatsapp(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());String phone=digits(full.getCustomer().getPhone());if(phone.length()==10)phone="91"+phone;if(phone.isBlank()){warning("Customer mobile number is not available. Update it in Customer Master.");return;}String missing=PaymentMessageService.missingPaymentConfiguration();if(missing!=null)warning(missing+" The invoice can still be shared without a payment link.");Path pdf=InvoicePdfService.sales(full);WhatsappService.openWhatsappWithMessage(phone,PaymentMessageService.salesMessage(full),pdf,PaymentMessageService.configuredQrPath());info("WhatsApp is ready. The invoice and configured UPI QR are on the clipboard for attachment.");support.markWhatsapp("SALE",full.getId());communication("SALE",full.getId(),"WHATSAPP",phone,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();}catch(Exception e){error(e);}}
     private void recordPayment(Sales sale){if(sale.getBalanceAmount()<=0){info("This invoice is already fully paid.");return;}Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Record Payment");d.setHeaderText(sale.getInvoiceNo()+" • Balance "+money(sale.getBalanceAmount()));TextField amount=new TextField(String.format(Locale.ROOT,"%.2f",sale.getBalanceAmount())),ref=new TextField(),notes=new TextField();ComboBox<String>mode=new ComboBox<>(FXCollections.observableArrayList("Cash","Bank","UPI","Cheque","Card","Other"));mode.setValue("Bank");DatePicker date=new DatePicker(BusinessClock.today());javafx.scene.layout.GridPane g=new javafx.scene.layout.GridPane();g.setHgap(10);g.setVgap(10);g.addRow(0,new Label("Date"),date);g.addRow(1,new Label("Amount"),amount);g.addRow(2,new Label("Mode"),mode);g.addRow(3,new Label("Reference"),ref);g.addRow(4,new Label("Notes"),notes);d.getDialogPane().setContent(g);d.getDialogPane().getButtonTypes().addAll(new ButtonType("Record",ButtonBar.ButtonData.OK_DONE),ButtonType.CANCEL);d.showAndWait().filter(b->b.getButtonData()==ButtonBar.ButtonData.OK_DONE).ifPresent(b->{try{double paid=Double.parseDouble(amount.getText());if(paid<=0||paid>sale.getBalanceAmount()+.01)throw new IllegalArgumentException("Payment must be between 0 and "+sale.getBalanceAmount());support.recordPayment(new SupportApiClient.PaymentRequest("SALE",sale.getId(),date.getValue().toString(),paid,mode.getValue(),ref.getText(),notes.getText(),sale.getCustomer()==null?"":sale.getCustomer().getName(),"RECEIPT",null,user()));log("SALE",sale.getId(),"PAYMENT_RECORDED",money(paid));refresh();info("Payment recorded.");}catch(Exception e){error(e);}});}
-    private void createReminder(Sales sale){DatePicker due=new DatePicker(sale.getDueDate()==null?BusinessClock.today().plusDays(1):sale.getDueDate());TextInputDialog dialog=new OwnedTextInputDialog("Payment reminder for "+sale.getInvoiceNo());dialog.setTitle("Create Reminder");dialog.setHeaderText("Reminder date: "+due.getValue());dialog.setContentText("Reminder text:");dialog.showAndWait().ifPresent(text->{try{String priority=sale.getDueDate()!=null&&sale.getDueDate().isBefore(BusinessClock.today())?"URGENT":"NORMAL";String notes="Customer: "+sale.getCustomer().getName()+"; Balance: "+money(sale.getBalanceAmount());new InsightsApiClient().saveReminder(new InsightsApiClient.ReminderDto(null,text,sale.getInvoiceNo(),due.getValue().toString(),priority,notes,"OPEN",org.example.service.SessionService.current()==null?"System":org.example.service.SessionService.current().getUsername(),null));NotificationService.add("Reminder created for "+sale.getInvoiceNo());info("Reminder created.");}catch(Exception e){error(e);}});}
 
 
     private boolean isFinanciallyLocked(Sales sale){
@@ -552,7 +558,19 @@ public class SalesListController implements ScreenLifecycle {
         }catch(Exception e){error(e);}
     }
     private void createReturn(Sales sale){Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null){warning("Sales invoice not found. Refresh and try again.");return;}List<ReturnEditorService.InvoiceItem> items=full.getLines().stream().map(line->new ReturnEditorService.InvoiceItem(line.getItemCode(),line.getItemDescription(),line.getQuantity(),line.getRate(),line.getGstPercent())).toList();ReturnEditorService.show(tableSales.getScene().getWindow(),ReturnEditorService.Type.SALES,sale.getInvoiceNo(),sale.getCustomer().getName(),sale.getCustomer().getId(),items).ifPresent(no->{refresh();info("Sales return created: "+no);});}
-    private void duplicate(Sales sale){if(!confirm("Duplicate "+sale.getInvoiceNo()+" as a new sales invoice?"))return;try{String no=support.duplicateSale(sale.getId(),user());refresh();info("Created "+no);}catch(Exception e){error(e);}}
+    private void duplicate(Sales sale){
+        try{
+            FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));
+            Parent root=loader.load();
+            org.example.util.ProfessionalUiEnhancer.enhance(root);
+            SalesController controller=loader.getController();
+            Sales full=service.getByInvoice(sale.getInvoiceNo());
+            if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");
+            controller.loadSale(full);
+            controller.prepareDuplicate();
+            NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);
+        }catch(Exception e){error(e);}
+    }
     private void delete(Sales sale){
         if (sale == null) return;
         String status = safe(sale.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);

@@ -341,7 +341,7 @@ public class ItemMasterController {
             if (selectAllVisible.isSelected()) tableItems.getSelectionModel().selectAll();
             else tableItems.getSelectionModel().clearSelection();
         });
-        Label selectAllLabel = new Label("Select All Visible");
+        Label selectAllLabel = new Label("Select");
         HBox selectAllHeader = new HBox(6, selectAllVisible, selectAllLabel);
         selectAllHeader.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         colSelect.setText("");

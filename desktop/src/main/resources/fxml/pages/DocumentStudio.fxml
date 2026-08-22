@@ -28,19 +28,19 @@
             </HBox>
 
             <HBox spacing="12" styleClass="doc-studio-kpi-row,erp-kpi-section">
-                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-blue">
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" prefWidth="1" minWidth="0" maxWidth="Infinity" styleClass="doc-studio-kpi,doc-studio-kpi-blue">
                     <StackPane fx:id="documentsKpiIcon" styleClass="doc-studio-kpi-icon"/>
                     <VBox spacing="3"><Label fx:id="lblTotalKpiTitle" text="PDF Documents &amp; Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblTotal" text="0" styleClass="doc-studio-kpi-value"/></VBox>
                 </HBox>
-                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-green">
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" prefWidth="1" minWidth="0" maxWidth="Infinity" styleClass="doc-studio-kpi,doc-studio-kpi-green">
                     <StackPane fx:id="activeKpiIcon" styleClass="doc-studio-kpi-icon"/>
                     <VBox spacing="3"><Label fx:id="lblActiveKpiTitle" text="Active PDF Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblActive" text="0" styleClass="doc-studio-kpi-value"/></VBox>
                 </HBox>
-                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-wide,doc-studio-kpi-purple">
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" prefWidth="1" minWidth="0" maxWidth="Infinity" styleClass="doc-studio-kpi,doc-studio-kpi-purple">
                     <StackPane fx:id="defaultsKpiIcon" styleClass="doc-studio-kpi-icon"/>
                     <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Automatic Defaults" styleClass="doc-studio-kpi-label"/><Label fx:id="lblPurchaseDefault" text="PDF defaults" wrapText="true" styleClass="doc-studio-kpi-default"/></VBox>
                 </HBox>
-                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-safe-card">
+                <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" prefWidth="1" minWidth="0" maxWidth="Infinity" styleClass="doc-studio-kpi,doc-studio-kpi-safe-card">
                     <StackPane fx:id="salesSafetyKpiIcon" styleClass="doc-studio-kpi-icon"/>
                     <VBox spacing="3"><Label text="Runtime Safety" styleClass="doc-studio-kpi-label"/><Label fx:id="lblSafetyText" text="Existing document runtime remains protected" wrapText="true" styleClass="doc-studio-kpi-safe"/></VBox>
                 </HBox>

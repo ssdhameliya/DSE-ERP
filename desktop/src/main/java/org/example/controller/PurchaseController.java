@@ -62,6 +62,7 @@ import java.io.File;
 public class PurchaseController {
     @FXML private Button btnAddSupplier;
     @FXML private Button btnManageCharges;
+    @FXML private Button btnSavePurchase, btnRemoveLine;
     @FXML private javafx.scene.layout.StackPane purchasePageIcon;
 
 
@@ -179,6 +180,7 @@ public class PurchaseController {
     private final SupportApiClient supportApi = new SupportApiClient();
 
     private Purchase editingPurchase = null;
+    private boolean viewMode;
     private final ContextMenu itemSuggestions = new ContextMenu();
     private Item selectedItem;
     private boolean updatingItemSearch;
@@ -781,7 +783,7 @@ public class PurchaseController {
     private void updateAttachmentButtons(){
         PurchaseAttachmentEntry selected=listAttachments==null?null:listAttachments.getSelectionModel().getSelectedItem();
         if(btnAttachmentPreview!=null)btnAttachmentPreview.setDisable(selected==null);
-        if(btnAttachmentRemove!=null)btnAttachmentRemove.setDisable(selected==null);
+        if(btnAttachmentRemove!=null)btnAttachmentRemove.setDisable(viewMode || selected==null);
         if(lblAttachment!=null)lblAttachment.setText(attachmentEntries.isEmpty()?"No attachments":attachmentEntries.size()+" attachment"+(attachmentEntries.size()==1?"":"s"));
     }
 
@@ -1233,8 +1235,45 @@ public class PurchaseController {
 
         recalculate();
 
-    }    public void setViewMode(boolean value){
+    }
 
+    public void setViewMode(boolean value){
+        viewMode = value;
+        txtInvoiceNo.setDisable(value);
+        dpInvoiceDate.setDisable(value);
+        cmbSupplier.setDisable(value);
+        txtBillingAddress.setDisable(value);
+        txtDeliveryAddress.setDisable(value);
+        if(txtBillingGstin!=null)txtBillingGstin.setDisable(value);
+        if(txtDeliveryGstin!=null)txtDeliveryGstin.setDisable(value);
+        if(chkSameAsBilling!=null)chkSameAsBilling.setDisable(value);
+        if(cmbPaymentTerms!=null)cmbPaymentTerms.setDisable(value);
+        if(txtPoDate!=null)txtPoDate.setDisable(value);
+        if(txtOrderNo!=null)txtOrderNo.setDisable(value);
+        if(cmbGstType!=null)cmbGstType.setDisable(value);
+        if(cmbTransporter!=null)cmbTransporter.setDisable(value);
+        if(txtTransporterGstin!=null)txtTransporterGstin.setDisable(value);
+        if(txtVehicleNumber!=null)txtVehicleNumber.setDisable(value);
+        if(txtContactPerson!=null)txtContactPerson.setDisable(value);
+        if(txtContactPersonMobile!=null)txtContactPersonMobile.setDisable(value);
+        txtRemarks.setDisable(value);
+        txtItemSearch.setDisable(value);
+        txtQuantity.setDisable(value);
+        txtRate.setDisable(value);
+        txtGST.setDisable(value);
+        txtLineDiscount.setDisable(value);
+        btnAddLine.setDisable(value);
+        if(btnRemoveLine!=null)btnRemoveLine.setDisable(value);
+        if(btnAddSupplier!=null)btnAddSupplier.setDisable(value);
+        if(btnManageCharges!=null)btnManageCharges.setDisable(value);
+        if(btnAttachmentAdd!=null)btnAttachmentAdd.setDisable(value);
+        if(btnAttachmentPreview!=null)btnAttachmentPreview.setDisable(listAttachments==null || listAttachments.getSelectionModel().getSelectedItem()==null);
+        if(btnAttachmentRemove!=null)btnAttachmentRemove.setDisable(value || listAttachments==null || listAttachments.getSelectionModel().getSelectedItem()==null);
+        if(btnSavePurchase!=null)btnSavePurchase.setDisable(value);
+        tableLines.setEditable(!value);
+        tableLines.setDisable(value);
+        if(listAttachments!=null)listAttachments.setDisable(false);
+        updateAttachmentButtons();
     }
     private void select(ComboBox<String> box,String value){if(value!=null&&!value.isBlank()){if(!box.getItems().contains(value))box.getItems().add(value);box.setValue(value);}}private String value(String v){return v==null?"":v;}
     private String safeValue(String value,String fallback){return value==null||value.isBlank()?(fallback==null?"":fallback):value;}

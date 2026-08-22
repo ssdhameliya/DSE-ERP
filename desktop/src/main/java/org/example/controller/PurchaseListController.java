@@ -20,7 +20,7 @@ import org.example.documentstudio.service.ExcelOutputService;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
 import com.itextpdf.layout.element.Table;
-import com.itextpdf.kernel.pdf.*;import com.itextpdf.layout.Document;import com.itextpdf.layout.element.*;import javafx.beans.property.*;import javafx.collections.FXCollections;import javafx.fxml.*;import javafx.geometry.Pos;import javafx.scene.Parent;import javafx.scene.control.*;import javafx.scene.layout.*;import javafx.stage.FileChooser;import org.apache.poi.ss.usermodel.*;import org.apache.poi.xssf.usermodel.XSSFWorkbook;import org.example.model.Purchase;import org.example.navigation.NavigationManager;import org.example.service.*;import org.example.config.WorkspaceManager;import java.io.*;import java.nio.file.Path;import java.nio.file.Files;import java.text.NumberFormat;import java.time.LocalDate;import java.util.*;
+import com.itextpdf.kernel.pdf.*;import com.itextpdf.layout.Document;import com.itextpdf.layout.element.*;import javafx.beans.property.*;import javafx.collections.FXCollections;import javafx.fxml.*;import javafx.geometry.Pos;import javafx.scene.Parent;import javafx.scene.control.*;import javafx.scene.layout.*;import javafx.stage.FileChooser;import org.apache.poi.ss.usermodel.*;import org.apache.poi.xssf.usermodel.XSSFWorkbook;import org.example.model.Purchase;import org.example.navigation.NavigationManager;import org.example.service.*;import java.io.*;import java.nio.file.Path;import java.text.NumberFormat;import java.time.LocalDate;import java.util.*;
 public class PurchaseListController implements ScreenLifecycle{
  public PurchaseListController(){}
  @FXML private Label lblTotal,lblTotalCount,lblToday,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblPaid,lblSummary,lblPageInfo,lblPageNumber,lblDetailInvoice,lblDetailSupplier,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailGst,lblDetailReference,lblDetailPaymentTerms,lblDetailContactPerson,lblDetailPhone,lblDetailEmail,lblDetailGstin,lblDetailCharges,lblDetailChargeTax,lblDetailGstType,lblDetailTransporter,lblDetailVehicle,lblDetailNotes,lblDetailAttachment,lblDetailBillingAddress,lblDetailDeliveryAddress;@FXML private Button btnNewPurchase,btnReset,btnRefresh,btnFirstPage,btnPreviousPage,btnNextPage,btnLastPage,btnExportExcel,btnExportPdf,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange;@FXML private TextField txtSearch;@FXML private ComboBox<String>cmbSupplier,cmbPaymentStatus,cmbMailStatus;@FXML private ComboBox<Integer>cmbPageSize;@FXML private DatePicker dpFrom,dpTo;@FXML private ToggleButton btnAdvanced;@FXML private GridPane advancedFilters;@FXML private TableView<Purchase>tablePurchase;@FXML private TableColumn<Purchase,String>colInvoice,colDate,colSupplier,colMobile,colDue,colStatus,colMail;@FXML private TableColumn<Purchase,Double>colAmount,colPaid,colBalance;@FXML private TableColumn<Purchase,Void>colActions;@FXML private SplitPane mainSplit;@FXML private VBox detailDrawer;@FXML private Button btnCloseDetails;@FXML private StackPane purchasePageIcon,purchaseTotalIcon,purchaseOrdersIcon,purchaseSuppliersIcon,purchaseItemsIcon,purchasePaidIcon;
@@ -78,14 +78,11 @@ public class PurchaseListController implements ScreenLifecycle{
    final MenuItem edit;
    final MenuItem payment;
    final MenuItem createReturn;
-   final MenuItem attach;
-   final MenuItem viewAttachment;
-   final MenuItem removeAttachment;
    final MenuItem cancel;
    final MenuItem delete;
    {
     m.getProperties().put("erp.icon.semantic","actions");m.setGraphic(IconFactory.compactIcon("actions",15));
-    item("View Details","view",e->details(row()));
+    item("View Purchase","view",e->view(row()));
     edit=item("Edit Purchase","edit",e->edit(row()));
     item("Duplicate Purchase","copy",e->duplicate(row()));
     item("Preview / Download PDF","print",e->pdf(row()));
@@ -94,9 +91,6 @@ public class PurchaseListController implements ScreenLifecycle{
     item("Send WhatsApp","whatsapp",e->whatsapp(row()));
     payment=item("View / Record Payments","payment",e->payment(row()));
     createReturn=item("Create Purchase Return","return",e->createReturn(row()));
-    attach=item("Add Attachments","attachment",e->attach(row()));
-    viewAttachment=item("View Attachments","view",e->viewAttachment(row()));
-    removeAttachment=item("Remove Attachment","delete",e->removeAttachment(row()));
     item("Notes / Remarks","notes",e->notes(row()));
     cancel=item("Cancel Purchase","cancel",e->cancelPurchase(row()));
     delete=item("Delete Purchase","delete",e->delete(row()));
@@ -106,7 +100,7 @@ public class PurchaseListController implements ScreenLifecycle{
    }
    private void updateAvailability(){
     Purchase current=getTableRow()==null?null:getTableRow().getItem();
-    if(current==null){edit.setDisable(true);payment.setDisable(true);createReturn.setDisable(true);attach.setDisable(true);viewAttachment.setDisable(true);removeAttachment.setDisable(true);cancel.setDisable(true);delete.setDisable(true);return;}
+    if(current==null){edit.setDisable(true);payment.setDisable(true);createReturn.setDisable(true);cancel.setDisable(true);delete.setDisable(true);return;}
     String status=s(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
     boolean cancelled="CANCELLED".equals(status),deleted="DELETED".equals(status),inactive=cancelled||deleted;
     boolean locked=isFinanciallyLocked(current);
@@ -116,8 +110,6 @@ public class PurchaseListController implements ScreenLifecycle{
     cancel.setDisable(locked||inactive);
     delete.setDisable(locked||deleted);
     cancel.setVisible(true);delete.setVisible(true);
-    attach.setDisable(deleted);attach.setText("Add Attachments");
-    viewAttachment.setDisable(false);removeAttachment.setDisable(deleted);
    }
    private Purchase row(){Purchase value=getTableRow()==null?null:getTableRow().getItem();if(value==null)throw new IllegalStateException("This purchase row is no longer available. Refresh the register and try again.");return value;}
    private MenuItem item(String n,String icon,javafx.event.EventHandler<javafx.event.ActionEvent>h){MenuItem i=new MenuItem(n);i.getProperties().put("erp.icon.semantic",icon);i.setGraphic(IconFactory.compactIcon(icon,16));i.setOnAction(event->{try{h.handle(event);}catch(Throwable failure){error(failure);}});m.getItems().add(i);return i;}
@@ -159,7 +151,22 @@ public class PurchaseListController implements ScreenLifecycle{
  @FXML private void showCustomRange(){dpFrom.requestFocus();}
  private void applyDateRange(LocalDate from,LocalDate to){dpFrom.setValue(from);dpTo.setValue(to);filter();}
  @FXML private void toggleAdvanced(){advancedFilters.setManaged(btnAdvanced.isSelected());advancedFilters.setVisible(btnAdvanced.isSelected());}@FXML private void resetFilters(){txtSearch.clear();cmbSupplier.setValue("All Suppliers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());filter();}
- @FXML private void newPurchase(){NavigationManager.navigateOrReport("/fxml/pages/Purchase.fxml");}private void edit(Purchase p){try{FXMLLoader l=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Purchase.fxml"));Parent root=l.load();org.example.util.ProfessionalUiEnhancer.enhance(root);PurchaseController controller=l.getController();controller.loadPurchase(service.getByInvoice(p.getInvoiceNo()));NavigationManager.getInstance().showPreparedPage("/fxml/pages/Purchase.fxml",root,controller);}catch(Exception e){error(e);}}
+ @FXML private void newPurchase(){NavigationManager.navigateOrReport("/fxml/pages/Purchase.fxml");}
+ private void edit(Purchase p){openPurchaseEditor(p,false);}
+ private void view(Purchase p){openPurchaseEditor(p,true);}
+ private void openPurchaseEditor(Purchase p,boolean viewOnly){
+  try{
+   FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Purchase.fxml"));
+   Parent root=loader.load();
+   org.example.util.ProfessionalUiEnhancer.enhance(root);
+   PurchaseController controller=loader.getController();
+   Purchase full=service.getByInvoice(p.getInvoiceNo());
+   if(full==null)throw new IllegalStateException("Purchase invoice "+p.getInvoiceNo()+" was not found. Refresh the register and try again.");
+   controller.loadPurchase(full);
+   if(viewOnly)controller.setViewMode(true);
+   NavigationManager.getInstance().showPreparedPage("/fxml/pages/Purchase.fxml",root,controller);
+  }catch(Exception e){error(e);}
+ }
  private void details(Purchase p){selected=p;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.8);lblDetailInvoice.setText(p.getInvoiceNo());lblDetailSupplier.setText(p.getSupplier()==null?"Unknown Supplier":p.getSupplier().getName());lblDetailContact.setText(p.getSupplier()==null?"":s(p.getSupplier().getPhone())+"\n"+s(p.getSupplier().getEmail())+"\n"+s(p.getSupplier().getGstin()));lblDetailAmount.setText(fmt(p.getTotalAmount()));lblDetailPaid.setText(fmt(p.getPaidAmount()));lblDetailBalance.setText(fmt(p.getBalanceAmount()));lblDetailDue.setText(due(p));if(lblDetailGst!=null)lblDetailGst.setText(fmt(p.getGstAmount()));if(lblDetailReference!=null)lblDetailReference.setText(s(p.getReferenceNo()).isBlank()?"Not set":p.getReferenceNo());if(lblDetailPaymentTerms!=null)lblDetailPaymentTerms.setText(s(p.getPaymentTerms()).isBlank()?"Not set":p.getPaymentTerms());if(lblDetailContactPerson!=null)lblDetailContactPerson.setText(s(p.getContactPerson()).isBlank()?(p.getSupplier()==null||s(p.getSupplier().getContactPerson()).isBlank()?"Not set":p.getSupplier().getContactPerson()):p.getContactPerson());if(lblDetailPhone!=null)lblDetailPhone.setText(p.getSupplier()==null||s(p.getSupplier().getPhone()).isBlank()?"Not set":p.getSupplier().getPhone());if(lblDetailEmail!=null)lblDetailEmail.setText(p.getSupplier()==null||s(p.getSupplier().getEmail()).isBlank()?"Not set":p.getSupplier().getEmail());if(lblDetailGstin!=null)lblDetailGstin.setText(s(p.getBillingGstin()).isBlank()?(p.getSupplier()==null||s(p.getSupplier().getGstin()).isBlank()?"Not set":p.getSupplier().getGstin()):p.getBillingGstin());if(lblDetailCharges!=null)lblDetailCharges.setText(p.getCharges()==null||p.getCharges().isEmpty()?"Not Applicable":p.getCharges().stream().map(c->c.getChargeType()+" • "+fmt(c.getAmount())+(c.isTaxable()?" (GST "+String.format(java.util.Locale.ROOT,"%.2f%%",c.getGstPercent())+")":"")).collect(java.util.stream.Collectors.joining("\n")));if(lblDetailChargeTax!=null)lblDetailChargeTax.setText(fmt(p.getChargesTaxAmount()));if(lblDetailGstType!=null)lblDetailGstType.setText(s(p.getGstType()).isBlank()?"Not Applicable":p.getGstType());if(lblDetailTransporter!=null)lblDetailTransporter.setText(s(p.getTransporter()).isBlank()?"Not Applicable":p.getTransporter());if(lblDetailVehicle!=null)lblDetailVehicle.setText(s(p.getVehicleNumber()).isBlank()?"Not Applicable":p.getVehicleNumber());if(lblDetailNotes!=null)lblDetailNotes.setText(s(p.getNotes()).isBlank()?"No notes":p.getNotes());if(lblDetailAttachment!=null){try{int count=support.documentAttachments("PURCHASE",p.getId()).size();lblDetailAttachment.setText(count==0?"No attachments":count+" attachment"+(count==1?"":"s"));}catch(Exception ignored){lblDetailAttachment.setText(s(p.getAttachmentPath()).isBlank()?"No attachments":"1 attachment");}}if(lblDetailBillingAddress!=null)lblDetailBillingAddress.setText(s(p.getBillingAddress()).isBlank()?"Not set":p.getBillingAddress());if(lblDetailDeliveryAddress!=null)lblDetailDeliveryAddress.setText(s(p.getDeliveryAddress()).isBlank()?"Not set":p.getDeliveryAddress());}
 private void configureDetailsCloseButton(){
      if(btnCloseDetails == null) return;
@@ -167,7 +174,11 @@ private void configureDetailsCloseButton(){
      btnCloseDetails.getProperties().put("erp-icon-preserve", true);
      btnCloseDetails.setAccessibleText("Close purchase details");
  }
- @FXML private void closeDetails(){selected=null;detailDrawer.setManaged(false);detailDrawer.setVisible(false);mainSplit.setDividerPositions(1);if(tablePurchase!=null)tablePurchase.getSelectionModel().clearSelection();}@FXML private void paySelected(){if(selected!=null)payment(selected);}@FXML private void pdfSelected(){if(selected!=null)pdf(selected);}@FXML private void excelSelected(){if(selected!=null)excel(selected);}@FXML private void emailSelected(){if(selected!=null)email(selected);}
+ @FXML private void closeDetails(){selected=null;detailDrawer.setManaged(false);detailDrawer.setVisible(false);mainSplit.setDividerPositions(1);if(tablePurchase!=null)tablePurchase.getSelectionModel().clearSelection();}
+ @FXML private void paySelected(){if(selected!=null)payment(selected);}
+ @FXML private void editSelected(){if(selected!=null)edit(selected);}
+ @FXML private void excelSelected(){if(selected!=null)excel(selected);}
+ @FXML private void emailSelected(){if(selected!=null)email(selected);}
  private void payment(Purchase p){if(p==null)return;String document=s(p.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);if("DRAFT".equals(document)){info("Post the Purchase before opening payments.");return;}if(java.util.Set.of("DELETED","CANCELLED").contains(document)){info("Payments are unavailable for deleted or cancelled purchases.");return;}PurchaseScreenContext.select(p.getInvoiceNo());NavigationManager.getInstance().loadPage("/fxml/pages/PurchasePayment.fxml");}
  private void pdf(Purchase p){try{Purchase full=requirePurchase(p);java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());}catch(Exception e){error(e);}}
  private void excel(Purchase p){try{Purchase full=requirePurchase(p);Path file=ExcelOutputService.purchase(full);if(java.awt.Desktop.isDesktopSupported())java.awt.Desktop.getDesktop().open(file.toFile());else info("Excel file created: "+file);}catch(Exception e){error(e);}}
@@ -179,58 +190,7 @@ private void configureDetailsCloseButton(){
  private void delete(Purchase p){if(isFinanciallyLocked(p)){info("Paid, partially paid, or settled purchases cannot be deleted. Create a purchase return instead.");return;}String status=s(p.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);if("DELETED".equals(status)){info("This purchase is already marked as deleted.");return;}String prompt="Delete "+p.getInvoiceNo()+"?\n\nThe document will disappear from the normal Purchase Register, but its backend audit record will be retained as DELETED.\nAny inventory movement already posted by this purchase will be reversed safely.";if(new OwnedAlert(Alert.AlertType.CONFIRMATION,prompt,ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;try{service.delete(p.getInvoiceNo());refresh();closeDetails();info(p.getInvoiceNo()+" deleted from the register. Backend audit record retained.");}catch(Exception e){error(e);}}
  private void duplicate(Purchase p){try{FXMLLoader l=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Purchase.fxml"));Parent root=l.load();org.example.util.ProfessionalUiEnhancer.enhance(root);PurchaseController c=l.getController();c.loadPurchase(service.getByInvoice(p.getInvoiceNo()));c.prepareDuplicate();NavigationManager.getInstance().showPreparedPage("/fxml/pages/Purchase.fxml",root,c);}catch(Exception e){error(e);}}
  private void viewPayments(Purchase p){if(p==null)return;PurchaseScreenContext.select(p.getInvoiceNo());NavigationManager.getInstance().loadPage("/fxml/pages/PurchasePayment.fxml");}
- private void attach(Purchase p){
-  FileChooser chooser=new FileChooser();chooser.setTitle("Add purchase attachments");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documents","*.pdf","*.png","*.jpg","*.jpeg","*.doc","*.docx","*.xls","*.xlsx","*.csv","*.txt","*.*"));List<File> files=chooser.showOpenMultipleDialog(tablePurchase.getScene().getWindow());if(files==null||files.isEmpty())return;
-  try{int saved=0;for(File file:files){if(file!=null&&file.isFile()){support.addDocumentAttachment("PURCHASE",p.getId(),file.toPath());saved++;}}refresh();info(saved+" purchase attachment"+(saved==1?"":"s")+" saved.");}catch(Exception e){error(e);}
- }
- private void viewAttachment(Purchase p){
-  try{
-   List<SupportApiClient.AttachmentMeta> list=support.documentAttachments("PURCHASE",p.getId());
-   if(list.isEmpty()&&!s(p.getAttachmentPath()).isBlank()){
-    SupportApiClient.DownloadedAttachment downloaded=support.documentAttachment("PURCHASE",p.getId());Path path=materializeAttachmentPreview(downloaded);
-    if(path==null||!Files.isRegularFile(path))throw new FileNotFoundException("The stored purchase attachment is missing.");
-    java.awt.Desktop.getDesktop().open(path.toFile());return;
-   }
-   if(list.isEmpty()){info("No purchase attachments are available.");return;}
-   SupportApiClient.AttachmentMeta meta=chooseAttachment(list,"Purchase Attachments","Choose an attachment to open");
-   if(meta==null)return;
-   SupportApiClient.DownloadedAttachment downloaded=support.documentAttachment("PURCHASE",p.getId(),meta.id());
-   Path path=materializeAttachmentPreview(downloaded);
-   if(path!=null&&Files.isRegularFile(path))java.awt.Desktop.getDesktop().open(path.toFile());
-  }catch(Exception e){error(e);}
- }
- private void removeAttachment(Purchase p){
-  try{
-   List<SupportApiClient.AttachmentMeta> list=support.documentAttachments("PURCHASE",p.getId());
-   if(list.isEmpty()&&!s(p.getAttachmentPath()).isBlank()){
-    if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the attachment from "+p.getInvoiceNo()+"?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
-    support.deleteDocumentAttachment("PURCHASE",p.getId());refresh();info("Purchase attachment removed.");return;
-   }
-   if(list.isEmpty()){info("No purchase attachments are available.");return;}
-   SupportApiClient.AttachmentMeta meta=chooseAttachment(list,"Remove Purchase Attachment","Choose the attachment to remove");
-   if(meta==null)return;
-   if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove "+meta.fileName()+" from "+p.getInvoiceNo()+"?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
-   support.deleteDocumentAttachment("PURCHASE",p.getId(),meta.id());refresh();info("Purchase attachment removed.");
-  }catch(Exception e){error(e);}
- }
 
- private SupportApiClient.AttachmentMeta chooseAttachment(List<SupportApiClient.AttachmentMeta> attachments,String title,String header){
-  if(attachments==null||attachments.isEmpty())return null;
-  List<String> choices=new ArrayList<>();
-  Map<String,SupportApiClient.AttachmentMeta> byChoice=new LinkedHashMap<>();
-  for(SupportApiClient.AttachmentMeta attachment:attachments){
-   if(attachment==null)continue;
-   String base=s(attachment.fileName()).isBlank()?"Attachment":attachment.fileName();
-   String label=base;
-   if(byChoice.containsKey(label))label=base+"  (#"+attachment.id()+")";
-   byChoice.put(label,attachment);choices.add(label);
-  }
-  if(choices.isEmpty())return null;
-  ChoiceDialog<String> dialog=new org.example.util.OwnedChoiceDialog<>(choices.getFirst(),choices);
-  dialog.setTitle(title);dialog.setHeaderText(header);dialog.setContentText("Attachment:");
-  return dialog.showAndWait().map(byChoice::get).orElse(null);
- }
- private Path materializeAttachmentPreview(SupportApiClient.DownloadedAttachment downloaded)throws IOException{if(downloaded==null||downloaded.data()==null||downloaded.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String raw=downloaded.fileName()==null?"attachment":downloaded.fileName();String name=raw.replaceAll("[^A-Za-z0-9._() -]","_").trim();if(name.isBlank())name="attachment";Path target=folder.resolve(System.currentTimeMillis()+"-"+name);Files.write(target,downloaded.data());target.toFile().deleteOnExit();return target;}
  private void notes(Purchase p){TextInputDialog d=new OwnedTextInputDialog(p.getRemarks());d.setHeaderText("Notes / Remarks • "+p.getInvoiceNo());d.showAndWait().ifPresent(v->{try{support.notes("PURCHASE",p.getId(),v);refresh();}catch(Exception e){error(e);}});}
  private void cancelPurchase(Purchase p){if(p==null)return;String status=s(p.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);if("CANCELLED".equals(status)){info("This purchase is already cancelled.");return;}if("DELETED".equals(status)){info("Deleted purchases cannot be cancelled.");return;}if(isFinanciallyLocked(p)){info("Paid, partially paid, or settled purchases cannot be cancelled. Create a purchase return instead.");return;}String prompt="Cancel "+p.getInvoiceNo()+"?\n\nThe document will remain visible with status CANCELLED and any posted inventory will be reversed safely.";if(new OwnedAlert(Alert.AlertType.CONFIRMATION,prompt,ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;try{service.cancel(p.getInvoiceNo());refresh();closeDetails();info(p.getInvoiceNo()+" cancelled. The document remains visible in the register.");}catch(Exception e){error(e);}}
  private void createReturn(Purchase p){String document=s(p.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);if("DRAFT".equals(document)){info("Post the Purchase before creating a Purchase Return.");return;}if("DELETED".equals(document)||"CANCELLED".equals(document)){info("Deleted or cancelled purchases cannot create a Purchase Return.");return;}Purchase full=service.getByInvoice(p.getInvoiceNo());if(full==null){info("Purchase invoice not found. Refresh and try again.");return;}List<ReturnEditorService.InvoiceItem> items=full.getLines().stream().map(line->new ReturnEditorService.InvoiceItem(line.getItemCode(),line.getItemDescription(),line.getQuantity(),line.getRate(),line.getGstPercent())).toList();ReturnEditorService.show(tablePurchase.getScene().getWindow(),ReturnEditorService.Type.PURCHASE,p.getInvoiceNo(),p.getSupplier().getName(),p.getSupplier().getId(),items).ifPresent(no->{refresh();info("Purchase return created: "+no);});}

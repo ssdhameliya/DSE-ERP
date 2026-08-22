@@ -41,6 +41,7 @@ import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
 import org.example.navigation.NavigationGuardRegistry;
 import org.example.shared.DocumentCalculationEngine;
+import org.example.theme.ThemeManager;
 
 import java.awt.Desktop;
 import java.io.ByteArrayInputStream;
@@ -216,6 +217,8 @@ public class ExcelDesignerController {
                 List<String> addresses = mappedFieldAddresses.getOrDefault(field.key(), List.of());
                 String mapping = addresses.isEmpty() ? "○ Not mapped" : "✓ " + String.join(", ", addresses.stream().limit(3).toList()) + (addresses.size() > 3 ? "…" : "");
                 setText(field.category() + " • " + field.label() + "   " + mapping);
+                setWrapText(true);
+                setMaxWidth(Double.MAX_VALUE);
                 setGraphic(IconFactory.compactIcon(field.image() ? "image" : (addresses.isEmpty() ? "document" : "check"), 14));
                 String current = previewValue(field.key());
                 String valueLine = current.isBlank() ? "" : "\nCurrent preview value: " + current;
@@ -1977,7 +1980,7 @@ public class ExcelDesignerController {
         if(contrastRatio(requested,background)>=3.0)return requested;
         return contrastRatio(Color.WHITE,background)>=contrastRatio(Color.BLACK,background)?Color.WHITE:Color.BLACK;
     }
-    private boolean darkThemeActive(){return root!=null&&root.getScene()!=null&&root.getScene().getStylesheets().stream().anyMatch(s->s.toLowerCase(Locale.ROOT).contains("dark-theme"));}
+    private boolean darkThemeActive(){return ThemeManager.getCurrentTheme()==ThemeManager.Theme.DARK;}
     private double contrastRatio(Color a,Color b){double la=luminance(a),lb=luminance(b);return (Math.max(la,lb)+0.05)/(Math.min(la,lb)+0.05);}
     private double luminance(Color color){return 0.2126*linear(color.getRed())+0.7152*linear(color.getGreen())+0.0722*linear(color.getBlue());}
     private double linear(double value){return value<=0.03928?value/12.92:Math.pow((value+0.055)/1.055,2.4);}

@@ -195,6 +195,7 @@ public class SalesController {
     //-------------------------------------------------------
 
     private Sales editingSale = null;
+    private Sales duplicateSource = null;
     private boolean loadingSaleForEdit = false;
     private File pendingAttachment;
     private boolean attachmentRemovalPending;
@@ -516,7 +517,8 @@ public class SalesController {
         cmbTransporter.getItems().setAll(bootstrap.transporters());
         cmbCustomer.setItems(FXCollections.observableArrayList(bootstrap.customers()));
 
-        if (editingSale == null) {
+        Sales source = editingSale != null ? editingSale : duplicateSource;
+        if (source == null) {
             selectDefaultPaymentTerms();
             if (!cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
             if (!bootstrap.invoiceNo().isBlank()) {
@@ -527,33 +529,37 @@ public class SalesController {
             }
         } else {
             // loadSale() can run immediately after FXMLLoader.load(). If master
-            // data arrives later, re-bind selections to the persisted edit values
+            // data arrives later, re-bind selections to the persisted edit/duplicate values
             // without replacing historical addresses, dates or line items.
             boolean previousLoadingState = loadingSaleForEdit;
             loadingSaleForEdit = true;
             try {
-                String terms = editingSale.getPaymentTerms();
+                String terms = source.getPaymentTerms();
                 cmbPaymentTerms.setValue(terms == null || terms.isBlank() ? "15 Days" : terms);
-                String gstType = editingSale.getGstType();
+                String gstType = source.getGstType();
                 if (gstType != null && !gstType.isBlank()) cmbGstType.setValue(gstType);
-                if (editingSale.getTransporter() != null && !editingSale.getTransporter().isBlank()) {
+                if (source.getTransporter() != null && !source.getTransporter().isBlank()) {
                     cmbTransporter.getItems().stream()
-                        .filter(value -> value.getLookupValue().equalsIgnoreCase(editingSale.getTransporter()))
+                        .filter(value -> value.getLookupValue().equalsIgnoreCase(source.getTransporter()))
                         .findFirst().ifPresent(cmbTransporter::setValue);
                 }
-                if (editingSale.getCustomer() != null) {
-                    int customerId = editingSale.getCustomer().getId();
+                if (source.getCustomer() != null) {
+                    int customerId = source.getCustomer().getId();
                     Party loadedCustomer = cmbCustomer.getItems().stream()
                         .filter(party -> party.getId() == customerId)
                         .findFirst().orElse(null);
                     if (loadedCustomer != null) cmbCustomer.setValue(loadedCustomer);
                     else {
-                        String customerQuery = editingSale.getCustomer().getPartyCode();
+                        String customerQuery = source.getCustomer().getPartyCode();
                         UiTaskExecutor.submitLatest("create-sale-edit-customer-lookup",
                             () -> partyService.search("CUSTOMER", customerQuery, 20),
                             customers -> customers.stream().filter(party -> party.getId() == customerId).findFirst().ifPresent(party -> { cmbCustomer.getItems().add(party); cmbCustomer.setValue(party); }),
-                            error -> System.err.println("Create Sale edit customer lookup: " + rootMessage(error)));
+                            error -> System.err.println("Create Sale customer lookup: " + rootMessage(error)));
                     }
+                }
+                if (duplicateSource != null && !bootstrap.invoiceNo().isBlank()) {
+                    txtInvoiceNo.setText(bootstrap.invoiceNo());
+                    if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(bootstrap.invoiceNo());
                 }
             } finally {
                 loadingSaleForEdit = previousLoadingState;
@@ -1265,6 +1271,7 @@ public class SalesController {
     private void newSale() {
 
         editingSale = null;
+        duplicateSource = null;
 
         // Invoice numbering is API-backed and is loaded by loadSaleBootstrapAsync().
         // Never block the JavaFX Application Thread while the screen is opening.
@@ -1626,6 +1633,7 @@ public class SalesController {
         );
 
         editingSale = sale;
+        duplicateSource = null;
         loadingSaleForEdit = true;
 
         // Capture persisted delivery state before customer selection fires its
@@ -1744,6 +1752,21 @@ public class SalesController {
 
     }
 
+
+
+    /** Prepare an existing sale as a new unsaved invoice, matching Duplicate Purchase behavior. */
+    public void prepareDuplicate() {
+        if (editingSale == null) return;
+        duplicateSource = editingSale;
+        editingSale = null;
+        pendingAttachment = null;
+        attachmentRemovalPending = false;
+        if (txtAttachment != null) txtAttachment.clear();
+        refreshAttachmentUi();
+        String nextInvoice = salesService.nextInvoiceNo();
+        txtInvoiceNo.setText(nextInvoice);
+        if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(nextInvoice);
+    }
 
 //--------------------------------------------------
 // VIEW MODE

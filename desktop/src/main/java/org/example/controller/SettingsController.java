@@ -37,6 +37,7 @@ import org.example.service.EmailService;
 import org.example.service.BrandAssetPolicy;
 import org.example.service.BrandImagePresenter;
 import org.example.service.NotificationService;
+import org.example.service.SessionService;
 import org.example.ui.SharedApplicationFooter;
 import org.example.update.UpdateDialogs;
 import org.example.update.UpdateService;
@@ -188,6 +189,12 @@ public class SettingsController implements ScreenLifecycle {
     private PasswordField txtSmtpPassword;
 
     @FXML
+    private TextField txtSmtpPasswordVisible;
+
+    @FXML
+    private CheckBox chkShowSmtpPassword;
+
+    @FXML
     private TextField txtSmtpHost;
 
     @FXML
@@ -310,6 +317,7 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private VBox panelWorkspace;
     @FXML private Label lblWorkspacePath;
     @FXML private Label lblWorkspaceStatus;
+    @FXML private VBox deploymentSection;
     @FXML private ComboBox<String> cmbDeploymentMode;
     @FXML private TextField txtCompanyServerUrl;
     @FXML private Label lblCompanyServerStatus;
@@ -444,19 +452,23 @@ public class SettingsController implements ScreenLifecycle {
                 setNotificationCategoriesDisabled(!chkNotifications.isSelected());
             }
             case EMAIL -> {
-                txtSmtpEmail.setText(ConfigManager.get("smtp.email", ""));
-                txtSmtpPassword.setText(ConfigManager.get("smtp.appPassword", ""));
-                txtSmtpHost.setText(ConfigManager.get("smtp.host", ""));
-                txtSmtpPort.setText(ConfigManager.get("smtp.port", "587"));
+                txtSmtpEmail.setText(ConfigManager.getSmtpEmail());
+                setSmtpPasswordValue(ConfigManager.getSmtpPassword());
+                txtSmtpHost.setText(ConfigManager.getSmtpHost());
+                txtSmtpPort.setText(ConfigManager.getSmtpPort());
             }
             case WORKSPACE -> {
                 refreshWorkspacePanel();
-                cmbDeploymentMode.setItems(FXCollections.observableArrayList("This PC only", "Connect to company server"));
-                cmbDeploymentMode.getSelectionModel().select(ConfigManager.isSharedClient() ? 1 : 0);
-                txtCompanyServerUrl.setText(ConfigManager.getConfiguredServerUrl());
-                txtCompanyServerUrl.textProperty().addListener((o,a,b)->validatedCompanyServerUrl=null);
-                cmbDeploymentMode.valueProperty().addListener((o,a,b)->updateDeploymentSettingsControls());
-                updateDeploymentSettingsControls();
+                boolean admin = SessionService.isAdmin();
+                if (deploymentSection != null) { deploymentSection.setVisible(admin); deploymentSection.setManaged(admin); }
+                if (admin) {
+                    cmbDeploymentMode.setItems(FXCollections.observableArrayList("This PC only", "Connect to company server"));
+                    cmbDeploymentMode.getSelectionModel().select(ConfigManager.isSharedClient() ? 1 : 0);
+                    txtCompanyServerUrl.setText(ConfigManager.getConfiguredServerUrl());
+                    txtCompanyServerUrl.textProperty().addListener((o,a,b)->validatedCompanyServerUrl=null);
+                    cmbDeploymentMode.valueProperty().addListener((o,a,b)->updateDeploymentSettingsControls());
+                    updateDeploymentSettingsControls();
+                }
             }
             case SHORTCUTS -> initializeShortcutSettings();
             case UPDATES -> {
@@ -1421,6 +1433,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void saveDeploymentSettings() {
+        if (!SessionService.isAdmin()) return;
         boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
         if (shared) {
             String normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText());
@@ -1443,6 +1456,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     @FXML private void testCompanyServer() {
+        if (!SessionService.isAdmin()) return;
         if (btnTestCompanyServer == null) return;
         btnTestCompanyServer.setDisable(true);
         lblCompanyServerStatus.setText("Testing company server...");
@@ -1647,7 +1661,7 @@ public class SettingsController implements ScreenLifecycle {
 
         putSetting(
             "smtp.appPassword",
-            txtSmtpPassword.getText()
+            smtpPasswordValue()
         );
 
         putSetting(
@@ -1668,6 +1682,29 @@ public class SettingsController implements ScreenLifecycle {
                 ? "587"
                 : port
         );
+    }
+
+    @FXML
+    private void toggleSmtpPasswordVisibility() {
+        if (txtSmtpPassword == null || txtSmtpPasswordVisible == null || chkShowSmtpPassword == null) return;
+        boolean show = chkShowSmtpPassword.isSelected();
+        if (show) txtSmtpPasswordVisible.setText(txtSmtpPassword.getText());
+        else txtSmtpPassword.setText(txtSmtpPasswordVisible.getText());
+        txtSmtpPassword.setVisible(!show); txtSmtpPassword.setManaged(!show);
+        txtSmtpPasswordVisible.setVisible(show); txtSmtpPasswordVisible.setManaged(show);
+        (show ? txtSmtpPasswordVisible : txtSmtpPassword).requestFocus();
+    }
+
+    private void setSmtpPasswordValue(String value) {
+        String safe = value == null ? "" : value;
+        if (txtSmtpPassword != null) txtSmtpPassword.setText(safe);
+        if (txtSmtpPasswordVisible != null) txtSmtpPasswordVisible.setText(safe);
+    }
+
+    private String smtpPasswordValue() {
+        if (chkShowSmtpPassword != null && chkShowSmtpPassword.isSelected() && txtSmtpPasswordVisible != null)
+            return txtSmtpPasswordVisible.getText() == null ? "" : txtSmtpPasswordVisible.getText();
+        return txtSmtpPassword == null || txtSmtpPassword.getText() == null ? "" : txtSmtpPassword.getText();
     }
 
     private void saveNotificationSettings() {
@@ -1754,7 +1791,7 @@ public class SettingsController implements ScreenLifecycle {
        ========================================================= */
 
     private boolean validateSettings() {
-        if (loadedPanels.containsKey(Section.WORKSPACE)
+        if (SessionService.isAdmin() && loadedPanels.containsKey(Section.WORKSPACE)
                 && cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1) {
             try {
                 String normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText());

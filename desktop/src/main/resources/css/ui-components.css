@@ -1668,7 +1668,18 @@
 }
 
 .doc-studio-kpi-wide {
-    -fx-min-width: 330px;
+    -fx-min-width: 0;
+}
+
+.doc-studio-kpi-row > .doc-studio-kpi {
+    -fx-min-width: 0;
+    -fx-pref-width: 1;
+    -fx-max-width: infinity;
+    -fx-min-height: 82px;
+}
+
+.doc-studio-kpi-row > .doc-studio-kpi .label {
+    -fx-wrap-text: true;
 }
 
 .doc-studio-mode-guide {
@@ -9138,3 +9149,17 @@
 .erp-quantity-positive { -fx-text-fill: -color-success; -fx-font-weight: 800; }
 .erp-quantity-negative { -fx-text-fill: -color-danger; -fx-font-weight: 800; }
 .erp-quantity-neutral { -fx-text-fill: -color-primary; -fx-font-weight: 800; }
+
+/* Excel Studio 8.4.2 layout normalization: one command surface and aligned workspace gutters. */
+.excel-unified-command-strip {
+    -fx-max-width: infinity;
+}
+.excel-studio-sidebar {
+    -fx-min-width: 320px;
+}
+.excel-studio-sidebar .list-cell {
+    -fx-padding: 8px 9px;
+}
+.excel-workbook-shell {
+    -fx-background-color: transparent;
+}
