@@ -100,6 +100,7 @@ if ($LASTEXITCODE -ne 0) { throw "jpackage app-image creation failed." }
 
 $AppLauncher = Join-Path $AppImage "DSE ERP\DSE ERP.exe"
 $BundledJava = Join-Path $AppImage "DSE ERP\runtime\bin\java.exe"
+$BundledJavaw = Join-Path $AppImage "DSE ERP\runtime\bin\javaw.exe"
 $BundledJvm = Join-Path $AppImage "DSE ERP\runtime\bin\server\jvm.dll"
 $PackagedServerJar = Join-Path $AppImage "DSE ERP\app\server\dse-erp-server.jar"
 if (-not (Test-Path -LiteralPath $AppLauncher -PathType Leaf)) {
@@ -107,6 +108,9 @@ if (-not (Test-Path -LiteralPath $AppLauncher -PathType Leaf)) {
 }
 if (-not (Test-Path -LiteralPath $BundledJava -PathType Leaf)) {
     throw "Production app image is missing the bundled Java launcher required for Spring Boot: $BundledJava"
+}
+if (-not (Test-Path -LiteralPath $BundledJavaw -PathType Leaf)) {
+    throw "Production app image is missing the windowless Java launcher required for Spring Boot: $BundledJavaw"
 }
 if (-not (Test-Path -LiteralPath $BundledJvm -PathType Leaf)) {
     throw "Production app image is missing the bundled JVM: $BundledJvm"
@@ -118,7 +122,7 @@ if (-not (Test-Path -LiteralPath $PackagedServerJar -PathType Leaf)) {
 if ($LASTEXITCODE -ne 0) {
     throw "Bundled Java launcher could not start: $BundledJava"
 }
-Write-Host "Verified desktop launcher, direct Spring Boot java launcher and bundled JVM." -ForegroundColor DarkCyan
+Write-Host "Verified desktop launcher, Java/javaw launchers and bundled JVM." -ForegroundColor DarkCyan
 
 $ExeArgs = @(
     '--type', 'exe'

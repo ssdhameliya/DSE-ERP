@@ -444,8 +444,16 @@ public final class RuntimeBootstrapper {
     }
 
     private static Path javaExecutable() {
-        String executable = isWindows() ? "java.exe" : "java";
-        Path java = Path.of(System.getProperty("java.home"), "bin", executable);
+        return javaExecutable(Path.of(System.getProperty("java.home")), isWindows(), isPackagedRuntime());
+    }
+
+    static Path javaExecutable(Path javaHome, boolean windows, boolean packagedRuntime) {
+        Path bin = javaHome.resolve("bin");
+        if (windows && packagedRuntime) {
+            Path javaw = bin.resolve("javaw.exe");
+            if (Files.isRegularFile(javaw)) return javaw;
+        }
+        Path java = bin.resolve(windows ? "java.exe" : "java");
         if (!Files.isRegularFile(java)) throw new IllegalStateException("Bundled Java runtime executable not found: " + java);
         return java;
     }
