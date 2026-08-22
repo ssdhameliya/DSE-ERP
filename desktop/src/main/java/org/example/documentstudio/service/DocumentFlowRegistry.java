@@ -49,7 +49,7 @@ public final class DocumentFlowRegistry {
      * have a ProfessionalDocumentRenderer.Kind.
      */
     public static boolean isExcelAutomatic(DocumentType type) {
-        return type != null && type.isErpConnected();
+        return type != null && type.isErpConnected() && DocumentDataService.supportsRealData(type);
     }
 
     public static String excelBuiltInLabel(DocumentType type) {

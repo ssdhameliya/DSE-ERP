@@ -320,16 +320,26 @@ public class ItemMasterController {
     }
 
     private void configureBulkSelection() {
-        selectAllVisible.setTooltip(new Tooltip("Select all currently visible Item Master records"));
-        selectAllVisible.setOnAction(event -> {
+        // Keep JavaFX row/keyboard selection and the controller-owned checkbox
+        // model as one selection state. MULTIPLE restores the native
+        // Shift+Up/Down (and Shift+click) range-selection behavior, while the
+        // listener below keeps selectedItemCodes authoritative for bulk actions.
+        tableItems.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        tableItems.getSelectionModel().getSelectedItems().addListener((javafx.collections.ListChangeListener<Item>) change -> {
             selectedItemCodes.clear();
-            if (selectAllVisible.isSelected()) {
-                for (Item item : tableItems.getItems()) {
-                    if (item != null && item.getItemCode() != null && !item.getItemCode().isBlank()) selectedItemCodes.add(item.getItemCode());
+            for (Item item : tableItems.getSelectionModel().getSelectedItems()) {
+                if (item != null && item.getItemCode() != null && !item.getItemCode().isBlank()) {
+                    selectedItemCodes.add(item.getItemCode());
                 }
             }
             updateBulkSelectionUi();
             tableItems.refresh();
+        });
+
+        selectAllVisible.setTooltip(new Tooltip("Select all currently visible Item Master records"));
+        selectAllVisible.setOnAction(event -> {
+            if (selectAllVisible.isSelected()) tableItems.getSelectionModel().selectAll();
+            else tableItems.getSelectionModel().clearSelection();
         });
         Label selectAllLabel = new Label("Select All Visible");
         HBox selectAllHeader = new HBox(6, selectAllVisible, selectAllLabel);
@@ -350,9 +360,11 @@ public class ItemMasterController {
             {
                 box.setOnAction(event -> {
                     Item row = getTableRow() == null ? null : getTableRow().getItem();
-                    if (row == null || row.getItemCode() == null || row.getItemCode().isBlank()) return;
-                    if (box.isSelected()) selectedItemCodes.add(row.getItemCode()); else selectedItemCodes.remove(row.getItemCode());
-                    updateBulkSelectionUi();
+                    int index = getIndex();
+                    if (row == null || row.getItemCode() == null || row.getItemCode().isBlank()
+                        || index < 0 || index >= tableItems.getItems().size()) return;
+                    if (box.isSelected()) tableItems.getSelectionModel().select(index);
+                    else tableItems.getSelectionModel().clearSelection(index);
                 });
             }
             @Override protected void updateItem(Boolean value, boolean empty) {
@@ -367,6 +379,7 @@ public class ItemMasterController {
     }
 
     private void clearBulkSelection() {
+        if (tableItems != null) tableItems.getSelectionModel().clearSelection();
         selectedItemCodes.clear();
         selectAllVisible.setSelected(false);
         updateBulkSelectionUi();

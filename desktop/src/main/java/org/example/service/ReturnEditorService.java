@@ -5,6 +5,7 @@ import org.example.util.IconFactory;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
+import org.example.util.PopupTableWorkspace;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -13,7 +14,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
-import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -27,10 +27,8 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.cell.CheckBoxTableCell;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.example.api.returns.ReturnApiClient;
@@ -88,18 +86,19 @@ public final class ReturnEditorService {
         Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.initOwner(owner);
         dialog.setTitle(type == Type.SALES ? "Create Sales Return" : "Create Purchase Return");
-        dialog.setHeaderText("Return items from invoice " + invoiceNo);
+        dialog.setHeaderText("Select invoice items and enter the quantity to return.");
 
         DatePicker returnDate = new DatePicker(BusinessClock.today());
-        Label total = new Label("Return total: " + money(0));
-        total.getStyleClass().add("metric-value");
+        returnDate.setMaxWidth(Double.MAX_VALUE);
+        Label total = PopupTableWorkspace.metricValue(money(0), "warning");
 
         TableView<ReturnLine> table = buildTable();
         table.getItems().setAll(rows);
-        table.setPrefSize(980, 430);
+        table.setPrefSize(1080, 430);
         table.setEditable(true);
+        PopupTableWorkspace.prepareTable(table, "erp-table-profile-dialog");
 
-        Runnable updateTotal = () -> total.setText("Return total: " + money(rows.stream()
+        Runnable updateTotal = () -> total.setText(money(rows.stream()
             .filter(ReturnLine::selected)
             .mapToDouble(ReturnLine::returnAmount)
             .sum()));
@@ -120,25 +119,36 @@ public final class ReturnEditorService {
         });
 
         CheckBox selectAvailable = new CheckBox("Select all available items");
+        selectAvailable.getProperties().put("erp.icon.skip", true);
         selectAvailable.setOnAction(event -> {
             rows.forEach(row -> row.setSelected(selectAvailable.isSelected() && row.available() > 0.0001));
             updateTotal.run();
         });
 
-        GridPane document = new GridPane();
-        document.setHgap(12);
-        document.setVgap(6);
-        document.addRow(0, new Label("Invoice Number"), new Label(invoiceNo),
-            new Label(type == Type.SALES ? "Customer" : "Supplier"), new Label(partyName));
-        document.addRow(1, new Label("Return Date"), returnDate,
-            new Label("Instructions"), new Label("Select items and enter each return quantity."));
+        Label selectedCount = PopupTableWorkspace.footerText("0 items selected");
+        Runnable updateSelectedCount = () -> {
+            long count = rows.stream().filter(ReturnLine::selected).count();
+            selectedCount.setText(count + " item" + (count == 1 ? "" : "s") + " selected");
+        };
+        rows.forEach(row -> row.selectedProperty().addListener((o, a, b) -> updateSelectedCount.run()));
+        updateSelectedCount.run();
 
-        HBox footer = new HBox(12, selectAvailable, new Region(), total);
-        HBox.setHgrow(footer.getChildren().get(1), Priority.ALWAYS);
-        VBox content = new VBox(12, document, table, footer);
-        content.setPadding(new Insets(4));
+        Label invoiceValue = PopupTableWorkspace.metricValue(invoiceNo, "document");
+        Label partyValue = PopupTableWorkspace.metricValue(partyName, type == Type.SALES ? "customer" : "supplier");
+        HBox metrics = PopupTableWorkspace.metricStrip(
+            PopupTableWorkspace.metricCard("Invoice", invoiceValue, "document"),
+            PopupTableWorkspace.metricCard(type == Type.SALES ? "Customer" : "Supplier", partyValue, type == Type.SALES ? "customer" : "supplier"),
+            PopupTableWorkspace.controlCard("Return Date", returnDate, "calendar"),
+            PopupTableWorkspace.metricCard("Estimated Total", total, "warning")
+        );
+        HBox selectionBar = PopupTableWorkspace.footer(selectAvailable);
+        VBox tableArea = new VBox(9, selectionBar, table);
+        VBox.setVgrow(table, Priority.ALWAYS);
+        HBox footer = PopupTableWorkspace.footerWithRight(selectedCount,
+            PopupTableWorkspace.footerText("Enter a reason for every selected return item."));
+        VBox content = PopupTableWorkspace.content(metrics, tableArea, footer);
         dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().setPrefWidth(1040);
+        PopupTableWorkspace.prepareDialog(dialog, 1160);
 
         ButtonType save = new ButtonType("Create Return", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(save, ButtonType.CANCEL);

@@ -32,6 +32,10 @@ import org.example.service.LookupService;
 import org.example.service.MasterCategoryService;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
+import org.example.shortcut.ShortcutRegistry;
+import org.example.shortcut.ShortcutRegistry.Action;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.BorderPane;
 
 import java.io.IOException;
 import java.io.BufferedWriter;
@@ -44,6 +48,8 @@ import java.util.List;
 import java.util.Locale;
 
 public class MasterDataController implements ScreenLifecycle {
+
+    @FXML private BorderPane root;
 
     /* =========================================================
        SIDEBAR
@@ -394,42 +400,17 @@ public class MasterDataController implements ScreenLifecycle {
     }
 
     private void configureKeyboardShortcuts() {
-
-        Platform.runLater(() -> {
-
-            Scene scene = tblLookup.getScene();
-
-            if (scene == null) {
-                return;
+        if (root == null) return;
+        root.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event == null || event.isConsumed()) return;
+            boolean textInput = event.getTarget() instanceof TextInputControl || event.getTarget() instanceof ComboBoxBase<?>;
+            if (!textInput && ShortcutRegistry.matches(event, Action.MASTER_DELETE) && ShortcutRegistry.permitted(Action.MASTER_DELETE)) { deleteLookup(); event.consume(); return; }
+            if (!textInput && ShortcutRegistry.matches(event, Action.MASTER_EDIT) && ShortcutRegistry.permitted(Action.MASTER_EDIT)) {
+                if (tblLookup.getSelectionModel().getSelectedItem() != null) editLookup();
+                event.consume(); return;
             }
-
-            scene.setOnKeyPressed(event -> {
-
-                switch (event.getCode()) {
-
-                    case DELETE -> deleteLookup();
-
-                    case ENTER -> {
-                        if (tblLookup.getSelectionModel()
-                            .getSelectedItem() != null) {
-
-                            editLookup();
-                        }
-                    }
-
-                    case F5 -> refresh();
-
-                    case N -> {
-                        if (event.isControlDown()) {
-                            addLookup();
-                        }
-                    }
-
-                    default -> {
-                        // No action required.
-                    }
-                }
-            });
+            if (ShortcutRegistry.matches(event, Action.MASTER_REFRESH) && ShortcutRegistry.permitted(Action.MASTER_REFRESH)) { refresh(); event.consume(); return; }
+            if (ShortcutRegistry.matches(event, Action.MASTER_NEW) && ShortcutRegistry.permitted(Action.MASTER_NEW)) { addLookup(); event.consume(); }
         });
     }
 

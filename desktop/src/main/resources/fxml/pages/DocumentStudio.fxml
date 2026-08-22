@@ -12,48 +12,42 @@
             <HBox alignment="CENTER_LEFT" spacing="12" styleClass="doc-studio-hero,universal-doc-hero,erp-page-identity-header">
                 <StackPane fx:id="documentStudioPageIcon" styleClass="erp-page-header-icon"/>
                 <VBox spacing="4" HBox.hgrow="ALWAYS">
-                    <Label text="Document Studio" styleClass="doc-studio-title"/>
-                    <Label text="Create, edit and automate PDF and Excel business documents from one protected workspace."
+                    <Label fx:id="lblStudioTitle" text="PDF Studio" styleClass="doc-studio-title"/>
+                    <Label fx:id="lblStudioSubtitle" text="Create, map and automate PDF business documents from one protected workspace."
                            wrapText="true" styleClass="doc-studio-subtitle"/>
                 </VBox>
-                <VBox spacing="7" alignment="CENTER_RIGHT">
-                    <HBox spacing="4" styleClass="doc-studio-format-switch">
-                        <ToggleButton fx:id="btnPdfMode" text="PDF" styleClass="doc-studio-format-toggle"/>
-                        <ToggleButton fx:id="btnExcelMode" text="Excel" styleClass="doc-studio-format-toggle"/>
-                    </HBox>
-                    <HBox fx:id="pdfActions" spacing="7" alignment="CENTER_RIGHT">
-                        <Button text="Import PDF" onAction="#importPdf" styleClass="approved-button,approved-primary-button,doc-studio-entry-button"/>
-                        <Button text="Blank PDF" onAction="#createBlank" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
-                        <Button text="ERP Template" onAction="#createErpTemplate" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
-                    </HBox>
-                    <HBox fx:id="excelActions" spacing="7" alignment="CENTER_RIGHT" visible="false" managed="false">
-                        <Button text="Upload Excel" onAction="#importExcel" styleClass="approved-button,approved-primary-button,doc-studio-entry-button"/>
-                        <Button text="New Excel Template" onAction="#createExcelTemplate" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
-                    </HBox>
-                </VBox>
+                <HBox fx:id="pdfActions" spacing="7" alignment="CENTER_RIGHT">
+                    <Button text="Import PDF" onAction="#importPdf" styleClass="approved-button,approved-primary-button,doc-studio-entry-button"/>
+                    <Button text="Blank PDF" onAction="#createBlank" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
+                    <Button text="ERP Template" onAction="#createErpTemplate" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
+                </HBox>
+                <HBox fx:id="excelActions" spacing="7" alignment="CENTER_RIGHT" visible="false" managed="false">
+                    <Button text="Upload Excel" onAction="#importExcel" styleClass="approved-button,approved-primary-button,doc-studio-entry-button"/>
+                    <Button text="New Excel Template" onAction="#createExcelTemplate" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
+                </HBox>
             </HBox>
 
             <HBox spacing="12" styleClass="doc-studio-kpi-row,erp-kpi-section">
                 <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-blue">
                     <StackPane fx:id="documentsKpiIcon" styleClass="doc-studio-kpi-icon"/>
-                    <VBox spacing="3"><Label text="Documents &amp; Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblTotal" text="0" styleClass="doc-studio-kpi-value"/></VBox>
+                    <VBox spacing="3"><Label fx:id="lblTotalKpiTitle" text="PDF Documents &amp; Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblTotal" text="0" styleClass="doc-studio-kpi-value"/></VBox>
                 </HBox>
                 <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-green">
                     <StackPane fx:id="activeKpiIcon" styleClass="doc-studio-kpi-icon"/>
-                    <VBox spacing="3"><Label text="Active ERP Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblActive" text="0" styleClass="doc-studio-kpi-value"/></VBox>
+                    <VBox spacing="3"><Label fx:id="lblActiveKpiTitle" text="Active PDF Templates" styleClass="doc-studio-kpi-label"/><Label fx:id="lblActive" text="0" styleClass="doc-studio-kpi-value"/></VBox>
                 </HBox>
                 <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-wide,doc-studio-kpi-purple">
                     <StackPane fx:id="defaultsKpiIcon" styleClass="doc-studio-kpi-icon"/>
-                    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Automatic Defaults" styleClass="doc-studio-kpi-label"/><Label fx:id="lblPurchaseDefault" text="Purchase: Built-in • Purchase Return: Built-in • Quotation: Built-in" wrapText="true" styleClass="doc-studio-kpi-default"/></VBox>
+                    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Automatic Defaults" styleClass="doc-studio-kpi-label"/><Label fx:id="lblPurchaseDefault" text="PDF defaults" wrapText="true" styleClass="doc-studio-kpi-default"/></VBox>
                 </HBox>
                 <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="doc-studio-kpi,doc-studio-kpi-safe-card">
                     <StackPane fx:id="salesSafetyKpiIcon" styleClass="doc-studio-kpi-icon"/>
-                    <VBox spacing="3"><Label text="Sales Safety" styleClass="doc-studio-kpi-label"/><Label text="Existing Sales runtime unchanged" wrapText="true" styleClass="doc-studio-kpi-safe"/></VBox>
+                    <VBox spacing="3"><Label text="Runtime Safety" styleClass="doc-studio-kpi-label"/><Label fx:id="lblSafetyText" text="Existing document runtime remains protected" wrapText="true" styleClass="doc-studio-kpi-safe"/></VBox>
                 </HBox>
             </HBox>
 
             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="doc-studio-filterbar">
-                <TextField fx:id="txtSearch" promptText="Search documents and templates..." prefWidth="320" HBox.hgrow="ALWAYS"/>
+                <TextField fx:id="txtSearch" promptText="Search templates..." prefWidth="320" HBox.hgrow="ALWAYS"/>
                 <ComboBox fx:id="cmbType" prefWidth="220"/>
                 <ComboBox fx:id="cmbStatus" prefWidth="160"/>
                 <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
@@ -61,29 +55,29 @@
 
             <HBox spacing="12" styleClass="doc-studio-mode-guide">
                 <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
-                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="generalPdfModeIcon" styleClass="doc-studio-mode-icon"/><Label text="GENERAL PDF" styleClass="doc-studio-mode-title"/></HBox>
-                    <Label text="Import any PDF, edit existing text safely, add images/shapes, manage pages and export a new PDF." wrapText="true" styleClass="doc-studio-tip"/>
+                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="generalPdfModeIcon" styleClass="doc-studio-mode-icon"/><Label fx:id="lblGuideOneTitle" text="GENERAL PDF" styleClass="doc-studio-mode-title"/></HBox>
+                    <Label fx:id="lblGuideOneText" text="Import any PDF, map ERP fields safely, manage pages and export a new PDF." wrapText="true" styleClass="doc-studio-tip"/>
                 </VBox>
                 <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
-                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="erpTemplateModeIcon" styleClass="doc-studio-mode-icon"/><Label text="ERP TEMPLATE" styleClass="doc-studio-mode-title"/></HBox>
-                    <Label text="Connect the same designer to Purchase, Quotation, Delivery, Receipt, Returns and future ERP data providers." wrapText="true" styleClass="doc-studio-tip"/>
+                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="erpTemplateModeIcon" styleClass="doc-studio-mode-icon"/><Label fx:id="lblGuideTwoTitle" text="ERP TEMPLATE" styleClass="doc-studio-mode-title"/></HBox>
+                    <Label fx:id="lblGuideTwoText" text="Map Purchase, Sales, Quotation, Delivery, Receipt and Return data without redesigning the source PDF." wrapText="true" styleClass="doc-studio-tip"/>
                 </VBox>
                 <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="doc-studio-mode-card">
-                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="oneEditorModeIcon" styleClass="doc-studio-mode-icon"/><Label text="ONE EDITOR" styleClass="doc-studio-mode-title"/></HBox>
-                    <Label text="Design, Data Preview and Final PDF all use the same canvas and rendering engine." wrapText="true" styleClass="doc-studio-tip"/>
+                    <HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="oneEditorModeIcon" styleClass="doc-studio-mode-icon"/><Label fx:id="lblGuideThreeTitle" text="MAP &amp; PREVIEW" styleClass="doc-studio-mode-title"/></HBox>
+                    <Label fx:id="lblGuideThreeText" text="Original, mapping and final preview stay inside the same protected PDF workflow." wrapText="true" styleClass="doc-studio-tip"/>
                 </VBox>
             </HBox>
 
             <VBox spacing="8">
                 <HBox alignment="CENTER_LEFT">
-                    <Label fx:id="lblLibraryTitle" text="PDF Document Library" styleClass="doc-studio-section-title"/>
+                    <Label fx:id="lblLibraryTitle" text="PDF Template Library" styleClass="doc-studio-section-title"/>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Label fx:id="lblLibraryTip" text="General PDFs and reusable ERP templates are stored together in your workspace." styleClass="doc-studio-tip"/>
                 </HBox>
                 <StackPane minHeight="400" styleClass="doc-studio-library">
                     <FlowPane fx:id="cards" hgap="14" vgap="14" prefWrapLength="1280"/>
                     <VBox fx:id="emptyState" alignment="CENTER" spacing="9" visible="false" managed="false" styleClass="doc-studio-empty">
-                        <Label fx:id="lblEmptyTitle" text="Your Document Studio is empty" styleClass="doc-studio-empty-title"/>
+                        <Label fx:id="lblEmptyTitle" text="No PDF templates yet" styleClass="doc-studio-empty-title"/>
                         <Label fx:id="lblEmptyText" text="Import an existing PDF, create a blank document, or start an ERP template." styleClass="doc-studio-empty-text"/>
                         <HBox fx:id="pdfEmptyActions" spacing="8" alignment="CENTER">
                             <Button text="Import PDF" onAction="#importPdf" styleClass="approved-button,approved-primary-button"/>

@@ -561,6 +561,8 @@ public final class IconFactory {
             case "quotation" -> "fas-file-alt";
             case "payment" -> "fas-credit-card";
             case "refund" -> "fas-undo";
+            case "undo" -> "fas-undo";
+            case "redo" -> "fas-redo";
             case "partial" -> "fas-adjust";
             case "customer" -> "fas-user";
             case "user" -> "fas-user-circle";

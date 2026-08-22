@@ -7965,27 +7965,108 @@
 .purchase-attachment-list .list-cell:selected { -fx-background-color: #e8f1ff; }
 
 .pdf-map-help-card { -fx-background-color: rgba(37,99,235,.06); -fx-border-color: #bfdbfe; }
-+
-/* Excel Studio spreadsheet interaction controls */
-.excel-command-strip { -fx-background-color:#f8fbff; -fx-border-color:#d8e2ee; -fx-border-radius:9; -fx-background-radius:9; -fx-padding:6 8 6 8; }
-.excel-tool-group { -fx-alignment:center-left; -fx-padding:0 4 0 0; }
-.excel-formula-bar { -fx-background-color:#ffffff; -fx-border-color:#d8e2ee; -fx-border-radius:8; -fx-background-radius:8; -fx-padding:5 7 5 7; }
-.excel-formula-address { -fx-text-fill:#1e3a5f; -fx-font-weight:800; -fx-background-color:#e7f1ff; -fx-background-radius:6; -fx-padding:6 9 6 9; }
-.excel-cell-editor { -fx-padding:4 6 4 6; }
-.excel-cell-selected { -fx-border-color:#2563eb; -fx-border-width:1.6; -fx-effect:innershadow(gaussian,rgba(37,99,235,.72),7,.70,0,0); }
-.excel-cell-range-selected { -fx-effect:innershadow(gaussian,rgba(37,99,235,.30),5,.45,0,0); }
-.excel-cell-editing { -fx-border-color:#d97706; -fx-border-width:2; -fx-background-color:#fffaf0; }
-.excel-cell-merged { -fx-padding:4 6 4 6; }
-.excel-tool-purple { -fx-background-color:#ede9fe; -fx-text-fill:#5b21b6; -fx-border-color:#c4b5fd; }
-.excel-tool-indigo { -fx-background-color:#e0e7ff; -fx-text-fill:#3730a3; -fx-border-color:#a5b4fc; }
-.excel-tool-blue { -fx-background-color:#e0f2fe; -fx-text-fill:#075985; -fx-border-color:#7dd3fc; }
-.excel-tool-blue-strong { -fx-background-color:#2563eb; -fx-text-fill:white; -fx-border-color:#1d4ed8; }
-.excel-tool-green { -fx-background-color:#dcfce7; -fx-text-fill:#166534; -fx-border-color:#86efac; }
-.excel-tool-teal { -fx-background-color:#ccfbf1; -fx-text-fill:#115e59; -fx-border-color:#5eead4; }
-.excel-tool-amber { -fx-background-color:#fef3c7; -fx-text-fill:#92400e; -fx-border-color:#fcd34d; }
-.excel-tool-red { -fx-background-color:#ffe4e6; -fx-text-fill:#9f1239; -fx-border-color:#fda4af; }
-.excel-format-active { -fx-background-color:rgba(22,163,74,.14); -fx-border-color:#16a34a; -fx-border-width:2; -fx-font-weight:800; }
-.excel-format-mixed { -fx-border-color:#d97706; -fx-border-width:1.5; -fx-border-style:dashed; }
-.excel-format-state { -fx-text-fill:#475569; -fx-font-size:10.5px; -fx-font-weight:700; }
-.excel-cell-underlined .text { -fx-underline:true; }
-.excel-grid-header-selected, .excel-grid-row-header-selected { -fx-background-color:#dbeafe; -fx-text-fill:#1d4ed8; -fx-font-weight:800; -fx-border-color:#60a5fa; }
+
+/* v8.2.5 Excel Studio navigation-first workbook UX */
+.excel-command-strip {
+    -fx-background-color: #f8fbff;
+    -fx-border-color: #d8e2ee;
+    -fx-border-radius: 9;
+    -fx-background-radius: 9;
+    -fx-padding: 6 8 6 8;
+}
+.excel-tool-group {
+    -fx-alignment: center-left;
+    -fx-padding: 0 4 0 0;
+}
+.excel-formula-bar {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d8e2ee;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 5 7 5 7;
+}
+.excel-formula-address {
+    -fx-text-fill: #1e3a5f;
+    -fx-font-weight: 800;
+    -fx-background-color: #e7f1ff;
+    -fx-background-radius: 6;
+    -fx-padding: 6 9 6 9;
+}
+.excel-cell-editor { -fx-padding: 4 6 4 6; }
+.excel-cell-selected { -fx-border-color: #2563eb; -fx-border-width: 1.6; }
+.excel-cell-editing { -fx-border-color: #d97706; -fx-border-width: 2; -fx-background-color: #fffaf0; }
+.excel-tool-purple { -fx-background-color: #ede9fe; -fx-text-fill: #5b21b6; -fx-border-color: #c4b5fd; }
+.excel-tool-indigo { -fx-background-color: #e0e7ff; -fx-text-fill: #3730a3; -fx-border-color: #a5b4fc; }
+.excel-tool-blue { -fx-background-color: #e0f2fe; -fx-text-fill: #075985; -fx-border-color: #7dd3fc; }
+.excel-tool-blue-strong { -fx-background-color: #2563eb; -fx-text-fill: white; -fx-border-color: #1d4ed8; }
+.excel-tool-green { -fx-background-color: #dcfce7; -fx-text-fill: #166534; -fx-border-color: #86efac; }
+.excel-tool-teal { -fx-background-color: #ccfbf1; -fx-text-fill: #115e59; -fx-border-color: #5eead4; }
+.excel-tool-amber { -fx-background-color: #fef3c7; -fx-text-fill: #92400e; -fx-border-color: #fcd34d; }
+.excel-tool-red { -fx-background-color: #ffe4e6; -fx-text-fill: #9f1239; -fx-border-color: #fda4af; }
+.excel-tool-purple:hover, .excel-tool-indigo:hover, .excel-tool-blue:hover, .excel-tool-blue-strong:hover,
+.excel-tool-green:hover, .excel-tool-teal:hover, .excel-tool-amber:hover, .excel-tool-red:hover { -fx-opacity: 0.9; }
+
+/* v8.2.7 Excel Studio - Excel-like range selection and live format state */
+.excel-cell-range-selected {
+    -fx-effect: innershadow(gaussian, rgba(37,99,235,.30), 5, .45, 0, 0);
+}
+.excel-cell-selected {
+    -fx-effect: innershadow(gaussian, rgba(37,99,235,.72), 7, .70, 0, 0);
+}
+.excel-cell-merged { -fx-padding: 4 6 4 6; }
+.excel-format-active {
+    -fx-background-color: rgba(22,163,74,0.14);
+    -fx-border-color: #16a34a;
+    -fx-border-width: 2;
+    -fx-font-weight: 800;
+}
+.excel-format-mixed {
+    -fx-border-color: #d97706;
+    -fx-border-width: 1.5;
+    -fx-border-style: dashed;
+}
+.excel-format-state {
+    -fx-text-fill: #475569;
+    -fx-font-size: 10.5px;
+    -fx-font-weight: 700;
+}
+.excel-cell-underlined .text { -fx-underline: true; }
+
+/* v8.2.11 Excel Studio selection/header feedback */
+.excel-grid-header-selected, .excel-grid-row-header-selected {
+    -fx-background-color: #dbeafe;
+    -fx-text-fill: #1d4ed8;
+    -fx-font-weight: 800;
+    -fx-border-color: #60a5fa;
+}
+
+/* PDF Studio V2 — object-driven editor */
+.pdf-v2-root, .pdf-v2-workspace, .pdf-v2-canvas-scroll > .viewport, .pdf-v2-inspector-scroll > .viewport { -fx-background-color: #eef3f8; }
+.pdf-v2-topbar, .pdf-v2-canvas-info, .pdf-v2-status { -fx-background-color: #ffffff; -fx-border-color: #d8e1ea; }
+.pdf-v2-topbar { -fx-border-width: 0 0 1 0; }
+.pdf-v2-canvas-info { -fx-border-width: 0 0 1 0; }
+.pdf-v2-status { -fx-border-width: 1 0 0 0; }
+.pdf-v2-left-tabs, .pdf-v2-palette, .pdf-v2-inspector { -fx-background-color: #ffffff; }
+.pdf-v2-canvas-holder { -fx-background-color: #e8eef5; -fx-padding: 30; }
+.pdf-v2-canvas { -fx-background-color: white; -fx-effect: dropshadow(gaussian, rgba(44,62,80,.25), 20, .14, 0, 5); }
+.pdf-v2-map-percent { -fx-font-weight: bold; -fx-text-fill: #087f6b; }
+.pdf-v2-warning { -fx-text-fill: #b55f00; -fx-font-weight: bold; }
+.pdf-v2-inspector-title { -fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #19324a; }
+.pdf-v2-tool { -fx-min-width: 112; -fx-pref-width: 112; -fx-min-height: 42; -fx-background-color: #f4f8fc; -fx-text-fill: #16324b; -fx-background-radius: 8; -fx-border-color: #c8d7e6; -fx-border-radius: 8; }
+.pdf-v2-tool:hover { -fx-background-color: #e7f1fb; -fx-border-color: #6aa4d8; }
+.pdf-v2-object { -fx-background-color: transparent; -fx-border-color: transparent; }
+.pdf-v2-object-selected { -fx-border-color: #00a88f; -fx-border-width: 1.4; -fx-effect: dropshadow(gaussian, rgba(0,168,143,.20), 7, .1, 0, 0); }
+.pdf-v2-object-locked { -fx-border-color: #7b8794; -fx-border-style: segments(5,4); }
+.pdf-v2-object-outside { -fx-border-color: #dc6b20; }
+.pdf-v2-resize-handle { -fx-background-color: white; -fx-border-color: #009c87; -fx-border-width: 1.5; -fx-background-radius: 2; -fx-border-radius: 2; }
+.pdf-v2-source-text-target { -fx-background-color: rgba(59,130,246,.02); -fx-border-color: rgba(59,130,246,.18); -fx-border-width: .6; }
+.pdf-v2-source-text-target:hover { -fx-background-color: rgba(59,130,246,.08); -fx-border-color: #3b82f6; }
+.pdf-v2-source-image-target, .pdf-v2-source-vector-target { -fx-background-color: rgba(217,119,6,.03); -fx-border-color: rgba(217,119,6,.34); -fx-border-style: segments(5,4); -fx-text-fill: #9a5b00; -fx-font-size: 9px; }
+.pdf-v2-source-selected { -fx-border-color: #d97706; -fx-border-width: 1.7; -fx-background-color: rgba(217,119,6,.10); }
+.pdf-v2-inline-editor { -fx-background-color: rgba(255,255,255,.98); -fx-text-fill: #182b3d; -fx-border-color: #00a88f; -fx-border-width: 1.5; }
+
+.pdf-v2-smart-guide {
+    -fx-stroke: #22C55E;
+    -fx-stroke-width: 1.0;
+    -fx-stroke-dash-array: 5 4;
+}

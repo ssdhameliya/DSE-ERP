@@ -11,7 +11,7 @@
           <Label text="Manage all sales invoices, collections and customer communication" styleClass="screen-subtitle,sales-register-subtitle-accent"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button fx:id="btnNewSale" text="New Sale (F2)" onAction="#newSale" styleClass="primary-action,sales-new-button"/>
+        <Button fx:id="btnNewSale" text="New Sale" onAction="#newSale" styleClass="primary-action,sales-new-button"/>
       </HBox>
 
     </VBox>

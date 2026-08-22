@@ -8,6 +8,7 @@ import org.example.util.OwnedDialog;
 
 
 import javafx.fxml.FXML;
+import javafx.event.EventHandler;
 import javafx.scene.control.Button;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Label;
@@ -42,9 +43,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.animation.RotateTransition;
 import javafx.util.Duration;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import org.example.navigation.NavigationManager;
 import org.example.theme.ThemeManager;
 import org.example.util.ClockService;
@@ -70,6 +69,8 @@ import org.example.service.PermissionService;
 import org.example.util.IconFactory;
 import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
+import org.example.shortcut.ShortcutRegistry;
+import org.example.shortcut.ShortcutRegistry.Action;
 
 public class DashboardController {
     private static volatile DashboardController CURRENT;
@@ -79,6 +80,8 @@ public class DashboardController {
     private Timeline notificationRefresh;
     private final Runnable shellIndicatorListener = this::refreshShellIndicatorsAsync;
     private final AtomicBoolean indicatorRefreshRunning = new AtomicBoolean();
+    private Scene shortcutScene;
+    private final EventHandler<KeyEvent> dynamicShortcutHandler = this::handleDynamicShortcut;
 
 
     public Button btnRunImport;
@@ -110,15 +113,19 @@ public class DashboardController {
     @FXML private VBox salesSubmenu;
     @FXML private VBox purchaseSubmenu;
     @FXML private VBox bankExpenseSubmenu;
+    @FXML private VBox documentStudioSubmenu;
     @FXML private VBox settingsSubmenu;
     @FXML private Label lblSalesChevron;
     @FXML private Label lblPurchaseChevron;
     @FXML private Label lblBankExpenseChevron;
+    @FXML private Label lblDocumentStudioChevron;
     @FXML private Label lblSettingsChevron;
     @FXML private Button btnBankExpense;
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
     @FXML private Button btnDocumentStudio;
+    @FXML private Button btnPdfStudio;
+    @FXML private Button btnExcelStudio;
     @FXML private Button btnBackup;
     @FXML private Button btnSafeRollback;
 
@@ -133,6 +140,7 @@ public class DashboardController {
     @FXML private Button btnSettingsNotifications;
     @FXML private Button btnSettingsEmail;
     @FXML private Button btnSettingsWorkspace;
+    @FXML private Button btnSettingsShortcuts;
     @FXML private Button btnSettingsUpdates;
 
     @FXML
@@ -243,6 +251,12 @@ public class DashboardController {
     /** Stops timers owned by an ERP shell that is no longer visible. */
     private void stopRecurringTasks() {
         ShellIndicatorBus.unsubscribe(shellIndicatorListener);
+        if (shortcutScene != null) {
+            shortcutScene.removeEventFilter(KeyEvent.KEY_PRESSED, dynamicShortcutHandler);
+            if (shortcutScene.getProperties().get("dse.dynamic-shortcuts.owner") == this)
+                shortcutScene.getProperties().remove("dse.dynamic-shortcuts.owner");
+            shortcutScene = null;
+        }
         if (notificationRefresh != null) {
             notificationRefresh.stop();
             notificationRefresh = null;
@@ -290,8 +304,9 @@ public class DashboardController {
 
         inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
         inheritGroupPermission(btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement);
+        inheritGroupPermission(btnDocumentStudio, btnPdfStudio, btnExcelStudio);
         inheritGroupPermission(btnSettings, btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice,
-                btnSettingsNotifications, btnSettingsEmail, btnSettingsWorkspace, btnSettingsUpdates);
+                btnSettingsNotifications, btnSettingsEmail, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates);
     }
 
     private void protect(Button button, String permission) {
@@ -308,16 +323,7 @@ public class DashboardController {
         if (contentPane.getScene() == null) return;
         PlatformUiSupport.installResponsiveClasses(contentPane.getScene());
         if (lblCompanyFooter != null) PlatformUiSupport.configureTextOverflow(lblCompanyFooter);
-        contentPane.getScene().getAccelerators().put(
-            new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN),
-            () -> { txtSearch.requestFocus(); txtSearch.selectAll(); });
-        installShortcut(KeyCode.F2, "SALES.VIEW", this::createSale);
-        installShortcut(KeyCode.F3, "QUOTATION.VIEW", this::createQuotationFromShortcut);
-        installShortcut(KeyCode.F4, "INVENTORY.VIEW", this::openItemMaster);
-        installShortcut(KeyCode.F5, "MASTERS.VIEW", this::openMasters);
-        installShortcut(KeyCode.F6, null, this::openBankStatement);
-        installShortcut(KeyCode.F7, null, this::openBankEntry);
-        installShortcut(KeyCode.F8, null, this::openExpenseEntry);
+        installDynamicShortcuts(contentPane.getScene());
         Node sidebarUser = contentPane.getScene().lookup(".sidebar-user");
         if (sidebarUser != null) {
             sidebarUser.setCursor(Cursor.HAND);
@@ -363,35 +369,58 @@ public class DashboardController {
         shortcuts.setHgap(18);
         shortcuts.setVgap(10);
         shortcuts.getStyleClass().add("shortcut-info-grid");
-        String[][] entries = {
-            {"F2", "New Sale"},
-            {"F3", "New Quotation"},
-            {"F4", "Item Master"},
-            {"F5", "Masters"},
-            {"F6", "Bank Statement"},
-            {"F7", "Bank Entry"},
-            {"F8", "Expense Entry"}
-        };
-        for (int row = 0; row < entries.length; row++) {
-            Label key = new Label(entries[row][0]);
+        List<Action> entries = ShortcutRegistry.actions(ShortcutRegistry.Scope.GLOBAL);
+        for (int row = 0; row < entries.size(); row++) {
+            Action action = entries.get(row);
+            Label key = new Label(ShortcutRegistry.display(action));
             key.getStyleClass().add("shortcut-info-key");
-            Label name = new Label(entries[row][1]);
+            Label name = new Label(action.label());
             name.getStyleClass().add("shortcut-info-name");
             shortcuts.add(key, 0, row);
             shortcuts.add(name, 1, row);
         }
         VBox content = new VBox(12,
-            new Label("Press a function key to open the related workspace:"), shortcuts);
+            new Label("Current global shortcuts (configure them in Settings → Keyboard Shortcuts):"), shortcuts);
         content.getStyleClass().add("shortcut-info-content");
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.showAndWait();
     }
 
-    private void installShortcut(KeyCode key, String permission, Runnable action) {
-        contentPane.getScene().getAccelerators().put(new KeyCodeCombination(key), () -> {
-            if (permission == null || PermissionService.allowed(permission)) action.run();
-        });
+    private void installDynamicShortcuts(Scene scene) {
+        if (scene == null) return;
+        if (shortcutScene != null && shortcutScene != scene) shortcutScene.removeEventFilter(KeyEvent.KEY_PRESSED, dynamicShortcutHandler);
+        shortcutScene = scene;
+        // Keep a single shell-owned filter. Scoped editors suppress these global commands and handle their own bindings.
+        Object marker = scene.getProperties().get("dse.dynamic-shortcuts.owner");
+        if (marker != this) {
+            scene.getProperties().put("dse.dynamic-shortcuts.owner", this);
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, dynamicShortcutHandler);
+        }
+    }
+
+    private void handleDynamicShortcut(KeyEvent event) {
+        if (event == null || event.isConsumed() || ShortcutRegistry.isEditorTarget(event.getTarget())) return;
+        for (Action action : ShortcutRegistry.actions(ShortcutRegistry.Scope.GLOBAL)) {
+            if (!ShortcutRegistry.matches(event, action)) continue;
+            if (ShortcutRegistry.permitted(action)) runShortcutAction(action);
+            event.consume();
+            return;
+        }
+    }
+
+    private void runShortcutAction(Action action) {
+        switch (action) {
+            case GLOBAL_SEARCH -> { txtSearch.requestFocus(); txtSearch.selectAll(); }
+            case NEW_SALE -> createSale();
+            case NEW_QUOTATION -> createQuotationFromShortcut();
+            case ITEM_MASTER -> openItemMaster();
+            case MASTERS -> openMasters();
+            case BANK_STATEMENT -> openBankStatement();
+            case BANK_ENTRY -> openBankEntry();
+            case EXPENSE_ENTRY -> openExpenseEntry();
+            default -> { }
+        }
     }
 
     private void createQuotationFromShortcut() {
@@ -414,6 +443,8 @@ public class DashboardController {
             : text.contains("customer") || text.contains("crm") ? "customer"
             : text.contains("supplier") || text.contains("hrm") ? "supplier"
             : text.contains("bank") || text.contains("expense") ? "bank"
+            : text.contains("pdf studio") ? "pdf"
+            : text.contains("excel studio") ? "excel"
             : text.contains("report") ? "report"
             : text.contains("email") || text.contains("communication") ? "email"
             : text.contains("document studio") ? "document"
@@ -457,17 +488,19 @@ public class DashboardController {
         if (button != null && !button.getStyleClass().contains("menu-selected")) button.getStyleClass().add("menu-selected");
     }
 
-    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE, SETTINGS }
+    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE, DOCUMENT_STUDIO, SETTINGS }
 
     /** Initializes the sidebar in a compact state so a new login shows only top-level modules. */
     private void initializeSidebarAccordion() {
         configureChevron(lblSalesChevron);
         configureChevron(lblPurchaseChevron);
         configureChevron(lblBankExpenseChevron);
+        configureChevron(lblDocumentStudioChevron);
         configureChevron(lblSettingsChevron);
         setGroupExpanded(NavGroup.SALES, false, false);
         setGroupExpanded(NavGroup.PURCHASE, false, false);
         setGroupExpanded(NavGroup.BANK_EXPENSE, false, false);
+        setGroupExpanded(NavGroup.DOCUMENT_STUDIO, false, false);
         setGroupExpanded(NavGroup.SETTINGS, false, false);
     }
 
@@ -481,6 +514,7 @@ public class DashboardController {
     @FXML private void toggleSalesMenu() { toggleGroup(NavGroup.SALES); }
     @FXML private void togglePurchaseMenu() { toggleGroup(NavGroup.PURCHASE); }
     @FXML private void toggleBankExpenseMenu() { toggleGroup(NavGroup.BANK_EXPENSE); }
+    @FXML private void toggleDocumentStudioMenu() { toggleGroup(NavGroup.DOCUMENT_STUDIO); }
     @FXML private void toggleSettingsMenu() { toggleGroup(NavGroup.SETTINGS); }
 
     private void toggleGroup(NavGroup group) {
@@ -501,7 +535,7 @@ public class DashboardController {
     }
 
     private void collapseAllSubmenus(NavGroup except) {
-        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.SETTINGS}) {
+        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.DOCUMENT_STUDIO, NavGroup.SETTINGS}) {
             if (group != except) setGroupExpanded(group, false, true);
         }
     }
@@ -535,6 +569,7 @@ public class DashboardController {
             case SALES -> salesSubmenu;
             case PURCHASE -> purchaseSubmenu;
             case BANK_EXPENSE -> bankExpenseSubmenu;
+            case DOCUMENT_STUDIO -> documentStudioSubmenu;
             case SETTINGS -> settingsSubmenu;
             default -> null;
         };
@@ -545,6 +580,7 @@ public class DashboardController {
             case SALES -> lblSalesChevron;
             case PURCHASE -> lblPurchaseChevron;
             case BANK_EXPENSE -> lblBankExpenseChevron;
+            case DOCUMENT_STUDIO -> lblDocumentStudioChevron;
             case SETTINGS -> lblSettingsChevron;
             default -> null;
         };
@@ -555,6 +591,7 @@ public class DashboardController {
             case SALES -> btnSales;
             case PURCHASE -> btnPurchase;
             case BANK_EXPENSE -> btnBankExpense;
+            case DOCUMENT_STUDIO -> btnDocumentStudio;
             case SETTINGS -> btnSettings;
             default -> null;
         };
@@ -567,14 +604,17 @@ public class DashboardController {
             return NavGroup.PURCHASE;
         if (button == btnBankExpense || button == btnBankEntry || button == btnExpenseEntry || button == btnBankStatement)
             return NavGroup.BANK_EXPENSE;
+        if (button == btnDocumentStudio || button == btnPdfStudio || button == btnExcelStudio)
+            return NavGroup.DOCUMENT_STUDIO;
         if (button == btnSettings || button == btnSettingsCompany || button == btnSettingsPayment
                 || button == btnSettingsInvoice || button == btnSettingsNotifications || button == btnSettingsEmail
-                || button == btnSettingsWorkspace || button == btnSettingsUpdates)
+                || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates)
             return NavGroup.SETTINGS;
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
         if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
         if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
         if (path.contains("bankexpense") || path.contains("bankstatement")) return NavGroup.BANK_EXPENSE;
+        if (path.contains("documentstudio") || path.contains("pdfdesigner") || path.contains("exceldesigner")) return NavGroup.DOCUMENT_STUDIO;
         if (path.contains("settings")) return NavGroup.SETTINGS;
         return NavGroup.NONE;
     }
@@ -589,6 +629,8 @@ public class DashboardController {
         if (path.endsWith("/purchase.fxml")) return btnCreatePurchase;
         if (path.contains("purchasereturns")) return btnPurchaseReturn;
         if (path.contains("bankstatement")) return btnBankStatement;
+        if (path.contains("exceldesigner")) return btnExcelStudio;
+        if (path.contains("pdfdesigner")) return btnPdfStudio;
         return button;
     }
 
@@ -635,11 +677,13 @@ public class DashboardController {
         }
         if (btnPurchase != null) btnPurchase.getStyleClass().remove("menu-group-active");
         if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-group-active");
+        if (btnDocumentStudio != null) btnDocumentStudio.getStyleClass().remove("menu-group-active");
         if (btnSettings != null) btnSettings.getStyleClass().remove("menu-group-active");
         for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
                 btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement,
+                btnPdfStudio, btnExcelStudio,
                 btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail,
-                btnSettingsWorkspace, btnSettingsUpdates}) {
+                btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates}) {
             if (child != null) child.getStyleClass().remove("menu-selected");
         }
         if (btnQuotation != null)
@@ -801,7 +845,10 @@ public class DashboardController {
             javafx.application.Platform.runLater(() -> NavigationManager.navigateOrReport(fxmlPath));
             return;
         }
-        javafx.application.Platform.runLater(() -> c.openPage(c.btnDocumentStudio, title, fxmlPath));
+        javafx.application.Platform.runLater(() -> {
+            Button target = title != null && title.toLowerCase(Locale.ROOT).contains("excel") ? c.btnExcelStudio : c.btnPdfStudio;
+            c.openPage(target == null ? c.btnDocumentStudio : target, title, fxmlPath);
+        });
     }
 
     /** Lets a feature page navigate through the existing cached ERP shell. */
@@ -838,8 +885,14 @@ public class DashboardController {
         CommunicationScreenContext.select(null);
         openPage(null, "Communication Center", "/fxml/pages/CommunicationCenter.fxml");
     }
-    @FXML private void openDocumentStudio() {
-        openPage(btnDocumentStudio, "Document Studio", "/fxml/pages/DocumentStudio.fxml");
+    @FXML private void openDocumentStudio() { openPdfStudio(); }
+    @FXML private void openPdfStudio() {
+        org.example.documentstudio.controller.DocumentStudioContext.selectMode(org.example.documentstudio.controller.DocumentStudioContext.Mode.PDF);
+        openPage(btnPdfStudio, "PDF Studio", "/fxml/pages/DocumentStudio.fxml");
+    }
+    @FXML private void openExcelStudio() {
+        org.example.documentstudio.controller.DocumentStudioContext.selectMode(org.example.documentstudio.controller.DocumentStudioContext.Mode.EXCEL);
+        openPage(btnExcelStudio, "Excel Studio", "/fxml/pages/DocumentStudio.fxml");
     }
     @FXML private void openEmailCenter() {
         markCommunicationRead("EMAIL");
@@ -904,6 +957,10 @@ public class DashboardController {
 
     @FXML private void openSettingsWorkspace() {
         openSettingsSection(btnSettingsWorkspace, SettingsController.Section.WORKSPACE, "Workspace & Storage");
+    }
+
+    @FXML private void openSettingsShortcuts() {
+        openSettingsSection(btnSettingsShortcuts, SettingsController.Section.SHORTCUTS, "Keyboard Shortcuts");
     }
 
     @FXML private void openSettingsUpdates() {

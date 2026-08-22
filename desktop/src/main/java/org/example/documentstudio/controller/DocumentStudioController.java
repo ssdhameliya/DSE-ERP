@@ -34,9 +34,10 @@ public class DocumentStudioController implements ScreenLifecycle {
     @FXML private StackPane documentStudioPageIcon;
     @FXML private StackPane documentsKpiIcon, activeKpiIcon, defaultsKpiIcon, salesSafetyKpiIcon, generalPdfModeIcon, erpTemplateModeIcon, oneEditorModeIcon;
     @FXML private FlowPane cards;
-    @FXML private ToggleButton btnPdfMode,btnExcelMode;
-    @FXML private HBox pdfActions,excelActions,pdfEmptyActions,excelEmptyActions;
-    @FXML private Label lblLibraryTitle,lblLibraryTip,lblEmptyTitle,lblEmptyText;
+        @FXML private HBox pdfActions,excelActions,pdfEmptyActions,excelEmptyActions;
+    @FXML private Label lblStudioTitle,lblStudioSubtitle,lblLibraryTitle,lblLibraryTip,lblEmptyTitle,lblEmptyText;
+    @FXML private Label lblTotalKpiTitle,lblActiveKpiTitle,lblSafetyText;
+    @FXML private Label lblGuideOneTitle,lblGuideOneText,lblGuideTwoTitle,lblGuideTwoText,lblGuideThreeTitle,lblGuideThreeText;
     @FXML private VBox emptyState;
     @FXML private TextField txtSearch;
     @FXML private ComboBox<Object> cmbType;
@@ -51,16 +52,12 @@ public class DocumentStudioController implements ScreenLifecycle {
 
     @FXML
     public void initialize() {
-        if(documentStudioPageIcon!=null)documentStudioPageIcon.getChildren().setAll(IconFactory.icon("pdf",24));
+        excelMode = DocumentStudioContext.currentMode() == DocumentStudioContext.Mode.EXCEL;
         if(documentsKpiIcon!=null)documentsKpiIcon.getChildren().setAll(IconFactory.icon("document",18));
         if(activeKpiIcon!=null)activeKpiIcon.getChildren().setAll(IconFactory.icon("complete",18));
         if(defaultsKpiIcon!=null)defaultsKpiIcon.getChildren().setAll(IconFactory.icon("workflow",18));
         if(salesSafetyKpiIcon!=null)salesSafetyKpiIcon.getChildren().setAll(IconFactory.icon("security",18));
-        if(generalPdfModeIcon!=null)generalPdfModeIcon.getChildren().setAll(IconFactory.icon("pdf",18));
-        if(erpTemplateModeIcon!=null)erpTemplateModeIcon.getChildren().setAll(IconFactory.icon("document",18));
-        if(oneEditorModeIcon!=null)oneEditorModeIcon.getChildren().setAll(IconFactory.icon("edit",18));
-        ToggleGroup modeGroup=new ToggleGroup();if(btnPdfMode!=null){btnPdfMode.setToggleGroup(modeGroup);btnPdfMode.setSelected(true);}if(btnExcelMode!=null)btnExcelMode.setToggleGroup(modeGroup);
-        if(btnPdfMode!=null)btnPdfMode.setOnAction(e->switchMode(false));if(btnExcelMode!=null)btnExcelMode.setOnAction(e->switchMode(true));
+        applyModePresentation();
         cmbType.setItems(FXCollections.observableArrayList());
         cmbType.getItems().add("All document types");
         cmbType.getItems().addAll(Arrays.asList(DocumentType.values()));
@@ -74,7 +71,11 @@ public class DocumentStudioController implements ScreenLifecycle {
         refresh();
     }
 
-    @Override public void onScreenShown(boolean reused) { refresh(); }
+    @Override public void onScreenShown(boolean reused) {
+        excelMode = DocumentStudioContext.currentMode() == DocumentStudioContext.Mode.EXCEL;
+        applyModePresentation();
+        refresh();
+    }
 
     @FXML
     public void refresh() {
@@ -100,17 +101,31 @@ public class DocumentStudioController implements ScreenLifecycle {
         applyFilters();
     }
 
-    private void switchMode(boolean excel){
-        excelMode=excel;
+    private void applyModePresentation(){
+        boolean excel=excelMode;
+        if(documentStudioPageIcon!=null)documentStudioPageIcon.getChildren().setAll(IconFactory.icon(excel?"excel":"pdf",24));
+        if(generalPdfModeIcon!=null)generalPdfModeIcon.getChildren().setAll(IconFactory.icon(excel?"import":"pdf",18));
+        if(erpTemplateModeIcon!=null)erpTemplateModeIcon.getChildren().setAll(IconFactory.icon(excel?"workflow":"document",18));
+        if(oneEditorModeIcon!=null)oneEditorModeIcon.getChildren().setAll(IconFactory.icon(excel?"excel":"edit",18));
         if(pdfActions!=null){pdfActions.setVisible(!excel);pdfActions.setManaged(!excel);}
         if(excelActions!=null){excelActions.setVisible(excel);excelActions.setManaged(excel);}
         if(pdfEmptyActions!=null){pdfEmptyActions.setVisible(!excel);pdfEmptyActions.setManaged(!excel);}
         if(excelEmptyActions!=null){excelEmptyActions.setVisible(excel);excelEmptyActions.setManaged(excel);}
-        if(lblLibraryTitle!=null)lblLibraryTitle.setText(excel?"Excel Template Library":"PDF Document Library");
+        if(lblStudioTitle!=null)lblStudioTitle.setText(excel?"Excel Studio":"PDF Studio");
+        if(lblStudioSubtitle!=null)lblStudioSubtitle.setText(excel?"Create, map and automate Excel business documents from one protected workspace.":"Create, map and automate PDF business documents from one protected workspace.");
+        if(lblTotalKpiTitle!=null)lblTotalKpiTitle.setText(excel?"Excel Templates":"PDF Documents & Templates");
+        if(lblActiveKpiTitle!=null)lblActiveKpiTitle.setText(excel?"Active Excel Templates":"Active PDF Templates");
+        if(lblSafetyText!=null)lblSafetyText.setText(excel?"PDF defaults and existing document runtime remain unchanged":"Excel defaults and existing document runtime remain unchanged");
+        if(lblLibraryTitle!=null)lblLibraryTitle.setText(excel?"Excel Template Library":"PDF Template Library");
         if(lblLibraryTip!=null)lblLibraryTip.setText(excel?"Excel templates are isolated from PDF templates and use a built-in workbook whenever no valid default exists.":"General PDFs and reusable ERP templates are stored together in your workspace.");
-        if(lblEmptyTitle!=null)lblEmptyTitle.setText(excel?"No Excel templates yet":"Your Document Studio is empty");
+        if(lblEmptyTitle!=null)lblEmptyTitle.setText(excel?"No Excel templates yet":"No PDF templates yet");
         if(lblEmptyText!=null)lblEmptyText.setText(excel?"Upload an .xlsx workbook or create a starter ERP Excel template. Runtime Excel output already has a built-in fallback.":"Import an existing PDF, create a blank document, or start an ERP template.");
-        refresh();
+        if(lblGuideOneTitle!=null)lblGuideOneTitle.setText(excel?"UPLOAD WORKBOOK":"GENERAL PDF");
+        if(lblGuideOneText!=null)lblGuideOneText.setText(excel?"Upload your own .xlsx design or create a clean ERP workbook and preserve compatible Excel formatting.":"Import any PDF, map ERP fields safely, manage pages and export a new PDF.");
+        if(lblGuideTwoTitle!=null)lblGuideTwoTitle.setText(excel?"ERP FIELD MAPPING":"ERP TEMPLATE");
+        if(lblGuideTwoText!=null)lblGuideTwoText.setText(excel?"Drag ERP fields into cells, define repeating item and charge rows, and keep the workbook layout you designed.":"Map Purchase, Sales, Quotation, Delivery, Receipt and Return data without redesigning the source PDF.");
+        if(lblGuideThreeTitle!=null)lblGuideThreeTitle.setText(excel?"DEFAULT & FALLBACK":"MAP & PREVIEW");
+        if(lblGuideThreeText!=null)lblGuideThreeText.setText(excel?"Preview live sample data, make a template default, and automatically fall back to built-in Excel when needed.":"Original, mapping and final preview stay inside the same protected PDF workflow.");
     }
 
     private void applyFilters() {
@@ -135,7 +150,23 @@ public class DocumentStudioController implements ScreenLifecycle {
         try{openExcelDesigner(ExcelTemplateStorageService.importWorkbook(file.toPath(),name,type));}catch(Exception e){ModernDialog.error(root,"Excel upload failed","Document Studio",rootMessage(e));}
     }
     @FXML private void createExcelTemplate(){DocumentType type=chooseExcelType();if(type==null)return;String name=askName("New "+type.label()+" Excel",type.label()+" Excel");if(name==null)return;try{openExcelDesigner(ExcelTemplateStorageService.createBlank(name,type));}catch(Exception e){ModernDialog.error(root,"Excel template could not be created","Document Studio",rootMessage(e));}}
-    private DocumentType chooseExcelType(){List<DocumentType> types=Arrays.stream(DocumentType.values()).filter(DocumentType::isErpConnected).toList();ChoiceDialog<DocumentType> d=new org.example.util.OwnedChoiceDialog<>(DocumentType.PURCHASE_INVOICE,types);d.setTitle("Excel Template Type");d.setHeaderText("Choose the ERP document type for this workbook");d.setContentText("Document type:");return d.showAndWait().orElse(null);}
+    private DocumentType chooseExcelType(){
+        List<DocumentType> types=Arrays.stream(DocumentType.values()).filter(DocumentType::isErpConnected).toList();
+        org.example.util.OwnedDialog<DocumentType> dialog=new org.example.util.OwnedDialog<>();
+        dialog.setTitle("Excel Template Type");
+        dialog.setHeaderText("Choose the ERP document type for this workbook");
+        ComboBox<DocumentType> choice=new ComboBox<>(FXCollections.observableArrayList(types));
+        choice.setPromptText("Select document type");
+        choice.setMaxWidth(Double.MAX_VALUE);
+        VBox content=new VBox(8,new Label("Document type:"),choice);
+        dialog.getDialogPane().setContent(content);
+        ButtonType create=new ButtonType("Continue",ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(create,ButtonType.CANCEL);
+        javafx.scene.Node createButton=dialog.getDialogPane().lookupButton(create);
+        createButton.disableProperty().bind(choice.valueProperty().isNull());
+        dialog.setResultConverter(button->button==create?choice.getValue():null);
+        return dialog.showAndWait().orElse(null);
+    }
 
     /** Importing normally starts as a General PDF; ERP data can be connected later from the same editor. */
     @FXML
@@ -153,7 +184,7 @@ public class DocumentStudioController implements ScreenLifecycle {
         if (result.isEmpty() || result.get().isBlank()) return;
         try {
             DocumentTemplate template = importPdfWithSecurity(file.toPath(), result.get().trim(), DocumentType.GENERAL_PDF);
-            if (template != null) { showImportAnalysis(template); openDesigner(template); }
+            if (template != null) openDesigner(template);
         } catch (Exception error) {
             ModernDialog.error(root, "Import failed", "The PDF could not be imported", rootMessage(error));
         }
@@ -202,7 +233,7 @@ public class DocumentStudioController implements ScreenLifecycle {
                 String name = askName(stripExtension(file.getName()), type.label());
                 if (name == null) return;
                 DocumentTemplate template = importPdfWithSecurity(file.toPath(), name, type);
-                if (template != null) { showImportAnalysis(template); openDesigner(template); }
+                if (template != null) openDesigner(template);
             } else {
                 String name = askName("New " + type.label(), type.label());
                 if (name == null) return;
@@ -260,16 +291,6 @@ public class DocumentStudioController implements ScreenLifecycle {
         return dialog.showAndWait();
     }
 
-    private void showImportAnalysis(DocumentTemplate template) {
-        if (template == null || ("MAPPABLE".equals(template.getPdfCapability()) && template.getPdfWarnings().isEmpty())) return;
-        String title = "OCR_REQUIRED".equals(template.getPdfCapability()) ? "Scanned PDF detected" : "PDF imported with limitations";
-        String details = template.getPdfWarnings().isEmpty()
-                ? "The PDF was imported safely, but some content may require manual area replacement."
-                : String.join("\n• ", template.getPdfWarnings());
-        ModernDialog.info(root, title, "Document Studio analysis",
-                "• " + details + "\n\nThe original PDF is protected. Review Final Preview before activating this template.");
-    }
-
     private String askName(String initial, String type) {
         TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial);
         dialog.setTitle("Template Name");
@@ -300,8 +321,6 @@ public class DocumentStudioController implements ScreenLifecycle {
         badges.getChildren().add(badge(automatic ? "AUTOMATIC" : "DESIGN ONLY", automatic ? "doc-template-status-active" : "doc-template-version"));
         if (automatic && template.isDefaultTemplate()) badges.getChildren().add(badge("★ DEFAULT", "doc-template-default"));
         badges.getChildren().add(badge("v" + template.getVersion(), "doc-template-version"));
-        if (!"UNKNOWN".equals(template.getPdfCapability()))
-            badges.getChildren().add(badge(template.getPdfCapability().replace('_', ' '), "doc-template-version"));
 
         HBox actions = new HBox(7);
         Button edit = new Button("Edit"); edit.setOnAction(e -> openDesigner(template));
@@ -329,7 +348,7 @@ public class DocumentStudioController implements ScreenLifecycle {
 
     private VBox excelCard(ExcelTemplate template){
         VBox card=new VBox(9);card.getStyleClass().add("doc-template-card");card.setPrefWidth(320);card.setMinWidth(300);card.setMaxWidth(350);
-        StackPane preview=new StackPane();preview.getStyleClass().add("doc-template-preview");preview.setPrefHeight(125);VBox previewText=new VBox(7,IconFactory.icon("document",34),new Label("EXCEL • .xlsx"));previewText.setAlignment(javafx.geometry.Pos.CENTER);preview.getChildren().add(previewText);
+        StackPane preview=new StackPane();preview.getStyleClass().add("doc-template-preview");preview.setPrefHeight(125);VBox previewText=new VBox(7,IconFactory.icon("excel",34),new Label("EXCEL • .xlsx"));previewText.setAlignment(javafx.geometry.Pos.CENTER);preview.getChildren().add(previewText);
         Label name=new Label(template.getName());name.getStyleClass().add("doc-template-name");name.setWrapText(true);
         HBox identity=new HBox(6,badge("EXCEL","doc-template-erp"),new Label(template.getDocumentType().label()));
         boolean automatic=DocumentFlowRegistry.isExcelAutomatic(template.getDocumentType());
@@ -364,7 +383,7 @@ public class DocumentStudioController implements ScreenLifecycle {
 
     private void openDesigner(DocumentTemplate template) {
         DocumentStudioContext.open(template.getId());
-        DashboardController.navigateFromDocumentStudio("Document Studio", "/fxml/pages/PdfDesigner.fxml");
+        DashboardController.navigateFromDocumentStudio("PDF Studio", "/fxml/pages/PdfDesigner.fxml");
     }
 
     private void setDefault(DocumentTemplate template) {

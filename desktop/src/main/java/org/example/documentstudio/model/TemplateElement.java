@@ -4,7 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** Serializable object placed on top of an imported PDF page. */
+/**
+ * Serializable editable object placed on top of an imported PDF page.
+ *
+ * <p>PDF Studio V2 intentionally keeps geometry permissive: objects may sit outside the
+ * printable page while the editor shows a warning. Export clips naturally at the PDF page.
+ * This model is PDF-only and is not shared with Excel Studio.</p>
+ */
 public class TemplateElement {
     private String id = UUID.randomUUID().toString();
     private ElementType type = ElementType.TEXT;
@@ -22,21 +28,28 @@ public class TemplateElement {
     private String textFit = "SHRINK";
     private String textAlignment = "LEFT";
     private String pageRule = "AUTO";
-    private String valueFormat = "AS_IS";
-    private String valuePrefix = "";
-    private String valueSuffix = "";
-    private boolean hideWhenBlank;
     private String textColor = "#172033";
     private String fillColor = "#FFFFFF";
     private String strokeColor = "#94A3B8";
     private double strokeWidth = 1;
+    private boolean fillEnabled;
+    private boolean strokeEnabled;
+    private double borderRadius;
+    private double paddingTop;
+    private double paddingRight;
+    private double paddingBottom;
+    private double paddingLeft;
+    private double lineSpacing = 1.22;
     private String imagePath = "";
     private double opacity = 1.0;
     private double rotation;
     private boolean preserveAspectRatio = true;
     private String imageFit = "FIT";
     private boolean locked;
-    private String objectGroupId = "";
+    private boolean visible = true;
+    private String parentId = "";
+    private boolean inheritParentStyle;
+    private List<String> styleOverrides = new ArrayList<>();
     private String replacementGroupId = "";
     private String replacementSourceKey = "";
     private List<String> tableColumns = new ArrayList<>(List.of(
@@ -73,39 +86,58 @@ public class TemplateElement {
         c.x = x; c.y = y; c.width = width; c.height = height;
         c.text = text; c.fieldKey = fieldKey; c.fontSize = fontSize; c.bold = bold; c.italic = italic;
         c.fontFamily = fontFamily; c.textFit = textFit; c.textAlignment = textAlignment; c.pageRule = pageRule;
-        c.valueFormat = valueFormat; c.valuePrefix = valuePrefix; c.valueSuffix = valueSuffix; c.hideWhenBlank = hideWhenBlank;
         c.textColor = textColor; c.fillColor = fillColor; c.strokeColor = strokeColor;
-        c.strokeWidth = strokeWidth; c.imagePath = imagePath; c.opacity = opacity; c.rotation = rotation;
-        c.preserveAspectRatio = preserveAspectRatio; c.imageFit = imageFit; c.locked = locked;
-        c.objectGroupId = objectGroupId;
+        c.strokeWidth = strokeWidth; c.fillEnabled = fillEnabled; c.strokeEnabled = strokeEnabled; c.borderRadius = borderRadius;
+        c.paddingTop = paddingTop; c.paddingRight = paddingRight; c.paddingBottom = paddingBottom; c.paddingLeft = paddingLeft;
+        c.lineSpacing = lineSpacing;
+        c.imagePath = imagePath; c.opacity = opacity; c.rotation = rotation;
+        c.preserveAspectRatio = preserveAspectRatio; c.imageFit = imageFit; c.locked = locked; c.visible = visible;
+        c.parentId = parentId; c.inheritParentStyle = inheritParentStyle;
+        c.styleOverrides = new ArrayList<>(styleOverrides == null ? List.of() : styleOverrides);
         c.replacementGroupId = replacementGroupId; c.replacementSourceKey = replacementSourceKey;
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
         c.rowHeight = rowHeight; c.headerHeight = headerHeight; c.useSourceTableDesign = useSourceTableDesign;
-        c.pathCommands = pathCommands == null ? new ArrayList<>() : pathCommands.stream().map(PathCommand::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        c.pathCommands = pathCommands == null ? new ArrayList<>() : pathCommands.stream().map(PathCommand::copy)
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         c.pathFilled = pathFilled; c.pathStroked = pathStroked;
+        return c;
+    }
+
+    /** Copy keeping the same persistent identity; used by undo/redo snapshots. */
+    public TemplateElement snapshotCopy() {
+        TemplateElement c = copy();
+        c.id = id;
         return c;
     }
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id == null || id.isBlank() ? UUID.randomUUID().toString() : id; }
     public ElementType getType() { return type; }
-    public void setType(ElementType type) { this.type = type == null ? ElementType.TEXT : type; }
+    public void setType(ElementType type) {
+        this.type = type == null ? ElementType.TEXT : type;
+        switch (this.type) {
+            case WHITEOUT, RECTANGLE, BLOCK -> { fillEnabled = true; strokeEnabled = true; }
+            case LINE -> { fillEnabled = false; strokeEnabled = true; }
+            case PATH -> { fillEnabled = pathFilled; strokeEnabled = pathStroked; }
+            default -> { /* text/image/repeaters keep explicit/default flags */ }
+        }
+    }
     public int getPageIndex() { return pageIndex; }
     public void setPageIndex(int pageIndex) { this.pageIndex = Math.max(0, pageIndex); }
     public double getX() { return x; }
-    public void setX(double x) { this.x = Math.max(0, x); }
+    public void setX(double x) { this.x = finite(x, 0); }
     public double getY() { return y; }
-    public void setY(double y) { this.y = Math.max(0, y); }
+    public void setY(double y) { this.y = finite(y, 0); }
     public double getWidth() { return width; }
-    public void setWidth(double width) { this.width = Math.max(1, width); }
+    public void setWidth(double width) { this.width = Math.max(0.5, finite(width, 1)); }
     public double getHeight() { return height; }
-    public void setHeight(double height) { this.height = Math.max(1, height); }
+    public void setHeight(double height) { this.height = Math.max(0.5, finite(height, 1)); }
     public String getText() { return text == null ? "" : text; }
     public void setText(String text) { this.text = text == null ? "" : text; }
     public String getFieldKey() { return fieldKey == null ? "" : fieldKey; }
     public void setFieldKey(String fieldKey) { this.fieldKey = fieldKey == null ? "" : fieldKey; }
     public double getFontSize() { return fontSize; }
-    public void setFontSize(double fontSize) { this.fontSize = Math.max(5, Math.min(72, fontSize)); }
+    public void setFontSize(double fontSize) { this.fontSize = Math.max(1, finite(fontSize, 10)); }
     public boolean isBold() { return bold; }
     public void setBold(boolean bold) { this.bold = bold; }
     public boolean isItalic() { return italic; }
@@ -130,17 +162,6 @@ public class TemplateElement {
         String value = pageRule == null ? "AUTO" : pageRule.trim().toUpperCase(java.util.Locale.ROOT);
         this.pageRule = switch (value) { case "FIRST", "EVERY", "CONTINUATION", "LAST", "FIXED" -> value; default -> "AUTO"; };
     }
-    public String getValueFormat() { return valueFormat == null || valueFormat.isBlank() ? "AS_IS" : valueFormat; }
-    public void setValueFormat(String valueFormat) {
-        String value = valueFormat == null ? "AS_IS" : valueFormat.trim().toUpperCase(java.util.Locale.ROOT);
-        this.valueFormat = switch (value) { case "UPPERCASE", "LOWERCASE", "TITLE_CASE", "NUMBER", "CURRENCY", "DATE" -> value; default -> "AS_IS"; };
-    }
-    public String getValuePrefix() { return valuePrefix == null ? "" : valuePrefix; }
-    public void setValuePrefix(String valuePrefix) { this.valuePrefix = valuePrefix == null ? "" : valuePrefix; }
-    public String getValueSuffix() { return valueSuffix == null ? "" : valueSuffix; }
-    public void setValueSuffix(String valueSuffix) { this.valueSuffix = valueSuffix == null ? "" : valueSuffix; }
-    public boolean isHideWhenBlank() { return hideWhenBlank; }
-    public void setHideWhenBlank(boolean hideWhenBlank) { this.hideWhenBlank = hideWhenBlank; }
     public String getTextColor() { return textColor == null ? "#172033" : textColor; }
     public void setTextColor(String textColor) { this.textColor = safeColor(textColor, "#172033"); }
     public String getFillColor() { return fillColor == null ? "#FFFFFF" : fillColor; }
@@ -148,14 +169,30 @@ public class TemplateElement {
     public String getStrokeColor() { return strokeColor == null ? "#94A3B8" : strokeColor; }
     public void setStrokeColor(String strokeColor) { this.strokeColor = safeColor(strokeColor, "#94A3B8"); }
     public double getStrokeWidth() { return strokeWidth; }
-    public void setStrokeWidth(double strokeWidth) { this.strokeWidth = Math.max(0, Math.min(12, strokeWidth)); }
+    public void setStrokeWidth(double strokeWidth) { this.strokeWidth = Math.max(0, finite(strokeWidth, 0)); }
+    public boolean isFillEnabled() { return fillEnabled; }
+    public void setFillEnabled(boolean fillEnabled) { this.fillEnabled = fillEnabled; }
+    public boolean isStrokeEnabled() { return strokeEnabled; }
+    public void setStrokeEnabled(boolean strokeEnabled) { this.strokeEnabled = strokeEnabled; }
+    public double getBorderRadius() { return borderRadius; }
+    public void setBorderRadius(double borderRadius) { this.borderRadius = Math.max(0, finite(borderRadius, 0)); }
+    public double getPaddingTop() { return paddingTop; }
+    public void setPaddingTop(double value) { paddingTop = Math.max(0, finite(value, 0)); }
+    public double getPaddingRight() { return paddingRight; }
+    public void setPaddingRight(double value) { paddingRight = Math.max(0, finite(value, 0)); }
+    public double getPaddingBottom() { return paddingBottom; }
+    public void setPaddingBottom(double value) { paddingBottom = Math.max(0, finite(value, 0)); }
+    public double getPaddingLeft() { return paddingLeft; }
+    public void setPaddingLeft(double value) { paddingLeft = Math.max(0, finite(value, 0)); }
+    public double getLineSpacing() { return lineSpacing; }
+    public void setLineSpacing(double lineSpacing) { this.lineSpacing = Math.max(0.5, finite(lineSpacing, 1.22)); }
     public String getImagePath() { return imagePath == null ? "" : imagePath; }
     public void setImagePath(String imagePath) { this.imagePath = imagePath == null ? "" : imagePath; }
     public double getOpacity() { return opacity; }
-    public void setOpacity(double opacity) { this.opacity = Math.max(0.05, Math.min(1.0, opacity)); }
+    public void setOpacity(double opacity) { this.opacity = Math.max(0, Math.min(1, finite(opacity, 1))); }
     public double getRotation() { return rotation; }
     public void setRotation(double rotation) {
-        double normalized = rotation % 360.0;
+        double normalized = finite(rotation, 0) % 360.0;
         if (normalized < 0) normalized += 360.0;
         this.rotation = normalized;
     }
@@ -168,8 +205,26 @@ public class TemplateElement {
     }
     public boolean isLocked() { return locked; }
     public void setLocked(boolean locked) { this.locked = locked; }
-    public String getObjectGroupId() { return objectGroupId == null ? "" : objectGroupId; }
-    public void setObjectGroupId(String objectGroupId) { this.objectGroupId = objectGroupId == null ? "" : objectGroupId; }
+    public boolean isVisible() { return visible; }
+    public void setVisible(boolean visible) { this.visible = visible; }
+    public String getParentId() { return parentId == null ? "" : parentId; }
+    public void setParentId(String parentId) { this.parentId = parentId == null ? "" : parentId; }
+    public boolean isInheritParentStyle() { return inheritParentStyle; }
+    public void setInheritParentStyle(boolean inheritParentStyle) { this.inheritParentStyle = inheritParentStyle; }
+    public List<String> getStyleOverrides() { return styleOverrides == null ? List.of() : List.copyOf(styleOverrides); }
+    public void setStyleOverrides(List<String> styleOverrides) {
+        this.styleOverrides = new ArrayList<>(styleOverrides == null ? List.of() : styleOverrides);
+    }
+    public boolean hasStyleOverride(String property) {
+        return property != null && styleOverrides != null && styleOverrides.contains(property);
+    }
+    public void setStyleOverride(String property, boolean overridden) {
+        if (property == null || property.isBlank()) return;
+        if (styleOverrides == null) styleOverrides = new ArrayList<>();
+        if (overridden) { if (!styleOverrides.contains(property)) styleOverrides.add(property); }
+        else styleOverrides.remove(property);
+    }
+    public void clearStyleOverrides() { if (styleOverrides != null) styleOverrides.clear(); }
     public String getReplacementGroupId() { return replacementGroupId == null ? "" : replacementGroupId; }
     public void setReplacementGroupId(String replacementGroupId) { this.replacementGroupId = replacementGroupId == null ? "" : replacementGroupId; }
     public String getReplacementSourceKey() { return replacementSourceKey == null ? "" : replacementSourceKey; }
@@ -177,9 +232,9 @@ public class TemplateElement {
     public List<String> getTableColumns() { return tableColumns == null ? List.of() : tableColumns; }
     public void setTableColumns(List<String> tableColumns) { this.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns); }
     public double getRowHeight() { return rowHeight; }
-    public void setRowHeight(double rowHeight) { this.rowHeight = Math.max(12, Math.min(60, rowHeight)); }
+    public void setRowHeight(double rowHeight) { this.rowHeight = Math.max(1, finite(rowHeight, 22)); }
     public double getHeaderHeight() { return headerHeight; }
-    public void setHeaderHeight(double headerHeight) { this.headerHeight = Math.max(0, Math.min(80, headerHeight)); }
+    public void setHeaderHeight(double headerHeight) { this.headerHeight = Math.max(0, finite(headerHeight, 24)); }
     public boolean isUseSourceTableDesign() { return useSourceTableDesign; }
     public void setUseSourceTableDesign(boolean useSourceTableDesign) { this.useSourceTableDesign = useSourceTableDesign; }
     public List<PathCommand> getPathCommands() { return pathCommands == null ? List.of() : pathCommands; }
@@ -192,5 +247,9 @@ public class TemplateElement {
     private static String safeColor(String value, String fallback) {
         if (value == null || !value.matches("#[0-9a-fA-F]{6}")) return fallback;
         return value.toUpperCase();
+    }
+
+    private static double finite(double value, double fallback) {
+        return Double.isFinite(value) ? value : fallback;
     }
 }

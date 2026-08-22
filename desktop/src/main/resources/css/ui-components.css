@@ -9088,3 +9088,53 @@
     -fx-border-radius: 10;
     -fx-border-width: 1;
 }
+
+/* Unified table/data popup workspace. Shared palette values come from theme tokens. */
+.erp-popup-workspace {
+    -fx-padding: 4 2 2 2;
+    -fx-spacing: 14px;
+}
+.erp-popup-metric-strip {
+    -fx-spacing: 12px;
+    -fx-alignment: center-left;
+}
+.erp-popup-metric-card {
+    -fx-background-color: -color-surface-2;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-padding: 11px 14px;
+    -fx-min-height: 72px;
+}
+.erp-popup-metric-caption {
+    -fx-text-fill: -color-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+.erp-popup-metric-value {
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+}
+.erp-popup-metric-primary { -fx-text-fill: -color-primary; }
+.erp-popup-metric-success { -fx-text-fill: -color-success; }
+.erp-popup-metric-warning { -fx-text-fill: -color-warning; }
+.erp-popup-metric-danger { -fx-text-fill: -color-danger; }
+.erp-popup-metric-accent { -fx-text-fill: -color-primary; }
+.erp-popup-footer {
+    -fx-alignment: center-left;
+    -fx-padding: 1px 0 0 0;
+}
+.erp-popup-footer-text {
+    -fx-text-fill: -color-muted;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+.erp-table-workspace-dialog .approved-table,
+.erp-table-workspace-dialog .professional-table {
+    -fx-border-color: -color-border;
+    -fx-border-radius: 9px;
+    -fx-background-radius: 9px;
+}
+.erp-quantity-positive { -fx-text-fill: -color-success; -fx-font-weight: 800; }
+.erp-quantity-negative { -fx-text-fill: -color-danger; -fx-font-weight: 800; }
+.erp-quantity-neutral { -fx-text-fill: -color-primary; -fx-font-weight: 800; }

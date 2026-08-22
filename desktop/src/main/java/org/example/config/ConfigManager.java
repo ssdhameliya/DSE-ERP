@@ -103,7 +103,7 @@ public final class ConfigManager {
     private static String requirePostgresUrl(String url) {
         String value = url == null ? "" : url.trim();
         if (!value.startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("DSE ERP 8.3.1 production runtime requires PostgreSQL. Invalid database URL: " + value);
+            throw new IllegalStateException("DSE ERP 8.3.2 production runtime requires PostgreSQL. Invalid database URL: " + value);
         }
         return value;
     }

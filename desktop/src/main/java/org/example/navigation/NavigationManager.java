@@ -40,7 +40,8 @@ public class NavigationManager {
     private static final java.util.Set<String> NON_CACHEABLE = java.util.Set.of(
         "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/Registration.fxml",
         "/fxml/pages/SetupWizard.fxml", "/fxml/pages/Import.fxml",
-        "/fxml/pages/EmailSettings.fxml", "/fxml/pages/PdfDesigner.fxml"
+        "/fxml/pages/EmailSettings.fxml", "/fxml/pages/PdfDesigner.fxml",
+        "/fxml/pages/ExcelDesigner.fxml"
     );
 
     public NavigationManager(StackPane contentPane) {

@@ -89,7 +89,7 @@ public class SalesListController implements ScreenLifecycle {
     private Sales selected;
 
     @FXML public void initialize(){
-        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();
+        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();refreshShortcutLabels();
         configureExplicitTableHeaderIcons();
         simplifyFilters();
         detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1.0);
@@ -423,7 +423,14 @@ public class SalesListController implements ScreenLifecycle {
     }
 
     @Override public void onScreenShown(boolean reusedFromCache){
+        refreshShortcutLabels();
         if(allSales.isEmpty() || ScreenRefreshPolicy.shouldRefresh("sales-register", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) refresh();
+    }
+
+    private void refreshShortcutLabels(){
+        if(btnNewSale==null)return;
+        String key=org.example.shortcut.ShortcutRegistry.display(org.example.shortcut.ShortcutRegistry.Action.NEW_SALE);
+        btnNewSale.setText("Disabled".equals(key)?"New Sale":"New Sale ("+key+")");
     }
     @Override public void onScreenHidden(){UiTaskExecutor.cancel("sales-register-load");}
 

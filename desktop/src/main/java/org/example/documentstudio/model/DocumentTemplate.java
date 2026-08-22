@@ -13,14 +13,13 @@ public class DocumentTemplate {
     private DocumentType documentType = DocumentType.PURCHASE_INVOICE;
     private TemplateCategory category;
     private int version = 1;
+    private int studioSchemaVersion = 1;
     private TemplateStatus status = TemplateStatus.DRAFT;
     private boolean defaultTemplate;
     private String sourceFile = "source.pdf";
     private String createdAt = Instant.now().toString();
     private String updatedAt = Instant.now().toString();
     private List<TemplateElement> elements = new ArrayList<>();
-    private String pdfCapability = "UNKNOWN";
-    private List<String> pdfWarnings = new ArrayList<>();
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id == null || id.isBlank() ? UUID.randomUUID().toString() : id; }
@@ -39,6 +38,8 @@ public class DocumentTemplate {
     public boolean isErpConnected() { return getDocumentType().isErpConnected(); }
     public int getVersion() { return version; }
     public void setVersion(int version) { this.version = Math.max(1, version); }
+    public int getStudioSchemaVersion() { return studioSchemaVersion; }
+    public void setStudioSchemaVersion(int studioSchemaVersion) { this.studioSchemaVersion = Math.max(1, studioSchemaVersion); }
     public TemplateStatus getStatus() { return status; }
     public void setStatus(TemplateStatus status) { this.status = status == null ? TemplateStatus.DRAFT : status; }
     public boolean isDefaultTemplate() { return defaultTemplate; }
@@ -51,10 +52,6 @@ public class DocumentTemplate {
     public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
     public List<TemplateElement> getElements() { return elements == null ? List.of() : elements; }
     public void setElements(List<TemplateElement> elements) { this.elements = new ArrayList<>(elements == null ? List.of() : elements); }
-    public String getPdfCapability() { return pdfCapability == null || pdfCapability.isBlank() ? "UNKNOWN" : pdfCapability; }
-    public void setPdfCapability(String pdfCapability) { this.pdfCapability = pdfCapability == null || pdfCapability.isBlank() ? "UNKNOWN" : pdfCapability; }
-    public List<String> getPdfWarnings() { return pdfWarnings == null ? List.of() : List.copyOf(pdfWarnings); }
-    public void setPdfWarnings(List<String> pdfWarnings) { this.pdfWarnings = new ArrayList<>(pdfWarnings == null ? List.of() : pdfWarnings); }
 
     public void touch() { updatedAt = Instant.now().toString(); }
 }

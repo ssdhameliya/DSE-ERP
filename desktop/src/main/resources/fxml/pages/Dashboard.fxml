@@ -57,7 +57,18 @@
             <Button fx:id="btnReminders" text="Reminders" onAction="#openReminderCenter" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnUserAccess" text="User Access" onAction="#openUserAccess" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button text="Communication" onAction="#openCommunication" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <Button fx:id="btnDocumentStudio" text="Document Studio" onAction="#openDocumentStudio" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnDocumentStudio" text="Document Studio" onAction="#toggleDocumentStudioMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
+                        <tooltip><Tooltip text="Show or hide Document Studio menu"/></tooltip>
+                    </Button>
+                    <Label fx:id="lblDocumentStudioChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="documentStudioSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnPdfStudio" text="PDF Studio" onAction="#openPdfStudio" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnExcelStudio" text="Excel Studio" onAction="#openExcelStudio" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
+            </VBox>
             <VBox styleClass="nav-group">
                 <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
                     <Button fx:id="btnSettings" text="Settings" onAction="#toggleSettingsMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">
@@ -72,6 +83,7 @@
                     <Button fx:id="btnSettingsNotifications" text="Notifications" onAction="#openSettingsNotifications" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsEmail" text="Email Settings" onAction="#openSettingsEmail" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsWorkspace" text="Workspace &amp; Storage" onAction="#openSettingsWorkspace" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsShortcuts" text="Keyboard Shortcuts" onAction="#openSettingsShortcuts" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsUpdates" text="Application Updates" onAction="#openSettingsUpdates" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>

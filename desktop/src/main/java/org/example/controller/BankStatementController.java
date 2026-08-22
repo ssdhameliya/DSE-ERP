@@ -24,6 +24,7 @@ import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
+import org.example.util.PopupTableWorkspace;
 import org.example.util.UiTaskExecutor;
 
 import java.io.File;
@@ -445,8 +446,7 @@ public class BankStatementController {
 
         TableView<CandidateRow> candidatesTable=new TableView<>(FXCollections.observableArrayList(rows));
         candidatesTable.getProperties().put("erp-keep-selection", true);
-        candidatesTable.getStyleClass().addAll("approved-table", "erp-table-profile-dialog");
-        candidatesTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        PopupTableWorkspace.prepareTable(candidatesTable,"erp-table-profile-dialog");
         candidatesTable.setEditable(true);
         candidatesTable.setPrefSize(1100,430);
         TableColumn<CandidateRow,Boolean> selected=new TableColumn<>("Select");
@@ -482,6 +482,7 @@ public class BankStatementController {
         allocation.setPrefWidth(110);
         candidatesTable.getColumns().setAll(selected,score,type,document,party,date,total,paid,outstanding,allocation);
         CheckBox selectAllCandidates=new CheckBox();
+        selectAllCandidates.getProperties().put("erp.icon.skip",true);
         selectAllCandidates.setTooltip(new Tooltip("Select all visible match candidates"));
         selectAllCandidates.setOnAction(e->{ rows.forEach(r->r.selected.set(selectAllCandidates.isSelected())); candidatesTable.refresh(); });
         rows.forEach(r->r.selected.addListener((o,a,b)->selectAllCandidates.setSelected(!rows.isEmpty()&&rows.stream().allMatch(x->x.selected.get()))));
@@ -492,28 +493,37 @@ public class BankStatementController {
         IconFactory.applyTableHeaderIcon(paid,"complete");IconFactory.applyTableHeaderIcon(outstanding,"balance");
         IconFactory.applyTableHeaderIcon(allocation,"currency");
 
-        Label title=sectionTitle("Match Bank Transaction");
-        Label bank=new Label(safe(bankRow.dto.transactionDate())+"  |  "+safe(bankRow.dto.reference())+"  |  "+safe(bankRow.dto.description()));
-        bank.setWrapText(true);
-        Label amount=new Label((bankRow.dto.credit()>0?"Bank Credit: ":"Bank Debit: ")+money(bankValue));
-        amount.getStyleClass().add("bank-dialog-amount");
-        Label help=new Label("Select every eligible Sale, Purchase or Return refund included in this bank transaction and edit Allocation directly in the table. The total allocation must equal the bank amount and cannot exceed the outstanding amount.");
-        help.setWrapText(true);help.getStyleClass().add("bank-dialog-help");
-        Label allocationStatus=new Label();allocationStatus.getStyleClass().add("bank-dialog-help");
+        Label allocatedValue=PopupTableWorkspace.metricValue("0.00","complete");
+        Label remainingValue=PopupTableWorkspace.metricValue(money(bankValue),"warning");
+        Label matchStatusValue=PopupTableWorkspace.metricValue("Partially Matched","warning");
+        Label selectedStatus=PopupTableWorkspace.footerText("0 selected");
         Runnable refreshStatus=()->{
             double allocated=rows.stream().filter(r->r.selected.get()).mapToDouble(r->r.allocation.get()).sum();
-            allocationStatus.setText("Allocated: "+money(allocated)+"   |   Remaining: "+money(bankValue-allocated));
+            double remainingAmount=bankValue-allocated;
+            long selectedRows=rows.stream().filter(r->r.selected.get()).count();
+            allocatedValue.setText("₹ "+money(allocated));
+            remainingValue.setText("₹ "+money(remainingAmount));
+            boolean complete=Math.abs(remainingAmount)<=.01;
+            matchStatusValue.setText(complete?"Fully Allocated":"Partially Matched");
+            matchStatusValue.getStyleClass().removeAll("erp-popup-metric-success","erp-popup-metric-warning");
+            matchStatusValue.getStyleClass().add(complete?"erp-popup-metric-success":"erp-popup-metric-warning");
+            selectedStatus.setText(selectedRows+" selected  •  Allocated ₹ "+money(allocated)+"  •  Remaining ₹ "+money(remainingAmount));
         };
         rows.forEach(r->{r.selected.addListener((o,a,b)->refreshStatus.run());r.allocation.addListener((o,a,b)->refreshStatus.run());});
         refreshStatus.run();
-        VBox transactionCard=new VBox(4,new Label("BANK TRANSACTION"),bank,amount);transactionCard.getStyleClass().add("bank-dialog-section");
-        Label matchId=new Label("Match ID\nBNK-"+safe(bankRow.dto.transactionDate()).replace("-","")+"-"+bankRow.dto.id());
-        matchId.getStyleClass().add("bank-match-id");
-        HBox hero=dialogHero("link","Review and allocate the complete bank transaction","Match documents/refunds to allocate the bank amount. The total allocation must equal the bank amount.");
-        Region heroSpace=new Region();HBox.setHgrow(heroSpace,Priority.ALWAYS);hero.getChildren().addAll(heroSpace,matchId);
-        VBox content=new VBox(12,hero,transactionCard,help,candidatesTable,allocationStatus);
-        content.setPadding(new Insets(8));content.setPrefWidth(1120);
-        Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Match Transaction");dialog.setHeaderText(null);dialog.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-match-dialog");dialog.getDialogPane().setContent(content);
+        HBox metrics=PopupTableWorkspace.metricStrip(
+            PopupTableWorkspace.metricCard("Bank Amount","₹ "+money(bankValue),"bank"),
+            PopupTableWorkspace.metricCard("Allocated",allocatedValue,"complete"),
+            PopupTableWorkspace.metricCard("Remaining",remainingValue,"warning"),
+            PopupTableWorkspace.metricCard("Match Status",matchStatusValue,"warning")
+        );
+        Label bank=new Label(safe(bankRow.dto.transactionDate())+"  •  "+safe(bankRow.dto.reference())+"  •  "+safe(bankRow.dto.description()));
+        bank.setWrapText(true);bank.getStyleClass().add("bank-dialog-help");
+        Label help=new Label("Select every eligible Sale, Purchase or Return refund included in this bank transaction and edit Allocation directly in the table. The total allocation must equal the bank amount and cannot exceed the outstanding amount.");
+        help.setWrapText(true);help.getStyleClass().add("bank-dialog-help");
+        VBox tableArea=new VBox(7,bank,help,candidatesTable);VBox.setVgrow(candidatesTable,Priority.ALWAYS);
+        VBox content=PopupTableWorkspace.content(metrics,tableArea,selectedStatus);
+        Dialog<ButtonType> dialog=new OwnedDialog<>();dialog.setTitle("Match Transaction");dialog.setHeaderText("Review possible matches and allocate the complete bank transaction.");dialog.getDialogPane().setContent(content);PopupTableWorkspace.prepareDialog(dialog,1180);
         ButtonType refreshType=new ButtonType("Refresh Suggestions",ButtonBar.ButtonData.OTHER);ButtonType confirm=new ButtonType("Confirm Match",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(refreshType,ButtonType.CANCEL,confirm);
         Button refreshButton=(Button)dialog.getDialogPane().lookupButton(refreshType);refreshButton.setGraphic(IconFactory.compactIcon("refresh",15));refreshButton.addEventFilter(javafx.event.ActionEvent.ACTION,e->{e.consume();dialog.close();javafx.application.Platform.runLater(()->match(bankRow));});
         dialog.showAndWait().filter(confirm::equals).ifPresent(x->{
@@ -600,11 +610,34 @@ public class BankStatementController {
         openLinkedTarget(type,id,no,"Bank Statement #"+t.id(),row);
     }
     private void showLinkedAllocations(Row row,List<BankStatementApiClient.AllocationDto> linked){
-        Dialog<ButtonType> dialog=new OwnedDialog<>(table);dialog.setTitle("Linked Transactions");dialog.setHeaderText(null);
-        VBox rows=new VBox(8);
-        for(var allocation:linked){HBox line=new HBox(12);line.setAlignment(Pos.CENTER_LEFT);line.getStyleClass().add("linked-transaction-row");Label document=new Label(safe(allocation.documentNo()).isBlank()?up(allocation.targetType())+" #"+allocation.targetId():allocation.documentNo());document.getStyleClass().add("linked-transaction-document");HBox.setHgrow(document,Priority.ALWAYS);Label type=new Label(up(allocation.targetType()).replace('_',' '));type.getStyleClass().add("linked-transaction-type");Label amount=new Label(money(allocation.allocatedAmount()));amount.getStyleClass().add("linked-transaction-amount");Button view=new Button(linkActionLabel(allocation.targetType()));view.getStyleClass().addAll("approved-button","approved-primary-button");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});line.getChildren().addAll(document,type,amount,view);rows.getChildren().add(line);}
-        VBox content=new VBox(14,dialogHero("link","Linked Transactions",linked.size()+" transactions are linked to this bank entry. Open the exact linked workflow below."),rows);content.setPadding(new Insets(10));content.setPrefWidth(760);
-        dialog.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","linked-transactions-dialog");dialog.getDialogPane().setContent(content);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
+        Dialog<ButtonType> dialog=new OwnedDialog<>(table);dialog.setTitle("Linked Transactions");dialog.setHeaderText("View all ERP transactions linked to this bank entry.");
+        TableView<BankStatementApiClient.AllocationDto> linkedTable=new TableView<>(FXCollections.observableArrayList(linked));
+        PopupTableWorkspace.prepareTable(linkedTable,"erp-table-profile-dialog");
+        linkedTable.setPrefHeight(Math.min(360,80+linked.size()*42));
+        TableColumn<BankStatementApiClient.AllocationDto,String> document=new TableColumn<>("Document No");
+        document.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().documentNo()).isBlank()?up(v.getValue().targetType())+" #"+v.getValue().targetId():v.getValue().documentNo()));
+        document.setPrefWidth(190);
+        TableColumn<BankStatementApiClient.AllocationDto,String> type=new TableColumn<>("Transaction Type");
+        type.setCellValueFactory(v->new SimpleStringProperty(up(v.getValue().targetType()).replace('_',' ')));type.setPrefWidth(170);
+        TableColumn<BankStatementApiClient.AllocationDto,Number> amount=new TableColumn<>("Allocated Amount");
+        amount.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().allocatedAmount()));amount.setPrefWidth(150);
+        amount.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);getStyleClass().remove("erp-quantity-positive");setText(empty||value==null?null:"₹ "+money(value.doubleValue()));if(!empty)getStyleClass().add("erp-quantity-positive");}});
+        TableColumn<BankStatementApiClient.AllocationDto,Void> action=new TableColumn<>("Action");action.setPrefWidth(150);
+        action.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Void value,boolean empty){super.updateItem(value,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}var allocation=getTableView().getItems().get(getIndex());Button view=new Button(linkActionLabel(allocation.targetType()));view.getStyleClass().addAll("approved-button","approved-primary-button");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});setGraphic(view);}});
+        IconFactory.applyTableHeaderIcon(document,"document");IconFactory.applyTableHeaderIcon(type,"category");IconFactory.applyTableHeaderIcon(amount,"currency");IconFactory.applyTableHeaderIcon(action,"actions");
+        linkedTable.getColumns().setAll(document,type,amount,action);
+        double linkedTotal=linked.stream().mapToDouble(BankStatementApiClient.AllocationDto::allocatedAmount).sum();
+        double difference=bankAmount(row.dto)-linkedTotal;
+        String bankReference=safe(row.dto.reference()).isBlank()?"Bank #"+row.dto.id():row.dto.reference();
+        HBox metrics=PopupTableWorkspace.metricStrip(
+            PopupTableWorkspace.metricCard("Bank Ref",bankReference,"bank"),
+            PopupTableWorkspace.metricCard("Linked Count",String.valueOf(linked.size()),"link"),
+            PopupTableWorkspace.metricCard("Linked Total","₹ "+money(linkedTotal),"currency"),
+            PopupTableWorkspace.metricCard("Difference","₹ "+money(difference),Math.abs(difference)<=.01?"complete":"warning")
+        );
+        Label footer=PopupTableWorkspace.footerText(linked.size()+" linked transaction"+(linked.size()==1?"":"s")+" • Use View to open the existing linked workflow.");
+        VBox content=PopupTableWorkspace.content(metrics,linkedTable,footer);
+        dialog.getDialogPane().setContent(content);PopupTableWorkspace.prepareDialog(dialog,900);dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);dialog.showAndWait();
     }
     private String linkActionLabel(String type){String t=up(type);if("SALE".equals(t)||"PURCHASE".equals(t))return "View Payment";if(t.endsWith("RETURN"))return "View Refund";return "View";}
     private void openAllocation(BankStatementApiClient.AllocationDto allocation,String source){if(allocation==null)return;String type=up(allocation.targetType());Integer id=("EXPENSE".equals(type)||"BANK_ENTRY".equals(type))&&allocation.financeEntryId()!=null?allocation.financeEntryId():allocation.targetId();openLinkedTarget(type,id,safe(allocation.documentNo()),source,null);}

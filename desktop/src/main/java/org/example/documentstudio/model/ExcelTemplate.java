@@ -7,7 +7,7 @@ import java.util.UUID;
 public class ExcelTemplate {
     private String id = UUID.randomUUID().toString();
     private String name = "Untitled Excel Template";
-    private DocumentType documentType = DocumentType.PURCHASE_INVOICE;
+    private DocumentType documentType = DocumentType.CUSTOM_ERP;
     private int version = 1;
     private TemplateStatus status = TemplateStatus.DRAFT;
     private boolean defaultTemplate;
@@ -20,7 +20,7 @@ public class ExcelTemplate {
     public String getName() { return name == null || name.isBlank() ? "Untitled Excel Template" : name; }
     public void setName(String name) { this.name = name == null || name.isBlank() ? "Untitled Excel Template" : name.trim(); }
     public DocumentType getDocumentType() { return documentType; }
-    public void setDocumentType(DocumentType documentType) { this.documentType = documentType == null ? DocumentType.PURCHASE_INVOICE : documentType; }
+    public void setDocumentType(DocumentType documentType) { this.documentType = documentType == null ? DocumentType.CUSTOM_ERP : documentType; }
     public int getVersion() { return version; }
     public void setVersion(int version) { this.version = Math.max(1, version); }
     public TemplateStatus getStatus() { return status; }

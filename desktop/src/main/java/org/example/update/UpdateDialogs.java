@@ -6,6 +6,7 @@ import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
+import org.example.util.PopupTableWorkspace;
 
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -129,8 +130,8 @@ public final class UpdateDialogs {
 
     public static void showHistory(Window owner) {
         TableView<UpdateHistoryStore.Entry> table = new TableView<>();
-        table.getStyleClass().addAll("approved-table", "erp-table-profile-history");
-        TableColumn<UpdateHistoryStore.Entry,String> version = column("Version", e -> e.version());
+        PopupTableWorkspace.prepareTable(table, "erp-table-profile-history");
+        TableColumn<UpdateHistoryStore.Entry,String> version = column("Version", UpdateHistoryStore.Entry::version);
         TableColumn<UpdateHistoryStore.Entry,String> installed = column("Date & Time", e -> DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a").withZone(BusinessClock.zone()).format(e.timestamp()));
         TableColumn<UpdateHistoryStore.Entry,String> channel = column("Channel", UpdateHistoryStore.Entry::channel);
         TableColumn<UpdateHistoryStore.Entry,String> result = column("Result", UpdateHistoryStore.Entry::result);
@@ -141,8 +142,26 @@ public final class UpdateDialogs {
         IconFactory.applyTableHeaderIcon(result, "status");
         IconFactory.applyTableHeaderIcon(detail, "notes");
         table.getColumns().addAll(version, installed, channel, result, detail);
-        table.getItems().setAll(UpdateHistoryStore.read()); table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        Dialog<Void> dialog = baseDialog(owner, "Update History", table, 920, 560); dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE); dialog.showAndWait();
+        List<UpdateHistoryStore.Entry> history = UpdateHistoryStore.read();
+        table.getItems().setAll(history);
+        table.setPrefHeight(390);
+        String lastUpdated = history.isEmpty() ? "No history" : DateTimeFormatter.ofPattern(BusinessClock.datePattern()).withZone(BusinessClock.zone()).format(history.getFirst().timestamp());
+        HBox metrics = PopupTableWorkspace.metricStrip(
+            PopupTableWorkspace.metricCard("Current Version", BuildInfo.version(), "version"),
+            PopupTableWorkspace.metricCard("Last Updated", lastUpdated, "calendar"),
+            PopupTableWorkspace.metricCard("Channel", ConfigManager.get("update.channel", "STABLE"), "communication")
+        );
+        Label footer = PopupTableWorkspace.footerText(history.size()+" update histor"+(history.size()==1?"y record":"y records"));
+        VBox content = PopupTableWorkspace.content(metrics, table, footer);
+        Dialog<Void> dialog = new OwnedDialog<>();
+        if (owner != null) dialog.initOwner(owner);
+        dialog.setTitle("Update History");
+        dialog.setHeaderText("View version and release activity recorded on this workstation.");
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefHeight(610);
+        PopupTableWorkspace.prepareDialog(dialog, 980);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.showAndWait();
     }
 
     public static void showOfflineUpdate(Window owner) {

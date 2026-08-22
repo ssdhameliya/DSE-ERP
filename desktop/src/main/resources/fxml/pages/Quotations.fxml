@@ -12,7 +12,7 @@
                     <Label text="Manage all quotations, follow-ups, conversion and customer communication" styleClass="screen-subtitle"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Button fx:id="btnNewQuotation" text="New Quotation (F3)" onAction="#newQuotation" styleClass="quotation-primary-button"/>
+                <Button fx:id="btnNewQuotation" text="New Quotation" onAction="#newQuotation" styleClass="quotation-primary-button"/>
             </HBox>
 
 

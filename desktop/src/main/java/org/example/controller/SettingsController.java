@@ -19,6 +19,8 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -39,6 +41,8 @@ import org.example.update.UpdateService;
 import org.example.update.BuildInfo;
 import org.example.util.IconFactory;
 import org.example.util.PerformanceMonitor;
+import org.example.shortcut.ShortcutRegistry;
+import org.example.shortcut.ShortcutRegistry.Action;
 import org.example.util.UiTaskExecutor;
 import javafx.application.Platform;
 
@@ -54,16 +58,18 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Settings entered here are persisted locally.
  *
- * The controller preserves the existing seven settings sections and their
- * existing persistence logic while sidebar navigation chooses the active panel.
+ * The controller preserves the existing settings persistence logic while sidebar
+ * navigation chooses the active panel, including user-defined keyboard shortcuts.
  */
 public class SettingsController implements ScreenLifecycle {
     public enum Section {
-        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, WORKSPACE, UPDATES
+        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, WORKSPACE, SHORTCUTS, UPDATES
     }
 
     private static volatile Section requestedSection = Section.COMPANY;
@@ -72,6 +78,7 @@ public class SettingsController implements ScreenLifecycle {
     private boolean rootInitialized;
     private boolean fragmentLoading;
     private final EnumMap<Section, VBox> loadedPanels = new EnumMap<>(Section.class);
+    private final EnumMap<Action, TextField> shortcutEditors = new EnumMap<>(Action.class);
 
     public static void requestSection(Section section) {
         requestedSection = section == null ? Section.COMPANY : section;
@@ -303,6 +310,13 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private Label lblWorkspaceStatus;
 
     /* =========================================================
+       KEYBOARD SHORTCUTS
+       ========================================================= */
+    @FXML private VBox panelShortcuts;
+    @FXML private VBox shortcutRows;
+    @FXML private Label lblShortcutValidation;
+
+    /* =========================================================
        CONFIGURATION KEYS
        ========================================================= */
 
@@ -344,6 +358,7 @@ public class SettingsController implements ScreenLifecycle {
             case NOTIFICATIONS -> "NotificationsSettingsPanel.fxml";
             case EMAIL -> "EmailSettingsPanel.fxml";
             case WORKSPACE -> "WorkspaceSettingsPanel.fxml";
+            case SHORTCUTS -> "ShortcutsSettingsPanel.fxml";
             case UPDATES -> "UpdatesSettingsPanel.fxml";
         };
         try {
@@ -428,6 +443,7 @@ public class SettingsController implements ScreenLifecycle {
                 txtSmtpPort.setText(ConfigManager.get("smtp.port", "587"));
             }
             case WORKSPACE -> refreshWorkspacePanel();
+            case SHORTCUTS -> initializeShortcutSettings();
             case UPDATES -> {
                 cmbUpdateChannel.setItems(FXCollections.observableArrayList("STABLE", "BETA"));
                 txtGitHubOwner.setText(ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER));
@@ -456,6 +472,7 @@ public class SettingsController implements ScreenLifecycle {
             case NOTIFICATIONS -> showNotifications();
             case EMAIL -> showEmail();
             case WORKSPACE -> showWorkspace();
+            case SHORTCUTS -> showShortcuts();
             case UPDATES -> showUpdates();
             case COMPANY -> showCompany();
         }
@@ -1201,6 +1218,22 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     @FXML
+    private void showShortcuts() {
+        selectSection(null, ensureSectionLoaded(Section.SHORTCUTS));
+        refreshShortcutValidation();
+    }
+
+    @FXML
+    private void resetAllShortcuts() {
+        ensureSectionLoaded(Section.SHORTCUTS);
+        for (Action action : ShortcutRegistry.actions()) {
+            TextField editor = shortcutEditors.get(action);
+            if (editor != null) editor.setText(action.defaultBinding().replace("Shortcut", "Ctrl/Cmd"));
+        }
+        refreshShortcutValidation();
+    }
+
+    @FXML
     private void showUpdates() {
         selectSection(navUpdates, ensureSectionLoaded(Section.UPDATES));
         lblCurrentVersion.setText(BuildInfo.version());
@@ -1234,6 +1267,100 @@ public class SettingsController implements ScreenLifecycle {
         else ConfigManager.set(key, value);
     }
 
+    private void initializeShortcutSettings() {
+        if (shortcutRows == null) return;
+        shortcutEditors.clear();
+        shortcutRows.getChildren().clear();
+        String category = null;
+        for (Action action : ShortcutRegistry.actions()) {
+            if (!java.util.Objects.equals(category, action.category())) {
+                category = action.category();
+                Label heading = new Label(category);
+                heading.getStyleClass().add("settings-section-subtitle");
+                shortcutRows.getChildren().add(heading);
+            }
+            Label name = new Label(action.label());
+            name.setMinWidth(190);
+            name.getStyleClass().add("field-label");
+            TextField editor = new TextField(ShortcutRegistry.display(action));
+            editor.setPromptText("Disabled");
+            editor.setEditable(false);
+            editor.setFocusTraversable(true);
+            editor.getProperties().put("dse.shortcut-capture", Boolean.TRUE);
+            editor.setPrefWidth(180);
+            editor.setOnMouseClicked(event -> { editor.requestFocus(); editor.selectAll(); });
+            editor.setOnKeyPressed(event -> captureShortcut(action, editor, event));
+            Button reset = new Button("Default");
+            reset.getStyleClass().addAll("approved-button", "approved-secondary-button");
+            reset.setOnAction(event -> { editor.setText(action.defaultBinding().replace("Shortcut", "Ctrl/Cmd")); refreshShortcutValidation(); });
+            Label scope = new Label(switch (action.scope()) {
+                case GLOBAL -> "Global";
+                case PDF_STUDIO -> "PDF Studio";
+                case EXCEL_STUDIO -> "Excel Studio";
+                case MASTER_DATA -> "Master Data";
+            });
+            scope.getStyleClass().add("pill-info");
+            HBox row = new HBox(10, name, editor, reset, scope);
+            row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            shortcutRows.getChildren().add(row);
+            shortcutEditors.put(action, editor);
+        }
+        refreshShortcutValidation();
+    }
+
+    private void captureShortcut(Action action, TextField editor, KeyEvent event) {
+        if (event.getCode() == KeyCode.ESCAPE) { editor.setText(ShortcutRegistry.display(action)); event.consume(); return; }
+        if ((event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.DELETE)
+                && !event.isControlDown() && !event.isMetaDown() && !event.isAltDown() && !event.isShiftDown()) {
+            editor.clear();
+            refreshShortcutValidation();
+            event.consume();
+            return;
+        }
+        String captured = ShortcutRegistry.fromEvent(event);
+        if (captured.isBlank()) { event.consume(); return; }
+        editor.setText(captured.replace("Shortcut", "Ctrl/Cmd"));
+        refreshShortcutValidation();
+        event.consume();
+    }
+
+    private Map<Action, String> shortcutDraft() {
+        Map<Action, String> draft = new LinkedHashMap<>();
+        for (Action action : ShortcutRegistry.actions()) {
+            TextField editor = shortcutEditors.get(action);
+            String value = editor == null ? ShortcutRegistry.configuredBinding(action) : editor.getText();
+            draft.put(action, value == null ? "" : value.replace("Ctrl/Cmd", "Shortcut"));
+        }
+        return draft;
+    }
+
+    private boolean validateShortcutSettings() {
+        List<String> errors = ShortcutRegistry.validate(shortcutDraft());
+        if (lblShortcutValidation != null) {
+            lblShortcutValidation.setText(errors.isEmpty() ? "No shortcut conflicts detected." : errors.getFirst());
+        }
+        if (!errors.isEmpty()) {
+            warn("Keyboard shortcut conflict:\n" + String.join("\n", errors));
+            return false;
+        }
+        return true;
+    }
+
+    private void refreshShortcutValidation() {
+        if (lblShortcutValidation == null) return;
+        List<String> errors = ShortcutRegistry.validate(shortcutDraft());
+        lblShortcutValidation.setText(errors.isEmpty() ? "No shortcut conflicts detected." : errors.getFirst());
+    }
+
+    private void saveShortcutSettings() {
+        Map<Action, String> draft = shortcutDraft();
+        List<String> errors = ShortcutRegistry.validate(draft);
+        if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("\n", errors));
+        for (Map.Entry<Action, String> entry : draft.entrySet()) {
+            ConfigManager.setWithoutSaving("shortcut." + entry.getKey().id(), entry.getValue() == null ? "" : entry.getValue().trim());
+        }
+    }
+
     /* =========================================================
        SAVE
        ========================================================= */
@@ -1251,7 +1378,7 @@ public class SettingsController implements ScreenLifecycle {
             NotificationService.add("Application settings were updated.");
         }
 
-        org.example.util.ToastManager.success(panelWorkspace, "Settings saved", "Settings saved successfully.");
+        org.example.util.ToastManager.success(panelHost, "Settings saved", "Settings saved successfully.");
     }
 
     private boolean saveValues() {
@@ -1267,6 +1394,7 @@ public class SettingsController implements ScreenLifecycle {
             if (loadedPanels.containsKey(Section.INVOICE)) saveInvoiceIdentity();
             if (loadedPanels.containsKey(Section.EMAIL)) saveEmailSettings();
             if (loadedPanels.containsKey(Section.NOTIFICATIONS)) saveNotificationSettings();
+            if (loadedPanels.containsKey(Section.SHORTCUTS)) saveShortcutSettings();
             if (loadedPanels.containsKey(Section.UPDATES)) saveUpdateSettings();
             ConfigManager.save();
         } finally {
@@ -1569,6 +1697,10 @@ public class SettingsController implements ScreenLifecycle {
         }
         if (loadedPanels.containsKey(Section.EMAIL) && !validateEmailSettings()) {
             showEmail();
+            return false;
+        }
+        if (loadedPanels.containsKey(Section.SHORTCUTS) && !validateShortcutSettings()) {
+            showShortcuts();
             return false;
         }
         return true;

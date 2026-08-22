@@ -5,6 +5,7 @@ import org.example.util.OwnedDialog;
 
 import org.example.util.IconFactory;
 import org.example.util.ScreenRefreshPolicy;
+import org.example.util.PopupTableWorkspace;
 import org.example.navigation.ScreenLifecycle;
 import org.example.util.FxDebouncer;
 import org.example.util.UiTaskExecutor;
@@ -13,7 +14,9 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.beans.property.*;import javafx.collections.FXCollections;import javafx.fxml.FXML;import javafx.geometry.Pos;import javafx.scene.chart.PieChart;import javafx.scene.control.*;import javafx.stage.FileChooser;import javafx.stage.Modality;import javafx.stage.Stage;import org.apache.poi.ss.usermodel.*;import org.apache.poi.xssf.usermodel.XSSFWorkbook;import org.example.model.Item;import org.example.service.*;import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;import org.example.api.operations.OperationsApiClient;import org.example.config.ConfigManager;import java.io.*;import java.text.NumberFormat;import java.time.LocalDate;import java.util.*;
 public class InventoryController implements ScreenLifecycle {
@@ -118,7 +121,55 @@ private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final
   pick.showAndWait().ifPresent(this::adjust);
 }@FXML private void adjustSelectedStock(){if(selected==null)warn("Select an item first.");else adjust(selected);}
  private void adjust(Item item){Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Stock Adjustment");d.setHeaderText(item.getItemCode()+" • Current "+item.getOpeningStock());d.getDialogPane().getStyleClass().addAll("modern-dialog","stock-premium-dialog");d.getDialogPane().setGraphic(IconFactory.icon("stock",30));ComboBox<String>type=new ComboBox<>(FXCollections.observableArrayList("ADD","REMOVE","SET"));type.setValue("ADD");TextField qty=new TextField(),reason=new TextField(),ref=new TextField();GridPane g=new GridPane();g.getStyleClass().add("inventory-stock-adjust-form");g.addRow(0,new Label("Type"),type);g.addRow(1,new Label("Quantity"),qty);g.addRow(2,new Label("Reason"),reason);g.addRow(3,new Label("Reference"),ref);qty.setPromptText("Enter quantity");reason.setPromptText("Required reason");ref.setPromptText("Optional reference");type.setMaxWidth(Double.MAX_VALUE);qty.setMaxWidth(Double.MAX_VALUE);reason.setMaxWidth(Double.MAX_VALUE);ref.setMaxWidth(Double.MAX_VALUE);d.getDialogPane().setContent(g);ButtonType apply=new ButtonType("Apply Adjustment",ButtonBar.ButtonData.OK_DONE);d.getDialogPane().getButtonTypes().addAll(apply,ButtonType.CANCEL);Button applyButton=(Button)d.getDialogPane().lookupButton(apply);applyButton.setGraphic(IconFactory.compactIcon("adjust",16));Button cancelButton=(Button)d.getDialogPane().lookupButton(ButtonType.CANCEL);cancelButton.setGraphic(IconFactory.compactIcon("cancel",16));d.showAndWait().filter(b->b==apply).ifPresent(b->{try{double q=Double.parseDouble(qty.getText());if(q<0||reason.getText().isBlank())throw new IllegalArgumentException("Enter a valid quantity and reason");String user=SessionService.current()==null?"System":SessionService.current().getFullName();operationsApi.adjustStock(new OperationsApiClient.StockAdjustmentRequest(item.getItemCode(),type.getValue(),q,reason.getText(),ref.getText(),user));NotificationService.add("Stock adjusted for "+item.getItemCode());refresh();}catch(Exception e){error(e);}});}
- @FXML private void viewSelectedHistory(){if(selected==null)warn("Select an item first.");else history(selected);}private void history(Item item){TableView<String[]>t=new TableView<>();String[]names={"Date","Type","Quantity","Reason","Reference","User"};for(int i=0;i<names.length;i++){final int n=i;TableColumn<String[],String>c=new TableColumn<>(names[i]);c.setCellValueFactory(v->new SimpleStringProperty(v.getValue()[n]));String[] semantics={"calendar","category","quantity","notes","reference","user"};IconFactory.applyTableHeaderIcon(c,semantics[i]);t.getColumns().add(c);}try{for(var r:operationsApi.stockHistory(item.getItemCode()))t.getItems().add(new String[]{s(r.date()),s(r.type()),String.format("%+.2f",r.quantity()),s(r.reason()),s(r.reference()),s(r.user())});}catch(Exception e){error(e);}Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle("Stock History - "+item.getItemCode());d.getDialogPane().getStyleClass().addAll("modern-dialog","stock-premium-dialog");d.getDialogPane().setGraphic(IconFactory.icon("history",30));d.setHeaderText(item.getDescription()+" • Complete stock movement history");d.getDialogPane().setPrefSize(940,520);t.getStyleClass().addAll("professional-table","entity-table","erp-table-profile-history");t.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);d.getDialogPane().setContent(t);d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);Button closeButton=(Button)d.getDialogPane().lookupButton(ButtonType.CLOSE);closeButton.setGraphic(IconFactory.compactIcon("cancel",16));if(tableItems.getScene()!=null&&tableItems.getScene().getWindow()!=null)d.initOwner(tableItems.getScene().getWindow());d.initModality(Modality.WINDOW_MODAL);d.showAndWait();}
+ @FXML private void viewSelectedHistory(){if(selected==null)warn("Select an item first.");else history(selected);}
+ private void history(Item item){
+  TableView<String[]> t=new TableView<>();
+  String[] names={"Date","Type","Quantity","Reason","Reference","User"};
+  String[] semantics={"calendar","category","quantity","notes","reference","user"};
+  for(int i=0;i<names.length;i++){
+   final int n=i;
+   TableColumn<String[],String> c=new TableColumn<>(names[i]);
+   c.setCellValueFactory(v->new SimpleStringProperty(v.getValue()[n]));
+   IconFactory.applyTableHeaderIcon(c,semantics[i]);
+   if(i==2)c.setCellFactory(column->new TableCell<>(){
+    @Override protected void updateItem(String value,boolean empty){
+     super.updateItem(value,empty);setText(empty?null:value);
+     getStyleClass().removeAll("erp-quantity-positive","erp-quantity-negative","erp-quantity-neutral");
+     if(!empty&&value!=null){
+      if(value.startsWith("+"))getStyleClass().add("erp-quantity-positive");
+      else if(value.startsWith("-"))getStyleClass().add("erp-quantity-negative");
+      else getStyleClass().add("erp-quantity-neutral");
+     }
+    }
+   });
+   t.getColumns().add(c);
+  }
+  try{
+   for(var r:operationsApi.stockHistory(item.getItemCode()))
+    t.getItems().add(new String[]{s(r.date()),s(r.type()),String.format("%+.2f",r.quantity()),s(r.reason()),s(r.reference()),s(r.user())});
+  }catch(Exception e){error(e);}
+  PopupTableWorkspace.prepareTable(t,"erp-table-profile-history");
+  t.getStyleClass().addAll("professional-table","entity-table");
+  t.setPrefHeight(410);
+  String unit=s(item.getUnit());
+  String suffix=unit.isBlank()?"":" "+unit;
+  HBox metrics=PopupTableWorkspace.metricStrip(
+   PopupTableWorkspace.metricCard("Current Stock",String.format(Locale.ENGLISH,"%,.2f%s",item.getOpeningStock(),suffix),"inventory"),
+   PopupTableWorkspace.metricCard("Reserved",String.format(Locale.ENGLISH,"%,.2f%s",item.getReservedStock(),suffix),"warning"),
+   PopupTableWorkspace.metricCard("Available",String.format(Locale.ENGLISH,"%,.2f%s",item.getAvailableStock(),suffix),"complete")
+  );
+  Label recordCount=PopupTableWorkspace.footerText(t.getItems().size()+" movement record"+(t.getItems().size()==1?"":"s"));
+  VBox content=PopupTableWorkspace.content(metrics,t,recordCount);
+  Dialog<ButtonType>d=new OwnedDialog<>();
+  d.setTitle("Stock History - "+item.getItemCode());
+  d.setHeaderText(item.getDescription()+" • Complete stock movement history");
+  PopupTableWorkspace.prepareDialog(d,960);
+  d.getDialogPane().setContent(content);
+  d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+  Button closeButton=(Button)d.getDialogPane().lookupButton(ButtonType.CLOSE);closeButton.setGraphic(IconFactory.compactIcon("cancel",16));
+  if(tableItems.getScene()!=null&&tableItems.getScene().getWindow()!=null)d.initOwner(tableItems.getScene().getWindow());
+  d.initModality(Modality.WINDOW_MODAL);d.showAndWait();
+ }
  @FXML private void exportExcel(){FileChooser f=new FileChooser();f.setInitialFileName("Stock_Register.xlsx");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel","*.xlsx"));File out=f.showSaveDialog(tableItems.getScene().getWindow());if(out==null)return;try(Workbook w=new XSSFWorkbook();FileOutputStream o=new FileOutputStream(out)){Sheet sh=w.createSheet("Stock");String[]h={"Code","Item","Category","HSN","Unit","In Stock","Reserved","Available","Minimum","Value","Status"};Row r=sh.createRow(0);for(int i=0;i<h.length;i++)r.createCell(i).setCellValue(h[i]);int n=1;for(Item i:tableItems.getItems()){r=sh.createRow(n++);Object[]v={i.getItemCode(),i.getDescription(),i.getCategory(),i.getHsn(),i.getUnit(),i.getOpeningStock(),i.getReservedStock(),i.getAvailableStock(),i.getMinimumStock(),i.getOpeningStock()*i.getPurchasePrice(),status(i)};for(int j=0;j<v.length;j++)if(v[j]instanceof Number z)r.createCell(j).setCellValue(z.doubleValue());else r.createCell(j).setCellValue(s(String.valueOf(v[j])));}w.write(o);}catch(Exception e){error(e);}}
  private String s(String v){return v==null?"":v;}private void warn(String m){new OwnedAlert(Alert.AlertType.WARNING,m).showAndWait();}private void error(Exception e){e.printStackTrace();new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?"Operation failed":e.getMessage()).showAndWait();}
 

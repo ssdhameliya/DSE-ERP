@@ -93,6 +93,7 @@ public final class TemplateStorageService {
         String lower = sourcePdf.getFileName().toString().toLowerCase();
         if (!lower.endsWith(".pdf")) throw new IOException("Only PDF templates are supported.");
         DocumentTemplate template = new DocumentTemplate();
+        template.setStudioSchemaVersion(2);
         template.setId(UUID.randomUUID().toString());
         template.setName(name);
         template.setDocumentType(type);
@@ -106,9 +107,6 @@ public final class TemplateStorageService {
             // renderer use source.pdf, which may be normalized/decrypted for editing.
             Files.copy(sourcePdf, folder.resolve(ORIGINAL), StandardCopyOption.REPLACE_EXISTING);
             PdfImportSecurityService.normalizeForEditing(sourcePdf, folder.resolve(SOURCE), password);
-            PdfImportSecurityService.ContentAnalysis analysis = PdfImportSecurityService.analyze(folder.resolve(SOURCE));
-            template.setPdfCapability(analysis.capability());
-            template.setPdfWarnings(analysis.warnings());
             save(template);
             verifySavedTemplate(template.getId());
             return template;
@@ -120,6 +118,7 @@ public final class TemplateStorageService {
 
     public static DocumentTemplate createBlank(String name, DocumentType type) throws IOException {
         DocumentTemplate template = new DocumentTemplate();
+        template.setStudioSchemaVersion(2);
         template.setId(UUID.randomUUID().toString());
         template.setName(name);
         template.setDocumentType(type);
@@ -134,6 +133,17 @@ public final class TemplateStorageService {
         save(template);
         verifySavedTemplate(template.getId());
         return template;
+    }
+
+    /**
+     * PDF Studio V2 keeps the persisted schema backward compatible. Legacy templates are upgraded
+     * lazily when opened by the V2 editor; no source PDF or existing element geometry is rewritten.
+     */
+    public static synchronized boolean migrateToStudioV2(DocumentTemplate template) throws IOException {
+        if (template == null || template.getStudioSchemaVersion() >= 2) return false;
+        template.setStudioSchemaVersion(2);
+        save(template);
+        return true;
     }
 
     public static synchronized void save(DocumentTemplate template) throws IOException {
@@ -233,8 +243,6 @@ public final class TemplateStorageService {
 
     /** A default must successfully render before it can replace a built-in business-document flow. */
     private static void validateBeforeActivation(DocumentTemplate template) throws IOException {
-        List<String> issues = validationIssues(template);
-        if (!issues.isEmpty()) throw new IOException("Template validation found: " + String.join("; ", issues));
         Path test = folder(template).resolve(".activation-validation.pdf");
         try {
             PdfTemplateRenderer.renderSample(template, test);
@@ -247,42 +255,6 @@ public final class TemplateStorageService {
         } finally {
             try { Files.deleteIfExists(test); } catch (Exception ignored) { }
         }
-    }
-
-    /** Returns user-actionable structural problems without modifying the saved template. */
-    public static List<String> validationIssues(DocumentTemplate template) throws IOException {
-        if (template == null) return List.of("Template is required");
-        List<String> issues = new ArrayList<>();
-        Path source = sourcePdf(template);
-        try (PDDocument document = org.apache.pdfbox.Loader.loadPDF(source.toFile())) {
-            int pages = document.getNumberOfPages();
-            for (TemplateElement element : template.getElements()) {
-                String label = element.getType() + " object " + element.getId();
-                if (element.getPageIndex() < 0 || element.getPageIndex() >= pages) {
-                    issues.add(label + " references a missing page");
-                    continue;
-                }
-                PDRectangle box = document.getPage(element.getPageIndex()).getCropBox();
-                if (element.getX() + element.getWidth() > box.getWidth() + .5
-                        || element.getY() + element.getHeight() > box.getHeight() + .5)
-                    issues.add(label + " extends outside its page");
-                if (element.getType() == org.example.documentstudio.model.ElementType.FIELD
-                        || element.getType() == org.example.documentstudio.model.ElementType.IMAGE_FIELD) {
-                    var definition = TemplateFieldCatalog.find(template.getDocumentType(), element.getFieldKey());
-                    if (definition == null) issues.add(label + " uses unknown ERP field " + element.getFieldKey());
-                    else if (definition.image() != (element.getType() == org.example.documentstudio.model.ElementType.IMAGE_FIELD))
-                        issues.add(label + " has an incompatible ERP field type");
-                }
-                if (element.getType() == org.example.documentstudio.model.ElementType.IMAGE) {
-                    Path asset = resolveAsset(template, element.getImagePath());
-                    if (asset == null || !Files.isRegularFile(asset)) issues.add(label + " has a missing image asset");
-                }
-                if ((element.getType() == org.example.documentstudio.model.ElementType.ITEM_TABLE
-                        || element.getType() == org.example.documentstudio.model.ElementType.CHARGE_TABLE)
-                        && element.getTableColumns().isEmpty()) issues.add(label + " has no table columns");
-            }
-        }
-        return List.copyOf(issues);
     }
 
     public static synchronized void setDefault(String id) throws IOException {
