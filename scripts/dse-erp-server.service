@@ -1,0 +1,15 @@
+[Unit]
+Description=DSE ERP Company Server
+After=network-online.target postgresql.service
+[Service]
+Type=simple
+User=dseerp
+EnvironmentFile=/etc/dse-erp/server.env
+WorkingDirectory=/opt/dse-erp
+ExecStart=/usr/bin/java -jar /opt/dse-erp/dse-erp-server.jar
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

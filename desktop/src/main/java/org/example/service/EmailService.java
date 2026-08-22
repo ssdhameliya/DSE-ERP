@@ -23,6 +23,10 @@ public final class EmailService {
     }
 
     public static void send(String recipient, String subject, String body, Path attachment) {
+        if (ConfigManager.isSharedClient()) {
+            new org.example.api.authority.BusinessEmailClient().send(recipient, subject, body, attachment);
+            return;
+        }
         String sender = ConfigManager.get("smtp.email", "").trim();
         String password = ConfigManager.get("smtp.appPassword", "").trim();
         if (sender.isBlank() || password.isBlank()) {

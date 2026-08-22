@@ -40,6 +40,11 @@ public final class RuntimeBootstrapper {
     private RuntimeBootstrapper() {}
 
     public static synchronized RuntimeApiClient.RuntimeStatus ensureServerReady() {
+        if (ConfigManager.isSharedClient()) {
+            // A shared client never starts or owns PostgreSQL/Spring. The central server
+            // is the only authority for business data, authentication and migrations.
+            return DeploymentConnectionService.test(ConfigManager.getConfiguredServerUrl());
+        }
         ManagedPostgresRuntime.ensureReady();
         prepareManagedServerEndpoint();
         verifyPackagedRuntime();
@@ -95,6 +100,9 @@ public final class RuntimeBootstrapper {
 
 
     private static void requireCompatible(RuntimeApiClient.RuntimeStatus status) {
+        if (ConfigManager.isSharedClient()) {
+            ConfigManager.applyServerBusinessPolicy(status.businessZone(), status.dateFormat());
+        }
         if (!RuntimeContract.SERVICE_NAME.equals(status.service())) {
             throw new IllegalStateException("The configured DSE ERP backend port is serving a different application: " + status.service());
         }
@@ -109,13 +117,13 @@ public final class RuntimeBootstrapper {
                     + ". A stale backend is running and must not be reused.");
         }
         String desktopZone = BusinessClock.zone().getId();
-        if (status.businessZone() != null && !status.businessZone().isBlank() && !desktopZone.equals(status.businessZone())) {
+        if (!ConfigManager.isSharedClient() && status.businessZone() != null && !status.businessZone().isBlank() && !desktopZone.equals(status.businessZone())) {
             throw new IllegalStateException("DSE ERP business timezone mismatch. Desktop uses " + desktopZone
                     + " but server uses " + status.businessZone()
                     + ". Save Application Settings and restart DSE ERP so desktop and server use one timezone.");
         }
         String desktopDateFormat = BusinessClock.datePattern();
-        if (status.dateFormat() != null && !status.dateFormat().isBlank() && !desktopDateFormat.equals(status.dateFormat())) {
+        if (!ConfigManager.isSharedClient() && status.dateFormat() != null && !status.dateFormat().isBlank() && !desktopDateFormat.equals(status.dateFormat())) {
             throw new IllegalStateException("DSE ERP date-format mismatch. Desktop uses " + desktopDateFormat
                     + " but server uses " + status.dateFormat()
                     + ". Save Application Settings and restart DSE ERP so desktop and server use one date policy.");

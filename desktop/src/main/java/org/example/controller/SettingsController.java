@@ -31,6 +31,8 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.Window;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
+import org.example.config.DeploymentMode;
+import org.example.api.runtime.DeploymentConnectionService;
 import org.example.service.EmailService;
 import org.example.service.BrandAssetPolicy;
 import org.example.service.BrandImagePresenter;
@@ -308,6 +310,11 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private VBox panelWorkspace;
     @FXML private Label lblWorkspacePath;
     @FXML private Label lblWorkspaceStatus;
+    @FXML private ComboBox<String> cmbDeploymentMode;
+    @FXML private TextField txtCompanyServerUrl;
+    @FXML private Label lblCompanyServerStatus;
+    @FXML private Button btnTestCompanyServer;
+    private String validatedCompanyServerUrl;
 
     /* =========================================================
        KEYBOARD SHORTCUTS
@@ -442,7 +449,15 @@ public class SettingsController implements ScreenLifecycle {
                 txtSmtpHost.setText(ConfigManager.get("smtp.host", ""));
                 txtSmtpPort.setText(ConfigManager.get("smtp.port", "587"));
             }
-            case WORKSPACE -> refreshWorkspacePanel();
+            case WORKSPACE -> {
+                refreshWorkspacePanel();
+                cmbDeploymentMode.setItems(FXCollections.observableArrayList("This PC only", "Connect to company server"));
+                cmbDeploymentMode.getSelectionModel().select(ConfigManager.isSharedClient() ? 1 : 0);
+                txtCompanyServerUrl.setText(ConfigManager.getConfiguredServerUrl());
+                txtCompanyServerUrl.textProperty().addListener((o,a,b)->validatedCompanyServerUrl=null);
+                cmbDeploymentMode.valueProperty().addListener((o,a,b)->updateDeploymentSettingsControls());
+                updateDeploymentSettingsControls();
+            }
             case SHORTCUTS -> initializeShortcutSettings();
             case UPDATES -> {
                 cmbUpdateChannel.setItems(FXCollections.observableArrayList("STABLE", "BETA"));
@@ -736,7 +751,7 @@ public class SettingsController implements ScreenLifecycle {
             try {
                 ConfigManager.set(configKey, destination.toAbsolutePath().toString());
                 String persisted = ConfigManager.get(configKey, "");
-                if (!destination.toAbsolutePath().toString().equals(persisted)) {
+                if (!ConfigManager.isSharedClient() && !destination.toAbsolutePath().toString().equals(persisted)) {
                     throw new IllegalStateException("The saved image path could not be verified.");
                 }
                 configCommitted = true;
@@ -1394,6 +1409,7 @@ public class SettingsController implements ScreenLifecycle {
             if (loadedPanels.containsKey(Section.INVOICE)) saveInvoiceIdentity();
             if (loadedPanels.containsKey(Section.EMAIL)) saveEmailSettings();
             if (loadedPanels.containsKey(Section.NOTIFICATIONS)) saveNotificationSettings();
+            if (loadedPanels.containsKey(Section.WORKSPACE)) saveDeploymentSettings();
             if (loadedPanels.containsKey(Section.SHORTCUTS)) saveShortcutSettings();
             if (loadedPanels.containsKey(Section.UPDATES)) saveUpdateSettings();
             ConfigManager.save();
@@ -1402,6 +1418,53 @@ public class SettingsController implements ScreenLifecycle {
         }
 
         return true;
+    }
+
+    private void saveDeploymentSettings() {
+        boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
+        if (shared) {
+            String normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText());
+            if (!normalized.equals(validatedCompanyServerUrl))
+                throw new IllegalArgumentException("Test the company server connection before saving shared-client mode.");
+            ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
+            ConfigManager.setWithoutSaving("server.baseUrl", normalized);
+        } else {
+            ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.LOCAL.name());
+            ConfigManager.setWithoutSaving("server.baseUrl", "");
+        }
+        if (lblCompanyServerStatus != null) lblCompanyServerStatus.setText("Saved. Restart DSE ERP to apply the deployment change.");
+    }
+
+    private void updateDeploymentSettingsControls() {
+        boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
+        if (txtCompanyServerUrl != null) txtCompanyServerUrl.setDisable(!shared);
+        if (btnTestCompanyServer != null) btnTestCompanyServer.setDisable(!shared);
+        if (!shared && lblCompanyServerStatus != null) lblCompanyServerStatus.setText("Local mode: this PC starts its own database and services.");
+    }
+
+    @FXML private void testCompanyServer() {
+        if (btnTestCompanyServer == null) return;
+        btnTestCompanyServer.setDisable(true);
+        lblCompanyServerStatus.setText("Testing company server...");
+        String candidate = txtCompanyServerUrl.getText();
+        Thread worker = new Thread(() -> {
+            try {
+                var status = DeploymentConnectionService.test(candidate);
+                String normalized = DeploymentConnectionService.normalize(candidate);
+                Platform.runLater(() -> {
+                    validatedCompanyServerUrl = normalized;
+                    lblCompanyServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • Database " + status.database());
+                    btnTestCompanyServer.setDisable(false);
+                });
+            } catch (Exception exception) {
+                Platform.runLater(() -> {
+                    validatedCompanyServerUrl = null;
+                    lblCompanyServerStatus.setText("Connection failed: " + exception.getMessage());
+                    btnTestCompanyServer.setDisable(false);
+                });
+            }
+        }, "dse-settings-server-test");
+        worker.setDaemon(true); worker.start();
     }
 
     private void saveCompanyDetails() {
@@ -1691,6 +1754,21 @@ public class SettingsController implements ScreenLifecycle {
        ========================================================= */
 
     private boolean validateSettings() {
+        if (loadedPanels.containsKey(Section.WORKSPACE)
+                && cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1) {
+            try {
+                String normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText());
+                if (!normalized.equals(validatedCompanyServerUrl)) {
+                    warn("Test the company server connection before saving shared-client mode.");
+                    showWorkspace();
+                    return false;
+                }
+            } catch (IllegalArgumentException exception) {
+                warn(exception.getMessage());
+                showWorkspace();
+                return false;
+            }
+        }
         if (loadedPanels.containsKey(Section.PAYMENT) && !validatePaymentDetails()) {
             showPayment();
             return false;

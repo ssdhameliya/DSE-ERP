@@ -18,7 +18,11 @@ public final class RuntimeApiClient {
     private final String base;
 
     public RuntimeApiClient() {
-        String b = ConfigManager.getDataApiBaseUrl();
+        this(ConfigManager.getDataApiBaseUrl());
+    }
+
+    public RuntimeApiClient(String baseUrl) {
+        String b = baseUrl;
         while (b.endsWith("/")) b = b.substring(0, b.length() - 1);
         this.base = b;
     }
@@ -35,7 +39,10 @@ public final class RuntimeApiClient {
             }
             return json.readValue(response.body(), RuntimeStatus.class);
         } catch (Exception exception) {
-            throw new IllegalStateException("Cannot reach DSE ERP backend at " + base + ". The desktop runtime will attempt to start it automatically.", exception);
+            String action = ConfigManager.isSharedClient()
+                    ? " Check the network and company server address."
+                    : " The desktop runtime will attempt to start it automatically.";
+            throw new IllegalStateException("Cannot reach DSE ERP backend at " + base + "." + action, exception);
         }
     }
 

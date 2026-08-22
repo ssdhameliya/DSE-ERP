@@ -14,6 +14,8 @@ public final class ConfigManager {
     private static volatile String runtimeAuthApiBaseUrl;
     private static volatile String runtimeDataApiBaseUrl;
     private static volatile String runtimeInternalBridgeToken;
+    private static volatile String runtimeBusinessZone;
+    private static volatile String runtimeBusinessDateFormat;
 
     private ConfigManager() {}
 
@@ -59,15 +61,35 @@ public final class ConfigManager {
     }
 
     public static synchronized String get(String key, String defaultValue) {
+        if (shouldUseServerSetting(key)) {
+            try { String remote=new org.example.api.support.SupportApiClient().setting(key, defaultValue);return SharedAssetBridge.isAssetKey(key)?SharedAssetBridge.resolve(key,remote):remote; }
+            catch (org.example.api.ApiSession.AuthenticationRequiredException ignored) { }
+        }
         return properties.getProperty(key, defaultValue);
     }
 
     public static synchronized void set(String key, String value) {
+        if (shouldUseServerSetting(key) && org.example.api.ApiSession.token() != null) {
+            String remote=SharedAssetBridge.isAssetKey(key)?SharedAssetBridge.publish(key,value):value;
+            new org.example.api.support.SupportApiClient().setSetting(key, remote == null ? "" : remote);
+        }
         if (value == null) properties.remove(key); else properties.setProperty(key, value);
         save();
     }
 
+    private static boolean shouldUseServerSetting(String key) {
+        if (getConfiguredDeploymentMode() != DeploymentMode.SHARED_CLIENT
+                || key == null || org.example.api.ApiSession.token() == null) return false;
+        return key.startsWith("company.") || key.startsWith("payment.") || key.startsWith("invoice.")
+                || key.startsWith("business.") || key.startsWith("tax.") || key.startsWith("reference.")
+                || key.equals("date.format") || key.equals("timezone.business");
+    }
+
     public static synchronized void setWithoutSaving(String key, String value) {
+        if (shouldUseServerSetting(key)) {
+            String remote=SharedAssetBridge.isAssetKey(key)?SharedAssetBridge.publish(key,value):value;
+            new org.example.api.support.SupportApiClient().setSetting(key, remote == null ? "" : remote);
+        }
         if (value == null) properties.remove(key); else properties.setProperty(key, value);
     }
 
@@ -103,7 +125,7 @@ public final class ConfigManager {
     private static String requirePostgresUrl(String url) {
         String value = url == null ? "" : url.trim();
         if (!value.startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("DSE ERP 8.3.2 production runtime requires PostgreSQL. Invalid database URL: " + value);
+            throw new IllegalStateException("DSE ERP 8.4.1 production runtime requires PostgreSQL. Invalid database URL: " + value);
         }
         return value;
     }
@@ -156,6 +178,11 @@ public final class ConfigManager {
     public static String getAuthApiBaseUrl() {
         String runtime = runtimeAuthApiBaseUrl;
         if (runtime != null && !runtime.isBlank()) return runtime;
+        if (isSharedClient()) {
+            String server = getConfiguredServerUrl();
+            if (server.isBlank()) throw new IllegalStateException("Shared-client mode requires a company server address.");
+            return server;
+        }
         return get("auth.api.baseUrl", System.getenv().getOrDefault("DSE_AUTH_API_URL", "http://127.0.0.1:8080"));
     }
 
@@ -176,6 +203,37 @@ public final class ConfigManager {
                 || System.getenv("DSE_DATA_API_URL") != null;
     }
 
+    public static DeploymentMode getDeploymentMode() {
+        return getConfiguredDeploymentMode();
+    }
+
+    /**
+     * Reads the deployment mode without using the server-aware settings path.
+     * Deployment mode decides whether that path may be used, so calling get()
+     * here would recursively re-enter shouldUseServerSetting().
+     */
+    private static DeploymentMode getConfiguredDeploymentMode() {
+        String environment = System.getenv("DSE_DEPLOYMENT_MODE");
+        return DeploymentMode.parse(environment == null || environment.isBlank()
+                ? properties.getProperty("deployment.mode", "LOCAL") : environment);
+    }
+
+    public static boolean isSharedClient() { return getDeploymentMode() == DeploymentMode.SHARED_CLIENT; }
+
+    public static synchronized void applyServerBusinessPolicy(String zone,String dateFormat){
+        runtimeBusinessZone=zone==null?null:zone.trim();
+        runtimeBusinessDateFormat=dateFormat==null?null:dateFormat.trim();
+    }
+    public static String runtimeBusinessZone(){return runtimeBusinessZone;}
+    public static String runtimeBusinessDateFormat(){return runtimeBusinessDateFormat;}
+
+    public static String getConfiguredServerUrl() {
+        String environment = System.getenv("DSE_SERVER_URL");
+        String value = environment == null || environment.isBlank()
+                ? get("server.baseUrl", "") : environment;
+        return value == null ? "" : value.trim().replaceAll("/+$", "");
+    }
+
     /** Business data is always served by Spring; there is no desktop persistence mode. */
     public static String getDataMode() { return "api"; }
 
@@ -184,6 +242,11 @@ public final class ConfigManager {
     public static String getDataApiBaseUrl() {
         String runtime = runtimeDataApiBaseUrl;
         if (runtime != null && !runtime.isBlank()) return runtime;
+        if (isSharedClient()) {
+            String server = getConfiguredServerUrl();
+            if (server.isBlank()) throw new IllegalStateException("Shared-client mode requires a company server address.");
+            return server;
+        }
         return get("data.api.baseUrl", System.getenv().getOrDefault("DSE_DATA_API_URL", getAuthApiBaseUrl()));
     }
 

@@ -10,6 +10,8 @@ import org.example.api.runtime.ManagedPostgresRuntime;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.api.runtime.RuntimeBootstrapper;
+import org.example.api.runtime.DeploymentConnectionService;
+import org.example.config.DeploymentMode;
 import org.example.api.setup.SetupApiClient;
 import org.example.util.IconFactory;
 import org.example.util.SceneManager;
@@ -31,11 +33,17 @@ public class SetupWizardController {
     @FXML private TextField txtAdminName, txtAdminUsername, txtAdminEmail;
     @FXML private PasswordField txtAdminPassword, txtAdminConfirm;
     @FXML private Button btnBack, btnNext, btnBrowse;
+    @FXML private Button btnTestServer;
     @FXML private CheckBox chkConfigureEmail;
+    @FXML private RadioButton rbLocal, rbShared;
+    @FXML private TextField txtServerUrl;
+    @FXML private Label lblServerStatus;
+    @FXML private javafx.scene.layout.VBox sharedServerBox, localWorkspacePreview;
 
     private final List<StackPane> steps = new java.util.ArrayList<>();
     private int index;
     private Runnable onCompleted;
+    private String validatedServerUrl;
 
     @FXML public void initialize() {
         steps.addAll(List.of(stepWorkspace, stepCompany, stepEmail, stepAdmin, stepFinish));
@@ -44,11 +52,17 @@ public class SetupWizardController {
         txtSmtpHost.setText("smtp.mail.yahoo.com");
         txtSmtpPort.setText("465");
         txtAdminUsername.setText("admin");
+        ToggleGroup deployment = new ToggleGroup();
+        rbLocal.setToggleGroup(deployment); rbShared.setToggleGroup(deployment);
+        rbLocal.setSelected(true);
+        rbShared.selectedProperty().addListener((o,a,shared)->updateDeploymentControls());
+        txtServerUrl.textProperty().addListener((o,a,b)->validatedServerUrl=null);
         btnBrowse.setGraphic(IconFactory.icon("folder"));
         btnBack.setGraphic(IconFactory.icon("return"));
         btnNext.setGraphic(IconFactory.icon("complete"));
         chkConfigureEmail.selectedProperty().addListener((o,a,b)->setEmailControlsEnabled(b));
         setEmailControlsEnabled(false);
+        updateDeploymentControls();
         showStep(0);
     }
 
@@ -63,11 +77,19 @@ public class SetupWizardController {
         if (selected != null) txtWorkspace.setText(selected.getAbsolutePath());
     }
 
-    @FXML private void previous() { if (index > 0) showStep(index - 1); }
+    @FXML private void previous() {
+        if (isShared() && index == steps.size() - 1) showStep(0);
+        else if (index > 0) showStep(index - 1);
+    }
 
     @FXML private void next() {
         clearError();
         if (!validateCurrentStep()) return;
+        if (index == 0 && isShared()) {
+            prepareSummary();
+            showStep(steps.size() - 1);
+            return;
+        }
         if (index < steps.size() - 1) {
             if (index == steps.size() - 2) prepareSummary();
             showStep(index + 1);
@@ -95,7 +117,8 @@ public class SetupWizardController {
         lblTitle.setText(titles[index]);
         lblDescription.setText(descriptions[index]);
         btnBack.setDisable(index == 0);
-        btnNext.setText(index == steps.size() - 1 ? "Create Workspace & Start" : "Continue");
+        btnNext.setText(index == steps.size() - 1
+                ? (isShared() ? "Save & Connect" : "Create Workspace & Start") : "Continue");
     }
 
     private boolean validateCurrentStep() {
@@ -113,6 +136,12 @@ public class SetupWizardController {
         try {
             Path path = Path.of(txtWorkspace.getText().trim()).toAbsolutePath().normalize();
             if (path.getRoot() != null && path.equals(path.getRoot())) return fail("Choose a folder inside the drive, not the drive root itself.", txtWorkspace);
+            if (isShared()) {
+                String normalized;
+                try { normalized = DeploymentConnectionService.normalize(txtServerUrl.getText()); }
+                catch (Exception exception) { return fail(exception.getMessage(), txtServerUrl); }
+                if (!normalized.equals(validatedServerUrl)) return fail("Test the company server connection before continuing.", txtServerUrl);
+            }
             return true;
         } catch (Exception exception) {
             return fail("The workspace path is not valid.", txtWorkspace);
@@ -143,6 +172,13 @@ public class SetupWizardController {
     }
 
     private void prepareSummary() {
+        if (isShared()) {
+            lblSummary.setText("Mode\nConnect to company server"
+                    + "\n\nServer\n" + validatedServerUrl
+                    + "\n\nLocal workspace\n" + txtWorkspace.getText().trim()
+                    + "\n\nBusiness data, users and documents remain on the company server. This PC will not start local PostgreSQL or Spring services.");
+            return;
+        }
         String email = chkConfigureEmail.isSelected() ? txtSmtpEmail.getText().trim() : "Configure later in Settings";
         lblSummary.setText("Workspace\n" + txtWorkspace.getText().trim()
                 + "\n\nCompany\n" + txtCompanyName.getText().trim()
@@ -161,6 +197,18 @@ public class SetupWizardController {
             try {
                 WorkspaceManager.configure(Path.of(txtWorkspace.getText().trim()));
                 ConfigManager.load();
+                if (isShared()) {
+                    String server = DeploymentConnectionService.normalize(validatedServerUrl);
+                    ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
+                    ConfigManager.setWithoutSaving("server.baseUrl", server);
+                    ConfigManager.setWithoutSaving("setup.completed", "true");
+                    ConfigManager.save();
+                    RuntimeBootstrapper.ensureServerReady();
+                    Platform.runLater(() -> { if (onCompleted != null) onCompleted.run(); else SceneManager.showLogin(); });
+                    return;
+                }
+                ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.LOCAL.name());
+                ConfigManager.setWithoutSaving("server.baseUrl", "");
                 ConfigManager.setWithoutSaving("setup.completed", "false");
                 ConfigManager.setWithoutSaving("company.name", txtCompanyName.getText().trim());
                 ConfigManager.setWithoutSaving("company.phone", safe(txtPhone));
@@ -202,6 +250,40 @@ public class SetupWizardController {
     private void setEmailControlsEnabled(boolean enabled) {
         txtSmtpEmail.setDisable(!enabled); txtSmtpPassword.setDisable(!enabled);
         txtSmtpHost.setDisable(!enabled); txtSmtpPort.setDisable(!enabled);
+    }
+
+    private boolean isShared() { return rbShared != null && rbShared.isSelected(); }
+
+    private void updateDeploymentControls() {
+        boolean shared = isShared();
+        sharedServerBox.setVisible(shared); sharedServerBox.setManaged(shared);
+        localWorkspacePreview.setVisible(!shared); localWorkspacePreview.setManaged(!shared);
+        validatedServerUrl = null;
+    }
+
+    @FXML private void testServerConnection() {
+        clearError();
+        btnTestServer.setDisable(true);
+        lblServerStatus.setText("Testing company server...");
+        String candidate = txtServerUrl.getText();
+        Thread worker = new Thread(() -> {
+            try {
+                var status = DeploymentConnectionService.test(candidate);
+                String normalized = DeploymentConnectionService.normalize(candidate);
+                Platform.runLater(() -> {
+                    validatedServerUrl = normalized;
+                    lblServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • Database " + status.database());
+                    btnTestServer.setDisable(false);
+                });
+            } catch (Exception exception) {
+                Platform.runLater(() -> {
+                    validatedServerUrl = null;
+                    lblServerStatus.setText("Connection failed: " + exception.getMessage());
+                    btnTestServer.setDisable(false);
+                });
+            }
+        }, "dse-shared-server-test");
+        worker.setDaemon(true); worker.start();
     }
     private boolean require(TextInputControl field, String message) { return field.getText()!=null&&!field.getText().isBlank() || fail(message, field); }
     private boolean validEmail(String value) { return value != null && EMAIL.matcher(value.trim()).matches(); }

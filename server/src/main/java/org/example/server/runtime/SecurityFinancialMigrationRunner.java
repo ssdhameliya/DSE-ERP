@@ -63,7 +63,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V8_2_0__excel_purchase_documents",
                     "db/migration/V8_2_0__excel_purchase_documents.sql"),
             new Migration("V8_2_4__reminder_status_compatibility",
-                    "db/migration/V8_2_4__reminder_status_compatibility.sql")
+                    "db/migration/V8_2_4__reminder_status_compatibility.sql"),
+            new Migration("V8_4_1__multi_user_authority",
+                    "db/migration/V8_4_1__multi_user_authority.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -131,6 +133,10 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("purchase_header", "same_as_billing");
         requireTable("purchase_charge");
         requireTable("document_attachment");
+        requireTable("reference_counter");
+        requireTable("server_resource");
+        requireTable("server_backup_policy");
+        requireTable("deployment_promotion");
     }
 
     private void requireTable(String table) {

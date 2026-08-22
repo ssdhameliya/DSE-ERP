@@ -21,7 +21,8 @@ public final class BusinessClock {
     private BusinessClock() { }
 
     public static ZoneId zone() {
-        String configured = ConfigManager.get("company.timeZone", "");
+        String configured = ConfigManager.runtimeBusinessZone();
+        if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.timeZone", "");
         if (configured != null && !configured.isBlank()) {
             try { return ZoneId.of(configured.trim()); } catch (Exception ignored) { }
         }
@@ -29,7 +30,8 @@ public final class BusinessClock {
     }
 
     public static String datePattern() {
-        String configured = ConfigManager.get("company.dateFormat", DEFAULT_DATE_FORMAT);
+        String configured = ConfigManager.runtimeBusinessDateFormat();
+        if (configured == null || configured.isBlank()) configured = ConfigManager.get("company.dateFormat", DEFAULT_DATE_FORMAT);
         String candidate = configured == null || configured.isBlank() ? DEFAULT_DATE_FORMAT : configured.trim();
         try {
             DateTimeFormatter.ofPattern(candidate, Locale.getDefault());

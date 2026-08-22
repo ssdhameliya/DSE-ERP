@@ -16,7 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 @Service
-final class SmtpMailService {
+public final class SmtpMailService {
     private final String host;
     private final int port;
     private final String email;
@@ -71,6 +71,18 @@ final class SmtpMailService {
         } catch (Exception exception) {
             throw new IllegalStateException("The verification email could not be sent. Check SMTP settings.", exception);
         }
+    }
+
+    public void sendBusiness(String recipient,String subject,String body,String attachmentName,byte[] attachment) {
+        Settings settings=settings();
+        if(settings.host().isBlank()||settings.email().isBlank()||settings.password().isBlank())throw new IllegalStateException("Server business email is not configured");
+        try {
+            Properties properties=new Properties();properties.put("mail.smtp.auth","true");properties.put("mail.smtp.starttls.enable","true");properties.put("mail.smtp.starttls.required","true");properties.put("mail.smtp.host",settings.host());properties.put("mail.smtp.port",Integer.toString(settings.port()));properties.put("mail.smtp.connectiontimeout","15000");properties.put("mail.smtp.timeout","30000");
+            Session session=Session.getInstance(properties,new Authenticator(){@Override protected PasswordAuthentication getPasswordAuthentication(){return new PasswordAuthentication(settings.email(),settings.password());}});
+            MimeMessage message=new MimeMessage(session);message.setFrom(new InternetAddress(settings.email()));message.setRecipient(Message.RecipientType.TO,new InternetAddress(recipient,true));message.setSubject(subject==null?"DSE ERP document":subject);
+            if(attachment==null||attachment.length==0)message.setText(body==null?"":body);else{var multipart=new jakarta.mail.internet.MimeMultipart();var text=new jakarta.mail.internet.MimeBodyPart();text.setText(body==null?"":body);multipart.addBodyPart(text);var file=new jakarta.mail.internet.MimeBodyPart();file.setFileName(attachmentName==null?"document.pdf":attachmentName);file.setContent(attachment,"application/octet-stream");multipart.addBodyPart(file);message.setContent(multipart);}
+            Transport.send(message);
+        } catch(Exception e){throw new IllegalStateException("Server could not send the business email",e);}
     }
 
     private Settings settings() {

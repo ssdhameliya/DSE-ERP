@@ -13,6 +13,13 @@
                                 <Label fx:id="lblWorkspacePath" text="Workspace path" wrapText="true" styleClass="workspace-path-value"/>
                                 <Label fx:id="lblWorkspaceStatus" wrapText="true" styleClass="workspace-status-ok,approved-status"/>
                             </VBox>
+                            <VBox spacing="10" styleClass="settings-information-card">
+                                <Label text="Deployment" styleClass="settings-subsection-title"/>
+                                <Label text="Local mode preserves the current single-PC operation. Shared-client mode connects this desktop to one company server after restart." wrapText="true" styleClass="settings-help-text"/>
+                                <ComboBox fx:id="cmbDeploymentMode" maxWidth="Infinity"/>
+                                <HBox spacing="10"><TextField fx:id="txtCompanyServerUrl" promptText="https://erp.company.local" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button fx:id="btnTestCompanyServer" text="Test Connection" onAction="#testCompanyServer" styleClass="settings-action-button,settings-secondary-button"/></HBox>
+                                <Label fx:id="lblCompanyServerStatus" wrapText="true" styleClass="settings-help-text"/>
+                            </VBox>
                             <GridPane hgap="14" vgap="14">
                                 <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
                                 <VBox spacing="7" styleClass="workspace-folder-card">

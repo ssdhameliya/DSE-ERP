@@ -42,6 +42,8 @@ public final class TemplateStorageService {
 
     public static List<DocumentTemplate> listAll() {
         List<DocumentTemplate> result = new ArrayList<>();
+        try { RemoteTemplateMirror.refresh("PDF_TEMPLATE", root()); }
+        catch (Exception error) { logFailure("server-refresh", null, error); }
         try (Stream<Path> folders = Files.list(root())) {
             folders.filter(Files::isDirectory).forEach(folder -> {
                 try { loadFromFolder(folder).ifPresent(result::add); }
@@ -152,6 +154,7 @@ public final class TemplateStorageService {
         Files.createDirectories(folder.resolve("assets"));
         template.touch();
         writeMetadata(folder, template);
+        RemoteTemplateMirror.publish("PDF_TEMPLATE", template.getId(), folder);
     }
 
 
@@ -292,6 +295,7 @@ public final class TemplateStorageService {
 
     public static synchronized void delete(DocumentTemplate template) throws IOException {
         if (template == null) return;
+        RemoteTemplateMirror.delete("PDF_TEMPLATE", template.getId());
         Path folder = folder(template);
         if (!Files.exists(folder)) return;
         try (Stream<Path> walk = Files.walk(folder)) {

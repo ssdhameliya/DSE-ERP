@@ -21,13 +21,13 @@ class RuntimeControllerTest {
         RuntimeService service = mock(RuntimeService.class);
         when(service.databaseReady()).thenReturn(true);
         when(service.databaseTimeZone()).thenReturn("UTC");
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, "8.3.2", RuntimeContract.API_REVISION)).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION)).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ready").value(true))
                 .andExpect(jsonPath("$.service").value(RuntimeContract.SERVICE_NAME))
-                .andExpect(jsonPath("$.version").value("8.3.2"))
+                .andExpect(jsonPath("$.version").value(RuntimeContract.APP_VERSION))
                 .andExpect(jsonPath("$.apiRevision").value(RuntimeContract.API_REVISION))
                 .andExpect(jsonPath("$.database").value("postgresql"))
                 .andExpect(jsonPath("$.databaseTimeZone").value("UTC"))
@@ -38,7 +38,7 @@ class RuntimeControllerTest {
     void reportsNotReadyWhenTheManagedDatabaseCannotBeReached() throws Exception {
         RuntimeService service = mock(RuntimeService.class);
         when(service.databaseReady()).thenThrow(new IllegalStateException("offline"));
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, "8.3.2", RuntimeContract.API_REVISION)).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION)).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())

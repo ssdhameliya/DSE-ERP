@@ -34,6 +34,8 @@ public final class ExcelTemplateStorageService {
 
     public static List<ExcelTemplate> listAll() {
         List<ExcelTemplate> result = new ArrayList<>();
+        try { RemoteTemplateMirror.refresh("EXCEL_TEMPLATE", root()); }
+        catch (Exception error) { log("server-refresh", null, error); }
         try (Stream<Path> folders = Files.list(root())) {
             folders.filter(Files::isDirectory).forEach(folder -> {
                 try { load(folder).ifPresent(result::add); }
@@ -151,6 +153,7 @@ public final class ExcelTemplateStorageService {
             moveReplace(temp, source);
             if (sourceExisted) template.setVersion(priorVersion + 1);
             saveMetadata(template);
+            RemoteTemplateMirror.publish("EXCEL_TEMPLATE", template.getId(), folder);
         } catch (Exception error) {
             template.setVersion(priorVersion);
             template.setUpdatedAt(priorUpdatedAt);
@@ -202,6 +205,7 @@ public final class ExcelTemplateStorageService {
         JSON.writeValue(temp.toFile(), template);
         try { Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
         catch (AtomicMoveNotSupportedException ignored) { Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING); }
+        RemoteTemplateMirror.publish("EXCEL_TEMPLATE", template.getId(), folder);
     }
 
     public static synchronized void activateAndSetDefault(ExcelTemplate template) throws IOException {
@@ -273,6 +277,7 @@ public final class ExcelTemplateStorageService {
 
     public static synchronized void delete(ExcelTemplate template) throws IOException {
         if (template == null) return;
+        RemoteTemplateMirror.delete("EXCEL_TEMPLATE", template.getId());
         Path folder = folder(template);
         if (!Files.exists(folder)) return;
         try (Stream<Path> walk = Files.walk(folder)) {

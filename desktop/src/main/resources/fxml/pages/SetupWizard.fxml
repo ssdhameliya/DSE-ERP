@@ -26,11 +26,21 @@
             <StackPane VBox.vgrow="ALWAYS" styleClass="setup-card">
                 <StackPane fx:id="stepWorkspace">
                     <VBox spacing="18" maxWidth="720" alignment="CENTER_LEFT">
+                        <Label text="Deployment Mode" styleClass="setup-section-title"/>
+                        <VBox spacing="8">
+                            <RadioButton fx:id="rbLocal" text="This PC only — keep database and services on this computer" selected="true"/>
+                            <RadioButton fx:id="rbShared" text="Connect to company server — share business data with multiple PCs"/>
+                        </VBox>
+                        <VBox fx:id="sharedServerBox" spacing="7" visible="false" managed="false">
+                            <Label text="Company server address *" styleClass="setup-field-label"/>
+                            <HBox spacing="10"><TextField fx:id="txtServerUrl" promptText="https://erp.company.local" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button fx:id="btnTestServer" text="Test Connection" onAction="#testServerConnection" styleClass="setup-secondary-button"/></HBox>
+                            <Label fx:id="lblServerStatus" text="Enter the address supplied by your administrator. Do not enter a PostgreSQL address." wrapText="true" styleClass="setup-help"/>
+                        </VBox>
                         <Label text="Business Data Workspace" styleClass="setup-section-title"/>
                         <Label text="Select a reliable internal drive, secondary drive, network-synchronised folder, or external SSD. Avoid temporary folders and removable drives that are not always connected." wrapText="true" styleClass="setup-help"/>
                         <Label text="Workspace location *" styleClass="setup-field-label"/>
                         <HBox spacing="10"><TextField fx:id="txtWorkspace" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button fx:id="btnBrowse" text="Browse" onAction="#browseWorkspace" styleClass="setup-secondary-button"/></HBox>
-                        <VBox spacing="8" styleClass="setup-folder-preview">
+                        <VBox fx:id="localWorkspacePreview" spacing="8" styleClass="setup-folder-preview">
                             <Label text="DSE ERP will create:" styleClass="setup-field-label"/>
                             <Label text="Database  •  Config  •  Backups  •  Reports  •  Imports  •  Exports  •  Attachments  •  Templates  •  Logs" wrapText="true" styleClass="setup-help"/>
                         </VBox>

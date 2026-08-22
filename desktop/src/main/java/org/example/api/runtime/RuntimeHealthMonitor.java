@@ -23,8 +23,10 @@ public final class RuntimeHealthMonitor implements AutoCloseable {
     private void check() {
         try {
             RuntimeBootstrapper.ensureServerReady();
+            RuntimeConnectionState.connected();
         } catch (Exception exception) {
             System.err.println("DSE ERP runtime health check failed: " + exception.getMessage());
+            RuntimeConnectionState.disconnected(exception.getMessage());
         }
     }
 

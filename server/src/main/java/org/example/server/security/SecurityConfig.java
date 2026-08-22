@@ -31,7 +31,11 @@ public class SecurityConfig {
                                 "/api/auth/registration-roles", "/api/auth/registration/request", "/api/auth/registration/complete",
                                 "/api/auth/password-reset/request", "/api/auth/password-reset/complete").permitAll()
                         .requestMatchers("/api/admin/**", "/api/auth/register").hasRole("ADMIN")
-                        .requestMatchers("/api/support/backup/**", "/api/support/settings/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/authority/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/authority/**").hasRole("ADMIN")
+                        .requestMatchers("/api/authority/backups/**").hasRole("ADMIN")
+                        .requestMatchers("/api/support/backup/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/support/settings/**").hasRole("ADMIN")
                         .requestMatchers("/api/reconciliation/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/operations/purchases/**", "/api/operations/finance/**", "/api/operations/stock/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/insights/reports/**", "/api/support/business-report", "/api/support/search", "/api/support/purchases/**").hasAnyRole("ADMIN", "MANAGER")

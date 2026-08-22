@@ -66,9 +66,13 @@ public final class Main {
         ConfigManager.load();
         SceneManager.refreshSplashBranding();
         try {
-            SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
-            ManagedPostgresRuntime.ensureReady();
-            SceneManager.updateSplashStage(2, "PostgreSQL is ready.");
+            if (ConfigManager.isSharedClient()) {
+                SceneManager.updateSplashStage(2, "Connecting to company server...");
+            } else {
+                SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
+                ManagedPostgresRuntime.ensureReady();
+                SceneManager.updateSplashStage(2, "PostgreSQL is ready.");
+            }
         } catch (Exception exception) {
             exception.printStackTrace();
             Platform.runLater(() -> {
@@ -79,7 +83,9 @@ public final class Main {
             });
             return;
         }
-        BackupManager.RestoreResult restoreResult = BackupManager.applyPendingRestoreIfPresent();
+        BackupManager.RestoreResult restoreResult = ConfigManager.isSharedClient()
+                ? BackupManager.RestoreResult.none()
+                : BackupManager.applyPendingRestoreIfPresent();
         if (restoreResult.attempted() && !restoreResult.applied()) {
             if (restoreResult.failure() != null) restoreResult.failure().printStackTrace();
         }
@@ -89,6 +95,8 @@ public final class Main {
             SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
             new org.example.api.runtime.RuntimeApiClient().status();
             if (new SetupApiClient().requiresSetup()) {
+                if (ConfigManager.isSharedClient()) throw new IllegalStateException(
+                        "The company server has not been initialized. Complete setup on the server computer first.");
                 Platform.runLater(() -> SceneManager.showSetupWizard(() -> completeFirstRun(stage)));
                 return;
             }
@@ -134,8 +142,10 @@ public final class Main {
                 SceneManager.updateSplashStage(1, "Workspace and configuration loaded.");
                 ConfigManager.load();
                 SceneManager.refreshSplashBranding();
-                SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
-                ManagedPostgresRuntime.ensureReady();
+                if (!ConfigManager.isSharedClient()) {
+                    SceneManager.updateSplashStage(2, "Preparing local PostgreSQL...");
+                    ManagedPostgresRuntime.ensureReady();
+                } else SceneManager.updateSplashStage(2, "Connecting to company server...");
                 SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
                 RuntimeBootstrapper.ensureServerReady();
                 SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
@@ -183,6 +193,7 @@ public final class Main {
     }
 
     private void startBackupScheduler() {
+        if (ConfigManager.isSharedClient()) return;
         if (backupScheduler != null) return;
         backupScheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "erp-backup-scheduler");

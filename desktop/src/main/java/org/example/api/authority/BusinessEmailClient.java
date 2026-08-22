@@ -1,0 +1,7 @@
+package org.example.api.authority;
+import com.fasterxml.jackson.databind.ObjectMapper;import org.example.api.ApiSession;import org.example.config.ConfigManager;import java.net.URI;import java.net.http.*;import java.nio.file.*;import java.time.Duration;import java.util.Base64;
+public final class BusinessEmailClient{
+ private final ObjectMapper json=new ObjectMapper();
+ public void send(String recipient,String subject,String body,Path attachment){try{String name=attachment==null?null:attachment.getFileName().toString();String data=attachment==null?null:Base64.getEncoder().encodeToString(Files.readAllBytes(attachment));var payload=new Request(recipient,subject,body,name,data);HttpRequest.Builder b=HttpRequest.newBuilder(URI.create(ConfigManager.getDataApiBaseUrl().replaceAll("/+$","")+"/api/authority/email")).timeout(Duration.ofSeconds(90)).header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(payload)));ApiSession.authorize(b);var r=HttpClient.newHttpClient().send(b.build(),HttpResponse.BodyHandlers.ofString());if(r.statusCode()<200||r.statusCode()>=300)throw new IllegalStateException("Server email error ("+r.statusCode()+"): "+r.body());}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException(e);}catch(Exception e){throw e instanceof RuntimeException x?x:new IllegalStateException(e);}}
+ private record Request(String recipient,String subject,String body,String attachmentName,String attachmentBase64){}
+}
