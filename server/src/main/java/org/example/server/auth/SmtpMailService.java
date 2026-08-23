@@ -24,7 +24,7 @@ import java.util.Properties;
  * retained as a safe deployment fallback.
  */
 @Service
-public final class SmtpMailService {
+public class SmtpMailService {
     private final String host;
     private final int port;
     private final String email;

@@ -8,6 +8,18 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("8.4.7".equals(version)) {
+            return """
+                    DSE ERP 8.4.7
+
+                    Startup Reliability
+                    • Fixed Spring Boot startup failure caused by the transactional SMTP service being declared final.
+                    • Kept SMTP settings transactional while restoring Spring AOP/CGLIB proxy compatibility.
+
+                    Maintenance
+                    • Added a regression test to prevent the transactional SMTP service from becoming non-proxyable again.
+                    """.strip();
+        }
         if ("8.4.6".equals(version)) {
             return """
                     DSE ERP 8.4.6
