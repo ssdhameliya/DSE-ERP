@@ -26,7 +26,9 @@ import org.example.util.PerformanceBudgets;
 import org.example.update.BuildInfo;
 import org.example.config.ConfigManager;
 
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.prefs.Preferences;
 
 /**
@@ -60,6 +62,8 @@ public class LoginController {
     @FXML private VBox loginPanel, resetPanel, otpPanel;
 
     private final UserService users = new UserService();
+    /** Display label -> canonical Role Master code for the current server. */
+    private final Map<String, String> loginRoleCodes = new LinkedHashMap<>();
     private AppUser pendingUser;
     private String pendingMfaChallengeId;
     private String resetChallengeId;
@@ -74,7 +78,8 @@ public class LoginController {
         BrandImagePresenter.applicationBanner(imgLoginLogo, loginLogoBox);
         applyBranding();
 
-        cmbRole.getItems().setAll("Admin", "Manager", "Sale");
+        cmbRole.getItems().clear();
+        cmbRole.setDisable(true);
 
         // Render the selected role explicitly in the closed ComboBox.
         // Some JavaFX skins do not repaint the button cell reliably after a
@@ -101,6 +106,7 @@ public class LoginController {
         });
 
         restoreRememberedLogin();
+        loadLoginRoles();
 
         txtOtp.setDisable(true);
         UiActionIcons.apply(btnLogin, ButtonAction.LOGIN);
@@ -417,13 +423,22 @@ public class LoginController {
     }
 
     private void updateLoginMode() {
+        String role = selectedDatabaseRole();
+        boolean roleRequiresOtp = !role.isBlank() && !"ADMIN".equals(role);
         boolean mfaPending = pendingMfaChallengeId != null;
         if (otpPanel != null) {
-            otpPanel.setManaged(mfaPending);
-            otpPanel.setVisible(mfaPending);
+            boolean show = roleRequiresOtp || mfaPending;
+            otpPanel.setManaged(show);
+            otpPanel.setVisible(show);
         }
         txtOtp.setDisable(!mfaPending);
-        btnLogin.setText(mfaPending ? "VERIFY MFA" : "LOGIN");
+        if (!mfaPending && roleRequiresOtp) {
+            txtOtp.setPromptText("OTP is required after password verification");
+        } else {
+            txtOtp.setPromptText("Enter the code sent to your registered email");
+        }
+        if (btnResendOtp != null) btnResendOtp.setDisable(!mfaPending);
+        btnLogin.setText(mfaPending ? "VERIFY OTP" : "LOGIN");
     }
 
     @FXML private void forgotPassword() {
@@ -528,30 +543,67 @@ public class LoginController {
     private String selectedDatabaseRole() {
         String display = cmbRole == null ? null : cmbRole.getValue();
         if (display == null) return "";
-        return normalizeRole(display);
+        String code = loginRoleCodes.get(display);
+        return normalizeRole(code == null ? display : code);
     }
 
     private String normalizeRole(String role) {
         if (role == null) return "";
         String normalized = role.trim().toUpperCase(Locale.ROOT);
-        // Backward compatibility for databases created before the SALES role
-        // migration in 3.0.10.
-        if ("USER".equals(normalized)) return "SALES";
+        // Legacy display/storage aliases are accepted only while restoring old preferences.
+        if ("USER".equals(normalized) || "SALE".equals(normalized)) return "SALES";
         return normalized;
+    }
+
+    private void loadLoginRoles() {
+        cmbRole.setDisable(true);
+        UiTaskExecutor.submitLatest("login-role-master", users::loginRoles, options -> {
+            loginRoleCodes.clear();
+            if (options != null) {
+                for (var option : options) {
+                    if (option == null) continue;
+                    String code = normalizeRole(option.code());
+                    String label = option.displayName() == null || option.displayName().isBlank() ? code : option.displayName().trim();
+                    if (!code.isBlank() && !label.isBlank()) loginRoleCodes.put(label, code);
+                }
+            }
+            cmbRole.getItems().setAll(loginRoleCodes.keySet());
+            cmbRole.setDisable(false);
+            restoreRememberedRole();
+            if (cmbRole.getItems().isEmpty()) {
+                showFieldError(cmbRole, lblRoleError, "No active roles are available in Role Master.");
+                message("No active login roles are available. Ask an administrator to check Role Master.", true);
+            }
+            updateLoginMode();
+        }, failure -> {
+            loginRoleCodes.clear();
+            cmbRole.getItems().clear();
+            cmbRole.setDisable(false);
+            showFieldError(cmbRole, lblRoleError, "Unable to load Role Master.");
+            message("Unable to load login roles from the server: " +
+                    (failure.getMessage() == null ? "Role Master is unavailable." : failure.getMessage()), true);
+        });
     }
 
     private void restoreRememberedLogin() {
         boolean remember = PREFS.getBoolean(PREF_REMEMBER, false);
         chkRemember.setSelected(remember);
-        if (!remember) {
-            if (cmbRole.getValue() == null) cmbRole.setValue("Admin");
-            return;
-        }
+        if (remember) txtUsername.setText(PREFS.get(PREF_IDENTITY, ""));
+    }
 
-        txtUsername.setText(PREFS.get(PREF_IDENTITY, ""));
-        String savedRole = PREFS.get(PREF_ROLE, "Admin");
-        if (!cmbRole.getItems().contains(savedRole)) savedRole = "Admin";
-        cmbRole.setValue(savedRole);
+    private void restoreRememberedRole() {
+        if (cmbRole == null || cmbRole.getItems().isEmpty()) return;
+        String saved = PREFS.get(PREF_ROLE, "ADMIN");
+        String wantedCode = normalizeRole(saved);
+        String selected = loginRoleCodes.entrySet().stream()
+                .filter(entry -> normalizeRole(entry.getValue()).equals(wantedCode))
+                .map(Map.Entry::getKey).findFirst().orElse(null);
+        if (selected == null && ("ADMIN".equals(wantedCode) || saved.equalsIgnoreCase("Admin"))) {
+            selected = loginRoleCodes.entrySet().stream().filter(entry -> "ADMIN".equals(normalizeRole(entry.getValue())))
+                    .map(Map.Entry::getKey).findFirst().orElse(null);
+        }
+        if (selected == null) selected = cmbRole.getItems().getFirst();
+        cmbRole.setValue(selected);
     }
 
     private void saveRememberedLogin() {
@@ -561,7 +613,7 @@ public class LoginController {
         }
         PREFS.putBoolean(PREF_REMEMBER, true);
         PREFS.put(PREF_IDENTITY, txtUsername.getText().trim());
-        PREFS.put(PREF_ROLE, cmbRole.getValue());
+        PREFS.put(PREF_ROLE, selectedDatabaseRole());
     }
 
     private void clearRememberedLogin() {

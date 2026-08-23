@@ -67,7 +67,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V8_4_1__multi_user_authority",
                     "db/migration/V8_4_1__multi_user_authority.sql"),
             new Migration("V8_4_5__authentication_lockout_policy",
-                    "db/migration/V8_4_5__authentication_lockout_policy.sql")
+                    "db/migration/V8_4_5__authentication_lockout_policy.sql"),
+            new Migration("V8_5_0__role_mfa_approval_navigation",
+                    "db/migration/V8_5_0__role_mfa_approval_navigation.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -124,6 +126,14 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("users", "failed_attempts");
         requireColumn("users", "mfa_failed_attempts");
         requireColumn("users", "lock_reason");
+        requireColumn("sales_header", "inventory_posted");
+        requireColumn("sales_header", "approval_status");
+        requireColumn("sales_header", "requested_document_status");
+        requireColumn("purchase_header", "approval_status");
+        requireColumn("purchase_header", "requested_document_status");
+        requireColumn("notifications", "module_key");
+        requireColumn("notifications", "record_id");
+        requireColumn("notifications", "action_code");
         requireTable("return_refund");
         requireColumn("return_refund", "attachment_path");
         requireColumn("return_refund", "bank_statement_transaction_id");

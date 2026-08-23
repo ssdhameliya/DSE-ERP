@@ -1314,20 +1314,60 @@ public class SettingsController implements ScreenLifecycle {
 
     private void initializeShortcutSettings() {
         if (shortcutGroups == null) return;
-        shortcutEditors.clear(); shortcutGroups.getChildren().clear();
-        Map<String,List<Action>> categories = ShortcutRegistry.actions().stream().collect(java.util.stream.Collectors.groupingBy(Action::category, LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        shortcutEditors.clear();
+        shortcutGroups.getChildren().clear();
+        Map<String,List<Action>> categories = ShortcutRegistry.actions().stream()
+                .collect(java.util.stream.Collectors.groupingBy(Action::category, LinkedHashMap::new, java.util.stream.Collectors.toList()));
+
+        final int maxRowsPerCard = 5;
         for (Map.Entry<String,List<Action>> entry : categories.entrySet()) {
-            VBox card=new VBox(6); card.getStyleClass().add("dse-shortcut-group-card"); card.setPrefWidth(390); card.setMaxWidth(Double.MAX_VALUE);
-            Label heading=new Label(entry.getKey()); heading.getStyleClass().add("dse-shortcut-group-title"); card.getChildren().add(heading);
-            GridPane grid=new GridPane(); grid.setHgap(6); grid.setVgap(5); ColumnConstraints c0=new ColumnConstraints();c0.setPercentWidth(48);ColumnConstraints c1=new ColumnConstraints();c1.setPercentWidth(35);ColumnConstraints c2=new ColumnConstraints();c2.setPercentWidth(17);grid.getColumnConstraints().addAll(c0,c1,c2);
-            int row=0;
-            for(Action action:entry.getValue()){
-                Label name=new Label(action.label());name.getStyleClass().add("dse-shortcut-action-name");
-                TextField editor=new TextField(ShortcutRegistry.display(action));editor.setPromptText("Disabled");editor.setEditable(false);editor.getProperties().put("dse.shortcut-capture",Boolean.TRUE);editor.getStyleClass().add("dse-shortcut-key");editor.setOnMouseClicked(e->{editor.requestFocus();editor.selectAll();});editor.setOnKeyPressed(e->captureShortcut(action,editor,e));
-                Button reset=new Button("↺");reset.setTooltip(new Tooltip("Reset to default"));reset.getStyleClass().addAll("approved-button","approved-secondary-button","dse-shortcut-reset");reset.setOnAction(e->{editor.setText(action.defaultBinding().replace("Shortcut","Ctrl/Cmd"));refreshShortcutValidation();});
-                grid.add(name,0,row);grid.add(editor,1,row);grid.add(reset,2,row++);shortcutEditors.put(action,editor);
+            List<Action> actions = entry.getValue();
+            int partCount = Math.max(1, (int)Math.ceil(actions.size() / (double)maxRowsPerCard));
+            for (int part = 0; part < partCount; part++) {
+                int from = part * maxRowsPerCard;
+                int to = Math.min(actions.size(), from + maxRowsPerCard);
+                VBox card = new VBox(5);
+                card.getStyleClass().addAll("dse-shortcut-group-card","dse-shortcut-v2-card");
+                card.setPrefWidth(285);
+                card.setMinWidth(245);
+                card.setMaxWidth(Double.MAX_VALUE);
+
+                String headingText = entry.getKey() + (partCount > 1 ? "  " + (part + 1) + "/" + partCount : "");
+                Label heading = new Label(headingText);
+                heading.getStyleClass().add("dse-shortcut-group-title");
+                card.getChildren().add(heading);
+
+                GridPane grid = new GridPane();
+                grid.setHgap(5); grid.setVgap(4);
+                ColumnConstraints c0 = new ColumnConstraints(); c0.setPercentWidth(48);
+                ColumnConstraints c1 = new ColumnConstraints(); c1.setPercentWidth(38);
+                ColumnConstraints c2 = new ColumnConstraints(); c2.setPercentWidth(14);
+                grid.getColumnConstraints().addAll(c0,c1,c2);
+
+                int row = 0;
+                for (Action action : actions.subList(from,to)) {
+                    Label name = new Label(action.label());
+                    name.setWrapText(true);
+                    name.getStyleClass().add("dse-shortcut-action-name");
+
+                    TextField editor = new TextField(ShortcutRegistry.display(action));
+                    editor.setPromptText("Disabled"); editor.setEditable(false);
+                    editor.getProperties().put("dse.shortcut-capture", Boolean.TRUE);
+                    editor.getStyleClass().add("dse-shortcut-key");
+                    editor.setOnMouseClicked(e -> { editor.requestFocus(); editor.selectAll(); });
+                    editor.setOnKeyPressed(e -> captureShortcut(action,editor,e));
+
+                    Button reset = new Button("↺");
+                    reset.setTooltip(new Tooltip("Reset " + action.label() + " to default"));
+                    reset.getStyleClass().addAll("approved-button","approved-secondary-button","dse-shortcut-reset");
+                    reset.setOnAction(e -> { editor.setText(action.defaultBinding().replace("Shortcut","Ctrl/Cmd")); refreshShortcutValidation(); });
+
+                    grid.add(name,0,row); grid.add(editor,1,row); grid.add(reset,2,row++);
+                    shortcutEditors.put(action,editor);
+                }
+                card.getChildren().add(grid);
+                shortcutGroups.getChildren().add(card);
             }
-            card.getChildren().add(grid);shortcutGroups.getChildren().add(card);
         }
         refreshShortcutValidation();
     }

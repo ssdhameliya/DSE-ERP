@@ -19,7 +19,7 @@ public final class NotificationService {
     }
 
     public record NotificationItem(long id, String title, String message, String severity, String category,
-                                   boolean read, String targetFxml, String referenceNo,
+                                   boolean read, String targetFxml, String referenceNo, String moduleKey, Long recordId, String actionCode,
                                    long createdAt) {
         @Override public String toString() { return title + "\n" + message; }
     }
@@ -44,7 +44,8 @@ public final class NotificationService {
         try {
             API.createNotification(new InsightsApiClient.NotificationCreate(
                     title, message, severity == null ? "INFO" : severity,
-                    resolvedCategory.name(), link.targetFxml(), link.referenceNo()));
+                    resolvedCategory.name(), link.targetFxml(), link.referenceNo(),
+                    moduleKey(resolvedCategory, link.targetFxml()), null, "VIEW"));
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 
@@ -113,6 +114,20 @@ public final class NotificationService {
         return new Link(target, ref);
     }
 
+    private static String moduleKey(Category category, String targetFxml) {
+        String target=safe(targetFxml).toLowerCase(Locale.ROOT);
+        if(target.contains("saleslist")) return "SALES";
+        if(target.contains("purchaselist")) return "PURCHASES";
+        if(target.contains("quotation")) return "QUOTATIONS";
+        if(target.contains("salesreturn")) return "SALES_RETURNS";
+        if(target.contains("purchasereturn")) return "PURCHASE_RETURNS";
+        if(target.contains("itemmaster")||target.contains("inventory")) return "ITEMS";
+        if(target.contains("payment")) return "PAYMENTS";
+        if(target.contains("reminder")) return "REMINDERS";
+        if(target.contains("communication")) return "COMMUNICATION";
+        return category==null?"SYSTEM":category.name();
+    }
+
     private static String inferReference(String message) {
         for (Pattern pattern : REFERENCE_PATTERNS) {
             Matcher matcher = pattern.matcher(safe(message));
@@ -134,7 +149,8 @@ public final class NotificationService {
                 Category category = categoryOf(x.category());
                 Link link = resolveLink(category, x.message(), x.targetFxml(), x.referenceNo());
                 return new NotificationItem(x.id(), x.title(), x.message(), x.severity(), x.category(), x.read(),
-                        link.targetFxml(), link.referenceNo(), x.createdAt());
+                        link.targetFxml(), link.referenceNo(), safe(x.moduleKey()).isBlank()?moduleKey(category,link.targetFxml()):x.moduleKey(),
+                        x.recordId(), x.actionCode(), x.createdAt());
             }).toList();
         } catch (Exception ex) { ex.printStackTrace(); return List.of(); }
     }

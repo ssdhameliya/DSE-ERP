@@ -14,6 +14,11 @@
   <Label fx:id="lblDetailInvoice" styleClass="drawer-document"/>
   <Label fx:id="lblDetailSupplier" styleClass="drawer-customer"/>
   <Label fx:id="lblDetailContact" styleClass="muted-text" wrapText="true"/>
+  <VBox fx:id="approvalActionBox" spacing="7" visible="false" managed="false" styleClass="sales-approval-card,purchase-approval-card">
+    <Label text="Admin Approval Required" styleClass="drawer-section,erp-drawer-caption"/>
+    <Label text="This purchase is waiting for Admin approval. Stock has not been posted and payments/returns are locked." wrapText="true" styleClass="sales-approval-note"/>
+    <HBox spacing="8"><Button fx:id="btnApprovePurchase" text="Approve" onAction="#approveSelectedPurchase" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-success-button"/><Button fx:id="btnRejectPurchase" text="Reject" onAction="#rejectSelectedPurchase" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-danger-button"/></HBox>
+  </VBox>
   <Separator/>
   <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="erp-detail-scroll,purchase-detail-scroll">
     <content>

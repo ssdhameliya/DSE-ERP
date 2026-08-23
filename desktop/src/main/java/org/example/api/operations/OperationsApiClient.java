@@ -33,6 +33,8 @@ public final class OperationsApiClient {
     public boolean saleExists(String invoice){ return get("/api/operations/sales/exists?invoiceNo="+enc(invoice), ExistsResponse.class).exists(); }
     public void deleteSale(String invoice){ delete("/api/operations/sales?invoiceNo="+enc(invoice)); }
     public void cancelSale(String invoice){ postNoBody("/api/operations/sales/cancel?invoiceNo="+enc(invoice)); }
+    public void approveSale(String invoice){ postNoBody("/api/operations/sales/approve?invoiceNo="+enc(invoice)); }
+    public void rejectSale(String invoice,String reason){ postNoBody("/api/operations/sales/reject?invoiceNo="+enc(invoice)+(reason==null||reason.isBlank()?"":"&reason="+enc(reason))); }
     public void markSaleEmail(int id){ postNoBody("/api/operations/sales/email-sent/"+id); }
     public String nextSaleInvoice(){ return get("/api/operations/sales/next-invoice", NextNumber.class).value(); }
 
@@ -43,6 +45,8 @@ public final class OperationsApiClient {
     public boolean purchaseExists(String invoice){ return get("/api/operations/purchases/exists?invoiceNo="+enc(invoice), ExistsResponse.class).exists(); }
     public void deletePurchase(String invoice){ delete("/api/operations/purchases?invoiceNo="+enc(invoice)); }
     public void cancelPurchase(String invoice){ postNoBody("/api/operations/purchases/cancel?invoiceNo="+enc(invoice)); }
+    public void approvePurchase(String invoice){ postNoBody("/api/operations/purchases/approve?invoiceNo="+enc(invoice)); }
+    public void rejectPurchase(String invoice,String reason){ postNoBody("/api/operations/purchases/reject?invoiceNo="+enc(invoice)+(reason==null||reason.isBlank()?"":"&reason="+enc(reason))); }
     public void markPurchaseEmail(int id){ postNoBody("/api/operations/purchases/email-sent/"+id); }
     public String nextPurchaseInvoice(){ return get("/api/operations/purchases/next-invoice", NextNumber.class).value(); }
 

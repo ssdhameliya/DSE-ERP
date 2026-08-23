@@ -18,5 +18,7 @@ public class SalesService {
     public boolean existsInvoice(String invoiceNo){ return useApi()?api.saleExists(invoiceNo):dao.getByInvoice(invoiceNo)!=null; }
     public void delete(String invoiceNo){ if(useApi())api.deleteSale(invoiceNo);else dao.delete(invoiceNo); }
     public void cancel(String invoiceNo){ if(useApi())api.cancelSale(invoiceNo);else dao.cancel(invoiceNo); }
+    public void approve(String invoiceNo){ if(!useApi())throw new IllegalStateException("Approval workflow requires the server-owned data mode"); api.approveSale(invoiceNo); }
+    public void reject(String invoiceNo,String reason){ if(!useApi())throw new IllegalStateException("Approval workflow requires the server-owned data mode"); api.rejectSale(invoiceNo,reason); }
     public void markEmailSent(int salesId){ if(useApi())api.markSaleEmail(salesId);else dao.markEmailSent(salesId); }
 }

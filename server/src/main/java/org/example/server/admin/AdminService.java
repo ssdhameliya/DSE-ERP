@@ -11,12 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 
 @Service
 public class AdminService {
-    private static final Set<String> ROLES = Set.of("ADMIN", "MANAGER", "SALES");
-
     private final JpaNativeRepository jdbc;
     private final PasswordEncoder passwords;
     private final TokenService tokens;
@@ -47,8 +44,8 @@ public class AdminService {
     public List<AdminDtos.RoleDto> roles() {
         return jdbc.query("SELECT r.id,r.role_name,r.description,r.active,COUNT(u.id) FROM roles r " +
                         "LEFT JOIN users u ON u.role_id=r.id OR (u.role_id IS NULL AND u.role=r.role_name) " +
-                        "WHERE r.role_name IN ('ADMIN','MANAGER','SALES') AND r.active=1 GROUP BY r.id,r.role_name,r.description,r.active " +
-                        "ORDER BY CASE r.role_name WHEN 'ADMIN' THEN 1 WHEN 'MANAGER' THEN 2 ELSE 3 END",
+                        "WHERE r.active=1 GROUP BY r.id,r.role_name,r.description,r.active " +
+                        "ORDER BY CASE r.role_name WHEN 'ADMIN' THEN 1 WHEN 'MANAGER' THEN 2 WHEN 'SALES' THEN 3 ELSE 100 END,r.role_name",
                 (row, index) -> new AdminDtos.RoleDto(row.getInt(1), row.getString(2), row.getString(3),
                         flag(row.getObject(4)), row.getLong(5)));
     }
@@ -82,6 +79,7 @@ public class AdminService {
         if (request == null || request.username() == null || request.username().isBlank())
             throw new IllegalArgumentException("Username is required");
         String assignedRole = role(request.role());
+        boolean enforcedMfa = !"ADMIN".equals(assignedRole);
         String encoded = null;
         if (request.id() == null || (request.password() != null && !request.password().isBlank())) {
             validatePassword(request.password());
@@ -92,7 +90,7 @@ public class AdminService {
                             "VALUES(?,?,?,?,(SELECT id FROM roles WHERE role_name=? AND active=1),?,?,?,?,?,?,?,?)",
                     request.username().trim(), encoded, clean(request.fullName()), assignedRole, assignedRole,
                     clean(request.email()), request.active() ? 1 : 0, request.locked() ? 1 : 0,
-                    request.locked() ? "ADMIN" : "NONE", request.mfaEnabled() ? 1 : 0,
+                    request.locked() ? "ADMIN" : "NONE", enforcedMfa ? 1 : 0,
                     clean(request.department()), clean(request.branch()), clean(request.accessLevel()));
         } else {
             boolean previousMfa = Boolean.TRUE.equals(jdbc.queryForObject(
@@ -104,7 +102,7 @@ public class AdminService {
             jdbc.update("UPDATE users SET username=?,full_name=?,email=?,role=?,role_id=(SELECT id FROM roles WHERE role_name=? AND active=1)," +
                             "active=?,locked=?,mfa_enabled=?,department=?,branch=?,access_level=? WHERE id=?",
                     request.username().trim(), clean(request.fullName()), clean(request.email()), assignedRole, assignedRole,
-                    request.active() ? 1 : 0, request.locked() ? 1 : 0, request.mfaEnabled() ? 1 : 0,
+                    request.active() ? 1 : 0, request.locked() ? 1 : 0, enforcedMfa ? 1 : 0,
                     clean(request.department()), clean(request.branch()), clean(request.accessLevel()), request.id());
             if (previousLocked && !request.locked()) {
                 jdbc.update("UPDATE users SET failed_attempts=0,mfa_failed_attempts=0,lock_reason='NONE' WHERE id=?", request.id());
@@ -122,13 +120,13 @@ public class AdminService {
                 jdbc.update("UPDATE users SET password=? WHERE id=?", encoded, request.id());
                 tokens.revokeUser(request.id());
             }
-            if (previousMfa != request.mfaEnabled()) {
+            if (previousMfa != enforcedMfa) {
                 tokens.revokeUser(request.id());
                 jdbc.update("UPDATE users SET mfa_failed_attempts=0 WHERE id=?", request.id());
                 jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) " +
                                 "VALUES('USER',?,?,?,?,?)", request.id(),
-                        request.mfaEnabled() ? "MFA_ENABLED" : "MFA_DISABLED",
-                        request.mfaEnabled() ? "Multi-factor authentication enabled" : "Multi-factor authentication disabled",
+                        enforcedMfa ? "MFA_ENFORCED" : "MFA_ADMIN_EXEMPT",
+                        enforcedMfa ? "MFA enforced by Role Master policy" : "Admin role is exempt from login OTP by policy",
                         CurrentUser.require().username(), BusinessClock.nowUtcText());
             }
         }
@@ -171,7 +169,7 @@ public class AdminService {
     @Transactional
     public AdminDtos.RoleDto saveRole(AdminDtos.RoleSaveRequest request) {
         String name = role(request == null ? null : request.name());
-        if (request.id() == null) throw new IllegalArgumentException("Only Admin, Manager and Sale roles are supported");
+        if (request.id() == null) throw new IllegalArgumentException("Only active Role Master entries are supported");
         String existing = jdbc.queryForObject("SELECT role_name FROM roles WHERE id=?", String.class, request.id());
         if (!name.equals(existing)) throw new IllegalArgumentException("Built-in roles cannot be renamed");
         if (!request.active()) throw new IllegalArgumentException("Built-in roles cannot be deactivated");
@@ -180,7 +178,7 @@ public class AdminService {
     }
 
     public void deleteRole(int id) {
-        throw new IllegalArgumentException("Admin, Manager and Sale roles cannot be deleted");
+        throw new IllegalArgumentException("Protected roles cannot be deleted");
     }
 
     @Transactional
@@ -189,9 +187,11 @@ public class AdminService {
                 request.userId(), request.action(), request.detail(), CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
-    private static String role(String value) {
+    private String role(String value) {
         String name = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (!ROLES.contains(name)) throw new IllegalArgumentException("Role must be Admin, Manager or Sale");
+        if (name.isBlank()) throw new IllegalArgumentException("Role is required");
+        Long count = jdbc.queryForObject("SELECT COUNT(*) FROM roles WHERE UPPER(role_name)=? AND active=1", Long.class, name);
+        if (count == null || count == 0) throw new IllegalArgumentException("Role is not active in Role Master: " + name);
         return name;
     }
 

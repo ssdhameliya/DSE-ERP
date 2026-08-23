@@ -64,6 +64,8 @@ public final class ProfessionalUiEnhancer {
      */
     private static void schedulePasswordReveal(PasswordField field) {
         if (field == null
+                || field.getStyleClass().contains("password-reveal-explicit")
+                || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.explicit"))
                 || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.installed"))
                 || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.pending"))) return;
         field.getProperties().put("erp.password.reveal.pending", true);

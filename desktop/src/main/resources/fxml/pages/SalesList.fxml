@@ -173,34 +173,55 @@
           </VBox>
         </VBox>
 
-        <VBox fx:id="detailDrawer" spacing="8" prefWidth="470" minWidth="430" maxWidth="520" minHeight="0" styleClass="detail-drawer,erp-detail-drawer-card,sales-detail-drawer,sales-detail-sheet">
-          <HBox alignment="CENTER_LEFT"><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
-          <HBox alignment="CENTER_LEFT" spacing="10"><VBox spacing="2" HBox.hgrow="ALWAYS"><Label fx:id="lblDetailInvoice" styleClass="drawer-document,sales-detail-invoice"/><Label fx:id="lblDetailCustomer" styleClass="drawer-customer,sales-detail-customer"/><Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text,sales-detail-contact"/></VBox><VBox alignment="TOP_RIGHT" spacing="4"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></VBox></HBox>
+        <VBox fx:id="detailDrawer" spacing="8" prefWidth="350" minWidth="320" maxWidth="390" minHeight="0" styleClass="detail-drawer,erp-detail-drawer-card,sales-detail-drawer,sales-detail-sheet">
+          <HBox alignment="CENTER_LEFT" spacing="8" styleClass="sales-detail-fixed-header"><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
+          <HBox alignment="CENTER_LEFT" spacing="10" styleClass="sales-detail-identity"><VBox spacing="2" HBox.hgrow="ALWAYS"><Label fx:id="lblDetailInvoice" styleClass="drawer-document,sales-detail-invoice"/><Label fx:id="lblDetailCustomer" wrapText="true" styleClass="drawer-customer,sales-detail-customer"/><Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text,sales-detail-contact"/></VBox><VBox alignment="TOP_RIGHT" spacing="4"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></VBox></HBox>
           <Separator/>
-          <Label text="Amount &amp; Tax" styleClass="drawer-section"/>
-          <GridPane hgap="10" vgap="6" styleClass="sales-detail-sheet-grid"><columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/></columnConstraints>
-            <Label fx:id="capInvoiceAmount" text="Invoice Amount"/><Label fx:id="lblDetailAmount" GridPane.columnIndex="1" styleClass="drawer-money"/><Label fx:id="capPaidAmount" text="Paid Amount" GridPane.columnIndex="2"/><Label fx:id="lblDetailPaid" GridPane.columnIndex="3" styleClass="summary-paid"/>
-            <Label fx:id="capBalance" text="Balance" GridPane.rowIndex="1"/><Label fx:id="lblDetailBalance" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="summary-balance"/><Label fx:id="capDueDate" text="Due Date" GridPane.rowIndex="1" GridPane.columnIndex="2"/><Label fx:id="lblDetailDue" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
-            <Label fx:id="capGstAmount" text="GST Amount" GridPane.rowIndex="2"/><Label fx:id="lblDetailGstAmount" GridPane.rowIndex="2" GridPane.columnIndex="1"/><Label fx:id="capTotalCharges" text="Total Charges" GridPane.rowIndex="2" GridPane.columnIndex="2"/><Label fx:id="lblDetailTotalCharges" GridPane.rowIndex="2" GridPane.columnIndex="3"/>
-            <Label fx:id="capChargeGst" text="Charge GST" GridPane.rowIndex="3"/><Label fx:id="lblDetailChargeTax" GridPane.rowIndex="3" GridPane.columnIndex="1"/><Label fx:id="capCharges" text="Charges" GridPane.rowIndex="3" GridPane.columnIndex="2"/><Label fx:id="lblDetailCharges" text="Not Applicable" GridPane.rowIndex="3" GridPane.columnIndex="3" wrapText="true"/>
-          </GridPane>
-          <Separator/>
-          <Label text="Customer &amp; Addresses" styleClass="drawer-section"/>
-          <GridPane hgap="10" vgap="5" styleClass="sales-detail-sheet-grid"><columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/></columnConstraints>
-            <Label fx:id="capBillingAddress" text="Billing Address"/><Label fx:id="lblDetailBillingAddress" GridPane.columnIndex="1" wrapText="true"/><Label fx:id="capDeliveryAddress" text="Shipping Address" GridPane.columnIndex="2"/><Label fx:id="lblDetailDeliveryAddress" GridPane.columnIndex="3" wrapText="true"/>
-          </GridPane>
-          <Separator/>
-          <Label text="Tax &amp; Transport" styleClass="drawer-section"/>
-          <GridPane hgap="10" vgap="6" styleClass="sales-detail-sheet-grid"><columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/></columnConstraints>
-            <Label fx:id="capGstType" text="GST Type"/><Label fx:id="lblDetailGstType" GridPane.columnIndex="1"/><Label fx:id="capGstin" text="GSTIN" GridPane.columnIndex="2"/><Label fx:id="lblDetailGstin" GridPane.columnIndex="3" wrapText="true"/>
-            <Label fx:id="capTransporter" text="Transporter" GridPane.rowIndex="1"/><Label fx:id="lblDetailTransporter" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true"/><Label fx:id="capVehicle" text="Vehicle No." GridPane.rowIndex="1" GridPane.columnIndex="2"/><Label fx:id="lblDetailVehicle" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
-            <Label fx:id="capContactPerson" text="Contact Person" GridPane.rowIndex="2"/><Label fx:id="lblDetailContactPerson" GridPane.rowIndex="2" GridPane.columnIndex="1" wrapText="true"/><Label fx:id="capContactMobile" text="Contact Mobile" GridPane.rowIndex="2" GridPane.columnIndex="2"/><Label fx:id="lblDetailContactMobile" GridPane.rowIndex="2" GridPane.columnIndex="3"/>
-          </GridPane>
-          <Region VBox.vgrow="ALWAYS"/>
-          <Label text="Quick Actions" styleClass="drawer-section"/>
-          <GridPane hgap="8" vgap="8" styleClass="sales-detail-action-grid"><columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/></columnConstraints>
-            <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/><Button text="Edit Sale" onAction="#editSelectedSale" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="approved-button,approved-primary-button"/><Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity" GridPane.columnIndex="2" styleClass="approved-button,approved-primary-button"/><Button text="Excel" onAction="#excelSelected" maxWidth="Infinity" GridPane.columnIndex="3" styleClass="approved-button,approved-secondary-button"/>
-          </GridPane>
+          <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS" styleClass="sales-detail-scroll,erp-inner-scroll">
+            <content>
+              <VBox spacing="10" fillWidth="true">
+                <Label text="Amount &amp; Tax" styleClass="drawer-section"/>
+                <GridPane hgap="10" vgap="7" styleClass="sales-detail-sheet-grid,sales-detail-two-column"><columnConstraints><ColumnConstraints percentWidth="43"/><ColumnConstraints percentWidth="57"/></columnConstraints>
+                  <Label fx:id="capInvoiceAmount" text="Invoice Amount"/><Label fx:id="lblDetailAmount" GridPane.columnIndex="1" styleClass="drawer-money"/>
+                  <Label fx:id="capPaidAmount" text="Paid Amount" GridPane.rowIndex="1"/><Label fx:id="lblDetailPaid" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="summary-paid"/>
+                  <Label fx:id="capBalance" text="Balance" GridPane.rowIndex="2"/><Label fx:id="lblDetailBalance" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="summary-balance"/>
+                  <Label fx:id="capDueDate" text="Due Date" GridPane.rowIndex="3"/><Label fx:id="lblDetailDue" GridPane.rowIndex="3" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capGstAmount" text="GST Amount" GridPane.rowIndex="4"/><Label fx:id="lblDetailGstAmount" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+                  <Label fx:id="capTotalCharges" text="Total Charges" GridPane.rowIndex="5"/><Label fx:id="lblDetailTotalCharges" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+                  <Label fx:id="capChargeGst" text="Charge GST" GridPane.rowIndex="6"/><Label fx:id="lblDetailChargeTax" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
+                  <Label fx:id="capCharges" text="Charges" GridPane.rowIndex="7"/><Label fx:id="lblDetailCharges" text="Not Applicable" GridPane.rowIndex="7" GridPane.columnIndex="1" wrapText="true"/>
+                </GridPane>
+                <Separator/>
+                <Label text="Customer &amp; Addresses" styleClass="drawer-section"/>
+                <GridPane hgap="10" vgap="8" styleClass="sales-detail-sheet-grid,sales-detail-two-column"><columnConstraints><ColumnConstraints percentWidth="43"/><ColumnConstraints percentWidth="57"/></columnConstraints>
+                  <Label fx:id="capBillingAddress" text="Billing Address"/><Label fx:id="lblDetailBillingAddress" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capDeliveryAddress" text="Shipping Address" GridPane.rowIndex="1"/><Label fx:id="lblDetailDeliveryAddress" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true"/>
+                </GridPane>
+                <Separator/>
+                <Label text="Tax &amp; Transport" styleClass="drawer-section"/>
+                <GridPane hgap="10" vgap="7" styleClass="sales-detail-sheet-grid,sales-detail-two-column"><columnConstraints><ColumnConstraints percentWidth="43"/><ColumnConstraints percentWidth="57"/></columnConstraints>
+                  <Label fx:id="capGstType" text="GST Type"/><Label fx:id="lblDetailGstType" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capGstin" text="GSTIN" GridPane.rowIndex="1"/><Label fx:id="lblDetailGstin" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capTransporter" text="Transporter" GridPane.rowIndex="2"/><Label fx:id="lblDetailTransporter" GridPane.rowIndex="2" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label text="Door Delivery" GridPane.rowIndex="3"/><Label fx:id="lblDetailDoorDelivery" GridPane.rowIndex="3" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capVehicle" text="Vehicle No." GridPane.rowIndex="4"/><Label fx:id="lblDetailVehicle" GridPane.rowIndex="4" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capContactPerson" text="Contact Person" GridPane.rowIndex="5"/><Label fx:id="lblDetailContactPerson" GridPane.rowIndex="5" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capContactMobile" text="Contact Mobile" GridPane.rowIndex="6"/><Label fx:id="lblDetailContactMobile" GridPane.rowIndex="6" GridPane.columnIndex="1" wrapText="true"/>
+                </GridPane>
+                <Separator/>
+                <VBox fx:id="approvalActionBox" spacing="7" visible="false" managed="false" styleClass="sales-approval-card">
+                  <Label text="Admin Approval" styleClass="drawer-section"/>
+                  <Label text="This record is waiting for Admin approval. Stock has not been posted yet." wrapText="true" styleClass="sales-approval-note"/>
+                  <HBox spacing="8"><Button fx:id="btnApproveSale" text="Approve" onAction="#approveSelectedSale" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-success-button"/><Button fx:id="btnRejectSale" text="Reject" onAction="#rejectSelectedSale" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-danger-button"/></HBox>
+                </VBox>
+                <Label text="Quick Actions" styleClass="drawer-section"/>
+                <GridPane hgap="8" vgap="8" styleClass="sales-detail-action-grid"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
+                  <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/><Button text="Edit Sale" onAction="#editSelectedSale" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="approved-button,approved-primary-button"/>
+                  <Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity" GridPane.rowIndex="1" styleClass="approved-button,approved-primary-button"/><Button text="Excel" onAction="#excelSelected" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
+                </GridPane>
+              </VBox>
+            </content>
+          </ScrollPane>
           <PieChart fx:id="dueChart" visible="false" managed="false"/><BarChart fx:id="customerChart" visible="false" managed="false"><xAxis><NumberAxis/></xAxis><yAxis><CategoryAxis/></yAxis></BarChart><LineChart fx:id="salesChart" visible="false" managed="false"><xAxis><CategoryAxis/></xAxis><yAxis><NumberAxis/></yAxis></LineChart>
         </VBox>
       </items>

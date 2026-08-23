@@ -9313,7 +9313,7 @@
     -fx-min-width: 150px;
 }
 
-/* v8.4.9 search / notifications / shortcuts */
+/* v8.5.0 search / notifications / shortcuts */
 .dse-search-header, .dse-notify-header { -fx-background-color: -color-surface; -fx-border-color: -color-border; -fx-border-width: 0 0 1 0; }
 .dse-search-input { -fx-min-height: 40; }
 .dse-search-summary, .dse-notify-count { -fx-font-weight: 700; }
@@ -9341,3 +9341,193 @@
 .sales-detail-icon-money { -fx-text-fill: #2563eb; } .sales-detail-icon-paid { -fx-text-fill: #16a34a; } .sales-detail-icon-balance { -fx-text-fill: #ea580c; } .sales-detail-icon-date { -fx-text-fill: #7c3aed; }
 .sales-detail-icon-tax { -fx-text-fill: #9333ea; } .sales-detail-icon-charge { -fx-text-fill: #d97706; } .sales-detail-icon-address { -fx-text-fill: #2563eb; } .sales-detail-icon-delivery { -fx-text-fill: #0891b2; }
 .sales-detail-icon-transport { -fx-text-fill: #16a34a; } .sales-detail-icon-vehicle { -fx-text-fill: #4f46e5; } .sales-detail-icon-person { -fx-text-fill: #db2777; } .sales-detail-icon-phone { -fx-text-fill: #0284c7; }
+
+/* v8.5.0 approved full-workspace redesigns. All selectors are feature-scoped to avoid cross-screen CSS bleed. */
+.dse-search-v2-page,
+.dse-notify-v2-page {
+    -fx-background-color: -color-background;
+}
+.dse-search-v2-header,
+.dse-notify-v2-header {
+    -fx-background-color: -color-surface;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.dse-search-v2-querybar,
+.dse-notify-v2-querybar {
+    -fx-padding: 9 11;
+    -fx-background-color: -color-surface-2;
+    -fx-background-radius: 11;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 11;
+}
+.dse-search-v2-input,
+.dse-notify-v2-input {
+    -fx-min-height: 38;
+    -fx-pref-height: 38;
+}
+.dse-search-v2-body,
+.dse-notify-v2-body {
+    -fx-padding: 0;
+}
+.dse-search-module-rail,
+.dse-notify-category-rail,
+.dse-search-results-shell,
+.dse-notify-list-shell,
+.dse-notify-detail-shell {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 12;
+}
+.dse-search-rail-eyebrow,
+.dse-notify-rail-eyebrow {
+    -fx-text-fill: -color-muted;
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+}
+.dse-search-rail-title,
+.dse-notify-rail-title,
+.dse-search-results-title,
+.dse-notify-list-title {
+    -fx-text-fill: -color-text;
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+}
+.dse-search-module-list,
+.dse-notify-category-list,
+.dse-notify-v2-list {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.dse-search-module-list .list-cell,
+.dse-notify-category-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 8 9;
+    -fx-background-radius: 8;
+    -fx-font-weight: 700;
+}
+.dse-search-module-list .list-cell:selected,
+.dse-notify-category-list .list-cell:selected {
+    -fx-background-color: -app-primary-soft;
+    -fx-text-fill: -app-primary-text;
+}
+.dse-search-results-toolbar,
+.dse-notify-list-toolbar {
+    -fx-padding: 2 3 7 3;
+}
+.dse-search-v2-scroll,
+.dse-search-v2-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.dse-search-v2-groups {
+    -fx-background-color: transparent;
+}
+.dse-search-v2-page .dse-search-group-card {
+    -fx-effect: null;
+}
+.dse-search-v2-page .dse-search-result-row:hover {
+    -fx-background-color: -color-surface-2;
+}
+.dse-search-role-hint {
+    -fx-font-size: 11px;
+}
+
+.dse-notify-summary-strip {
+    -fx-padding: 10 16 2 16;
+}
+.dse-notify-summary-card {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1;
+    -fx-border-radius: 11;
+    -fx-background-radius: 11;
+    -fx-padding: 9 13;
+    -fx-min-width: 150;
+}
+.dse-notify-summary-caption {
+    -fx-text-fill: -color-muted;
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+}
+.dse-notify-summary-value {
+    -fx-text-fill: -app-primary-text;
+    -fx-font-size: 20px;
+    -fx-font-weight: 800;
+}
+.dse-notify-v2-list .list-cell {
+    -fx-padding: 10 8;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.dse-notify-v2-list .list-cell:selected {
+    -fx-background-color: -app-primary-soft;
+    -fx-background-radius: 8;
+}
+.dse-notify-v2-list .list-cell:hover {
+    -fx-background-color: -color-surface-2;
+    -fx-background-radius: 8;
+}
+.dse-notify-detail-shell {
+    -fx-min-width: 300;
+    -fx-pref-width: 340;
+}
+.dse-notify-action-badge {
+    -fx-padding: 2 7;
+    -fx-background-color: rgba(245,158,11,0.16);
+    -fx-text-fill: -color-warning;
+    -fx-background-radius: 999;
+    -fx-font-size: 9px;
+    -fx-font-weight: 800;
+}
+.dse-notify-new {
+    -fx-background-color: -app-primary-soft;
+    -fx-text-fill: -app-primary-text;
+}
+
+.dse-shortcut-v2-panel {
+    -fx-padding: 10 12;
+    -fx-background-color: transparent;
+}
+.dse-shortcut-v2-header {
+    -fx-padding: 0 0 8 0;
+}
+.dse-shortcut-v2-groups {
+    -fx-hgap: 10;
+    -fx-vgap: 10;
+    -fx-tile-alignment: top-left;
+    -fx-alignment: top-left;
+}
+.dse-shortcut-v2-card {
+    -fx-padding: 8 9;
+    -fx-min-height: 0;
+    -fx-pref-height: -1;
+}
+.dse-shortcut-v2-card .dse-shortcut-action-name {
+    -fx-font-size: 10.5px;
+}
+.dse-shortcut-v2-card .dse-shortcut-key {
+    -fx-pref-height: 26;
+    -fx-min-height: 26;
+}
+.dse-shortcut-status-ok {
+    -fx-text-fill: -color-success;
+    -fx-font-weight: 800;
+}
+.dse-shortcut-status-warning {
+    -fx-text-fill: -color-warning;
+    -fx-font-weight: 800;
+}
+
+.purchase-approval-card,
+.sales-approval-card {
+    -fx-padding: 9 10;
+    -fx-background-color: rgba(245,158,11,0.10);
+    -fx-border-color: rgba(245,158,11,0.36);
+    -fx-border-radius: 9;
+    -fx-background-radius: 9;
+}

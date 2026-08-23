@@ -32,5 +32,7 @@ public class PurchaseService {
         if(locked)throw new IllegalStateException("Paid, partially paid, or settled purchase documents cannot be cancelled. Use the return/reversal workflow.");
         dao.cancel(invoiceNo);
     }
+    public void approve(String invoiceNo){ if(!useApi())throw new IllegalStateException("Approval workflow requires the server-owned data mode"); api.approvePurchase(invoiceNo); }
+    public void reject(String invoiceNo,String reason){ if(!useApi())throw new IllegalStateException("Approval workflow requires the server-owned data mode"); api.rejectPurchase(invoiceNo,reason); }
     public void markEmailSent(int purchaseId){ if(useApi())api.markPurchaseEmail(purchaseId);else dao.markEmailSent(purchaseId); }
 }

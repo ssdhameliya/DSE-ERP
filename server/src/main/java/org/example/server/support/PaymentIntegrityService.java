@@ -40,6 +40,8 @@ public class PaymentIntegrityService {
         Target target = rows.getFirst();
         if (inactive(target.status))
             throw new IllegalStateException("Payments cannot be recorded against a deleted or cancelled document");
+        if (approvalLocked(target.status))
+            throw new IllegalStateException("Admin approval is required before payments can be recorded against this document.");
         if (type == DocumentType.PURCHASE && purchaseLifecycleLocked(target.status))
             throw new IllegalStateException("Draft or returned purchases cannot receive ordinary payments. Post the draft or resolve the Purchase Return first.");
         BigDecimal outstanding = target.total.subtract(target.paid).setScale(2, RoundingMode.HALF_UP);
@@ -94,6 +96,8 @@ public class PaymentIntegrityService {
         Target target = targetRows.getFirst();
         if (inactive(target.status))
             throw new IllegalStateException("Payments cannot be edited against a deleted or cancelled document");
+        if (approvalLocked(target.status))
+            throw new IllegalStateException("Payments cannot be edited while the source document is pending Admin approval or rejected.");
         if (existing.type == DocumentType.PURCHASE && purchaseLifecycleLocked(target.status))
             throw new IllegalStateException("Payments cannot be edited while the Purchase is Draft or has an active Purchase Return.");
 
@@ -186,9 +190,14 @@ public class PaymentIntegrityService {
         return status.equals("CANCELLED") || status.equals("DELETED");
     }
 
+    private static boolean approvalLocked(String value) {
+        String status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        return status.equals("PENDING APPROVAL") || status.equals("REJECTED");
+    }
+
     private static boolean purchaseLifecycleLocked(String value) {
         String status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        return status.equals("DRAFT") || status.equals("RETURNED");
+        return status.equals("DRAFT") || status.equals("RETURNED") || status.equals("PARTIALLY RETURNED");
     }
 
     private record Target(BigDecimal total, BigDecimal paid, String status) {

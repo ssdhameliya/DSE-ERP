@@ -11,13 +11,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
 @Service
 public class AuthService {
-    private static final List<String> ALLOWED_ROLES = List.of("ADMIN", "MANAGER", "SALES");
-    private static final List<String> PUBLIC_REGISTRATION_ROLES = List.of("MANAGER", "SALES");
     private static final int MAX_PASSWORD_ATTEMPTS = 5;
     private static final int MAX_MFA_ATTEMPTS = 5;
     private static final String LOCK_FAILED_PASSWORD = "FAILED_PASSWORD";
@@ -54,14 +53,21 @@ public class AuthService {
         if (user.isLocked()) return failedLogin(lockMessage(user));
         if (!passwordMatches(raw, user.getPassword())) return failedPassword(user);
 
-        String role = user.getRoleName() == null ? "" : user.getRoleName().toUpperCase(Locale.ROOT);
-        if (!ALLOWED_ROLES.contains(role)) return failedLogin("This account is not available for sign in.");
+        String role = normalizeRole(user.getRoleName());
+        if (role.isBlank() || roles.findByNameIgnoreCase(role).filter(value -> value.isActive()).isEmpty())
+            return failedLogin("This account role is not active in Role Master.");
+
+        // Role Master is authoritative for the sign-in policy. ADMIN is password-only;
+        // every other active role always requires the email OTP factor. Keep the persisted
+        // flag normalized so User Access, audit and future clients show the same policy.
+        boolean mfaRequired = requiresMfa(role);
+        if (user.isMfaEnabled() != mfaRequired) user.setMfaEnabled(mfaRequired);
 
         // The password factor was proved successfully. Keep its failure counter independent from MFA failures.
         user.resetPasswordFailures();
         if (!isBcrypt(user.getPassword())) user.setPassword(passwords.encode(raw));
 
-        if (user.isMfaEnabled()) {
+        if (mfaRequired) {
             String email = user.getEmail() == null ? "" : user.getEmail().trim();
             if (email.isBlank()) {
                 audit(user.getId(), "MFA_LOGIN_BLOCKED", "MFA is enabled but the account has no registered email", user.getUsername());
@@ -87,8 +93,11 @@ public class AuthService {
         Integer userId = otp.challengeUser(AuthOtpService.Purpose.LOGIN_MFA, request.challengeId());
         UserEntity user = users.findByIdForAuthentication(userId)
                 .orElseThrow(() -> new IllegalArgumentException("The verification challenge is invalid or expired"));
-        if (!user.isActive() || user.isLocked() || !user.isMfaEnabled()) {
-            audit(userId, "MFA_LOGIN_BLOCKED", "Account state changed before MFA completion", user.getUsername());
+        String role = normalizeRole(user.getRoleName());
+        if (!user.isActive() || user.isLocked() || role.isBlank()
+                || roles.findByNameIgnoreCase(role).filter(value -> value.isActive()).isEmpty()
+                || !requiresMfa(role)) {
+            audit(userId, "MFA_LOGIN_BLOCKED", "Account state or Role Master policy changed before MFA completion", user.getUsername());
             return failedLogin(user.isLocked() ? lockMessage(user) : "This account is not available for sign in.");
         }
 
@@ -101,11 +110,6 @@ public class AuthService {
             return failedMfa(user);
         }
 
-        String role = user.getRoleName() == null ? "" : user.getRoleName().toUpperCase(Locale.ROOT);
-        if (!ALLOWED_ROLES.contains(role)) {
-            audit(userId, "MFA_LOGIN_BLOCKED", "Role is not permitted to sign in", user.getUsername());
-            return failedLogin("This account is not available for sign in.");
-        }
         user.resetMfaFailures();
         audit(userId, "MFA_LOGIN_SUCCESS", "Sign-in verification completed", user.getUsername());
         return authenticatedLogin(user, role);
@@ -119,8 +123,11 @@ public class AuthService {
         Integer userId = otp.challengeUser(AuthOtpService.Purpose.LOGIN_MFA, request.challengeId());
         UserEntity user = users.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("The verification challenge is invalid or expired"));
-        if (!user.isActive() || user.isLocked() || !user.isMfaEnabled()) {
-            throw new SecurityException("This account is not available for sign in");
+        String role = normalizeRole(user.getRoleName());
+        if (!user.isActive() || user.isLocked() || role.isBlank()
+                || roles.findByNameIgnoreCase(role).filter(value -> value.isActive()).isEmpty()
+                || !requiresMfa(role)) {
+            throw new SecurityException("This account is not available for MFA sign in");
         }
         String email = user.getEmail() == null ? "" : user.getEmail().trim();
         if (email.isBlank()) throw new IllegalStateException("The account has no registered email address");
@@ -157,9 +164,7 @@ public class AuthService {
         if (passwordError != null) return new AuthDtos.OperationResponse(false, passwordError);
         if (users.findActiveByIdentity(request.username().trim()).isPresent())
             return new AuthDtos.OperationResponse(false, "Username is already registered");
-        String requestedRole = request.role() == null ? "" : request.role().trim().toUpperCase(Locale.ROOT);
-        if (!ALLOWED_ROLES.contains(requestedRole))
-            return new AuthDtos.OperationResponse(false, "Select a valid role: Admin, Manager or Sale");
+        String requestedRole = normalizeRole(request.role());
         var role = roles.findByNameIgnoreCase(requestedRole).orElse(null);
         if (role == null || !role.isActive()) return new AuthDtos.OperationResponse(false, "Selected role is unavailable");
         UserEntity user = new UserEntity();
@@ -171,7 +176,7 @@ public class AuthService {
         user.setRole(role.getName());
         user.setActive(true);
         user.setLocked(false);
-        user.setMfaEnabled(request.mfaEnabled());
+        user.setMfaEnabled(requiresMfa(role.getName()));
         user.setAccessLevel("STANDARD");
         users.save(user);
         return new AuthDtos.OperationResponse(true, "User registered");
@@ -191,7 +196,7 @@ public class AuthService {
         if (users.existsByEmailIgnoreCase(email))
             return new AuthDtos.ChallengeResponse(false, null, "Email is already registered");
         var issued = otp.issue(AuthOtpService.Purpose.REGISTRATION, email.toLowerCase(Locale.ROOT),
-                registrationBinding(username, email, role, request.mfaEnabled()), null, email, mail);
+                registrationBinding(username, email, role, requiresMfa(role)), null, email, mail);
         return new AuthDtos.ChallengeResponse(true, issued.challengeId(), issued.sent()
                 ? "Verification code sent to your email"
                 : "A verification code was already sent. Please use the latest code");
@@ -209,7 +214,7 @@ public class AuthService {
         String email = request.email().trim();
         String roleName = normalizeRole(request.role());
         otp.verify(AuthOtpService.Purpose.REGISTRATION, request.challengeId(), request.otp(),
-                registrationBinding(username, email, roleName, request.mfaEnabled()));
+                registrationBinding(username, email, roleName, requiresMfa(roleName)));
         if (users.existsByUsernameIgnoreCase(username))
             return new AuthDtos.OperationResponse(false, "Username is already registered");
         if (users.existsByEmailIgnoreCase(email))
@@ -225,7 +230,7 @@ public class AuthService {
         user.setRole(role.getName());
         user.setActive(true);
         user.setLocked(false);
-        user.setMfaEnabled(request.mfaEnabled());
+        user.setMfaEnabled(requiresMfa(role.getName()));
         user.setAccessLevel("STANDARD");
         users.save(user);
         return new AuthDtos.OperationResponse(true, "User registered");
@@ -266,11 +271,17 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuthDtos.RoleOption> registrationRoles() {
-        return List.of(new AuthDtos.RoleOption("MANAGER", "Manager"),
-                        new AuthDtos.RoleOption("SALES", "Sale"))
-                .stream().filter(option -> roles.findByNameIgnoreCase(option.code()).map(role -> role.isActive()).orElse(false))
+    public List<AuthDtos.RoleOption> loginRoles() {
+        return roles.findAll().stream()
+                .filter(value -> value != null && value.isActive() && value.getName() != null && !value.getName().isBlank())
+                .sorted(Comparator.comparingInt(value -> roleOrder(value.getName())))
+                .map(value -> new AuthDtos.RoleOption(normalizeRole(value.getName()), displayRole(value.getName())))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuthDtos.RoleOption> registrationRoles() {
+        return loginRoles().stream().filter(option -> !"ADMIN".equals(option.code())).toList();
     }
 
     @Transactional
@@ -348,7 +359,7 @@ public class AuthService {
         if (email == null || !email.trim().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"))
             return "A valid email address is required";
         String normalizedRole = normalizeRole(role);
-        if (!PUBLIC_REGISTRATION_ROLES.contains(normalizedRole)) return "Select Manager or Sale";
+        if ("ADMIN".equals(normalizedRole) || roles.findByNameIgnoreCase(normalizedRole).filter(value -> value.isActive()).isEmpty()) return "Select an active non-Admin role from Role Master";
         if (roles.findByNameIgnoreCase(normalizedRole).map(value -> value.isActive()).orElse(false)) return null;
         return "Selected role is unavailable";
     }
@@ -386,6 +397,28 @@ public class AuthService {
 
     private String normalizeRole(String role) {
         return role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private boolean requiresMfa(String role) {
+        return !"ADMIN".equals(normalizeRole(role));
+    }
+
+    private String displayRole(String role) {
+        String code = normalizeRole(role);
+        if ("ADMIN".equals(code)) return "Admin";
+        if ("MANAGER".equals(code)) return "Manager";
+        if ("SALES".equals(code)) return "Sales";
+        if (code.isBlank()) return "";
+        return code.charAt(0) + code.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    private int roleOrder(String role) {
+        return switch (normalizeRole(role)) {
+            case "ADMIN" -> 0;
+            case "MANAGER" -> 1;
+            case "SALES" -> 2;
+            default -> 100;
+        };
     }
 
     private boolean passwordMatches(String raw, String stored) {

@@ -2,7 +2,56 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.NotificationCenterController" styleClass="erp-screen-root,dse-notification-page">
-  <top><VBox spacing="10" styleClass="dse-notify-header"><padding><Insets top="16" right="18" bottom="12" left="18"/></padding><HBox alignment="CENTER_LEFT"><VBox spacing="2" HBox.hgrow="ALWAYS"><Label text="Notification Center" styleClass="page-title,dse-notify-page-title"/><Label text="Review alerts, take action and jump directly to the related ERP record." styleClass="muted-label"/></VBox><Button text="Mark All Read" onAction="#markAllRead" styleClass="approved-button,approved-secondary-button"/><Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/></HBox><HBox spacing="10"><TextField fx:id="txtNotificationSearch" promptText="Search notifications or references…" HBox.hgrow="ALWAYS"/><ComboBox fx:id="cmbNotificationFilter" prefWidth="210"/><Label fx:id="lblNotificationCount" styleClass="dse-notify-count"/></HBox></VBox></top>
-  <center><SplitPane dividerPositions="0.64" styleClass="dse-notify-split"><items><VBox spacing="8" styleClass="dse-notify-list-card"><padding><Insets top="10" right="10" bottom="10" left="10"/></padding><ListView fx:id="listNotifications" VBox.vgrow="ALWAYS" styleClass="dse-notify-list"/></VBox><VBox spacing="12" styleClass="dse-notify-detail"><padding><Insets top="18" right="18" bottom="18" left="18"/></padding><Label text="Notification Details" styleClass="drawer-section"/><Label fx:id="lblDetailTitle" text="Select a notification" wrapText="true" styleClass="dse-notify-detail-title"/><Label fx:id="lblDetailMessage" wrapText="true" styleClass="dse-notify-detail-message"/><Label fx:id="lblDetailMeta" wrapText="true" styleClass="dse-notify-detail-meta"/><Label fx:id="lblDetailReference" wrapText="true" styleClass="dse-notify-detail-reference"/><Region VBox.vgrow="ALWAYS"/><Button fx:id="btnOpenRecord" text="Open Record" onAction="#openRecord" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/><HBox spacing="8"><Button fx:id="btnToggleRead" text="Mark Read" onAction="#toggleRead" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnDeleteNotification" text="Dismiss" onAction="#deleteSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/></HBox></VBox></items></SplitPane></center>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.NotificationCenterController"
+            styleClass="erp-screen-root,dse-notification-page,dse-notify-v2-page">
+  <top>
+    <VBox spacing="10" styleClass="dse-notify-v2-header">
+      <padding><Insets top="14" right="16" bottom="10" left="16"/></padding>
+      <HBox alignment="CENTER_LEFT" spacing="10">
+        <VBox spacing="2" HBox.hgrow="ALWAYS">
+          <Label text="Notification Center" styleClass="page-title,dse-notify-page-title"/>
+          <Label text="Review alerts, take action and travel directly to the exact related ERP record." styleClass="muted-label"/>
+        </VBox>
+        <Button text="Mark All Read" onAction="#markAllRead" styleClass="approved-button,approved-secondary-button"/>
+        <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+      <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="txtNotificationSearch" promptText="Search notification, reference, module or message…" HBox.hgrow="ALWAYS" styleClass="dse-notify-search"/>
+        <Label fx:id="lblNotificationCount" styleClass="dse-notify-count"/>
+      </HBox>
+      <HBox spacing="10" styleClass="dse-notify-summary-row">
+        <VBox spacing="2" HBox.hgrow="ALWAYS" styleClass="dse-notify-summary-card,dse-notify-summary-all"><Label text="All" styleClass="dse-notify-summary-label"/><Label fx:id="lblAllCount" text="0" styleClass="dse-notify-summary-value"/></VBox>
+        <VBox spacing="2" HBox.hgrow="ALWAYS" styleClass="dse-notify-summary-card,dse-notify-summary-unread"><Label text="Unread" styleClass="dse-notify-summary-label"/><Label fx:id="lblUnreadCount" text="0" styleClass="dse-notify-summary-value"/></VBox>
+        <VBox spacing="2" HBox.hgrow="ALWAYS" styleClass="dse-notify-summary-card,dse-notify-summary-action"><Label text="Action Needed" styleClass="dse-notify-summary-label"/><Label fx:id="lblActionCount" text="0" styleClass="dse-notify-summary-value"/></VBox>
+      </HBox>
+    </VBox>
+  </top>
+  <center>
+    <HBox spacing="12" styleClass="dse-notify-v2-body">
+      <padding><Insets top="2" right="16" bottom="14" left="16"/></padding>
+      <VBox spacing="8" prefWidth="215" minWidth="195" maxWidth="235" styleClass="dse-notify-category-rail">
+        <Label text="FILTERS" styleClass="dse-notify-rail-eyebrow"/>
+        <Label text="Categories" styleClass="dse-notify-rail-title"/>
+        <ListView fx:id="listNotificationCategories" VBox.vgrow="ALWAYS" styleClass="dse-notify-category-list"/>
+      </VBox>
+      <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="360" styleClass="dse-notify-list-card,dse-notify-v2-list-card">
+        <HBox alignment="CENTER_LEFT"><Label text="Notifications" styleClass="dse-notify-list-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to open linked record" styleClass="muted-label"/></HBox>
+        <ListView fx:id="listNotifications" VBox.vgrow="ALWAYS" styleClass="dse-notify-list,dse-notify-v2-list"/>
+      </VBox>
+      <VBox spacing="12" prefWidth="355" minWidth="320" maxWidth="390" styleClass="dse-notify-detail,dse-notify-v2-detail">
+        <Label text="Notification Details" styleClass="drawer-section"/>
+        <Label fx:id="lblDetailTitle" text="Select a notification" wrapText="true" styleClass="dse-notify-detail-title"/>
+        <Label fx:id="lblDetailMessage" wrapText="true" styleClass="dse-notify-detail-message"/>
+        <Label fx:id="lblDetailMeta" wrapText="true" styleClass="dse-notify-detail-meta"/>
+        <Label fx:id="lblDetailReference" wrapText="true" styleClass="dse-notify-detail-reference"/>
+        <Region VBox.vgrow="ALWAYS"/>
+        <Button fx:id="btnOpenRecord" text="Open Record" onAction="#openRecord" maxWidth="Infinity" styleClass="approved-button,approved-primary-button,dse-notify-open-record"/>
+        <HBox spacing="8">
+          <Button fx:id="btnToggleRead" text="Mark Read" onAction="#toggleRead" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+          <Button fx:id="btnDeleteNotification" text="Dismiss" onAction="#deleteSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/>
+        </HBox>
+      </VBox>
+    </HBox>
+  </center>
 </BorderPane>

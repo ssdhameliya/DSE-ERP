@@ -20,7 +20,7 @@
     <center><StackPane styleClass="auth-content,auth-unified-content"><VBox maxWidth="720" spacing="12" alignment="CENTER" styleClass="auth-card,auth-unified-card">
         <StackPane styleClass="auth-section-icon"><Label text="+"/></StackPane>
         <Label text="Create New Account" styleClass="auth-title"/>
-        <Label text="Choose Manager or Sale. Administrator accounts remain protected." styleClass="auth-description"/>
+        <Label text="Choose an active non-Admin role from Role Master. MFA is required for every non-Admin account." styleClass="auth-description"/>
         <GridPane hgap="14" vgap="7" maxWidth="620">
             <columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
             <VBox spacing="4" GridPane.columnIndex="0"><Label text="Full name *" styleClass="auth-field-label"/><TextField fx:id="txtName" promptText="Full name" styleClass="auth-input"/><Label fx:id="lblNameError" managed="false" visible="false" styleClass="field-error"/></VBox>

@@ -11,6 +11,8 @@ public class BusinessOperationsController {
  @PutMapping("/sales") public OperationDtos.SaleDto updateSale(@RequestBody OperationDtos.SaleDto d){return s.updateSale(d);}
  @DeleteMapping("/sales") public OperationDtos.OperationResponse deleteSale(@RequestParam String invoiceNo){s.deleteSale(invoiceNo);return ok("Sale deleted");}
  @PostMapping("/sales/cancel") public OperationDtos.OperationResponse cancelSale(@RequestParam String invoiceNo){s.cancelSale(invoiceNo);return ok("Sale cancelled");}
+ @PostMapping("/sales/approve") public OperationDtos.OperationResponse approveSale(@RequestParam String invoiceNo){s.approveSale(invoiceNo);return ok("Sale approved");}
+ @PostMapping("/sales/reject") public OperationDtos.OperationResponse rejectSale(@RequestParam String invoiceNo,@RequestParam(required=false) String reason){s.rejectSale(invoiceNo,reason);return ok("Sale rejected");}
  @PostMapping("/sales/email-sent/{id}") public OperationDtos.OperationResponse saleEmail(@PathVariable int id){s.markSaleEmail(id);return ok("Updated");}
  @GetMapping("/sales/next-invoice") public OperationDtos.NextNumber nextSale(){return new OperationDtos.NextNumber(s.nextSalesInvoice());}
 
@@ -21,6 +23,8 @@ public class BusinessOperationsController {
  @PutMapping("/purchases") public OperationDtos.PurchaseDto updatePurchase(@RequestBody OperationDtos.PurchaseDto d){return s.updatePurchase(d);}
  @DeleteMapping("/purchases") public OperationDtos.OperationResponse deletePurchase(@RequestParam String invoiceNo){s.deletePurchase(invoiceNo);return ok("Purchase deleted");}
  @PostMapping("/purchases/cancel") public OperationDtos.OperationResponse cancelPurchase(@RequestParam String invoiceNo){s.cancelPurchase(invoiceNo);return ok("Purchase cancelled");}
+ @PostMapping("/purchases/approve") public OperationDtos.OperationResponse approvePurchase(@RequestParam String invoiceNo){s.approvePurchase(invoiceNo);return ok("Purchase approved");}
+ @PostMapping("/purchases/reject") public OperationDtos.OperationResponse rejectPurchase(@RequestParam String invoiceNo,@RequestParam(required=false) String reason){s.rejectPurchase(invoiceNo,reason);return ok("Purchase rejected");}
  @PostMapping("/purchases/email-sent/{id}") public OperationDtos.OperationResponse purchaseEmail(@PathVariable int id){s.markPurchaseEmail(id);return ok("Updated");}
  @GetMapping("/purchases/next-invoice") public OperationDtos.NextNumber nextPurchase(){return new OperationDtos.NextNumber(s.nextPurchaseInvoice());}
 

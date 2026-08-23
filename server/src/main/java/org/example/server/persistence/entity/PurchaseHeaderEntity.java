@@ -18,6 +18,13 @@ public class PurchaseHeaderEntity {
  @Column(name="transporter_gstin") private String transporterGstin; @Column(name="vehicle_number") private String vehicleNumber; @Column(name="contact_person") private String contactPerson;
  @Column(name="contact_person_mobile") private String contactPersonMobile; private String notes; @Column(name="order_no") private String orderNo; @Column(name="po_date") private String poDate;
  @Column(name="same_as_billing") private Boolean sameAsBilling=Boolean.TRUE;
+ @Column(name="approval_status", nullable=false) private String approvalStatus="APPROVED";
+ @Column(name="approval_requested_by") private String approvalRequestedBy;
+ @Column(name="approval_requested_at") private String approvalRequestedAt;
+ @Column(name="approved_by") private String approvedBy;
+ @Column(name="approved_at") private String approvedAt;
+ @Column(name="rejection_reason") private String rejectionReason;
+ @Column(name="requested_document_status") private String requestedDocumentStatus;
  public Integer getId(){return id;} public void setId(Integer v){id=v;} public String getInvoiceNo(){return invoiceNo;} public void setInvoiceNo(String v){invoiceNo=v;} public String getInvoiceDate(){return invoiceDate;} public void setInvoiceDate(String v){invoiceDate=v;}
  public PartyEntity getSupplier(){return supplier;} public void setSupplier(PartyEntity v){supplier=v;} public Double getSubtotal(){return subtotal;} public void setSubtotal(Double v){subtotal=v;} public Double getGstAmount(){return gstAmount;} public void setGstAmount(Double v){gstAmount=v;} public Double getTotalAmount(){return totalAmount;} public void setTotalAmount(Double v){totalAmount=v;}
  public String getRemarks(){return remarks;} public void setRemarks(String v){remarks=v;} public String getDueDate(){return dueDate;} public void setDueDate(String v){dueDate=v;} public String getDeliveryDate(){return deliveryDate;} public void setDeliveryDate(String v){deliveryDate=v;} public Double getPaidAmount(){return paidAmount;} public void setPaidAmount(Double v){paidAmount=v;}
@@ -31,4 +38,11 @@ public class PurchaseHeaderEntity {
  public String getTransporterGstin(){return transporterGstin;} public void setTransporterGstin(String v){transporterGstin=v;} public String getVehicleNumber(){return vehicleNumber;} public void setVehicleNumber(String v){vehicleNumber=v;} public String getContactPerson(){return contactPerson;} public void setContactPerson(String v){contactPerson=v;}
  public String getContactPersonMobile(){return contactPersonMobile;} public void setContactPersonMobile(String v){contactPersonMobile=v;} public String getNotes(){return notes;} public void setNotes(String v){notes=v;} public String getOrderNo(){return orderNo;} public void setOrderNo(String v){orderNo=v;} public String getPoDate(){return poDate;} public void setPoDate(String v){poDate=v;}
  public Boolean getSameAsBilling(){return sameAsBilling;} public void setSameAsBilling(Boolean v){sameAsBilling=!Boolean.FALSE.equals(v);}
+ public String getApprovalStatus(){return approvalStatus;} public void setApprovalStatus(String v){approvalStatus=v;}
+ public String getApprovalRequestedBy(){return approvalRequestedBy;} public void setApprovalRequestedBy(String v){approvalRequestedBy=v;}
+ public String getApprovalRequestedAt(){return approvalRequestedAt;} public void setApprovalRequestedAt(String v){approvalRequestedAt=v;}
+ public String getApprovedBy(){return approvedBy;} public void setApprovedBy(String v){approvedBy=v;}
+ public String getApprovedAt(){return approvedAt;} public void setApprovedAt(String v){approvedAt=v;}
+ public String getRejectionReason(){return rejectionReason;} public void setRejectionReason(String v){rejectionReason=v;}
+ public String getRequestedDocumentStatus(){return requestedDocumentStatus;} public void setRequestedDocumentStatus(String v){requestedDocumentStatus=v;}
 }

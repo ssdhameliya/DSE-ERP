@@ -128,20 +128,32 @@ public class QuotationService {
 
         LocalDate today = BusinessClock.today();
         String invoice = nextSale();
+        boolean admin = "ADMIN".equalsIgnoreCase(CurrentUser.require().role());
+        String documentStatus = admin ? "PENDING" : "PENDING APPROVAL";
+        String approvalStatus = admin ? "APPROVED" : "PENDING";
+        String actor = CurrentUser.require().username();
+        String now = BusinessClock.nowUtcText();
         Integer sid = jdbc.queryForObject(
                 "INSERT INTO sales_header(invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,remarks,created_at," +
-                "email_sent,due_date,paid_amount,payment_status,whatsapp_sent,invoice_type,salesperson,source,notes) " +
-                "VALUES(?,?,?,?,?,?,?,?,0,?,0,'PENDING',0,'TAX INVOICE',?,?,?) RETURNING id",
+                "email_sent,due_date,paid_amount,payment_status,whatsapp_sent,invoice_type,salesperson,source,notes,document_status," +
+                "requested_document_status,approval_status,approval_requested_by,approval_requested_at,approved_by,approved_at,inventory_posted) " +
+                "VALUES(?,?,?,?,?,?,?,?,0,?,0,'PENDING',0,'TAX INVOICE',?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
                 Integer.class, invoice, today, q.get("customer_id"), q.get("subtotal"), q.get("gst_amount"), q.get("total_amount"),
-                "Converted from " + q.get("quotation_no"), BusinessClock.nowUtcText(), today.plusDays(30),
-                q.get("salesperson"), q.get("source"), q.get("remarks"));
+                "Converted from " + q.get("quotation_no"), now, today.plusDays(30),
+                q.get("salesperson"), q.get("source"), q.get("remarks"), documentStatus, "PENDING", approvalStatus,
+                admin ? null : actor, admin ? null : now, admin ? actor : null, admin ? now : null, admin);
         for (var l : lines(id)) {
             if (!Double.isFinite(l.quantity()) || l.quantity() <= 0) {
                 throw new IllegalArgumentException("Quotation quantity must be a finite number greater than zero.");
             }
-            operations.applyStockDelta(l.code(), -l.quantity(), true);
+            if (admin) operations.applyStockDelta(l.code(), -l.quantity(), true);
             jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,line_total) VALUES(?,?,?,?,?,?)",
                     sid, l.code(), l.quantity(), l.rate() * (1 - l.discount() / 100.0), l.gst(), l.total());
+        }
+        if (!admin) {
+            jdbc.update("INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at) VALUES(?,?,?,?,0,?,?,?,?,?,?)",
+                    "Sale approval required", invoice + " was created from quotation " + q.get("quotation_no") + " by " + actor + " and is waiting for Admin approval.",
+                    "WARNING", "APPROVAL", "/fxml/pages/SalesList.fxml", invoice, "SALE", sid, "APPROVE", System.currentTimeMillis());
         }
         jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=? WHERE id=?", invoice, id);
         activity(id, "CONVERTED", invoice, ignoredUser);

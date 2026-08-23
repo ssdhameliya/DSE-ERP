@@ -2,12 +2,52 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.GlobalSearchController" styleClass="erp-screen-root,dse-global-search-page">
-  <top><VBox spacing="12" styleClass="dse-search-header">
-    <padding><Insets top="16" right="18" bottom="12" left="18"/></padding>
-    <HBox alignment="CENTER_LEFT" spacing="10"><VBox spacing="2" HBox.hgrow="ALWAYS"><Label text="Global Search" styleClass="page-title,dse-search-page-title"/><Label text="Search every permitted ERP record and open the exact matching entry." styleClass="muted-label"/></VBox><ProgressIndicator fx:id="searchProgress" visible="false" managed="false" prefWidth="26" prefHeight="26"/></HBox>
-    <HBox spacing="10" alignment="CENTER_LEFT"><TextField fx:id="txtGlobalSearch" promptText="Search party, document, item, reference, bank narration, reminder…" onAction="#search" HBox.hgrow="ALWAYS" styleClass="dse-search-input"/><ComboBox fx:id="cmbModule" prefWidth="210"/><Button text="Search" onAction="#search" styleClass="approved-button,approved-primary-button"/><Button text="Clear" onAction="#clearSearch" styleClass="approved-button,approved-secondary-button"/></HBox>
-    <Label fx:id="lblResultSummary" styleClass="dse-search-summary"/>
-  </VBox></top>
-  <center><ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="clean-scroll,dse-search-scroll"><content><VBox fx:id="resultGroups" spacing="12" styleClass="dse-search-groups"><padding><Insets top="8" right="18" bottom="18" left="18"/></padding></VBox></content></ScrollPane></center>
+<BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.controller.GlobalSearchController"
+            styleClass="erp-screen-root,dse-global-search-page,dse-search-v2-page">
+  <top>
+    <VBox spacing="12" styleClass="dse-search-v2-header">
+      <padding><Insets top="14" right="16" bottom="10" left="16"/></padding>
+      <HBox alignment="CENTER_LEFT" spacing="12">
+        <VBox spacing="2" HBox.hgrow="ALWAYS">
+          <Label text="Global Search" styleClass="page-title,dse-search-page-title"/>
+          <Label text="Search every permitted ERP module, see every match and open the exact record." styleClass="muted-label"/>
+        </VBox>
+        <ProgressIndicator fx:id="searchProgress" visible="false" managed="false" prefWidth="26" prefHeight="26"/>
+      </HBox>
+      <HBox spacing="10" alignment="CENTER_LEFT" styleClass="dse-search-v2-querybar">
+        <TextField fx:id="txtGlobalSearch" promptText="Search customer, supplier, item, invoice, purchase, return, payment, bank narration, reminder…"
+                   onAction="#search" HBox.hgrow="ALWAYS" styleClass="dse-search-input,dse-search-v2-input"/>
+        <Button text="Search" onAction="#search" styleClass="approved-button,approved-primary-button"/>
+        <Button text="Clear" onAction="#clearSearch" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
+    </VBox>
+  </top>
+  <center>
+    <HBox spacing="12" styleClass="dse-search-v2-body">
+      <padding><Insets top="2" right="16" bottom="14" left="16"/></padding>
+      <VBox spacing="8" prefWidth="225" minWidth="205" maxWidth="245" styleClass="dse-search-module-rail">
+        <Label text="SEARCH ACROSS" styleClass="dse-search-rail-eyebrow"/>
+        <Label text="Modules" styleClass="dse-search-rail-title"/>
+        <ListView fx:id="listModules" VBox.vgrow="ALWAYS" styleClass="dse-search-module-list"/>
+        <Label text="Only modules allowed by your role are searched." wrapText="true" styleClass="muted-label,dse-search-role-hint"/>
+      </VBox>
+      <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="0" styleClass="dse-search-results-shell">
+        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="dse-search-results-toolbar">
+          <VBox spacing="1" HBox.hgrow="ALWAYS">
+            <Label text="Search Results" styleClass="dse-search-results-title"/>
+            <Label fx:id="lblResultSummary" styleClass="dse-search-summary"/>
+          </VBox>
+          <Label text="Double-click any row or use View" styleClass="muted-label"/>
+        </HBox>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="clean-scroll,dse-search-scroll,dse-search-v2-scroll">
+          <content>
+            <VBox fx:id="resultGroups" spacing="10" styleClass="dse-search-groups,dse-search-v2-groups">
+              <padding><Insets top="6" right="8" bottom="10" left="8"/></padding>
+            </VBox>
+          </content>
+        </ScrollPane>
+      </VBox>
+    </HBox>
+  </center>
 </BorderPane>

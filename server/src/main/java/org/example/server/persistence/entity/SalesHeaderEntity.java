@@ -44,6 +44,14 @@ public class SalesHeaderEntity {
  @Column(name="contact_person_mobile") private String contactPersonMobile;
  @Column(name="document_status") private String documentStatus;
  @Column(name="attachment_path") private String attachmentPath;
+ @Column(name="inventory_posted", nullable=false) private Boolean inventoryPosted=Boolean.TRUE;
+ @Column(name="approval_status", nullable=false) private String approvalStatus="APPROVED";
+ @Column(name="approval_requested_by") private String approvalRequestedBy;
+ @Column(name="approval_requested_at") private String approvalRequestedAt;
+ @Column(name="approved_by") private String approvedBy;
+ @Column(name="approved_at") private String approvedAt;
+ @Column(name="rejection_reason") private String rejectionReason;
+ @Column(name="requested_document_status") private String requestedDocumentStatus;
  public Integer getId(){return id;} public void setId(Integer v){id=v;}
  public String getInvoiceNo(){return invoiceNo;} public void setInvoiceNo(String v){invoiceNo=v;}
  public String getInvoiceDate(){return invoiceDate;} public void setInvoiceDate(String v){invoiceDate=v;}
@@ -85,4 +93,12 @@ public class SalesHeaderEntity {
  public String getContactPersonMobile(){return contactPersonMobile;} public void setContactPersonMobile(String v){contactPersonMobile=v;}
  public String getDocumentStatus(){return documentStatus;} public void setDocumentStatus(String v){documentStatus=v;}
  public String getAttachmentPath(){return attachmentPath;} public void setAttachmentPath(String v){attachmentPath=v;}
+ public Boolean getInventoryPosted(){return inventoryPosted;} public void setInventoryPosted(Boolean v){inventoryPosted=v;}
+ public String getApprovalStatus(){return approvalStatus;} public void setApprovalStatus(String v){approvalStatus=v;}
+ public String getApprovalRequestedBy(){return approvalRequestedBy;} public void setApprovalRequestedBy(String v){approvalRequestedBy=v;}
+ public String getApprovalRequestedAt(){return approvalRequestedAt;} public void setApprovalRequestedAt(String v){approvalRequestedAt=v;}
+ public String getApprovedBy(){return approvedBy;} public void setApprovedBy(String v){approvedBy=v;}
+ public String getApprovedAt(){return approvedAt;} public void setApprovedAt(String v){approvedAt=v;}
+ public String getRejectionReason(){return rejectionReason;} public void setRejectionReason(String v){rejectionReason=v;}
+ public String getRequestedDocumentStatus(){return requestedDocumentStatus;} public void setRequestedDocumentStatus(String v){requestedDocumentStatus=v;}
 }

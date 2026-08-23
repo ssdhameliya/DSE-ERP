@@ -8,28 +8,34 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
-        if ("8.4.9".equals(version)) {
+        if ("8.5.0".equals(version)) {
             return """
-                    DSE ERP 8.4.9
+                    DSE ERP 8.5.0
 
-                    Global Search
-                    • Searches across permitted ERP modules and shows every matching record grouped by module.
-                    • Search results can open and focus the exact underlying record.
+                    User Access & Sign-In
+                    • Login and User Access now use the active server Role Master as the canonical role source, removing Sale/SALES mismatches.
+                    • New User includes Password and Confirm Password with embedded eye controls.
+                    • Admin is exempt from login OTP by policy; every other active role is server-enforced for password + OTP/MFA sign-in.
 
-                    Notification Center
-                    • Added a full actionable notification workspace with filters, details, read/unread controls and direct record navigation.
+                    Approval Workflow
+                    • New Sales and Purchases created by non-Admin users are submitted as Pending Approval.
+                    • Pending documents do not post inventory and cannot receive payments, returns or bank reconciliation until Admin approval.
+                    • Admin approval/rejection is server-owned and surfaced through exact-record notifications and register actions.
+
+                    Global Search & Notifications
+                    • Rebuilt Global Search as the approved full workspace with module counts, all permitted matches and exact-record navigation.
+                    • Rebuilt Notification Center with category filters, action-needed visibility, read controls and exact linked-record navigation.
 
                     Sales Register
-                    • Rebuilt the detail drawer as a compact single-sheet view with semantic field icons.
-                    • Shipping address now correctly falls back to Billing Address when Same as Billing is selected.
+                    • Rebuilt the Sales detail drawer using the stable Purchase-style scrollable layout while retaining semantic field icons.
+                    • Shipping address correctly falls back to Billing Address when Same as Billing is selected.
 
                     Keyboard Shortcuts
-                    • Added configurable application-wide Save, Edit, Refresh, New, Open, Delete, Print, Export and Back commands.
-                    • New Sale defaults to F9 and users can reassign shortcuts from one compact settings sheet.
+                    • Reworked the user-specific Shortcut Manager into one compact desktop sheet.
+                    • Application-wide Save, Edit, Refresh, New, Open, Delete, Print, Export and Back commands remain configurable; New Sale defaults to F9.
 
-                    UI Reliability
-                    • Fixed the JavaFX password-reveal enhancer parent/reindex race that could throw IndexOutOfBoundsException.
-                    • Preserved the v8.4.7 transactional SMTP proxy/startup protection.
+                    Reliability
+                    • Preserved the JavaFX password-reveal reparenting fix and the transactional SMTP Spring proxy/startup protection.
                     """.strip();
         }
         if ("8.4.8".equals(version)) {

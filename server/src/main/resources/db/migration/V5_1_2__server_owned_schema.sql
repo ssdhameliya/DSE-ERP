@@ -790,3 +790,28 @@ SET payment_status = CASE
     ELSE COALESCE(NULLIF(payment_status,''),'PENDING')
 END
 WHERE COALESCE(total_amount,0) > 0;
+
+
+-- DSE ERP 8.5.0 base-schema compatibility guards.
+-- The versioned migration repeats these idempotently for upgraded databases; keeping
+-- them here also makes a brand-new managed PostgreSQL workspace immediately compatible.
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS inventory_posted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS approval_status VARCHAR(24) NOT NULL DEFAULT 'APPROVED';
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS approval_requested_by VARCHAR(120);
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS approval_requested_at TEXT;
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS approved_by VARCHAR(120);
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS approved_at TEXT;
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE sales_header ADD COLUMN IF NOT EXISTS requested_document_status VARCHAR(40);
+ALTER TABLE purchase_header ADD COLUMN IF NOT EXISTS approval_status VARCHAR(24) NOT NULL DEFAULT 'APPROVED';
+ALTER TABLE purchase_header ADD COLUMN IF NOT EXISTS approval_requested_by VARCHAR(120);
+ALTER TABLE purchase_header ADD COLUMN IF NOT EXISTS approval_requested_at TEXT;
+ALTER TABLE purchase_header ADD COLUMN IF NOT EXISTS approved_by VARCHAR(120);
+ALTER TABLE purchase_header ADD COLUMN IF NOT EXISTS approved_at TEXT;
+ALTER TABLE purchase_header ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE purchase_header ADD COLUMN IF NOT EXISTS requested_document_status VARCHAR(40);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS module_key VARCHAR(80);
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS record_id BIGINT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS action_code VARCHAR(40);
+UPDATE users SET role='SALES' WHERE UPPER(COALESCE(role,'')) IN ('SALE','USER');
+UPDATE users SET mfa_enabled=CASE WHEN UPPER(COALESCE(role,''))='ADMIN' THEN 0 ELSE 1 END;

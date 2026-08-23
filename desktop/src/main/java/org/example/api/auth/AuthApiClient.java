@@ -148,16 +148,19 @@ public final class AuthApiClient {
         }
     }
 
-    public List<RoleOption> registrationRoles() {
+    public List<RoleOption> loginRoles() { return roleOptions("/api/auth/login-roles", "login roles"); }
+
+    public List<RoleOption> registrationRoles() { return roleOptions("/api/auth/registration-roles", "registration roles"); }
+
+    private List<RoleOption> roleOptions(String path, String label) {
         try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/registration-roles"))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Accept", "application/json")
-                    .GET();
-            HttpRequest request = builder.build();
+                    .GET().build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("Unable to load registration roles");
+                throw new IllegalStateException("Unable to load " + label + " from Role Master");
             }
             RoleOption[] options = json.readValue(response.body(), RoleOption[].class);
             return Arrays.asList(options);
@@ -165,7 +168,7 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Role request was interrupted", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot load registration roles from " + baseUrl, exception);
+            throw new IllegalStateException("Cannot load " + label + " from " + baseUrl, exception);
         }
     }
 

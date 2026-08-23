@@ -48,6 +48,9 @@ public class AuthController {
         return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
     }
 
+    @GetMapping("/login-roles")
+    public List<AuthDtos.RoleOption> loginRoles() { return auth.loginRoles(); }
+
     @GetMapping("/registration-roles")
     public List<AuthDtos.RoleOption> registrationRoles() { return auth.registrationRoles(); }
 
