@@ -17,6 +17,7 @@ import javafx.util.converter.DoubleStringConverter;
 import org.example.api.bank.BankStatementApiClient;
 import org.example.bank.KotakBankStatementCsvParser;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
 import org.example.service.SessionService;
 import org.example.service.LookupService;
 import org.example.util.BusinessClock;
@@ -31,7 +32,7 @@ import java.io.File;
 import java.time.LocalDate;
 import java.util.*;
 
-public class BankStatementController {
+public class BankStatementController implements ScreenLifecycle {
     @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon;
     @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage;
     @FXML private CheckBox chkSelectAll;
@@ -57,6 +58,7 @@ public class BankStatementController {
     private int totalPages;
     private long totalRows;
     private boolean suppressFilterReload;
+    private Long pendingLinkedTransactionId;
 
     @FXML public void initialize() {
         installIcons();
@@ -72,6 +74,30 @@ public class BankStatementController {
         cmbPageSize.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbBatch.valueProperty().addListener((o,a,b)->{ if(b!=null){applyBatchPeriod();currentPage=0;loadBatch(b.id());} });
         loadBatches();
+    }
+
+    @Override public void onScreenShown(boolean reusedFromCache) {
+        LinkedRecordContext.Target target=LinkedRecordContext.consume("BANK_STATEMENT");
+        if(target==null || target.recordId()==null) return;
+        long transactionId=target.recordId().longValue();
+        pendingLinkedTransactionId=transactionId;
+        UiTaskExecutor.submitLatest("bank-statement-linked-record",
+            () -> {
+                BankStatementApiClient.TransactionDto tx=api.transaction(transactionId);
+                List<BankStatementApiClient.TransactionDto> rows=api.transactions(tx.importId());
+                int index=-1;for(int i=0;i<rows.size();i++)if(Objects.equals(rows.get(i).id(),transactionId)){index=i;break;}
+                return new Object[]{tx,Math.max(0,index)};
+            },
+            result -> {
+                BankStatementApiClient.TransactionDto tx=(BankStatementApiClient.TransactionDto)result[0];
+                int index=(Integer)result[1];
+                suppressFilterReload=true;
+                try{cmbStatus.setValue("All Status");cmbDirection.setValue("All");txtSearch.clear();fromDate.setValue(null);toDate.setValue(null);currentPage=index/(cmbPageSize.getValue()==null?50:cmbPageSize.getValue());}
+                finally{suppressFilterReload=false;}
+                loadBatches(tx.importId());
+                javafx.application.Platform.runLater(() -> {currentPage=index/(cmbPageSize.getValue()==null?50:cmbPageSize.getValue());loadBatch(tx.importId());});
+            },
+            this::error);
     }
 
     private void installIcons() {
@@ -253,6 +279,10 @@ public class BankStatementController {
                 table.getItems().setAll(rows);
                 chkSelectAll.setSelected(false);chkSelectAll.setIndeterminate(false);updateSelectionState();
                 applyMetrics(loaded.metrics()); updatePageFooter();
+                if(pendingLinkedTransactionId!=null){
+                    Row match=rows.stream().filter(r->Objects.equals(r.dto.id(),pendingLinkedTransactionId)).findFirst().orElse(null);
+                    if(match!=null){table.getSelectionModel().select(match);table.scrollTo(match);table.requestFocus();pendingLinkedTransactionId=null;org.example.navigation.DeepLinkSupport.pulse(table);}
+                }
             },
             this::error
         );

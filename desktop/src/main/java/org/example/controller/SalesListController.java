@@ -392,7 +392,7 @@ public class SalesListController implements ScreenLifecycle {
         Sales sale=allSales.stream().filter(x->(target.recordId()!=null&&x.getId()==target.recordId())||(!target.documentNo().isBlank()&&target.documentNo().equalsIgnoreCase(safe(x.getInvoiceNo())))).findFirst().orElse(null);
         if(sale==null){warning("The linked Sale is no longer available"+(target.documentNo().isBlank()?".":": "+target.documentNo()));return;}
         txtSearch.clear();txtInvoice.clear();cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbPaymentDue.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");dpFrom.setValue(null);dpTo.setValue(null);
-        filteredSales=allSales;int size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();int index=filteredSales.indexOf(sale);currentPage=Math.max(0,index/size);renderPage();tableSales.getSelectionModel().select(sale);tableSales.scrollTo(sale);showDetails(sale);
+        filteredSales=allSales;int size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();int index=filteredSales.indexOf(sale);currentPage=Math.max(0,index/size);renderPage();tableSales.getSelectionModel().select(sale);tableSales.scrollTo(sale);org.example.navigation.DeepLinkSupport.pulse(tableSales);showDetails(sale);
         PerformanceMonitor.event("linked-navigation","SALE -> "+sale.getInvoiceNo()+" | source="+target.source());
     }
 

@@ -57,8 +57,6 @@ public final class PermissionService {
 
     private static String normalizeRole(String value) {
         String role = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if ("ADMINISTRATOR".equals(role)) return "ADMIN";
-        if ("SALE".equals(role)) return "SALES";
         return role;
     }
 

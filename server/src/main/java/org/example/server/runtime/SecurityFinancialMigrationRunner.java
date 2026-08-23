@@ -69,7 +69,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V8_4_5__authentication_lockout_policy",
                     "db/migration/V8_4_5__authentication_lockout_policy.sql"),
             new Migration("V8_5_0__role_mfa_approval_navigation",
-                    "db/migration/V8_5_0__role_mfa_approval_navigation.sql")
+                    "db/migration/V8_5_0__role_mfa_approval_navigation.sql"),
+            new Migration("V8_5_1__role_master_lookup_authority",
+                    "db/migration/V8_5_1__role_master_lookup_authority.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -134,6 +136,7 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("notifications", "module_key");
         requireColumn("notifications", "record_id");
         requireColumn("notifications", "action_code");
+        requireColumn("role_permission", "role_code");
         requireTable("return_refund");
         requireColumn("return_refund", "attachment_path");
         requireColumn("return_refund", "bank_statement_transaction_id");

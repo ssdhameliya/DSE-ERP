@@ -14,31 +14,28 @@ public interface UserRepository extends JpaRepository<UserEntity, Integer> {
     boolean existsByEmailIgnoreCase(String email);
 
     @Query("""
-        select u from UserEntity u left join fetch u.assignedRole r
+        select u from UserEntity u
         where (lower(u.username)=lower(:identity) or lower(u.email)=lower(:identity))
           and u.active=1 and coalesce(u.locked,0)=0
-          and (r is null or r.active=1)
         """)
     Optional<UserEntity> findActiveByIdentity(@Param("identity") String identity);
 
     @Query("""
-        select u from UserEntity u left join fetch u.assignedRole r
+        select u from UserEntity u
         where (lower(u.username)=lower(:identity) or lower(u.email)=lower(:identity))
           and u.active=1
-          and (r is null or r.active=1)
         """)
     Optional<UserEntity> findActiveByIdentityIncludingLocked(@Param("identity") String identity);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-        select u from UserEntity u left join fetch u.assignedRole r
+        select u from UserEntity u
         where (lower(u.username)=lower(:identity) or lower(u.email)=lower(:identity))
           and u.active=1
-          and (r is null or r.active=1)
         """)
     Optional<UserEntity> findForAuthentication(@Param("identity") String identity);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select u from UserEntity u left join fetch u.assignedRole where u.id=:id")
+    @Query("select u from UserEntity u where u.id=:id")
     Optional<UserEntity> findByIdForAuthentication(@Param("id") Integer id);
 }

@@ -9,13 +9,18 @@ public final class DeepLinkRouter {
     private DeepLinkRouter() {}
 
     public static boolean open(String targetFxml, String moduleKey, Long recordId, String reference, String source) {
+        return open(targetFxml,moduleKey,recordId,reference,"VIEW",source);
+    }
+
+    public static boolean open(String targetFxml, String moduleKey, Long recordId, String reference, String action, String source) {
         if (targetFxml == null || targetFxml.isBlank()) return false;
         String key = canonicalModuleKey(moduleKey == null || moduleKey.isBlank()
                 ? inferModuleKey(targetFxml, "", reference) : moduleKey);
         Integer id = recordId == null || recordId > Integer.MAX_VALUE || recordId < Integer.MIN_VALUE ? null : recordId.intValue();
         String ref = reference == null ? "" : reference.trim();
-        if (id == null && ref.isBlank()) return NavigationManager.navigateOrReport(targetFxml);
-        LinkedRecordContext.open(key, id, ref, "VIEW", source);
+        String requestedAction = action == null || action.isBlank() ? "VIEW" : action.trim().toUpperCase(Locale.ROOT);
+        if (id == null && ref.isBlank()) return false;
+        LinkedRecordContext.open(key, id, ref, requestedAction, source);
         boolean opened = NavigationManager.navigateOrReport(targetFxml);
         if (!opened) LinkedRecordContext.clear();
         return opened;

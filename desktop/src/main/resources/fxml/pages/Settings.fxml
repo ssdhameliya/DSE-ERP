@@ -9,7 +9,7 @@
          ===================================================== -->
 
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
+        <HBox fx:id="settingsPageHeader" alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header">
 
 
             <StackPane minWidth="42" prefWidth="42" maxWidth="42" minHeight="42" prefHeight="42" maxHeight="42" styleClass="settings-page-icon-box">

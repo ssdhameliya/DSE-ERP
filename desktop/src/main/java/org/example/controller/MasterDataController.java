@@ -48,6 +48,8 @@ import java.util.List;
 import java.util.Locale;
 
 public class MasterDataController implements ScreenLifecycle {
+    private static volatile String requestedCategory;
+    public static void requestCategory(String category) { requestedCategory = category; }
 
     @FXML private BorderPane root;
 
@@ -190,7 +192,12 @@ public class MasterDataController implements ScreenLifecycle {
         loadCategories();
 
         if (!lstTypes.getItems().isEmpty()) {
-            lstTypes.getSelectionModel().selectFirst();
+            if (requestedCategory != null && lstTypes.getItems().stream().anyMatch(v -> v.equalsIgnoreCase(requestedCategory))) {
+                lstTypes.getSelectionModel().select(lstTypes.getItems().stream().filter(v -> v.equalsIgnoreCase(requestedCategory)).findFirst().orElse(lstTypes.getItems().getFirst()));
+            } else {
+                lstTypes.getSelectionModel().selectFirst();
+            }
+            requestedCategory = null;
         } else {
             clearTable();
             setStatus("No master categories found.");
@@ -204,7 +211,10 @@ public class MasterDataController implements ScreenLifecycle {
         if (!reusedFromCache) return;
         String selectedCategory = lstTypes == null ? null : lstTypes.getSelectionModel().getSelectedItem();
         loadCategories();
-        if (selectedCategory != null && lstTypes.getItems().contains(selectedCategory)) {
+        if (requestedCategory != null) {
+            lstTypes.getItems().stream().filter(v -> v.equalsIgnoreCase(requestedCategory)).findFirst().ifPresent(v -> lstTypes.getSelectionModel().select(v));
+            requestedCategory = null;
+        } else if (selectedCategory != null && lstTypes.getItems().contains(selectedCategory)) {
             lstTypes.getSelectionModel().select(selectedCategory);
         }
         loadTable();
@@ -351,7 +361,13 @@ public class MasterDataController implements ScreenLifecycle {
             .addListener((observable, oldValue, newValue) -> {
 
                 if (newValue != null) {
-                    if (kpiSelectedIcon != null) kpiSelectedIcon.getChildren().setAll(IconFactory.icon(categorySemantic(newValue), 24));
+                    String semantic = categorySemantic(newValue);
+                    if (kpiSelectedIcon != null) kpiSelectedIcon.getChildren().setAll(IconFactory.icon(semantic, 24));
+                    if (lookupValuesIcon != null) lookupValuesIcon.getChildren().setAll(IconFactory.icon(semantic, 18));
+                    if (root != null) {
+                        root.getStyleClass().remove("master-role-selected");
+                        if ("ROLE".equalsIgnoreCase(newValue)) root.getStyleClass().add("master-role-selected");
+                    }
                     updateCategoryActionState(newValue);
                     loadTable();
                 } else {
@@ -762,8 +778,16 @@ public class MasterDataController implements ScreenLifecycle {
         boolean active = meta == null || meta.active();
         btnDeleteCategory.setText(active ? "Deactivate Category" : "Reactivate Category");
         UiActionIcons.apply(btnDeleteCategory, active ? "delete" : "restore");
-        btnRenameCategory.setDisable(categoryName == null);
-        btnDeleteCategory.setDisable(categoryName == null);
+        boolean protectedRoleCategory = categoryName != null && "ROLE".equalsIgnoreCase(categoryName.trim());
+        btnRenameCategory.setDisable(categoryName == null || protectedRoleCategory);
+        btnDeleteCategory.setDisable(categoryName == null || protectedRoleCategory);
+        if (protectedRoleCategory) {
+            btnDeleteCategory.setTooltip(new Tooltip("Role Master is a protected system category. Manage its role values in the table."));
+            btnRenameCategory.setTooltip(new Tooltip("Role Master keeps the fixed category code ROLE so every security screen uses one source."));
+        } else {
+            btnDeleteCategory.setTooltip(null);
+            btnRenameCategory.setTooltip(null);
+        }
     }
 
     private void updateLookupActionState(Lookup lookup) {

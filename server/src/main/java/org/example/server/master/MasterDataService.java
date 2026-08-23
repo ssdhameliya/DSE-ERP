@@ -302,6 +302,7 @@ public class MasterDataService {
     @Transactional
     public MasterDtos.LookupDto saveLookup(MasterDtos.LookupDto d) {
         validateLookup(d);
+        validateRoleLookup(d, null);
         requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
         LookupEntity e = new LookupEntity();
         copy(d, e);
@@ -311,8 +312,10 @@ public class MasterDataService {
     @Transactional
     public MasterDtos.LookupDto updateLookup(MasterDtos.LookupDto d) {
         validateLookup(d);
-        requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
         LookupEntity e = lookups.findById(req(d.id(), "Lookup id")).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        validateRoleLookup(d, e);
+        requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
+        cascadeRoleValueRenameIfNeeded(e, d);
         copy(d, e);
         return lookupDto(lookups.saveAndFlush(e));
     }
@@ -328,6 +331,7 @@ public class MasterDataService {
     @Transactional
     public void deleteLookup(int id) {
         LookupEntity e = lookups.findById(id).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        validateRoleDeactivation(e);
         // Master values are historical reference data. A user "delete" therefore retires the value
         // instead of physically removing it, whether or not the value has already been used.
         e.setActive(0);
@@ -337,6 +341,7 @@ public class MasterDataService {
     @Transactional
     public MasterDtos.LookupDto setLookupActive(int id, boolean active) {
         LookupEntity e = lookups.findById(id).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        if (!active) validateRoleDeactivation(e);
         requireActiveCategoryForActiveLookup(e.getLookupType(), active);
         e.setActive(active ? 1 : 0);
         return lookupDto(lookups.saveAndFlush(e));
@@ -351,6 +356,7 @@ public class MasterDataService {
             case "MATERIAL" -> "MAT";
             case "BRAND" -> "BRD";
             case "GST" -> "GST";
+            case "ROLE" -> "ROL";
             default -> "GEN";
         };
         List<String> existing = lookups.findByLookupTypeOrderByLookupCodeDesc(normalized).stream()
@@ -381,6 +387,7 @@ public class MasterDataService {
     @Transactional
     public MasterDtos.CategoryDto renameCategory(String oldName, String newName) {
         MasterCategoryEntity c = categories.findByCategoryName(oldName).orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        if ("ROLE".equals(normal(c.getCategoryCode()))) throw new IllegalArgumentException("Role Master is a protected system category and cannot be renamed");
         String n = normal(newName);
         if (Set.of("SALES INVOICE FORMAT","PURCHASE INVOICE FORMAT").contains(n)) throw new IllegalArgumentException("Invoice numbering is managed only by REFERENCE FORMAT.");
         List<LookupEntity> vals = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(oldName);
@@ -398,6 +405,7 @@ public class MasterDataService {
     public MasterDtos.CategoryDto setCategoryActive(String name, boolean active) {
         MasterCategoryEntity category = categories.findByCategoryName(name)
             .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        if (!active && "ROLE".equals(normal(category.getCategoryCode()))) throw new IllegalArgumentException("Role Master cannot be deactivated");
         category.setActive(active ? 1 : 0);
         category = categories.saveAndFlush(category);
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(category.getCategoryName());
@@ -409,6 +417,7 @@ public class MasterDataService {
     public void deleteCategory(String name) {
         MasterCategoryEntity category = categories.findByCategoryName(name)
             .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        if ("ROLE".equals(normal(category.getCategoryCode()))) throw new IllegalArgumentException("Role Master cannot be deactivated");
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(name);
         // Retire the category and all of its values atomically. Existing transactions keep their
         // historical text, while active-only APIs stop offering these values for future use.
@@ -446,6 +455,10 @@ public class MasterDataService {
             }
             case "GST" -> addUsage(usage, countNumber("item_master", "gst", value), "Item Master GST");
             case "DISCOUNT" -> addUsage(usage, countNumber("item_master", "discount_percent", value), "Item Master discount");
+            case "ROLE" -> {
+                String roleValue = lookup.getLookupValue() == null ? "" : lookup.getLookupValue().trim();
+                addUsage(usage, countText("users", "role", roleValue), "Assigned users");
+            }
             default -> { }
         }
         return usage;
@@ -558,6 +571,44 @@ public class MasterDataService {
 
     private MasterDtos.ItemDto itemDto(ItemEntity e) {
         return new MasterDtos.ItemDto(e.getId(), e.getItemCode(), e.getDescription(), e.getCategory(), e.getBrand(), e.getMaterial(), e.getSize(), e.getUnit(), e.getHsn(), n(e.getGst()), n(e.getDiscountPercent()), n(e.getPurchasePrice()), n(e.getSellingPrice()), n(e.getOpeningStock()), n(e.getMinimumStock()), n(e.getReservedStock()), e.getLocation(), e.getRemarks(), e.getActive() == null || e.getActive() != 0);
+    }
+
+    private void validateRoleLookup(MasterDtos.LookupDto d, LookupEntity existing) {
+        if (d == null || !"ROLE".equals(normal(d.lookupType()))) return;
+        String roleValue = d.lookupValue() == null ? "" : d.lookupValue().trim();
+        if (roleValue.isBlank()) throw new IllegalArgumentException("Role Name is required");
+        // Role identity comes from Value only. The generated ROLxxx lookup code is a technical Master ID.
+        if ("ADMIN".equals(normal(roleValue)) && !d.active()) {
+            throw new IllegalArgumentException("The Admin Role Master entry cannot be deactivated");
+        }
+        if (existing != null && "ADMIN".equals(normal(existing.getLookupValue()))
+                && !"ADMIN".equals(normal(roleValue))) {
+            throw new IllegalArgumentException("The protected Admin role name cannot be changed");
+        }
+    }
+
+    /**
+     * Role values are referenced by users and permission assignments. Renaming a non-Admin role
+     * therefore cascades atomically inside this transaction. Comparisons are case-insensitive.
+     */
+    private void cascadeRoleValueRenameIfNeeded(LookupEntity existing, MasterDtos.LookupDto incoming) {
+        if (existing == null || incoming == null || !"ROLE".equals(normal(existing.getLookupType()))) return;
+        String oldValue = existing.getLookupValue() == null ? "" : existing.getLookupValue().trim();
+        String newValue = incoming.lookupValue() == null ? "" : incoming.lookupValue().trim();
+        if (oldValue.isBlank() || newValue.isBlank() || normal(oldValue).equals(normal(newValue))) return;
+        String canonical = normal(newValue);
+        entityManager.createNativeQuery("update users set role=:newRole where upper(trim(coalesce(role,'')))=upper(trim(:oldRole))")
+                .setParameter("newRole", canonical).setParameter("oldRole", oldValue).executeUpdate();
+        entityManager.createNativeQuery("update role_permission set role_code=:newRole where upper(trim(coalesce(role_code,'')))=upper(trim(:oldRole))")
+                .setParameter("newRole", canonical).setParameter("oldRole", oldValue).executeUpdate();
+    }
+
+    private void validateRoleDeactivation(LookupEntity role) {
+        if (role == null || !"ROLE".equals(normal(role.getLookupType()))) return;
+        String roleValue = role.getLookupValue() == null ? "" : role.getLookupValue().trim();
+        if ("ADMIN".equals(normal(roleValue))) throw new IllegalArgumentException("The Admin Role Master entry cannot be deactivated");
+        long assigned = countText("users", "role", roleValue);
+        if (assigned > 0) throw new IllegalArgumentException("Move " + assigned + " assigned user" + (assigned == 1 ? "" : "s") + " to another active role before deactivating this role");
     }
 
     private void copy(MasterDtos.LookupDto d, LookupEntity e) {

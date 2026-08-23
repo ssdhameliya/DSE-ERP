@@ -2,7 +2,7 @@ package org.example.server.auth;
 
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.persistence.entity.UserEntity;
-import org.example.server.persistence.repository.RoleRepository;
+import org.example.server.master.RoleMasterService;
 import org.example.server.persistence.repository.UserRepository;
 import org.example.server.security.AuthenticatedUser;
 import org.example.server.security.TokenService;
@@ -11,7 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -24,17 +23,17 @@ public class AuthService {
     private static final String LOCK_ADMIN = "ADMIN";
 
     private final UserRepository users;
-    private final RoleRepository roles;
+    private final RoleMasterService roleMaster;
     private final PasswordEncoder passwords;
     private final TokenService tokens;
     private final AuthOtpService otp;
     private final SmtpMailService mail;
     private final JpaNativeRepository db;
 
-    public AuthService(UserRepository users, RoleRepository roles, PasswordEncoder passwords, TokenService tokens,
+    public AuthService(UserRepository users, RoleMasterService roleMaster, PasswordEncoder passwords, TokenService tokens,
                        AuthOtpService otp, SmtpMailService mail, JpaNativeRepository db) {
         this.users = users;
-        this.roles = roles;
+        this.roleMaster = roleMaster;
         this.passwords = passwords;
         this.tokens = tokens;
         this.otp = otp;
@@ -54,7 +53,7 @@ public class AuthService {
         if (!passwordMatches(raw, user.getPassword())) return failedPassword(user);
 
         String role = normalizeRole(user.getRoleName());
-        if (role.isBlank() || roles.findByNameIgnoreCase(role).filter(value -> value.isActive()).isEmpty())
+        if (role.isBlank() || !roleMaster.isActive(role))
             return failedLogin("This account role is not active in Role Master.");
 
         // Role Master is authoritative for the sign-in policy. ADMIN is password-only;
@@ -95,7 +94,7 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("The verification challenge is invalid or expired"));
         String role = normalizeRole(user.getRoleName());
         if (!user.isActive() || user.isLocked() || role.isBlank()
-                || roles.findByNameIgnoreCase(role).filter(value -> value.isActive()).isEmpty()
+                || !roleMaster.isActive(role)
                 || !requiresMfa(role)) {
             audit(userId, "MFA_LOGIN_BLOCKED", "Account state or Role Master policy changed before MFA completion", user.getUsername());
             return failedLogin(user.isLocked() ? lockMessage(user) : "This account is not available for sign in.");
@@ -125,7 +124,7 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("The verification challenge is invalid or expired"));
         String role = normalizeRole(user.getRoleName());
         if (!user.isActive() || user.isLocked() || role.isBlank()
-                || roles.findByNameIgnoreCase(role).filter(value -> value.isActive()).isEmpty()
+                || !roleMaster.isActive(role)
                 || !requiresMfa(role)) {
             throw new SecurityException("This account is not available for MFA sign in");
         }
@@ -165,18 +164,18 @@ public class AuthService {
         if (users.findActiveByIdentity(request.username().trim()).isPresent())
             return new AuthDtos.OperationResponse(false, "Username is already registered");
         String requestedRole = normalizeRole(request.role());
-        var role = roles.findByNameIgnoreCase(requestedRole).orElse(null);
-        if (role == null || !role.isActive()) return new AuthDtos.OperationResponse(false, "Selected role is unavailable");
+        RoleMasterService.RoleDefinition role;
+        try { role = roleMaster.requireActive(requestedRole); }
+        catch (IllegalArgumentException ignored) { return new AuthDtos.OperationResponse(false, "Selected role is unavailable"); }
         UserEntity user = new UserEntity();
         user.setUsername(request.username().trim());
         user.setPassword(passwords.encode(request.password()));
         user.setFullName(request.fullName());
         user.setEmail(request.email());
-        user.setAssignedRole(role);
-        user.setRole(role.getName());
+        user.setRole(role.code());
         user.setActive(true);
         user.setLocked(false);
-        user.setMfaEnabled(requiresMfa(role.getName()));
+        user.setMfaEnabled(requiresMfa(role.code()));
         user.setAccessLevel("STANDARD");
         users.save(user);
         return new AuthDtos.OperationResponse(true, "User registered");
@@ -219,18 +218,18 @@ public class AuthService {
             return new AuthDtos.OperationResponse(false, "Username is already registered");
         if (users.existsByEmailIgnoreCase(email))
             return new AuthDtos.OperationResponse(false, "Email is already registered");
-        var role = roles.findByNameIgnoreCase(roleName).filter(value -> value.isActive()).orElse(null);
-        if (role == null) return new AuthDtos.OperationResponse(false, "Selected role is unavailable");
+        RoleMasterService.RoleDefinition role;
+        try { role = roleMaster.requireActive(roleName); }
+        catch (IllegalArgumentException ignored) { return new AuthDtos.OperationResponse(false, "Selected role is unavailable"); }
         UserEntity user = new UserEntity();
         user.setUsername(username);
         user.setPassword(passwords.encode(request.password()));
         user.setFullName(request.fullName().trim());
         user.setEmail(email);
-        user.setAssignedRole(role);
-        user.setRole(role.getName());
+        user.setRole(role.code());
         user.setActive(true);
         user.setLocked(false);
-        user.setMfaEnabled(requiresMfa(role.getName()));
+        user.setMfaEnabled(requiresMfa(role.code()));
         user.setAccessLevel("STANDARD");
         users.save(user);
         return new AuthDtos.OperationResponse(true, "User registered");
@@ -272,10 +271,8 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public List<AuthDtos.RoleOption> loginRoles() {
-        return roles.findAll().stream()
-                .filter(value -> value != null && value.isActive() && value.getName() != null && !value.getName().isBlank())
-                .sorted(Comparator.comparingInt(value -> roleOrder(value.getName())))
-                .map(value -> new AuthDtos.RoleOption(normalizeRole(value.getName()), displayRole(value.getName())))
+        return roleMaster.activeRoles().stream()
+                .map(value -> new AuthDtos.RoleOption(value.code(), value.displayName()))
                 .toList();
     }
 
@@ -359,9 +356,8 @@ public class AuthService {
         if (email == null || !email.trim().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"))
             return "A valid email address is required";
         String normalizedRole = normalizeRole(role);
-        if ("ADMIN".equals(normalizedRole) || roles.findByNameIgnoreCase(normalizedRole).filter(value -> value.isActive()).isEmpty()) return "Select an active non-Admin role from Role Master";
-        if (roles.findByNameIgnoreCase(normalizedRole).map(value -> value.isActive()).orElse(false)) return null;
-        return "Selected role is unavailable";
+        if ("ADMIN".equals(normalizedRole) || !roleMaster.isActive(normalizedRole)) return "Select an active non-Admin role from Role Master";
+        return null;
     }
 
     private String registrationBinding(String username, String email, String role, boolean mfaEnabled) {
@@ -401,24 +397,6 @@ public class AuthService {
 
     private boolean requiresMfa(String role) {
         return !"ADMIN".equals(normalizeRole(role));
-    }
-
-    private String displayRole(String role) {
-        String code = normalizeRole(role);
-        if ("ADMIN".equals(code)) return "Admin";
-        if ("MANAGER".equals(code)) return "Manager";
-        if ("SALES".equals(code)) return "Sales";
-        if (code.isBlank()) return "";
-        return code.charAt(0) + code.substring(1).toLowerCase(Locale.ROOT);
-    }
-
-    private int roleOrder(String role) {
-        return switch (normalizeRole(role)) {
-            case "ADMIN" -> 0;
-            case "MANAGER" -> 1;
-            case "SALES" -> 2;
-            default -> 100;
-        };
     }
 
     private boolean passwordMatches(String raw, String stored) {

@@ -8,6 +8,27 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("8.5.3".equals(version)) {
+            return """
+                    DSE ERP 8.5.3
+                    • Global Search typography is larger and clearer across the search bar, module rail, result groups and values.
+                    • Search result totals are split into colorful Visible, Total Results and Modules summary chips, with complete module/value semantic coloring.
+                    • Notification Center typography is larger in the list, filters and details panel, with full date + time centered in each notification row.
+                    • Generic “Notification” titles are suppressed; informational unread items show NEW while ACTION appears only for genuine workflow actions.
+                    • Clear History is restored with confirmation, while exact-record Search and Notification navigation from v8.5.2 remains unchanged.
+                    • Existing Role Master and Shortcut Manager corrections remain preserved.
+                    """.strip();
+        }
+        if ("8.5.1".equals(version)) {
+            return """
+                    DSE ERP 8.5.1
+                    • ROLE Master Value is now the only role identity used by login, users, permissions, MFA and approvals; generated ROLxxx Master IDs are informational only.
+                    • Role matching is case-insensitive, custom roles such as Purchase remain independent, and role renames cascade safely to assigned users and permissions.
+                    • Shortcut Manager now uses fixed preview cards plus a virtualized full-height list, so large categories never break the layout.
+                    • The Add/Edit drawer exposes the full permitted ERP action catalog, configurable Applies To scope, real Advanced options and isolated shortcut-only CSS.
+                    • Existing production security, approval, search, notification and runtime protections remain preserved.
+                    """;
+        }
         if ("8.5.0".equals(version)) {
             return """
                     DSE ERP 8.5.0

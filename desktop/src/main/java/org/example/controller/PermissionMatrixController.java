@@ -12,6 +12,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import org.example.api.admin.AdminApiClient;
 import org.example.service.PermissionService;
 import org.example.shared.PermissionCatalog;
@@ -46,6 +47,7 @@ public class PermissionMatrixController {
     private final ObservableList<MatrixRow> tableRows = FXCollections.observableArrayList();
     private final List<ModuleRow> modules = new ArrayList<>();
     private final Map<String, Long> roleUserCounts = new HashMap<>();
+    private final Map<String, String> roleDisplayNames = new HashMap<>();
     private final Map<String, CheckBox> headerToggles = new HashMap<>();
     private boolean loading;
 
@@ -53,6 +55,12 @@ public class PermissionMatrixController {
         configureIcons();
         configureTable();
         configureFilters();
+        StringConverter<String> roleConverter = new StringConverter<>() {
+            @Override public String toString(String code) { return code == null ? "" : roleDisplayNames.getOrDefault(code.toUpperCase(Locale.ROOT), code); }
+            @Override public String fromString(String value) { return value; }
+        };
+        cmbRole.setConverter(roleConverter);
+        cmbCopyRole.setConverter(roleConverter);
         cmbTemplate.getItems().setAll(PermissionCatalog.TEMPLATES);
         loadRoles();
         cmbRole.valueProperty().addListener((obs, oldRole, newRole) -> {
@@ -192,9 +200,15 @@ public class PermissionMatrixController {
         try {
             var roles = api.roles().stream().filter(AdminApiClient.RoleDto::active).toList();
             loading = true;
-            cmbRole.getItems().setAll(roles.stream().map(AdminApiClient.RoleDto::name).toList());
+            roleDisplayNames.clear();
             roleUserCounts.clear();
-            roles.forEach(role -> roleUserCounts.put(role.name().toUpperCase(Locale.ROOT), role.userCount()));
+            for (var role : roles) {
+                String code = role.code() == null ? "" : role.code().trim().toUpperCase(Locale.ROOT);
+                if (code.isBlank()) continue;
+                roleDisplayNames.put(code, role.displayName() == null || role.displayName().isBlank() ? code : role.displayName().trim());
+                roleUserCounts.put(code, role.userCount());
+            }
+            cmbRole.getItems().setAll(roleDisplayNames.keySet().stream().toList());
             loading = false;
         } catch (Exception e) {
             loading = false;
@@ -223,9 +237,10 @@ public class PermissionMatrixController {
             setEditingEnabled(!admin);
             long users = roleUserCounts.getOrDefault(role.toUpperCase(Locale.ROOT), 0L);
             lblRoleUsers.setText(users + (users == 1 ? " user" : " users") + " use this role");
+            String displayRole = roleDisplayNames.getOrDefault(role.toUpperCase(Locale.ROOT), role);
             lblHint.setText(admin
                     ? "Administrator is protected full access. Review is available, but the matrix cannot be changed."
-                    : "Changes apply to every user assigned to " + role + " in both LOCAL and company-server deployments.");
+                    : "Changes apply to every user assigned to " + displayRole + " in both LOCAL and company-server deployments.");
             rebuildCopyRoles();
             cmbTemplate.getSelectionModel().clearSelection();
             rebuildVisibleRows();

@@ -306,8 +306,16 @@ CREATE TABLE IF NOT EXISTS role_permission (
                 FOREIGN KEY(permission_id) REFERENCES permissions(id) ON DELETE CASCADE
             );
 
-INSERT INTO role_permission(role_id, permission_id, allowed)
-            SELECT r.id, p.id,
+-- v8.5.1 retains role_code as the compatibility column name; runtime values are derived from ROLE lookup_value.
+-- Keep the fresh-database
+-- legacy shape that older one-time migrations still expect before V8_5_1 runs.
+ALTER TABLE role_permission ADD COLUMN IF NOT EXISTS role_code TEXT;
+
+-- Compatibility seed: keep both the historical role_id and the canonical role_code.
+-- Generic ON CONFLICT remains valid after v8.5.1 replaces the legacy role_id PK with
+-- the Role Master code uniqueness rule, so this always-run base schema stays idempotent.
+INSERT INTO role_permission(role_id, role_code, permission_id, allowed)
+            SELECT r.id, UPPER(TRIM(r.role_name)), p.id,
                    CASE
                      WHEN r.role_name='ADMIN' THEN 1
                      WHEN r.role_name='MANAGER' AND p.module_name NOT IN ('USERS','BACKUP','SETTINGS') THEN 1
@@ -315,7 +323,7 @@ INSERT INTO role_permission(role_id, permission_id, allowed)
                           AND p.module_name NOT IN ('USERS','BACKUP','SETTINGS') THEN 1
                      ELSE 0
                    END
-            FROM roles r CROSS JOIN permissions p ON CONFLICT (role_id, permission_id) DO NOTHING;
+            FROM roles r CROSS JOIN permissions p ON CONFLICT DO NOTHING;
 
 CREATE INDEX IF NOT EXISTS idx_role_permission_role ON role_permission(role_id, allowed);
 
@@ -382,6 +390,8 @@ CREATE INDEX IF NOT EXISTS idx_activity_entity ON activity_log(entity_type, enti
 ALTER TABLE return_register DROP CONSTRAINT IF EXISTS return_register_return_no_key;
 
 CREATE INDEX IF NOT EXISTS idx_return_number ON return_register(return_no);
+
+INSERT INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('ROLE','ROLE','Application roles used by login, user access and permission assignment',35,1) ON CONFLICT DO NOTHING;
 
 INSERT INTO master_category(category_code, category_name, description, display_order, is_active) VALUES('DISCOUNT','DISCOUNT','Default item discount percentages',60,1) ON CONFLICT DO NOTHING;
 
@@ -704,14 +714,14 @@ FROM unnest(ARRAY['DASHBOARD','SALES','PURCHASE','QUOTATION','INVENTORY','CUSTOM
 CROSS JOIN unnest(ARRAY['VIEW','CREATE','EDIT','DELETE','APPROVE','EXPORT']) a
 ON CONFLICT (permission_key) DO NOTHING;
 
-INSERT INTO role_permission(role_id,permission_id,allowed)
-SELECT r.id,p.id,
+INSERT INTO role_permission(role_id,role_code,permission_id,allowed)
+SELECT r.id,UPPER(TRIM(r.role_name)),p.id,
        CASE WHEN r.role_name='ADMIN' THEN 1
             WHEN r.role_name='MANAGER' AND p.module_name NOT IN ('USERS','BACKUP','SETTINGS') THEN 1
             WHEN r.role_name='SALES' AND p.action_name IN ('VIEW','CREATE','EDIT') AND p.module_name NOT IN ('USERS','BACKUP','SETTINGS') THEN 1
             ELSE 0 END
 FROM roles r CROSS JOIN permissions p
-ON CONFLICT (role_id,permission_id) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- 5.1.19: lookup_master is seeded on every startup, so remove historical duplicates and make future seeds idempotent.
 DELETE FROM lookup_master a
@@ -737,7 +747,8 @@ INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,is_active) VALUES
 ('MATERIAL','MAT001','SS304',1),('MATERIAL','MAT002','SS316',1),('MATERIAL','MAT003','Carbon Steel',1),
 ('BRAND','BRD001','L&T',1),('BRAND','BRD002','Kirloskar',1),
 ('GST','GST001','0',1),('GST','GST002','5',1),('GST','GST003','12',1),('GST','GST004','18',1),('GST','GST005','28',1),
-('DISCOUNT','DSC001','0',1),('DISCOUNT','DSC002','2',1),('DISCOUNT','DSC003','5',1),('DISCOUNT','DSC004','10',1),('DISCOUNT','DSC005','15',1),('DISCOUNT','DSC006','20',1)
+('DISCOUNT','DSC001','0',1),('DISCOUNT','DSC002','2',1),('DISCOUNT','DSC003','5',1),('DISCOUNT','DSC004','10',1),('DISCOUNT','DSC005','15',1),('DISCOUNT','DSC006','20',1),
+('ROLE','ADMIN','Admin',1),('ROLE','MANAGER','Manager',1),('ROLE','SALES','Sales',1)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO lookup_master(lookup_type,lookup_code,lookup_value,description,display_order,is_active)

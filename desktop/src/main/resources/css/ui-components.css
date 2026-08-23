@@ -9531,3 +9531,19 @@
     -fx-border-radius: 9;
     -fx-background-radius: 9;
 }
+
+/* Exact-record deep-link focus pulse used after Search/Notification navigation. */
+.table-view .table-row-cell.dse-linked-record-highlight {
+    -fx-background-color: rgba(37,99,235,.28);
+    -fx-border-color: #3B82F6;
+    -fx-border-width: 1 0 1 0;
+    -fx-effect: dropshadow(gaussian, rgba(37,99,235,.36), 12, .20, 0, 0);
+}
+
+/* Exact-record navigation pulse: applied transiently by DeepLinkSupport only. */
+.table-view.dse-linked-record-focus .table-row-cell:selected {
+    -fx-background-color: linear-gradient(to right, rgba(37,99,235,.82), rgba(124,58,237,.42));
+    -fx-border-color: #60A5FA;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(59,130,246,.42), 12, .18, 0, 0);
+}

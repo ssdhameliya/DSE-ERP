@@ -62,7 +62,7 @@ public class LoginController {
     @FXML private VBox loginPanel, resetPanel, otpPanel;
 
     private final UserService users = new UserService();
-    /** Display label -> canonical Role Master code for the current server. */
+    /** Display label -> normalized Role Master Value identity for the current server. */
     private final Map<String, String> loginRoleCodes = new LinkedHashMap<>();
     private AppUser pendingUser;
     private String pendingMfaChallengeId;
@@ -550,8 +550,7 @@ public class LoginController {
     private String normalizeRole(String role) {
         if (role == null) return "";
         String normalized = role.trim().toUpperCase(Locale.ROOT);
-        // Legacy display/storage aliases are accepted only while restoring old preferences.
-        if ("USER".equals(normalized) || "SALE".equals(normalized)) return "SALES";
+        // Role identity comes only from the Role Master Value; comparison is case-insensitive.
         return normalized;
     }
 

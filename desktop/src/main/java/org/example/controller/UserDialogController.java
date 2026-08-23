@@ -9,6 +9,8 @@ import org.example.service.NotificationService;
 import org.example.util.IconFactory;
 
 import java.util.Locale;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /** Shared Add/Edit User form backed by the server-owned Role Master and security policy. */
@@ -26,11 +28,12 @@ public class UserDialogController {
     private Integer editingUserId;
     private String originalUsername;
     private final AdminApiClient api = new AdminApiClient();
+    private final Map<String,String> roleDisplay = new LinkedHashMap<>();
 
     @FXML
     public void initialize() {
         cmbRole.setConverter(new StringConverter<>() {
-            @Override public String toString(String value) { return displayRole(value); }
+            @Override public String toString(String value) { return roleDisplay.getOrDefault(canonicalRole(value), displayRole(value)); }
             @Override public String fromString(String value) { return value; }
         });
         loadRoles();
@@ -84,14 +87,15 @@ public class UserDialogController {
 
     private void loadRoles() {
         cmbRole.getItems().clear();
+        roleDisplay.clear();
         try {
-            cmbRole.getItems().setAll(api.roles().stream()
-                    .filter(AdminApiClient.RoleDto::active)
-                    .map(AdminApiClient.RoleDto::name)
-                    .filter(value -> value != null && !value.isBlank())
-                    .map(UserDialogController::canonicalRole)
-                    .distinct()
-                    .toList());
+            var roles = api.roles().stream().filter(AdminApiClient.RoleDto::active).toList();
+            for (var role : roles) {
+                String code = canonicalRole(role.code());
+                if (code.isBlank()) continue;
+                roleDisplay.put(code, blank(role.displayName()) ? displayRole(code) : role.displayName().trim());
+                cmbRole.getItems().add(code);
+            }
         } catch (Exception e) {
             message("Unable to load roles from Role Master: " + e.getMessage(), true);
         }
@@ -140,7 +144,7 @@ public class UserDialogController {
                     cmbAccess.getValue(), txtBranch.getText().trim(), chkActive.isSelected(), chkLocked.isSelected(),
                     chkMfa.isSelected()));
             NotificationService.add(editingUserId == null
-                    ? "User " + txtUsername.getText().trim() + " created with " + displayRole(cmbRole.getValue()) + " access."
+                    ? "User " + txtUsername.getText().trim() + " created with " + roleDisplay.getOrDefault(canonicalRole(cmbRole.getValue()), displayRole(cmbRole.getValue())) + " access."
                     : "User " + originalUsername + " updated.");
             close();
         } catch (Exception e) {
@@ -185,7 +189,6 @@ public class UserDialogController {
     private static String canonicalRole(String value) {
         if (value == null) return "";
         String role = value.trim().toUpperCase(Locale.ROOT);
-        if ("SALE".equals(role) || "USER".equals(role)) return "SALES"; // legacy data only; Role Master remains authoritative.
         return role;
     }
     private static String displayRole(String value) {

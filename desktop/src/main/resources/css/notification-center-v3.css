@@ -1,0 +1,81 @@
+/* DSE ERP Notification Center v3.1 — isolated, high-legibility screen stylesheet. */
+.dse-notification-v3-root { -fx-background-color:linear-gradient(to bottom,derive(-color-bg,-12%),-color-bg 42%,derive(-color-bg,-7%)); -fx-font-family:"Inter","Segoe UI",sans-serif; }
+.dse-notification-v3-root .dse-notification-v3-top { -fx-background-color:linear-gradient(to right,derive(-color-bg,-8%),derive(-color-surface,-10%)); -fx-border-color:transparent transparent derive(-color-border,-12%) transparent; -fx-border-width:0 0 1 0; }
+.dse-notification-v3-root .dse-notification-v3-header-icon { -fx-background-color:linear-gradient(to bottom right,rgba(59,130,246,.30),rgba(99,102,241,.18)); -fx-border-color:rgba(59,130,246,.42); -fx-border-radius:10; -fx-background-radius:10; -fx-effect:dropshadow(gaussian,rgba(59,130,246,.30),14,.2,0,2); }
+.dse-notification-v3-root .dse-notification-v3-title { -fx-text-fill:-color-text; -fx-font-size:25px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-subtitle { -fx-text-fill:-color-muted; -fx-font-size:13px; }
+.dse-notification-v3-root .dse-notification-v3-mark-all,.dse-notification-v3-root .dse-notification-v3-refresh,.dse-notification-v3-root .dse-notification-v3-clear-history,.dse-notification-v3-root .dse-notification-v3-open,.dse-notification-v3-root .dse-notification-v3-read,.dse-notification-v3-root .dse-notification-v3-dismiss { -fx-text-fill:white; -fx-font-size:12px; -fx-font-weight:800; -fx-border-radius:8; -fx-background-radius:8; -fx-padding:8 12; -fx-cursor:hand; }
+.dse-notification-v3-root .dse-notification-v3-mark-all,.dse-notification-v3-root .dse-notification-v3-open { -fx-background-color:linear-gradient(to bottom right,#2563eb,#4f46e5); -fx-border-color:#3b82f6; -fx-effect:dropshadow(gaussian,rgba(37,99,235,.35),10,.15,0,2); }
+.dse-notification-v3-root .dse-notification-v3-refresh,.dse-notification-v3-root .dse-notification-v3-read { -fx-background-color:rgba(15,63,126,.70); -fx-border-color:#2563eb; }
+.dse-notification-v3-root .dse-notification-v3-clear-history,.dse-notification-v3-root .dse-notification-v3-dismiss { -fx-background-color:linear-gradient(to bottom right,rgba(157,23,77,.88),rgba(112,26,117,.82)); -fx-border-color:#db2777; }
+.dse-notification-v3-root .dse-notification-v3-search-shell { -fx-padding:7 9; -fx-background-color:derive(-color-surface,-7%); -fx-border-color:derive(-color-border,-8%); -fx-border-radius:9; -fx-background-radius:9; }
+.dse-notification-v3-root .dse-notification-v3-search-icon { -fx-text-fill:#60a5fa; -fx-font-size:22px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-search { -fx-background-color:transparent; -fx-border-color:transparent; -fx-text-fill:-color-text; -fx-prompt-text-fill:-color-muted; -fx-font-size:14px; -fx-font-weight:600; -fx-effect:null; }
+.dse-notification-v3-root .dse-notification-v3-search:focused { -fx-background-color:transparent; -fx-border-color:transparent; }
+.dse-notification-v3-root .dse-notification-v3-count-strip { -fx-text-fill:#93c5fd; -fx-font-size:12px; -fx-font-weight:800; -fx-padding:7 11; -fx-background-color:rgba(30,64,175,.17); -fx-border-color:rgba(59,130,246,.22); -fx-border-radius:7; -fx-background-radius:7; }
+.dse-notification-v3-root .dse-notification-v3-summary-card { -fx-padding:10 14; -fx-min-height:68; -fx-background-color:derive(-color-surface,-6%); -fx-border-radius:8; -fx-background-radius:8; -fx-border-width:1; -fx-effect:dropshadow(gaussian,rgba(0,0,0,.14),8,.06,0,1); }
+.dse-notification-v3-root .dse-notification-v3-summary-all { -fx-border-color:rgba(37,99,235,.48); -fx-background-color:linear-gradient(to right,rgba(30,64,175,.14),derive(-color-surface,-7%)); }
+.dse-notification-v3-root .dse-notification-v3-summary-unread { -fx-border-color:rgba(147,51,234,.44); -fx-background-color:linear-gradient(to right,rgba(126,34,206,.13),derive(-color-surface,-7%)); }
+.dse-notification-v3-root .dse-notification-v3-summary-action { -fx-border-color:rgba(217,119,6,.48); -fx-background-color:linear-gradient(to right,rgba(180,83,9,.13),derive(-color-surface,-7%)); }
+.dse-notification-v3-root .dse-notification-v3-summary-icon { -fx-background-color:rgba(59,130,246,.12); -fx-background-radius:999; -fx-border-radius:999; -fx-border-color:rgba(59,130,246,.20); }
+.dse-notification-v3-root .dse-notification-v3-summary-unread .dse-notification-v3-summary-icon { -fx-background-color:rgba(168,85,247,.13); -fx-border-color:rgba(168,85,247,.22); }
+.dse-notification-v3-root .dse-notification-v3-summary-action .dse-notification-v3-summary-icon { -fx-background-color:rgba(245,158,11,.13); -fx-border-color:rgba(245,158,11,.24); }
+.dse-notification-v3-root .dse-notification-v3-summary-label { -fx-text-fill:-color-text-secondary; -fx-font-size:13px; -fx-font-weight:700; }
+.dse-notification-v3-root .dse-notification-v3-summary-value { -fx-text-fill:-color-text; -fx-font-size:24px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-category-rail,.dse-notification-v3-root .dse-notification-v3-list-shell,.dse-notification-v3-root .dse-notification-v3-detail { -fx-background-color:derive(-color-surface,-6%); -fx-border-color:derive(-color-border,-9%); -fx-border-radius:9; -fx-background-radius:9; -fx-padding:10; -fx-effect:dropshadow(gaussian,rgba(0,0,0,.16),8,.06,0,1); }
+.dse-notification-v3-root .dse-notification-v3-eyebrow { -fx-text-fill:#818cf8; -fx-font-size:11px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-rail-title,.dse-notification-v3-root .dse-notification-v3-list-title,.dse-notification-v3-root .dse-notification-v3-detail-heading { -fx-text-fill:-color-text; -fx-font-size:15px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-category-list,.dse-notification-v3-root .dse-notification-v3-category-list .viewport,.dse-notification-v3-root .dse-notification-v3-category-list .virtual-flow,.dse-notification-v3-root .dse-notification-v3-list,.dse-notification-v3-root .dse-notification-v3-list .viewport,.dse-notification-v3-root .dse-notification-v3-list .virtual-flow { -fx-background-color:transparent; -fx-border-color:transparent; }
+.dse-notification-v3-root .dse-notification-v3-category-list .list-cell { -fx-background-color:transparent; -fx-padding:3 1; -fx-background-radius:7; -fx-border-radius:7; }
+.dse-notification-v3-root .dse-notification-v3-category-list .list-cell:hover { -fx-background-color:rgba(59,130,246,.10); }
+.dse-notification-v3-root .dse-notification-v3-category-list .list-cell:selected { -fx-background-color:linear-gradient(to right,rgba(37,99,235,.88),rgba(79,70,229,.72)); -fx-border-color:#3b82f6; -fx-effect:dropshadow(gaussian,rgba(37,99,235,.26),8,.12,0,1); }
+.dse-notification-v3-root .dse-notification-v3-category-cell { -fx-padding:5 5; }
+.dse-notification-v3-root .dse-notification-v3-category-name { -fx-text-fill:-color-text; -fx-font-size:13px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-category-count { -fx-text-fill:#c4b5fd; -fx-font-size:11px; -fx-font-weight:800; -fx-padding:3 7; -fx-background-color:rgba(139,92,246,.14); -fx-background-radius:999; }
+.dse-notification-v3-root .dse-notification-v3-category-list .list-cell:selected .dse-notification-v3-category-name,.dse-notification-v3-root .dse-notification-v3-category-list .list-cell:selected .dse-notification-v3-category-count { -fx-text-fill:white; }
+.dse-notification-v3-root .dse-notification-v3-list-toolbar { -fx-padding:2 4 6 4; }
+.dse-notification-v3-root .dse-notification-v3-list-hint { -fx-text-fill:-color-muted; -fx-font-size:11px; }
+.dse-notification-v3-root .dse-notification-v3-list .list-cell { -fx-background-color:derive(-color-surface,-9%); -fx-border-color:transparent transparent rgba(148,163,184,.12) transparent; -fx-border-width:0 0 1 0; -fx-padding:9 9; }
+.dse-notification-v3-root .dse-notification-v3-list .list-cell:hover { -fx-background-color:rgba(37,99,235,.09); }
+.dse-notification-v3-root .dse-notification-v3-list .list-cell:selected { -fx-background-color:linear-gradient(to right,rgba(29,78,216,.48),rgba(37,99,235,.18)); -fx-border-color:#2563eb; -fx-border-width:1; -fx-background-radius:7; -fx-border-radius:7; -fx-effect:dropshadow(gaussian,rgba(37,99,235,.36),12,.18,0,1); }
+.dse-notification-v3-root .dse-notification-v3-row-icon { -fx-background-color:rgba(99,102,241,.12); -fx-border-color:rgba(99,102,241,.20); -fx-background-radius:999; -fx-border-radius:999; }
+.dse-notification-v3-root .dse-notification-v3-row-icon-approval { -fx-background-color:rgba(34,197,94,.13); -fx-border-color:rgba(34,197,94,.24); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-sales { -fx-background-color:rgba(34,197,94,.13); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-purchases { -fx-background-color:rgba(59,130,246,.13); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-inventory { -fx-background-color:rgba(168,85,247,.13); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-quotations { -fx-background-color:rgba(168,85,247,.13); -fx-border-color:rgba(192,132,252,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-returns { -fx-background-color:rgba(20,184,166,.13); -fx-border-color:rgba(45,212,191,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-payments { -fx-background-color:rgba(34,197,94,.13); -fx-border-color:rgba(74,222,128,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-reminders { -fx-background-color:rgba(249,115,22,.13); -fx-border-color:rgba(251,146,60,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-communication { -fx-background-color:rgba(99,102,241,.13); -fx-border-color:rgba(129,140,248,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-security { -fx-background-color:rgba(244,63,94,.13); -fx-border-color:rgba(251,113,133,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-system { -fx-background-color:rgba(14,165,233,.13); -fx-border-color:rgba(56,189,248,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-update { -fx-background-color:rgba(59,130,246,.13); -fx-border-color:rgba(96,165,250,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-icon-backup { -fx-background-color:rgba(20,184,166,.13); -fx-border-color:rgba(45,212,191,.23); }
+.dse-notification-v3-root .dse-notification-v3-row-title { -fx-text-fill:-color-text; -fx-font-size:14px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-row-message { -fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:600; }
+.dse-notification-v3-root .dse-notification-v3-row-meta { -fx-text-fill:#a5b4fc; -fx-font-size:11px; -fx-font-weight:700; }
+.dse-notification-v3-root .dse-notification-v3-row-time { -fx-text-fill:#38bdf8; -fx-font-size:11px; -fx-font-weight:800; -fx-padding:4 8; -fx-background-color:rgba(14,165,233,.08); -fx-background-radius:6; }
+.dse-notification-v3-root .dse-notification-v3-badge,.dse-notification-v3-root .dse-notification-v3-new,.dse-notification-v3-root .dse-notification-v3-action-badge { -fx-padding:3 8; -fx-background-radius:5; -fx-font-size:10px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-badge { -fx-text-fill:#c084fc; -fx-background-color:rgba(147,51,234,.18); }
+.dse-notification-v3-root .dse-notification-v3-badge-approval { -fx-text-fill:#4ade80; -fx-background-color:rgba(34,197,94,.16); }
+.dse-notification-v3-root .dse-notification-v3-badge-sales { -fx-text-fill:#4ade80; -fx-background-color:rgba(34,197,94,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-purchases { -fx-text-fill:#60a5fa; -fx-background-color:rgba(59,130,246,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-backup { -fx-text-fill:#2dd4bf; -fx-background-color:rgba(20,184,166,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-quotations { -fx-text-fill:#c084fc; -fx-background-color:rgba(168,85,247,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-returns { -fx-text-fill:#2dd4bf; -fx-background-color:rgba(20,184,166,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-payments { -fx-text-fill:#4ade80; -fx-background-color:rgba(34,197,94,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-reminders { -fx-text-fill:#fb923c; -fx-background-color:rgba(249,115,22,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-communication { -fx-text-fill:#a5b4fc; -fx-background-color:rgba(99,102,241,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-security { -fx-text-fill:#fb7185; -fx-background-color:rgba(244,63,94,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-system { -fx-text-fill:#38bdf8; -fx-background-color:rgba(14,165,233,.15); }
+.dse-notification-v3-root .dse-notification-v3-badge-update { -fx-text-fill:#60a5fa; -fx-background-color:rgba(59,130,246,.15); }
+.dse-notification-v3-root .dse-notification-v3-new { -fx-text-fill:#93c5fd; -fx-background-color:rgba(37,99,235,.30); -fx-border-color:rgba(59,130,246,.42); -fx-border-radius:5; }
+.dse-notification-v3-root .dse-notification-v3-action-badge { -fx-text-fill:#fbbf24; -fx-background-color:rgba(245,158,11,.16); -fx-border-color:rgba(245,158,11,.26); -fx-border-radius:5; }
+.dse-notification-v3-root .dse-notification-v3-detail { -fx-border-color:rgba(59,130,246,.22); }
+.dse-notification-v3-root .dse-notification-v3-detail-icon { -fx-background-color:rgba(99,102,241,.14); -fx-border-color:rgba(99,102,241,.25); -fx-border-radius:999; -fx-background-radius:999; }
+.dse-notification-v3-root .dse-notification-v3-detail-card { -fx-padding:15; -fx-background-color:derive(-color-surface,-9%); -fx-border-color:rgba(148,163,184,.13); -fx-border-radius:8; -fx-background-radius:8; }
+.dse-notification-v3-root .dse-notification-v3-detail-title { -fx-text-fill:-color-text; -fx-font-size:17px; -fx-font-weight:800; }
+.dse-notification-v3-root .dse-notification-v3-detail-message { -fx-text-fill:-color-text-secondary; -fx-font-size:13px; -fx-font-weight:600; }
+.dse-notification-v3-root .dse-notification-v3-detail-meta,.dse-notification-v3-root .dse-notification-v3-detail-reference { -fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:650; -fx-graphic-text-gap:8; }
+.dse-notification-v3-root .separator .line { -fx-border-color:rgba(148,163,184,.14); -fx-border-width:1 0 0 0; }

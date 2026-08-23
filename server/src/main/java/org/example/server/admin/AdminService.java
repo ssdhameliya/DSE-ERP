@@ -1,34 +1,36 @@
 package org.example.server.admin;
 
+import org.example.server.master.RoleMasterService;
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
-import org.example.server.util.BusinessClock;
 import org.example.server.security.TokenService;
+import org.example.server.util.BusinessClock;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
 
 @Service
 public class AdminService {
     private final JpaNativeRepository jdbc;
     private final PasswordEncoder passwords;
     private final TokenService tokens;
+    private final RoleMasterService roleMaster;
 
-    public AdminService(JpaNativeRepository jdbc, PasswordEncoder passwords, TokenService tokens) {
+    public AdminService(JpaNativeRepository jdbc, PasswordEncoder passwords, TokenService tokens,
+                        RoleMasterService roleMaster) {
         this.jdbc = jdbc;
         this.passwords = passwords;
         this.tokens = tokens;
+        this.roleMaster = roleMaster;
     }
 
     @Transactional(readOnly = true)
     public List<AdminDtos.UserDto> users() {
-        return jdbc.query("SELECT u.id,u.username,u.full_name,u.email,COALESCE(r.role_name,u.role,'SALES')," +
+        return jdbc.query("SELECT u.id,u.username,u.full_name,u.email,COALESCE(NULLIF(TRIM(u.role),''),'SALES')," +
                         "u.department,u.access_level,u.branch,u.active,u.locked,u.mfa_enabled,COALESCE(NULLIF(u.last_login_utc,''),CAST(u.last_login AS text)) " +
-                        "FROM users u LEFT JOIN roles r ON r.id=u.role_id ORDER BY u.full_name,u.username",
+                        "FROM users u ORDER BY u.full_name,u.username",
                 (row, index) -> new AdminDtos.UserDto(row.getInt(1), row.getString(2), row.getString(3), row.getString(4),
                         row.getString(5), row.getString(6), row.getString(7), row.getString(8), flag(row.getObject(9)),
                         flag(row.getObject(10)), flag(row.getObject(11)), BusinessClock.toUtcText(row.getObject(12))));
@@ -40,37 +42,34 @@ public class AdminService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
     }
 
+    /** Role options are projected directly from Master Data ROLE lookups. */
     @Transactional(readOnly = true)
     public List<AdminDtos.RoleDto> roles() {
-        return jdbc.query("SELECT r.id,r.role_name,r.description,r.active,COUNT(u.id) FROM roles r " +
-                        "LEFT JOIN users u ON u.role_id=r.id OR (u.role_id IS NULL AND u.role=r.role_name) " +
-                        "WHERE r.active=1 GROUP BY r.id,r.role_name,r.description,r.active " +
-                        "ORDER BY CASE r.role_name WHEN 'ADMIN' THEN 1 WHEN 'MANAGER' THEN 2 WHEN 'SALES' THEN 3 ELSE 100 END,r.role_name",
-                (row, index) -> new AdminDtos.RoleDto(row.getInt(1), row.getString(2), row.getString(3),
-                        flag(row.getObject(4)), row.getLong(5)));
+        return roleMaster.activeRoles().stream()
+                .map(role -> new AdminDtos.RoleDto(role.id(), role.code(), role.displayName(), role.description(),
+                        role.active(), role.userCount()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<AdminDtos.PermissionDto> permissions(String role) {
-        String name = role(role);
-        boolean admin = "ADMIN".equals(name);
+        String code = role(role);
+        boolean admin = "ADMIN".equals(code);
         return jdbc.query("SELECT p.id,p.module_name,p.action_name,p.description,COALESCE(rp.allowed,0) " +
-                        "FROM permissions p JOIN roles r ON r.role_name=? LEFT JOIN role_permission rp " +
-                        "ON rp.permission_id=p.id AND rp.role_id=r.id WHERE p.active=1 ORDER BY p.module_name,p.action_name",
+                        "FROM permissions p LEFT JOIN role_permission rp ON rp.permission_id=p.id " +
+                        "AND UPPER(TRIM(COALESCE(rp.role_code,'')))=? WHERE p.active=1 ORDER BY p.module_name,p.action_name",
                 (row, index) -> new AdminDtos.PermissionDto(row.getLong(1), row.getString(2), row.getString(3),
-                        row.getString(4), admin || flag(row.getObject(5))), name);
+                        row.getString(4), admin || flag(row.getObject(5))), code);
     }
 
     @Transactional
     public void savePermissions(AdminDtos.PermissionSaveRequest request) {
-        String name = role(request == null ? null : request.role());
-        if ("ADMIN".equals(name)) return;
-        Integer roleId = jdbc.queryForObject("SELECT id FROM roles WHERE role_name=? AND active=1", Integer.class, name);
-        if (roleId == null) throw new IllegalArgumentException("Role not found");
-        jdbc.update("DELETE FROM role_permission WHERE role_id=?", roleId);
+        String code = role(request == null ? null : request.role());
+        if ("ADMIN".equals(code)) return;
+        jdbc.update("DELETE FROM role_permission WHERE UPPER(TRIM(COALESCE(role_code,'')))=?", code);
         if (request.permissions() != null) for (var permission : request.permissions()) {
-            jdbc.update("INSERT INTO role_permission(role_id,permission_id,allowed) VALUES(?,?,?)",
-                    roleId, permission.id(), permission.allowed() ? 1 : 0);
+            jdbc.update("INSERT INTO role_permission(role_code,permission_id,allowed) VALUES(?,?,?)",
+                    code, permission.id(), permission.allowed() ? 1 : 0);
         }
     }
 
@@ -87,8 +86,8 @@ public class AdminService {
         }
         if (request.id() == null) {
             jdbc.update("INSERT INTO users(username,password,full_name,role,role_id,email,active,locked,lock_reason,mfa_enabled,department,branch,access_level) " +
-                            "VALUES(?,?,?,?,(SELECT id FROM roles WHERE role_name=? AND active=1),?,?,?,?,?,?,?,?)",
-                    request.username().trim(), encoded, clean(request.fullName()), assignedRole, assignedRole,
+                            "VALUES(?,?,?,?,NULL,?,?,?,?,?,?,?,?)",
+                    request.username().trim(), encoded, clean(request.fullName()), assignedRole,
                     clean(request.email()), request.active() ? 1 : 0, request.locked() ? 1 : 0,
                     request.locked() ? "ADMIN" : "NONE", enforcedMfa ? 1 : 0,
                     clean(request.department()), clean(request.branch()), clean(request.accessLevel()));
@@ -99,9 +98,9 @@ public class AdminService {
                     "SELECT locked FROM users WHERE id=?", Boolean.class, request.id()));
             if (request.id() == CurrentUser.require().id() && (request.locked() || !request.active()))
                 throw new IllegalArgumentException("You cannot lock or deactivate your own account");
-            jdbc.update("UPDATE users SET username=?,full_name=?,email=?,role=?,role_id=(SELECT id FROM roles WHERE role_name=? AND active=1)," +
+            jdbc.update("UPDATE users SET username=?,full_name=?,email=?,role=?,role_id=NULL," +
                             "active=?,locked=?,mfa_enabled=?,department=?,branch=?,access_level=? WHERE id=?",
-                    request.username().trim(), clean(request.fullName()), clean(request.email()), assignedRole, assignedRole,
+                    request.username().trim(), clean(request.fullName()), clean(request.email()), assignedRole,
                     request.active() ? 1 : 0, request.locked() ? 1 : 0, enforcedMfa ? 1 : 0,
                     clean(request.department()), clean(request.branch()), clean(request.accessLevel()), request.id());
             if (previousLocked && !request.locked()) {
@@ -166,19 +165,13 @@ public class AdminService {
                 CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
-    @Transactional
+    /** Role definitions are edited only through Master Data ROLE lookups. */
     public AdminDtos.RoleDto saveRole(AdminDtos.RoleSaveRequest request) {
-        String name = role(request == null ? null : request.name());
-        if (request.id() == null) throw new IllegalArgumentException("Only active Role Master entries are supported");
-        String existing = jdbc.queryForObject("SELECT role_name FROM roles WHERE id=?", String.class, request.id());
-        if (!name.equals(existing)) throw new IllegalArgumentException("Built-in roles cannot be renamed");
-        if (!request.active()) throw new IllegalArgumentException("Built-in roles cannot be deactivated");
-        jdbc.update("UPDATE roles SET description=?,active=1 WHERE id=?", clean(request.description()), request.id());
-        return roles().stream().filter(value -> value.id() == request.id()).findFirst().orElseThrow();
+        throw new IllegalArgumentException("Manage role definitions in Master Data > Role");
     }
 
     public void deleteRole(int id) {
-        throw new IllegalArgumentException("Protected roles cannot be deleted");
+        throw new IllegalArgumentException("Manage role definitions in Master Data > Role");
     }
 
     @Transactional
@@ -188,11 +181,7 @@ public class AdminService {
     }
 
     private String role(String value) {
-        String name = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (name.isBlank()) throw new IllegalArgumentException("Role is required");
-        Long count = jdbc.queryForObject("SELECT COUNT(*) FROM roles WHERE UPPER(role_name)=? AND active=1", Long.class, name);
-        if (count == null || count == 0) throw new IllegalArgumentException("Role is not active in Role Master: " + name);
-        return name;
+        return roleMaster.requireActive(value).code();
     }
 
     private static void validatePassword(String value) {
@@ -211,4 +200,3 @@ public class AdminService {
         return "1".equals(text) || "t".equalsIgnoreCase(text) || "true".equalsIgnoreCase(text);
     }
 }
-

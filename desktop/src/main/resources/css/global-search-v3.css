@@ -1,0 +1,116 @@
+/* DSE ERP Global Search v3.1 — isolated, high-legibility screen stylesheet. */
+.dse-global-search-v3-root { -fx-background-color:linear-gradient(to bottom,derive(-color-bg,-12%),-color-bg 38%,derive(-color-bg,-6%)); -fx-font-family:"Inter","Segoe UI",sans-serif; }
+.dse-global-search-v3-root .dse-global-search-v3-top { -fx-background-color:linear-gradient(to right,derive(-color-bg,-8%),derive(-color-surface,-10%)); -fx-border-color:transparent transparent derive(-color-border,-12%) transparent; -fx-border-width:0 0 1 0; }
+.dse-global-search-v3-root .dse-global-search-v3-header-icon { -fx-background-color:linear-gradient(to bottom right,rgba(37,99,235,.42),rgba(99,102,241,.20)); -fx-border-color:rgba(59,130,246,.55); -fx-border-radius:12; -fx-background-radius:12; -fx-effect:dropshadow(gaussian,rgba(37,99,235,.38),18,.25,0,2); }
+.dse-global-search-v3-root .dse-global-search-v3-title { -fx-text-fill:-color-text; -fx-font-size:27px; -fx-font-weight:800; }
+.dse-global-search-v3-root .dse-global-search-v3-subtitle,.dse-global-search-v3-root .dse-global-search-v3-hint { -fx-text-fill:-color-muted; -fx-font-size:13px; }
+.dse-global-search-v3-root .dse-global-search-v3-query-shell { -fx-padding:9 10; -fx-background-color:derive(-color-surface,-6%); -fx-border-color:derive(-color-border,-6%); -fx-border-radius:11; -fx-background-radius:11; }
+.dse-global-search-v3-root .dse-global-search-v3-query-icon { -fx-text-fill:#60a5fa; -fx-font-size:24px; -fx-font-weight:800; }
+.dse-global-search-v3-root .dse-global-search-v3-input { -fx-background-color:transparent; -fx-border-color:transparent; -fx-text-fill:-color-text; -fx-prompt-text-fill:-color-muted; -fx-padding:8 5; -fx-font-size:16px; -fx-font-weight:600; -fx-effect:null; }
+.dse-global-search-v3-root .dse-global-search-v3-input:focused { -fx-background-color:transparent; -fx-border-color:transparent; }
+.dse-global-search-v3-root .dse-global-search-v3-search-button,.dse-global-search-v3-root .dse-global-search-v3-clear-button,.dse-global-search-v3-root .dse-global-search-v3-view { -fx-font-size:12px; -fx-font-weight:800; -fx-text-fill:white; -fx-border-radius:8; -fx-background-radius:8; -fx-padding:9 16; -fx-cursor:hand; }
+.dse-global-search-v3-root .dse-global-search-v3-search-button { -fx-background-color:linear-gradient(to bottom right,#2563eb,#6d28d9); -fx-border-color:#3b82f6; -fx-effect:dropshadow(gaussian,rgba(37,99,235,.42),12,.2,0,2); }
+.dse-global-search-v3-root .dse-global-search-v3-search-button:hover { -fx-background-color:linear-gradient(to bottom right,#3b82f6,#7c3aed); }
+.dse-global-search-v3-root .dse-global-search-v3-clear-button { -fx-background-color:linear-gradient(to bottom right,#9d174d,#701a75); -fx-border-color:#db2777; -fx-effect:dropshadow(gaussian,rgba(219,39,119,.28),10,.15,0,2); }
+.dse-global-search-v3-root .dse-global-search-v3-body { -fx-background-color:transparent; }
+.dse-global-search-v3-root .dse-global-search-v3-module-rail,.dse-global-search-v3-root .dse-global-search-v3-results-shell { -fx-background-color:derive(-color-surface,-5%); -fx-border-color:derive(-color-border,-9%); -fx-border-radius:11; -fx-background-radius:11; -fx-padding:11; -fx-effect:dropshadow(gaussian,rgba(0,0,0,.18),10,.08,0,2); }
+.dse-global-search-v3-root .dse-global-search-v3-eyebrow { -fx-text-fill:#818cf8; -fx-font-size:11px; -fx-font-weight:800; }
+.dse-global-search-v3-root .dse-global-search-v3-rail-title,.dse-global-search-v3-root .dse-global-search-v3-results-title { -fx-text-fill:-color-text; -fx-font-size:17px; -fx-font-weight:800; }
+.dse-global-search-v3-root .dse-global-search-v3-summary-message { -fx-text-fill:-color-text-secondary; -fx-font-size:13px; -fx-font-weight:700; }
+.dse-global-search-v3-root .dse-global-search-v3-summary-chip { -fx-font-size:12px; -fx-font-weight:800; -fx-padding:4 10; -fx-background-radius:999; -fx-border-radius:999; }
+.dse-global-search-v3-root .dse-global-search-v3-summary-visible { -fx-text-fill:#38bdf8; -fx-background-color:rgba(14,165,233,.14); -fx-border-color:rgba(56,189,248,.28); }
+.dse-global-search-v3-root .dse-global-search-v3-summary-total { -fx-text-fill:#c084fc; -fx-background-color:rgba(168,85,247,.14); -fx-border-color:rgba(192,132,252,.28); }
+.dse-global-search-v3-root .dse-global-search-v3-summary-modules { -fx-text-fill:#4ade80; -fx-background-color:rgba(34,197,94,.13); -fx-border-color:rgba(74,222,128,.28); }
+.dse-global-search-v3-root .dse-global-search-v3-module-list,.dse-global-search-v3-root .dse-global-search-v3-module-list .viewport,.dse-global-search-v3-root .dse-global-search-v3-module-list .virtual-flow,.dse-global-search-v3-root .dse-global-search-v3-module-list .corner { -fx-background-color:transparent; }
+.dse-global-search-v3-root .dse-global-search-v3-module-list { -fx-border-color:transparent; -fx-padding:0; }
+.dse-global-search-v3-root .dse-global-search-v3-module-list .list-cell { -fx-background-color:transparent; -fx-padding:5 3; -fx-background-radius:8; -fx-border-radius:8; }
+.dse-global-search-v3-root .dse-global-search-v3-module-list .list-cell:hover { -fx-background-color:rgba(59,130,246,.12); }
+.dse-global-search-v3-root .dse-global-search-v3-module-list .list-cell:selected { -fx-background-color:linear-gradient(to right,rgba(37,99,235,.88),rgba(79,70,229,.70)); -fx-border-color:#3b82f6; -fx-effect:dropshadow(gaussian,rgba(37,99,235,.30),10,.15,0,1); }
+.dse-global-search-v3-root .dse-global-search-v3-module-cell { -fx-padding:5 4; }
+.dse-global-search-v3-root .dse-global-search-v3-module-icon { -fx-background-color:rgba(99,102,241,.12); -fx-border-color:rgba(99,102,241,.22); -fx-border-radius:8; -fx-background-radius:8; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name { -fx-text-fill:-color-text; -fx-font-weight:800; -fx-font-size:14px; }
+.dse-global-search-v3-root .dse-global-search-v3-module-count { -fx-text-fill:-color-text; -fx-font-size:11px; -fx-font-weight:800; -fx-padding:3 7; -fx-background-color:rgba(148,163,184,.14); -fx-background-radius:999; }
+.dse-global-search-v3-root .dse-global-search-v3-module-list .list-cell:selected .dse-global-search-v3-module-name,.dse-global-search-v3-root .dse-global-search-v3-module-list .list-cell:selected .dse-global-search-v3-module-count { -fx-text-fill:white; }
+/* Module semantic accents — deliberately screen-scoped. */
+.dse-global-search-v3-root .dse-global-search-v3-module-name-items,.dse-global-search-v3-root .dse-global-search-v3-group-title-items,.dse-global-search-v3-root .dse-global-search-v3-ref-items { -fx-text-fill:#fbbf24; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-customers,.dse-global-search-v3-root .dse-global-search-v3-group-title-customers,.dse-global-search-v3-root .dse-global-search-v3-ref-customers { -fx-text-fill:#38bdf8; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-suppliers,.dse-global-search-v3-root .dse-global-search-v3-group-title-suppliers,.dse-global-search-v3-root .dse-global-search-v3-ref-suppliers { -fx-text-fill:#2dd4bf; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-sales-orders,.dse-global-search-v3-root .dse-global-search-v3-group-title-sales-orders,.dse-global-search-v3-root .dse-global-search-v3-ref-sales-orders { -fx-text-fill:#4ade80; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-purchase-orders,.dse-global-search-v3-root .dse-global-search-v3-group-title-purchase-orders,.dse-global-search-v3-root .dse-global-search-v3-ref-purchase-orders { -fx-text-fill:#60a5fa; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-quotations,.dse-global-search-v3-root .dse-global-search-v3-group-title-quotations,.dse-global-search-v3-root .dse-global-search-v3-ref-quotations { -fx-text-fill:#c084fc; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-sales-returns,.dse-global-search-v3-root .dse-global-search-v3-group-title-sales-returns,.dse-global-search-v3-root .dse-global-search-v3-ref-sales-returns { -fx-text-fill:#34d399; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-purchase-returns,.dse-global-search-v3-root .dse-global-search-v3-group-title-purchase-returns,.dse-global-search-v3-root .dse-global-search-v3-ref-purchase-returns { -fx-text-fill:#22d3ee; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-payments,.dse-global-search-v3-root .dse-global-search-v3-group-title-payments,.dse-global-search-v3-root .dse-global-search-v3-ref-payments { -fx-text-fill:#4ade80; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-bank-expense-entries,.dse-global-search-v3-root .dse-global-search-v3-group-title-bank-expense-entries,.dse-global-search-v3-root .dse-global-search-v3-ref-bank-expense-entries { -fx-text-fill:#f472b6; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-bank-statement,.dse-global-search-v3-root .dse-global-search-v3-group-title-bank-statement,.dse-global-search-v3-root .dse-global-search-v3-ref-bank-statement { -fx-text-fill:#2dd4bf; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-reminders,.dse-global-search-v3-root .dse-global-search-v3-group-title-reminders,.dse-global-search-v3-root .dse-global-search-v3-ref-reminders { -fx-text-fill:#fb923c; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-communications,.dse-global-search-v3-root .dse-global-search-v3-group-title-communications,.dse-global-search-v3-root .dse-global-search-v3-ref-communications { -fx-text-fill:#818cf8; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-inventory-adjustments,.dse-global-search-v3-root .dse-global-search-v3-group-title-inventory-adjustments,.dse-global-search-v3-root .dse-global-search-v3-ref-inventory-adjustments { -fx-text-fill:#f59e0b; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-master-data,.dse-global-search-v3-root .dse-global-search-v3-group-title-master-data,.dse-global-search-v3-root .dse-global-search-v3-ref-master-data { -fx-text-fill:#a78bfa; }
+.dse-global-search-v3-root .dse-global-search-v3-module-name-users,.dse-global-search-v3-root .dse-global-search-v3-group-title-users,.dse-global-search-v3-root .dse-global-search-v3-ref-users { -fx-text-fill:#f472b6; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-items { -fx-text-fill:#fde68a; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-customers { -fx-text-fill:#7dd3fc; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-suppliers { -fx-text-fill:#5eead4; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-sales-orders,.dse-global-search-v3-root .dse-global-search-v3-desc-sales-returns,.dse-global-search-v3-root .dse-global-search-v3-desc-payments { -fx-text-fill:#86efac; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-purchase-orders,.dse-global-search-v3-root .dse-global-search-v3-desc-purchase-returns { -fx-text-fill:#93c5fd; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-quotations,.dse-global-search-v3-root .dse-global-search-v3-desc-master-data { -fx-text-fill:#d8b4fe; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-bank-expense-entries,.dse-global-search-v3-root .dse-global-search-v3-desc-users { -fx-text-fill:#f9a8d4; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-bank-statement { -fx-text-fill:#5eead4; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-reminders,.dse-global-search-v3-root .dse-global-search-v3-desc-inventory-adjustments { -fx-text-fill:#fdba74; }
+.dse-global-search-v3-root .dse-global-search-v3-desc-communications { -fx-text-fill:#c7d2fe; }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-items { -fx-text-fill:#fbbf24; -fx-background-color:rgba(245,158,11,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-customers,.dse-global-search-v3-root .dse-global-search-v3-module-count-purchase-orders { -fx-text-fill:#60a5fa; -fx-background-color:rgba(59,130,246,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-sales-orders,.dse-global-search-v3-root .dse-global-search-v3-module-count-payments { -fx-text-fill:#4ade80; -fx-background-color:rgba(34,197,94,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-quotations,.dse-global-search-v3-root .dse-global-search-v3-module-count-master-data { -fx-text-fill:#c084fc; -fx-background-color:rgba(168,85,247,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-suppliers,.dse-global-search-v3-root .dse-global-search-v3-module-count-bank-statement,.dse-global-search-v3-root .dse-global-search-v3-module-count-purchase-returns { -fx-text-fill:#2dd4bf; -fx-background-color:rgba(20,184,166,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-reminders,.dse-global-search-v3-root .dse-global-search-v3-module-count-inventory-adjustments { -fx-text-fill:#fb923c; -fx-background-color:rgba(249,115,22,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-sales-returns { -fx-text-fill:#34d399; -fx-background-color:rgba(16,185,129,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-bank-expense-entries,.dse-global-search-v3-root .dse-global-search-v3-module-count-users { -fx-text-fill:#f472b6; -fx-background-color:rgba(236,72,153,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-module-count-communications { -fx-text-fill:#a5b4fc; -fx-background-color:rgba(99,102,241,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-role-hint { -fx-padding:10; -fx-background-color:rgba(59,130,246,.08); -fx-border-color:rgba(59,130,246,.18); -fx-border-radius:8; -fx-background-radius:8; }
+.dse-global-search-v3-root .dse-global-search-v3-info-icon { -fx-text-fill:#60a5fa; -fx-font-weight:800; -fx-font-size:14px; }
+.dse-global-search-v3-root .dse-global-search-v3-role-hint-text { -fx-text-fill:-color-muted; -fx-font-size:11px; }
+.dse-global-search-v3-root .dse-global-search-v3-results-toolbar { -fx-padding:0 4 6 4; }
+.dse-global-search-v3-root .dse-global-search-v3-scroll,.dse-global-search-v3-root .dse-global-search-v3-scroll > .viewport { -fx-background-color:transparent; -fx-border-color:transparent; }
+.dse-global-search-v3-root .dse-global-search-v3-groups { -fx-background-color:transparent; }
+.dse-global-search-v3-root .dse-global-search-v3-group-card { -fx-background-color:derive(-color-surface,-9%); -fx-border-color:derive(-color-border,-8%); -fx-border-radius:9; -fx-background-radius:9; -fx-effect:dropshadow(gaussian,rgba(0,0,0,.14),8,.06,0,1); }
+.dse-global-search-v3-root .dse-global-search-v3-group-header { -fx-padding:9 12; -fx-background-color:linear-gradient(to right,rgba(30,64,175,.16),rgba(30,41,59,.05)); -fx-background-radius:9 9 0 0; -fx-border-color:transparent transparent rgba(148,163,184,.12) transparent; }
+.dse-global-search-v3-root .dse-global-search-v3-group-title { -fx-text-fill:-color-text; -fx-font-weight:800; -fx-font-size:15px; -fx-graphic-text-gap:9; }
+.dse-global-search-v3-root .dse-global-search-v3-count { -fx-font-size:11px; -fx-font-weight:800; -fx-padding:4 10; -fx-background-radius:999; -fx-text-fill:#fbbf24; -fx-background-color:rgba(245,158,11,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-sales-orders,.dse-global-search-v3-root .dse-global-search-v3-count-payments { -fx-text-fill:#4ade80; -fx-background-color:rgba(34,197,94,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-customers,.dse-global-search-v3-root .dse-global-search-v3-count-purchase-orders { -fx-text-fill:#38bdf8; -fx-background-color:rgba(14,165,233,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-quotations,.dse-global-search-v3-root .dse-global-search-v3-count-master-data { -fx-text-fill:#c084fc; -fx-background-color:rgba(168,85,247,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-suppliers,.dse-global-search-v3-root .dse-global-search-v3-count-bank-statement,.dse-global-search-v3-root .dse-global-search-v3-count-purchase-returns { -fx-text-fill:#2dd4bf; -fx-background-color:rgba(20,184,166,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-sales-returns { -fx-text-fill:#34d399; -fx-background-color:rgba(16,185,129,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-bank-expense-entries,.dse-global-search-v3-root .dse-global-search-v3-count-users { -fx-text-fill:#f472b6; -fx-background-color:rgba(236,72,153,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-reminders,.dse-global-search-v3-root .dse-global-search-v3-count-inventory-adjustments { -fx-text-fill:#fb923c; -fx-background-color:rgba(249,115,22,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-count-communications { -fx-text-fill:#a5b4fc; -fx-background-color:rgba(99,102,241,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-result-row { -fx-padding:9 11; -fx-border-color:transparent transparent rgba(148,163,184,.11) transparent; -fx-border-width:0 0 1 0; }
+.dse-global-search-v3-root .dse-global-search-v3-result-row:hover { -fx-background-color:rgba(37,99,235,.09); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon { -fx-background-color:rgba(59,130,246,.12); -fx-background-radius:9; -fx-border-radius:9; -fx-border-color:rgba(59,130,246,.18); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-items { -fx-background-color:rgba(245,158,11,.13); -fx-border-color:rgba(245,158,11,.22); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-sales-orders { -fx-background-color:rgba(34,197,94,.13); -fx-border-color:rgba(34,197,94,.22); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-customers,.dse-global-search-v3-root .dse-global-search-v3-result-icon-purchase-orders { -fx-background-color:rgba(59,130,246,.14); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-quotations { -fx-background-color:rgba(168,85,247,.14); -fx-border-color:rgba(168,85,247,.24); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-suppliers,.dse-global-search-v3-root .dse-global-search-v3-result-icon-bank-statement { -fx-background-color:rgba(20,184,166,.14); -fx-border-color:rgba(45,212,191,.23); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-sales-returns,.dse-global-search-v3-root .dse-global-search-v3-result-icon-payments { -fx-background-color:rgba(34,197,94,.13); -fx-border-color:rgba(74,222,128,.23); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-purchase-returns { -fx-background-color:rgba(20,184,166,.14); -fx-border-color:rgba(45,212,191,.23); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-bank-expense-entries,.dse-global-search-v3-root .dse-global-search-v3-result-icon-users { -fx-background-color:rgba(236,72,153,.13); -fx-border-color:rgba(244,114,182,.23); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-reminders,.dse-global-search-v3-root .dse-global-search-v3-result-icon-inventory-adjustments { -fx-background-color:rgba(249,115,22,.13); -fx-border-color:rgba(251,146,60,.23); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-communications { -fx-background-color:rgba(99,102,241,.13); -fx-border-color:rgba(165,180,252,.23); }
+.dse-global-search-v3-root .dse-global-search-v3-result-icon-master-data { -fx-background-color:rgba(168,85,247,.13); -fx-border-color:rgba(192,132,252,.23); }
+.dse-global-search-v3-root .dse-global-search-v3-ref { -fx-text-fill:-color-text; -fx-font-weight:800; -fx-font-size:14px; }
+.dse-global-search-v3-root .dse-global-search-v3-desc { -fx-text-fill:-color-text-secondary; -fx-font-size:13px; -fx-font-weight:600; }
+.dse-global-search-v3-root .dse-global-search-v3-separator { -fx-background-color:rgba(148,163,184,.16); }
+.dse-global-search-v3-root .dse-global-search-v3-token { -fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:650; }
+.dse-global-search-v3-root .dse-global-search-v3-token-accent { -fx-text-fill:#a5b4fc; }
+.dse-global-search-v3-root .dse-global-search-v3-token-date { -fx-text-fill:#38bdf8; }
+.dse-global-search-v3-root .dse-global-search-v3-token-email { -fx-text-fill:#60a5fa; }
+.dse-global-search-v3-root .dse-global-search-v3-token-phone { -fx-text-fill:#c084fc; }
+.dse-global-search-v3-root .dse-global-search-v3-pill-stock,.dse-global-search-v3-root .dse-global-search-v3-pill-warning,.dse-global-search-v3-root .dse-global-search-v3-pill-success,.dse-global-search-v3-root .dse-global-search-v3-pill-danger,.dse-global-search-v3-root .dse-global-search-v3-pill-money { -fx-padding:4 8; -fx-background-radius:5; -fx-font-weight:800; }
+.dse-global-search-v3-root .dse-global-search-v3-pill-stock,.dse-global-search-v3-root .dse-global-search-v3-pill-warning { -fx-text-fill:#fbbf24; -fx-background-color:rgba(245,158,11,.13); }
+.dse-global-search-v3-root .dse-global-search-v3-pill-success,.dse-global-search-v3-root .dse-global-search-v3-pill-money { -fx-text-fill:#4ade80; -fx-background-color:rgba(34,197,94,.12); }
+.dse-global-search-v3-root .dse-global-search-v3-pill-danger { -fx-text-fill:#fb7185; -fx-background-color:rgba(244,63,94,.12); }
+.dse-global-search-v3-root .dse-global-search-v3-view { -fx-background-color:linear-gradient(to bottom right,rgba(37,99,235,.75),rgba(79,70,229,.70)); -fx-border-color:#3b82f6; -fx-padding:7 12; -fx-font-size:12px; -fx-effect:null; }
+.dse-global-search-v3-root .dse-global-search-v3-view:hover { -fx-background-color:linear-gradient(to bottom right,#2563eb,#4f46e5); -fx-effect:dropshadow(gaussian,rgba(37,99,235,.30),9,.15,0,1); }
+.dse-global-search-v3-root .dse-global-search-v3-empty { -fx-text-fill:-color-muted; -fx-padding:36; -fx-font-size:14px; }

@@ -4,7 +4,7 @@
   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
     <StackPane styleClass="erp-page-header-icon,user-access-header-icon"><Label text="♜" styleClass="erp-page-header-symbol"/></StackPane>
-    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Role Management" styleClass="screen-title"/><Label text="Review the protected business roles used by authentication and access control" styleClass="screen-subtitle"/></VBox>
+    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Role Management" styleClass="screen-title"/><Label text="Role definitions come from Master Data → Role; this page shows assignments and permission access" styleClass="screen-subtitle"/></VBox>
     <Button text="Back to Users" onAction="#back" styleClass="approved-button,approved-secondary-button"/>
     <Button text="Permission Matrix" onAction="#openPermissions" styleClass="primary-button"/>
   </HBox>
@@ -14,8 +14,8 @@
     <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-purple" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="✓"/></StackPane><VBox spacing="3"><Label text="Protected Roles" styleClass="metric-title"/><Label fx:id="lblCustom" text="0" styleClass="metric-value"/></VBox></HBox>
   </HBox>
   <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="user-access-card,ua-full-card">
-    <HBox alignment="CENTER_LEFT"><VBox><Label text="Built-in Roles" styleClass="section-title"/><Label text="ADMIN, MANAGER and SALES are protected role identities; descriptions and permissions remain configurable." styleClass="muted-label"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/></HBox>
+    <HBox alignment="CENTER_LEFT"><VBox><Label text="Role Master Snapshot" styleClass="section-title"/><Label text="Role codes and display names are owned by Master Data → Role. Permission assignments remain here." styleClass="muted-label"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/></HBox>
     <TableView fx:id="roleTable" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-administration"><columns><TableColumn fx:id="colName" text="Role Name"/><TableColumn fx:id="colDescription" text="Description"/><TableColumn fx:id="colUsers" text="Users"/><TableColumn fx:id="colStatus" text="Status"/></columns></TableView>
-    <HBox alignment="CENTER_RIGHT" spacing="8"><Label text="Role names are protected to keep login and server authorization consistent." styleClass="muted-label"/><Region HBox.hgrow="ALWAYS"/><Button text="Edit Description" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/><Button text="Manage Permissions" onAction="#openPermissions" styleClass="primary-button"/></HBox>
+    <HBox alignment="CENTER_RIGHT" spacing="8"><Label text="Edit role definitions in Master Data → Role so Login, User Access and permissions use one source." styleClass="muted-label"/><Region HBox.hgrow="ALWAYS"/><Button text="Open Role Master" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/><Button text="Manage Permissions" onAction="#openPermissions" styleClass="primary-button"/></HBox>
   </VBox>
 </VBox>

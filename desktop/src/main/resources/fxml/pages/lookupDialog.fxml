@@ -17,13 +17,14 @@
                     <ColumnConstraints minWidth="145" prefWidth="145"/>
                     <ColumnConstraints minWidth="420" hgrow="ALWAYS"/>
                 </columnConstraints>
-                <Label text="Code *" styleClass="field-label" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <Label fx:id="lblCodeLabel" text="Code *" styleClass="field-label" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
                 <VBox spacing="5" GridPane.rowIndex="0" GridPane.columnIndex="1">
                     <TextField fx:id="txtCode" editable="false" promptText="Auto generated" styleClass="readonly-field"/>
+                    <Label fx:id="lblCodeHint" text="System-generated master identifier" styleClass="entity-dialog-subtitle"/>
                     <Label fx:id="errCode" managed="false" visible="false" styleClass="validation-message"/>
                 </VBox>
 
-                <Label text="Value *" styleClass="field-label" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <Label fx:id="lblValueLabel" text="Value *" styleClass="field-label" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                 <VBox spacing="5" GridPane.rowIndex="1" GridPane.columnIndex="1">
                     <TextField fx:id="txtValue" promptText="Enter a meaningful value" styleClass="approved-input"/>
                     <Label fx:id="errValue" managed="false" visible="false" styleClass="validation-message"/>

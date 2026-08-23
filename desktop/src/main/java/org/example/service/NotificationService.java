@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.api.insights.InsightsApiClient;
 import org.example.config.ConfigManager;
+import org.example.api.support.SupportApiClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.regex.Pattern;
 public final class NotificationService {
     public enum Category {
         SALES, PURCHASES, QUOTATIONS, RETURNS, PAYMENTS, INVENTORY,
-        REMINDERS, COMMUNICATION, BACKUP, UPDATE, SECURITY, SYSTEM
+        REMINDERS, COMMUNICATION, APPROVAL, BACKUP, UPDATE, SECURITY, SYSTEM
     }
 
     public record NotificationItem(long id, String title, String message, String severity, String category,
@@ -23,11 +24,13 @@ public final class NotificationService {
                                    long createdAt) {
         @Override public String toString() { return title + "\n" + message; }
     }
+    public record ResolvedLink(boolean found,String moduleKey,Long recordId,String reference,String targetFxml){}
 
     private static final InsightsApiClient API = new InsightsApiClient();
+    private static final SupportApiClient SUPPORT = new SupportApiClient();
     private NotificationService() {}
 
-    public static void add(String s) { if (s != null) createNotification("Notification", s, "INFO"); }
+    public static void add(String s) { if (s != null) createNotification("", s, "INFO"); }
     public static void createNotification(String title, String message, String severity) {
         createNotification(title, message, severity, null, null);
     }
@@ -57,7 +60,7 @@ public final class NotificationService {
             case SALES -> "sales"; case PURCHASES -> "purchases"; case QUOTATIONS -> "quotations";
             case RETURNS -> "returns"; case PAYMENTS -> "payments"; case INVENTORY -> "inventory";
             case REMINDERS -> "reminders"; case COMMUNICATION -> "communication";
-            case BACKUP, UPDATE, SECURITY, SYSTEM -> "system";
+            case APPROVAL -> "system"; case BACKUP, UPDATE, SECURITY, SYSTEM -> "system";
         };
         return Boolean.parseBoolean(ConfigManager.get("notifications.category." + key, "true"));
     }
@@ -70,6 +73,7 @@ public final class NotificationService {
         if (text.contains("stock") || text.contains("inventory") || text.contains("item")) return Category.INVENTORY;
         if (text.contains("reminder") || text.contains("follow-up") || text.contains("follow up")) return Category.REMINDERS;
         if (text.contains("email") || text.contains("whatsapp") || text.contains("communication")) return Category.COMMUNICATION;
+        if (text.contains("approval") || text.contains("approve")) return Category.APPROVAL;
         if (text.contains("backup") || text.contains("restore")) return Category.BACKUP;
         if (text.contains("update")) return Category.UPDATE;
         if (text.contains("security") || text.contains("login") || text.contains("password")) return Category.SECURITY;
@@ -104,6 +108,7 @@ public final class NotificationService {
                 case INVENTORY -> lower.contains("stock") ? "/fxml/pages/Inventory.fxml" : "/fxml/pages/ItemMaster.fxml";
                 case REMINDERS -> "/fxml/pages/ReminderCenter.fxml";
                 case COMMUNICATION -> "/fxml/pages/CommunicationCenter.fxml";
+                case APPROVAL -> lower.contains("purchase") ? "/fxml/pages/PurchaseList.fxml" : "/fxml/pages/SalesList.fxml";
                 case BACKUP -> "/fxml/pages/BackupRestore.fxml";
                 case UPDATE -> "/fxml/pages/Settings.fxml";
                 case SECURITY -> lower.contains("profile") || lower.contains("your account")
@@ -154,6 +159,20 @@ public final class NotificationService {
             }).toList();
         } catch (Exception ex) { ex.printStackTrace(); return List.of(); }
     }
+
+    public static ResolvedLink resolveExact(NotificationItem item) {
+        if (item == null) return new ResolvedLink(false, "", null, "", "");
+        if (item.recordId() != null) return new ResolvedLink(true, safe(item.moduleKey()), item.recordId(), safe(item.referenceNo()), safe(item.targetFxml()));
+        String ref=safe(item.referenceNo()).trim(); if(ref.isBlank()) return new ResolvedLink(false,safe(item.moduleKey()),null,"",safe(item.targetFxml()));
+        try {
+            SupportApiClient.ResolvedRecord r=SUPPORT.resolveRecord(safe(item.moduleKey()),ref);
+            if(r==null)return new ResolvedLink(false,safe(item.moduleKey()),null,ref,safe(item.targetFxml()));
+            return new ResolvedLink(r.found(),r.moduleKey(),r.recordId(),r.reference(),r.targetFxml());
+        } catch(Exception ex) {
+            return new ResolvedLink(false,safe(item.moduleKey()),null,ref,safe(item.targetFxml()));
+        }
+    }
+
     public static int unreadCount() { try { return (int) API.unreadCount(); } catch (Exception ex) { ex.printStackTrace(); return 0; } }
     public static void markRead(long id) { API.markRead(id); }
     public static void markUnread(long id) { API.markUnread(id); }

@@ -4,52 +4,74 @@
 <?import javafx.scene.layout.*?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.NotificationCenterController"
-            styleClass="erp-screen-root,dse-notification-page,dse-notify-v2-page">
+            styleClass="dse-notification-v3-root" stylesheets="@../../css/notification-center-v3.css">
   <top>
-    <VBox spacing="10" styleClass="dse-notify-v2-header">
-      <padding><Insets top="14" right="16" bottom="10" left="16"/></padding>
-      <HBox alignment="CENTER_LEFT" spacing="10">
-        <VBox spacing="2" HBox.hgrow="ALWAYS">
-          <Label text="Notification Center" styleClass="page-title,dse-notify-page-title"/>
-          <Label text="Review alerts, take action and travel directly to the exact related ERP record." styleClass="muted-label"/>
+    <VBox spacing="9" styleClass="dse-notification-v3-top">
+      <padding><Insets top="10" right="14" bottom="7" left="14"/></padding>
+      <HBox alignment="CENTER_LEFT" spacing="11">
+        <StackPane fx:id="notificationHeaderIcon" minWidth="42" prefWidth="42" maxWidth="42" minHeight="42" prefHeight="42" maxHeight="42" styleClass="dse-notification-v3-header-icon"/>
+        <VBox spacing="1" HBox.hgrow="ALWAYS">
+          <Label text="Notification Center" styleClass="dse-notification-v3-title"/>
+          <Label text="Review alerts, take action and travel directly to the exact related ERP record." styleClass="dse-notification-v3-subtitle"/>
         </VBox>
-        <Button text="Mark All Read" onAction="#markAllRead" styleClass="approved-button,approved-secondary-button"/>
-        <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+        <Button fx:id="btnMarkAllRead" text="Mark All Read" onAction="#markAllRead" styleClass="dse-notification-v3-mark-all"/>
+        <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="dse-notification-v3-refresh"/>
+        <Button fx:id="btnClearHistory" text="Clear History" onAction="#clearHistory" styleClass="dse-notification-v3-clear-history"/>
       </HBox>
-      <HBox spacing="10" alignment="CENTER_LEFT">
-        <TextField fx:id="txtNotificationSearch" promptText="Search notification, reference, module or message…" HBox.hgrow="ALWAYS" styleClass="dse-notify-search"/>
-        <Label fx:id="lblNotificationCount" styleClass="dse-notify-count"/>
+      <HBox spacing="9" alignment="CENTER_LEFT" styleClass="dse-notification-v3-search-shell">
+        <Label text="⌕" styleClass="dse-notification-v3-search-icon"/>
+        <TextField fx:id="txtNotificationSearch" promptText="Search notification, reference, module or message…" HBox.hgrow="ALWAYS" styleClass="dse-notification-v3-search"/>
+        <Label fx:id="lblNotificationCount" styleClass="dse-notification-v3-count-strip"/>
       </HBox>
-      <HBox spacing="10" styleClass="dse-notify-summary-row">
-        <VBox spacing="2" HBox.hgrow="ALWAYS" styleClass="dse-notify-summary-card,dse-notify-summary-all"><Label text="All" styleClass="dse-notify-summary-label"/><Label fx:id="lblAllCount" text="0" styleClass="dse-notify-summary-value"/></VBox>
-        <VBox spacing="2" HBox.hgrow="ALWAYS" styleClass="dse-notify-summary-card,dse-notify-summary-unread"><Label text="Unread" styleClass="dse-notify-summary-label"/><Label fx:id="lblUnreadCount" text="0" styleClass="dse-notify-summary-value"/></VBox>
-        <VBox spacing="2" HBox.hgrow="ALWAYS" styleClass="dse-notify-summary-card,dse-notify-summary-action"><Label text="Action Needed" styleClass="dse-notify-summary-label"/><Label fx:id="lblActionCount" text="0" styleClass="dse-notify-summary-value"/></VBox>
+      <HBox spacing="10" styleClass="dse-notification-v3-summary-row">
+        <HBox spacing="12" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="dse-notification-v3-summary-card,dse-notification-v3-summary-all">
+          <StackPane fx:id="allSummaryIcon" minWidth="44" prefWidth="44" maxWidth="44" minHeight="44" prefHeight="44" maxHeight="44" styleClass="dse-notification-v3-summary-icon"/>
+          <VBox spacing="0"><Label text="All" styleClass="dse-notification-v3-summary-label"/><Label fx:id="lblAllCount" text="0" styleClass="dse-notification-v3-summary-value"/></VBox>
+        </HBox>
+        <HBox spacing="12" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="dse-notification-v3-summary-card,dse-notification-v3-summary-unread">
+          <StackPane fx:id="unreadSummaryIcon" minWidth="44" prefWidth="44" maxWidth="44" minHeight="44" prefHeight="44" maxHeight="44" styleClass="dse-notification-v3-summary-icon"/>
+          <VBox spacing="0"><Label text="Unread" styleClass="dse-notification-v3-summary-label"/><Label fx:id="lblUnreadCount" text="0" styleClass="dse-notification-v3-summary-value"/></VBox>
+        </HBox>
+        <HBox spacing="12" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="dse-notification-v3-summary-card,dse-notification-v3-summary-action">
+          <StackPane fx:id="actionSummaryIcon" minWidth="44" prefWidth="44" maxWidth="44" minHeight="44" prefHeight="44" maxHeight="44" styleClass="dse-notification-v3-summary-icon"/>
+          <VBox spacing="0"><Label text="Action Needed" styleClass="dse-notification-v3-summary-label"/><Label fx:id="lblActionCount" text="0" styleClass="dse-notification-v3-summary-value"/></VBox>
+        </HBox>
       </HBox>
     </VBox>
   </top>
   <center>
-    <HBox spacing="12" styleClass="dse-notify-v2-body">
-      <padding><Insets top="2" right="16" bottom="14" left="16"/></padding>
-      <VBox spacing="8" prefWidth="215" minWidth="195" maxWidth="235" styleClass="dse-notify-category-rail">
-        <Label text="FILTERS" styleClass="dse-notify-rail-eyebrow"/>
-        <Label text="Categories" styleClass="dse-notify-rail-title"/>
-        <ListView fx:id="listNotificationCategories" VBox.vgrow="ALWAYS" styleClass="dse-notify-category-list"/>
+    <HBox spacing="11" styleClass="dse-notification-v3-body">
+      <padding><Insets top="2" right="14" bottom="10" left="14"/></padding>
+      <VBox spacing="6" prefWidth="200" minWidth="185" maxWidth="215" styleClass="dse-notification-v3-category-rail">
+        <Label text="FILTERS" styleClass="dse-notification-v3-eyebrow"/>
+        <Label text="Categories" styleClass="dse-notification-v3-rail-title"/>
+        <ListView fx:id="listNotificationCategories" VBox.vgrow="ALWAYS" styleClass="dse-notification-v3-category-list"/>
       </VBox>
-      <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="360" styleClass="dse-notify-list-card,dse-notify-v2-list-card">
-        <HBox alignment="CENTER_LEFT"><Label text="Notifications" styleClass="dse-notify-list-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Double-click to open linked record" styleClass="muted-label"/></HBox>
-        <ListView fx:id="listNotifications" VBox.vgrow="ALWAYS" styleClass="dse-notify-list,dse-notify-v2-list"/>
+      <VBox spacing="5" HBox.hgrow="ALWAYS" minWidth="420" styleClass="dse-notification-v3-list-shell">
+        <HBox alignment="CENTER_LEFT" styleClass="dse-notification-v3-list-toolbar">
+          <Label text="Notifications" styleClass="dse-notification-v3-list-title"/>
+          <Region HBox.hgrow="ALWAYS"/>
+          <Label text="Double-click to open linked record  ⓘ" styleClass="dse-notification-v3-list-hint"/>
+        </HBox>
+        <ListView fx:id="listNotifications" VBox.vgrow="ALWAYS" styleClass="dse-notification-v3-list"/>
       </VBox>
-      <VBox spacing="12" prefWidth="355" minWidth="320" maxWidth="390" styleClass="dse-notify-detail,dse-notify-v2-detail">
-        <Label text="Notification Details" styleClass="drawer-section"/>
-        <Label fx:id="lblDetailTitle" text="Select a notification" wrapText="true" styleClass="dse-notify-detail-title"/>
-        <Label fx:id="lblDetailMessage" wrapText="true" styleClass="dse-notify-detail-message"/>
-        <Label fx:id="lblDetailMeta" wrapText="true" styleClass="dse-notify-detail-meta"/>
-        <Label fx:id="lblDetailReference" wrapText="true" styleClass="dse-notify-detail-reference"/>
+      <VBox spacing="11" prefWidth="330" minWidth="315" maxWidth="365" styleClass="dse-notification-v3-detail">
+        <HBox spacing="8" alignment="CENTER_LEFT">
+          <StackPane fx:id="detailIcon" minWidth="36" prefWidth="36" maxWidth="36" minHeight="36" prefHeight="36" maxHeight="36" styleClass="dse-notification-v3-detail-icon"/>
+          <Label text="Notification Details" styleClass="dse-notification-v3-detail-heading"/>
+        </HBox>
+        <VBox spacing="10" styleClass="dse-notification-v3-detail-card">
+          <Label fx:id="lblDetailTitle" text="Select a notification" wrapText="true" styleClass="dse-notification-v3-detail-title"/>
+          <Label fx:id="lblDetailMessage" wrapText="true" styleClass="dse-notification-v3-detail-message"/>
+          <Separator/>
+          <Label fx:id="lblDetailMeta" wrapText="true" styleClass="dse-notification-v3-detail-meta"/>
+          <Label fx:id="lblDetailReference" wrapText="true" styleClass="dse-notification-v3-detail-reference"/>
+        </VBox>
         <Region VBox.vgrow="ALWAYS"/>
-        <Button fx:id="btnOpenRecord" text="Open Record" onAction="#openRecord" maxWidth="Infinity" styleClass="approved-button,approved-primary-button,dse-notify-open-record"/>
+        <Button fx:id="btnOpenRecord" text="Open Record" onAction="#openRecord" maxWidth="Infinity" styleClass="dse-notification-v3-open"/>
         <HBox spacing="8">
-          <Button fx:id="btnToggleRead" text="Mark Read" onAction="#toggleRead" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-          <Button fx:id="btnDeleteNotification" text="Dismiss" onAction="#deleteSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/>
+          <Button fx:id="btnToggleRead" text="Mark Read" onAction="#toggleRead" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="dse-notification-v3-read"/>
+          <Button fx:id="btnDeleteNotification" text="Dismiss" onAction="#deleteSelected" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="dse-notification-v3-dismiss"/>
         </HBox>
       </VBox>
     </HBox>

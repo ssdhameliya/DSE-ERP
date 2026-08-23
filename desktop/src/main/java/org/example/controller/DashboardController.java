@@ -408,10 +408,15 @@ public class DashboardController {
 
     private void handleDynamicShortcut(KeyEvent event) {
         if (event == null || event.isConsumed() || ShortcutRegistry.isEditorTarget(event.getTarget())) return;
-        for (Action action : ShortcutRegistry.actions(ShortcutRegistry.Scope.GLOBAL)) {
+        // Shell-owned actions are catalog entries whose product/default scope is global. Users may
+        // narrow those actions to a module/screen; configured scope is checked before execution.
+        for (Action action : ShortcutRegistry.actions()) {
+            if (action.scope() == ShortcutRegistry.Scope.PDF_STUDIO || action.scope() == ShortcutRegistry.Scope.EXCEL_STUDIO) continue;
             if (!ShortcutRegistry.matches(event, action)) continue;
-            if (event.getTarget() instanceof TextInputControl && java.util.Set.of(Action.OPEN_SELECTED, Action.DELETE_SELECTED, Action.CLOSE_BACK).contains(action)) continue;
-            if (ShortcutRegistry.permitted(action)) runShortcutAction(action);
+            if (!ShortcutRegistry.permitted(action) || !ShortcutRegistry.scopeActive(action, event.getTarget())) continue;
+            if (ShortcutRegistry.textInputBlocked(action, event.getTarget())) continue;
+            if (ShortcutRegistry.requireSelection(action) && !ApplicationCommandDispatcher.hasSelection()) continue;
+            runShortcutAction(action);
             event.consume();
             return;
         }
@@ -420,14 +425,53 @@ public class DashboardController {
     private void runShortcutAction(Action action) {
         switch (action) {
             case GLOBAL_SEARCH -> { txtSearch.requestFocus(); txtSearch.selectAll(); }
-            case SAVE_CURRENT, EDIT_CURRENT, REFRESH_CURRENT, NEW_CURRENT, OPEN_SELECTED, DELETE_SELECTED, PRINT_CURRENT, EXPORT_CURRENT, CLOSE_BACK -> ApplicationCommandDispatcher.execute(action);
+            case SAVE_CURRENT, EDIT_CURRENT, REFRESH_CURRENT, NEW_CURRENT, OPEN_SELECTED, DELETE_SELECTED, PRINT_CURRENT, EXPORT_CURRENT, CLOSE_BACK,
+                 MASTER_DELETE, MASTER_EDIT, MASTER_REFRESH, MASTER_NEW -> ApplicationCommandDispatcher.execute(action);
             case NEW_SALE -> createSale();
+            case NEW_PURCHASE -> createPurchase();
             case NEW_QUOTATION -> createQuotationFromShortcut();
+            case NEW_CUSTOMER -> { openCustomers(); ApplicationCommandDispatcher.execute(Action.NEW_CURRENT); }
+            case NEW_SUPPLIER -> { openSupplier(); ApplicationCommandDispatcher.execute(Action.NEW_CURRENT); }
+            case NEW_MASTER -> { openMasters(); ApplicationCommandDispatcher.execute(Action.MASTER_NEW); }
+            case DASHBOARD -> openDashboard();
+            case SALES_REGISTER -> openSales();
+            case SALES_RETURN -> openReturns();
+            case QUOTATION_REGISTER -> openQuotations();
+            case PURCHASE_REGISTER -> openPurchase();
+            case PURCHASE_RETURN -> openPurchaseReturns();
             case ITEM_MASTER -> openItemMaster();
+            case INVENTORY -> openInventory();
+            case CUSTOMERS -> openCustomers();
+            case SUPPLIERS -> openSupplier();
             case MASTERS -> openMasters();
             case BANK_STATEMENT -> openBankStatement();
             case BANK_ENTRY -> openBankEntry();
             case EXPENSE_ENTRY -> openExpenseEntry();
+            case REMINDERS -> openReminderCenter();
+            case USER_ACCESS -> openUserAccess();
+            case NOTIFICATION_CENTER -> showNotifications();
+            case MY_PROFILE -> showProfile();
+            case CHANGE_PASSWORD -> changePassword();
+            case TOGGLE_THEME -> toggleTheme();
+            case SHORTCUT_HELP -> showShortcutInfo();
+            case LOGOUT -> logout();
+            case REPORTS -> openReports();
+            case DATA_IMPORT -> openImport();
+            case COMMUNICATION -> openCommunication();
+            case EMAIL_CENTER -> openEmailCenter();
+            case WHATSAPP_CENTER -> openWhatsappCenter();
+            case PDF_STUDIO_OPEN -> openPdfStudio();
+            case EXCEL_STUDIO_OPEN -> openExcelStudio();
+            case BACKUP_RESTORE -> openBackup();
+            case SAFE_ROLLBACK -> openSafeRollback();
+            case SETTINGS_COMPANY -> openSettingsCompany();
+            case SETTINGS_PAYMENT -> openSettingsPayment();
+            case SETTINGS_INVOICE -> openSettingsInvoice();
+            case SETTINGS_NOTIFICATIONS -> openSettingsNotifications();
+            case SETTINGS_EMAIL -> openSettingsEmail();
+            case SETTINGS_WORKSPACE -> openSettingsWorkspace();
+            case SETTINGS_SHORTCUTS -> openSettingsShortcuts();
+            case SETTINGS_UPDATES -> openSettingsUpdates();
             default -> { }
         }
     }

@@ -7,6 +7,7 @@ public final class SupportDtos { private SupportDtos(){}
  public record CommunicationRow(int id,String entityType,int entityId,String documentLabel,String channel,String recipient,String subject,String status,String errorMessage,String createdBy,String createdAt){}
  public record CommunicationRequest(String entityType,int entityId,String channel,String recipient,String subject,String status,String errorMessage,String createdBy){}
  public record SearchRow(String module,String moduleKey,Long recordId,String reference,String description,String detail,String targetFxml,String permission){}
+ public record ResolvedRecord(boolean found,String moduleKey,Long recordId,String reference,String targetFxml){}
  public record ReportSummary(double salesTotal,double purchaseTotal,double stockValue,List<List<String>> salesByCustomer,List<List<String>> purchasesBySupplier,List<List<String>> lowStock){}
  public record Setting(String key,String value){} public record BackupMeta(String fileName,String source,String integrityStatus,Integer schemaVersion,String applicationId,long fileSize){}
  public record AttachmentFile(String fileName,byte[] data){}

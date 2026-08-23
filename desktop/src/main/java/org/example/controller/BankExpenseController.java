@@ -145,6 +145,14 @@ public class BankExpenseController implements ScreenLifecycle {
 
     @Override
     public void onScreenShown(boolean reusedFromCache) {
+        LinkedRecordContext.Target linkedTarget=LinkedRecordContext.consume("FINANCE");
+        if(linkedTarget!=null && linkedTarget.recordId()!=null){
+            int linkedId=linkedTarget.recordId();
+            try{
+                var entry=financeService.getAll().stream().filter(x->x.id()!=null&&x.id()==linkedId).findFirst().orElse(null);
+                if(entry!=null){String type=safe(entry.voucherType(),"").toUpperCase(Locale.ROOT);requestedMode=type.contains("EXPENSE")?Mode.EXPENSE:Mode.BANK;requestedLinkedEntryId=linkedId;}
+            }catch(Exception ignored){requestedLinkedEntryId=linkedId;}
+        }
         // BankExpense.fxml is intentionally cached. On reuse, refresh the master
         // values and consume the navigation request so the cached controller cannot
         // keep whichever tab happened to be open previously.

@@ -14,7 +14,7 @@ public class LookupDialogController {
     @FXML private TextArea txtDescription;
     @FXML private Spinner<Integer> spnOrder;
     @FXML private CheckBox chkActive;
-    @FXML private Label lblTitle, lblSubtitle, errCode, errValue;
+    @FXML private Label lblTitle, lblSubtitle, lblCodeLabel, lblValueLabel, lblCodeHint, errCode, errValue;
     @FXML private Button btnSave, btnCancel;
     @FXML private StackPane headerIconHolder;
 
@@ -36,7 +36,12 @@ public class LookupDialogController {
         this.lookupType = type;
         txtCode.setText(service.generateNextCode(type));
         lblTitle.setText("Add Master");
-        lblSubtitle.setText("Add a reusable value to " + type);
+        boolean role = "ROLE".equalsIgnoreCase(type == null ? "" : type.trim());
+        lblSubtitle.setText(role ? "Add an application role. The Role Name is the value used by Login, User Access and Permissions." : "Add a reusable value to " + type);
+        if (lblCodeLabel != null) lblCodeLabel.setText(role ? "Master ID" : "Code *");
+        if (lblValueLabel != null) lblValueLabel.setText(role ? "Role Name *" : "Value *");
+        if (lblCodeHint != null) lblCodeHint.setText(role ? "Technical ID only — not used for role validation" : "System-generated master identifier");
+        txtValue.setPromptText(role ? "Example: Purchase" : "Enter a meaningful value");
         btnSave.setText("Save Master");
     }
 
@@ -49,7 +54,11 @@ public class LookupDialogController {
         spnOrder.getValueFactory().setValue(lookup.getDisplayOrder());
         chkActive.setSelected(lookup.isActive());
         lblTitle.setText("Edit Master");
-        lblSubtitle.setText("Update the selected " + lookupType + " value");
+        boolean role = "ROLE".equalsIgnoreCase(lookupType == null ? "" : lookupType.trim());
+        lblSubtitle.setText(role ? "Update the Role Name. Assigned users and permissions are migrated atomically when a role is renamed." : "Update the selected " + lookupType + " value");
+        if (lblCodeLabel != null) lblCodeLabel.setText(role ? "Master ID" : "Code *");
+        if (lblValueLabel != null) lblValueLabel.setText(role ? "Role Name *" : "Value *");
+        if (lblCodeHint != null) lblCodeHint.setText(role ? "Technical ID only — not used for role validation" : "System-generated master identifier");
         btnSave.setText("Update Master");
     }
 

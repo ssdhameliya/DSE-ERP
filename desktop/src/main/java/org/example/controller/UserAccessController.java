@@ -23,6 +23,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import org.example.api.admin.AdminApiClient;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
@@ -61,6 +62,7 @@ public class UserAccessController {
     private final ObservableList<RoleRow> roles=FXCollections.observableArrayList();
     private final ObservableList<PermissionRow> permissions=FXCollections.observableArrayList();
     private final AdminApiClient adminApi=new AdminApiClient();
+    private final Map<String,String> roleDisplayNames=new LinkedHashMap<>();
     private FilteredList<UserRow> filtered;
 
     @FXML public void initialize(){
@@ -68,6 +70,7 @@ public class UserAccessController {
         installKpiIcons();
         configureUserTable(); configureRoleTable(); configurePermissionTable(); configureIcons();
         cmbStatus.getItems().setAll("All Statuses","Active","Inactive","Locked"); cmbStatus.setValue("All Statuses");
+        cmbPermissionRole.setConverter(new StringConverter<>() { public String toString(String code){return code==null?"":roleDisplayNames.getOrDefault(code.toUpperCase(Locale.ROOT),code);} public String fromString(String value){return value;} });
         filtered=new FilteredList<>(users,r->true); table.setItems(filtered); roleTable.setItems(roles); permissionTable.setItems(permissions);
         txtSearch.textProperty().addListener((o,a,b)->filter()); cmbRole.valueProperty().addListener((o,a,b)->filter());
         cmbStatus.valueProperty().addListener((o,a,b)->filter()); cmbBranch.valueProperty().addListener((o,a,b)->filter());
@@ -95,7 +98,7 @@ public class UserAccessController {
         colRoleName.setCellValueFactory(v->v.getValue().name); colRoleDescription.setCellValueFactory(v->v.getValue().description);
         colRoleUsers.setCellValueFactory(v->v.getValue().users); colRoleStatus.setCellValueFactory(v->v.getValue().status); colRoleActions.setCellFactory(c->roleActionCell());
         colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78);
-        roleTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null){cmbPermissionRole.setValue(b.name.get());lblRoleHint.setText(b.description.get());}});
+        roleTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null){cmbPermissionRole.setValue(b.code);lblRoleHint.setText(b.description.get());}});
     }
     private void configurePermissionTable(){
         colPermissionModule.setCellValueFactory(v->v.getValue().module); colPermissionAction.setCellValueFactory(v->v.getValue().action);
@@ -103,15 +106,15 @@ public class UserAccessController {
         colPermissionAllowed.setCellFactory(CheckBoxTableCell.forTableColumn(colPermissionAllowed)); colPermissionAllowed.setEditable(true); permissionTable.setEditable(true);
     }
 
-    @FXML private void refresh(){ loadUsers(); loadRoles(); refreshFilters(); updateMetrics(); filter(); }
+    @FXML private void refresh(){ loadRoles(); loadUsers(); refreshFilters(); updateMetrics(); filter(); }
     private void loadUsers(){
         users.clear();
-        try{for(var u:adminApi.users())users.add(new UserRow(u));}
+        try{for(var u:adminApi.users())users.add(new UserRow(u,roleDisplayNames));}
         catch(Exception e){error("Users could not be loaded",e);}
     }
     private void loadRoles(){
-        String selected=cmbPermissionRole.getValue(); roles.clear(); cmbPermissionRole.getItems().clear();
-        try{for(var r:adminApi.roles()){RoleRow row=new RoleRow(r);roles.add(row);cmbPermissionRole.getItems().add(row.name.get());}}
+        String selected=cmbPermissionRole.getValue(); roles.clear(); cmbPermissionRole.getItems().clear(); roleDisplayNames.clear();
+        try{for(var r:adminApi.roles()){RoleRow row=new RoleRow(r);roles.add(row);roleDisplayNames.put(row.code,row.name.get());cmbPermissionRole.getItems().add(row.code);}}
         catch(Exception e){error("Roles could not be loaded",e);}
         if(selected!=null&&cmbPermissionRole.getItems().contains(selected))cmbPermissionRole.setValue(selected); else if(!cmbPermissionRole.getItems().isEmpty())cmbPermissionRole.getSelectionModel().selectFirst();
     }
@@ -142,7 +145,7 @@ public class UserAccessController {
     }
     @FXML private void resetPermissions(){loadPermissions(cmbPermissionRole.getValue());}
     @FXML private void showPermissionMatrix(){ DashboardController.navigateFromChildPage("Permission Matrix", "/fxml/pages/PermissionMatrix.fxml"); }
-    @FXML private void manageRoles(){ DashboardController.navigateFromChildPage("Role Management", "/fxml/pages/RoleManagement.fxml"); }
+    @FXML private void manageRoles(){ openRoleMaster(); }
 
     @FXML private void addUser(){openUserDialog(null);} @FXML private void editSelected(){edit(table.getSelectionModel().getSelectedItem());}
     private void edit(UserRow row){if(row!=null)openUserDialog(row.id);}
@@ -159,17 +162,13 @@ public class UserAccessController {
     private void toggleLock(UserRow row){if(row==null)return;try{adminApi.setLocked(row.id,!row.locked);audit(row.id,row.locked?"USER_UNLOCKED":"USER_LOCKED",row.user.get());refresh();}catch(Exception e){error("Lock status could not be changed",e);}}
     private void deleteUser(UserRow row){if(row==null)return;if("admin".equalsIgnoreCase(row.user.get())){warning("The primary administrator cannot be deleted.");return;}if(!confirm("Delete user '"+row.user.get()+"'?"))return;try{adminApi.deleteUser(row.id);refresh();}catch(Exception e){error("User could not be deleted",e);}}
 
-    @FXML private void addRole(){promptRole(null);} @FXML private void editRole(){promptRole(roleTable.getSelectionModel().getSelectedItem());}
-    private void promptRole(RoleRow existing){
-        Dialog<ButtonType>d=new OwnedDialog<>();d.setTitle(existing==null?"Add Role":"Edit Role");TextField name=new TextField(existing==null?"":existing.name.get());TextArea desc=new TextArea(existing==null?"":existing.description.get());desc.setPrefRowCount(3);CheckBox active=new CheckBox("Active role");active.setSelected(existing==null||existing.active);
-        VBox box=new VBox(10,new Label("Role Name *"),name,new Label("Description *"),desc,active);box.getStyleClass().add("erp-role-dialog");d.getDialogPane().getStyleClass().add("user-role-dialog");d.getDialogPane().setContent(box);ButtonType save=new ButtonType(existing==null?"Save Role":"Update Role",ButtonBar.ButtonData.OK_DONE);d.getDialogPane().getButtonTypes().addAll(save,ButtonType.CANCEL);
-        d.setResultConverter(button->{if(button!=save)return button;if(name.getText().isBlank()||desc.getText().isBlank()){warning("Role name and description are required.");return null;}return button;});
-        d.showAndWait().filter(save::equals).ifPresent(b->{String role=name.getText().trim().toUpperCase(Locale.ROOT);try{adminApi.saveRole(new AdminApiClient.RoleSaveRequest(existing==null?null:existing.id,role,desc.getText().trim(),active.isSelected()));refresh();cmbPermissionRole.setValue(role);}catch(Exception e){error("Role could not be saved",e);}});
-    }
-    @FXML private void deleteRole(){RoleRow row=roleTable.getSelectionModel().getSelectedItem();if(row==null){warning("Select a role first.");return;}if(row.name.get().equalsIgnoreCase("ADMIN")){warning("The ADMIN role cannot be deleted.");return;}if(row.users.get()>0){warning("Move users to another role before deleting this role.");return;}if(!confirm("Delete role '"+row.name.get()+"'?"))return;try{adminApi.deleteRole(row.id);refresh();}catch(Exception e){error("Role could not be deleted",e);}}
+    @FXML private void addRole(){openRoleMaster();}
+    @FXML private void editRole(){openRoleMaster();}
+    @FXML private void deleteRole(){openRoleMaster();}
+    private void openRoleMaster(){ MasterDataController.requestCategory("ROLE"); DashboardController.navigateFromChildPage("Master Data", "/fxml/pages/Masterdata.fxml"); }
 
-    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.role.get());showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
-    private TableCell<RoleRow,Void> roleActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}RoleRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit Role","edit",e->{roleTable.getSelectionModel().select(row);editRole();}),mi("Manage Permissions","permission",e->{cmbPermissionRole.setValue(row.name.get());showPermissionMatrix();}),mi("Delete Role","delete",e->{roleTable.getSelectionModel().select(row);deleteRole();}));setGraphic(menu);}};}
+    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.roleCode);showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
+    private TableCell<RoleRow,Void> roleActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}RoleRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Open in Role Master","master",e->openRoleMaster()),mi("Manage Permissions","permission",e->{cmbPermissionRole.setValue(row.code);showPermissionMatrix();}));setGraphic(menu);}};}
     private MenuButton createActionMenu(){MenuButton m=new MenuButton("Actions");m.setGraphic(IconFactory.compactIcon("actions",15));m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.getStyleClass().add("table-action-menu");IconFactory.decorateActionMenu(m);return m;}
     private MenuItem mi(String text,String icon,javafx.event.EventHandler<javafx.event.ActionEvent>handler){MenuItem i=new MenuItem(text,IconFactory.compactIcon(icon,16));i.setOnAction(handler);return i;}
     private void filter(){String q=txtSearch.getText()==null?"":txtSearch.getText().toLowerCase(Locale.ROOT);filtered.setPredicate(r->{boolean text=q.isBlank()||(r.user.get()+" "+r.fullName+" "+r.email.get()+" "+r.department.get()+" "+r.branch.get()).toLowerCase(Locale.ROOT).contains(q);boolean role=cmbRole.getValue()==null||cmbRole.getValue().startsWith("All")||r.role.get().equals(cmbRole.getValue());boolean status=cmbStatus.getValue()==null||cmbStatus.getValue().startsWith("All")||r.status.get().equals(cmbStatus.getValue());boolean branch=cmbBranch.getValue()==null||cmbBranch.getValue().startsWith("All")||r.branch.get().equals(cmbBranch.getValue());return text&&role&&status&&branch;});}
@@ -182,8 +181,8 @@ public class UserAccessController {
         IconFactory.applyTableHeaderIcon(colRoleName,"role");IconFactory.applyTableHeaderIcon(colRoleDescription,"notes");IconFactory.applyTableHeaderIcon(colRoleUsers,"users");IconFactory.applyTableHeaderIcon(colRoleStatus,"status");IconFactory.applyTableHeaderIcon(colRoleActions,"actions");IconFactory.applyTableHeaderIcon(colPermissionModule,"category");IconFactory.applyTableHeaderIcon(colPermissionAction,"security");IconFactory.applyTableHeaderIcon(colPermissionDescription,"notes");IconFactory.applyTableHeaderIcon(colPermissionAllowed,"complete");
     }
 
-    public static final class UserRow{final int id;final SimpleStringProperty user,email,role,department,access,branch,status,lastLogin,mfa;final String fullName;final boolean active,locked;final java.time.LocalDate lastLoginDate;UserRow(AdminApiClient.UserDto r){id=r.id();user=new SimpleStringProperty(r.username());fullName=blank(r.fullName(),r.username());email=new SimpleStringProperty(blank(r.email(),"—"));role=new SimpleStringProperty(blank(r.role(),"SALES"));department=new SimpleStringProperty(blank(r.department(),"—"));access=new SimpleStringProperty(blank(r.accessLevel(),"STANDARD"));branch=new SimpleStringProperty(blank(r.branch(),"—"));active=r.active();locked=r.locked();status=new SimpleStringProperty(locked?"Locked":active?"Active":"Inactive");lastLoginDate=BusinessClock.localDateOfTimestamp(r.lastLogin());lastLogin=new SimpleStringProperty(blank(r.lastLogin(),"Never").equals("Never")?"Never":BusinessClock.formatTimestamp(r.lastLogin()));mfa=new SimpleStringProperty(r.mfaEnabled()?"Enabled":"—");}}
-    public static final class RoleRow{final int id;final SimpleStringProperty name,description,status;final SimpleIntegerProperty users;final boolean active;RoleRow(AdminApiClient.RoleDto r){id=r.id();name=new SimpleStringProperty(r.name());description=new SimpleStringProperty(blank(r.description(),"No description"));users=new SimpleIntegerProperty((int)r.userCount());active=r.active();status=new SimpleStringProperty(active?"Active":"Inactive");}}
+    public static final class UserRow{final int id;final String roleCode;final SimpleStringProperty user,email,role,department,access,branch,status,lastLogin,mfa;final String fullName;final boolean active,locked;final java.time.LocalDate lastLoginDate;UserRow(AdminApiClient.UserDto r,Map<String,String> roleNames){id=r.id();user=new SimpleStringProperty(r.username());fullName=blank(r.fullName(),r.username());email=new SimpleStringProperty(blank(r.email(),"—"));roleCode=blank(r.role(),"SALES").toUpperCase(Locale.ROOT);role=new SimpleStringProperty(roleNames.getOrDefault(roleCode,roleCode));department=new SimpleStringProperty(blank(r.department(),"—"));access=new SimpleStringProperty(blank(r.accessLevel(),"STANDARD"));branch=new SimpleStringProperty(blank(r.branch(),"—"));active=r.active();locked=r.locked();status=new SimpleStringProperty(locked?"Locked":active?"Active":"Inactive");lastLoginDate=BusinessClock.localDateOfTimestamp(r.lastLogin());lastLogin=new SimpleStringProperty(blank(r.lastLogin(),"Never").equals("Never")?"Never":BusinessClock.formatTimestamp(r.lastLogin()));mfa=new SimpleStringProperty(r.mfaEnabled()?"Enabled":"—");}}
+    public static final class RoleRow{final int id;final String code;final SimpleStringProperty name,description,status;final SimpleIntegerProperty users;final boolean active;RoleRow(AdminApiClient.RoleDto r){id=r.id();code=blank(r.code(),"").toUpperCase(Locale.ROOT);name=new SimpleStringProperty(blank(r.displayName(),code));description=new SimpleStringProperty(blank(r.description(),"No description"));users=new SimpleIntegerProperty((int)r.userCount());active=r.active();status=new SimpleStringProperty(active?"Active":"Inactive");}}
     public static final class PermissionRow{final int id;final SimpleStringProperty module,action,description;final SimpleBooleanProperty allowed;PermissionRow(AdminApiClient.PermissionDto r){id=(int)r.id();module=new SimpleStringProperty(r.module());action=new SimpleStringProperty(r.action());description=new SimpleStringProperty(blank(r.description(),"—"));allowed=new SimpleBooleanProperty(r.allowed());}}
     private static String blank(String v,String fallback){return v==null||v.isBlank()?fallback:v;}
 

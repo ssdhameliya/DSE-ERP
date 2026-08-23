@@ -7,15 +7,16 @@ ON CONFLICT (role_name) DO UPDATE SET active=1;
 
 UPDATE users
 SET role='SALES', role_id=(SELECT id FROM roles WHERE role_name='SALES')
-WHERE UPPER(COALESCE(role,'')) IN ('SALE','USER','VIEWER','PURCHASE')
-   OR role_id IN (SELECT id FROM roles WHERE role_name IN ('SALE','USER','VIEWER','PURCHASE'));
+WHERE UPPER(COALESCE(role,'')) IN ('SALE','USER','VIEWER')
+   OR role_id IN (SELECT id FROM roles WHERE role_name IN ('SALE','USER','VIEWER'));
 
 UPDATE users
 SET role_id=(SELECT id FROM roles WHERE role_name=UPPER(users.role))
 WHERE UPPER(COALESCE(role,'')) IN ('ADMIN','MANAGER','SALES')
   AND role_id IS DISTINCT FROM (SELECT id FROM roles WHERE role_name=UPPER(users.role));
 
-UPDATE roles SET active=0 WHERE role_name NOT IN ('ADMIN','MANAGER','SALES');
+-- Retire only legacy aliases. Custom roles are preserved for the later Role Master migration.
+UPDATE roles SET active=0 WHERE role_name IN ('SALE','USER','VIEWER','ADMINISTRATOR');
 
 -- PostgreSQL REAL is approximate. Financial columns use exact decimal storage;
 -- quantities retain four decimal places for fractional inventory units.

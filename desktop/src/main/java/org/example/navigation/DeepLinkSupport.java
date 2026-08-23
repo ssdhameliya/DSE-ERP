@@ -7,6 +7,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TableRow;
 import javafx.util.Duration;
 import org.example.controller.LinkedRecordContext;
 import org.example.util.PerformanceMonitor;
@@ -40,10 +41,40 @@ public final class DeepLinkSupport {
             typed.getSelectionModel().select(match);
             typed.scrollTo(match);
             typed.requestFocus();
+            pulse(typed);
+            highlight(typed, match);
             LinkedRecordContext.consumeAny();
             PerformanceMonitor.event("linked-navigation", target.module()+" -> "+target.documentNo()+" | generic-table-focus | source="+target.source());
             return;
         }
+    }
+
+
+    public static void highlight(TableView<?> table,Object item) {
+        if(table==null||item==null)return;
+        Platform.runLater(() -> {
+            int index=table.getItems()==null?-1:table.getItems().indexOf(item);
+            if(index<0)return;
+            table.applyCss();
+            for(Node node:table.lookupAll(".table-row-cell")){
+                if(!(node instanceof TableRow<?> row)||row.getIndex()!=index)continue;
+                if(!row.getStyleClass().contains("dse-linked-record-highlight"))row.getStyleClass().add("dse-linked-record-highlight");
+                PauseTransition clear=new PauseTransition(Duration.seconds(2.4));
+                clear.setOnFinished(e->row.getStyleClass().remove("dse-linked-record-highlight"));
+                clear.play();
+                break;
+            }
+        });
+    }
+
+    /** Briefly emphasizes the exact linked table row without changing persistent screen styling. */
+    public static void pulse(TableView<?> table) {
+        if (table == null) return;
+        String css="dse-linked-record-focus";
+        if(!table.getStyleClass().contains(css))table.getStyleClass().add(css);
+        PauseTransition clear=new PauseTransition(Duration.seconds(2.2));
+        clear.setOnFinished(e->table.getStyleClass().remove(css));
+        clear.play();
     }
 
     private static Object findMatch(TableView<?> table, LinkedRecordContext.Target target) {
