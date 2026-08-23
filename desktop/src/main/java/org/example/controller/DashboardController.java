@@ -71,6 +71,7 @@ import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
+import org.example.update.UpdateDialogs;
 
 public class DashboardController {
     private static volatile DashboardController CURRENT;
@@ -214,7 +215,11 @@ public class DashboardController {
             if (lblSidebarUser != null) lblSidebarUser.setText(SessionService.current().getFullName());
         }
         configureProfileMenuIcons();
-        Platform.runLater(this::bindShellControls);
+        Platform.runLater(() -> {
+            bindShellControls();
+            if (contentPane != null && contentPane.getScene() != null)
+                UpdateDialogs.showWhatsNewOnce(contentPane.getScene().getWindow());
+        });
         applyRolePermissions();
         notificationRefresh = new Timeline(
             new KeyFrame(Duration.seconds(3), event -> { PerformanceMonitor.event("recurring-task", "shell-indicators"); refreshShellIndicatorsAsync(); }));

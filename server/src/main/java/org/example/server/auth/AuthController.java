@@ -22,6 +22,19 @@ public class AuthController {
         return result.success() ? ResponseEntity.ok(result) : ResponseEntity.status(401).body(result);
     }
 
+    @PostMapping("/login/mfa/complete")
+    public ResponseEntity<AuthDtos.LoginResponse> completeLoginMfa(
+            @RequestBody AuthDtos.LoginMfaCompleteRequest request) {
+        AuthDtos.LoginResponse result = auth.completeLoginMfa(request);
+        return result.success() ? ResponseEntity.ok(result) : ResponseEntity.status(401).body(result);
+    }
+
+    @PostMapping("/login/mfa/resend")
+    public ResponseEntity<AuthDtos.LoginMfaChallengeResponse> resendLoginMfa(
+            @RequestBody AuthDtos.LoginMfaResendRequest request) {
+        return ResponseEntity.ok(auth.resendLoginMfa(request));
+    }
+
     @PostMapping("/login-complete")
     public AuthDtos.OperationResponse loginComplete(@RequestBody AuthDtos.UserIdRequest request,
                                                      @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {

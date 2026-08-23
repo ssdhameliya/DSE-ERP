@@ -46,6 +46,7 @@ public class MasterDataService {
         ensureReferenceFormat("REF_ITEM","ITMXXX","Item code reference",60);
         ensureReferenceFormat("REF_CUSTOMER","CUSXXX","Customer reference",70);
         ensureReferenceFormat("REF_SUPPLIER","SUPXXX","Supplier reference",80);
+        ensureReferenceFormat("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX","Finance voucher reference",90);
     }
 
     private void ensureCategory(String code,String name,String description,int order){
@@ -109,7 +110,7 @@ public class MasterDataService {
 
 
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String nextPartyCode(String type) {
         requirePartyAccess(type);
         String t = normal(type);
@@ -256,7 +257,7 @@ public class MasterDataService {
         if (total > 0) usages.add(label + " (" + total + ")");
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String nextItemCode() {
         List<String> existing = items.findAll().stream().map(ItemEntity::getItemCode).filter(Objects::nonNull).toList();
         return referenceNumbers.nextConfiguredReference("REF_ITEM", "ITMXXX", existing);
@@ -341,9 +342,10 @@ public class MasterDataService {
         return lookupDto(lookups.saveAndFlush(e));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String nextLookupCode(String type) {
-        String prefix = switch (type) {
+        String normalized = normal(type);
+        String prefix = switch (normalized) {
             case "CATEGORY" -> "CAT";
             case "UNIT" -> "UNT";
             case "MATERIAL" -> "MAT";
@@ -351,15 +353,9 @@ public class MasterDataService {
             case "GST" -> "GST";
             default -> "GEN";
         };
-        int max = 0;
-        for (LookupEntity e : lookups.findByLookupTypeOrderByLookupCodeDesc(type)) {
-            String c = e.getLookupCode();
-            if (c != null && c.startsWith(prefix)) try {
-                max = Math.max(max, Integer.parseInt(c.substring(prefix.length())));
-            } catch (Exception ignored) {
-            }
-        }
-        return prefix + String.format("%03d", max + 1);
+        List<String> existing = lookups.findByLookupTypeOrderByLookupCodeDesc(normalized).stream()
+                .map(LookupEntity::getLookupCode).filter(Objects::nonNull).toList();
+        return referenceNumbers.nextConfiguredReference("REF_LOOKUP_" + normalized, prefix + "XXX", existing);
     }
 
     @Transactional(readOnly = true)

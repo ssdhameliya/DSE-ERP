@@ -3,17 +3,24 @@ package org.example.server.auth;
 public final class AuthDtos {
     private AuthDtos() {}
     public record LoginRequest(String identity, String password) {}
+    public record LoginMfaCompleteRequest(String challengeId, String otp) {}
+    public record LoginMfaResendRequest(String challengeId) {}
     public record UserIdRequest(int userId) {}
     public record ChangePasswordRequest(int userId, String currentPassword, String password) {}
-    public record RegisterRequest(String username, String password, String fullName, String email, String role) {}
-    public record RegistrationOtpRequest(String username, String fullName, String email, String role) {}
+    public record RegisterRequest(String username, String password, String fullName, String email, String role,
+                                  boolean mfaEnabled) {}
+    public record RegistrationOtpRequest(String username, String fullName, String email, String role,
+                                         boolean mfaEnabled) {}
     public record RegistrationCompleteRequest(String challengeId, String otp, String username, String password,
-                                               String fullName, String email, String role) {}
+                                               String fullName, String email, String role, boolean mfaEnabled) {}
     public record PasswordResetOtpRequest(String identity) {}
     public record PasswordResetCompleteRequest(String challengeId, String otp, String password) {}
     public record ChallengeResponse(boolean success, String challengeId, String message) {}
+    public record LoginMfaChallengeResponse(boolean success, String challengeId, String message,
+                                            String maskedDestination) {}
     public record LoginResponse(boolean success, UserPayload user, String message,
-                                String accessToken, String expiresAt) {}
+                                String accessToken, String expiresAt, boolean mfaRequired,
+                                String challengeId, String maskedDestination) {}
     public record OperationResponse(boolean success, String message) {}
     public record RoleOption(String code, String displayName) {}
     public record UserPayload(int id, String username, String fullName, String role, Integer roleId,

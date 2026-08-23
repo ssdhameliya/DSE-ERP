@@ -29,6 +29,7 @@ public class RegistrationController {
     @FXML private TextField txtName, txtUsername, txtEmail, txtOtp;
     @FXML private ComboBox<AuthApiClient.RoleOption> cmbRole;
     @FXML private PasswordField txtPassword, txtConfirm;
+    @FXML private CheckBox chkMfa;
     @FXML private Button btnSendOtp, btnCreate, btnBack;
     private final UserService users = new UserService();
     private AppUser pending;
@@ -59,6 +60,7 @@ public class RegistrationController {
         txtEmail.textProperty().addListener((o,a,b)->invalidateChallenge());
         txtPassword.textProperty().addListener((o,a,b)->invalidateChallenge());
         txtConfirm.textProperty().addListener((o,a,b)->invalidateChallenge());
+        if (chkMfa != null) chkMfa.selectedProperty().addListener((o,a,b)->invalidateChallenge());
         try {
             cmbRole.getItems().setAll(users.registrationRoles());
             cmbRole.getItems().stream().filter(r -> "SALES".equalsIgnoreCase(r.code())).findFirst().ifPresent(cmbRole::setValue);
@@ -81,7 +83,7 @@ public class RegistrationController {
 
     @FXML private void sendOtp() {
         if (!validateAccountFields()) { message("Please correct the highlighted fields.", true); return; }
-        pending = new AppUser(); pending.setFullName(txtName.getText().trim()); pending.setUsername(txtUsername.getText().trim()); pending.setEmail(txtEmail.getText().trim()); pending.setPassword(txtPassword.getText()); pending.setRole(cmbRole.getValue().code());
+        pending = new AppUser(); pending.setFullName(txtName.getText().trim()); pending.setUsername(txtUsername.getText().trim()); pending.setEmail(txtEmail.getText().trim()); pending.setPassword(txtPassword.getText()); pending.setRole(cmbRole.getValue().code()); pending.setMfaEnabled(chkMfa == null || chkMfa.isSelected());
         try { var challenge=users.requestRegistrationOtp(pending); challengeId=challenge.challengeId(); message(challenge.message()+". Enter it to create your account.", false); txtOtp.requestFocus(); }
         catch(Exception e){ message(e.getMessage(), true); }
     }

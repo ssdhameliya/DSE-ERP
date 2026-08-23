@@ -12,7 +12,9 @@ import java.util.List;
 public class UserService {
     private final AuthApiClient authApi = new AuthApiClient();
 
-    public AppUser authenticate(String identity, String password) { return authApi.authenticate(identity, password); }
+    public AuthApiClient.LoginAttempt authenticate(String identity, String password) { return authApi.authenticate(identity, password); }
+    public AppUser completeLoginMfa(String challengeId, String otp) { return authApi.completeLoginMfa(challengeId, otp); }
+    public AuthApiClient.LoginMfaChallengeResponse resendLoginMfa(String challengeId) { return authApi.resendLoginMfa(challengeId); }
     public void recordSuccessfulLogin(int id) { authApi.recordSuccessfulLogin(id); }
     public void register(AppUser user) { authApi.register(user); }
     public AuthApiClient.ChallengeResponse requestRegistrationOtp(AppUser user) { return authApi.requestRegistrationOtp(user); }

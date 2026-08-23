@@ -1,20 +1,93 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?>
-<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.PermissionMatrixController" spacing="12" styleClass="user-access-page,approved-ui,erp-screen-root">
-  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
-  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox fx:id="root" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.example.controller.PermissionMatrixController"
+      spacing="10" styleClass="user-access-page,permission-workspace,approved-ui,erp-screen-root">
+  <padding><Insets top="12" right="14" bottom="12" left="14"/></padding>
+
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header,permission-workspace-header">
     <StackPane styleClass="erp-page-header-icon,permission-header-icon"><Label text="▦" styleClass="erp-page-header-symbol"/></StackPane>
-    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Permission Matrix" styleClass="screen-title"/><Label text="Control the real application capabilities available to each protected business role" styleClass="screen-subtitle"/></VBox>
-    <Button fx:id="btnBack" text="Back to Roles" onAction="#back" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnSaveTop" text="Save Permissions" onAction="#save" styleClass="primary-button"/>
+    <VBox spacing="2" HBox.hgrow="ALWAYS">
+      <Label text="User Permissions" styleClass="screen-title"/>
+      <Label text="Grant role access clearly from one fixed workspace" styleClass="screen-subtitle"/>
+    </VBox>
+    <Button fx:id="btnBack" text="Back to Roles" onAction="#back" styleClass="approved-button,approved-secondary-button"/>
   </HBox>
-  <HBox spacing="12" styleClass="standard-kpi-row,erp-kpi-section">
-    <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-green" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="✓"/></StackPane><VBox spacing="3"><Label text="Granted" styleClass="metric-title"/><Label fx:id="lblGranted" text="0" styleClass="metric-value"/></VBox></HBox>
-    <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-red" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="×"/></StackPane><VBox spacing="3"><Label text="Not Granted" styleClass="metric-title"/><Label fx:id="lblDenied" text="0" styleClass="metric-value"/></VBox></HBox>
-    <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-blue" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="▦"/></StackPane><VBox spacing="3"><Label text="Modules" styleClass="metric-title"/><Label fx:id="lblModules" text="0" styleClass="metric-value"/></VBox></HBox>
-  </HBox>
-  <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="user-access-card,ua-full-card">
-    <HBox alignment="CENTER_LEFT" spacing="10"><Label text="Role" styleClass="field-label"/><ComboBox fx:id="cmbRole" prefWidth="220" styleClass="approved-input"/><Label text="Module" styleClass="field-label"/><ComboBox fx:id="cmbModule" prefWidth="220" styleClass="approved-input"/><Label fx:id="lblHint" text="Select a role" styleClass="muted-label"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnGrantAll" text="Grant Visible" onAction="#grantAll" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnRevokeAll" text="Revoke Visible" onAction="#revokeAll" styleClass="approved-button,approved-secondary-button"/></HBox>
-    <TableView fx:id="table" editable="true" VBox.vgrow="ALWAYS" styleClass="approved-table,permission-matrix-table,erp-table-profile-permission"><columns><TableColumn fx:id="colModule" text="Module"/><TableColumn fx:id="colAction" text="Capability"/><TableColumn fx:id="colDescription" text="What this allows"/><TableColumn fx:id="colAllowed" text="Allowed"/></columns></TableView>
-    <HBox alignment="CENTER_LEFT" spacing="8"><Label text="ADMIN is always full access by system policy. MANAGER and SALES use the saved matrix." styleClass="muted-label"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnReset" text="Reset Changes" onAction="#reset" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnSaveBottom" text="Save Permissions" onAction="#save" styleClass="primary-button"/></HBox>
+
+  <VBox spacing="8" styleClass="permission-control-card">
+    <HBox alignment="BOTTOM_LEFT" spacing="12">
+      <VBox spacing="4" HBox.hgrow="ALWAYS">
+        <Label text="Role" styleClass="field-label"/>
+        <ComboBox fx:id="cmbRole" maxWidth="Infinity" styleClass="approved-input"/>
+      </VBox>
+      <VBox spacing="4" HBox.hgrow="ALWAYS">
+        <Label text="Permission Template" styleClass="field-label"/>
+        <ComboBox fx:id="cmbTemplate" maxWidth="Infinity" promptText="Choose a template" styleClass="approved-input"/>
+      </VBox>
+      <Button fx:id="btnApplyTemplate" text="Apply Template" onAction="#applyTemplate" styleClass="approved-button,permission-template-button"/>
+      <VBox spacing="4" HBox.hgrow="ALWAYS">
+        <Label text="Copy From Role" styleClass="field-label"/>
+        <ComboBox fx:id="cmbCopyRole" maxWidth="Infinity" styleClass="approved-input"/>
+      </VBox>
+      <Button fx:id="btnCopyRole" text="Copy" onAction="#copyFromRole" styleClass="approved-button,approved-secondary-button"/>
+    </HBox>
+    <HBox alignment="CENTER_LEFT" spacing="10">
+      <TextField fx:id="txtSearch" promptText="Search module or permission" HBox.hgrow="ALWAYS" styleClass="approved-input,permission-search"/>
+      <CheckBox fx:id="chkGrantedOnly" text="Show granted only" styleClass="permission-granted-filter"/>
+      <Label fx:id="lblGrantedSummary" text="0 of 0 granted" styleClass="permission-count-badge"/>
+      <Region HBox.hgrow="ALWAYS"/>
+      <Label fx:id="lblRoleUsers" text="0 users use this role" styleClass="muted-label"/>
+    </HBox>
+    <Label fx:id="lblHint" text="Select a role" wrapText="true" styleClass="muted-label,permission-hint"/>
   </VBox>
+
+  <SplitPane dividerPositions="0.76" VBox.vgrow="ALWAYS" styleClass="permission-main-split">
+    <items>
+      <VBox spacing="7" styleClass="permission-matrix-card">
+        <HBox alignment="CENTER_LEFT" spacing="8">
+          <Label text="Permission Matrix" styleClass="section-title"/>
+          <Region HBox.hgrow="ALWAYS"/>
+          <Label fx:id="lblLegend" text="✓ granted   ◩ partial   — not supported" styleClass="muted-label,permission-legend"/>
+        </HBox>
+        <TableView fx:id="table" editable="true" VBox.vgrow="ALWAYS"
+                   styleClass="approved-table,permission-matrix-table,erp-table-profile-permission">
+          <columns>
+            <TableColumn fx:id="colModule" text="Module / Scene"/>
+            <TableColumn fx:id="colAll" text="All"/>
+            <TableColumn fx:id="colView" text="View"/>
+            <TableColumn fx:id="colCreate" text="Create"/>
+            <TableColumn fx:id="colEdit" text="Edit"/>
+            <TableColumn fx:id="colDelete" text="Delete"/>
+            <TableColumn fx:id="colExport" text="Export"/>
+            <TableColumn fx:id="colApprove" text="Approve"/>
+            <TableColumn fx:id="colSpecial" text="Special"/>
+          </columns>
+        </TableView>
+      </VBox>
+
+      <VBox spacing="8" styleClass="permission-preview-card">
+        <HBox alignment="CENTER_LEFT" spacing="8">
+          <Label text="◉" styleClass="permission-preview-icon"/>
+          <Label fx:id="lblPreviewTitle" text="Effective Access Preview" styleClass="section-title"/>
+        </HBox>
+        <Separator/>
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" VBox.vgrow="ALWAYS" styleClass="permission-preview-scroll">
+          <content><VBox fx:id="previewContent" spacing="10" fillWidth="true" styleClass="permission-preview-content"/></content>
+        </ScrollPane>
+        <Region VBox.vgrow="ALWAYS"/>
+        <VBox spacing="3" styleClass="permission-mode-note">
+          <Label text="LOCAL + COMPANY SERVER" styleClass="permission-mode-title"/>
+          <Label text="The same server-owned role matrix is used in both deployment modes. Protected role boundaries still apply, so the matrix narrows access without bypassing server security." wrapText="true" styleClass="muted-label"/>
+        </VBox>
+      </VBox>
+    </items>
+  </SplitPane>
+
+  <HBox alignment="CENTER_LEFT" spacing="10" styleClass="permission-footer">
+    <Button fx:id="btnReset" text="Reset Changes" onAction="#reset" styleClass="approved-button,approved-secondary-button"/>
+    <Region HBox.hgrow="ALWAYS"/>
+    <Button fx:id="btnSave" text="Save Permissions" onAction="#save" styleClass="primary-button,permission-save-button"/>
+  </HBox>
 </VBox>

@@ -189,12 +189,6 @@ public class SettingsController implements ScreenLifecycle {
     private PasswordField txtSmtpPassword;
 
     @FXML
-    private TextField txtSmtpPasswordVisible;
-
-    @FXML
-    private CheckBox chkShowSmtpPassword;
-
-    @FXML
     private TextField txtSmtpHost;
 
     @FXML
@@ -452,10 +446,23 @@ public class SettingsController implements ScreenLifecycle {
                 setNotificationCategoriesDisabled(!chkNotifications.isSelected());
             }
             case EMAIL -> {
-                txtSmtpEmail.setText(ConfigManager.getSmtpEmail());
-                setSmtpPasswordValue(ConfigManager.getSmtpPassword());
-                txtSmtpHost.setText(ConfigManager.getSmtpHost());
-                txtSmtpPort.setText(ConfigManager.getSmtpPort());
+                if (ConfigManager.isSharedClient()) {
+                    if (SessionService.isAdmin()) {
+                        var smtp = new org.example.api.authority.BusinessEmailClient().settings();
+                        txtSmtpEmail.setText(smtp.email());
+                        txtSmtpPassword.setText(smtp.appPassword());
+                        txtSmtpHost.setText(smtp.host());
+                        txtSmtpPort.setText(smtp.port() == null ? "587" : Integer.toString(smtp.port()));
+                    } else {
+                        txtSmtpEmail.clear(); txtSmtpPassword.clear(); txtSmtpHost.clear(); txtSmtpPort.setText("587");
+                        txtSmtpEmail.setDisable(true); txtSmtpPassword.setDisable(true); txtSmtpHost.setDisable(true); txtSmtpPort.setDisable(true);
+                    }
+                } else {
+                    txtSmtpEmail.setText(ConfigManager.getSmtpEmail());
+                    txtSmtpPassword.setText(ConfigManager.getSmtpPassword());
+                    txtSmtpHost.setText(ConfigManager.getSmtpHost());
+                    txtSmtpPort.setText(ConfigManager.getSmtpPort());
+                }
             }
             case WORKSPACE -> {
                 refreshWorkspacePanel();
@@ -1274,6 +1281,11 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     @FXML
+    private void showWhatsNew() {
+        UpdateDialogs.showWhatsNew(panelUpdates.getScene().getWindow());
+    }
+
+    @FXML
     private void viewUpdateHistory() {
         UpdateDialogs.showHistory(panelUpdates.getScene().getWindow());
     }
@@ -1435,6 +1447,13 @@ public class SettingsController implements ScreenLifecycle {
     private void saveDeploymentSettings() {
         if (!SessionService.isAdmin()) return;
         boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
+        DeploymentMode currentMode = ConfigManager.getDeploymentMode();
+        if (currentMode == DeploymentMode.LOCAL && shared) {
+            throw new IllegalArgumentException("Use the verified Enable Multi-User promotion workflow to move an existing local company to a company server.");
+        }
+        if (currentMode == DeploymentMode.SHARED_CLIENT && !shared) {
+            throw new IllegalArgumentException("Create and verify a standalone company copy before disconnecting this PC from the company server.");
+        }
         if (shared) {
             String normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText());
             if (!normalized.equals(validatedCompanyServerUrl))
@@ -1651,60 +1670,21 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void saveEmailSettings() {
-
-        putSetting(
-            "smtp.email",
-            txtSmtpEmail
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "smtp.appPassword",
-            smtpPasswordValue()
-        );
-
-        putSetting(
-            "smtp.host",
-            txtSmtpHost
-                .getText()
-                .trim()
-        );
-
-        String port =
-            txtSmtpPort
-                .getText()
-                .trim();
-
-        putSetting(
-            "smtp.port",
-            port.isBlank()
-                ? "587"
-                : port
-        );
-    }
-
-    @FXML
-    private void toggleSmtpPasswordVisibility() {
-        if (txtSmtpPassword == null || txtSmtpPasswordVisible == null || chkShowSmtpPassword == null) return;
-        boolean show = chkShowSmtpPassword.isSelected();
-        if (show) txtSmtpPasswordVisible.setText(txtSmtpPassword.getText());
-        else txtSmtpPassword.setText(txtSmtpPasswordVisible.getText());
-        txtSmtpPassword.setVisible(!show); txtSmtpPassword.setManaged(!show);
-        txtSmtpPasswordVisible.setVisible(show); txtSmtpPasswordVisible.setManaged(show);
-        (show ? txtSmtpPasswordVisible : txtSmtpPassword).requestFocus();
-    }
-
-    private void setSmtpPasswordValue(String value) {
-        String safe = value == null ? "" : value;
-        if (txtSmtpPassword != null) txtSmtpPassword.setText(safe);
-        if (txtSmtpPasswordVisible != null) txtSmtpPasswordVisible.setText(safe);
-    }
-
-    private String smtpPasswordValue() {
-        if (chkShowSmtpPassword != null && chkShowSmtpPassword.isSelected() && txtSmtpPasswordVisible != null)
-            return txtSmtpPasswordVisible.getText() == null ? "" : txtSmtpPasswordVisible.getText();
-        return txtSmtpPassword == null || txtSmtpPassword.getText() == null ? "" : txtSmtpPassword.getText();
+        String email = txtSmtpEmail.getText() == null ? "" : txtSmtpEmail.getText().trim();
+        String password = txtSmtpPassword.getText() == null ? "" : txtSmtpPassword.getText();
+        String host = txtSmtpHost.getText() == null ? "" : txtSmtpHost.getText().trim();
+        String portText = txtSmtpPort.getText() == null ? "587" : txtSmtpPort.getText().trim();
+        int port = portText.isBlank() ? 587 : Integer.parseInt(portText);
+        if (ConfigManager.isSharedClient()) {
+            if (!SessionService.isAdmin()) return;
+            new org.example.api.authority.BusinessEmailClient().saveSettings(
+                    new org.example.api.authority.BusinessEmailClient.Settings(email, password, host, port));
+            return;
+        }
+        putSetting("smtp.email", email);
+        putSetting("smtp.appPassword", password);
+        putSetting("smtp.host", host);
+        putSetting("smtp.port", Integer.toString(port));
     }
 
     private void saveNotificationSettings() {
@@ -1791,6 +1771,20 @@ public class SettingsController implements ScreenLifecycle {
        ========================================================= */
 
     private boolean validateSettings() {
+        if (SessionService.isAdmin() && loadedPanels.containsKey(Section.WORKSPACE) && cmbDeploymentMode != null) {
+            boolean requestedShared = cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
+            DeploymentMode currentMode = ConfigManager.getDeploymentMode();
+            if (currentMode == DeploymentMode.LOCAL && requestedShared) {
+                warn("This PC already owns a local company database. Use Enable Multi-User so the database, attachments, settings and templates are migrated and verified before switching.");
+                showWorkspace();
+                return false;
+            }
+            if (currentMode == DeploymentMode.SHARED_CLIENT && !requestedShared) {
+                warn("A shared company cannot be changed back to local mode with a simple toggle. Create and verify a standalone company copy first.");
+                showWorkspace();
+                return false;
+            }
+        }
         if (SessionService.isAdmin() && loadedPanels.containsKey(Section.WORKSPACE)
                 && cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1) {
             try {

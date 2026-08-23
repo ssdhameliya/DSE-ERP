@@ -27,13 +27,14 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/runtime/health", "/api/auth/health", "/api/auth/login", "/api/setup/bootstrap", "/api/setup/status",
+                        .requestMatchers("/api/runtime/health", "/api/auth/health", "/api/auth/login", "/api/auth/login/mfa/complete", "/api/auth/login/mfa/resend", "/api/setup/bootstrap", "/api/setup/status",
                                 "/api/auth/registration-roles", "/api/auth/registration/request", "/api/auth/registration/complete",
                                 "/api/auth/password-reset/request", "/api/auth/password-reset/complete").permitAll()
                         .requestMatchers("/api/admin/**", "/api/auth/register").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/authority/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/authority/**").hasRole("ADMIN")
                         .requestMatchers("/api/authority/backups/**").hasRole("ADMIN")
+                        .requestMatchers("/api/authority/email/settings", "/api/authority/email/test").hasRole("ADMIN")
                         .requestMatchers("/api/support/backup/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/support/settings/**").hasRole("ADMIN")
                         .requestMatchers("/api/reconciliation/**").hasAnyRole("ADMIN", "MANAGER")

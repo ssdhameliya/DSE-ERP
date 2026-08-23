@@ -49,8 +49,11 @@
                     </VBox>
 
                     <VBox fx:id="otpPanel" spacing="5" maxWidth="620" managed="false" visible="false">
-                        <Label text="Email verification code" styleClass="auth-field-label"/>
-                        <TextField fx:id="txtOtp" promptText="Required for Manager and Sales" prefHeight="44" styleClass="auth-input"/>
+                        <Label text="Multi-factor verification code" styleClass="auth-field-label"/>
+                        <HBox spacing="8" alignment="CENTER_LEFT">
+                            <TextField fx:id="txtOtp" promptText="Enter the code sent to your registered email" prefHeight="44" HBox.hgrow="ALWAYS" styleClass="auth-input"/>
+                            <Button fx:id="btnResendOtp" text="Resend" onAction="#resendLoginOtp" styleClass="auth-secondary-button"/>
+                        </HBox>
                         <Label fx:id="lblOtpError" managed="false" visible="false" styleClass="field-error"/>
                     </VBox>
 

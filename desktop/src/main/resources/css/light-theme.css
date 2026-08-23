@@ -4859,8 +4859,8 @@
 }
 
 .kpi-icon-calendar {
-    -fx-background-color: rgba(37,99,235,.15);
-    -fx-text-fill: #1d4ed8;
+    -fx-background-color: rgba(124,58,237,.15);
+    -fx-text-fill: #6d28d9;
 }
 
 .kpi-icon-warning {
@@ -7994,14 +7994,14 @@
 }
 .excel-cell-editor { -fx-padding: 4 6 4 6; }
 .excel-cell-selected { -fx-border-color: #2563eb; -fx-border-width: 1.6; }
-.excel-cell-editing { -fx-border-color: #d97706; -fx-border-width: 2; -fx-background-color: #fffaf0; }
+.excel-cell-editing { -fx-border-color: #7c3aed; -fx-border-width: 2; -fx-background-color: #fffaf0; }
 .excel-tool-purple { -fx-background-color: #ede9fe; -fx-text-fill: #5b21b6; -fx-border-color: #c4b5fd; }
 .excel-tool-indigo { -fx-background-color: #e0e7ff; -fx-text-fill: #3730a3; -fx-border-color: #a5b4fc; }
 .excel-tool-blue { -fx-background-color: #e0f2fe; -fx-text-fill: #075985; -fx-border-color: #7dd3fc; }
 .excel-tool-blue-strong { -fx-background-color: #2563eb; -fx-text-fill: white; -fx-border-color: #1d4ed8; }
 .excel-tool-green { -fx-background-color: #dcfce7; -fx-text-fill: #166534; -fx-border-color: #86efac; }
 .excel-tool-teal { -fx-background-color: #ccfbf1; -fx-text-fill: #115e59; -fx-border-color: #5eead4; }
-.excel-tool-amber { -fx-background-color: #fef3c7; -fx-text-fill: #92400e; -fx-border-color: #fcd34d; }
+.excel-tool-amber { -fx-background-color: #ede9fe; -fx-text-fill: #5b21b6; -fx-border-color: #c4b5fd; }
 .excel-tool-red { -fx-background-color: #ffe4e6; -fx-text-fill: #9f1239; -fx-border-color: #fda4af; }
 .excel-tool-purple:hover, .excel-tool-indigo:hover, .excel-tool-blue:hover, .excel-tool-blue-strong:hover,
 .excel-tool-green:hover, .excel-tool-teal:hover, .excel-tool-amber:hover, .excel-tool-red:hover { -fx-opacity: 0.9; }
@@ -8021,7 +8021,7 @@
     -fx-font-weight: 800;
 }
 .excel-format-mixed {
-    -fx-border-color: #d97706;
+    -fx-border-color: #7c3aed;
     -fx-border-width: 1.5;
     -fx-border-style: dashed;
 }

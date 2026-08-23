@@ -88,12 +88,17 @@ public class AdminService {
             encoded = passwords.encode(request.password());
         }
         if (request.id() == null) {
-            jdbc.update("INSERT INTO users(username,password,full_name,role,role_id,email,active,locked,mfa_enabled,department,branch,access_level) " +
-                            "VALUES(?,?,?,?,(SELECT id FROM roles WHERE role_name=? AND active=1),?,?,?,?,?,?,?)",
+            jdbc.update("INSERT INTO users(username,password,full_name,role,role_id,email,active,locked,lock_reason,mfa_enabled,department,branch,access_level) " +
+                            "VALUES(?,?,?,?,(SELECT id FROM roles WHERE role_name=? AND active=1),?,?,?,?,?,?,?,?)",
                     request.username().trim(), encoded, clean(request.fullName()), assignedRole, assignedRole,
                     clean(request.email()), request.active() ? 1 : 0, request.locked() ? 1 : 0,
-                    request.mfaEnabled() ? 1 : 0, clean(request.department()), clean(request.branch()), clean(request.accessLevel()));
+                    request.locked() ? "ADMIN" : "NONE", request.mfaEnabled() ? 1 : 0,
+                    clean(request.department()), clean(request.branch()), clean(request.accessLevel()));
         } else {
+            boolean previousMfa = Boolean.TRUE.equals(jdbc.queryForObject(
+                    "SELECT mfa_enabled FROM users WHERE id=?", Boolean.class, request.id()));
+            boolean previousLocked = Boolean.TRUE.equals(jdbc.queryForObject(
+                    "SELECT locked FROM users WHERE id=?", Boolean.class, request.id()));
             if (request.id() == CurrentUser.require().id() && (request.locked() || !request.active()))
                 throw new IllegalArgumentException("You cannot lock or deactivate your own account");
             jdbc.update("UPDATE users SET username=?,full_name=?,email=?,role=?,role_id=(SELECT id FROM roles WHERE role_name=? AND active=1)," +
@@ -101,9 +106,30 @@ public class AdminService {
                     request.username().trim(), clean(request.fullName()), clean(request.email()), assignedRole, assignedRole,
                     request.active() ? 1 : 0, request.locked() ? 1 : 0, request.mfaEnabled() ? 1 : 0,
                     clean(request.department()), clean(request.branch()), clean(request.accessLevel()), request.id());
+            if (previousLocked && !request.locked()) {
+                jdbc.update("UPDATE users SET failed_attempts=0,mfa_failed_attempts=0,lock_reason='NONE' WHERE id=?", request.id());
+                jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
+                        request.id(), "ACCOUNT_UNLOCKED", "Account unlocked and failed-attempt counters reset",
+                        CurrentUser.require().username(), BusinessClock.nowUtcText());
+            } else if (!previousLocked && request.locked()) {
+                jdbc.update("UPDATE users SET lock_reason='ADMIN' WHERE id=?", request.id());
+                tokens.revokeUser(request.id());
+                jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
+                        request.id(), "ACCOUNT_LOCKED_BY_ADMIN", "Account locked by administrator",
+                        CurrentUser.require().username(), BusinessClock.nowUtcText());
+            }
             if (encoded != null) {
                 jdbc.update("UPDATE users SET password=? WHERE id=?", encoded, request.id());
                 tokens.revokeUser(request.id());
+            }
+            if (previousMfa != request.mfaEnabled()) {
+                tokens.revokeUser(request.id());
+                jdbc.update("UPDATE users SET mfa_failed_attempts=0 WHERE id=?", request.id());
+                jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) " +
+                                "VALUES('USER',?,?,?,?,?)", request.id(),
+                        request.mfaEnabled() ? "MFA_ENABLED" : "MFA_DISABLED",
+                        request.mfaEnabled() ? "Multi-factor authentication enabled" : "Multi-factor authentication disabled",
+                        CurrentUser.require().username(), BusinessClock.nowUtcText());
             }
         }
         return request.id() == null
@@ -121,17 +147,25 @@ public class AdminService {
     @Transactional
     public void resetPassword(int id, String password) {
         validatePassword(password);
-        if (jdbc.update("UPDATE users SET password=?,failed_attempts=0,locked=0 WHERE id=?", passwords.encode(password), id) != 1)
+        if (jdbc.update("UPDATE users SET password=?,failed_attempts=0,mfa_failed_attempts=0,locked=0,lock_reason='NONE' WHERE id=?", passwords.encode(password), id) != 1)
             throw new IllegalArgumentException("User not found");
         tokens.revokeUser(id);
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
+                id, "ACCOUNT_UNLOCKED", "Password reset by administrator and sign-in lock cleared", CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
     @Transactional
     public void setLocked(int id, boolean locked) {
         if (id == CurrentUser.require().id() && locked) throw new IllegalArgumentException("You cannot lock your own account");
-        if (jdbc.update("UPDATE users SET locked=? WHERE id=?", locked ? 1 : 0, id) != 1)
-            throw new IllegalArgumentException("User not found");
+        int updated = locked
+                ? jdbc.update("UPDATE users SET locked=1,lock_reason='ADMIN' WHERE id=?", id)
+                : jdbc.update("UPDATE users SET locked=0,lock_reason='NONE',failed_attempts=0,mfa_failed_attempts=0 WHERE id=?", id);
+        if (updated != 1) throw new IllegalArgumentException("User not found");
         if (locked) tokens.revokeUser(id);
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
+                id, locked ? "ACCOUNT_LOCKED_BY_ADMIN" : "ACCOUNT_UNLOCKED",
+                locked ? "Account locked by administrator" : "Account unlocked and failed-attempt counters reset",
+                CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
     @Transactional

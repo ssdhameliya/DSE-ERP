@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 final class AuthOtpService {
-    enum Purpose { REGISTRATION, PASSWORD_RESET }
+    enum Purpose { REGISTRATION, PASSWORD_RESET, LOGIN_MFA }
 
     private static final Duration LIFETIME = Duration.ofMinutes(10);
     private static final Duration RESEND_COOLDOWN = Duration.ofSeconds(30);
@@ -66,6 +66,31 @@ final class AuthOtpService {
         return new Verified(challenge.userId());
     }
 
+    synchronized Verified verify(Purpose purpose, String challengeId, String code) {
+        cleanup();
+        Challenge challenge = challengeId == null ? null : challenges.get(challengeId);
+        if (challenge == null || challenge.purpose() != purpose) {
+            throw new IllegalArgumentException("The verification code is invalid or expired");
+        }
+        return verify(purpose, challengeId, code, challenge.binding());
+    }
+
+    synchronized Integer challengeUser(Purpose purpose, String challengeId) {
+        cleanup();
+        Challenge challenge = challengeId == null ? null : challenges.get(challengeId);
+        if (challenge == null || challenge.purpose() != purpose) {
+            throw new IllegalArgumentException("The verification challenge is invalid or expired");
+        }
+        return challenge.userId();
+    }
+
+    synchronized void invalidate(Purpose purpose, String key) {
+        cleanup();
+        String lookupKey = purpose + ":" + key;
+        String challengeId = latestByKey.remove(lookupKey);
+        if (challengeId != null) challenges.remove(challengeId);
+    }
+
     private void cleanup() {
         Instant now = Instant.now();
         challenges.entrySet().removeIf(entry -> !entry.getValue().expiresAt().isAfter(now));
@@ -89,7 +114,11 @@ final class AuthOtpService {
     }
 
     private static String purposeLabel(Purpose purpose) {
-        return purpose == Purpose.REGISTRATION ? "registration" : "password reset";
+        return switch (purpose) {
+            case REGISTRATION -> "registration";
+            case PASSWORD_RESET -> "password reset";
+            case LOGIN_MFA -> "sign-in verification";
+        };
     }
 
     record Issued(String challengeId, boolean sent) {}

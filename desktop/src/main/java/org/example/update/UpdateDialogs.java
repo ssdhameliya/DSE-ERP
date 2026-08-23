@@ -27,6 +27,53 @@ import java.util.Locale;
 public final class UpdateDialogs {
     private UpdateDialogs() {}
 
+    public static void showWhatsNew(Window owner) {
+        showWhatsNew(owner, false);
+    }
+
+    public static void showWhatsNewOnce(Window owner) {
+        String version = BuildInfo.version();
+        if (version.equals(ConfigManager.get("update.releaseNotesSeen", "").trim())) return;
+        showWhatsNew(owner, true);
+    }
+
+    private static void showWhatsNew(Window owner, boolean markSeen) {
+        String version = BuildInfo.version();
+        Task<String> task = new Task<>() {
+            @Override protected String call() {
+                try {
+                    String ownerName = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
+                    String repository = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
+                    UpdateRelease release = new GitHubReleaseClient().byVersion(ownerName, repository, version);
+                    if (release.notes() != null && !release.notes().isBlank()) return release.notes().strip();
+                } catch (Exception ignored) { }
+                return ReleaseHighlights.forVersion(version);
+            }
+        };
+        task.setOnSucceeded(event -> {
+            TextArea notes = new TextArea(task.getValue());
+            notes.setEditable(false);
+            notes.setWrapText(true);
+            notes.setPrefRowCount(18);
+            VBox content = new VBox(10, new Label("What’s New in DSE ERP " + version), notes);
+            content.setPadding(new Insets(8));
+            Dialog<Void> dialog = baseDialog(owner, "What’s New", content, 760, 590);
+            dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            dialog.showAndWait();
+            if (markSeen) ConfigManager.set("update.releaseNotesSeen", version);
+        });
+        task.setOnFailed(event -> {
+            String fallback = ReleaseHighlights.forVersion(version);
+            TextArea notes = new TextArea(fallback);
+            notes.setEditable(false); notes.setWrapText(true);
+            Dialog<Void> dialog = baseDialog(owner, "What’s New", notes, 760, 590);
+            dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            dialog.showAndWait();
+            if (markSeen) ConfigManager.set("update.releaseNotesSeen", version);
+        });
+        Thread.ofVirtual().name("erp-release-notes").start(task);
+    }
+
     public static void checkForUpdates(Window owner, boolean quietWhenCurrent) {
         UpdateService service = new UpdateService();
         ProgressIndicator indicator = new ProgressIndicator();

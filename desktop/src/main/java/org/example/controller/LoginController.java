@@ -9,7 +9,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyEvent;
 import org.example.model.AppUser;
 import org.example.service.NotificationService;
-import org.example.service.OtpService;
 import org.example.service.SessionService;
 import org.example.service.UserService;
 import org.example.service.BrandingService;
@@ -33,10 +32,10 @@ import java.util.prefs.Preferences;
 /**
  * Role-aware authentication for DSE ERP.
  *
- * <p>ADMIN users sign in with credentials only. MANAGER and SALES users
- * require an email OTP after their credentials and selected role are verified.
- * "Remember Me" stores only the identity and selected role, never the password.
- * Password resets always require an email OTP, including for administrators.</p>
+ * <p>Password authentication is server-owned. If the account has MFA enabled,
+ * the server returns an MFA challenge without issuing a bearer token; the token
+ * is issued only after the server verifies the email OTP. "Remember Me" stores
+ * only the identity and selected role, never the password.</p>
  */
 public class LoginController {
     private static final Preferences PREFS = Preferences.userNodeForPackage(LoginController.class);
@@ -56,12 +55,13 @@ public class LoginController {
     @FXML private ImageView imgBrandLogo, imgBrandMark, imgLoginLogo;
     @FXML private VBox brandPanel;
     @FXML private StackPane brandLogoBox, brandMarkBox, loginLogoBox;
-    @FXML private Button btnLogin, btnRegister, btnEmailSettings, btnForgotPassword;
+    @FXML private Button btnLogin, btnRegister, btnEmailSettings, btnForgotPassword, btnResendOtp;
     @FXML private Button btnSendResetOtp, btnResetPassword, btnBackToLogin;
     @FXML private VBox loginPanel, resetPanel, otpPanel;
 
     private final UserService users = new UserService();
     private AppUser pendingUser;
+    private String pendingMfaChallengeId;
     private String resetChallengeId;
     private boolean passwordFirstKeyLogged;
     private boolean passwordFirstTextLogged;
@@ -107,6 +107,7 @@ public class LoginController {
         UiActionIcons.apply(btnRegister, ButtonAction.ADD);
         UiActionIcons.apply(btnEmailSettings, ButtonAction.EMAIL);
         UiActionIcons.apply(btnForgotPassword, "reset", "Reset forgotten password");
+        if (btnResendOtp != null) UiActionIcons.apply(btnResendOtp, ButtonAction.EMAIL);
         // Keep the recovery affordance explicit: generic page decoration must not
         // leave Forgot Password as text-only after a theme/skin refresh.
         btnForgotPassword.setGraphic(IconFactory.compactIcon("reset", 16));
@@ -237,7 +238,7 @@ public class LoginController {
     @FXML private void login() {
         clearErrors();
 
-        if (pendingUser != null) {
+        if (pendingMfaChallengeId != null) {
             verifyLoginOtp();
             return;
         }
@@ -250,25 +251,18 @@ public class LoginController {
 
         setLoginBusy(true, "SIGNING IN...");
         PerformanceMonitor.start("login-click");
-        UiTaskExecutor.submitLatest("login-authentication", () -> {
-            AppUser user = users.authenticate(identity, password);
-            if (user == null) return new LoginAttempt(null, false);
-            String actualRole = normalizeRole(user.getRole());
-            boolean sent = "ADMIN".equals(actualRole)
-                    || !actualRole.equals(selectedRole)
-                    || OtpService.issueAndSend(user.getEmail());
-            return new LoginAttempt(user, sent);
-        }, attempt -> {
+        UiTaskExecutor.submitLatest("login-authentication", () -> users.authenticate(identity, password), attempt -> {
             setLoginBusy(false, null);
-            AppUser user = attempt.user();
-            if (user == null) {
+            if (attempt == null || attempt.user() == null) {
                 PerformanceMonitor.finish("login-click");
                 message("Invalid email/username or password.", true);
                 return;
             }
 
+            AppUser user = attempt.user();
             String actualRole = normalizeRole(user.getRole());
             if (!actualRole.equals(selectedRole)) {
+                resetPendingLogin();
                 showFieldError(cmbRole, lblRoleError,
                         "Selected role does not match this user account.");
                 message("Please select the role assigned to this account.", true);
@@ -276,26 +270,37 @@ public class LoginController {
                 return;
             }
 
-            if ("ADMIN".equals(actualRole)) {
+            if (!attempt.mfaRequired()) {
                 completeLogin(user);
                 return;
             }
 
             pendingUser = user;
+            pendingMfaChallengeId = attempt.challengeId();
+            txtOtp.clear();
             txtOtp.setDisable(false);
+            if (otpPanel != null) {
+                otpPanel.setManaged(true);
+                otpPanel.setVisible(true);
+            }
             txtOtp.requestFocus();
-            btnLogin.setText("VERIFY OTP");
-            message(attempt.otpSent()
-                    ? "Verification code sent to " + user.getEmail() + "."
-                    : "A verification code was already sent. Please enter it below.", false);
+            btnLogin.setText("VERIFY MFA");
+            String destination = attempt.maskedDestination() == null || attempt.maskedDestination().isBlank()
+                    ? "your registered email" : attempt.maskedDestination();
+            message("Verification code sent to " + destination + ".", false);
             PerformanceMonitor.finish("login-click");
         }, exception -> {
             setLoginBusy(false, null);
             PerformanceMonitor.finish("login-click");
-            pendingUser = null;
-            OtpService.clear();
-            updateLoginMode();
-            message("Login failed: " + exception.getMessage(), true);
+            resetPendingLogin();
+            String detail = exception.getMessage() == null || exception.getMessage().isBlank()
+                    ? "Login failed." : exception.getMessage();
+            if (detail.toLowerCase(java.util.Locale.ROOT).contains("password")
+                    || detail.toLowerCase(java.util.Locale.ROOT).contains("locked")
+                    || detail.toLowerCase(java.util.Locale.ROOT).contains("attempt")) {
+                showFieldError(txtPassword, lblPasswordError, detail);
+            }
+            message(detail, true);
         });
     }
 
@@ -320,28 +325,62 @@ public class LoginController {
     }
 
     private void verifyLoginOtp() {
+        if (pendingMfaChallengeId == null) {
+            resetPendingLogin();
+            return;
+        }
         if (txtOtp.getText() == null || txtOtp.getText().trim().isEmpty()) {
             showFieldError(txtOtp, lblOtpError, "Verification code is required.");
             message("Please enter the verification code.", true);
             return;
         }
 
-        if (!OtpService.verify(txtOtp.getText().trim())) {
-            showFieldError(txtOtp, lblOtpError, "The verification code is invalid or expired.");
-            message("The verification code is invalid or expired.", true);
+        String challengeId = pendingMfaChallengeId;
+        String code = txtOtp.getText().trim();
+        setLoginBusy(true, "VERIFYING...");
+        PerformanceMonitor.start("login-mfa");
+        UiTaskExecutor.submitLatest("login-mfa-verification", () -> users.completeLoginMfa(challengeId, code), authenticated -> {
+            setLoginBusy(false, null);
+            pendingUser = null;
+            pendingMfaChallengeId = null;
+            txtOtp.clear();
+            txtOtp.setDisable(true);
+            PerformanceMonitor.finish("login-mfa");
+            completeLogin(authenticated);
+        }, exception -> {
+            setLoginBusy(false, null);
+            PerformanceMonitor.finish("login-mfa");
+            String detail = exception.getMessage() == null || exception.getMessage().isBlank()
+                    ? "MFA verification failed." : exception.getMessage();
+            showFieldError(txtOtp, lblOtpError, detail);
+            message(detail, true);
+            if (detail.toLowerCase(java.util.Locale.ROOT).contains("locked")) resetPendingLogin();
+        });
+    }
+
+    @FXML private void resendLoginOtp() {
+        if (pendingMfaChallengeId == null) {
+            message("Sign in with your password first.", true);
             return;
         }
-
-        AppUser authenticated = pendingUser;
-        pendingUser = null;
-        PerformanceMonitor.start("login-click");
-        completeLogin(authenticated);
+        String challengeId = pendingMfaChallengeId;
+        if (btnResendOtp != null) btnResendOtp.setDisable(true);
+        UiTaskExecutor.submitLatest("login-mfa-resend", () -> users.resendLoginMfa(challengeId), response -> {
+            if (btnResendOtp != null) btnResendOtp.setDisable(false);
+            pendingMfaChallengeId = response.challengeId();
+            String destination = response.maskedDestination() == null || response.maskedDestination().isBlank()
+                    ? "your registered email" : response.maskedDestination();
+            message(response.message() + " (" + destination + ").", false);
+            txtOtp.requestFocus();
+        }, exception -> {
+            if (btnResendOtp != null) btnResendOtp.setDisable(false);
+            message("Unable to resend verification code: " + exception.getMessage(), true);
+        });
     }
 
     private void completeLogin(AppUser user) {
         setLoginBusy(true, "OPENING ERP...");
         UiTaskExecutor.submitLatest("login-complete", () -> {
-            users.recordSuccessfulLogin(user.getId());
             NotificationService.add("Signed in successfully.");
             return user;
         }, authenticated -> {
@@ -361,56 +400,34 @@ public class LoginController {
 
     private void setLoginBusy(boolean busy, String text) {
         btnLogin.setDisable(busy);
+        if (btnResendOtp != null && busy) btnResendOtp.setDisable(true);
         if (busy && text != null) btnLogin.setText(text);
-        else updateLoginMode();
+        else {
+            if (btnResendOtp != null) btnResendOtp.setDisable(false);
+            updateLoginMode();
+        }
     }
 
-    private record LoginAttempt(AppUser user, boolean otpSent) { }
-
     private void resetPendingLogin() {
-        if (pendingUser == null) return;
         pendingUser = null;
-        OtpService.clear();
+        pendingMfaChallengeId = null;
         txtOtp.clear();
         txtOtp.setDisable(true);
         updateLoginMode();
     }
 
     private void updateLoginMode() {
-        String role = selectedDatabaseRole();
-        boolean otpRole = "MANAGER".equals(role) || "SALES".equals(role);
-
-        // ADMIN never needs a login OTP, so keep the OTP area completely out
-        // of the layout. Manager/Sales reveal the area immediately when the
-        // role is selected; the field becomes editable only after an OTP has
-        // actually been issued.
+        boolean mfaPending = pendingMfaChallengeId != null;
         if (otpPanel != null) {
-            otpPanel.setManaged(otpRole);
-            otpPanel.setVisible(otpRole);
+            otpPanel.setManaged(mfaPending);
+            otpPanel.setVisible(mfaPending);
         }
-
-        if (!otpRole) {
-            pendingUser = null;
-            OtpService.clear();
-            txtOtp.clear();
-            txtOtp.setDisable(true);
-            btnLogin.setText("LOGIN");
-            return;
-        }
-
-        if (pendingUser == null) {
-            txtOtp.clear();
-            txtOtp.setDisable(true);
-            btnLogin.setText("LOGIN / SEND OTP");
-        } else {
-            txtOtp.setDisable(false);
-            btnLogin.setText("VERIFY OTP");
-        }
+        txtOtp.setDisable(!mfaPending);
+        btnLogin.setText(mfaPending ? "VERIFY MFA" : "LOGIN");
     }
 
     @FXML private void forgotPassword() {
         resetPendingLogin();
-        OtpService.clear();
         resetChallengeId = null;
         showResetPanel();
         message("Enter your email or username to receive a reset code.", false);
@@ -481,7 +498,6 @@ public class LoginController {
 
     @FXML private void backToLogin() {
         resetChallengeId = null;
-        OtpService.clear();
         showLoginPanel();
         lblMessage.setText("");
     }

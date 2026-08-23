@@ -9150,7 +9150,7 @@
 .erp-quantity-negative { -fx-text-fill: -color-danger; -fx-font-weight: 800; }
 .erp-quantity-neutral { -fx-text-fill: -color-primary; -fx-font-weight: 800; }
 
-/* Excel Studio 8.4.2 layout normalization: one command surface and aligned workspace gutters. */
+/* Excel Studio 8.4.5 layout normalization: one command surface and aligned workspace gutters. */
 .excel-unified-command-strip {
     -fx-max-width: infinity;
 }
@@ -9162,4 +9162,153 @@
 }
 .excel-workbook-shell {
     -fx-background-color: transparent;
+}
+
+/* Permission Matrix v8.4.6: scoped, metadata-driven workspace. Theme colors come from existing tokens. */
+.permission-workspace {
+    -fx-padding: 12px 14px 12px 14px;
+}
+.permission-workspace-header,
+.permission-control-card,
+.permission-matrix-card,
+.permission-preview-card {
+    -fx-background-color: -color-surface;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 12px;
+    -fx-background-radius: 12px;
+}
+.permission-control-card {
+    -fx-padding: 10px 12px;
+}
+.permission-template-button {
+    -fx-background-color: rgba(124,58,237,0.14);
+    -fx-text-fill: -color-text;
+    -fx-border-color: rgba(124,58,237,0.38);
+}
+.permission-template-button:hover {
+    -fx-background-color: rgba(124,58,237,0.22);
+}
+.permission-search {
+    -fx-min-width: 260px;
+    -fx-pref-width: 420px;
+}
+.permission-granted-filter {
+    -fx-padding: 7px 10px;
+}
+.permission-count-badge {
+    -fx-padding: 6px 11px;
+    -fx-background-color: -app-primary-soft;
+    -fx-text-fill: -app-primary-text;
+    -fx-background-radius: 14px;
+    -fx-font-weight: 700;
+}
+.permission-hint {
+    -fx-padding: 1px 2px 0 2px;
+}
+.permission-main-split {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+.permission-main-split > .split-pane-divider {
+    -fx-padding: 0 3px;
+    -fx-background-color: transparent;
+}
+.permission-matrix-card,
+.permission-preview-card {
+    -fx-padding: 10px;
+}
+.permission-preview-card {
+    -fx-min-width: 300px;
+    -fx-pref-width: 330px;
+}
+.permission-preview-scroll,
+.permission-preview-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+.permission-preview-scroll {
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+.permission-preview-content {
+    -fx-padding: 2px 3px 8px 3px;
+}
+.permission-preview-group {
+    -fx-padding: 7px 8px;
+    -fx-background-color: -color-surface-2;
+    -fx-background-radius: 8px;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 8px;
+}
+.permission-preview-category {
+    -fx-font-weight: 800;
+    -fx-text-fill: -app-primary-text;
+}
+.permission-preview-detail {
+    -fx-text-fill: -color-muted;
+}
+.permission-preview-icon {
+    -fx-text-fill: #8B5CF6;
+    -fx-font-size: 18px;
+    -fx-font-weight: 800;
+}
+.permission-mode-note {
+    -fx-padding: 9px 10px;
+    -fx-background-color: rgba(124,58,237,0.10);
+    -fx-border-color: rgba(124,58,237,0.28);
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+}
+.permission-mode-title {
+    -fx-text-fill: #8B5CF6;
+    -fx-font-weight: 800;
+    -fx-font-size: 11px;
+}
+.permission-matrix-table .table-cell {
+    -fx-padding: 7px 8px;
+}
+.permission-matrix-table .permission-group-row .table-cell {
+    -fx-background-color: -color-surface-2;
+    -fx-border-color: transparent transparent -color-border transparent;
+    -fx-padding: 7px 8px;
+}
+.permission-group-label {
+    -fx-font-weight: 800;
+    -fx-text-fill: -app-primary-text;
+}
+.permission-module-label {
+    -fx-font-weight: 600;
+    -fx-text-fill: -color-text;
+}
+.permission-matrix-check,
+.permission-header-check {
+    -fx-padding: 0;
+}
+.permission-column-title {
+    -fx-font-weight: 700;
+}
+.permission-not-supported {
+    -fx-text-fill: -color-muted;
+    -fx-opacity: 0.65;
+}
+.permission-special-menu {
+    -fx-min-width: 86px;
+    -fx-pref-width: 96px;
+    -fx-background-color: -color-surface-2;
+    -fx-text-fill: -color-text;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 7px;
+    -fx-background-radius: 7px;
+}
+.permission-special-menu:hover {
+    -fx-border-color: -app-primary;
+}
+.permission-legend {
+    -fx-font-size: 11px;
+}
+.permission-footer {
+    -fx-padding: 2px 0 0 0;
+}
+.permission-save-button {
+    -fx-min-width: 150px;
 }

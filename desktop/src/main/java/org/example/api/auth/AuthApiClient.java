@@ -39,16 +39,49 @@ public final class AuthApiClient {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
-    public AppUser authenticate(String identity, String password) {
+    public LoginAttempt authenticate(String identity, String password) {
         LoginResponse response = post("/api/auth/login",
                 new LoginRequest(identity, password), LoginResponse.class);
-        if (response == null || !response.success()) return null;
+        if (response == null) return null;
+        if (!response.success()) {
+            throw new IllegalStateException(response.message() == null || response.message().isBlank()
+                    ? "Invalid email/username or password." : response.message());
+        }
+        AppUser user = toAppUser(response.user());
+        if (response.mfaRequired()) {
+            if (response.challengeId() == null || response.challengeId().isBlank()) {
+                throw new IllegalStateException("The authentication server did not return an MFA challenge");
+            }
+            return new LoginAttempt(user, true, response.challengeId(), response.maskedDestination());
+        }
+        establishSession(response);
+        return new LoginAttempt(user, false, null, null);
+    }
+
+    public AppUser completeLoginMfa(String challengeId, String otp) {
+        LoginResponse response = post("/api/auth/login/mfa/complete",
+                new LoginMfaCompleteRequest(challengeId, otp), LoginResponse.class);
+        if (response == null || !response.success() || response.mfaRequired()) {
+            throw new IllegalStateException(response == null ? "MFA verification failed" : response.message());
+        }
+        establishSession(response);
+        return toAppUser(response.user());
+    }
+
+    public LoginMfaChallengeResponse resendLoginMfa(String challengeId) {
+        LoginMfaChallengeResponse response = post("/api/auth/login/mfa/resend",
+                new LoginMfaResendRequest(challengeId), LoginMfaChallengeResponse.class);
+        if (response == null || !response.success()) {
+            throw new IllegalStateException(response == null ? "Unable to resend verification code" : response.message());
+        }
+        return response;
+    }
+
+    private void establishSession(LoginResponse response) {
         if (response.accessToken() == null || response.accessToken().isBlank()) {
-            throw new IllegalStateException("The running backend does not support secure bearer login. "
-                    + "Restart DSE ERP so the current backend can be launched.");
+            throw new IllegalStateException("The authentication server did not return a secure session token");
         }
         ApiSession.establish(response.accessToken(), response.expiresAt());
-        return toAppUser(response.user());
     }
 
     public void recordSuccessfulLogin(int userId) {
@@ -65,7 +98,8 @@ public final class AuthApiClient {
 
     public void register(AppUser user) {
         OperationResponse response = post("/api/auth/register",
-                new RegisterRequest(user.getUsername(), user.getPassword(), user.getFullName(), user.getEmail(), user.getRole()),
+                new RegisterRequest(user.getUsername(), user.getPassword(), user.getFullName(), user.getEmail(), user.getRole(),
+                        user.isMfaEnabled()),
                 OperationResponse.class);
         if (response == null || !response.success()) {
             throw new IllegalStateException(response == null ? "Registration failed" : response.message());
@@ -74,7 +108,8 @@ public final class AuthApiClient {
 
     public ChallengeResponse requestRegistrationOtp(AppUser user) {
         ChallengeResponse response = post("/api/auth/registration/request",
-                new RegistrationOtpRequest(user.getUsername(), user.getFullName(), user.getEmail(), user.getRole()),
+                new RegistrationOtpRequest(user.getUsername(), user.getFullName(), user.getEmail(), user.getRole(),
+                        user.isMfaEnabled()),
                 ChallengeResponse.class);
         if (response == null || !response.success())
             throw new IllegalStateException(response == null ? "Registration verification failed" : response.message());
@@ -84,7 +119,7 @@ public final class AuthApiClient {
     public void completeRegistration(AppUser user, String challengeId, String otp) {
         OperationResponse response = post("/api/auth/registration/complete",
                 new RegistrationCompleteRequest(challengeId, otp, user.getUsername(), user.getPassword(),
-                        user.getFullName(), user.getEmail(), user.getRole()), OperationResponse.class);
+                        user.getFullName(), user.getEmail(), user.getRole(), user.isMfaEnabled()), OperationResponse.class);
         if (response == null || !response.success())
             throw new IllegalStateException(response == null ? "Registration failed" : response.message());
     }
@@ -156,6 +191,9 @@ public final class AuthApiClient {
             if (!isPublicAuthPath(path)) ApiSession.authorize(builder);
             HttpRequest request = builder.build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401 && responseType == LoginResponse.class) {
+                return json.readValue(response.body(), responseType);
+            }
             if (response.statusCode() == 401 || response.statusCode() == 404) return null;
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException(apiErrorMessage(response));
@@ -215,6 +253,7 @@ public final class AuthApiClient {
 
     private static boolean isPublicAuthPath(String path) {
         return "/api/auth/login".equals(path)
+                || path.startsWith("/api/auth/login/mfa/")
                 || path.startsWith("/api/auth/registration/")
                 || path.startsWith("/api/auth/password-reset/");
     }
@@ -228,16 +267,24 @@ public final class AuthApiClient {
     }
 
     public record LoginRequest(String identity, String password) {}
+    public record LoginMfaCompleteRequest(String challengeId, String otp) {}
+    public record LoginMfaResendRequest(String challengeId) {}
     public record UserIdRequest(int userId) {}
     public record ChangePasswordRequest(int userId, String currentPassword, String password) {}
-    public record RegisterRequest(String username, String password, String fullName, String email, String role) {}
-    public record RegistrationOtpRequest(String username, String fullName, String email, String role) {}
+    public record RegisterRequest(String username, String password, String fullName, String email, String role,
+                                  boolean mfaEnabled) {}
+    public record RegistrationOtpRequest(String username, String fullName, String email, String role,
+                                         boolean mfaEnabled) {}
     public record RegistrationCompleteRequest(String challengeId, String otp, String username, String password,
-                                               String fullName, String email, String role) {}
+                                               String fullName, String email, String role, boolean mfaEnabled) {}
     public record PasswordResetOtpRequest(String identity) {}
     public record PasswordResetCompleteRequest(String challengeId, String otp, String password) {}
     public record ChallengeResponse(boolean success, String challengeId, String message) {}
-    public record LoginResponse(boolean success, UserPayload user, String message, String accessToken, String expiresAt) {}
+    public record LoginMfaChallengeResponse(boolean success, String challengeId, String message,
+                                            String maskedDestination) {}
+    public record LoginResponse(boolean success, UserPayload user, String message, String accessToken, String expiresAt,
+                                boolean mfaRequired, String challengeId, String maskedDestination) {}
+    public record LoginAttempt(AppUser user, boolean mfaRequired, String challengeId, String maskedDestination) {}
     public record OperationResponse(boolean success, String message) {}
     public record RoleOption(String code, String displayName) {
         @Override public String toString() { return displayName; }

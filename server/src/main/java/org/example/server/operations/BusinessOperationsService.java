@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
@@ -162,7 +163,7 @@ public class BusinessOperationsService {
  @Transactional public OperationDtos.FinanceDto saveFinance(OperationDtos.FinanceDto d){FinanceRegisterEntity e=new FinanceRegisterEntity();copyFinance(d,e);if(blank(e.getVoucherNo()))e.setVoucherNo(nextVoucher());e.setCreatedAt(BusinessClock.nowUtcText());return financeDto(finance.save(e));}
  @Transactional public OperationDtos.FinanceDto updateFinance(OperationDtos.FinanceDto d){FinanceRegisterEntity e=finance.findById(req(d.id())).orElseThrow(()->new IllegalArgumentException("Finance entry not found"));copyFinance(d,e);return financeDto(e);}
  @Transactional public void deleteFinance(int id){finance.deleteById(id);}
- @Transactional(readOnly=true) public String nextVoucher(){int next=finance.findTopByOrderByIdDesc().map(x->x.getId()+1).orElse(1);return "VCH-"+BusinessClock.today().getYear()+"-"+String.format(Locale.ROOT,"%05d",next);}
+ @Transactional public String nextVoucher(){List<String> existing=finance.findAll().stream().map(FinanceRegisterEntity::getVoucherNo).filter(Objects::nonNull).toList();return configuredNextAtomic("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX",existing);}
 
  @Transactional(readOnly=true) public List<OperationDtos.StockHistoryDto> stockHistory(String itemCode){
    String sql="""
@@ -271,16 +272,25 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
  private void copyPurchase(OperationDtos.PurchaseDto d,PurchaseHeaderEntity h){h.setInvoiceNo(d.invoiceNo());h.setInvoiceDate(d.invoiceDate());h.setSupplier(parties.findById(req(d.supplier()==null?null:d.supplier().id())).orElseThrow(()->new IllegalArgumentException("Supplier not found")));DocumentCalculationEngine.Totals totals=documentTotals(d.lines(),normalizedPurchaseCharges(d),d.gstType());h.setSubtotal(totals.itemTaxable());h.setGstAmount(totals.taxAmount());h.setTotalAmount(totals.grandTotal());h.setDiscountAmount(totals.discountAmount());h.setRemarks(d.remarks());h.setDueDate(d.dueDate());h.setPaidAmount(d.paidAmount());h.setPaymentStatus(d.paymentStatus());h.setDocumentStatus(d.documentStatus());h.setEmailSent(d.emailSent()?1:0);h.setWarehouse(d.warehouse());h.setPaymentTerms(d.paymentTerms());h.setCurrency(d.currency());h.setReferenceNo(d.referenceNo());h.setGstTreatment(d.gstTreatment());h.setTransporter(d.transporter());h.setLrAwbNo(d.lrAwbNo());h.setDiscountType(d.discountType());if(h.getId()==null)h.setCreatedBy(CurrentUser.require().username());h.setDeliveryDate(d.deliveryDate());h.setBillingAddress(d.billingAddress());h.setDeliveryAddress(d.deliveryAddress());h.setBillingGstin(d.billingGstin());h.setDeliveryGstin(d.deliveryGstin());h.setGstType(d.gstType());h.setTransporterGstin(d.transporterGstin());h.setVehicleNumber(d.vehicleNumber());h.setContactPerson(d.contactPerson());h.setContactPersonMobile(d.contactPersonMobile());h.setNotes(d.notes());h.setOrderNo(d.orderNo());h.setPoDate(d.poDate());h.setSameAsBilling(d.sameAsBilling());}
  private void copyFinance(OperationDtos.FinanceDto d,FinanceRegisterEntity e){if(d.voucherNo()!=null)e.setVoucherNo(d.voucherNo());e.setVoucherType(d.voucherType());e.setVoucherDate(d.voucherDate());e.setPartyId(d.partyId());e.setCategory(d.category());e.setReferenceNo(d.referenceNo());e.setAmount(d.amount());e.setPaymentMode(d.paymentMode());e.setNotes(d.notes());e.setAccountName(d.accountName());if(d.billPath()!=null)e.setBillPath(d.billPath());e.setReconciled(d.reconciled()?1:0);}
  private OperationDtos.FinanceDto financeDto(FinanceRegisterEntity e){Long statementId=null;String targetType=null;Integer targetId=null;String documentNo=null;var active=reconciliationAllocations.findByFinanceEntryIdAndReversedAtIsNull(e.getId());if(!active.isEmpty()){var a=active.get(0);statementId=a.getStatementTransactionId();if(active.size()>1){targetType="MULTIPLE";documentNo="Multiple ("+active.size()+")";}else{targetType=up(a.getTargetType());targetId=a.getTargetId();if("SALE".equals(targetType)&&targetId!=null)documentNo=sales.findById(targetId).map(SalesHeaderEntity::getInvoiceNo).orElse(null);else if("PURCHASE".equals(targetType)&&targetId!=null)documentNo=purchases.findById(targetId).map(PurchaseHeaderEntity::getInvoiceNo).orElse(null);else if("EXPENSE".equals(targetType))documentNo=e.getVoucherNo();}}return new OperationDtos.FinanceDto(e.getId(),e.getVoucherNo(),e.getVoucherType(),dateOnly(e.getVoucherDate()),e.getPartyId(),e.getCategory(),e.getReferenceNo(),n(e.getAmount()),e.getPaymentMode(),e.getNotes(),e.getAccountName(),e.getBillPath(),n(e.getReconciled())!=0,statementId,targetType,targetId,documentNo);}
- public String nextConfiguredReference(String lookupCode,String fallback,List<String> existing){return configuredNext(lookupCode,fallback,existing);}
+ @Transactional(propagation=Propagation.REQUIRES_NEW) public String nextConfiguredReference(String lookupCode,String fallback,List<String> existing){return configuredNextAtomic(lookupCode,fallback,existing);}
  private String configuredNextAtomic(String lookupCode,String fallback,List<String> existing){
-  String candidate=configuredNext(lookupCode,fallback,existing);
-  Matcher candidateDigits=Pattern.compile("(\\d+)(?!.*\\d)").matcher(candidate);
-  if(!candidateDigits.find())throw new IllegalStateException("Reference format must contain a numeric sequence");
-  long observed=Long.parseLong(candidateDigits.group(1));
-  long allocated=jdbc.queryForObject("INSERT INTO reference_counter(counter_key,next_value,updated_at) VALUES(?,?,?) ON CONFLICT(counter_key) DO UPDATE SET next_value=GREATEST(reference_counter.next_value+1,EXCLUDED.next_value),updated_at=EXCLUDED.updated_at RETURNING next_value",Long.class,lookupCode,observed,BusinessClock.nowUtcText());
-  return candidate.substring(0,candidateDigits.start())+String.format(Locale.ROOT,"%0"+candidateDigits.group(1).length()+"d",allocated)+candidate.substring(candidateDigits.end());
+  String dated=datedReferenceFormat(configuredFormat(lookupCode,fallback));
+  Matcher sequence=Pattern.compile("X{2,}").matcher(dated);
+  if(!sequence.find()){dated+="/XXXX";sequence=Pattern.compile("X{2,}").matcher(dated);sequence.find();}
+  int width=sequence.end()-sequence.start();
+  String prefix=dated.substring(0,sequence.start()),suffix=dated.substring(sequence.end());
+  long observed=1L;
+  for(String value:existing==null?List.<String>of():existing){
+   if(value==null||!value.startsWith(prefix)||!value.endsWith(suffix))continue;
+   try{observed=Math.max(observed,Long.parseLong(value.substring(prefix.length(),value.length()-suffix.length()))+1L);}catch(Exception ignored){}
+  }
+  String scope=prefix+"\u0000"+suffix;
+  String counterKey=lookupCode+"|"+UUID.nameUUIDFromBytes(scope.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+  long allocated=jdbc.queryForObject("INSERT INTO reference_counter(counter_key,next_value,updated_at) VALUES(?,?,?) ON CONFLICT(counter_key) DO UPDATE SET next_value=GREATEST(reference_counter.next_value+1,EXCLUDED.next_value),updated_at=EXCLUDED.updated_at RETURNING next_value",Long.class,counterKey,observed,BusinessClock.nowUtcText());
+  return prefix+String.format(Locale.ROOT,"%0"+width+"d",allocated)+suffix;
  }
- private String configuredNext(String lookupCode,String fallback,List<String> existing){
+ private String configuredNext(String lookupCode,String fallback,List<String> existing){return nextFromFormat(configuredFormat(lookupCode,fallback),existing==null?List.of():existing);}
+ private String configuredFormat(String lookupCode,String fallback){
   String fmt=fallback;
   var category=categories.findByCategoryCode("REFERENCE_FORMAT").orElse(null);
   if(category!=null&&category.getActive()!=null&&category.getActive()!=0){
@@ -288,9 +298,10 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
     if(value.getLookupCode()!=null&&value.getLookupCode().equalsIgnoreCase(lookupCode)&&!blank(value.getLookupValue())){fmt=value.getLookupValue().trim();break;}
    }
   }
-  return nextFromFormat(fmt,existing==null?List.of():existing);
+  return fmt;
  }
- private String nextFromFormat(String fmt,List<String> existing){LocalDate t=BusinessClock.today();String dated=fmt.replace("DD-MM-YYYY",t.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).replace("DD/MM/YYYY",t.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).replace("YYYY-MM-DD",t.toString()).replace("YYYY",String.valueOf(t.getYear())).replace("YY",String.format(Locale.ROOT,"%02d",t.getYear()%100));Matcher m=Pattern.compile("X{2,}").matcher(dated);if(!m.find()){dated+="/XXXX";m=Pattern.compile("X{2,}").matcher(dated);m.find();}int w=m.end()-m.start();String pre=dated.substring(0,m.start()),suf=dated.substring(m.end());int max=0;for(String x:existing){if(x!=null&&x.startsWith(pre)&&x.endsWith(suf)){try{max=Math.max(max,Integer.parseInt(x.substring(pre.length(),x.length()-suf.length())));}catch(Exception ignored){}}}return pre+String.format(Locale.ROOT,"%0"+w+"d",max+1)+suf;}
+ private String datedReferenceFormat(String fmt){LocalDate t=BusinessClock.today();return fmt.replace("DD-MM-YYYY",t.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).replace("DD/MM/YYYY",t.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).replace("YYYY-MM-DD",t.toString()).replace("YYYY",String.valueOf(t.getYear())).replace("YY",String.format(Locale.ROOT,"%02d",t.getYear()%100));}
+ private String nextFromFormat(String fmt,List<String> existing){String dated=datedReferenceFormat(fmt);Matcher m=Pattern.compile("X{2,}").matcher(dated);if(!m.find()){dated+="/XXXX";m=Pattern.compile("X{2,}").matcher(dated);m.find();}int w=m.end()-m.start();String pre=dated.substring(0,m.start()),suf=dated.substring(m.end());int max=0;for(String x:existing){if(x!=null&&x.startsWith(pre)&&x.endsWith(suf)){try{max=Math.max(max,Integer.parseInt(x.substring(pre.length(),x.length()-suf.length())));}catch(Exception ignored){}}}return pre+String.format(Locale.ROOT,"%0"+w+"d",max+1)+suf;}
  private static int req(Integer v){if(v==null||v<=0)throw new IllegalArgumentException("Required id missing");return v;} private static double n(Number v){return v==null?0:v.doubleValue();} private static String up(String v){return v==null?"":v.trim().toUpperCase(Locale.ROOT);} private static boolean blank(String v){return v==null||v.isBlank();}
  private static String customerPoOrderNo(String value){if(blank(value))return null;String v=value.trim();return v.matches("(?i)^PO/\\d{2}-\\d{2}-\\d{4}/\\d{4}$")?null:v;}
  private static BigDecimal money(double value){return BigDecimal.valueOf(value).setScale(2,RoundingMode.HALF_UP);}

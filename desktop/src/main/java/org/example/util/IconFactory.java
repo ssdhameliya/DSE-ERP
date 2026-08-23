@@ -672,8 +672,8 @@ public final class IconFactory {
     private static String colour(String semantic) {
         return switch (semantic) {
             case "sale", "complete", "add", "import", "whatsapp", "save", "validate", "excel" -> "green";
-            case "purchase", "item", "filter", "reminder", "calendar", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
-            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application" -> "purple";
+            case "purchase", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
+            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application", "calendar" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
             case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";

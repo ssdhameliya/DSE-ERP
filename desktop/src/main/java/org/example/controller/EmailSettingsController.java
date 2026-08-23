@@ -26,23 +26,28 @@ public class EmailSettingsController {
     @FXML private VBox brandPanel;
     @FXML private Label lblBrandMark,lblBrandName,lblBrandTagline,lblBrandDescription,lblVersion;
     @FXML private Label lblClock,lblMessage,lblEmailError,lblPasswordError,lblHostError,lblPortError;
-    @FXML private TextField txtSmtpEmail,txtSmtpHost,txtSmtpPort,txtSmtpPasswordVisible;
+    @FXML private TextField txtSmtpEmail,txtSmtpHost,txtSmtpPort;
     @FXML private PasswordField txtSmtpPassword;
-    @FXML private CheckBox chkShowSmtpPassword;
     @FXML private Button btnSave,btnBack,btnTestEmail;
 
     @FXML public void initialize(){
-        txtSmtpEmail.setText(ConfigManager.getSmtpEmail()); txtSmtpPassword.setText(ConfigManager.getSmtpPassword()); txtSmtpPasswordVisible.setText(ConfigManager.getSmtpPassword()); txtSmtpHost.setText(ConfigManager.getSmtpHost()); txtSmtpPort.setText(ConfigManager.getSmtpPort());
+        txtSmtpEmail.setText(ConfigManager.isSharedClient() ? "" : ConfigManager.getSmtpEmail());
+        txtSmtpPassword.setText(ConfigManager.isSharedClient() ? "" : ConfigManager.getSmtpPassword());
+        txtSmtpHost.setText(ConfigManager.isSharedClient() ? "" : ConfigManager.getSmtpHost());
+        txtSmtpPort.setText(ConfigManager.isSharedClient() ? "587" : ConfigManager.getSmtpPort());
         BrandImagePresenter.applicationBanner(imgBrandLogo, brandLogoBox); BrandImagePresenter.contain(imgBrandMark, brandMarkBox);
         applyBranding();
         if (lblVersion != null) lblVersion.setText("Version " + BuildInfo.version());
         btnSave.setGraphic(IconFactory.icon("save")); btnBack.setGraphic(IconFactory.icon("return")); if(btnTestEmail!=null)btnTestEmail.setGraphic(IconFactory.icon("email"));
         txtSmtpEmail.textProperty().addListener((o,a,b)->{if(b!=null&&!b.isBlank())clear(txtSmtpEmail,lblEmailError);});
         txtSmtpPassword.textProperty().addListener((o,a,b)->{if(b!=null&&!b.isBlank())clear(txtSmtpPassword,lblPasswordError);});
-        txtSmtpPasswordVisible.textProperty().addListener((o,a,b)->{if(b!=null&&!b.isBlank())clear(txtSmtpPasswordVisible,lblPasswordError);});
         txtSmtpHost.textProperty().addListener((o,a,b)->clear(txtSmtpHost,lblHostError));
         txtSmtpPort.textProperty().addListener((o,a,b)->clear(txtSmtpPort,lblPortError));
-        
+        if (ConfigManager.isSharedClient()) {
+            txtSmtpEmail.setDisable(true); txtSmtpPassword.setDisable(true); txtSmtpHost.setDisable(true); txtSmtpPort.setDisable(true);
+            btnSave.setDisable(true); btnTestEmail.setDisable(true);
+            message("Company-server email and MFA delivery are managed by an Admin after sign-in.", false);
+        }
     }
 
     private void applyBranding(){
@@ -57,12 +62,14 @@ public class EmailSettingsController {
 
 
     @FXML private void save(){
+        if(ConfigManager.isSharedClient()){message("Sign in as Admin to change company-server email settings.",true);return;}
         if(!validateAndPersist())return;
         message("Email settings saved successfully.",false);
         leaveSettings();
     }
 
     @FXML private void testEmail(){
+        if(ConfigManager.isSharedClient()){message("Sign in as Admin to test company-server email settings.",true);return;}
         if(!validateAndPersist())return;
         try{
             EmailService.send(txtSmtpEmail.getText().trim(),"DSE ERP email test","Your DSE ERP email configuration is working correctly.");
@@ -70,22 +77,16 @@ public class EmailSettingsController {
         }catch(RuntimeException failure){message(failure.getMessage()==null?"Test email failed. Check the SMTP settings and try again.":failure.getMessage(),true);}
     }
 
-    @FXML private void togglePasswordVisibility(){
-        boolean show=chkShowSmtpPassword!=null&&chkShowSmtpPassword.isSelected();
-        if(show)txtSmtpPasswordVisible.setText(txtSmtpPassword.getText());else txtSmtpPassword.setText(txtSmtpPasswordVisible.getText());
-        txtSmtpPassword.setVisible(!show);txtSmtpPassword.setManaged(!show);txtSmtpPasswordVisible.setVisible(show);txtSmtpPasswordVisible.setManaged(show);
-    }
-
-    private String passwordValue(){return chkShowSmtpPassword!=null&&chkShowSmtpPassword.isSelected()?txtSmtpPasswordVisible.getText():txtSmtpPassword.getText();}
+    private String passwordValue(){return txtSmtpPassword.getText();}
     private boolean validateAndPersist(){
         clear(txtSmtpEmail,lblEmailError);clear(txtSmtpPassword,lblPasswordError);clear(txtSmtpHost,lblHostError);clear(txtSmtpPort,lblPortError);boolean ok=true;
         String email=txtSmtpEmail.getText()==null?"":txtSmtpEmail.getText().trim();String password=passwordValue()==null?"":passwordValue();String host=txtSmtpHost.getText()==null?"":txtSmtpHost.getText().trim();String port=txtSmtpPort.getText()==null?"":txtSmtpPort.getText().trim();
         if(email.isEmpty()){error(txtSmtpEmail,lblEmailError,"Sending email address is required.");ok=false;}else if(!EMAIL.matcher(email).matches()){error(txtSmtpEmail,lblEmailError,"Enter a valid email address.");ok=false;}
-        if(password.isBlank()){error(chkShowSmtpPassword!=null&&chkShowSmtpPassword.isSelected()?txtSmtpPasswordVisible:txtSmtpPassword,lblPasswordError,"Email app password is required.");ok=false;}
+        if(password.isBlank()){error(txtSmtpPassword,lblPasswordError,"Email app password is required.");ok=false;}
         if(!port.matches("\\d{1,5}")){error(txtSmtpPort,lblPortError,"Enter a valid SMTP port.");ok=false;}else{int value=Integer.parseInt(port);if(value<1||value>65535){error(txtSmtpPort,lblPortError,"SMTP port must be between 1 and 65535.");ok=false;}}
         if(!ok){message("Please correct the highlighted fields.",true);return false;}
         ConfigManager.setWithoutSaving("smtp.email",email);ConfigManager.setWithoutSaving("smtp.appPassword",password);ConfigManager.setWithoutSaving("smtp.host",host);ConfigManager.setWithoutSaving("smtp.port",port);ConfigManager.save();
-        txtSmtpPassword.setText(password);txtSmtpPasswordVisible.setText(password);return true;
+        txtSmtpPassword.setText(password);return true;
     }
     @FXML private void back(){leaveSettings();}
     private void leaveSettings(){SceneManager.showLogin();}

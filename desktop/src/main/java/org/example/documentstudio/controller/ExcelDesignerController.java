@@ -1684,11 +1684,11 @@ public class ExcelDesignerController {
             setNoFillState(fillColor);
 
             String borderState=borderState(range);
-            if(lblBorderState!=null)lblBorderState.setText(borderState);
+            if(lblBorderState!=null){lblBorderState.setText(borderState);lblBorderState.setTooltip(new Tooltip(borderState));}
             setControlState(btnBorders,!"None".equals(borderState)&&!"Mixed".equals(borderState),"Mixed".equals(borderState));
 
             String mergeState=mergeState(range);
-            if(lblMergeState!=null)lblMergeState.setText(mergeState);
+            if(lblMergeState!=null){lblMergeState.setText(mergeState);lblMergeState.setTooltip(new Tooltip(mergeState));}
             if(btnMerge!=null){
                 btnMerge.getStyleClass().removeAll("excel-format-active","excel-format-mixed");
                 if("Merged".equals(mergeState))btnMerge.getStyleClass().add("excel-format-active");

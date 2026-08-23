@@ -1,10 +1,12 @@
 package org.example.server.auth;
 
+import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.persistence.entity.UserEntity;
 import org.example.server.persistence.repository.RoleRepository;
 import org.example.server.persistence.repository.UserRepository;
 import org.example.server.security.AuthenticatedUser;
 import org.example.server.security.TokenService;
+import org.example.server.util.BusinessClock;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,11 @@ import java.util.Locale;
 public class AuthService {
     private static final List<String> ALLOWED_ROLES = List.of("ADMIN", "MANAGER", "SALES");
     private static final List<String> PUBLIC_REGISTRATION_ROLES = List.of("MANAGER", "SALES");
+    private static final int MAX_PASSWORD_ATTEMPTS = 5;
+    private static final int MAX_MFA_ATTEMPTS = 5;
+    private static final String LOCK_FAILED_PASSWORD = "FAILED_PASSWORD";
+    private static final String LOCK_FAILED_MFA = "FAILED_MFA";
+    private static final String LOCK_ADMIN = "ADMIN";
 
     private final UserRepository users;
     private final RoleRepository roles;
@@ -23,30 +30,115 @@ public class AuthService {
     private final TokenService tokens;
     private final AuthOtpService otp;
     private final SmtpMailService mail;
+    private final JpaNativeRepository db;
 
     public AuthService(UserRepository users, RoleRepository roles, PasswordEncoder passwords, TokenService tokens,
-                       AuthOtpService otp, SmtpMailService mail) {
+                       AuthOtpService otp, SmtpMailService mail, JpaNativeRepository db) {
         this.users = users;
         this.roles = roles;
         this.passwords = passwords;
         this.tokens = tokens;
         this.otp = otp;
         this.mail = mail;
+        this.db = db;
     }
 
     @Transactional
     public AuthDtos.LoginResponse login(AuthDtos.LoginRequest request) {
         String identity = request == null || request.identity() == null ? "" : request.identity().trim();
         String raw = request == null || request.password() == null ? "" : request.password();
-        if (identity.isBlank() || raw.isBlank()) return failedLogin();
-        UserEntity user = users.findActiveByIdentity(identity).orElse(null);
-        if (user == null || user.isLocked() || !passwordMatches(raw, user.getPassword())) return failedLogin();
+        if (identity.isBlank() || raw.isBlank()) return failedLogin("Invalid email/username or password.");
+
+        UserEntity user = users.findForAuthentication(identity).orElse(null);
+        if (user == null) return failedLogin("Invalid email/username or password.");
+        if (user.isLocked()) return failedLogin(lockMessage(user));
+        if (!passwordMatches(raw, user.getPassword())) return failedPassword(user);
+
         String role = user.getRoleName() == null ? "" : user.getRoleName().toUpperCase(Locale.ROOT);
-        if (!ALLOWED_ROLES.contains(role)) return failedLogin();
+        if (!ALLOWED_ROLES.contains(role)) return failedLogin("This account is not available for sign in.");
+
+        // The password factor was proved successfully. Keep its failure counter independent from MFA failures.
+        user.resetPasswordFailures();
         if (!isBcrypt(user.getPassword())) user.setPassword(passwords.encode(raw));
+
+        if (user.isMfaEnabled()) {
+            String email = user.getEmail() == null ? "" : user.getEmail().trim();
+            if (email.isBlank()) {
+                audit(user.getId(), "MFA_LOGIN_BLOCKED", "MFA is enabled but the account has no registered email", user.getUsername());
+                throw new IllegalStateException("MFA is enabled for this account, but no registered email address is available. Contact an administrator.");
+            }
+            mail.requireConfigured();
+            var issued = otp.issue(AuthOtpService.Purpose.LOGIN_MFA, "user:" + user.getId(),
+                    loginMfaBinding(user), user.getId(), email, mail);
+            audit(user.getId(), "MFA_CHALLENGE_ISSUED", "Sign-in verification code requested", user.getUsername());
+            return new AuthDtos.LoginResponse(true, payload(user),
+                    issued.sent() ? "Verification code sent" : "Use the latest verification code",
+                    null, null, true, issued.challengeId(), maskEmail(email));
+        }
+
+        return authenticatedLogin(user, role);
+    }
+
+    @Transactional
+    public AuthDtos.LoginResponse completeLoginMfa(AuthDtos.LoginMfaCompleteRequest request) {
+        if (request == null || request.challengeId() == null || request.challengeId().isBlank()) {
+            throw new IllegalArgumentException("The verification challenge is invalid or expired");
+        }
+        Integer userId = otp.challengeUser(AuthOtpService.Purpose.LOGIN_MFA, request.challengeId());
+        UserEntity user = users.findByIdForAuthentication(userId)
+                .orElseThrow(() -> new IllegalArgumentException("The verification challenge is invalid or expired"));
+        if (!user.isActive() || user.isLocked() || !user.isMfaEnabled()) {
+            audit(userId, "MFA_LOGIN_BLOCKED", "Account state changed before MFA completion", user.getUsername());
+            return failedLogin(user.isLocked() ? lockMessage(user) : "This account is not available for sign in.");
+        }
+
+        try {
+            var verified = otp.verify(AuthOtpService.Purpose.LOGIN_MFA, request.challengeId(), request.otp());
+            if (verified.userId() == null || !verified.userId().equals(userId)) {
+                throw new IllegalArgumentException("The verification code is invalid or expired");
+            }
+        } catch (IllegalArgumentException exception) {
+            return failedMfa(user);
+        }
+
+        String role = user.getRoleName() == null ? "" : user.getRoleName().toUpperCase(Locale.ROOT);
+        if (!ALLOWED_ROLES.contains(role)) {
+            audit(userId, "MFA_LOGIN_BLOCKED", "Role is not permitted to sign in", user.getUsername());
+            return failedLogin("This account is not available for sign in.");
+        }
+        user.resetMfaFailures();
+        audit(userId, "MFA_LOGIN_SUCCESS", "Sign-in verification completed", user.getUsername());
+        return authenticatedLogin(user, role);
+    }
+
+    @Transactional(readOnly = true)
+    public AuthDtos.LoginMfaChallengeResponse resendLoginMfa(AuthDtos.LoginMfaResendRequest request) {
+        if (request == null || request.challengeId() == null || request.challengeId().isBlank()) {
+            throw new IllegalArgumentException("The verification challenge is invalid or expired");
+        }
+        Integer userId = otp.challengeUser(AuthOtpService.Purpose.LOGIN_MFA, request.challengeId());
+        UserEntity user = users.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("The verification challenge is invalid or expired"));
+        if (!user.isActive() || user.isLocked() || !user.isMfaEnabled()) {
+            throw new SecurityException("This account is not available for sign in");
+        }
+        String email = user.getEmail() == null ? "" : user.getEmail().trim();
+        if (email.isBlank()) throw new IllegalStateException("The account has no registered email address");
+        mail.requireConfigured();
+        var issued = otp.issue(AuthOtpService.Purpose.LOGIN_MFA, "user:" + user.getId(),
+                loginMfaBinding(user), user.getId(), email, mail);
+        return new AuthDtos.LoginMfaChallengeResponse(true, issued.challengeId(),
+                issued.sent() ? "A new verification code was sent"
+                        : "Please wait before requesting another code. Use the latest code already sent",
+                maskEmail(email));
+    }
+
+    private AuthDtos.LoginResponse authenticatedLogin(UserEntity user, String role) {
         user.recordSuccessfulLogin();
         var issued = tokens.issue(new AuthenticatedUser(user.getId(), user.getUsername(), role));
-        return new AuthDtos.LoginResponse(true, payload(user), "OK", issued.value(), issued.expiresAt().toString());
+        audit(user.getId(), "LOGIN_SUCCESS", "Authentication completed", user.getUsername());
+        return new AuthDtos.LoginResponse(true, payload(user), "OK", issued.value(), issued.expiresAt().toString(),
+                false, null, null);
     }
 
     @Transactional
@@ -79,7 +171,7 @@ public class AuthService {
         user.setRole(role.getName());
         user.setActive(true);
         user.setLocked(false);
-        user.setMfaEnabled(false);
+        user.setMfaEnabled(request.mfaEnabled());
         user.setAccessLevel("STANDARD");
         users.save(user);
         return new AuthDtos.OperationResponse(true, "User registered");
@@ -99,7 +191,7 @@ public class AuthService {
         if (users.existsByEmailIgnoreCase(email))
             return new AuthDtos.ChallengeResponse(false, null, "Email is already registered");
         var issued = otp.issue(AuthOtpService.Purpose.REGISTRATION, email.toLowerCase(Locale.ROOT),
-                registrationBinding(username, email, role), null, email, mail);
+                registrationBinding(username, email, role, request.mfaEnabled()), null, email, mail);
         return new AuthDtos.ChallengeResponse(true, issued.challengeId(), issued.sent()
                 ? "Verification code sent to your email"
                 : "A verification code was already sent. Please use the latest code");
@@ -117,7 +209,7 @@ public class AuthService {
         String email = request.email().trim();
         String roleName = normalizeRole(request.role());
         otp.verify(AuthOtpService.Purpose.REGISTRATION, request.challengeId(), request.otp(),
-                registrationBinding(username, email, roleName));
+                registrationBinding(username, email, roleName, request.mfaEnabled()));
         if (users.existsByUsernameIgnoreCase(username))
             return new AuthDtos.OperationResponse(false, "Username is already registered");
         if (users.existsByEmailIgnoreCase(email))
@@ -133,7 +225,7 @@ public class AuthService {
         user.setRole(role.getName());
         user.setActive(true);
         user.setLocked(false);
-        user.setMfaEnabled(false);
+        user.setMfaEnabled(request.mfaEnabled());
         user.setAccessLevel("STANDARD");
         users.save(user);
         return new AuthDtos.OperationResponse(true, "User registered");
@@ -144,7 +236,7 @@ public class AuthService {
         String identity = request == null || request.identity() == null ? "" : request.identity().trim();
         if (identity.isBlank()) return new AuthDtos.ChallengeResponse(false, null, "Email or username is required");
         mail.requireConfigured();
-        UserEntity user = users.findActiveByIdentity(identity).orElse(null);
+        UserEntity user = users.findActiveByIdentityIncludingLocked(identity).orElse(null);
         Integer userId = user == null ? null : user.getId();
         String recipient = user == null ? null : user.getEmail();
         if (recipient != null && recipient.isBlank()) recipient = null;
@@ -163,8 +255,14 @@ public class AuthService {
         UserEntity user = users.findById(verified.userId())
                 .orElseThrow(() -> new IllegalArgumentException("The verification code is invalid or expired"));
         user.setPassword(passwords.encode(request.password()));
+        String priorLockReason = user.getLockReason();
+        user.clearAutomaticLock();
         tokens.revokeUser(user.getId());
-        return new AuthDtos.OperationResponse(true, "Password updated");
+        audit(user.getId(), "PASSWORD_RESET_COMPLETED", "Password reset completed through verified email OTP", user.getUsername());
+        if (LOCK_ADMIN.equals(priorLockReason) && user.isLocked()) {
+            return new AuthDtos.OperationResponse(true, "Password updated. This account remains locked by an administrator.");
+        }
+        return new AuthDtos.OperationResponse(true, "Password updated. Automatic sign-in lock cleared.");
     }
 
     @Transactional(readOnly = true)
@@ -193,8 +291,49 @@ public class AuthService {
         tokens.revoke(token);
     }
 
-    private AuthDtos.LoginResponse failedLogin() {
-        return new AuthDtos.LoginResponse(false, null, "Invalid credentials", null, null);
+    private AuthDtos.LoginResponse failedLogin(String message) {
+        return new AuthDtos.LoginResponse(false, null, message, null, null, false, null, null);
+    }
+
+    private AuthDtos.LoginResponse failedPassword(UserEntity user) {
+        int attempt = user.recordFailedPasswordAttempt();
+        audit(user.getId(), "LOGIN_FAILED", "Incorrect password (attempt " + attempt + " of " + MAX_PASSWORD_ATTEMPTS + ")", user.getUsername());
+        if (attempt >= MAX_PASSWORD_ATTEMPTS) {
+            autoLock(user, LOCK_FAILED_PASSWORD, "Five incorrect password attempts");
+            return failedLogin("Incorrect password. Failed attempt 5 of 5. Your account has been locked. Use Forgot Password or contact an administrator.");
+        }
+        String suffix = attempt == MAX_PASSWORD_ATTEMPTS - 1
+                ? " One attempt remains before this account is locked." : "";
+        return failedLogin("Incorrect password. Failed attempt " + attempt + " of " + MAX_PASSWORD_ATTEMPTS + "." + suffix);
+    }
+
+    private AuthDtos.LoginResponse failedMfa(UserEntity user) {
+        int attempt = user.recordFailedMfaAttempt();
+        audit(user.getId(), "MFA_LOGIN_FAILED", "Incorrect sign-in verification code (attempt " + attempt + " of " + MAX_MFA_ATTEMPTS + ")", user.getUsername());
+        if (attempt >= MAX_MFA_ATTEMPTS) {
+            autoLock(user, LOCK_FAILED_MFA, "Five incorrect MFA verification-code attempts");
+            otp.invalidate(AuthOtpService.Purpose.LOGIN_MFA, "user:" + user.getId());
+            return failedLogin("Incorrect verification code. Failed attempt 5 of 5. Your account has been locked. Use Forgot Password or contact an administrator.");
+        }
+        String suffix = attempt == MAX_MFA_ATTEMPTS - 1
+                ? " One attempt remains before this account is locked." : "";
+        return failedLogin("Incorrect verification code. Failed attempt " + attempt + " of " + MAX_MFA_ATTEMPTS + "." + suffix);
+    }
+
+    private void autoLock(UserEntity user, String reason, String detail) {
+        user.setLocked(true);
+        user.setLockReason(reason);
+        tokens.revokeUser(user.getId());
+        audit(user.getId(), "ACCOUNT_AUTO_LOCKED", detail, "SYSTEM");
+    }
+
+    private String lockMessage(UserEntity user) {
+        return switch (user.getLockReason()) {
+            case LOCK_FAILED_PASSWORD -> "This account is locked after 5 incorrect password attempts. Use Forgot Password or contact an administrator.";
+            case LOCK_FAILED_MFA -> "This account is locked after 5 incorrect verification-code attempts. Use Forgot Password or contact an administrator.";
+            case LOCK_ADMIN -> "This account is locked by an administrator. Contact an administrator.";
+            default -> "This account is locked. Contact an administrator.";
+        };
     }
 
     private String passwordError(String value) {
@@ -214,8 +353,35 @@ public class AuthService {
         return "Selected role is unavailable";
     }
 
-    private String registrationBinding(String username, String email, String role) {
-        return username.toLowerCase(Locale.ROOT) + "\u0000" + email.toLowerCase(Locale.ROOT) + "\u0000" + role;
+    private String registrationBinding(String username, String email, String role, boolean mfaEnabled) {
+        return username.toLowerCase(Locale.ROOT) + "\u0000" + email.toLowerCase(Locale.ROOT) + "\u0000" + role
+                + "\u0000" + mfaEnabled;
+    }
+
+    private String loginMfaBinding(UserEntity user) {
+        return "LOGIN_MFA\u0000" + user.getId() + "\u0000"
+                + (user.getEmail() == null ? "" : user.getEmail().trim().toLowerCase(Locale.ROOT));
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || email.isBlank()) return "registered email";
+        String value = email.trim();
+        int at = value.indexOf('@');
+        if (at <= 0) return "registered email";
+        String local = value.substring(0, at);
+        String masked = local.length() <= 1 ? "*" : local.substring(0, 1) + "***";
+        return masked + value.substring(at);
+    }
+
+    private void audit(Integer userId, String action, String detail, String actor) {
+        if (userId == null) return;
+        try {
+            db.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) "
+                            + "VALUES('USER',?,?,?,?,?)", userId, action, detail,
+                    actor == null || actor.isBlank() ? "SYSTEM" : actor, BusinessClock.nowUtcText());
+        } catch (RuntimeException ignored) {
+            // Authentication must not fail solely because non-critical audit persistence is unavailable.
+        }
     }
 
     private String normalizeRole(String role) {

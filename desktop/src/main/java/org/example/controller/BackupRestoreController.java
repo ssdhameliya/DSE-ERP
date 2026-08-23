@@ -21,6 +21,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.config.ConfigManager;
 import org.example.api.support.SupportApiClient;
+import org.example.api.authority.ServerBackupClient;
 import org.example.backup.BackupManager;
 import org.example.service.NotificationService;
 import org.example.util.IconFactory;
@@ -35,6 +36,7 @@ import java.util.function.Consumer;
 
 public class BackupRestoreController {
     private final SupportApiClient supportApi = new SupportApiClient();
+    private final ServerBackupClient serverBackups = new ServerBackupClient();
 
     @FXML private Label lblDatabase;
     @FXML private Label lblStatus;
@@ -84,8 +86,11 @@ public class BackupRestoreController {
         configureTable();
         configureScheduleControls();
 
-        lblDatabase.setText(database.toString());
-        lblDatabase.setTooltip(new Tooltip(database.toString()));
+        String databaseDescription = ConfigManager.isSharedClient()
+                ? "Company server • " + ConfigManager.getConfiguredServerUrl()
+                : database.toString();
+        lblDatabase.setText(databaseDescription);
+        lblDatabase.setTooltip(new Tooltip(databaseDescription));
 
         backupTable.getSelectionModel().selectedItemProperty().addListener(
                 (observable, previous, selected) -> btnRestoreSelected.setDisable(selected == null)
@@ -241,8 +246,15 @@ public class BackupRestoreController {
     @FXML
     private void refresh() {
         try {
-            Files.createDirectories(backupFolder);
+            if (ConfigManager.isSharedClient()) {
+                var rows = serverBackups.list().stream().map(this::toRemoteRow).toList();
+                backupRows.setAll(rows);
+                updateSummaryCards();
+                setStatus(rows.size() + " backup(s) available on the company server");
+                return;
+            }
 
+            Files.createDirectories(backupFolder);
             var rows = new java.util.ArrayList<BackupRow>();
             try (var stream = Files.list(backupFolder)) {
                 stream.filter(this::isDatabaseBackup)
@@ -250,13 +262,23 @@ public class BackupRestoreController {
                         .map(this::toRow)
                         .forEach(rows::add);
             }
-
             backupRows.setAll(rows);
             updateSummaryCards();
             setStatus(rows.size() + " backup(s) available in " + backupFolder);
         } catch (Exception exception) {
             showError(exception);
         }
+    }
+
+    private BackupRow toRemoteRow(ServerBackupClient.BackupFile backup) {
+        String created;
+        try {
+            created = BusinessClock.formatInstant(Instant.parse(backup.createdAt()), "hh:mm a");
+        } catch (Exception ignored) {
+            created = backup.createdAt() == null ? "Unknown" : backup.createdAt();
+        }
+        return new BackupRow(Path.of(backup.name()), backup.name(), created, human(backup.size()),
+                "Available", titleCase(backup.source()));
     }
 
     private boolean isDatabaseBackup(Path path) {
@@ -292,13 +314,16 @@ public class BackupRestoreController {
         lblBackupCountCaption.setText(count == 1 ? "1 backup available" : count + " backups available");
         lblHistoryCount.setText(count == 1 ? "1 backup" : count + " backups");
 
-        if (Files.exists(database)) {
-            lblDatabaseSize.setText(human(Files.size(database)));
-            lblDatabaseHealth.setText("Database file is available");
+        try {
+            ServerBackupClient.DatabaseMetrics metrics = serverBackups.metrics();
+            lblDatabaseSize.setText(human(metrics.sizeBytes()));
+            lblDatabaseHealth.setText((metrics.databaseName() == null || metrics.databaseName().isBlank() ? "PostgreSQL" : metrics.databaseName())
+                    + (ConfigManager.isSharedClient() ? " • Company server" : " • This PC"));
             lblDatabaseHealth.getStyleClass().setAll("backup-metric-caption", "backup-caption-positive");
-        } else {
-            lblDatabaseSize.setText("Not found");
-            lblDatabaseHealth.setText("Database file could not be located");
+            lblDatabaseSize.setTooltip(new Tooltip("Authoritative PostgreSQL size from pg_database_size(current_database())"));
+        } catch (Exception metricFailure) {
+            lblDatabaseSize.setText("Unavailable");
+            lblDatabaseHealth.setText("Database size could not be read from PostgreSQL");
             lblDatabaseHealth.getStyleClass().setAll("backup-metric-caption", "backup-caption-negative");
         }
 
@@ -310,22 +335,25 @@ public class BackupRestoreController {
             lblLastBackup.setText(latest.created());
             lblLastBackupCaption.setText(latest.name());
         }
-
         updateScheduleSummary();
     }
 
     @FXML
     private void createBackup() {
-        runOperation(
-                "Creating a consistent database backup...",
-                BackupManager::createManualBackup,
-                target -> {
-                    NotificationService.add("ERP database backup created: " + target.getFileName());
-                    refresh();
-                    selectPath(target);
-                    setStatus("Backup created and verified: " + target.getFileName());
-                }
-        );
+        if (!confirm("Create database backup", "Create a new verified DSE ERP database backup now?")) return;
+        if (ConfigManager.isSharedClient()) {
+            runOperation("Creating a company-server database backup...", serverBackups::create, target -> {
+                NotificationService.add("Company-server backup created: " + target.name());
+                refresh();
+                selectPath(Path.of(target.name()));
+                setStatus("Server backup created: " + target.name());
+            });
+            return;
+        }
+        runOperation("Creating a consistent database backup...", BackupManager::createManualBackup, target -> {
+            NotificationService.add("ERP database backup created: " + target.getFileName());
+            refresh(); selectPath(target); setStatus("Backup created and verified: " + target.getFileName());
+        });
     }
 
     @FXML
@@ -356,20 +384,25 @@ public class BackupRestoreController {
         runOperation(
                 "Validating and staging restore...",
                 () -> {
-                    BackupManager.stageRestore(row.path());
+                    if (ConfigManager.isSharedClient()) serverBackups.stageRestore(row.name());
+                    else BackupManager.stageRestore(row.path());
                     return row.path();
                 },
                 ignored -> {
                     NotificationService.add("Database restore staged from " + row.name());
-                    Alert staged = new OwnedAlert(
-                            Alert.AlertType.INFORMATION,
-                            "The restore has been staged safely.\n\n"
-                                    + "Close DSE ERP and start it again. A verified safety backup of the current "
-                                    + "database will be created automatically before the staged restore is applied."
-                    );
-                    staged.setHeaderText("Restore ready for next startup");
+                    boolean shared = ConfigManager.isSharedClient();
+                    String detail = shared
+                            ? "The restore has been staged safely on the company server.\n\n"
+                            + "Apply the staged restore through the DSE ERP Company Server restore procedure, then restart the company server. "
+                            + "Restarting this workstation alone does not replace the shared database."
+                            : "The restore has been staged safely.\n\n"
+                            + "Close DSE ERP and start it again. A verified safety backup of the current "
+                            + "database will be created automatically before the staged restore is applied.";
+                    Alert staged = new OwnedAlert(Alert.AlertType.INFORMATION, detail);
+                    staged.setHeaderText(shared ? "Restore staged on company server" : "Restore ready for next startup");
                     staged.showAndWait();
-                    setStatus("Restore staged. Restart DSE ERP to apply it.");
+                    setStatus(shared ? "Server restore staged. Apply it during the company-server restart procedure."
+                            : "Restore staged. Restart DSE ERP to apply it.");
                 }
         );
     }
@@ -410,40 +443,40 @@ public class BackupRestoreController {
     }
 
     private void importBackup(Path file) {
-        runOperation(
-                "Validating and importing backup...",
-                () -> BackupManager.importBackup(file),
-                target -> {
-                    NotificationService.add("External backup imported: " + file.getFileName());
-                    refresh();
-                    selectPath(target);
-                    setStatus("Backup imported and verified: " + target.getFileName());
-                }
-        );
+        if (file == null) return;
+        if (!confirm("Import database backup", "Validate and import " + file.getFileName() + " into DSE ERP backup history?")) return;
+        if (ConfigManager.isSharedClient()) {
+            runOperation("Uploading, validating and importing backup on the company server...", () -> serverBackups.importBackup(file), target -> {
+                NotificationService.add("External backup imported to company server: " + target.name());
+                refresh(); selectPath(Path.of(target.name())); setStatus("Server backup imported and verified: " + target.name());
+            });
+            return;
+        }
+        runOperation("Validating and importing backup...", () -> BackupManager.importBackup(file), target -> {
+            NotificationService.add("External backup imported: " + file.getFileName());
+            refresh(); selectPath(target); setStatus("Backup imported and verified: " + target.getFileName());
+        });
     }
 
     private void validateRow(BackupRow row) {
         if (row == null) return;
-        runOperation(
-                "Validating backup integrity and ERP compatibility...",
-                () -> BackupManager.validateBackup(row.path()),
-                validation -> {
-                    BackupManager.updateValidationStatus(row.path(), validation);
-                    refresh();
-                    selectPath(row.path());
-                    if (!validation.valid()) {
-                        showWarning(validation.message());
-                        return;
-                    }
-                    setStatus("Validation passed: " + row.name());
-                    Alert alert = new OwnedAlert(
-                            Alert.AlertType.INFORMATION,
-                            validation.message() + "\n\nCompatibility: " + validation.compatibility()
-                    );
-                    alert.setHeaderText(row.name());
-                    alert.showAndWait();
-                }
-        );
+        if (ConfigManager.isSharedClient()) {
+            runOperation("Validating backup integrity on the company server...", () -> serverBackups.validate(row.name()), validation -> {
+                refresh(); selectPath(Path.of(row.name()));
+                if (!validation.valid()) { showWarning(validation.message()); return; }
+                setStatus("Validation passed: " + row.name());
+                Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION, validation.message());
+                alert.setHeaderText(row.name()); alert.showAndWait();
+            });
+            return;
+        }
+        runOperation("Validating backup integrity and ERP compatibility...", () -> BackupManager.validateBackup(row.path()), validation -> {
+            BackupManager.updateValidationStatus(row.path(), validation); refresh(); selectPath(row.path());
+            if (!validation.valid()) { showWarning(validation.message()); return; }
+            setStatus("Validation passed: " + row.name());
+            Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION, validation.message() + "\n\nCompatibility: " + validation.compatibility());
+            alert.setHeaderText(row.name()); alert.showAndWait();
+        });
     }
 
     private void deleteRow(BackupRow row) {
@@ -462,7 +495,8 @@ public class BackupRestoreController {
         runOperation(
                 "Moving backup to recycle storage...",
                 () -> {
-                    BackupManager.deleteBackupSafely(row.path());
+                    if (ConfigManager.isSharedClient()) serverBackups.delete(row.name());
+                    else BackupManager.deleteBackupSafely(row.path());
                     return row.path();
                 },
                 ignored -> {
@@ -554,18 +588,26 @@ public class BackupRestoreController {
                         + "Size: " + row.size() + "\n"
                         + "Status: " + row.status() + "\n"
                         + "Source: " + row.source() + "\n\n"
-                        + row.path()
+                        + (ConfigManager.isSharedClient() ? "Stored on company server" : row.path())
         );
         details.showAndWait();
     }
 
     private void openBackupLocation(BackupRow row) {
         if (row == null) return;
+        if (ConfigManager.isSharedClient()) {
+            Alert info = new OwnedAlert(Alert.AlertType.INFORMATION, "This backup is stored and managed on the company server.");
+            info.setHeaderText(row.name()); info.showAndWait(); return;
+        }
         openFolder(row.path().getParent());
     }
 
     @FXML
     private void openDatabaseFolder() {
+        if (ConfigManager.isSharedClient()) {
+            Alert info = new OwnedAlert(Alert.AlertType.INFORMATION, "The active PostgreSQL database is managed by the company server and has no workstation folder to open.");
+            info.setHeaderText("Company server database"); info.showAndWait(); return;
+        }
         openFolder(database.getParent());
     }
 
@@ -584,19 +626,26 @@ public class BackupRestoreController {
     @FXML
     private void copyDatabasePath() {
         ClipboardContent content = new ClipboardContent();
-        content.putString(database.toString());
+        content.putString(ConfigManager.isSharedClient()
+                ? ConfigManager.getConfiguredServerUrl() + " • Company server PostgreSQL database"
+                : database.toString());
         Clipboard.getSystemClipboard().setContent(content);
         setStatus("Database path copied to clipboard.");
     }
 
     @FXML
     private void saveSettings() {
+        if (!confirm("Save backup schedule", "Save the selected backup schedule and retention settings?")) return;
         try {
             supportApi.setSetting("backup.schedule", cmbSchedule.getValue());
             supportApi.setSetting("backup.retention", String.valueOf(spRetention.getValue()));
             NotificationService.add("Backup preferences saved."); updateScheduleSummary();
-            int removed = BackupManager.applyRetention(spRetention.getValue()); refresh();
-            setStatus("Backup preferences saved. " + removed + " expired backup(s) moved to recycle storage.");
+            if (ConfigManager.isSharedClient()) {
+                refresh(); setStatus("Company-server backup preferences saved.");
+            } else {
+                int removed = BackupManager.applyRetention(spRetention.getValue()); refresh();
+                setStatus("Backup preferences saved. " + removed + " expired backup(s) moved to recycle storage.");
+            }
         } catch (Exception exception) { showError(exception); }
     }
 
@@ -692,6 +741,12 @@ public class BackupRestoreController {
         if (lblStatus != null) {
             lblStatus.setText(message == null ? "" : message);
         }
+    }
+
+    private boolean confirm(String title, String message) {
+        Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION, message, ButtonType.YES, ButtonType.NO);
+        confirmation.setHeaderText(title);
+        return confirmation.showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
     }
 
     private void showWarning(String message) {
