@@ -213,6 +213,7 @@ public class NavigationManager {
             // for macOS Retina responsiveness and also benefits Windows.
             long lifecycleStarted=System.nanoTime();
             notifyShown(cached.controller(), reused);
+            DeepLinkSupport.schedule(cached.node());
             logPhase(fxml, "controller-shown", lifecycleStarted);
             // Legacy controllers still receive their existing refresh method until
             // they opt into ScreenLifecycle.
@@ -368,6 +369,9 @@ public class NavigationManager {
     }
 
     public int getCachedPageCount() { return pageCache.size(); }
+    public static Object currentController() { return currentCachedPage == null ? null : currentCachedPage.controller(); }
+    public static Node currentNode() { return currentCachedPage == null ? null : currentCachedPage.node(); }
+    public static String currentPage() { return currentPage; }
 
     private static void logPhase(String fxml, String phase, long startedNanos) {
         long millis = (System.nanoTime() - startedNanos) / 1_000_000L;

@@ -9312,3 +9312,32 @@
 .permission-save-button {
     -fx-min-width: 150px;
 }
+
+/* v8.4.9 search / notifications / shortcuts */
+.dse-search-header, .dse-notify-header { -fx-background-color: -color-surface; -fx-border-color: -color-border; -fx-border-width: 0 0 1 0; }
+.dse-search-input { -fx-min-height: 40; }
+.dse-search-summary, .dse-notify-count { -fx-font-weight: 700; }
+.dse-search-group-card, .dse-notify-list-card, .dse-notify-detail, .dse-shortcut-group-card { -fx-background-color: -color-surface; -fx-border-color: -color-border; -fx-border-radius: 10; -fx-background-radius: 10; }
+.dse-search-group-header { -fx-padding: 9 12; -fx-background-color: -color-surface-2; -fx-background-radius: 10 10 0 0; }
+.dse-search-group-title { -fx-font-size: 14px; -fx-font-weight: 800; }
+.dse-search-count, .dse-notify-new { -fx-padding: 2 8; -fx-background-radius: 999; -fx-font-weight: 800; }
+.dse-search-result-row { -fx-padding: 8 12; -fx-border-color: transparent transparent -color-border transparent; -fx-border-width: 0 0 1 0; }
+.dse-search-ref, .dse-notify-row-title, .dse-notify-detail-title { -fx-font-weight: 800; }
+.dse-search-desc { -fx-font-weight: 600; }
+.dse-search-detail, .dse-notify-row-message, .dse-notify-row-meta, .dse-notify-detail-meta { -fx-opacity: .78; }
+.dse-search-empty { -fx-padding: 40; -fx-alignment: center; }
+.dse-notification-page .list-cell { -fx-padding: 10; }
+.dse-notification-page .list-cell.dse-notify-unread { -fx-font-weight: 700; }
+.dse-notify-detail-message { -fx-font-size: 14px; }
+.dse-shortcut-panel { -fx-padding: 12; }
+.dse-shortcut-group-card { -fx-padding: 9; }
+.dse-shortcut-group-title { -fx-font-weight: 800; -fx-font-size: 13px; }
+.dse-shortcut-action-name { -fx-font-size: 11px; }
+.dse-shortcut-key { -fx-pref-height: 28; -fx-font-size: 11px; -fx-alignment: center; }
+.dse-shortcut-reset { -fx-min-width: 34; -fx-pref-width: 34; -fx-padding: 4 6; }
+.sales-detail-sheet { -fx-padding: 12; }
+.sales-detail-sheet-grid { -fx-padding: 2 0; }
+.sales-detail-caption { -fx-font-weight: 700; -fx-font-size: 11px; }
+.sales-detail-icon-money { -fx-text-fill: #2563eb; } .sales-detail-icon-paid { -fx-text-fill: #16a34a; } .sales-detail-icon-balance { -fx-text-fill: #ea580c; } .sales-detail-icon-date { -fx-text-fill: #7c3aed; }
+.sales-detail-icon-tax { -fx-text-fill: #9333ea; } .sales-detail-icon-charge { -fx-text-fill: #d97706; } .sales-detail-icon-address { -fx-text-fill: #2563eb; } .sales-detail-icon-delivery { -fx-text-fill: #0891b2; }
+.sales-detail-icon-transport { -fx-text-fill: #16a34a; } .sales-detail-icon-vehicle { -fx-text-fill: #4f46e5; } .sales-detail-icon-person { -fx-text-fill: #db2777; } .sales-detail-icon-phone { -fx-text-fill: #0284c7; }

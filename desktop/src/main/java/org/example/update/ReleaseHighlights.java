@@ -8,6 +8,42 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("8.4.9".equals(version)) {
+            return """
+                    DSE ERP 8.4.9
+
+                    Global Search
+                    • Searches across permitted ERP modules and shows every matching record grouped by module.
+                    • Search results can open and focus the exact underlying record.
+
+                    Notification Center
+                    • Added a full actionable notification workspace with filters, details, read/unread controls and direct record navigation.
+
+                    Sales Register
+                    • Rebuilt the detail drawer as a compact single-sheet view with semantic field icons.
+                    • Shipping address now correctly falls back to Billing Address when Same as Billing is selected.
+
+                    Keyboard Shortcuts
+                    • Added configurable application-wide Save, Edit, Refresh, New, Open, Delete, Print, Export and Back commands.
+                    • New Sale defaults to F9 and users can reassign shortcuts from one compact settings sheet.
+
+                    UI Reliability
+                    • Fixed the JavaFX password-reveal enhancer parent/reindex race that could throw IndexOutOfBoundsException.
+                    • Preserved the v8.4.7 transactional SMTP proxy/startup protection.
+                    """.strip();
+        }
+        if ("8.4.8".equals(version)) {
+            return """
+                    DSE ERP 8.4.8
+
+                    Startup UI
+                    • Fixed light-mode splash startup title and description contrast on the white content card.
+
+                    Bank Statement
+                    • Removed the right-side reconciliation process/status guide panel.
+                    • Reclaimed that width for the search, filters and transaction table so more bank data is visible at once.
+                    """.strip();
+        }
         if ("8.4.7".equals(version)) {
             return """
                     DSE ERP 8.4.7

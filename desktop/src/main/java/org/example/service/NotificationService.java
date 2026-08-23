@@ -6,6 +6,10 @@ import org.example.config.ConfigManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Notification helper backed exclusively by the typed Spring insights API. */
 public final class NotificationService {
@@ -29,15 +33,18 @@ public final class NotificationService {
     }
     public static void createNotification(String title, String message, String severity,
                                           String targetFxml, String referenceNo) {
-        createNotification(inferCategory(title, message, targetFxml), title, message, severity, targetFxml, referenceNo);
+        Category category = inferCategory(title, message, targetFxml);
+        createNotification(category, title, message, severity, targetFxml, referenceNo);
     }
     public static void createNotification(Category category, String title, String message, String severity,
                                           String targetFxml, String referenceNo) {
-        if (!isAllowed(category, severity)) return;
+        Category resolvedCategory = category == null ? Category.SYSTEM : category;
+        if (!isAllowed(resolvedCategory, severity)) return;
+        Link link = resolveLink(resolvedCategory, message, targetFxml, referenceNo);
         try {
             API.createNotification(new InsightsApiClient.NotificationCreate(
                     title, message, severity == null ? "INFO" : severity,
-                    (category == null ? Category.SYSTEM : category).name(), targetFxml, referenceNo));
+                    resolvedCategory.name(), link.targetFxml(), link.referenceNo()));
         } catch (Exception ex) { ex.printStackTrace(); }
     }
 
@@ -66,17 +73,74 @@ public final class NotificationService {
         if (text.contains("update")) return Category.UPDATE;
         if (text.contains("security") || text.contains("login") || text.contains("password")) return Category.SECURITY;
         if (text.contains("purchase") || text.contains("supplier")) return Category.PURCHASES;
+        if (text.contains("sale") || text.contains("sales") || text.contains("invoice") || text.contains("customer")) return Category.SALES;
         return Category.SYSTEM;
+    }
+
+    private record Link(String targetFxml, String referenceNo) { }
+    private static final Pattern[] REFERENCE_PATTERNS = {
+            Pattern.compile("(?i)\\b(?:for|invoice|quotation|return)\\s+([A-Z0-9][A-Z0-9/_\\-.]*)"),
+            Pattern.compile("(?i)\\b(?:purchase|sale)\\s+([A-Z0-9][A-Z0-9/_\\-.]*)\\s+(?:saved|updated|created|cancelled|deleted)"),
+            Pattern.compile("(?i)^([A-Z0-9][A-Z0-9/_\\-.]*)\\s+(?:cancelled|deleted|updated|saved)\\b")
+    };
+    private static final Set<String> NON_REFERENCES = Set.of("THE","A","AN","THIS","THAT","YOUR","SALES","SALE","PURCHASE","PAYMENT","ITEM","RECORD");
+
+    private static Link resolveLink(Category category, String message, String targetFxml, String referenceNo) {
+        String target = safe(targetFxml).trim();
+        String ref = safe(referenceNo).trim();
+        String text = safe(message);
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (ref.isBlank()) ref = inferReference(text);
+        if (target.isBlank()) {
+            target = switch (category) {
+                case SALES -> "/fxml/pages/SalesList.fxml";
+                case PURCHASES -> "/fxml/pages/PurchaseList.fxml";
+                case QUOTATIONS -> "/fxml/pages/Quotations.fxml";
+                case RETURNS -> lower.contains("purchase") ? "/fxml/pages/PurchaseReturns.fxml" : "/fxml/pages/SalesReturns.fxml";
+                case PAYMENTS -> lower.contains("supplier") || lower.contains("purchase")
+                        ? "/fxml/pages/PurchaseList.fxml" : lower.contains(" for ")
+                        ? "/fxml/pages/SalesList.fxml" : "/fxml/pages/PaymentHistory.fxml";
+                case INVENTORY -> lower.contains("stock") ? "/fxml/pages/Inventory.fxml" : "/fxml/pages/ItemMaster.fxml";
+                case REMINDERS -> "/fxml/pages/ReminderCenter.fxml";
+                case COMMUNICATION -> "/fxml/pages/CommunicationCenter.fxml";
+                case BACKUP -> "/fxml/pages/BackupRestore.fxml";
+                case UPDATE -> "/fxml/pages/Settings.fxml";
+                case SECURITY -> lower.contains("profile") || lower.contains("your account")
+                        ? "/fxml/pages/Profile.fxml" : "/fxml/pages/UserAccess.fxml";
+                case SYSTEM -> "";
+            };
+        }
+        return new Link(target, ref);
+    }
+
+    private static String inferReference(String message) {
+        for (Pattern pattern : REFERENCE_PATTERNS) {
+            Matcher matcher = pattern.matcher(safe(message));
+            if (!matcher.find()) continue;
+            String value = matcher.group(1).replaceAll("[.,;:]+$", "").trim();
+            if (!value.isBlank() && !NON_REFERENCES.contains(value.toUpperCase(Locale.ROOT))) return value;
+        }
+        return "";
+    }
+
+    private static Category categoryOf(String value) {
+        try { return Category.valueOf(safe(value).trim().toUpperCase(Locale.ROOT)); }
+        catch (Exception ignored) { return Category.SYSTEM; }
     }
 
     public static List<NotificationItem> findRecent(int limit) {
         try {
-            return API.notifications(limit).stream().map(x -> new NotificationItem(
-                    x.id(), x.title(), x.message(), x.severity(), x.category(), x.read(), x.targetFxml(), x.referenceNo(), x.createdAt())).toList();
+            return API.notifications(limit).stream().map(x -> {
+                Category category = categoryOf(x.category());
+                Link link = resolveLink(category, x.message(), x.targetFxml(), x.referenceNo());
+                return new NotificationItem(x.id(), x.title(), x.message(), x.severity(), x.category(), x.read(),
+                        link.targetFxml(), link.referenceNo(), x.createdAt());
+            }).toList();
         } catch (Exception ex) { ex.printStackTrace(); return List.of(); }
     }
     public static int unreadCount() { try { return (int) API.unreadCount(); } catch (Exception ex) { ex.printStackTrace(); return 0; } }
     public static void markRead(long id) { API.markRead(id); }
+    public static void markUnread(long id) { API.markUnread(id); }
     public static void markAllRead() { API.markAllRead(); }
     public static void delete(long id) { API.deleteNotification(id); }
 

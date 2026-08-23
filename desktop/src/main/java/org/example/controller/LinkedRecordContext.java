@@ -24,12 +24,16 @@ public final class LinkedRecordContext {
         TARGET.set(new Target(module, recordId, documentNo, action, source));
     }
 
+    public static Target peek() { return TARGET.get(); }
+
     public static Target consume(String module) {
         String wanted = module == null ? "" : module.trim().toUpperCase(Locale.ROOT);
         Target current = TARGET.get();
         if (current == null || !current.module().equals(wanted)) return null;
         return TARGET.compareAndSet(current, null) ? current : null;
     }
+
+    public static Target consumeAny() { return TARGET.getAndSet(null); }
 
     public static void clear() { TARGET.set(null); }
 }

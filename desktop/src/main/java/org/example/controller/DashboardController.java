@@ -13,6 +13,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.Alert;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
@@ -70,6 +71,7 @@ import org.example.util.IconFactory;
 import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
 import org.example.shortcut.ShortcutRegistry;
+import org.example.shortcut.ApplicationCommandDispatcher;
 import org.example.shortcut.ShortcutRegistry.Action;
 import org.example.update.UpdateDialogs;
 
@@ -408,6 +410,7 @@ public class DashboardController {
         if (event == null || event.isConsumed() || ShortcutRegistry.isEditorTarget(event.getTarget())) return;
         for (Action action : ShortcutRegistry.actions(ShortcutRegistry.Scope.GLOBAL)) {
             if (!ShortcutRegistry.matches(event, action)) continue;
+            if (event.getTarget() instanceof TextInputControl && java.util.Set.of(Action.OPEN_SELECTED, Action.DELETE_SELECTED, Action.CLOSE_BACK).contains(action)) continue;
             if (ShortcutRegistry.permitted(action)) runShortcutAction(action);
             event.consume();
             return;
@@ -417,6 +420,7 @@ public class DashboardController {
     private void runShortcutAction(Action action) {
         switch (action) {
             case GLOBAL_SEARCH -> { txtSearch.requestFocus(); txtSearch.selectAll(); }
+            case SAVE_CURRENT, EDIT_CURRENT, REFRESH_CURRENT, NEW_CURRENT, OPEN_SELECTED, DELETE_SELECTED, PRINT_CURRENT, EXPORT_CURRENT, CLOSE_BACK -> ApplicationCommandDispatcher.execute(action);
             case NEW_SALE -> createSale();
             case NEW_QUOTATION -> createQuotationFromShortcut();
             case ITEM_MASTER -> openItemMaster();
@@ -1001,36 +1005,9 @@ public class DashboardController {
     @FXML
     private void search() {
         String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim();
-        if (query.isEmpty()) {
-            new OwnedAlert(Alert.AlertType.INFORMATION,
-                "Enter a document number, party, item, payment, return, quotation or master value.").showAndWait();
-            return;
-        }
-        List<SearchResult> results = new GlobalSearchService().search(query);
-        Dialog<ButtonType> dialog = new OwnedDialog<>();
-        dialog.setTitle("ERP Search");
-        dialog.setHeaderText(results.isEmpty() ? "No results for '" + query + "'"
-            : results.size() + " result(s) for '" + query + "'");
-        ListView<SearchResult> list = new ListView<>();
-        list.getItems().setAll(results);
-        list.setPrefSize(720, 460);
-        list.getStyleClass().add("global-search-results");
-        list.setCellFactory(view -> new ListCell<>() {
-            @Override protected void updateItem(SearchResult result, boolean empty) {
-                super.updateItem(result, empty);
-                setText(empty || result == null ? null : result.toString());
-                setGraphic(empty || result == null ? null : IconFactory.icon(iconForModule(result.module())));
-            }
-        });
-        ButtonType open = new ButtonType("Open Result", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().setContent(list);
-        dialog.getDialogPane().getButtonTypes().addAll(open, ButtonType.CLOSE);
-        dialog.getDialogPane().lookupButton(open).disableProperty()
-            .bind(list.getSelectionModel().selectedItemProperty().isNull());
-        dialog.showAndWait().filter(button -> button == open).ifPresent(button -> {
-            SearchResult selected = list.getSelectionModel().getSelectedItem();
-            if (selected != null) openSearchResult(selected);
-        });
+        if (query.isEmpty()) { txtSearch.requestFocus(); return; }
+        GlobalSearchContext.open(query);
+        openPage(null, "Global Search", "/fxml/pages/GlobalSearch.fxml");
     }
 
     /** Opens the selected result and preserves its document reference for detail screens. */
@@ -1057,155 +1034,7 @@ public class DashboardController {
 
     @FXML
     private void showNotifications() {
-        Dialog<ButtonType> dialog = new OwnedDialog<>(btnNotifications);
-        dialog.setTitle("Notifications");
-        dialog.setHeaderText("Stay updated with the latest activities and alerts");
-
-        DialogPane pane = dialog.getDialogPane();
-        pane.getStyleClass().add("notification-center-dialog");
-        org.example.util.DialogPresentation.configureWorkspace(dialog, "notification");
-
-        ListView<NotificationService.NotificationItem> notificationList = new ListView<>();
-        List<NotificationService.NotificationItem> allNotifications = new ArrayList<>(NotificationService.findRecent(100));
-        notificationList.getItems().setAll(allNotifications);
-        notificationList.setPlaceholder(new Label("You are all caught up. New sales, payments, returns and reminders will appear here."));
-        notificationList.getStyleClass().add("notification-list");
-        notificationList.setPrefWidth(1040);
-        notificationList.setPrefHeight(540);
-        notificationList.setMinHeight(260);
-        notificationList.setMaxHeight(520);
-
-        notificationList.setCellFactory(view -> new ListCell<>() {
-            @Override protected void updateItem(NotificationService.NotificationItem item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(null);
-                if (empty || item == null) {
-                    setGraphic(null);
-                } else {
-                    Label title = new Label(item.title());
-                    title.getStyleClass().add("notification-row-title");
-                    Label message = new Label(item.message());
-                    message.setWrapText(true);
-                    message.getStyleClass().add("notification-row-message");
-                    Instant created = Instant.ofEpochMilli(item.createdAt());
-                    Label time = new Label(DateTimeFormatter.ofPattern("hh:mm a").withZone(BusinessClock.zone()).format(created));
-                    time.getStyleClass().add("notification-row-time");
-                    Label date = new Label(DateTimeFormatter.ofPattern(BusinessClock.datePattern()).withZone(BusinessClock.zone()).format(created));
-                    date.getStyleClass().add("notification-row-date");
-                    Label category = new Label(displayNotificationCategory(item.category()));
-                    category.getStyleClass().addAll("notification-category-chip", "notification-category-" + safeNotificationCategory(item.category()).toLowerCase(Locale.ROOT));
-                    VBox stamps = new VBox(3, time, date);
-                    stamps.setAlignment(Pos.CENTER_RIGHT);
-                    Label fresh = new Label("New");
-                    fresh.getStyleClass().add("notification-new-badge");
-                    fresh.setVisible(!item.read()); fresh.setManaged(!item.read());
-                    Label reference = new Label(item.referenceNo() == null || item.referenceNo().isBlank()
-                            ? "" : "Reference: " + item.referenceNo());
-                    reference.getStyleClass().add("notification-row-reference");
-                    reference.setVisible(!reference.getText().isBlank());
-                    reference.setManaged(reference.isVisible());
-                    HBox metadata = new HBox(8, category, reference);
-                    metadata.setAlignment(Pos.CENTER_LEFT);
-                    VBox text = new VBox(4, title, message, metadata);
-                    HBox.setHgrow(text, Priority.ALWAYS);
-                    String semantic = notificationSemantic(item);
-                    VBox right = new VBox(5, stamps, fresh); right.setAlignment(Pos.CENTER_RIGHT);
-                    StackPane icon = new StackPane(IconFactory.icon(semantic, 28));
-                    icon.getStyleClass().addAll("notification-timeline-icon", "notification-icon-" + semantic);
-                    HBox row = new HBox(16, icon, text, right);
-                    row.setAlignment(Pos.CENTER_LEFT);
-                    row.getStyleClass().add("notification-row-content");
-                    setGraphic(row);
-                }
-                pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("unread"),
-                    !empty && item != null && !item.read());
-            }
-        });
-        notificationList.setOnMouseClicked(event -> {
-            if (event.getClickCount() != 2) return;
-            NotificationService.NotificationItem item = notificationList.getSelectionModel().getSelectedItem();
-            if (item == null) return;
-            NotificationService.markRead(item.id());
-            if (item.targetFxml() != null && !item.targetFxml().isBlank())
-                openPage(null, item.title(), item.targetFxml());
-            refreshNotificationBadge();
-        });
-
-        TextField notificationSearch = new TextField();
-        notificationSearch.setPromptText("Search title, message or reference...");
-        notificationSearch.setPrefWidth(330);
-        notificationSearch.getStyleClass().add("notification-search");
-        ComboBox<String> viewFilter = new ComboBox<>();
-        viewFilter.getItems().setAll("All Notifications", "Unread", "Action Needed", "Sales", "Purchases", "Quotations", "Payments", "Inventory", "Security", "System");
-        viewFilter.setValue("All Notifications");
-        viewFilter.setPrefWidth(150);
-        Runnable applyNotificationFilter = () -> {
-            String query = notificationSearch.getText() == null ? "" : notificationSearch.getText().trim().toLowerCase(Locale.ROOT);
-            String mode = viewFilter.getValue();
-            notificationList.getItems().setAll(allNotifications.stream().filter(item -> {
-                if ("Unread".equals(mode) && item.read()) return false;
-                String severity = item.severity() == null ? "INFO" : item.severity().toUpperCase(Locale.ROOT);
-                if ("Action Needed".equals(mode) && !List.of("WARN", "ERROR", "CRITICAL", "FATAL").contains(severity)) return false;
-                if (!List.of("All Notifications", "Unread", "Action Needed").contains(mode)
-                    && !safeNotificationCategory(item.category()).equalsIgnoreCase(mode)) return false;
-                String haystack = (String.valueOf(item.title()) + " " + String.valueOf(item.message()) + " " + String.valueOf(item.referenceNo())).toLowerCase(Locale.ROOT);
-                return query.isBlank() || haystack.contains(query);
-            }).toList());
-        };
-        notificationSearch.textProperty().addListener((o,a,b)->applyNotificationFilter.run());
-        viewFilter.valueProperty().addListener((o,a,b)->applyNotificationFilter.run());
-        Label filterLabel = new Label("View:");
-        filterLabel.getStyleClass().add("notification-filter-label");
-        Region filterSpacer = new Region();
-        HBox.setHgrow(filterSpacer, Priority.ALWAYS);
-        Button filterButton = new Button();
-        filterButton.setGraphic(IconFactory.compactIcon("filter", 18));
-        filterButton.getStyleClass().addAll("approved-button", "approved-secondary-button", "notification-filter-button");
-        filterButton.setOnAction(event -> applyNotificationFilter.run());
-        HBox filters = new HBox(10, notificationSearch, filterSpacer, filterLabel, viewFilter, filterButton);
-        filters.setAlignment(Pos.CENTER_LEFT);
-        filters.getStyleClass().add("notification-filter-bar");
-
-        Label unreadHeader = new Label(NotificationService.unreadCount() + " Unread");
-        unreadHeader.getStyleClass().add("notification-unread-header");
-        VBox content = new VBox(12, unreadHeader, filters, notificationList);
-        content.getStyleClass().add("notification-dialog-content");
-        pane.setContent(content);
-
-        ButtonType markAllType = new ButtonType("Mark All Read", javafx.scene.control.ButtonBar.ButtonData.OTHER);
-        ButtonType clearType = new ButtonType("Clear History", javafx.scene.control.ButtonBar.ButtonData.OTHER);
-        pane.getButtonTypes().addAll(markAllType, clearType, ButtonType.CLOSE);
-
-        Node markAllNode = pane.lookupButton(markAllType);
-        if (markAllNode instanceof Button markAll) {
-            markAll.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-                event.consume();
-                NotificationService.markAllRead();
-                allNotifications.clear();
-                allNotifications.addAll(NotificationService.findRecent(100));
-                applyNotificationFilter.run();
-                refreshNotificationBadge();
-                unreadHeader.setText("0 Unread");
-            });
-        }
-        Node clearNode = pane.lookupButton(clearType);
-        if (clearNode instanceof Button clear) {
-            clear.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
-                event.consume();
-                Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
-                    "Clear the complete notification history? This cannot be undone.", ButtonType.YES, ButtonType.NO);
-                confirmation.setHeaderText("Confirm notification cleanup");
-                if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
-                NotificationService.clear();
-                allNotifications.clear();
-                notificationList.getItems().clear();
-                refreshNotificationBadge();
-                unreadHeader.setText("0 Unread");
-            });
-        }
-
-        dialog.showAndWait();
-        refreshNotificationBadge();
+        openPage(null, "Notification Center", "/fxml/pages/NotificationCenter.fxml");
     }
 
     private static String safeNotificationCategory(String category) {

@@ -6,6 +6,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import org.example.config.ConfigManager;
 import org.example.service.PermissionService;
+import org.example.service.SessionService;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -26,14 +27,23 @@ public final class ShortcutRegistry {
     public enum Scope { GLOBAL, PDF_STUDIO, EXCEL_STUDIO, MASTER_DATA }
 
     public enum Action {
-        GLOBAL_SEARCH("global.search", "Focus Search", "Navigation", "Shortcut+K", Scope.GLOBAL, null),
-        NEW_SALE("global.newSale", "New Sale", "Navigation", "F2", Scope.GLOBAL, "SALES.VIEW"),
-        NEW_QUOTATION("global.newQuotation", "New Quotation", "Navigation", "F3", Scope.GLOBAL, "QUOTATION.VIEW"),
-        ITEM_MASTER("global.itemMaster", "Item Master", "Navigation", "F4", Scope.GLOBAL, "INVENTORY.VIEW"),
-        MASTERS("global.masters", "Masters", "Navigation", "F5", Scope.GLOBAL, "MASTERS.VIEW"),
-        BANK_STATEMENT("global.bankStatement", "Bank Statement", "Navigation", "F6", Scope.GLOBAL, "BANK_EXPENSE.VIEW"),
-        BANK_ENTRY("global.bankEntry", "Bank Entry", "Navigation", "F7", Scope.GLOBAL, "BANK_EXPENSE.VIEW"),
-        EXPENSE_ENTRY("global.expenseEntry", "Expense Entry", "Navigation", "F8", Scope.GLOBAL, "BANK_EXPENSE.VIEW"),
+        GLOBAL_SEARCH("global.search", "Global Search", "Application Actions", "Shortcut+K", Scope.GLOBAL, null),
+        SAVE_CURRENT("global.saveCurrent", "Save Current", "Application Actions", "Shortcut+S", Scope.GLOBAL, null),
+        EDIT_CURRENT("global.editCurrent", "Edit Current / Selected", "Application Actions", "Shortcut+E", Scope.GLOBAL, null),
+        REFRESH_CURRENT("global.refreshCurrent", "Refresh Current Page", "Application Actions", "F5", Scope.GLOBAL, null),
+        NEW_CURRENT("global.newCurrent", "New in Current Page", "Application Actions", "Shortcut+N", Scope.GLOBAL, null),
+        OPEN_SELECTED("global.openSelected", "Open Selected", "Application Actions", "ENTER", Scope.GLOBAL, null),
+        DELETE_SELECTED("global.deleteSelected", "Delete Selected", "Application Actions", "DELETE", Scope.GLOBAL, null),
+        PRINT_CURRENT("global.printCurrent", "Print Current", "Application Actions", "Shortcut+P", Scope.GLOBAL, null),
+        EXPORT_CURRENT("global.exportCurrent", "Export Current", "Application Actions", "Shortcut+Shift+E", Scope.GLOBAL, null),
+        CLOSE_BACK("global.closeBack", "Close / Back", "Application Actions", "ESC", Scope.GLOBAL, null),
+        NEW_SALE("global.newSale", "New Sale", "Quick Create & Navigation", "F9", Scope.GLOBAL, "SALES.VIEW"),
+        NEW_QUOTATION("global.newQuotation", "New Quotation", "Quick Create & Navigation", "F3", Scope.GLOBAL, "QUOTATION.VIEW"),
+        ITEM_MASTER("global.itemMaster", "Item Master", "Quick Create & Navigation", "F4", Scope.GLOBAL, "INVENTORY.VIEW"),
+        MASTERS("global.masters", "Masters", "Quick Create & Navigation", "F10", Scope.GLOBAL, "MASTERS.VIEW"),
+        BANK_STATEMENT("global.bankStatement", "Bank Statement", "Quick Create & Navigation", "F6", Scope.GLOBAL, "BANK_EXPENSE.VIEW"),
+        BANK_ENTRY("global.bankEntry", "Bank Entry", "Quick Create & Navigation", "F7", Scope.GLOBAL, "BANK_EXPENSE.VIEW"),
+        EXPENSE_ENTRY("global.expenseEntry", "Expense Entry", "Quick Create & Navigation", "F8", Scope.GLOBAL, "BANK_EXPENSE.VIEW"),
 
         PDF_UNDO("pdf.undo", "Undo", "PDF Studio", "Shortcut+Z", Scope.PDF_STUDIO, null),
         PDF_REDO("pdf.redo", "Redo", "PDF Studio", "Shortcut+Y", Scope.PDF_STUDIO, null),
@@ -89,7 +99,20 @@ public final class ShortcutRegistry {
 
     public static String configuredBinding(Action action) {
         if (action == null) return "";
-        return normalize(ConfigManager.get(CONFIG_PREFIX + action.id(), action.defaultBinding()));
+        // Shortcut preferences are personal. Fall back to the legacy workspace-level
+        // key so existing installations keep their current bindings until each user saves.
+        String legacy = ConfigManager.get(CONFIG_PREFIX + action.id(), action.defaultBinding());
+        return normalize(ConfigManager.get(storageKey(action), legacy));
+    }
+
+    /** Persistent key for the currently signed-in user's binding. */
+    public static String storageKey(Action action) {
+        if (action == null) return CONFIG_PREFIX + "unknown";
+        var user = SessionService.current();
+        String username = user == null ? "" : user.getUsername();
+        if (username == null || username.isBlank()) return CONFIG_PREFIX + action.id();
+        String safeUser = username.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]", "_");
+        return CONFIG_PREFIX + "user." + safeUser + "." + action.id();
     }
 
     public static String defaultBinding(Action action) {
@@ -179,14 +202,14 @@ public final class ShortcutRegistry {
         for (Action action : Action.values()) {
             if (values == null || !values.containsKey(action)) continue;
             String value = normalize(values.get(action));
-            ConfigManager.setWithoutSaving(CONFIG_PREFIX + action.id(), value);
+            ConfigManager.setWithoutSaving(storageKey(action), value);
         }
         ConfigManager.save();
     }
 
     public static void reset(Action action) {
         if (action == null) return;
-        ConfigManager.set(CONFIG_PREFIX + action.id(), action.defaultBinding());
+        ConfigManager.set(storageKey(action), action.defaultBinding());
     }
 
     public static Map<Action, String> defaults() {

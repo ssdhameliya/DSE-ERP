@@ -34,7 +34,7 @@ public final class InsightsApiClient {
     public List<NotificationDto> notifications(int limit){return get("/api/insights/notifications?limit="+Math.max(1,limit),new TypeReference<List<NotificationDto>>(){});}
     public long unreadCount(){return get("/api/insights/notifications/unread-count",CountDto.class).count();}
     public void createNotification(NotificationCreate d){post("/api/insights/notifications",d,NotificationDto.class);org.example.util.ShellIndicatorBus.publish();}
-    public void markRead(long id){postNoBody("/api/insights/notifications/"+id+"/read");org.example.util.ShellIndicatorBus.publish();}
+    public void markRead(long id){postNoBody("/api/insights/notifications/"+id+"/read");org.example.util.ShellIndicatorBus.publish();} public void markUnread(long id){postNoBody("/api/insights/notifications/"+id+"/unread");org.example.util.ShellIndicatorBus.publish();}
     public void markAllRead(){postNoBody("/api/insights/notifications/read-all");org.example.util.ShellIndicatorBus.publish();}
     public void deleteNotification(long id){delete("/api/insights/notifications/"+id);org.example.util.ShellIndicatorBus.publish();}
     public void clearNotifications(){delete("/api/insights/notifications");org.example.util.ShellIndicatorBus.publish();}

@@ -63,17 +63,29 @@ public final class ProfessionalUiEnhancer {
      * the controller's original PasswordField reference or stored value.
      */
     private static void schedulePasswordReveal(PasswordField field) {
-        if (field == null || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.pending"))) return;
+        if (field == null
+                || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.installed"))
+                || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.pending"))) return;
         field.getProperties().put("erp.password.reveal.pending", true);
         Platform.runLater(() -> installPasswordReveal(field));
     }
 
     private static void installPasswordReveal(PasswordField field) {
-        if (field == null || Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.installed"))) return;
+        if (field == null) return;
+        if (Boolean.TRUE.equals(field.getProperties().get("erp.password.reveal.installed"))) {
+            field.getProperties().remove("erp.password.reveal.pending");
+            return;
+        }
         Parent parent = field.getParent();
-        if (!(parent instanceof Pane pane)) return;
+        if (!(parent instanceof Pane pane)) {
+            field.getProperties().remove("erp.password.reveal.pending");
+            return;
+        }
         int index = pane.getChildren().indexOf(field);
-        if (index < 0) return;
+        if (index < 0) {
+            field.getProperties().remove("erp.password.reveal.pending");
+            return;
+        }
 
         TextField plain = new TextField();
         plain.getStyleClass().setAll(field.getStyleClass());
@@ -96,15 +108,29 @@ public final class ProfessionalUiEnhancer {
         reveal.setAccessibleText("Show password");
         reveal.setTooltip(new Tooltip("Show password"));
 
-        StackPane wrapper = new StackPane(plain, field, reveal);
+        // A Node can only have one JavaFX parent. Creating StackPane(plain, field, reveal)
+        // while field still belongs to pane implicitly reparents/removes the field first,
+        // making the previously captured index stale. That was the cause of the intermittent
+        // VetoableListDecorator.remove(index) IndexOutOfBoundsException on JavaFX 25.
+        copyLayoutConstraints(field, plain);
+        if (!pane.getChildren().remove(field)) {
+            field.getProperties().remove("erp.password.reveal.pending");
+            return;
+        }
+
+        StackPane wrapper = new StackPane();
         wrapper.getStyleClass().add("password-reveal-wrapper");
         wrapper.setMaxWidth(Double.MAX_VALUE);
+        copyLayoutConstraints(field, wrapper);
+        // Mark before attaching the wrapper so the dynamic enhancer cannot schedule the
+        // same PasswordField again during the child-list mutation callback.
+        field.getProperties().put("erp.password.reveal.installed", true);
+        wrapper.getProperties().put("erp.password.reveal.wrapper", true);
+        field.getProperties().remove("erp.password.reveal.pending");
+        wrapper.getChildren().addAll(plain, field, reveal);
         StackPane.setAlignment(reveal, Pos.CENTER_RIGHT);
         StackPane.setMargin(reveal, new javafx.geometry.Insets(0, 7, 0, 0));
-        copyLayoutConstraints(field, wrapper);
-
-        pane.getChildren().remove(index);
-        pane.getChildren().add(index, wrapper);
+        pane.getChildren().add(Math.min(index, pane.getChildren().size()), wrapper);
 
         reveal.setOnAction(event -> {
             boolean show = !plain.isVisible();
@@ -120,8 +146,6 @@ public final class ProfessionalUiEnhancer {
             target.positionCaret(Math.max(0, Math.min(caret, target.getLength())));
         });
 
-        field.getProperties().put("erp.password.reveal.installed", true);
-        wrapper.getProperties().put("erp.password.reveal.wrapper", true);
     }
 
     private static void copyLayoutConstraints(Node source, Node target) {

@@ -79,6 +79,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private SplitPane mainSplit;
     @FXML private javafx.scene.layout.VBox detailDrawer;
     @FXML private Label lblDetailInvoice,lblDetailDate,lblDetailStatus,lblDetailCustomer,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailCharges,lblDetailGstAmount,lblDetailTotalCharges,lblDetailChargeTax,lblDetailGstType,lblDetailGstin,lblDetailBillingAddress,lblDetailDeliveryAddress,lblDetailTransporter,lblDetailDoorDelivery,lblDetailVehicle,lblDetailContactPerson,lblDetailContactMobile;
+    @FXML private Label capInvoiceAmount,capPaidAmount,capBalance,capDueDate,capGstAmount,capTotalCharges,capChargeGst,capCharges,capBillingAddress,capDeliveryAddress,capGstType,capGstin,capTransporter,capVehicle,capContactPerson,capContactMobile;
 
     private final SalesService service=new SalesService();
     private final SupportApiClient support=new SupportApiClient();
@@ -88,7 +89,7 @@ public class SalesListController implements ScreenLifecycle {
     private Sales selected;
 
     @FXML public void initialize(){
-        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();refreshShortcutLabels();
+        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();
         configureExplicitTableHeaderIcons();
         simplifyFilters();
         detailDrawer.setVisible(false);detailDrawer.setManaged(false);mainSplit.setDividerPositions(1.0);
@@ -123,6 +124,18 @@ public class SalesListController implements ScreenLifecycle {
         } catch (Exception exception) { error(exception); }
     }
 
+
+    private void configureDetailFieldIcons(){
+        detailIcon(capInvoiceAmount,"currency","sales-detail-icon-money"); detailIcon(capPaidAmount,"complete","sales-detail-icon-paid");
+        detailIcon(capBalance,"balance","sales-detail-icon-balance"); detailIcon(capDueDate,"reminder","sales-detail-icon-date");
+        detailIcon(capGstAmount,"tax","sales-detail-icon-tax"); detailIcon(capTotalCharges,"payment","sales-detail-icon-charge");
+        detailIcon(capChargeGst,"tax","sales-detail-icon-tax"); detailIcon(capCharges,"document","sales-detail-icon-charge");
+        detailIcon(capBillingAddress,"business","sales-detail-icon-address"); detailIcon(capDeliveryAddress,"purchase","sales-detail-icon-delivery");
+        detailIcon(capGstType,"tax","sales-detail-icon-tax"); detailIcon(capGstin,"document","sales-detail-icon-tax");
+        detailIcon(capTransporter,"purchase","sales-detail-icon-transport"); detailIcon(capVehicle,"bank","sales-detail-icon-vehicle");
+        detailIcon(capContactPerson,"user","sales-detail-icon-person"); detailIcon(capContactMobile,"phone","sales-detail-icon-phone");
+    }
+    private void detailIcon(Label label,String semantic,String style){if(label==null)return;label.setGraphic(IconFactory.compactIcon(semantic,14));label.setGraphicTextGap(6);label.getStyleClass().addAll("sales-detail-caption",style);}
 
     private void configureVisualIcons(){
         setIcon(salesTitleIcon,"sale",22);
@@ -436,7 +449,7 @@ public class SalesListController implements ScreenLifecycle {
         selected=sale;
         detailDrawer.setManaged(true);
         detailDrawer.setVisible(true);
-        mainSplit.setDividerPositions(.81);
+        mainSplit.setDividerPositions(.70);
         lblDetailInvoice.setText(sale.getInvoiceNo());
         lblDetailDate.setText(sale.getInvoiceDate().format(BusinessClock.dateFormatter()));
         lblDetailStatus.setText(documentStatus(sale));
@@ -465,6 +478,10 @@ public class SalesListController implements ScreenLifecycle {
         }
         if (lblDetailDeliveryAddress != null) {
             String delivery = safe(sale.getDeliveryAddress());
+            if (delivery.isBlank() && sale.isSameAsBilling()) {
+                delivery = safe(sale.getBillingAddress());
+                if (delivery.isBlank() && sale.getCustomer() != null) delivery = safe(sale.getCustomer().getAddress());
+            }
             lblDetailDeliveryAddress.setText(delivery.isBlank() ? "Not set" : delivery);
         }
         if (lblDetailTransporter != null) lblDetailTransporter.setText(safe(sale.getTransporter()).isBlank() ? "Not Applicable" : sale.getTransporter());

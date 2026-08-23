@@ -32,7 +32,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 public class BankStatementController {
-    @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon,flowImportIcon,flowReviewIcon,flowAuditIcon;
+    @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon;
     @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage;
     @FXML private CheckBox chkSelectAll;
     @FXML private Button btnBulkReview,btnBulkIgnore,btnMoveExpense,btnMoveBankEntry;
@@ -78,7 +78,7 @@ public class BankStatementController {
         setIcon(pageIcon,"bank",24); setIcon(kpiTotalIcon,"document",18); setIcon(kpiUnmatchedIcon,"warning",18);
         setIcon(kpiSuggestedIcon,"link",18); setIcon(kpiMatchedIcon,"status",18); setIcon(kpiExpenseIcon,"payment",18);
         setIcon(kpiCreditsIcon,"payment",18); setIcon(kpiDebitsIcon,"payment",18); setIcon(kpiReconciledIcon,"status",18);
-        setIcon(howIcon,"info",16); setIcon(flowImportIcon,"import",16); setIcon(flowReviewIcon,"view",16); setIcon(flowAuditIcon,"status",16);
+        setIcon(howIcon,"info",16);
         if(btnImport!=null) btnImport.setGraphic(IconFactory.compactIcon("import",16));
         if(btnSearch!=null) btnSearch.setGraphic(IconFactory.compactIcon("search",15));
         if(btnReset!=null) btnReset.setGraphic(IconFactory.compactIcon("return",15));

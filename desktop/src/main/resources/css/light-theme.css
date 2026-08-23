@@ -6659,11 +6659,11 @@
 }
 
 .dse-startup-splash .splash-start-title {
-    -fx-text-fill: white;
+    -fx-text-fill: #14213d;
 }
 
 .dse-startup-splash .splash-start-copy {
-    -fx-text-fill: #9fb4d1;
+    -fx-text-fill: #64748b;
 }
 
 .dse-startup-splash .splash-stage-row {

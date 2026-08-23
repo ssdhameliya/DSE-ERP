@@ -19,12 +19,16 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.TilePane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.DirectoryChooser;
@@ -322,7 +326,7 @@ public class SettingsController implements ScreenLifecycle {
        KEYBOARD SHORTCUTS
        ========================================================= */
     @FXML private VBox panelShortcuts;
-    @FXML private VBox shortcutRows;
+    @FXML private TilePane shortcutGroups;
     @FXML private Label lblShortcutValidation;
 
     /* =========================================================
@@ -1169,6 +1173,8 @@ public class SettingsController implements ScreenLifecycle {
             }
             // Section visibility changes are synchronous; JavaFX owns the normal CSS/layout pulse.
             if (panelScroll != null) {
+                panelScroll.setVbarPolicy(selectedPanel == panelShortcuts
+                        ? ScrollPane.ScrollBarPolicy.NEVER : ScrollPane.ScrollBarPolicy.AS_NEEDED);
                 Platform.runLater(() -> panelScroll.setVvalue(0.0));
             }
         }
@@ -1307,42 +1313,21 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void initializeShortcutSettings() {
-        if (shortcutRows == null) return;
-        shortcutEditors.clear();
-        shortcutRows.getChildren().clear();
-        String category = null;
-        for (Action action : ShortcutRegistry.actions()) {
-            if (!java.util.Objects.equals(category, action.category())) {
-                category = action.category();
-                Label heading = new Label(category);
-                heading.getStyleClass().add("settings-section-subtitle");
-                shortcutRows.getChildren().add(heading);
+        if (shortcutGroups == null) return;
+        shortcutEditors.clear(); shortcutGroups.getChildren().clear();
+        Map<String,List<Action>> categories = ShortcutRegistry.actions().stream().collect(java.util.stream.Collectors.groupingBy(Action::category, LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        for (Map.Entry<String,List<Action>> entry : categories.entrySet()) {
+            VBox card=new VBox(6); card.getStyleClass().add("dse-shortcut-group-card"); card.setPrefWidth(390); card.setMaxWidth(Double.MAX_VALUE);
+            Label heading=new Label(entry.getKey()); heading.getStyleClass().add("dse-shortcut-group-title"); card.getChildren().add(heading);
+            GridPane grid=new GridPane(); grid.setHgap(6); grid.setVgap(5); ColumnConstraints c0=new ColumnConstraints();c0.setPercentWidth(48);ColumnConstraints c1=new ColumnConstraints();c1.setPercentWidth(35);ColumnConstraints c2=new ColumnConstraints();c2.setPercentWidth(17);grid.getColumnConstraints().addAll(c0,c1,c2);
+            int row=0;
+            for(Action action:entry.getValue()){
+                Label name=new Label(action.label());name.getStyleClass().add("dse-shortcut-action-name");
+                TextField editor=new TextField(ShortcutRegistry.display(action));editor.setPromptText("Disabled");editor.setEditable(false);editor.getProperties().put("dse.shortcut-capture",Boolean.TRUE);editor.getStyleClass().add("dse-shortcut-key");editor.setOnMouseClicked(e->{editor.requestFocus();editor.selectAll();});editor.setOnKeyPressed(e->captureShortcut(action,editor,e));
+                Button reset=new Button("↺");reset.setTooltip(new Tooltip("Reset to default"));reset.getStyleClass().addAll("approved-button","approved-secondary-button","dse-shortcut-reset");reset.setOnAction(e->{editor.setText(action.defaultBinding().replace("Shortcut","Ctrl/Cmd"));refreshShortcutValidation();});
+                grid.add(name,0,row);grid.add(editor,1,row);grid.add(reset,2,row++);shortcutEditors.put(action,editor);
             }
-            Label name = new Label(action.label());
-            name.setMinWidth(190);
-            name.getStyleClass().add("field-label");
-            TextField editor = new TextField(ShortcutRegistry.display(action));
-            editor.setPromptText("Disabled");
-            editor.setEditable(false);
-            editor.setFocusTraversable(true);
-            editor.getProperties().put("dse.shortcut-capture", Boolean.TRUE);
-            editor.setPrefWidth(180);
-            editor.setOnMouseClicked(event -> { editor.requestFocus(); editor.selectAll(); });
-            editor.setOnKeyPressed(event -> captureShortcut(action, editor, event));
-            Button reset = new Button("Default");
-            reset.getStyleClass().addAll("approved-button", "approved-secondary-button");
-            reset.setOnAction(event -> { editor.setText(action.defaultBinding().replace("Shortcut", "Ctrl/Cmd")); refreshShortcutValidation(); });
-            Label scope = new Label(switch (action.scope()) {
-                case GLOBAL -> "Global";
-                case PDF_STUDIO -> "PDF Studio";
-                case EXCEL_STUDIO -> "Excel Studio";
-                case MASTER_DATA -> "Master Data";
-            });
-            scope.getStyleClass().add("pill-info");
-            HBox row = new HBox(10, name, editor, reset, scope);
-            row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-            shortcutRows.getChildren().add(row);
-            shortcutEditors.put(action, editor);
+            card.getChildren().add(grid);shortcutGroups.getChildren().add(card);
         }
         refreshShortcutValidation();
     }
@@ -1396,7 +1381,7 @@ public class SettingsController implements ScreenLifecycle {
         List<String> errors = ShortcutRegistry.validate(draft);
         if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("\n", errors));
         for (Map.Entry<Action, String> entry : draft.entrySet()) {
-            ConfigManager.setWithoutSaving("shortcut." + entry.getKey().id(), entry.getValue() == null ? "" : entry.getValue().trim());
+            ConfigManager.setWithoutSaving(ShortcutRegistry.storageKey(entry.getKey()), entry.getValue() == null ? "" : entry.getValue().trim());
         }
     }
 

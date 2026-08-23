@@ -2,14 +2,9 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<VBox fx:id="panelShortcuts" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" spacing="14" styleClass="settings-panel,settings-card">
-    <padding><Insets top="18" right="18" bottom="18" left="18"/></padding>
-    <Label text="Keyboard Shortcuts" styleClass="settings-section-title"/>
-    <Label text="Choose the keys that fit your workflow. Click a shortcut box and press the new key combination. Blank disables that action. The same combination may be reused in Global navigation, PDF Studio, Excel Studio, and Master Data because only one keyboard context is active at a time. Conflicts inside the same context are blocked." wrapText="true" styleClass="settings-help-text,muted-label"/>
-    <HBox spacing="10" alignment="CENTER_LEFT">
-        <Button text="Reset All to Defaults" onAction="#resetAllShortcuts" styleClass="approved-button,approved-secondary-button"/>
-        <Label fx:id="lblShortcutValidation" text="Shortcuts are loaded from this workspace." wrapText="true" styleClass="pill-info" HBox.hgrow="ALWAYS"/>
-    </HBox>
-    <Separator/>
-    <VBox fx:id="shortcutRows" spacing="8"/>
+<VBox fx:id="panelShortcuts" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" spacing="10" styleClass="settings-panel,settings-card,dse-shortcut-panel">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
+  <HBox alignment="CENTER_LEFT" spacing="10"><VBox spacing="2" HBox.hgrow="ALWAYS"><Label text="Application Shortcut Manager" styleClass="settings-section-title"/><Label text="One shortcut profile for the whole ERP. Click a key box and press the new combination; blank disables the action." wrapText="true" styleClass="settings-help-text,muted-label"/></VBox><Button text="Reset All" onAction="#resetAllShortcuts" styleClass="approved-button,approved-secondary-button"/></HBox>
+  <Label fx:id="lblShortcutValidation" text="Shortcuts are loaded for the signed-in user." wrapText="true" styleClass="pill-info,dse-shortcut-validation"/>
+  <TilePane fx:id="shortcutGroups" hgap="10" vgap="10" prefColumns="3" tileAlignment="TOP_LEFT" VBox.vgrow="ALWAYS" styleClass="dse-shortcut-groups"/>
 </VBox>

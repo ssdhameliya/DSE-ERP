@@ -89,6 +89,12 @@ public class InsightsController {
         return ok("Updated");
     }
 
+    @PostMapping("/notifications/{id}/unread")
+    public InsightDtos.Ok unread(@PathVariable long id) {
+        s.markUnread(id);
+        return ok("Updated");
+    }
+
     @PostMapping("/notifications/read-all")
     public InsightDtos.Ok readAll() {
         s.markAllRead();

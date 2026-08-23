@@ -100,30 +100,6 @@
         </HBox>
       </VBox>
 
-      <VBox spacing="10" prefWidth="260" minWidth="240" maxWidth="280" styleClass="bank-recon-flow-panel">
-        <Label text="BANK RECONCILIATION FLOW" styleClass="bank-recon-flow-title"/>
-        <VBox spacing="6" styleClass="bank-flow-step,bank-flow-blue"><HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="flowImportIcon" styleClass="bank-flow-icon"/><Label text="1  Import Statement" styleClass="bank-flow-step-title"/></HBox><Label text="Import the bank statement CSV through Data Import or this screen." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
-        <Label text="↓" styleClass="bank-flow-arrow"/>
-        <VBox spacing="6" styleClass="bank-flow-step,bank-flow-orange"><HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="flowReviewIcon" styleClass="bank-flow-icon"/><Label text="2  Review Statement" styleClass="bank-flow-step-title"/></HBox><Label text="Review transactions and DSE ERP suggestions before posting." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
-        <Label text="↓" styleClass="bank-flow-arrow"/>
-        <HBox spacing="7">
-          <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="bank-flow-step,bank-flow-green"><Label text="3A  Match" styleClass="bank-flow-step-title"/><Label text="Allocate bank money to an open Sales / Purchase document." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
-          <VBox spacing="6" HBox.hgrow="ALWAYS" styleClass="bank-flow-step,bank-flow-purple"><Label text="3B  Expense" styleClass="bank-flow-step-title"/><Label text="Create a real Expense Entry from an unmatched debit." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
-        </HBox>
-        <VBox spacing="6" styleClass="bank-flow-step,bank-flow-blue"><Label text="3C  Bank Entry" styleClass="bank-flow-step-title"/><Label text="Create a real Bank Entry from the selected statement transaction." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
-        <Label text="↓" styleClass="bank-flow-arrow"/>
-        <VBox spacing="6" styleClass="bank-flow-step,bank-flow-blue"><HBox spacing="8" alignment="CENTER_LEFT"><StackPane fx:id="flowAuditIcon" styleClass="bank-flow-icon"/><Label text="4  Audit Trail &amp; Evidence" styleClass="bank-flow-step-title"/></HBox><Label text="Imported bank evidence remains retained with complete reconciliation history." wrapText="true" styleClass="bank-flow-step-note"/></VBox>
-        <VBox spacing="8" styleClass="bank-recon-status-guide">
-          <Label text="Status Guide" styleClass="bank-recon-flow-title"/>
-          <GridPane hgap="8" vgap="7">
-            <Label text="●" styleClass="bank-dot-unmatched" GridPane.columnIndex="0" GridPane.rowIndex="0"/><Label text="UNMATCHED — needs action" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-            <Label text="●" styleClass="bank-dot-suggested" GridPane.columnIndex="0" GridPane.rowIndex="1"/><Label text="SUGGESTED — DSE ERP found a possible match" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-            <Label text="●" styleClass="bank-dot-matched" GridPane.columnIndex="0" GridPane.rowIndex="2"/><Label text="MATCHED — linked to Bank Entry and ERP transaction" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-            <Label text="●" styleClass="bank-dot-expense" GridPane.columnIndex="0" GridPane.rowIndex="3"/><Label text="EXPENSE — linked to Expense Entry" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
-            <Label text="●" styleClass="bank-dot-review" GridPane.columnIndex="0" GridPane.rowIndex="4"/><Label text="REVIEW — user decision required" GridPane.columnIndex="1" GridPane.rowIndex="4"/>
-          </GridPane>
-        </VBox>
-      </VBox>
     </HBox>
   </center>
   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
