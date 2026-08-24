@@ -8,6 +8,35 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("8.5.6".equals(version)) {
+            return """
+                    DSE ERP 8.5.6
+                    • Corrected desktop compile regressions in Sales, Purchase and Shortcut Manager introduced during the v8.5.5 polish.
+                    • Preserves the complete v8.5.5 User Access, custom-role and effective-permissions model unchanged.
+                    """.strip();
+        }
+        if ("8.5.5".equals(version)) {
+            return """
+                    DSE ERP 8.5.5
+                    • Reworked User Access so saved Role Master permissions are effective for every signed-in role, including custom and Purchase roles.
+                    • Added a signed-in effective-permissions API so non-Admin users no longer fall back to legacy SALES/MANAGER permission defaults.
+                    • Spring Security now receives saved permission authorities and protects core Sales, Purchase, Finance, Inventory, Reports and User Access operations by capability.
+                    • Added a first-class Purchase role with safe baseline Purchase/Supplier/Inventory access; administrators can further customize it in Permission Matrix.
+                    • Hardened permission saving against duplicate/stale permission rows and repaired legacy role_permission schema constraints that could surface HTTP 409 conflicts.
+                    • User role changes now invalidate stale sessions, and duplicate username/email conflicts return clear field-level messages instead of generic 400/409 errors.
+                    • Replaced legacy SALES-only server checks in payments, returns, supplier access and support navigation with saved module permissions.
+                    """.strip();
+        }
+        if ("8.5.4".equals(version)) {
+            return """
+                    DSE ERP 8.5.4
+                    • Removed the legacy standalone Payment History screen and routed payment search/notifications to the current Sales or Purchase payment workspace.
+                    • Global Search result details now use a wrapped, padded detail rail so dates, amounts, statuses and separators remain fully readable.
+                    • Notification rows/details now use roomier wrapping, current order-status wording and reliable exact-record opening for legacy and new linked records.
+                    • Shortcut Manager now exposes only Application Actions, Quick Create and Navigation, with three full-height columns that use the available workspace.
+                    • Existing v8.5.3 Global Search and Notification Center semantic coloring/polish remains preserved.
+                    """.strip();
+        }
         if ("8.5.3".equals(version)) {
             return """
                     DSE ERP 8.5.3

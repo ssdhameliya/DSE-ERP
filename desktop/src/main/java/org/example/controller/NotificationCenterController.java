@@ -84,7 +84,8 @@ public final class NotificationCenterController implements ScreenLifecycle {
         NotificationItem item = selected(); if(item==null)return;
         NotificationService.markRead(item.id());
         String ref=safe(item.referenceNo()).trim();
-        if(item.recordId()!=null){
+        boolean legacyPayment="PAYMENT".equalsIgnoreCase(safe(item.moduleKey()))||"PAYMENTS".equalsIgnoreCase(safe(item.moduleKey()))||safe(item.targetFxml()).endsWith("/PaymentHistory.fxml");
+        if(item.recordId()!=null&&!legacyPayment){
             openResolved(item,new ResolvedLink(true,item.moduleKey(),item.recordId(),ref,item.targetFxml()));
             return;
         }
@@ -210,22 +211,24 @@ public final class NotificationCenterController implements ScreenLifecycle {
             String category=displayCategory(n.category());
             StackPane iconWell=new StackPane(IconFactory.compactIcon(categorySemantic(category),19));iconWell.setMinSize(42,42);iconWell.setPrefSize(42,42);iconWell.setMaxSize(42,42);iconWell.getStyleClass().addAll("dse-notification-v3-row-icon","dse-notification-v3-row-icon-"+slug(category));
 
-            Label title=new Label(displayTitle(n));title.getStyleClass().add("dse-notification-v3-row-title");
-            VBox text=new VBox(3,title);HBox.setHgrow(text,Priority.ALWAYS);
-            String message=displayMessage(n);
-            if(!message.isBlank()){Label msg=new Label(message);msg.setWrapText(false);msg.setTextOverrun(OverrunStyle.ELLIPSIS);msg.getStyleClass().add("dse-notification-v3-row-message");text.getChildren().add(msg);}
-            Label meta=new Label(category+(safe(n.referenceNo()).isBlank()?"":"  •  "+safe(n.referenceNo())));meta.getStyleClass().add("dse-notification-v3-row-meta");text.getChildren().add(meta);
-
-            Label time=new Label(rowTimestamp(n.createdAt()));time.setAlignment(Pos.CENTER);time.setMinWidth(165);time.setPrefWidth(175);time.getStyleClass().add("dse-notification-v3-row-time");
-
+            Label title=new Label(displayTitle(n));title.setWrapText(true);title.setMaxWidth(Double.MAX_VALUE);title.getStyleClass().add("dse-notification-v3-row-title");
             Label categoryBadge=new Label(category);categoryBadge.getStyleClass().addAll("dse-notification-v3-badge","dse-notification-v3-badge-"+slug(category));
-            VBox right=new VBox(6,categoryBadge);right.setAlignment(Pos.CENTER_RIGHT);right.setMinWidth(92);
             HBox state=new HBox(5);state.setAlignment(Pos.CENTER_RIGHT);
             if(!n.read()){Label badge=new Label("NEW");badge.getStyleClass().add("dse-notification-v3-new");state.getChildren().add(badge);getStyleClass().add("dse-notification-v3-unread-cell");}
             if(actionable(n)){Label badge=new Label("ACTION");badge.getStyleClass().add("dse-notification-v3-action-badge");state.getChildren().add(badge);getStyleClass().add("dse-notification-v3-action-cell");}
-            if(!state.getChildren().isEmpty())right.getChildren().add(state);
+            Region topSpacer=new Region();HBox.setHgrow(topSpacer,Priority.ALWAYS);
+            HBox top=new HBox(8,title,topSpacer,categoryBadge,state);top.setAlignment(Pos.CENTER_LEFT);
 
-            HBox row=new HBox(12,iconWell,text,time,right);row.setAlignment(Pos.CENTER_LEFT);row.getStyleClass().add("dse-notification-v3-row");setGraphic(row);
+            VBox text=new VBox(6,top);HBox.setHgrow(text,Priority.ALWAYS);
+            String message=displayMessage(n);
+            if(!message.isBlank()){Label msg=new Label(message);msg.setWrapText(true);msg.setMaxWidth(Double.MAX_VALUE);msg.getStyleClass().add("dse-notification-v3-row-message");text.getChildren().add(msg);}
+            Label meta=new Label(category+(safe(n.referenceNo()).isBlank()?"":"  •  "+safe(n.referenceNo())));meta.setWrapText(true);meta.getStyleClass().add("dse-notification-v3-row-meta");
+            Label time=new Label(rowTimestamp(n.createdAt()));time.setAlignment(Pos.CENTER_RIGHT);time.getStyleClass().add("dse-notification-v3-row-time");
+            Region footerSpacer=new Region();HBox.setHgrow(footerSpacer,Priority.ALWAYS);
+            HBox footer=new HBox(10,meta,footerSpacer,time);footer.setAlignment(Pos.CENTER_LEFT);
+            text.getChildren().add(footer);
+
+            HBox row=new HBox(12,iconWell,text);row.setAlignment(Pos.TOP_LEFT);row.getStyleClass().add("dse-notification-v3-row");setGraphic(row);
         }
     }
 }

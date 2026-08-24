@@ -135,25 +135,30 @@ public final class GlobalSearchController implements ScreenLifecycle {
         StackPane iconWell = new StackPane(glyph); iconWell.getStyleClass().addAll("dse-global-search-v3-result-icon","dse-global-search-v3-result-icon-"+slug(r.module()));
         iconWell.setMinSize(36,36); iconWell.setPrefSize(36,36); iconWell.setMaxSize(36,36);
 
-        Label ref = new Label(safe(r.reference())); ref.getStyleClass().addAll("dse-global-search-v3-ref", "dse-global-search-v3-ref-"+slug(r.module())); ref.setMinWidth(165); ref.setPrefWidth(185);
-        Label desc = new Label(safe(r.description())); desc.setMaxWidth(Double.MAX_VALUE); desc.getStyleClass().addAll("dse-global-search-v3-desc", "dse-global-search-v3-desc-"+slug(r.module())); HBox.setHgrow(desc, Priority.ALWAYS);
+        Label ref = new Label(safe(r.reference())); ref.getStyleClass().addAll("dse-global-search-v3-ref", "dse-global-search-v3-ref-"+slug(r.module())); ref.setMinWidth(150); ref.setPrefWidth(185); ref.setMaxWidth(220);
+        Label desc = new Label(safe(r.description())); desc.setWrapText(true); desc.setMaxWidth(Double.MAX_VALUE); desc.getStyleClass().addAll("dse-global-search-v3-desc", "dse-global-search-v3-desc-"+slug(r.module())); HBox.setHgrow(desc, Priority.ALWAYS);
+        HBox primary = new HBox(10,ref,separator(),desc); primary.setAlignment(Pos.CENTER_LEFT); HBox.setHgrow(primary,Priority.ALWAYS);
 
-        HBox details = new HBox(10); details.setAlignment(Pos.CENTER_LEFT); details.getStyleClass().add("dse-global-search-v3-detail-fields");
-        for (String token : detailTokens(r.detail())) {
-            Label label = new Label(token);
+        FlowPane details = new FlowPane(8,6); details.setAlignment(Pos.CENTER_LEFT); details.setPrefWrapLength(620); details.setMaxWidth(Double.MAX_VALUE); details.getStyleClass().add("dse-global-search-v3-detail-fields");
+        List<String> tokens=detailTokens(r.detail());
+        for (int i=0;i<tokens.size();i++) {
+            if(i>0){Label dot=new Label("•");dot.getStyleClass().add("dse-global-search-v3-token-separator");details.getChildren().add(dot);}
+            String token=tokens.get(i);
+            Label label = new Label(token); label.setWrapText(false);
             label.getStyleClass().add("dse-global-search-v3-token");
             String statusClass = tokenClass(token);
             if (!statusClass.isBlank()) label.getStyleClass().add(statusClass);
             details.getChildren().add(label);
         }
-        details.setMinWidth(245); details.setPrefWidth(300);
+        VBox content=new VBox(7,primary);content.setMaxWidth(Double.MAX_VALUE);HBox.setHgrow(content,Priority.ALWAYS);
+        if(!tokens.isEmpty())content.getChildren().add(details);
 
-        Button view = new Button("View"); view.getStyleClass().add("dse-global-search-v3-view");
+        Button view = new Button("View"); view.setMinWidth(82); view.getStyleClass().add("dse-global-search-v3-view");
         view.setGraphic(IconFactory.compactIcon("view",13)); view.getProperties().put("erp-icon-preserve",true);
         view.setOnAction(e -> DeepLinkRouter.open(r.targetFxml(),r.moduleKey(),r.recordId(),r.reference(),"Global Search"));
         view.setTooltip(new Tooltip("Open the exact " + r.module() + " record"));
 
-        HBox row = new HBox(12,iconWell,ref,separator(),desc,separator(),details,view); row.setAlignment(Pos.CENTER_LEFT);
+        HBox row = new HBox(12,iconWell,content,view); row.setAlignment(Pos.CENTER_LEFT);
         row.getStyleClass().add("dse-global-search-v3-result-row");
         row.setOnMouseClicked(e -> { if (e.getClickCount()==2) view.fire(); });
         return row;

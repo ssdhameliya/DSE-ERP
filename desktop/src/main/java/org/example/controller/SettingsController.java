@@ -29,6 +29,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
@@ -1380,7 +1381,7 @@ public class SettingsController implements ScreenLifecycle {
         shortcutUiLoading = true;
         cmbShortcutCategory.setItems(FXCollections.observableArrayList(categories));
         if (cmbShortcutCategory.getSelectionModel().getSelectedIndex() < 0) cmbShortcutCategory.getSelectionModel().selectFirst();
-        cmbShortcutAction.setItems(FXCollections.observableArrayList(ShortcutRegistry.availableActions()));
+        cmbShortcutAction.setItems(FXCollections.observableArrayList(shortcutManagerActions()));
         cmbShortcutScope.setItems(FXCollections.observableArrayList(
                 java.util.Arrays.stream(ShortcutRegistry.Scope.values()).map(ShortcutRegistry.Scope::label).toList()));
         shortcutUiLoading = false;
@@ -1410,10 +1411,10 @@ public class SettingsController implements ScreenLifecycle {
         }
 
         if (selectedShortcutAction == null || !ShortcutRegistry.permitted(selectedShortcutAction)) {
-            selectedShortcutAction = ShortcutRegistry.availableActions().stream().findFirst().orElse(Action.SAVE_CURRENT);
+            selectedShortcutAction = shortcutManagerActions().stream().findFirst().orElse(Action.SAVE_CURRENT);
         }
         refreshShortcutWorkspace();
-        openShortcutEditor(selectedShortcutAction);
+        closeShortcutDrawer();
     }
 
     private void installShortcutIcons() {
@@ -1476,15 +1477,24 @@ public class SettingsController implements ScreenLifecycle {
     private List<String> shortcutUiCategories() {
         List<String> categories = new ArrayList<>();
         categories.add("All Categories");
-        for (Action action : ShortcutRegistry.availableActions()) {
+        for (Action action : shortcutManagerActions()) {
             String category = shortcutUiCategory(action);
             if (!categories.contains(category)) categories.add(category);
         }
         return categories;
     }
 
+    private List<Action> shortcutManagerActions() {
+        return ShortcutRegistry.availableActions().stream().filter(action -> {
+            String category=shortcutUiCategory(action);
+            return "Application Actions".equals(category)||"Quick Create".equals(category)||"Navigation".equals(category);
+        }).toList();
+    }
+
     private String shortcutUiCategory(Action action) {
-        return action == null || action.category() == null || action.category().isBlank() ? "Application Actions" : action.category();
+        if(action==Action.GLOBAL_SEARCH)return "Application Actions";
+        String category=action == null || action.category() == null || action.category().isBlank() ? "Application Actions" : action.category();
+        return "Search & Filter".equals(category)?"Application Actions":category;
     }
 
     private String shortcutCategoryAccent(String category) {
@@ -1530,7 +1540,7 @@ public class SettingsController implements ScreenLifecycle {
                 ? "" : txtShortcutSearch.getText().trim().toLowerCase(java.util.Locale.ROOT);
 
         List<Action> filtered = new ArrayList<>();
-        for (Action action : ShortcutRegistry.availableActions()) {
+        for (Action action : shortcutManagerActions()) {
             String category = shortcutUiCategory(action);
             if (categoryFilter != null && !categoryFilter.equals("All Categories") && !categoryFilter.equals(category)) continue;
             if (!query.isBlank()) {
@@ -1554,21 +1564,22 @@ public class SettingsController implements ScreenLifecycle {
         shortcutCards.getChildren().clear();
         shortcutCards.getColumnConstraints().clear();
         shortcutCards.getRowConstraints().clear();
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 3; i++) {
             ColumnConstraints column = new ColumnConstraints();
-            column.setPercentWidth(25); column.setFillWidth(true);
+            column.setPercentWidth(100.0/3.0); column.setFillWidth(true); column.setHgrow(javafx.scene.layout.Priority.ALWAYS);
             shortcutCards.getColumnConstraints().add(column);
         }
+        RowConstraints rowConstraint=new RowConstraints();rowConstraint.setVgrow(javafx.scene.layout.Priority.ALWAYS);rowConstraint.setFillHeight(true);shortcutCards.getRowConstraints().add(rowConstraint);
 
         Map<String,List<Action>> grouped = new LinkedHashMap<>();
-        for (Action action : ShortcutRegistry.availableActions())
+        for (Action action : shortcutManagerActions())
             grouped.computeIfAbsent(shortcutUiCategory(action), ignored -> new ArrayList<>()).add(action);
 
         int cardIndex = 0;
         for (Map.Entry<String,List<Action>> entry : grouped.entrySet()) {
             VBox card = buildShortcutCategoryCard(entry.getKey(), entry.getValue());
-            int column = cardIndex % 4; int row = cardIndex / 4;
-            GridPane.setHgrow(card, javafx.scene.layout.Priority.ALWAYS);
+            int column = cardIndex % 3; int row = cardIndex / 3;
+            GridPane.setHgrow(card, javafx.scene.layout.Priority.ALWAYS);GridPane.setVgrow(card, javafx.scene.layout.Priority.ALWAYS);
             shortcutCards.add(card, column, row); cardIndex++;
         }
     }
@@ -1599,8 +1610,7 @@ public class SettingsController implements ScreenLifecycle {
         String accent = shortcutCategoryAccent(category);
         VBox card = new VBox(7);
         card.getStyleClass().addAll("dse-shortcut-v3-card", "dse-shortcut-v3-card-" + accent);
-        card.setMaxWidth(Double.MAX_VALUE);
-        card.setMinHeight(214); card.setPrefHeight(214); card.setMaxHeight(214);
+        card.setMaxWidth(Double.MAX_VALUE);card.setMaxHeight(Double.MAX_VALUE);
 
         StackPane iconBox = new StackPane();
         iconBox.getStyleClass().addAll("dse-shortcut-v3-card-icon", "dse-shortcut-v3-accent-" + accent);
@@ -1613,15 +1623,10 @@ public class SettingsController implements ScreenLifecycle {
         HBox header = new HBox(7, iconBox, title, count, spacer, add); header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         card.getChildren().add(header);
 
-        int limit = Math.min(actions.size(), 4);
-        for (int i = 0; i < limit; i++) card.getChildren().add(buildShortcutRow(actions.get(i), accent));
-        VBox fill = new VBox(); VBox.setVgrow(fill, javafx.scene.layout.Priority.ALWAYS); card.getChildren().add(fill);
-        if (actions.size() > limit) {
-            Button viewAll = new Button("View all (" + actions.size() + ")  →");
-            viewAll.getStyleClass().addAll("dse-shortcut-v3-view-all", "dse-shortcut-v3-text-" + accent);
-            viewAll.setOnAction(event -> showShortcutList(actions, category, actions.size() + " shortcuts in this category"));
-            card.getChildren().add(viewAll);
-        }
+        VBox rows=new VBox(5);rows.setFillWidth(true);
+        for(Action action:actions)rows.getChildren().add(buildShortcutRow(action,accent));
+        ScrollPane scroll=new ScrollPane(rows);scroll.setFitToWidth(true);scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);scroll.getStyleClass().add("dse-shortcut-v3-card-scroll");
+        VBox.setVgrow(scroll,javafx.scene.layout.Priority.ALWAYS);card.getChildren().add(scroll);
         return card;
     }
 
@@ -1638,9 +1643,9 @@ public class SettingsController implements ScreenLifecycle {
 
     private void refreshShortcutKpis() {
         if (lblShortcutTotal == null) return;
-        int total = ShortcutRegistry.availableActions().size();
+        int total = shortcutManagerActions().size();
         int custom = 0;
-        for (Action action : ShortcutRegistry.availableActions()) {
+        for (Action action : shortcutManagerActions()) {
             String current = normalizeShortcut(shortcutDraftValues.get(action));
             String defaults = normalizeShortcut(action.defaultBinding());
             if (!current.equalsIgnoreCase(defaults)) custom++;
@@ -1658,7 +1663,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void addShortcut(String preferredCategory) {
-        Action candidate = ShortcutRegistry.availableActions().stream()
+        Action candidate = shortcutManagerActions().stream()
                 .filter(action -> preferredCategory == null || preferredCategory.equals(shortcutUiCategory(action)))
                 .findFirst().orElse(Action.SAVE_CURRENT);
         openShortcutEditor(candidate);

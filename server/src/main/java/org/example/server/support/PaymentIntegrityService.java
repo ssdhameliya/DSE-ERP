@@ -26,6 +26,7 @@ public class PaymentIntegrityService {
     public int record(SupportDtos.PaymentRequest request) {
         if (request == null) throw new IllegalArgumentException("Payment details are required");
         DocumentType type = DocumentType.parse(request.documentType());
+        CurrentUser.requirePermission(type == DocumentType.PURCHASE ? "PURCHASE.EDIT" : "SALES.EDIT", "Record payment");
         if (request.documentId() <= 0) throw new IllegalArgumentException("A valid document is required");
         BigDecimal amount = money(request.amount());
         if (amount.compareTo(ZERO) <= 0) throw new IllegalArgumentException("Payment amount must be greater than zero");
@@ -77,8 +78,7 @@ public class PaymentIntegrityService {
                 paymentId);
         if (payments.isEmpty()) throw new IllegalArgumentException("Payment record was not found");
         ExistingPayment existing = payments.getFirst();
-        if (CurrentUser.isSales() && existing.type == DocumentType.PURCHASE)
-            throw new SecurityException("Purchase payments require Manager or Admin access");
+        CurrentUser.requirePermission(existing.type == DocumentType.PURCHASE ? "PURCHASE.EDIT" : "SALES.EDIT", "Edit payment");
         if ("BANK_RECONCILIATION".equalsIgnoreCase(existing.paymentType))
             throw new IllegalStateException("Bank-reconciled payments must be changed through the Bank Statement reversal/reconciliation workflow");
 
@@ -148,8 +148,7 @@ public class PaymentIntegrityService {
                 paymentId);
         if (payments.isEmpty()) throw new IllegalArgumentException("Payment record was not found");
         AttachmentPayment existing = payments.getFirst();
-        if (CurrentUser.isSales() && existing.type == DocumentType.PURCHASE)
-            throw new SecurityException("Purchase payments require Manager or Admin access");
+        CurrentUser.requirePermission(existing.type == DocumentType.PURCHASE ? "PURCHASE.EDIT" : "SALES.EDIT", "Edit payment");
         if ("BANK_RECONCILIATION".equalsIgnoreCase(existing.paymentType))
             throw new IllegalStateException("Bank-reconciled payment proofs must be changed through the Bank Statement workflow");
         if (jdbc.update("UPDATE payment_record SET attachment_path=? WHERE id=?", clean(path), paymentId) != 1)

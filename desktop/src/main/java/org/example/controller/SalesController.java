@@ -1054,21 +1054,13 @@ public class SalesController {
 
                 salesService.update(sale);
 
-                NotificationService.add(
-                    "Sales "
-                        + sale.getInvoiceNo()
-                        + " updated"
-                );
+                notifySalesStatus(sale.getInvoiceNo());
 
             } else {
 
                 salesService.save(sale);
 
-                NotificationService.add(
-                    "Sales "
-                        + sale.getInvoiceNo()
-                        + " saved"
-                );
+                notifySalesStatus(sale.getInvoiceNo());
 
             }
 
@@ -1578,7 +1570,17 @@ public class SalesController {
 
     private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
     @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
-    @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);persistAttachmentAfterSave(sale);NotificationService.add("Draft sales invoice "+sale.getInvoiceNo()+" saved.");cancel();}catch(Exception e){warn(e.getMessage());}}
+    @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);persistAttachmentAfterSave(sale);notifySalesStatus(sale.getInvoiceNo());cancel();}catch(Exception e){warn(e.getMessage());}}
+
+    private void notifySalesStatus(String invoiceNo){
+        Sales persisted=salesService.getByInvoice(invoiceNo);
+        if(persisted==null)return;
+        String status=safeText(persisted.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);
+        if(status.isBlank())status="PENDING";
+        if("PENDING APPROVAL".equals(status))return; // server already emits the exact approval notification
+        NotificationService.createNotification(NotificationService.Category.SALES,"Sales "+invoiceNo+" • "+status,
+                invoiceNo+" current document status: "+status+".","INFO","/fxml/pages/SalesList.fxml",invoiceNo);
+    }
 
 
     private boolean confirmAction(String title, String message) {

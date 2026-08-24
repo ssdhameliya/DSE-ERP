@@ -23,6 +23,7 @@ public final class AuthDtos {
                                 String challengeId, String maskedDestination) {}
     public record OperationResponse(boolean success, String message) {}
     public record RoleOption(String code, String displayName) {}
+    public record EffectivePermission(String module, String action, String description) {}
     public record UserPayload(int id, String username, String fullName, String role, Integer roleId,
                               String email, boolean active, String department, String branch,
                               String accessLevel, boolean locked, boolean mfaEnabled) {}

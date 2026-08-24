@@ -172,6 +172,24 @@ public final class AuthApiClient {
         }
     }
 
+
+    public List<EffectivePermission> effectivePermissions() {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/effective-permissions"))
+                    .timeout(REQUEST_TIMEOUT).header("Accept", "application/json").GET();
+            ApiSession.authorize(builder);
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401) { ApiSession.clear(); throw new ApiSession.AuthenticationRequiredException("Please sign in again"); }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException(apiErrorMessage(response));
+            EffectivePermission[] values = json.readValue(response.body(), EffectivePermission[].class);
+            return Arrays.asList(values);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Permission request was interrupted", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot load effective permissions from " + baseUrl, exception);
+        }
+    }
     public boolean healthCheck() {
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/health"))
@@ -289,6 +307,7 @@ public final class AuthApiClient {
                                 boolean mfaRequired, String challengeId, String maskedDestination) {}
     public record LoginAttempt(AppUser user, boolean mfaRequired, String challengeId, String maskedDestination) {}
     public record OperationResponse(boolean success, String message) {}
+    public record EffectivePermission(String module, String action, String description) {}
     public record RoleOption(String code, String displayName) {
         @Override public String toString() { return displayName; }
     }

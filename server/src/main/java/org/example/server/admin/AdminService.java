@@ -9,7 +9,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AdminService {
@@ -66,10 +68,23 @@ public class AdminService {
     public void savePermissions(AdminDtos.PermissionSaveRequest request) {
         String code = role(request == null ? null : request.role());
         if ("ADMIN".equals(code)) return;
+        Map<Long, Boolean> requested = new LinkedHashMap<>();
+        if (request.permissions() != null) {
+            for (var permission : request.permissions()) {
+                if (permission == null || permission.id() <= 0) throw new IllegalArgumentException("A valid permission id is required");
+                requested.put(permission.id(), permission.allowed());
+            }
+        }
+        if (!requested.isEmpty()) {
+            Long valid = jdbc.queryForObject("SELECT COUNT(*) FROM permissions WHERE active=1 AND id IN (" +
+                    requested.keySet().stream().map(x -> "?").collect(java.util.stream.Collectors.joining(",")) + ")",
+                    Long.class, requested.keySet().toArray());
+            if (valid == null || valid != requested.size()) throw new IllegalArgumentException("One or more permissions are invalid or inactive. Refresh the Permission Matrix and try again.");
+        }
         jdbc.update("DELETE FROM role_permission WHERE UPPER(TRIM(COALESCE(role_code,'')))=?", code);
-        if (request.permissions() != null) for (var permission : request.permissions()) {
+        for (var permission : requested.entrySet()) {
             jdbc.update("INSERT INTO role_permission(role_code,permission_id,allowed) VALUES(?,?,?)",
-                    code, permission.id(), permission.allowed() ? 1 : 0);
+                    code, permission.getKey(), permission.getValue() ? 1 : 0);
         }
     }
 
@@ -78,6 +93,7 @@ public class AdminService {
         if (request == null || request.username() == null || request.username().isBlank())
             throw new IllegalArgumentException("Username is required");
         String assignedRole = role(request.role());
+        validateUniqueIdentity(request);
         boolean enforcedMfa = !"ADMIN".equals(assignedRole);
         String encoded = null;
         if (request.id() == null || (request.password() != null && !request.password().isBlank())) {
@@ -96,6 +112,7 @@ public class AdminService {
                     "SELECT mfa_enabled FROM users WHERE id=?", Boolean.class, request.id()));
             boolean previousLocked = Boolean.TRUE.equals(jdbc.queryForObject(
                     "SELECT locked FROM users WHERE id=?", Boolean.class, request.id()));
+            String previousRole = jdbc.queryForObject("SELECT COALESCE(role,'') FROM users WHERE id=?", String.class, request.id());
             if (request.id() == CurrentUser.require().id() && (request.locked() || !request.active()))
                 throw new IllegalArgumentException("You cannot lock or deactivate your own account");
             jdbc.update("UPDATE users SET username=?,full_name=?,email=?,role=?,role_id=NULL," +
@@ -118,6 +135,12 @@ public class AdminService {
             if (encoded != null) {
                 jdbc.update("UPDATE users SET password=? WHERE id=?", encoded, request.id());
                 tokens.revokeUser(request.id());
+            }
+            if (previousRole == null || !assignedRole.equalsIgnoreCase(previousRole.trim())) {
+                tokens.revokeUser(request.id());
+                jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
+                        request.id(), "ROLE_CHANGED", "Role changed from " + (previousRole == null ? "" : previousRole.trim()) + " to " + assignedRole,
+                        CurrentUser.require().username(), BusinessClock.nowUtcText());
             }
             if (previousMfa != enforcedMfa) {
                 tokens.revokeUser(request.id());
@@ -178,6 +201,22 @@ public class AdminService {
     public void audit(AdminDtos.AuditRequest request) {
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
                 request.userId(), request.action(), request.detail(), CurrentUser.require().username(), BusinessClock.nowUtcText());
+    }
+
+    private void validateUniqueIdentity(AdminDtos.UserSaveRequest request) {
+        Integer id = request.id();
+        String username = request.username() == null ? "" : request.username().trim();
+        String email = clean(request.email());
+        Long usernameMatches = id == null
+                ? jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE LOWER(TRIM(username))=LOWER(TRIM(?))", Long.class, username)
+                : jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE LOWER(TRIM(username))=LOWER(TRIM(?)) AND id<>?", Long.class, username, id);
+        if (usernameMatches != null && usernameMatches > 0) throw new IllegalArgumentException("This username is already assigned to another user");
+        if (email != null && !email.isBlank()) {
+            Long emailMatches = id == null
+                    ? jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE LOWER(TRIM(COALESCE(email,'')))=LOWER(TRIM(?))", Long.class, email)
+                    : jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE LOWER(TRIM(COALESCE(email,'')))=LOWER(TRIM(?)) AND id<>?", Long.class, email, id);
+            if (emailMatches != null && emailMatches > 0) throw new IllegalArgumentException("This email address is already assigned to another user");
+        }
     }
 
     private String role(String value) {

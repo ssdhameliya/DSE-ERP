@@ -1,6 +1,8 @@
 package org.example.navigation;
 
 import org.example.controller.LinkedRecordContext;
+import org.example.controller.PurchaseScreenContext;
+import org.example.controller.SalesScreenContext;
 
 import java.util.Locale;
 
@@ -16,14 +18,24 @@ public final class DeepLinkRouter {
         if (targetFxml == null || targetFxml.isBlank()) return false;
         String key = canonicalModuleKey(moduleKey == null || moduleKey.isBlank()
                 ? inferModuleKey(targetFxml, "", reference) : moduleKey);
+        targetFxml = currentPaymentTarget(targetFxml, key);
         Integer id = recordId == null || recordId > Integer.MAX_VALUE || recordId < Integer.MIN_VALUE ? null : recordId.intValue();
         String ref = reference == null ? "" : reference.trim();
         String requestedAction = action == null || action.isBlank() ? "VIEW" : action.trim().toUpperCase(Locale.ROOT);
         if (id == null && ref.isBlank()) return false;
+        if (targetFxml.endsWith("/RecordPayment.fxml") && !ref.isBlank()) SalesScreenContext.select(ref);
+        if (targetFxml.endsWith("/PurchasePayment.fxml") && !ref.isBlank()) PurchaseScreenContext.select(ref);
         LinkedRecordContext.open(key, id, ref, requestedAction, source);
         boolean opened = NavigationManager.navigateOrReport(targetFxml);
         if (!opened) LinkedRecordContext.clear();
         return opened;
+    }
+
+    private static String currentPaymentTarget(String targetFxml, String moduleKey) {
+        String target = targetFxml == null ? "" : targetFxml.trim();
+        if (!target.endsWith("/PaymentHistory.fxml")) return target;
+        return "PURCHASE".equals(canonicalModuleKey(moduleKey))
+                ? "/fxml/pages/PurchasePayment.fxml" : "/fxml/pages/RecordPayment.fxml";
     }
 
     private static String canonicalModuleKey(String value) {
@@ -47,7 +59,8 @@ public final class DeepLinkRouter {
         if(text.contains("supplier")) return "SUPPLIER";
         if(text.contains("bankstatement")) return "BANK_STATEMENT";
         if(text.contains("bankexpense")) return "FINANCE";
-        if(text.contains("paymenthistory")) return "PAYMENT";
+        if(text.contains("purchasepayment")) return "PURCHASE";
+        if(text.contains("recordpayment") || text.contains("paymenthistory")) return "SALE";
         if(text.contains("reminder")) return "REMINDER";
         if(text.contains("communication")) return "COMMUNICATION";
         if(text.contains("masterdata")) return "MASTER";

@@ -3,7 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <VBox fx:id="panelShortcuts" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
-      spacing="12" minHeight="650" prefHeight="760"
+      spacing="12" minHeight="0" maxHeight="Infinity"
       styleClass="dse-shortcut-v3-root" stylesheets="@../../../css/shortcut-manager.css">
   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
@@ -47,7 +47,7 @@
       </HBox>
 
       <StackPane fx:id="shortcutWorkspaceStack" VBox.vgrow="ALWAYS" styleClass="dse-shortcut-v3-workspace">
-        <GridPane fx:id="shortcutCards" hgap="10" vgap="10" alignment="TOP_LEFT" styleClass="dse-shortcut-v3-cards"/>
+        <GridPane fx:id="shortcutCards" hgap="10" vgap="10" alignment="TOP_LEFT" maxWidth="Infinity" maxHeight="Infinity" StackPane.alignment="CENTER" styleClass="dse-shortcut-v3-cards"/>
         <VBox fx:id="shortcutListPanel" visible="false" managed="false" spacing="9" styleClass="dse-shortcut-v3-list-panel">
           <HBox alignment="CENTER_LEFT" spacing="10">
             <Button text="← Overview" onAction="#showShortcutOverviewFromList" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-secondary"/>
@@ -62,7 +62,7 @@
       </StackPane>
     </VBox>
 
-    <VBox fx:id="shortcutDrawer" prefWidth="365" minWidth="330" maxWidth="410" spacing="10" styleClass="dse-shortcut-v3-drawer">
+    <VBox fx:id="shortcutDrawer" visible="false" managed="false" prefWidth="365" minWidth="330" maxWidth="410" spacing="10" styleClass="dse-shortcut-v3-drawer">
       <HBox alignment="CENTER_LEFT" spacing="10">
         <StackPane fx:id="shortcutDrawerIcon" styleClass="dse-shortcut-v3-drawer-icon"/>
         <VBox spacing="2" HBox.hgrow="ALWAYS">
@@ -81,7 +81,7 @@
                   <VBox spacing="10">
                     <Label text="Action *" styleClass="dse-shortcut-v3-field-label"/>
                     <ComboBox fx:id="cmbShortcutAction" maxWidth="Infinity" visibleRowCount="14" styleClass="dse-shortcut-v3-input"/>
-                    <Label text="The catalog includes navigation, quick create, settings, reports and editor commands allowed for this user." wrapText="true" styleClass="dse-shortcut-v3-help"/>
+                    <Label text="The catalog includes Application Actions, Quick Create and Navigation commands allowed for this user." wrapText="true" styleClass="dse-shortcut-v3-help"/>
 
                     <Label text="Shortcut Keys *" styleClass="dse-shortcut-v3-field-label"/>
                     <HBox spacing="7">

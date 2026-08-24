@@ -510,14 +510,6 @@ public class SalesListController implements ScreenLifecycle {
         SalesScreenContext.select(s.getInvoiceNo());
         navigateSalesPage("/fxml/pages/RecordPayment.fxml", "Record Payment");
     }
-    private void openPaymentHistory(Sales s){
-        if (s == null || safe(s.getInvoiceNo()).isBlank()) {
-            warning("Unable to open Payment History because the selected invoice is not available.");
-            return;
-        }
-        SalesScreenContext.select(s.getInvoiceNo());
-        navigateSalesPage("/fxml/pages/PaymentHistory.fxml", "Payment History");
-    }
     private void navigateSalesPage(String fxml, String screenName) {
         if (!NavigationManager.navigateOrReport(fxml)) {
             warning(screenName + " could not be opened. Please try again.");

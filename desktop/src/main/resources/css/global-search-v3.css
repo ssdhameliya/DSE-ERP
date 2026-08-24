@@ -85,7 +85,7 @@
 .dse-global-search-v3-root .dse-global-search-v3-count-bank-expense-entries,.dse-global-search-v3-root .dse-global-search-v3-count-users { -fx-text-fill:#f472b6; -fx-background-color:rgba(236,72,153,.14); }
 .dse-global-search-v3-root .dse-global-search-v3-count-reminders,.dse-global-search-v3-root .dse-global-search-v3-count-inventory-adjustments { -fx-text-fill:#fb923c; -fx-background-color:rgba(249,115,22,.14); }
 .dse-global-search-v3-root .dse-global-search-v3-count-communications { -fx-text-fill:#a5b4fc; -fx-background-color:rgba(99,102,241,.14); }
-.dse-global-search-v3-root .dse-global-search-v3-result-row { -fx-padding:9 11; -fx-border-color:transparent transparent rgba(148,163,184,.11) transparent; -fx-border-width:0 0 1 0; }
+.dse-global-search-v3-root .dse-global-search-v3-result-row { -fx-padding:12 14; -fx-border-color:transparent transparent rgba(148,163,184,.11) transparent; -fx-border-width:0 0 1 0; }
 .dse-global-search-v3-root .dse-global-search-v3-result-row:hover { -fx-background-color:rgba(37,99,235,.09); }
 .dse-global-search-v3-root .dse-global-search-v3-result-icon { -fx-background-color:rgba(59,130,246,.12); -fx-background-radius:9; -fx-border-radius:9; -fx-border-color:rgba(59,130,246,.18); }
 .dse-global-search-v3-root .dse-global-search-v3-result-icon-items { -fx-background-color:rgba(245,158,11,.13); -fx-border-color:rgba(245,158,11,.22); }
@@ -102,7 +102,9 @@
 .dse-global-search-v3-root .dse-global-search-v3-ref { -fx-text-fill:-color-text; -fx-font-weight:800; -fx-font-size:14px; }
 .dse-global-search-v3-root .dse-global-search-v3-desc { -fx-text-fill:-color-text-secondary; -fx-font-size:13px; -fx-font-weight:600; }
 .dse-global-search-v3-root .dse-global-search-v3-separator { -fx-background-color:rgba(148,163,184,.16); }
-.dse-global-search-v3-root .dse-global-search-v3-token { -fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:650; }
+.dse-global-search-v3-root .dse-global-search-v3-detail-fields { -fx-padding:2 0 1 0; }
+.dse-global-search-v3-root .dse-global-search-v3-token { -fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:650; -fx-padding:4 8; -fx-background-color:rgba(148,163,184,.08); -fx-background-radius:6; }
+.dse-global-search-v3-root .dse-global-search-v3-token-separator { -fx-text-fill:rgba(148,163,184,.72); -fx-font-size:13px; -fx-font-weight:900; -fx-padding:4 0; }
 .dse-global-search-v3-root .dse-global-search-v3-token-accent { -fx-text-fill:#a5b4fc; }
 .dse-global-search-v3-root .dse-global-search-v3-token-date { -fx-text-fill:#38bdf8; }
 .dse-global-search-v3-root .dse-global-search-v3-token-email { -fx-text-fill:#60a5fa; }

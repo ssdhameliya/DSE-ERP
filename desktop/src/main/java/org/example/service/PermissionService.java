@@ -1,6 +1,6 @@
 package org.example.service;
 
-import org.example.api.admin.AdminApiClient;
+import org.example.api.auth.AuthApiClient;
 
 import java.util.HashSet;
 import java.util.Locale;
@@ -40,8 +40,8 @@ public final class PermissionService {
         if (cacheLoaded && role.equals(cachedRole)) return;
         try {
             Set<String> allowed = new HashSet<>();
-            for (var p : new AdminApiClient().permissions(role)) {
-                if (p.allowed()) allowed.add(normalize(p.module()+"."+p.action()));
+            for (var p : new AuthApiClient().effectivePermissions()) {
+                allowed.add(normalize(p.module()+"."+p.action()));
             }
             cachedRole = role; cachedAllowed = Set.copyOf(allowed); cacheLoaded = true;
         } catch (Exception ignored) {

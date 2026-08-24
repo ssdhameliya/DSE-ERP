@@ -324,13 +324,13 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
  private void notifyApprovalRequired(String module,Integer recordId,String reference){
   String label="SALE".equals(module)?"Sale":"Purchase";String target="SALE".equals(module)?"/fxml/pages/SalesList.fxml":"/fxml/pages/PurchaseList.fxml";
   jdbc.update("INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at) VALUES(?,?,?,?,0,?,?,?,?,?,?)",
-   label+" approval required",reference+" was submitted by "+CurrentUser.require().username()+" and is waiting for Admin approval.","WARNING","APPROVAL",target,reference,module,recordId,"APPROVE",System.currentTimeMillis());
+   label+" "+reference+" • PENDING APPROVAL",reference+" was submitted by "+CurrentUser.require().username()+" and is waiting for Admin approval.","WARNING","APPROVAL",target,reference,module,recordId,"APPROVE",System.currentTimeMillis());
  }
  private void notifyApprovalDecision(String module,Integer recordId,String reference,boolean approved,String reason){
   String label="SALE".equals(module)?"Sale":"Purchase";String target="SALE".equals(module)?"/fxml/pages/SalesList.fxml":"/fxml/pages/PurchaseList.fxml";
   String message=reference+(approved?" was approved by ":" was rejected by ")+CurrentUser.require().username()+(approved?".":". "+(reason==null?"":reason));
   jdbc.update("INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at) VALUES(?,?,?,?,0,?,?,?,?,?,?)",
-   label+(approved?" approved":" rejected"),message,approved?"SUCCESS":"ERROR","APPROVAL",target,reference,module,recordId,"VIEW",System.currentTimeMillis());
+   label+" "+reference+" • "+(approved?"APPROVED":"REJECTED"),message,approved?"SUCCESS":"ERROR","APPROVAL",target,reference,module,recordId,"VIEW",System.currentTimeMillis());
  }
  @Transactional(propagation=Propagation.REQUIRES_NEW) public String nextConfiguredReference(String lookupCode,String fallback,List<String> existing){return configuredNextAtomic(lookupCode,fallback,existing);}
  private String configuredNextAtomic(String lookupCode,String fallback,List<String> existing){

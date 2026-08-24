@@ -121,9 +121,9 @@ public class MasterDataService {
     }
 
     private void requirePartyAccess(String type) {
-        if (CurrentUser.isSales() && !"CUSTOMER".equals(normal(type))) {
-            throw new SecurityException("Supplier data requires Manager or Admin access");
-        }
+        String normalized = normal(type);
+        if ("CUSTOMER".equals(normalized)) CurrentUser.requirePermission("CUSTOMERS.VIEW", "Customer access");
+        else CurrentUser.requirePermission("SUPPLIERS.VIEW", "Supplier access");
     }
 
     @Transactional(readOnly = true)

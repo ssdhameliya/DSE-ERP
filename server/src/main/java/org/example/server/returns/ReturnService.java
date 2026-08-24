@@ -44,8 +44,8 @@ import org.example.server.persistence.JpaNativeRepository;import org.example.ser
   jdbc.update("UPDATE "+table+" SET document_status=?,updated_at=? WHERE invoice_no=?",next,BusinessClock.nowUtcText(),invoice);
  }
  private record ReturnOrigin(String type,String invoice){}
- public void requireTypeAccess(String type){if(CurrentUser.isSales()&&!"SALES RETURN".equalsIgnoreCase(type==null?"":type.trim()))throw new SecurityException("Purchase returns require Manager or Admin access");}
- public void requireAccess(String no){if(CurrentUser.isSales()&&!isSalesReturn(no))throw new SecurityException("Purchase returns require Manager or Admin access");}
+ public void requireTypeAccess(String type){String n=type==null?"":type.trim().toUpperCase(Locale.ROOT);CurrentUser.requirePermission(n.startsWith("PURCHASE")?"PURCHASE.VIEW":"SALES.VIEW","Return access");}
+ public void requireAccess(String no){CurrentUser.requirePermission(isSalesReturn(no)?"SALES.VIEW":"PURCHASE.VIEW","Return access");}
  private boolean isSalesReturn(String no){String type=jdbc.queryForObject("SELECT MAX(return_type) FROM return_register WHERE return_no=?",String.class,no);if(type==null||type.isBlank())throw new IllegalArgumentException("Return not found: "+no);return "SALES RETURN".equalsIgnoreCase(type);}
  private double n(Object x){return x instanceof Number v?v.doubleValue():0;}
 }

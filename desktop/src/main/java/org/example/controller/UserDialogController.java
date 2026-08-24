@@ -149,7 +149,8 @@ public class UserDialogController {
             close();
         } catch (Exception e) {
             String m = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
-            if (m.contains("unique") || m.contains("duplicate")) invalid(txtUsername, "This username already exists.");
+            if (m.contains("username") && (m.contains("already") || m.contains("duplicate") || m.contains("unique"))) invalid(txtUsername, "This username already exists.");
+            else if (m.contains("email") && (m.contains("already") || m.contains("duplicate") || m.contains("unique"))) invalid(txtEmail, "This email address is already assigned to another user.");
             else message("Unable to save user: " + e.getMessage(), true);
         }
     }

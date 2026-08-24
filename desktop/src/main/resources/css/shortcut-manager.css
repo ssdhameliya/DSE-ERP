@@ -113,6 +113,8 @@
 .dse-shortcut-v3-cards {
     -fx-padding: 0;
     -fx-alignment: top-left;
+    -fx-max-width: infinity;
+    -fx-max-height: infinity;
 }
 .dse-shortcut-v3-card {
     -fx-padding: 10 11;
@@ -439,3 +441,10 @@
     -fx-font-weight: 800;
     -fx-text-fill: -color-text;
 }
+
+.dse-shortcut-v3-root .dse-shortcut-v3-card-scroll,
+.dse-shortcut-v3-root .dse-shortcut-v3-card-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+.dse-shortcut-v3-root .dse-shortcut-v3-card-scroll { -fx-padding: 4 0 0 0; }

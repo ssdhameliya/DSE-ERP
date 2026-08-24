@@ -11,14 +11,17 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
 public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
     private final TokenService tokens;
+    private final PermissionAuthorityService permissions;
 
-    public BearerTokenAuthenticationFilter(TokenService tokens) {
+    public BearerTokenAuthenticationFilter(TokenService tokens, PermissionAuthorityService permissions) {
         this.tokens = tokens;
+        this.permissions = permissions;
     }
 
     @Override
@@ -27,8 +30,12 @@ public class BearerTokenAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
         if (header != null && header.regionMatches(true, 0, "Bearer ", 0, 7)) {
             tokens.authenticate(header.substring(7).trim()).ifPresent(user -> {
-                var authority = new SimpleGrantedAuthority("ROLE_" + user.role());
-                var authentication = new UsernamePasswordAuthenticationToken(user, null, List.of(authority));
+                var authorities = new ArrayList<SimpleGrantedAuthority>();
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + user.role().trim().toUpperCase()));
+                for (String permission : permissions.permissionKeys(user.role())) {
+                    if (permission != null && !permission.isBlank()) authorities.add(new SimpleGrantedAuthority(permission.trim().toUpperCase()));
+                }
+                var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             });
         }

@@ -1,4 +1,5 @@
 package org.example.controller;
+import org.example.service.PermissionService;
 
 import org.example.util.BusinessClock;
 
@@ -140,7 +141,7 @@ public class UserAccessController {
     @FXML private void savePermissions(){
         String role=cmbPermissionRole.getValue(); if(role==null)return;
         if(role.equalsIgnoreCase("ADMIN")||role.equalsIgnoreCase("ADMINISTRATOR")){warning("Administrator always has full access and does not require manual permission changes.");return;}
-        try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList());NotificationService.add(role+" permissions updated.");}
+        try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList());PermissionService.refresh();NotificationService.add(role+" permissions updated.");}
         catch(Exception e){error("Permissions could not be saved",e);}
     }
     @FXML private void resetPermissions(){loadPermissions(cmbPermissionRole.getValue());}

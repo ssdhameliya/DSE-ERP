@@ -601,10 +601,10 @@ public class PurchaseController {
 
             if(editingPurchase != null){
                 purchaseService.update(purchase);
-                NotificationService.add("Purchase " + purchase.getInvoiceNo() + " updated");
+                notifyPurchaseStatus(purchase.getInvoiceNo());
             } else {
                 purchaseService.save(purchase);
-                NotificationService.add("Purchase " + purchase.getInvoiceNo() + " saved");
+                notifyPurchaseStatus(purchase.getInvoiceNo());
             }
             persisted = true;
             Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
@@ -724,6 +724,16 @@ public class PurchaseController {
     }
 
     /** Applies staged attachment additions/removals only after the Purchase itself has saved successfully. */
+    private void notifyPurchaseStatus(String invoiceNo){
+        Purchase persisted=purchaseService.getByInvoice(invoiceNo);
+        if(persisted==null)return;
+        String status=safeValue(persisted.getDocumentStatus(), "").trim().toUpperCase(java.util.Locale.ROOT);
+        if(status.isBlank())status="PENDING";
+        if("PENDING APPROVAL".equals(status))return; // server already emits the exact approval notification
+        NotificationService.createNotification(NotificationService.Category.PURCHASES,"Purchase "+invoiceNo+" • "+status,
+                invoiceNo+" current document status: "+status+".","INFO","/fxml/pages/PurchaseList.fxml",invoiceNo);
+    }
+
     private void persistAttachmentChanges(Purchase full){
         if(full==null||full.getId()<=0)return;
         for(Long id:new ArrayList<>(attachmentRemovals)){

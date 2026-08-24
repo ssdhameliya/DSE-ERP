@@ -85,13 +85,14 @@ public final class NotificationService {
     private record Link(String targetFxml, String referenceNo) { }
     private static final Pattern[] REFERENCE_PATTERNS = {
             Pattern.compile("(?i)\\b(?:for|invoice|quotation|return)\\s+([A-Z0-9][A-Z0-9/_\\-.]*)"),
-            Pattern.compile("(?i)\\b(?:purchase|sale)\\s+([A-Z0-9][A-Z0-9/_\\-.]*)\\s+(?:saved|updated|created|cancelled|deleted)"),
+            Pattern.compile("(?i)\\b(?:purchase|sales?)\\s+([A-Z0-9][A-Z0-9/_\\-.]*)\\s+(?:saved|updated|created|cancelled|deleted|pending|approved|completed|rejected)"),
             Pattern.compile("(?i)^([A-Z0-9][A-Z0-9/_\\-.]*)\\s+(?:cancelled|deleted|updated|saved)\\b")
     };
     private static final Set<String> NON_REFERENCES = Set.of("THE","A","AN","THIS","THAT","YOUR","SALES","SALE","PURCHASE","PAYMENT","ITEM","RECORD");
 
     private static Link resolveLink(Category category, String message, String targetFxml, String referenceNo) {
         String target = safe(targetFxml).trim();
+        if (target.endsWith("/PaymentHistory.fxml")) target = "";
         String ref = safe(referenceNo).trim();
         String text = safe(message);
         String lower = text.toLowerCase(Locale.ROOT);
@@ -103,8 +104,7 @@ public final class NotificationService {
                 case QUOTATIONS -> "/fxml/pages/Quotations.fxml";
                 case RETURNS -> lower.contains("purchase") ? "/fxml/pages/PurchaseReturns.fxml" : "/fxml/pages/SalesReturns.fxml";
                 case PAYMENTS -> lower.contains("supplier") || lower.contains("purchase")
-                        ? "/fxml/pages/PurchaseList.fxml" : lower.contains(" for ")
-                        ? "/fxml/pages/SalesList.fxml" : "/fxml/pages/PaymentHistory.fxml";
+                        ? "/fxml/pages/PurchasePayment.fxml" : "/fxml/pages/RecordPayment.fxml";
                 case INVENTORY -> lower.contains("stock") ? "/fxml/pages/Inventory.fxml" : "/fxml/pages/ItemMaster.fxml";
                 case REMINDERS -> "/fxml/pages/ReminderCenter.fxml";
                 case COMMUNICATION -> "/fxml/pages/CommunicationCenter.fxml";
@@ -121,6 +121,8 @@ public final class NotificationService {
 
     private static String moduleKey(Category category, String targetFxml) {
         String target=safe(targetFxml).toLowerCase(Locale.ROOT);
+        if(target.contains("recordpayment")) return "SALE";
+        if(target.contains("purchasepayment")) return "PURCHASE";
         if(target.contains("saleslist")) return "SALES";
         if(target.contains("purchaselist")) return "PURCHASES";
         if(target.contains("quotation")) return "QUOTATIONS";
@@ -162,10 +164,14 @@ public final class NotificationService {
 
     public static ResolvedLink resolveExact(NotificationItem item) {
         if (item == null) return new ResolvedLink(false, "", null, "", "");
-        if (item.recordId() != null) return new ResolvedLink(true, safe(item.moduleKey()), item.recordId(), safe(item.referenceNo()), safe(item.targetFxml()));
-        String ref=safe(item.referenceNo()).trim(); if(ref.isBlank()) return new ResolvedLink(false,safe(item.moduleKey()),null,"",safe(item.targetFxml()));
+        String module=safe(item.moduleKey()).trim();
+        String target=safe(item.targetFxml()).trim();
+        boolean legacyPayment="PAYMENT".equalsIgnoreCase(module)||"PAYMENTS".equalsIgnoreCase(module)||target.endsWith("/PaymentHistory.fxml");
+        if (item.recordId() != null && !legacyPayment) return new ResolvedLink(true, module, item.recordId(), safe(item.referenceNo()), target);
+        String ref=safe(item.referenceNo()).trim(); if(ref.isBlank()) ref=inferReference(item.message());
+        if(ref.isBlank()) return new ResolvedLink(false,module,null,"",target);
         try {
-            SupportApiClient.ResolvedRecord r=SUPPORT.resolveRecord(safe(item.moduleKey()),ref);
+            SupportApiClient.ResolvedRecord r=SUPPORT.resolveRecord(legacyPayment?"PAYMENT":module,ref);
             if(r==null)return new ResolvedLink(false,safe(item.moduleKey()),null,ref,safe(item.targetFxml()));
             return new ResolvedLink(r.found(),r.moduleKey(),r.recordId(),r.reference(),r.targetFxml());
         } catch(Exception ex) {

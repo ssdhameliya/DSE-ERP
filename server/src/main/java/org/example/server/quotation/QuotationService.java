@@ -152,7 +152,7 @@ public class QuotationService {
         }
         if (!admin) {
             jdbc.update("INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at) VALUES(?,?,?,?,0,?,?,?,?,?,?)",
-                    "Sale approval required", invoice + " was created from quotation " + q.get("quotation_no") + " by " + actor + " and is waiting for Admin approval.",
+                    "Sales " + invoice + " • PENDING APPROVAL", invoice + " was created from quotation " + q.get("quotation_no") + " by " + actor + " and is waiting for Admin approval.",
                     "WARNING", "APPROVAL", "/fxml/pages/SalesList.fxml", invoice, "SALE", sid, "APPROVE", System.currentTimeMillis());
         }
         jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=? WHERE id=?", invoice, id);
