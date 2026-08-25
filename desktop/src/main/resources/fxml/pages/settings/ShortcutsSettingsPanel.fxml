@@ -88,7 +88,7 @@
                       <TextField fx:id="txtShortcutKeys" promptText="Press Capture Keys" HBox.hgrow="ALWAYS" editable="false" styleClass="dse-shortcut-v3-input,dse-shortcut-v3-key-capture"/>
                       <Button text="Capture Keys" onAction="#focusShortcutCapture" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-capture"/>
                     </HBox>
-                    <Label text="Press a key combination. Backspace/Delete disables the selected action." styleClass="dse-shortcut-v3-help" wrapText="true"/>
+                    <Label text="Press a key combination. Use Disable to turn an action off, or Delete Assignment to remove its user key." styleClass="dse-shortcut-v3-help" wrapText="true"/>
 
                     <Label text="Applies To *" styleClass="dse-shortcut-v3-field-label"/>
                     <ComboBox fx:id="cmbShortcutScope" maxWidth="Infinity" styleClass="dse-shortcut-v3-input"/>
@@ -147,6 +147,9 @@
       </TabPane>
 
       <HBox alignment="CENTER_RIGHT" spacing="8">
+        <Button text="Disable" onAction="#disableSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-secondary"/>
+        <Button text="Delete Assignment" onAction="#deleteSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-danger"/>
+        <Region HBox.hgrow="ALWAYS"/>
         <Button text="Reset" onAction="#resetSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-secondary"/>
         <Button text="Save Shortcut" onAction="#saveSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-primary"/>
       </HBox>

@@ -186,17 +186,28 @@ public final class ShortcutRegistry {
 
     public static List<String> validate(Map<Action,String> draft){return validate(draft,null);}
     public static List<String> validate(Map<Action,String> draft,Map<Action,Scope> scopes){
+        return validateActions(draft,scopes,List.of(Action.values()));
+    }
+
+    /**
+     * Validate only the catalog that a settings surface actually owns. Hidden editor-specific
+     * shortcuts (PDF/Excel/Master Data) deliberately reuse keys such as F5, ENTER and DELETE
+     * inside their private contexts and must not block edits in the user-facing three-group
+     * Shortcut Manager.
+     */
+    public static List<String> validateActions(Map<Action,String> draft,Map<Action,Scope> scopes,java.util.Collection<Action> actions){
+        List<Action> values=actions==null?List.of():actions.stream().filter(java.util.Objects::nonNull).distinct().toList();
         Map<Action,String> effective=new EnumMap<>(Action.class); Map<Action,Scope> effectiveScopes=new EnumMap<>(Action.class);
-        for(Action a:Action.values()){
+        for(Action a:values){
             String v=draft!=null&&draft.containsKey(a)?draft.get(a):configuredBinding(a); v=normalize(v);
             if(!isValidBinding(v))return List.of(a.label()+": invalid key combination '"+v+"'."); effective.put(a,v);
             effectiveScopes.put(a,scopes!=null&&scopes.containsKey(a)?scopes.get(a):configuredScope(a));
         }
-        List<String> errors=new ArrayList<>(); Action[] values=Action.values();
-        for(int i=0;i<values.length;i++){
-            Action a=values[i]; String av=effective.get(a); if(av==null||av.isBlank())continue;
-            for(int j=i+1;j<values.length;j++){
-                Action b=values[j]; String bv=effective.get(b); if(bv==null||bv.isBlank()||!sameBinding(av,bv))continue;
+        List<String> errors=new ArrayList<>();
+        for(int i=0;i<values.size();i++){
+            Action a=values.get(i); String av=effective.get(a); if(av==null||av.isBlank())continue;
+            for(int j=i+1;j<values.size();j++){
+                Action b=values.get(j); String bv=effective.get(b); if(bv==null||bv.isBlank()||!sameBinding(av,bv))continue;
                 if(scopesConflict(effectiveScopes.get(a),effectiveScopes.get(b))) errors.add(displayRaw(av)+" is assigned to both "+a.label()+" and "+b.label()+" in overlapping scopes.");
             }
         }
@@ -210,6 +221,11 @@ public final class ShortcutRegistry {
     public static void save(Map<Action,String> values){
         List<String> errors=validate(values);if(!errors.isEmpty())throw new IllegalArgumentException(String.join("\n",errors));
         for(Action a:Action.values())if(values!=null&&values.containsKey(a))ConfigManager.setWithoutSaving(storageKey(a),normalize(values.get(a))); ConfigManager.save();
+    }
+    public static void saveActions(Map<Action,String> values,Map<Action,Scope> scopes,java.util.Collection<Action> actions){
+        List<String> errors=validateActions(values,scopes,actions);if(!errors.isEmpty())throw new IllegalArgumentException(String.join("\n",errors));
+        if(values!=null&&actions!=null)for(Action a:actions)if(a!=null&&values.containsKey(a))ConfigManager.setWithoutSaving(storageKey(a),normalize(values.get(a)));
+        ConfigManager.save();
     }
     public static void reset(Action action){if(action==null)return;ConfigManager.setWithoutSaving(storageKey(action),action.defaultBinding());saveOptions(action,action.scope(),false,defaultRequireSelection(action));}
     private static boolean defaultRequireSelection(Action a){return a==Action.EDIT_CURRENT||a==Action.OPEN_SELECTED||a==Action.DELETE_SELECTED;}

@@ -257,7 +257,7 @@ public class LoginController {
 
         setLoginBusy(true, "SIGNING IN...");
         PerformanceMonitor.start("login-click");
-        UiTaskExecutor.submitLatest("login-authentication", () -> users.authenticate(identity, password), attempt -> {
+        UiTaskExecutor.submitAction("login-authentication", () -> users.authenticate(identity, password), attempt -> {
             setLoginBusy(false, null);
             if (attempt == null || attempt.user() == null) {
                 PerformanceMonitor.finish("login-click");
@@ -345,7 +345,7 @@ public class LoginController {
         String code = txtOtp.getText().trim();
         setLoginBusy(true, "VERIFYING...");
         PerformanceMonitor.start("login-mfa");
-        UiTaskExecutor.submitLatest("login-mfa-verification", () -> users.completeLoginMfa(challengeId, code), authenticated -> {
+        UiTaskExecutor.submitAction("login-mfa-verification", () -> users.completeLoginMfa(challengeId, code), authenticated -> {
             setLoginBusy(false, null);
             pendingUser = null;
             pendingMfaChallengeId = null;
@@ -371,7 +371,7 @@ public class LoginController {
         }
         String challengeId = pendingMfaChallengeId;
         if (btnResendOtp != null) btnResendOtp.setDisable(true);
-        UiTaskExecutor.submitLatest("login-mfa-resend", () -> users.resendLoginMfa(challengeId), response -> {
+        UiTaskExecutor.submitAction("login-mfa-resend", () -> users.resendLoginMfa(challengeId), response -> {
             if (btnResendOtp != null) btnResendOtp.setDisable(false);
             pendingMfaChallengeId = response.challengeId();
             String destination = response.maskedDestination() == null || response.maskedDestination().isBlank()
@@ -386,13 +386,20 @@ public class LoginController {
 
     private void completeLogin(AppUser user) {
         setLoginBusy(true, "OPENING ERP...");
-        UiTaskExecutor.submitLatest("login-complete", () -> {
+        UiTaskExecutor.submitAction("login-complete", () -> {
             NotificationService.add("Signed in successfully.");
             return user;
         }, authenticated -> {
             saveRememberedLogin();
             SessionService.signIn(authenticated);
-            PermissionService.refresh();
+            try {
+                PermissionService.refreshStrict();
+            } catch (org.example.api.ApiSession.AuthenticationRequiredException authenticationFailure) {
+                SessionService.clear();
+                setLoginBusy(false, null);
+                message("Login session could not be verified by the ERP server. Please try signing in again.", true);
+                return;
+            }
             SceneManager.showDashboard();
             setLoginBusy(false, null);
             long elapsed = PerformanceMonitor.finish("login-click");

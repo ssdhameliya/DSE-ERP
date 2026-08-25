@@ -2,6 +2,7 @@ package org.example.model;
 
 public class Item {
     private int id;
+    private long rowVersion;
     private String itemCode;
     private String description;
     private String category;
@@ -74,4 +75,6 @@ public class Item {
 
     public String getRemarks() { return remarks; }
     public void setRemarks(String remarks) { this.remarks = remarks; }
+    public long getRowVersion() { return rowVersion; }
+    public void setRowVersion(long rowVersion) { this.rowVersion = Math.max(0, rowVersion); }
 }

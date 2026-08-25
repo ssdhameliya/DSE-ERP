@@ -21,6 +21,7 @@ import org.example.service.NotificationService;
 import org.example.service.PartyService;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
+import org.example.util.UiTaskExecutor;
 import org.example.navigation.NavigationManager;
 
 import java.io.File;
@@ -76,6 +77,7 @@ public abstract class PartyMasterController {
         tableParties.setFixedCellSize(40);
         configureTableInteractions();
         txtSearch.textProperty().addListener((o, oldValue, newValue) -> applyLocalFilter());
+        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         load();
     }
 
@@ -181,14 +183,20 @@ public abstract class PartyMasterController {
         Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION, "Delete '" + party.getName() + "'? This cannot be undone.", ButtonType.YES, ButtonType.NO);
         confirmation.setHeaderText("Confirm deletion");
         if (confirmation.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
-            service.delete(party.getId());
-            NotificationService.createNotification(
-                displayName() + " deleted",
-                party.getPartyCode() + " - " + party.getName(),
-                "WARN",
-                partyType().equals("CUSTOMER") ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
-                party.getPartyCode());
-            load();
+            UiTaskExecutor.submitAction(
+                "party-delete-" + party.getId(),
+                () -> { service.delete(party); return null; },
+                ignored -> {
+                    NotificationService.createNotification(
+                        displayName() + " deleted",
+                        party.getPartyCode() + " - " + party.getName(),
+                        "WARN",
+                        partyType().equals("CUSTOMER") ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
+                        party.getPartyCode());
+                    load();
+                },
+                failure -> warning(message(failure))
+            );
         }
     }
 
@@ -223,14 +231,25 @@ public abstract class PartyMasterController {
     }
 
     private void load() {
-        var all=service.getByType(partyType());
-        cachedParties.clear();
-        cachedParties.addAll(all);
-        applyLocalFilter();
-        if(lblKpiTotal!=null)lblKpiTotal.setText(String.valueOf(all.size()));
-        if(lblKpiActive!=null)lblKpiActive.setText(String.valueOf(all.stream().filter(Party::isActive).count()));
-        if(lblKpiGst!=null)lblKpiGst.setText(String.valueOf(all.stream().filter(p->p.getGstin()!=null&&!p.getGstin().isBlank()).count()));
-        if(lblKpiBalance!=null)lblKpiBalance.setText(String.format(Locale.ENGLISH,"₹ %,.2f",all.stream().mapToDouble(Party::getOpeningBalance).sum()));
+        org.example.util.OperationalUiSupport.showLoading(tableParties, "Loading " + displayName().toLowerCase(Locale.ROOT) + "s…");
+        UiTaskExecutor.submitLatest(
+            "party-master-load-" + partyType().toLowerCase(Locale.ROOT),
+            () -> service.getByType(partyType()),
+            loaded -> {
+                List<Party> all = loaded == null ? List.of() : List.copyOf(loaded);
+                cachedParties.clear();
+                cachedParties.addAll(all);
+                applyLocalFilter();
+                if(lblKpiTotal!=null)lblKpiTotal.setText(String.valueOf(all.size()));
+                if(lblKpiActive!=null)lblKpiActive.setText(String.valueOf(all.stream().filter(Party::isActive).count()));
+                if(lblKpiGst!=null)lblKpiGst.setText(String.valueOf(all.stream().filter(p->p.getGstin()!=null&&!p.getGstin().isBlank()).count()));
+                if(lblKpiBalance!=null)lblKpiBalance.setText(String.format(Locale.ENGLISH,"₹ %,.2f",all.stream().mapToDouble(Party::getOpeningBalance).sum()));
+            },
+            failure -> {
+                org.example.util.OperationalUiSupport.showError(tableParties, displayName() + " master could not load", failure);
+                error("Could not load " + displayName().toLowerCase(Locale.ROOT) + "s: " + message(failure));
+            }
+        );
     }
 
     /** Filters the cached customer/supplier master without a network request per key press. */
@@ -241,8 +260,11 @@ public abstract class PartyMasterController {
             || (p.getName()!=null && p.getName().toLowerCase(Locale.ROOT).contains(query))
             || (p.getPhone() != null && p.getPhone().contains(query))).toList());
         int count = tableParties.getItems().size();
+        if(count==0)org.example.util.OperationalUiSupport.showEmpty(tableParties,"No "+displayName().toLowerCase(Locale.ROOT)+"s found","Add a "+displayName().toLowerCase(Locale.ROOT)+" or update the current search.");
         lblRecordCount.setText("Showing " + count + " Record" + (count == 1 ? "" : "s"));
     }
+
+    private String message(Throwable failure) { return failure == null ? "Unknown error" : (failure.getMessage() == null || failure.getMessage().isBlank() ? failure.toString() : failure.getMessage()); }
 
     private void warning(String message) {
         Alert alert = new OwnedAlert(Alert.AlertType.WARNING, message);

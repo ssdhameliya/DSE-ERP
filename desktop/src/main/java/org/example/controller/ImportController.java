@@ -20,6 +20,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.service.ImportService;
+import org.example.api.recon.PurchaseReconApiClient;
 import org.example.util.IconFactory;
 import org.example.util.SpreadsheetLayoutDetector;
 import org.example.util.BusinessClock;
@@ -33,6 +34,8 @@ import java.io.FileOutputStream;
 import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -87,15 +90,16 @@ public class ImportController {
     @FXML private VBox stepSelect, stepUpload, stepMap, stepReview, importCompletedPanel;
     @FXML private Label step1Badge, step2Badge, step3Badge, step4Badge, lblImportCompletedSummary;
     @FXML private javafx.scene.layout.Region wizardLine1, wizardLine2, wizardLine3;
-    @FXML private StackPane itemChoiceIcon, customerChoiceIcon, supplierChoiceIcon, salesChoiceIcon, purchaseChoiceIcon, masterChoiceIcon, selectedFileExcelIcon;
+    @FXML private StackPane itemChoiceIcon, customerChoiceIcon, supplierChoiceIcon, salesChoiceIcon, purchaseChoiceIcon, purchaseReconChoiceIcon, masterChoiceIcon, bankStatementChoiceIcon, selectedFileExcelIcon;
     @FXML private Button btnDownloadItemTemplate, btnDownloadCustomerTemplate, btnDownloadSupplierTemplate,
-                         btnDownloadSalesTemplate, btnDownloadPurchaseTemplate, btnDownloadMasterTemplate;
+                         btnDownloadSalesTemplate, btnDownloadPurchaseTemplate, btnDownloadPurchaseReconTemplate, btnDownloadMasterTemplate;
 
     /* =========================================================
        SERVICES AND STATE
        ========================================================= */
 
     private final ImportService importService = new ImportService();
+    private final PurchaseReconApiClient purchaseReconApi = new PurchaseReconApiClient();
 
     /*
      * LinkedHashMap is important because it keeps domain fields
@@ -216,6 +220,11 @@ public class ImportController {
     );
 
 
+    private static final List<String> PURCHASE_RECON_FIELDS = List.of(
+        "supplier_name", "supplier_gstin", "supplier_invoice_no", "invoice_date",
+        "taxable_value", "cgst", "sgst", "igst", "invoice_value"
+    );
+
     private static final List<String> BANK_STATEMENT_FIELDS = List.of(
         "transaction_date", "value_date", "description", "reference", "amount", "direction", "balance"
     );
@@ -235,6 +244,7 @@ public class ImportController {
                 "Sales",
                 "Purchases",
                 "Master Categories and Values",
+                "Purchase Recon",
                 "Bank Statement"
             )
         );
@@ -266,6 +276,8 @@ public class ImportController {
 
         cmbImportModule.valueProperty().addListener(
             (observable, oldValue, newValue) -> {
+                boolean fixedDuplicatePolicy = "Purchase Recon".equals(newValue) || "Bank Statement".equals(newValue);
+                if (cmbImportMode != null) cmbImportMode.setDisable(fixedDuplicatePolicy);
 
                 if (rebuildingMapping || selectedFile == null) {
                     return;
@@ -274,6 +286,7 @@ public class ImportController {
                 reloadSelectedWorkbookForModule();
             }
         );
+        cmbImportMode.setDisable("Purchase Recon".equals(cmbImportModule.getValue()) || "Bank Statement".equals(cmbImportModule.getValue()));
     }
 
 
@@ -283,6 +296,8 @@ public class ImportController {
     @FXML private void selectSales(){ selectModuleAndContinue("Sales"); }
     @FXML private void selectPurchases(){ selectModuleAndContinue("Purchases"); }
     @FXML private void selectMasterValues(){ selectModuleAndContinue("Master Categories and Values"); }
+    @FXML private void selectPurchaseRecon(){ selectModuleAndContinue("Purchase Recon"); }
+    @FXML private void selectBankStatement(){ selectModuleAndContinue("Bank Statement"); }
     private void selectModuleAndContinue(String module){ cmbImportModule.setValue(module); showWizardStep(2); }
     @FXML private void wizardBackToSelect(){ showWizardStep(1); }
     @FXML private void wizardBackToUpload(){ showWizardStep(2); }
@@ -335,7 +350,7 @@ public class ImportController {
 
         Button[] templateButtons = {
             btnDownloadItemTemplate, btnDownloadCustomerTemplate, btnDownloadSupplierTemplate,
-            btnDownloadSalesTemplate, btnDownloadPurchaseTemplate, btnDownloadMasterTemplate
+            btnDownloadSalesTemplate, btnDownloadPurchaseTemplate, btnDownloadPurchaseReconTemplate, btnDownloadMasterTemplate
         };
         for (Button button : templateButtons) {
             if (button != null) button.setGraphic(IconFactory.compactIcon("excel", 16));
@@ -346,6 +361,8 @@ public class ImportController {
         if (supplierChoiceIcon != null) supplierChoiceIcon.getChildren().setAll(IconFactory.icon("supplier", 46));
         if (salesChoiceIcon != null) salesChoiceIcon.getChildren().setAll(IconFactory.icon("sale", 46));
         if (purchaseChoiceIcon != null) purchaseChoiceIcon.getChildren().setAll(IconFactory.icon("purchase", 46));
+        if (purchaseReconChoiceIcon != null) purchaseReconChoiceIcon.getChildren().setAll(IconFactory.icon("reconcile", 46));
+        if (bankStatementChoiceIcon != null) bankStatementChoiceIcon.getChildren().setAll(IconFactory.icon("bank", 46));
         if (masterChoiceIcon != null) masterChoiceIcon.getChildren().setAll(IconFactory.icon("master", 46));
         if (selectedFileExcelIcon != null) selectedFileExcelIcon.getChildren().setAll(IconFactory.icon("excel", 30));
     }
@@ -371,6 +388,7 @@ public class ImportController {
             case "Sales" -> SALES_DOCUMENT_FIELDS;
             case "Purchases" -> PURCHASE_DOCUMENT_FIELDS;
             case "Master Categories and Values" -> MASTER_FIELDS;
+            case "Purchase Recon" -> PURCHASE_RECON_FIELDS;
             case "Bank Statement" -> BANK_STATEMENT_FIELDS;
             default -> ITEM_FIELDS;
         };
@@ -402,6 +420,8 @@ public class ImportController {
                     "value_code",
                     "value"
                 );
+
+            case "Purchase Recon" -> Set.of("supplier_name", "supplier_invoice_no", "invoice_date", "invoice_value");
 
             case "Bank Statement" -> Set.of("transaction_date","value_date","description","reference","amount","direction","balance");
 
@@ -437,6 +457,11 @@ public class ImportController {
                  "charge_2_amount",
                  "charge_2_gst_percent",
                  "display_order",
+                 "taxable_value",
+                 "cgst",
+                 "sgst",
+                 "igst",
+                 "invoice_value",
                  "amount",
                  "balance" -> "Number";
 
@@ -589,6 +614,15 @@ public class ImportController {
             case "invoiceDate", "invoicedate" ->
                 normalizedHeader.equals("billdate")
                     || normalizedHeader.equals("documentdate");
+
+            case "suppliername" -> normalizedHeader.equals("tradelegalname") || normalizedHeader.equals("tradename") || normalizedHeader.equals("legalname") || normalizedHeader.equals("supplier") || normalizedHeader.equals("suppliername");
+            case "suppliergstin" -> normalizedHeader.equals("gstinofsupplier") || normalizedHeader.equals("suppliergstin") || normalizedHeader.equals("gstin");
+            case "supplierinvoiceno" -> normalizedHeader.equals("invoicenumber") || normalizedHeader.equals("invoiceno") || normalizedHeader.equals("billno") || normalizedHeader.equals("supplierinvoiceno");
+            case "taxablevalue" -> normalizedHeader.equals("taxablevalue") || normalizedHeader.equals("taxableamount");
+            case "cgst" -> normalizedHeader.equals("centraltax") || normalizedHeader.equals("cgst") || normalizedHeader.equals("cgstamount");
+            case "sgst" -> normalizedHeader.equals("stateuttax") || normalizedHeader.equals("statetax") || normalizedHeader.equals("sgst") || normalizedHeader.equals("sgstamount");
+            case "igst" -> normalizedHeader.equals("integratedtax") || normalizedHeader.equals("igst") || normalizedHeader.equals("igstamount");
+            case "invoicevalue" -> normalizedHeader.equals("invoicevalue") || normalizedHeader.equals("invoicetotal") || normalizedHeader.equals("totalinvoicevalue");
 
             case "isactive" ->
                 normalizedHeader.equals("active")
@@ -1679,7 +1713,10 @@ public class ImportController {
                 values.put("format", failed ? "Review" : "✓ Passed");
                 values.put("master", failed ? "Review" : "✓ Passed");
                 values.put("data", failed ? "Review" : "✓ Passed");
-                values.put("message", failed ? (row.message == null ? "Validation failed" : row.message) : "✓ All validations passed");
+                boolean noteworthy = row.action != null && (row.action.toUpperCase(Locale.ROOT).contains("WARNING")
+                    || row.action.equalsIgnoreCase("DUPLICATE") || row.action.equalsIgnoreCase("IGNORED"));
+                values.put("message", failed ? (row.message == null ? "Validation failed" : row.message)
+                    : noteworthy && row.message != null && !row.message.isBlank() ? row.message : "✓ All validations passed");
                 values.put("_status", row.status);
                 rows.add(values);
             }
@@ -1895,6 +1932,8 @@ public class ImportController {
                     this::updateProgress
                 );
 
+            case "Purchase Recon" -> importPurchaseRecon(dryRun, mapping);
+
             case "Bank Statement" -> importBankStatement(dryRun);
 
             default ->
@@ -1906,6 +1945,88 @@ public class ImportController {
                     this::updateProgress
                 );
         };
+    }
+
+    private ImportService.ImportResult importPurchaseRecon(boolean dryRun, Map<String,String> mapping) throws Exception {
+        List<PurchaseReconApiClient.ImportRow> rows = new ArrayList<>();
+        try (Workbook workbook = WorkbookFactory.create(selectedFile)) {
+            SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
+            Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
+            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+            Row header = sheet.getRow(layout.headerRowIndex());
+            Map<String,Integer> indexes = new HashMap<>();
+            for (Map.Entry<String,String> entry : mapping.entrySet()) {
+                if (entry.getValue() == null || entry.getValue().isBlank()) continue;
+                indexes.put(entry.getKey(), SpreadsheetLayoutDetector.findHeaderIndex(header, entry.getValue(), evaluator));
+            }
+            for (int rowIndex = layout.headerRowIndex() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                Row row = sheet.getRow(rowIndex);
+                if (SpreadsheetLayoutDetector.isRowBlank(row, evaluator)) continue;
+                String supplierName = mappedText(row, indexes.get("supplier_name"), evaluator);
+                String gstin = mappedText(row, indexes.get("supplier_gstin"), evaluator);
+                String invoice = mappedText(row, indexes.get("supplier_invoice_no"), evaluator);
+                String invoiceDate = mappedDateIso(row, indexes.get("invoice_date"), evaluator);
+                rows.add(new PurchaseReconApiClient.ImportRow(
+                    rowIndex + 1, supplierName, gstin, invoice, invoiceDate,
+                    mappedAmount(row, indexes.get("taxable_value"), evaluator),
+                    mappedAmount(row, indexes.get("cgst"), evaluator),
+                    mappedAmount(row, indexes.get("sgst"), evaluator),
+                    mappedAmount(row, indexes.get("igst"), evaluator),
+                    mappedAmount(row, indexes.get("invoice_value"), evaluator)
+                ));
+            }
+        }
+
+        String fingerprint = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(selectedFile.toPath())));
+        PurchaseReconApiClient.ImportResult result = purchaseReconApi.importRows(new PurchaseReconApiClient.ImportRequest(
+            selectedFile.getName(), fingerprint, txtImportNote == null ? "" : txtImportNote.getText(), dryRun, rows
+        ));
+
+        List<ImportService.ImportRowResult> details = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        if (result.details() != null) {
+            for (PurchaseReconApiClient.ImportRowResult row : result.details()) {
+                boolean failed = "FAILED".equalsIgnoreCase(row.status());
+                String reference = (row.supplierReference() == null || row.supplierReference().isBlank() ? "" : row.supplierReference() + " • ")
+                    + (row.invoiceNo() == null ? "" : row.invoiceNo());
+                String message = row.message() == null ? "" : row.message();
+                details.add(new ImportService.ImportRowResult(
+                    row.sourceRow() == null ? "" : String.valueOf(row.sourceRow()),
+                    reference, failed ? "FAILED" : "PASSED", row.status(), message, "", 0d
+                ));
+                if (failed) errors.add("Row " + row.sourceRow() + ": " + message);
+            }
+        }
+        return new ImportService.ImportResult(
+            result.totalRows(), dryRun ? 0 : result.importedRows(), 0, result.duplicateRows() + result.ignoredRows(), errors, details
+        );
+    }
+
+    private String mappedText(Row row, Integer index, FormulaEvaluator evaluator) {
+        if (row == null || index == null || index < 0) return "";
+        Cell cell = row.getCell(index);
+        return SpreadsheetLayoutDetector.format(cell, evaluator);
+    }
+
+    private String mappedDateIso(Row row, Integer index, FormulaEvaluator evaluator) {
+        if (row == null || index == null || index < 0) return "";
+        Cell cell = row.getCell(index);
+        LocalDate excelDate = SpreadsheetLayoutDetector.dateValue(cell, evaluator);
+        if (excelDate != null) return excelDate.toString();
+        String value = SpreadsheetLayoutDetector.format(cell, evaluator);
+        if (value.isBlank()) return "";
+        try { return BusinessClock.parseDate(value).toString(); }
+        catch (Exception ignored) { return value; }
+    }
+
+    private double mappedAmount(Row row, Integer index, FormulaEvaluator evaluator) {
+        String value = mappedText(row, index, evaluator);
+        if (value.isBlank()) return 0d;
+        String normalized = value.replace(",", "").replace("₹", "").replace("INR", "").trim();
+        boolean negative = normalized.startsWith("(") && normalized.endsWith(")");
+        if (negative) normalized = normalized.substring(1, normalized.length() - 1);
+        try { return (negative ? -1d : 1d) * Double.parseDouble(normalized); }
+        catch (NumberFormatException ignored) { return Double.NaN; }
     }
 
     private ImportService.ImportResult importBankStatement(boolean dryRun) throws Exception {
@@ -2221,6 +2342,9 @@ public class ImportController {
             case "Master Categories and Values" ->
                 "/fxml/pages/Masterdata.fxml";
 
+            case "Purchase Recon" ->
+                "/fxml/pages/PurchaseRecon.fxml";
+
             case "Bank Statement" ->
                 "/fxml/pages/BankStatement.fxml";
 
@@ -2288,7 +2412,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 8.5.6 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 9.0.0 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},
@@ -2451,6 +2575,11 @@ public class ImportController {
     }
 
     @FXML
+    private void downloadPurchaseReconTemplate() {
+        downloadTemplateFor("Purchase Recon");
+    }
+
+    @FXML
     private void downloadMasterTemplate() {
         downloadTemplateFor(
             "Master Categories and Values"
@@ -2545,6 +2674,19 @@ public class ImportController {
                     "Sample purchase invoice", "Freight", "250", "true", "18", "Packing", "100", "false", "0", ""
                 );
 
+            case "Purchase Recon" ->
+                List.of(
+                    "Shree Ram Engineering Works",
+                    "24APCPJ0791E1Z9",
+                    "25/26/61",
+                    BusinessClock.formatDate(BusinessClock.today()),
+                    "10620.00",
+                    "955.80",
+                    "955.80",
+                    "0.00",
+                    "12532.00"
+                );
+
             case "Master Categories and Values" ->
                 List.of(
                     "UNIT",
@@ -2584,6 +2726,7 @@ public class ImportController {
             case "Customers/CRM", "Suppliers/HRM" -> "party_code identifies the record to create, update or skip.";
             case "Sales", "Purchases" -> "invoice_no groups all item rows into one document; existing posted documents are protected.";
             case "Master Categories and Values" -> "category_code + value_code identify a reusable master value.";
+            case "Purchase Recon" -> "Recon Supplier is matched by GSTIN first, then normalized name; Supplier Invoice No. + financial year protects against duplicate Purchase Recon records.";
             case "Bank Statement" -> "The source fingerprint and transaction row protect against duplicate imports.";
             default -> "item_code identifies the item to create, update or skip.";
         };

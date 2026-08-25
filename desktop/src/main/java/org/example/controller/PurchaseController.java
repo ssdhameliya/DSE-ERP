@@ -7,6 +7,7 @@ import org.example.util.OwnedChoiceDialog;
 
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
+import org.example.util.AttachmentPreviewSupport;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -24,6 +25,7 @@ import org.example.model.PurchaseLine;
 import org.example.model.PurchaseCharge;
 import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
 import org.example.service.ItemService;
 import org.example.service.PartyService;
 import org.example.service.PurchaseService;
@@ -43,6 +45,7 @@ import org.example.theme.ThemeManager;
 import org.example.config.WorkspaceManager;
 import org.example.config.ConfigManager;
 import org.example.util.PlatformUiSupport;
+import org.example.util.UiTaskExecutor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -59,7 +62,7 @@ import javafx.scene.layout.GridPane;
 import java.io.File;
 
 
-public class PurchaseController {
+public class PurchaseController implements ScreenLifecycle {
     @FXML private Button btnAddSupplier;
     @FXML private Button btnManageCharges;
     @FXML private Button btnSavePurchase, btnRemoveLine;
@@ -254,15 +257,10 @@ public class PurchaseController {
             }
         );
 
-        cmbSupplier.setItems(
-            FXCollections.observableArrayList(
-                partyService.getByType("SUPPLIER")
-            )
-        );
-
-
-        allItems.setAll(itemService.getAll());
-
+        // Build the JavaFX form immediately. Supplier/item/master data is loaded
+        // in one background bootstrap so opening Create Purchase never waits on
+        // server/database calls on the JavaFX Application Thread.
+        cmbSupplier.setItems(FXCollections.observableArrayList());
 
         configureItemSearch();
 
@@ -307,7 +305,7 @@ public class PurchaseController {
             });
 
 
-        populateLookups();
+        applyLookupDefaults(List.of(), List.of(), List.of("GST", "IGST"), List.of());
         if (cmbGstType != null) cmbGstType.valueProperty().addListener((obs,a,b) -> updateGstHeaders());
         if (chkSameAsBilling != null) chkSameAsBilling.selectedProperty().addListener((obs,a,b) -> syncDeliveryAddressState());
         if (txtBillingAddress != null) txtBillingAddress.textProperty().addListener((obs,a,b) -> { if (chkSameAsBilling != null && chkSameAsBilling.isSelected() && txtDeliveryAddress != null) txtDeliveryAddress.setText(b); });
@@ -317,7 +315,11 @@ public class PurchaseController {
         cmbPaymentTerms.valueProperty().addListener((obs, oldTerm, newTerm) -> updateDueDate());
         cmbSupplier.valueProperty().addListener((obs, oldSupplier, supplier) -> { populateSupplierAddress(supplier); suggestGstTypeFromGstin(); });
         Platform.runLater(this::cleanPurchaseActions);
-        newPurchase();
+        resetNewPurchaseForm();
+        loadPurchaseBootstrapAsync();
+        Platform.runLater(() -> {
+            if (editingPurchase == null && (txtInvoiceNo.getText() == null || txtInvoiceNo.getText().isBlank())) requestNextPurchaseNoAsync();
+        });
 
     }
 
@@ -583,47 +585,62 @@ public class PurchaseController {
     @FXML private void saveAndPrint(){ savePurchase("COMPLETED",true,false); }
     @FXML private void saveAndEmail(){ savePurchase("COMPLETED",false,true); }
     private void savePurchase(String documentStatus, boolean print, boolean email){
-
         Purchase purchase = buildPurchase();
         if(purchase == null) return;
         purchase.setDocumentStatus(documentStatus);
 
-        boolean persisted = false;
-        try {
-            if(editingPurchase != null){
-                purchase.setId(editingPurchase.getId());
-            } else if (purchaseService.existsInvoice(purchase.getInvoiceNo())) {
-                // Re-check immediately before saving in case another window used the number.
-                String freshInvoiceNo = purchaseService.nextInvoiceNo();
-                txtInvoiceNo.setText(freshInvoiceNo);
-                purchase.setInvoiceNo(freshInvoiceNo);
-            }
+        boolean editing = editingPurchase != null;
+        if(editing) purchase.setId(editingPurchase.getId());
+        List<Long> removals = new ArrayList<>(attachmentRemovals);
+        List<PurchaseAttachmentEntry> attachments = new ArrayList<>(attachmentEntries);
 
-            if(editingPurchase != null){
-                purchaseService.update(purchase);
-                notifyPurchaseStatus(purchase.getInvoiceNo());
-            } else {
-                purchaseService.save(purchase);
-                notifyPurchaseStatus(purchase.getInvoiceNo());
+        setPurchaseSaveBusy(true);
+        UiTaskExecutor.submitAction(
+            "purchase-save",
+            () -> persistPurchase(purchase, editing, removals, attachments, print, email),
+            saved -> {
+                setPurchaseSaveBusy(false);
+                attachmentRemovals.clear();
+                if(saved != null && saved.getInvoiceNo() != null) txtInvoiceNo.setText(saved.getInvoiceNo());
+                org.example.util.ToastManager.success(tableLines,"Purchase saved","Purchase saved successfully.");
+                NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
+            },
+            failure -> {
+                setPurchaseSaveBusy(false);
+                new OwnedAlert(Alert.AlertType.ERROR, rootMessage(failure)).showAndWait();
             }
-            persisted = true;
-            Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
-            if (full == null || full.getId() <= 0) throw new IllegalStateException("Saved purchase could not be reloaded for attachment update.");
-            persistAttachmentChanges(full);
+        );
+    }
 
-            if (!org.example.config.ConfigManager.isApiDataEnabled()) saveMetadata(purchase);
-            if(print) java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());
-            if(email){
-                if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())throw new IllegalStateException("Supplier email is missing");
-                EmailService.send(full.getSupplier().getEmail(),"Purchase "+full.getInvoiceNo(),"Please find the purchase document attached.",InvoicePdfService.purchase(full));
-                purchaseService.markEmailSent(full.getId());
-            }
-
-            org.example.util.ToastManager.success(tableLines,"Purchase saved","Purchase saved successfully.");
-            NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
-        } catch(Exception e){
-            new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
+    private Purchase persistPurchase(Purchase purchase, boolean editing, List<Long> removals,
+                                     List<PurchaseAttachmentEntry> attachments, boolean print, boolean email) throws Exception {
+        if(!editing && purchaseService.existsInvoice(purchase.getInvoiceNo())) {
+            // Re-check in the worker immediately before save in case another client used the number.
+            purchase.setInvoiceNo(purchaseService.nextInvoiceNo());
         }
+
+        if(editing) purchaseService.update(purchase); else purchaseService.save(purchase);
+        notifyPurchaseStatus(purchase.getInvoiceNo());
+
+        Purchase full = purchaseService.getByInvoice(purchase.getInvoiceNo());
+        if(full == null || full.getId() <= 0)
+            throw new IllegalStateException("Saved purchase could not be reloaded for attachment update.");
+        persistAttachmentChanges(full, removals, attachments);
+
+        if(!ConfigManager.isApiDataEnabled()) saveMetadata(purchase);
+        if(print) java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());
+        if(email){
+            if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())
+                throw new IllegalStateException("Supplier email is missing");
+            EmailService.send(full.getSupplier().getEmail(),"Purchase "+full.getInvoiceNo(),
+                    "Please find the purchase document attached.",InvoicePdfService.purchase(full));
+            purchaseService.markEmailSent(full.getId());
+        }
+        return full;
+    }
+
+    private void setPurchaseSaveBusy(boolean busy){
+        if(btnSavePurchase!=null) btnSavePurchase.setDisable(busy || viewMode);
     }
 
     private Purchase buildPurchase(){
@@ -702,11 +719,17 @@ public class PurchaseController {
             NotificationService.add("Purchase note is ready and will be saved with the Purchase.");
             return;
         }
-        try{
-            supportApi.notes("PURCHASE",editingPurchase.getId(),note);
-            editingPurchase.setRemarks(note);
-            NotificationService.add("Purchase note saved for "+editingPurchase.getInvoiceNo()+".");
-        }catch(Exception e){warn("Unable to save purchase note: "+e.getMessage());}
+        int purchaseId=editingPurchase.getId();
+        String invoiceNo=editingPurchase.getInvoiceNo();
+        UiTaskExecutor.submitAction(
+            "purchase-note-"+purchaseId,
+            () -> { supportApi.notes("PURCHASE",purchaseId,note); return null; },
+            ignored -> {
+                if(editingPurchase!=null&&editingPurchase.getId()==purchaseId) editingPurchase.setRemarks(note);
+                NotificationService.add("Purchase note saved for "+invoiceNo+".");
+            },
+            failure -> warn("Unable to save purchase note: "+rootMessage(failure))
+        );
     }
 
     @FXML private void chooseAttachment(){
@@ -734,40 +757,65 @@ public class PurchaseController {
                 invoiceNo+" current document status: "+status+".","INFO","/fxml/pages/PurchaseList.fxml",invoiceNo);
     }
 
-    private void persistAttachmentChanges(Purchase full){
+    private void persistAttachmentChanges(Purchase full, List<Long> removals, List<PurchaseAttachmentEntry> attachments){
         if(full==null||full.getId()<=0)return;
-        for(Long id:new ArrayList<>(attachmentRemovals)){
+        for(Long id:removals){
             if(id==null)continue;
             if(id<0) supportApi.deleteDocumentAttachment("PURCHASE",full.getId());
             else supportApi.deleteDocumentAttachment("PURCHASE",full.getId(),id);
         }
-        for(PurchaseAttachmentEntry entry:new ArrayList<>(attachmentEntries)){
-            if(entry!=null&&entry.pending()&&entry.localFile()!=null) supportApi.addDocumentAttachment("PURCHASE",full.getId(),entry.localFile().toPath());
+        for(PurchaseAttachmentEntry entry:attachments){
+            if(entry!=null&&entry.pending()&&entry.localFile()!=null)
+                supportApi.addDocumentAttachment("PURCHASE",full.getId(),entry.localFile().toPath());
         }
-        attachmentRemovals.clear();
     }
 
     @FXML private void saveAttachment(){
-        if(editingPurchase==null||editingPurchase.getId()<=0){NotificationService.add("Purchase attachments are ready and will be saved with the Purchase.");return;}
-        try{persistAttachmentChanges(editingPurchase);loadAttachmentEntries(editingPurchase);NotificationService.add("Purchase attachments saved for "+editingPurchase.getInvoiceNo()+".");}
-        catch(Exception e){warn("Unable to save purchase attachments: "+e.getMessage());}
+        if(editingPurchase==null||editingPurchase.getId()<=0){
+            NotificationService.add("Purchase attachments are ready and will be saved with the Purchase.");return;
+        }
+        Purchase target=editingPurchase;
+        List<Long> removals=new ArrayList<>(attachmentRemovals);
+        List<PurchaseAttachmentEntry> attachments=new ArrayList<>(attachmentEntries);
+        UiTaskExecutor.submitAction(
+            "purchase-attachments-"+target.getId(),
+            () -> { persistAttachmentChanges(target,removals,attachments); return loadAttachmentEntriesFromServer(target); },
+            loaded -> {
+                attachmentRemovals.clear();
+                applyAttachmentEntries(target,loaded);
+                NotificationService.add("Purchase attachments saved for "+target.getInvoiceNo()+".");
+            },
+            failure -> warn("Unable to save purchase attachments: "+rootMessage(failure))
+        );
     }
 
     @FXML private void viewAttachment(){
         PurchaseAttachmentEntry entry=listAttachments==null?null:listAttachments.getSelectionModel().getSelectedItem();
         if(entry==null){warn("Select an attachment to preview.");return;}
+        if(entry.pending()){
+            openPurchaseAttachmentPath(entry.localFile()==null?null:entry.localFile().toPath());
+            return;
+        }
+        if(editingPurchase==null||editingPurchase.getId()<=0){warn("The selected purchase attachment is not available.");return;}
+        int purchaseId=editingPurchase.getId();
+        UiTaskExecutor.submitLatest(
+            "purchase-attachment-preview-"+purchaseId,
+            () -> {
+                SupportApiClient.DownloadedAttachment download=entry.legacy()?supportApi.documentAttachment("PURCHASE",purchaseId):supportApi.documentAttachment("PURCHASE",purchaseId,entry.id());
+                return materializePurchaseAttachment(download);
+            },
+            this::openPurchaseAttachmentPath,
+            failure -> warn("Unable to open the purchase attachment: "+rootMessage(failure))
+        );
+    }
+
+    private void openPurchaseAttachmentPath(Path path){
         try{
-            Path path;
-            if(entry.pending())path=entry.localFile().toPath();
-            else if(editingPurchase!=null&&editingPurchase.getId()>0){
-                SupportApiClient.DownloadedAttachment download=entry.legacy()?supportApi.documentAttachment("PURCHASE",editingPurchase.getId()):supportApi.documentAttachment("PURCHASE",editingPurchase.getId(),entry.id());
-                path=materializePurchaseAttachment(download);
-            }else path=null;
             if(path==null||!Files.isRegularFile(path)){warn("The selected purchase attachment is not available.");return;}
             java.awt.Desktop.getDesktop().open(path.toFile());
         }catch(Exception e){warn("Unable to open the purchase attachment: "+e.getMessage());}
     }
-    private Path materializePurchaseAttachment(SupportApiClient.DownloadedAttachment download)throws Exception{if(download==null||download.data()==null||download.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String name=sanitizeAttachmentFileName(download.fileName());Path target=folder.resolve(System.currentTimeMillis()+"-"+name);Files.write(target,download.data());target.toFile().deleteOnExit();return target;}
+    private Path materializePurchaseAttachment(SupportApiClient.DownloadedAttachment download)throws Exception{return AttachmentPreviewSupport.materialize(download,"purchase-attachment");}
 
     @FXML private void removeAttachment(){
         PurchaseAttachmentEntry entry=listAttachments==null?null:listAttachments.getSelectionModel().getSelectedItem();
@@ -779,15 +827,36 @@ public class PurchaseController {
     }
 
     private void loadAttachmentEntries(Purchase purchase){
-        attachmentEntries.clear();attachmentRemovals.clear();
+        attachmentEntries.clear();attachmentRemovals.clear();updateAttachmentButtons();
+        if(purchase==null||purchase.getId()<=0)return;
+        UiTaskExecutor.submitLatest(
+            "purchase-attachments-load-"+purchase.getId(),
+            () -> loadAttachmentEntriesFromServer(purchase),
+            loaded -> applyAttachmentEntries(purchase,loaded),
+            failure -> {
+                // Attachments are secondary data; keep the Purchase usable if this read fails.
+                applyAttachmentEntries(purchase,List.of());
+            }
+        );
+    }
+
+    private List<PurchaseAttachmentEntry> loadAttachmentEntriesFromServer(Purchase purchase){
+        List<PurchaseAttachmentEntry> loaded=new ArrayList<>();
         if(purchase!=null&&purchase.getId()>0){
-            try{for(SupportApiClient.AttachmentMeta meta:supportApi.documentAttachments("PURCHASE",purchase.getId()))attachmentEntries.add(new PurchaseAttachmentEntry(meta.id(),meta.fileName(),null));}
+            try{for(SupportApiClient.AttachmentMeta meta:supportApi.documentAttachments("PURCHASE",purchase.getId()))
+                loaded.add(new PurchaseAttachmentEntry(meta.id(),meta.fileName(),null));}
             catch(Exception ignored){}
-            if(attachmentEntries.isEmpty()&&purchase.getAttachmentPath()!=null&&!purchase.getAttachmentPath().isBlank()){
+            if(loaded.isEmpty()&&purchase.getAttachmentPath()!=null&&!purchase.getAttachmentPath().isBlank()){
                 String name=purchase.getAttachmentPath();try{name=Path.of(name).getFileName().toString();}catch(Exception ignored){}
-                attachmentEntries.add(new PurchaseAttachmentEntry(-1,name,null));
+                loaded.add(new PurchaseAttachmentEntry(-1,name,null));
             }
         }
+        return loaded;
+    }
+
+    private void applyAttachmentEntries(Purchase purchase,List<PurchaseAttachmentEntry> loaded){
+        if(editingPurchase!=null&&purchase!=null&&editingPurchase.getId()!=purchase.getId())return;
+        attachmentEntries.setAll(loaded==null?List.of():loaded);
         updateAttachmentButtons();
     }
     private void updateAttachmentButtons(){
@@ -803,7 +872,7 @@ public class PurchaseController {
         tableLines.getItems().clear();recalculate();
     }
     @FXML private void preview(){new OwnedAlert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}
-    public void prepareDuplicate(){editingPurchase=null;attachmentEntries.clear();attachmentRemovals.clear();updateAttachmentButtons();txtInvoiceNo.setText(purchaseService.nextInvoiceNo());}
+    public void prepareDuplicate(){editingPurchase=null;attachmentEntries.clear();attachmentRemovals.clear();updateAttachmentButtons();txtInvoiceNo.clear();requestNextPurchaseNoAsync();}
     private double parse(String v){try{return v==null||v.isBlank()?0:Double.parseDouble(v);}catch(Exception e){return 0;}}private String str(LocalDate d){return d==null?null:d.toString();}
 
 
@@ -812,26 +881,21 @@ public class PurchaseController {
 
     @FXML
     private void newPurchase(){
+        resetNewPurchaseForm();
+        requestNextPurchaseNoAsync();
+    }
 
+    private void resetNewPurchaseForm(){
         editingPurchase = null;
         attachmentEntries.clear();
         attachmentRemovals.clear();
         updateAttachmentButtons();
         if (txtReference != null) txtReference.clear();
         if (txtLrAwb != null) txtLrAwb.clear();
-
-
-        txtInvoiceNo.setText(
-            purchaseService.nextInvoiceNo()
-        );
-
-        dpInvoiceDate.setValue(
-            BusinessClock.today()
-        );
+        txtInvoiceNo.clear();
+        dpInvoiceDate.setValue(BusinessClock.today());
         dpDueDate.setValue(BusinessClock.today().plusDays(15));
         dpDeliveryDate.setValue(BusinessClock.today());
-
-
         cmbSupplier.setValue(null);
         if(txtBillingAddress!=null)txtBillingAddress.clear();
         if(txtDeliveryAddress!=null)txtDeliveryAddress.clear();
@@ -845,44 +909,91 @@ public class PurchaseController {
         if(txtPoDate!=null)txtPoDate.setValue(null);
         if(chkSameAsBilling!=null)chkSameAsBilling.setSelected(true);syncDeliveryAddressState();
         invoiceCharges.clear();
-
         clearItemSearch();
-
-
         txtQuantity.clear();
-
         txtRate.clear();
-
         txtGST.clear();
         txtLineDiscount.clear();
-
-
         txtRemarks.clear();
-
-
         tableLines.getItems().clear();
-
-
         recalculate();
-
-
     }
 
-    private void populateLookups() {
-        List<String> paymentTerms;
-        List<String> transporters;
-        List<String> gstTypes;
-        List<String> charges;
-        try { paymentTerms = lookupService.getValuesByCategoryCode("PAYMENT_TERMS"); } catch(Exception e){ paymentTerms = List.of(); }
-        try { transporters = lookupService.getValuesByCategoryCode("TRANSPORTER"); } catch(Exception e){ transporters = List.of(); }
-        try { gstTypes = lookupService.getValuesByCategoryCode("GST_TYPE"); } catch(Exception e){ gstTypes = List.of("GST","IGST"); }
-        try { charges = lookupService.getValuesByCategoryCode("CHARGES"); } catch(Exception e){ charges = List.of(); }
-        if (gstTypes.isEmpty()) gstTypes = List.of("GST","IGST");
+    private void requestNextPurchaseNoAsync(){
+        UiTaskExecutor.submitLatest(
+            "create-purchase-next-number",
+            purchaseService::nextInvoiceNo,
+            number -> { if (editingPurchase == null) txtInvoiceNo.setText(number == null ? "" : number); },
+            failure -> warn("Could not generate the next Purchase No: " + rootMessage(failure))
+        );
+    }
 
-        cmbPaymentTerms.getItems().setAll(paymentTerms);
-        cmbTransporter.getItems().setAll(transporters);
-        if(cmbGstType!=null){cmbGstType.getItems().setAll(gstTypes);if(!cmbGstType.getItems().isEmpty())cmbGstType.getSelectionModel().selectFirst();}
-        availableChargeTypes.setAll(charges);
+    private record PurchaseBootstrap(
+        List<Party> suppliers, List<Item> items, List<String> paymentTerms,
+        List<String> transporters, List<String> gstTypes, List<String> charges,
+        List<String> errors) { }
+
+    private void loadPurchaseBootstrapAsync() {
+        UiTaskExecutor.submitLatest(
+            "create-purchase-bootstrap",
+            this::loadPurchaseBootstrap,
+            this::applyPurchaseBootstrap,
+            failure -> warn("Purchase master data could not be loaded: " + rootMessage(failure))
+        );
+    }
+
+    private PurchaseBootstrap loadPurchaseBootstrap() {
+        List<String> errors = new ArrayList<>();
+        List<Party> suppliers = loadPurchaseValue("Suppliers", errors, () -> partyService.getByType("SUPPLIER"), List.of());
+        List<Item> items = loadPurchaseValue("Items", errors, itemService::getAll, List.of());
+        List<String> paymentTerms = loadPurchaseValue("Payment Terms", errors, () -> lookupService.getValuesByCategoryCode("PAYMENT_TERMS"), List.of());
+        List<String> transporters = loadPurchaseValue("Transporters", errors, () -> lookupService.getValuesByCategoryCode("TRANSPORTER"), List.of());
+        List<String> gstTypes = loadPurchaseValue("GST Types", errors, () -> lookupService.getValuesByCategoryCode("GST_TYPE"), List.of("GST", "IGST"));
+        List<String> charges = loadPurchaseValue("Charges", errors, () -> lookupService.getValuesByCategoryCode("CHARGES"), List.of());
+        return new PurchaseBootstrap(
+            suppliers == null ? List.of() : List.copyOf(suppliers),
+            items == null ? List.of() : List.copyOf(items),
+            paymentTerms == null ? List.of() : List.copyOf(paymentTerms),
+            transporters == null ? List.of() : List.copyOf(transporters),
+            gstTypes == null || gstTypes.isEmpty() ? List.of("GST", "IGST") : List.copyOf(gstTypes),
+            charges == null ? List.of() : List.copyOf(charges),
+            List.copyOf(errors));
+    }
+
+    private <T> T loadPurchaseValue(String label, List<String> errors, java.util.concurrent.Callable<T> loader, T fallback) {
+        try {
+            T value = loader.call();
+            return value == null ? fallback : value;
+        } catch (Exception exception) {
+            errors.add(label + ": " + rootMessage(exception));
+            return fallback;
+        }
+    }
+
+    private void applyPurchaseBootstrap(PurchaseBootstrap data) {
+        cmbSupplier.getItems().setAll(data.suppliers());
+        allItems.setAll(data.items());
+        applyLookupDefaults(data.paymentTerms(), data.transporters(), data.gstTypes(), data.charges());
+
+        if (editingPurchase != null) {
+            selectPurchaseSupplier(editingPurchase.getSupplier());
+            select(cmbPaymentTerms, editingPurchase.getPaymentTerms());
+            select(cmbTransporter, editingPurchase.getTransporter());
+            if (cmbGstType != null) select(cmbGstType, safeValue(editingPurchase.getGstType(), editingPurchase.getGstTreatment()));
+            tableLines.refresh();
+        }
+
+        if (!data.errors().isEmpty()) {
+            System.err.println("Create Purchase bootstrap warnings: " + String.join(" | ", data.errors()));
+        }
+    }
+
+    private void applyLookupDefaults(List<String> paymentTerms, List<String> transporters, List<String> gstTypes, List<String> charges) {
+        List<String> safeGstTypes = gstTypes == null || gstTypes.isEmpty() ? List.of("GST", "IGST") : gstTypes;
+        cmbPaymentTerms.getItems().setAll(paymentTerms == null ? List.of() : paymentTerms);
+        cmbTransporter.getItems().setAll(transporters == null ? List.of() : transporters);
+        if(cmbGstType!=null){cmbGstType.getItems().setAll(safeGstTypes);if(!cmbGstType.getItems().isEmpty())cmbGstType.getSelectionModel().selectFirst();}
+        availableChargeTypes.setAll(charges == null ? List.of() : charges);
 
         // Hidden compatibility fields retain stable defaults; they are no longer user-facing.
         cmbWarehouse.getItems().setAll("Main Warehouse");
@@ -897,6 +1008,24 @@ public class PurchaseController {
         if(cmbPaymentTerms.getItems().contains("15 Days"))cmbPaymentTerms.setValue("15 Days");
         else if(!cmbPaymentTerms.getItems().isEmpty())cmbPaymentTerms.getSelectionModel().selectFirst();
         if(!cmbTransporter.getItems().isEmpty())cmbTransporter.getSelectionModel().selectFirst();
+    }
+
+    private void selectPurchaseSupplier(Party supplier) {
+        if (supplier == null) { cmbSupplier.setValue(null); return; }
+        cmbSupplier.getItems().stream()
+            .filter(candidate -> candidate.getId() == supplier.getId())
+            .findFirst()
+            .ifPresentOrElse(cmbSupplier::setValue, () -> {
+                cmbSupplier.getItems().add(supplier);
+                cmbSupplier.setValue(supplier);
+            });
+    }
+
+    private String rootMessage(Throwable failure) {
+        Throwable current = failure;
+        while (current != null && current.getCause() != null && current.getCause() != current) current = current.getCause();
+        String message = current == null ? null : current.getMessage();
+        return message == null || message.isBlank() ? "Operation failed" : message;
     }
 
     /** Keeps the stored purchase due date synchronized with date and payment terms. */
@@ -928,8 +1057,15 @@ public class PurchaseController {
             dialog.setScene(scene);
             dialog.showAndWait();
             Party selected = cmbSupplier.getValue();
-            cmbSupplier.getItems().setAll(partyService.getByType("SUPPLIER"));
-            if (selected != null) cmbSupplier.getSelectionModel().select(selected);
+            UiTaskExecutor.submitLatest(
+                "create-purchase-suppliers",
+                () -> partyService.getByType("SUPPLIER"),
+                suppliers -> {
+                    cmbSupplier.getItems().setAll(suppliers == null ? List.of() : suppliers);
+                    if (selected != null) selectPurchaseSupplier(selected);
+                },
+                failure -> warn("Supplier list could not be refreshed: " + rootMessage(failure))
+            );
         } catch (Exception ex) {
             new OwnedAlert(Alert.AlertType.ERROR, "Unable to open supplier form: " + ex.getMessage(), ButtonType.OK).showAndWait();
         }
@@ -973,9 +1109,24 @@ public class PurchaseController {
     }
 
     private void selectFromPo(){
-        List<Purchase> drafts=purchaseService.getAll().stream().filter(p->"DRAFT".equalsIgnoreCase(p.getDocumentStatus())).toList();
-        if(drafts.isEmpty()){warn("No draft purchase orders are available. Save a purchase as Draft first.");return;}
-        ChoiceDialog<Purchase> dialog=new OwnedChoiceDialog<>(drafts.getFirst(),drafts);dialog.setTitle("Select Purchase Order");dialog.setHeaderText("Choose a draft purchase order to load");dialog.setContentText("Purchase order:");dialog.showAndWait().ifPresent(p->loadPurchase(purchaseService.getByInvoice(p.getInvoiceNo())));
+        UiTaskExecutor.submitLatest(
+            "purchase-draft-orders",
+            () -> purchaseService.getAll().stream().filter(p->"DRAFT".equalsIgnoreCase(p.getDocumentStatus())).toList(),
+            this::showPurchaseOrderPicker,
+            failure -> warn("Unable to load draft purchase orders: "+rootMessage(failure))
+        );
+    }
+
+    private void showPurchaseOrderPicker(List<Purchase> drafts){
+        if(drafts==null||drafts.isEmpty()){warn("No draft purchase orders are available. Save a purchase as Draft first.");return;}
+        ChoiceDialog<Purchase> dialog=new OwnedChoiceDialog<>(drafts.getFirst(),drafts);
+        dialog.setTitle("Select Purchase Order");dialog.setHeaderText("Choose a draft purchase order to load");dialog.setContentText("Purchase order:");
+        dialog.showAndWait().ifPresent(selected->UiTaskExecutor.submitLatest(
+            "purchase-draft-order-load",
+            ()->purchaseService.getByInvoice(selected.getInvoiceNo()),
+            loaded->{if(loaded==null)warn("The selected draft purchase order is no longer available.");else loadPurchase(loaded);},
+            failure->warn("Unable to load the selected purchase order: "+rootMessage(failure))
+        ));
     }
 
     private void importPurchaseItems(){
@@ -985,7 +1136,7 @@ public class PurchaseController {
 
 
 
-
+    @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("purchase-");}
 
     private void recalculate(){
         DocumentCalculationEngine.Totals totals = documentTotals();

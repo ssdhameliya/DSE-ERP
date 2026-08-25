@@ -9,6 +9,7 @@ import org.example.service.NotificationService;
 import org.example.service.PartyService;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
+import org.example.util.UiTaskExecutor;
 
 import java.util.regex.Pattern;
 
@@ -54,9 +55,15 @@ public class PartyDialogController {
         headerIconHolder.getStyleClass().add(customer ? "customer-title-icon" : "supplier-title-icon");
 
         if (!editingMode) {
-            txtCode.setText(service.nextCode(type));
+            txtCode.clear();
             txtOpeningBalance.setText("0.00");
             chkActive.setSelected(true);
+            UiTaskExecutor.submitLatest(
+                    "party-dialog-next-code-" + type,
+                    () -> service.nextCode(type),
+                    code -> { if (editing == null && this.type.equals(type)) txtCode.setText(code == null ? "" : code); },
+                    failure -> showSaveError(entity, failure, "code could not be generated")
+            );
             return;
         }
 
@@ -90,25 +97,39 @@ public class PartyDialogController {
 
         boolean created = editing == null;
         String entityName = "CUSTOMER".equals(type) ? "Customer" : "Supplier";
-        try {
-            if (created) service.save(party); else service.update(party);
-            NotificationService.createNotification(
-                    (created ? "Created " : "Updated ") + entityName,
-                    party.getPartyCode() + " - " + party.getName(),
-                    "INFO",
-                    "CUSTOMER".equals(type) ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
-                    party.getPartyCode());
-            close();
-            javafx.application.Platform.runLater(() -> org.example.util.ToastManager.success((javafx.stage.Window) null,
-                entityName + (created ? " saved" : " updated"),
-                party.getPartyCode() + " - " + party.getName()));
-        } catch (Exception exception) {
-            new OwnedAlert(
-                    Alert.AlertType.ERROR,
-                    "Unable to save " + entityName.toLowerCase() + ": "
-                            + (exception.getMessage() == null ? "Unexpected error." : exception.getMessage())
-            ).showAndWait();
-        }
+        btnSave.setDisable(true);
+        UiTaskExecutor.submitAction(
+                "party-dialog-save-" + type + "-" + party.getPartyCode(),
+                () -> {
+                    if (created) service.save(party); else service.update(party);
+                    NotificationService.createNotification(
+                            (created ? "Created " : "Updated ") + entityName,
+                            party.getPartyCode() + " - " + party.getName(),
+                            "INFO",
+                            "CUSTOMER".equals(type) ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
+                            party.getPartyCode());
+                    return party;
+                },
+                saved -> {
+                    btnSave.setDisable(false);
+                    close();
+                    org.example.util.ToastManager.success((javafx.stage.Window) null,
+                            entityName + (created ? " saved" : " updated"),
+                            party.getPartyCode() + " - " + party.getName());
+                },
+                failure -> {
+                    btnSave.setDisable(false);
+                    showSaveError(entityName, failure, "could not be saved");
+                }
+        );
+    }
+
+    private void showSaveError(String entityName, Throwable failure, String action) {
+        Throwable current = failure;
+        while (current != null && (current.getMessage() == null || current.getMessage().isBlank()) && current.getCause() != current)
+            current = current.getCause();
+        String detail = current == null || current.getMessage() == null ? "Unexpected error." : current.getMessage();
+        new OwnedAlert(Alert.AlertType.ERROR, entityName + " " + action + ": " + detail).showAndWait();
     }
 
     private boolean validateForm() {

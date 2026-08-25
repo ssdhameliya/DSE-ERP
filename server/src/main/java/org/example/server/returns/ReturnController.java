@@ -10,6 +10,7 @@ public class ReturnController {
     public ReturnController(ReturnService service) { this.service = service; }
 
     @GetMapping public List<ReturnDtos.Summary> list(@RequestParam String type) { service.requireTypeAccess(type); return service.summaries(type); }
+    @GetMapping("/page") public ReturnDtos.Page page(@RequestParam String type,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="25") int size,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="") String party,@RequestParam(defaultValue="") String status,@RequestParam(defaultValue="") String from,@RequestParam(defaultValue="") String to){service.requireTypeAccess(type);return service.page(type,page,size,q,party,status,from,to);}
     @GetMapping("/returned") public Map<String,Double> returned(@RequestParam String type,@RequestParam String invoice){service.requireTypeAccess(type);return service.returned(type,invoice);}
     @PostMapping public ReturnDtos.Created create(@RequestBody ReturnDtos.CreateRequest request){service.requireTypeAccess(request==null?null:request.type());return service.create(request);}
     @GetMapping("/{no}") public ReturnDtos.Details details(@PathVariable String no){service.requireAccess(no);return service.details(no);}

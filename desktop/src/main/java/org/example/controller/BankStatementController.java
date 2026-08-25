@@ -77,6 +77,7 @@ public class BankStatementController implements ScreenLifecycle {
     }
 
     @Override public void onScreenShown(boolean reusedFromCache) {
+        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         LinkedRecordContext.Target target=LinkedRecordContext.consume("BANK_STATEMENT");
         if(target==null || target.recordId()==null) return;
         long transactionId=target.recordId().longValue();
@@ -229,7 +230,7 @@ public class BankStatementController implements ScreenLifecycle {
         FileChooser f=new FileChooser();f.setTitle("Import Bank Statement CSV");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV","*.csv"));
         File file=f.showOpenDialog(table.getScene().getWindow()); if(file==null)return;
         String importedBy=user();
-        UiTaskExecutor.submitLatest(
+        UiTaskExecutor.submitSerial(
             "bank-statement-import",
             () -> {
                 var parsed=parser.parse(file.toPath());
@@ -243,6 +244,7 @@ public class BankStatementController implements ScreenLifecycle {
     private void loadBatches(){loadBatches(null);}
 
     private void loadBatches(Long preferredBatchId){
+        org.example.util.OperationalUiSupport.showLoading(table,"Loading bank statements…");
         Long selected = preferredBatchId != null
             ? preferredBatchId
             : cmbBatch.getValue()==null ? null : cmbBatch.getValue().id();
@@ -257,15 +259,17 @@ public class BankStatementController implements ScreenLifecycle {
                     table.getItems().clear();
                     totalPages=0;totalRows=0;updatePageFooter();
                     clearMetrics();
+                    org.example.util.OperationalUiSupport.showEmpty(table,"No bank statements imported","Import a bank statement to start reconciliation.");
                 }
             },
-            this::error
+            failure->{org.example.util.OperationalUiSupport.showError(table,"Bank statements could not load",failure);error(failure);}
         );
     }
 
     private void selectBatch(Long id){for(var b:cmbBatch.getItems())if(Objects.equals(b.id(),id)){cmbBatch.setValue(b);return;}}
 
     private void loadBatch(long id){
+        org.example.util.OperationalUiSupport.showLoading(table,"Loading statement transactions…");
         String status=selectedStatus(),direction=selectedDirection(),from=dateText(fromDate.getValue()),to=dateText(toDate.getValue()),query=safe(txtSearch.getText()).trim();
         int requestedPage=currentPage,pageSize=cmbPageSize.getValue()==null?50:cmbPageSize.getValue();
         UiTaskExecutor.submitLatest(
@@ -277,6 +281,7 @@ public class BankStatementController implements ScreenLifecycle {
                 List<Row> rows=loaded.rows()==null?List.of():loaded.rows().stream().map(Row::new).toList();
                 rows.forEach(row->row.selected.addListener((o,a,b)->updateSelectionState()));
                 table.getItems().setAll(rows);
+                if(rows.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No statement transactions found","Adjust the filters or select another imported statement.");
                 chkSelectAll.setSelected(false);chkSelectAll.setIndeterminate(false);updateSelectionState();
                 applyMetrics(loaded.metrics()); updatePageFooter();
                 if(pendingLinkedTransactionId!=null){
@@ -284,7 +289,7 @@ public class BankStatementController implements ScreenLifecycle {
                     if(match!=null){table.getSelectionModel().select(match);table.scrollTo(match);table.requestFocus();pendingLinkedTransactionId=null;org.example.navigation.DeepLinkSupport.pulse(table);}
                 }
             },
-            this::error
+            failure->{org.example.util.OperationalUiSupport.showError(table,"Statement transactions could not load",failure);error(failure);}
         );
     }
 
@@ -388,7 +393,7 @@ public class BankStatementController implements ScreenLifecycle {
         Node moveButton=dialog.getDialogPane().lookupButton(move);moveButton.addEventFilter(javafx.event.ActionEvent.ACTION,e->{if(category.getValue()==null||category.getValue().isBlank()){e.consume();info("Category required","Select one Expense Category. The same category will be applied to every selected transaction.");}});
         dialog.showAndWait().filter(move::equals).ifPresent(x->{
             List<Long> ids=rows.stream().map(r->r.dto.id()).toList();String performedBy=user();
-            UiTaskExecutor.submitLatest("bank-statement-bulk-expense",()->api.bulkExpense(new BankStatementApiClient.BulkExpenseRequest(ids,category.getValue(),account.getText(),mode.getValue(),notes.getText(),null,performedBy)),
+            UiTaskExecutor.submitSerial("bank-statement-bulk-expense",()->api.bulkExpense(new BankStatementApiClient.BulkExpenseRequest(ids,category.getValue(),account.getText(),mode.getValue(),notes.getText(),null,performedBy)),
                     result->{success("Bulk Expense Complete",result.message());refresh();},this::error);
         });
     }
@@ -402,7 +407,7 @@ public class BankStatementController implements ScreenLifecycle {
         dialog.getDialogPane().setContent(grid);ButtonType move=new ButtonType("Move "+rows.size()+" Entries",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL,move);
         dialog.showAndWait().filter(move::equals).ifPresent(x->{
             List<Long> ids=rows.stream().map(r->r.dto.id()).toList();String performedBy=user();
-            UiTaskExecutor.submitLatest("bank-statement-bulk-bank",()->api.bulkBankEntry(new BankStatementApiClient.BulkBankEntryRequest(ids,account.getText(),mode.getValue(),notes.getText(),performedBy)),
+            UiTaskExecutor.submitSerial("bank-statement-bulk-bank",()->api.bulkBankEntry(new BankStatementApiClient.BulkBankEntryRequest(ids,account.getText(),mode.getValue(),notes.getText(),performedBy)),
                     result->{success("Bulk Bank Entry Complete",result.message());refresh();},this::error);
         });
     }
@@ -419,7 +424,7 @@ public class BankStatementController implements ScreenLifecycle {
                     "Selected: "+selected.size()+"\nEligible: "+rows.size()+"\nSkipped: "+skipped+"\n\nReason: "+reason);
             confirmation.setHeaderText(title);
             confirmation.showAndWait().filter(ButtonType.OK::equals).ifPresent(x->
-                UiTaskExecutor.submitLatest(
+                UiTaskExecutor.submitAction(
                     "bank-statement-bulk-"+action.toLowerCase(Locale.ROOT),
                     () -> {
                         int completed=0,failed=0;String firstFailure="";
@@ -573,7 +578,7 @@ public class BankStatementController implements ScreenLifecycle {
 
     private void confirmAllocations(Row row,List<BankStatementApiClient.AllocationRequest> allocations){
         String performedBy=user();
-        UiTaskExecutor.submitLatest(
+        UiTaskExecutor.submitSerial(
             "bank-statement-match-"+row.dto.id(),
             () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,allocations)),
             result -> {success("Match Successful",result.message()+"\n\nBank Entry and payment/refund allocations were updated together.");refresh();},
@@ -603,7 +608,7 @@ public class BankStatementController implements ScreenLifecycle {
         double remaining=bankAmount(row.dto);List<BankStatementApiClient.AllocationRequest> alloc=new ArrayList<>();
         for(var c:selected){double suggested=Math.min(c.outstanding(),remaining);TextInputDialog d=new OwnedTextInputDialog(String.format(Locale.ROOT,"%.2f",suggested));d.setTitle("Allocate Payment");d.setHeaderText(c.documentNo()+" • "+c.partyName()+" • Outstanding "+money(c.outstanding()));d.setContentText("Allocation amount:");Optional<String>v=d.showAndWait();if(v.isEmpty())return;double amount=Double.parseDouble(v.get().replace(",","").trim());alloc.add(new BankStatementApiClient.AllocationRequest(c.type(),c.id(),amount));remaining-=amount;}
         String performedBy=user();
-        UiTaskExecutor.submitLatest("bank-statement-match-"+row.dto.id(),
+        UiTaskExecutor.submitSerial("bank-statement-match-"+row.dto.id(),
             () -> api.match(row.dto.id(),new BankStatementApiClient.MatchRequest(performedBy,alloc)),
             r -> {success("Match Successful",r.message()+"\n\nBank Entry created and payment/refund allocation updated.");refresh();},
             this::error);
@@ -676,6 +681,7 @@ public class BankStatementController implements ScreenLifecycle {
         if("BANK_ENTRY".equals(type)){Integer financeId=row!=null&&row.dto.financeEntryId()!=null?row.dto.financeEntryId():id;BankExpenseController.requestLinkedEntry(BankExpenseController.Mode.BANK,financeId);DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);return;}
         if("SALE".equals(type)){if(documentNo.isBlank()){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Sale document not found","The linked Sale no longer has a usable invoice number.");return;}SalesScreenContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/RecordPayment.fxml");return;}
         if("PURCHASE".equals(type)){if(documentNo.isBlank()){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Purchase document not found","The linked Purchase no longer has a usable invoice number.");return;}PurchaseScreenContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/PurchasePayment.fxml");return;}
+        if("PURCHASE_RECON".equals(type)){if(id==null){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Purchase Recon not found","The linked Purchase Recon no longer has a usable record id.");return;}PurchaseReconScreenContext.select(id);DashboardController.navigateFromChild("Purchase Recon","/fxml/pages/PurchaseRecon.fxml",null);return;}
         if("SALES_RETURN".equals(type)||"PURCHASE_RETURN".equals(type)){if(documentNo.isBlank()){new OwnedAlert(Alert.AlertType.WARNING,"The linked Return record no longer has a document number.").showAndWait();return;}ReturnRefundContext.select(documentNo);NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");return;}
         if(row!=null)audit(row);else new OwnedAlert(Alert.AlertType.INFORMATION,"The linked record type is not available for direct navigation.").showAndWait();
     }
@@ -704,7 +710,7 @@ public class BankStatementController implements ScreenLifecycle {
         ButtonType save=new ButtonType("Save Note",ButtonBar.ButtonData.OK_DONE); d.getDialogPane().getButtonTypes().addAll(save,ButtonType.CLOSE);
         d.showAndWait().filter(x->x==save).ifPresent(x->{
             String value=note.getText().trim(),performedBy=user();
-            UiTaskExecutor.submitLatest("bank-statement-note-"+t.id(),
+            UiTaskExecutor.submitAction("bank-statement-note-"+t.id(),
                 () -> api.updateNote(t.id(),new BankStatementApiClient.NoteRequest(value,performedBy)),
                 ignored -> {refresh();},this::error);
         });
@@ -734,7 +740,7 @@ public class BankStatementController implements ScreenLifecycle {
     private void markReview(Row row){
         requiredReason("Mark for Review","Explain what must be checked before this transaction is reconciled.").ifPresent(reason->{
             String performedBy=user();
-            UiTaskExecutor.submitLatest("bank-statement-review-"+row.dto.id(),
+            UiTaskExecutor.submitAction("bank-statement-review-"+row.dto.id(),
                 () -> api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,performedBy)),
                 ignored -> refresh(),this::error);
         });
@@ -745,7 +751,7 @@ public class BankStatementController implements ScreenLifecycle {
             a.setHeaderText("Confirm ignored transaction");
             a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{
                 String performedBy=user();
-                UiTaskExecutor.submitLatest("bank-statement-ignore-"+row.dto.id(),
+                UiTaskExecutor.submitAction("bank-statement-ignore-"+row.dto.id(),
                     () -> api.ignore(row.dto.id(),new BankStatementApiClient.IgnoreRequest(reason,performedBy)),
                     ignored -> refresh(),this::error);
             });
@@ -757,7 +763,7 @@ public class BankStatementController implements ScreenLifecycle {
         if(value.isEmpty())info(title,"A reason is required so the decision can be understood from the audit history.");
         return value;
     }
-    private void reverse(Row row){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Reverse this reconciliation? Linked payment/finance records will be safely reversed and the bank transaction will return to UNMATCHED.");a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{String performedBy=user();UiTaskExecutor.submitLatest("bank-statement-reverse-"+row.dto.id(),()->api.reverse(row.dto.id(),performedBy),ignored->refresh(),this::error);});}
+    private void reverse(Row row){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Reverse this reconciliation? Linked payment/finance records will be safely reversed and the bank transaction will return to UNMATCHED.");a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{String performedBy=user();UiTaskExecutor.submitSerial("bank-statement-reverse-"+row.dto.id(),()->api.reverse(row.dto.id(),performedBy),ignored->refresh(),this::error);});}
     private void audit(Row row){
         UiTaskExecutor.submitLatest("bank-statement-audit-"+row.dto.id(),
             () -> api.audit(row.dto.id()),

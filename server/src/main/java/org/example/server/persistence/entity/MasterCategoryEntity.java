@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 @Table(name="master_category")
 public class MasterCategoryEntity {
     @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Integer id;
+ @Version @Column(name="row_version",nullable=false) private Long rowVersion=0L;
     @Column(name="category_code", nullable=false, unique=true) private String categoryCode;
     @Column(name="category_name", nullable=false, unique=true) private String categoryName;
     private String description;
@@ -17,4 +18,6 @@ public class MasterCategoryEntity {
     public String getDescription(){return description;} public void setDescription(String v){description=v;}
     public Integer getDisplayOrder(){return displayOrder;} public void setDisplayOrder(Integer v){displayOrder=v;}
     public Integer getActive(){return active;} public void setActive(Integer v){active=v;}
+
+ public Long getRowVersion(){return rowVersion;} public void setRowVersion(Long v){rowVersion=v==null?0L:v;}
 }

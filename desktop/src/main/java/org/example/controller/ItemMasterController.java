@@ -24,6 +24,8 @@ import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 import org.example.util.IconFactory;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
+import org.example.util.UiTaskExecutor;
 
 import java.io.File;
 import java.net.URL;
@@ -34,7 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-public class ItemMasterController {
+public class ItemMasterController implements ScreenLifecycle {
 
     @FXML private TextField txtSearch;
     @FXML private TableView<Item> tableItems;
@@ -209,6 +211,7 @@ public class ItemMasterController {
         });
 
         // initial load
+        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         loadItems();
     }
 
@@ -249,14 +252,14 @@ public class ItemMasterController {
             ButtonType.YES, ButtonType.NO);
         confirmation.setHeaderText("Confirm deletion");
         if (confirmation.showAndWait().orElse(ButtonType.NO) == ButtonType.YES) {
-            try {
-                service.delete(selected.getItemCode());
-                NotificationService.add("Item '" + selected.getDescription() + "' was deleted.");
-                org.example.util.ToastManager.success(tableItems, "Item Deleted", "Item deleted successfully.");
-                loadItems();
-            } catch (Exception e) {
-                showError("Could not delete item: " + e.getMessage());
-            }
+            String code = selected.getItemCode();
+            String description = selected.getDescription();
+            UiTaskExecutor.submitAction(
+                    "item-master-delete-" + code,
+                    () -> { service.delete(selected); NotificationService.add("Item '" + description + "' was deleted."); return null; },
+                    ignored -> { org.example.util.ToastManager.success(tableItems, "Item Deleted", "Item deleted successfully."); loadItems(); },
+                    failure -> showError("Could not delete item: " + message(failure))
+            );
         }
     }
 
@@ -285,25 +288,32 @@ public class ItemMasterController {
         if (file == null) return;
         Path path = file.toPath();
         if (!path.toString().toLowerCase(Locale.ROOT).endsWith(".xlsx")) path = Path.of(path + ".xlsx");
-        try {
-            spreadsheetService.exportItems(service.getAll(), path);
-            org.example.util.ToastManager.success(tableItems, "Export complete", "Item master exported to:\n" + path);
-        } catch (Exception ex) {
-            showError("Could not export the workbook: " + ex.getMessage());
-        }
+        Path exportPath = path;
+        List<Item> snapshot = List.copyOf(allItems);
+        UiTaskExecutor.submitAction(
+                "item-master-export",
+                () -> { spreadsheetService.exportItems(snapshot, exportPath); return exportPath; },
+                saved -> org.example.util.ToastManager.success(tableItems, "Export complete", "Item master exported to:\n" + saved),
+                failure -> showError("Could not export the workbook: " + message(failure))
+        );
     }
 
     private void loadItems() {
-        try {
-            List<Item> list = service.getAll();
-            allItems.setAll(list);
-            clearBulkSelection();
-            applyLocalFilter();
-            updateKpis(list);
-        } catch (Exception e) {
-            showError("Could not load items: " + e.getMessage());
-        }
+        org.example.util.OperationalUiSupport.showLoading(tableItems,"Loading item master…");
+        UiTaskExecutor.submitLatest(
+                "item-master-load",
+                service::getAll,
+                list -> {
+                    allItems.setAll(list == null ? List.of() : list);
+                    clearBulkSelection();
+                    applyLocalFilter();
+                    updateKpis(allItems);
+                },
+                failure -> { org.example.util.OperationalUiSupport.showError(tableItems,"Item Master could not load",failure); showError("Could not load items: " + message(failure)); }
+        );
     }
+
+    @Override public void onScreenHidden() { UiTaskExecutor.cancelPrefix("item-master-"); }
 
     /** Filters the already loaded master list without an API call per keystroke. */
     private void applyLocalFilter() {
@@ -316,6 +326,7 @@ public class ItemMasterController {
                 || (item.getBrand() != null && item.getBrand().toLowerCase(Locale.ROOT).contains(query)))
             .toList());
         clearBulkSelection();
+        if(items.isEmpty())org.example.util.OperationalUiSupport.showEmpty(tableItems,"No items found","Create a new item or adjust the current search.");
         lblRecordCount.setText("Showing " + items.size() + " Record" + (items.size() == 1 ? "" : "s"));
     }
 
@@ -409,30 +420,32 @@ public class ItemMasterController {
         first.setHeaderText("Confirm bulk deletion");
         if (first.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
 
-        try {
-            MasterApiClient.ItemBulkDeleteValidation validation = service.validateBulkDelete(codes);
-            if (validation == null || !validation.valid()) {
-                showBulkDeleteBlocked(validation);
-                return;
-            }
-
-            Alert finalConfirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
-                "Dependency validation passed for all " + codes.size() + " selected item" + (codes.size() == 1 ? "" : "s") + ".\n\n" +
-                "Final confirmation: permanently delete these records? This action cannot be undone.",
-                ButtonType.YES, ButtonType.NO);
-            finalConfirmation.setHeaderText("Final confirmation required");
-            if (finalConfirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
-
-            MasterApiClient.OperationResponse result = service.bulkDelete(codes);
-            clearBulkSelection();
-            loadItems();
-            String message = result == null || result.message() == null || result.message().isBlank()
-                ? codes.size() + " item" + (codes.size() == 1 ? "" : "s") + " deleted successfully."
-                : result.message() + ".";
-            org.example.util.ToastManager.success(tableItems, "Items Deleted", message);
-        } catch (Exception e) {
-            showError("Could not delete the selected items: " + e.getMessage());
-        }
+        UiTaskExecutor.submitLatest(
+                "item-master-bulk-validation",
+                () -> service.validateBulkDelete(codes),
+                validation -> {
+                    if (validation == null || !validation.valid()) { showBulkDeleteBlocked(validation); return; }
+                    Alert finalConfirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                            "Dependency validation passed for all " + codes.size() + " selected item" + (codes.size() == 1 ? "" : "s") + ".\n\n" +
+                                    "Final confirmation: permanently delete these records? This action cannot be undone.",
+                            ButtonType.YES, ButtonType.NO);
+                    finalConfirmation.setHeaderText("Final confirmation required");
+                    if (finalConfirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
+                    UiTaskExecutor.submitAction(
+                            "item-master-bulk-delete",
+                            () -> service.bulkDelete(codes),
+                            result -> {
+                                clearBulkSelection(); loadItems();
+                                String detail = result == null || result.message() == null || result.message().isBlank()
+                                        ? codes.size() + " item" + (codes.size() == 1 ? "" : "s") + " deleted successfully."
+                                        : result.message() + ".";
+                                org.example.util.ToastManager.success(tableItems, "Items Deleted", detail);
+                            },
+                            failure -> showError("Could not delete the selected items: " + message(failure))
+                    );
+                },
+                failure -> showError("Could not validate the selected items: " + message(failure))
+        );
     }
 
     private void showBulkDeleteBlocked(MasterApiClient.ItemBulkDeleteValidation validation) {
@@ -477,6 +490,12 @@ public class ItemMasterController {
         Alert alert = new OwnedAlert(Alert.AlertType.WARNING, message);
         alert.setHeaderText(null);
         alert.showAndWait();
+    }
+
+    private static String message(Throwable failure) {
+        Throwable current = failure;
+        while (current != null && (current.getMessage() == null || current.getMessage().isBlank()) && current.getCause() != current) current = current.getCause();
+        return current == null || current.getMessage() == null ? "Unexpected error." : current.getMessage();
     }
 
     private void showError(String message) {

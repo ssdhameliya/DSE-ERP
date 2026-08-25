@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 @Table(name="sales_header")
 public class SalesHeaderEntity {
  @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Integer id;
+ @Version @Column(name="row_version",nullable=false) private Long rowVersion=0L;
  @Column(name="invoice_no",nullable=false,unique=true) private String invoiceNo;
  @Column(name="invoice_date") private String invoiceDate;
  @ManyToOne(fetch=FetchType.EAGER) @JoinColumn(name="customer_id") private PartyEntity customer;
@@ -101,4 +102,6 @@ public class SalesHeaderEntity {
  public String getApprovedAt(){return approvedAt;} public void setApprovedAt(String v){approvedAt=v;}
  public String getRejectionReason(){return rejectionReason;} public void setRejectionReason(String v){rejectionReason=v;}
  public String getRequestedDocumentStatus(){return requestedDocumentStatus;} public void setRequestedDocumentStatus(String v){requestedDocumentStatus=v;}
+
+ public Long getRowVersion(){return rowVersion;} public void setRowVersion(Long v){rowVersion=v==null?0L:v;}
 }

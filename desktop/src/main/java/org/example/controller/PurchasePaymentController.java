@@ -20,6 +20,8 @@ import org.example.service.*;
 import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
+import org.example.util.UiTaskExecutor;
+import org.example.util.AttachmentPreviewSupport;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -76,18 +78,26 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     }
 
     @Override public void onScreenShown(boolean reusedFromCache) { if (reusedFromCache) loadSelectedInvoice(); }
+    @Override public void onScreenHidden() { UiTaskExecutor.cancelPrefix("purchase-payment-"); }
 
     private void loadSelectedInvoice() {
         String selected = PurchaseScreenContext.invoice();
         if (selected == null || selected.isBlank()) return;
-        purchase = purchaseService.getByInvoice(selected);
-        if (purchase == null) {
-            new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected purchase invoice: " + selected).showAndWait();
-            return;
-        }
-        configureInvoice();
-        resetForm();
-        loadHistory();
+        UiTaskExecutor.submitLatest(
+                "purchase-payment-invoice",
+                () -> purchaseService.getByInvoice(selected),
+                loaded -> {
+                    if (loaded == null) {
+                        new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected purchase invoice: " + selected).showAndWait();
+                        return;
+                    }
+                    purchase = loaded;
+                    configureInvoice();
+                    resetForm();
+                    loadHistory();
+                },
+                failure -> new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait()
+        );
     }
 
     private void configureInvoice() {
@@ -101,18 +111,12 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         }
         invoiceDate.setText(formatDate(purchase.getInvoiceDate()));
         dueDate.setText(formatDate(purchase.getDueDate()));
-        refreshInvoiceAmounts();
+        applyInvoiceAmounts();
     }
 
     private void configurePaymentForm() {
         paymentDate.setValue(BusinessClock.today());
-        List<String> modes;
-        try { modes = new ArrayList<>(lookupService.getValuesByCategoryCode("PAYMENT_MODE")); }
-        catch (Exception ignored) { modes = new ArrayList<>(); }
-        if (modes.isEmpty()) modes.addAll(List.of("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"));
-        mode.setItems(FXCollections.observableArrayList(modes));
-        if (modes.contains("Bank Transfer")) mode.setValue("Bank Transfer");
-        else if (!modes.isEmpty()) mode.getSelectionModel().selectFirst();
+        applyPaymentLookups(List.of("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"), configuredBankAccounts());
 
         ToggleGroup paymentType = new ToggleGroup();
         fullPayment.setToggleGroup(paymentType);
@@ -121,25 +125,56 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         fullPayment.setOnAction(e -> selectFull());
         partialPayment.setOnAction(e -> selectPartial());
         amount.textProperty().addListener((o, a, b) -> updateBalancePreview());
-
-        List<String> accounts = new ArrayList<>();
-        try {
-            for (org.example.model.Lookup lookup : lookupService.getByType("BANK ACCOUNT")) {
-                if (!lookup.isActive() || lookup.getLookupValue() == null || lookup.getLookupValue().isBlank()) continue;
-                String description = lookup.getDescription() == null ? "" : lookup.getDescription().trim();
-                accounts.add(description.isBlank() ? lookup.getLookupValue().trim()
-                        : lookup.getLookupValue().trim() + " - " + description);
-            }
-        } catch (Exception ignored) { }
-        if (accounts.isEmpty()) {
-            String bank = ConfigManager.get("payment.bankName", "").trim();
-            String account = ConfigManager.get("payment.accountNumber", "").trim();
-            if (!account.isBlank()) accounts.add(bank.isBlank() ? account : account + " - " + bank);
-        }
-        bankAccount.getItems().setAll(accounts);
-        if (!accounts.isEmpty()) bankAccount.getSelectionModel().selectFirst();
-        else bankAccount.setPromptText("Add BANK ACCOUNT values in Masters");
         mode.valueProperty().addListener((o, a, b) -> updateBankAccountState(b));
+        updateBankAccountState(mode.getValue());
+        loadPaymentLookupsAsync();
+    }
+
+    private record PaymentLookups(List<String> modes, List<String> accounts) { }
+
+    private void loadPaymentLookupsAsync() {
+        UiTaskExecutor.submitLatest(
+                "purchase-payment-lookups",
+                () -> {
+                    List<String> modes = new ArrayList<>();
+                    try { modes.addAll(lookupService.getValuesByCategoryCode("PAYMENT_MODE")); } catch (Exception ignored) { }
+                    if (modes.isEmpty()) modes.addAll(List.of("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"));
+                    List<String> accounts = new ArrayList<>();
+                    try {
+                        for (org.example.model.Lookup lookup : lookupService.getByType("BANK ACCOUNT")) {
+                            if (!lookup.isActive() || lookup.getLookupValue() == null || lookup.getLookupValue().isBlank()) continue;
+                            String description = lookup.getDescription() == null ? "" : lookup.getDescription().trim();
+                            accounts.add(description.isBlank() ? lookup.getLookupValue().trim()
+                                    : lookup.getLookupValue().trim() + " - " + description);
+                        }
+                    } catch (Exception ignored) { }
+                    if (accounts.isEmpty()) accounts.addAll(configuredBankAccounts());
+                    return new PaymentLookups(List.copyOf(modes), List.copyOf(accounts));
+                },
+                lookups -> applyPaymentLookups(lookups.modes(), lookups.accounts()),
+                failure -> System.err.println("Purchase payment lookup load failed: " + message(failure))
+        );
+    }
+
+    private List<String> configuredBankAccounts() {
+        List<String> accounts = new ArrayList<>();
+        String bank = ConfigManager.get("payment.bankName", "").trim();
+        String account = ConfigManager.get("payment.accountNumber", "").trim();
+        if (!account.isBlank()) accounts.add(bank.isBlank() ? account : account + " - " + bank);
+        return accounts;
+    }
+
+    private void applyPaymentLookups(List<String> modes, List<String> accounts) {
+        String selectedMode = mode.getValue();
+        String selectedAccount = bankAccount.getValue();
+        mode.getItems().setAll(modes);
+        if (selectedMode != null && modes.contains(selectedMode)) mode.setValue(selectedMode);
+        else if (modes.contains("Bank Transfer")) mode.setValue("Bank Transfer");
+        else if (!modes.isEmpty()) mode.getSelectionModel().selectFirst();
+        bankAccount.getItems().setAll(accounts);
+        if (selectedAccount != null && accounts.contains(selectedAccount)) bankAccount.setValue(selectedAccount);
+        else if (!accounts.isEmpty()) bankAccount.getSelectionModel().selectFirst();
+        else bankAccount.setPromptText("Add BANK ACCOUNT values in Masters");
         updateBankAccountState(mode.getValue());
     }
 
@@ -218,8 +253,17 @@ public final class PurchasePaymentController implements ScreenLifecycle {
 
     private void refreshInvoiceAmounts() {
         if (purchase == null) return;
-        Purchase fresh = purchaseService.getByInvoice(purchase.getInvoiceNo());
-        if (fresh != null) purchase = fresh;
+        String invoice = purchase.getInvoiceNo();
+        UiTaskExecutor.submitLatest(
+                "purchase-payment-totals",
+                () -> purchaseService.getByInvoice(invoice),
+                fresh -> { if (fresh != null) purchase = fresh; applyInvoiceAmounts(); },
+                failure -> new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait()
+        );
+    }
+
+    private void applyInvoiceAmounts() {
+        if (purchase == null) return;
         total.setText(money(purchase.getTotalAmount()));
         paid.setText(money(purchase.getPaidAmount()));
         balance.setText(money(purchase.getBalanceAmount()));
@@ -278,17 +322,34 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         try {
             validatePayment();
             double value = parseAmount(amount.getText());
-            int paymentId=supportApi.recordPaymentWithId(new SupportApiClient.PaymentRequest(
+            SupportApiClient.PaymentRequest request = new SupportApiClient.PaymentRequest(
                     "PURCHASE", purchase.getId(), paymentDate.getValue().toString(), value, mode.getValue(),
                     reference.getText().trim(), persistedNotes(), paidTo.getText().trim(),
-                    fullPayment.isSelected() ? "FULL" : "PARTIAL", null, "System"));
-            String proofWarning=null;
-            if(selectedProof!=null){try{supportApi.uploadPaymentAttachment(paymentId,selectedProof);}catch(Exception proofError){proofWarning="Payment was saved, but the proof could not be uploaded: "+message(proofError);}}
-            NotificationService.add("Supplier payment recorded for " + purchase.getInvoiceNo());
-            org.example.util.ToastManager.success(amount, "Payment saved", "Supplier payment saved successfully.");
-            refreshInvoiceAmounts(); resetForm(); loadHistory();
-            if(proofWarning!=null)new OwnedAlert(Alert.AlertType.WARNING,proofWarning).showAndWait();
-        } catch (Exception error) {new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();}
+                    fullPayment.isSelected() ? "FULL" : "PARTIAL", null, "System");
+            Path proof = selectedProof;
+            String invoice = purchase.getInvoiceNo();
+            setSaveBusy(true);
+            UiTaskExecutor.submitAction(
+                    "purchase-payment-save",
+                    () -> {
+                        int paymentId = supportApi.recordPaymentWithId(request);
+                        String warning = null;
+                        if (proof != null) {
+                            try { supportApi.uploadPaymentAttachment(paymentId, proof); }
+                            catch (Exception proofError) { warning = "Payment was saved, but the proof could not be uploaded: " + message(proofError); }
+                        }
+                        NotificationService.add("Supplier payment recorded for " + invoice);
+                        return warning;
+                    },
+                    warning -> {
+                        setSaveBusy(false);
+                        org.example.util.ToastManager.success(amount, "Payment saved", "Supplier payment saved successfully.");
+                        refreshInvoiceAmounts(); resetForm(); loadHistory();
+                        if (warning != null) new OwnedAlert(Alert.AlertType.WARNING, warning).showAndWait();
+                    },
+                    failure -> { setSaveBusy(false); new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait(); }
+            );
+        } catch (Exception error) { new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait(); }
     }
 
     private void saveEditedPayment() {
@@ -304,21 +365,37 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             ButtonType choice = new OwnedAlert(Alert.AlertType.CONFIRMATION, confirmation, ButtonType.YES, ButtonType.NO)
                     .showAndWait().orElse(ButtonType.NO);
             if (choice != ButtonType.YES) return;
-            supportApi.updatePayment(editingPayment.id(), new SupportApiClient.PaymentUpdateRequest(
+
+            PaymentRow editing = editingPayment;
+            SupportApiClient.PaymentUpdateRequest request = new SupportApiClient.PaymentUpdateRequest(
                     paymentDate.getValue().toString(), newValue, mode.getValue(), reference.getText().trim(),
-                    persistedNotes(), paidTo.getText().trim()));
-            persistEditedProof();
-            NotificationService.add("Supplier payment updated for " + purchase.getInvoiceNo());
-            org.example.util.ToastManager.success(amount, "Payment updated", "Payment updated and purchase totals recalculated.");
-            refreshInvoiceAmounts();
-            resetForm();
-            loadHistory();
+                    persistedNotes(), paidTo.getText().trim());
+            Path proof = selectedProof;
+            boolean removeProof = proofRemovalPending;
+            String invoice = purchase.getInvoiceNo();
+            setSaveBusy(true);
+            UiTaskExecutor.submitAction(
+                    "purchase-payment-update-" + editing.id(),
+                    () -> {
+                        supportApi.updatePayment(editing.id(), request);
+                        if (removeProof) supportApi.deletePaymentAttachment(editing.id());
+                        else if (proof != null) supportApi.uploadPaymentAttachment(editing.id(), proof);
+                        NotificationService.add("Supplier payment updated for " + invoice);
+                        return null;
+                    },
+                    ignored -> {
+                        setSaveBusy(false);
+                        org.example.util.ToastManager.success(amount, "Payment updated", "Payment updated and purchase totals recalculated.");
+                        refreshInvoiceAmounts(); resetForm(); loadHistory();
+                    },
+                    failure -> { setSaveBusy(false); new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait(); }
+            );
         } catch (Exception error) {
             new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();
         }
     }
 
-    private void persistEditedProof() throws IOException {if(editingPayment==null)return;if(proofRemovalPending){supportApi.deletePaymentAttachment(editingPayment.id());proofRemovalPending=false;return;}if(selectedProof==null)return;supportApi.uploadPaymentAttachment(editingPayment.id(),selectedProof);selectedProof=null;}
+    private void setSaveBusy(boolean busy) { if (btnSavePayment != null) btnSavePayment.setDisable(busy); }
 
     private void validatePayment() throws IOException {
         if (paymentDate.getValue() == null) throw new IllegalArgumentException("Select a payment date.");
@@ -370,24 +447,28 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     }
 
     private void loadHistory() {
-        allPayments.clear();
         if (purchase == null) return;
-        try {
-            String supplierName = purchase.getSupplier() == null ? "" : safe(purchase.getSupplier().getName());
-            for (var row : supportApi.payments("PURCHASE", purchase.getId())) {
-                String paidToValue = safeOr(row.receivedFrom(), supplierName);
-                String status = "BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType()) ? "Reconciled"
-                        : "FULL".equalsIgnoreCase(row.paymentType()) ? "Full Payment"
-                        : "PARTIAL".equalsIgnoreCase(row.paymentType()) ? "Partial Payment" : "Recorded";
-                allPayments.add(new PaymentRow(row.id(), row.date(), safe(row.reference()), paidToValue,
-                        safe(row.mode()), row.amount(), status, safe(row.notes()), safe(row.attachment()), safe(row.paymentType())));
-            }
-        } catch (Exception error) {
-            new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait();
-        }
-        historyTable.getItems().setAll(allPayments);
-        historyCount.setText(allPayments.size() + " Payment" + (allPayments.size() == 1 ? "" : "s"));
-        updateHistoryTableHeight();
+        int purchaseId = purchase.getId();
+        String supplierName = purchase.getSupplier() == null ? "" : safe(purchase.getSupplier().getName());
+        UiTaskExecutor.submitLatest(
+                "purchase-payment-history",
+                () -> supportApi.payments("PURCHASE", purchaseId),
+                rows -> {
+                    allPayments.clear();
+                    for (var row : rows) {
+                        String paidToValue = safeOr(row.receivedFrom(), supplierName);
+                        String status = "BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType()) ? "Reconciled"
+                                : "FULL".equalsIgnoreCase(row.paymentType()) ? "Full Payment"
+                                : "PARTIAL".equalsIgnoreCase(row.paymentType()) ? "Partial Payment" : "Recorded";
+                        allPayments.add(new PaymentRow(row.id(), row.date(), safe(row.reference()), paidToValue,
+                                safe(row.mode()), row.amount(), status, safe(row.notes()), safe(row.attachment()), safe(row.paymentType())));
+                    }
+                    historyTable.getItems().setAll(allPayments);
+                    historyCount.setText(allPayments.size() + " Payment" + (allPayments.size() == 1 ? "" : "s"));
+                    updateHistoryTableHeight();
+                },
+                failure -> new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait()
+        );
     }
 
     private void updateHistoryTableHeight() {
@@ -439,7 +520,15 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         attachmentName.setText(path == null ? "No file selected" : path.getFileName().toString());
     }
 
-    @FXML private void previewProof(){try{Path path=selectedProof;if(path==null&&editingPayment!=null&&!proofRemovalPending&&!safe(editingPayment.proofPath()).isBlank())path=materializePaymentProof(supportApi.paymentAttachment(editingPayment.id()));if(path==null)throw new IOException("No payment proof is attached.");if(!Files.isRegularFile(path))throw new IOException("The payment proof is unavailable.");Desktop.getDesktop().open(path.toFile());}catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}}
+    @FXML private void previewProof(){
+        if(selectedProof!=null){openProofPath(selectedProof);return;}
+        if(editingPayment==null||proofRemovalPending||safe(editingPayment.proofPath()).isBlank()){new OwnedAlert(Alert.AlertType.ERROR,"No payment proof is attached.").showAndWait();return;}
+        int paymentId=editingPayment.id();
+        UiTaskExecutor.submitLatest("purchase-payment-proof-preview-"+paymentId,
+                () -> materializePaymentProof(supportApi.paymentAttachment(paymentId)),
+                this::openProofPath,
+                failure -> new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
+    }
     @FXML private void removeProof(){boolean hasSelected=selectedProof!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.proofPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;selectedProof=null;proofRemovalPending=hasExisting;attachmentName.setText(proofRemovalPending?"Proof will be removed when payment is updated":"No file selected");}
 
     private void editPayment(PaymentRow row) {
@@ -475,19 +564,29 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     }
 
     private void openProof(PaymentRow row) {
-        try{if(row==null||safe(row.proofPath()).isBlank())return;Path path=materializePaymentProof(supportApi.paymentAttachment(row.id()));if(path==null||!Files.isRegularFile(path))throw new IOException("The stored payment proof is missing.");Desktop.getDesktop().open(path.toFile());}
+        if(row==null||safe(row.proofPath()).isBlank())return;
+        UiTaskExecutor.submitLatest("purchase-payment-proof-open-"+row.id(),
+                () -> materializePaymentProof(supportApi.paymentAttachment(row.id())),
+                this::openProofPath,
+                failure -> new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
+    }
+
+    private void openProofPath(Path path){
+        try{if(path==null||!Files.isRegularFile(path))throw new IOException("The stored payment proof is missing.");Desktop.getDesktop().open(path.toFile());}
         catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}
     }
 
     private void removeStoredProof(PaymentRow row){
         if(row==null||safe(row.proofPath()).isBlank()||"BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType()))return;
         if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove this payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
-        try{supportApi.deletePaymentAttachment(row.id());loadHistory();org.example.util.ToastManager.success(historyTable,"Proof removed","Payment proof removed.");}
-        catch(Exception error){new OwnedAlert(Alert.AlertType.ERROR,message(error)).showAndWait();}
+        UiTaskExecutor.submitAction("purchase-payment-proof-delete-"+row.id(),
+                () -> {supportApi.deletePaymentAttachment(row.id());return null;},
+                ignored -> {loadHistory();org.example.util.ToastManager.success(historyTable,"Proof removed","Payment proof removed.");},
+                failure -> new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
     }
 
     private Path materializePaymentProof(SupportApiClient.DownloadedAttachment download)throws IOException{
-        if(download==null||download.data()==null||download.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String raw=download.fileName()==null?"payment-proof":download.fileName();String name=raw.replaceAll("[^A-Za-z0-9._-]","_");if(name.isBlank())name="payment-proof";Path target=folder.resolve(System.currentTimeMillis()+"-"+name);Files.write(target,download.data());target.toFile().deleteOnExit();return target;
+        return AttachmentPreviewSupport.materialize(download,"payment-proof");
     }
 
     @FXML private void printInvoice() {

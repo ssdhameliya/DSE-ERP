@@ -135,6 +135,14 @@ public final class SpreadsheetLayoutDetector {
             case "discount", "discountpercent" -> Set.of("discount", "discountpercent", "disc", "discpercent");
             case "invoiceno" -> Set.of("invoiceno", "invoice", "documentno", "saleno", "purchaseno");
             case "invoicedate" -> Set.of("invoicedate", "date", "documentdate");
+            case "suppliername" -> Set.of("suppliername", "supplier", "tradelegalname", "tradename", "legalname");
+            case "suppliergstin" -> Set.of("suppliergstin", "gstinofsupplier", "gstin");
+            case "supplierinvoiceno" -> Set.of("supplierinvoiceno", "invoiceno", "invoicenumber", "billno");
+            case "taxablevalue" -> Set.of("taxablevalue", "taxableamount");
+            case "cgst" -> Set.of("cgst", "centraltax", "cgstamount");
+            case "sgst" -> Set.of("sgst", "stateuttax", "statetax", "sgstamount");
+            case "igst" -> Set.of("igst", "integratedtax", "igstamount");
+            case "invoicevalue" -> Set.of("invoicevalue", "invoicetotal", "totalinvoicevalue");
             default -> Set.of(value);
         };
     }

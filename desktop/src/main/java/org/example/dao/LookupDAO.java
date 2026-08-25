@@ -10,7 +10,8 @@ public class LookupDAO {
 
     public void save(Lookup lookup) { api.saveLookup(lookup); }
     public void update(Lookup lookup) { api.updateLookup(lookup); }
-    public void delete(int id) { api.deleteLookup(id); }
+    public void delete(Lookup lookup) { if (lookup == null) return; api.deleteLookup(lookup.getId(), lookup.getRowVersion()); }
+    public void delete(int id) { throw new IllegalStateException("Lookup deletion requires the loaded row version."); }
     public List<Lookup> getByType(String type) { return api.lookups(type); }
     public List<String> getValues(String type) { return api.lookupValues(type); }
     public List<String> getValuesByCategoryCode(String categoryCode) { return api.lookupValuesByCategoryCode(categoryCode); }

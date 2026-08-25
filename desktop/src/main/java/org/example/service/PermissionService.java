@@ -32,11 +32,24 @@ public final class PermissionService {
 
     /** Refresh after login or after an administrator saves the matrix. */
     public static synchronized void refresh() {
+        refresh(false);
+    }
+
+    /** Login-time refresh: permission/API failures are fatal instead of silently falling back. */
+    public static synchronized void refreshStrict() {
+        refresh(true);
+    }
+
+    private static void refresh(boolean strict) {
         cachedRole = null; cachedAllowed = Set.of(); cacheLoaded = false;
-        if (SessionService.current() != null) ensureLoaded(normalizeRole(SessionService.current().getRole()));
+        if (SessionService.current() != null) ensureLoaded(normalizeRole(SessionService.current().getRole()), strict);
     }
 
     private static synchronized void ensureLoaded(String role) {
+        ensureLoaded(role, false);
+    }
+
+    private static synchronized void ensureLoaded(String role, boolean strict) {
         if (cacheLoaded && role.equals(cachedRole)) return;
         try {
             Set<String> allowed = new HashSet<>();
@@ -44,8 +57,15 @@ public final class PermissionService {
                 allowed.add(normalize(p.module()+"."+p.action()));
             }
             cachedRole = role; cachedAllowed = Set.copyOf(allowed); cacheLoaded = true;
-        } catch (Exception ignored) {
+        } catch (org.example.api.ApiSession.AuthenticationRequiredException authenticationFailure) {
             cachedRole = role; cachedAllowed = Set.of(); cacheLoaded = false;
+            throw authenticationFailure;
+        } catch (Exception failure) {
+            cachedRole = role; cachedAllowed = Set.of(); cacheLoaded = false;
+            if (strict) {
+                throw failure instanceof RuntimeException runtime ? runtime
+                        : new IllegalStateException("Unable to load effective permissions", failure);
+            }
         }
     }
 

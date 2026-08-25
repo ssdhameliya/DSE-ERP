@@ -7,6 +7,7 @@ import java.util.List;
 public class Purchase {
 
     private int id;
+    private long rowVersion;
 
     private String invoiceNo;
 
@@ -166,4 +167,6 @@ public class Purchase {
     public boolean isSameAsBilling(){return sameAsBilling;} public void setSameAsBilling(boolean v){sameAsBilling=v;}
     public LocalDate getPoDate(){return poDate;} public void setPoDate(LocalDate v){poDate=v;}
 
+    public long getRowVersion() { return rowVersion; }
+    public void setRowVersion(long rowVersion) { this.rowVersion = Math.max(0, rowVersion); }
 }

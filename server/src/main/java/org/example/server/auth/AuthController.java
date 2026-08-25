@@ -12,10 +12,8 @@ import java.util.List;
 public class AuthController {
     private final AuthService auth;
     private final org.example.server.security.PermissionAuthorityService permissions;
-    private final org.example.server.persistence.JpaNativeRepository jdbc;
-    public AuthController(AuthService auth, org.example.server.security.PermissionAuthorityService permissions,
-                          org.example.server.persistence.JpaNativeRepository jdbc) {
-        this.auth = auth; this.permissions = permissions; this.jdbc = jdbc;
+    public AuthController(AuthService auth, org.example.server.security.PermissionAuthorityService permissions) {
+        this.auth = auth; this.permissions = permissions;
     }
 
     @GetMapping("/health")
@@ -100,18 +98,20 @@ public class AuthController {
         auth.logout(token);
         return new AuthDtos.OperationResponse(true, "Signed out");
     }
+    @GetMapping("/session")
+    public AuthDtos.OperationResponse session(
+            @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {
+        if (current == null) throw new SecurityException("Authentication required");
+        return new AuthDtos.OperationResponse(true, "Authenticated as " + current.username());
+    }
+
     @GetMapping("/effective-permissions")
     public List<AuthDtos.EffectivePermission> effectivePermissions(
             @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {
         if (current == null) throw new SecurityException("Authentication required");
-        String role = current.role() == null ? "" : current.role().trim().toUpperCase(java.util.Locale.ROOT);
-        if ("ADMIN".equals(role)) {
-            return jdbc.query("SELECT module_name,action_name,COALESCE(description,'') FROM permissions WHERE active=1 ORDER BY module_name,action_name",
-                    (row,index) -> new AuthDtos.EffectivePermission(row.getString(1), row.getString(2), row.getString(3)));
-        }
-        return jdbc.query("SELECT p.module_name,p.action_name,COALESCE(p.description,'') FROM role_permission rp JOIN permissions p ON p.id=rp.permission_id " +
-                        "WHERE UPPER(TRIM(COALESCE(rp.role_code,'')))=? AND p.active=1 AND COALESCE(rp.allowed,0)=1 ORDER BY p.module_name,p.action_name",
-                (row,index) -> new AuthDtos.EffectivePermission(row.getString(1), row.getString(2), row.getString(3)), role);
+        return permissions.effectivePermissions(current.role()).stream()
+                .map(p -> new AuthDtos.EffectivePermission(p.module(), p.action(), p.description()))
+                .toList();
     }
 
 }

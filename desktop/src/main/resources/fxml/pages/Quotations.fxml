@@ -113,7 +113,7 @@
                             <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportExcel" styleClass="quotation-export-button,approved-button,approved-secondary-button"/>
                             <Button fx:id="btnExportPdf" text="Export PDF" onAction="#exportRegisterPdf" styleClass="quotation-export-button,approved-button,approved-secondary-button"/>
                             <Region HBox.hgrow="ALWAYS"/>
-                            <Label fx:id="lblFilteredSummary" styleClass="quotation-filtered-summary"/>
+                            <Label fx:id="lblFilteredSummary" styleClass="quotation-filtered-summary"/><Button fx:id="btnPrevPage" text="‹ Previous" onAction="#previousPage" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnNextPage" text="Next ›" onAction="#nextPage" styleClass="approved-button,approved-secondary-button"/>
                         </HBox>
                     </VBox>
                 </VBox>

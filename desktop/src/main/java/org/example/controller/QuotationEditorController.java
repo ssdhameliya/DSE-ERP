@@ -20,6 +20,8 @@ import org.example.navigation.NavigationManager;
 import org.example.service.SessionService;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
+import org.example.util.UiTaskExecutor;
+import org.example.util.AttachmentPreviewSupport;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -64,7 +66,7 @@ public final class QuotationEditorController {
         if(btnAttachmentAdd!=null)btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment",15));if(btnAttachmentPreview!=null)btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view",15));if(btnAttachmentRemove!=null)btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete",15));
         cmbSource.setItems(FXCollections.observableArrayList("Direct","Email","WhatsApp","Website","Referral","Other"));cmbSource.setValue("Direct");
         dpDate.setValue(BusinessClock.today());dpValid.setValue(BusinessClock.today().plusDays(30));dpFollowUp.setValue(BusinessClock.today().plusDays(7));
-        configureTable();loadChoices();configureItemSearch();quotationId=QuotationEditorContext.consume();if(quotationId!=null)loadQuotation(quotationId);
+        configureTable();configureItemSearch();quotationId=QuotationEditorContext.consume();loadEditorBootstrapAsync();
         tableLines.getItems().addListener((javafx.collections.ListChangeListener<LineRow>)c->{dirty=true;updateTotals();});
         txtRemarks.textProperty().addListener((o,a,b)->dirty=true);
     }
@@ -93,13 +95,6 @@ public final class QuotationEditorController {
         return safe(persistedDescription).trim();
     }
 
-    private void loadChoices(){
-        try{
-            cmbCustomer.getItems().setAll(masters.parties("CUSTOMER").stream().map(CustomerChoice::new).toList());
-            allItemChoices.setAll(masters.items().stream().map(ItemChoice::new).toList());
-        }catch(Exception e){error(e);}
-    }
-
     private void configureItemSearch(){
         if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
         itemSuggestions.getStyleClass().add("erp-item-suggestions");
@@ -120,16 +115,39 @@ public final class QuotationEditorController {
     private void clearItemSearch(){selectItem(null);}
     private ItemChoice resolveTypedItem(String text){if(selectedItem!=null)return selectedItem;String value=text==null?"":text.trim();if(value.isBlank())return null;return allItemChoices.stream().filter(item->item.toString().equalsIgnoreCase(value)||item.code.equalsIgnoreCase(value)||item.description.equalsIgnoreCase(value)).findFirst().orElse(null);}
 
+    private record EditorBootstrap(List<Party> customers,List<Item> items,QuotationApiClient.QuoteDto quote,List<QuotationApiClient.LineDto> lines){}
 
-    private void loadQuotation(int id){
-        try{
-            QuotationApiClient.QuoteDto quote=api.list().stream().filter(q->q.id()==id).findFirst().orElseThrow(()->new IllegalStateException("Quotation was not found."));
+    private void loadEditorBootstrapAsync(){
+        Integer requestedId=quotationId;
+        UiTaskExecutor.submitLatest(
+            "quotation-editor-bootstrap",
+            () -> {
+                List<Party> customers=masters.parties("CUSTOMER");
+                List<Item> items=masters.items();
+                QuotationApiClient.QuoteDto quote=null;List<QuotationApiClient.LineDto> lines=List.of();
+                if(requestedId!=null){
+                    quote=api.list().stream().filter(q->q.id()==requestedId).findFirst().orElseThrow(()->new IllegalStateException("Quotation was not found."));
+                    lines=api.lines(requestedId);
+                }
+                return new EditorBootstrap(customers==null?List.of():List.copyOf(customers),items==null?List.of():List.copyOf(items),quote,lines==null?List.of():List.copyOf(lines));
+            },
+            this::applyEditorBootstrap,
+            failure -> error(asException(failure))
+        );
+    }
+
+    private void applyEditorBootstrap(EditorBootstrap data){
+        cmbCustomer.getItems().setAll(data.customers().stream().map(CustomerChoice::new).toList());
+        allItemChoices.setAll(data.items().stream().map(ItemChoice::new).toList());
+        QuotationApiClient.QuoteDto quote=data.quote();
+        if(quote!=null){
             cmbCustomer.getItems().stream().filter(c->c.id==quote.customerId()).findFirst().ifPresent(cmbCustomer::setValue);
             dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));cmbSource.setValue(blank(quote.source())?"Direct":quote.source());txtRemarks.setText(safe(quote.remarks()));
-            tableLines.getItems().setAll(api.lines(id).stream().map(LineRow::new).toList());
+            tableLines.getItems().setAll(data.lines().stream().map(LineRow::new).toList());
             existingAttachment=safe(quote.attachment());selectedAttachment=null;attachmentRemovalPending=false;updateAttachmentLabel();
             lblPageTitle.setText("Edit Quotation");lblPageSubtitle.setText(quote.no()+"  |  "+quote.customer());dirty=false;updateTotals();
-        }catch(Exception e){error(e);}
+        }
+        tableLines.refresh();
     }
 
     @FXML private void addItem(){
@@ -138,27 +156,47 @@ public final class QuotationEditorController {
     @FXML private void preview(){updateTotals();new OwnedAlert(Alert.AlertType.INFORMATION,"Customer: "+(cmbCustomer.getValue()==null?"Not selected":cmbCustomer.getValue())+"\nItems: "+tableLines.getItems().size()+"\nGrand total: "+lblGrandTotal.getText()+"\nValid until: "+dpValid.getValue()).showAndWait();}
     @FXML private void saveDraft(){save(false);}
     @FXML private void saveAndSend(){save(true);}
+    private record SaveOutcome(QuotationApiClient.QuoteDto quote,String attachment){}
+
     private void save(boolean send){
         try{
             CustomerChoice customer=Objects.requireNonNull(cmbCustomer.getValue(),"Select a customer.");if(dpDate.getValue()==null||dpValid.getValue()==null)throw new IllegalArgumentException("Quotation date and valid-until date are required.");if(dpValid.getValue().isBefore(dpDate.getValue()))throw new IllegalArgumentException("Valid-until date cannot be before quotation date.");if(tableLines.getItems().isEmpty())throw new IllegalArgumentException("Add at least one item.");
             double gross=tableLines.getItems().stream().mapToDouble(r->r.quantity.get()*r.rate.get()).sum(),discount=tableLines.getItems().stream().mapToDouble(r->r.discountAmount.get()).sum(),taxable=gross-discount,gst=tableLines.getItems().stream().mapToDouble(r->r.gstAmount.get()).sum(),total=taxable+gst;
             List<QuotationApiClient.LineDto> lines=tableLines.getItems().stream().map(r->new QuotationApiClient.LineDto(r.code.get(),r.description.get(),r.quantity.get(),r.rate.get(),r.gst.get(),r.discount.get(),r.total.get())).toList();
-            QuotationApiClient.QuoteDto saved=api.save(new QuotationApiClient.SaveRequest(quotationId,dpDate.getValue().toString(),dpValid.getValue().toString(),customer.id,taxable,discount,gst,total,txtRemarks.getText(),dpFollowUp.getValue()==null?"":dpFollowUp.getValue().toString(),user(),cmbSource.getValue(),user(),lines));
-            quotationId=saved.id();persistAttachment(saved.id());if(send)api.markSent(saved.id(),cmbSource.getValue());dirty=false;org.example.util.ToastManager.success(tableLines,send?"Quotation sent":"Quotation saved",send?"Quotation saved and marked as sent.":"Quotation draft saved successfully.");backToRegister();
+            Integer currentId=quotationId;Path pendingAttachment=selectedAttachment;boolean removeAttachment=attachmentRemovalPending;String currentAttachment=existingAttachment;String source=cmbSource.getValue();
+            var request=new QuotationApiClient.SaveRequest(currentId,dpDate.getValue().toString(),dpValid.getValue().toString(),customer.id,taxable,discount,gst,total,txtRemarks.getText(),dpFollowUp.getValue()==null?"":dpFollowUp.getValue().toString(),user(),source,user(),lines);
+            setSaveBusy(true);
+            UiTaskExecutor.submitAction(
+                "quotation-editor-save",
+                () -> {
+                    QuotationApiClient.QuoteDto saved=api.save(request);String attachment=currentAttachment;
+                    if(removeAttachment){supportApi.deleteDocumentAttachment("QUOTATION",saved.id());attachment="";}
+                    else if(pendingAttachment!=null)attachment=supportApi.uploadDocumentAttachment("QUOTATION",saved.id(),pendingAttachment);
+                    if(send)api.markSent(saved.id(),source);
+                    return new SaveOutcome(saved,attachment==null?"":attachment);
+                },
+                outcome->{setSaveBusy(false);quotationId=outcome.quote().id();existingAttachment=outcome.attachment();selectedAttachment=null;attachmentRemovalPending=false;updateAttachmentLabel();dirty=false;org.example.util.ToastManager.success(tableLines,send?"Quotation sent":"Quotation saved",send?"Quotation saved and marked as sent.":"Quotation draft saved successfully.");backToRegister();},
+                failure->{setSaveBusy(false);error(asException(failure));}
+            );
         }catch(Exception e){error(e);}
     }
+
+    private void setSaveBusy(boolean busy){if(btnDraft!=null)btnDraft.setDisable(busy);if(btnSaveSend!=null)btnSaveSend.setDisable(busy);if(btnAttachmentAdd!=null)btnAttachmentAdd.setDisable(busy);if(btnAttachmentRemove!=null)btnAttachmentRemove.setDisable(busy);}
+
     private void backToRegister(){NavigationManager manager=NavigationManager.getInstance();if(manager!=null){manager.invalidate("/fxml/pages/Quotations.fxml");manager.loadPage("/fxml/pages/Quotations.fxml");}}
     @FXML private void chooseAttachment(){FileChooser chooser=new FileChooser();chooser.setTitle("Attach quotation document");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Documents","*.pdf","*.png","*.jpg","*.jpeg","*.doc","*.docx","*.xls","*.xlsx","*.csv","*.txt"));File file=chooser.showOpenDialog(tableLines.getScene().getWindow());if(file!=null){selectedAttachment=file.toPath();attachmentRemovalPending=false;updateAttachmentLabel();}}
-    @FXML private void previewAttachment(){try{Path file=selectedAttachment;if(file==null&&!attachmentRemovalPending&&quotationId!=null&&!existingAttachment.isBlank())file=materializeAttachment(supportApi.documentAttachment("QUOTATION",quotationId));if(file==null||!Files.isRegularFile(file))throw new IllegalStateException("No quotation attachment is available.");Desktop.getDesktop().open(file.toFile());}catch(Exception e){error(e);}}
+    @FXML private void previewAttachment(){Path local=selectedAttachment;if(local!=null){openAttachment(local);return;}if(attachmentRemovalPending||quotationId==null||existingAttachment.isBlank()){error(new IllegalStateException("No quotation attachment is available."));return;}int id=quotationId;UiTaskExecutor.submitLatest("quotation-editor-attachment-preview",()->materializeAttachment(supportApi.documentAttachment("QUOTATION",id)),this::openAttachment,failure->error(asException(failure)));}
+    private void openAttachment(Path file){try{if(file==null||!Files.isRegularFile(file))throw new IllegalStateException("No quotation attachment is available.");Desktop.getDesktop().open(file.toFile());}catch(Exception e){error(e);}}
     @FXML private void removeAttachment(){if(selectedAttachment==null&&existingAttachment.isBlank())return;if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the quotation attachment?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;selectedAttachment=null;attachmentRemovalPending=!existingAttachment.isBlank();updateAttachmentLabel();}
-    private void persistAttachment(int id){if(attachmentRemovalPending){supportApi.deleteDocumentAttachment("QUOTATION",id);existingAttachment="";attachmentRemovalPending=false;}else if(selectedAttachment!=null){existingAttachment=supportApi.uploadDocumentAttachment("QUOTATION",id,selectedAttachment);selectedAttachment=null;}updateAttachmentLabel();}
+
     private void updateAttachmentLabel(){if(lblAttachmentName==null)return;if(selectedAttachment!=null)lblAttachmentName.setText(selectedAttachment.getFileName().toString());else if(attachmentRemovalPending)lblAttachmentName.setText("Attachment will be removed when saved");else if(!existingAttachment.isBlank())lblAttachmentName.setText("Attached: "+fileName(existingAttachment));else lblAttachmentName.setText("No document attached");}
-    private Path materializeAttachment(SupportApiClient.DownloadedAttachment download)throws Exception{if(download==null||download.data()==null||download.data().length==0)return null;Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);String name=fileName(download.fileName());if(name.isBlank())name="quotation-attachment";Path target=folder.resolve(System.currentTimeMillis()+"-"+name.replaceAll("[^A-Za-z0-9._-]","_"));Files.write(target,download.data());target.toFile().deleteOnExit();return target;}
+    private Path materializeAttachment(SupportApiClient.DownloadedAttachment download)throws Exception{return AttachmentPreviewSupport.materialize(download,"quotation-attachment");}
     private static String fileName(String value){if(value==null||value.isBlank())return "";String normalized=value.replace('\\','/');int slash=normalized.lastIndexOf('/');return slash>=0?normalized.substring(slash+1):normalized;}
     private void updateTotals(){double gross=tableLines.getItems().stream().mapToDouble(r->r.quantity.get()*r.rate.get()).sum(),discount=tableLines.getItems().stream().mapToDouble(r->r.discountAmount.get()).sum(),taxable=gross-discount,gst=tableLines.getItems().stream().mapToDouble(r->r.gstAmount.get()).sum();lblSubtotal.setText(money(gross));lblDiscount.setText("- "+money(discount));lblTaxable.setText(money(taxable));lblGst.setText(money(gst));lblGrandTotal.setText(money(taxable+gst));lblLineCount.setText(tableLines.getItems().size()+" line item(s)");}
     private static double positive(String v,String name){double n=Double.parseDouble(v.trim());if(!Double.isFinite(n)||n<=0)throw new IllegalArgumentException(name+" must be greater than zero.");return n;}
     private static double percent(String v,String name){double n=v==null||v.isBlank()?0:Double.parseDouble(v.trim());if(!Double.isFinite(n)||n<0||n>100)throw new IllegalArgumentException(name+" must be between 0 and 100.");return n;}
     private static String money(double v){return "₹ "+String.format(Locale.ENGLISH,"%,.2f",v);}private static String safe(String v){return v==null?"":v;}private static boolean blank(String v){return v==null||v.isBlank();}private static LocalDate parse(String v){try{return blank(v)?null:LocalDate.parse(v.substring(0,10));}catch(Exception e){return null;}}private static String user(){return SessionService.current()==null?"System":SessionService.current().getFullName();}
+    private Exception asException(Throwable failure){return failure instanceof Exception e?e:new RuntimeException(failure);}
     private void error(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?"Quotation operation failed.":e.getMessage()).showAndWait();}
 
     private static final class CustomerChoice{final int id;final String name;CustomerChoice(Party p){id=p.getId();name=p.getName();}@Override public String toString(){return name;}}

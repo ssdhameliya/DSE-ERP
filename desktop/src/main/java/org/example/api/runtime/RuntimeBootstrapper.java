@@ -54,6 +54,7 @@ public final class RuntimeBootstrapper {
         if (current != null && current.ready()) {
             try {
                 requireCompatible(current);
+                rebindAuthenticatedSessionIfNeeded(ConfigManager.getDataApiBaseUrlUnbound());
                 return current;
             } catch (IllegalStateException incompatible) {
                 if (!isLocalApiEndpoint()) throw incompatible;
@@ -81,6 +82,7 @@ public final class RuntimeBootstrapper {
                 RuntimeApiClient.RuntimeStatus status = client.status();
                 if (status.ready()) {
                     requireCompatible(status);
+                    rebindAuthenticatedSessionIfNeeded(ConfigManager.getDataApiBaseUrlUnbound());
                     return status;
                 }
                 last = new IllegalStateException(status.message());
@@ -110,6 +112,12 @@ public final class RuntimeBootstrapper {
             throw new IllegalStateException("DSE ERP backend API mismatch. Desktop requires "
                     + RuntimeContract.API_REVISION + " but server reports " + status.apiRevision()
                     + ". Stop the old backend and restart DSE ERP.");
+        }
+        if (!RuntimeContract.BUILD_REVISION.equals(status.buildRevision())) {
+            throw new IllegalStateException("DSE ERP backend build mismatch. Desktop requires "
+                    + RuntimeContract.BUILD_REVISION + " but server reports "
+                    + (status.buildRevision() == null || status.buildRevision().isBlank() ? "an older build" : status.buildRevision())
+                    + ". The desktop will not reuse a stale 9.0.0 backend.");
         }
         if (!RuntimeContract.APP_VERSION.equals(status.version())) {
             throw new IllegalStateException("DSE ERP backend version mismatch. Desktop is "
@@ -221,6 +229,10 @@ public final class RuntimeBootstrapper {
             command.add("-pl");
             command.add("server");
             command.add("-am");
+            // A source rename/deletion can leave stale .class files in server/target when
+            // IntelliJ rebuilds incrementally. Clean the server reactor before packaging so
+            // Spring component scanning never sees classes that no longer exist in source.
+            command.add("clean");
             command.add("package");
             command.add("-DskipTests");
             command.add("-Ddse.server.finalName=" + finalName);
@@ -388,7 +400,7 @@ public final class RuntimeBootstrapper {
         // override. Only explicit environment variables may opt into another API.
         if (System.getenv("DSE_AUTH_API_URL") != null || System.getenv("DSE_DATA_API_URL") != null) return;
 
-        String current = ConfigManager.getDataApiBaseUrl();
+        String current = ConfigManager.getDataApiBaseUrlUnbound();
         try {
             URI uri = URI.create(current);
             int port = uri.getPort() > 0 ? uri.getPort() : 8080;
@@ -405,7 +417,7 @@ public final class RuntimeBootstrapper {
 
     private static boolean isLocalApiEndpoint() {
         try {
-            URI uri = URI.create(ConfigManager.getDataApiBaseUrl());
+            URI uri = URI.create(ConfigManager.getDataApiBaseUrlUnbound());
             String host = uri.getHost();
             return host == null || host.equalsIgnoreCase("localhost")
                     || host.equals("127.0.0.1") || host.equals("::1");
@@ -442,9 +454,36 @@ public final class RuntimeBootstrapper {
         ManagedPostgresRuntime.verifyBundledRuntime();
     }
 
+    private static void rebindAuthenticatedSessionIfNeeded(String candidateBaseUrl) {
+        if (!org.example.api.ApiSession.isEstablished()) return;
+        String candidate = candidateBaseUrl == null ? "" : candidateBaseUrl.trim().replaceAll("/+$", "");
+        String current = org.example.api.ApiSession.boundApiBaseUrl();
+        if (candidate.isBlank() || candidate.equalsIgnoreCase(current == null ? "" : current)) return;
+        try {
+            java.net.http.HttpRequest.Builder request = java.net.http.HttpRequest.newBuilder(
+                    java.net.URI.create(candidate + "/api/auth/session"))
+                    .timeout(java.time.Duration.ofSeconds(8))
+                    .header("Accept", "application/json")
+                    .GET();
+            org.example.api.ApiSession.authorize(request);
+            var response = org.example.api.ApiRuntime.HTTP.send(
+                    request.build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("The replacement DSE ERP backend did not accept the existing login session (HTTP "
+                        + response.statusCode() + ")");
+            }
+            org.example.api.ApiSession.rebindApiBaseUrl(candidate);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Session rebind was interrupted", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot verify the existing session on replacement backend " + candidate, exception);
+        }
+    }
+
     private static String serverPort() {
         try {
-            URI uri = URI.create(ConfigManager.getDataApiBaseUrl());
+            URI uri = URI.create(ConfigManager.getDataApiBaseUrlUnbound());
             return Integer.toString(uri.getPort() > 0 ? uri.getPort() : 8080);
         } catch (Exception ignored) {
             return "8080";

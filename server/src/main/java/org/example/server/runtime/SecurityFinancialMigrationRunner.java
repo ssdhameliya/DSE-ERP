@@ -69,7 +69,19 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V8_4_5__authentication_lockout_policy",
                     "db/migration/V8_4_5__authentication_lockout_policy.sql"),
             new Migration("V8_5_0__role_mfa_approval_navigation",
-                    "db/migration/V8_5_0__role_mfa_approval_navigation.sql")
+                    "db/migration/V8_5_0__role_mfa_approval_navigation.sql"),
+            new Migration("V8_5_1__role_master_lookup_authority",
+                    "db/migration/V8_5_1__role_master_lookup_authority.sql"),
+            new Migration("V8_5_5__permission_matrix_authority",
+                    "db/migration/V8_5_5__permission_matrix_authority.sql"),
+            new Migration("V8_5_8__purchase_recon",
+                    "db/migration/V8_5_8__purchase_recon.sql"),
+            new Migration("V9_0_0__multi_user_audit_versioning",
+                    "db/migration/V9_0_0__multi_user_audit_versioning.sql"),
+            new Migration("V9_0_0_1__persistent_auth_sessions",
+                    "db/migration/V9_0_0_1__persistent_auth_sessions.sql"),
+            new Migration("V9_0_0_2__signed_auth_sessions",
+                    "db/migration/V9_0_0_2__signed_auth_sessions.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -152,6 +164,24 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireTable("server_resource");
         requireTable("server_backup_policy");
         requireTable("deployment_promotion");
+        requireColumn("sales_header", "row_version");
+        requireColumn("purchase_header", "row_version");
+        requireColumn("finance_register", "row_version");
+        requireColumn("party_master", "row_version");
+        requireColumn("item_master", "row_version");
+        requireColumn("lookup_master", "row_version");
+        requireColumn("master_category", "row_version");
+        requireColumn("recon_supplier", "row_version");
+        requireColumn("purchase_recon", "row_version");
+        requireTable("auth_session");
+        requireColumn("auth_session", "token_hash");
+        requireColumn("auth_session", "expires_at");
+        requireColumn("users", "auth_version");
+        requireTable("auth_signing_key");
+        requireColumn("auth_signing_key", "secret_base64");
+        requireTable("auth_token_revocation");
+        requireColumn("auth_token_revocation", "token_hash");
+        requireColumn("auth_token_revocation", "expires_at");
     }
 
     private void requireTable(String table) {

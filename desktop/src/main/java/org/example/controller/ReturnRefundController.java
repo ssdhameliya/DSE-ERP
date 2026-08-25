@@ -17,6 +17,8 @@ import org.example.service.SessionService;
 import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
+import org.example.util.AttachmentPreviewSupport;
+import org.example.util.UiTaskExecutor;
 
 import java.awt.Desktop;
 import java.io.IOException;
@@ -79,9 +81,9 @@ public class ReturnRefundController {
     @FXML private void browseFile(){FileChooser fc=new FileChooser();fc.setTitle("Select refund proof");fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Proof files","*.pdf","*.png","*.jpg","*.jpeg"));var f=fc.showOpenDialog(historyTable.getScene().getWindow());if(f==null)return;if(f.length()>25L*1024*1024){error(new IllegalArgumentException("Attachment is larger than 25 MB."));return;}pendingProof=f.toPath();proofName.setText(f.getName());}
     @FXML private void previewProof(){if(pendingProof==null){info("Refund proof","Choose a proof file first, or use Actions in Refund History to preview a saved proof.");return;}try{Desktop.getDesktop().open(pendingProof.toFile());}catch(Exception e){error(e);}}
     @FXML private void removeProof(){pendingProof=null;proofName.setText("No file selected");}
-    private void previewRow(ReturnApiClient.RefundRow r){if(r==null)return;try{var d=support.returnRefundAttachment(r.id());Path p=materialize(d);Desktop.getDesktop().open(p.toFile());}catch(Exception e){error(e);}}
+    private void previewRow(ReturnApiClient.RefundRow r){if(r==null)return;UiTaskExecutor.submitLatest("return-refund-proof-preview-"+r.id(),()->AttachmentPreviewSupport.materializeRequired(support.returnRefundAttachment(r.id()),"refund-proof.pdf"),this::openSavedProof,this::error);}private void openSavedProof(Path p){try{if(p==null||!Files.isRegularFile(p))throw new IOException("No proof file is stored.");Desktop.getDesktop().open(p.toFile());}catch(Exception e){error(e);}}
     private void removeRowProof(ReturnApiClient.RefundRow r){if(r==null)return;Alert a=new org.example.util.OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove the saved proof from this refund?",ButtonType.YES,ButtonType.NO);a.setHeaderText("Remove Refund Proof");if(a.showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;try{support.deleteReturnRefundAttachment(r.id());loadHistory();}catch(Exception e){error(e);}}
-    private Path materialize(SupportApiClient.DownloadedAttachment d)throws IOException{if(d==null||d.data()==null||d.data().length==0)throw new IOException("No proof file is stored.");String name=d.fileName()==null?"refund-proof.pdf":d.fileName().replaceAll("[^A-Za-z0-9._-]","_");Path dir=Files.createDirectories(Path.of(System.getProperty("java.io.tmpdir"),"dse-erp","refund-proof-preview"));Path p=dir.resolve(System.currentTimeMillis()+"-"+name);Files.write(p,d.data());p.toFile().deleteOnExit();return p;}
+    
     @FXML private void back(){NavigationManager.getInstance().loadPage("SALES RETURN".equalsIgnoreCase(details==null?"":details.type())?"/fxml/pages/SalesReturns.fxml":"/fxml/pages/PurchaseReturns.fxml");}
     private static double parse(String x){try{return Double.parseDouble(safe(x).replace(",",""));}catch(Exception e){return 0;}}private static String money(double x){return String.format(Locale.ROOT,"₹ %,.2f",x);}private static String safe(String x){return x==null?"":x.trim();}private static String message(Throwable e){return e==null||e.getMessage()==null?"Unexpected error":e.getMessage();}
     private void info(String h,String m){new OwnedAlert(Alert.AlertType.INFORMATION,m).showAndWait();}private void error(Throwable e){new OwnedAlert(Alert.AlertType.ERROR,message(e)).showAndWait();}

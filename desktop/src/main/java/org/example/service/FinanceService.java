@@ -5,8 +5,10 @@ import java.util.List;
 public class FinanceService {
  private final OperationsApiClient api=new OperationsApiClient();
  public List<OperationsApiClient.FinanceEntry> getAll(){return api.finance();}
+ public OperationsApiClient.FinancePage page(int page,int size,String mode,String period,String type,String query){return api.financePage(page,size,mode,period,type,query);}
+ public OperationsApiClient.FinanceEntry get(int id){return api.finance(id);}
  public OperationsApiClient.FinanceMetrics metrics(){return api.financeMetrics();}
  public OperationsApiClient.FinanceEntry save(OperationsApiClient.FinanceEntry e){return api.saveFinance(e);}
  public OperationsApiClient.FinanceEntry update(OperationsApiClient.FinanceEntry e){return api.updateFinance(e);}
- public void delete(int id){api.deleteFinance(id);} public String nextVoucher(){return api.nextVoucher();}
+ public void delete(int id,long rowVersion){api.deleteFinance(id,rowVersion);} public String nextVoucher(){return api.nextVoucher();}
 }

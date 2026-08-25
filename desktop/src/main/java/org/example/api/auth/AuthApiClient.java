@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.config.ConfigManager;
 import org.example.api.ApiSession;
+import org.example.api.runtime.RuntimeApiClient;
+import org.example.shared.RuntimeContract;
 import org.example.model.AppUser;
 
 import java.io.IOException;
@@ -26,21 +28,26 @@ public final class AuthApiClient {
 
     private final HttpClient http;
     private final ObjectMapper json;
-    private final String baseUrl;
+    private final String fixedBaseUrl;
+    private volatile String pendingLoginBaseUrl;
 
     public AuthApiClient() {
-        this(ConfigManager.getAuthApiBaseUrl());
+        this.fixedBaseUrl = null;
+        this.http = org.example.api.ApiRuntime.HTTP;
+        this.json = org.example.api.ApiRuntime.JSON;
     }
 
     AuthApiClient(String baseUrl) {
-        this.baseUrl = normalizeBaseUrl(baseUrl);
-        this.http = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
-        this.json = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.fixedBaseUrl = normalizeBaseUrl(baseUrl);
+        this.http = org.example.api.ApiRuntime.HTTP;
+        this.json = org.example.api.ApiRuntime.JSON;
     }
 
     public LoginAttempt authenticate(String identity, String password) {
-        LoginResponse response = post("/api/auth/login",
+        String loginBase = preLoginBaseUrl();
+        requireCompatibleRuntime(loginBase);
+        pendingLoginBaseUrl = loginBase;
+        LoginResponse response = postAt(loginBase, "/api/auth/login",
                 new LoginRequest(identity, password), LoginResponse.class);
         if (response == null) return null;
         if (!response.success()) {
@@ -54,22 +61,30 @@ public final class AuthApiClient {
             }
             return new LoginAttempt(user, true, response.challengeId(), response.maskedDestination());
         }
-        establishSession(response);
+        establishSession(response, loginBase);
+        pendingLoginBaseUrl = null;
         return new LoginAttempt(user, false, null, null);
     }
 
     public AppUser completeLoginMfa(String challengeId, String otp) {
-        LoginResponse response = post("/api/auth/login/mfa/complete",
+        String loginBase = pendingLoginBaseUrl == null || pendingLoginBaseUrl.isBlank()
+                ? preLoginBaseUrl() : pendingLoginBaseUrl;
+        requireCompatibleRuntime(loginBase);
+        LoginResponse response = postAt(loginBase, "/api/auth/login/mfa/complete",
                 new LoginMfaCompleteRequest(challengeId, otp), LoginResponse.class);
         if (response == null || !response.success() || response.mfaRequired()) {
             throw new IllegalStateException(response == null ? "MFA verification failed" : response.message());
         }
-        establishSession(response);
+        establishSession(response, loginBase);
+        pendingLoginBaseUrl = null;
         return toAppUser(response.user());
     }
 
     public LoginMfaChallengeResponse resendLoginMfa(String challengeId) {
-        LoginMfaChallengeResponse response = post("/api/auth/login/mfa/resend",
+        String loginBase = pendingLoginBaseUrl == null || pendingLoginBaseUrl.isBlank()
+                ? preLoginBaseUrl() : pendingLoginBaseUrl;
+        requireCompatibleRuntime(loginBase);
+        LoginMfaChallengeResponse response = postAt(loginBase, "/api/auth/login/mfa/resend",
                 new LoginMfaResendRequest(challengeId), LoginMfaChallengeResponse.class);
         if (response == null || !response.success()) {
             throw new IllegalStateException(response == null ? "Unable to resend verification code" : response.message());
@@ -77,11 +92,19 @@ public final class AuthApiClient {
         return response;
     }
 
-    private void establishSession(LoginResponse response) {
+    private void establishSession(LoginResponse response, String issuingBaseUrl) {
         if (response.accessToken() == null || response.accessToken().isBlank()) {
             throw new IllegalStateException("The authentication server did not return a secure session token");
         }
-        ApiSession.establish(response.accessToken(), response.expiresAt());
+        requireCompatibleRuntime(issuingBaseUrl);
+        ApiSession.establish(response.accessToken(), response.expiresAt(), issuingBaseUrl);
+        try {
+            verifySession();
+            verifyBusinessSession();
+        } catch (RuntimeException failure) {
+            ApiSession.clear();
+            throw failure;
+        }
     }
 
     public void recordSuccessfulLogin(int userId) {
@@ -154,7 +177,7 @@ public final class AuthApiClient {
 
     private List<RoleOption> roleOptions(String path, String label) {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + path))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Accept", "application/json")
                     .GET().build();
@@ -168,18 +191,63 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Role request was interrupted", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot load " + label + " from " + baseUrl, exception);
+            throw new IllegalStateException("Cannot load " + label + " from " + baseUrl(), exception);
         }
     }
 
 
-    public List<EffectivePermission> effectivePermissions() {
+    public void verifySession() {
         try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/effective-permissions"))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/auth/session"))
                     .timeout(REQUEST_TIMEOUT).header("Accept", "application/json").GET();
             ApiSession.authorize(builder);
             HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 401) { ApiSession.clear(); throw new ApiSession.AuthenticationRequiredException("Please sign in again"); }
+            if (response.statusCode() == 401) {
+                throw ApiSession.rejected("Login session verification", response.body());
+            }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException(apiErrorMessage(response));
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Session verification was interrupted", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot verify the login session with " + baseUrl(), exception);
+        }
+    }
+
+    /**
+     * Prove the bearer token through the same secured business-data path used by normal
+     * JavaFX screens. A login must not open the dashboard when only /api/auth endpoints
+     * are reachable/authenticated.
+     */
+    public void verifyBusinessSession() {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/profile"))
+                    .timeout(REQUEST_TIMEOUT).header("Accept", "application/json").GET();
+            ApiSession.authorize(builder);
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401) {
+                throw ApiSession.rejected("Business session verification", response.body());
+            }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("Login succeeded, but the ERP business API verification failed (HTTP " + response.statusCode() + ")");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Business session verification was interrupted", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot verify the login session with the ERP business API at " + baseUrl(), exception);
+        }
+    }
+
+    public List<EffectivePermission> effectivePermissions() {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/auth/effective-permissions"))
+                    .timeout(REQUEST_TIMEOUT).header("Accept", "application/json").GET();
+            ApiSession.authorize(builder);
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401) { throw ApiSession.rejected("Permission request", response.body()); }
             if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException(apiErrorMessage(response));
             EffectivePermission[] values = json.readValue(response.body(), EffectivePermission[].class);
             return Arrays.asList(values);
@@ -187,12 +255,12 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Permission request was interrupted", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot load effective permissions from " + baseUrl, exception);
+            throw new IllegalStateException("Cannot load effective permissions from " + baseUrl(), exception);
         }
     }
     public boolean healthCheck() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/api/auth/health"))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl() + "/api/auth/health"))
                     .timeout(Duration.ofSeconds(3)).GET().build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             return response.statusCode() >= 200 && response.statusCode() < 300;
@@ -202,9 +270,13 @@ public final class AuthApiClient {
     }
 
     private <T> T post(String path, Object body, Class<T> responseType) {
+        return postAt(baseUrl(), path, body, responseType);
+    }
+
+    private <T> T postAt(String serverBaseUrl, String path, Object body, Class<T> responseType) {
         try {
             String payload = json.writeValueAsString(body);
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(normalizeBaseUrl(serverBaseUrl) + path))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
@@ -224,27 +296,27 @@ public final class AuthApiClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Authentication API request was interrupted", exception);
         } catch (IOException | IllegalArgumentException exception) {
-            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl, exception);
+            throw new IllegalStateException("Cannot reach authentication server at " + normalizeBaseUrl(serverBaseUrl), exception);
         }
     }
 
     private <T> T postAuthenticated(String path, Object body, Class<T> responseType) {
         try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl() + path))
                     .timeout(REQUEST_TIMEOUT).header("Accept", "application/json");
             ApiSession.authorize(builder);
             if (body == null) builder.POST(HttpRequest.BodyPublishers.noBody());
             else builder.header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
             HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 401) { ApiSession.clear(); throw new ApiSession.AuthenticationRequiredException("Please sign in again"); }
+            if (response.statusCode() == 401) { throw ApiSession.rejected("Authentication request", response.body()); }
             if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("Authentication API error (" + response.statusCode() + ")");
             return json.readValue(response.body(), responseType);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Authentication API request was interrupted", exception);
         } catch (IOException exception) {
-            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl, exception);
+            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl(), exception);
         }
     }
 
@@ -264,6 +336,29 @@ public final class AuthApiClient {
         result.setLocked(user.locked());
         result.setMfaEnabled(user.mfaEnabled());
         return result;
+    }
+
+    private String preLoginBaseUrl() {
+        return fixedBaseUrl == null ? normalizeBaseUrl(ConfigManager.getDataApiBaseUrlUnbound()) : fixedBaseUrl;
+    }
+
+    private void requireCompatibleRuntime(String serverBaseUrl) {
+        RuntimeApiClient.RuntimeStatus status = new RuntimeApiClient(normalizeBaseUrl(serverBaseUrl)).status();
+        if (!status.ready()) {
+            throw new IllegalStateException(status.message() == null || status.message().isBlank()
+                    ? "The DSE ERP server is not ready" : status.message());
+        }
+        if (!RuntimeContract.SERVICE_NAME.equals(status.service())
+                || !RuntimeContract.APP_VERSION.equals(status.version())
+                || !RuntimeContract.API_REVISION.equals(status.apiRevision())
+                || !RuntimeContract.BUILD_REVISION.equals(status.buildRevision())) {
+            throw new IllegalStateException("The running DSE ERP server is not the R12 backend required by this desktop. "
+                    + "Stop the stale backend and restart DSE ERP.");
+        }
+    }
+
+    private String baseUrl() {
+        return fixedBaseUrl == null ? normalizeBaseUrl(ConfigManager.getAuthApiBaseUrl()) : fixedBaseUrl;
     }
 
     private static String normalizeBaseUrl(String value) {

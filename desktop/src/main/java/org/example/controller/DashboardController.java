@@ -113,6 +113,8 @@ public class DashboardController {
     @FXML private Button btnBankEntry;
     @FXML private Button btnExpenseEntry;
     @FXML private Button btnBankStatement;
+    @FXML private Button btnPurchaseRecon;
+    @FXML private Button btnReconSupplier;
     @FXML private VBox salesSubmenu;
     @FXML private VBox purchaseSubmenu;
     @FXML private VBox bankExpenseSubmenu;
@@ -297,7 +299,6 @@ public class DashboardController {
         protect(btnReports, "REPORTS.VIEW"); protect(btnReminders, "REMINDERS.VIEW");
         protect(btnUserAccess, "USERS.VIEW"); protect(btnBackup, "BACKUP.VIEW");
         protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "SAFE_ROLLBACK.VIEW"); protect(btnDocumentStudio, "DOCUMENT_STUDIO.VIEW"); protect(btnImport, "IMPORT.VIEW");
-        protect(btnBankExpense, "BANK_EXPENSE.VIEW");
 
         // Quotations have their own permission but live inside the Sales accordion.
         // Keep the parent expandable when either Sales or Quotations is available.
@@ -310,7 +311,18 @@ public class DashboardController {
         if (btnQuotation != null) btnQuotation.setDisable(!quotationAllowed);
 
         inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
-        inheritGroupPermission(btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement);
+
+        // Purchase Recon is a server-backed reconciliation domain with its own permissions.
+        // Keep the Bank & Expense parent available when the user can access any child domain.
+        boolean bankAllowed = PermissionService.allowed("BANK_EXPENSE.VIEW");
+        boolean purchaseReconAllowed = PermissionService.allowed("PURCHASE_RECON.VIEW");
+        boolean reconSupplierAllowed = PermissionService.allowed("RECON_SUPPLIER.VIEW");
+        if (btnBankExpense != null) btnBankExpense.setDisable(!(bankAllowed || purchaseReconAllowed || reconSupplierAllowed));
+        for (Button child : new Button[]{btnBankEntry, btnExpenseEntry, btnBankStatement}) {
+            if (child != null) child.setDisable(!bankAllowed);
+        }
+        if (btnPurchaseRecon != null) btnPurchaseRecon.setDisable(!purchaseReconAllowed);
+        if (btnReconSupplier != null) btnReconSupplier.setDisable(!reconSupplierAllowed);
         inheritGroupPermission(btnDocumentStudio, btnPdfStudio, btnExcelStudio);
         inheritGroupPermission(btnSettings, btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice,
                 btnSettingsNotifications, btnSettingsEmail, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates);
@@ -655,7 +667,7 @@ public class DashboardController {
             return NavGroup.SALES;
         if (button == btnPurchase || button == btnPurchaseRegister || button == btnCreatePurchase || button == btnPurchaseReturn)
             return NavGroup.PURCHASE;
-        if (button == btnBankExpense || button == btnBankEntry || button == btnExpenseEntry || button == btnBankStatement)
+        if (button == btnBankExpense || button == btnBankEntry || button == btnExpenseEntry || button == btnBankStatement || button == btnPurchaseRecon || button == btnReconSupplier)
             return NavGroup.BANK_EXPENSE;
         if (button == btnDocumentStudio || button == btnPdfStudio || button == btnExcelStudio)
             return NavGroup.DOCUMENT_STUDIO;
@@ -666,7 +678,7 @@ public class DashboardController {
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
         if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
         if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
-        if (path.contains("bankexpense") || path.contains("bankstatement")) return NavGroup.BANK_EXPENSE;
+        if (path.contains("bankexpense") || path.contains("bankstatement") || path.contains("purchaserecon") || path.contains("reconsupplier")) return NavGroup.BANK_EXPENSE;
         if (path.contains("documentstudio") || path.contains("pdfdesigner") || path.contains("exceldesigner")) return NavGroup.DOCUMENT_STUDIO;
         if (path.contains("settings")) return NavGroup.SETTINGS;
         return NavGroup.NONE;
@@ -682,6 +694,8 @@ public class DashboardController {
         if (path.endsWith("/purchase.fxml")) return btnCreatePurchase;
         if (path.contains("purchasereturns")) return btnPurchaseReturn;
         if (path.contains("bankstatement")) return btnBankStatement;
+        if (path.contains("purchaserecon")) return btnPurchaseRecon;
+        if (path.contains("reconsupplier")) return btnReconSupplier;
         if (path.contains("exceldesigner")) return btnExcelStudio;
         if (path.contains("pdfdesigner")) return btnPdfStudio;
         return button;
@@ -733,7 +747,7 @@ public class DashboardController {
         if (btnDocumentStudio != null) btnDocumentStudio.getStyleClass().remove("menu-group-active");
         if (btnSettings != null) btnSettings.getStyleClass().remove("menu-group-active");
         for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
-                btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement,
+                btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
                 btnPdfStudio, btnExcelStudio,
                 btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail,
                 btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates}) {
@@ -881,6 +895,14 @@ public class DashboardController {
         openPage(btnBankStatement, "Bank Statement", "/fxml/pages/BankStatement.fxml");
     }
 
+    @FXML private void openPurchaseRecon() {
+        openPage(btnPurchaseRecon, "Purchase Recon", "/fxml/pages/PurchaseRecon.fxml");
+    }
+
+    @FXML private void openReconSupplier() {
+        openPage(btnReconSupplier, "Recon Supplier", "/fxml/pages/ReconSupplier.fxml");
+    }
+
     /** Lets administration child pages navigate inside the existing ERP shell. */
     public static void navigateFromChildPage(String title, String fxmlPath) {
         DashboardController c = currentVisibleShell();
@@ -913,7 +935,10 @@ public class DashboardController {
             return;
         }
         Button target = mode == BankExpenseController.Mode.EXPENSE ? c.btnExpenseEntry
-            : mode == BankExpenseController.Mode.BANK ? c.btnBankEntry : c.btnBankExpense;
+            : mode == BankExpenseController.Mode.BANK ? c.btnBankEntry
+            : fxmlPath != null && fxmlPath.endsWith("/PurchaseRecon.fxml") ? c.btnPurchaseRecon
+            : fxmlPath != null && fxmlPath.endsWith("/BankStatement.fxml") ? c.btnBankStatement
+            : c.btnBankExpense;
         javafx.application.Platform.runLater(() -> c.openPage(target, title, fxmlPath));
     }
 

@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 @Table(name = "party_master")
 public class PartyEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Integer id;
+ @Version @Column(name="row_version",nullable=false) private Long rowVersion=0L;
     @Column(name="party_type", nullable=false) private String partyType;
     @Column(name="party_code", nullable=false, unique=true) private String partyCode;
     @Column(nullable=false) private String name;
@@ -27,4 +28,6 @@ public class PartyEntity {
     public String getAddress(){return address;} public void setAddress(String v){address=v;}
     public Double getOpeningBalance(){return openingBalance;} public void setOpeningBalance(Double v){openingBalance=v;}
     public Integer getActive(){return active;} public void setActive(Integer v){active=v;}
+
+ public Long getRowVersion(){return rowVersion;} public void setRowVersion(Long v){rowVersion=v==null?0L:v;}
 }

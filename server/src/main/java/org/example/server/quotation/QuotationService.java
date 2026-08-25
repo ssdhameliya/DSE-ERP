@@ -24,7 +24,7 @@ public class QuotationService {
     public List<QuotationDtos.QuoteDto> list() {
         jdbc.update(
                 "UPDATE quotation_header SET status='EXPIRED' " +
-                "WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND valid_until IS NOT NULL AND CAST(valid_until AS DATE) < ?",
+                "WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND NULLIF(TRIM(valid_until),'') IS NOT NULL AND CAST(NULLIF(TRIM(valid_until),'') AS DATE) < ?",
                 BusinessClock.today());
         return jdbc.query(
                 "SELECT q.id,q.customer_id,q.quotation_no,CAST(q.quotation_date AS text),p.name," +
@@ -39,6 +39,26 @@ public class QuotationService {
                         r.getString(10), r.getString(11), r.getDouble(12), r.getString(13), r.getString(14),
                         r.getString(15), r.getString(16), r.getString(17), r.getDouble(18), r.getString(19)));
     }
+
+    @Transactional
+    public QuotationDtos.Page page(int page,int size,String q,String number,String customer,String status,String from,String to,String valid,String salesperson,String minAmount,String maxAmount,String followUp,String source){
+        expireQuotations();int safeSize=Math.max(10,Math.min(size,200)),safePage=Math.max(0,page);List<Object> args=new ArrayList<>();StringBuilder where=new StringBuilder(" WHERE UPPER(COALESCE(q.status,''))<>'DELETED'");
+        String query=trim(q),num=trim(number),cust=trim(customer),state=up(status),seller=trim(salesperson),follow=up(followUp),src=trim(source);LocalDate start=dateOrNull(from),end=dateOrNull(to),validDate=dateOrNull(valid);Double min=numberOrNull(minAmount),max=numberOrNull(maxAmount);
+        if(query!=null){where.append(" AND LOWER(CONCAT_WS(' ',q.quotation_no,p.name,p.phone,p.email,p.gstin)) LIKE ?");args.add("%"+query.toLowerCase(Locale.ROOT)+"%");}if(num!=null){where.append(" AND LOWER(q.quotation_no) LIKE ?");args.add("%"+num.toLowerCase(Locale.ROOT)+"%");}if(cust!=null&&!cust.toUpperCase(Locale.ROOT).startsWith("ALL")){where.append(" AND p.name=?");args.add(cust);}if(state!=null&&!state.startsWith("ALL")){where.append(" AND UPPER(COALESCE(q.status,''))=?");args.add(state);}if(start!=null){where.append(" AND CAST(NULLIF(TRIM(q.quotation_date),'') AS DATE)>=?");args.add(start);}if(end!=null){where.append(" AND CAST(NULLIF(TRIM(q.quotation_date),'') AS DATE)<=?");args.add(end);}if(validDate!=null){where.append(" AND CAST(NULLIF(TRIM(q.valid_until),'') AS DATE)=?");args.add(validDate);}if(seller!=null&&!seller.toUpperCase(Locale.ROOT).startsWith("ALL")){where.append(" AND COALESCE(q.salesperson,'')=?");args.add(seller);}if(min!=null){where.append(" AND COALESCE(q.total_amount,0)>=?");args.add(min);}if(max!=null){where.append(" AND COALESCE(q.total_amount,0)<=?");args.add(max);}if(src!=null&&!src.toUpperCase(Locale.ROOT).startsWith("ALL")){where.append(" AND UPPER(COALESCE(q.source,''))=UPPER(?)");args.add(src);}if(follow!=null&&!follow.startsWith("ALL")){switch(follow){case "OVERDUE"->{where.append(" AND CAST(NULLIF(TRIM(q.follow_up_date),'') AS DATE)<CURRENT_DATE");}case "TODAY"->{where.append(" AND CAST(NULLIF(TRIM(q.follow_up_date),'') AS DATE)=CURRENT_DATE");}case "NEXT 7 DAYS"->{where.append(" AND CAST(NULLIF(TRIM(q.follow_up_date),'') AS DATE) BETWEEN CURRENT_DATE AND CURRENT_DATE+7");}case "NOT SET"->{where.append(" AND q.follow_up_date IS NULL");}default->{}}}
+        String joins=" FROM quotation_header q JOIN party_master p ON p.id=q.customer_id";Object[] base=args.toArray();long total=jdbc.queryForObject("SELECT COUNT(*)"+joins+where,Long.class,base);Double filtered=jdbc.queryForObject("SELECT COALESCE(SUM(q.total_amount),0)"+joins+where,Double.class,base);int pages=total==0?0:(int)Math.ceil(total/(double)safeSize);if(pages>0&&safePage>=pages)safePage=pages-1;List<Object> pageArgs=new ArrayList<>(args);pageArgs.add(safeSize);pageArgs.add((long)safePage*safeSize);
+        List<QuotationDtos.QuoteDto> rows=jdbc.query(quoteSelect()+joins+where+" ORDER BY q.quotation_date DESC,q.id DESC LIMIT ? OFFSET ?",this::mapQuote,pageArgs.toArray());
+        List<String> customers=jdbc.query("SELECT DISTINCT p.name"+joins+" WHERE UPPER(COALESCE(q.status,''))<>'DELETED' AND COALESCE(p.name,'')<>'' ORDER BY p.name",(r,i)->r.getString(1));List<String> salespersons=jdbc.query("SELECT DISTINCT q.salesperson FROM quotation_header q WHERE UPPER(COALESCE(q.status,''))<>'DELETED' AND COALESCE(q.salesperson,'')<>'' ORDER BY q.salesperson",(r,i)->r.getString(1));
+        return new QuotationDtos.Page(rows,safePage,safeSize,total,pages,filtered==null?0:filtered,metrics(),customers,salespersons);
+    }
+
+    @Transactional
+    public QuotationDtos.QuoteDto quote(int id){expireQuotations();List<QuotationDtos.QuoteDto> rows=jdbc.query(quoteSelect()+" FROM quotation_header q JOIN party_master p ON p.id=q.customer_id WHERE q.id=? AND UPPER(COALESCE(q.status,''))<>'DELETED'",this::mapQuote,id);if(rows.isEmpty())throw new IllegalArgumentException("Quotation not found.");return rows.getFirst();}
+
+    private void expireQuotations(){jdbc.update("UPDATE quotation_header SET status='EXPIRED' WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND NULLIF(TRIM(valid_until),'') IS NOT NULL AND CAST(NULLIF(TRIM(valid_until),'') AS DATE) < ?",BusinessClock.today());}
+    private String quoteSelect(){return "SELECT q.id,q.customer_id,q.quotation_no,CAST(q.quotation_date AS text),p.name,COALESCE(CAST(q.valid_until AS text),''),COALESCE(q.status,''),COALESCE(CAST(q.follow_up_date AS text),''),COALESCE(q.converted_invoice_no,''),COALESCE(q.salesperson,''),COALESCE(q.created_by,''),COALESCE(q.total_amount,0),COALESCE(p.phone,''),COALESCE(p.email,''),COALESCE(p.gstin,''),COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,'')";}
+    private QuotationDtos.QuoteDto mapQuote(org.example.server.persistence.JpaNativeRepository.NativeRow r,Integer i){return new QuotationDtos.QuoteDto(r.getInt(1),r.getInt(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getString(9),r.getString(10),r.getString(11),r.getDouble(12),r.getString(13),r.getString(14),r.getString(15),r.getString(16),r.getString(17),r.getDouble(18),r.getString(19));}
+    private QuotationDtos.Metrics metrics(){List<Number[]> m=jdbc.query("SELECT COALESCE(SUM(total_amount),0),COUNT(*),COALESCE(SUM(CASE WHEN status IN ('DRAFT','SENT') THEN total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN status IN ('DRAFT','SENT') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='ACCEPTED' THEN total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='ACCEPTED' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='EXPIRED' THEN total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='EXPIRED' THEN 1 ELSE 0 END),0) FROM quotation_header WHERE UPPER(COALESCE(status,''))<>'DELETED'",(r,i)->new Number[]{(Number)r.getObject(1),(Number)r.getObject(2),(Number)r.getObject(3),(Number)r.getObject(4),(Number)r.getObject(5),(Number)r.getObject(6),(Number)r.getObject(7),(Number)r.getObject(8)});Number[] x=m.getFirst();double total=n(x[0]),pending=n(x[2]),accepted=n(x[4]),expired=n(x[6]);long count=l(x[1]),pc=l(x[3]),ac=l(x[5]),ec=l(x[7]);List<QuotationDtos.MetricPoint> trend=jdbc.query("SELECT TO_CHAR(DATE_TRUNC('month',CAST(NULLIF(TRIM(quotation_date),'') AS DATE)),'YYYY-MM'),COALESCE(SUM(total_amount),0) FROM quotation_header WHERE UPPER(COALESCE(status,''))<>'DELETED' AND CAST(NULLIF(TRIM(quotation_date),'') AS DATE)>=DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '7 months' GROUP BY DATE_TRUNC('month',CAST(NULLIF(TRIM(quotation_date),'') AS DATE)) ORDER BY DATE_TRUNC('month',CAST(NULLIF(TRIM(quotation_date),'') AS DATE))",(r,i)->new QuotationDtos.MetricPoint(r.getString(1),r.getDouble(2)));List<QuotationDtos.MetricPoint> statuses=jdbc.query("SELECT COALESCE(status,'DRAFT'),COUNT(*) FROM quotation_header WHERE UPPER(COALESCE(status,''))<>'DELETED' GROUP BY COALESCE(status,'DRAFT') ORDER BY 1",(r,i)->new QuotationDtos.MetricPoint(r.getString(1),r.getDouble(2)));return new QuotationDtos.Metrics(total,count,pending,pc,accepted,ac,expired,ec,count==0?0:ac*100d/count,count==0?0:total/count,trend,statuses);}
+    private static String trim(String v){return v==null||v.isBlank()?null:v.trim();}private static String up(String v){String x=trim(v);return x==null?null:x.toUpperCase(Locale.ROOT);}private static Double numberOrNull(String v){try{return trim(v)==null?null:Double.parseDouble(v.replace(",","").replace("₹","").trim());}catch(Exception e){return null;}}private static LocalDate dateOrNull(String v){try{return trim(v)==null?null:LocalDate.parse(v);}catch(Exception e){return null;}}private static double n(Number v){return v==null?0:v.doubleValue();}private static long l(Number v){return v==null?0:v.longValue();}
 
     @Transactional(readOnly = true)
     public List<QuotationDtos.LineDto> lines(int id) {
@@ -88,8 +108,7 @@ public class QuotationService {
                         id, l.code(), l.quantity(), l.rate(), l.gst(), l.discount(), l.total());
             }
         }
-        int savedId = id;
-        return list().stream().filter(q -> q.id() == savedId).findFirst().orElseThrow();
+        return quote(id);
     }
 
     @Transactional
@@ -209,8 +228,8 @@ public class QuotationService {
     }
 
     private String nextNo() {
-        List<String> existing = jdbc.query("SELECT quotation_no FROM quotation_header WHERE quotation_no IS NOT NULL", (r, i) -> r.getString(1));
-        return operations.nextConfiguredReference("REF_QUOTATION", "QT-YYYY-XXXX", existing);
+        return operations.nextConfiguredReference("REF_QUOTATION", "QT-YYYY-XXXX",
+                () -> jdbc.query("SELECT quotation_no FROM quotation_header WHERE quotation_no IS NOT NULL", (r, i) -> r.getString(1)));
     }
 
     /** Quotation conversion uses the same Master Data Sales numbering as Create Sale. */

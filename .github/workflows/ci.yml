@@ -52,6 +52,8 @@ jobs:
         run: python scripts/audit-postgres-only.py
       - name: Enforce final Spring/Hibernate data architecture
         run: python scripts/audit-final-data-architecture.py
+      - name: Enforce auth, shortcut and recon UI contract
+        run: python scripts/audit-auth-shortcut-ui-contract.py
       - name: Verify final UI source contract
         shell: python
         run: |

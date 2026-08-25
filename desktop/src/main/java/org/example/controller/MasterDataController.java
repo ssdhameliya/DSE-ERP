@@ -32,6 +32,8 @@ import org.example.service.LookupService;
 import org.example.service.MasterCategoryService;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
+import org.example.util.UiTaskExecutor;
+import org.example.util.FxDebouncer;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
 import javafx.scene.input.KeyEvent;
@@ -165,6 +167,7 @@ public class MasterDataController implements ScreenLifecycle {
     private final MasterCategoryService categoryService = new MasterCategoryService();
 
     private static final int PAGE_SIZE = 10;
+    private final FxDebouncer searchDebouncer = new FxDebouncer(java.time.Duration.ofMillis(220));
     private List<Lookup> filteredLookups = List.of();
     private boolean updatingPagination;
     private final java.util.Map<String, MasterCategoryService.Category> categoryByName = new java.util.LinkedHashMap<>();
@@ -190,18 +193,6 @@ public class MasterDataController implements ScreenLifecycle {
         setStatus("Loading master data...");
 
         loadCategories();
-
-        if (!lstTypes.getItems().isEmpty()) {
-            if (requestedCategory != null && lstTypes.getItems().stream().anyMatch(v -> v.equalsIgnoreCase(requestedCategory))) {
-                lstTypes.getSelectionModel().select(lstTypes.getItems().stream().filter(v -> v.equalsIgnoreCase(requestedCategory)).findFirst().orElse(lstTypes.getItems().getFirst()));
-            } else {
-                lstTypes.getSelectionModel().selectFirst();
-            }
-            requestedCategory = null;
-        } else {
-            clearTable();
-            setStatus("No master categories found.");
-        }
     }
 
 
@@ -209,16 +200,14 @@ public class MasterDataController implements ScreenLifecycle {
     @Override
     public void onScreenShown(boolean reusedFromCache) {
         if (!reusedFromCache) return;
-        String selectedCategory = lstTypes == null ? null : lstTypes.getSelectionModel().getSelectedItem();
         loadCategories();
-        if (requestedCategory != null) {
-            lstTypes.getItems().stream().filter(v -> v.equalsIgnoreCase(requestedCategory)).findFirst().ifPresent(v -> lstTypes.getSelectionModel().select(v));
-            requestedCategory = null;
-        } else if (selectedCategory != null && lstTypes.getItems().contains(selectedCategory)) {
-            lstTypes.getSelectionModel().select(selectedCategory);
-        }
-        loadTable();
-        setStatus("Master data refreshed from server.");
+    }
+
+    @Override
+    public void onScreenHidden() {
+        UiTaskExecutor.cancel("master-categories");
+        UiTaskExecutor.cancel("master-values");
+        searchDebouncer.cancel();
     }
 
     /**
@@ -376,7 +365,7 @@ public class MasterDataController implements ScreenLifecycle {
             });
 
         txtSearch.textProperty()
-            .addListener((observable, oldValue, newValue) -> loadTable());
+            .addListener((observable, oldValue, newValue) -> searchDebouncer.submit(this::loadTable));
 
         if (txtCategorySearch != null) {
             txtCategorySearch.textProperty().addListener((observable, oldValue, newValue) -> filterCategories(newValue));
@@ -436,22 +425,36 @@ public class MasterDataController implements ScreenLifecycle {
 
     private void loadCategories() {
         String previouslySelected = lstTypes.getSelectionModel().getSelectedItem();
-        try {
-            List<MasterCategoryService.Category> rows = categoryService.getAll();
-            categoryByName.clear();
-            rows.forEach(row -> categoryByName.put(row.name(), row));
-            List<String> categories = rows.stream().map(MasterCategoryService.Category::name).toList();
-            allCategories.clear(); allCategories.addAll(categories);
-            lstTypes.refresh();
-            filterCategories(txtCategorySearch == null ? "" : txtCategorySearch.getText());
-            updateCategoryCounts(categories.size());
-            loadCategoryChart();
-            if (previouslySelected != null && categories.contains(previouslySelected)) lstTypes.getSelectionModel().select(previouslySelected);
-            else if (!categories.isEmpty()) lstTypes.getSelectionModel().selectFirst();
-        } catch (Exception exception) {
-            showWarning("Could not load Master Categories:\n" + exception.getMessage());
-            setStatus("Failed to load categories.");
+        String requested = requestedCategory;
+        setStatus("Loading master data...");
+        UiTaskExecutor.submitLatest(
+            "master-categories",
+            categoryService::getAll,
+            rows -> applyCategories(rows == null ? List.of() : rows, previouslySelected, requested),
+            failure -> { showWarning("Could not load Master Categories:\n" + rootMessage(failure)); setStatus("Failed to load categories."); }
+        );
+    }
+
+    private void applyCategories(List<MasterCategoryService.Category> rows, String previouslySelected, String requested) {
+        categoryByName.clear();
+        rows.forEach(row -> categoryByName.put(row.name(), row));
+        List<String> categories = rows.stream().map(MasterCategoryService.Category::name).toList();
+        allCategories.clear(); allCategories.addAll(categories);
+        lstTypes.refresh();
+        filterCategories(txtCategorySearch == null ? "" : txtCategorySearch.getText());
+        updateCategoryCounts(categories.size());
+        applyCategoryChart(rows);
+
+        String requestedTarget = requested;
+        boolean requestedAvailable = requestedTarget != null && categories.stream().anyMatch(v -> v.equalsIgnoreCase(requestedTarget));
+        String target = requestedAvailable ? requestedTarget : previouslySelected;
+        if (target != null) {
+            String finalTarget = target;
+            categories.stream().filter(v -> v.equalsIgnoreCase(finalTarget)).findFirst().ifPresent(v -> lstTypes.getSelectionModel().select(v));
         }
+        if (lstTypes.getSelectionModel().getSelectedItem() == null && !categories.isEmpty()) lstTypes.getSelectionModel().selectFirst();
+        requestedCategory = null;
+        if (categories.isEmpty()) { clearTable(); setStatus("No master categories found."); }
     }
 
     private void updateCategoryCounts(int categoryCount) {
@@ -468,56 +471,20 @@ public class MasterDataController implements ScreenLifecycle {
        ========================================================= */
 
     private void loadTable() {
-
-        String selectedType =
-            lstTypes.getSelectionModel().getSelectedItem();
-
-        if (selectedType == null || selectedType.isBlank()) {
-            clearTable();
-            return;
-        }
-
-        String searchText =
-            txtSearch.getText() == null
-                ? ""
-                : txtSearch.getText()
-                .trim()
-                .toLowerCase(Locale.ROOT);
-
-        try {
-
-            List<Lookup> lookupList =
-                service.getByType(selectedType);
-
-            if (lookupList == null) {
-                lookupList = List.of();
-            }
-
-            List<Lookup> filteredList =
-                lookupList.stream()
-                    .filter(lookup ->
-                        matchesSearch(lookup, searchText)
-                    )
-                    .toList();
-
-            filteredLookups = List.copyOf(filteredList);
-
-            updateTableDashboard(
-                selectedType,
-                filteredLookups.size()
-            );
-
-        } catch (Exception exception) {
-
-            clearTable();
-
-            showWarning(
-                "Could not load lookup values:\n"
-                    + exception.getMessage()
-            );
-
-            setStatus("Failed to load lookup values.");
-        }
+        String selectedType = lstTypes.getSelectionModel().getSelectedItem();
+        if (selectedType == null || selectedType.isBlank()) { clearTable(); return; }
+        String searchText = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
+        UiTaskExecutor.submitLatest(
+            "master-values",
+            () -> service.getByType(selectedType),
+            lookupList -> {
+                if (!selectedType.equals(lstTypes.getSelectionModel().getSelectedItem())) return;
+                List<Lookup> safe = lookupList == null ? List.of() : lookupList;
+                filteredLookups = List.copyOf(safe.stream().filter(lookup -> matchesSearch(lookup, searchText)).toList());
+                updateTableDashboard(selectedType, filteredLookups.size());
+            },
+            failure -> { clearTable(); showWarning("Could not load lookup values:\n" + rootMessage(failure)); setStatus("Failed to load lookup values."); }
+        );
     }
 
     private boolean matchesSearch(
@@ -676,21 +643,18 @@ public class MasterDataController implements ScreenLifecycle {
        ========================================================= */
 
     private void loadCategoryChart() {
+        applyCategoryChart(new ArrayList<>(categoryByName.values()));
+    }
+
+    private void applyCategoryChart(List<MasterCategoryService.Category> rows) {
         if (categoryPieChart == null) return;
-        try {
-            ObservableList<PieChart.Data> chartData = FXCollections.observableArrayList();
-            for (MasterCategoryService.Category row : categoryService.getAll()) {
-                if (row.valueCount() > 0) chartData.add(new PieChart.Data(row.name(), row.valueCount()));
-            }
-            categoryPieChart.setData(chartData);
-            categoryPieChart.setAnimated(false);
-            categoryPieChart.setLabelsVisible(false);
-            categoryPieChart.setLegendVisible(true);
-            categoryPieChart.setTitle(chartData.isEmpty() ? "No Category Data" : "Category Distribution");
-        } catch (Exception exception) {
-            categoryPieChart.setData(FXCollections.observableArrayList());
-            categoryPieChart.setTitle("Analytics Unavailable");
-        }
+        ObservableList<PieChart.Data> chartData = FXCollections.observableArrayList();
+        for (MasterCategoryService.Category row : rows) if (row.valueCount() > 0) chartData.add(new PieChart.Data(row.name(), row.valueCount()));
+        categoryPieChart.setData(chartData);
+        categoryPieChart.setAnimated(false);
+        categoryPieChart.setLabelsVisible(false);
+        categoryPieChart.setLegendVisible(true);
+        categoryPieChart.setTitle(chartData.isEmpty() ? "No Category Data" : "Category Distribution");
     }
 
     /* =========================================================
@@ -720,16 +684,21 @@ public class MasterDataController implements ScreenLifecycle {
         dialog.setContentText("Category name:");
         dialog.showAndWait().map(String::trim).filter(value -> !value.isBlank()).ifPresent(value -> {
             String newName = value.toUpperCase(Locale.ROOT);
-            try {
-                if (isNewCategory) categoryService.add(newName); else categoryService.rename(oldName, newName);
-                loadCategories(); lstTypes.getSelectionModel().select(newName);
-                String successMessage = isNewCategory ? "Category added successfully." : "Category renamed successfully.";
-                setStatus(successMessage);
-                showSuccess(isNewCategory ? "Category Added" : "Category Renamed", successMessage);
-            } catch (Exception exception) {
-                showWarning("Master Category could not be saved. Use a unique name.\n" + exception.getMessage());
-                setStatus("Category could not be saved.");
-            }
+            UiTaskExecutor.submitAction(
+                    "master-category-save-" + newName,
+                    () -> { if (isNewCategory) categoryService.add(newName); else categoryService.rename(oldName, newName, categoryByName.get(oldName) == null ? 0L : categoryByName.get(oldName).rowVersion()); return null; },
+                    ignored -> {
+                        loadCategories();
+                        lstTypes.getSelectionModel().select(newName);
+                        String successMessage = isNewCategory ? "Category added successfully." : "Category renamed successfully.";
+                        setStatus(successMessage);
+                        showSuccess(isNewCategory ? "Category Added" : "Category Renamed", successMessage);
+                    },
+                    failure -> {
+                        showWarning("Master Category could not be saved. Use a unique name.\n" + rootMessage(failure));
+                        setStatus("Category could not be saved.");
+                    }
+            );
         });
     }
 
@@ -750,26 +719,32 @@ public class MasterDataController implements ScreenLifecycle {
                 "Reactivate category '" + selectedCategory + "'? Existing lookup values stay in their current Active/Inactive state so you can enable only the values you want.", ButtonType.YES, ButtonType.NO);
             confirmation.setTitle("Reactivate Master Category"); confirmation.setHeaderText("Confirm category reactivation");
             if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
-            try {
-                categoryService.setActive(selectedCategory, true); loadCategories(); lstTypes.getSelectionModel().select(selectedCategory); loadTable();
-                setStatus("Category reactivated successfully.");
-                showSuccess("Category Reactivated", "Master category '" + selectedCategory + "' is active again. Reactivate individual lookup values as needed.");
-            } catch (Exception exception) {
-                showWarning("Category could not be reactivated:\n" + exception.getMessage()); setStatus("Category could not be reactivated.");
-            }
+            UiTaskExecutor.submitAction(
+                    "master-category-reactivate-" + selectedCategory,
+                    () -> { categoryService.setActive(selectedCategory, true, meta == null ? 0L : meta.rowVersion()); return null; },
+                    ignored -> {
+                        loadCategories(); lstTypes.getSelectionModel().select(selectedCategory); loadTable();
+                        setStatus("Category reactivated successfully.");
+                        showSuccess("Category Reactivated", "Master category '" + selectedCategory + "' is active again. Reactivate individual lookup values as needed.");
+                    },
+                    failure -> { showWarning("Category could not be reactivated:\n" + rootMessage(failure)); setStatus("Category could not be reactivated."); }
+            );
             return;
         }
         Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
             "Deactivate category '" + selectedCategory + "' and all of its values? Existing records will remain unchanged.", ButtonType.YES, ButtonType.NO);
         confirmation.setTitle("Deactivate Master Category"); confirmation.setHeaderText("Confirm category deactivation");
         if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
-        try {
-            categoryService.delete(selectedCategory); loadCategories(); lstTypes.getSelectionModel().select(selectedCategory); loadTable();
-            setStatus("Category deactivated successfully.");
-            showSuccess("Category Deactivated", "Master category '" + selectedCategory + "' and its values are now inactive for future use.");
-        } catch (Exception exception) {
-            showWarning("Category could not be deactivated:\n" + exception.getMessage()); setStatus("Category could not be deactivated.");
-        }
+        UiTaskExecutor.submitAction(
+                "master-category-deactivate-" + selectedCategory,
+                () -> { categoryService.delete(selectedCategory, meta == null ? 0L : meta.rowVersion()); return null; },
+                ignored -> {
+                    loadCategories(); lstTypes.getSelectionModel().select(selectedCategory); loadTable();
+                    setStatus("Category deactivated successfully.");
+                    showSuccess("Category Deactivated", "Master category '" + selectedCategory + "' and its values are now inactive for future use.");
+                },
+                failure -> { showWarning("Category could not be deactivated:\n" + rootMessage(failure)); setStatus("Category could not be deactivated."); }
+        );
     }
 
     private void updateCategoryActionState(String categoryName) {
@@ -994,19 +969,23 @@ public class MasterDataController implements ScreenLifecycle {
         Alert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION, detail, ButtonType.YES, ButtonType.NO);
         confirmation.setTitle(verb + " Master Record"); confirmation.setHeaderText("Confirm " + verb.toLowerCase(Locale.ROOT));
         if (confirmation.showAndWait().orElse(ButtonType.NO) != ButtonType.YES) return;
-        try {
-            if (activate) service.setActive(selectedLookup, true); else service.delete(selectedLookup.getId());
-            String selectedType = lstTypes.getSelectionModel().getSelectedItem();
-            loadCategories();
-            if (selectedType != null) lstTypes.getSelectionModel().select(selectedType);
-            loadTable();
-            setStatus("Lookup " + (activate ? "reactivated" : "deactivated") + " successfully.");
-            showSuccess("Master Record " + (activate ? "Reactivated" : "Deactivated"),
-                "Master record '" + selectedLookup.getLookupValue() + "' is now " + (activate ? "active" : "inactive") + " for future use.");
-        } catch (Exception exception) {
-            showError("Lookup could not be " + (activate ? "reactivated" : "deactivated") + ":\n" + exception.getMessage());
-            setStatus("Lookup status could not be changed.");
-        }
+        String selectedType = lstTypes.getSelectionModel().getSelectedItem();
+        UiTaskExecutor.submitAction(
+                "master-lookup-status-" + selectedLookup.getId(),
+                () -> { if (activate) service.setActive(selectedLookup, true); else service.delete(selectedLookup); return null; },
+                ignored -> {
+                    loadCategories();
+                    if (selectedType != null) lstTypes.getSelectionModel().select(selectedType);
+                    loadTable();
+                    setStatus("Lookup " + (activate ? "reactivated" : "deactivated") + " successfully.");
+                    showSuccess("Master Record " + (activate ? "Reactivated" : "Deactivated"),
+                            "Master record '" + selectedLookup.getLookupValue() + "' is now " + (activate ? "active" : "inactive") + " for future use.");
+                },
+                failure -> {
+                    showError("Lookup could not be " + (activate ? "reactivated" : "deactivated") + ":\n" + rootMessage(failure));
+                    setStatus("Lookup status could not be changed.");
+                }
+        );
     }
 
 
@@ -1016,29 +995,19 @@ public class MasterDataController implements ScreenLifecycle {
 
     @FXML
     private void refresh() {
-
-        String selectedCategory =
-            lstTypes.getSelectionModel().getSelectedItem();
-
         loadCategories();
-
-        if (selectedCategory != null
-            && lstTypes.getItems()
-            .contains(selectedCategory)) {
-
-            lstTypes.getSelectionModel()
-                .select(selectedCategory);
-        }
-
-        loadTable();
-        loadCategoryChart();
-
-        setStatus("Master data refreshed.");
     }
 
     /* =========================================================
        UTILITIES
        ========================================================= */
+
+    private String rootMessage(Throwable failure) {
+        Throwable current = failure;
+        while (current != null && current.getCause() != null && current.getCause() != current) current = current.getCause();
+        String message = current == null ? null : current.getMessage();
+        return message == null || message.isBlank() ? "Operation failed" : message;
+    }
 
     private void setLabelText(
         Label label,

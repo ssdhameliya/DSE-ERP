@@ -8,6 +8,7 @@ import org.example.model.Lookup;
 import org.example.service.LookupService;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
+import org.example.util.UiTaskExecutor;
 
 public class LookupDialogController {
     @FXML private TextField txtCode, txtValue;
@@ -34,7 +35,13 @@ public class LookupDialogController {
 
     public void setLookupType(String type) {
         this.lookupType = type;
-        txtCode.setText(service.generateNextCode(type));
+        txtCode.clear();
+        UiTaskExecutor.submitLatest(
+                "lookup-dialog-next-code-" + type,
+                () -> service.generateNextCode(type),
+                code -> { if (editingLookup == null && java.util.Objects.equals(this.lookupType, type)) txtCode.setText(code == null ? "" : code); },
+                failure -> showOperationError("Unable to generate master code", failure)
+        );
         lblTitle.setText("Add Master");
         boolean role = "ROLE".equalsIgnoreCase(type == null ? "" : type.trim());
         lblSubtitle.setText(role ? "Add an application role. The Role Name is the value used by Login, User Access and Permissions." : "Add a reusable value to " + type);
@@ -75,20 +82,27 @@ public class LookupDialogController {
         lookup.setActive(chkActive.isSelected());
 
         boolean created = editingLookup == null;
-        try {
-            if (created) service.save(lookup); else service.update(lookup);
-            saved = true;
-            close();
-            javafx.application.Platform.runLater(() -> org.example.util.ToastManager.success((javafx.stage.Window) null,
-                "Master value " + (created ? "saved" : "updated"),
-                lookup.getLookupCode() + " - " + lookup.getLookupValue()));
-        } catch (Exception exception) {
-            new OwnedAlert(
-                    Alert.AlertType.ERROR,
-                    "Unable to save master value: "
-                            + (exception.getMessage() == null ? "Unexpected error." : exception.getMessage())
-            ).showAndWait();
-        }
+        btnSave.setDisable(true);
+        UiTaskExecutor.submitAction(
+                "lookup-dialog-save-" + lookup.getLookupType() + "-" + lookup.getLookupCode(),
+                () -> { if (created) service.save(lookup); else service.update(lookup); return lookup; },
+                savedLookup -> {
+                    btnSave.setDisable(false);
+                    saved = true;
+                    close();
+                    org.example.util.ToastManager.success((javafx.stage.Window) null,
+                            "Master value " + (created ? "saved" : "updated"),
+                            lookup.getLookupCode() + " - " + lookup.getLookupValue());
+                },
+                failure -> { btnSave.setDisable(false); showOperationError("Unable to save master value", failure); }
+        );
+    }
+
+    private void showOperationError(String title, Throwable failure) {
+        Throwable current = failure;
+        while (current != null && (current.getMessage() == null || current.getMessage().isBlank()) && current.getCause() != current) current = current.getCause();
+        String detail = current == null || current.getMessage() == null ? "Unexpected error." : current.getMessage();
+        new OwnedAlert(Alert.AlertType.ERROR, title + ": " + detail).showAndWait();
     }
 
     private boolean validateForm() {

@@ -6,6 +6,7 @@ import org.example.shared.DocumentCalculationEngine;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
+import org.example.util.AttachmentPreviewSupport;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -1486,27 +1487,17 @@ public class SalesController {
     }
 
     @FXML private void previewAttachment(){
+        if(pendingAttachment!=null){openAttachmentPreviewPath(pendingAttachment.toPath());return;}
+        if(editingSale==null||editingSale.getId()<=0){warn("The attachment is not available. You can replace it with a new file.");return;}
+        int saleId=editingSale.getId();
+        UiTaskExecutor.submitLatest("sales-attachment-preview-"+saleId,()->AttachmentPreviewSupport.materialize(supportApi.documentAttachment("SALE",saleId),"attachment"),this::openAttachmentPreviewPath,failure->warn("Attachment preview failed: "+rootMessage(failure)));
+    }
+
+    private void openAttachmentPreviewPath(Path file){
         try{
-            Path file;
-            if(pendingAttachment!=null) file=pendingAttachment.toPath();
-            else if(editingSale!=null&&editingSale.getId()>0) file=materializeAttachmentPreview(supportApi.documentAttachment("SALE",editingSale.getId()));
-            else file=null;
             if(file==null||!Files.isRegularFile(file)){warn("The attachment is not available. You can replace it with a new file.");return;}
             java.awt.Desktop.getDesktop().open(file.toFile());
         }catch(Exception e){warn("Attachment preview failed: "+rootMessage(e));}
-    }
-
-    private Path materializeAttachmentPreview(SupportApiClient.DownloadedAttachment downloaded) throws IOException {
-        if (downloaded == null || downloaded.data() == null || downloaded.data().length == 0) return null;
-        Path folder = WorkspaceManager.getTempFolder().resolve("AttachmentPreview");
-        Files.createDirectories(folder);
-        String raw = downloaded.fileName() == null ? "attachment" : downloaded.fileName();
-        String name = raw.replaceAll("[^A-Za-z0-9._() -]", "_").trim();
-        if (name.isBlank()) name = "attachment";
-        Path target = folder.resolve(System.currentTimeMillis() + "-" + name);
-        Files.write(target, downloaded.data());
-        target.toFile().deleteOnExit();
-        return target;
     }
 
     @FXML private void removeAttachment(){

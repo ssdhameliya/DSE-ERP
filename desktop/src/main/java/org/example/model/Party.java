@@ -2,6 +2,7 @@ package org.example.model;
 
 public class Party {
     private int id;
+    private long rowVersion;
     private String partyType;
     private String partyCode;
     private String name;
@@ -100,4 +101,6 @@ public class Party {
     public void setActive(boolean active) {
         this.active = active;
     }
+    public long getRowVersion() { return rowVersion; }
+    public void setRowVersion(long rowVersion) { this.rowVersion = Math.max(0, rowVersion); }
 }

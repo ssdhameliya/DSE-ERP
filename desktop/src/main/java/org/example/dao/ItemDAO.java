@@ -13,9 +13,14 @@ public class ItemDAO {
     public void delete(int id) {
         Item item = getAll().stream().filter(x -> x.getId() == id).findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Item not found: " + id));
-        api.deleteItem(item.getItemCode());
+        delete(item);
     }
-    public void deleteByCode(String itemCode) { api.deleteItem(itemCode); }
+    public void delete(Item item) { if (item == null) return; api.deleteItem(item.getItemCode(), item.getRowVersion()); }
+    public void deleteByCode(String itemCode) {
+        Item item = getAll().stream().filter(x -> java.util.Objects.equals(x.getItemCode(), itemCode)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Item not found: " + itemCode));
+        delete(item);
+    }
     public List<Item> getAll() { return api.items(); }
     public boolean existsByCode(String code) { return api.itemExists(code); }
     public void saveOrUpdate(Item item) { if (existsByCode(item.getItemCode())) update(item); else save(item); }

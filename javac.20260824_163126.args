@@ -1,0 +1,10 @@
+--release
+21
+-proc:none
+-Xmaxerrs
+20000
+-Xmaxwarns
+20000
+-d
+/tmp/dseclasses
+@/tmp/sources.txt

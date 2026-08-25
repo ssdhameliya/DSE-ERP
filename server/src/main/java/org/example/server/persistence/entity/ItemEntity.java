@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 @Table(name = "item_master")
 public class ItemEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Integer id;
+ @Version @Column(name="row_version",nullable=false) private Long rowVersion=0L;
     @Column(name="item_code", unique=true) private String itemCode;
     private String description, category, brand, material, size, unit, hsn, location, remarks;
     private Double gst;
@@ -35,4 +36,6 @@ public class ItemEntity {
     public String getLocation(){return location;} public void setLocation(String v){location=v;}
     public String getRemarks(){return remarks;} public void setRemarks(String v){remarks=v;}
     public Integer getActive(){return active;} public void setActive(Integer v){active=v;}
+
+ public Long getRowVersion(){return rowVersion;} public void setRowVersion(Long v){rowVersion=v==null?0L:v;}
 }

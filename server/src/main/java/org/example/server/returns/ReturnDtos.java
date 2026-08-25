@@ -12,5 +12,5 @@ public final class ReturnDtos{private ReturnDtos(){}
  public record RefundCreateRequest(String date,double amount,String mode,String reference,String bankAccount,String refundedParty,String notes,String refundType,String createdBy){}
  public record RefundRow(int id,String date,String reference,String mode,String bankAccount,double amount,String refundedParty,String status,String notes,String attachment,String refundType){}
  public record RefundCreated(int id){}
- public record Ok(boolean success,String message){}
+ public record Metrics(double total,long count,double monthAmount,long monthCount,double approvedAmount,double refundAmount,double average){}public record Page(List<Summary> rows,int page,int size,long totalRows,int totalPages,Metrics metrics,List<String> parties){}public record Ok(boolean success,String message){}
 }

@@ -23,8 +23,11 @@ import org.example.service.InvoicePdfService;
 import org.example.service.NotificationService;
 import org.example.service.ReturnWorkflowService;
 import org.example.util.IconFactory;
+import org.example.util.UiTaskExecutor;
 import org.example.util.TableSelectionSupport;
 import org.example.util.SemanticTableCells;
+import org.example.util.RegisterPageState;
+import org.example.util.RegisterUiSupport;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -48,11 +51,12 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     @FXML private TableColumn<Row, String> cNo, cDate, cInvoice, cSupplier, cStatus, cRefundStatus;
     @FXML private TableColumn<Row, Number> cTotal, cRefund;
     @FXML private TableColumn<Row, Void> cAction;
-    @FXML private Button btnRefundSelected;
+    @FXML private Button btnRefundSelected, btnPrevPage, btnNextPage;
     @FXML private SplitPane mainSplit;
     @FXML private VBox detailDrawer;
     private List<Row> all = List.of();
     private Row selected;
+    private final RegisterPageState pageState=new RegisterPageState(); private static final int PAGE_SIZE=25;
 
     @FXML public void initialize() {
         installKpiIcons();
@@ -112,11 +116,9 @@ public class PurchaseReturnsController implements ScreenLifecycle {
         });
     }
 
-    private boolean interactiveTableTarget(Node target, TableRow<?> row){for(Node node=target;node!=null&&node!=row;node=node.getParent())if(node instanceof ButtonBase||node instanceof TextInputControl||node instanceof ComboBoxBase<?>)return true;return false;}
-
     private void installRows() {
         table.setRowFactory(view -> {
-            TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY || e.getClickCount()!=1 || row.isEmpty() || interactiveTableTarget(e.getPickResult().getIntersectedNode(),row))return; Row clicked=row.getItem(); if(detailDrawer.isVisible() && selected==clicked)closeDetails(); else{table.getSelectionModel().select(clicked);showDetails(clicked);}e.consume(); });
+            TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY || e.getClickCount()!=1 || row.isEmpty() || RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return; Row clicked=row.getItem(); if(detailDrawer.isVisible() && selected==clicked)closeDetails(); else{table.getSelectionModel().select(clicked);showDetails(clicked);}e.consume(); });
             MenuItem add = new MenuItem("Add Purchase Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem delete = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
@@ -124,34 +126,26 @@ public class PurchaseReturnsController implements ScreenLifecycle {
         });
     }
 
-    @FXML private void load() {
-        List<Row> rows=new ArrayList<>();
-        try{for(ReturnApiClient.Summary r:returnApi.list("PURCHASE RETURN"))rows.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));}catch(Exception e){error(e);}
-        all=rows; supplier.setItems(FXCollections.observableArrayList("All Suppliers"));supplier.getItems().addAll(rows.stream().map(Row::supplier).filter(x->!x.isBlank()).distinct().sorted().toList());if(supplier.getValue()==null)supplier.setValue("All Suppliers");
-        status.setItems(FXCollections.observableArrayList("All Status","PENDING","APPROVED","COMPLETED","PARTIAL","CANCELLED"));if(status.getValue()==null)status.setValue("All Status");
-        double sum=rows.stream().mapToDouble(Row::total).sum(),refunded=rows.stream().mapToDouble(Row::refund).sum();total.setText(money(sum));count.setText(String.valueOf(rows.size()));int thisMonth=(int)rows.stream().filter(row->parse(row.date()).getYear()==BusinessClock.today().getYear()&&parse(row.date()).getMonthValue()==BusinessClock.today().getMonthValue()).count();if(monthCount!=null)monthCount.setText(String.valueOf(thisMonth));refund.setText(money(refunded));average.setText(money(rows.isEmpty()?0:sum/rows.size()));filter();
-    }
+    @FXML private void load(){String selectedSupplier=supplier.getValue(),selectedStatus=status.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();int requested=pageState.currentPage();org.example.util.OperationalUiSupport.showLoading(table,"Loading purchase returns…");UiTaskExecutor.submitLatest("purchase-returns-load",()->returnApi.page("PURCHASE RETURN",requested,PAGE_SIZE,search.getText(),selectedSupplier,selectedStatus,str(from),str(to)),this::applyPage,failure->{org.example.util.OperationalUiSupport.showError(table,"Purchase returns could not load",failure);error(asException(failure));});}
+    private void applyPage(ReturnApiClient.Page page){pageState.runApplying(()->{List<Row> loaded=new ArrayList<>();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())loaded.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));all=List.copyOf(loaded);pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());String selectedSupplier=supplier.getValue();supplier.setItems(FXCollections.observableArrayList("All Suppliers"));if(page!=null&&page.parties()!=null)supplier.getItems().addAll(page.parties());if(selectedSupplier==null||selectedSupplier.startsWith("All")||!supplier.getItems().contains(selectedSupplier))supplier.setValue("All Suppliers");else supplier.setValue(selectedSupplier);status.setItems(FXCollections.observableArrayList("All Status","PENDING","APPROVED","COMPLETED","PARTIAL","CANCELLED"));if(status.getValue()==null)status.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No purchase returns found","Adjust the filters or create a return from Purchase Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();});}
+    private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));count.setText(String.valueOf(m.count()));if(monthCount!=null)monthCount.setText(String.valueOf(m.monthCount()));refund.setText(money(m.refundAmount()));average.setText(money(m.average()));}
+    private void updatePageInfo(){pageInfo.setText(pageState.rangeWithPageText(PAGE_SIZE,all.size(),"returns"));RegisterUiSupport.updatePageNavigation(pageState,btnPrevPage,btnNextPage);}
+    @FXML private void filter(){if(pageState.isApplyingServerPage())return;pageState.reset();load();}
+    @FXML private void previousPage(){if(pageState.previous())load();}
+    @FXML private void nextPage(){if(pageState.next())load();}
+    @FXML private void reset(){search.clear();supplier.setValue("All Suppliers");status.setValue("All Status");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());pageState.reset();load();}
+    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(search);if(reusedFromCache)load();}
+    @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("purchase-returns-");}
 
-    @FXML private void filter() {
-        String query = safe(search.getText()).toLowerCase(Locale.ROOT), selectedSupplier = supplier.getValue(), selectedStatus = status.getValue(); LocalDate from = dpFrom.getValue(), to = dpTo.getValue();
-        List<Row> visible = all.stream().filter(x -> (x.no() + x.invoice() + x.supplier()).toLowerCase(Locale.ROOT).contains(query))
-            .filter(x -> selectedSupplier == null || selectedSupplier.startsWith("All") || selectedSupplier.equals(x.supplier()))
-            .filter(x -> selectedStatus == null || selectedStatus.startsWith("All") || selectedStatus.equals(x.status()))
-            .filter(x -> from == null || !parse(x.date()).isBefore(from)).filter(x -> to == null || !parse(x.date()).isAfter(to)).toList();
-        table.getItems().setAll(visible); pageInfo.setText("Showing " + visible.size() + " of " + all.size() + " returns");
-    }
-
-    @FXML private void reset() { search.clear(); supplier.setValue("All Suppliers"); status.setValue("All Status"); dpFrom.setValue(BusinessClock.today().minusMonths(6)); dpTo.setValue(BusinessClock.today()); filter(); }
-    @Override public void onScreenShown(boolean reusedFromCache) { if (reusedFromCache) load(); }
     @FXML private void create() { info("Create a purchase return from the Purchase Register so stock and supplier balances remain linked."); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
-    private void configureDrawer() {if(detailDrawer==null)return;detailDrawer.setManaged(false);detailDrawer.setVisible(false);if(mainSplit!=null)mainSplit.setDividerPositions(1);decorateDrawerNode(detailDrawer);applyValueIcon(lblDetailNo,"return");applyValueIcon(lblDetailSupplier,"supplier");applyValueIcon(lblDetailDate,"calendar");applyValueIcon(lblDetailInvoice,"purchase");applyValueIcon(lblDetailAmount,"currency");applyValueIcon(lblDetailRefund,"payment");applyValueIcon(lblDetailReason,"document");}
+    private void configureDrawer() {if(detailDrawer==null)return;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);org.example.util.OperationalUiSupport.installEscapeClose(mainSplit,()->detailDrawer.isVisible(),this::closeDetails);decorateDrawerNode(detailDrawer);applyValueIcon(lblDetailNo,"return");applyValueIcon(lblDetailSupplier,"supplier");applyValueIcon(lblDetailDate,"calendar");applyValueIcon(lblDetailInvoice,"purchase");applyValueIcon(lblDetailAmount,"currency");applyValueIcon(lblDetailRefund,"payment");applyValueIcon(lblDetailReason,"document");}
     private void decorateDrawerNode(Node node){if(node instanceof Label l&&l.getGraphic()==null){String sem=drawerSemantic(l.getText());if(sem!=null){l.setGraphic(IconFactory.compactIcon(sem,14));l.setGraphicTextGap(6);l.getProperties().put("erp-icon-preserve",true);}}if(node instanceof ButtonBase b&&b.getGraphic()==null){String sem=drawerSemantic(b.getText());if(sem!=null){b.setGraphic(IconFactory.compactIcon(sem,14));b.setGraphicTextGap(6);b.getProperties().put("erp-icon-preserve",true);}}if(node instanceof Parent p)for(Node child:p.getChildrenUnmodifiable())decorateDrawerNode(child);}
     private void applyValueIcon(Label l,String sem){if(l!=null&&l.getGraphic()==null){l.setGraphic(IconFactory.compactIcon(sem,15));l.setGraphicTextGap(7);l.getProperties().put("erp-icon-preserve",true);}}
     private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("purchase")||t.contains("original"))return"purchase";if(t.contains("supplier"))return"supplier";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("detail"))return"view";if(t.contains("close"))return"cancel";return null;}
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
     private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
-    private void showDetails(Row row){if(row==null)return;selected=row;detailDrawer.setManaged(true);detailDrawer.setVisible(true);mainSplit.setDividerPositions(.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(isCancelled(row));btnRefundSelected.setTooltip(isCancelled(row)?new Tooltip("Cancelled returns cannot be refunded."):null);}}
-    @FXML private void closeDetails(){selected=null;if(detailDrawer!=null){detailDrawer.setManaged(false);detailDrawer.setVisible(false);}if(mainSplit!=null)mainSplit.setDividerPositions(1);if(table!=null)table.getSelectionModel().clearSelection();}
+    private void showDetails(Row row){if(row==null)return;selected=row;RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(isCancelled(row));btnRefundSelected.setTooltip(isCancelled(row)?new Tooltip("Cancelled returns cannot be refunded."):null);}}
+    @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
     @FXML private void originalSelected(){if(selected!=null)original(selected);}
@@ -179,11 +173,17 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private String partyEmail(String returnNo){return supportApi.returnPartyEmail(returnNo);}
     private void recordRefund(Row row) { if(row==null)return; if(isCancelled(row)){ org.example.util.ModernDialog.warning(table, "Refund blocked", "Cancelled return", "A cancelled return cannot receive or record a refund."); return; } ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
-    private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; try { ReturnWorkflowService.cancel(row.no(),false); NotificationService.add(row.no()+" cancelled."); load(); } catch(Exception e){error(e);} }
-    private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; try { ReturnWorkflowService.delete(row.no(), false); NotificationService.add(row.no() + " deleted from register; audit record retained."); load(); } catch (Exception e) { error(e); } }
-    private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;try{returnApi.update(no,column,value);load();}catch(Exception e){error(e);}}
+    private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("purchase-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),false);return true;},ignored->{NotificationService.add(row.no()+" cancelled.");load();},failure->error(asException(failure))); }
+    private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("purchase-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),false);return true;},ignored->{NotificationService.add(row.no()+" deleted from register; audit record retained.");load();},failure->error(asException(failure))); }
+    private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("purchase-return-update-"+no+"-"+column,()->{returnApi.update(no,column,value);return true;},ignored->load(),failure->error(asException(failure)));}
 
-    @FXML private void export() { FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Purchase_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv")); File file = chooser.showSaveDialog(table.getScene().getWindow()); if (file == null) return; try (PrintWriter out = new PrintWriter(file)) { out.println("Return No,Date,Purchase No,Supplier,Total,Refund,Status,Refund Status"); for (Row r : table.getItems()) out.printf("%s,%s,%s,%s,%.2f,%.2f,%s,%s%n", r.no(), r.date(), r.invoice(), csv(r.supplier()), r.total(), r.refund(), r.status(), r.refundStatus()); } catch (Exception e) { error(e); } }
+    @FXML private void export() {
+        FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Purchase_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
+        File file = chooser.showSaveDialog(table.getScene().getWindow()); if (file == null) return;
+        String q=search.getText(),party=supplier.getValue(),state=status.getValue(),from=str(dpFrom.getValue()),to=str(dpTo.getValue());
+        UiTaskExecutor.submitAction("purchase-returns-export",()->{List<ReturnApiClient.Summary> rows=returnApi.allFiltered("PURCHASE RETURN",q,party,state,from,to);try(PrintWriter out=new PrintWriter(file)){out.println("Return No,Date,Purchase No,Supplier,Total,Refund,Status,Refund Status");for(ReturnApiClient.Summary r:rows)out.printf("%s,%s,%s,%s,%.2f,%.2f,%s,%s%n",r.no(),r.date(),r.invoice(),csv(r.party()),r.total(),r.refund(),r.status(),r.refundStatus());}return rows.size();},count->info("Purchase Returns exported • "+count+" records."),failure->error(asException(failure)));
+    }
+
 
     private LocalDate parse(String value) { try { LocalDate parsed = BusinessClock.parseDate(value); return parsed == null ? LocalDate.MIN : parsed; } catch (Exception e) { return LocalDate.MIN; } }
     private String safe(String value) { return value == null ? "" : value; }
@@ -192,6 +192,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private boolean confirm(String text) { return org.example.util.ModernDialog.confirm(table, "Confirmation", "Are you sure?", text); }
     private void info(String value) { org.example.util.ToastManager.success(table, "Completed", value); }
     private void error(Exception e) { org.example.util.ModernDialog.error(table, "Operation failed", "Something went wrong", e.getMessage() == null ? "Operation failed" : e.getMessage()); }
+
 
 
     private void configureExplicitTableHeaderIcons() {
@@ -208,4 +209,8 @@ public class PurchaseReturnsController implements ScreenLifecycle {
 
     private void installKpiIcons(){setKpi(iconTotal,"return");setKpi(iconMonth,"calendar");setKpi(iconCount,"document");setKpi(iconRefund,"payment");setKpi(iconAverage,"currency");}
     private void setKpi(StackPane pane,String semantic){if(pane!=null)pane.getChildren().setAll(IconFactory.compactIcon(semantic,22));}
+
+    private Exception asException(Throwable failure){return failure instanceof Exception e?e:new RuntimeException(failure);}
+    private static String str(Object v){return v==null?"":String.valueOf(v);}
+
 }

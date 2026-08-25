@@ -3,11 +3,14 @@ package org.example.server.master;
 import org.example.server.persistence.entity.*;
 import org.example.server.persistence.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.PageRequest;
-import jakarta.annotation.PostConstruct;
 import org.example.server.security.CurrentUser;
 import org.example.server.operations.BusinessOperationsService;
+import org.example.server.audit.AuditService;
+import org.example.server.web.ConcurrentEditException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
@@ -20,19 +23,21 @@ public class MasterDataService {
     private final LookupRepository lookups;
     private final MasterCategoryRepository categories;
     private final BusinessOperationsService referenceNumbers;
+    private final AuditService audit;
 
     @PersistenceContext
     private EntityManager entityManager;
 
-    public MasterDataService(PartyRepository p, ItemRepository i, LookupRepository l, MasterCategoryRepository c, BusinessOperationsService referenceNumbers) {
+    public MasterDataService(PartyRepository p, ItemRepository i, LookupRepository l, MasterCategoryRepository c, BusinessOperationsService referenceNumbers, AuditService audit) {
         parties = p;
         items = i;
         lookups = l;
         categories = c;
         this.referenceNumbers = referenceNumbers;
+        this.audit = audit;
     }
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void ensureFinanceMasterCategories() {
         ensureCategory("PAYMENT_MODE","PAYMENT MODE","Payment methods used by Bank, Expense and Invoice Payment",130);
         ensureCategory("EXPENSE_CATEGORY","EXPENSE CATEGORY","Expense classifications used by Expense Entry",140);
@@ -47,6 +52,8 @@ public class MasterDataService {
         ensureReferenceFormat("REF_CUSTOMER","CUSXXX","Customer reference",70);
         ensureReferenceFormat("REF_SUPPLIER","SUPXXX","Supplier reference",80);
         ensureReferenceFormat("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX","Finance voucher reference",90);
+        ensureReferenceFormat("REF_RECON_SUPPLIER","RSP-YYYY-XXXXX","Recon Supplier reference",100);
+        ensureReferenceFormat("REF_PURCHASE_RECON","PRC-YYYY-XXXXX","Purchase Recon reference",110);
     }
 
     private void ensureCategory(String code,String name,String description,int order){
@@ -81,26 +88,34 @@ public class MasterDataService {
 
     @Transactional
     public MasterDtos.PartyDto saveParty(MasterDtos.PartyDto d) {
-        requirePartyAccess(d == null ? null : d.partyType());
+        requirePartyPermission(d == null ? null : d.partyType(), "CREATE");
         PartyEntity e = new PartyEntity();
         copy(d, e, true);
-        return partyDto(parties.save(e));
+        e = parties.saveAndFlush(e);
+        audit.log("PARTY", e.getId(), "CREATED", e.getPartyType() + " " + e.getPartyCode());
+        return partyDto(e);
     }
 
     @Transactional
     public MasterDtos.PartyDto updateParty(MasterDtos.PartyDto d) {
         PartyEntity e = parties.findById(req(d.id(), "Party id")).orElseThrow(() -> new IllegalArgumentException("Party not found"));
-        requirePartyAccess(e.getPartyType());
-        requirePartyAccess(d.partyType());
+        requirePartyPermission(e.getPartyType(), "EDIT");
+        requirePartyPermission(d.partyType(), "EDIT");
+        assertVersion(d.rowVersion(), e.getRowVersion(), "Party " + e.getPartyCode());
         copy(d, e, false);
+        e = parties.saveAndFlush(e);
+        audit.log("PARTY", e.getId(), "UPDATED", e.getPartyType() + " " + e.getPartyCode());
         return partyDto(e);
     }
 
     @Transactional
-    public void deleteParty(int id) {
+    public void deleteParty(int id, long rowVersion) {
         PartyEntity e = parties.findById(id).orElseThrow(() -> new IllegalArgumentException("Party not found"));
-        requirePartyAccess(e.getPartyType());
+        requirePartyPermission(e.getPartyType(), "DELETE");
+        assertVersion(rowVersion, e.getRowVersion(), "Party " + e.getPartyCode());
         parties.delete(e);
+        parties.flush();
+        audit.log("PARTY", e.getId(), "DELETED", e.getPartyType() + " " + e.getPartyCode());
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +139,12 @@ public class MasterDataService {
         String normalized = normal(type);
         if ("CUSTOMER".equals(normalized)) CurrentUser.requirePermission("CUSTOMERS.VIEW", "Customer access");
         else CurrentUser.requirePermission("SUPPLIERS.VIEW", "Supplier access");
+    }
+
+    private void requirePartyPermission(String type, String action) {
+        String normalized = normal(type);
+        String prefix = "CUSTOMER".equals(normalized) ? "CUSTOMERS" : "SUPPLIERS";
+        CurrentUser.requirePermission(prefix + "." + action, action + " " + normalized.toLowerCase(Locale.ROOT));
     }
 
     @Transactional(readOnly = true)
@@ -155,27 +176,38 @@ public class MasterDataService {
 
     @Transactional
     public MasterDtos.ItemDto saveItem(MasterDtos.ItemDto d) {
+        CurrentUser.requirePermission("INVENTORY.CREATE", "Create item");
         ItemEntity e = new ItemEntity();
         copy(d, e, true);
-        return itemDto(items.save(e));
-    }
-
-    @Transactional
-    public MasterDtos.ItemDto updateItem(MasterDtos.ItemDto d) {
-        ItemEntity e = items.findByItemCodeForUpdate(d.itemCode()).orElseThrow(() -> new IllegalArgumentException("Item not found"));
-        copy(d, e, false);
+        e = items.saveAndFlush(e);
+        audit.log("ITEM", e.getId(), "CREATED", e.getItemCode());
         return itemDto(e);
     }
 
     @Transactional
-    public void deleteItem(String code) {
+    public MasterDtos.ItemDto updateItem(MasterDtos.ItemDto d) {
+        CurrentUser.requirePermission("INVENTORY.EDIT", "Edit item");
+        ItemEntity e = items.findByItemCodeForUpdate(d.itemCode()).orElseThrow(() -> new IllegalArgumentException("Item not found"));
+        assertVersion(d.rowVersion(), e.getRowVersion(), "Item " + e.getItemCode());
+        copy(d, e, false);
+        e = items.saveAndFlush(e);
+        audit.log("ITEM", e.getId(), "UPDATED", e.getItemCode());
+        return itemDto(e);
+    }
+
+    @Transactional
+    public void deleteItem(String code, long rowVersion) {
+        CurrentUser.requirePermission("INVENTORY.DELETE", "Delete item");
         ItemEntity e = items.findByItemCodeForUpdate(code).orElseThrow(() -> new IllegalArgumentException("Item not found"));
+        assertVersion(rowVersion, e.getRowVersion(), "Item " + e.getItemCode());
         List<String> usages = new ArrayList<>(itemDeleteUsages(code));
         double stock = e.getOpeningStock() == null ? 0.0 : e.getOpeningStock();
         double reserved = e.getReservedStock() == null ? 0.0 : e.getReservedStock();
         if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) usages.add("Current inventory balance");
         if (!usages.isEmpty()) throw new IllegalStateException("Item cannot be deleted while it has stock or is referenced by ERP transactions.");
         items.delete(e);
+        items.flush();
+        audit.log("ITEM", e.getId(), "DELETED", e.getItemCode());
     }
 
     @Transactional(readOnly = true)
@@ -185,6 +217,7 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public MasterDtos.ItemBulkDeleteValidation validateBulkDeleteItems(List<String> requestedCodes) {
+        CurrentUser.requirePermission("INVENTORY.DELETE", "Validate item deletion");
         List<String> codes = normalizeItemCodes(requestedCodes);
         if (codes.isEmpty()) throw new IllegalArgumentException("Select at least one item to delete.");
         List<MasterDtos.ItemDeleteIssue> issues = new ArrayList<>();
@@ -209,6 +242,7 @@ public class MasterDataService {
 
     @Transactional
     public int bulkDeleteItems(List<String> requestedCodes) {
+        CurrentUser.requirePermission("INVENTORY.DELETE", "Delete items");
         List<String> codes = normalizeItemCodes(requestedCodes);
         MasterDtos.ItemBulkDeleteValidation validation = validateBulkDeleteItems(codes);
         if (!validation.valid()) {
@@ -222,7 +256,9 @@ public class MasterDataService {
             double reserved = item.getReservedStock() == null ? 0.0 : item.getReservedStock();
             if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) usages.add("Current inventory balance");
             if (!usages.isEmpty()) throw new IllegalStateException("Bulk delete stopped because item " + code + " changed or became referenced. Nothing was deleted.");
+            Integer deletedId = item.getId();
             items.delete(item);
+            audit.log("ITEM", deletedId, "DELETED", code + " • bulk delete");
             deleted++;
         }
         items.flush();
@@ -301,23 +337,30 @@ public class MasterDataService {
 
     @Transactional
     public MasterDtos.LookupDto saveLookup(MasterDtos.LookupDto d) {
+        requireMasterMutation("CREATE");
         validateLookup(d);
         validateRoleLookup(d, null);
         requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
         LookupEntity e = new LookupEntity();
         copy(d, e);
-        return lookupDto(lookups.saveAndFlush(e));
+        e = lookups.saveAndFlush(e);
+        audit.log("MASTER_LOOKUP", e.getId(), "CREATED", e.getLookupType() + " / " + e.getLookupValue());
+        return lookupDto(e);
     }
 
     @Transactional
     public MasterDtos.LookupDto updateLookup(MasterDtos.LookupDto d) {
+        requireMasterMutation("EDIT");
         validateLookup(d);
         LookupEntity e = lookups.findById(req(d.id(), "Lookup id")).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        assertVersion(d.rowVersion(), e.getRowVersion(), "Master value " + e.getLookupValue());
         validateRoleLookup(d, e);
         requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
         cascadeRoleValueRenameIfNeeded(e, d);
         copy(d, e);
-        return lookupDto(lookups.saveAndFlush(e));
+        e = lookups.saveAndFlush(e);
+        audit.log("MASTER_LOOKUP", e.getId(), "UPDATED", e.getLookupType() + " / " + e.getLookupValue());
+        return lookupDto(e);
     }
 
     private void requireActiveCategoryForActiveLookup(String type, boolean active) {
@@ -329,22 +372,29 @@ public class MasterDataService {
     }
 
     @Transactional
-    public void deleteLookup(int id) {
+    public void deleteLookup(int id, long rowVersion) {
+        requireMasterMutation("DELETE");
         LookupEntity e = lookups.findById(id).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        assertVersion(rowVersion, e.getRowVersion(), "Master value " + e.getLookupValue());
         validateRoleDeactivation(e);
         // Master values are historical reference data. A user "delete" therefore retires the value
         // instead of physically removing it, whether or not the value has already been used.
         e.setActive(0);
-        lookups.saveAndFlush(e);
+        e = lookups.saveAndFlush(e);
+        audit.log("MASTER_LOOKUP", e.getId(), "DEACTIVATED", e.getLookupType() + " / " + e.getLookupValue());
     }
 
     @Transactional
-    public MasterDtos.LookupDto setLookupActive(int id, boolean active) {
+    public MasterDtos.LookupDto setLookupActive(int id, boolean active, long rowVersion) {
+        requireMasterMutation("EDIT");
         LookupEntity e = lookups.findById(id).orElseThrow(() -> new IllegalArgumentException("Lookup not found"));
+        assertVersion(rowVersion, e.getRowVersion(), "Master value " + e.getLookupValue());
         if (!active) validateRoleDeactivation(e);
         requireActiveCategoryForActiveLookup(e.getLookupType(), active);
         e.setActive(active ? 1 : 0);
-        return lookupDto(lookups.saveAndFlush(e));
+        e = lookups.saveAndFlush(e);
+        audit.log("MASTER_LOOKUP", e.getId(), active ? "ACTIVATED" : "DEACTIVATED", e.getLookupType() + " / " + e.getLookupValue());
+        return lookupDto(e);
     }
 
     @Transactional
@@ -373,6 +423,7 @@ public class MasterDataService {
 
     @Transactional
     public MasterDtos.CategoryDto addCategory(String name) {
+        requireMasterMutation("CREATE");
         String n = normal(name), code = code(n);
         if (Set.of("SALES INVOICE FORMAT","PURCHASE INVOICE FORMAT").contains(n)) throw new IllegalArgumentException("Invoice numbering is managed only by REFERENCE FORMAT.");
         if (categories.findByCategoryName(n).isPresent()) throw new IllegalArgumentException("Category already exists");
@@ -381,12 +432,16 @@ public class MasterDataService {
         e.setCategoryName(n);
         e.setDisplayOrder(0);
         e.setActive(1);
-        return categoryDto(categories.saveAndFlush(e), 0, 0);
+        e = categories.saveAndFlush(e);
+        audit.log("MASTER_CATEGORY", e.getId(), "CREATED", e.getCategoryName());
+        return categoryDto(e, 0, 0);
     }
 
     @Transactional
-    public MasterDtos.CategoryDto renameCategory(String oldName, String newName) {
+    public MasterDtos.CategoryDto renameCategory(String oldName, String newName, long rowVersion) {
+        requireMasterMutation("EDIT");
         MasterCategoryEntity c = categories.findByCategoryName(oldName).orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        assertVersion(rowVersion, c.getRowVersion(), "Master category " + c.getCategoryName());
         if ("ROLE".equals(normal(c.getCategoryCode()))) throw new IllegalArgumentException("Role Master is a protected system category and cannot be renamed");
         String n = normal(newName);
         if (Set.of("SALES INVOICE FORMAT","PURCHASE INVOICE FORMAT").contains(n)) throw new IllegalArgumentException("Invoice numbering is managed only by REFERENCE FORMAT.");
@@ -397,26 +452,32 @@ public class MasterDataService {
         c.setCategoryName(n);
         for (LookupEntity l : vals) l.setLookupType(n);
         lookups.saveAllAndFlush(vals);
-        categories.saveAndFlush(c);
+        c = categories.saveAndFlush(c);
+        audit.log("MASTER_CATEGORY", c.getId(), "RENAMED", oldName + " -> " + c.getCategoryName());
         return categoryDto(c, vals.size(), vals.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
     }
 
     @Transactional
-    public MasterDtos.CategoryDto setCategoryActive(String name, boolean active) {
+    public MasterDtos.CategoryDto setCategoryActive(String name, boolean active, long rowVersion) {
+        requireMasterMutation("EDIT");
         MasterCategoryEntity category = categories.findByCategoryName(name)
             .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        assertVersion(rowVersion, category.getRowVersion(), "Master category " + category.getCategoryName());
         if (!active && "ROLE".equals(normal(category.getCategoryCode()))) throw new IllegalArgumentException("Role Master cannot be deactivated");
         category.setActive(active ? 1 : 0);
         category = categories.saveAndFlush(category);
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(category.getCategoryName());
         long activeCount = values.stream().filter(value -> value.getActive() == null || value.getActive() != 0).count();
+        audit.log("MASTER_CATEGORY", category.getId(), active ? "ACTIVATED" : "DEACTIVATED", category.getCategoryName());
         return categoryDto(category, values.size(), activeCount);
     }
 
     @Transactional
-    public void deleteCategory(String name) {
+    public void deleteCategory(String name, long rowVersion) {
+        requireMasterMutation("DELETE");
         MasterCategoryEntity category = categories.findByCategoryName(name)
             .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        assertVersion(rowVersion, category.getRowVersion(), "Master category " + category.getCategoryName());
         if ("ROLE".equals(normal(category.getCategoryCode()))) throw new IllegalArgumentException("Role Master cannot be deactivated");
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(name);
         // Retire the category and all of its values atomically. Existing transactions keep their
@@ -424,7 +485,8 @@ public class MasterDataService {
         category.setActive(0);
         for (LookupEntity value : values) value.setActive(0);
         if (!values.isEmpty()) lookups.saveAllAndFlush(values);
-        categories.saveAndFlush(category);
+        category = categories.saveAndFlush(category);
+        audit.log("MASTER_CATEGORY", category.getId(), "DEACTIVATED", category.getCategoryName());
     }
 
     private List<String> lookupUsage(LookupEntity lookup) {
@@ -489,20 +551,26 @@ public class MasterDataService {
 
     @Transactional
     public void saveItems(List<MasterDtos.ItemDto> rows) {
+        if (rows == null) return;
         for (MasterDtos.ItemDto d : rows) {
             ItemEntity e = items.findByItemCode(d.itemCode()).orElseGet(ItemEntity::new);
-            copy(d, e, e.getId() == null);
-            items.save(e);
+            boolean creating = e.getId() == null;
+            CurrentUser.requirePermission(creating ? "INVENTORY.CREATE" : "INVENTORY.EDIT", creating ? "Import new item" : "Update item from import");
+            copy(d, e, creating);
+            e = items.saveAndFlush(e);
+            audit.log("ITEM", e.getId(), creating ? "CREATED" : "UPDATED", e.getItemCode() + " • bulk import");
         }
     }
 
     @Transactional
     public MasterDtos.CategoryDto upsertCategory(MasterDtos.CategoryUpsertRequest d) {
+        requireMasterMutation("EDIT");
         String code = normal(d.code());
         MasterCategoryEntity e = categories.findByCategoryCode(code).orElseGet(MasterCategoryEntity::new);
         e.setCategoryCode(code); e.setCategoryName(normal(d.name())); e.setDescription(d.description());
         if (e.getActive() == null) e.setActive(1); if (e.getDisplayOrder() == null) e.setDisplayOrder(0);
-        e = categories.save(e);
+        e = categories.saveAndFlush(e);
+        audit.log("MASTER_CATEGORY", e.getId(), "UPSERTED", e.getCategoryName());
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(e.getCategoryName());
         return categoryDto(e, values.size(), values.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
     }
@@ -540,7 +608,7 @@ public class MasterDataService {
     }
 
     private MasterDtos.PartyDto partyDto(PartyEntity e) {
-        return new MasterDtos.PartyDto(e.getId(), e.getPartyType(), e.getPartyCode(), e.getName(), e.getContactPerson(), e.getPhone(), e.getEmail(), e.getGstin(), e.getAddress(), n(e.getOpeningBalance()), e.getActive() == null || e.getActive() != 0);
+        return new MasterDtos.PartyDto(e.getId(), e.getPartyType(), e.getPartyCode(), e.getName(), e.getContactPerson(), e.getPhone(), e.getEmail(), e.getGstin(), e.getAddress(), n(e.getOpeningBalance()), e.getActive() == null || e.getActive() != 0, nv(e.getRowVersion()));
     }
 
     private void copy(MasterDtos.ItemDto d, ItemEntity e, boolean includeCode) {
@@ -570,7 +638,7 @@ public class MasterDataService {
     }
 
     private MasterDtos.ItemDto itemDto(ItemEntity e) {
-        return new MasterDtos.ItemDto(e.getId(), e.getItemCode(), e.getDescription(), e.getCategory(), e.getBrand(), e.getMaterial(), e.getSize(), e.getUnit(), e.getHsn(), n(e.getGst()), n(e.getDiscountPercent()), n(e.getPurchasePrice()), n(e.getSellingPrice()), n(e.getOpeningStock()), n(e.getMinimumStock()), n(e.getReservedStock()), e.getLocation(), e.getRemarks(), e.getActive() == null || e.getActive() != 0);
+        return new MasterDtos.ItemDto(e.getId(), e.getItemCode(), e.getDescription(), e.getCategory(), e.getBrand(), e.getMaterial(), e.getSize(), e.getUnit(), e.getHsn(), n(e.getGst()), n(e.getDiscountPercent()), n(e.getPurchasePrice()), n(e.getSellingPrice()), n(e.getOpeningStock()), n(e.getMinimumStock()), n(e.getReservedStock()), e.getLocation(), e.getRemarks(), e.getActive() == null || e.getActive() != 0, nv(e.getRowVersion()));
     }
 
     private void validateRoleLookup(MasterDtos.LookupDto d, LookupEntity existing) {
@@ -629,12 +697,24 @@ public class MasterDataService {
     }
 
     private MasterDtos.LookupDto lookupDto(LookupEntity e) {
-        return new MasterDtos.LookupDto(e.getId(), e.getLookupType(), e.getLookupCode(), e.getLookupValue(), e.getDescription(), e.getDisplayOrder() == null ? 0 : e.getDisplayOrder(), e.getActive() == null || e.getActive() != 0);
+        return new MasterDtos.LookupDto(e.getId(), e.getLookupType(), e.getLookupCode(), e.getLookupValue(), e.getDescription(), e.getDisplayOrder() == null ? 0 : e.getDisplayOrder(), e.getActive() == null || e.getActive() != 0, nv(e.getRowVersion()));
     }
 
     private MasterDtos.CategoryDto categoryDto(MasterCategoryEntity e, long count, long activeCount) {
-        return new MasterDtos.CategoryDto(e.getId(), e.getCategoryCode(), e.getCategoryName(), e.getDescription(), e.getDisplayOrder() == null ? 0 : e.getDisplayOrder(), e.getActive() == null || e.getActive() != 0, count, activeCount);
+        return new MasterDtos.CategoryDto(e.getId(), e.getCategoryCode(), e.getCategoryName(), e.getDescription(), e.getDisplayOrder() == null ? 0 : e.getDisplayOrder(), e.getActive() == null || e.getActive() != 0, count, activeCount, nv(e.getRowVersion()));
     }
+
+    private void requireMasterMutation(String action) {
+        if (CurrentUser.hasPermission("USERS.MANAGE_ROLES")) return;
+        CurrentUser.requirePermission("MASTERS." + action, action + " master data");
+    }
+
+    private void assertVersion(long expected, Long current, String label) {
+        long actual = nv(current);
+        if (expected != actual) throw new ConcurrentEditException(label);
+    }
+
+    private long nv(Long v) { return v == null ? 0L : v; }
 
     private double n(Double v) {
         return v == null ? 0 : v;

@@ -18,7 +18,7 @@ public final class RuntimeApiClient {
     private final String base;
 
     public RuntimeApiClient() {
-        this(ConfigManager.getDataApiBaseUrl());
+        this(ConfigManager.getDataApiBaseUrlUnbound());
     }
 
     public RuntimeApiClient(String baseUrl) {
@@ -54,6 +54,7 @@ public final class RuntimeApiClient {
         }
     }
 
-    public record RuntimeStatus(boolean ready, String service, String version, String apiRevision, String database, String message,
-                                String businessZone, String businessDate, String utcTime, String dateFormat, String timePolicy, String databaseTimeZone) {}
+    public record RuntimeStatus(boolean ready, String service, String version, String apiRevision, String buildRevision,
+                                String database, String message, String businessZone, String businessDate, String utcTime,
+                                String dateFormat, String timePolicy, String databaseTimeZone) {}
 }

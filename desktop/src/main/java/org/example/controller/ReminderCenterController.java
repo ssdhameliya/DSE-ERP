@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.navigation.ScreenLifecycle;
 import org.example.util.BusinessClock;
 
 import org.example.util.OwnedAlert;
@@ -24,14 +25,17 @@ import org.example.api.insights.InsightsApiClient;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
 import org.example.util.IconFactory;
+import org.example.util.RegisterUiSupport;
+import org.example.util.UiTaskExecutor;
 
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.List;
 
 /** Database-backed reminder inbox with CRUD, completion and snooze workflows. */
-public class ReminderCenterController {
+public class ReminderCenterController implements ScreenLifecycle {
     private final InsightsApiClient insightsApi = new InsightsApiClient();
 
     @FXML private Label lblOpen, lblOverdue, lblDueToday, lblUpcoming;
@@ -65,6 +69,8 @@ public class ReminderCenterController {
         configureListeners();
         configureVisualIcons();
         configureDetailActionMenu();
+        org.example.util.OperationalUiSupport.installEscapeClose(reminderWorkspace,()->reminderDetailPanel!=null&&reminderDetailPanel.isVisible(),this::closeDetails);
+        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         refresh();
     }
 
@@ -101,7 +107,7 @@ public class ReminderCenterController {
             TableRow<ReminderRow> row = new TableRow<>();
 
             row.setOnMouseClicked(event -> {
-                if (row.isEmpty() || event.getButton() != MouseButton.PRIMARY || interactiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
+                if (row.isEmpty() || event.getButton() != MouseButton.PRIMARY || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
                 if (event.getClickCount() == 1) {
                     ReminderRow clicked = row.getItem();
                     if (reminderDetailPanel.isVisible() && detailRow == clicked) closeDetails();
@@ -124,8 +130,6 @@ public class ReminderCenterController {
             return row;
         });
     }
-
-    private boolean interactiveTableTarget(Node target, TableRow<?> row) { for (Node node=target; node!=null && node!=row; node=node.getParent()) if (node instanceof ButtonBase || node instanceof TextInputControl || node instanceof ComboBoxBase<?>) return true; return false; }
 
     private void configureListeners() {
         txtSearch.textProperty().addListener((observable, oldValue, newValue) -> applyFilters());
@@ -221,12 +225,21 @@ public class ReminderCenterController {
     private void refresh() {
         ReminderRow selected = table.getSelectionModel().getSelectedItem();
         long selectedId = selected == null ? -1L : selected.id;
+        boolean restoreDetails = detailRow != null;
+        org.example.util.OperationalUiSupport.showLoading(table,"Loading reminders…");
+        UiTaskExecutor.submitLatest(
+                "reminder-center-load",
+                insightsApi::reminders,
+                rows -> applyReminderRows(rows, selectedId, restoreDetails),
+                failure -> { org.example.util.OperationalUiSupport.showError(table,"Reminder Center could not load",failure); error("Reminders could not be loaded", asException(failure)); }
+        );
+    }
 
-        source.clear();
-        try { for (var d : insightsApi.reminders()) source.add(new ReminderRow(d)); }
-        catch (Exception exception) { error("Reminders could not be loaded", exception); }
+    private void applyReminderRows(List<InsightsApiClient.ReminderDto> rows, long selectedId, boolean restoreDetails) {
+        source.setAll(rows == null ? List.of() : rows.stream().map(ReminderRow::new).toList());
         updateMetrics();
         applyFilters();
+        if(filtered.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No reminders found","Create a reminder or change the filters to see matching records.");
 
         ReminderRow restored = selectedId < 0 ? null : filtered.stream()
                 .filter(row -> row.id == selectedId)
@@ -234,7 +247,7 @@ public class ReminderCenterController {
                 .orElse(null);
         if (restored != null) {
             table.getSelectionModel().select(restored);
-            if (detailRow != null) showDetails(restored);
+            if (restoreDetails) showDetails(restored);
         } else {
             table.getSelectionModel().clearSelection();
             showDetails(null);
@@ -317,25 +330,29 @@ public class ReminderCenterController {
                 warning("Title and due date are required.");
                 return;
             }
-            try {
-                var dto = new InsightsApiClient.ReminderDto(
-                        row == null ? null : row.id,
-                        title.getText().trim(),
-                        reference.getText() == null ? "" : reference.getText().trim(),
-                        due.getValue().toString(),
-                        priority.getValue(),
-                        notes.getText(),
-                        row == null ? "OPEN" : row.status.get(),
-                        currentUser(),
-                        null
-                );
-                if (row == null) insightsApi.saveReminder(dto); else insightsApi.updateReminder(dto);
-                NotificationService.add((row == null ? "Reminder created: " : "Reminder updated: ") + title.getText().trim());
-                refresh();
-                information(row == null ? "Reminder created successfully." : "Reminder updated successfully.");
-            } catch (Exception exception) {
-                error("Reminder could not be saved", exception);
-            }
+            var dto = new InsightsApiClient.ReminderDto(
+                    row == null ? null : row.id,
+                    title.getText().trim(),
+                    reference.getText() == null ? "" : reference.getText().trim(),
+                    due.getValue().toString(),
+                    priority.getValue(),
+                    notes.getText(),
+                    row == null ? "OPEN" : row.status.get(),
+                    currentUser(),
+                    null
+            );
+            boolean created = row == null;
+            String reminderTitle = title.getText().trim();
+            UiTaskExecutor.submitAction(
+                    "reminder-save-" + (created ? "new" : row.id),
+                    () -> {
+                        if (created) insightsApi.saveReminder(dto); else insightsApi.updateReminder(dto);
+                        NotificationService.add((created ? "Reminder created: " : "Reminder updated: ") + reminderTitle);
+                        return null;
+                    },
+                    ignored -> { refresh(); information(created ? "Reminder created successfully." : "Reminder updated successfully."); },
+                    failure -> error("Reminder could not be saved", asException(failure))
+            );
         });
     }
 
@@ -361,12 +378,20 @@ public class ReminderCenterController {
 
     private void changeStatus(ReminderRow row, String status) {
         if (row == null) return;
-        try {
-            insightsApi.reminderStatus(row.id, status, null);
-            NotificationService.add("Reminder " + row.title.get() + " marked " + status.toLowerCase(Locale.ROOT) + ".");
-            refresh();
-            information("COMPLETED".equals(status) ? "Reminder marked complete." : "Reminder reopened successfully.");
-        } catch (Exception exception) { error("Reminder status could not be changed", exception); }
+        String title = row.title.get();
+        UiTaskExecutor.submitAction(
+                "reminder-status-" + row.id,
+                () -> {
+                    insightsApi.reminderStatus(row.id, status, null);
+                    NotificationService.add("Reminder " + title + " marked " + status.toLowerCase(Locale.ROOT) + ".");
+                    return null;
+                },
+                ignored -> {
+                    refresh();
+                    information("COMPLETED".equals(status) ? "Reminder marked complete." : "Reminder reopened successfully.");
+                },
+                failure -> error("Reminder status could not be changed", asException(failure))
+        );
     }
 
     private void snooze(ReminderRow row) {
@@ -382,12 +407,18 @@ public class ReminderCenterController {
                 warning("Select today or a future date for snooze.");
                 return;
             }
-            try {
-                insightsApi.reminderStatus(row.id, "SNOOZED", picker.getValue().toString());
-                NotificationService.add("Reminder snoozed until " + BusinessClock.formatDate(picker.getValue()) + ": " + row.title.get());
-                refresh();
-                information("Reminder snoozed until " + BusinessClock.formatDate(picker.getValue()) + ".");
-            } catch (Exception exception) { error("Reminder could not be snoozed", exception); }
+            LocalDate snoozeUntil = picker.getValue();
+            String title = row.title.get();
+            UiTaskExecutor.submitAction(
+                    "reminder-snooze-" + row.id,
+                    () -> {
+                        insightsApi.reminderStatus(row.id, "SNOOZED", snoozeUntil.toString());
+                        NotificationService.add("Reminder snoozed until " + BusinessClock.formatDate(snoozeUntil) + ": " + title);
+                        return null;
+                    },
+                    ignored -> { refresh(); information("Reminder snoozed until " + BusinessClock.formatDate(snoozeUntil) + "."); },
+                    failure -> error("Reminder could not be snoozed", asException(failure))
+            );
         });
     }
 
@@ -397,8 +428,12 @@ public class ReminderCenterController {
                 + "Reference: " + row.reference.get() + "\n"
                 + "Due date: " + row.due.get() + "\n\nThis action cannot be undone.";
         if (!confirm(detail)) return;
-        try { insightsApi.deleteReminder(row.id); refresh(); information("Reminder deleted successfully."); }
-        catch (Exception exception) { error("Reminder could not be deleted", exception); }
+        UiTaskExecutor.submitAction(
+                "reminder-delete-" + row.id,
+                () -> { insightsApi.deleteReminder(row.id); return null; },
+                ignored -> { refresh(); information("Reminder deleted successfully."); },
+                failure -> error("Reminder could not be deleted", asException(failure))
+        );
     }
 
     private TableCell<ReminderRow, Void> actionCell() {
@@ -714,6 +749,14 @@ public class ReminderCenterController {
         } catch (Exception exception) {
             return fallback;
         }
+    }
+
+    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(txtSearch);if(reusedFromCache)refresh();}
+    @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("reminder-");}
+
+    private static Exception asException(Throwable failure) {
+        if (failure instanceof Exception exception) return exception;
+        return new RuntimeException(failure);
     }
 
     private static String currentUser() {

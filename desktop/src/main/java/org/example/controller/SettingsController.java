@@ -760,7 +760,7 @@ public class SettingsController implements ScreenLifecycle {
     ) {
         String previousConfiguredPath = ConfigManager.get(configKey, "");
         String taskKey = "settings-asset-store-" + configKey;
-        UiTaskExecutor.submitLatest(
+        UiTaskExecutor.submitAction(
             taskKey,
             () -> storeSelectedImage(configKey, baseName, role, selection, previousConfiguredPath),
             result -> {
@@ -1310,15 +1310,13 @@ public class SettingsController implements ScreenLifecycle {
     @FXML
     private void resetAllShortcuts() {
         ensureSectionLoaded(Section.SHORTCUTS);
-        shortcutDraftValues.clear();
-        shortcutDraftValues.putAll(ShortcutRegistry.defaults());
-        shortcutDraftScopes.clear();
-        for (Action action : ShortcutRegistry.actions()) {
+        for (Action action : shortcutManagerActions()) {
+            shortcutDraftValues.put(action, action.defaultBinding());
             shortcutDraftScopes.put(action, action.scope());
             ShortcutRegistry.saveOptions(action, action.scope(), false,
                     action == Action.EDIT_CURRENT || action == Action.OPEN_SELECTED || action == Action.DELETE_SELECTED);
         }
-        ShortcutRegistry.save(new LinkedHashMap<>(shortcutDraftValues));
+        ShortcutRegistry.saveActions(shortcutManagerDraft(), shortcutManagerScopeDraft(), shortcutManagerActions());
         refreshShortcutWorkspace();
         if (selectedShortcutAction != null) openShortcutEditor(selectedShortcutAction);
         org.example.util.ToastManager.success(panelHost, "Shortcuts reset", "All keyboard shortcuts were restored to product defaults.");
@@ -1462,7 +1460,14 @@ public class SettingsController implements ScreenLifecycle {
                 Button edit = new Button("Edit");
                 edit.getStyleClass().addAll("dse-shortcut-v3-button", "dse-shortcut-v3-list-edit");
                 edit.setOnAction(event -> openShortcutEditor(action));
-                HBox row = new HBox(10, labels, scope, key, edit);
+                Button disable = new Button("Disable");
+                disable.getStyleClass().addAll("dse-shortcut-v3-button", "dse-shortcut-v3-list-disable");
+                disable.setDisable(shortcutDraftValues.getOrDefault(action, "").isBlank());
+                disable.setOnAction(event -> disableShortcut(action));
+                Button delete = new Button("Delete");
+                delete.getStyleClass().addAll("dse-shortcut-v3-button", "dse-shortcut-v3-list-delete");
+                delete.setOnAction(event -> deleteShortcutAssignment(action));
+                HBox row = new HBox(8, labels, scope, key, edit, disable, delete);
                 row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                 row.getStyleClass().add("dse-shortcut-v3-list-row");
                 setText(null); setGraphic(row);
@@ -1489,6 +1494,26 @@ public class SettingsController implements ScreenLifecycle {
             String category=shortcutUiCategory(action);
             return "Application Actions".equals(category)||"Quick Create".equals(category)||"Navigation".equals(category);
         }).toList();
+    }
+
+    private Map<Action,String> shortcutManagerDraft() {
+        Map<Action,String> values = new LinkedHashMap<>();
+        for (Action action : shortcutManagerActions()) {
+            values.put(action, shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)));
+        }
+        return values;
+    }
+
+    private Map<Action,ShortcutRegistry.Scope> shortcutManagerScopeDraft() {
+        Map<Action,ShortcutRegistry.Scope> scopes = new LinkedHashMap<>();
+        for (Action action : shortcutManagerActions()) {
+            scopes.put(action, shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)));
+        }
+        return scopes;
+    }
+
+    private List<String> validateShortcutManager(Map<Action,String> values, Map<Action,ShortcutRegistry.Scope> scopes) {
+        return ShortcutRegistry.validateActions(values, scopes, shortcutManagerActions());
     }
 
     private String shortcutUiCategory(Action action) {
@@ -1634,8 +1659,13 @@ public class SettingsController implements ScreenLifecycle {
         Label name = new Label(action.label()); name.setMaxWidth(Double.MAX_VALUE);
         name.getStyleClass().add("dse-shortcut-v3-action-name"); HBox.setHgrow(name, javafx.scene.layout.Priority.ALWAYS);
         Label key = new Label(displayShortcut(shortcutDraftValues.get(action))); key.getStyleClass().add("dse-shortcut-v3-key-badge");
-        Button more = new Button("⋮"); more.getStyleClass().add("dse-shortcut-v3-more");
-        HBox row = new HBox(6, name, key, more); row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        Button disable = new Button("Disable"); disable.getStyleClass().addAll("dse-shortcut-v3-row-action", "dse-shortcut-v3-row-disable");
+        disable.setDisable(shortcutDraftValues.getOrDefault(action, "").isBlank());
+        disable.setOnAction(event -> disableShortcut(action));
+        Button delete = new Button("×"); delete.setTooltip(new Tooltip("Delete shortcut assignment")); delete.getStyleClass().addAll("dse-shortcut-v3-more", "dse-shortcut-v3-row-delete");
+        delete.setOnAction(event -> deleteShortcutAssignment(action));
+        Button more = new Button("⋮"); more.setTooltip(new Tooltip("Edit shortcut")); more.getStyleClass().add("dse-shortcut-v3-more");
+        HBox row = new HBox(5, name, key, disable, delete, more); row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         row.getStyleClass().add("dse-shortcut-v3-action-row");
         row.setOnMouseClicked(event -> openShortcutEditor(action)); more.setOnAction(event -> openShortcutEditor(action));
         return row;
@@ -1650,7 +1680,7 @@ public class SettingsController implements ScreenLifecycle {
             String defaults = normalizeShortcut(action.defaultBinding());
             if (!current.equalsIgnoreCase(defaults)) custom++;
         }
-        List<String> conflicts = ShortcutRegistry.validate(new LinkedHashMap<>(shortcutDraftValues), new LinkedHashMap<>(shortcutDraftScopes));
+        List<String> conflicts = validateShortcutManager(shortcutManagerDraft(), shortcutManagerScopeDraft());
         lblShortcutTotal.setText(Integer.toString(total));
         lblShortcutCustom.setText(Integer.toString(custom));
         lblShortcutConflicts.setText(Integer.toString(conflicts.size()));
@@ -1663,10 +1693,14 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void addShortcut(String preferredCategory) {
-        Action candidate = shortcutManagerActions().stream()
+        List<Action> candidates = shortcutManagerActions().stream()
                 .filter(action -> preferredCategory == null || preferredCategory.equals(shortcutUiCategory(action)))
-                .findFirst().orElse(Action.SAVE_CURRENT);
+                .toList();
+        Action candidate = candidates.stream()
+                .filter(action -> shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)).isBlank())
+                .findFirst().orElse(candidates.stream().findFirst().orElse(Action.SAVE_CURRENT));
         openShortcutEditor(candidate);
+        if (lblShortcutDrawerTitle != null) lblShortcutDrawerTitle.setText("Add Shortcut");
         if (shortcutDrawer != null) { shortcutDrawer.setVisible(true); shortcutDrawer.setManaged(true); }
         if (cmbShortcutAction != null) cmbShortcutAction.requestFocus();
     }
@@ -1734,6 +1768,39 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     @FXML
+    private void disableSelectedShortcut() {
+        if (selectedShortcutAction != null) disableShortcut(selectedShortcutAction);
+    }
+
+    @FXML
+    private void deleteSelectedShortcut() {
+        if (selectedShortcutAction != null) deleteShortcutAssignment(selectedShortcutAction);
+    }
+
+    private void disableShortcut(Action action) {
+        if (action == null) return;
+        shortcutDraftValues.put(action, "");
+        ShortcutRegistry.saveActions(Map.of(action, ""),
+                Map.of(action, shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action))),
+                List.of(action));
+        refreshShortcutWorkspace();
+        if (selectedShortcutAction == action) openShortcutEditor(action);
+        org.example.util.ToastManager.success(panelHost, "Shortcut disabled", action.label() + " is disabled for this user.");
+    }
+
+    private void deleteShortcutAssignment(Action action) {
+        if (action == null) return;
+        shortcutDraftValues.put(action, "");
+        shortcutDraftScopes.put(action, action.scope());
+        ShortcutRegistry.saveActions(Map.of(action, ""), Map.of(action, action.scope()), List.of(action));
+        ShortcutRegistry.saveOptions(action, action.scope(), false,
+                action == Action.EDIT_CURRENT || action == Action.OPEN_SELECTED || action == Action.DELETE_SELECTED);
+        refreshShortcutWorkspace();
+        if (selectedShortcutAction == action) closeShortcutDrawer();
+        org.example.util.ToastManager.success(panelHost, "Shortcut removed", action.label() + " has no assigned key. You can add it again at any time.");
+    }
+
+    @FXML
     private void resetSelectedShortcut() {
         if (selectedShortcutAction == null) return;
         txtShortcutKeys.setText(displayShortcut(selectedShortcutAction.defaultBinding()));
@@ -1757,7 +1824,7 @@ public class SettingsController implements ScreenLifecycle {
         Map<Action,ShortcutRegistry.Scope> candidateScopes = new LinkedHashMap<>(shortcutDraftScopes);
         candidate.put(selectedShortcutAction, raw);
         candidateScopes.put(selectedShortcutAction, selectedScope);
-        List<String> errors = ShortcutRegistry.validate(candidate, candidateScopes);
+        List<String> errors = validateShortcutManager(candidate, candidateScopes);
         if (!errors.isEmpty()) {
             refreshSelectedShortcutConflict();
             warn("Keyboard shortcut conflict:\n" + String.join("\n", errors));
@@ -1765,7 +1832,7 @@ public class SettingsController implements ScreenLifecycle {
         }
         shortcutDraftValues.put(selectedShortcutAction, raw);
         shortcutDraftScopes.put(selectedShortcutAction, selectedScope);
-        ShortcutRegistry.save(new LinkedHashMap<>(shortcutDraftValues));
+        ShortcutRegistry.saveActions(shortcutManagerDraft(), shortcutManagerScopeDraft(), shortcutManagerActions());
         ShortcutRegistry.saveOptions(selectedShortcutAction, selectedScope,
                 chkShortcutAllowTextInput != null && chkShortcutAllowTextInput.isSelected(),
                 chkShortcutRequireSelection != null && chkShortcutRequireSelection.isSelected());
@@ -1783,7 +1850,7 @@ public class SettingsController implements ScreenLifecycle {
         candidate.put(selectedShortcutAction, raw);
         candidateScopes.put(selectedShortcutAction, shortcutScopeFromLabel(
                 cmbShortcutScope == null ? null : cmbShortcutScope.getValue(), selectedShortcutAction.scope()));
-        List<String> errors = ShortcutRegistry.validate(candidate, candidateScopes);
+        List<String> errors = validateShortcutManager(candidate, candidateScopes);
         String relevant = errors.stream()
                 .filter(error -> error.contains(selectedShortcutAction.label()) || (!raw.isBlank() && error.toLowerCase(java.util.Locale.ROOT).contains(displayShortcut(raw).toLowerCase(java.util.Locale.ROOT))))
                 .findFirst().orElse("");
@@ -1804,7 +1871,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private boolean validateShortcutSettings() {
-        List<String> errors = ShortcutRegistry.validate(shortcutDraft(), new LinkedHashMap<>(shortcutDraftScopes));
+        List<String> errors = validateShortcutManager(shortcutManagerDraft(), shortcutManagerScopeDraft());
         if (lblShortcutValidation != null) lblShortcutValidation.setText(errors.isEmpty() ? "No shortcut conflicts detected." : errors.getFirst());
         if (!errors.isEmpty()) {
             warn("Keyboard shortcut conflict:\n" + String.join("\n", errors));
@@ -1815,17 +1882,18 @@ public class SettingsController implements ScreenLifecycle {
 
     private void refreshShortcutValidation() {
         if (lblShortcutValidation == null) return;
-        List<String> errors = ShortcutRegistry.validate(shortcutDraft(), new LinkedHashMap<>(shortcutDraftScopes));
+        List<String> errors = validateShortcutManager(shortcutManagerDraft(), shortcutManagerScopeDraft());
         lblShortcutValidation.setText(errors.isEmpty() ? "No shortcut conflicts detected." : errors.getFirst());
         lblShortcutValidation.getStyleClass().removeAll("dse-shortcut-v3-validation-ok", "dse-shortcut-v3-validation-warning");
         lblShortcutValidation.getStyleClass().add(errors.isEmpty() ? "dse-shortcut-v3-validation-ok" : "dse-shortcut-v3-validation-warning");
     }
 
     private void saveShortcutSettings() {
-        Map<Action,String> draft = shortcutDraft();
-        List<String> errors = ShortcutRegistry.validate(draft, new LinkedHashMap<>(shortcutDraftScopes));
+        Map<Action,String> draft = shortcutManagerDraft();
+        Map<Action,ShortcutRegistry.Scope> scopes = shortcutManagerScopeDraft();
+        List<String> errors = validateShortcutManager(draft, scopes);
         if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("\n", errors));
-        ShortcutRegistry.save(draft);
+        ShortcutRegistry.saveActions(draft, scopes, shortcutManagerActions());
     }
 
     @FXML
@@ -1841,18 +1909,18 @@ public class SettingsController implements ScreenLifecycle {
             properties.load(reader);
             Map<Action,String> imported = new LinkedHashMap<>(shortcutDraftValues);
             Map<Action,ShortcutRegistry.Scope> importedScopes = new LinkedHashMap<>(shortcutDraftScopes);
-            for (Action action : ShortcutRegistry.actions()) {
+            for (Action action : shortcutManagerActions()) {
                 String value = properties.getProperty(action.id());
                 if (value != null) imported.put(action, normalizeShortcut(value));
                 String scopeValue = properties.getProperty(action.id() + ".scope");
                 if (scopeValue != null) importedScopes.put(action, shortcutScopeFromLabel(scopeValue, action.scope()));
             }
-            List<String> errors = ShortcutRegistry.validate(imported, importedScopes);
+            List<String> errors = validateShortcutManager(imported, importedScopes);
             if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("\n", errors));
             shortcutDraftValues.clear(); shortcutDraftValues.putAll(imported);
             shortcutDraftScopes.clear(); shortcutDraftScopes.putAll(importedScopes);
-            ShortcutRegistry.save(imported);
-            for (Action action : ShortcutRegistry.actions()) {
+            ShortcutRegistry.saveActions(imported, importedScopes, shortcutManagerActions());
+            for (Action action : shortcutManagerActions()) {
                 boolean allowText = Boolean.parseBoolean(properties.getProperty(action.id() + ".allowText", Boolean.toString(ShortcutRegistry.allowInTextInput(action))));
                 boolean requireSelection = Boolean.parseBoolean(properties.getProperty(action.id() + ".requireSelection", Boolean.toString(ShortcutRegistry.requireSelection(action))));
                 ShortcutRegistry.saveOptions(action, importedScopes.getOrDefault(action, action.scope()), allowText, requireSelection);
@@ -1876,7 +1944,7 @@ public class SettingsController implements ScreenLifecycle {
         if (selected == null) return;
         try (var writer = Files.newBufferedWriter(selected.toPath())) {
             Properties properties = new Properties();
-            for (Action action : ShortcutRegistry.actions()) {
+            for (Action action : shortcutManagerActions()) {
                 properties.setProperty(action.id(), shortcutDraftValues.getOrDefault(action, ""));
                 properties.setProperty(action.id() + ".scope", shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)).name());
                 properties.setProperty(action.id() + ".allowText", Boolean.toString(ShortcutRegistry.allowInTextInput(action)));

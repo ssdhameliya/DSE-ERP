@@ -125,7 +125,7 @@ public final class ConfigManager {
     private static String requirePostgresUrl(String url) {
         String value = url == null ? "" : url.trim();
         if (!value.startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("DSE ERP 8.5.6 production runtime requires PostgreSQL. Invalid database URL: " + value);
+            throw new IllegalStateException("DSE ERP 9.0.0 production runtime requires PostgreSQL. Invalid database URL: " + value);
         }
         return value;
     }
@@ -176,14 +176,54 @@ public final class ConfigManager {
     public static boolean isApiAuthenticationEnabled() { return true; }
 
     public static String getAuthApiBaseUrl() {
-        String runtime = runtimeAuthApiBaseUrl;
-        if (runtime != null && !runtime.isBlank()) return runtime;
+        return getCanonicalApiBaseUrl();
+    }
+
+    /** Raw configured/runtime endpoint used before login and by runtime bootstrap. */
+    public static String getDataApiBaseUrlUnbound() {
+        return getCanonicalApiBaseUrlUnbound();
+    }
+
+    private static synchronized String getCanonicalApiBaseUrl() {
+        String sessionBase = org.example.api.ApiSession.boundApiBaseUrl();
+        if (sessionBase != null && !sessionBase.isBlank()) return sessionBase;
+        return getCanonicalApiBaseUrlUnbound();
+    }
+
+    private static synchronized String getCanonicalApiBaseUrlUnbound() {
+        String runtimeAuth = normalizeApiUrl(runtimeAuthApiBaseUrl);
+        String runtimeData = normalizeApiUrl(runtimeDataApiBaseUrl);
+        if (!runtimeAuth.isBlank() || !runtimeData.isBlank()) {
+            if (!runtimeAuth.isBlank() && !runtimeData.isBlank() && !runtimeAuth.equalsIgnoreCase(runtimeData)) {
+                throw new IllegalStateException("Authentication and business data must use the same DSE ERP server. Runtime endpoints differ: " + runtimeAuth + " vs " + runtimeData);
+            }
+            return !runtimeData.isBlank() ? runtimeData : runtimeAuth;
+        }
         if (isSharedClient()) {
-            String server = getConfiguredServerUrl();
+            String server = normalizeApiUrl(getConfiguredServerUrl());
             if (server.isBlank()) throw new IllegalStateException("Shared-client mode requires a company server address.");
             return server;
         }
-        return get("auth.api.baseUrl", System.getenv().getOrDefault("DSE_AUTH_API_URL", "http://127.0.0.1:8080"));
+
+        String envAuth = normalizeApiUrl(System.getenv("DSE_AUTH_API_URL"));
+        String envData = normalizeApiUrl(System.getenv("DSE_DATA_API_URL"));
+        String configuredAuth = normalizeApiUrl(properties.getProperty("auth.api.baseUrl"));
+        String configuredData = normalizeApiUrl(properties.getProperty("data.api.baseUrl"));
+        String auth = !envAuth.isBlank() ? envAuth : configuredAuth;
+        String data = !envData.isBlank() ? envData : configuredData;
+        if (!auth.isBlank() && !data.isBlank() && !auth.equalsIgnoreCase(data)) {
+            throw new IllegalStateException("DSE ERP uses one Spring server for authentication and business data. Remove the conflicting auth.api.baseUrl/data.api.baseUrl configuration: " + auth + " vs " + data);
+        }
+        if (!data.isBlank()) return data;
+        if (!auth.isBlank()) return auth;
+        return "http://127.0.0.1:8080";
+    }
+
+    private static String normalizeApiUrl(String value) {
+        if (value == null) return "";
+        String result = value.trim();
+        while (result.endsWith("/")) result = result.substring(0, result.length() - 1);
+        return result;
     }
 
     public static synchronized void applyRuntimeApiBaseUrl(String baseUrl) {
@@ -240,15 +280,9 @@ public final class ConfigManager {
     public static boolean isApiDataEnabled() { return true; }
 
     public static String getDataApiBaseUrl() {
-        String runtime = runtimeDataApiBaseUrl;
-        if (runtime != null && !runtime.isBlank()) return runtime;
-        if (isSharedClient()) {
-            String server = getConfiguredServerUrl();
-            if (server.isBlank()) throw new IllegalStateException("Shared-client mode requires a company server address.");
-            return server;
-        }
-        return get("data.api.baseUrl", System.getenv().getOrDefault("DSE_DATA_API_URL", getAuthApiBaseUrl()));
+        return getCanonicalApiBaseUrl();
     }
+
 
 
     public static synchronized void applyRuntimeInternalBridgeToken(String token) {

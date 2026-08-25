@@ -19,6 +19,8 @@ import org.example.shared.PermissionCatalog;
 import org.example.util.IconFactory;
 import org.example.util.ModernDialog;
 import org.example.util.ToastManager;
+import org.example.util.UiTaskExecutor;
+import org.example.navigation.ScreenLifecycle;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -28,7 +30,7 @@ import java.util.function.Consumer;
  * authority; this controller only reshapes them into a compact module x capability
  * matrix so new catalog rows do not require new FXML checkboxes.
  */
-public class PermissionMatrixController {
+public class PermissionMatrixController implements ScreenLifecycle {
     private static String requestedRole;
     public static void requestRole(String role) { requestedRole = role; }
 
@@ -62,13 +64,10 @@ public class PermissionMatrixController {
         cmbRole.setConverter(roleConverter);
         cmbCopyRole.setConverter(roleConverter);
         cmbTemplate.getItems().setAll(PermissionCatalog.TEMPLATES);
-        loadRoles();
         cmbRole.valueProperty().addListener((obs, oldRole, newRole) -> {
             if (!loading) loadRole(newRole);
         });
-        if (requestedRole != null && cmbRole.getItems().contains(requestedRole)) cmbRole.setValue(requestedRole);
-        else if (!cmbRole.getItems().isEmpty()) cmbRole.getSelectionModel().selectFirst();
-        requestedRole = null;
+        loadRoles();
     }
 
     private void configureIcons() {
@@ -197,56 +196,75 @@ public class PermissionMatrixController {
     }
 
     private void loadRoles() {
+        UiTaskExecutor.submitLatest(
+                "permission-matrix-roles",
+                () -> api.roles().stream().filter(AdminApiClient.RoleDto::active).toList(),
+                this::applyRoles,
+                failure -> { loading = false; showError("Roles could not be loaded", asException(failure)); }
+        );
+    }
+
+    private void applyRoles(List<AdminApiClient.RoleDto> roles) {
+        loading = true;
         try {
-            var roles = api.roles().stream().filter(AdminApiClient.RoleDto::active).toList();
-            loading = true;
             roleDisplayNames.clear();
             roleUserCounts.clear();
-            for (var role : roles) {
+            for (var role : roles == null ? List.<AdminApiClient.RoleDto>of() : roles) {
                 String code = role.code() == null ? "" : role.code().trim().toUpperCase(Locale.ROOT);
                 if (code.isBlank()) continue;
                 roleDisplayNames.put(code, role.displayName() == null || role.displayName().isBlank() ? code : role.displayName().trim());
                 roleUserCounts.put(code, role.userCount());
             }
             cmbRole.getItems().setAll(roleDisplayNames.keySet().stream().toList());
+            String requested = requestedRole == null ? null : requestedRole.trim().toUpperCase(Locale.ROOT);
+            String target = requested != null && cmbRole.getItems().contains(requested)
+                    ? requested : (cmbRole.getItems().isEmpty() ? null : cmbRole.getItems().getFirst());
+            if (target != null) cmbRole.setValue(target);
+            requestedRole = null;
+        } finally {
             loading = false;
-        } catch (Exception e) {
-            loading = false;
-            showError("Roles could not be loaded", e);
         }
+        loadRole(cmbRole.getValue());
     }
 
     private void loadRole(String role) {
         modules.clear();
         tableRows.clear();
         if (role == null || role.isBlank()) return;
-        try {
-            Map<String, ModuleRow> byModule = new LinkedHashMap<>();
-            for (var dto : api.permissions(role)) {
-                String moduleKey = PermissionCatalog.normalize(dto.module());
-                PermissionCatalog.ModuleMeta meta = PermissionCatalog.module(moduleKey);
-                ModuleRow row = byModule.computeIfAbsent(moduleKey, key -> new ModuleRow(meta));
-                PermissionEntry entry = new PermissionEntry(dto.id(), moduleKey, PermissionCatalog.normalize(dto.action()), dto.description(), new SimpleBooleanProperty(dto.allowed()));
-                entry.allowed().addListener((obs, oldValue, newValue) -> permissionsChanged());
-                row.add(entry);
-            }
-            modules.addAll(byModule.values().stream()
-                    .sorted(Comparator.comparingInt((ModuleRow row) -> row.meta().order()).thenComparing(row -> row.meta().label()))
-                    .toList());
-            boolean admin = "ADMIN".equalsIgnoreCase(role);
-            setEditingEnabled(!admin);
-            long users = roleUserCounts.getOrDefault(role.toUpperCase(Locale.ROOT), 0L);
-            lblRoleUsers.setText(users + (users == 1 ? " user" : " users") + " use this role");
-            String displayRole = roleDisplayNames.getOrDefault(role.toUpperCase(Locale.ROOT), role);
-            lblHint.setText(admin
-                    ? "Administrator is protected full access. Review is available, but the matrix cannot be changed."
-                    : "Changes apply to every user assigned to " + displayRole + " in both LOCAL and company-server deployments.");
-            rebuildCopyRoles();
-            cmbTemplate.getSelectionModel().clearSelection();
-            rebuildVisibleRows();
-        } catch (Exception e) {
-            showError("Permissions could not be loaded", e);
+        UiTaskExecutor.submitLatest(
+                "permission-matrix-role",
+                () -> api.permissions(role),
+                permissions -> applyRolePermissions(role, permissions),
+                failure -> showError("Permissions could not be loaded", asException(failure))
+        );
+    }
+
+    private void applyRolePermissions(String role, List<AdminApiClient.PermissionDto> permissions) {
+        if (!Objects.equals(cmbRole.getValue(), role)) return;
+        Map<String, ModuleRow> byModule = new LinkedHashMap<>();
+        for (var dto : permissions == null ? List.<AdminApiClient.PermissionDto>of() : permissions) {
+            String moduleKey = PermissionCatalog.normalize(dto.module());
+            PermissionCatalog.ModuleMeta meta = PermissionCatalog.module(moduleKey);
+            ModuleRow row = byModule.computeIfAbsent(moduleKey, key -> new ModuleRow(meta));
+            PermissionEntry entry = new PermissionEntry(dto.id(), moduleKey, PermissionCatalog.normalize(dto.action()), dto.description(), new SimpleBooleanProperty(dto.allowed()));
+            entry.allowed().addListener((obs, oldValue, newValue) -> permissionsChanged());
+            row.add(entry);
         }
+        modules.clear();
+        modules.addAll(byModule.values().stream()
+                .sorted(Comparator.comparingInt((ModuleRow row) -> row.meta().order()).thenComparing(row -> row.meta().label()))
+                .toList());
+        boolean admin = "ADMIN".equalsIgnoreCase(role);
+        setEditingEnabled(!admin);
+        long users = roleUserCounts.getOrDefault(role.toUpperCase(Locale.ROOT), 0L);
+        lblRoleUsers.setText(users + (users == 1 ? " user" : " users") + " use this role");
+        String displayRole = roleDisplayNames.getOrDefault(role.toUpperCase(Locale.ROOT), role);
+        lblHint.setText(admin
+                ? "Administrator is protected full access. Review is available, but the matrix cannot be changed."
+                : "Changes apply to every user assigned to " + displayRole + " in both LOCAL and company-server deployments.");
+        rebuildCopyRoles();
+        cmbTemplate.getSelectionModel().clearSelection();
+        rebuildVisibleRows();
     }
 
     private void rebuildCopyRoles() {
@@ -402,22 +420,22 @@ public class PermissionMatrixController {
         if (!canEdit()) return;
         String sourceRole = cmbCopyRole.getValue();
         if (sourceRole == null || sourceRole.isBlank()) return;
-        try {
-            Map<String, Boolean> source = new HashMap<>();
-            for (var p : api.permissions(sourceRole)) source.put(permissionKey(p.module(), p.action()), p.allowed());
-            loading = true;
-            try {
-                for (ModuleRow row : modules) for (PermissionEntry p : row.permissions()) {
-                    p.allowed().set(source.getOrDefault(permissionKey(row.meta().key(), p.action()), false));
-                }
-            } finally {
-                loading = false;
-            }
-            lblHint.setText("Copied " + sourceRole + " permissions as unsaved changes. Review before saving.");
-            permissionsChanged();
-        } catch (Exception e) {
-            showError("Permissions could not be copied", e);
-        }
+        UiTaskExecutor.submitLatest(
+                "permission-matrix-copy",
+                () -> api.permissions(sourceRole),
+                permissions -> {
+                    Map<String, Boolean> source = new HashMap<>();
+                    for (var p : permissions) source.put(permissionKey(p.module(), p.action()), p.allowed());
+                    loading = true;
+                    try {
+                        for (ModuleRow row : modules) for (PermissionEntry p : row.permissions())
+                            p.allowed().set(source.getOrDefault(permissionKey(row.meta().key(), p.action()), false));
+                    } finally { loading = false; }
+                    lblHint.setText("Copied " + sourceRole + " permissions as unsaved changes. Review before saving.");
+                    permissionsChanged();
+                },
+                failure -> showError("Permissions could not be copied", asException(failure))
+        );
     }
 
     @FXML private void save() {
@@ -426,19 +444,29 @@ public class PermissionMatrixController {
         long users = roleUserCounts.getOrDefault(role.toUpperCase(Locale.ROOT), 0L);
         if (!ModernDialog.confirm(root, "Save Permissions", "Apply permission changes to " + role + "?",
                 "This updates access for " + users + (users == 1 ? " user" : " users") + " assigned to this role. The same server-owned matrix is used in LOCAL and company-server modes.")) return;
-        try {
-            api.savePermissions(role, modules.stream().flatMap(row -> row.permissions().stream())
-                    .map(p -> new AdminApiClient.PermissionSave(p.id(), p.allowed().get())).toList());
-            PermissionService.refresh();
-            ToastManager.success(root, "Permissions saved", role + " access has been updated.");
-            lblHint.setText("Permissions saved for " + role + ".");
-        } catch (Exception e) {
-            showError("Permissions could not be saved", e);
-        }
+        List<AdminApiClient.PermissionSave> changes = modules.stream().flatMap(row -> row.permissions().stream())
+                .map(p -> new AdminApiClient.PermissionSave(p.id(), p.allowed().get())).toList();
+        btnSave.setDisable(true);
+        UiTaskExecutor.submitAction(
+                "permission-matrix-save-" + role,
+                () -> { api.savePermissions(role, changes); PermissionService.refresh(); return null; },
+                ignored -> {
+                    btnSave.setDisable(!canEdit());
+                    ToastManager.success(root, "Permissions saved", role + " access has been updated.");
+                    lblHint.setText("Permissions saved for " + role + ".");
+                },
+                failure -> { btnSave.setDisable(!canEdit()); showError("Permissions could not be saved", asException(failure)); }
+        );
     }
 
     @FXML private void reset() { loadRole(cmbRole.getValue()); }
+    @Override public void onScreenHidden() { UiTaskExecutor.cancelPrefix("permission-matrix-"); }
     @FXML private void back() { DashboardController.navigateFromChildPage("Role Management", "/fxml/pages/RoleManagement.fxml"); }
+
+    private static Exception asException(Throwable failure) {
+        if (failure instanceof Exception exception) return exception;
+        return new RuntimeException(failure);
+    }
 
     private void showError(String title, Exception e) {
         Throwable rootCause = e;

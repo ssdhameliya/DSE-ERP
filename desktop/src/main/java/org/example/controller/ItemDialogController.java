@@ -11,6 +11,9 @@ import org.example.service.ItemService;
 import org.example.service.LookupService;
 import org.example.service.NotificationService;
 import org.example.util.IconFactory;
+import org.example.util.UiTaskExecutor;
+
+import java.util.List;
 
 public class ItemDialogController {
     @FXML private TextField txtItemCode, txtDescription, txtHSN, txtPurchasePrice,
@@ -29,8 +32,6 @@ public class ItemDialogController {
 
     @FXML
     public void initialize() {
-        loadDropdowns();
-        txtItemCode.setText(generateItemCode());
         txtPurchasePrice.setText("0.00");
         txtSellingPrice.setText("0.00");
         txtOpeningStock.setText("0.00");
@@ -40,17 +41,56 @@ public class ItemDialogController {
         btnCancel.setGraphic(IconFactory.icon("cancel"));
         headerIconHolder.getChildren().setAll(IconFactory.icon("item", 24));
         installLiveValidation();
+        loadBootstrapAsync();
     }
 
-    private void loadDropdowns() {
-        cmbCategory.getItems().setAll(lookupService.getValues("CATEGORY"));
-        cmbUnit.getItems().setAll(lookupService.getValues("UNIT"));
-        cmbGST.getItems().setAll(lookupService.getValues("GST"));
-        cmbDiscount.getItems().setAll(lookupService.getValues("DISCOUNT"));
-        if (!cmbDiscount.getItems().isEmpty()) cmbDiscount.getSelectionModel().selectFirst();
+    private record ItemBootstrap(List<String> categories, List<String> units, List<String> gst,
+                                 List<String> discounts) { }
+
+    private void loadBootstrapAsync() {
+        UiTaskExecutor.submitLatest(
+                "item-dialog-bootstrap",
+                () -> new ItemBootstrap(
+                        lookupService.getValues("CATEGORY"),
+                        lookupService.getValues("UNIT"),
+                        lookupService.getValues("GST"),
+                        lookupService.getValues("DISCOUNT")),
+                this::applyBootstrap,
+                failure -> showLoadError(failure)
+        );
     }
 
-    private String generateItemCode() { return service.nextCode(); }
+    private void applyBootstrap(ItemBootstrap data) {
+        String category = editingItem == null ? cmbCategory.getValue() : editingItem.getCategory();
+        String unit = editingItem == null ? cmbUnit.getValue() : editingItem.getUnit();
+        String gst = editingItem == null ? cmbGST.getValue() : formatLookup(editingItem.getGst());
+        String discount = editingItem == null ? cmbDiscount.getValue() : formatLookup(editingItem.getDiscountPercent());
+        cmbCategory.getItems().setAll(data.categories());
+        cmbUnit.getItems().setAll(data.units());
+        cmbGST.getItems().setAll(data.gst());
+        cmbDiscount.getItems().setAll(data.discounts());
+        if (category != null) cmbCategory.setValue(category);
+        if (unit != null) cmbUnit.setValue(unit);
+        if (gst != null) cmbGST.setValue(gst);
+        if (discount != null) cmbDiscount.setValue(discount);
+        else if (!cmbDiscount.getItems().isEmpty()) cmbDiscount.getSelectionModel().selectFirst();
+        if (editingItem == null && (txtItemCode.getText() == null || txtItemCode.getText().isBlank())) requestNextCodeAsync();
+    }
+
+    private void requestNextCodeAsync() {
+        UiTaskExecutor.submitLatest(
+                "item-dialog-next-code",
+                service::nextCode,
+                code -> { if (editingItem == null && (txtItemCode.getText() == null || txtItemCode.getText().isBlank())) txtItemCode.setText(code == null ? "" : code); },
+                this::showLoadError
+        );
+    }
+
+    private void showLoadError(Throwable failure) {
+        Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message(failure));
+        alert.setHeaderText("Item master data could not be loaded");
+        alert.showAndWait();
+    }
 
     public void setItem(Item item) {
         this.editingItem = item;
@@ -77,41 +117,57 @@ public class ItemDialogController {
     private void saveItem() {
         if (!validateForm()) return;
 
-        try {
-            Item item = editingItem == null ? new Item() : editingItem;
-            item.setItemCode(txtItemCode.getText().trim());
-            item.setDescription(txtDescription.getText().trim());
-            item.setCategory(cmbCategory.getValue());
-            item.setBrand(null);
-            item.setMaterial(null);
-            item.setSize(null);
-            item.setUnit(cmbUnit.getValue());
-            item.setHsn(txtHSN.getText().trim());
-            item.setGst(parseLookupDouble(cmbGST));
-            item.setDiscountPercent(parseLookupDouble(cmbDiscount));
-            item.setPurchasePrice(parseFieldDouble(txtPurchasePrice));
-            item.setSellingPrice(parseFieldDouble(txtSellingPrice));
-            item.setOpeningStock(parseFieldDouble(txtOpeningStock));
-            item.setMinimumStock(parseFieldDouble(txtMinimumStock));
-            item.setLocation(txtLocation.getText().trim());
-            item.setRemarks(txtRemarks.getText().trim());
+        Item item = editingItem == null ? new Item() : editingItem;
+        item.setItemCode(txtItemCode.getText().trim());
+        item.setDescription(txtDescription.getText().trim());
+        item.setCategory(cmbCategory.getValue());
+        item.setBrand(null);
+        item.setMaterial(null);
+        item.setSize(null);
+        item.setUnit(cmbUnit.getValue());
+        item.setHsn(txtHSN.getText().trim());
+        item.setGst(parseLookupDouble(cmbGST));
+        item.setDiscountPercent(parseLookupDouble(cmbDiscount));
+        item.setPurchasePrice(parseFieldDouble(txtPurchasePrice));
+        item.setSellingPrice(parseFieldDouble(txtSellingPrice));
+        item.setOpeningStock(parseFieldDouble(txtOpeningStock));
+        item.setMinimumStock(parseFieldDouble(txtMinimumStock));
+        item.setLocation(txtLocation.getText().trim());
+        item.setRemarks(txtRemarks.getText().trim());
 
-            boolean created = editingItem == null;
-            if (created) service.save(item); else service.update(item);
+        boolean created = editingItem == null;
+        btnSave.setDisable(true);
+        UiTaskExecutor.submitAction(
+                "item-dialog-save-" + item.getItemCode(),
+                () -> {
+                    if (created) service.save(item); else service.update(item);
+                    NotificationService.createNotification(
+                            created ? "Item created" : "Item updated",
+                            item.getItemCode() + " - " + item.getDescription(),
+                            "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
+                    return item;
+                },
+                saved -> {
+                    btnSave.setDisable(false);
+                    org.example.util.ToastManager.success(txtItemCode,
+                            created ? "Item Created" : "Item Updated",
+                            created ? "Item added successfully." : "Item updated successfully.");
+                    closeDialog();
+                },
+                failure -> {
+                    btnSave.setDisable(false);
+                    Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message(failure));
+                    alert.setHeaderText("Item could not be saved");
+                    alert.showAndWait();
+                }
+        );
+    }
 
-            NotificationService.createNotification(
-                    created ? "Item created" : "Item updated",
-                    item.getItemCode() + " - " + item.getDescription(),
-                    "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
-            org.example.util.ToastManager.success(txtItemCode,
-                    created ? "Item Created" : "Item Updated",
-                    created ? "Item added successfully." : "Item updated successfully.");
-            closeDialog();
-        } catch (Exception ex) {
-            Alert alert = new OwnedAlert(Alert.AlertType.ERROR, ex.getMessage());
-            alert.setHeaderText("Item could not be saved");
-            alert.showAndWait();
-        }
+    private static String message(Throwable failure) {
+        Throwable current = failure;
+        while (current != null && (current.getMessage() == null || current.getMessage().isBlank()) && current.getCause() != current)
+            current = current.getCause();
+        return current == null || current.getMessage() == null ? "Unexpected error." : current.getMessage();
     }
 
     private boolean validateForm() {

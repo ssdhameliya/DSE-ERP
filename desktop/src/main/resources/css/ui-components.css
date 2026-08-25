@@ -9547,3 +9547,32 @@
     -fx-border-width: 1;
     -fx-effect: dropshadow(gaussian, rgba(59,130,246,.42), 12, .18, 0, 0);
 }
+
+/* v9.0.0 R7 — Purchase Recon/Recon Supplier KPI parity with register screens. */
+.recon-register-page .recon-metric-row {
+    -fx-min-height: 82px;
+    -fx-pref-height: 82px;
+    -fx-spacing: 8px;
+}
+.recon-register-page .recon-metric-card {
+    -fx-min-width: 0;
+    -fx-min-height: 78px;
+    -fx-pref-height: 78px;
+    -fx-padding: 8px 10px;
+    -fx-spacing: 8px;
+    -fx-alignment: center-left;
+}
+.recon-register-page .recon-metric-card > .vbox {
+    -fx-min-width: 0;
+}
+.recon-register-page .recon-metric-card .metric-label {
+    -fx-font-size: 10.5px;
+    -fx-font-weight: 700;
+}
+.recon-register-page .recon-metric-card .metric-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+}
+.recon-register-page .recon-metric-card .metric-note {
+    -fx-font-size: 9.5px;
+}

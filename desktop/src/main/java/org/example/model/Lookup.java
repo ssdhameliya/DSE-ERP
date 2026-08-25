@@ -16,6 +16,8 @@ public class Lookup {
 
     private boolean active;
 
+    private long rowVersion;
+
     public Lookup() {
     }
 
@@ -74,6 +76,10 @@ public class Lookup {
     public void setActive(boolean active) {
         this.active = active;
     }
+
+    public long getRowVersion() { return rowVersion; }
+
+    public void setRowVersion(long rowVersion) { this.rowVersion = Math.max(0, rowVersion); }
 
     @Override
     public String toString() {

@@ -8,6 +8,52 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.0".equals(version)) {
+            return """
+                    DSE ERP 9.0.0
+                    • Phase 1 safety foundation separates cancellable background reads from reliable non-cancellable save/action work.
+                    • Bank Statement imports, matching, reversals and other financial actions now use a reliable serialized client action queue rather than latest-result-wins execution.
+                    • Duplicate in-flight actions are rejected explicitly, and queue saturation now reports a failure instead of silently discarding a requested action.
+                    • Server-managed document, return, payment-proof and refund-proof attachments now enforce separate view/edit permissions and only resolve files inside the managed Attachments workspace.
+                    • Removed the legacy raw payment attachment-path update route so payment proofs must use managed server upload/download storage.
+                    • Existing Sales, Purchase, Purchase Recon, Bank Statement business calculations and UI layouts remain unchanged in Phase 1.
+                    • Phase 2 moves high-impact Purchase, Inventory, Operations, Master Data, payment, return, quotation, reminder and access-management reads off the JavaFX Application Thread.
+                    • Create/edit master dialogs now load lookups and generated references asynchronously; edit screens preserve their existing identifiers instead of allocating a new create reference during background bootstrap.
+                    • Master Data search is debounced, stale read work is cancelled when supported screens are hidden, and reliable Phase 1 action execution is used for the migrated save/update/delete operations.
+                    • Purchase Select From PO now loads draft orders and the selected draft asynchronously, while existing calculations, server APIs, database schema, FXML and CSS remain unchanged in Phase 2.
+                    • Phase 3 adds true server-side paging, filtering and totals for Sales, Purchase, Finance/Expense, Sales Returns, Purchase Returns, Quotations and Purchase Recon registers; Bank Statement keeps its existing server-paged implementation.
+                    • Full-register exports now fetch every record matching the active server filters rather than exporting only the visible page, while export work remains off the JavaFX Application Thread.
+                    • Linked Finance records use direct record lookup, and document reference allocation now uses the central reference counter without rescanning historical documents after the counter scope has been initialized.
+                    • Phase 4 consolidates repeated register paging state, page navigation and row/detail-drawer interaction into shared JavaFX utilities used by Sales, Purchase, Returns, Quotations and Purchase Recon without changing their Phase 3 server queries.
+                    • Attachment preview materialisation is now shared across Sales, Purchase, payment, quotation, refund and Purchase Recon workflows; remote preview/count reads stay off the JavaFX Application Thread.
+                    • Phase 4 is a desktop maintainability refactor only: existing business calculations, Spring/Hibernate services, PostgreSQL schema, FXML layouts, CSS and document templates remain unchanged.
+                    • Phase 5 adds optimistic multi-user edit protection to Sales, Purchase, Finance, Party, Item, Master Data, Recon Supplier and Purchase Recon records using server-owned row versions and HTTP 409 conflict responses instead of silent overwrites.
+                    • Critical payment, return and attachment mutations advance the owning Sales/Purchase version so already-open edit screens detect that another user changed the record.
+                    • Server-side mutation permissions and audit logging are strengthened across core document, finance, return, inventory, master-data and Purchase Recon workflows; recorded actors come from the authenticated server session rather than client-supplied usernames.
+                    • Phase 5 registers and verifies the 9.0.0 row-version migration at server startup while preserving the existing pessimistic locks for financial and stock-sensitive operations.
+                    • Phase 6 standardizes operational loading, empty and load-error states across the main Sales, Purchase, Return, Quotation, Banking, Inventory, Master and Purchase Recon workspaces using the existing Phase 5 design classes; all seven CSS files and FXML layouts remain unchanged.
+                    • Register search fields receive consistent keyboard focus, and existing detail drawers on supported registers can be dismissed with Escape without changing their layouts or actions.
+                    • Customer/Supplier Master loading and Bank/Expense KPI loading now use the existing background-read executor, closing the last identified UI-thread network waits without changing APIs or business calculations.
+                    """.strip();
+        }
+        if ("8.5.8".equals(version)) {
+            return """
+                    DSE ERP 8.5.8
+                    • Added the isolated Recon Supplier master and Purchase Recon register without changing the existing Supplier Master or normal Purchase workflow.
+                    • Added manual Purchase Recon entry, server-managed attachments, configurable RSP/PRC references and Purchase Recon import with automatic missing Recon Supplier creation.
+                    • Integrated Purchase Recon into Bank Statement matching, partial/reconciled status tracking, generated Bank Entry linkage and reverse/unmatch behavior.
+                    • Added dedicated permission-matrix capabilities for Recon Supplier and Purchase Recon, preserving single-user local-server and multi-user shared-server operation.
+                    • Hardened import handling for normalized supplier-name matching, business duplicates, tax-review warnings and spreadsheet summary/total rows.
+                    """.strip();
+        }
+        if ("8.5.7".equals(version)) {
+            return """
+                    DSE ERP 8.5.7
+                    • Fixed the GitHub final data-architecture gate by moving effective-permission persistence out of AuthController into PermissionAuthorityService.
+                    • REST authentication controllers now delegate permission reads through the service layer while preserving the complete v8.5.5/v8.5.6 custom-role permission behavior.
+                    • Revalidated all source architecture audits and the JavaFX UI source contract used by GitHub CI.
+                    """.strip();
+        }
         if ("8.5.6".equals(version)) {
             return """
                     DSE ERP 8.5.6

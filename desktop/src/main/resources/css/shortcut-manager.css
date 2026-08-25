@@ -448,3 +448,25 @@
     -fx-border-color: transparent;
 }
 .dse-shortcut-v3-root .dse-shortcut-v3-card-scroll { -fx-padding: 4 0 0 0; }
+
+/* v9.0.0 R7: explicit per-action lifecycle controls. */
+.dse-shortcut-v3-row-action,
+.dse-shortcut-v3-list-disable,
+.dse-shortcut-v3-list-delete {
+    -fx-font-size: 10px;
+    -fx-padding: 4px 7px;
+    -fx-background-radius: 7px;
+    -fx-border-radius: 7px;
+}
+.dse-shortcut-v3-row-disable {
+    -fx-background-color: rgba(245, 158, 11, 0.14);
+    -fx-border-color: rgba(245, 158, 11, 0.38);
+    -fx-text-fill: #fbbf24;
+}
+.dse-shortcut-v3-row-delete,
+.dse-shortcut-v3-list-delete,
+.dse-shortcut-v3-danger {
+    -fx-background-color: rgba(244, 63, 94, 0.14);
+    -fx-border-color: rgba(244, 63, 94, 0.42);
+    -fx-text-fill: #fb7185;
+}

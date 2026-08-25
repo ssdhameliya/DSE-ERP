@@ -28,6 +28,8 @@ import org.example.service.PaymentMessageService;
 import org.example.service.WhatsappService;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
+import org.example.util.UiTaskExecutor;
+import org.example.util.AttachmentPreviewSupport;
 
 import java.awt.Desktop;
 import java.io.*;
@@ -78,16 +80,20 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     @Override public void onScreenShown(boolean reusedFromCache) { loadSelectedInvoice(); }
+    @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("record-payment-");}
 
     private void loadSelectedInvoice() {
         String selected=SalesScreenContext.invoice();
         if(selected==null||selected.isBlank())return;
-        sale = new SalesService().getByInvoice(selected);
-        if (sale == null) { new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected invoice: "+selected).showAndWait(); return; }
-        configureInvoice();
-        resetForm();
-        loadHistory();
-        refreshTimeline();
+        UiTaskExecutor.submitLatest(
+            "record-payment-invoice",
+            () -> new SalesService().getByInvoice(selected),
+            loaded -> {
+                if (loaded == null) { new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected invoice: "+selected).showAndWait(); return; }
+                sale=loaded;allPayments.clear();configureInvoice();resetForm();refreshTimeline();loadHistory();
+            },
+            failure -> new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait()
+        );
     }
 
     private void configureInvoice() {
@@ -98,38 +104,62 @@ public class RecordPaymentController implements ScreenLifecycle {
         invoiceDate.setText(formatDate(sale.getInvoiceDate()));
         dueDate.setText(formatDate(sale.getDueDate()));
         receivedFrom.setText(sale.getCustomer().getName());
-        refreshInvoiceAmounts();
+        applyInvoiceAmounts();
     }
 
     private void configurePaymentForm() {
         paymentDate.setValue(BusinessClock.today());
-        List<String> modes;
-        try { modes=new ArrayList<>(lookupService.getValuesByCategoryCode("PAYMENT_MODE")); } catch(Exception e){ modes=new ArrayList<>(); }
-        if(modes.isEmpty()) modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
-        mode.setItems(FXCollections.observableArrayList(modes));
-        if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer"); else if(!modes.isEmpty())mode.getSelectionModel().selectFirst();
+        List<String> defaultModes=new ArrayList<>(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
+        applyPaymentLookups(defaultModes,configuredBankAccounts());
         ToggleGroup group = new ToggleGroup();
         fullPayment.setToggleGroup(group); partialPayment.setToggleGroup(group);
         partialPayment.setSelected(true);
         amount.textProperty().addListener((o,a,b)->updateBalancePreview());
         fullPayment.setOnAction(e -> selectFull());
         partialPayment.setOnAction(e -> selectPartial());
-
-        List<String> historyModes=new ArrayList<>(); historyModes.add("All Modes"); historyModes.addAll(modes);
-        historyModeFilter.setItems(FXCollections.observableArrayList(historyModes));
-        historyModeFilter.setValue("All Modes");
         historyModeFilter.valueProperty().addListener((o,a,b)->applyHistoryFilter());
         historyFromDate.valueProperty().addListener((o,a,b)->applyHistoryFilter());
         historyToDate.valueProperty().addListener((o,a,b)->applyHistoryFilter());
-
-        List<String> accounts=new ArrayList<>();
-        try{for(org.example.model.Lookup l:lookupService.getByType("BANK ACCOUNT")){if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String n=l.getDescription()==null?"":l.getDescription().trim();accounts.add(n.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+n);}}}catch(Exception ignored){}
-        if(accounts.isEmpty()){
-            String bank = ConfigManager.get("payment.bankName", "").trim(); String account = ConfigManager.get("payment.accountNumber", "").trim();
-            if(!account.isBlank())accounts.add(bank.isBlank()?account:account+" - "+bank);
-        }
-        bankAccount.getItems().setAll(accounts); if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst(); else bankAccount.setPromptText("Add BANK ACCOUNT values in Masters");
         mode.valueProperty().addListener((o,a,b)->bankAccount.setDisable(b==null||!(b.toLowerCase(Locale.ROOT).contains("bank")||b.equalsIgnoreCase("NEFT")||b.equalsIgnoreCase("RTGS"))));
+        loadPaymentLookupsAsync();
+    }
+
+    private record PaymentLookups(List<String> modes,List<String> accounts){}
+
+    private void loadPaymentLookupsAsync(){
+        UiTaskExecutor.submitLatest(
+            "record-payment-lookups",
+            () -> {
+                List<String> modes=new ArrayList<>();
+                try{modes.addAll(lookupService.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
+                if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
+                List<String> accounts=new ArrayList<>();
+                try{for(org.example.model.Lookup l:lookupService.getByType("BANK ACCOUNT")){if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String n=l.getDescription()==null?"":l.getDescription().trim();accounts.add(n.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+n);}}}catch(Exception ignored){}
+                if(accounts.isEmpty())accounts.addAll(configuredBankAccounts());
+                return new PaymentLookups(List.copyOf(modes),List.copyOf(accounts));
+            },
+            lookups -> applyPaymentLookups(lookups.modes(),lookups.accounts()),
+            failure -> System.err.println("Payment lookup load failed: "+message(failure))
+        );
+    }
+
+    private List<String> configuredBankAccounts(){
+        List<String> accounts=new ArrayList<>();
+        String bank = ConfigManager.get("payment.bankName", "").trim(); String account = ConfigManager.get("payment.accountNumber", "").trim();
+        if(!account.isBlank())accounts.add(bank.isBlank()?account:account+" - "+bank);
+        return accounts;
+    }
+
+    private void applyPaymentLookups(List<String> modes,List<String> accounts){
+        String selectedMode=mode.getValue();
+        mode.setItems(FXCollections.observableArrayList(modes));
+        if(selectedMode!=null&&modes.contains(selectedMode))mode.setValue(selectedMode);
+        else if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer"); else if(!modes.isEmpty())mode.getSelectionModel().selectFirst();
+        List<String> historyModes=new ArrayList<>();historyModes.add("All Modes");historyModes.addAll(modes);
+        String historySelected=historyModeFilter.getValue();historyModeFilter.setItems(FXCollections.observableArrayList(historyModes));
+        historyModeFilter.setValue(historySelected!=null&&historyModes.contains(historySelected)?historySelected:"All Modes");
+        String selectedAccount=bankAccount.getValue();bankAccount.getItems().setAll(accounts);
+        if(selectedAccount!=null&&accounts.contains(selectedAccount))bankAccount.setValue(selectedAccount);else if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst();else bankAccount.setPromptText("Add BANK ACCOUNT values in Masters");
     }
 
     private void decorateSectionTitles() {
@@ -196,7 +226,12 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     private void refreshInvoiceAmounts() {
-        sale = new SalesService().getByInvoice(SalesScreenContext.invoice());
+        String selected=SalesScreenContext.invoice();
+        if(selected==null||selected.isBlank())return;
+        UiTaskExecutor.submitLatest("record-payment-totals",()->new SalesService().getByInvoice(selected),loaded->{if(loaded!=null){sale=loaded;applyInvoiceAmounts();}},failure->new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
+    }
+
+    private void applyInvoiceAmounts() {
         double t=sale.getTotalAmount(), p=sale.getPaidAmount(), b=sale.getBalanceAmount();
         total.setText(money(t)); paid.setText(money(p)); balance.setText(money(b));
         summaryTotal.setText(money(t)); summaryPaid.setText(money(p)); summaryBalance.setText(money(b));
@@ -227,48 +262,31 @@ public class RecordPaymentController implements ScreenLifecycle {
         try {
             validate();
             double value=Double.parseDouble(amount.getText().trim());
-            int paymentId=supportApi.recordPaymentWithId(new SupportApiClient.PaymentRequest("SALE",sale.getId(),paymentDate.getValue().toString(),value,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim(),fullPayment.isSelected()?"FULL":"PARTIAL",null,"Admin"));
-            String proofWarning=null;
-            if(selectedAttachment!=null){try{supportApi.uploadPaymentAttachment(paymentId,selectedAttachment);}catch(Exception proofError){proofWarning="Payment was saved, but the proof could not be uploaded: "+message(proofError);}}
-            NotificationService.add("Payment received for "+sale.getInvoiceNo());
-            org.example.util.ToastManager.success(amount,"Payment saved","Payment saved successfully.");
-            refreshInvoiceAmounts(); resetForm(); loadHistory(); refreshTimeline();
-            if(proofWarning!=null)new OwnedAlert(Alert.AlertType.WARNING,proofWarning).showAndWait();
+            var request=new SupportApiClient.PaymentRequest("SALE",sale.getId(),paymentDate.getValue().toString(),value,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim(),fullPayment.isSelected()?"FULL":"PARTIAL",null,"Admin");
+            Path proof=selectedAttachment;String currentInvoice=sale.getInvoiceNo();
+            if(btnSavePayment!=null)btnSavePayment.setDisable(true);
+            UiTaskExecutor.submitAction("record-payment-save",()->{
+                int paymentId=supportApi.recordPaymentWithId(request);String proofWarning=null;
+                if(proof!=null){try{supportApi.uploadPaymentAttachment(paymentId,proof);}catch(Exception proofError){proofWarning="Payment was saved, but the proof could not be uploaded: "+message(proofError);}}
+                return proofWarning;
+            },proofWarning->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);NotificationService.add("Payment received for "+currentInvoice);org.example.util.ToastManager.success(amount,"Payment saved","Payment saved successfully.");resetForm();refreshInvoiceAmounts();loadHistory();if(proofWarning!=null)new OwnedAlert(Alert.AlertType.WARNING,proofWarning).showAndWait();},failure->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait();});
         } catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 
     private void saveEditedPayment(){
         try{
             validate();
-            double newValue=parseAmount(amount.getText());
-            double difference=newValue-editingPayment.amount();
-            String confirmation="ACCOUNTING CONFIRMATION\n\n"+
-                    "Old Amount: "+money(editingPayment.amount())+"\n"+
-                    "New Amount: "+money(newValue)+"\n"+
-                    "Difference: "+signedMoney(difference)+"\n\n"+
-                    "This changes the invoice balance and payment status.\n\nContinue?";
-            ButtonType choice=new OwnedAlert(Alert.AlertType.CONFIRMATION,confirmation,ButtonType.YES,ButtonType.NO)
-                    .showAndWait().orElse(ButtonType.NO);
-            if(choice!=ButtonType.YES)return;
-            supportApi.updatePayment(editingPayment.id(),new SupportApiClient.PaymentUpdateRequest(
-                    paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),
-                    notes.getText().trim(),receivedFrom.getText().trim()));
-            persistEditedProof();
-            NotificationService.add("Payment updated for "+sale.getInvoiceNo());
-            org.example.util.ToastManager.success(amount,"Payment updated","Payment updated and invoice totals recalculated.");
-            refreshInvoiceAmounts();resetForm();loadHistory();refreshTimeline();
-        }catch(Exception e){
-            new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();
-        }
+            double newValue=parseAmount(amount.getText());double difference=newValue-editingPayment.amount();
+            String confirmation="ACCOUNTING CONFIRMATION\n\n"+"Old Amount: "+money(editingPayment.amount())+"\n"+"New Amount: "+money(newValue)+"\n"+"Difference: "+signedMoney(difference)+"\n\n"+"This changes the invoice balance and payment status.\n\nContinue?";
+            ButtonType choice=new OwnedAlert(Alert.AlertType.CONFIRMATION,confirmation,ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO);if(choice!=ButtonType.YES)return;
+            PaymentRow current=editingPayment;Path proof=selectedAttachment;boolean removeProof=proofRemovalPending;String currentInvoice=sale.getInvoiceNo();
+            var request=new SupportApiClient.PaymentUpdateRequest(paymentDate.getValue().toString(),newValue,mode.getValue(),reference.getText().trim(),notes.getText().trim(),receivedFrom.getText().trim());
+            if(btnSavePayment!=null)btnSavePayment.setDisable(true);
+            UiTaskExecutor.submitAction("record-payment-update-"+current.id(),()->{supportApi.updatePayment(current.id(),request);if(removeProof)supportApi.deletePaymentAttachment(current.id());else if(proof!=null)supportApi.uploadPaymentAttachment(current.id(),proof);return true;},ignored->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);NotificationService.add("Payment updated for "+currentInvoice);org.example.util.ToastManager.success(amount,"Payment updated","Payment updated and invoice totals recalculated.");resetForm();refreshInvoiceAmounts();loadHistory();},failure->{if(btnSavePayment!=null)btnSavePayment.setDisable(false);new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait();});
+        }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 
-    private void persistEditedProof() throws IOException {
-        if(editingPayment==null)return;
-        if(proofRemovalPending){supportApi.deletePaymentAttachment(editingPayment.id());proofRemovalPending=false;return;}
-        if(selectedAttachment==null)return;
-        supportApi.uploadPaymentAttachment(editingPayment.id(),selectedAttachment);
-        selectedAttachment=null;
-    }
+
 
     private void validate() throws IOException {
         if(paymentDate.getValue()==null) throw new IllegalArgumentException("Select a payment date.");
@@ -297,13 +315,18 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     private void loadHistory() {
-        allPayments.clear();
-        try {
-            for (var r : supportApi.payments("SALE", sale.getId()))
-                allPayments.add(new PaymentRow(r.id(),r.date(),safe(r.reference()),safeOr(r.receivedFrom(),sale.getCustomer().getName()),safe(r.mode()),r.amount(),"Recorded",safe(r.notes()),safe(r.attachment()),safe(r.paymentType())));
-        } catch(Exception e){ new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait(); }
-        historyCount.setText(allPayments.size()+" Payment"+(allPayments.size()==1?"":"s"));
-        applyHistoryFilter();
+        Sales current=sale;if(current==null)return;
+        int saleId=current.getId();String customerName=current.getCustomer()==null?"":current.getCustomer().getName();
+        UiTaskExecutor.submitLatest(
+            "record-payment-history",
+            () -> supportApi.payments("SALE",saleId),
+            rows -> {
+                allPayments.clear();
+                for(var r:rows)allPayments.add(new PaymentRow(r.id(),r.date(),safe(r.reference()),safeOr(r.receivedFrom(),customerName),safe(r.mode()),r.amount(),"Recorded",safe(r.notes()),safe(r.attachment()),safe(r.paymentType())));
+                historyCount.setText(allPayments.size()+" Payment"+(allPayments.size()==1?"":"s"));applyHistoryFilter();refreshTimeline();
+            },
+            failure -> new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait()
+        );
     }
 
     private void applyHistoryFilter() {
@@ -351,14 +374,13 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     @FXML private void previewProof(){
-        try{
-            Path path=selectedAttachment;
-            if(path==null&&editingPayment!=null&&!proofRemovalPending&&!safe(editingPayment.receiptPath()).isBlank())path=materializePaymentProof(supportApi.paymentAttachment(editingPayment.id()));
-            if(path==null)throw new IOException("No payment proof is attached.");
-            if(!Files.isRegularFile(path))throw new IOException("The payment proof is unavailable.");
-            Desktop.getDesktop().open(path.toFile());
-        }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
+        Path local=selectedAttachment;PaymentRow current=editingPayment;
+        if(local!=null){openProofPath(local);return;}
+        if(current==null||proofRemovalPending||safe(current.receiptPath()).isBlank()){new OwnedAlert(Alert.AlertType.ERROR,"No payment proof is attached.").showAndWait();return;}
+        UiTaskExecutor.submitLatest("record-payment-proof-preview-"+current.id(),()->materializePaymentProof(supportApi.paymentAttachment(current.id())),this::openProofPath,failure->new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
     }
+
+    private void openProofPath(Path path){try{if(path==null||!Files.isRegularFile(path))throw new IOException("The payment proof is unavailable.");Desktop.getDesktop().open(path.toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
 
     @FXML private void removeProof(){
         boolean hasSelected=selectedAttachment!=null;boolean hasExisting=editingPayment!=null&&!safe(editingPayment.receiptPath()).isBlank()&&!proofRemovalPending;if(!hasSelected&&!hasExisting)return;
@@ -367,12 +389,8 @@ public class RecordPaymentController implements ScreenLifecycle {
     }
 
     private void openReceipt(PaymentRow row) {
-        try{
-            if(row==null||safe(row.receiptPath()).isBlank())return;
-            Path path=materializePaymentProof(supportApi.paymentAttachment(row.id()));
-            if(path==null||!Files.isRegularFile(path))throw new IOException("The stored payment proof is missing.");
-            Desktop.getDesktop().open(path.toFile());
-        }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
+        if(row==null||safe(row.receiptPath()).isBlank())return;
+        UiTaskExecutor.submitLatest("record-payment-proof-open-"+row.id(),()->materializePaymentProof(supportApi.paymentAttachment(row.id())),this::openProofPath,failure->new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
     }
 
     private void editPayment(PaymentRow row){
@@ -400,15 +418,11 @@ public class RecordPaymentController implements ScreenLifecycle {
     private void removeStoredProof(PaymentRow row){
         if(row==null||safe(row.receiptPath()).isBlank()||"BANK_RECONCILIATION".equalsIgnoreCase(row.paymentType()))return;
         if(new OwnedAlert(Alert.AlertType.CONFIRMATION,"Remove this payment proof?",ButtonType.YES,ButtonType.NO).showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
-        try{supportApi.deletePaymentAttachment(row.id());loadHistory();org.example.util.ToastManager.success(historyTable,"Proof removed","Payment proof removed.");}
-        catch(Exception ex){new OwnedAlert(Alert.AlertType.ERROR,ex.getMessage()).showAndWait();}
+        UiTaskExecutor.submitAction("record-payment-proof-delete-"+row.id(),()->{supportApi.deletePaymentAttachment(row.id());return true;},ignored->{loadHistory();org.example.util.ToastManager.success(historyTable,"Proof removed","Payment proof removed.");},failure->new OwnedAlert(Alert.AlertType.ERROR,message(failure)).showAndWait());
     }
 
     private Path materializePaymentProof(SupportApiClient.DownloadedAttachment download)throws IOException{
-        if(download==null||download.data()==null||download.data().length==0)return null;
-        Path folder=WorkspaceManager.getTempFolder().resolve("AttachmentPreview");Files.createDirectories(folder);
-        String raw=download.fileName()==null?"payment-proof":download.fileName();String name=raw.replaceAll("[^A-Za-z0-9._-]","_");if(name.isBlank())name="payment-proof";
-        Path target=folder.resolve(System.currentTimeMillis()+"-"+name);Files.write(target,download.data());target.toFile().deleteOnExit();return target;
+        return AttachmentPreviewSupport.materialize(download,"payment-proof");
     }
 
     @FXML private void downloadPdf(){ try{Path p=InvoicePdfService.sales(sale); Desktop.getDesktop().open(p.getParent().toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}

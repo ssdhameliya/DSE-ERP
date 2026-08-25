@@ -56,7 +56,7 @@ public class PaymentIntegrityService {
                 clean(request.receivedFrom()), clean(request.paymentType()), null, CurrentUser.require().username());
         BigDecimal paid = target.paid.add(amount).setScale(2, RoundingMode.HALF_UP);
         String status = paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
-        if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=? WHERE id=?",
+        if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=?,row_version=row_version+1 WHERE id=?",
                 paid, status, BusinessClock.nowUtcText(), request.documentId()) != 1) throw new IllegalStateException("Payment target changed while saving");
         if (paymentId == null || paymentId <= 0) throw new IllegalStateException("Payment id was not returned after saving");
         return paymentId;
@@ -127,7 +127,7 @@ public class PaymentIntegrityService {
                 : paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
 
         if (jdbc.update("UPDATE " + existing.type.table +
-                        " SET paid_amount=?,payment_status=?,updated_at=? WHERE id=?",
+                        " SET paid_amount=?,payment_status=?,updated_at=?,row_version=row_version+1 WHERE id=?",
                 paid, status, BusinessClock.nowUtcText(), existing.documentId) != 1) {
             throw new IllegalStateException("Payment target changed while saving");
         }

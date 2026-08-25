@@ -8,6 +8,7 @@ import java.util.List;
 public class Sales {
 
     private int id;
+    private long rowVersion;
 
     private String createdAt;
 
@@ -286,4 +287,6 @@ public class Sales {
 
 
 
+    public long getRowVersion() { return rowVersion; }
+    public void setRowVersion(long rowVersion) { this.rowVersion = Math.max(0, rowVersion); }
 }

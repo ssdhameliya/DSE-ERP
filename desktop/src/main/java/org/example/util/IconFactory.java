@@ -658,7 +658,7 @@ public final class IconFactory {
             case "restart" -> "fas-redo";
             case "version" -> "fas-code-branch";
             case "compatibility" -> "fas-link";
-            case "workflow" -> "fas-project-diagram";
+            case "workflow", "reconcile" -> "fas-project-diagram";
             case "recovery" -> "fas-life-ring";
             case "database-backup" -> "fas-database";
             case "snapshot" -> "fas-camera";
@@ -678,7 +678,7 @@ public final class IconFactory {
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
             case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
             case "credit" -> "green";
-            case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart", "workflow", "version" -> "purple";
+            case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart", "workflow", "reconcile", "version" -> "purple";
             case "compatibility", "database-backup", "snapshot", "recovery" -> "blue";
             case "preserve" -> "green";
             case "installer" -> "orange";
