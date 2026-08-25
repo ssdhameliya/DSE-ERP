@@ -81,6 +81,7 @@ public class SalesReturnsController implements ScreenLifecycle {
         configureDrawer();
         dpFrom.setValue(BusinessClock.today().minusMonths(6));
         dpTo.setValue(BusinessClock.today());
+        org.example.util.PartySearchUi.install(customerFilter,"CUSTOMER","All Customers","sales-returns-customer-search");
         search.textProperty().addListener((o, a, b) -> filter());
         customerFilter.valueProperty().addListener((o, a, b) -> filter());
         statusFilter.valueProperty().addListener((o, a, b) -> filter());
@@ -154,7 +155,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     }
     private void applyPage(ReturnApiClient.Page page){
         pageState.runApplying(()->{all.clear();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())all.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());
-        String selectedParty=customerFilter.getValue();customerFilter.setItems(FXCollections.observableArrayList("All Customers"));if(page!=null&&page.parties()!=null)customerFilter.getItems().addAll(page.parties());if(selectedParty==null||selectedParty.startsWith("All")||!customerFilter.getItems().contains(selectedParty))customerFilter.setValue("All Customers");else customerFilter.setValue(selectedParty);
+        String selectedParty=customerFilter.getValue();org.example.util.PartySearchUi.preserveSelection(customerFilter,selectedParty,"All Customers");
         statusFilter.setItems(FXCollections.observableArrayList("All Status", "PENDING", "APPROVED", "REJECTED", "COMPLETED", "PARTIAL", "CANCELLED"));if(statusFilter.getValue()==null)statusFilter.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No sales returns found","Adjust the filters or create a return from Sales Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();});
     }
     private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));month.setText(money(m.monthAmount()));approved.setText(money(m.approvedAmount()));pending.setText(money(Math.max(0,m.total()-m.approvedAmount())));refund.setText(money(m.refundAmount()));}

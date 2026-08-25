@@ -202,7 +202,9 @@ public class ImportService {
                         imported++;
                     }
                 } catch (Exception e) {
-                    errors.add("Duplicate in DB skipped: " + item.getItemCode());
+                    String message = rootMessage(e);
+                    errors.add("Item " + item.getItemCode() + ": " + message);
+                    details.add(new ImportRowResult("", item.getItemCode(), "FAILED", "NONE", message, "", 0));
                     skipped++;
                 }
             }
@@ -233,7 +235,12 @@ public class ImportService {
         Set<String> validPartyCodes = new HashSet<>();
         masterApi.parties(sales ? "CUSTOMER" : "SUPPLIER").forEach(p -> validPartyCodes.add(p.getPartyCode().toUpperCase(Locale.ROOT)));
         Set<String> validItemCodes = new HashSet<>();
-        masterApi.items().forEach(item -> validItemCodes.add(item.getItemCode().toUpperCase(Locale.ROOT)));
+        Map<String,Double> availableStockByItem = new HashMap<>();
+        masterApi.items().forEach(item -> {
+            String code = item.getItemCode().toUpperCase(Locale.ROOT);
+            validItemCodes.add(code);
+            availableStockByItem.put(code, item.getAvailableStock());
+        });
 
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
             SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
@@ -299,6 +306,21 @@ public class ImportService {
                 try {
                     if (existingDocumentNumbers.contains(entry.getKey().toUpperCase(Locale.ROOT)))
                         throw new IllegalArgumentException("Existing posted " + (sales ? "sales" : "purchase") + " invoice is protected and cannot be imported again");
+                    if (sales) {
+                        Map<String,Double> invoiceQty = new HashMap<>();
+                        for (DocumentImportRow importedRow : entry.getValue()) {
+                            String code = importedRow.item().toUpperCase(Locale.ROOT);
+                            invoiceQty.merge(code, importedRow.qty(), Double::sum);
+                        }
+                        for (Map.Entry<String,Double> required : invoiceQty.entrySet()) {
+                            double available = availableStockByItem.getOrDefault(required.getKey(), 0d);
+                            if (required.getValue() > available + 0.000001) {
+                                throw new IllegalArgumentException("Insufficient stock for item " + required.getKey()
+                                        + " (required " + required.getValue() + ", available " + available + ")");
+                            }
+                        }
+                        invoiceQty.forEach((code, qty) -> availableStockByItem.compute(code, (k, value) -> Math.max(0d, (value == null ? 0d : value) - qty)));
+                    }
                     int chargeCount; int attachmentCount;
                     if (sales) {
                         SalesImportExtras extras=salesImportExtras(file,entry.getValue());chargeCount=extras.charges().size();attachmentCount=extras.attachmentSource()==null?0:1;
@@ -547,7 +569,8 @@ public class ImportService {
                     p.setGstin(getCellValue(row, mapping.get("gstin")));
                     p.setAddress(getCellValue(row, mapping.get("address")));
                     p.setOpeningBalance(parseDouble(getCellValue(row, mapping.get("opening_balance"))));
-                    p.setActive(Boolean.parseBoolean(getCellValue(row, mapping.get("is_active"))));
+                    String activeValue = getCellValue(row, mapping.get("is_active"));
+                    p.setActive(activeValue == null || activeValue.isBlank() || !Set.of("false","0","no","inactive","disabled").contains(activeValue.trim().toLowerCase(Locale.ROOT)));
 
                     parties.add(p);
                 } catch (Exception ex) {
@@ -601,7 +624,9 @@ public class ImportService {
                         imported++;
                     }
                 } catch (Exception e) {
-                    errors.add("Duplicate in DB skipped: " + p.getPartyCode());
+                    String message = rootMessage(e);
+                    errors.add("Party " + p.getPartyCode() + ": " + message);
+                    details.add(new ImportRowResult("", p.getPartyCode(), "FAILED", "NONE", message, "", 0));
                     skipped++;
                 }
             }
@@ -609,6 +634,13 @@ public class ImportService {
 
         return new ImportResult(processed, imported, updated, skipped, errors, details);
 
+    }
+
+    private static String rootMessage(Throwable failure) {
+        Throwable root = failure;
+        while (root != null && root.getCause() != null && root.getCause() != root) root = root.getCause();
+        String message = root == null ? null : root.getMessage();
+        return message == null || message.isBlank() ? (root == null ? "Import save failed" : root.getClass().getSimpleName()) : message.trim();
     }
 
     private static void mergeParty(Party incoming, Party existing) {

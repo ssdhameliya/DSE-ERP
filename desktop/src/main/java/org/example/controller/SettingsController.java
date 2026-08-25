@@ -21,6 +21,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -344,7 +345,7 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private ComboBox<String> cmbShortcutScope;
     @FXML private ComboBox<Action> cmbShortcutAction;
     @FXML private TextArea txtShortcutDescription;
-    @FXML private CheckBox chkShortcutActive;
+    @FXML private ToggleButton chkShortcutActive;
     @FXML private CheckBox chkShortcutAllowTextInput;
     @FXML private CheckBox chkShortcutRequireSelection;
     @FXML private VBox shortcutDrawer;
@@ -1401,6 +1402,7 @@ public class SettingsController implements ScreenLifecycle {
                 }
             });
             chkShortcutActive.selectedProperty().addListener((obs, oldValue, active) -> {
+                chkShortcutActive.setAlignment(active ? javafx.geometry.Pos.CENTER_RIGHT : javafx.geometry.Pos.CENTER_LEFT);
                 if (!shortcutUiLoading) refreshSelectedShortcutConflict();
             });
             txtShortcutKeys.getProperties().put("dse.shortcut-capture", Boolean.TRUE);
@@ -1457,17 +1459,11 @@ public class SettingsController implements ScreenLifecycle {
                 scope.getStyleClass().add("dse-shortcut-v3-scope-badge");
                 Label key = new Label(displayShortcut(shortcutDraftValues.get(action)));
                 key.getStyleClass().add("dse-shortcut-v3-key-badge");
-                Button edit = new Button("Edit");
-                edit.getStyleClass().addAll("dse-shortcut-v3-button", "dse-shortcut-v3-list-edit");
-                edit.setOnAction(event -> openShortcutEditor(action));
-                Button disable = new Button("Disable");
-                disable.getStyleClass().addAll("dse-shortcut-v3-button", "dse-shortcut-v3-list-disable");
-                disable.setDisable(shortcutDraftValues.getOrDefault(action, "").isBlank());
-                disable.setOnAction(event -> disableShortcut(action));
+                ToggleButton enabled = shortcutToggle(action);
                 Button delete = new Button("Delete");
                 delete.getStyleClass().addAll("dse-shortcut-v3-button", "dse-shortcut-v3-list-delete");
                 delete.setOnAction(event -> deleteShortcutAssignment(action));
-                HBox row = new HBox(8, labels, scope, key, edit, disable, delete);
+                HBox row = new HBox(8, labels, scope, key, enabled, delete);
                 row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
                 row.getStyleClass().add("dse-shortcut-v3-list-row");
                 setText(null); setGraphic(row);
@@ -1659,15 +1655,13 @@ public class SettingsController implements ScreenLifecycle {
         Label name = new Label(action.label()); name.setMaxWidth(Double.MAX_VALUE);
         name.getStyleClass().add("dse-shortcut-v3-action-name"); HBox.setHgrow(name, javafx.scene.layout.Priority.ALWAYS);
         Label key = new Label(displayShortcut(shortcutDraftValues.get(action))); key.getStyleClass().add("dse-shortcut-v3-key-badge");
-        Button disable = new Button("Disable"); disable.getStyleClass().addAll("dse-shortcut-v3-row-action", "dse-shortcut-v3-row-disable");
-        disable.setDisable(shortcutDraftValues.getOrDefault(action, "").isBlank());
-        disable.setOnAction(event -> disableShortcut(action));
+        ToggleButton enabled = shortcutToggle(action);
         Button delete = new Button("×"); delete.setTooltip(new Tooltip("Delete shortcut assignment")); delete.getStyleClass().addAll("dse-shortcut-v3-more", "dse-shortcut-v3-row-delete");
         delete.setOnAction(event -> deleteShortcutAssignment(action));
-        Button more = new Button("⋮"); more.setTooltip(new Tooltip("Edit shortcut")); more.getStyleClass().add("dse-shortcut-v3-more");
-        HBox row = new HBox(5, name, key, disable, delete, more); row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        delete.setOnMouseClicked(event -> event.consume());
+        HBox row = new HBox(5, name, key, enabled, delete); row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         row.getStyleClass().add("dse-shortcut-v3-action-row");
-        row.setOnMouseClicked(event -> openShortcutEditor(action)); more.setOnAction(event -> openShortcutEditor(action));
+        row.setOnMouseClicked(event -> { if (!(event.getTarget() instanceof ToggleButton) && !(event.getTarget() instanceof Button)) openShortcutEditor(action); });
         return row;
     }
 
@@ -1765,6 +1759,35 @@ public class SettingsController implements ScreenLifecycle {
             refreshSelectedShortcutConflict();
         }
         event.consume();
+    }
+
+
+    private ToggleButton shortcutToggle(Action action) {
+        boolean active = !shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)).isBlank();
+        ToggleButton toggle = new ToggleButton("●");
+        toggle.setSelected(active);
+        toggle.setAlignment(active ? javafx.geometry.Pos.CENTER_RIGHT : javafx.geometry.Pos.CENTER_LEFT);
+        toggle.setTooltip(new Tooltip(active ? "Disable shortcut" : "Enable shortcut"));
+        toggle.getStyleClass().add("dse-shortcut-v3-toggle");
+        toggle.selectedProperty().addListener((obs, oldValue, enabled) -> {
+            toggle.setAlignment(enabled ? javafx.geometry.Pos.CENTER_RIGHT : javafx.geometry.Pos.CENTER_LEFT);
+            toggle.setTooltip(new Tooltip(enabled ? "Disable shortcut" : "Enable shortcut"));
+        });
+        toggle.setOnAction(event -> setShortcutEnabled(action, toggle.isSelected()));
+        toggle.setOnMouseClicked(event -> event.consume());
+        return toggle;
+    }
+
+    private void setShortcutEnabled(Action action, boolean enabled) {
+        if (action == null) return;
+        String binding = enabled ? shortcutDraftValues.getOrDefault(action, "") : "";
+        if (enabled && binding.isBlank()) binding = action.defaultBinding();
+        shortcutDraftValues.put(action, binding);
+        ShortcutRegistry.Scope scope = shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action));
+        ShortcutRegistry.saveActions(Map.of(action, binding), Map.of(action, scope), List.of(action));
+        refreshShortcutWorkspace();
+        org.example.util.ToastManager.success(panelHost, enabled ? "Shortcut enabled" : "Shortcut disabled",
+                action.label() + (enabled ? " is enabled for this user." : " is disabled for this user."));
     }
 
     @FXML

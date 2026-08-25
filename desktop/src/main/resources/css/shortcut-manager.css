@@ -470,3 +470,34 @@
     -fx-border-color: rgba(244, 63, 94, 0.42);
     -fx-text-fill: #fb7185;
 }
+
+
+/* v9.0.1: readable shortcut typography and iOS-style binary toggles. */
+.dse-shortcut-v3-root { -fx-font-size: 13px; }
+.dse-shortcut-v3-root .label { -fx-font-size: 12.5px; }
+.dse-shortcut-v3-action-name, .dse-shortcut-v3-list-name { -fx-font-size: 13px; }
+.dse-shortcut-v3-list-subtitle, .dse-shortcut-v3-list-category { -fx-font-size: 11.5px; }
+.dse-shortcut-v3-scope-badge, .dse-shortcut-v3-key-badge { -fx-font-size: 11px; }
+.dse-shortcut-v3-button, .dse-shortcut-v3-row-action, .dse-shortcut-v3-list-delete { -fx-font-size: 11.5px; }
+.dse-shortcut-v3-toggle {
+    -fx-min-width: 46px; -fx-pref-width: 46px; -fx-max-width: 46px;
+    -fx-min-height: 24px; -fx-pref-height: 24px; -fx-max-height: 24px;
+    -fx-padding: 2px 5px;
+    -fx-background-radius: 999px; -fx-border-radius: 999px;
+    -fx-background-color: #cbd5e1; -fx-border-color: rgba(100,116,139,.35);
+    -fx-text-fill: #ffffff; -fx-font-size: 13px; -fx-font-weight: 900;
+    -fx-cursor: hand;
+}
+.dse-shortcut-v3-toggle:selected {
+    -fx-background-color: #34c759; -fx-border-color: #34c759;
+}
+/* v9.0.1 final readability floor: no shortcut-management text below 12px. */
+.dse-shortcut-v3-root .dse-shortcut-v3-scope-badge,
+.dse-shortcut-v3-root .dse-shortcut-v3-key-badge,
+.dse-shortcut-v3-root .dse-shortcut-v3-list-subtitle,
+.dse-shortcut-v3-root .dse-shortcut-v3-list-category,
+.dse-shortcut-v3-root .dse-shortcut-v3-conflict-text,
+.dse-shortcut-v3-root .dse-shortcut-v3-row-action,
+.dse-shortcut-v3-root .dse-shortcut-v3-list-delete {
+    -fx-font-size: 12px;
+}

@@ -517,6 +517,7 @@ public class DashboardController {
             : text.contains("invoice") || text.contains("delivery") ? "document"
             : text.contains("workspace") || text.contains("storage") ? "workspace"
             : text.contains("application update") ? "update"
+            : text.contains("keyboard shortcut") ? "shortcut"
             : text.contains("notification") ? "notification"
             : text.contains("reminder") ? "reminder"
             : text.contains("rollback") ? "rollback"

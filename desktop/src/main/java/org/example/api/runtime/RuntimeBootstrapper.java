@@ -117,7 +117,7 @@ public final class RuntimeBootstrapper {
             throw new IllegalStateException("DSE ERP backend build mismatch. Desktop requires "
                     + RuntimeContract.BUILD_REVISION + " but server reports "
                     + (status.buildRevision() == null || status.buildRevision().isBlank() ? "an older build" : status.buildRevision())
-                    + ". The desktop will not reuse a stale 9.0.0 backend.");
+                    + ". The desktop will not reuse a stale 9.0.1 backend.");
         }
         if (!RuntimeContract.APP_VERSION.equals(status.version())) {
             throw new IllegalStateException("DSE ERP backend version mismatch. Desktop is "

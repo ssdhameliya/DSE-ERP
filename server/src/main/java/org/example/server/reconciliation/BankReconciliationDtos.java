@@ -4,7 +4,7 @@ import java.util.List;
 public final class BankReconciliationDtos {
  private BankReconciliationDtos(){}
  public record ImportRow(Integer sourceRowNumber,String transactionTimestamp,String transactionDate,String valueDate,String description,String reference,double debit,double credit,double balance,String transactionFingerprint){}
- public record ImportRequest(String bankName,String bankAccount,String accountHolder,String statementFrom,String statementTo,String currency,Double openingBalance,Double closingBalance,String sourceFingerprint,String sourceFileName,String sourceCsv,String importedBy,List<ImportRow> rows){}
+ public record ImportRequest(String bankName,String bankAccount,String accountHolder,String statementFrom,String statementTo,String currency,Double openingBalance,Double closingBalance,String sourceFingerprint,String sourceFileName,String sourceCsv,String importedBy,boolean dryRun,List<ImportRow> rows){}
  public record ImportResult(BatchDto batch,int importedRows,int duplicateRows){}
  public record BatchDto(Long id,String bankName,String bankAccount,String accountHolder,String statementFrom,String statementTo,String currency,int transactionCount,double totalDebit,double totalCredit,int reconciledCount,double reconciliationPercent,String status,String sourceFileName,String importedAt){}
  public record SourceDto(String fileName,String fingerprint,String csvContent){}

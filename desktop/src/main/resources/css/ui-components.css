@@ -9576,3 +9576,28 @@
 .recon-register-page .recon-metric-card .metric-note {
     -fx-font-size: 9.5px;
 }
+
+
+/* v9.0.1: shared Sales-style purple register selection. */
+.erp-purple-selection-table .table-row-cell:filled:hover {
+    -fx-background-color: #f7f2ff;
+}
+.erp-purple-selection-table .table-row-cell:filled:selected {
+    -fx-background-color: #eee8ff;
+    -fx-background-insets: 0;
+}
+.erp-purple-selection-table .table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: #3b1b68;
+}
+.root.dark .erp-purple-selection-table .table-row-cell:filled:hover,
+.root.theme-dark .erp-purple-selection-table .table-row-cell:filled:hover {
+    -fx-background-color: #241f3b;
+}
+.root.dark .erp-purple-selection-table .table-row-cell:filled:selected,
+.root.theme-dark .erp-purple-selection-table .table-row-cell:filled:selected {
+    -fx-background-color: #2b2452;
+}
+.root.dark .erp-purple-selection-table .table-row-cell:filled:selected .table-cell,
+.root.theme-dark .erp-purple-selection-table .table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: #f2edff;
+}

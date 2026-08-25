@@ -11,6 +11,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
@@ -57,6 +58,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     @FXML private TextArea notes;
     @FXML private RadioButton fullPayment, partialPayment;
     @FXML private Button btnSavePayment;
+    @FXML private StackPane paymentPageIcon;
     @FXML private VBox historySection, proofDropZone;
     @FXML private TableView<PaymentRow> historyTable;
     @FXML private TableColumn<PaymentRow, String> historyDate, historyReference, historyFrom,
@@ -72,6 +74,7 @@ public class RecordPaymentController implements ScreenLifecycle {
     private final LookupService lookupService = new LookupService();
 
     @FXML public void initialize() {
+        if (paymentPageIcon != null) paymentPageIcon.getChildren().setAll(IconFactory.icon("payment",24));
         decorateSectionTitles();
         configureHistoryTable();
         configurePaymentForm();
@@ -113,7 +116,7 @@ public class RecordPaymentController implements ScreenLifecycle {
         applyPaymentLookups(defaultModes,configuredBankAccounts());
         ToggleGroup group = new ToggleGroup();
         fullPayment.setToggleGroup(group); partialPayment.setToggleGroup(group);
-        partialPayment.setSelected(true);
+        fullPayment.setSelected(true);
         amount.textProperty().addListener((o,a,b)->updateBalancePreview());
         fullPayment.setOnAction(e -> selectFull());
         partialPayment.setOnAction(e -> selectPartial());
@@ -310,7 +313,7 @@ public class RecordPaymentController implements ScreenLifecycle {
         reference.clear(); notes.clear(); paymentDate.setValue(BusinessClock.today()); selectedAttachment=null; proofRemovalPending=false;
         if(sale!=null&&sale.getCustomer()!=null)receivedFrom.setText(sale.getCustomer().getName());
         attachmentName.setText("No file selected");
-        partialPayment.setSelected(true);
+        fullPayment.setSelected(true);
         amount.setText(String.format(Locale.ROOT,"%.2f",sale==null?0:sale.getBalanceAmount()));
     }
 
@@ -409,7 +412,7 @@ public class RecordPaymentController implements ScreenLifecycle {
         notes.setText(row.notes());
         selectedAttachment=null; proofRemovalPending=false;
         attachmentName.setText(row.receiptPath()==null||row.receiptPath().isBlank()?"No proof attached":"Existing proof: "+Path.of(row.receiptPath()).getFileName());
-        partialPayment.setSelected(true);
+        if ("FULL".equalsIgnoreCase(row.paymentType())) fullPayment.setSelected(true); else partialPayment.setSelected(true);
         if(btnSavePayment!=null)btnSavePayment.setText("Update Payment");
         amount.requestFocus();amount.selectAll();
         updateBalancePreview();

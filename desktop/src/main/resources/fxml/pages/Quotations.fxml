@@ -93,7 +93,7 @@
                     </VBox>
 
                     <VBox spacing="0" styleClass="quotation-table-card" VBox.vgrow="ALWAYS">
-                        <TableView fx:id="table" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table,erp-table-profile-register">
+                        <TableView fx:id="table" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table,erp-table-profile-register,erp-purple-selection-table">
                             <columns>
                                 <TableColumn fx:id="colNo" text="Quotation No." prefWidth="130" styleClass="approved-table-column"/>
                                 <TableColumn fx:id="colDate" text="Date" prefWidth="95" styleClass="approved-table-column"/>

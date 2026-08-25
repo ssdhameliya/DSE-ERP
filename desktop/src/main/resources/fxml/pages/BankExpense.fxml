@@ -22,8 +22,8 @@
     <VBox styleClass="finance-kpi-card,finance-kpi-red" HBox.hgrow="ALWAYS"><HBox alignment="CENTER_LEFT" spacing="10"><Label fx:id="kpi4Icon" styleClass="finance-kpi-icon"/><Label fx:id="kpi4Label" styleClass="finance-kpi-label"/></HBox><Label fx:id="kpi4Value" styleClass="finance-kpi-value"/><Label fx:id="kpi4Note" styleClass="finance-kpi-note"/></VBox>
   </HBox>
 
-  <HBox spacing="12" VBox.vgrow="ALWAYS">
-    <VBox prefWidth="360" minWidth="340" maxWidth="390" spacing="8" styleClass="finance-entry-card">
+  <HBox fx:id="workspaceRow" spacing="12" VBox.vgrow="ALWAYS">
+    <VBox fx:id="entryFormPanel" prefWidth="430" minWidth="410" maxWidth="520" spacing="8" styleClass="finance-entry-card">
       <Label fx:id="formTitle" text="Add Bank Entry" styleClass="finance-section-title"/>
       <Label text="Date *" styleClass="finance-field-label"/><DatePicker fx:id="entryDate" maxWidth="Infinity"/>
       <VBox fx:id="bankOnlyFields" spacing="8">
@@ -56,7 +56,7 @@
         <Region HBox.hgrow="ALWAYS"/>
         <Button fx:id="addButton" text="Add Entry" onAction="#focusForm" styleClass="approved-button,approved-primary-button"/>
       </HBox>
-      <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="finance-table,erp-table-profile-register">
+      <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="finance-table,erp-table-profile-register,erp-purple-selection-table">
         <columns>
           <TableColumn fx:id="colDate" text="Date"/>
           <TableColumn fx:id="colType" text="Type"/>

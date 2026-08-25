@@ -29,7 +29,13 @@ public class PurchaseReconService {
     public PurchaseReconService(ReconSupplierRepository suppliers,PurchaseReconRepository recons,PurchaseReconImportBatchRepository batches,JpaNativeRepository jdbc,AuditService audit,BusinessOperationsService operations){this.suppliers=suppliers;this.recons=recons;this.batches=batches;this.jdbc=jdbc;this.audit=audit;this.operations=operations;}
 
     @Transactional(readOnly=true)
-    public List<PurchaseReconDtos.SupplierDto> suppliers(){CurrentUser.requirePermission("RECON_SUPPLIER.VIEW","View Recon Suppliers");Map<Integer,Long> counts=new HashMap<>();jdbc.query("SELECT recon_supplier_id,COUNT(*) FROM purchase_recon GROUP BY recon_supplier_id",r->{counts.put(r.getInt(1),r.getLong(2));});return suppliers.findAllByOrderByLegalNameAscIdAsc().stream().map(x->supplierDto(x,counts.getOrDefault(x.getId(),0L))).toList();}
+    public List<PurchaseReconDtos.SupplierDto> suppliers(){return searchSuppliers("",40);}
+    @Transactional(readOnly=true)
+    public List<PurchaseReconDtos.SupplierDto> searchSuppliers(String q,int limit){CurrentUser.requirePermission("RECON_SUPPLIER.VIEW","View Recon Suppliers");int safeLimit=Math.max(10,Math.min(limit,100));String query=safe(q).trim();Map<Integer,Long> counts=new HashMap<>();jdbc.query("SELECT recon_supplier_id,COUNT(*) FROM purchase_recon GROUP BY recon_supplier_id",r->{counts.put(r.getInt(1),r.getLong(2));});return suppliers.search(query,PageRequest.of(0,safeLimit)).stream().map(x->supplierDto(x,counts.getOrDefault(x.getId(),0L))).toList();}
+    @Transactional(readOnly=true)
+    public PurchaseReconDtos.SupplierDto supplier(Integer id){CurrentUser.requirePermission("RECON_SUPPLIER.VIEW","View Recon Suppliers");var entity=suppliers.findById(id).orElseThrow(()->new IllegalArgumentException("Recon Supplier not found."));return supplierDto(entity,recons.countByReconSupplier_Id(id));}
+    @Transactional
+    public void deleteSupplier(Integer id){CurrentUser.requirePermission("RECON_SUPPLIER.DELETE","Delete Recon Supplier");var entity=suppliers.findById(id).orElseThrow(()->new IllegalArgumentException("Recon Supplier not found."));long used=recons.countByReconSupplier_Id(id);if(used>0)throw new IllegalStateException("This Recon Supplier is used by "+used+" Purchase Recon record(s) and cannot be deleted.");suppliers.delete(entity);audit.log("RECON_SUPPLIER",id,"DELETED",entity.getReconSupplierRef()+" • "+entity.getLegalName());}
 
     @Transactional
     public PurchaseReconDtos.SupplierDto saveSupplier(PurchaseReconDtos.SupplierSaveRequest request){
@@ -57,6 +63,9 @@ public class PurchaseReconService {
     @Transactional(readOnly=true) public PurchaseReconDtos.ReconDto recon(Integer id){CurrentUser.requirePermission("PURCHASE_RECON.VIEW","View Purchase Recon");return reconDto(recons.findById(id).orElseThrow(()->new IllegalArgumentException("Purchase Recon record not found.")));}
 
     @Transactional
+    public void deleteRecon(Integer id){CurrentUser.requirePermission("PURCHASE_RECON.DELETE","Delete Purchase Recon");var entity=recons.findByIdForUpdate(id).orElseThrow(()->new IllegalArgumentException("Purchase Recon record not found."));if(n(entity.getLinkedAmount())>.009)throw new IllegalStateException("This Purchase Recon is linked to Bank Statement. Reverse / Unmatch the bank reconciliation before deleting it.");String ref=entity.getReconRef();String invoice=entity.getSupplierInvoiceNo();jdbc.update("DELETE FROM document_attachment WHERE document_type='PURCHASE_RECON' AND document_id=?",id);recons.delete(entity);audit.log("PURCHASE_RECON",id,"DELETED",ref+" • "+invoice);}
+
+    @Transactional
     public PurchaseReconDtos.ReconDto saveRecon(PurchaseReconDtos.ReconSaveRequest request){
         if(request==null||request.supplierId()==null)throw new IllegalArgumentException("Recon Supplier is required.");
         boolean creating=request.id()==null;
@@ -81,7 +90,7 @@ public class PurchaseReconService {
         CurrentUser.requirePermission("PURCHASE_RECON.IMPORT","Purchase Recon import");
         if(request==null||request.rows()==null||request.rows().isEmpty())throw new IllegalArgumentException("No Purchase Recon rows were supplied.");
         if(blank(request.sourceFingerprint()))throw new IllegalArgumentException("Import source fingerprint is required.");
-        if(!request.dryRun()&&batches.findBySourceFingerprint(request.sourceFingerprint()).isPresent())throw new IllegalStateException("This exact Purchase Recon workbook has already been imported.");
+        if(batches.findBySourceFingerprint(request.sourceFingerprint()).isPresent())throw new IllegalStateException("This exact Purchase Recon workbook has already been imported.");
         List<PurchaseReconDtos.ImportRowResult> details=new ArrayList<>();Map<String,ReconSupplierEntity> staged=new LinkedHashMap<>();Set<String> seenBusinessKeys=new HashSet<>();int imported=0,newSuppliers=0,existingSuppliers=0,duplicates=0,warnings=0,ignored=0;
         PurchaseReconImportBatchEntity batch=null;
         if(!request.dryRun()){

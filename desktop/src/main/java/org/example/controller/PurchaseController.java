@@ -9,6 +9,7 @@ import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.AttachmentPreviewSupport;
 
+import javafx.animation.PauseTransition;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -38,6 +39,8 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.converter.DoubleStringConverter;
+import javafx.util.StringConverter;
+import javafx.util.Duration;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import org.example.util.IconFactory;
@@ -181,6 +184,8 @@ public class PurchaseController implements ScreenLifecycle {
         new PurchaseService();
     private final LookupService lookupService = new LookupService();
     private final SupportApiClient supportApi = new SupportApiClient();
+    private final PauseTransition supplierSearchDebounce = new PauseTransition(Duration.millis(180));
+    private boolean updatingSupplierSearch;
 
     private Purchase editingPurchase = null;
     private boolean viewMode;
@@ -304,6 +309,7 @@ public class PurchaseController implements ScreenLifecycle {
                 }
             });
 
+        configureSupplierSearch();
 
         applyLookupDefaults(List.of(), List.of(), List.of("GST", "IGST"), List.of());
         if (cmbGstType != null) cmbGstType.valueProperty().addListener((obs,a,b) -> updateGstHeaders());
@@ -944,7 +950,7 @@ public class PurchaseController implements ScreenLifecycle {
 
     private PurchaseBootstrap loadPurchaseBootstrap() {
         List<String> errors = new ArrayList<>();
-        List<Party> suppliers = loadPurchaseValue("Suppliers", errors, () -> partyService.getByType("SUPPLIER"), List.of());
+        List<Party> suppliers = loadPurchaseValue("Suppliers", errors, () -> partyService.search("SUPPLIER", "", 40), List.of());
         List<Item> items = loadPurchaseValue("Items", errors, itemService::getAll, List.of());
         List<String> paymentTerms = loadPurchaseValue("Payment Terms", errors, () -> lookupService.getValuesByCategoryCode("PAYMENT_TERMS"), List.of());
         List<String> transporters = loadPurchaseValue("Transporters", errors, () -> lookupService.getValuesByCategoryCode("TRANSPORTER"), List.of());
@@ -1043,6 +1049,43 @@ public class PurchaseController implements ScreenLifecycle {
         dpDeliveryDate.setValue(calculatedDate);
     }
 
+    private void configureSupplierSearch() {
+        cmbSupplier.setEditable(true);
+        cmbSupplier.setConverter(new StringConverter<>() {
+            @Override public String toString(Party party) { return supplierDisplay(party); }
+            @Override public Party fromString(String text) {
+                if (text == null || text.isBlank()) return null;
+                String value = text.trim();
+                return cmbSupplier.getItems().stream().filter(p -> supplierDisplay(p).equalsIgnoreCase(value) || safeValue(p.getPartyCode(), "").equalsIgnoreCase(value) || safeValue(p.getName(), "").equalsIgnoreCase(value)).findFirst().orElse(null);
+            }
+        });
+        supplierSearchDebounce.setOnFinished(event -> searchSuppliers(cmbSupplier.getEditor().getText()));
+        cmbSupplier.getEditor().textProperty().addListener((obs, oldText, text) -> {
+            if (updatingSupplierSearch || !cmbSupplier.getEditor().isFocused()) return;
+            Party selected = cmbSupplier.getValue();
+            if (selected != null && supplierDisplay(selected).equalsIgnoreCase(safeValue(text, ""))) { supplierSearchDebounce.stop(); return; }
+            supplierSearchDebounce.playFromStart();
+        });
+        cmbSupplier.showingProperty().addListener((obs, oldValue, showing) -> { if (showing && cmbSupplier.getItems().isEmpty()) searchSuppliers(""); });
+    }
+
+    private void searchSuppliers(String text) {
+        String query = text == null ? "" : text.trim();
+        UiTaskExecutor.submitLatest("create-purchase-supplier-search", () -> partyService.search("SUPPLIER", query, 30), suppliers -> {
+            if (cmbSupplier.getEditor().isFocused() && !safeValue(cmbSupplier.getEditor().getText(), "").equalsIgnoreCase(query)) return;
+            Party selected = cmbSupplier.getValue(); updatingSupplierSearch = true;
+            try {
+                List<Party> stable = new ArrayList<>(suppliers == null ? List.of() : suppliers);
+                if (selected != null && stable.stream().noneMatch(p -> p.getId() == selected.getId())) stable.add(0, selected);
+                cmbSupplier.getItems().setAll(stable);
+                if (selected != null) selectPurchaseSupplier(selected);
+            } finally { updatingSupplierSearch = false; }
+            if (!cmbSupplier.getItems().isEmpty() && cmbSupplier.getEditor().isFocused() && !cmbSupplier.isShowing()) cmbSupplier.show();
+        }, failure -> System.err.println("Create Purchase supplier search: " + rootMessage(failure)));
+    }
+
+    private String supplierDisplay(Party party) { return party == null ? "" : safeValue(party.getPartyCode(), "") + " - " + safeValue(party.getName(), ""); }
+
     /** Opens the standard themed supplier editor and refreshes this form afterwards. */
     @FXML
     private void addSupplier() {
@@ -1059,7 +1102,7 @@ public class PurchaseController implements ScreenLifecycle {
             Party selected = cmbSupplier.getValue();
             UiTaskExecutor.submitLatest(
                 "create-purchase-suppliers",
-                () -> partyService.getByType("SUPPLIER"),
+                () -> partyService.search("SUPPLIER", "", 40),
                 suppliers -> {
                     cmbSupplier.getItems().setAll(suppliers == null ? List.of() : suppliers);
                     if (selected != null) selectPurchaseSupplier(selected);

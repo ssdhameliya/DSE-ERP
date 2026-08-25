@@ -10,6 +10,7 @@
    <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
    <HBox alignment="CENTER_LEFT" spacing="10" maxWidth="Infinity" styleClass="erp-page-identity-header">
+    <StackPane fx:id="paymentPageIcon" styleClass="erp-page-header-icon"/>
     <VBox spacing="2">
      <Label text="Invoice Payment" styleClass="page-title,payment-page-title"/>
      <Label text="Record payment • review history • manage proof documents" styleClass="payment-page-subtitle"/>

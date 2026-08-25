@@ -7877,3 +7877,18 @@
     -fx-stroke-width: 1.0;
     -fx-stroke-dash-array: 5 4;
 }
+
+/* v9.0.1: quotation/return register surfaces align with Sales/Purchase register background. */
+.quotation-register-page { -fx-background-color: #0c1524; }
+
+/* v9.0.1: shared register row selection palette. */
+.erp-purple-selection-table .table-row-cell:filled:hover {
+    -fx-background-color: #241f3b;
+}
+.erp-purple-selection-table .table-row-cell:filled:selected {
+    -fx-background-color: #2b2452;
+    -fx-background-insets: 0;
+}
+.erp-purple-selection-table .table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: #f2edff;
+}

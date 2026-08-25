@@ -287,6 +287,7 @@ public class SalesListController implements ScreenLifecycle {
         cmbMailStatus.getItems().setAll("All","Sent","Not Sent");cmbMailStatus.setValue("All");
         cmbWhatsappStatus.getItems().setAll("All","Sent","Not Sent");cmbWhatsappStatus.setValue("All");
         cmbInvoiceType.getItems().setAll("All","TAX INVOICE","PROFORMA","CASH MEMO");cmbInvoiceType.setValue("All");
+        org.example.util.PartySearchUi.install(cmbCustomer,"CUSTOMER","All customers","sales-register-customer-search");
         dpFrom.setValue(BusinessClock.today().minusMonths(6));
         dpTo.setValue(BusinessClock.today());
         dpFrom.setPromptText("Any date");
@@ -385,7 +386,7 @@ public class SalesListController implements ScreenLifecycle {
     private void applyPage(org.example.api.operations.OperationsApiClient.SalesPage loaded){
         pageState.runApplying(() -> {
             long started=System.nanoTime();allSales=new ArrayList<>(loaded.rows()==null?List.of():loaded.rows());filteredSales=allSales;pageState.apply(loaded.page(),loaded.totalPages(),loaded.totalRows());
-            String selectedCustomer=cmbCustomer.getValue();cmbCustomer.getItems().setAll("All customers");cmbCustomer.getItems().addAll(loaded.customers()==null?List.of():loaded.customers());if(selectedCustomer==null||selectedCustomer.startsWith("All")||!cmbCustomer.getItems().contains(selectedCustomer))cmbCustomer.setValue("All customers");else cmbCustomer.setValue(selectedCustomer);
+            String selectedCustomer=cmbCustomer.getValue();org.example.util.PartySearchUi.preserveSelection(cmbCustomer,selectedCustomer,"All customers");
             renderPage();if(allSales.isEmpty())org.example.util.OperationalUiSupport.showEmpty(tableSales,"No sales invoices found","Adjust the filters or create a new Sale.");applyMetrics(loaded.metrics());applyFooter(loaded.filteredTotals());renderChips();openLinkedRecordIfRequested();if(!PlatformUiSupport.isMac())javafx.application.Platform.runLater(()->updateCharts(loaded.metrics()));ScreenRefreshPolicy.markRefreshed("sales-register");
             long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)PerformanceMonitor.event("controller-phase","sales-register-page-apply | "+ms+" ms | rows="+allSales.size()+" | total="+pageState.totalRows());
         });
@@ -409,6 +410,13 @@ public class SalesListController implements ScreenLifecycle {
     @Override public void onScreenShown(boolean reusedFromCache){
         refreshShortcutLabels();
         org.example.util.OperationalUiSupport.focusSearch(txtSearch);
+        if (ImportViewContext.consume("Sales")) {
+            dpFrom.setValue(BusinessClock.today().minusYears(20));
+            dpTo.setValue(BusinessClock.today());
+            pageState.reset();
+            reloadPage();
+            return;
+        }
         if(allSales.isEmpty() || ScreenRefreshPolicy.shouldRefresh("sales-register", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) refresh();
     }
 

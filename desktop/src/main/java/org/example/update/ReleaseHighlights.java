@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.1".equals(version)) {
+            return """
+                    DSE ERP 9.0.1
+                    • Hardened Data Import so server-side validation and real persistence failures are surfaced instead of being masked as successful validation or duplicate skips.
+                    • Fixed User Permission checkbox editing and improved scalable Customer, Supplier and Recon Supplier search.
+                    • Reworked Bank/Expense, Purchase Recon and Recon Supplier workspaces around full-width tables, centralized dialogs, semantic Actions menus and purple row selection.
+                    • Payment and refund screens now default to Full payment/refund and use the shared colorful page identity icons.
+                    • Purchase Recon bank matching records the trader/supplier name as the Bank Entry description for direct register recognition.
+                    • Improved Purchase create layout, Quotation/Return register styling and Keyboard Shortcut readability/toggles/icons.
+                    """.strip();
+        }
         if ("9.0.0".equals(version)) {
             return """
                     DSE ERP 9.0.0

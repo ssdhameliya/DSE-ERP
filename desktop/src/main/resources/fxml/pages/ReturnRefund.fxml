@@ -5,6 +5,7 @@
 <ScrollPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.ReturnRefundController" fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" styleClass="clean-scroll,approved-ui,approved-screen,erp-screen-root">
  <content><VBox spacing="12" styleClass="sales-flow-page"><padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
   <HBox alignment="CENTER_LEFT" spacing="10" maxWidth="Infinity" styleClass="erp-page-identity-header">
+   <StackPane fx:id="refundPageIcon" styleClass="erp-page-header-icon"/>
    <VBox spacing="2"><Label fx:id="pageTitle" text="Return Refund" styleClass="page-title,payment-page-title"/><Label fx:id="pageSubtitle" text="Record refund • review history • manage proof documents" styleClass="payment-page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Back to Return Register" onAction="#back" styleClass="approved-button,back-register-button"/>
   </HBox>
   <HBox spacing="14">

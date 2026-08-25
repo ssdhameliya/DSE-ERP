@@ -9,6 +9,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.api.support.SupportApiClient;
 import org.example.config.ConfigManager;
@@ -53,6 +54,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     @FXML private TextArea notes;
     @FXML private RadioButton fullPayment, partialPayment;
     @FXML private Button btnSavePayment;
+    @FXML private StackPane paymentPageIcon;
     @FXML private VBox proofDropZone, paymentEntryCard;
     @FXML private TableView<PaymentRow> historyTable;
     @FXML private TableColumn<PaymentRow, String> historyDate, historyReference, historyPaidTo,
@@ -70,6 +72,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     private boolean proofRemovalPending;
 
     @FXML public void initialize() {
+        if (paymentPageIcon != null) paymentPageIcon.getChildren().setAll(IconFactory.icon("payment",24));
         decorateSectionTitles();
         configureHistoryTable();
         configurePaymentForm();
@@ -121,7 +124,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         ToggleGroup paymentType = new ToggleGroup();
         fullPayment.setToggleGroup(paymentType);
         partialPayment.setToggleGroup(paymentType);
-        partialPayment.setSelected(true);
+        fullPayment.setSelected(true);
         fullPayment.setOnAction(e -> selectFull());
         partialPayment.setOnAction(e -> selectPartial());
         amount.textProperty().addListener((o, a, b) -> updateBalancePreview());
@@ -441,7 +444,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         selectedProof = null; proofRemovalPending = false;
         if (purchase != null && purchase.getSupplier() != null) paidTo.setText(safe(purchase.getSupplier().getName()));
         if (attachmentName != null) attachmentName.setText("No file selected");
-        partialPayment.setSelected(true);
+        fullPayment.setSelected(true);
         amount.setText(String.format(Locale.ROOT, "%.2f", purchase == null ? 0 : purchase.getBalanceAmount()));
         updatePaymentEntryAvailability();
     }
@@ -556,7 +559,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         selectedProof = null; proofRemovalPending=false;
         attachmentName.setText(row.proofPath() == null || row.proofPath().isBlank()
                 ? "No proof attached" : "Existing proof: " + Path.of(row.proofPath()).getFileName());
-        partialPayment.setSelected(true);
+        if ("FULL".equalsIgnoreCase(row.paymentType())) fullPayment.setSelected(true); else partialPayment.setSelected(true);
         if (btnSavePayment != null) btnSavePayment.setText("Update Payment");
         amount.requestFocus();
         amount.selectAll();

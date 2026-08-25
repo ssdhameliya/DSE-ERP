@@ -256,13 +256,13 @@
             </VBox>
 
             <VBox spacing="7" styleClass="purchase-card,flow-card,sales-entry-card,sales-entry-actions-card">
-                <Label text="Notes &amp; Attachment"
+                <Label text="Attachments"
                        styleClass="flow-title,sales-entry-section-title,sales-entry-section-actions"/>
                 <TextArea fx:id="txtRemarks" promptText="Optional purchase note..." wrapText="true"
-                          prefRowCount="3" prefHeight="78" minHeight="68" maxHeight="96" maxWidth="Infinity"
+                          prefRowCount="1" prefHeight="0" minHeight="0" maxHeight="0" maxWidth="Infinity" managed="false" visible="false"
                           styleClass="approved-input,sales-entry-note-area"/>
                 <HBox alignment="CENTER_LEFT" spacing="8">
-                    <Label text="Attachments" styleClass="sales-entry-attachment-caption"/>
+                    <Label text="Files" styleClass="sales-entry-attachment-caption"/>
                     <Label fx:id="lblAttachment" text="No attachments" styleClass="sales-entry-attachment-name"/>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Button fx:id="btnAttachmentAdd" text="Add Files" onAction="#chooseAttachment" prefHeight="28"
@@ -272,7 +272,7 @@
                     <Button fx:id="btnAttachmentRemove" text="Remove" onAction="#removeAttachment" prefHeight="28" disable="true"
                             styleClass="approved-button,approved-secondary-button"/>
                 </HBox>
-                <ListView fx:id="listAttachments" prefHeight="92" minHeight="72" maxHeight="118"
+                <ListView fx:id="listAttachments" prefHeight="68" minHeight="52" maxHeight="78"
                           styleClass="purchase-attachment-list"/>
             </VBox>
         </VBox>

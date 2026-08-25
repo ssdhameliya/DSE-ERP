@@ -81,7 +81,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_0_1__persistent_auth_sessions",
                     "db/migration/V9_0_0_1__persistent_auth_sessions.sql"),
             new Migration("V9_0_0_2__signed_auth_sessions",
-                    "db/migration/V9_0_0_2__signed_auth_sessions.sql")
+                    "db/migration/V9_0_0_2__signed_auth_sessions.sql"),
+            new Migration("V9_0_1__purchase_recon_actions",
+                    "db/migration/V9_0_1__purchase_recon_actions.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

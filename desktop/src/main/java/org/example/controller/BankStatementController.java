@@ -234,7 +234,7 @@ public class BankStatementController implements ScreenLifecycle {
             "bank-statement-import",
             () -> {
                 var parsed=parser.parse(file.toPath());
-                var request=new BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,parsed.rows());
+                var request=new BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,false,parsed.rows());
                 return api.importStatement(request);
             },
             result -> { success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows()); loadBatches(result.batch().id()); },

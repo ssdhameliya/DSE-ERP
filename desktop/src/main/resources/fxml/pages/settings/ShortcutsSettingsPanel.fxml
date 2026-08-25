@@ -99,7 +99,7 @@
 
                     <HBox alignment="CENTER_LEFT" spacing="8">
                       <VBox spacing="1" HBox.hgrow="ALWAYS"><Label text="Active" styleClass="dse-shortcut-v3-field-label"/><Label text="Disable to temporarily turn this shortcut off." styleClass="dse-shortcut-v3-help"/></VBox>
-                      <CheckBox fx:id="chkShortcutActive" selected="true" styleClass="dse-shortcut-v3-active-toggle"/>
+                      <ToggleButton fx:id="chkShortcutActive" text="●" selected="true" alignment="CENTER_RIGHT" styleClass="dse-shortcut-v3-active-toggle,dse-shortcut-v3-toggle"/>
                     </HBox>
 
                     <VBox fx:id="shortcutConflictBox" spacing="4" styleClass="dse-shortcut-v3-conflict-box">

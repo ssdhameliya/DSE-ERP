@@ -941,7 +941,7 @@ public class ImportController {
         btnRunImport.setDisable(
             selectedFile == null
                 || !requiredMappingsComplete()
-                || (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed)
+                || (!preflightPassed)
         );
 
         if (selectedFile == null) {
@@ -952,7 +952,7 @@ public class ImportController {
             lblReadyStatus.setText(
                 "Map all required fields before importing"
             );
-        } else if (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed) {
+        } else if (!preflightPassed) {
             lblReadyStatus.setText("Run validation before importing");
         } else {
             lblReadyStatus.setText("All validations passed • Ready to import " + selectedFile.getName());
@@ -1643,11 +1643,6 @@ public class ImportController {
 
     private void runPreflightValidation() {
         if (selectedFile == null || !requiredMappingsComplete()) return;
-        if ("Bank Statement".equals(cmbImportModule.getValue())) {
-            preflightPassed = true;
-            updateMappingSummary();
-            return;
-        }
         preflightPassed = false;
         lastPreflightResult = null;
         btnRunImport.setDisable(true);
@@ -1782,7 +1777,7 @@ public class ImportController {
             return;
         }
 
-        if (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed) {
+        if (!preflightPassed) {
             showWarning("Validation required", "Run Review & Validate first. Import stays blocked until every row passes.");
             return;
         }
@@ -2032,11 +2027,11 @@ public class ImportController {
     private ImportService.ImportResult importBankStatement(boolean dryRun) throws Exception {
         var parsed = new org.example.bank.KotakBankStatementCsvParser().parse(selectedFile.toPath());
         updateProgress(parsed.rows().size(), parsed.rows().size());
-        if (dryRun) return new ImportService.ImportResult(parsed.rows().size(),0,0,0,List.of());
         var u=org.example.service.SessionService.current(); String user=u==null?"User":u.getFullName();
-        var request = new org.example.api.bank.BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),user,parsed.rows());
+        var request = new org.example.api.bank.BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),user,dryRun,parsed.rows());
         var result = new org.example.api.bank.BankStatementApiClient().importStatement(request);
-        return new ImportService.ImportResult(parsed.rows().size(),result.importedRows(),0,result.duplicateRows(),List.of());
+        var details = List.of(new ImportService.ImportRowResult("1-"+parsed.rows().size(), parsed.sourceFileName(), "PASSED", dryRun?"VALIDATED":"IMPORTED", dryRun?"Server validation passed":"Bank statement imported", "", 0));
+        return new ImportService.ImportResult(parsed.rows().size(),dryRun?0:result.importedRows(),0,result.duplicateRows(),List.of(),details);
     }
 
     private Map<String, String> collectCurrentMapping() {
@@ -2077,7 +2072,7 @@ public class ImportController {
             running
                 || selectedFile == null
                 || !requiredMappingsComplete()
-                || (!"Bank Statement".equals(cmbImportModule.getValue()) && !preflightPassed)
+                || (!preflightPassed)
         );
 
         btnChooseFile.setDisable(running);
@@ -2304,7 +2299,9 @@ public class ImportController {
     }
 
     @FXML private void viewImportedRecords() {
-        String target = targetFor(completedModule == null ? cmbImportModule.getValue() : completedModule);
+        String module = completedModule == null ? cmbImportModule.getValue() : completedModule;
+        ImportViewContext.request(module);
+        String target = targetFor(module);
         NavigationGuardRegistry.clear(btnRunImport);
         NavigationManager.navigateOrReport(target);
     }
@@ -2412,7 +2409,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 9.0.0 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 9.0.1 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

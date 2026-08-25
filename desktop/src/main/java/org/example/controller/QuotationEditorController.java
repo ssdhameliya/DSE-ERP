@@ -2,6 +2,7 @@ package org.example.controller;
 
 import org.example.util.BusinessClock;
 
+import javafx.animation.PauseTransition;
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -10,6 +11,8 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
+import javafx.util.StringConverter;
 import org.example.api.support.SupportApiClient;
 import org.example.config.WorkspaceManager;
 import org.example.api.master.MasterApiClient;
@@ -18,6 +21,7 @@ import org.example.model.Item;
 import org.example.model.Party;
 import org.example.navigation.NavigationManager;
 import org.example.service.SessionService;
+import org.example.service.PartyService;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.UiTaskExecutor;
@@ -48,6 +52,7 @@ public final class QuotationEditorController {
 
     private final QuotationApiClient api=new QuotationApiClient();
     private final MasterApiClient masters=new MasterApiClient();
+    private final PartyService partyService=new PartyService();
     private final SupportApiClient supportApi=new SupportApiClient();
     private Integer quotationId;
     private boolean dirty;
@@ -55,6 +60,8 @@ public final class QuotationEditorController {
     private final ContextMenu itemSuggestions=new ContextMenu();
     private ItemChoice selectedItem;
     private boolean updatingItemSearch;
+    private final PauseTransition customerSearchDebounce=new PauseTransition(Duration.millis(180));
+    private boolean updatingCustomerSearch;
     private Path selectedAttachment;
     private boolean attachmentRemovalPending;
     private String existingAttachment="";
@@ -66,7 +73,7 @@ public final class QuotationEditorController {
         if(btnAttachmentAdd!=null)btnAttachmentAdd.setGraphic(IconFactory.compactIcon("attachment",15));if(btnAttachmentPreview!=null)btnAttachmentPreview.setGraphic(IconFactory.compactIcon("view",15));if(btnAttachmentRemove!=null)btnAttachmentRemove.setGraphic(IconFactory.compactIcon("delete",15));
         cmbSource.setItems(FXCollections.observableArrayList("Direct","Email","WhatsApp","Website","Referral","Other"));cmbSource.setValue("Direct");
         dpDate.setValue(BusinessClock.today());dpValid.setValue(BusinessClock.today().plusDays(30));dpFollowUp.setValue(BusinessClock.today().plusDays(7));
-        configureTable();configureItemSearch();quotationId=QuotationEditorContext.consume();loadEditorBootstrapAsync();
+        configureTable();configureItemSearch();configureCustomerSearch();quotationId=QuotationEditorContext.consume();loadEditorBootstrapAsync();
         tableLines.getItems().addListener((javafx.collections.ListChangeListener<LineRow>)c->{dirty=true;updateTotals();});
         txtRemarks.textProperty().addListener((o,a,b)->dirty=true);
     }
@@ -115,6 +122,19 @@ public final class QuotationEditorController {
     private void clearItemSearch(){selectItem(null);}
     private ItemChoice resolveTypedItem(String text){if(selectedItem!=null)return selectedItem;String value=text==null?"":text.trim();if(value.isBlank())return null;return allItemChoices.stream().filter(item->item.toString().equalsIgnoreCase(value)||item.code.equalsIgnoreCase(value)||item.description.equalsIgnoreCase(value)).findFirst().orElse(null);}
 
+    private void configureCustomerSearch(){
+        cmbCustomer.setEditable(true);
+        cmbCustomer.setConverter(new StringConverter<>(){
+            @Override public String toString(CustomerChoice value){return value==null?"":value.display();}
+            @Override public CustomerChoice fromString(String text){if(text==null||text.isBlank())return null;String q=text.trim();return cmbCustomer.getItems().stream().filter(c->c.display().equalsIgnoreCase(q)||c.name.equalsIgnoreCase(q)||c.code.equalsIgnoreCase(q)).findFirst().orElse(null);}
+        });
+        customerSearchDebounce.setOnFinished(e->searchQuotationCustomers(cmbCustomer.getEditor().getText()));
+        cmbCustomer.getEditor().textProperty().addListener((o,a,text)->{if(updatingCustomerSearch||!cmbCustomer.getEditor().isFocused())return;CustomerChoice selected=cmbCustomer.getValue();if(selected!=null&&selected.display().equalsIgnoreCase(safe(text))){customerSearchDebounce.stop();return;}customerSearchDebounce.playFromStart();});
+        cmbCustomer.showingProperty().addListener((o,a,showing)->{if(showing&&cmbCustomer.getItems().isEmpty())searchQuotationCustomers("");});
+    }
+    private void searchQuotationCustomers(String text){String query=text==null?"":text.trim();UiTaskExecutor.submitLatest("quotation-customer-search",()->partyService.search("CUSTOMER",query,30),rows->{if(cmbCustomer.getEditor().isFocused()&&!safe(cmbCustomer.getEditor().getText()).equalsIgnoreCase(query))return;CustomerChoice selected=cmbCustomer.getValue();List<CustomerChoice> choices=new ArrayList<>();if(rows!=null)for(Party p:rows)choices.add(new CustomerChoice(p));if(selected!=null&&choices.stream().noneMatch(c->c.id==selected.id))choices.add(0,selected);updatingCustomerSearch=true;try{cmbCustomer.getItems().setAll(choices);if(selected!=null)cmbCustomer.getItems().stream().filter(c->c.id==selected.id).findFirst().ifPresent(cmbCustomer::setValue);}finally{updatingCustomerSearch=false;}if(!choices.isEmpty()&&cmbCustomer.getEditor().isFocused()&&!cmbCustomer.isShowing())cmbCustomer.show();},failure->System.err.println("Quotation customer search: "+(failure.getMessage()==null?failure.getClass().getSimpleName():failure.getMessage())));}
+    private void selectQuotationCustomer(int customerId,String customerName){CustomerChoice local=cmbCustomer.getItems().stream().filter(c->c.id==customerId).findFirst().orElse(null);if(local!=null){cmbCustomer.setValue(local);return;}UiTaskExecutor.submitLatest("quotation-customer-selected",()->partyService.search("CUSTOMER",safe(customerName),30),rows->{CustomerChoice match=(rows==null?List.<Party>of():rows).stream().filter(p->p.getId()==customerId).findFirst().map(CustomerChoice::new).orElse(null);if(match!=null){cmbCustomer.getItems().add(0,match);cmbCustomer.setValue(match);}},failure->System.err.println("Quotation selected customer: "+failure.getMessage()));}
+
     private record EditorBootstrap(List<Party> customers,List<Item> items,QuotationApiClient.QuoteDto quote,List<QuotationApiClient.LineDto> lines){}
 
     private void loadEditorBootstrapAsync(){
@@ -122,7 +142,7 @@ public final class QuotationEditorController {
         UiTaskExecutor.submitLatest(
             "quotation-editor-bootstrap",
             () -> {
-                List<Party> customers=masters.parties("CUSTOMER");
+                List<Party> customers;try{customers=partyService.search("CUSTOMER","",40);}catch(Exception e){customers=List.of();}
                 List<Item> items=masters.items();
                 QuotationApiClient.QuoteDto quote=null;List<QuotationApiClient.LineDto> lines=List.of();
                 if(requestedId!=null){
@@ -141,7 +161,7 @@ public final class QuotationEditorController {
         allItemChoices.setAll(data.items().stream().map(ItemChoice::new).toList());
         QuotationApiClient.QuoteDto quote=data.quote();
         if(quote!=null){
-            cmbCustomer.getItems().stream().filter(c->c.id==quote.customerId()).findFirst().ifPresent(cmbCustomer::setValue);
+            selectQuotationCustomer(quote.customerId(), quote.customer());
             dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));cmbSource.setValue(blank(quote.source())?"Direct":quote.source());txtRemarks.setText(safe(quote.remarks()));
             tableLines.getItems().setAll(data.lines().stream().map(LineRow::new).toList());
             existingAttachment=safe(quote.attachment());selectedAttachment=null;attachmentRemovalPending=false;updateAttachmentLabel();
@@ -199,7 +219,7 @@ public final class QuotationEditorController {
     private Exception asException(Throwable failure){return failure instanceof Exception e?e:new RuntimeException(failure);}
     private void error(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()==null?"Quotation operation failed.":e.getMessage()).showAndWait();}
 
-    private static final class CustomerChoice{final int id;final String name;CustomerChoice(Party p){id=p.getId();name=p.getName();}@Override public String toString(){return name;}}
+    private static final class CustomerChoice{final int id;final String code,name,gstin,phone;CustomerChoice(Party p){id=p.getId();code=safe(p.getPartyCode());name=safe(p.getName());gstin=safe(p.getGstin());phone=safe(p.getPhone());}String display(){return code.isBlank()?name:code+" - "+name;}@Override public String toString(){return display();}}
     private static final class ItemChoice{final String code,description,remarks,hsn;final double rate,gst,discount;ItemChoice(Item i){code=safe(i.getItemCode());description=safe(i.getDescription());remarks=safe(i.getRemarks());hsn=safe(i.getHsn());rate=i.getSellingPrice();gst=i.getGst();discount=i.getDiscountPercent();}String searchText(){return (code+" "+description+" "+remarks+" "+hsn).toLowerCase(Locale.ROOT);}@Override public String toString(){if(remarks.isBlank())return description;if(description.isBlank())return remarks;return remarks+" • "+description;}}
     public static final class LineRow{final StringProperty code=new SimpleStringProperty(),description=new SimpleStringProperty();final DoubleProperty quantity=new SimpleDoubleProperty(),rate=new SimpleDoubleProperty(),gst=new SimpleDoubleProperty(),discount=new SimpleDoubleProperty(),discountAmount=new SimpleDoubleProperty(),gstAmount=new SimpleDoubleProperty(),total=new SimpleDoubleProperty();LineRow(QuotationApiClient.LineDto l){this(l.code(),l.description(),l.quantity(),l.rate(),l.gst(),l.discount());}LineRow(String c,String d,double q,double r,double g,double disc){code.set(c);description.set(d);quantity.set(q);rate.set(r);gst.set(g);discount.set(disc);double gross=q*r,discountValue=gross*disc/100,taxable=gross-discountValue;discountAmount.set(discountValue);gstAmount.set(taxable*g/100);total.set(taxable+gstAmount.get());}}
 }

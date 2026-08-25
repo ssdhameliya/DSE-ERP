@@ -130,7 +130,7 @@ public class PermissionMatrixController implements ScreenLifecycle {
         Label text = new Label(label);
         text.getStyleClass().add("permission-column-title");
         CheckBox toggle = new CheckBox();
-        toggle.setAllowIndeterminate(true);
+        toggle.setAllowIndeterminate(false);
         toggle.getStyleClass().add("permission-header-check");
         toggle.setTooltip(new Tooltip(action == null ? "Grant or revoke every visible capability" : "Grant or revoke " + label + " for visible modules"));
         toggle.setOnAction(event -> {
@@ -491,7 +491,7 @@ public class PermissionMatrixController implements ScreenLifecycle {
         MatrixCheckCell(java.util.function.Function<ModuleRow, Collection<PermissionEntry>> resolver, String tooltipPrefix) {
             this.targets = resolver::apply;
             this.tooltipPrefix = tooltipPrefix;
-            check.setAllowIndeterminate(true);
+            check.setAllowIndeterminate(false);
             check.getStyleClass().add("permission-matrix-check");
             setAlignment(Pos.CENTER);
             check.setOnAction(event -> {

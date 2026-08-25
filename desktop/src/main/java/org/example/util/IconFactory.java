@@ -579,6 +579,7 @@ public final class IconFactory {
             case "moon" -> "fas-moon";
             case "error" -> "fas-exclamation-triangle";
             case "settings" -> "fas-cog";
+            case "shortcut" -> "fas-keyboard";
             case "view" -> "fas-eye";
             case "hide" -> "fas-eye-slash";
             case "edit" -> "fas-pen";

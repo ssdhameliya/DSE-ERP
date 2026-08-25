@@ -6,6 +6,7 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
@@ -46,8 +47,9 @@ public class ReturnRefundController {
     @FXML private TableColumn<ReturnApiClient.RefundRow,Number> cAmount;
     @FXML private TableColumn<ReturnApiClient.RefundRow,Void> cAction;
     @FXML private VBox proofDropZone;
+    @FXML private StackPane refundPageIcon;
 
-    @FXML public void initialize(){configureForm();configureHistory();load();}
+    @FXML public void initialize(){if(refundPageIcon!=null)refundPageIcon.getChildren().setAll(IconFactory.icon("refund",24));configureForm();configureHistory();load();}
 
     private void configureForm(){
         refundDate.setValue(BusinessClock.today());
@@ -57,7 +59,7 @@ public class ReturnRefundController {
         List<String> accounts=new ArrayList<>();try{for(var l:lookups.getByType("BANK ACCOUNT"))if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String d=l.getDescription()==null?"":l.getDescription().trim();accounts.add(d.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+d);}}catch(Exception ignored){}
         if(accounts.isEmpty()){String bank=ConfigManager.get("payment.bankName","").trim(),acct=ConfigManager.get("payment.accountNumber","").trim();if(!acct.isBlank())accounts.add(bank.isBlank()?acct:acct+" - "+bank);}
         bankAccount.getItems().setAll(accounts);if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst();else bankAccount.setPromptText("Add BANK ACCOUNT in Masters");
-        ToggleGroup g=new ToggleGroup();fullRefund.setToggleGroup(g);partialRefund.setToggleGroup(g);partialRefund.setSelected(true);
+        ToggleGroup g=new ToggleGroup();fullRefund.setToggleGroup(g);partialRefund.setToggleGroup(g);fullRefund.setSelected(true);
         fullRefund.setOnAction(e->selectFull());partialRefund.setOnAction(e->{amount.clear();amount.requestFocus();});amount.textProperty().addListener((o,a,b)->updateAfter());
         mode.valueProperty().addListener((o,a,b)->bankAccount.setDisable(b==null||!(b.toLowerCase(Locale.ROOT).contains("bank")||b.equalsIgnoreCase("NEFT")||b.equalsIgnoreCase("RTGS"))));
     }
@@ -77,7 +79,7 @@ public class ReturnRefundController {
 
     @FXML private void save(){try{validate();double value=parse(amount.getText());String type=fullRefund.isSelected()?"FULL":"PARTIAL";String user=SessionService.current()==null?"User":safe(SessionService.current().getFullName());int id=api.recordRefund(details.no(),new ReturnApiClient.RefundCreateRequest(refundDate.getValue().toString(),value,mode.getValue(),safe(reference.getText()),bankAccount.isDisabled()?"":safe(bankAccount.getValue()),safe(refundedParty.getText()),safe(notes.getText()),type,user));if(pendingProof!=null){try{support.uploadReturnRefundAttachment(id,pendingProof);}catch(Exception upload){error(new IllegalStateException("Refund was saved, but the proof could not be uploaded. The refund remains recorded. "+message(upload),upload));pendingProof=null;load();return;}}NotificationService.add(details.no()+" refund recorded.");org.example.util.ToastManager.success(amount,"Refund recorded","Refund transaction saved successfully.");pendingProof=null;load();}catch(Exception e){error(e);}}
     private void validate(){if(details==null)throw new IllegalStateException("Return is not loaded.");if(refundDate.getValue()==null)throw new IllegalArgumentException("Refund date is required.");if(mode.getValue()==null||mode.getValue().isBlank())throw new IllegalArgumentException("Payment mode is required.");double v=parse(amount.getText()),remaining=Math.max(0,details.total()-details.refund());if(v<=0)throw new IllegalArgumentException("Refund amount must be greater than zero.");if(v>remaining+.001)throw new IllegalArgumentException("Refund amount exceeds the remaining balance of "+money(remaining)+".");if(!bankAccount.isDisabled()&&(bankAccount.getValue()==null||bankAccount.getValue().isBlank()))throw new IllegalArgumentException("Bank Account is required for bank refunds.");}
-    @FXML private void reset(){resetForm(true);}private void resetForm(boolean focus){refundDate.setValue(BusinessClock.today());reference.clear();amount.clear();notes.clear();partialRefund.setSelected(true);pendingProof=null;proofName.setText("No file selected");if(details!=null)refundedParty.setText(details.party());if(focus)amount.requestFocus();updateAfter();}
+    @FXML private void reset(){resetForm(true);}private void resetForm(boolean focus){refundDate.setValue(BusinessClock.today());reference.clear();notes.clear();fullRefund.setSelected(true);selectFull();pendingProof=null;proofName.setText("No file selected");if(details!=null)refundedParty.setText(details.party());if(focus)amount.requestFocus();updateAfter();}
     @FXML private void browseFile(){FileChooser fc=new FileChooser();fc.setTitle("Select refund proof");fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Proof files","*.pdf","*.png","*.jpg","*.jpeg"));var f=fc.showOpenDialog(historyTable.getScene().getWindow());if(f==null)return;if(f.length()>25L*1024*1024){error(new IllegalArgumentException("Attachment is larger than 25 MB."));return;}pendingProof=f.toPath();proofName.setText(f.getName());}
     @FXML private void previewProof(){if(pendingProof==null){info("Refund proof","Choose a proof file first, or use Actions in Refund History to preview a saved proof.");return;}try{Desktop.getDesktop().open(pendingProof.toFile());}catch(Exception e){error(e);}}
     @FXML private void removeProof(){pendingProof=null;proofName.setText("No file selected");}
