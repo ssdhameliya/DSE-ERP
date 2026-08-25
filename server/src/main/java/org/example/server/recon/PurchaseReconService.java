@@ -90,35 +90,129 @@ public class PurchaseReconService {
         CurrentUser.requirePermission("PURCHASE_RECON.IMPORT","Purchase Recon import");
         if(request==null||request.rows()==null||request.rows().isEmpty())throw new IllegalArgumentException("No Purchase Recon rows were supplied.");
         if(blank(request.sourceFingerprint()))throw new IllegalArgumentException("Import source fingerprint is required.");
-        if(batches.findBySourceFingerprint(request.sourceFingerprint()).isPresent())throw new IllegalStateException("This exact Purchase Recon workbook has already been imported.");
-        List<PurchaseReconDtos.ImportRowResult> details=new ArrayList<>();Map<String,ReconSupplierEntity> staged=new LinkedHashMap<>();Set<String> seenBusinessKeys=new HashSet<>();int imported=0,newSuppliers=0,existingSuppliers=0,duplicates=0,warnings=0,ignored=0;
+
+        List<PurchaseReconDtos.ImportRowResult> details=new ArrayList<>();
+        Map<String,ReconSupplierEntity> staged=new LinkedHashMap<>();
+        Map<String,String> seenBusinessKeys=new LinkedHashMap<>();
+        int imported=0,updated=0,alreadyCurrent=0,newSuppliers=0,existingSuppliers=0,duplicates=0,conflicts=0,warnings=0,ignored=0;
         PurchaseReconImportBatchEntity batch=null;
         if(!request.dryRun()){
-            batch=new PurchaseReconImportBatchEntity();batch.setSourceFileName(blank(request.sourceFileName())?"Purchase Recon import":request.sourceFileName());batch.setSourceFingerprint(request.sourceFingerprint());batch.setImportNote(trim(request.importNote()));batch.setImportedBy(CurrentUser.require().username());batch.setTotalRows(request.rows().size());batch.setImportedRows(0);batch.setDuplicateRows(0);batch.setWarningRows(0);batch.setIgnoredRows(0);batch=batches.save(batch);
+            batch=new PurchaseReconImportBatchEntity();
+            batch.setSourceFileName(blank(request.sourceFileName())?"Purchase Recon import":request.sourceFileName());
+            batch.setSourceFingerprint(request.sourceFingerprint());
+            batch.setImportNote(trim(request.importNote()));
+            batch.setImportedBy(CurrentUser.require().username());
+            batch.setTotalRows(request.rows().size());batch.setImportedRows(0);batch.setDuplicateRows(0);batch.setWarningRows(0);batch.setIgnoredRows(0);
+            batch=batches.save(batch);
         }
+
         for(PurchaseReconDtos.ImportRow row:request.rows()){
             if(row==null){ignored++;continue;}
+            String sourceSheet=safe(row.sourceSheet()).trim();
             String supplierName=safe(row.supplierName()).trim(),invoice=safe(row.supplierInvoiceNo()).trim(),gstin=safe(row.supplierGstin()).trim().toUpperCase(Locale.ROOT);
             LocalDate date=parseDate(row.invoiceDate());
-            if(isSummaryRow(row,supplierName,gstin,invoice)){ignored++;details.add(new PurchaseReconDtos.ImportRowResult(row.sourceRow(),"IGNORED",supplierName,"",invoice,"Summary / totals row ignored.",false));continue;}
+            if(isSummaryRow(row,supplierName,gstin,invoice)){
+                ignored++;details.add(importResult(row,"PASSED","IGNORED",supplierName,"",invoice,"Summary / totals row ignored.",false));continue;
+            }
             if((supplierName.isBlank()&&gstin.isBlank())||invoice.isBlank()||date==null||row.invoiceValue()<=0||!Double.isFinite(row.invoiceValue())){
-                ignored++;details.add(new PurchaseReconDtos.ImportRowResult(row.sourceRow(),"FAILED",supplierName,"",invoice,"Supplier, Invoice No., valid Invoice Date and positive Invoice Value are required.",false));continue;
+                ignored++;details.add(importResult(row,"FAILED","INVALID",supplierName,"",invoice,"Supplier, Invoice No., valid Invoice Date and positive Invoice Value are required.",false));continue;
             }
+
             String gstinKey=gstin.isBlank()?"":"GSTIN:"+gstin,nameKey=supplierName.isBlank()?"":"NAME:"+normalizeName(supplierName);
-            ReconSupplierEntity supplier=!gstinKey.isBlank()?staged.get(gstinKey):null;if(supplier==null&&!nameKey.isBlank())supplier=staged.get(nameKey);boolean created=false;
-            if(supplier==null){supplier=findSupplier(gstin,supplierName).orElse(null);if(supplier!=null)existingSuppliers++;else{created=true;newSuppliers++;supplier=new ReconSupplierEntity();supplier.setLegalName(supplierName.isBlank()?gstin:supplierName);supplier.setGstin(gstin);supplier.setStatus("ACTIVE");supplier.setSource("IMPORT");supplier.setCreatedBy(CurrentUser.require().username());supplier.setUpdatedBy(CurrentUser.require().username());if(!request.dryRun()){supplier.setReconSupplierRef(nextReconSupplierReference());supplier.setImportBatchId(batch.getId());supplier=suppliers.save(supplier);}else supplier.setReconSupplierRef("NEW");}}
-            if(!gstinKey.isBlank())staged.put(gstinKey,supplier);if(!nameKey.isBlank())staged.put(nameKey,supplier);String supplierKey=supplier.getId()!=null?"ID:"+supplier.getId():!blank(supplier.getGstin())?"GSTIN:"+up(supplier.getGstin()):"NAME:"+normalizeName(supplier.getLegalName());
-            String fy=financialYear(date),businessKey=supplierKey+"|"+invoice.toUpperCase(Locale.ROOT)+"|"+fy;
-            boolean duplicateInFile=!seenBusinessKeys.add(businessKey);boolean duplicateExisting=!created&&supplier.getId()!=null&&recons.duplicateBusinessKey(supplier.getId(),invoice,fy,null);
-            if(duplicateInFile||duplicateExisting){duplicates++;details.add(new PurchaseReconDtos.ImportRowResult(row.sourceRow(),"DUPLICATE",supplierName,supplier.getReconSupplierRef(),invoice,"Existing Purchase Recon detected; row skipped.",false));continue;}
-            double diff=round2(row.invoiceValue()-row.taxableValue()-row.cgst()-row.sgst()-row.igst());boolean warning=Math.abs(diff)>1.00; if(warning)warnings++;
-            if(!request.dryRun()){
-                PurchaseReconEntity recon=new PurchaseReconEntity();recon.setReconRef(nextPurchaseReconReference());recon.setReconSupplier(supplier);recon.setLinkedAmount(0d);recon.setSource("IMPORT");recon.setImportBatch(batch);recon.setSourceRow(row.sourceRow());recon.setCreatedBy(CurrentUser.require().username());recon.setUpdatedBy(CurrentUser.require().username());applyReconValues(recon,supplier,invoice,date,row.taxableValue(),row.cgst(),row.sgst(),row.igst(),0d,row.invoiceValue(),warning?"Imported with tax difference requiring review.":null);syncStatus(recon);recons.save(recon);
+            ReconSupplierEntity supplier=!gstinKey.isBlank()?staged.get(gstinKey):null;
+            if(supplier==null&&!nameKey.isBlank())supplier=staged.get(nameKey);
+            boolean created=false;
+            if(supplier==null){
+                if(!gstin.isBlank()){
+                    supplier=suppliers.findByNormalizedGstin(gstin).orElse(null);
+                    if(supplier==null&&!supplierName.isBlank()){
+                        List<ReconSupplierEntity> sameName=suppliers.findByNormalizedNameKey(normalizeName(supplierName));
+                        if(!sameName.isEmpty()){
+                            ReconSupplierEntity candidate=sameName.getFirst();
+                            String candidateGstin=up(candidate.getGstin());
+                            if(!candidateGstin.isBlank()&&!candidateGstin.equals(gstin)){
+                                conflicts++;details.add(importResult(row,"FAILED","SUPPLIER IDENTITY CONFLICT",supplierName,candidate.getReconSupplierRef(),invoice,
+                                    "Supplier name matches "+candidate.getReconSupplierRef()+" but GSTIN differs. Review the supplier identity before import.",false));continue;
+                            }
+                            supplier=candidate;
+                            if(candidateGstin.isBlank()&&!request.dryRun()){
+                                supplier.setGstin(gstin);supplier.setUpdatedBy(CurrentUser.require().username());supplier=suppliers.save(supplier);
+                            }
+                        }
+                    }
+                }else if(!supplierName.isBlank()){
+                    List<ReconSupplierEntity> sameName=suppliers.findByNormalizedNameKey(normalizeName(supplierName));
+                    if(!sameName.isEmpty())supplier=sameName.getFirst();
+                }
+                if(supplier!=null)existingSuppliers++;
+                else{
+                    created=true;newSuppliers++;
+                    supplier=new ReconSupplierEntity();supplier.setLegalName(supplierName.isBlank()?gstin:supplierName);supplier.setGstin(gstin);supplier.setStatus("ACTIVE");supplier.setSource("IMPORT");supplier.setCreatedBy(CurrentUser.require().username());supplier.setUpdatedBy(CurrentUser.require().username());
+                    if(!request.dryRun()){supplier.setReconSupplierRef(nextReconSupplierReference());supplier.setImportBatchId(batch.getId());supplier=suppliers.save(supplier);}else supplier.setReconSupplierRef("NEW");
+                }
             }
-            imported++;String rowStatus=request.dryRun()?(warning?"READY WITH WARNING":"READY"):(warning?"IMPORTED WITH WARNING":"IMPORTED");details.add(new PurchaseReconDtos.ImportRowResult(row.sourceRow(),rowStatus,supplierName,supplier.getReconSupplierRef(),invoice,warning?"Tax columns do not fully explain Invoice Value. Difference: "+money(diff):(request.dryRun()?"Ready for Purchase Recon.":"Purchase Recon imported."),warning));
+            if(!gstin.isBlank()&&supplier!=null){
+                String knownGstin=up(supplier.getGstin());
+                if(!knownGstin.isBlank()&&!knownGstin.equals(gstin)){
+                    conflicts++;details.add(importResult(row,"FAILED","SUPPLIER IDENTITY CONFLICT",supplierName,supplier.getReconSupplierRef(),invoice,
+                        "This workbook resolves the same supplier name to different GSTIN values. Review the supplier identity before import.",false));continue;
+                }
+                if(knownGstin.isBlank()){
+                    supplier.setGstin(gstin);
+                    if(!request.dryRun()&&supplier.getId()!=null){supplier.setUpdatedBy(CurrentUser.require().username());supplier=suppliers.save(supplier);}
+                }
+            }
+            if(!gstinKey.isBlank())staged.put(gstinKey,supplier);if(!nameKey.isBlank())staged.put(nameKey,supplier);
+            String supplierKey=supplier.getId()!=null?"ID:"+supplier.getId():!blank(supplier.getGstin())?"GSTIN:"+up(supplier.getGstin()):"NAME:"+normalizeName(supplier.getLegalName());
+            String fy=financialYear(date),businessKey=supplierKey+"|"+invoice.toUpperCase(Locale.ROOT)+"|"+fy;
+            String signature=importSignature(row,date);
+            String priorSignature=seenBusinessKeys.putIfAbsent(businessKey,signature);
+            if(priorSignature!=null){
+                if(priorSignature.equals(signature)){
+                    duplicates++;details.add(importResult(row,"PASSED","DUPLICATE IN FILE",supplierName,supplier.getReconSupplierRef(),invoice,"The same Purchase Recon row appears more than once in this workbook; later occurrence skipped.",false));
+                }else{
+                    conflicts++;details.add(importResult(row,"FAILED","CONFLICT",supplierName,supplier.getReconSupplierRef(),invoice,"The same supplier invoice appears more than once in this workbook with different values. Correct the workbook before import.",false));
+                }
+                continue;
+            }
+
+            PurchaseReconEntity existing=!created&&supplier.getId()!=null?recons.findBusinessKeyForUpdate(supplier.getId(),invoice,fy).orElse(null):null;
+            double diff=round2(row.invoiceValue()-row.taxableValue()-row.cgst()-row.sgst()-row.igst());
+            boolean warning=Math.abs(diff)>1.00;
+
+            if(existing!=null){
+                if(reconMatchesImport(existing,row,date)){
+                    alreadyCurrent++;
+                    details.add(importResult(row,"PASSED","ALREADY CURRENT",supplierName,supplier.getReconSupplierRef(),invoice,"Existing Purchase Recon already matches these imported values; no change required.",existing.getTaxReviewRequired()!=null&&existing.getTaxReviewRequired()!=0));
+                    continue;
+                }
+                if(n(existing.getLinkedAmount())>.009){
+                    conflicts++;
+                    details.add(importResult(row,"FAILED","BANK-LINKED",supplierName,supplier.getReconSupplierRef(),invoice,"Existing Purchase Recon has Bank Statement reconciliation. Reverse / Unmatch it before importing corrected financial values.",false));
+                    continue;
+                }
+                if(warning)warnings++;
+                if(!request.dryRun()){
+                    String oldSummary=money(n(existing.getInvoiceValue()));
+                    applyReconValues(existing,supplier,invoice,date,row.taxableValue(),row.cgst(),row.sgst(),row.igst(),0d,row.invoiceValue(),existing.getNotes());
+                    existing.setSource("IMPORT");existing.setImportBatch(batch);existing.setSourceSheet(sourceSheet);existing.setSourceRow(row.sourceRow());existing.setUpdatedBy(CurrentUser.require().username());syncStatus(existing);existing=recons.saveAndFlush(existing);
+                    audit.log("PURCHASE_RECON",existing.getId(),"UPDATED_BY_IMPORT",existing.getReconRef()+" • "+invoice+" • Invoice Value "+oldSummary+" -> "+money(row.invoiceValue()));
+                }
+                imported++;updated++;
+                details.add(importResult(row,"PASSED","UPDATE",supplierName,supplier.getReconSupplierRef(),invoice,warning?"Existing Purchase Recon will be updated; tax columns leave a difference of "+money(diff)+".":(request.dryRun()?"Existing unlinked Purchase Recon will be updated.":"Existing Purchase Recon updated from import."),warning));
+                continue;
+            }
+
+            if(warning)warnings++;
+            if(!request.dryRun()){
+                PurchaseReconEntity recon=new PurchaseReconEntity();recon.setReconRef(nextPurchaseReconReference());recon.setReconSupplier(supplier);recon.setLinkedAmount(0d);recon.setSource("IMPORT");recon.setImportBatch(batch);recon.setSourceSheet(sourceSheet);recon.setSourceRow(row.sourceRow());recon.setCreatedBy(CurrentUser.require().username());recon.setUpdatedBy(CurrentUser.require().username());applyReconValues(recon,supplier,invoice,date,row.taxableValue(),row.cgst(),row.sgst(),row.igst(),0d,row.invoiceValue(),warning?"Imported with tax difference requiring review.":null);syncStatus(recon);recon=recons.saveAndFlush(recon);audit.log("PURCHASE_RECON",recon.getId(),"CREATED_BY_IMPORT",recon.getReconRef()+" • "+invoice);
+            }
+            imported++;
+            String action=created?"NEW SUPPLIER + NEW":"NEW";
+            details.add(importResult(row,"PASSED",action,supplierName,supplier.getReconSupplierRef(),invoice,warning?"New Purchase Recon will be created with tax review; difference "+money(diff)+".":(request.dryRun()?"Ready to create Purchase Recon.":"Purchase Recon imported."),warning));
         }
-        if(batch!=null){batch.setImportedRows(imported);batch.setDuplicateRows(duplicates);batch.setWarningRows(warnings);batch.setIgnoredRows(ignored);batches.save(batch);}
-        return new PurchaseReconDtos.ImportResult(request.rows().size(),imported,newSuppliers,existingSuppliers,duplicates,warnings,ignored,List.copyOf(details));
+        if(batch!=null){batch.setImportedRows(imported);batch.setDuplicateRows(duplicates+alreadyCurrent);batch.setWarningRows(warnings);batch.setIgnoredRows(ignored+conflicts);batches.save(batch);}
+        return new PurchaseReconDtos.ImportResult(request.rows().size(),imported,updated,alreadyCurrent,newSuppliers,existingSuppliers,duplicates,conflicts,warnings,ignored,List.copyOf(details));
     }
 
     @Transactional(readOnly=true)
@@ -131,8 +225,11 @@ public class PurchaseReconService {
     }
 
     private PurchaseReconDtos.SupplierDto supplierDto(ReconSupplierEntity s){long count=s.getId()==null?0:recons.countByReconSupplier_Id(s.getId());return supplierDto(s,count);}private PurchaseReconDtos.SupplierDto supplierDto(ReconSupplierEntity s,long count){return new PurchaseReconDtos.SupplierDto(s.getId(),s.getReconSupplierRef(),s.getLegalName(),safe(s.getGstin()),safe(s.getPan()),safe(s.getContactPerson()),safe(s.getPhone()),safe(s.getEmail()),safe(s.getNotes()),safe(s.getStatus()),safe(s.getSource()),count,safe(s.getCreatedAt()),safe(s.getUpdatedAt()),nv(s.getRowVersion()));}
-    private PurchaseReconDtos.ReconDto reconDto(PurchaseReconEntity r){double value=n(r.getInvoiceValue()),linked=n(r.getLinkedAmount());return new PurchaseReconDtos.ReconDto(r.getId(),r.getReconRef(),r.getReconSupplier().getId(),r.getReconSupplier().getReconSupplierRef(),r.getSupplierNameSnapshot(),safe(r.getSupplierGstinSnapshot()),r.getSupplierInvoiceNo(),r.getInvoiceDate()==null?"":r.getInvoiceDate().toString(),r.getFinancialYear(),n(r.getTaxableValue()),n(r.getCgst()),n(r.getSgst()),n(r.getIgst()),n(r.getOtherAdjustment()),value,linked,Math.max(0,value-linked),n(r.getTaxDifference()),r.getTaxReviewRequired()!=null&&r.getTaxReviewRequired()!=0,r.getStatus(),r.getSource(),r.getImportBatch()==null?null:r.getImportBatch().getId(),r.getSourceRow(),safe(r.getNotes()),safe(r.getCreatedAt()),safe(r.getUpdatedAt()),bankLinks(r.getId()),nv(r.getRowVersion()));}
+    private PurchaseReconDtos.ReconDto reconDto(PurchaseReconEntity r){double value=n(r.getInvoiceValue()),linked=n(r.getLinkedAmount());return new PurchaseReconDtos.ReconDto(r.getId(),r.getReconRef(),r.getReconSupplier().getId(),r.getReconSupplier().getReconSupplierRef(),r.getSupplierNameSnapshot(),safe(r.getSupplierGstinSnapshot()),r.getSupplierInvoiceNo(),r.getInvoiceDate()==null?"":r.getInvoiceDate().toString(),r.getFinancialYear(),n(r.getTaxableValue()),n(r.getCgst()),n(r.getSgst()),n(r.getIgst()),n(r.getOtherAdjustment()),value,linked,Math.max(0,value-linked),n(r.getTaxDifference()),r.getTaxReviewRequired()!=null&&r.getTaxReviewRequired()!=0,r.getStatus(),r.getSource(),r.getImportBatch()==null?null:r.getImportBatch().getId(),safe(r.getSourceSheet()),r.getSourceRow(),safe(r.getNotes()),safe(r.getCreatedAt()),safe(r.getUpdatedAt()),bankLinks(r.getId()),nv(r.getRowVersion()));}
     private Optional<ReconSupplierEntity> findSupplier(String gstin,String name){if(!blank(gstin)){var by=suppliers.findByNormalizedGstin(gstin);if(by.isPresent())return by;}if(!blank(name)){var byName=suppliers.findByNormalizedNameKey(normalizeName(name));if(!byName.isEmpty())return Optional.of(byName.getFirst());}return Optional.empty();}
+    private PurchaseReconDtos.ImportRowResult importResult(PurchaseReconDtos.ImportRow row,String status,String action,String supplierName,String supplierReference,String invoice,String message,boolean warning){return new PurchaseReconDtos.ImportRowResult(safe(row.sourceSheet()),row.sourceRow(),status,action,supplierName,safe(supplierReference),invoice,message,warning);}
+    private boolean reconMatchesImport(PurchaseReconEntity r,PurchaseReconDtos.ImportRow row,LocalDate date){return Objects.equals(r.getInvoiceDate(),date)&&Math.abs(n(r.getTaxableValue())-row.taxableValue())<=.009&&Math.abs(n(r.getCgst())-row.cgst())<=.009&&Math.abs(n(r.getSgst())-row.sgst())<=.009&&Math.abs(n(r.getIgst())-row.igst())<=.009&&Math.abs(n(r.getOtherAdjustment()))<=.009&&Math.abs(n(r.getInvoiceValue())-row.invoiceValue())<=.009;}
+    private static String importSignature(PurchaseReconDtos.ImportRow row,LocalDate date){return date+"|"+round2(row.taxableValue())+"|"+round2(row.cgst())+"|"+round2(row.sgst())+"|"+round2(row.igst())+"|"+round2(row.invoiceValue());}
     private void applyReconValues(PurchaseReconEntity r,ReconSupplierEntity supplier,String invoice,LocalDate date,double taxable,double cgst,double sgst,double igst,double other,double value,String notes){r.setReconSupplier(supplier);r.setSupplierNameSnapshot(supplier.getLegalName());r.setSupplierGstinSnapshot(supplier.getGstin());r.setSupplierInvoiceNo(invoice.trim());r.setInvoiceDate(date);r.setFinancialYear(financialYear(date));r.setTaxableValue(validMoney(taxable));r.setCgst(validMoney(cgst));r.setSgst(validMoney(sgst));r.setIgst(validMoney(igst));r.setOtherAdjustment(validMoney(other));r.setInvoiceValue(validMoney(value));double diff=round2(value-taxable-cgst-sgst-igst-other);r.setTaxDifference(diff);r.setTaxReviewRequired(Math.abs(diff)>1.00?1:0);r.setNotes(trim(notes));}
     public void syncStatus(PurchaseReconEntity r){double linked=n(r.getLinkedAmount()),value=n(r.getInvoiceValue());if(linked<=.009)r.setStatus(r.getTaxReviewRequired()!=null&&r.getTaxReviewRequired()!=0?"NEEDS REVIEW":"OPEN");else if(linked+.01>=value)r.setStatus("RECONCILED");else r.setStatus("PARTIAL");}
     private boolean materialReconChange(PurchaseReconEntity r,ReconSupplierEntity supplier,PurchaseReconDtos.ReconSaveRequest request,LocalDate date){return r.getReconSupplier()==null||!Objects.equals(r.getReconSupplier().getId(),supplier.getId())||!up(r.getSupplierInvoiceNo()).equals(up(request.supplierInvoiceNo()))||!Objects.equals(r.getInvoiceDate(),date)||Math.abs(n(r.getTaxableValue())-request.taxableValue())>.009||Math.abs(n(r.getCgst())-request.cgst())>.009||Math.abs(n(r.getSgst())-request.sgst())>.009||Math.abs(n(r.getIgst())-request.igst())>.009||Math.abs(n(r.getOtherAdjustment())-request.otherAdjustment())>.009||Math.abs(n(r.getInvoiceValue())-request.invoiceValue())>.009;}

@@ -228,7 +228,7 @@ public final class IconFactory {
     }
 
     private static void decorateFieldLabel(Label label) {
-        if (label == null || label.getGraphic() != null || Boolean.TRUE.equals(label.getProperties().get("erp.label.icon.skip"))) return;
+        if (label == null || Boolean.TRUE.equals(label.getProperties().get("erp.label.icon.skip"))) return;
         String text = clean(label.getText());
         if (text.isBlank()) return;
         String styles = String.join(" ", label.getStyleClass()).toLowerCase(Locale.ROOT);
@@ -249,7 +249,7 @@ public final class IconFactory {
                 || styles.contains("doc-studio-section-title") || styles.contains("settings-section-title")
                 || styles.contains("settings-subsection-title") || styles.contains("bank-recon-how-title")
                 || styles.contains("bank-flow-step-title") || styles.contains("section-accent-title");
-        boolean fieldStyle = styles.contains("field-label") || styles.contains("form-label") || styles.contains("filter-label")
+        boolean fieldStyle = styles.contains("field-label") || styles.contains("finance-field-label") || styles.contains("form-label") || styles.contains("filter-label")
                 || styles.contains("meta-label") || styles.contains("detail-label") || styles.contains("field-caption")
                 || styles.contains("inline-label") || styles.contains("field-blue") || styles.contains("field-orange")
                 || styles.contains("field-cyan") || styles.contains("field-green") || styles.contains("field-red")
@@ -258,12 +258,27 @@ public final class IconFactory {
         if (!fieldStyle && !panelTitleStyle) return;
         String semantic = semanticForLabel(text);
         if (semantic == null) semantic = panelTitleStyle ? "document" : "identity";
-        Node graphic = compactIcon(semantic, panelTitleStyle ? 14 : 13);
-        graphic.getStyleClass().add("erp-field-label-icon");
-        label.setGraphic(graphic);
-        label.setContentDisplay(ContentDisplay.LEFT);
-        label.setGraphicTextGap(5);
+        if (label.getGraphic() == null) {
+            Node graphic = compactIcon(semantic, panelTitleStyle ? 14 : 13);
+            graphic.getStyleClass().add("erp-field-label-icon");
+            label.setGraphic(graphic);
+            label.setContentDisplay(ContentDisplay.LEFT);
+            label.setGraphicTextGap(5);
+        }
+        if (fieldStyle) applySemanticLabelColour(label, semantic);
         label.getProperties().put("erp.label.icon.semantic", semantic);
+    }
+
+    /** Applies the shared semantic accent to a field/drawer caption without using inline CSS. */
+    public static void applySemanticLabelColour(Label label, String semantic) {
+        if (label == null) return;
+        label.getStyleClass().removeIf(style -> style != null && style.startsWith("erp-field-label-colour-"));
+        label.getStyleClass().add("erp-field-label-colour-" + semanticColour(semantic));
+    }
+
+    /** Public colour vocabulary used by drawers and global field-label styling. */
+    public static String semanticColour(String semantic) {
+        return colour(normalize(semantic));
     }
 
     /**

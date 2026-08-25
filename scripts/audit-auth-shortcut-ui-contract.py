@@ -30,12 +30,12 @@ purchase_recon_batch=text('server/src/main/java/org/example/server/persistence/e
 insights_service=text('server/src/main/java/org/example/server/insights/InsightsService.java')
 
 require('spring-security-bearer-v5' in runtime_contract, 'R12 must use the signed bearer-v5 API contract')
-require('BUILD_REVISION = "R12"' in runtime_contract, 'R12 must publish an exact desktop/server build revision so older backends are rejected')
+require('BUILD_REVISION = "9.0.4"' in runtime_contract and 'APP_VERSION = "9.0.4"' in runtime_contract, '9.0.4 must publish one exact desktop/server version/build contract so stale backends are rejected')
 require('buildRevision' in runtime_controller, 'Runtime health must expose the backend build revision')
 require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION, RuntimeContract.BUILD_REVISION)') == 2,
-        'RuntimeController tests must instantiate the four-argument R12 runtime contract constructor')
+        'RuntimeController tests must instantiate the four-argument runtime contract constructor')
 require('jsonPath("$.buildRevision").value(RuntimeContract.BUILD_REVISION)' in runtime_controller_test,
-        'RuntimeController tests must assert the R12 build revision exposed by health')
+        'RuntimeController tests must assert the current build revision exposed by health')
 require('RuntimeContract.BUILD_REVISION.equals(status.buildRevision())' in runtime_bootstrap,
         'Runtime bootstrap must reject a stale same-version backend build')
 require('private static volatile String apiBaseUrl' in api_session and 'boundApiBaseUrl()' in api_session,
@@ -43,7 +43,7 @@ require('private static volatile String apiBaseUrl' in api_session and 'boundApi
 require('ApiSession.establish(response.accessToken(), response.expiresAt(), issuingBaseUrl)' in auth,
         'Login must bind the bearer token to the issuing Spring endpoint')
 require('String loginBase = preLoginBaseUrl();' in auth and 'requireCompatibleRuntime(loginBase);' in auth,
-        'Login must verify the exact R12 runtime before credentials/session are accepted')
+        'Login must verify the exact runtime contract before credentials/session are accepted')
 require('postAt(loginBase, "/api/auth/login"' in auth,
         'Login must be sent to the same verified Spring endpoint')
 require('establishSession(response, loginBase);' in auth,

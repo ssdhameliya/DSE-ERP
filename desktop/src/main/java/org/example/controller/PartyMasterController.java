@@ -21,6 +21,10 @@ import org.example.service.NotificationService;
 import org.example.service.PartyService;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
+import org.example.util.RegisterDetailDrawer;
+import org.example.util.RegisterUiSupport;
+import org.example.util.SemanticTableCells;
+import org.example.util.OperationalUiSupport;
 import org.example.util.UiTaskExecutor;
 import org.example.navigation.NavigationManager;
 
@@ -50,6 +54,8 @@ public abstract class PartyMasterController {
     private final PartyService service = new PartyService();
 
     private final List<Party> cachedParties = new java.util.ArrayList<>();
+    private RegisterDetailDrawer detailDrawer;
+    private Party detailParty;
 
     protected abstract String partyType();
 
@@ -73,9 +79,11 @@ public abstract class PartyMasterController {
         colAddress.setCellValueFactory(new PropertyValueFactory<>("address"));
         colOpeningBalance.setCellValueFactory(new PropertyValueFactory<>("openingBalance"));
         colActive.setCellValueFactory(new PropertyValueFactory<>("active"));
+        colActive.setCellFactory(column -> SemanticTableCells.activeBoolean());
         configureActionColumn();
         tableParties.setFixedCellSize(40);
         configureTableInteractions();
+        installDetailDrawer();
         txtSearch.textProperty().addListener((o, oldValue, newValue) -> applyLocalFilter());
         org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         load();
@@ -87,6 +95,7 @@ public abstract class PartyMasterController {
         if (colActions == null) return;
         colActions.setCellFactory(column -> new TableCell<>() {
             private final MenuButton actions = new MenuButton("Actions");
+            private final MenuItem view = new MenuItem("View " + displayName(), IconFactory.compactIcon("view", 16));
             private final MenuItem edit = new MenuItem("Edit " + displayName(), IconFactory.compactIcon("edit", 16));
             private final MenuItem delete = new MenuItem("Delete " + displayName(), IconFactory.compactIcon("delete", 16));
             {
@@ -97,10 +106,11 @@ public abstract class PartyMasterController {
                 actions.setGraphicTextGap(6);
                 
                 actions.setTooltip(new Tooltip("Actions"));
+                view.setOnAction(event -> viewForRow(this));
                 edit.setOnAction(event -> runForRow(this, false));
                 delete.getStyleClass().add("danger-menu-item");
                 delete.setOnAction(event -> runForRow(this, true));
-                actions.getItems().addAll(edit, new SeparatorMenuItem(), delete);
+                actions.getItems().addAll(view, edit, new SeparatorMenuItem(), delete);
                 IconFactory.decorateActionMenu(actions);
                 setAlignment(javafx.geometry.Pos.CENTER);
             }
@@ -113,6 +123,15 @@ public abstract class PartyMasterController {
         });
     }
 
+    private void viewForRow(TableCell<Party, Void> cell) {
+        int index = cell.getIndex();
+        if (index < 0 || index >= tableParties.getItems().size()) return;
+        Party party = tableParties.getItems().get(index);
+        tableParties.getSelectionModel().select(party);
+        tableParties.scrollTo(party);
+        showDetails(party);
+    }
+
     private void runForRow(TableCell<Party, Void> cell, boolean delete) {
         int index = cell.getIndex();
         if (index < 0 || index >= tableParties.getItems().size()) return;
@@ -122,16 +141,16 @@ public abstract class PartyMasterController {
         if (delete) deleteParty(); else editParty();
     }
 
-    /** Enables double-click editing and a row-specific Add/Edit/Delete context menu. */
+    /** Standard register contract: row click views details; editing is always explicit. */
     private void configureTableInteractions() {
         tableParties.setRowFactory(table -> {
             TableRow<Party> row = new TableRow<>();
-            MenuItem edit = new MenuItem("Edit " + displayName());
-            MenuItem delete = new MenuItem("Delete " + displayName());
-            edit.setGraphic(IconFactory.compactIcon("edit",15));
-            delete.setGraphic(IconFactory.compactIcon("delete",15));
-            ContextMenu menu = new ContextMenu(edit, delete);
+            MenuItem view = new MenuItem("View " + displayName(), IconFactory.compactIcon("view",15));
+            MenuItem edit = new MenuItem("Edit " + displayName(), IconFactory.compactIcon("edit",15));
+            MenuItem delete = new MenuItem("Delete " + displayName(), IconFactory.compactIcon("delete",15));
+            ContextMenu menu = new ContextMenu(view, edit, delete);
             IconFactory.decorateActionMenu(menu);
+            view.setOnAction(event -> { selectRow(row); showDetails(row.getItem()); });
             edit.setOnAction(event -> { selectRow(row); editParty(); });
             delete.setOnAction(event -> { selectRow(row); deleteParty(); });
 
@@ -142,14 +161,50 @@ public abstract class PartyMasterController {
                 event.consume();
             });
             row.setOnMouseClicked(event -> {
-                if (!row.isEmpty() && event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                    selectRow(row);
-                    editParty();
-                    event.consume();
-                }
+                if (row.isEmpty() || event.getButton() != MouseButton.PRIMARY || event.getClickCount() != 1
+                        || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
+                Party clicked = row.getItem();
+                if (detailDrawer != null && detailDrawer.isOpen() && detailParty == clicked) closeDetails();
+                else { selectRow(row); showDetails(clicked); }
+                event.consume();
             });
             return row;
         });
+    }
+
+    private void installDetailDrawer() {
+        detailDrawer = new RegisterDetailDrawer();
+        detailDrawer.setCloseAction(this::closeDetails);
+        detailDrawer.attachBesideTable(tableParties);
+        OperationalUiSupport.installEscapeClose(tableParties, detailDrawer::isOpen, this::closeDetails);
+    }
+
+    private void showDetails(Party party) {
+        if (party == null || detailDrawer == null) return;
+        detailParty = party;
+        String semantic = "CUSTOMER".equals(partyType()) ? "customer" : "supplier";
+        detailDrawer.showRecord(displayName() + " Details", party.getPartyCode() + " • " + party.getName(), List.of(
+            RegisterDetailDrawer.field(displayName() + " Code", party.getPartyCode(), "reference"),
+            RegisterDetailDrawer.field(displayName() + " Name", party.getName(), semantic),
+            RegisterDetailDrawer.field("Contact Person", party.getContactPerson(), "user"),
+            RegisterDetailDrawer.field("Mobile", party.getPhone(), "phone"),
+            RegisterDetailDrawer.field("Email", party.getEmail(), "email"),
+            RegisterDetailDrawer.field("GSTIN", party.getGstin(), "tax"),
+            RegisterDetailDrawer.field("Address", party.getAddress(), "location"),
+            RegisterDetailDrawer.field("Opening Balance", String.format(Locale.ENGLISH, "₹ %,.2f", party.getOpeningBalance()), "balance"),
+            RegisterDetailDrawer.field("Status", party.isActive() ? "Active" : "Inactive", party.isActive() ? "complete" : "error")
+        ));
+        Button edit = new Button("Edit " + displayName());
+        edit.getStyleClass().addAll("approved-button", "approved-primary-button");
+        edit.setGraphic(IconFactory.compactIcon("edit", 14));
+        edit.setOnAction(event -> { tableParties.getSelectionModel().select(party); editParty(); });
+        detailDrawer.setActions(edit);
+    }
+
+    private void closeDetails() {
+        detailParty = null;
+        if (detailDrawer != null) detailDrawer.hideDrawer();
+        tableParties.getSelectionModel().clearSelection();
     }
 
     private void selectRow(TableRow<Party> row) {

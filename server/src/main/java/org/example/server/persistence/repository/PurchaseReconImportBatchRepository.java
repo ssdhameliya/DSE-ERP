@@ -1,2 +1,6 @@
-package org.example.server.persistence.repository;import org.example.server.persistence.entity.PurchaseReconImportBatchEntity;import org.springframework.data.jpa.repository.JpaRepository;import java.util.Optional;
-public interface PurchaseReconImportBatchRepository extends JpaRepository<PurchaseReconImportBatchEntity,Long>{Optional<PurchaseReconImportBatchEntity> findBySourceFingerprint(String fingerprint);}
+package org.example.server.persistence.repository;
+
+import org.example.server.persistence.entity.PurchaseReconImportBatchEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface PurchaseReconImportBatchRepository extends JpaRepository<PurchaseReconImportBatchEntity,Long>{}

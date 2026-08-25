@@ -23,6 +23,9 @@ import org.example.service.NotificationService;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 import org.example.util.IconFactory;
+import org.example.util.RegisterDetailDrawer;
+import org.example.util.RegisterUiSupport;
+import org.example.util.OperationalUiSupport;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
 import org.example.util.UiTaskExecutor;
@@ -70,6 +73,8 @@ public class ItemMasterController implements ScreenLifecycle {
     private final ItemSpreadsheetService spreadsheetService = new ItemSpreadsheetService();
     private final Set<String> selectedItemCodes = new LinkedHashSet<>();
     private final CheckBox selectAllVisible = new CheckBox();
+    private RegisterDetailDrawer detailDrawer;
+    private Item detailItem;
 
     @FXML
     public void initialize() {
@@ -164,11 +169,13 @@ public class ItemMasterController implements ScreenLifecycle {
 
                 MenuItem create = new MenuItem("Create Item", IconFactory.compactIcon("add", 16));
                 create.setOnAction(e -> openItemDialog(null));
+                MenuItem view = new MenuItem("View Item", IconFactory.compactIcon("view", 16));
+                view.setOnAction(e -> showDetails(currentItem()));
                 MenuItem edit = new MenuItem("Edit Item", IconFactory.compactIcon("edit", 16));
                 edit.setOnAction(e -> openItemDialog(currentItem()));
                 MenuItem delete = new MenuItem("Delete Item", IconFactory.compactIcon("delete", 16));
                 delete.setOnAction(e -> deleteItem(currentItem()));
-                actions.getItems().addAll(create, edit, new SeparatorMenuItem(), delete);
+                actions.getItems().addAll(create, view, edit, new SeparatorMenuItem(), delete);
                 IconFactory.decorateActionMenu(actions);
             }
 
@@ -193,26 +200,74 @@ public class ItemMasterController implements ScreenLifecycle {
         tableItems.setRowFactory(view -> {
             TableRow<Item> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) openItemDialog(row.getItem());
+                if (row.isEmpty() || event.getButton() != javafx.scene.input.MouseButton.PRIMARY || event.getClickCount() != 1
+                        || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
+                Item clicked = row.getItem();
+                if (detailDrawer != null && detailDrawer.isOpen() && detailItem == clicked) closeDetails();
+                else { tableItems.getSelectionModel().select(clicked); showDetails(clicked); }
+                event.consume();
             });
             MenuItem add = new MenuItem("Add Item", IconFactory.icon("add"));
             add.setOnAction(event -> openItemDialog(null));
+            MenuItem viewItem = new MenuItem("View Item", IconFactory.icon("view"));
+            viewItem.setOnAction(event -> { if (!row.isEmpty()) { tableItems.getSelectionModel().select(row.getItem()); showDetails(row.getItem()); } });
             MenuItem edit = new MenuItem("Edit Item", IconFactory.icon("edit"));
             edit.setOnAction(event -> { if (!row.isEmpty()) openItemDialog(row.getItem()); });
             MenuItem delete = new MenuItem("Delete Item", IconFactory.icon("delete"));
             delete.setOnAction(event -> { if (!row.isEmpty()) deleteItem(row.getItem()); });
             MenuItem clear = new MenuItem("Clear Selection", IconFactory.icon("cancel"));
-            clear.setOnAction(event -> tableItems.getSelectionModel().clearSelection());
-            ContextMenu context = new ContextMenu(add, edit, delete, new SeparatorMenuItem(), clear);
+            clear.setOnAction(event -> { tableItems.getSelectionModel().clearSelection(); closeDetails(); });
+            ContextMenu context = new ContextMenu(add, viewItem, edit, delete, new SeparatorMenuItem(), clear);
             IconFactory.decorateActionMenu(context);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty())
                 .then((ContextMenu) null).otherwise(context));
             return row;
         });
+        installDetailDrawer();
 
         // initial load
         org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         loadItems();
+    }
+
+    private void installDetailDrawer() {
+        detailDrawer = new RegisterDetailDrawer();
+        detailDrawer.setCloseAction(this::closeDetails);
+        detailDrawer.attachBesideTable(tableItems);
+        OperationalUiSupport.installEscapeClose(tableItems, detailDrawer::isOpen, this::closeDetails);
+    }
+
+    private void showDetails(Item item) {
+        if (item == null || detailDrawer == null) return;
+        detailItem = item;
+        String stockStatus = item.getOpeningStock() <= 0 ? "Out of Stock" : item.getOpeningStock() <= item.getMinimumStock() ? "Low Stock" : "In Stock";
+        detailDrawer.showRecord("Item Details", item.getItemCode() + " • " + item.getDescription(), List.of(
+            RegisterDetailDrawer.field("Item Code", item.getItemCode(), "identity"),
+            RegisterDetailDrawer.field("Description", item.getDescription(), "item"),
+            RegisterDetailDrawer.field("Category", item.getCategory(), "category"),
+            RegisterDetailDrawer.field("Unit", item.getUnit(), "unit"),
+            RegisterDetailDrawer.field("HSN / SAC", item.getHsn(), "tax"),
+            RegisterDetailDrawer.field("GST %", String.format(Locale.ENGLISH, "%.2f%%", item.getGst()), "tax"),
+            RegisterDetailDrawer.field("Default Discount", String.format(Locale.ENGLISH, "%.2f%%", item.getDiscountPercent()), "discount"),
+            RegisterDetailDrawer.field("Purchase Price", String.format(Locale.ENGLISH, "₹ %,.2f", item.getPurchasePrice()), "currency"),
+            RegisterDetailDrawer.field("Selling Price", String.format(Locale.ENGLISH, "₹ %,.2f", item.getSellingPrice()), "currency"),
+            RegisterDetailDrawer.field("Opening Stock", String.format(Locale.ENGLISH, "%,.3f", item.getOpeningStock()), "quantity"),
+            RegisterDetailDrawer.field("Minimum Stock", String.format(Locale.ENGLISH, "%,.3f", item.getMinimumStock()), "minimum"),
+            RegisterDetailDrawer.field("Rack Location", item.getLocation(), "location"),
+            RegisterDetailDrawer.field("Stock Status", stockStatus, RegisterDetailDrawer.statusSemantic(stockStatus)),
+            RegisterDetailDrawer.field("Remarks", item.getRemarks(), "notes")
+        ));
+        Button edit = new Button("Edit Item");
+        edit.getStyleClass().addAll("approved-button", "approved-primary-button");
+        edit.setGraphic(IconFactory.compactIcon("edit", 14));
+        edit.setOnAction(event -> openItemDialog(item));
+        detailDrawer.setActions(edit);
+    }
+
+    private void closeDetails() {
+        detailItem = null;
+        if (detailDrawer != null) detailDrawer.hideDrawer();
+        tableItems.getSelectionModel().clearSelection();
     }
 
     private void openItemDialog(Item item) {

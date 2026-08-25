@@ -83,7 +83,11 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_0_2__signed_auth_sessions",
                     "db/migration/V9_0_0_2__signed_auth_sessions.sql"),
             new Migration("V9_0_1__purchase_recon_actions",
-                    "db/migration/V9_0_1__purchase_recon_actions.sql")
+                    "db/migration/V9_0_1__purchase_recon_actions.sql"),
+            new Migration("V9_0_3__import_scalability",
+                    "db/migration/V9_0_3__import_scalability.sql"),
+            new Migration("V9_0_4__bank_reconciliation_rounding",
+                    "db/migration/V9_0_4__bank_reconciliation_rounding.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -151,6 +155,8 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireTable("return_refund");
         requireColumn("return_refund", "attachment_path");
         requireColumn("return_refund", "bank_statement_transaction_id");
+        requireColumn("return_refund", "rounding_adjustment");
+        requireColumn("bank_reconciliation_allocation", "rounding_adjustment");
         requireColumn("quotation_header", "attachment_path");
         requireColumn("quotation_header", "follow_up_date");
         requireColumn("quotation_header", "converted_invoice_no");

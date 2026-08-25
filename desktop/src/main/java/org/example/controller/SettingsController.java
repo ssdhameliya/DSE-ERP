@@ -158,6 +158,9 @@ public class SettingsController implements ScreenLifecycle {
     @FXML
     private TextField txtBranch;
 
+    @FXML
+    private TextField txtBankMatchRoundingTolerance;
+
     /* =========================================================
        INVOICE FIELDS
        ========================================================= */
@@ -454,6 +457,7 @@ public class SettingsController implements ScreenLifecycle {
                 txtAccountNumber.setText(ConfigManager.get("payment.accountNumber", ""));
                 txtIfsc.setText(ConfigManager.get("payment.ifsc", ""));
                 txtBranch.setText(ConfigManager.get("payment.branch", ""));
+                txtBankMatchRoundingTolerance.setText(ConfigManager.get("payment.bankMatchRoundingTolerance", "1.00"));
                 BrandImagePresenter.contain(imgPaymentQr, paymentQrPreview);
                 refreshAllAssetPreviewsAsync();
             }
@@ -1780,7 +1784,8 @@ public class SettingsController implements ScreenLifecycle {
 
     private void setShortcutEnabled(Action action, boolean enabled) {
         if (action == null) return;
-        String binding = enabled ? shortcutDraftValues.getOrDefault(action, "") : "";
+        if (!enabled) { disableShortcut(action); return; }
+        String binding = shortcutDraftValues.getOrDefault(action, "");
         if (enabled && binding.isBlank()) binding = action.defaultBinding();
         shortcutDraftValues.put(action, binding);
         ShortcutRegistry.Scope scope = shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action));
@@ -2259,6 +2264,8 @@ public class SettingsController implements ScreenLifecycle {
                 .getText()
                 .trim()
         );
+
+        putSetting("payment.bankMatchRoundingTolerance", txtBankMatchRoundingTolerance.getText().trim());
     }
 
     private void saveInvoiceIdentity() {
@@ -2523,6 +2530,18 @@ public class SettingsController implements ScreenLifecycle {
                 "Enter a valid 11-character IFSC code."
             );
 
+            return false;
+        }
+
+        try {
+            double tolerance = Double.parseDouble(txtBankMatchRoundingTolerance.getText().trim());
+            if (!Double.isFinite(tolerance) || tolerance < 0 || tolerance > 5) {
+                warn("Bank reconciliation round-off tolerance must be between ₹0.00 and ₹5.00.");
+                return false;
+            }
+            txtBankMatchRoundingTolerance.setText(String.format(java.util.Locale.ROOT, "%.2f", tolerance));
+        } catch (Exception exception) {
+            warn("Enter a valid bank reconciliation round-off tolerance, for example 1.00.");
             return false;
         }
 

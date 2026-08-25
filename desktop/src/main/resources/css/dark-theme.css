@@ -7892,3 +7892,22 @@
 .erp-purple-selection-table .table-row-cell:filled:selected .table-cell {
     -fx-text-fill: #f2edff;
 }
+
+/* 9.0.2 global register/detail-drawer contract. */
+.erp-detail-drawer-field { -fx-background-color: #13263b; }
+.erp-detail-drawer-actions { -fx-border-color: #29435f; }
+.erp-drawer-value-blue   { -fx-text-fill: #93c5fd; }
+.erp-drawer-value-green  { -fx-text-fill: #86efac; }
+.erp-drawer-value-red    { -fx-text-fill: #fca5a5; }
+.erp-drawer-value-orange { -fx-text-fill: #fcd34d; }
+.erp-drawer-value-teal   { -fx-text-fill: #5eead4; }
+.erp-drawer-value-purple { -fx-text-fill: #d8b4fe; }
+
+/* 9.0.3 visual-consistency patch — brighter semantic field captions in dark mode. */
+.label.erp-field-label-colour-blue   { -fx-text-fill: #93c5fd; }
+.label.erp-field-label-colour-green  { -fx-text-fill: #86efac; }
+.label.erp-field-label-colour-orange { -fx-text-fill: #fcd34d; }
+.label.erp-field-label-colour-purple { -fx-text-fill: #d8b4fe; }
+.label.erp-field-label-colour-pink   { -fx-text-fill: #f9a8d4; }
+.label.erp-field-label-colour-teal   { -fx-text-fill: #5eead4; }
+.label.erp-field-label-colour-indigo { -fx-text-fill: #c7d2fe; }

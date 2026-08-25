@@ -155,6 +155,7 @@
                         <contextMenu>
                             <ContextMenu>
                                 <items>
+                                    <MenuItem text="View Details" onAction="#viewSelectedLookup"/>
                                     <MenuItem text="Edit Lookup" onAction="#editLookup"/>
                                     <SeparatorMenuItem/>
                                     <MenuItem text="Deactivate Lookup" onAction="#deleteLookup"/>

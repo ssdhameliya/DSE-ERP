@@ -26,6 +26,26 @@ public final class SemanticTableCells {
         };
     }
 
+    public static <S> TableCell<S, Boolean> activeBoolean() {
+        return new TableCell<>() {
+            @Override protected void updateItem(Boolean value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(null);
+                setGraphic(null);
+                setStyle("");
+                setAlignment(Pos.CENTER_LEFT);
+                getStyleClass().removeAll("pill-success","pill-info","pill-warning","pill-danger","pill-neutral","semantic-register-cell");
+                if (empty || value == null) return;
+                if (!getStyleClass().contains("semantic-register-cell")) getStyleClass().add("semantic-register-cell");
+                setText(value ? "Active" : "Inactive");
+                Presentation p = value ? new Presentation("complete", State.SUCCESS) : new Presentation("cancel", State.DANGER);
+                setStyle("-fx-text-fill: " + p.state.color + "; -fx-font-weight: 800;");
+                setGraphic(IconFactory.statusIcon(p.icon, p.state.color));
+                setGraphicTextGap(5);
+            }
+        };
+    }
+
     public static <S> TableCell<S, String> dueDate() {
         return new TableCell<>() {
             @Override protected void updateItem(String value, boolean empty) {
@@ -105,6 +125,42 @@ public final class SemanticTableCells {
                 if (v.contains("PENDING") || v.contains("OPEN") || v.contains("DUE")) yield new Presentation("reminder", State.WARNING);
                 yield new Presentation("payment", state);
             }
+            case "reconcile", "reconciliation" -> {
+                if (v.contains("FULL") || v.contains("RECONCILED") || v.contains("MATCHED")) yield new Presentation("complete", State.SUCCESS);
+                if (v.contains("PARTIAL")) yield new Presentation("partial", State.INFO);
+                if (v.contains("REVIEW") || v.contains("OPEN") || v.contains("PENDING")) yield new Presentation("reminder", State.WARNING);
+                if (v.contains("FAIL") || v.contains("ERROR") || v.contains("CONFLICT")) yield new Presentation("warning", State.DANGER);
+                if (v.contains("IMPORT")) yield new Presentation("status", State.INFO);
+                yield new Presentation("status", state);
+            }
+            case "bank" -> {
+                if (v.contains("MATCHED") || v.contains("RECONCILED")) yield new Presentation("complete", State.SUCCESS);
+                if (v.contains("EXPENSE")) yield new Presentation("payment", State.PURPLE);
+                if (v.contains("REVIEW")) yield new Presentation("status", State.INFO);
+                if (v.contains("SUGGEST")) yield new Presentation("reminder", State.WARNING);
+                if (v.contains("IGNORE")) yield new Presentation("status", State.NEUTRAL);
+                if (v.contains("UNMATCH") || v.contains("FAIL") || v.contains("ERROR")) yield new Presentation("warning", State.DANGER);
+                yield new Presentation("status", state);
+            }
+            case "inventory", "stock" -> {
+                if (v.contains("OUT OF STOCK") || v.contains("OUT-OF-STOCK")) yield new Presentation("warning", State.DANGER);
+                if (v.contains("LOW")) yield new Presentation("reminder", State.WARNING);
+                if (v.contains("IN STOCK") || v.contains("AVAILABLE")) yield new Presentation("complete", State.SUCCESS);
+                yield new Presentation("inventory", state);
+            }
+            case "bank-entry", "finance" -> {
+                if (v.contains("DEPOSIT") || v.contains("CREDIT")) yield new Presentation("credit", State.SUCCESS);
+                if (v.contains("WITHDRAW") || v.contains("DEBIT")) yield new Presentation("debit", State.DANGER);
+                if (v.contains("EXPENSE")) yield new Presentation("payment", State.PURPLE);
+                yield new Presentation("payment", state);
+            }
+            case "validation", "import-action" -> {
+                if (v.contains("FAILED") || v.contains("ERROR") || v.contains("CONFLICT") || v.contains("BANK-LINKED")) yield new Presentation("warning", State.DANGER);
+                if (v.contains("REVIEW") || v.contains("DUPLICATE")) yield new Presentation("reminder", State.WARNING);
+                if (v.contains("UPDATE")) yield new Presentation("refresh", State.INFO);
+                if (v.contains("ALREADY CURRENT") || v.contains("PASSED") || v.contains("VALIDATED") || v.contains("CREATED") || v.contains("NEW") || v.contains("IMPORTED")) yield new Presentation("complete", State.SUCCESS);
+                yield new Presentation("status", state);
+            }
             default -> new Presentation(iconForState(state), state);
         };
     }
@@ -112,7 +168,7 @@ public final class SemanticTableCells {
     private static String iconForState(State state) {
         return switch (state) {
             case SUCCESS -> "complete";
-            case INFO -> "status";
+            case INFO, PURPLE -> "status";
             case WARNING -> "reminder";
             case DANGER -> "warning";
             case NEUTRAL -> "document";
@@ -140,13 +196,13 @@ public final class SemanticTableCells {
 
     private static State classify(String v) {
         if (v.contains("FAILED") || v.contains("ERROR") || v.contains("CANCEL") || v.contains("DELETE")
-                || v.contains("OVERDUE") || v.contains("LOCKED") || v.contains("REJECT")) return State.DANGER;
-        if (v.contains("PARTIAL") || v.contains("IN PROGRESS") || v.contains("PROCESSING")) return State.INFO;
+                || v.contains("OVERDUE") || v.contains("LOCKED") || v.contains("REJECT") || v.contains("INACTIVE")) return State.DANGER;
+        if (v.contains("PARTIAL") || v.contains("IN PROGRESS") || v.contains("PROCESSING") || v.contains("IMPORTED")) return State.INFO;
         if (v.contains("NOT SENT") || v.contains("PENDING") || v.contains("DRAFT") || v.contains("OPEN")
                 || v.contains("DUE") || v.contains("SNOOZE")) return State.WARNING;
         if (v.contains("SENT") || v.contains("PAID") || v.contains("COMPLETED") || v.contains("RETURNED")
-                || v.contains("ACTIVE") || v.contains("APPROVED") || v.contains("ACCEPTED")
-                || v.contains("VERIFIED") || v.contains("SUCCESS") || v.contains("POSTED")) return State.SUCCESS;
+                || v.contains("ACTIVE") || v.contains("APPROVED") || v.contains("ACCEPTED") || v.contains("ENABLED")
+                || v.contains("VERIFIED") || v.contains("SUCCESS") || v.contains("PASSED") || v.contains("POSTED")) return State.SUCCESS;
         return State.NEUTRAL;
     }
 
@@ -155,6 +211,7 @@ public final class SemanticTableCells {
     private enum State {
         SUCCESS("pill-success","#16a34a"),
         INFO("pill-info","#2563eb"),
+        PURPLE("pill-info","#7c3aed"),
         WARNING("pill-warning","#d97706"),
         DANGER("pill-danger","#dc2626"),
         NEUTRAL("pill-neutral","#64748b");

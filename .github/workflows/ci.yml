@@ -54,6 +54,12 @@ jobs:
         run: python scripts/audit-final-data-architecture.py
       - name: Enforce auth, shortcut and recon UI contract
         run: python scripts/audit-auth-shortcut-ui-contract.py
+      - name: Enforce global register and dialog UI contract
+        run: python scripts/audit-global-ui-contract.py
+      - name: Enforce 9.0.3 import and history contract
+        run: python scripts/audit-9.0.3-import-contract.py
+      - name: Enforce 9.0.4 Bank reconciliation contract
+        run: python scripts/audit-9.0.4-bank-reconciliation-contract.py
       - name: Verify final UI source contract
         shell: python
         run: |

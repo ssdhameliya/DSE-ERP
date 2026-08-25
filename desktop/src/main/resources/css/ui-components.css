@@ -9601,3 +9601,79 @@
 .root.theme-dark .erp-purple-selection-table .table-row-cell:filled:selected .table-cell {
     -fx-text-fill: #f2edff;
 }
+
+/* 9.0.2 global register/detail-drawer contract. */
+.erp-global-detail-workspace {
+    -fx-alignment: TOP_LEFT;
+    -fx-spacing: 12;
+}
+.erp-global-detail-drawer {
+    -fx-padding: 0;
+}
+.erp-detail-drawer-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+}
+.erp-detail-drawer-subtitle {
+    -fx-font-size: 11px;
+    -fx-opacity: .82;
+}
+.erp-detail-drawer-scroll,
+.erp-detail-drawer-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+.erp-detail-drawer-field {
+    -fx-padding: 7 9 8 9;
+    -fx-background-radius: 6;
+}
+.erp-drawer-caption {
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
+    -fx-opacity: .86;
+}
+.erp-drawer-value {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+.erp-detail-drawer-actions {
+    -fx-border-width: 1 0 0 0;
+}
+.erp-drawer-value-blue   { -fx-text-fill: #2563eb; }
+.erp-drawer-value-green  { -fx-text-fill: #16a34a; }
+.erp-drawer-value-red    { -fx-text-fill: #dc2626; }
+.erp-drawer-value-orange { -fx-text-fill: #d97706; }
+.erp-drawer-value-teal   { -fx-text-fill: #0f766e; }
+.erp-drawer-value-purple { -fx-text-fill: #7c3aed; }
+
+/* 9.0.3 import review and scalable Bank Statement history. */
+.import-review-tabs {
+    -fx-background-color: transparent;
+}
+.import-review-tabs .tab-pane > .tab-header-area {
+    -fx-padding: 0 0 6 0;
+}
+.bank-statement-history-drawer {
+    -fx-padding: 14;
+    -fx-spacing: 10;
+}
+.bank-history-status-imported {
+    -fx-font-weight: 800;
+    -fx-text-fill: #2563eb;
+}
+.bank-history-status-partial {
+    -fx-font-weight: 800;
+    -fx-text-fill: #d97706;
+}
+.bank-history-status-full {
+    -fx-font-weight: 800;
+    -fx-text-fill: #16a34a;
+}
+
+/* 9.0.3 visual-consistency patch — semantic field captions are coloured globally. */
+.label.erp-field-label-colour-blue   { -fx-text-fill: #2563eb; }
+.label.erp-field-label-colour-green  { -fx-text-fill: #16a34a; }
+.label.erp-field-label-colour-orange { -fx-text-fill: #d97706; }
+.label.erp-field-label-colour-purple { -fx-text-fill: #7c3aed; }
+.label.erp-field-label-colour-pink   { -fx-text-fill: #db2777; }
+.label.erp-field-label-colour-teal   { -fx-text-fill: #0f766e; }
+.label.erp-field-label-colour-indigo { -fx-text-fill: #4f46e5; }

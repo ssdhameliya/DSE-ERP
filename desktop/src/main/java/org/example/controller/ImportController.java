@@ -25,6 +25,7 @@ import org.example.util.IconFactory;
 import org.example.util.SpreadsheetLayoutDetector;
 import org.example.util.BusinessClock;
 import org.example.util.ModernDialog;
+import org.example.util.SemanticTableCells;
 import org.example.navigation.NavigationGuardRegistry;
 import org.example.navigation.NavigationManager;
 import org.example.config.WorkspaceManager;
@@ -84,6 +85,9 @@ public class ImportController {
     @FXML private VBox progressContainer;
 
     @FXML private TableView<Map<String, String>> tblPreview;
+    @FXML private TableView<Map<String, String>> tblValidation;
+    @FXML private TabPane reviewTabs;
+    @FXML private Tab dataPreviewTab, validationResultsTab;
 
     @FXML private ProgressBar progressBar;
     @FXML private CheckBox chkDryRun;
@@ -1084,9 +1088,23 @@ public class ImportController {
     private void buildPreviewColumns() {
 
         tblPreview.getColumns().clear();
+        tblPreview.setRowFactory(null);
 
         List<String> mappedFields =
             getMappedFieldsInDomainOrder();
+
+        if ("Purchase Recon".equals(cmbImportModule.getValue())) {
+            TableColumn<Map<String, String>, String> sheetColumn = new TableColumn<>("Sheet");
+            sheetColumn.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getOrDefault("_source_sheet", "")));
+            sheetColumn.setMinWidth(125); sheetColumn.setPrefWidth(145);
+            IconFactory.applyTableHeaderIcon(sheetColumn, "document");
+            tblPreview.getColumns().add(sheetColumn);
+            TableColumn<Map<String, String>, String> rowColumn = new TableColumn<>("Row");
+            rowColumn.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getOrDefault("_source_row", "")));
+            rowColumn.setMinWidth(72); rowColumn.setPrefWidth(78);
+            IconFactory.applyTableHeaderIcon(rowColumn, "reference");
+            tblPreview.getColumns().add(rowColumn);
+        }
 
         for (String field : mappedFields) {
 
@@ -1234,6 +1252,11 @@ public class ImportController {
                 tblPreview.getItems().setAll(previewData); lblPreviewCount.setText(previewData.size()+" rows shown"); lblPreviewStatus.setText("Kotak bank statement preview loaded successfully");
                 return;
             } catch(Exception e) { lblPreviewStatus.setText("Bank statement preview failed: "+safeMessage(e)); return; }
+        }
+
+        if ("Purchase Recon".equals(cmbImportModule.getValue())) {
+            loadPurchaseReconPreviewRows(previewData);
+            return;
         }
 
         try (
@@ -1641,10 +1664,60 @@ public class ImportController {
         }
     }
 
+    private void loadPurchaseReconPreviewRows(List<Map<String, String>> previewData) {
+        try (Workbook workbook = WorkbookFactory.create(selectedFile)) {
+            List<String> expected = mappingControls.values().stream().map(ComboBox::getValue).filter(Objects::nonNull).toList();
+            List<SpreadsheetLayoutDetector.Layout> layouts = SpreadsheetLayoutDetector.detectAll(workbook, expected);
+            if (layouts.isEmpty()) throw new IllegalArgumentException("No mapped Purchase Recon worksheet was found.");
+            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+            List<String> mappedFields = getMappedFieldsInDomainOrder();
+            int previewLimit = 100;
+            for (SpreadsheetLayoutDetector.Layout layout : layouts) {
+                Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
+                Row headerRow = sheet.getRow(layout.headerRowIndex());
+                for (int rowIndex = layout.headerRowIndex() + 1; rowIndex <= sheet.getLastRowNum() && previewData.size() < previewLimit; rowIndex++) {
+                    Row row = sheet.getRow(rowIndex);
+                    if (SpreadsheetLayoutDetector.isRowBlank(row, evaluator)) continue;
+                    Map<String,String> rowMap = new LinkedHashMap<>();
+                    rowMap.put("_source_sheet", sheet.getSheetName());
+                    rowMap.put("_source_row", String.valueOf(rowIndex + 1));
+                    for (String domainField : mappedFields) {
+                        ComboBox<String> mappingCombo = mappingControls.get(domainField);
+                        String excelHeader = mappingCombo == null ? null : mappingCombo.getValue();
+                        if (excelHeader == null) continue;
+                        int columnIndex = SpreadsheetLayoutDetector.findHeaderIndex(headerRow, excelHeader, evaluator);
+                        String value = "";
+                        if (columnIndex >= 0 && row != null && row.getCell(columnIndex) != null) {
+                            Cell previewCell = row.getCell(columnIndex);
+                            boolean dateField = domainField.toLowerCase(Locale.ROOT).contains("date");
+                            value = dateField ? SpreadsheetLayoutDetector.formatForBusiness(previewCell, evaluator) : SpreadsheetLayoutDetector.format(previewCell, evaluator);
+                        }
+                        rowMap.put(domainField, value);
+                    }
+                    previewData.add(rowMap);
+                }
+                if (previewData.size() >= previewLimit) break;
+            }
+            tblPreview.getItems().setAll(previewData);
+            lblPreviewCount.setText(previewData.size()+" rows shown • "+layouts.size()+" sheet"+(layouts.size()==1?"":"s"));
+            lblPreviewStatus.getStyleClass().removeAll("import-warning-text");
+            lblPreviewStatus.getStyleClass().add("import-success-text");
+            lblPreviewStatus.setText(previewData.isEmpty()?"No usable Purchase Recon rows were found":"Mapped Purchase Recon data preview loaded across all matching sheets");
+        } catch (Exception e) {
+            tblPreview.getItems().clear();
+            lblPreviewCount.setText("0 rows");
+            lblPreviewStatus.setText("Purchase Recon preview failed: "+safeMessage(e));
+            lblPreviewStatus.getStyleClass().removeAll("import-success-text");
+            lblPreviewStatus.getStyleClass().add("import-warning-text");
+        }
+    }
+
     private void runPreflightValidation() {
         if (selectedFile == null || !requiredMappingsComplete()) return;
         preflightPassed = false;
         lastPreflightResult = null;
+        if (tblValidation != null) { tblValidation.getColumns().clear(); tblValidation.getItems().clear(); }
+        if (reviewTabs != null && dataPreviewTab != null) reviewTabs.getSelectionModel().select(dataPreviewTab);
         btnRunImport.setDisable(true);
         lblReadyStatus.setText("Validating format, mandatory fields and master references...");
         lblPreviewStatus.setText("Validation in progress...");
@@ -1674,11 +1747,12 @@ public class ImportController {
                 lblReadyStatus.setText("Validation failed • Fix the red rows before import");
                 lblReadyStatus.getStyleClass().add("import-warning-text");
             }
+            if (reviewTabs != null && validationResultsTab != null && !preflightPassed) reviewTabs.getSelectionModel().select(validationResultsTab);
             updateMappingSummary();
         });
         task.setOnFailed(e -> {
             preflightPassed = false;
-            tblPreview.getItems().clear();
+            if (tblValidation != null) tblValidation.getItems().clear();
             lblPreviewStatus.setText("Validation failed: " + safeMessage(task.getException()));
             lblReadyStatus.setText("Validation failed • Import blocked");
             btnRunImport.setDisable(true);
@@ -1689,8 +1763,8 @@ public class ImportController {
     }
 
     private void showValidationTable(ImportService.ImportResult result) {
-        tblPreview.getColumns().clear();
-        addValidationColumn("Rows", "rows", 80);
+        tblValidation.getColumns().clear();
+        addValidationColumn("Sheet / Rows", "rows", 135);
         addValidationColumn("Record / Reference", "reference", 165);
         addValidationColumn("Mandatory", "mandatory", 110);
         addValidationColumn("Format", "format", 110);
@@ -1707,23 +1781,22 @@ public class ImportController {
                 values.put("mandatory", failed ? "Review" : "✓ Passed");
                 values.put("format", failed ? "Review" : "✓ Passed");
                 values.put("master", failed ? "Review" : "✓ Passed");
-                values.put("data", failed ? "Review" : "✓ Passed");
-                boolean noteworthy = row.action != null && (row.action.toUpperCase(Locale.ROOT).contains("WARNING")
-                    || row.action.equalsIgnoreCase("DUPLICATE") || row.action.equalsIgnoreCase("IGNORED"));
+                values.put("data", failed ? "Review" : (row.action == null || row.action.isBlank() ? "✓ Passed" : row.action));
+                boolean noteworthy = row.action != null && !row.action.isBlank() && !row.action.equalsIgnoreCase("VALIDATED") && !row.action.equalsIgnoreCase("CREATED");
                 values.put("message", failed ? (row.message == null ? "Validation failed" : row.message)
                     : noteworthy && row.message != null && !row.message.isBlank() ? row.message : "✓ All validations passed");
                 values.put("_status", row.status);
                 rows.add(values);
             }
         }
-        tblPreview.setRowFactory(tv -> new TableRow<>() {
+        tblValidation.setRowFactory(tv -> new TableRow<>() {
             @Override protected void updateItem(Map<String,String> item, boolean empty) {
                 super.updateItem(item, empty);
                 getStyleClass().removeAll("import-validation-pass-row","import-validation-fail-row");
                 if (!empty && item != null) getStyleClass().add("FAILED".equalsIgnoreCase(item.get("_status")) ? "import-validation-fail-row" : "import-validation-pass-row");
             }
         });
-        tblPreview.getItems().setAll(rows);
+        tblValidation.getItems().setAll(rows);
         int failed = result == null ? 0 : result.failedCount();
         int passed = result == null ? 0 : Math.max(0, result.details.size() - failed);
         lblPreviewCount.setText((passed + failed) + " checked • " + passed + " passed • " + failed + " failed");
@@ -1740,9 +1813,12 @@ public class ImportController {
     private void addValidationColumn(String title, String key, double width) {
         TableColumn<Map<String,String>,String> c = new TableColumn<>(title);
         c.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getOrDefault(key, "")));
+        if (Set.of("mandatory", "format", "master", "data").contains(key)) {
+            c.setCellFactory(column -> SemanticTableCells.status("validation"));
+        }
         c.setMinWidth(width);
         c.setPrefWidth(width);
-        tblPreview.getColumns().add(c);
+        tblValidation.getColumns().add(c);
     }
 
     /* =========================================================
@@ -1945,30 +2021,33 @@ public class ImportController {
     private ImportService.ImportResult importPurchaseRecon(boolean dryRun, Map<String,String> mapping) throws Exception {
         List<PurchaseReconApiClient.ImportRow> rows = new ArrayList<>();
         try (Workbook workbook = WorkbookFactory.create(selectedFile)) {
-            SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
-            Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
+            List<SpreadsheetLayoutDetector.Layout> layouts = SpreadsheetLayoutDetector.detectAll(workbook, mapping.values());
+            if (layouts.isEmpty()) throw new IllegalArgumentException("No Purchase Recon worksheet matches the mapped columns.");
             FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-            Row header = sheet.getRow(layout.headerRowIndex());
-            Map<String,Integer> indexes = new HashMap<>();
-            for (Map.Entry<String,String> entry : mapping.entrySet()) {
-                if (entry.getValue() == null || entry.getValue().isBlank()) continue;
-                indexes.put(entry.getKey(), SpreadsheetLayoutDetector.findHeaderIndex(header, entry.getValue(), evaluator));
-            }
-            for (int rowIndex = layout.headerRowIndex() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-                Row row = sheet.getRow(rowIndex);
-                if (SpreadsheetLayoutDetector.isRowBlank(row, evaluator)) continue;
-                String supplierName = mappedText(row, indexes.get("supplier_name"), evaluator);
-                String gstin = mappedText(row, indexes.get("supplier_gstin"), evaluator);
-                String invoice = mappedText(row, indexes.get("supplier_invoice_no"), evaluator);
-                String invoiceDate = mappedDateIso(row, indexes.get("invoice_date"), evaluator);
-                rows.add(new PurchaseReconApiClient.ImportRow(
-                    rowIndex + 1, supplierName, gstin, invoice, invoiceDate,
-                    mappedAmount(row, indexes.get("taxable_value"), evaluator),
-                    mappedAmount(row, indexes.get("cgst"), evaluator),
-                    mappedAmount(row, indexes.get("sgst"), evaluator),
-                    mappedAmount(row, indexes.get("igst"), evaluator),
-                    mappedAmount(row, indexes.get("invoice_value"), evaluator)
-                ));
+            for (SpreadsheetLayoutDetector.Layout layout : layouts) {
+                Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
+                Row header = sheet.getRow(layout.headerRowIndex());
+                Map<String,Integer> indexes = new HashMap<>();
+                for (Map.Entry<String,String> entry : mapping.entrySet()) {
+                    if (entry.getValue() == null || entry.getValue().isBlank()) continue;
+                    indexes.put(entry.getKey(), SpreadsheetLayoutDetector.findHeaderIndex(header, entry.getValue(), evaluator));
+                }
+                for (int rowIndex = layout.headerRowIndex() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                    Row row = sheet.getRow(rowIndex);
+                    if (SpreadsheetLayoutDetector.isRowBlank(row, evaluator)) continue;
+                    String supplierName = mappedText(row, indexes.get("supplier_name"), evaluator);
+                    String gstin = mappedText(row, indexes.get("supplier_gstin"), evaluator);
+                    String invoice = mappedText(row, indexes.get("supplier_invoice_no"), evaluator);
+                    String invoiceDate = mappedDateIso(row, indexes.get("invoice_date"), evaluator);
+                    rows.add(new PurchaseReconApiClient.ImportRow(
+                        sheet.getSheetName(), rowIndex + 1, supplierName, gstin, invoice, invoiceDate,
+                        mappedAmount(row, indexes.get("taxable_value"), evaluator),
+                        mappedAmount(row, indexes.get("cgst"), evaluator),
+                        mappedAmount(row, indexes.get("sgst"), evaluator),
+                        mappedAmount(row, indexes.get("igst"), evaluator),
+                        mappedAmount(row, indexes.get("invoice_value"), evaluator)
+                    ));
+                }
             }
         }
 
@@ -1985,15 +2064,17 @@ public class ImportController {
                 String reference = (row.supplierReference() == null || row.supplierReference().isBlank() ? "" : row.supplierReference() + " • ")
                     + (row.invoiceNo() == null ? "" : row.invoiceNo());
                 String message = row.message() == null ? "" : row.message();
+                String source = (row.sourceSheet() == null || row.sourceSheet().isBlank() ? "Sheet" : row.sourceSheet())
+                    + " • Row " + (row.sourceRow() == null ? "?" : row.sourceRow());
                 details.add(new ImportService.ImportRowResult(
-                    row.sourceRow() == null ? "" : String.valueOf(row.sourceRow()),
-                    reference, failed ? "FAILED" : "PASSED", row.status(), message, "", 0d
+                    source, reference, failed ? "FAILED" : "PASSED", row.action(), message, "", 0d
                 ));
-                if (failed) errors.add("Row " + row.sourceRow() + ": " + message);
+                if (failed) errors.add(source + ": " + message);
             }
         }
+        int skipped = result.alreadyCurrentRows() + result.duplicateRows() + result.conflictRows() + result.ignoredRows();
         return new ImportService.ImportResult(
-            result.totalRows(), dryRun ? 0 : result.importedRows(), 0, result.duplicateRows() + result.ignoredRows(), errors, details
+            result.totalRows(), dryRun ? 0 : result.importedRows(), 0, skipped, errors, details
         );
     }
 
@@ -2030,7 +2111,11 @@ public class ImportController {
         var u=org.example.service.SessionService.current(); String user=u==null?"User":u.getFullName();
         var request = new org.example.api.bank.BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),user,dryRun,parsed.rows());
         var result = new org.example.api.bank.BankStatementApiClient().importStatement(request);
-        var details = List.of(new ImportService.ImportRowResult("1-"+parsed.rows().size(), parsed.sourceFileName(), "PASSED", dryRun?"VALIDATED":"IMPORTED", dryRun?"Server validation passed":"Bank statement imported", "", 0));
+        boolean allExisting = !result.alreadyImported() && result.importedRows() == 0 && result.duplicateRows() > 0;
+        String action=result.alreadyImported()||allExisting?"ALREADY CURRENT":(dryRun?"VALIDATED":"IMPORTED");
+        String message=result.alreadyImported()?"This exact bank statement was imported previously. Open the existing statement from Bank Statement history.":
+            (allExisting?"All transactions in this statement were already imported. No bank transactions will be overwritten.":(dryRun?"Server validation passed":"Bank statement imported"));
+        var details = List.of(new ImportService.ImportRowResult("1-"+parsed.rows().size(), parsed.sourceFileName(), "PASSED", action, message, "", 0));
         return new ImportService.ImportResult(parsed.rows().size(),dryRun?0:result.importedRows(),0,result.duplicateRows(),List.of(),details);
     }
 
@@ -2409,7 +2494,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 9.0.1 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 9.0.4 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

@@ -29,9 +29,6 @@ Backups/
 Logs/
 Reports/
 Downloads/
-/runtime/postgresql/bin/
-/runtime/postgresql/lib/
-/runtime/postgresql/share/
 
 # Packaging output
 *.exe

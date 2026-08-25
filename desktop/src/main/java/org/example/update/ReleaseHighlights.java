@@ -8,6 +8,37 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.4".equals(version)) {
+            return """
+                    DSE ERP 9.0.4
+                    • Bank Statement suggestions now use the locked 50/45/5 confidence model: exact amount, useful party token and ±7-day date proximity.
+                    • Bank Statement imports can be permanently deleted with permission-protected double confirmation and transactional rollback of linked reconciliation effects.
+                    • Added explicit configurable Bank Match round-off handling so small final residuals can settle Sales, Purchase, Purchase Recon and Returns without changing the actual bank amount.
+                    • Reconciliation reversal restores both the bank allocation and any round-off adjustment.
+                    • Desktop and Spring Boot runtime version/build contracts are synchronized to 9.0.4.
+                    """.strip();
+        }
+        if ("9.0.3".equals(version)) {
+            return """
+                    DSE ERP 9.0.3
+                    • Separated Import Data Preview from Validation Results so mapping previews remain visible and unchanged during preflight checks.
+                    • Added safe multi-sheet Purchase Recon import with source sheet/row traceability, supplier reuse, create/update/already-current decisions and bank-linked conflict protection.
+                    • Made Purchase Recon workbook fingerprints audit history instead of a permanent re-import blocker while preserving business-key duplicate safety.
+                    • Replaced the unbounded Bank Statement import selector with recent statements plus paginated, searchable statement history.
+                    • Exact/overlapping Bank Statement re-imports now reuse or skip existing transactions without overwriting reconciled bank data.
+                    • Desktop and Spring Boot runtime version/build contracts are synchronized to 9.0.3.
+                    """.strip();
+        }
+        if ("9.0.2".equals(version)) {
+            return """
+                    DSE ERP 9.0.2
+                    • Standardized record viewing across Finance, Reconciliation and master registers: row selection opens a read-only right-side details drawer while New/Edit remain explicit form actions.
+                    • Added the shared RegisterDetailDrawer contract to Bank Entry, Expense Entry, Purchase Recon, Recon Supplier, Customers, Suppliers, Item Master, Inventory, User Access and Master Data.
+                    • Removed hidden double-click-to-edit behavior from standardized registers and Reminder Center so record selection never silently enters edit mode.
+                    • Extended global semantic field decoration to finance labels and all standard FXML/OwnedDialog form surfaces for consistent icons and colors in light and dark themes.
+                    • Added a release/CI UI consistency gate so future ordinary register screens and dialogs cannot silently bypass the shared interaction and presentation contract.
+                    """.strip();
+        }
         if ("9.0.1".equals(version)) {
             return """
                     DSE ERP 9.0.1

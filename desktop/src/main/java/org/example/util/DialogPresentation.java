@@ -320,6 +320,7 @@ public final class DialogPresentation {
             if (!PlatformUiSupport.isMac()) scene.setFill(Color.TRANSPARENT);
             ThemeManager.applyTheme(scene);
             PlatformUiSupport.installResponsiveClasses(scene);
+            if (scene.getRoot() != null) ProfessionalUiEnhancer.enhance(scene.getRoot());
         }
         String semantic = explicitString(pane, SEMANTIC);
         if (semantic.isBlank()) semantic = inferSemantic(dialog);

@@ -8085,3 +8085,7 @@
 .erp-purple-selection-table .table-row-cell:filled:selected .table-cell {
     -fx-text-fill: #3b1b68;
 }
+
+/* 9.0.2 global register/detail-drawer contract. */
+.erp-detail-drawer-field { -fx-background-color: #f8fafc; }
+.erp-detail-drawer-actions { -fx-border-color: #e2e8f0; }

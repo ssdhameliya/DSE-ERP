@@ -92,6 +92,9 @@ public final class PlatformUiSupport {
         stage.setResizable(resizable);
         stage.setOnShown(event -> Platform.runLater(() -> {
             installResponsiveClasses(stage.getScene());
+            if (stage.getScene() != null && stage.getScene().getRoot() != null) {
+                ProfessionalUiEnhancer.enhance(stage.getScene().getRoot());
+            }
             WindowUtilsFx.fitDialogToOwnerScreen(stage, owner);
         }));
     }

@@ -95,7 +95,7 @@
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="2">
                     <Label text="Reminders" styleClass="section-title,reminder-section-title"/>
-                    <Label text="Single-click a row to open or close details; double-click to edit." styleClass="reminder-section-caption"/>
+                    <Label text="Single-click a row to open or close details. Use Edit for changes." styleClass="reminder-section-caption"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
             </HBox>

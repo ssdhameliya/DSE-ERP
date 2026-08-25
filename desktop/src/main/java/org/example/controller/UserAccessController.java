@@ -31,6 +31,10 @@ import org.example.service.SessionService;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 import org.example.util.IconFactory;
+import org.example.util.RegisterDetailDrawer;
+import org.example.util.RegisterUiSupport;
+import org.example.util.OperationalUiSupport;
+import org.example.util.SemanticTableCells;
 
 
 import java.time.LocalDate;
@@ -65,6 +69,8 @@ public class UserAccessController {
     private final AdminApiClient adminApi=new AdminApiClient();
     private final Map<String,String> roleDisplayNames=new LinkedHashMap<>();
     private FilteredList<UserRow> filtered;
+    private RegisterDetailDrawer detailDrawer;
+    private UserRow detailUser;
 
     @FXML public void initialize(){
         if(userAccessPageIcon!=null)userAccessPageIcon.getChildren().setAll(IconFactory.icon("users",24));
@@ -73,6 +79,7 @@ public class UserAccessController {
         cmbStatus.getItems().setAll("All Statuses","Active","Inactive","Locked"); cmbStatus.setValue("All Statuses");
         cmbPermissionRole.setConverter(new StringConverter<>() { public String toString(String code){return code==null?"":roleDisplayNames.getOrDefault(code.toUpperCase(Locale.ROOT),code);} public String fromString(String value){return value;} });
         filtered=new FilteredList<>(users,r->true); table.setItems(filtered); roleTable.setItems(roles); permissionTable.setItems(permissions);
+        installDetailDrawer();
         txtSearch.textProperty().addListener((o,a,b)->filter()); cmbRole.valueProperty().addListener((o,a,b)->filter());
         cmbStatus.valueProperty().addListener((o,a,b)->filter()); cmbBranch.valueProperty().addListener((o,a,b)->filter());
         cmbPermissionRole.valueProperty().addListener((o,a,b)->loadPermissions(b));
@@ -83,6 +90,8 @@ public class UserAccessController {
         colUser.setCellValueFactory(v->v.getValue().user); colEmail.setCellValueFactory(v->v.getValue().email); colRole.setCellValueFactory(v->v.getValue().role);
         colDepartment.setCellValueFactory(v->v.getValue().department); colAccess.setCellValueFactory(v->v.getValue().access); colBranch.setCellValueFactory(v->v.getValue().branch);
         colStatus.setCellValueFactory(v->v.getValue().status); colLastLogin.setCellValueFactory(v->v.getValue().lastLogin); colMfa.setCellValueFactory(v->v.getValue().mfa);
+        colStatus.setCellFactory(c->SemanticTableCells.status("status"));
+        colMfa.setCellFactory(c->SemanticTableCells.status("status"));
         colActions.setCellFactory(c->userActionCell());
         colUser.setMinWidth(82); colUser.setPrefWidth(95);
         colEmail.setMinWidth(135); colEmail.setPrefWidth(170);
@@ -93,11 +102,23 @@ public class UserAccessController {
         colStatus.setMinWidth(72); colStatus.setPrefWidth(82);
         colLastLogin.setMinWidth(98); colLastLogin.setPrefWidth(112);
         colMfa.setMinWidth(48); colMfa.setPrefWidth(56);
-        table.setRowFactory(tv->{ TableRow<UserRow> row=new TableRow<>(); row.setOnMouseClicked(e->{if(!row.isEmpty()&&e.getButton()==MouseButton.PRIMARY&&e.getClickCount()==2)edit(row.getItem());}); return row;});
+        table.setRowFactory(tv->{
+            TableRow<UserRow> row=new TableRow<>();
+            row.setOnMouseClicked(e->{
+                if(row.isEmpty()||e.getButton()!=MouseButton.PRIMARY||RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return;
+                if(e.getClickCount()==1){
+                    UserRow clicked=row.getItem();
+                    if(detailDrawer!=null&&detailDrawer.isOpen()&&detailUser==clicked)closeDetails();
+                    else{table.getSelectionModel().select(clicked);showDetails(clicked);}
+                    e.consume();
+                }
+            });
+            return row;
+        });
     }
     private void configureRoleTable(){
         colRoleName.setCellValueFactory(v->v.getValue().name); colRoleDescription.setCellValueFactory(v->v.getValue().description);
-        colRoleUsers.setCellValueFactory(v->v.getValue().users); colRoleStatus.setCellValueFactory(v->v.getValue().status); colRoleActions.setCellFactory(c->roleActionCell());
+        colRoleUsers.setCellValueFactory(v->v.getValue().users); colRoleStatus.setCellValueFactory(v->v.getValue().status); colRoleStatus.setCellFactory(c->SemanticTableCells.status("status")); colRoleActions.setCellFactory(c->roleActionCell());
         colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78);
         roleTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null){cmbPermissionRole.setValue(b.code);lblRoleHint.setText(b.description.get());}});
     }
@@ -109,6 +130,7 @@ public class UserAccessController {
 
     @FXML private void refresh(){ loadRoles(); loadUsers(); refreshFilters(); updateMetrics(); filter(); }
     private void loadUsers(){
+        closeDetails();
         users.clear();
         try{for(var u:adminApi.users())users.add(new UserRow(u,roleDisplayNames));}
         catch(Exception e){error("Users could not be loaded",e);}
@@ -168,7 +190,48 @@ public class UserAccessController {
     @FXML private void deleteRole(){openRoleMaster();}
     private void openRoleMaster(){ MasterDataController.requestCategory("ROLE"); DashboardController.navigateFromChildPage("Master Data", "/fxml/pages/Masterdata.fxml"); }
 
-    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.roleCode);showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
+    private TableCell<UserRow,Void> userActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();{menu.getStyleClass().add("user-action-menu");}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}UserRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("View User","view",e->{table.getSelectionModel().select(row);showDetails(row);}),mi("Edit User","edit",e->edit(row)),mi("Reset Password","lock",e->resetPassword(row)),mi(row.locked?"Unlock Account":"Lock Account",row.locked?"reopen":"lock",e->toggleLock(row)),mi("View Role Permissions","permission",e->{cmbPermissionRole.setValue(row.roleCode);showPermissionMatrix();}),new SeparatorMenuItem(),mi("Delete User","delete",e->deleteUser(row)));setGraphic(menu);}};}
+    private void installDetailDrawer(){
+        detailDrawer=new RegisterDetailDrawer();
+        detailDrawer.attachBesideTable(table);
+        OperationalUiSupport.installEscapeClose(table, detailDrawer::isOpen, this::closeDetails);
+    }
+    private void showDetails(UserRow row){
+        if(row==null||detailDrawer==null)return;
+        detailUser=row;
+        String status=row.locked?"Locked":row.active?"Active":"Inactive";
+        String statusSemantic=row.locked?"locked":row.active?"active":"inactive";
+        detailDrawer.showRecord(
+            row.fullName,
+            row.user.get(),
+            List.of(
+                RegisterDetailDrawer.field("Full Name",row.fullName,"user"),
+                RegisterDetailDrawer.field("Username",row.user.get(),"user"),
+                RegisterDetailDrawer.field("Email",row.email.get(),"email"),
+                RegisterDetailDrawer.field("Role",row.role.get(),"role"),
+                RegisterDetailDrawer.field("Department",row.department.get(),"category"),
+                RegisterDetailDrawer.field("Access Level",row.access.get(),"security"),
+                RegisterDetailDrawer.field("Branch",row.branch.get(),"location"),
+                RegisterDetailDrawer.field("Account Status",status,statusSemantic),
+                RegisterDetailDrawer.field("Locked",row.locked?"Yes":"No",row.locked?"lock":"complete"),
+                RegisterDetailDrawer.field("MFA",row.mfa.get(),row.mfa.get().equalsIgnoreCase("Enabled")?"security":"status"),
+                RegisterDetailDrawer.field("Last Login",row.lastLogin.get(),"calendar")
+            )
+        );
+        Button editButton=new Button("Edit User",IconFactory.compactIcon("edit",15));
+        editButton.getStyleClass().addAll("approved-button","approved-secondary-button");
+        editButton.setOnAction(e->edit(row));
+        Button resetButton=new Button("Reset Password",IconFactory.compactIcon("lock",15));
+        resetButton.getStyleClass().addAll("approved-button","approved-secondary-button");
+        resetButton.setOnAction(e->resetPassword(row));
+        detailDrawer.setActions(editButton,resetButton);
+    }
+    private void closeDetails(){
+        detailUser=null;
+        if(detailDrawer!=null)detailDrawer.hideDrawer();
+        if(table!=null)table.getSelectionModel().clearSelection();
+    }
+
     private TableCell<RoleRow,Void> roleActionCell(){return new TableCell<>(){final MenuButton menu=createActionMenu();protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}RoleRow row=getTableView().getItems().get(getIndex());menu.getItems().setAll(mi("Open in Role Master","master",e->openRoleMaster()),mi("Manage Permissions","permission",e->{cmbPermissionRole.setValue(row.code);showPermissionMatrix();}));setGraphic(menu);}};}
     private MenuButton createActionMenu(){MenuButton m=new MenuButton("Actions");m.setGraphic(IconFactory.compactIcon("actions",15));m.setContentDisplay(ContentDisplay.LEFT);m.setGraphicTextGap(6);m.getStyleClass().add("table-action-menu");IconFactory.decorateActionMenu(m);return m;}
     private MenuItem mi(String text,String icon,javafx.event.EventHandler<javafx.event.ActionEvent>handler){MenuItem i=new MenuItem(text,IconFactory.compactIcon(icon,16));i.setOnAction(handler);return i;}

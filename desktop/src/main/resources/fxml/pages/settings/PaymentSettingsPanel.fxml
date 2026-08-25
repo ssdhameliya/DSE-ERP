@@ -73,6 +73,20 @@
 
                             <Separator/>
 
+                            <VBox spacing="7">
+                                <Label text="Bank Reconciliation" styleClass="settings-subsection-title"/>
+                                <GridPane hgap="12" vgap="6">
+                                    <columnConstraints><ColumnConstraints percentWidth="33.333"/><ColumnConstraints percentWidth="66.667"/></columnConstraints>
+                                    <VBox spacing="5">
+                                        <Label text="Round-off Tolerance (₹)" styleClass="settings-form-label"/>
+                                        <TextField fx:id="txtBankMatchRoundingTolerance" promptText="1.00" styleClass="approved-input"/>
+                                    </VBox>
+                                    <Label GridPane.columnIndex="1" text="When a user manually confirms the correct transaction, DSE ERP may close only the final residual within this absolute limit. The actual bank amount stays unchanged and the difference is recorded as an explicit round-off adjustment. Use 0.00 to disable; maximum 5.00." wrapText="true" styleClass="settings-information-text"/>
+                                </GridPane>
+                            </VBox>
+
+                            <Separator/>
+
                             <!-- PAYMENT QR -->
 
                             <VBox spacing="7">

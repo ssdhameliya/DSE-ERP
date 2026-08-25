@@ -15,17 +15,20 @@ import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.util.converter.DoubleStringConverter;
 import org.example.api.bank.BankStatementApiClient;
+import org.example.config.ConfigManager;
 import org.example.bank.KotakBankStatementCsvParser;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
 import org.example.service.SessionService;
 import org.example.service.LookupService;
+import org.example.service.PermissionService;
 import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.OwnedTextInputDialog;
 import org.example.util.PopupTableWorkspace;
+import org.example.util.SemanticTableCells;
 import org.example.util.UiTaskExecutor;
 
 import java.io.File;
@@ -33,22 +36,26 @@ import java.time.LocalDate;
 import java.util.*;
 
 public class BankStatementController implements ScreenLifecycle {
-    @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon;
-    @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage;
+    @FXML private StackPane pageIcon,kpiTotalIcon,kpiUnmatchedIcon,kpiSuggestedIcon,kpiMatchedIcon,kpiExpenseIcon,kpiCreditsIcon,kpiDebitsIcon,kpiReconciledIcon,howIcon,historyIcon;
+    @FXML private Button btnImport,btnSearch,btnReset,btnRefresh,btnPrevPage,btnNextPage,btnBrowseStatements,btnDeleteStatement,btnCloseHistory,btnHistoryPrev,btnHistoryNext,btnOpenStatement,btnHistoryDelete;
     @FXML private CheckBox chkSelectAll;
     @FXML private Button btnBulkReview,btnBulkIgnore,btnMoveExpense,btnMoveBankEntry;
     @FXML private ComboBox<BankStatementApiClient.BatchDto> cmbBatch;
-    @FXML private ComboBox<String> cmbStatus,cmbDirection;
+    @FXML private ComboBox<String> cmbStatus,cmbDirection,cmbHistoryStatus;
     @FXML private ComboBox<Integer> cmbPageSize;
-    @FXML private DatePicker fromDate,toDate;
-    @FXML private TextField txtSearch;
+    @FXML private DatePicker fromDate,toDate,historyFrom,historyTo;
+    @FXML private TextField txtSearch,txtHistorySearch,txtHistoryAccount;
     @FXML private TableView<Row> table;
+    @FXML private TableView<BankStatementApiClient.BatchDto> tableHistory;
     @FXML private TableColumn<Row,String> colDate,colValueDate,colReference,colDescription,colStatus,colMatch;
     @FXML private TableColumn<Row,Boolean> colSelect;
     @FXML private TableColumn<Row,Number> colDebit,colCredit,colBalance;
     @FXML private TableColumn<Row,Void> colAction;
+    @FXML private TableColumn<BankStatementApiClient.BatchDto,String> colHistoryImported,colHistoryBank,colHistoryPeriod,colHistoryStatus;
+    @FXML private TableColumn<BankStatementApiClient.BatchDto,Number> colHistoryRows;
     @FXML private Label kpiTotal,kpiUnmatched,kpiSuggested,kpiMatched,kpiExpense,kpiCredits,kpiDebits,kpiReconciled,lblShowing,lblProgressText,lblBatchStatus,lblPage;
-    @FXML private Label lblSelected;
+    @FXML private Label lblSelected,lblHistoryShowing,lblHistoryPage;
+    @FXML private VBox statementHistoryDrawer;
     @FXML private ProgressBar reconciliationProgress;
 
     private final BankStatementApiClient api = new BankStatementApiClient();
@@ -59,6 +66,8 @@ public class BankStatementController implements ScreenLifecycle {
     private long totalRows;
     private boolean suppressFilterReload;
     private Long pendingLinkedTransactionId;
+    private int historyPage,historyTotalPages;
+    private long historyTotalRows;
 
     @FXML public void initialize() {
         installIcons();
@@ -68,11 +77,15 @@ public class BankStatementController implements ScreenLifecycle {
         cmbDirection.setValue("All");
         cmbPageSize.setItems(FXCollections.observableArrayList(25,50,100));
         cmbPageSize.setValue(50);
+        cmbHistoryStatus.setItems(FXCollections.observableArrayList("All Status","IMPORTED","PARTIALLY RECONCILED","FULLY RECONCILED"));
+        cmbHistoryStatus.setValue("All Status");
         configureTable();
+        configureBatchSelector();
+        configureHistoryTable();
         cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbPageSize.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
-        cmbBatch.valueProperty().addListener((o,a,b)->{ if(b!=null){applyBatchPeriod();currentPage=0;loadBatch(b.id());} });
+        cmbBatch.valueProperty().addListener((o,a,b)->{ updateDeleteButtons(); if(b!=null){applyBatchPeriod();currentPage=0;loadBatch(b.id());} });
         loadBatches();
     }
 
@@ -105,8 +118,13 @@ public class BankStatementController implements ScreenLifecycle {
         setIcon(pageIcon,"bank",24); setIcon(kpiTotalIcon,"document",18); setIcon(kpiUnmatchedIcon,"warning",18);
         setIcon(kpiSuggestedIcon,"link",18); setIcon(kpiMatchedIcon,"status",18); setIcon(kpiExpenseIcon,"payment",18);
         setIcon(kpiCreditsIcon,"payment",18); setIcon(kpiDebitsIcon,"payment",18); setIcon(kpiReconciledIcon,"status",18);
-        setIcon(howIcon,"info",16);
+        setIcon(howIcon,"info",16); setIcon(historyIcon,"history",18);
         if(btnImport!=null) btnImport.setGraphic(IconFactory.compactIcon("import",16));
+        if(btnBrowseStatements!=null) btnBrowseStatements.setGraphic(IconFactory.compactIcon("history",15));
+        if(btnDeleteStatement!=null) btnDeleteStatement.setGraphic(IconFactory.compactIcon("delete",15));
+        if(btnCloseHistory!=null) btnCloseHistory.setGraphic(IconFactory.compactIcon("cancel",14));
+        if(btnOpenStatement!=null) btnOpenStatement.setGraphic(IconFactory.compactIcon("view",15));
+        if(btnHistoryDelete!=null) btnHistoryDelete.setGraphic(IconFactory.compactIcon("delete",15));
         if(btnSearch!=null) btnSearch.setGraphic(IconFactory.compactIcon("search",15));
         if(btnReset!=null) btnReset.setGraphic(IconFactory.compactIcon("return",15));
         if(btnRefresh!=null) btnRefresh.setGraphic(IconFactory.compactIcon("refresh",15));
@@ -138,13 +156,7 @@ public class BankStatementController implements ScreenLifecycle {
         colDebit.setCellValueFactory(v->v.getValue().debit); colCredit.setCellValueFactory(v->v.getValue().credit); colBalance.setCellValueFactory(v->v.getValue().balance);
         colStatus.setCellValueFactory(v->v.getValue().status); colMatch.setCellValueFactory(v->v.getValue().match);
         moneyCell(colDebit,true); moneyCell(colCredit,false); moneyCell(colBalance,false);
-        colStatus.setCellFactory(c->new TableCell<>(){
-            @Override protected void updateItem(String s,boolean empty){
-                super.updateItem(s,empty); setText(empty?null:s);
-                getStyleClass().removeAll("bank-status-unmatched","bank-status-suggested","bank-status-matched","bank-status-expense","bank-status-review","bank-status-ignored");
-                if(!empty&&s!=null)getStyleClass().add("bank-status-"+s.toLowerCase(Locale.ROOT));
-            }
-        });
+        colStatus.setCellFactory(c->SemanticTableCells.status("bank"));
         colMatch.setCellFactory(c->new TableCell<>(){
             @Override protected void updateItem(String text,boolean empty){
                 super.updateItem(text,empty); setText(null); setGraphic(null);
@@ -226,6 +238,72 @@ public class BankStatementController implements ScreenLifecycle {
         m.getItems().add(heading);
     }
 
+    private void configureBatchSelector(){
+        if(cmbBatch==null)return;
+        javafx.util.Callback<ListView<BankStatementApiClient.BatchDto>,ListCell<BankStatementApiClient.BatchDto>> factory=list->new ListCell<>(){
+            @Override protected void updateItem(BankStatementApiClient.BatchDto item,boolean empty){super.updateItem(item,empty);if(empty||item==null){setText(null);setGraphic(null);return;}setText(formatBatchLabel(item));setGraphic(IconFactory.compactIcon(batchStatusSemantic(item.status()),15));}
+        };
+        cmbBatch.setCellFactory(factory);cmbBatch.setButtonCell(factory.call(null));
+    }
+    private void configureHistoryTable(){
+        if(tableHistory==null)return;
+        colHistoryImported.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatTimestamp(v.getValue().importedAt())));
+        colHistoryBank.setCellValueFactory(v->new SimpleStringProperty(batchBankLabel(v.getValue())));
+        colHistoryPeriod.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().statementFrom())+" to "+safe(v.getValue().statementTo())));
+        colHistoryStatus.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().status())));
+        colHistoryRows.setCellValueFactory(v->new SimpleIntegerProperty(v.getValue().transactionCount()));
+        colHistoryStatus.setCellFactory(c->SemanticTableCells.status("reconcile"));
+        tableHistory.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{btnOpenStatement.setDisable(b==null);updateDeleteButtons();});
+        IconFactory.applyTableHeaderIcon(colHistoryImported,"calendar");IconFactory.applyTableHeaderIcon(colHistoryBank,"bank");IconFactory.applyTableHeaderIcon(colHistoryPeriod,"calendar");IconFactory.applyTableHeaderIcon(colHistoryStatus,"status");IconFactory.applyTableHeaderIcon(colHistoryRows,"quantity");
+    }
+    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null)return;boolean show=!statementHistoryDrawer.isVisible();statementHistoryDrawer.setVisible(show);statementHistoryDrawer.setManaged(show);if(show){historyPage=0;loadStatementHistory();}}
+    @FXML private void closeStatementHistory(){if(statementHistoryDrawer!=null){statementHistoryDrawer.setVisible(false);statementHistoryDrawer.setManaged(false);}}
+    @FXML private void searchStatementHistory(){historyPage=0;loadStatementHistory();}
+    @FXML private void resetStatementHistory(){txtHistorySearch.clear();txtHistoryAccount.clear();cmbHistoryStatus.setValue("All Status");historyFrom.setValue(null);historyTo.setValue(null);historyPage=0;loadStatementHistory();}
+    @FXML private void previousStatementHistoryPage(){if(historyPage>0){historyPage--;loadStatementHistory();}}
+    @FXML private void nextStatementHistoryPage(){if(historyPage+1<historyTotalPages){historyPage++;loadStatementHistory();}}
+    @FXML private void openSelectedHistory(){BankStatementApiClient.BatchDto selected=tableHistory==null?null:tableHistory.getSelectionModel().getSelectedItem();if(selected==null)return;closeStatementHistory();loadBatches(selected.id());}
+    @FXML private void deleteCurrentStatement(){deleteStatement(cmbBatch==null?null:cmbBatch.getValue());}
+    @FXML private void deleteSelectedHistory(){deleteStatement(tableHistory==null?null:tableHistory.getSelectionModel().getSelectedItem());}
+    private void updateDeleteButtons(){
+        boolean allowed=PermissionService.allowed("BANK_EXPENSE.DELETE");
+        if(btnDeleteStatement!=null)btnDeleteStatement.setDisable(!allowed||cmbBatch==null||cmbBatch.getValue()==null);
+        if(btnHistoryDelete!=null)btnHistoryDelete.setDisable(!allowed||tableHistory==null||tableHistory.getSelectionModel().getSelectedItem()==null);
+    }
+    private void deleteStatement(BankStatementApiClient.BatchDto batch){
+        if(batch==null)return;
+        if(!PermissionService.allowed("BANK_EXPENSE.DELETE")){info("Delete Bank Statement","You do not have permission to delete Bank Statement imports.");return;}
+        UiTaskExecutor.submitLatest("bank-statement-delete-preview-"+batch.id(),()->api.metrics(batch.id()),metrics->{
+            String impact="Transactions: "+metrics.total()+"\nMatched / linked: "+metrics.matched()+"\nExpense entries: "+metrics.expenses()+"\nIgnored: "+metrics.ignored()+"\n\nAny linked reconciliation or generated Bank / Expense entry will be reversed first. If any reversal fails, nothing will be deleted.";
+            Alert first=new OwnedAlert(Alert.AlertType.CONFIRMATION,formatBatchLabel(batch)+"\n\n"+impact,ButtonType.CANCEL,new ButtonType("Continue",ButtonBar.ButtonData.OK_DONE));
+            first.setHeaderText("Delete Bank Statement?");
+            Optional<ButtonType> stepOne=first.showAndWait();
+            if(stepOne.isEmpty()||stepOne.get().getButtonData()!=ButtonBar.ButtonData.OK_DONE)return;
+            TextInputDialog typed=new OwnedTextInputDialog("");typed.setTitle("Final Confirmation");typed.setHeaderText("Permanently delete this Bank Statement import");typed.setContentText("Type DELETE to confirm:");
+            Optional<String> confirmation=typed.showAndWait();
+            if(confirmation.isEmpty())return;
+            if(!"DELETE".equals(confirmation.get().trim())){info("Delete cancelled","Confirmation text did not match DELETE. The statement was not changed.");return;}
+            String performedBy=user();
+            UiTaskExecutor.submitSerial("bank-statement-delete-"+batch.id(),()->api.deleteBatch(batch.id(),"DELETE",performedBy),result->{
+                success("Bank Statement Deleted",result.message()+"\n\nTransactions removed: "+result.deletedTransactions()+"\nReconciliations reversed: "+result.reversedTransactions());
+                if(statementHistoryDrawer!=null&&statementHistoryDrawer.isVisible())loadStatementHistory();
+                if(cmbBatch!=null&&cmbBatch.getValue()!=null&&Objects.equals(cmbBatch.getValue().id(),batch.id()))cmbBatch.setValue(null);
+                loadBatches();
+            },this::error);
+        },this::error);
+    }
+    private void loadStatementHistory(){
+        if(tableHistory==null)return;org.example.util.OperationalUiSupport.showLoading(tableHistory,"Loading statement history…");
+        String status=cmbHistoryStatus==null||cmbHistoryStatus.getValue()==null||cmbHistoryStatus.getValue().startsWith("All")?"":cmbHistoryStatus.getValue();
+        String account=txtHistoryAccount==null?"":safe(txtHistoryAccount.getText()).trim(),q=txtHistorySearch==null?"":safe(txtHistorySearch.getText()).trim();
+        String from=dateText(historyFrom==null?null:historyFrom.getValue()),to=dateText(historyTo==null?null:historyTo.getValue());int requested=historyPage;
+        UiTaskExecutor.submitLatest("bank-statement-history",()->api.batchPage(requested,50,account,status,from,to,q),page->{historyPage=page.page();historyTotalPages=page.totalPages();historyTotalRows=page.totalRows();tableHistory.getItems().setAll(page.rows()==null?List.of():page.rows());if(tableHistory.getItems().isEmpty())org.example.util.OperationalUiSupport.showEmpty(tableHistory,"No statement imports found","Adjust the history filters or import a new statement.");updateHistoryFooter();},failure->{org.example.util.OperationalUiSupport.showError(tableHistory,"Statement history could not load",failure);error(failure);});
+    }
+    private void updateHistoryFooter(){int shown=tableHistory==null?0:tableHistory.getItems().size();long start=shown==0?0:(long)historyPage*50+1,end=shown==0?0:start+shown-1;if(lblHistoryShowing!=null)lblHistoryShowing.setText(shown==0?"Showing 0 statements":"Showing "+start+"–"+end+" of "+historyTotalRows);if(lblHistoryPage!=null)lblHistoryPage.setText(historyTotalPages<=0?"Page 0 of 0":"Page "+(historyPage+1)+" of "+historyTotalPages);if(btnHistoryPrev!=null)btnHistoryPrev.setDisable(historyPage<=0);if(btnHistoryNext!=null)btnHistoryNext.setDisable(historyTotalPages<=0||historyPage+1>=historyTotalPages);}
+    private static String batchBankLabel(BankStatementApiClient.BatchDto b){String account=safe(b.bankAccount());String tail=account.length()>4?"****"+account.substring(account.length()-4):account;return safe(b.bankName())+(tail.isBlank()?"":" • "+tail);}
+    private static String formatBatchLabel(BankStatementApiClient.BatchDto b){return batchBankLabel(b)+" • "+safe(b.statementFrom())+" to "+safe(b.statementTo())+" • "+safe(b.status());}
+    private static String batchStatusSemantic(String status){String state=up(status);return state.contains("FULL")||state.equals("RECONCILED")?"complete":state.contains("PARTIAL")?"warning":"document";}
+
     @FXML private void importStatement(){
         FileChooser f=new FileChooser();f.setTitle("Import Bank Statement CSV");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV","*.csv"));
         File file=f.showOpenDialog(table.getScene().getWindow()); if(file==null)return;
@@ -237,7 +315,14 @@ public class BankStatementController implements ScreenLifecycle {
                 var request=new BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,false,parsed.rows());
                 return api.importStatement(request);
             },
-            result -> { success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows()); loadBatches(result.batch().id()); },
+            result -> {
+                if(result.alreadyImported() && result.batch()!=null){
+                    Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"This exact bank statement was already imported on "+BusinessClock.formatTimestamp(result.batch().importedAt())+".\n\n"+formatBatchLabel(result.batch())+"\n\nOpen the existing statement instead?",ButtonType.YES,ButtonType.NO);
+                    a.setHeaderText("Bank Statement Already Imported");
+                    if(a.showAndWait().orElse(ButtonType.NO)==ButtonType.YES)loadBatches(result.batch().id());
+                }else if(result.batch()!=null){success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows());loadBatches(result.batch().id());}
+                else info("No new transactions","All transactions in this statement were already present, so no new statement batch was created.");
+            },
             this::error
         );
     }
@@ -250,7 +335,7 @@ public class BankStatementController implements ScreenLifecycle {
             : cmbBatch.getValue()==null ? null : cmbBatch.getValue().id();
         UiTaskExecutor.submitLatest(
             "bank-statement-batches",
-            api::batches,
+            () -> {List<BankStatementApiClient.BatchDto> list=new ArrayList<>(api.batches());if(preferredBatchId!=null&&list.stream().noneMatch(b->Objects.equals(b.id(),preferredBatchId)))list.add(0,api.batch(preferredBatchId));return list;},
             list -> {
                 cmbBatch.getItems().setAll(list);
                 if(selected!=null)selectBatch(selected);
@@ -457,7 +542,7 @@ public class BankStatementController implements ScreenLifecycle {
                 if(cs.isEmpty()){info("Match Transaction","No eligible Sale, Purchase or Return refund transaction was found. You can move debit transactions to Expense or review later.");refresh();return;}
                 var top=cs.getFirst();
                 if(Boolean.getBoolean("dse.legacyBankMatchDialog")&&top.confidence()>=75&&Math.abs(top.outstanding()-bankAmount(row.dto))<=.01){
-                    Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Suggested Match\n\n"+top+"\n\nWhy suggested: amount/reference/party/date signals.\n\nConfirm this match?");
+                    Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Suggested Match\n\n"+top+"\n\nWhy suggested: exact amount / useful party / date signals.\n\nConfirm this match?");
                     a.setHeaderText(String.format(Locale.ENGLISH,"High Confidence Match • %.0f%%",top.confidence()));
                     ButtonType find=new ButtonType("Find Another",ButtonBar.ButtonData.OTHER);ButtonType confirm=new ButtonType("Confirm Match",ButtonBar.ButtonData.OK_DONE);a.getButtonTypes().setAll(confirm,find,ButtonType.CANCEL);
                     var r=a.showAndWait();if(r.isPresent()&&r.get()==confirm){confirm(row,List.of(top));return;}if(r.isEmpty()||r.get()==ButtonType.CANCEL)return;
@@ -470,6 +555,7 @@ public class BankStatementController implements ScreenLifecycle {
 
     private void showCandidateWorkspace(Row bankRow,List<BankStatementApiClient.CandidateDto> candidates){
         double bankValue=bankAmount(bankRow.dto);
+        double tolerance=bankMatchRoundingTolerance();
         List<CandidateRow> rows=new ArrayList<>();
         double remaining=bankValue;
         for(var candidate:candidates){
@@ -530,31 +616,35 @@ public class BankStatementController implements ScreenLifecycle {
 
         Label allocatedValue=PopupTableWorkspace.metricValue("0.00","complete");
         Label remainingValue=PopupTableWorkspace.metricValue(money(bankValue),"warning");
+        Label roundOffValue=PopupTableWorkspace.metricValue("₹ 0.00","warning");
         Label matchStatusValue=PopupTableWorkspace.metricValue("Partially Matched","warning");
         Label selectedStatus=PopupTableWorkspace.footerText("0 selected");
         Runnable refreshStatus=()->{
             double allocated=rows.stream().filter(r->r.selected.get()).mapToDouble(r->r.allocation.get()).sum();
             double remainingAmount=bankValue-allocated;
+            double roundOff=rows.stream().filter(r->r.selected.get()).mapToDouble(r->roundingFor(r.dto.outstanding(),r.allocation.get(),tolerance)).sum();
             long selectedRows=rows.stream().filter(r->r.selected.get()).count();
             allocatedValue.setText("₹ "+money(allocated));
             remainingValue.setText("₹ "+money(remainingAmount));
+            roundOffValue.setText(signedMoney(roundOff));
             boolean complete=Math.abs(remainingAmount)<=.01;
-            matchStatusValue.setText(complete?"Fully Allocated":"Partially Matched");
+            matchStatusValue.setText(complete?(Math.abs(roundOff)>.0001?"Full Match + Round-off":"Fully Allocated"):"Partially Matched");
             matchStatusValue.getStyleClass().removeAll("erp-popup-metric-success","erp-popup-metric-warning");
             matchStatusValue.getStyleClass().add(complete?"erp-popup-metric-success":"erp-popup-metric-warning");
-            selectedStatus.setText(selectedRows+" selected  •  Allocated ₹ "+money(allocated)+"  •  Remaining ₹ "+money(remainingAmount));
+            selectedStatus.setText(selectedRows+" selected  •  Allocated ₹ "+money(allocated)+"  •  Round-off "+signedMoney(roundOff)+"  •  Remaining ₹ "+money(remainingAmount));
         };
         rows.forEach(r->{r.selected.addListener((o,a,b)->refreshStatus.run());r.allocation.addListener((o,a,b)->refreshStatus.run());});
         refreshStatus.run();
         HBox metrics=PopupTableWorkspace.metricStrip(
             PopupTableWorkspace.metricCard("Bank Amount","₹ "+money(bankValue),"bank"),
             PopupTableWorkspace.metricCard("Allocated",allocatedValue,"complete"),
+            PopupTableWorkspace.metricCard("Round-off",roundOffValue,"warning"),
             PopupTableWorkspace.metricCard("Remaining",remainingValue,"warning"),
             PopupTableWorkspace.metricCard("Match Status",matchStatusValue,"warning")
         );
         Label bank=new Label(safe(bankRow.dto.transactionDate())+"  •  "+safe(bankRow.dto.reference())+"  •  "+safe(bankRow.dto.description()));
         bank.setWrapText(true);bank.getStyleClass().add("bank-dialog-help");
-        Label help=new Label("Select every eligible Sale, Purchase or Return refund included in this bank transaction and edit Allocation directly in the table. The total allocation must equal the bank amount and cannot exceed the outstanding amount.");
+        Label help=new Label("Suggestions stay strict: exact amount + useful party + date. When you manually confirm, a final document residual within the configured ₹"+money(tolerance)+" round-off tolerance is settled explicitly without changing the actual bank amount. The total actual allocation must still equal the bank amount.");
         help.setWrapText(true);help.getStyleClass().add("bank-dialog-help");
         VBox tableArea=new VBox(7,bank,help,candidatesTable);VBox.setVgrow(candidatesTable,Priority.ALWAYS);
         VBox content=PopupTableWorkspace.content(metrics,tableArea,selectedStatus);
@@ -567,7 +657,8 @@ public class BankStatementController implements ScreenLifecycle {
             for(CandidateRow row:rows){
                 if(!row.selected.get())continue;
                 double value=row.allocation.get();
-                if(value<=0||value-row.dto.outstanding()>.01){info("Allocation needs attention","Each selected allocation must be greater than zero and cannot exceed its outstanding amount.");return;}
+                double roundOff=roundingFor(row.dto.outstanding(),value,tolerance);
+                if(value<=0||value-row.dto.outstanding()>tolerance+.0001||(value-row.dto.outstanding()>.01&&Math.abs(roundOff)<=.0001)){info("Allocation needs attention","Each selected allocation must be greater than zero. Any final difference from outstanding must be within the configured ₹"+money(tolerance)+" round-off tolerance.");return;}
                 allocations.add(new BankStatementApiClient.AllocationRequest(row.dto.type(),row.dto.id(),value));allocated+=value;
             }
             if(allocations.isEmpty()){info("Match Transaction","Select at least one eligible Sale, Purchase or Return refund transaction.");return;}
@@ -654,20 +745,25 @@ public class BankStatementController implements ScreenLifecycle {
         document.setPrefWidth(190);
         TableColumn<BankStatementApiClient.AllocationDto,String> type=new TableColumn<>("Transaction Type");
         type.setCellValueFactory(v->new SimpleStringProperty(up(v.getValue().targetType()).replace('_',' ')));type.setPrefWidth(170);
-        TableColumn<BankStatementApiClient.AllocationDto,Number> amount=new TableColumn<>("Allocated Amount");
-        amount.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().allocatedAmount()));amount.setPrefWidth(150);
+        TableColumn<BankStatementApiClient.AllocationDto,Number> amount=new TableColumn<>("Bank Amount");
+        amount.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().allocatedAmount()));amount.setPrefWidth(135);
         amount.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);getStyleClass().remove("erp-quantity-positive");setText(empty||value==null?null:"₹ "+money(value.doubleValue()));if(!empty)getStyleClass().add("erp-quantity-positive");}});
-        TableColumn<BankStatementApiClient.AllocationDto,Void> action=new TableColumn<>("Action");action.setPrefWidth(150);
+        TableColumn<BankStatementApiClient.AllocationDto,Number> roundOff=new TableColumn<>("Round-off");
+        roundOff.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().roundingAdjustment()));roundOff.setPrefWidth(115);
+        roundOff.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);setText(empty||value==null?null:signedMoney(value.doubleValue()));}});
+        TableColumn<BankStatementApiClient.AllocationDto,Void> action=new TableColumn<>("Action");action.setPrefWidth(145);
         action.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Void value,boolean empty){super.updateItem(value,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}var allocation=getTableView().getItems().get(getIndex());Button view=new Button(linkActionLabel(allocation.targetType()));view.getStyleClass().addAll("approved-button","approved-primary-button");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});setGraphic(view);}});
-        IconFactory.applyTableHeaderIcon(document,"document");IconFactory.applyTableHeaderIcon(type,"category");IconFactory.applyTableHeaderIcon(amount,"currency");IconFactory.applyTableHeaderIcon(action,"actions");
-        linkedTable.getColumns().setAll(document,type,amount,action);
+        IconFactory.applyTableHeaderIcon(document,"document");IconFactory.applyTableHeaderIcon(type,"category");IconFactory.applyTableHeaderIcon(amount,"currency");IconFactory.applyTableHeaderIcon(roundOff,"warning");IconFactory.applyTableHeaderIcon(action,"actions");
+        linkedTable.getColumns().setAll(document,type,amount,roundOff,action);
         double linkedTotal=linked.stream().mapToDouble(BankStatementApiClient.AllocationDto::allocatedAmount).sum();
+        double roundOffTotal=linked.stream().mapToDouble(BankStatementApiClient.AllocationDto::roundingAdjustment).sum();
         double difference=bankAmount(row.dto)-linkedTotal;
         String bankReference=safe(row.dto.reference()).isBlank()?"Bank #"+row.dto.id():row.dto.reference();
         HBox metrics=PopupTableWorkspace.metricStrip(
             PopupTableWorkspace.metricCard("Bank Ref",bankReference,"bank"),
             PopupTableWorkspace.metricCard("Linked Count",String.valueOf(linked.size()),"link"),
-            PopupTableWorkspace.metricCard("Linked Total","₹ "+money(linkedTotal),"currency"),
+            PopupTableWorkspace.metricCard("Bank Linked","₹ "+money(linkedTotal),"currency"),
+            PopupTableWorkspace.metricCard("Round-off",signedMoney(roundOffTotal),"warning"),
             PopupTableWorkspace.metricCard("Difference","₹ "+money(difference),Math.abs(difference)<=.01?"complete":"warning")
         );
         Label footer=PopupTableWorkspace.footerText(linked.size()+" linked transaction"+(linked.size()==1?"":"s")+" • Use View to open the existing linked workflow.");
@@ -791,6 +887,9 @@ public class BankStatementController implements ScreenLifecycle {
     private HBox dialogHero(String semantic,String title,String subtitle){Label h=new Label(title);h.getStyleClass().add("bank-dialog-hero-title");Label s=new Label(subtitle);s.setWrapText(true);s.getStyleClass().add("bank-dialog-subtitle");HBox box=new HBox(12,dialogIcon(semantic,44),new VBox(3,h,s));box.setAlignment(Pos.CENTER_LEFT);box.getStyleClass().add("bank-dialog-hero");return box;}
     private VBox metricCard(String caption,String value,String semantic){Label c=new Label(caption);c.getStyleClass().add("bank-dialog-label");Label v=new Label(value);v.getStyleClass().add("bank-dialog-metric-value");VBox box=new VBox(4,new HBox(6,IconFactory.compactIcon(semantic,15),c),v);box.getStyleClass().add("bank-dialog-metric-card");return box;}
 
+    private static double bankMatchRoundingTolerance(){try{double value=Double.parseDouble(ConfigManager.get("payment.bankMatchRoundingTolerance","1.00").trim());return Math.max(0d,Math.min(5d,Math.round(value*100d)/100d));}catch(Exception ignored){return 1d;}}
+    private static double roundingFor(double outstanding,double amount,double tolerance){double difference=Math.round((outstanding-amount)*100d)/100d;if(Math.abs(difference)<=.0001)return 0d;return tolerance>0&&Math.abs(difference)<=tolerance+.0001?difference:0d;}
+    private static String signedMoney(double value){if(Math.abs(value)<=.0001)return "₹ 0.00";return (value>=0?"+":"-")+"₹ "+money(Math.abs(value));}
     private static String user(){var u=SessionService.current();return u==null?"User":safe(u.getFullName());}
     private static double bankAmount(BankStatementApiClient.TransactionDto t){return t.credit()>0?t.credit():t.debit();}
     private static String money(double v){return String.format(Locale.ENGLISH,"%,.2f",v);} private static String safe(String s){return s==null?"":s;}

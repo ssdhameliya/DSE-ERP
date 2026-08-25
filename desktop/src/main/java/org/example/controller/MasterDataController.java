@@ -5,6 +5,9 @@ import org.example.util.OwnedTextInputDialog;
 
 
 import org.example.util.IconFactory;
+import org.example.util.RegisterDetailDrawer;
+import org.example.util.RegisterUiSupport;
+import org.example.util.OperationalUiSupport;
 import org.example.util.UiActionIcons;
 import org.example.util.ButtonAction;
 import javafx.application.Platform;
@@ -37,6 +40,7 @@ import org.example.util.FxDebouncer;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 
 import java.io.IOException;
@@ -170,6 +174,8 @@ public class MasterDataController implements ScreenLifecycle {
     private final FxDebouncer searchDebouncer = new FxDebouncer(java.time.Duration.ofMillis(220));
     private List<Lookup> filteredLookups = List.of();
     private boolean updatingPagination;
+    private RegisterDetailDrawer detailDrawer;
+    private Lookup detailLookup;
     private final java.util.Map<String, MasterCategoryService.Category> categoryByName = new java.util.LinkedHashMap<>();
 
     /* =========================================================
@@ -186,6 +192,7 @@ public class MasterDataController implements ScreenLifecycle {
 
         configureTableColumns();
         configureTableInteractions();
+        installDetailDrawer();
         configurePagination();
         configureListeners();
         configureKeyboardShortcuts();
@@ -387,21 +394,66 @@ public class MasterDataController implements ScreenLifecycle {
     }
 
     private void configureTableInteractions() {
-
         tblLookup.setRowFactory(tableView -> {
-
             TableRow<Lookup> row = new TableRow<>();
-
             row.setOnMouseClicked(event -> {
-
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    tblLookup.getSelectionModel().select(row.getItem());
-                    editLookup();
+                if (row.isEmpty() || event.getButton() != MouseButton.PRIMARY ||
+                    RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return;
+                if (event.getClickCount() == 1) {
+                    Lookup clicked = row.getItem();
+                    if (detailDrawer != null && detailDrawer.isOpen() && detailLookup == clicked) closeLookupDetails();
+                    else {
+                        tblLookup.getSelectionModel().select(clicked);
+                        showLookupDetails(clicked);
+                    }
+                    event.consume();
                 }
             });
-
             return row;
         });
+    }
+
+    private void installDetailDrawer() {
+        detailDrawer = new RegisterDetailDrawer();
+        detailDrawer.attachBesideTable(tblLookup);
+        OperationalUiSupport.installEscapeClose(tblLookup, detailDrawer::isOpen, this::closeLookupDetails);
+    }
+
+    @FXML
+    private void viewSelectedLookup() {
+        Lookup selected = tblLookup.getSelectionModel().getSelectedItem();
+        if (selected == null) { showWarning("Select a master record to view."); return; }
+        showLookupDetails(selected);
+    }
+
+    private void showLookupDetails(Lookup lookup) {
+        if (lookup == null || detailDrawer == null) return;
+        detailLookup = lookup;
+        String category = lookup.getLookupType() == null || lookup.getLookupType().isBlank()
+            ? String.valueOf(lstTypes.getSelectionModel().getSelectedItem()) : lookup.getLookupType();
+        String status = lookup.isActive() ? "Active" : "Inactive";
+        detailDrawer.showRecord(
+            lookup.getLookupValue(),
+            lookup.getLookupCode(),
+            List.of(
+                RegisterDetailDrawer.field("Master Category", category, categorySemantic(category)),
+                RegisterDetailDrawer.field("Code", lookup.getLookupCode(), "reference"),
+                RegisterDetailDrawer.field("Value", lookup.getLookupValue(), "details"),
+                RegisterDetailDrawer.field("Description", lookup.getDescription(), "notes"),
+                RegisterDetailDrawer.field("Display Order", String.valueOf(lookup.getDisplayOrder()), "sort"),
+                RegisterDetailDrawer.field("Status", status, lookup.isActive() ? "active" : "inactive")
+            )
+        );
+        Button editButton = new Button("Edit Master", IconFactory.compactIcon("edit", 15));
+        editButton.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        editButton.setOnAction(event -> { tblLookup.getSelectionModel().select(lookup); editLookup(); });
+        detailDrawer.setActions(editButton);
+    }
+
+    private void closeLookupDetails() {
+        detailLookup = null;
+        if (detailDrawer != null) detailDrawer.hideDrawer();
+        if (tblLookup != null) tblLookup.getSelectionModel().clearSelection();
     }
 
     private void configureKeyboardShortcuts() {

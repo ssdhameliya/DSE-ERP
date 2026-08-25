@@ -21,6 +21,7 @@ import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
 import org.example.util.UiTaskExecutor;
+import org.example.util.RegisterDetailDrawer;
 
 import java.io.File;
 import java.time.LocalDate;
@@ -79,6 +80,8 @@ public class BankExpenseController implements ScreenLifecycle {
     private long totalRows = 0;
     private static final int PAGE_SIZE = 8;
     private Dialog<ButtonType> entryDialog;
+    private RegisterDetailDrawer detailDrawer;
+    private EntryRow detailRow;
 
     @FXML public void initialize() {
         entryDate.setValue(BusinessClock.today());
@@ -88,6 +91,7 @@ public class BankExpenseController implements ScreenLifecycle {
         loadAccounts();
         configureTable();
         if (workspaceRow != null && entryFormPanel != null) { workspaceRow.getChildren().remove(entryFormPanel); entryFormPanel.setManaged(true); entryFormPanel.setVisible(true); }
+        installDetailDrawer();
         if(btnBankMode!=null)btnBankMode.setGraphic(IconFactory.compactIcon("bank",15));
         if(btnExpenseMode!=null)btnExpenseMode.setGraphic(IconFactory.compactIcon("payment",15));
         if(btnBankRecon!=null)btnBankRecon.setGraphic(IconFactory.compactIcon("link",15));
@@ -181,7 +185,7 @@ public class BankExpenseController implements ScreenLifecycle {
         UiTaskExecutor.submitLatest("finance-linked-entry",()->financeService.get(id),entry->{
             if(entry==null){org.example.util.ModernDialog.warning(table,"Linked record unavailable","Expense / Bank entry not found","The linked finance entry is no longer available.");return;}
             String raw=safe(entry.voucherType(),"").toUpperCase(Locale.ROOT);Mode entryMode=raw.contains("EXPENSE")?Mode.EXPENSE:Mode.BANK;if(mode!=entryMode)applyMode(entryMode);
-            EntryRow row=toRow(entry);table.getItems().setAll(row);filtered.clear();filtered.add(row);totalRows=1;totalPages=1;currentPage=0;renderPage();table.getSelectionModel().select(row);table.scrollTo(row);editRow(row);
+            EntryRow row=toRow(entry);table.getItems().setAll(row);filtered.clear();filtered.add(row);totalRows=1;totalPages=1;currentPage=0;renderPage();table.getSelectionModel().select(row);table.scrollTo(row);showEntryDetails(row);
             org.example.util.PerformanceMonitor.event("linked-navigation",(entryMode==Mode.EXPENSE?"EXPENSE":"BANK_ENTRY")+" -> "+id);
         },failure->error("Unable to open linked finance entry: "+failure.getMessage()));
     }
@@ -210,7 +214,7 @@ public class BankExpenseController implements ScreenLifecycle {
     @FXML private void showBankReconciliation(){ DashboardController.navigateFromChild("Bank Statement","/fxml/pages/BankStatement.fxml",null); }
 
     private void applyMode(Mode next) {
-        mode = next; currentPage = 0; clearForm();
+        mode = next; currentPage = 0; clearForm(); closeEntryDetails();
         boolean bank = mode == Mode.BANK;
         lblTitle.setText(bank ? "Bank Entry" : "Expense Entry");
         lblSubtitle.setText(bank ? "Manage all bank transactions in one place" : "Manage and track all your business expenses");
@@ -241,10 +245,10 @@ public class BankExpenseController implements ScreenLifecycle {
         colAccount.setCellValueFactory(v->v.getValue().account); colMode.setCellValueFactory(v->v.getValue().paymentMode); colReference.setCellValueFactory(v->v.getValue().reference); colAmount.setCellValueFactory(v->v.getValue().amount); colMatch.setCellValueFactory(v->v.getValue().match);
         colAmount.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(Number n, boolean empty){ super.updateItem(n,empty); if(empty||n==null){setText(null);setStyle("");return;} EntryRow row=getTableRow()==null?null:getTableRow().getItem(); setText(money(n.doubleValue())); boolean positive=row!=null && row.rawType.contains("DEPOSIT"); setStyle("-fx-text-fill:" + (positive ? "#22c55e" : "#ef4444") + ";-fx-font-weight:800;"); }});
         colMatch.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String text, boolean empty){ super.updateItem(text,empty); setText(null); setGraphic(null); if(empty||text==null||text.isBlank()||getIndex()<0||getIndex()>=getTableView().getItems().size())return; EntryRow row=getTableView().getItems().get(getIndex()); Hyperlink link=new Hyperlink(text); link.getStyleClass().add("bank-match-link"); link.setGraphic(IconFactory.compactIcon("link",13)); link.setOnAction(e->openLinked(row)); setGraphic(link);} });
-        colType.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String s, boolean empty){ super.updateItem(s,empty); setText(empty?null:s); getStyleClass().removeAll("finance-chip-green","finance-chip-red","finance-chip-purple","finance-chip-blue","finance-chip-orange","finance-chip-teal"); if(!empty&&s!=null)getStyleClass().add(chipStyle(s)); }});
-        colAction.setCellFactory(c->new TableCell<>() { private final MenuButton actions=new MenuButton("Actions"); private EntryRow row; { actions.getStyleClass().addAll("bank-row-action","table-action-menu","approved-row-action"); actions.setGraphic(IconFactory.compactIcon("actions",15)); actions.setOnShowing(e->rebuild()); IconFactory.decorateActionMenu(actions); } private void rebuild(){actions.getItems().clear();if(row==null)return;String noun=mode==Mode.EXPENSE?"Expense":"Bank Entry";MenuItem edit=new MenuItem("Edit "+noun,IconFactory.compactIcon("edit",15));edit.setOnAction(e->editRow(row));MenuItem del=new MenuItem("Delete "+noun,IconFactory.compactIcon("delete",15));del.getStyleClass().add("danger-menu-item");del.setOnAction(e->deleteRow(row));actions.getItems().setAll(edit,del);} @Override protected void updateItem(Void v, boolean empty){super.updateItem(v,empty);row=empty||getIndex()<0||getIndex()>=getTableView().getItems().size()?null:getTableView().getItems().get(getIndex());if(row==null){actions.hide();actions.getItems().clear();setGraphic(null);}else{rebuild();setGraphic(actions);}} });
+        colType.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String s, boolean empty){ super.updateItem(s,empty); setText(empty?null:s); setGraphic(null); getStyleClass().removeAll("finance-chip-green","finance-chip-red","finance-chip-purple","finance-chip-blue","finance-chip-orange","finance-chip-teal"); if(!empty&&s!=null){getStyleClass().add(chipStyle(s));String v=s.toLowerCase(Locale.ROOT);String semantic=v.contains("deposit")?"credit":v.contains("withdraw")?"debit":v.contains("travel")||v.contains("transport")?"delivery":v.contains("office")?"notes":v.contains("marketing")||v.contains("maintenance")?"category":"payment";setGraphic(IconFactory.compactIcon(semantic,13));setGraphicTextGap(5);setContentDisplay(ContentDisplay.LEFT);}}});
+        colAction.setCellFactory(c->new TableCell<>() { private final MenuButton actions=new MenuButton("Actions"); private EntryRow row; { actions.getStyleClass().addAll("bank-row-action","table-action-menu","approved-row-action"); actions.setGraphic(IconFactory.compactIcon("actions",15)); actions.setOnShowing(e->rebuild()); IconFactory.decorateActionMenu(actions); } private void rebuild(){actions.getItems().clear();if(row==null)return;String noun=mode==Mode.EXPENSE?"Expense":"Bank Entry";MenuItem view=new MenuItem("View "+noun,IconFactory.compactIcon("view",15));view.setOnAction(e->{table.getSelectionModel().select(row);showEntryDetails(row);});MenuItem edit=new MenuItem("Edit "+noun,IconFactory.compactIcon("edit",15));edit.setOnAction(e->editRow(row));MenuItem del=new MenuItem("Delete "+noun,IconFactory.compactIcon("delete",15));del.getStyleClass().add("danger-menu-item");del.setOnAction(e->deleteRow(row));actions.getItems().setAll(view,edit,del);} @Override protected void updateItem(Void v, boolean empty){super.updateItem(v,empty);row=empty||getIndex()<0||getIndex()>=getTableView().getItems().size()?null:getTableView().getItems().get(getIndex());if(row==null){actions.hide();actions.getItems().clear();setGraphic(null);}else{rebuild();setGraphic(actions);}} });
         table.setPlaceholder(new Label("No entries found"));
-        table.setRowFactory(tv->{TableRow<EntryRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY||e.getClickCount()!=1||row.isEmpty()||org.example.util.RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return;table.getSelectionModel().select(row.getItem());showEntryDetails(row.getItem());e.consume();});return row;});
+        table.setRowFactory(tv->{TableRow<EntryRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY||e.getClickCount()!=1||row.isEmpty()||org.example.util.RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return;EntryRow clicked=row.getItem();if(detailDrawer!=null&&detailDrawer.isOpen()&&detailRow==clicked){closeEntryDetails();}else{table.getSelectionModel().select(clicked);showEntryDetails(clicked);}e.consume();});return row;});
         colDate.setMinWidth(85);       colDate.setPrefWidth(95);
         colType.setMinWidth(100);      colType.setPrefWidth(115);
         colDescription.setMinWidth(180); colDescription.setPrefWidth(260);
@@ -329,7 +333,29 @@ public class BankExpenseController implements ScreenLifecycle {
     private void renderPage(){table.getItems().setAll(filtered);long from=totalRows==0?0:(long)currentPage*PAGE_SIZE+1,to=totalRows==0?0:Math.min(totalRows,from+filtered.size()-1);showingLabel.setText(totalRows==0?"Showing 0 to 0 of 0 entries":"Showing "+from+" to "+to+" of "+totalRows+" entries");pageLabel.setText(totalPages<=0?"0 / 0":(currentPage+1)+" / "+totalPages);}
     @FXML private void previousPage(){if(currentPage>0){currentPage--;reloadRows();}} @FXML private void nextPage(){if(currentPage+1<totalPages){currentPage++;reloadRows();}}
 
-    private void showEntryDetails(EntryRow row){if(row==null)return;String noun=mode==Mode.EXPENSE?"Expense":"Bank Entry";info(noun+" Details",row.date.get()+"  •  "+row.type.get()+"\n"+row.description.get()+"\n\nAmount: "+money(row.amount.get())+"\nAccount: "+row.account.get()+"\nMode: "+row.paymentMode.get()+"\nReference: "+row.reference.get());}
+    private void installDetailDrawer(){
+        detailDrawer=new RegisterDetailDrawer();
+        detailDrawer.setCloseAction(this::closeEntryDetails);
+        if(workspaceRow!=null){workspaceRow.getChildren().add(detailDrawer);if(table!=null&&table.getParent()!=null)HBox.setHgrow(table.getParent(),javafx.scene.layout.Priority.ALWAYS);org.example.util.OperationalUiSupport.installEscapeClose(workspaceRow,detailDrawer::isOpen,this::closeEntryDetails);}
+    }
+
+    private void showEntryDetails(EntryRow row){
+        if(row==null||detailDrawer==null)return;detailRow=row;String noun=mode==Mode.EXPENSE?"Expense":"Bank Entry";String status=row.type.get();
+        detailDrawer.showRecord(noun+" Details",row.date.get()+" • "+status,List.of(
+            RegisterDetailDrawer.field("Date",row.date.get(),"calendar"),
+            RegisterDetailDrawer.field(mode==Mode.EXPENSE?"Category":"Type",status,RegisterDetailDrawer.statusSemantic(status)),
+            RegisterDetailDrawer.field("Amount",money(row.amount.get()),row.rawType.contains("DEPOSIT")?"complete":row.rawType.contains("WITHDRAW")?"error":"currency"),
+            RegisterDetailDrawer.field("Account",row.account.get(),"bank"),
+            RegisterDetailDrawer.field("Payment Mode",row.paymentMode.get(),"payment"),
+            RegisterDetailDrawer.field("Reference No.",row.reference.get(),"reference"),
+            RegisterDetailDrawer.field("Description",row.description.get(),"notes"),
+            RegisterDetailDrawer.field("Match / Link",row.match.get(),"link")
+        ));
+        Button edit=new Button("Edit "+noun);edit.getStyleClass().addAll("approved-button","approved-primary-button");edit.setGraphic(IconFactory.compactIcon("edit",14));edit.setOnAction(e->editRow(row));
+        if(row.match.get()!=null&&!row.match.get().isBlank()){Button linked=new Button("Open Linked");linked.getStyleClass().addAll("approved-button","approved-secondary-button");linked.setGraphic(IconFactory.compactIcon("link",14));linked.setOnAction(e->openLinked(row));detailDrawer.setActions(edit,linked);}else detailDrawer.setActions(edit);
+    }
+
+    private void closeEntryDetails(){detailRow=null;if(detailDrawer!=null)detailDrawer.hideDrawer();if(table!=null)table.getSelectionModel().clearSelection();}
 
     private void editRow(EntryRow row){ if(row==null)return; editingId=row.id; editingVersion=row.rowVersion; entryDate.setValue(LocalDate.parse(row.date.get())); description.setText(row.description.get()); referenceNo.setText(row.reference.get()); amount.setText(String.valueOf(row.amount.get())); paymentMode.setValue(row.paymentMode.get()); if(mode==Mode.BANK){ if(row.rawType.contains("DEPOSIT"))creditRadio.setSelected(true);else debitRadio.setSelected(true); if(!row.account.get().isBlank())bankAccount.setValue(row.account.get()); }else{expenseCategory.setValue(row.type.get()); if(!row.account.get().isBlank())expenseAccount.setValue(row.account.get());} saveButton.setText(mode==Mode.BANK?"Update Entry":"Update Expense"); showEntryDialog(); }
     private void deleteRow(EntryRow row){

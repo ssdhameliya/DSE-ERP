@@ -113,9 +113,6 @@ public class ReminderCenterController implements ScreenLifecycle {
                     if (reminderDetailPanel.isVisible() && detailRow == clicked) closeDetails();
                     else { table.getSelectionModel().select(clicked); showDetails(clicked); }
                     event.consume();
-                } else if (event.getClickCount() == 2) {
-                    edit(row.getItem());
-                    event.consume();
                 }
             });
 

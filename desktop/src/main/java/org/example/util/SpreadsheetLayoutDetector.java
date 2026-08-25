@@ -15,12 +15,10 @@ public final class SpreadsheetLayoutDetector {
     public static Layout detect(Workbook workbook, Collection<String> expectedFields) {
         DataFormatter formatter = new DataFormatter(Locale.getDefault());
         FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-        Set<String> expected = new HashSet<>();
-        if (expectedFields != null) expectedFields.stream().filter(Objects::nonNull)
-            .map(SpreadsheetLayoutDetector::normalize).filter(value -> !value.isBlank()).forEach(expected::add);
-
+        Set<String> expected = normalizedExpected(expectedFields);
         Layout best = null;
         int bestScore = Integer.MIN_VALUE;
+
         for (int sheetIndex = 0; sheetIndex < workbook.getNumberOfSheets(); sheetIndex++) {
             if (workbook.isSheetHidden(sheetIndex) || workbook.isSheetVeryHidden(sheetIndex)) continue;
             Sheet sheet = workbook.getSheetAt(sheetIndex);
@@ -29,20 +27,8 @@ public final class SpreadsheetLayoutDetector {
                 Row row = sheet.getRow(rowIndex);
                 List<String> headers = formattedCells(row, formatter, evaluator);
                 long nonBlank = headers.stream().filter(value -> !value.isBlank()).count();
-                // Minimal migration workbooks may legitimately contain a single
-                // mapped field. Prefer richer rows, but do not reject them.
                 if (nonBlank < 1) continue;
-                int matches = 0;
-                Set<String> distinct = new HashSet<>();
-                for (String header : headers) {
-                    String normalized = normalize(header);
-                    if (normalized.isBlank()) continue;
-                    distinct.add(normalized);
-                    if (expected.stream().anyMatch(field -> equivalent(field, normalized))) matches++;
-                }
-                int score = matches * 100 + distinct.size() * 4
-                    + Math.min(countFollowingDataRows(sheet, rowIndex), 20) - rowIndex;
-                if (matches == 0 && !expected.isEmpty()) score -= 80;
+                int score = scoreHeader(sheet, row, rowIndex, formatter, evaluator, expected);
                 if (score > bestScore) {
                     bestScore = score;
                     best = new Layout(sheetIndex, rowIndex, List.copyOf(headers));
@@ -53,10 +39,45 @@ public final class SpreadsheetLayoutDetector {
         return best;
     }
 
+    /**
+     * Returns the best matching tabular layout for every visible worksheet that
+     * contains enough of the requested headings to be treated as import data.
+     */
+    public static List<Layout> detectAll(Workbook workbook, Collection<String> expectedFields) {
+        DataFormatter formatter = new DataFormatter(Locale.getDefault());
+        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        Set<String> expected = normalizedExpected(expectedFields);
+        int minimumMatches = expected.isEmpty() ? 1 : (expected.size() >= 4 ? 4 : expected.size());
+        List<Layout> layouts = new ArrayList<>();
+
+        for (int sheetIndex = 0; sheetIndex < workbook.getNumberOfSheets(); sheetIndex++) {
+            if (workbook.isSheetHidden(sheetIndex) || workbook.isSheetVeryHidden(sheetIndex)) continue;
+            Sheet sheet = workbook.getSheetAt(sheetIndex);
+            Layout best = null;
+            int bestScore = Integer.MIN_VALUE;
+            int bestMatches = 0;
+            int lastCandidate = Math.min(sheet.getLastRowNum(), MAX_HEADER_SCAN_ROWS - 1);
+            for (int rowIndex = Math.max(0, sheet.getFirstRowNum()); rowIndex <= lastCandidate; rowIndex++) {
+                Row row = sheet.getRow(rowIndex);
+                List<String> headers = formattedCells(row, formatter, evaluator);
+                long nonBlank = headers.stream().filter(value -> !value.isBlank()).count();
+                if (nonBlank < 1) continue;
+                int matches = matchCount(headers, expected);
+                int score = scoreHeader(sheet, row, rowIndex, formatter, evaluator, expected);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatches = matches;
+                    best = new Layout(sheetIndex, rowIndex, List.copyOf(headers));
+                }
+            }
+            if (best != null && (expected.isEmpty() || bestMatches >= minimumMatches)) layouts.add(best);
+        }
+        return List.copyOf(layouts);
+    }
+
     public static String format(Cell cell, FormulaEvaluator evaluator) {
         return cell == null ? "" : new DataFormatter(Locale.getDefault()).formatCellValue(cell, evaluator).trim();
     }
-
 
     /** Returns the real Excel date when the cell is a date-formatted numeric/formula cell. */
     public static java.time.LocalDate dateValue(Cell cell, FormulaEvaluator evaluator) {
@@ -97,6 +118,38 @@ public final class SpreadsheetLayoutDetector {
         for (int index = first; index < row.getLastCellNum(); index++)
             if (!format(row.getCell(index), evaluator).isBlank()) return false;
         return true;
+    }
+
+    private static Set<String> normalizedExpected(Collection<String> expectedFields) {
+        Set<String> expected = new HashSet<>();
+        if (expectedFields != null) expectedFields.stream().filter(Objects::nonNull)
+            .map(SpreadsheetLayoutDetector::normalize).filter(value -> !value.isBlank()).forEach(expected::add);
+        return expected;
+    }
+
+    private static int scoreHeader(Sheet sheet, Row row, int rowIndex, DataFormatter formatter,
+                                   FormulaEvaluator evaluator, Set<String> expected) {
+        List<String> headers = formattedCells(row, formatter, evaluator);
+        int matches = matchCount(headers, expected);
+        Set<String> distinct = new HashSet<>();
+        for (String header : headers) {
+            String normalized = normalize(header);
+            if (!normalized.isBlank()) distinct.add(normalized);
+        }
+        int score = matches * 100 + distinct.size() * 4
+            + Math.min(countFollowingDataRows(sheet, rowIndex), 20) - rowIndex;
+        if (matches == 0 && !expected.isEmpty()) score -= 80;
+        return score;
+    }
+
+    private static int matchCount(List<String> headers, Set<String> expected) {
+        int matches = 0;
+        for (String header : headers) {
+            String normalized = normalize(header);
+            if (normalized.isBlank()) continue;
+            if (expected.stream().anyMatch(field -> equivalent(field, normalized))) matches++;
+        }
+        return matches;
     }
 
     private static List<String> formattedCells(Row row, DataFormatter formatter, FormulaEvaluator evaluator) {
