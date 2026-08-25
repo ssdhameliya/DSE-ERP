@@ -8089,3 +8089,23 @@
 /* 9.0.2 global register/detail-drawer contract. */
 .erp-detail-drawer-field { -fx-background-color: #f8fafc; }
 .erp-detail-drawer-actions { -fx-border-color: #e2e8f0; }
+
+/* 9.0.5 corrected global record-table selection palette.
+   Theme-owned on purpose: selected rows keep each cell's existing semantic
+   text colour while the row background is consistent across record tables. */
+.erp-table-profile-register .table-row-cell:filled:hover,
+.erp-table-profile-responsive .table-row-cell:filled:hover,
+.erp-table-profile-master .table-row-cell:filled:hover,
+.erp-table-profile-history .table-row-cell:filled:hover,
+.erp-table-profile-administration .table-row-cell:filled:hover {
+    -fx-background-color: #f7f2ff;
+}
+.erp-table-profile-register .table-row-cell:filled:selected,
+.erp-table-profile-responsive .table-row-cell:filled:selected,
+.erp-table-profile-master .table-row-cell:filled:selected,
+.erp-table-profile-history .table-row-cell:filled:selected,
+.erp-table-profile-administration .table-row-cell:filled:selected {
+    -fx-background-color: #eee8ff;
+    -fx-background-insets: 0;
+}
+

@@ -60,6 +60,8 @@ jobs:
         run: python scripts/audit-9.0.3-import-contract.py
       - name: Enforce 9.0.4 Bank reconciliation contract
         run: python scripts/audit-9.0.4-bank-reconciliation-contract.py
+      - name: Enforce 9.0.5 reconciliation/navigation UI contract
+        run: python scripts/audit-9.0.5-reconciliation-navigation-ui-contract.py
       - name: Verify final UI source contract
         shell: python
         run: |

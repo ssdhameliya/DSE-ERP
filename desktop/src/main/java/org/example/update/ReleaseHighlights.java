@@ -8,6 +8,18 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.5".equals(version)) {
+            return """
+                    DSE ERP 9.0.5
+                    • Match Transaction no longer preselects low-confidence candidates and now separates bank allocation from document settlement/residual status.
+                    • Purchase Recon and Bank/Expense linked navigation now deep-links to the exact Bank Statement transaction, with direct Bank Statement access from Purchase Recon.
+                    • Normal register/master/history/admin row selection uses the shared purple palette instead of legacy blue selection.
+                    • Purchase Return loads reliably on entry, defaults to all records and auto-applies search/date/supplier/status filters without an Apply Filters button.
+                    • Bank Statement History is a wider resizable split workspace and its Bank Account filter/import ownership comes from BANK ACCOUNT Master Data.
+                    • Bank/Expense Add/Edit dialogs use a balanced two-column workspace so available modal width is used cleanly.
+                    • Desktop and Spring Boot runtime version/build contracts are synchronized to 9.0.5.
+                    """.strip();
+        }
         if ("9.0.4".equals(version)) {
             return """
                     DSE ERP 9.0.4

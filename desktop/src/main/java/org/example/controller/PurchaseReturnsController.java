@@ -57,6 +57,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private List<Row> all = List.of();
     private Row selected;
     private final RegisterPageState pageState=new RegisterPageState(); private static final int PAGE_SIZE=25;
+    private boolean suppressAutoFilter;
 
     @FXML public void initialize() {
         installKpiIcons();
@@ -72,12 +73,14 @@ public class PurchaseReturnsController implements ScreenLifecycle {
         for (TableColumn<Row, Number> column : List.of(cTotal, cRefund)) column.setCellFactory(x -> moneyCell());
         cStatus.setCellFactory(x -> SemanticTableCells.status("return")); cRefundStatus.setCellFactory(x -> SemanticTableCells.status("refund"));
         installActions(); installRows(); configureDrawer();
-        dpFrom.setValue(BusinessClock.today().minusMonths(6)); dpTo.setValue(BusinessClock.today());
+        dpFrom.setValue(null); dpTo.setValue(null);
         org.example.util.PartySearchUi.install(supplier,"SUPPLIER","All Suppliers","purchase-returns-supplier-search");
         supplier.valueProperty().addListener((o, a, b) -> filter());
         status.valueProperty().addListener((o, a, b) -> filter());
         search.textProperty().addListener((o, a, b) -> filter());
-        load();
+        dpFrom.valueProperty().addListener((o,a,b)->filter());
+        dpTo.valueProperty().addListener((o,a,b)->filter());
+        javafx.application.Platform.runLater(this::load);
     }
 
     @SuppressWarnings("unchecked")
@@ -131,11 +134,11 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private void applyPage(ReturnApiClient.Page page){pageState.runApplying(()->{List<Row> loaded=new ArrayList<>();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())loaded.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));all=List.copyOf(loaded);pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());String selectedSupplier=supplier.getValue();org.example.util.PartySearchUi.preserveSelection(supplier,selectedSupplier,"All Suppliers");status.setItems(FXCollections.observableArrayList("All Status","PENDING","APPROVED","COMPLETED","PARTIAL","CANCELLED"));if(status.getValue()==null)status.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No purchase returns found","Adjust the filters or create a return from Purchase Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();});}
     private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));count.setText(String.valueOf(m.count()));if(monthCount!=null)monthCount.setText(String.valueOf(m.monthCount()));refund.setText(money(m.refundAmount()));average.setText(money(m.average()));}
     private void updatePageInfo(){pageInfo.setText(pageState.rangeWithPageText(PAGE_SIZE,all.size(),"returns"));RegisterUiSupport.updatePageNavigation(pageState,btnPrevPage,btnNextPage);}
-    @FXML private void filter(){if(pageState.isApplyingServerPage())return;pageState.reset();load();}
+    @FXML private void filter(){if(suppressAutoFilter||pageState.isApplyingServerPage())return;pageState.reset();load();}
     @FXML private void previousPage(){if(pageState.previous())load();}
     @FXML private void nextPage(){if(pageState.next())load();}
-    @FXML private void reset(){search.clear();supplier.setValue("All Suppliers");status.setValue("All Status");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());pageState.reset();load();}
-    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(search);if(reusedFromCache)load();}
+    @FXML private void reset(){suppressAutoFilter=true;try{search.clear();supplier.setValue("All Suppliers");status.setValue("All Status");dpFrom.setValue(null);dpTo.setValue(null);}finally{suppressAutoFilter=false;}pageState.reset();load();}
+    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(search);load();}
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("purchase-returns-");}
 
     @FXML private void create() { info("Create a purchase return from the Purchase Register so stock and supplier balances remain linked."); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }

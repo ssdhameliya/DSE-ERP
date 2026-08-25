@@ -26,6 +26,7 @@ import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.OwnedDialog;
+import org.example.util.OwnedChoiceDialog;
 import org.example.util.OwnedTextInputDialog;
 import org.example.util.PopupTableWorkspace;
 import org.example.util.SemanticTableCells;
@@ -41,10 +42,10 @@ public class BankStatementController implements ScreenLifecycle {
     @FXML private CheckBox chkSelectAll;
     @FXML private Button btnBulkReview,btnBulkIgnore,btnMoveExpense,btnMoveBankEntry;
     @FXML private ComboBox<BankStatementApiClient.BatchDto> cmbBatch;
-    @FXML private ComboBox<String> cmbStatus,cmbDirection,cmbHistoryStatus;
+    @FXML private ComboBox<String> cmbStatus,cmbDirection,cmbHistoryStatus,cmbHistoryAccount;
     @FXML private ComboBox<Integer> cmbPageSize;
     @FXML private DatePicker fromDate,toDate,historyFrom,historyTo;
-    @FXML private TextField txtSearch,txtHistorySearch,txtHistoryAccount;
+    @FXML private TextField txtSearch,txtHistorySearch;
     @FXML private TableView<Row> table;
     @FXML private TableView<BankStatementApiClient.BatchDto> tableHistory;
     @FXML private TableColumn<Row,String> colDate,colValueDate,colReference,colDescription,colStatus,colMatch;
@@ -56,6 +57,7 @@ public class BankStatementController implements ScreenLifecycle {
     @FXML private Label kpiTotal,kpiUnmatched,kpiSuggested,kpiMatched,kpiExpense,kpiCredits,kpiDebits,kpiReconciled,lblShowing,lblProgressText,lblBatchStatus,lblPage;
     @FXML private Label lblSelected,lblHistoryShowing,lblHistoryPage;
     @FXML private VBox statementHistoryDrawer;
+    @FXML private SplitPane statementWorkspace;
     @FXML private ProgressBar reconciliationProgress;
 
     private final BankStatementApiClient api = new BankStatementApiClient();
@@ -68,6 +70,12 @@ public class BankStatementController implements ScreenLifecycle {
     private Long pendingLinkedTransactionId;
     private int historyPage,historyTotalPages;
     private long historyTotalRows;
+    private final Map<String,String> historyAccountTokens=new LinkedHashMap<>();
+    private List<BankAccountOption> bankAccountOptions=List.of();
+
+    private record BankAccountOption(String accountNumber,String bankName){
+        @Override public String toString(){return accountNumber+(bankName==null||bankName.isBlank()?"":" - "+bankName);}
+    }
 
     @FXML public void initialize() {
         installIcons();
@@ -79,9 +87,11 @@ public class BankStatementController implements ScreenLifecycle {
         cmbPageSize.setValue(50);
         cmbHistoryStatus.setItems(FXCollections.observableArrayList("All Status","IMPORTED","PARTIALLY RECONCILED","FULLY RECONCILED"));
         cmbHistoryStatus.setValue("All Status");
+        configureBankAccountMaster();
         configureTable();
         configureBatchSelector();
         configureHistoryTable();
+        if(statementWorkspace!=null&&statementHistoryDrawer!=null)statementWorkspace.getItems().remove(statementHistoryDrawer);
         cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbPageSize.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
@@ -93,6 +103,7 @@ public class BankStatementController implements ScreenLifecycle {
         org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         LinkedRecordContext.Target target=LinkedRecordContext.consume("BANK_STATEMENT");
         if(target==null || target.recordId()==null) return;
+        prepareForLinkedTransactionNavigation();
         long transactionId=target.recordId().longValue();
         pendingLinkedTransactionId=transactionId;
         UiTaskExecutor.submitLatest("bank-statement-linked-record",
@@ -245,6 +256,18 @@ public class BankStatementController implements ScreenLifecycle {
         };
         cmbBatch.setCellFactory(factory);cmbBatch.setButtonCell(factory.call(null));
     }
+    private void configureBankAccountMaster(){
+        List<BankAccountOption> options=new ArrayList<>();historyAccountTokens.clear();
+        try{
+            for(var lookup:lookupService.getByType("BANK ACCOUNT")){
+                if(lookup==null||!lookup.isActive()||safe(lookup.getLookupValue()).isBlank())continue;
+                BankAccountOption option=new BankAccountOption(lookup.getLookupValue().trim(),safe(lookup.getDescription()).trim());
+                options.add(option);historyAccountTokens.put(option.toString(),option.accountNumber());
+            }
+        }catch(Exception ignored){}
+        bankAccountOptions=List.copyOf(options);
+        if(cmbHistoryAccount!=null){cmbHistoryAccount.getItems().setAll(options.stream().map(BankAccountOption::toString).toList());cmbHistoryAccount.setEditable(true);cmbHistoryAccount.setPromptText(options.isEmpty()?"Configure BANK ACCOUNT in Master Data":"All Bank Accounts");}
+    }
     private void configureHistoryTable(){
         if(tableHistory==null)return;
         colHistoryImported.setCellValueFactory(v->new SimpleStringProperty(BusinessClock.formatTimestamp(v.getValue().importedAt())));
@@ -256,10 +279,17 @@ public class BankStatementController implements ScreenLifecycle {
         tableHistory.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{btnOpenStatement.setDisable(b==null);updateDeleteButtons();});
         IconFactory.applyTableHeaderIcon(colHistoryImported,"calendar");IconFactory.applyTableHeaderIcon(colHistoryBank,"bank");IconFactory.applyTableHeaderIcon(colHistoryPeriod,"calendar");IconFactory.applyTableHeaderIcon(colHistoryStatus,"status");IconFactory.applyTableHeaderIcon(colHistoryRows,"quantity");
     }
-    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null)return;boolean show=!statementHistoryDrawer.isVisible();statementHistoryDrawer.setVisible(show);statementHistoryDrawer.setManaged(show);if(show){historyPage=0;loadStatementHistory();}}
-    @FXML private void closeStatementHistory(){if(statementHistoryDrawer!=null){statementHistoryDrawer.setVisible(false);statementHistoryDrawer.setManaged(false);}}
+    private boolean isStatementHistoryOpen(){return statementWorkspace!=null&&statementHistoryDrawer!=null&&statementWorkspace.getItems().contains(statementHistoryDrawer);}
+    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null||statementWorkspace==null)return;if(isStatementHistoryOpen()){closeStatementHistory();return;}statementWorkspace.getItems().add(statementHistoryDrawer);statementHistoryDrawer.setManaged(true);statementHistoryDrawer.setVisible(true);statementWorkspace.setDividerPositions(.58);historyPage=0;loadStatementHistory();}
+    @FXML private void closeStatementHistory(){if(statementWorkspace!=null&&statementHistoryDrawer!=null)statementWorkspace.getItems().remove(statementHistoryDrawer);}
+    private void prepareForLinkedTransactionNavigation(){
+        closeStatementHistory();
+        if(tableHistory!=null)tableHistory.getSelectionModel().clearSelection();
+        historyPage=0;
+        if(statementWorkspace!=null&&statementWorkspace.getItems().size()==1)statementWorkspace.setDividerPositions(1.0);
+    }
     @FXML private void searchStatementHistory(){historyPage=0;loadStatementHistory();}
-    @FXML private void resetStatementHistory(){txtHistorySearch.clear();txtHistoryAccount.clear();cmbHistoryStatus.setValue("All Status");historyFrom.setValue(null);historyTo.setValue(null);historyPage=0;loadStatementHistory();}
+    @FXML private void resetStatementHistory(){txtHistorySearch.clear();if(cmbHistoryAccount!=null){cmbHistoryAccount.setValue(null);cmbHistoryAccount.getEditor().clear();}cmbHistoryStatus.setValue("All Status");historyFrom.setValue(null);historyTo.setValue(null);historyPage=0;loadStatementHistory();}
     @FXML private void previousStatementHistoryPage(){if(historyPage>0){historyPage--;loadStatementHistory();}}
     @FXML private void nextStatementHistoryPage(){if(historyPage+1<historyTotalPages){historyPage++;loadStatementHistory();}}
     @FXML private void openSelectedHistory(){BankStatementApiClient.BatchDto selected=tableHistory==null?null:tableHistory.getSelectionModel().getSelectedItem();if(selected==null)return;closeStatementHistory();loadBatches(selected.id());}
@@ -286,7 +316,7 @@ public class BankStatementController implements ScreenLifecycle {
             String performedBy=user();
             UiTaskExecutor.submitSerial("bank-statement-delete-"+batch.id(),()->api.deleteBatch(batch.id(),"DELETE",performedBy),result->{
                 success("Bank Statement Deleted",result.message()+"\n\nTransactions removed: "+result.deletedTransactions()+"\nReconciliations reversed: "+result.reversedTransactions());
-                if(statementHistoryDrawer!=null&&statementHistoryDrawer.isVisible())loadStatementHistory();
+                if(isStatementHistoryOpen())loadStatementHistory();
                 if(cmbBatch!=null&&cmbBatch.getValue()!=null&&Objects.equals(cmbBatch.getValue().id(),batch.id()))cmbBatch.setValue(null);
                 loadBatches();
             },this::error);
@@ -295,10 +325,11 @@ public class BankStatementController implements ScreenLifecycle {
     private void loadStatementHistory(){
         if(tableHistory==null)return;org.example.util.OperationalUiSupport.showLoading(tableHistory,"Loading statement history…");
         String status=cmbHistoryStatus==null||cmbHistoryStatus.getValue()==null||cmbHistoryStatus.getValue().startsWith("All")?"":cmbHistoryStatus.getValue();
-        String account=txtHistoryAccount==null?"":safe(txtHistoryAccount.getText()).trim(),q=txtHistorySearch==null?"":safe(txtHistorySearch.getText()).trim();
+        String account=historyAccountFilter(),q=txtHistorySearch==null?"":safe(txtHistorySearch.getText()).trim();
         String from=dateText(historyFrom==null?null:historyFrom.getValue()),to=dateText(historyTo==null?null:historyTo.getValue());int requested=historyPage;
         UiTaskExecutor.submitLatest("bank-statement-history",()->api.batchPage(requested,50,account,status,from,to,q),page->{historyPage=page.page();historyTotalPages=page.totalPages();historyTotalRows=page.totalRows();tableHistory.getItems().setAll(page.rows()==null?List.of():page.rows());if(tableHistory.getItems().isEmpty())org.example.util.OperationalUiSupport.showEmpty(tableHistory,"No statement imports found","Adjust the history filters or import a new statement.");updateHistoryFooter();},failure->{org.example.util.OperationalUiSupport.showError(tableHistory,"Statement history could not load",failure);error(failure);});
     }
+    private String historyAccountFilter(){if(cmbHistoryAccount==null)return "";String text=cmbHistoryAccount.isEditable()?safe(cmbHistoryAccount.getEditor().getText()).trim():safe(cmbHistoryAccount.getValue()).trim();if(text.isBlank())return "";return historyAccountTokens.getOrDefault(text,text);}
     private void updateHistoryFooter(){int shown=tableHistory==null?0:tableHistory.getItems().size();long start=shown==0?0:(long)historyPage*50+1,end=shown==0?0:start+shown-1;if(lblHistoryShowing!=null)lblHistoryShowing.setText(shown==0?"Showing 0 statements":"Showing "+start+"–"+end+" of "+historyTotalRows);if(lblHistoryPage!=null)lblHistoryPage.setText(historyTotalPages<=0?"Page 0 of 0":"Page "+(historyPage+1)+" of "+historyTotalPages);if(btnHistoryPrev!=null)btnHistoryPrev.setDisable(historyPage<=0);if(btnHistoryNext!=null)btnHistoryNext.setDisable(historyTotalPages<=0||historyPage+1>=historyTotalPages);}
     private static String batchBankLabel(BankStatementApiClient.BatchDto b){String account=safe(b.bankAccount());String tail=account.length()>4?"****"+account.substring(account.length()-4):account;return safe(b.bankName())+(tail.isBlank()?"":" • "+tail);}
     private static String formatBatchLabel(BankStatementApiClient.BatchDto b){return batchBankLabel(b)+" • "+safe(b.statementFrom())+" to "+safe(b.statementTo())+" • "+safe(b.status());}
@@ -308,24 +339,27 @@ public class BankStatementController implements ScreenLifecycle {
         FileChooser f=new FileChooser();f.setTitle("Import Bank Statement CSV");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV","*.csv"));
         File file=f.showOpenDialog(table.getScene().getWindow()); if(file==null)return;
         String importedBy=user();
-        UiTaskExecutor.submitSerial(
-            "bank-statement-import",
-            () -> {
-                var parsed=parser.parse(file.toPath());
-                var request=new BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,false,parsed.rows());
-                return api.importStatement(request);
-            },
-            result -> {
-                if(result.alreadyImported() && result.batch()!=null){
-                    Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"This exact bank statement was already imported on "+BusinessClock.formatTimestamp(result.batch().importedAt())+".\n\n"+formatBatchLabel(result.batch())+"\n\nOpen the existing statement instead?",ButtonType.YES,ButtonType.NO);
-                    a.setHeaderText("Bank Statement Already Imported");
-                    if(a.showAndWait().orElse(ButtonType.NO)==ButtonType.YES)loadBatches(result.batch().id());
-                }else if(result.batch()!=null){success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows());loadBatches(result.batch().id());}
-                else info("No new transactions","All transactions in this statement were already present, so no new statement batch was created.");
-            },
-            this::error
-        );
+        UiTaskExecutor.submitLatest("bank-statement-parse",()->parser.parse(file.toPath()),parsed->{
+            BankAccountOption account=resolveBankAccount(parsed.bankName(),parsed.accountNumber());
+            if(account==null)return;
+            BankStatementApiClient.ImportRequest request=new BankStatementApiClient.ImportRequest(
+                safe(account.bankName()).isBlank()?parsed.bankName():account.bankName(),account.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),importedBy,false,parsed.rows());
+            UiTaskExecutor.submitSerial("bank-statement-import",()->api.importStatement(request),this::handleImportResult,this::error);
+        },this::error);
     }
+    private void handleImportResult(BankStatementApiClient.ImportResult result){
+        if(result.alreadyImported()&&result.batch()!=null){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"This exact bank statement was already imported on "+BusinessClock.formatTimestamp(result.batch().importedAt())+".\n\n"+formatBatchLabel(result.batch())+"\n\nOpen the existing statement instead?",ButtonType.YES,ButtonType.NO);a.setHeaderText("Bank Statement Already Imported");if(a.showAndWait().orElse(ButtonType.NO)==ButtonType.YES)loadBatches(result.batch().id());}
+        else if(result.batch()!=null){success("Bank statement imported","Imported: "+result.importedRows()+"\nOverlapping duplicates skipped: "+result.duplicateRows());loadBatches(result.batch().id());}
+        else info("No new transactions","All transactions in this statement were already present, so no new statement batch was created.");
+    }
+    private BankAccountOption resolveBankAccount(String parsedBank,String parsedAccount){
+        if(bankAccountOptions.isEmpty())configureBankAccountMaster();
+        if(bankAccountOptions.isEmpty()){info("Bank Account required","Configure at least one active BANK ACCOUNT in Master Data before importing a statement.");return null;}
+        String incoming=compactAccount(parsedAccount);
+        if(!incoming.isBlank())for(BankAccountOption option:bankAccountOptions)if(compactAccount(option.accountNumber()).equals(incoming))return option;
+        ChoiceDialog<BankAccountOption> dialog=new OwnedChoiceDialog<>(bankAccountOptions.getFirst(),bankAccountOptions);dialog.setTitle("Select Bank Account");dialog.setHeaderText("Confirm the Bank Account for this statement");String detected=(safe(parsedBank)+" "+safe(parsedAccount)).trim();dialog.setContentText(detected.isBlank()?"The statement did not expose a recognized account. Select the account:":"Detected: "+detected+"\nSelect the matching Master Data account:");return dialog.showAndWait().orElse(null);
+    }
+    private static String compactAccount(String value){return safe(value).replaceAll("[^A-Za-z0-9]","").toUpperCase(Locale.ROOT);}
     private void loadBatches(){loadBatches(null);}
 
     private void loadBatches(Long preferredBatchId){
@@ -557,12 +591,12 @@ public class BankStatementController implements ScreenLifecycle {
         double bankValue=bankAmount(bankRow.dto);
         double tolerance=bankMatchRoundingTolerance();
         List<CandidateRow> rows=new ArrayList<>();
-        double remaining=bankValue;
-        for(var candidate:candidates){
-            double allocation=Math.min(candidate.outstanding(),Math.max(0,remaining));
-            CandidateRow row=new CandidateRow(candidate,allocation);
+        for(int i=0;i<candidates.size();i++){
+            var candidate=candidates.get(i);
+            boolean autoSelect=i==0&&candidate.confidence()>=75&&Math.abs(candidate.outstanding()-bankValue)<=.01;
+            double allocation=autoSelect?bankValue:0d;
+            CandidateRow row=new CandidateRow(candidate,allocation,autoSelect);
             rows.add(row);
-            remaining-=allocation;
         }
 
         TableView<CandidateRow> candidatesTable=new TableView<>(FXCollections.observableArrayList(rows));
@@ -599,13 +633,18 @@ public class BankStatementController implements ScreenLifecycle {
         TableColumn<CandidateRow,Double> allocation=new TableColumn<>("Allocation");
         allocation.setCellValueFactory(v->v.getValue().allocation.asObject());
         allocation.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
-        allocation.setOnEditCommit(e->{e.getRowValue().allocation.set(e.getNewValue()==null?0:e.getNewValue());e.getRowValue().selected.set(true);});
+        allocation.setOnEditCommit(e->{double value=e.getNewValue()==null?0:e.getNewValue();e.getRowValue().allocation.set(value);e.getRowValue().selected.set(value>.0001);});
         allocation.setPrefWidth(110);
         candidatesTable.getColumns().setAll(selected,score,type,document,party,date,total,paid,outstanding,allocation);
         CheckBox selectAllCandidates=new CheckBox();
         selectAllCandidates.getProperties().put("erp.icon.skip",true);
         selectAllCandidates.setTooltip(new Tooltip("Select all visible match candidates"));
-        selectAllCandidates.setOnAction(e->{ rows.forEach(r->r.selected.set(selectAllCandidates.isSelected())); candidatesTable.refresh(); });
+        selectAllCandidates.setOnAction(e->{
+            if(!selectAllCandidates.isSelected()){rows.forEach(r->{r.allocation.set(0);r.selected.set(false);});candidatesTable.refresh();return;}
+            double left=bankValue;
+            for(CandidateRow r:rows){double value=Math.min(r.dto.outstanding(),Math.max(0,left));r.allocation.set(value);r.selected.set(value>.0001);left-=value;if(left<=.01)left=0;}
+            candidatesTable.refresh();
+        });
         rows.forEach(r->r.selected.addListener((o,a,b)->selectAllCandidates.setSelected(!rows.isEmpty()&&rows.stream().allMatch(x->x.selected.get()))));
         selected.setGraphic(selectAllCandidates);selected.getProperties().put("erp-header-preserve",true);
         IconFactory.applyTableHeaderIcon(score,"status");IconFactory.applyTableHeaderIcon(type,"category");
@@ -617,30 +656,36 @@ public class BankStatementController implements ScreenLifecycle {
         Label allocatedValue=PopupTableWorkspace.metricValue("0.00","complete");
         Label remainingValue=PopupTableWorkspace.metricValue(money(bankValue),"warning");
         Label roundOffValue=PopupTableWorkspace.metricValue("₹ 0.00","warning");
-        Label matchStatusValue=PopupTableWorkspace.metricValue("Partially Matched","warning");
+        Label documentResidualValue=PopupTableWorkspace.metricValue("₹ 0.00","warning");
+        Label matchStatusValue=PopupTableWorkspace.metricValue("Select a Transaction","warning");
         Label selectedStatus=PopupTableWorkspace.footerText("0 selected");
         Runnable refreshStatus=()->{
             double allocated=rows.stream().filter(r->r.selected.get()).mapToDouble(r->r.allocation.get()).sum();
             double remainingAmount=bankValue-allocated;
             double roundOff=rows.stream().filter(r->r.selected.get()).mapToDouble(r->roundingFor(r.dto.outstanding(),r.allocation.get(),tolerance)).sum();
+            double documentResidual=rows.stream().filter(r->r.selected.get()).mapToDouble(r->{double ro=roundingFor(r.dto.outstanding(),r.allocation.get(),tolerance);return Math.max(0d,Math.round((r.dto.outstanding()-r.allocation.get()-ro)*100d)/100d);}).sum();
             long selectedRows=rows.stream().filter(r->r.selected.get()).count();
             allocatedValue.setText("₹ "+money(allocated));
             remainingValue.setText("₹ "+money(remainingAmount));
             roundOffValue.setText(signedMoney(roundOff));
-            boolean complete=Math.abs(remainingAmount)<=.01;
-            matchStatusValue.setText(complete?(Math.abs(roundOff)>.0001?"Full Match + Round-off":"Fully Allocated"):"Partially Matched");
+            documentResidualValue.setText("₹ "+money(documentResidual));
+            boolean bankComplete=Math.abs(remainingAmount)<=.01;
+            boolean documentsComplete=selectedRows>0&&documentResidual<=.01;
+            String state=selectedRows==0?"Select a Transaction":!bankComplete?"Bank Not Fully Allocated":documentsComplete?(Math.abs(roundOff)>.0001?"Full Match + Round-off":"Full Match"):"Document Remains Partial";
+            matchStatusValue.setText(state);
             matchStatusValue.getStyleClass().removeAll("erp-popup-metric-success","erp-popup-metric-warning");
-            matchStatusValue.getStyleClass().add(complete?"erp-popup-metric-success":"erp-popup-metric-warning");
-            selectedStatus.setText(selectedRows+" selected  •  Allocated ₹ "+money(allocated)+"  •  Round-off "+signedMoney(roundOff)+"  •  Remaining ₹ "+money(remainingAmount));
+            matchStatusValue.getStyleClass().add(bankComplete&&documentsComplete?"erp-popup-metric-success":"erp-popup-metric-warning");
+            selectedStatus.setText(selectedRows+" selected  •  Bank allocated ₹ "+money(allocated)+"  •  Round-off "+signedMoney(roundOff)+"  •  Bank remaining ₹ "+money(remainingAmount)+"  •  Document residual ₹ "+money(documentResidual));
         };
-        rows.forEach(r->{r.selected.addListener((o,a,b)->refreshStatus.run());r.allocation.addListener((o,a,b)->refreshStatus.run());});
+        rows.forEach(r->{r.selected.addListener((o,a,b)->{if(Boolean.TRUE.equals(b)&&r.allocation.get()<=.0001){double used=rows.stream().filter(x->x!=r&&x.selected.get()).mapToDouble(x->x.allocation.get()).sum();r.allocation.set(Math.min(r.dto.outstanding(),Math.max(0,bankValue-used)));}else if(Boolean.FALSE.equals(b))r.allocation.set(0);refreshStatus.run();});r.allocation.addListener((o,a,b)->refreshStatus.run());});
         refreshStatus.run();
         HBox metrics=PopupTableWorkspace.metricStrip(
             PopupTableWorkspace.metricCard("Bank Amount","₹ "+money(bankValue),"bank"),
             PopupTableWorkspace.metricCard("Allocated",allocatedValue,"complete"),
             PopupTableWorkspace.metricCard("Round-off",roundOffValue,"warning"),
-            PopupTableWorkspace.metricCard("Remaining",remainingValue,"warning"),
-            PopupTableWorkspace.metricCard("Match Status",matchStatusValue,"warning")
+            PopupTableWorkspace.metricCard("Bank Remaining",remainingValue,"warning"),
+            PopupTableWorkspace.metricCard("Document Residual",documentResidualValue,"balance"),
+            PopupTableWorkspace.metricCard("Settlement Status",matchStatusValue,"warning")
         );
         Label bank=new Label(safe(bankRow.dto.transactionDate())+"  •  "+safe(bankRow.dto.reference())+"  •  "+safe(bankRow.dto.description()));
         bank.setWrapText(true);bank.getStyleClass().add("bank-dialog-help");
@@ -663,6 +708,8 @@ public class BankStatementController implements ScreenLifecycle {
             }
             if(allocations.isEmpty()){info("Match Transaction","Select at least one eligible Sale, Purchase or Return refund transaction.");return;}
             if(Math.abs(allocated-bankValue)>.01){info("Allocation needs attention","Allocated amount must equal the bank amount. Remaining: "+money(bankValue-allocated));return;}
+            double documentResidual=rows.stream().filter(r->r.selected.get()).mapToDouble(r->{double ro=roundingFor(r.dto.outstanding(),r.allocation.get(),tolerance);return Math.max(0d,Math.round((r.dto.outstanding()-r.allocation.get()-ro)*100d)/100d);}).sum();
+            if(documentResidual>.01){Alert partial=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Bank allocation: ₹ "+money(allocated)+"\nDocument residual after this match: ₹ "+money(documentResidual)+"\n\nThis will leave one or more documents PARTIAL. Continue only if this bank transaction is genuinely a partial settlement.",ButtonType.CANCEL,new ButtonType("Confirm Partial Settlement",ButtonBar.ButtonData.OK_DONE));partial.setHeaderText("Partial Document Settlement");Optional<ButtonType> choice=partial.showAndWait();if(choice.isEmpty()||choice.get().getButtonData()!=ButtonBar.ButtonData.OK_DONE)return;}
             confirmAllocations(bankRow,allocations);
         });
     }
@@ -911,9 +958,9 @@ public class BankStatementController implements ScreenLifecycle {
         final DoubleProperty confidence=new SimpleDoubleProperty();
         final StringProperty type=new SimpleStringProperty(),document=new SimpleStringProperty(),party=new SimpleStringProperty(),date=new SimpleStringProperty();
         final DoubleProperty total=new SimpleDoubleProperty(),paid=new SimpleDoubleProperty(),outstanding=new SimpleDoubleProperty(),allocation=new SimpleDoubleProperty();
-        CandidateRow(BankStatementApiClient.CandidateDto dto,double allocation){
+        CandidateRow(BankStatementApiClient.CandidateDto dto,double allocation,boolean selectedInitially){
             this.dto=dto;confidence.set(dto.confidence());type.set(safe(dto.type()));document.set(safe(dto.documentNo()));party.set(safe(dto.partyName()));date.set(safe(dto.documentDate()));
-            total.set(dto.totalAmount());paid.set(dto.paidAmount());outstanding.set(dto.outstanding());this.allocation.set(allocation);selected.set(allocation>0);
+            total.set(dto.totalAmount());paid.set(dto.paidAmount());outstanding.set(dto.outstanding());this.allocation.set(allocation);selected.set(selectedInitially);
         }
     }
 }

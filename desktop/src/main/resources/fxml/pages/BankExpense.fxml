@@ -23,27 +23,34 @@
   </HBox>
 
   <HBox fx:id="workspaceRow" spacing="12" VBox.vgrow="ALWAYS">
-    <VBox fx:id="entryFormPanel" prefWidth="430" minWidth="410" maxWidth="520" spacing="8" styleClass="finance-entry-card">
+    <VBox fx:id="entryFormPanel" prefWidth="760" minWidth="700" maxWidth="860" spacing="10" styleClass="finance-entry-card,finance-entry-dialog-card">
       <Label fx:id="formTitle" text="Add Bank Entry" styleClass="finance-section-title"/>
-      <Label text="Date *" styleClass="finance-field-label"/><DatePicker fx:id="entryDate" maxWidth="Infinity"/>
-      <VBox fx:id="bankOnlyFields" spacing="8">
-        <Label text="Account *" styleClass="finance-field-label"/><ComboBox fx:id="bankAccount" maxWidth="Infinity"/>
-        <Label text="Type *" styleClass="finance-field-label"/>
-        <HBox spacing="12"><RadioButton fx:id="creditRadio" text="Deposit (Credit)"/><RadioButton fx:id="debitRadio" text="Withdrawal (Debit)"/></HBox>
-      </VBox>
-      <VBox fx:id="expenseOnlyFields" spacing="8" visible="false" managed="false">
-        <Label text="Category *" styleClass="finance-field-label"/><ComboBox fx:id="expenseCategory" editable="false" maxWidth="Infinity"/>
-        <Label text="Account *" styleClass="finance-field-label"/><ComboBox fx:id="expenseAccount" maxWidth="Infinity"/>
-      </VBox>
-      <Label text="Payment Mode *" styleClass="finance-field-label"/><ComboBox fx:id="paymentMode" maxWidth="Infinity"/>
-      <Label text="Reference No." styleClass="finance-field-label"/><TextField fx:id="referenceNo" promptText="Enter reference / cheque no."/>
-      <Label text="Description *" styleClass="finance-field-label"/><TextArea fx:id="description" promptText="Enter description" prefRowCount="3" wrapText="true"/>
-      <Label text="Amount *" styleClass="finance-field-label"/><TextField fx:id="amount" promptText="₹   Enter amount"/>
-      <VBox fx:id="billBox" spacing="5" visible="false" managed="false">
-        <Label text="Upload Bill (Optional)" styleClass="finance-field-label"/>
-        <HBox spacing="8"><Button text="Choose Bill" onAction="#chooseBill" styleClass="approved-button,approved-secondary-button"/><Label fx:id="billName" text="No file selected" styleClass="finance-file-name" HBox.hgrow="ALWAYS"/></HBox>
-      </VBox>
-      <Region VBox.vgrow="ALWAYS"/>
+      <HBox spacing="14" VBox.vgrow="ALWAYS">
+        <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="0" styleClass="finance-entry-column,finance-entry-primary-column">
+          <Label text="Date *" styleClass="finance-field-label"/><DatePicker fx:id="entryDate" maxWidth="Infinity"/>
+          <VBox fx:id="bankOnlyFields" spacing="8">
+            <Label text="Account *" styleClass="finance-field-label"/><ComboBox fx:id="bankAccount" maxWidth="Infinity"/>
+            <Label text="Type *" styleClass="finance-field-label"/>
+            <HBox spacing="12"><RadioButton fx:id="creditRadio" text="Deposit (Credit)"/><RadioButton fx:id="debitRadio" text="Withdrawal (Debit)"/></HBox>
+          </VBox>
+          <VBox fx:id="expenseOnlyFields" spacing="8" visible="false" managed="false">
+            <Label text="Category *" styleClass="finance-field-label"/><ComboBox fx:id="expenseCategory" editable="false" maxWidth="Infinity"/>
+            <Label text="Account *" styleClass="finance-field-label"/><ComboBox fx:id="expenseAccount" maxWidth="Infinity"/>
+          </VBox>
+          <Label text="Payment Mode *" styleClass="finance-field-label"/><ComboBox fx:id="paymentMode" maxWidth="Infinity"/>
+          <Region VBox.vgrow="ALWAYS"/>
+        </VBox>
+        <VBox spacing="8" HBox.hgrow="ALWAYS" minWidth="0" styleClass="finance-entry-column,finance-entry-secondary-column">
+          <Label text="Reference No." styleClass="finance-field-label"/><TextField fx:id="referenceNo" promptText="Enter reference / cheque no."/>
+          <Label text="Description *" styleClass="finance-field-label"/><TextArea fx:id="description" promptText="Enter description" prefRowCount="4" wrapText="true" VBox.vgrow="ALWAYS"/>
+          <Label text="Amount *" styleClass="finance-field-label"/><TextField fx:id="amount" promptText="₹   Enter amount"/>
+          <VBox fx:id="billBox" spacing="5" visible="false" managed="false">
+            <Label text="Upload Bill (Optional)" styleClass="finance-field-label"/>
+            <HBox spacing="8"><Button text="Choose Bill" onAction="#chooseBill" styleClass="approved-button,approved-secondary-button"/><Label fx:id="billName" text="No file selected" styleClass="finance-file-name" HBox.hgrow="ALWAYS"/></HBox>
+          </VBox>
+          <Region VBox.vgrow="ALWAYS"/>
+        </VBox>
+      </HBox>
       <HBox spacing="8"><Button fx:id="saveButton" text="Save Entry" onAction="#saveEntry" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-primary-button"/><Button text="Clear" onAction="#clearForm" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/></HBox>
     </VBox>
 

@@ -39,8 +39,9 @@
   </top>
 
   <center>
-    <HBox spacing="10" styleClass="bank-recon-workspace">
-      <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="bank-recon-main-panel">
+    <SplitPane fx:id="statementWorkspace" dividerPositions="1" styleClass="bank-recon-workspace,bank-statement-history-split">
+      <items>
+      <VBox spacing="10" styleClass="bank-recon-main-panel">
         <VBox spacing="8" styleClass="bank-recon-filter-panel">
           <HBox spacing="8" alignment="CENTER_LEFT">
             <TextField fx:id="txtSearch" promptText="Search narration, reference, amount..." HBox.hgrow="ALWAYS" onAction="#applyFilters"/>
@@ -102,11 +103,11 @@
         </HBox>
       </VBox>
 
-      <VBox fx:id="statementHistoryDrawer" visible="false" managed="false" prefWidth="500" minWidth="430" maxWidth="560" spacing="10" styleClass="erp-detail-drawer-card,bank-statement-history-drawer">
+      <VBox fx:id="statementHistoryDrawer" prefWidth="720" minWidth="620" maxWidth="850" spacing="10" styleClass="erp-detail-drawer-card,bank-statement-history-drawer">
         <HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="historyIcon" styleClass="erp-page-header-icon"/><VBox><Label text="Bank Statement History" styleClass="section-title"/><Label text="Search and open any previous import without loading the full history into the selector." wrapText="true" styleClass="muted-label"/></VBox><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseHistory" text="Close" onAction="#closeStatementHistory" styleClass="approved-button,approved-secondary-button"/></HBox>
         <TextField fx:id="txtHistorySearch" promptText="Search bank, account, filename or imported by..." onAction="#searchStatementHistory"/>
         <GridPane hgap="8" vgap="8"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
-          <VBox spacing="2"><Label text="Bank / Account" styleClass="bank-recon-field-caption"/><TextField fx:id="txtHistoryAccount" promptText="Bank name or account digits"/></VBox>
+          <VBox spacing="2"><Label text="Bank / Account" styleClass="bank-recon-field-caption"/><ComboBox fx:id="cmbHistoryAccount" editable="true" promptText="All Bank Accounts" onAction="#searchStatementHistory" maxWidth="Infinity"/></VBox>
           <VBox GridPane.columnIndex="1" spacing="2"><Label text="Status" styleClass="bank-recon-field-caption"/><ComboBox fx:id="cmbHistoryStatus" maxWidth="Infinity"/></VBox>
           <VBox GridPane.rowIndex="1" spacing="2"><Label text="Statement From" styleClass="bank-recon-field-caption"/><DatePicker fx:id="historyFrom" maxWidth="Infinity"/></VBox>
           <VBox GridPane.rowIndex="1" GridPane.columnIndex="1" spacing="2"><Label text="Statement To" styleClass="bank-recon-field-caption"/><DatePicker fx:id="historyTo" maxWidth="Infinity"/></VBox>
@@ -116,8 +117,8 @@
         <HBox alignment="CENTER_LEFT" spacing="8"><Label fx:id="lblHistoryShowing" text="Showing 0 statements" styleClass="finance-showing-label"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnHistoryPrev" text="Previous" onAction="#previousStatementHistoryPage" styleClass="approved-button,approved-secondary-button"/><Label fx:id="lblHistoryPage" text="Page 0 of 0" styleClass="finance-showing-label"/><Button fx:id="btnHistoryNext" text="Next" onAction="#nextStatementHistoryPage" styleClass="approved-button,approved-secondary-button"/></HBox>
         <HBox spacing="8"><Button fx:id="btnHistoryDelete" text="Delete Statement" onAction="#deleteSelectedHistory" disable="true" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/><Button fx:id="btnOpenStatement" text="Open Statement" onAction="#openSelectedHistory" disable="true" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/></HBox>
       </VBox>
-
-    </HBox>
+      </items>
+    </SplitPane>
   </center>
   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 </BorderPane>

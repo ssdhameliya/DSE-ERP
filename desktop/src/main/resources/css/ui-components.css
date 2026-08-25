@@ -9677,3 +9677,30 @@
 .label.erp-field-label-colour-pink   { -fx-text-fill: #db2777; }
 .label.erp-field-label-colour-teal   { -fx-text-fill: #0f766e; }
 .label.erp-field-label-colour-indigo { -fx-text-fill: #4f46e5; }
+
+/* 9.0.5 global record-table selection contract.
+   Palette/state colours live in light-theme.css and dark-theme.css because
+   ThemeManager loads those sheets last. Keeping selected text colours out of
+   this shared geometry sheet prevents light-theme text colours leaking into
+   dark mode. */
+
+/* 9.0.5 Bank / Expense entry dialogs use both columns instead of leaving an
+   unused right side in the modal workspace. */
+.finance-entry-dialog-card {
+    -fx-padding: 16;
+    -fx-min-width: 700px;
+    -fx-pref-width: 760px;
+    -fx-max-width: 860px;
+}
+.finance-entry-dialog-card .finance-entry-column {
+    -fx-background-color: rgba(124, 58, 237, 0.035);
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: rgba(124, 58, 237, 0.12);
+    -fx-padding: 12;
+}
+.root.dark .finance-entry-dialog-card .finance-entry-column,
+.root.theme-dark .finance-entry-dialog-card .finance-entry-column {
+    -fx-background-color: rgba(139, 92, 246, 0.055);
+    -fx-border-color: rgba(167, 139, 250, 0.16);
+}
