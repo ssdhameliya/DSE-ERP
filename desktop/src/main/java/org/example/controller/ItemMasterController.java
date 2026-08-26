@@ -284,10 +284,23 @@ public class ItemMasterController implements ScreenLifecycle {
             ThemeManager.applyTheme(scene);
             stage.setScene(scene);
             stage.showAndWait();
+            Item saved=controller.getSavedResult();
             loadItems();
+            if(saved!=null){
+                org.example.util.ToastManager.success(tableItems,
+                        controller.wasSavedAsCreate()?"Item Created":"Item Updated",
+                        saved.getItemCode()+" • "+saved.getDescription()+(controller.wasSavedAsCreate()?" was added successfully.":" was updated successfully."));
+                javafx.application.Platform.runLater(()->selectSavedItem(saved.getItemCode()));
+            }
         } catch (Exception e) {
             showError("Could not open the item dialog: " + e.getMessage());
         }
+    }
+
+    private void selectSavedItem(String code){
+        if(code==null||code.isBlank())return;
+        Item match=items.stream().filter(i->code.equalsIgnoreCase(i.getItemCode())).findFirst().orElse(null);
+        if(match!=null){tableItems.getSelectionModel().select(match);tableItems.scrollTo(match);showDetails(match);}
     }
 
     @FXML

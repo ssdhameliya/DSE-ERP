@@ -78,6 +78,14 @@ public class QuotationService {
     }
 
     @Transactional(readOnly=true)
+    public List<String> sourceChoices(){
+        if(!(CurrentUser.hasPermission("QUOTATION.VIEW")||CurrentUser.hasPermission("QUOTATION.CREATE")||CurrentUser.hasPermission("QUOTATION.EDIT")))
+            throw new SecurityException("Quotation Source requires Quotation access");
+        List<String> rows=jdbc.query("SELECT TRIM(COALESCE(l.lookup_value,'')) FROM lookup_master l JOIN master_category c ON UPPER(TRIM(c.category_code))='QUOTATION_SOURCE' WHERE COALESCE(c.is_active,1)<>0 AND COALESCE(l.is_active,1)<>0 AND UPPER(TRIM(l.lookup_type)) IN (UPPER(TRIM(c.category_name)),UPPER(TRIM(c.category_code))) ORDER BY COALESCE(l.display_order,0),TRIM(COALESCE(l.lookup_value,''))",(r,i)->r.getString(1));
+        return rows.stream().filter(v->v!=null&&!v.isBlank()).distinct().toList();
+    }
+
+    @Transactional(readOnly=true)
     public List<QuotationDtos.ItemChoiceDto> itemChoices(String query,int limit){
         if(!(CurrentUser.hasPermission("QUOTATION.CREATE")||CurrentUser.hasPermission("QUOTATION.EDIT")))
             throw new SecurityException("Quotation item search requires QUOTATION.CREATE or QUOTATION.EDIT permission");
@@ -272,7 +280,7 @@ public class QuotationService {
     private String requireQuotationSource(String value){
         String source=trim(value);
         if(source==null)throw new IllegalArgumentException("Quotation Source is required and must be selected from Master Data.");
-        Long count=jdbc.queryForObject("SELECT COUNT(*) FROM lookup_master l JOIN master_category c ON UPPER(TRIM(l.lookup_type))=UPPER(TRIM(c.category_name)) WHERE UPPER(TRIM(c.category_code))='QUOTATION_SOURCE' AND COALESCE(c.is_active,1)<>0 AND COALESCE(l.is_active,1)<>0 AND UPPER(TRIM(l.lookup_value))=UPPER(TRIM(?))",Long.class,source);
+        Long count=jdbc.queryForObject("SELECT COUNT(*) FROM lookup_master l JOIN master_category c ON UPPER(TRIM(c.category_code))='QUOTATION_SOURCE' WHERE COALESCE(c.is_active,1)<>0 AND COALESCE(l.is_active,1)<>0 AND UPPER(TRIM(l.lookup_type)) IN (UPPER(TRIM(c.category_name)),UPPER(TRIM(c.category_code))) AND UPPER(TRIM(l.lookup_value))=UPPER(TRIM(?))",Long.class,source);
         if(count==null||count==0)throw new IllegalArgumentException("Quotation Source '"+source+"' is not an active QUOTATION SOURCE Master value.");
         return source;
     }

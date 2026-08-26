@@ -254,9 +254,7 @@ public class ImportController {
         );
 
         cmbImportModule.getSelectionModel().selectFirst();
-        cmbImportMode.setItems(FXCollections.observableArrayList(
-            "Update non-blank fields (recommended)", "Create new only", "Create or update", "Skip existing"));
-        cmbImportMode.getSelectionModel().selectFirst();
+        configureImportModeForModule(cmbImportModule.getValue());
 
         String requestedModule = ImportScreenContext.consume();
 
@@ -266,6 +264,7 @@ public class ImportController {
         ) {
             cmbImportModule.setValue(requestedModule);
         }
+        configureImportModeForModule(cmbImportModule.getValue());
 
         configureIcons();
         configurePreviewTable();
@@ -280,8 +279,7 @@ public class ImportController {
 
         cmbImportModule.valueProperty().addListener(
             (observable, oldValue, newValue) -> {
-                boolean fixedDuplicatePolicy = "Purchase Recon".equals(newValue) || "Bank Statement".equals(newValue);
-                if (cmbImportMode != null) cmbImportMode.setDisable(fixedDuplicatePolicy);
+                configureImportModeForModule(newValue);
 
                 if (rebuildingMapping || selectedFile == null) {
                     return;
@@ -291,7 +289,6 @@ public class ImportController {
                 reloadSelectedWorkbookForModule();
             }
         );
-        cmbImportMode.setDisable("Purchase Recon".equals(cmbImportModule.getValue()) || "Bank Statement".equals(cmbImportModule.getValue()));
         cmbImportMode.valueProperty().addListener((observable, oldValue, newValue) -> {
             if (Objects.equals(oldValue, newValue) || selectedFile == null) return;
             invalidatePreflight("Import mode changed • Run validation again");
@@ -299,6 +296,43 @@ public class ImportController {
         });
     }
 
+
+    private void configureImportModeForModule(String module){
+        if(cmbImportMode==null)return;
+        String current=cmbImportMode.getValue();
+        if("Sales".equals(module)||"Purchases".equals(module)){
+            cmbImportMode.setItems(FXCollections.observableArrayList("Create new • Skip existing posted documents"));
+            cmbImportMode.setTooltip(new Tooltip("Existing posted Sales/Purchase documents are protected from generic bulk updates."));
+            cmbImportMode.getSelectionModel().selectFirst();
+        }else if("Purchase Recon".equals(module)){
+            cmbImportMode.setItems(FXCollections.observableArrayList("Reconciliation duplicate policy (managed automatically)"));
+            cmbImportMode.setTooltip(new Tooltip("Purchase Recon applies its own duplicate and reconciliation rules."));
+            cmbImportMode.getSelectionModel().selectFirst();
+        }else if("Bank Statement".equals(module)){
+            cmbImportMode.setItems(FXCollections.observableArrayList("Statement duplicate policy (managed automatically)"));
+            cmbImportMode.setTooltip(new Tooltip("Bank Statement applies its own statement/batch duplicate rules."));
+            cmbImportMode.getSelectionModel().selectFirst();
+        }else{
+            cmbImportMode.setItems(FXCollections.observableArrayList(
+                    "Update non-blank fields (recommended)","Create new only","Create or update","Skip existing"));
+            cmbImportMode.setTooltip(new Tooltip("Choose how matching existing master records are handled. Changing this policy requires validation again."));
+            if(current!=null&&cmbImportMode.getItems().contains(current))cmbImportMode.setValue(current);
+            else cmbImportMode.getSelectionModel().selectFirst();
+        }
+        cmbImportMode.setDisable(importRunning||isFixedImportPolicy(module));
+    }
+
+    private boolean isFixedImportPolicy(String module){
+        return "Sales".equals(module)||"Purchases".equals(module)||"Purchase Recon".equals(module)||"Bank Statement".equals(module);
+    }
+
+    private ImportService.ImportMode selectedImportMode(){
+        String module=cmbImportModule==null?null:cmbImportModule.getValue();
+        if("Sales".equals(module)||"Purchases".equals(module))return ImportService.ImportMode.CREATE_ONLY;
+        if("Purchase Recon".equals(module)||"Bank Statement".equals(module))return ImportService.ImportMode.SKIP_EXISTING;
+        int index=cmbImportMode==null?-1:cmbImportMode.getSelectionModel().getSelectedIndex();
+        return switch(index){case 1->ImportService.ImportMode.CREATE_ONLY;case 2->ImportService.ImportMode.UPSERT;case 3->ImportService.ImportMode.SKIP_EXISTING;default->ImportService.ImportMode.UPDATE_NON_BLANK;};
+    }
 
     @FXML private void selectItemMaster(){ selectModuleAndContinue("Item Master"); }
     @FXML private void selectCustomers(){ selectModuleAndContinue("Customers/CRM"); }
@@ -1738,12 +1772,7 @@ public class ImportController {
         lblReadyStatus.setText("Validating format, mandatory fields and master references...");
         lblPreviewStatus.setText("Validation in progress...");
         Map<String,String> mapping = collectCurrentMapping();
-        ImportService.ImportMode mode = switch (cmbImportMode.getSelectionModel().getSelectedIndex()) {
-            case 1 -> ImportService.ImportMode.CREATE_ONLY;
-            case 2 -> ImportService.ImportMode.UPSERT;
-            case 3 -> ImportService.ImportMode.SKIP_EXISTING;
-            default -> ImportService.ImportMode.UPDATE_NON_BLANK;
-        };
+        ImportService.ImportMode mode = selectedImportMode();
         String module = cmbImportModule.getValue();
         Task<ImportService.ImportResult> task = new Task<>() {
             @Override protected ImportService.ImportResult call() throws Exception {
@@ -1879,12 +1908,7 @@ public class ImportController {
 
         boolean dryRun =
             chkDryRun.isSelected();
-        ImportService.ImportMode importMode = switch (cmbImportMode.getSelectionModel().getSelectedIndex()) {
-            case 1 -> ImportService.ImportMode.CREATE_ONLY;
-            case 2 -> ImportService.ImportMode.UPSERT;
-            case 3 -> ImportService.ImportMode.SKIP_EXISTING;
-            default -> ImportService.ImportMode.UPDATE_NON_BLANK;
-        };
+        ImportService.ImportMode importMode = selectedImportMode();
 
         String module =
             cmbImportModule.getValue();
@@ -2173,6 +2197,7 @@ public class ImportController {
 
         btnChooseFile.setDisable(running);
         cmbImportModule.setDisable(running);
+        cmbImportMode.setDisable(running || isFixedImportPolicy(cmbImportModule.getValue()));
         btnAutoMap.setDisable(running);
         btnResetMapping.setDisable(running);
         chkDryRun.setDisable(running);
@@ -2531,7 +2556,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 9.0.14 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 9.0.15 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

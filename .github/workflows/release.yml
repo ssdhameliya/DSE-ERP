@@ -76,6 +76,8 @@ jobs:
         run: python3 scripts/audit-9.0.13-register-login-history-contract.py
       - name: Enforce 9.0.14 quotation/register contract
         run: python3 scripts/audit-9.0.14-quotation-register-contract.py
+      - name: Enforce 9.0.15 reference/item/import/quotation-source contract
+        run: python3 scripts/audit-9.0.15-reference-item-import-contract.py
       - name: Run tests
         run: mvn -B -ntp clean verify
 

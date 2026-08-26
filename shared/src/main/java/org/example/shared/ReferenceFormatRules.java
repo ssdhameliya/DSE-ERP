@@ -11,7 +11,7 @@ public final class ReferenceFormatRules {
     public static void requireValidFormat(String format) {
         if (format == null || format.isBlank()) throw new IllegalArgumentException("Reference format is required");
         java.util.regex.Matcher matcher = Pattern.compile("X{2,}").matcher(format.trim());
-        if (!matcher.find()) throw new IllegalArgumentException("Reference format must contain exactly one sequence group of at least two X characters (for example XXXX)");
+        if (!matcher.find()) throw new IllegalArgumentException("Reference format must contain exactly one sequence group of at least two X characters (for example XXXX). X defines the minimum zero-padding width and expands automatically when the sequence grows");
         if (matcher.find()) throw new IllegalArgumentException("Reference format must contain only one X sequence group");
     }
 
@@ -42,7 +42,7 @@ public final class ReferenceFormatRules {
             if (format.startsWith("MM", i)) { out.append(date == null ? "\\d{2}" : String.format("%02d", date.getMonthValue())); i += 2; continue; }
             if (format.charAt(i) == 'X') {
                 int j=i; while (j < format.length() && format.charAt(j)=='X') j++;
-                out.append("\\d{").append(j-i).append('}'); i=j; continue;
+                out.append("\\d{").append(j-i).append(",}"); i=j; continue;
             }
             char c=format.charAt(i++);
             if ("\\.^$|?*+()[]{}".indexOf(c)>=0) out.append('\\');

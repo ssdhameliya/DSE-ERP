@@ -97,7 +97,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_12__sales_tax_mode_compatibility",
                     "db/migration/V9_0_12__sales_tax_mode_compatibility.sql"),
             new Migration("V9_0_14__quotation_register_hardening",
-                    "db/migration/V9_0_14__quotation_register_hardening.sql")
+                    "db/migration/V9_0_14__quotation_register_hardening.sql"),
+            new Migration("V9_0_15__reference_and_quotation_source_hardening",
+                    "db/migration/V9_0_15__reference_and_quotation_source_hardening.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

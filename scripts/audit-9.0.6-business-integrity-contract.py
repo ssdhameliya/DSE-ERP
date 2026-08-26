@@ -58,7 +58,7 @@ for f in ('purchase price','selling price','minimum stock','reserved stock'):
     req(f in master.lower(),f'Item validation missing: {f}')
 req('customer_name_snapshot' in mig and 'item_description_snapshot' in mig and 'item_remarks_snapshot' in mig,'historical invoice snapshots must be persisted')
 req('getItemRemarks()' in mapper,'tax invoice mapper must consume immutable item remarks snapshot')
-req('reference_counter.next_value+1' in ops and 'Reference sequence exhausted' in ops,'reference allocation must be atomic and width bounded')
+req('reference_counter.next_value+1' in ops and 'Reference sequence exhausted' not in ops and 'seq.length()>width' not in ops,'reference allocation must stay atomic and auto-expand beyond configured minimum padding width')
 # Invoice money precision
 req('setScale(0' not in tax and 'totalTax - cgst' in tax,'invoice PDF must keep paise and paise-exact CGST/SGST')
 req('PAISE' in words and 'setScale(2' in words,'amount-in-words must include paise')
@@ -71,6 +71,6 @@ if pay:
     req('BANK_RECONCILIATION' in pay,'bank-reconciled payment edit protection must remain')
 req('rounding_adjustment' in ret,'Return refund balance must retain rounding adjustment handling')
 # One exact startup identity
-req('APP_VERSION = "9.0.14"' in runtime and 'BUILD_REVISION = "9.0.14"' in runtime,'desktop version/build must both be 9.0.14')
-req('dse.app.version=9.0.14' in props and 'dse.build.revision=9.0.14' in props,'server version/build must both be 9.0.14')
-print('PASS: DSE ERP 9.0.14 runtime with 9.0.6 business-integrity contract')
+req('APP_VERSION = "9.0.15"' in runtime and 'BUILD_REVISION = "9.0.15"' in runtime,'desktop version/build must both be 9.0.15')
+req('dse.app.version=9.0.15' in props and 'dse.build.revision=9.0.15' in props,'server version/build must both be 9.0.15')
+print('PASS: DSE ERP 9.0.15 runtime with 9.0.6 business-integrity contract')

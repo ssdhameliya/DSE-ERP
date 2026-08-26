@@ -43,7 +43,7 @@ public class MasterDataService {
         ensureCategory("PAYMENT_MODE","PAYMENT MODE","Payment methods used by Bank, Expense and Invoice Payment",130);
         ensureCategory("EXPENSE_CATEGORY","EXPENSE CATEGORY","Expense classifications used by Expense Entry",140);
         ensureCategory("BANK_ACCOUNT","BANK ACCOUNT","Bank account master: lookup value = account number, description = bank name",150);
-        ensureCategory("REFERENCE_FORMAT","REFERENCE FORMAT","Auto-generated reference number patterns. Use YYYY / YY for year and XX... for sequence digits.",160);
+        ensureCategory("REFERENCE_FORMAT","REFERENCE FORMAT","Auto-generated reference patterns. YYYY / YY represent year; XX... defines minimum zero-padding and expands automatically as the sequence grows.",160);
         ensureReferenceFormat("REF_SALES","IN/DD-MM-YYYY/XXXX","Sales invoice reference",10);
         ensureReferenceFormat("REF_PURCHASE","PUR/DD-MM-YYYY/XXXX","Purchase invoice reference",20);
         ensureReferenceFormat("REF_QUOTATION","QT-YYYY-XXXX","Quotation reference",30);

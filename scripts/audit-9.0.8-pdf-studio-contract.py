@@ -79,26 +79,29 @@ req('fx:controller="org.example.documentstudio.controller.PdfStudioController"' 
 for action in ['#showDesignMode', '#showDataPreviewMode', '#showFinalMode', '#saveDraft', '#publishTemplate', '#markDefault', '#addHideArea']:
     req(action in fxml, f'missing PDF Studio action {action}')
 ET.parse(fxml_path)
-req(not (ROOT / 'desktop/src/main/java/org/example/documentstudio/controller/PdfDesignerController.java').exists(),
-    'legacy PdfDesignerController must be removed')
-req('APP_VERSION = "9.0.14"' in runtime and 'BUILD_REVISION = "9.0.14"' in runtime,
-    'desktop/shared runtime identity must be 9.0.14')
-req('dse.app.version=9.0.14' in props and 'dse.build.revision=9.0.14' in props,
-    'server runtime identity must be 9.0.14')
-req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.14</version>' in root_pom and '<dse.phase>9.0.14</dse.phase>' in root_pom,
-    'root Maven application version and phase must be 9.0.14')
+legacy_controller = ROOT / 'desktop/src/main/java/org/example/documentstudio/controller/PdfDesignerController.java'
+if legacy_controller.exists():
+    legacy_text = legacy_controller.read_text(encoding='utf-8')
+    req('DSE_PDF_DESIGNER_TOMBSTONE' in legacy_text and 'class PdfDesignerController' not in legacy_text,
+        'legacy PdfDesignerController must be absent or a neutral compatibility tombstone')
+req('APP_VERSION = "9.0.15"' in runtime and 'BUILD_REVISION = "9.0.15"' in runtime,
+    'desktop/shared runtime identity must be 9.0.15')
+req('dse.app.version=9.0.15' in props and 'dse.build.revision=9.0.15' in props,
+    'server runtime identity must be 9.0.15')
+req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.15</version>' in root_pom and '<dse.phase>9.0.15</dse.phase>' in root_pom,
+    'root Maven application version and phase must be 9.0.15')
 for name, pom in [('shared', shared_pom), ('server', server_pom), ('desktop', desktop_pom)]:
-    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.14</version>' in pom,
-        f'{name} Maven parent version must be 9.0.14')
-req('version=9.0.14' in app_version, 'desktop app-version.properties must be 9.0.14')
-req('DEFAULT_VERSION="9.0.14"' in update_service, 'update fallback version must be 9.0.14')
+    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.15</version>' in pom,
+        f'{name} Maven parent version must be 9.0.15')
+req('version=9.0.15' in app_version, 'desktop app-version.properties must be 9.0.15')
+req('DEFAULT_VERSION="9.0.15"' in update_service, 'update fallback version must be 9.0.15')
 if runtime_manifest:
-    req('runtime.phase=9.0.14' in runtime_manifest, 'bundled runtime manifest phase must be 9.0.14')
-req('DSE ERP 9.0.14 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
-    'development launcher banner must be 9.0.14')
-req('DSE ERP 9.0.14 - PRODUCTION WINDOWS BUILD' in build_bat,
-    'production Windows launcher banner must be 9.0.14')
-req('DSE ERP 9.0.14 uses application-managed PostgreSQL.' in postgres_bat,
-    'PostgreSQL launcher banner must be 9.0.14')
+    req('runtime.phase=9.0.15' in runtime_manifest, 'bundled runtime manifest phase must be 9.0.15')
+req('DSE ERP 9.0.15 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    'development launcher banner must be 9.0.15')
+req('DSE ERP 9.0.15 - PRODUCTION WINDOWS BUILD' in build_bat,
+    'production Windows launcher banner must be 9.0.15')
+req('DSE ERP 9.0.15 uses application-managed PostgreSQL.' in postgres_bat,
+    'PostgreSQL launcher banner must be 9.0.15')
 
-print('PASS: DSE ERP 9.0.14 runtime with PDF Studio + release identity contract')
+print('PASS: DSE ERP 9.0.15 runtime with PDF Studio + release identity contract')

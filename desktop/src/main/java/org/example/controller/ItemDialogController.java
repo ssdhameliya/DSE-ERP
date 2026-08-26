@@ -29,6 +29,11 @@ public class ItemDialogController {
     private final LookupService lookupService = new LookupService();
     private final ItemService service = new ItemService();
     private Item editingItem;
+    private Item savedResult;
+    private Boolean savedCreated;
+
+    public Item getSavedResult(){ return savedResult; }
+    public boolean wasSavedAsCreate(){ return Boolean.TRUE.equals(savedCreated); }
 
     @FXML
     public void initialize() {
@@ -141,17 +146,21 @@ public class ItemDialogController {
                 "item-dialog-save-" + item.getItemCode(),
                 () -> {
                     if (created) service.save(item); else service.update(item);
-                    NotificationService.createNotification(
-                            created ? "Item created" : "Item updated",
-                            item.getItemCode() + " - " + item.getDescription(),
-                            "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
+                    try {
+                        NotificationService.createNotification(
+                                created ? "Item created" : "Item updated",
+                                item.getItemCode() + " - " + item.getDescription(),
+                                "INFO", "/fxml/pages/ItemMaster.fxml", item.getItemCode());
+                    } catch (Exception notificationFailure) {
+                        java.util.logging.Logger.getLogger(ItemDialogController.class.getName()).warning(
+                                "Item saved but notification could not be created: " + message(notificationFailure));
+                    }
                     return item;
                 },
                 saved -> {
                     btnSave.setDisable(false);
-                    org.example.util.ToastManager.success(txtItemCode,
-                            created ? "Item Created" : "Item Updated",
-                            created ? "Item added successfully." : "Item updated successfully.");
+                    savedResult=saved;
+                    savedCreated=created;
                     closeDialog();
                 },
                 failure -> {

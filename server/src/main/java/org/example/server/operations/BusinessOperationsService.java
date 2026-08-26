@@ -494,14 +494,12 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
   Matcher sequence=ReferenceFormatRules.sequenceMatcher(dated);
   int width=sequence.end()-sequence.start();
   String prefix=dated.substring(0,sequence.start()),suffix=dated.substring(sequence.end());
-  long capacity=1L;for(int i=0;i<width;i++){if(capacity>Long.MAX_VALUE/10L){capacity=Long.MAX_VALUE;break;}capacity*=10L;}capacity--;
   String scope=prefix+"\u0000"+suffix;
   String counterKey=lookupCode+"|"+UUID.nameUUIDFromBytes(scope.getBytes(java.nio.charset.StandardCharsets.UTF_8));
   long observed=1L;List<String> existing=existingSupplier==null?List.of():existingSupplier.get();
-  for(String value:existing==null?List.<String>of():existing){if(value==null||!value.startsWith(prefix)||!value.endsWith(suffix))continue;String seq=value.substring(prefix.length(),value.length()-suffix.length());if(seq.length()>width||!seq.matches("\\d+"))continue;try{observed=Math.max(observed,Long.parseLong(seq)+1L);}catch(Exception ignored){}}
+  for(String value:existing==null?List.<String>of():existing){if(value==null||!value.startsWith(prefix)||!value.endsWith(suffix))continue;String seq=value.substring(prefix.length(),value.length()-suffix.length());if(!seq.matches("\\d+"))continue;try{observed=Math.max(observed,Long.parseLong(seq)+1L);}catch(Exception ignored){}}
   List<Long> stored=jdbc.query("SELECT next_value FROM reference_counter WHERE counter_key=?",(r,i)->r.getLong(1),counterKey);
   long candidate=stored.isEmpty()?observed:Math.max(observed,stored.getFirst()+1L);
-  if(candidate>capacity)throw new IllegalStateException("Reference sequence exhausted for "+lookupCode+". Increase the configured X width before creating more records.");
   return prefix+String.format(Locale.ROOT,"%0"+width+"d",candidate)+suffix;
  }
  private String configuredNextAtomic(String lookupCode,String fallback,java.util.function.Supplier<List<String>> existingSupplier){
@@ -509,14 +507,12 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
   Matcher sequence=ReferenceFormatRules.sequenceMatcher(dated);
   int width=sequence.end()-sequence.start();
   String prefix=dated.substring(0,sequence.start()),suffix=dated.substring(sequence.end());
-  long capacity=1L;for(int i=0;i<width;i++){if(capacity>Long.MAX_VALUE/10L){capacity=Long.MAX_VALUE;break;}capacity*=10L;}capacity--;
   String scope=prefix+"\u0000"+suffix;
   String counterKey=lookupCode+"|"+UUID.nameUUIDFromBytes(scope.getBytes(java.nio.charset.StandardCharsets.UTF_8));
   long observed=1L;List<String> existing=existingSupplier==null?List.of():existingSupplier.get();
-  for(String value:existing==null?List.<String>of():existing){if(value==null||!value.startsWith(prefix)||!value.endsWith(suffix))continue;String seq=value.substring(prefix.length(),value.length()-suffix.length());if(seq.length()>width||!seq.matches("\\d+"))continue;try{observed=Math.max(observed,Long.parseLong(seq)+1L);}catch(Exception ignored){}}
+  for(String value:existing==null?List.<String>of():existing){if(value==null||!value.startsWith(prefix)||!value.endsWith(suffix))continue;String seq=value.substring(prefix.length(),value.length()-suffix.length());if(!seq.matches("\\d+"))continue;try{observed=Math.max(observed,Long.parseLong(seq)+1L);}catch(Exception ignored){}}
   Long allocatedValue=jdbc.queryForObject("INSERT INTO reference_counter(counter_key,next_value,updated_at) VALUES(?,?,?) ON CONFLICT(counter_key) DO UPDATE SET next_value=GREATEST(reference_counter.next_value+1,EXCLUDED.next_value),updated_at=EXCLUDED.updated_at RETURNING next_value",Long.class,counterKey,observed,BusinessClock.nowUtcText());
   long allocated=allocatedValue==null?observed:allocatedValue;
-  if(allocated>capacity)throw new IllegalStateException("Reference sequence exhausted for "+lookupCode+". Increase the configured X width before creating more records.");
   return prefix+String.format(Locale.ROOT,"%0"+width+"d",allocated)+suffix;
  }
  private String configuredNext(String lookupCode,String fallback,List<String> existing){return nextFromFormat(configuredFormat(lookupCode,fallback),existing==null?List.of():existing);}
@@ -531,7 +527,7 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
   return fmt;
  }
  private String datedReferenceFormat(String fmt){LocalDate t=BusinessClock.today();return fmt.replace("DD-MM-YYYY",t.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).replace("DD/MM/YYYY",t.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).replace("YYYY-MM-DD",t.toString()).replace("YYYY",String.valueOf(t.getYear())).replace("YY",String.format(Locale.ROOT,"%02d",t.getYear()%100));}
- private String nextFromFormat(String fmt,List<String> existing){String dated=datedReferenceFormat(fmt);Matcher m=ReferenceFormatRules.sequenceMatcher(dated);int w=m.end()-m.start();String pre=dated.substring(0,m.start()),suf=dated.substring(m.end());int max=0;for(String x:existing){if(x!=null&&x.startsWith(pre)&&x.endsWith(suf)){try{max=Math.max(max,Integer.parseInt(x.substring(pre.length(),x.length()-suf.length())));}catch(Exception ignored){}}}return pre+String.format(Locale.ROOT,"%0"+w+"d",max+1)+suf;}
+ private String nextFromFormat(String fmt,List<String> existing){String dated=datedReferenceFormat(fmt);Matcher m=ReferenceFormatRules.sequenceMatcher(dated);int w=m.end()-m.start();String pre=dated.substring(0,m.start()),suf=dated.substring(m.end());long max=0;for(String x:existing){if(x!=null&&x.startsWith(pre)&&x.endsWith(suf)){String seq=x.substring(pre.length(),x.length()-suf.length());if(!seq.matches("\\d+"))continue;try{max=Math.max(max,Long.parseLong(seq));}catch(Exception ignored){}}}if(max==Long.MAX_VALUE)throw new IllegalStateException("Reference sequence reached the database numeric limit for "+fmt);return pre+String.format(Locale.ROOT,"%0"+w+"d",max+1)+suf;}
  private static String idCsv(Collection<Integer> ids){if(ids==null||ids.isEmpty())return "";return ids.stream().filter(Objects::nonNull).map(String::valueOf).collect(java.util.stream.Collectors.joining(","));}
  private static String sqlDate(String column){return "dse_safe_date("+column+")";}
  private static String trim(String v){return v==null?"":v.trim();}

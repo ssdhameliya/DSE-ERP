@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.15".equals(version)) {
+            return """
+                    DSE ERP 9.0.15
+
+                    • Makes configured XX/XXX/XXXX reference widths permanent minimum padding: sequences expand automatically beyond 99/999/9999 instead of blocking record creation.
+                    • Keeps Item Master save feedback visible on the parent screen and treats notification delivery as secondary to the authoritative Item save.
+                    • Makes Data Import Step 4 policies explicit by module and locks the policy while an import is running.
+                    • Loads Quotation Source through the Quotation API from active Master Data values, including compatibility with historical category-code storage.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.15.
+                    """;
+        }
         if ("9.0.14".equals(version)) {
             return """
                     DSE ERP 9.0.14
