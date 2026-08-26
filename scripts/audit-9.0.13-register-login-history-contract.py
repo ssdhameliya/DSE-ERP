@@ -88,10 +88,10 @@ req('historyTextCell()' in bank_controller and 'new Tooltip(text)' in bank_contr
     'History text columns must retain full values via tooltips')
 
 # Exact current release identity.
-req('APP_VERSION = "9.0.15"' in runtime and 'BUILD_REVISION = "9.0.15"' in runtime,'Runtime identity must be 9.0.15')
-req('dse.app.version=9.0.15' in props and 'dse.build.revision=9.0.15' in props,'Server identity must be 9.0.15')
-req('<version>9.0.15</version>' in root_pom and '<dse.phase>9.0.15</dse.phase>' in root_pom,'Maven identity must be 9.0.15')
-req('version=9.0.15' in app_version and 'DEFAULT_VERSION="9.0.15"' in update,'Desktop/updater identity must be 9.0.15')
+req('APP_VERSION = "9.0.16"' in runtime and 'BUILD_REVISION = "9.0.16"' in runtime,'Runtime identity must be 9.0.16')
+req('dse.app.version=9.0.16' in props and 'dse.build.revision=9.0.16' in props,'Server identity must be 9.0.16')
+req('<version>9.0.16</version>' in root_pom and '<dse.phase>9.0.16</dse.phase>' in root_pom,'Maven identity must be 9.0.16')
+req('version=9.0.16' in app_version and 'DEFAULT_VERSION="9.0.16"' in update,'Desktop/updater identity must be 9.0.16')
 
 # Locked production document generators must remain identical to v9.0.12 hashes.
 protected={
@@ -101,4 +101,4 @@ protected={
 }
 for path,expected in protected.items(): req(sha(Path(path))==expected, f'Protected production PDF generator changed: {path}')
 
-print('PASS: DSE ERP 9.0.15 register/KPI/import/recon/permission/login/history contract')
+print('PASS: DSE ERP 9.0.16 register/KPI/import/recon/permission/login/history contract')

@@ -91,6 +91,7 @@ public class SalesListController implements ScreenLifecycle {
     private final FxDebouncer filterDebouncer=new FxDebouncer(java.time.Duration.ofMillis(220));
     private final RegisterPageState pageState = new RegisterPageState();
     private Sales selected;
+    private boolean linkedRecordReloadInProgress;
 
     @FXML public void initialize(){
         configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();
@@ -393,10 +394,25 @@ public class SalesListController implements ScreenLifecycle {
         });
     }
     private void openLinkedRecordIfRequested(){
-        LinkedRecordContext.Target target=LinkedRecordContext.consume("SALE");if(target==null)return;Sales sale=allSales.stream().filter(x->(target.recordId()!=null&&x.getId()==target.recordId())||(!target.documentNo().isBlank()&&target.documentNo().equalsIgnoreCase(safe(x.getInvoiceNo())))).findFirst().orElse(null);
-        if(sale!=null){tableSales.getSelectionModel().select(sale);tableSales.scrollTo(sale);org.example.navigation.DeepLinkSupport.pulse(tableSales);showDetails(sale);PerformanceMonitor.event("linked-navigation","SALE -> "+sale.getInvoiceNo()+" | source="+target.source());return;}
-        if(target.documentNo().isBlank()){warning("The linked Sale is not on the current result page. Use Search to locate it.");return;}
-        UiTaskExecutor.submitLatest("sales-linked-record",()->service.getByInvoice(target.documentNo()),found->{if(found==null){warning("The linked Sale is no longer available: "+target.documentNo());return;}showDetails(found);PerformanceMonitor.event("linked-navigation","SALE -> "+found.getInvoiceNo()+" | source="+target.source());},this::error);
+        LinkedRecordContext.Target target=LinkedRecordContext.peek();
+        if(target==null||!"SALE".equals(target.module()))return;
+        Sales sale=allSales.stream().filter(x->(target.recordId()!=null&&x.getId()==target.recordId())||(!target.documentNo().isBlank()&&target.documentNo().equalsIgnoreCase(safe(x.getInvoiceNo())))).findFirst().orElse(null);
+        if(sale!=null){
+            LinkedRecordContext.consume("SALE");linkedRecordReloadInProgress=false;
+            tableSales.getSelectionModel().select(sale);tableSales.scrollTo(sale);tableSales.requestFocus();
+            org.example.navigation.DeepLinkSupport.pulse(tableSales);org.example.navigation.DeepLinkSupport.highlight(tableSales,sale);
+            showDetails(sale);PerformanceMonitor.event("linked-navigation","SALE -> "+sale.getInvoiceNo()+" | exact-row-highlight | source="+target.source());return;
+        }
+        if(target.documentNo().isBlank()){LinkedRecordContext.consume("SALE");warning("The linked Sale is not on the current result page. Use Search to locate it.");return;}
+        if(linkedRecordReloadInProgress){linkedRecordReloadInProgress=false;LinkedRecordContext.consume("SALE");warning("The linked Sale could not be placed in the current register view: "+target.documentNo());return;}
+        linkedRecordReloadInProgress=true;
+        UiTaskExecutor.submitLatest("sales-linked-record",()->service.getByInvoice(target.documentNo()),found->{
+            if(found==null){linkedRecordReloadInProgress=false;LinkedRecordContext.consume("SALE");warning("The linked Sale is no longer available: "+target.documentNo());return;}
+            // Deep links temporarily narrow the register to the exact invoice so the row can be selected and highlighted.
+            txtSearch.clear();txtInvoice.setText(found.getInvoiceNo());txtAmountFrom.clear();txtAmountTo.clear();cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbPaymentDue.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");cmbDocumentStatus.setValue("All");
+            LocalDate invoiceDate=found.getInvoiceDate();if(invoiceDate!=null){dpFrom.setValue(invoiceDate);dpTo.setValue(invoiceDate);}
+            pageState.reset();reloadPage();
+        },failure->{linkedRecordReloadInProgress=false;LinkedRecordContext.consume("SALE");error(failure);});
     }
     @FXML public void applyFilters(){if(pageState.isApplyingServerPage())return;pageState.reset();renderChips();reloadPage();}
     private void renderPage(){tableSales.setItems(FXCollections.observableArrayList(allSales));int size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();RegisterUiSupport.updatePageLabels(pageState,lblPageInfo,lblPageNumber,size,allSales.size(),"entries");if(pageState.totalRows()==0)lblPageInfo.setText("No entries");}

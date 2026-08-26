@@ -8,6 +8,16 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.16".equals(version)) {
+            return """
+                    DSE ERP 9.0.16
+
+                    • Loads Quotation Source from historical and canonical Master Data category spellings so existing source values are selectable.
+                    • Moves Open Sale beneath Convert to Sale in Quotation quick actions.
+                    • Deep-links converted Quotations to the exact Sales Register invoice and visibly highlights the linked row.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.16.
+                    """;
+        }
         if ("9.0.15".equals(version)) {
             return """
                     DSE ERP 9.0.15

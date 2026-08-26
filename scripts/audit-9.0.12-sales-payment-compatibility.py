@@ -46,9 +46,9 @@ req('userFacingErrorDetail(stripHttpMarker(message))' in dialog and
     'shared dialog renderer must sanitize known technical error details and log the raw detail')
 
 # Release identity.
-req('APP_VERSION = "9.0.15"' in runtime and 'BUILD_REVISION = "9.0.15"' in runtime,
-    'shared runtime identity must be 9.0.15')
-req('dse.app.version=9.0.15' in props and 'dse.build.revision=9.0.15' in props,
-    'server runtime identity must be 9.0.15')
+req('APP_VERSION = "9.0.16"' in runtime and 'BUILD_REVISION = "9.0.16"' in runtime,
+    'shared runtime identity must be 9.0.16')
+req('dse.app.version=9.0.16' in props and 'dse.build.revision=9.0.16' in props,
+    'server runtime identity must be 9.0.16')
 
-print('PASS: DSE ERP 9.0.15 runtime with Sales export/payment refresh/error compatibility contract')
+print('PASS: DSE ERP 9.0.16 runtime with Sales export/payment refresh/error compatibility contract')
