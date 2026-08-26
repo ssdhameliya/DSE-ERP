@@ -1,4 +1,5 @@
 package org.example.server.master;
+import org.example.shared.ReferenceFormatRules;
 
 import org.example.server.persistence.entity.*;
 import org.example.server.persistence.repository.*;
@@ -91,6 +92,7 @@ public class MasterDataService {
         requirePartyPermission(d == null ? null : d.partyType(), "CREATE");
         PartyEntity e = new PartyEntity();
         copy(d, e, true);
+        if (e.getPartyCode() == null || e.getPartyCode().isBlank()) e.setPartyCode(allocatePartyCode(e.getPartyType()));
         e = parties.saveAndFlush(e);
         audit.log("PARTY", e.getId(), "CREATED", e.getPartyType() + " " + e.getPartyCode());
         return partyDto(e);
@@ -125,9 +127,21 @@ public class MasterDataService {
 
 
 
-    @Transactional
+    @Transactional(readOnly = true)
     public String nextPartyCode(String type) {
         requirePartyAccess(type);
+        return previewPartyCode(type);
+    }
+
+    private String previewPartyCode(String type) {
+        String t = normal(type);
+        String key = "CUSTOMER".equals(t) ? "REF_CUSTOMER" : "REF_SUPPLIER";
+        String fallback = "CUSTOMER".equals(t) ? "CUSXXX" : "SUPXXX";
+        List<String> existing = parties.findByPartyTypeOrderByNameAsc(t).stream().map(PartyEntity::getPartyCode).filter(Objects::nonNull).toList();
+        return referenceNumbers.previewConfiguredReference(key, fallback, existing);
+    }
+
+    private String allocatePartyCode(String type) {
         String t = normal(type);
         String key = "CUSTOMER".equals(t) ? "REF_CUSTOMER" : "REF_SUPPLIER";
         String fallback = "CUSTOMER".equals(t) ? "CUSXXX" : "SUPXXX";
@@ -137,18 +151,21 @@ public class MasterDataService {
 
     private void requirePartyAccess(String type) {
         String normalized = normal(type);
+        if (!Set.of("CUSTOMER", "SUPPLIER").contains(normalized)) throw new IllegalArgumentException("Party type must be CUSTOMER or SUPPLIER");
         if ("CUSTOMER".equals(normalized)) CurrentUser.requirePermission("CUSTOMERS.VIEW", "Customer access");
         else CurrentUser.requirePermission("SUPPLIERS.VIEW", "Supplier access");
     }
 
     private void requirePartyPermission(String type, String action) {
         String normalized = normal(type);
+        if (!Set.of("CUSTOMER", "SUPPLIER").contains(normalized)) throw new IllegalArgumentException("Party type must be CUSTOMER or SUPPLIER");
         String prefix = "CUSTOMER".equals(normalized) ? "CUSTOMERS" : "SUPPLIERS";
         CurrentUser.requirePermission(prefix + "." + action, action + " " + normalized.toLowerCase(Locale.ROOT));
     }
 
     @Transactional(readOnly = true)
     public List<MasterDtos.ItemDto> items() {
+        CurrentUser.requirePermission("INVENTORY.VIEW", "View items");
         return items.findAllByOrderByItemCodeAsc()
             .stream()
             .map(this::itemDto)
@@ -157,6 +174,7 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<MasterDtos.ItemDto> searchItems(String query, int limit) {
+        CurrentUser.requirePermission("INVENTORY.VIEW", "Search items");
         int safeLimit = Math.max(1, Math.min(limit, 100));
         return items.searchActive(query == null ? "" : query.trim(), PageRequest.of(0, safeLimit))
             .stream().map(this::itemDto).toList();
@@ -179,6 +197,10 @@ public class MasterDataService {
         CurrentUser.requirePermission("INVENTORY.CREATE", "Create item");
         ItemEntity e = new ItemEntity();
         copy(d, e, true);
+        if (e.getItemCode() == null || e.getItemCode().isBlank()) {
+            List<String> existing = items.findAll().stream().map(ItemEntity::getItemCode).filter(Objects::nonNull).toList();
+            e.setItemCode(referenceNumbers.nextConfiguredReference("REF_ITEM", "ITMXXX", existing));
+        }
         e = items.saveAndFlush(e);
         audit.log("ITEM", e.getId(), "CREATED", e.getItemCode());
         return itemDto(e);
@@ -293,10 +315,10 @@ public class MasterDataService {
         if (total > 0) usages.add(label + " (" + total + ")");
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public String nextItemCode() {
         List<String> existing = items.findAll().stream().map(ItemEntity::getItemCode).filter(Objects::nonNull).toList();
-        return referenceNumbers.nextConfiguredReference("REF_ITEM", "ITMXXX", existing);
+        return referenceNumbers.previewConfiguredReference("REF_ITEM", "ITMXXX", existing);
     }
 
     @Transactional(readOnly = true)
@@ -343,6 +365,7 @@ public class MasterDataService {
         requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
         LookupEntity e = new LookupEntity();
         copy(d, e);
+        if (e.getLookupCode() == null || e.getLookupCode().isBlank()) e.setLookupCode(allocateLookupCode(e.getLookupType()));
         e = lookups.saveAndFlush(e);
         audit.log("MASTER_LOOKUP", e.getId(), "CREATED", e.getLookupType() + " / " + e.getLookupValue());
         return lookupDto(e);
@@ -397,8 +420,24 @@ public class MasterDataService {
         return lookupDto(e);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public String nextLookupCode(String type) {
+        String normalized = normal(type);
+        String prefix = switch (normalized) {
+            case "CATEGORY" -> "CAT";
+            case "UNIT" -> "UNT";
+            case "MATERIAL" -> "MAT";
+            case "BRAND" -> "BRD";
+            case "GST" -> "GST";
+            case "ROLE" -> "ROL";
+            default -> "GEN";
+        };
+        List<String> existing = lookups.findByLookupTypeOrderByLookupCodeDesc(normalized).stream()
+                .map(LookupEntity::getLookupCode).filter(Objects::nonNull).toList();
+        return referenceNumbers.previewConfiguredReference("REF_LOOKUP_" + normalized, prefix + "XXX", existing);
+    }
+
+    private String allocateLookupCode(String type) {
         String normalized = normal(type);
         String prefix = switch (normalized) {
             case "CATEGORY" -> "CAT";
@@ -565,11 +604,21 @@ public class MasterDataService {
     @Transactional
     public MasterDtos.CategoryDto upsertCategory(MasterDtos.CategoryUpsertRequest d) {
         requireMasterMutation("EDIT");
+        if (d == null) throw new IllegalArgumentException("Category data is required");
         String code = normal(d.code());
+        String nextName = normal(d.name());
+        if (code.isBlank()) throw new IllegalArgumentException("Category code is required");
+        if (nextName.isBlank()) throw new IllegalArgumentException("Category name is required");
         MasterCategoryEntity e = categories.findByCategoryCode(code).orElseGet(MasterCategoryEntity::new);
-        e.setCategoryCode(code); e.setCategoryName(normal(d.name())); e.setDescription(d.description());
+        String previousName = e.getId() == null ? null : e.getCategoryName();
+        e.setCategoryCode(code); e.setCategoryName(nextName); e.setDescription(d.description());
         if (e.getActive() == null) e.setActive(1); if (e.getDisplayOrder() == null) e.setDisplayOrder(0);
         e = categories.saveAndFlush(e);
+        if (previousName != null && !previousName.equalsIgnoreCase(nextName)) {
+            List<LookupEntity> migrated = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(previousName);
+            for (LookupEntity value : migrated) value.setLookupType(nextName);
+            if (!migrated.isEmpty()) lookups.saveAllAndFlush(migrated);
+        }
         audit.log("MASTER_CATEGORY", e.getId(), "UPSERTED", e.getCategoryName());
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(e.getCategoryName());
         return categoryDto(e, values.size(), values.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
@@ -590,11 +639,15 @@ public class MasterDataService {
     }
 
     private void copy(MasterDtos.PartyDto d, PartyEntity e, boolean includeCode) {
-        if ("SUPPLIER".equals(normal(d.partyType())) && (d.email() == null || d.email().isBlank())) {
+        if (d == null) throw new IllegalArgumentException("Party data is required");
+        String partyType = normal(d.partyType());
+        if (!Set.of("CUSTOMER", "SUPPLIER").contains(partyType)) throw new IllegalArgumentException("Party type must be CUSTOMER or SUPPLIER");
+        if (d.name() == null || d.name().isBlank()) throw new IllegalArgumentException("Party name is required");
+        if ("SUPPLIER".equals(partyType) && (d.email() == null || d.email().isBlank())) {
             throw new IllegalArgumentException("Supplier email is required");
         }
         if (includeCode) {
-            e.setPartyType(normal(d.partyType()));
+            e.setPartyType(partyType);
             e.setPartyCode(d.partyCode());
         }
         e.setName(d.name());
@@ -622,6 +675,12 @@ public class MasterDataService {
         e.setSize(d.size());
         e.setUnit(d.unit());
         e.setHsn(d.hsn());
+        if(!Double.isFinite(d.gst())||d.gst()<0||d.gst()>100) throw new IllegalArgumentException("GST percent must be between 0 and 100");
+        if(!Double.isFinite(d.discountPercent())||d.discountPercent()<0||d.discountPercent()>100) throw new IllegalArgumentException("Discount percent must be between 0 and 100");
+        if(!Double.isFinite(d.purchasePrice())||d.purchasePrice()<0) throw new IllegalArgumentException("Purchase price must be a finite non-negative number");
+        if(!Double.isFinite(d.sellingPrice())||d.sellingPrice()<0) throw new IllegalArgumentException("Selling price must be a finite non-negative number");
+        if(!Double.isFinite(d.minimumStock())||d.minimumStock()<0) throw new IllegalArgumentException("Minimum stock must be a finite non-negative number");
+        if(!Double.isFinite(d.reservedStock())||d.reservedStock()<0) throw new IllegalArgumentException("Reserved stock must be a finite non-negative number");
         e.setGst(d.gst());
         e.setDiscountPercent(d.discountPercent());
         e.setPurchasePrice(d.purchasePrice());
@@ -690,9 +749,12 @@ public class MasterDataService {
 
     private void validateLookup(MasterDtos.LookupDto d) {
         if (d == null || d.lookupType() == null || d.lookupType().isBlank()) throw new IllegalArgumentException("Lookup type is required");
-        if (d.lookupCode() == null || d.lookupCode().isBlank()) throw new IllegalArgumentException("Lookup code is required");
+        boolean creating = d.id() == null || d.id() <= 0;
+        if (!creating && (d.lookupCode() == null || d.lookupCode().isBlank())) throw new IllegalArgumentException("Lookup code is required");
         if (d.lookupValue() == null || d.lookupValue().isBlank()) throw new IllegalArgumentException("Lookup value is required");
-        if (lookups.duplicateCode(d.lookupType(), d.lookupCode(), d.id())) throw new IllegalArgumentException("This lookup code already exists in " + d.lookupType());
+        MasterCategoryEntity referenceCategory = categories.findByCategoryCode("REFERENCE_FORMAT").orElse(null);
+        if (referenceCategory != null && referenceCategory.getCategoryName().equalsIgnoreCase(d.lookupType().trim())) ReferenceFormatRules.requireValidFormat(d.lookupValue());
+        if (d.lookupCode() != null && !d.lookupCode().isBlank() && lookups.duplicateCode(d.lookupType(), d.lookupCode(), d.id())) throw new IllegalArgumentException("This lookup code already exists in " + d.lookupType());
         if (lookups.duplicateValue(d.lookupType(), d.lookupValue(), d.id())) throw new IllegalArgumentException("This lookup value already exists in " + d.lookupType());
     }
 

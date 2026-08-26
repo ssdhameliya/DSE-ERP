@@ -5,7 +5,7 @@ import java.util.*;
 public class BusinessOperationsController {
  private final BusinessOperationsService s; public BusinessOperationsController(BusinessOperationsService s){this.s=s;}
  @GetMapping("/sales") public List<OperationDtos.SaleDto> sales(){return s.sales();}
- @GetMapping("/sales/page") public OperationDtos.SalePage salesPage(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="25") int size,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="") String invoice,@RequestParam(defaultValue="") String customer,@RequestParam(defaultValue="") String from,@RequestParam(defaultValue="") String to,@RequestParam(defaultValue="") String paymentStatus,@RequestParam(defaultValue="") String due,@RequestParam(defaultValue="") String mail,@RequestParam(defaultValue="") String whatsapp,@RequestParam(defaultValue="") String invoiceType,@RequestParam(required=false) Double minAmount,@RequestParam(required=false) Double maxAmount){return s.salesPage(page,size,q,invoice,customer,from,to,paymentStatus,due,mail,whatsapp,invoiceType,minAmount,maxAmount);}
+ @GetMapping("/sales/page") public OperationDtos.SalePage salesPage(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="25") int size,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="") String invoice,@RequestParam(defaultValue="") String customer,@RequestParam(defaultValue="") String from,@RequestParam(defaultValue="") String to,@RequestParam(defaultValue="") String paymentStatus,@RequestParam(defaultValue="") String due,@RequestParam(defaultValue="") String mail,@RequestParam(defaultValue="") String whatsapp,@RequestParam(defaultValue="") String invoiceType,@RequestParam(defaultValue="") String documentStatus,@RequestParam(required=false) Double minAmount,@RequestParam(required=false) Double maxAmount){return s.salesPage(page,size,q,invoice,customer,from,to,paymentStatus,due,mail,whatsapp,invoiceType,documentStatus,minAmount,maxAmount);}
  @GetMapping("/sales/by-invoice") public OperationDtos.SaleDto sale(@RequestParam String invoiceNo){return s.sale(invoiceNo);}
  @GetMapping("/sales/exists") public Map<String,Boolean> saleExists(@RequestParam String invoiceNo){return Map.of("exists",s.saleExists(invoiceNo));}
  @PostMapping("/sales") public OperationDtos.SaleDto saveSale(@RequestBody OperationDtos.SaleDto d){return s.saveSale(d);}
@@ -15,10 +15,10 @@ public class BusinessOperationsController {
  @PostMapping("/sales/approve") public OperationDtos.OperationResponse approveSale(@RequestParam String invoiceNo){s.approveSale(invoiceNo);return ok("Sale approved");}
  @PostMapping("/sales/reject") public OperationDtos.OperationResponse rejectSale(@RequestParam String invoiceNo,@RequestParam(required=false) String reason){s.rejectSale(invoiceNo,reason);return ok("Sale rejected");}
  @PostMapping("/sales/email-sent/{id}") public OperationDtos.OperationResponse saleEmail(@PathVariable int id){s.markSaleEmail(id);return ok("Updated");}
- @GetMapping("/sales/next-invoice") public OperationDtos.NextNumber nextSale(){return new OperationDtos.NextNumber(s.nextSalesInvoice());}
+ @GetMapping("/sales/next-invoice") public OperationDtos.NextNumber nextSale(){return new OperationDtos.NextNumber(s.previewSalesInvoice());}
 
  @GetMapping("/purchases") public List<OperationDtos.PurchaseDto> purchases(){return s.purchases();}
- @GetMapping("/purchases/page") public OperationDtos.PurchasePage purchasesPage(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="25") int size,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="") String supplier,@RequestParam(defaultValue="") String from,@RequestParam(defaultValue="") String to,@RequestParam(defaultValue="") String paymentStatus,@RequestParam(defaultValue="") String mail){return s.purchasesPage(page,size,q,supplier,from,to,paymentStatus,mail);}
+ @GetMapping("/purchases/page") public OperationDtos.PurchasePage purchasesPage(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="25") int size,@RequestParam(defaultValue="") String q,@RequestParam(defaultValue="") String supplier,@RequestParam(defaultValue="") String from,@RequestParam(defaultValue="") String to,@RequestParam(defaultValue="") String paymentStatus,@RequestParam(defaultValue="") String mail,@RequestParam(defaultValue="") String documentStatus){return s.purchasesPage(page,size,q,supplier,from,to,paymentStatus,mail,documentStatus);}
  @GetMapping("/purchases/by-invoice") public OperationDtos.PurchaseDto purchase(@RequestParam String invoiceNo){return s.purchase(invoiceNo);}
  @GetMapping("/purchases/exists") public Map<String,Boolean> purchaseExists(@RequestParam String invoiceNo){return Map.of("exists",s.purchaseExists(invoiceNo));}
  @PostMapping("/purchases") public OperationDtos.PurchaseDto savePurchase(@RequestBody OperationDtos.PurchaseDto d){return s.savePurchase(d);}
@@ -28,7 +28,7 @@ public class BusinessOperationsController {
  @PostMapping("/purchases/approve") public OperationDtos.OperationResponse approvePurchase(@RequestParam String invoiceNo){s.approvePurchase(invoiceNo);return ok("Purchase approved");}
  @PostMapping("/purchases/reject") public OperationDtos.OperationResponse rejectPurchase(@RequestParam String invoiceNo,@RequestParam(required=false) String reason){s.rejectPurchase(invoiceNo,reason);return ok("Purchase rejected");}
  @PostMapping("/purchases/email-sent/{id}") public OperationDtos.OperationResponse purchaseEmail(@PathVariable int id){s.markPurchaseEmail(id);return ok("Updated");}
- @GetMapping("/purchases/next-invoice") public OperationDtos.NextNumber nextPurchase(){return new OperationDtos.NextNumber(s.nextPurchaseInvoice());}
+ @GetMapping("/purchases/next-invoice") public OperationDtos.NextNumber nextPurchase(){return new OperationDtos.NextNumber(s.previewPurchaseInvoice());}
 
  @GetMapping("/finance") public List<OperationDtos.FinanceDto> finance(){return s.finance();}
  @GetMapping("/finance/page") public OperationDtos.FinancePage financePage(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="25") int size,@RequestParam(defaultValue="") String mode,@RequestParam(defaultValue="") String period,@RequestParam(defaultValue="") String type,@RequestParam(defaultValue="") String q){return s.financePage(page,size,mode,period,type,q);}
@@ -36,7 +36,7 @@ public class BusinessOperationsController {
  @PostMapping("/finance") public OperationDtos.FinanceDto saveFinance(@RequestBody OperationDtos.FinanceDto d){return s.saveFinance(d);}
  @PutMapping("/finance") public OperationDtos.FinanceDto updateFinance(@RequestBody OperationDtos.FinanceDto d){return s.updateFinance(d);}
  @DeleteMapping("/finance/{id}") public OperationDtos.OperationResponse deleteFinance(@PathVariable int id,@RequestParam(defaultValue="-1") long rowVersion){s.deleteFinance(id,rowVersion);return ok("Finance entry deleted");}
- @GetMapping("/finance/next-voucher") public OperationDtos.NextNumber nextVoucher(){return new OperationDtos.NextNumber(s.nextVoucher());}
+ @GetMapping("/finance/next-voucher") public OperationDtos.NextNumber nextVoucher(){return new OperationDtos.NextNumber(s.previewVoucher());}
  @GetMapping("/finance/metrics") public OperationDtos.FinanceMetrics metrics(){return s.financeMetrics();}
  @GetMapping("/stock/history") public List<OperationDtos.StockHistoryDto> stockHistory(@RequestParam String itemCode){return s.stockHistory(itemCode);}
  @PostMapping("/stock/adjust") public OperationDtos.OperationResponse adjustStock(@RequestBody OperationDtos.StockAdjustmentRequest d){s.adjustStock(d);return ok("Stock adjusted");}

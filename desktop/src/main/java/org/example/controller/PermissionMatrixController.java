@@ -167,8 +167,31 @@ public class PermissionMatrixController implements ScreenLifecycle {
                     setAlignment(Pos.CENTER);
                     return;
                 }
+                if (special.size() == 1) {
+                    PermissionEntry entry = special.getFirst();
+                    CheckBox toggle = new CheckBox();
+                    toggle.getStyleClass().add("permission-special-check");
+                    toggle.setSelected(entry.allowed().get());
+                    toggle.setDisable(!canEdit());
+                    toggle.setTooltip(new Tooltip(PermissionCatalog.actionLabel(entry.action())
+                        + (entry.description() == null || entry.description().isBlank() ? "" : "\n" + entry.description())));
+                    toggle.setOnAction(event -> {
+                        entry.allowed().set(toggle.isSelected());
+                        permissionsChanged();
+                    });
+                    setGraphic(toggle);
+                    setAlignment(Pos.CENTER);
+                    return;
+                }
                 MenuButton menu = new MenuButton();
                 menu.getStyleClass().add("permission-special-menu");
+                // This cell is a compact permission selector, not a row action.
+                // Prevent the global action-icon decorator from turning the
+                // useful "n of n" value into an unexplained icon-only button.
+                menu.getProperties().put("erp.icon.skip", true);
+                menu.getProperties().put("erp-icon-preserve", true);
+                menu.setGraphic(null);
+                menu.setContentDisplay(ContentDisplay.TEXT_ONLY);
                 menu.setDisable(!canEdit());
                 int granted = 0;
                 for (PermissionEntry entry : special) {
@@ -184,7 +207,9 @@ public class PermissionMatrixController implements ScreenLifecycle {
                     menu.getItems().add(item);
                 }
                 menu.setText(granted + " / " + special.size());
-                menu.setTooltip(new Tooltip(special.stream().map(p -> PermissionCatalog.actionLabel(p.action())).reduce((a,b) -> a + ", " + b).orElse("Special permissions")));
+                String labels = special.stream().map(p -> PermissionCatalog.actionLabel(p.action())).reduce((a,b) -> a + ", " + b).orElse("Special permissions");
+                menu.setTooltip(new Tooltip("Special permissions: " + labels + "\nClick to review or change these permissions."));
+                menu.setAccessibleText(granted + " of " + special.size() + " special permissions granted");
                 setGraphic(menu);
                 setAlignment(Pos.CENTER);
             }

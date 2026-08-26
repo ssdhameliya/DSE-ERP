@@ -229,7 +229,7 @@ public class Sales {
     public void setPoDate(LocalDate poDate) { this.poDate = poDate; }
     public String getBillingAddress() { return billingAddress == null ? "" : billingAddress; }
     public void setBillingAddress(String billingAddress) { this.billingAddress = billingAddress; }
-    public String getGstType() { return gstType == null ? "" : gstType; }
+    public String getGstType() { return gstType == null || gstType.isBlank() ? "GST" : gstType; }
     public void setGstType(String gstType) { this.gstType = gstType; }
     public String getDoorDelivery() { return doorDelivery == null ? "" : doorDelivery; }
     public void setDoorDelivery(String doorDelivery) { this.doorDelivery = doorDelivery; }

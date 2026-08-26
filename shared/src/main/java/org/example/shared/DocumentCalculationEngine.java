@@ -90,20 +90,26 @@ public final class DocumentCalculationEngine {
 
     public static TaxMode taxMode(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.contains("IGST") || normalized.contains("INTER") ? TaxMode.IGST : TaxMode.GST;
+        if (normalized.equals("GST") || normalized.equals("CGST/SGST") || normalized.equals("CGST + SGST")
+                || normalized.equals("INTRASTATE") || normalized.equals("INTRA STATE")) return TaxMode.GST;
+        if (normalized.equals("IGST") || normalized.equals("INTERSTATE") || normalized.equals("INTER STATE")) return TaxMode.IGST;
+        throw new IllegalArgumentException("Unsupported tax mode: " + (value == null ? "<blank>" : value));
     }
 
     public static double money(double value) {
-        if (!Double.isFinite(value)) return 0d;
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Money value must be finite");
         return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
     public static double percent(double value) {
-        if (!Double.isFinite(value)) return 0d;
-        return money(Math.max(0d, Math.min(100d, value)));
+        if (!Double.isFinite(value) || value < 0d || value > 100d)
+            throw new IllegalArgumentException("Percentage must be between 0 and 100");
+        return money(value);
     }
 
     private static double finiteNonNegative(double value) {
-        return Double.isFinite(value) ? Math.max(0d, value) : 0d;
+        if (!Double.isFinite(value) || value < 0d)
+            throw new IllegalArgumentException("Amount must be a finite non-negative number");
+        return value;
     }
 }

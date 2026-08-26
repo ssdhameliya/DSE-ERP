@@ -7,6 +7,21 @@ import java.util.regex.Pattern;
 public final class ReferenceFormatRules {
     private ReferenceFormatRules() {}
 
+
+    public static void requireValidFormat(String format) {
+        if (format == null || format.isBlank()) throw new IllegalArgumentException("Reference format is required");
+        java.util.regex.Matcher matcher = Pattern.compile("X{2,}").matcher(format.trim());
+        if (!matcher.find()) throw new IllegalArgumentException("Reference format must contain exactly one sequence group of at least two X characters (for example XXXX)");
+        if (matcher.find()) throw new IllegalArgumentException("Reference format must contain only one X sequence group");
+    }
+
+    public static java.util.regex.Matcher sequenceMatcher(String format) {
+        requireValidFormat(format);
+        java.util.regex.Matcher matcher = Pattern.compile("X{2,}").matcher(format.trim());
+        matcher.find();
+        return matcher;
+    }
+
     public static boolean matches(String format, String value, LocalDate documentDate) {
         if (format == null || format.isBlank() || value == null || value.isBlank()) return false;
         return Pattern.compile(toRegex(format.trim(), documentDate), Pattern.CASE_INSENSITIVE).matcher(value.trim()).matches();

@@ -15,7 +15,7 @@ import java.util.concurrent.*;
 import java.util.function.DoubleConsumer;
 
 public final class UpdateService {
-    public static final String DEFAULT_VERSION="2.1.2";
+    public static final String DEFAULT_VERSION="9.0.14";
     public static final String DEFAULT_GITHUB_OWNER="ssdhameliya";
     public static final String DEFAULT_GITHUB_REPOSITORY="DSE-ERP";
     private final GitHubReleaseClient releases=new GitHubReleaseClient();

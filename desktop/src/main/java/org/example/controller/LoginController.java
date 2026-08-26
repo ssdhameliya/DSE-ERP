@@ -25,6 +25,7 @@ import org.example.util.PerformanceMonitor;
 import org.example.util.PerformanceBudgets;
 import org.example.update.BuildInfo;
 import org.example.config.ConfigManager;
+import org.example.shared.SecretValueCodec;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -37,13 +38,15 @@ import java.util.prefs.Preferences;
  * <p>Password authentication is server-owned. If the account has MFA enabled,
  * the server returns an MFA challenge without issuing a bearer token; the token
  * is issued only after the server verifies the email OTP. "Remember Me" stores
- * only the identity and selected role, never the password.</p>
+ * the identity, selected role, and an AES-GCM encrypted password value tied to
+ * the current DSE ERP user/installation key. The password is never persisted in plaintext.</p>
  */
 public class LoginController {
     private static final Preferences PREFS = Preferences.userNodeForPackage(LoginController.class);
     private static final String PREF_REMEMBER = "login.remember";
     private static final String PREF_IDENTITY = "login.identity";
     private static final String PREF_ROLE = "login.role";
+    private static final String PREF_PASSWORD = "login.password.encrypted";
 
     @FXML private TextField txtUsername, txtOtp, txtResetIdentity, txtResetOtp;
     @FXML private PasswordField txtPassword, txtNewPassword, txtConfirmPassword;
@@ -122,6 +125,11 @@ public class LoginController {
         UiActionIcons.apply(btnSendResetOtp, ButtonAction.EMAIL);
         UiActionIcons.apply(btnResetPassword, "save", "Save new password");
         UiActionIcons.apply(btnBackToLogin, ButtonAction.CANCEL);
+        // Keyboard-first login: Enter from the password field submits credentials,
+        // and Enter from the OTP field verifies an active MFA challenge.
+        btnLogin.setDefaultButton(true);
+        txtPassword.setOnAction(event -> login());
+        txtOtp.setOnAction(event -> login());
 
         refreshThemeButton();
         updateLoginMode();
@@ -506,6 +514,8 @@ public class LoginController {
 
         try {
             users.completePasswordReset(resetChallengeId, otp, password);
+            // A saved credential belongs to the old password and must never be replayed.
+            PREFS.remove(PREF_PASSWORD);
             String identity = txtResetIdentity.getText().trim();
             resetChallengeId = null;
             showLoginPanel();
@@ -594,7 +604,18 @@ public class LoginController {
     private void restoreRememberedLogin() {
         boolean remember = PREFS.getBoolean(PREF_REMEMBER, false);
         chkRemember.setSelected(remember);
-        if (remember) txtUsername.setText(PREFS.get(PREF_IDENTITY, ""));
+        if (!remember) return;
+        txtUsername.setText(PREFS.get(PREF_IDENTITY, ""));
+        String encrypted = PREFS.get(PREF_PASSWORD, "");
+        if (!encrypted.isBlank()) {
+            try {
+                txtPassword.setText(SecretValueCodec.decrypt(encrypted));
+            } catch (Exception failure) {
+                PREFS.remove(PREF_PASSWORD);
+                txtPassword.clear();
+                System.err.println("Saved login password could not be decrypted and was cleared: " + failure.getMessage());
+            }
+        }
     }
 
     private void restoreRememberedRole() {
@@ -620,12 +641,16 @@ public class LoginController {
         PREFS.putBoolean(PREF_REMEMBER, true);
         PREFS.put(PREF_IDENTITY, txtUsername.getText().trim());
         PREFS.put(PREF_ROLE, selectedDatabaseRole());
+        String password = txtPassword.getText();
+        if (password == null || password.isBlank()) PREFS.remove(PREF_PASSWORD);
+        else PREFS.put(PREF_PASSWORD, SecretValueCodec.encrypt(password));
     }
 
     private void clearRememberedLogin() {
         PREFS.remove(PREF_REMEMBER);
         PREFS.remove(PREF_IDENTITY);
         PREFS.remove(PREF_ROLE);
+        PREFS.remove(PREF_PASSWORD);
     }
 
     @FXML private void register() { SceneManager.showRegistration(); }

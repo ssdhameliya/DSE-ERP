@@ -347,6 +347,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                     warning -> {
                         setSaveBusy(false);
                         org.example.util.ToastManager.success(amount, "Payment saved", "Supplier payment saved successfully.");
+                        org.example.util.ScreenRefreshPolicy.invalidate("purchase-register");
                         refreshInvoiceAmounts(); resetForm(); loadHistory();
                         if (warning != null) new OwnedAlert(Alert.AlertType.WARNING, warning).showAndWait();
                     },
@@ -389,6 +390,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                     ignored -> {
                         setSaveBusy(false);
                         org.example.util.ToastManager.success(amount, "Payment updated", "Payment updated and purchase totals recalculated.");
+                        org.example.util.ScreenRefreshPolicy.invalidate("purchase-register");
                         refreshInvoiceAmounts(); resetForm(); loadHistory();
                     },
                     failure -> { setSaveBusy(false); new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait(); }

@@ -8,6 +8,107 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.14".equals(version)) {
+            return """
+                    DSE ERP 9.0.14
+
+                    • Reworks Quotation Create/Edit into a Sale-style workspace with Master-driven Source, reliable item search, preserved transaction-line values and side-panel notes/attachments.
+                    • Adds direct navigation from converted Quotations to the linked Sale and removes the side-panel WhatsApp action.
+                    • Adds Sales/Purchase Document Status filtering without enlarging the register filter panels and corrects Purchase Total Items to distinct item codes rather than quantity sum.
+                    • Preserves saved quantity/rate/discount/GST values while editing existing Sale, Purchase and Quotation lines.
+                    • Treats successful no-op imports as completed rather than failed and fixes the Return Refund ScreenRefreshPolicy compile import.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.14.
+                    """;
+        }
+        if ("9.0.13".equals(version)) {
+            return """
+                    DSE ERP 9.0.13
+
+                    • Refreshes Sales, Purchase and Return registers immediately after successful business mutations rather than waiting for cache expiry.
+                    • Aligns Sales/Purchase register KPI values with the active filters and clarifies outstanding values as Pending / Total Pending.
+                    • Separates successful imports from post-save warnings so committed records are never reported as failed only because an attachment step failed.
+                    • Makes Purchase Recon bank references, Permission Matrix Special values and Bank Statement History easier to read and act on.
+                    • Adds keyboard-first login and securely encrypted Remember Me password storage tied to the DSE ERP installation/user key.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.13.
+                    """;
+        }
+        if ("9.0.12".equals(version)) {
+            return """
+                    DSE ERP 9.0.12
+
+                    • Preserves the complete v9.0.11 corrective and 20-defect scope.
+                    • Normalizes historical blank Sales GST mode so View/Download Excel and document previews remain compatible with older invoices.
+                    • Refreshes Sales and Purchase registers automatically after payment create/update so PAID/PARTIAL status is visible immediately on return.
+                    • Converts known technical exception strings into user-facing ERP messages while retaining technical detail in logs.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.12.
+                    """;
+        }
+        if ("9.0.11".equals(version)) {
+            return """
+                    DSE ERP 9.0.11
+
+                    • Preserves the complete v9.0.10 / 20-defect corrective scope.
+                    • Fixes Sale/Purchase startup tax-mode initialization so screens do not fail before GST masters finish loading.
+                    • Repairs Finance runtime schema prerequisites used by Bank Entry and Expense Entry and keeps technical API failures out of normal user dialogs.
+                    • Makes Permission Matrix special permissions readable, constrains Keyboard Shortcuts to a scrollable screen-safe dialog and improves PDF Studio toolbar/mapping usability without changing production PDF generation.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.11.
+                    """;
+        }
+        if ("9.0.10".equals(version)) {
+            return """
+                    DSE ERP 9.0.10
+
+                    • Preserves the full v9.0.9 consolidated 20-defect corrective scope.
+                    • Fixes Purchase Recon compilation by keeping imported Other Adjustment at the defined zero value.
+                    • Rejects stale IntelliJ development-server cache JARs whose manifest version does not match the current runtime contract.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.10.
+                    """;
+        }
+        if ("9.0.9".equals(version)) {
+            return """
+                    DSE ERP 9.0.9
+
+                    • Corrects server build completeness and DTO aggregation for Sales and Purchases.
+                    • Hardens Bank reconciliation, business email, PDF Studio, reminders, communications, Item Master and duplicate-Sale permissions.
+                    • Preserves Purchase supplier/item snapshots and protects reconciled Finance entries.
+                    • Fixes Purchase import rerun identity, reference-format validation, legacy-date reporting, WhatsApp status persistence and dashboard cash calculations.
+                    • Adds last-admin, party-master, category-rename and quotation-action integrity safeguards.
+                    """;
+        }
+        if ("9.0.8".equals(version)) {
+            return """
+                    DSE ERP 9.0.8
+
+                    • PDF Studio rebuilt as a non-destructive object-driven designer with Design, Data Preview and Final PDF modes.
+                    • Uploaded PDF files remain protected; imported text, images and vector regions can be mapped, moved, styled, hidden or replaced through Studio overlays.
+                    • Draft, preview and Publish are isolated from production document generation. Only explicit Mark as Default activation creates the runtime snapshot.
+                    • Published candidates and active runtime snapshots are physically separated, so later editing or publishing cannot silently change Sales/PDF/Print/Preview/Email output.
+                    • Existing Sales invoice and PDF/email generation entry points remain unchanged.
+                    • Desktop and Spring Boot runtime version/build contracts are synchronized to 9.0.8.
+                    """;
+        }
+        if ("9.0.7".equals(version)) {
+            return """
+                    DSE ERP 9.0.7
+                    • Reference previews are now read-only; authoritative master-format references are allocated only inside the transaction that saves the record, preventing unsaved forms from consuming numbers.
+                    • Manual Customer, Supplier, Item and Master IDs are finalized by the server on Save while explicit import reference codes remain preserved.
+                    • Bank Statement is now available directly from Data Import and continues to use the existing bank-statement CSV import engine.
+                    • Data Import readiness now uses one validated state: file, mapping, module or import-mode changes invalidate preflight, and a successful preflight enables the bottom Import Records action reliably.
+                    • Desktop and Spring Boot runtime version/build contracts are synchronized to 9.0.7.
+                    """.strip();
+        }
+        if ("9.0.6".equals(version)) {
+            return """
+                    DSE ERP 9.0.6
+                    • Hardened server trust boundaries for Sales, Purchase, Returns and Quotations so payment state, lifecycle, totals, tax mode and return values are validated or calculated server-side.
+                    • Strengthened quotation, registration, support-mutation, backup/restore and SMTP-secret security controls.
+                    • Added post-rounding Bank allocation validation, strict bank debit/credit direction, non-negative reconciliation/finance/item validations and reserved-stock enforcement.
+                    • Corrected reporting for payment dates, returns, opening balances, filters, full-dataset KPIs, gross profit and historical inventory costing.
+                    • Added immutable Sales invoice party/item snapshots, paise-accurate invoice totals/tax splits/amount-in-words and safer reference numbering.
+                    • Added the 9.0.6 business-integrity database migration and CI contract while preserving existing bank-reconciled payment and return-refund protections.
+                    • Desktop and Spring Boot runtime version/build contracts are synchronized to 9.0.6.
+                    """.strip();
+        }
         if ("9.0.5".equals(version)) {
             return """
                     DSE ERP 9.0.5

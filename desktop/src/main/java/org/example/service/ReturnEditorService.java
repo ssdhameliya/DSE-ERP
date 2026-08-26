@@ -4,6 +4,7 @@ import org.example.util.BusinessClock;
 import org.example.util.IconFactory;
 
 import org.example.util.OwnedAlert;
+import org.example.util.ScreenRefreshPolicy;
 import org.example.util.OwnedDialog;
 import org.example.util.PopupTableWorkspace;
 
@@ -360,7 +361,15 @@ public final class ReturnEditorService {
 
     private static String save(Type type, String invoiceNo, int partyId, LocalDate returnDate, List<ReturnLine> rows) {
         List<ReturnApiClient.CreateLine> lines=rows.stream().map(r->new ReturnApiClient.CreateLine(r.code(),r.returnQuantity(),r.returnAmount(),r.reason())).toList();
-        return new ReturnApiClient().create(new ReturnApiClient.CreateRequest(type.databaseValue,invoiceNo,partyId,returnDate.toString(),lines));
+        String returnNo = new ReturnApiClient().create(new ReturnApiClient.CreateRequest(type.databaseValue,invoiceNo,partyId,returnDate.toString(),lines));
+        if (type == Type.SALES) {
+            ScreenRefreshPolicy.invalidate("sales-returns");
+            ScreenRefreshPolicy.invalidate("sales-register");
+        } else {
+            ScreenRefreshPolicy.invalidate("purchase-returns");
+            ScreenRefreshPolicy.invalidate("purchase-register");
+        }
+        return returnNo;
     }
 
     private static String money(double value) {

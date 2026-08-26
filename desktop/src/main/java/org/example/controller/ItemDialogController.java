@@ -117,8 +117,9 @@ public class ItemDialogController {
     private void saveItem() {
         if (!validateForm()) return;
 
-        Item item = editingItem == null ? new Item() : editingItem;
-        item.setItemCode(txtItemCode.getText().trim());
+        boolean created = editingItem == null;
+        Item item = created ? new Item() : editingItem;
+        item.setItemCode(created ? "" : txtItemCode.getText().trim());
         item.setDescription(txtDescription.getText().trim());
         item.setCategory(cmbCategory.getValue());
         item.setBrand(null);
@@ -135,7 +136,6 @@ public class ItemDialogController {
         item.setLocation(txtLocation.getText().trim());
         item.setRemarks(txtRemarks.getText().trim());
 
-        boolean created = editingItem == null;
         btnSave.setDisable(true);
         UiTaskExecutor.submitAction(
                 "item-dialog-save-" + item.getItemCode(),

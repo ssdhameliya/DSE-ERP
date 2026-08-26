@@ -1,20 +1,16 @@
 package org.example.invoice.mapper;
 
 import org.example.config.ConfigManager;
-import org.example.dao.ItemDAO;
 import org.example.invoice.calculation.AmountInWordsConverter;
 import org.example.invoice.calculation.InvoiceTaxCalculator;
 import org.example.invoice.model.*;
-import org.example.model.Item;
 import org.example.model.Party;
 import org.example.model.Sales;
 import org.example.model.SalesLine;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 public final class SalesToTaxInvoiceMapper {
     private SalesToTaxInvoiceMapper() {}
@@ -48,25 +44,14 @@ public final class SalesToTaxInvoiceMapper {
                 firstNonBlank(sale.getContactPerson(), customer.getContactPerson()),
                 firstNonBlank(sale.getContactPersonMobile(), customer.getPhone()));
 
-        Map<String, Item> itemByCode = new HashMap<>();
-        ItemDAO itemDAO = new ItemDAO();
-        for (Item item : itemDAO.getAll()) {
-            if (item != null && item.getItemCode() != null) {
-                itemByCode.put(normalize(item.getItemCode()), item);
-            }
-        }
-
         List<TaxInvoiceItem> items = new ArrayList<>();
         int serial = 1;
         for (SalesLine line : sale.getLines()) {
             if (line == null) continue;
-            Item masterItem = itemByCode.get(normalize(line.getItemCode()));
             String description = cleanDescription(line.getItemDescription(), line.getItemCode());
             items.add(new TaxInvoiceItem(
-                    serial++, masterItem == null ? "" : safe(masterItem.getHsn()),
-                    description, masterItem == null ? "" : safe(masterItem.getRemarks()), line.getQuantity(),
-                    masterItem == null ? "Nos" : firstNonBlank(masterItem.getUnit(), "Nos"),
-                    line.getRate(), line.getDiscountPercent(), line.getGstPercent()));
+                    serial++, safe(line.getItemHsn()), description, safe(line.getItemRemarks()), line.getQuantity(),
+                    firstNonBlank(line.getItemUnit(), "Nos"), line.getRate(), line.getDiscountPercent(), line.getGstPercent()));
         }
         if (items.isEmpty()) throw new IllegalArgumentException("At least one valid invoice item is required.");
 

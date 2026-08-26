@@ -87,7 +87,17 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_3__import_scalability",
                     "db/migration/V9_0_3__import_scalability.sql"),
             new Migration("V9_0_4__bank_reconciliation_rounding",
-                    "db/migration/V9_0_4__bank_reconciliation_rounding.sql")
+                    "db/migration/V9_0_4__bank_reconciliation_rounding.sql"),
+            new Migration("V9_0_6__business_integrity_hardening",
+                    "db/migration/V9_0_6__business_integrity_hardening.sql"),
+            new Migration("V9_0_9__corrective_integrity_hardening",
+                    "db/migration/V9_0_9__corrective_integrity_hardening.sql"),
+            new Migration("V9_0_11__finance_runtime_repair",
+                    "db/migration/V9_0_11__finance_runtime_repair.sql"),
+            new Migration("V9_0_12__sales_tax_mode_compatibility",
+                    "db/migration/V9_0_12__sales_tax_mode_compatibility.sql"),
+            new Migration("V9_0_14__quotation_register_hardening",
+                    "db/migration/V9_0_14__quotation_register_hardening.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -175,6 +185,12 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("sales_header", "row_version");
         requireColumn("purchase_header", "row_version");
         requireColumn("finance_register", "row_version");
+        requireColumn("finance_register", "account_name");
+        requireColumn("finance_register", "bill_path");
+        requireColumn("finance_register", "reconciled");
+        requireColumn("bank_reconciliation_allocation", "finance_entry_id");
+        requireColumn("bank_reconciliation_allocation", "rounding_adjustment");
+        requireColumn("bank_reconciliation_allocation", "reversed_at");
         requireColumn("party_master", "row_version");
         requireColumn("item_master", "row_version");
         requireColumn("lookup_master", "row_version");
@@ -190,6 +206,24 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireTable("auth_token_revocation");
         requireColumn("auth_token_revocation", "token_hash");
         requireColumn("auth_token_revocation", "expires_at");
+        requireColumn("purchase_header", "supplier_name_snapshot");
+        requireColumn("purchase_line", "item_description_snapshot");
+        requireColumn("purchase_line", "unit_cost_snapshot");
+        requireFunction("dse_safe_date");
+    }
+
+    private void requireFunction(String functionName) {
+        Long count = database.queryForObject("""
+                SELECT COUNT(*)
+                FROM pg_proc p
+                JOIN pg_namespace n ON n.oid=p.pronamespace
+                WHERE n.nspname=current_schema()
+                  AND p.proname=?
+                """, Long.class, functionName);
+        if (count == null || count == 0) {
+            throw new IllegalStateException(
+                    "Required database function is missing after migration: " + functionName);
+        }
     }
 
     private void requireTable(String table) {
@@ -242,9 +276,35 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         List<String> statements = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean quoted = false;
+        String dollarQuote = null;
         String cleaned = withoutComments.toString();
         for (int index = 0; index < cleaned.length(); index++) {
             char character = cleaned.charAt(index);
+
+            if (dollarQuote != null) {
+                if (cleaned.startsWith(dollarQuote, index)) {
+                    current.append(dollarQuote);
+                    index += dollarQuote.length() - 1;
+                    dollarQuote = null;
+                } else {
+                    current.append(character);
+                }
+                continue;
+            }
+
+            if (!quoted && character == '$') {
+                int endTag = cleaned.indexOf('$', index + 1);
+                if (endTag > index) {
+                    String candidate = cleaned.substring(index, endTag + 1);
+                    if (candidate.matches("\\$[A-Za-z0-9_]*\\$")) {
+                        dollarQuote = candidate;
+                        current.append(candidate);
+                        index = endTag;
+                        continue;
+                    }
+                }
+            }
+
             if (character == '\'') {
                 current.append(character);
                 if (quoted && index + 1 < cleaned.length() && cleaned.charAt(index + 1) == '\'') {
@@ -258,9 +318,11 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
                 current.append(character);
             }
         }
+        if (quoted || dollarQuote != null) {
+            throw new IllegalStateException("Unterminated SQL quote in migration script");
+        }
         addStatement(statements, current);
-        if (quoted) throw new IllegalArgumentException("Migration contains an unterminated SQL string literal");
-        return List.copyOf(statements);
+        return statements;
     }
 
     private static void addStatement(List<String> statements, StringBuilder current) {

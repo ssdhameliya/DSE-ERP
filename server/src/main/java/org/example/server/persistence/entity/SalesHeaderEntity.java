@@ -53,6 +53,12 @@ public class SalesHeaderEntity {
  @Column(name="approved_at") private String approvedAt;
  @Column(name="rejection_reason") private String rejectionReason;
  @Column(name="requested_document_status") private String requestedDocumentStatus;
+ @Column(name="customer_name_snapshot") private String customerNameSnapshot;
+ @Column(name="customer_email_snapshot") private String customerEmailSnapshot;
+ @Column(name="customer_phone_snapshot") private String customerPhoneSnapshot;
+ @Column(name="customer_gstin_snapshot") private String customerGstinSnapshot;
+ @Column(name="customer_address_snapshot") private String customerAddressSnapshot;
+
  public Integer getId(){return id;} public void setId(Integer v){id=v;}
  public String getInvoiceNo(){return invoiceNo;} public void setInvoiceNo(String v){invoiceNo=v;}
  public String getInvoiceDate(){return invoiceDate;} public void setInvoiceDate(String v){invoiceDate=v;}
@@ -102,6 +108,12 @@ public class SalesHeaderEntity {
  public String getApprovedAt(){return approvedAt;} public void setApprovedAt(String v){approvedAt=v;}
  public String getRejectionReason(){return rejectionReason;} public void setRejectionReason(String v){rejectionReason=v;}
  public String getRequestedDocumentStatus(){return requestedDocumentStatus;} public void setRequestedDocumentStatus(String v){requestedDocumentStatus=v;}
+ public String getCustomerNameSnapshot(){return customerNameSnapshot;} public void setCustomerNameSnapshot(String v){customerNameSnapshot=v;}
+ public String getCustomerEmailSnapshot(){return customerEmailSnapshot;} public void setCustomerEmailSnapshot(String v){customerEmailSnapshot=v;}
+ public String getCustomerPhoneSnapshot(){return customerPhoneSnapshot;} public void setCustomerPhoneSnapshot(String v){customerPhoneSnapshot=v;}
+ public String getCustomerGstinSnapshot(){return customerGstinSnapshot;} public void setCustomerGstinSnapshot(String v){customerGstinSnapshot=v;}
+ public String getCustomerAddressSnapshot(){return customerAddressSnapshot;} public void setCustomerAddressSnapshot(String v){customerAddressSnapshot=v;}
+
 
  public Long getRowVersion(){return rowVersion;} public void setRowVersion(Long v){rowVersion=v==null?0L:v;}
 }

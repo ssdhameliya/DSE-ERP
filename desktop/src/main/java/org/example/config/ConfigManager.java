@@ -1,5 +1,7 @@
 package org.example.config;
 
+import org.example.shared.SecretValueCodec;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,6 +42,8 @@ public final class ConfigManager {
                 properties.remove("db.url");
                 save();
             }
+            String smtpSecret=properties.getProperty("smtp.appPassword");
+            if(smtpSecret!=null&&!smtpSecret.isBlank()&&!SecretValueCodec.isEncrypted(smtpSecret)){properties.setProperty("smtp.appPassword",SecretValueCodec.encrypt(smtpSecret.replaceAll("\\s+","")));save();}
             System.out.println("Workspace   : " + WorkspaceManager.getWorkspaceRoot());
             System.out.println("Config File : " + configFile);
         } catch (IOException exception) {
@@ -65,7 +69,8 @@ public final class ConfigManager {
             try { String remote=new org.example.api.support.SupportApiClient().setting(key, defaultValue);return SharedAssetBridge.isAssetKey(key)?SharedAssetBridge.resolve(key,remote):remote; }
             catch (org.example.api.ApiSession.AuthenticationRequiredException ignored) { }
         }
-        return properties.getProperty(key, defaultValue);
+        String value=properties.getProperty(key, defaultValue);
+        return "smtp.appPassword".equals(key)?SecretValueCodec.decrypt(value):value;
     }
 
     public static synchronized void set(String key, String value) {
@@ -73,7 +78,7 @@ public final class ConfigManager {
             String remote=SharedAssetBridge.isAssetKey(key)?SharedAssetBridge.publish(key,value):value;
             new org.example.api.support.SupportApiClient().setSetting(key, remote == null ? "" : remote);
         }
-        if (value == null) properties.remove(key); else properties.setProperty(key, value);
+        if (value == null) properties.remove(key); else properties.setProperty(key, "smtp.appPassword".equals(key)?SecretValueCodec.encrypt(value.replaceAll("\\s+","")):value);
         save();
     }
 
@@ -91,7 +96,7 @@ public final class ConfigManager {
             String remote=SharedAssetBridge.isAssetKey(key)?SharedAssetBridge.publish(key,value):value;
             new org.example.api.support.SupportApiClient().setSetting(key, remote == null ? "" : remote);
         }
-        if (value == null) properties.remove(key); else properties.setProperty(key, value);
+        if (value == null) properties.remove(key); else properties.setProperty(key, "smtp.appPassword".equals(key)?SecretValueCodec.encrypt(value.replaceAll("\\s+","")):value);
     }
 
     public static synchronized void remove(String key) {
@@ -126,7 +131,7 @@ public final class ConfigManager {
     private static String requirePostgresUrl(String url) {
         String value = url == null ? "" : url.trim();
         if (!value.startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("DSE ERP 9.0.5 production runtime requires PostgreSQL. Invalid database URL: " + value);
+            throw new IllegalStateException("DSE ERP 9.0.14 production runtime requires PostgreSQL. Invalid database URL: " + value);
         }
         return value;
     }

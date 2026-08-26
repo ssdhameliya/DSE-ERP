@@ -26,6 +26,11 @@ public class PurchaseHeaderEntity {
  @Column(name="approved_at") private String approvedAt;
  @Column(name="rejection_reason") private String rejectionReason;
  @Column(name="requested_document_status") private String requestedDocumentStatus;
+ @Column(name="supplier_name_snapshot") private String supplierNameSnapshot;
+ @Column(name="supplier_email_snapshot") private String supplierEmailSnapshot;
+ @Column(name="supplier_phone_snapshot") private String supplierPhoneSnapshot;
+ @Column(name="supplier_gstin_snapshot") private String supplierGstinSnapshot;
+ @Column(name="supplier_address_snapshot") private String supplierAddressSnapshot;
  public Integer getId(){return id;} public void setId(Integer v){id=v;} public String getInvoiceNo(){return invoiceNo;} public void setInvoiceNo(String v){invoiceNo=v;} public String getInvoiceDate(){return invoiceDate;} public void setInvoiceDate(String v){invoiceDate=v;}
  public PartyEntity getSupplier(){return supplier;} public void setSupplier(PartyEntity v){supplier=v;} public Double getSubtotal(){return subtotal;} public void setSubtotal(Double v){subtotal=v;} public Double getGstAmount(){return gstAmount;} public void setGstAmount(Double v){gstAmount=v;} public Double getTotalAmount(){return totalAmount;} public void setTotalAmount(Double v){totalAmount=v;}
  public String getRemarks(){return remarks;} public void setRemarks(String v){remarks=v;} public String getDueDate(){return dueDate;} public void setDueDate(String v){dueDate=v;} public String getDeliveryDate(){return deliveryDate;} public void setDeliveryDate(String v){deliveryDate=v;} public Double getPaidAmount(){return paidAmount;} public void setPaidAmount(Double v){paidAmount=v;}
@@ -46,6 +51,11 @@ public class PurchaseHeaderEntity {
  public String getApprovedAt(){return approvedAt;} public void setApprovedAt(String v){approvedAt=v;}
  public String getRejectionReason(){return rejectionReason;} public void setRejectionReason(String v){rejectionReason=v;}
  public String getRequestedDocumentStatus(){return requestedDocumentStatus;} public void setRequestedDocumentStatus(String v){requestedDocumentStatus=v;}
+ public String getSupplierNameSnapshot(){return supplierNameSnapshot;} public void setSupplierNameSnapshot(String v){supplierNameSnapshot=v;}
+ public String getSupplierEmailSnapshot(){return supplierEmailSnapshot;} public void setSupplierEmailSnapshot(String v){supplierEmailSnapshot=v;}
+ public String getSupplierPhoneSnapshot(){return supplierPhoneSnapshot;} public void setSupplierPhoneSnapshot(String v){supplierPhoneSnapshot=v;}
+ public String getSupplierGstinSnapshot(){return supplierGstinSnapshot;} public void setSupplierGstinSnapshot(String v){supplierGstinSnapshot=v;}
+ public String getSupplierAddressSnapshot(){return supplierAddressSnapshot;} public void setSupplierAddressSnapshot(String v){supplierAddressSnapshot=v;}
 
  public Long getRowVersion(){return rowVersion;} public void setRowVersion(Long v){rowVersion=v==null?0L:v;}
 }

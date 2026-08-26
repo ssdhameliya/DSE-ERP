@@ -6,6 +6,9 @@ public class SalesLine implements InvoiceLine {
 
     private String itemCode;
     private String itemDescription;
+    private String itemHsn;
+    private String itemUnit;
+    private String itemRemarks;
 
     private double quantity;
     private double rate;
@@ -41,6 +44,13 @@ public class SalesLine implements InvoiceLine {
     public void setItemDescription(String itemDescription) {
         this.itemDescription = itemDescription;
     }
+
+    public String getItemHsn(){ return itemHsn; }
+    public void setItemHsn(String value){ itemHsn=value; }
+    public String getItemUnit(){ return itemUnit; }
+    public void setItemUnit(String value){ itemUnit=value; }
+    public String getItemRemarks(){ return itemRemarks; }
+    public void setItemRemarks(String value){ itemRemarks=value; }
 
 
     public double getQuantity() {
@@ -78,7 +88,7 @@ public class SalesLine implements InvoiceLine {
     }
 
     public void setDiscountPercent(double discountPercent) {
-        this.discountPercent = Math.max(0, Math.min(100, discountPercent));
+        this.discountPercent = org.example.shared.DocumentCalculationEngine.percent(discountPercent);
     }
 
     public double getDiscountAmount() {

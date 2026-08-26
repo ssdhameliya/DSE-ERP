@@ -141,8 +141,16 @@ public class BankExpenseController implements ScreenLifecycle {
 
     private void loadMasterLookups() {
         String selectedPaymentMode = paymentMode == null ? null : paymentMode.getValue();
-        List<String> paymentModes = lookupService.getValuesByCategoryCode("PAYMENT_MODE");
-        List<String> expenseCategories = lookupService.getValuesByCategoryCode("EXPENSE_CATEGORY");
+        List<String> paymentModes;
+        List<String> expenseCategories;
+        try {
+            paymentModes = lookupService.getValuesByCategoryCode("PAYMENT_MODE");
+            expenseCategories = lookupService.getValuesByCategoryCode("EXPENSE_CATEGORY");
+        } catch (Exception failure) {
+            System.err.println("Finance master lookup load failed: " + userMessage(failure));
+            paymentModes = List.of();
+            expenseCategories = List.of();
+        }
 
         paymentMode.getItems().setAll(paymentModes);
         expenseCategory.getItems().setAll(expenseCategories);
@@ -277,7 +285,14 @@ public class BankExpenseController implements ScreenLifecycle {
                 setKpi(kpi3Label,kpi3Value,kpi3Note,"Top Expense Category",safe(m.topExpenseCategory(),"No expenses"),money(m.topExpenseAmount()));
                 setKpi(kpi4Label,kpi4Value,kpi4Note,"Pending Reconcile",m.pendingReconcile()+" entries",money(m.pendingAmount()));
             }
-        }, failure -> error("Unable to load finance metrics: " + (failure.getMessage()==null?failure:failure.getMessage())));
+        }, failure -> {
+            String unavailable = "Unavailable";
+            setKpi(kpi1Label,kpi1Value,kpi1Note,mode==Mode.BANK?"Bank Balance":"Total Expenses (This Month)",unavailable,"Server data unavailable");
+            setKpi(kpi2Label,kpi2Value,kpi2Note,mode==Mode.BANK?"Deposits":"Total Expenses (This Year)",unavailable,"Server data unavailable");
+            setKpi(kpi3Label,kpi3Value,kpi3Note,mode==Mode.BANK?"Withdrawals":"Top Expense Category",unavailable,"Server data unavailable");
+            setKpi(kpi4Label,kpi4Value,kpi4Note,"Pending Reconcile",unavailable,"Server data unavailable");
+            System.err.println("Finance metrics load failed: " + userMessage(failure));
+        });
     }
     private void setKpi(Label l,Label v,Label n,String a,String b,String c){l.setText(a);v.setText(b);n.setText(c);}
 
@@ -309,7 +324,7 @@ public class BankExpenseController implements ScreenLifecycle {
                 (wasUpdate ? actionLabel + " was updated successfully." : actionLabel + " was saved successfully.")
                     + "\n\nAmount: " + money(value)
             );
-        } catch (Exception e) { error(e.getMessage()); }
+        } catch (Exception e) { error(userMessage(e)); }
     }
 
     private void validate(){ if(entryDate.getValue()==null)throw new IllegalArgumentException("Select a date."); if(description.getText().trim().isEmpty())throw new IllegalArgumentException("Enter a description."); if(amount.getText().trim().isEmpty())throw new IllegalArgumentException("Enter an amount."); double v; try{v=Double.parseDouble(amount.getText().replace(",","").trim());}catch(Exception e){throw new IllegalArgumentException("Enter a valid amount.");} if(v<=0)throw new IllegalArgumentException("Amount must be greater than zero."); if(paymentMode.getItems().isEmpty())throw new IllegalArgumentException("No Payment Mode is configured in Master Data."); if(paymentMode.getValue()==null)throw new IllegalArgumentException("Select payment mode."); if(mode==Mode.BANK&&bankAccount.getValue()==null)throw new IllegalArgumentException("Select bank account."); if(mode==Mode.EXPENSE&&expenseCategory.getItems().isEmpty())throw new IllegalArgumentException("No Expense Category is configured in Master Data."); if(mode==Mode.EXPENSE&&(expenseCategory.getValue()==null||expenseCategory.getValue().isBlank()||expenseAccount.getValue()==null))throw new IllegalArgumentException("Select expense category and account."); }
@@ -324,7 +339,10 @@ public class BankExpenseController implements ScreenLifecycle {
     private void reloadRows(){
         org.example.util.OperationalUiSupport.showLoading(table, mode==Mode.EXPENSE?"Loading expenses…":"Loading bank entries…");
         String q=searchField==null?"":searchField.getText().trim();String filter=typeFilter==null?"":safe(typeFilter.getValue(),"");String period=periodFilter==null?"":safe(periodFilter.getValue(),"");Mode requestedMode=mode;int requestedPage=currentPage;
-        UiTaskExecutor.submitLatest("finance-register-page",()->financeService.page(requestedPage,PAGE_SIZE,requestedMode==null?"":requestedMode.name(),period,filter,q),this::applyFinancePage,failure->{org.example.util.OperationalUiSupport.showError(table,"Finance register could not load",failure);error("Unable to load entries: "+failure.getMessage());});
+        UiTaskExecutor.submitLatest("finance-register-page",()->financeService.page(requestedPage,PAGE_SIZE,requestedMode==null?"":requestedMode.name(),period,filter,q),this::applyFinancePage,failure->{
+            org.example.util.OperationalUiSupport.showError(table,"Finance register could not load",new IllegalStateException(userMessage(failure)));
+            System.err.println("Finance register load failed: " + userMessage(failure));
+        });
     }
     private void applyFinancePage(OperationsApiClient.FinancePage page){
         filtered.clear();if(page!=null&&page.rows()!=null)for(var e:page.rows())filtered.add(toRow(e));currentPage=page==null?0:page.page();totalPages=page==null?0:page.totalPages();totalRows=page==null?0:page.totalRows();renderPage();if(filtered.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,mode==Mode.EXPENSE?"No expenses found":"No bank entries found","Adjust the filters or add a new entry.");
@@ -360,7 +378,7 @@ public class BankExpenseController implements ScreenLifecycle {
 
     private void closeEntryDetails(){detailRow=null;if(detailDrawer!=null)detailDrawer.hideDrawer();if(table!=null)table.getSelectionModel().clearSelection();}
 
-    private void editRow(EntryRow row){ if(row==null)return; editingId=row.id; editingVersion=row.rowVersion; entryDate.setValue(LocalDate.parse(row.date.get())); description.setText(row.description.get()); referenceNo.setText(row.reference.get()); amount.setText(String.valueOf(row.amount.get())); paymentMode.setValue(row.paymentMode.get()); if(mode==Mode.BANK){ if(row.rawType.contains("DEPOSIT"))creditRadio.setSelected(true);else debitRadio.setSelected(true); if(!row.account.get().isBlank())bankAccount.setValue(row.account.get()); }else{expenseCategory.setValue(row.type.get()); if(!row.account.get().isBlank())expenseAccount.setValue(row.account.get());} saveButton.setText(mode==Mode.BANK?"Update Entry":"Update Expense"); showEntryDialog(); }
+    private void editRow(EntryRow row){ if(row==null)return; editingId=row.id; editingVersion=row.rowVersion; entryDate.setValue(parseEntryDate(row.date.get())); description.setText(row.description.get()); referenceNo.setText(row.reference.get()); amount.setText(String.valueOf(row.amount.get())); paymentMode.setValue(row.paymentMode.get()); if(mode==Mode.BANK){ if(row.rawType.contains("DEPOSIT"))creditRadio.setSelected(true);else debitRadio.setSelected(true); if(!row.account.get().isBlank())bankAccount.setValue(row.account.get()); }else{expenseCategory.setValue(row.type.get()); if(!row.account.get().isBlank())expenseAccount.setValue(row.account.get());} saveButton.setText(mode==Mode.BANK?"Update Entry":"Update Expense"); showEntryDialog(); }
     private void deleteRow(EntryRow row){
         if(row==null)return;
         Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Delete this entry? This action cannot be undone.");
@@ -395,7 +413,9 @@ public class BankExpenseController implements ScreenLifecycle {
     private static String currentUser(){var u=org.example.service.SessionService.current();return u==null?"User":safe(u.getFullName(),"User");}
     private void info(String header,String text){OwnedAlert a=new OwnedAlert(Alert.AlertType.INFORMATION,text);a.setHeaderText(header);a.showAndWait();}
     private void success(String header,String text){org.example.util.ToastManager.success(table,header,text);}
-    private void error(String text){new OwnedAlert(Alert.AlertType.ERROR,text==null?"Operation failed":text).showAndWait();}
+    private void error(String text){new OwnedAlert(Alert.AlertType.ERROR,text==null||text.isBlank()?"The operation could not be completed. Please try again.":text).showAndWait();}
+    private static String userMessage(Throwable failure){Throwable root=failure;while(root!=null&&root.getCause()!=null&&root.getCause()!=root)root=root.getCause();String message=root==null?null:root.getMessage();if(message==null||message.isBlank()||"empty String".equalsIgnoreCase(message.trim()))return "The ERP could not complete this request. Please review the entered values and try again.";return message;}
+    private static LocalDate parseEntryDate(String value){if(value==null||value.isBlank())return BusinessClock.today();String text=value.trim();for(var pattern:List.of(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE,java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"),java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy"))){try{return LocalDate.parse(text.length()>=10?text.substring(0,10):text,pattern);}catch(Exception ignored){}}return BusinessClock.today();}
 
     public static final class EntryRow { final int id; final long rowVersion; final SimpleStringProperty date,type,description,account,paymentMode,reference,match; final SimpleDoubleProperty amount; final String rawType,linkedTargetType,linkedDocumentNo; final Long statementTransactionId; final Integer linkedTargetId; EntryRow(int id,String d,String t,String desc,String acc,String pm,String ref,double amt,String raw,Long statementId,String targetType,Integer targetId,String documentNo,long rowVersion){this.id=id;this.rowVersion=rowVersion;date=new SimpleStringProperty(d);type=new SimpleStringProperty(t);description=new SimpleStringProperty(desc);account=new SimpleStringProperty(acc);paymentMode=new SimpleStringProperty(pm);reference=new SimpleStringProperty(ref);amount=new SimpleDoubleProperty(amt);rawType=raw==null?"":raw.toUpperCase(Locale.ROOT);statementTransactionId=statementId;linkedTargetType=targetType==null?"":targetType;linkedTargetId=targetId;linkedDocumentNo=documentNo==null?"":documentNo;String display="";if(statementId!=null)display="Bank Statement";if(!linkedDocumentNo.isBlank())display=display.isBlank()?linkedDocumentNo:display+" • "+linkedDocumentNo;match=new SimpleStringProperty(display);} }
 }

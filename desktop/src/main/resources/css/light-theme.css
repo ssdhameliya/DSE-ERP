@@ -7218,6 +7218,11 @@
     -fx-text-fill: #166534;
 }
 
+.doc-template-status-published {
+    -fx-background-color: #e0f2fe;
+    -fx-text-fill: #075985;
+}
+
 .doc-template-status-archived {
     -fx-background-color: #e2e8f0;
     -fx-text-fill: #475569;
@@ -8059,9 +8064,10 @@
 .pdf-v2-object-locked { -fx-border-color: #7b8794; -fx-border-style: segments(5,4); }
 .pdf-v2-object-outside { -fx-border-color: #dc6b20; }
 .pdf-v2-resize-handle { -fx-background-color: white; -fx-border-color: #009c87; -fx-border-width: 1.5; -fx-background-radius: 2; -fx-border-radius: 2; }
-.pdf-v2-source-text-target { -fx-background-color: rgba(59,130,246,.02); -fx-border-color: rgba(59,130,246,.18); -fx-border-width: .6; }
+.pdf-v2-source-text-target { -fx-background-color: transparent; -fx-border-color: transparent; -fx-border-width: .8; }
 .pdf-v2-source-text-target:hover { -fx-background-color: rgba(59,130,246,.08); -fx-border-color: #3b82f6; }
-.pdf-v2-source-image-target, .pdf-v2-source-vector-target { -fx-background-color: rgba(217,119,6,.03); -fx-border-color: rgba(217,119,6,.34); -fx-border-style: segments(5,4); -fx-text-fill: #9a5b00; -fx-font-size: 9px; }
+.pdf-v2-source-image-target, .pdf-v2-source-vector-target { -fx-background-color: transparent; -fx-border-color: transparent; -fx-border-style: segments(5,4); -fx-border-width: .8; }
+.pdf-v2-source-image-target:hover, .pdf-v2-source-vector-target:hover { -fx-background-color: rgba(217,119,6,.07); -fx-border-color: rgba(217,119,6,.70); }
 .pdf-v2-source-selected { -fx-border-color: #d97706; -fx-border-width: 1.7; -fx-background-color: rgba(217,119,6,.10); }
 .pdf-v2-inline-editor { -fx-background-color: rgba(255,255,255,.98); -fx-text-fill: #182b3d; -fx-border-color: #00a88f; -fx-border-width: 1.5; }
 
@@ -8109,3 +8115,9 @@
     -fx-background-insets: 0;
 }
 
+
+.pdf-v2-safety-strip {
+    -fx-background-color: rgba(22,163,74,.07);
+    -fx-background-radius: 8;
+    -fx-padding: 7 10 7 10;
+}

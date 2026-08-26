@@ -28,7 +28,7 @@ public class SalesCharge {
     public boolean isTaxable() { return taxable; }
     public void setTaxable(boolean taxable) { this.taxable = taxable; }
     public double getGstPercent() { return taxable ? gstPercent : 0; }
-    public void setGstPercent(double gstPercent) { this.gstPercent = money(Math.max(0, Math.min(100, gstPercent))); }
+    public void setGstPercent(double gstPercent) { this.gstPercent = money(org.example.shared.DocumentCalculationEngine.percent(gstPercent)); }
     public double getTaxAmount() { return DocumentCalculationEngine.charge(amount, taxable, gstPercent).taxAmount(); }
     public double getTotalAmount() { return DocumentCalculationEngine.charge(amount, taxable, gstPercent).totalAmount(); }
 

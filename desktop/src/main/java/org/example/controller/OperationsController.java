@@ -153,7 +153,7 @@ public class OperationsController implements ScreenLifecycle {
             try{
                 double a=Double.parseDouble(amount.getText());if(a<=0)throw new IllegalArgumentException("Amount must be greater than zero");
                 String voucherType=type.getValue(),voucherDate=date.getValue().toString(),categoryValue=category.getText(),referenceValue=reference.getText(),modeValue=mode.getValue(),notesValue=notes.getText();Integer partyId=party.getValue()==null?null:party.getValue().id;
-                UiTaskExecutor.submitAction("operations-create-finance",()->{String voucherNo=operationsApi.nextVoucher();operationsApi.saveFinance(new OperationsApiClient.FinanceEntry(null,voucherNo,voucherType,voucherDate,partyId,categoryValue,referenceValue,a,modeValue,notesValue,null,null,false));return true;},ignored->{NotificationService.add(voucherType+" voucher recorded.");refreshAll();},failure->error(asException(failure)));
+                UiTaskExecutor.submitAction("operations-create-finance",()->{operationsApi.saveFinance(new OperationsApiClient.FinanceEntry(null,null,voucherType,voucherDate,partyId,categoryValue,referenceValue,a,modeValue,notesValue,null,null,false));return true;},ignored->{NotificationService.add(voucherType+" voucher recorded.");refreshAll();},failure->error(asException(failure)));
             }catch(Exception e){error(e);}
         });
     }

@@ -275,12 +275,16 @@ public class BankStatementController implements ScreenLifecycle {
         colHistoryPeriod.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().statementFrom())+" to "+safe(v.getValue().statementTo())));
         colHistoryStatus.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().status())));
         colHistoryRows.setCellValueFactory(v->new SimpleIntegerProperty(v.getValue().transactionCount()));
+        colHistoryImported.setCellFactory(c->historyTextCell());
+        colHistoryBank.setCellFactory(c->historyTextCell());
+        colHistoryPeriod.setCellFactory(c->historyTextCell());
         colHistoryStatus.setCellFactory(c->SemanticTableCells.status("reconcile"));
         tableHistory.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{btnOpenStatement.setDisable(b==null);updateDeleteButtons();});
         IconFactory.applyTableHeaderIcon(colHistoryImported,"calendar");IconFactory.applyTableHeaderIcon(colHistoryBank,"bank");IconFactory.applyTableHeaderIcon(colHistoryPeriod,"calendar");IconFactory.applyTableHeaderIcon(colHistoryStatus,"status");IconFactory.applyTableHeaderIcon(colHistoryRows,"quantity");
     }
+    private TableCell<BankStatementApiClient.BatchDto,String> historyTextCell(){return new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);String text=empty?null:safe(value);setText(text);setTooltip(text==null||text.isBlank()?null:new Tooltip(text));}};}
     private boolean isStatementHistoryOpen(){return statementWorkspace!=null&&statementHistoryDrawer!=null&&statementWorkspace.getItems().contains(statementHistoryDrawer);}
-    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null||statementWorkspace==null)return;if(isStatementHistoryOpen()){closeStatementHistory();return;}statementWorkspace.getItems().add(statementHistoryDrawer);statementHistoryDrawer.setManaged(true);statementHistoryDrawer.setVisible(true);statementWorkspace.setDividerPositions(.58);historyPage=0;loadStatementHistory();}
+    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null||statementWorkspace==null)return;if(isStatementHistoryOpen()){closeStatementHistory();return;}statementWorkspace.getItems().add(statementHistoryDrawer);statementHistoryDrawer.setManaged(true);statementHistoryDrawer.setVisible(true);statementWorkspace.setDividerPositions(.46);historyPage=0;loadStatementHistory();}
     @FXML private void closeStatementHistory(){if(statementWorkspace!=null&&statementHistoryDrawer!=null)statementWorkspace.getItems().remove(statementHistoryDrawer);}
     private void prepareForLinkedTransactionNavigation(){
         closeStatementHistory();

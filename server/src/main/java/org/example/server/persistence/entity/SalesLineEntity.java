@@ -10,9 +10,21 @@ public class SalesLineEntity {
  @Column(name="discount_amount") private Double discountAmount;
  @Column(name="gst_percent") private Double gstPercent;
  @Column(name="line_total") private Double lineTotal;
+ @Column(name="item_description_snapshot") private String itemDescriptionSnapshot;
+ @Column(name="hsn_snapshot") private String hsnSnapshot;
+ @Column(name="unit_snapshot") private String unitSnapshot;
+ @Column(name="item_remarks_snapshot") private String itemRemarksSnapshot;
+ @Column(name="unit_cost_snapshot") private Double unitCostSnapshot;
+
  public Integer getId(){return id;} public void setId(Integer v){id=v;} public Integer getSalesId(){return salesId;} public void setSalesId(Integer v){salesId=v;}
  public String getItemCode(){return itemCode;} public void setItemCode(String v){itemCode=v;} public Double getQuantity(){return quantity;} public void setQuantity(Double v){quantity=v;}
  public Double getRate(){return rate;} public void setRate(Double v){rate=v;} public Double getDiscountPercent(){return discountPercent;} public void setDiscountPercent(Double v){discountPercent=v;}
  public Double getDiscountAmount(){return discountAmount;} public void setDiscountAmount(Double v){discountAmount=v;} public Double getGstPercent(){return gstPercent;} public void setGstPercent(Double v){gstPercent=v;}
  public Double getLineTotal(){return lineTotal;} public void setLineTotal(Double v){lineTotal=v;}
+ public String getItemDescriptionSnapshot(){return itemDescriptionSnapshot;} public void setItemDescriptionSnapshot(String v){itemDescriptionSnapshot=v;}
+ public String getHsnSnapshot(){return hsnSnapshot;} public void setHsnSnapshot(String v){hsnSnapshot=v;}
+ public String getUnitSnapshot(){return unitSnapshot;} public void setUnitSnapshot(String v){unitSnapshot=v;}
+ public String getItemRemarksSnapshot(){return itemRemarksSnapshot;} public void setItemRemarksSnapshot(String v){itemRemarksSnapshot=v;}
+ public Double getUnitCostSnapshot(){return unitCostSnapshot;} public void setUnitCostSnapshot(Double v){unitCostSnapshot=v;}
+
 }

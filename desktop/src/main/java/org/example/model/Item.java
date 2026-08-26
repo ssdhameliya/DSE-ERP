@@ -53,7 +53,7 @@ public class Item {
     public void setGst(double gst) { this.gst = gst; }
 
     public double getDiscountPercent() { return discountPercent; }
-    public void setDiscountPercent(double discountPercent) { this.discountPercent = Math.max(0, Math.min(100, discountPercent)); }
+    public void setDiscountPercent(double discountPercent) { this.discountPercent = org.example.shared.DocumentCalculationEngine.percent(discountPercent); }
 
     public double getPurchasePrice() { return purchasePrice; }
     public void setPurchasePrice(double purchasePrice) { this.purchasePrice = purchasePrice; }

@@ -30,7 +30,7 @@ purchase_recon_batch=text('server/src/main/java/org/example/server/persistence/e
 insights_service=text('server/src/main/java/org/example/server/insights/InsightsService.java')
 
 require('spring-security-bearer-v5' in runtime_contract, 'R12 must use the signed bearer-v5 API contract')
-require('BUILD_REVISION = "9.0.5"' in runtime_contract and 'APP_VERSION = "9.0.5"' in runtime_contract, '9.0.5 must publish one exact desktop/server version/build contract so stale backends are rejected')
+require('BUILD_REVISION = "9.0.14"' in runtime_contract and 'APP_VERSION = "9.0.14"' in runtime_contract, '9.0.14 must publish one exact desktop/server version/build contract so stale backends are rejected')
 require('buildRevision' in runtime_controller, 'Runtime health must expose the backend build revision')
 require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION, RuntimeContract.BUILD_REVISION)') == 2,
         'RuntimeController tests must instantiate the four-argument runtime contract constructor')
@@ -84,8 +84,9 @@ require('requestMatchers("/error"' in security_config,
         'R12 must permit Spring /error so authenticated backend failures are not rewritten as fake 401s')
 require('if (result.authenticated()) request.removeAttribute(AUTH_FAILURE_ATTRIBUTE)' in bearer_filter,
         'R12 must not label successfully authenticated requests as authentication failures')
-require("DATE_TRUNC('month',CAST(NULLIF(TRIM(quotation_date),'') AS DATE))" in quotation_service,
-        'Quotation metrics must cast legacy TEXT dates before PostgreSQL DATE_TRUNC')
+require("DATE_TRUNC('month',CAST(NULLIF(TRIM(quotation_date),'') AS DATE))" in quotation_service
+        or "DATE_TRUNC('month',dse_safe_date(quotation_date))" in quotation_service,
+        'Quotation metrics must safely parse legacy TEXT dates before PostgreSQL DATE_TRUNC')
 require('nextConfiguredReference("REF_RECON_SUPPLIER"' in purchase_recon_service
         and 'nextConfiguredReference("REF_PURCHASE_RECON"' in purchase_recon_service,
         'Purchase Recon must use the central atomic Reference Master allocator')

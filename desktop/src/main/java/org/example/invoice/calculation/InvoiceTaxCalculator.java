@@ -31,14 +31,14 @@ public final class InvoiceTaxCalculator {
         double taxable = itemTaxable + taxableCharges;
         String type = gstType == null ? "" : gstType.toUpperCase();
         boolean igstMode = type.contains("IGST") || type.contains("INTER");
-        double totalTax = tax + chargeTax;
-        double cgst = igstMode ? 0 : totalTax / 2.0;
-        double sgst = igstMode ? 0 : totalTax / 2.0;
+        double totalTax = money(tax + chargeTax);
+        double cgst = igstMode ? 0 : money(totalTax / 2.0);
+        double sgst = igstMode ? 0 : money(totalTax - cgst);
         double igst = igstMode ? totalTax : 0;
 
-        double beforeRound = itemTaxable + chargeAmount + cgst + sgst + igst;
-        double grand = BigDecimal.valueOf(beforeRound).setScale(0, RoundingMode.HALF_UP).doubleValue();
-        double roundOff = grand - beforeRound;
+        double beforeRound = money(itemTaxable + chargeAmount + cgst + sgst + igst);
+        double grand = beforeRound;
+        double roundOff = 0d;
 
         return new InvoiceTotals(
                 money(basic), money(discount), money(chargeAmount), money(taxable), money(nonTaxableCharges),

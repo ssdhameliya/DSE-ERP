@@ -97,7 +97,7 @@ public class PurchaseLine implements InvoiceLine {
     }
 
     public void setDiscountPercent(double discountPercent) {
-        this.discountPercent = Math.max(0, Math.min(100, discountPercent));
+        this.discountPercent = org.example.shared.DocumentCalculationEngine.percent(discountPercent);
     }
 
     public double getDiscountAmount() {

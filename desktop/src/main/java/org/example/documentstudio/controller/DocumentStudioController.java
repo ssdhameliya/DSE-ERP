@@ -318,21 +318,23 @@ public class DocumentStudioController implements ScreenLifecycle {
         HBox badges = new HBox(6);
         boolean automatic = DocumentFlowRegistry.isAutomatic(template.getDocumentType());
         badges.getChildren().add(badge(template.getStatus().name(), "doc-template-status-" + template.getStatus().name().toLowerCase()));
-        badges.getChildren().add(badge(automatic ? "AUTOMATIC" : "DESIGN ONLY", automatic ? "doc-template-status-active" : "doc-template-version"));
-        if (automatic && template.isDefaultTemplate()) badges.getChildren().add(badge("★ DEFAULT", "doc-template-default"));
-        badges.getChildren().add(badge("v" + template.getVersion(), "doc-template-version"));
+        badges.getChildren().add(badge(automatic ? "ERP READY" : "DESIGN ONLY", automatic ? "doc-template-status-active" : "doc-template-version"));
+        if (template.getPublishedVersion() > 0) badges.getChildren().add(badge("PUBLISHED v" + template.getPublishedVersion(), "doc-template-version"));
+        if (automatic && template.isRuntimeEnabled() && template.isDefaultTemplate()) badges.getChildren().add(badge("★ DEFAULT v"+template.getActiveVersion(), "doc-template-default"));
+        if (template.isUnpublishedChanges()) badges.getChildren().add(badge("DRAFT CHANGES", "doc-template-version"));
 
         HBox actions = new HBox(7);
         Button edit = new Button("Edit"); edit.setOnAction(e -> openDesigner(template));
-        Button previewButton = new Button("Preview"); previewButton.setOnAction(e -> previewTemplate(template));
+        Button previewButton = new Button("Test Preview"); previewButton.setOnAction(e -> previewTemplate(template));
         MenuButton more = new MenuButton("Actions");
-        MenuItem setDefault = new MenuItem("Set as Default");
-        setDefault.setDisable(!DocumentFlowRegistry.isAutomatic(template.getDocumentType())); setDefault.setOnAction(e -> setDefault(template));
+        MenuItem publish = new MenuItem("Publish Candidate"); publish.setDisable(template.getStatus()==TemplateStatus.ARCHIVED); publish.setOnAction(e -> publishTemplate(template));
+        MenuItem setDefault = new MenuItem(template.isRuntimeEnabled()?"Mark Default Again":"Mark as Default");
+        setDefault.setDisable(!automatic || template.getPublishedVersion()<=0 || template.isUnpublishedChanges()); setDefault.setOnAction(e -> setDefault(template));
         MenuItem duplicate = new MenuItem("Duplicate"); duplicate.setOnAction(e -> duplicate(template));
         MenuItem archive = new MenuItem(template.getStatus() == TemplateStatus.ARCHIVED ? "Keep Archived" : "Archive");
         archive.setDisable(template.getStatus() == TemplateStatus.ARCHIVED); archive.setOnAction(e -> archive(template));
         MenuItem delete = new MenuItem("Delete"); delete.setOnAction(e -> delete(template));
-        more.getItems().addAll(setDefault, duplicate, archive, new SeparatorMenuItem(), delete);
+        more.getItems().addAll(publish, setDefault, duplicate, archive, new SeparatorMenuItem(), delete);
         edit.getStyleClass().addAll("approved-button", "approved-primary-button", "doc-template-action-button");
         previewButton.getStyleClass().addAll("approved-button", "approved-secondary-button", "doc-template-action-button");
         more.getStyleClass().addAll("approved-menu-button", "doc-template-more-button");
@@ -386,19 +388,31 @@ public class DocumentStudioController implements ScreenLifecycle {
         DashboardController.navigateFromDocumentStudio("PDF Studio", "/fxml/pages/PdfDesigner.fxml");
     }
 
+    private void publishTemplate(DocumentTemplate template) {
+        try {
+            TemplateStorageService.publish(template);
+            ModernDialog.success(root,"Template published",template.getName()+" is a validated candidate. Current PDF/Print/Preview/Email generation is unchanged until Mark as Default is used.");
+            refresh();
+        } catch (Exception error) { ModernDialog.error(root,"Could not publish","PDF Studio",rootMessage(error)); }
+    }
+
     private void setDefault(DocumentTemplate template) {
         if (!DocumentFlowRegistry.isAutomatic(template.getDocumentType())) {
             ModernDialog.info(root, "Design-only template", "No automatic ERP binding",
                     template.getDocumentType().label() + " can be designed and previewed, but it is not connected to a live automatic document flow yet.");
             return;
         }
+        if(template.getPublishedVersion()<=0 || template.isUnpublishedChanges()){
+            ModernDialog.info(root,"Publish required","PDF Studio","Publish the current design first. Draft and published-candidate work cannot affect existing document generation.");
+            return;
+        }
         String fallback = DocumentFlowRegistry.builtInLabel(template.getDocumentType());
-        if (!ModernDialog.confirm(root, "Activate Default Template",
-                "Use " + template.getName() + " as the default " + template.getDocumentType().label() + "?",
-                "Only this explicit activation changes runtime PDFs. Without an active Studio default, DSE ERP continues using " + fallback + ".")) return;
+        if (!ModernDialog.confirm(root, "Mark as System Default",
+                "Activate " + template.getName() + " v"+template.getPublishedVersion()+" for " + template.getDocumentType().label() + "?",
+                "This is the ONLY PDF Studio action that changes runtime routing. A separate active snapshot will be created. Later edits and publishing remain isolated until Mark as Default is used again. " + fallback + " remains the safety fallback.")) return;
         try {
             TemplateStorageService.setDefault(template.getId());
-            ModernDialog.success(root, "Default template updated", template.getName() + " is now the default for " + template.getDocumentType().label() + ". The built-in document remains the fallback.");
+            ModernDialog.success(root, "System default activated", template.getName() + " is now the active default for " + template.getDocumentType().label() + ".");
             refresh();
         } catch (Exception error) { ModernDialog.error(root, "Could not set default", "Document Studio", rootMessage(error)); }
     }

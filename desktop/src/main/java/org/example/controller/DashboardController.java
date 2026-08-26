@@ -26,6 +26,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -37,6 +38,7 @@ import javafx.scene.Scene;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.StageStyle;
+import javafx.stage.Screen;
 import javafx.scene.Node;
 import javafx.scene.Cursor;
 import javafx.application.Platform;
@@ -398,11 +400,31 @@ public class DashboardController {
             shortcuts.add(key, 0, row);
             shortcuts.add(name, 1, row);
         }
-        VBox content = new VBox(12,
-            new Label("Current global shortcuts (configure them in Settings → Keyboard Shortcuts):"), shortcuts);
+        Label intro = new Label("Current global shortcuts (configure them in Settings → Keyboard Shortcuts):");
+        intro.setWrapText(true);
+        VBox content = new VBox(12, intro, shortcuts);
         content.getStyleClass().add("shortcut-info-content");
-        dialog.getDialogPane().setContent(content);
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setPannable(true);
+        scroll.getStyleClass().add("shortcut-info-scroll");
+        scroll.setPrefViewportWidth(560);
+        scroll.setPrefViewportHeight(520);
+        dialog.getDialogPane().setContent(scroll);
+        dialog.getDialogPane().setPrefWidth(620);
+        dialog.setResizable(true);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.setOnShown(event -> {
+            var window = dialog.getDialogPane().getScene() == null ? null : dialog.getDialogPane().getScene().getWindow();
+            if (window == null) return;
+            var screen = Screen.getScreensForRectangle(window.getX(), window.getY(), Math.max(1, window.getWidth()), Math.max(1, window.getHeight()))
+                    .stream().findFirst().orElse(Screen.getPrimary());
+            double maxHeight = Math.max(420, screen.getVisualBounds().getHeight() * 0.84);
+            window.setHeight(Math.min(window.getHeight(), maxHeight));
+            window.centerOnScreen();
+        });
         dialog.showAndWait();
     }
 

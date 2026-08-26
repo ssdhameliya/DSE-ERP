@@ -73,15 +73,15 @@ public class LookupDialogController {
     private void save() {
         if (!validateForm()) return;
 
-        Lookup lookup = editingLookup == null ? new Lookup() : editingLookup;
+        boolean created = editingLookup == null;
+        Lookup lookup = created ? new Lookup() : editingLookup;
         lookup.setLookupType(lookupType);
-        lookup.setLookupCode(txtCode.getText().trim());
+        lookup.setLookupCode(created ? "" : txtCode.getText().trim());
         lookup.setLookupValue(txtValue.getText().trim());
         lookup.setDescription(txtDescription.getText().trim());
         lookup.setDisplayOrder(spnOrder.getValue());
         lookup.setActive(chkActive.isSelected());
 
-        boolean created = editingLookup == null;
         btnSave.setDisable(true);
         UiTaskExecutor.submitAction(
                 "lookup-dialog-save-" + lookup.getLookupType() + "-" + lookup.getLookupCode(),

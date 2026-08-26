@@ -77,7 +77,8 @@
 
           <VBox spacing="10" styleClass="filter-surface,sales-filter-surface,approved-filter-bar,erp-filter-section">
             <HBox spacing="9" alignment="CENTER_LEFT">
-              <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="360" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+              <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="300" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+              <ComboBox fx:id="cmbDocumentStatus" promptText="Document Status" prefWidth="170" styleClass="approved-input"/>
               <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced"/>
               <MenuButton text="Saved Views" fx:id="savedViewsMenu" styleClass="approved-menu-button"/>
               <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="secondary-button,sales-toolbar-button"/>
@@ -130,7 +131,7 @@
                 <TableColumn fx:id="colGstin" text="GSTIN" prefWidth="112" minWidth="100" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colTotal" text="Amount" prefWidth="96" minWidth="88" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colPaid" text="Paid" prefWidth="82" minWidth="74" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colBalance" text="Balance" prefWidth="90" minWidth="82" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colBalance" text="Pending" prefWidth="90" minWidth="82" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
@@ -165,7 +166,7 @@
                   <Label fx:id="lblFooterPaid" styleClass="register-total-value,register-total-paid,summary-paid"/>
                 </VBox>
                 <VBox alignment="CENTER_RIGHT" styleClass="sales-summary-block,last-summary-block">
-                  <Label text="Total Balance" styleClass="summary-caption"/>
+                  <Label text="Total Pending" styleClass="summary-caption"/>
                   <Label fx:id="lblFooterBalance" styleClass="register-total-value,register-total-balance,summary-balance"/>
                 </VBox>
               </HBox>
@@ -184,7 +185,7 @@
                 <GridPane hgap="10" vgap="7" styleClass="sales-detail-sheet-grid,sales-detail-two-column"><columnConstraints><ColumnConstraints percentWidth="43"/><ColumnConstraints percentWidth="57"/></columnConstraints>
                   <Label fx:id="capInvoiceAmount" text="Invoice Amount"/><Label fx:id="lblDetailAmount" GridPane.columnIndex="1" styleClass="drawer-money"/>
                   <Label fx:id="capPaidAmount" text="Paid Amount" GridPane.rowIndex="1"/><Label fx:id="lblDetailPaid" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="summary-paid"/>
-                  <Label fx:id="capBalance" text="Balance" GridPane.rowIndex="2"/><Label fx:id="lblDetailBalance" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="summary-balance"/>
+                  <Label fx:id="capBalance" text="Pending" GridPane.rowIndex="2"/><Label fx:id="lblDetailBalance" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="summary-balance"/>
                   <Label fx:id="capDueDate" text="Due Date" GridPane.rowIndex="3"/><Label fx:id="lblDetailDue" GridPane.rowIndex="3" GridPane.columnIndex="1" wrapText="true"/>
                   <Label fx:id="capGstAmount" text="GST Amount" GridPane.rowIndex="4"/><Label fx:id="lblDetailGstAmount" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
                   <Label fx:id="capTotalCharges" text="Total Charges" GridPane.rowIndex="5"/><Label fx:id="lblDetailTotalCharges" GridPane.rowIndex="5" GridPane.columnIndex="1"/>

@@ -34,7 +34,29 @@ public final class ModernDialog {
     }
 
     public static void error(Node owner, String title, String heading, String message) {
-        show(owner, "error", title, heading, message, CLOSE);
+        String visible = userFacingError(message);
+        if (message != null && !message.isBlank() && !message.equals(visible)) {
+            System.err.println("DSE ERP technical error detail: " + message);
+        }
+        show(owner, "error", title, heading, visible, CLOSE);
+    }
+
+    private static String userFacingError(String message) {
+        String value = message == null ? "" : message.trim();
+        if (value.isBlank()) return "The operation could not be completed. Please try again.";
+        String lower = value.toLowerCase(java.util.Locale.ROOT);
+        if (lower.equals("empty string") || lower.startsWith("for input string:") || lower.contains("numberformatexception")) {
+            return "A required numeric value is blank or invalid. Review the entered values and try again.";
+        }
+        if (lower.startsWith("operations api error (500)") || lower.startsWith("master api error (500)")
+                || lower.startsWith("bank statement api error (500)")) {
+            return "The ERP server could not complete this operation. Please try again. If the problem continues, check the server log.";
+        }
+        if (value.startsWith("{") && value.endsWith("}")) {
+            // Never expose raw JSON response bodies in normal user dialogs.
+            return "The ERP server could not complete this operation. Please try again.";
+        }
+        return value;
     }
 
     private static Optional<ButtonType> show(

@@ -32,7 +32,7 @@ cp "$JAR" "$INPUT/DSE_Final.jar"
 mkdir -p "$INPUT/server"
 cp "$SERVER_JAR" "$INPUT/server/dse-erp-server.jar"
 
-# 7.0.0 managed PostgreSQL payload. Release packaging must point
+# Managed PostgreSQL payload. Release packaging must point
 # DSE_POSTGRES_RUNTIME_DIR at the relocatable runtime produced by build-postgresql-macos.sh.
 POSTGRES_RUNTIME="${DSE_POSTGRES_RUNTIME_DIR:-}"
 [[ -n "$POSTGRES_RUNTIME" && -x "$POSTGRES_RUNTIME/bin/initdb" ]] || {

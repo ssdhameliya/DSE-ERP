@@ -259,7 +259,7 @@ public final class DialogPresentation {
         Label title = new Label(code.isBlank() ? "Request details" : code + "  \u2022  " + httpStatusSummary(code));
         title.getStyleClass().add("modern-dialog-detail-title");
 
-        String detailText = stripHttpMarker(message);
+        String detailText = userFacingErrorDetail(stripHttpMarker(message));
         if (detailText.isBlank()) detailText = "The request could not be completed.";
         Label detail = new Label(detailText);
         detail.setWrapText(true);
@@ -273,6 +273,30 @@ public final class DialogPresentation {
         card.setAlignment(Pos.TOP_LEFT);
         card.getStyleClass().add("modern-dialog-detail-card");
         return card;
+    }
+
+
+    private static String userFacingErrorDetail(String message) {
+        String value = safe(message);
+        if (value.isBlank()) return "The request could not be completed.";
+        String lower = value.toLowerCase(Locale.ROOT);
+        String visible = value;
+        if (lower.startsWith("unsupported tax mode")) {
+            visible = "This document contains missing or unsupported GST/IGST information. Reload the document and try again.";
+        } else if (lower.equals("empty string") || lower.startsWith("for input string:")
+                || lower.contains("numberformatexception")) {
+            visible = "A required value is blank or invalid. Review the entered information and try again.";
+        } else if (lower.contains("nullpointerexception") || lower.contains("illegalstateexception")
+                || lower.contains("stacktrace") || lower.startsWith("java.") || lower.startsWith("org.springframework.")) {
+            visible = "The ERP could not complete this operation. Please try again. If the problem continues, contact support.";
+        } else if ((value.startsWith("{") && value.endsWith("}"))
+                || lower.startsWith("operations api error (500)")
+                || lower.startsWith("master api error (500)")
+                || lower.startsWith("bank statement api error (500)")) {
+            visible = "The ERP server could not complete this operation. Please try again. If the problem continues, check the server log.";
+        }
+        if (!visible.equals(value)) System.err.println("DSE ERP technical error detail: " + value);
+        return visible;
     }
 
     private static String extractHttpCode(String message) {

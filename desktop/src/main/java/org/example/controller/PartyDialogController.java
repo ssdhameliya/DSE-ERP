@@ -82,9 +82,10 @@ public class PartyDialogController {
     private void save() {
         if (!validateForm()) return;
 
-        Party party = editing == null ? new Party() : editing;
+        boolean created = editing == null;
+        Party party = created ? new Party() : editing;
         party.setPartyType(type);
-        party.setPartyCode(txtCode.getText().trim());
+        party.setPartyCode(created ? "" : txtCode.getText().trim());
         party.setName(txtName.getText().trim());
         party.setContactPerson(txtContact.getText().trim());
         party.setPhone(txtPhone.getText().trim());
@@ -95,7 +96,6 @@ public class PartyDialogController {
                 ? 0 : Double.parseDouble(txtOpeningBalance.getText().trim()));
         party.setActive(chkActive.isSelected());
 
-        boolean created = editing == null;
         String entityName = "CUSTOMER".equals(type) ? "Customer" : "Supplier";
         btnSave.setDisable(true);
         UiTaskExecutor.submitAction(

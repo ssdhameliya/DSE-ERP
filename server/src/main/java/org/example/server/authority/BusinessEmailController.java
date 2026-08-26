@@ -1,6 +1,7 @@
 package org.example.server.authority;
 
 import org.example.server.auth.SmtpMailService;
+import org.example.server.security.CurrentUser;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Base64;
@@ -13,6 +14,7 @@ public class BusinessEmailController {
 
     @PostMapping
     public Result send(@RequestBody Request r) {
+        CurrentUser.requirePermission("COMMUNICATION.CREATE", "Send business email");
         byte[] attachment = r.attachmentBase64() == null || r.attachmentBase64().isBlank()
                 ? null : Base64.getDecoder().decode(r.attachmentBase64());
         mail.sendBusiness(r.recipient(), r.subject(), r.body(), r.attachmentName(), attachment);

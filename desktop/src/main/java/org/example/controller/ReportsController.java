@@ -66,22 +66,23 @@ public class ReportsController implements ScreenLifecycle {
     private void requestRefresh(){
         if(dpFrom.getValue()==null||dpTo.getValue()==null||dpFrom.getValue().isAfter(dpTo.getValue())){error("Choose a valid reporting date range.");return;}
         String from=dpFrom.getValue().toString(),to=dpTo.getValue().toString();
+        String reportType=selected(cmbReportType,"All Reports"),party=selected(cmbParty,"All Customers / Suppliers"),item=selected(cmbItem,"All Items"),salesperson=selected(cmbSalesPerson,"All Sales Persons");
         loadRequested=true;
         setBusy(true);
-        UiTaskExecutor.submitLatest(TASK_KEY, () -> loadReport(from,to), data -> {
+        UiTaskExecutor.submitLatest(TASK_KEY, () -> loadReport(from,to,reportType,party,item,salesperson), data -> {
             long started=System.nanoTime();
             applyReportCore(data);
             loaded=true; loadRequested=false; ScreenRefreshPolicy.markRefreshed("reports"); setBusy(false);
             logUiPhase("reports-core-apply", started);
         }, failure -> { loadRequested=false; setBusy(false); error("Could not load report data: "+failure.getMessage()); });
     }
-    private ReportData loadReport(String from,String to) {
-        var d=insightsApi.report(from,to);
+    private ReportData loadReport(String from,String to,String reportType,String party,String item,String salesperson) {
+        var d=insightsApi.report(from,to,reportType,party,item,salesperson);
         List<Point> cp=d.customerPoints().stream().map(x->new Point(x.label(),x.value())).toList();
         List<Point> ip=d.itemPoints().stream().map(x->new Point(x.label(),x.value())).toList();
         List<String[]> sr=d.salesRows().stream().map(x->new String[]{x.number(),x.date(),x.party(),money(x.amount()),x.status()}).toList();
         List<String[]> pr=d.purchaseRows().stream().map(x->new String[]{x.number(),x.date(),x.party(),money(x.amount()),x.status()}).toList();
-        return new ReportData(d.sales(),d.purchase(),d.profit(),d.receivables(),d.stock(),d.low(),d.customers(),List.of(),cp,ip,sr,pr,d.salesPaid(),d.payables(),d.purchasesPaid(),d.items(),d.out());
+        return new ReportData(d.sales(),d.purchase(),d.profit(),d.receivables(),d.stock(),d.low(),d.customers(),List.of(),cp,ip,sr,pr,d.salesPaid(),d.payables(),d.purchasesPaid(),d.items(),d.out(),d.salesCount(),d.purchaseCount(),d.averageSale());
     }
     private void applyReportCore(ReportData d){
         setMetric(lblSales,d.sales()); setMetric(lblPurchase,d.purchase()); setMetric(lblProfit,d.profit());
@@ -104,9 +105,9 @@ public class ReportsController implements ScreenLifecycle {
         topItemsSummary.getItems().setAll(summaryLines(d.itemPoints(),"No item sales in selected period"));
         performanceSummary.getItems().setAll(
             "Gross Profit      •  "+money(d.profit()),
-            "Sales Invoices    •  "+d.salesRows().size(),
-            "Purchase Invoices •  "+d.purchaseRows().size(),
-            "Average Sale      •  "+money(d.salesRows().isEmpty()?0:d.sales()/d.salesRows().size()));
+            "Sales Invoices    •  "+d.salesCount(),
+            "Purchase Invoices •  "+d.purchaseCount(),
+            "Average Sale      •  "+money(d.averageSale()));
     }
     private List<String> summaryLines(List<Point> points,String empty){
         if(points==null||points.isEmpty())return List.of(empty);
@@ -114,6 +115,7 @@ public class ReportsController implements ScreenLifecycle {
         for(Point point:points)rows.add((rank++)+". "+point.label()+"  •  "+money(point.value()));
         return rows;
     }
+    private static String selected(ComboBox<String> box,String all){String value=box==null?null:box.getValue();if(value==null||value.isBlank()||value.equalsIgnoreCase(all)||value.toUpperCase(Locale.ROOT).startsWith("ALL "))return "";return value.trim();}
     private void setMetric(Label label,double value){
         String full=money(value); label.setTooltip(new Tooltip(full)); label.setText(compactMoney(value));
     }
@@ -151,5 +153,5 @@ public class ReportsController implements ScreenLifecycle {
     private void configureExplicitTableHeaderIcons(){IconFactory.applyTableHeaderIcon(colSaleNo,"document");IconFactory.applyTableHeaderIcon(colSaleDate,"calendar");IconFactory.applyTableHeaderIcon(colSaleParty,"customer");IconFactory.applyTableHeaderIcon(colSaleAmount,"currency");IconFactory.applyTableHeaderIcon(colSaleStatus,"status");IconFactory.applyTableHeaderIcon(colPurchaseNo,"document");IconFactory.applyTableHeaderIcon(colPurchaseDate,"calendar");IconFactory.applyTableHeaderIcon(colPurchaseParty,"supplier");IconFactory.applyTableHeaderIcon(colPurchaseAmount,"currency");IconFactory.applyTableHeaderIcon(colPurchaseStatus,"status");}
     private record FilterData(List<String> parties,List<String> items,List<String> salespeople){}
     private record Point(String label,double value){}
-    private record ReportData(double sales,double purchase,double profit,double receivables,double stock,long low,long customers,List<Point> trend,List<Point> customerPoints,List<Point> itemPoints,List<String[]> salesRows,List<String[]> purchaseRows,double salesPaid,double payables,double purchasesPaid,long items,long out){}
+    private record ReportData(double sales,double purchase,double profit,double receivables,double stock,long low,long customers,List<Point> trend,List<Point> customerPoints,List<Point> itemPoints,List<String[]> salesRows,List<String[]> purchaseRows,double salesPaid,double payables,double purchasesPaid,long items,long out,long salesCount,long purchaseCount,double averageSale){}
 }

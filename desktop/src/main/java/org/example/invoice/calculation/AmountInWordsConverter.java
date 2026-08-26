@@ -13,10 +13,18 @@ public final class AmountInWordsConverter {
     private AmountInWordsConverter() {}
 
     public static String indianRupees(double value) {
-        long amount = Math.round(value);
-        if (amount == 0) return "ZERO ONLY";
-        if (amount < 0) return "MINUS " + indianRupees(-amount);
-        return convert(amount).trim().replaceAll("\\s+", " ") + " ONLY";
+        java.math.BigDecimal normalized = java.math.BigDecimal.valueOf(value).setScale(2, java.math.RoundingMode.HALF_UP);
+        if (normalized.signum() == 0) return "ZERO RUPEES ONLY";
+        if (normalized.signum() < 0) return "MINUS " + indianRupees(normalized.abs().doubleValue());
+        long rupees = normalized.longValue();
+        int paise = normalized.remainder(java.math.BigDecimal.ONE).movePointRight(2).abs().intValueExact();
+        StringBuilder out = new StringBuilder();
+        if (rupees > 0) out.append(convert(rupees).trim().replaceAll("\\s+", " ")).append(" RUPEES");
+        if (paise > 0) {
+            if (!out.isEmpty()) out.append(" AND ");
+            out.append(twoDigits(paise)).append(" PAISE");
+        }
+        return out.append(" ONLY").toString();
     }
 
     private static String convert(long n) {

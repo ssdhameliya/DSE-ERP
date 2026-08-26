@@ -2,7 +2,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<BorderPane fx:id="root" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.documentstudio.controller.PdfDesignerController" styleClass="pdf-v2-root">
+<BorderPane fx:id="root" xmlns:fx="http://javafx.com/fxml" fx:controller="org.example.documentstudio.controller.PdfStudioController" styleClass="pdf-v2-root">
     <top>
         <VBox spacing="8" styleClass="pdf-v2-topbar">
             <padding><Insets top="10" right="12" bottom="10" left="12"/></padding>
@@ -12,20 +12,38 @@
                     <Label fx:id="lblTemplateName" text="PDF Studio" styleClass="page-title"/>
                     <Label fx:id="lblTemplateMeta" text="Template" styleClass="muted-label"/>
                 </VBox>
-                <Label text="Auto Map" styleClass="field-caption"/>
+                <Label text="Mapping" styleClass="field-caption"/>
                 <ProgressBar fx:id="mappingProgress" prefWidth="130" progress="0"/>
                 <Label fx:id="lblMappingPercent" text="0%" styleClass="pdf-v2-map-percent"/>
                 <Label fx:id="lblMappingSummary" text="Not analyzed" styleClass="muted-label"/>
-                <Button text="Auto Map" onAction="#autoMapNow" styleClass="approved-button,approved-secondary-button"/>
-                <Button fx:id="btnPreview" text="Preview" onAction="#togglePreview" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Save" onAction="#saveDraft" styleClass="approved-button,approved-secondary-button"/>
-                <Button fx:id="btnSaveDefault" text="Save &amp; Set Default" onAction="#saveAndDefault" styleClass="approved-button,approved-primary-button"/>
-                <Button text="Export PDF" onAction="#exportPdf" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Auto Map Fields" onAction="#autoMapNow" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
+            <FlowPane hgap="8" vgap="7" alignment="CENTER_LEFT" styleClass="pdf-v2-toolbar-wrap">
+                <Label text="MODE" styleClass="field-caption"/>
+                <Button fx:id="btnDesignMode" text="Design" onAction="#showDesignMode" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnDataPreviewMode" text="Data Preview" onAction="#showDataPreviewMode" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnFinalMode" text="Final PDF" onAction="#showFinalMode" styleClass="approved-button,approved-secondary-button"/>
+                <Separator orientation="VERTICAL" prefHeight="24"/>
+                <Button text="Save Draft" onAction="#saveDraft" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnPublish" text="Publish" onAction="#publishTemplate" styleClass="approved-button,approved-secondary-button"/>
+                <Button fx:id="btnSaveDefault" text="Mark as Default" onAction="#markDefault" styleClass="approved-button,approved-primary-button"/>
+                <Button text="Export Test PDF" onAction="#exportPdf" styleClass="approved-button,approved-secondary-button"/>
+            </FlowPane>
+            <HBox spacing="8" alignment="CENTER_LEFT" styleClass="pdf-v2-safety-strip">
+                <Label text="PROTECTED SOURCE" styleClass="field-caption"/>
+                <Label text="The uploaded PDF is immutable. Draft, preview and publish never change current ERP PDF/Print/Email generation. Only Mark as Default activates a validated runtime snapshot." wrapText="true" styleClass="muted-label" HBox.hgrow="ALWAYS"/>
             </HBox>
             <HBox spacing="8" alignment="CENTER_LEFT">
                 <Label text="Preview record" styleClass="field-caption"/>
                 <ComboBox fx:id="cmbSampleDocument" prefWidth="290" onAction="#sampleChanged"/>
-                <Separator orientation="VERTICAL" prefHeight="24"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <CheckBox fx:id="chkSnap" text="Snap" selected="true"/>
+                <Button text="Fit Width" onAction="#fitWidth" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Fit Page" onAction="#fitPage" styleClass="approved-button,approved-secondary-button"/>
+                <Slider fx:id="zoomSlider" min="35" max="220" value="100" prefWidth="130"/>
+                <Label fx:id="lblZoom" text="100%"/>
+            </HBox>
+            <FlowPane hgap="8" vgap="7" alignment="CENTER_LEFT" styleClass="pdf-v2-toolbar-wrap">
                 <Button text="Undo" onAction="#undo" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Redo" onAction="#redo" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Duplicate" onAction="#duplicateSelected" styleClass="approved-button,approved-secondary-button"/>
@@ -41,18 +59,12 @@
                 <Button text="Bottom" onAction="#alignBottom" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Distribute H" onAction="#distributeHorizontal" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Distribute V" onAction="#distributeVertical" styleClass="approved-button,approved-secondary-button"/>
-                <Region HBox.hgrow="ALWAYS"/>
-                <CheckBox fx:id="chkSnap" text="Snap" selected="true"/>
-                <Button text="Fit Width" onAction="#fitWidth" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Fit Page" onAction="#fitPage" styleClass="approved-button,approved-secondary-button"/>
-                <Slider fx:id="zoomSlider" min="35" max="220" value="100" prefWidth="130"/>
-                <Label fx:id="lblZoom" text="100%"/>
-            </HBox>
+            </FlowPane>
         </VBox>
     </top>
 
     <left>
-        <TabPane fx:id="leftTabs" prefWidth="270" tabClosingPolicy="UNAVAILABLE" styleClass="pdf-v2-left-tabs">
+        <TabPane fx:id="leftTabs" prefWidth="300" tabClosingPolicy="UNAVAILABLE" styleClass="pdf-v2-left-tabs">
             <tabs>
                 <Tab text="CREATE">
                     <ScrollPane fitToWidth="true" hbarPolicy="NEVER">
@@ -64,18 +76,19 @@
                                 <TilePane hgap="8" vgap="8" prefColumns="2">
                                     <Button text="Text" onAction="#addText" onDragDetected="#dragCreateText" styleClass="pdf-v2-tool"/>
                                     <Button text="Heading" onAction="#addHeading" onDragDetected="#dragCreateHeading" styleClass="pdf-v2-tool"/>
-                                    <Button text="Block" onAction="#addBlock" onDragDetected="#dragCreateBlock" styleClass="pdf-v2-tool"/>
+                                    <Button text="Section" onAction="#addBlock" onDragDetected="#dragCreateBlock" styleClass="pdf-v2-tool"/>
                                     <Button text="Rectangle" onAction="#addRectangle" onDragDetected="#dragCreateRectangle" styleClass="pdf-v2-tool"/>
+                                    <Button text="Hide Area" onAction="#addHideArea" onDragDetected="#dragCreateHideArea" styleClass="pdf-v2-tool"/>
                                     <Button text="Line" onAction="#addLine" onDragDetected="#dragCreateLine" styleClass="pdf-v2-tool"/>
                                     <Button text="Image" onAction="#addImage" onDragDetected="#dragCreateImage" styleClass="pdf-v2-tool"/>
                                     <Button text="Item Repeater" onAction="#addItemRepeater" onDragDetected="#dragCreateItems" styleClass="pdf-v2-tool"/>
                                     <Button text="Charge Repeater" onAction="#addChargeRepeater" onDragDetected="#dragCreateCharges" styleClass="pdf-v2-tool"/>
                                 </TilePane>
                                 <Separator/>
-                                <Label text="GROUP / CONTAINER" styleClass="field-caption"/>
-                                <Button text="Group Selected in Block" onAction="#groupSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                                <Label text="SECTION / GROUP" styleClass="field-caption"/>
+                                <Button text="Group Selected in Section" onAction="#groupSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                                 <Button text="Ungroup Selected" onAction="#ungroupSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                                <Label text="Children can inherit the parent block style and still be overridden individually." wrapText="true" styleClass="pdf-designer-help"/>
+                                <Label text="Children can inherit the parent section style and still be overridden individually." wrapText="true" styleClass="pdf-designer-help"/>
                             </VBox>
                         </content>
                     </ScrollPane>
@@ -120,7 +133,7 @@
             <ScrollPane fx:id="canvasScroll" pannable="true" fitToHeight="false" fitToWidth="false" VBox.vgrow="ALWAYS" styleClass="pdf-v2-canvas-scroll">
                 <content><StackPane fx:id="canvasHolder" alignment="TOP_LEFT" styleClass="pdf-v2-canvas-holder"><Pane fx:id="canvasPane" styleClass="pdf-v2-canvas"/></StackPane></content>
             </ScrollPane>
-            <HBox spacing="8" alignment="CENTER_LEFT" styleClass="pdf-v2-status"><padding><Insets top="7" right="10" bottom="7" left="10"/></padding><Label fx:id="lblSaveState" text="Ready"/><Region HBox.hgrow="ALWAYS"/><Label text="Click anything → properties populate automatically • Shift-click = multi-select • Double-click text = edit" styleClass="muted-label"/></HBox>
+            <HBox spacing="8" alignment="CENTER_LEFT" styleClass="pdf-v2-status"><padding><Insets top="7" right="10" bottom="7" left="10"/></padding><Label fx:id="lblSaveState" text="Ready"/><Region HBox.hgrow="ALWAYS"/><Label text="Original PDF is protected • Click anything → properties populate automatically • Delete on imported content hides it non-destructively" styleClass="muted-label"/></HBox>
         </VBox>
     </center>
 
@@ -136,7 +149,9 @@
                     <VBox fx:id="textSection" spacing="7">
                         <Label text="CONTENT / ERP MAPPING" styleClass="field-caption"/>
                         <TextArea fx:id="txtContent" prefRowCount="4" wrapText="true" promptText="Text or {{erp.field}} expression"/>
+                        <Label text="ERP Field Binding" styleClass="field-caption"/>
                         <ComboBox fx:id="cmbFieldBinding" maxWidth="Infinity" promptText="ERP field binding"/>
+                        <Button text="Browse / Drag ERP Fields" onAction="#showErpFields" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                         <Label text="Literal text and ERP expressions can live in the same object, e.g. GSTIN: {{customer.gstin}}" wrapText="true" styleClass="pdf-designer-help"/>
                         <GridPane hgap="7" vgap="7">
                             <Label text="Font" GridPane.columnIndex="0" GridPane.rowIndex="0"/><ComboBox fx:id="cmbFontFamily" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>

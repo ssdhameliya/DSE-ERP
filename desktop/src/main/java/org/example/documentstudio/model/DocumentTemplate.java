@@ -13,9 +13,19 @@ public class DocumentTemplate {
     private DocumentType documentType = DocumentType.PURCHASE_INVOICE;
     private TemplateCategory category;
     private int version = 1;
-    private int studioSchemaVersion = 1;
+    private int studioSchemaVersion = 3;
     private TemplateStatus status = TemplateStatus.DRAFT;
     private boolean defaultTemplate;
+    /** True only after an explicit Mark Default activation in PDF Studio 3+. */
+    private boolean runtimeEnabled;
+    /** Draft changes never affect production until a published snapshot is explicitly activated. */
+    private boolean unpublishedChanges = true;
+    private int publishedVersion;
+    private int activeVersion;
+    private String publishedAt;
+    private String activatedAt;
+    @JsonIgnore
+    private String storageVariant = "";
     private String sourceFile = "source.pdf";
     private String createdAt = Instant.now().toString();
     private String updatedAt = Instant.now().toString();
@@ -44,6 +54,20 @@ public class DocumentTemplate {
     public void setStatus(TemplateStatus status) { this.status = status == null ? TemplateStatus.DRAFT : status; }
     public boolean isDefaultTemplate() { return defaultTemplate; }
     public void setDefaultTemplate(boolean defaultTemplate) { this.defaultTemplate = defaultTemplate; }
+    public boolean isRuntimeEnabled() { return runtimeEnabled; }
+    public void setRuntimeEnabled(boolean runtimeEnabled) { this.runtimeEnabled = runtimeEnabled; }
+    public boolean isUnpublishedChanges() { return unpublishedChanges; }
+    public void setUnpublishedChanges(boolean unpublishedChanges) { this.unpublishedChanges = unpublishedChanges; }
+    public int getPublishedVersion() { return publishedVersion; }
+    public void setPublishedVersion(int publishedVersion) { this.publishedVersion = Math.max(0, publishedVersion); }
+    public int getActiveVersion() { return activeVersion; }
+    public void setActiveVersion(int activeVersion) { this.activeVersion = Math.max(0, activeVersion); }
+    public String getPublishedAt() { return publishedAt; }
+    public void setPublishedAt(String publishedAt) { this.publishedAt = publishedAt; }
+    public String getActivatedAt() { return activatedAt; }
+    public void setActivatedAt(String activatedAt) { this.activatedAt = activatedAt; }
+    @JsonIgnore public String getStorageVariant() { return storageVariant == null ? "" : storageVariant; }
+    @JsonIgnore public void setStorageVariant(String storageVariant) { this.storageVariant = storageVariant == null ? "" : storageVariant; }
     public String getSourceFile() { return sourceFile == null || sourceFile.isBlank() ? "source.pdf" : sourceFile; }
     public void setSourceFile(String sourceFile) { this.sourceFile = sourceFile == null || sourceFile.isBlank() ? "source.pdf" : sourceFile; }
     public String getCreatedAt() { return createdAt; }

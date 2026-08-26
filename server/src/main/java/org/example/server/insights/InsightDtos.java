@@ -8,7 +8,7 @@ public final class InsightDtos { private InsightDtos(){}
  public record ReportFilters(List<String> parties,List<String> items,List<String> salespeople){}
  public record PointDto(String label,double value){}
  public record ReportRow(String number,String date,String party,double amount,String status){}
- public record ReportBundle(double sales,double purchase,double profit,double receivables,double stock,long low,long customers,List<PointDto> customerPoints,List<PointDto> itemPoints,List<ReportRow> salesRows,List<ReportRow> purchaseRows,double salesPaid,double payables,double purchasesPaid,long items,long out){}
+ public record ReportBundle(double sales,double purchase,double profit,double receivables,double stock,long low,long customers,List<PointDto> customerPoints,List<PointDto> itemPoints,List<ReportRow> salesRows,List<ReportRow> purchaseRows,double salesPaid,double payables,double purchasesPaid,long items,long out,long salesCount,long purchaseCount,double averageSale){}
  public record ReminderDto(Long id,String title,String referenceNo,String dueDate,String priority,String notes,String status,String createdBy,String snoozedUntil){}
  public record NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo,String moduleKey,Long recordId,String actionCode){
   public NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo){this(title,message,severity,category,targetFxml,referenceNo,null,null,null);}

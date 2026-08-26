@@ -26,6 +26,7 @@ import org.example.model.PurchaseLine;
 import org.example.model.PurchaseCharge;
 import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
+import org.example.util.ScreenRefreshPolicy;
 import org.example.navigation.ScreenLifecycle;
 import org.example.service.ItemService;
 import org.example.service.PartyService;
@@ -258,7 +259,7 @@ public class PurchaseController implements ScreenLifecycle {
 
                 // Select the correct item in the text-search control.
                 allItems.stream().filter(item -> item.getItemCode().equals(newLine.getItemCode()))
-                    .findFirst().ifPresent(this::selectItem);
+                    .findFirst().ifPresent(item -> selectItem(item, false));
             }
         );
 
@@ -356,11 +357,13 @@ public class PurchaseController implements ScreenLifecycle {
         for(Item item:matches){MenuItem option=new MenuItem(itemDisplay(item),IconFactory.compactIcon("item",15));option.setOnAction(event->selectItem(item));itemSuggestions.getItems().add(option);}
         if(matches.isEmpty())itemSuggestions.hide();else if(!itemSuggestions.isShowing())itemSuggestions.show(txtItemSearch,javafx.geometry.Side.BOTTOM,0,2);
     }
-    private void selectItem(Item item){
+    private void selectItem(Item item){selectItem(item,true);}
+    /** Preserve the persisted transaction line while the Item Master identity is selected during edit. */
+    private void selectItem(Item item,boolean applyMasterDefaults){
         selectedItem=item;updatingItemSearch=true;
         try{txtItemSearch.setText(item==null?"":itemDisplay(item));}finally{updatingItemSearch=false;}
         itemSuggestions.hide();
-        if(item!=null){txtRate.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getPurchasePrice()));txtGST.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getGst()));txtLineDiscount.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getDiscountPercent()));}
+        if(item!=null&&applyMasterDefaults){txtRate.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getPurchasePrice()));txtGST.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getGst()));txtLineDiscount.setText(String.format(java.util.Locale.ROOT,"%.2f",item.getDiscountPercent()));}
     }
     private void clearItemSearch(){selectItem(null);}
     private Item resolveTypedItem(String text){
@@ -609,6 +612,7 @@ public class PurchaseController implements ScreenLifecycle {
                 attachmentRemovals.clear();
                 if(saved != null && saved.getInvoiceNo() != null) txtInvoiceNo.setText(saved.getInvoiceNo());
                 org.example.util.ToastManager.success(tableLines,"Purchase saved","Purchase saved successfully.");
+                ScreenRefreshPolicy.invalidate("purchase-register");
                 NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml");
             },
             failure -> {
@@ -1284,7 +1288,10 @@ public class PurchaseController implements ScreenLifecycle {
     private String normalized(String value){return value==null?"":value.trim().toUpperCase(Locale.ROOT);}
 
     private void updateGstHeaders(){
-        String type=cmbGstType==null?"":safeValue(cmbGstType.getValue(),"");
+        // Keep the create screen usable while GST master values are still loading.
+        // Server-side document validation remains strict; this is only the initial
+        // JavaFX presentation state before a master value is available.
+        String type=cmbGstType==null?"GST":safeValue(cmbGstType.getValue(),"GST");
         boolean igst=DocumentCalculationEngine.taxMode(type)==DocumentCalculationEngine.TaxMode.IGST;
         if(colGst!=null)colGst.setText(igst?"IGST %":"GST %");
         if(colGstAmount!=null)colGstAmount.setText(igst?"IGST Amount (₹)":"GST Amount (₹)");
@@ -1673,7 +1680,7 @@ public class PurchaseController implements ScreenLifecycle {
         colDiscount.setOnEditCommit(event -> {
             PurchaseLine line = event.getRowValue();
             double value = event.getNewValue() == null ? 0 : event.getNewValue();
-            line.setDiscountPercent(Math.max(0, Math.min(100, value)));
+            line.setDiscountPercent(value);
             recalculateLine(line);
             tableLines.refresh();
             recalculate();

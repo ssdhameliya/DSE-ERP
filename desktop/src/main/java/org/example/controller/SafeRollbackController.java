@@ -209,7 +209,7 @@ public class SafeRollbackController {
 
     @FXML
     private void downloadPreviousVersion() {
-        OwnedTextInputDialog prompt = new OwnedTextInputDialog("7.2.2");
+        OwnedTextInputDialog prompt = new OwnedTextInputDialog("9.0.7");
         if (owner() != null) prompt.initOwner(owner());
         prompt.setTitle("Download Previous Release");
         prompt.setHeaderText("Download a verified DSE ERP release from GitHub");

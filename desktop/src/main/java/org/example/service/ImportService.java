@@ -255,7 +255,7 @@ public class ImportService {
                     String item = required(getCellValue(row, mapping.get("item_code")), "item_code").trim();
                     String invoice = required(getCellValue(row, mapping.get("invoice_no")), "invoice_no").trim();
                     LocalDate invoiceDate = getRequiredDateValue(row, mapping.get("invoice_date"), "invoice_date");
-                    requireReference(referenceFormats, sales ? "REF_SALES" : "REF_PURCHASE", invoice, invoiceDate, sales ? "Sales Invoice No." : "Purchase Invoice No.");
+                    if (sales) requireReference(referenceFormats, "REF_SALES", invoice, invoiceDate, "Sales Invoice No.");
                     requireReference(referenceFormats, sales ? "REF_CUSTOMER" : "REF_SUPPLIER", party, null, sales ? "Customer Code" : "Supplier Code");
                     requireReference(referenceFormats, "REF_ITEM", item, null, "Item Code");
                     if (!validPartyCodes.contains(party.toUpperCase(Locale.ROOT))) throw new IllegalArgumentException((sales ? "Customer" : "Supplier") + " not found in master: " + party);
@@ -296,14 +296,18 @@ public class ImportService {
         rows.forEach(row -> grouped.computeIfAbsent(row.invoice(), key -> new ArrayList<>()).add(row));
         Set<String> existingDocumentNumbers = new HashSet<>();
         if (dryRun) {
-            if (sales) new SalesService().getAll().forEach(doc -> existingDocumentNumbers.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
-            else new PurchaseService().getAll().forEach(doc -> existingDocumentNumbers.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
+            if (sales) new SalesService().getAll().forEach(doc -> addDocumentIdentity(existingDocumentNumbers, doc.getInvoiceNo()));
+            else new PurchaseService().getAll().forEach(doc -> {
+                addDocumentIdentity(existingDocumentNumbers, doc.getReferenceNo());
+                addDocumentIdentity(existingDocumentNumbers, doc.getInvoiceNo());
+            });
         }
 
         if (dryRun) {
             for (Map.Entry<String,List<DocumentImportRow>> entry : grouped.entrySet()) {
                 DocumentImportRow first = entry.getValue().get(0);
                 try {
+                    validateDocumentHeaderConsistency(entry.getValue());
                     if (existingDocumentNumbers.contains(entry.getKey().toUpperCase(Locale.ROOT)))
                         throw new IllegalArgumentException("Existing posted " + (sales ? "sales" : "purchase") + " invoice is protected and cannot be imported again");
                     if (sales) {
@@ -349,14 +353,19 @@ public class ImportService {
         Set<String> existingDocuments = new HashSet<>();
         SalesService salesService = sales ? new SalesService() : null;
         PurchaseService purchaseService = sales ? null : new PurchaseService();
-        if (sales) salesService.getAll().forEach(doc -> existingDocuments.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
-        else purchaseService.getAll().forEach(doc -> existingDocuments.add(doc.getInvoiceNo().toUpperCase(Locale.ROOT)));
+        if (sales) salesService.getAll().forEach(doc -> addDocumentIdentity(existingDocuments, doc.getInvoiceNo()));
+        else purchaseService.getAll().forEach(doc -> {
+            addDocumentIdentity(existingDocuments, doc.getReferenceNo());
+            addDocumentIdentity(existingDocuments, doc.getInvoiceNo());
+        });
         int imported = 0, skipped = 0;
 
         for (Map.Entry<String,List<DocumentImportRow>> entry : grouped.entrySet()) {
             DocumentImportRow first = entry.getValue().get(0);
             String rowRange = sourceRows(entry.getValue());
+            String postSaveWarning = "";
             try {
+                validateDocumentHeaderConsistency(entry.getValue());
                 Party party = partyByCode.get(first.party().toUpperCase(Locale.ROOT));
                 if (party == null) throw new IllegalArgumentException("Party not found: " + first.party());
 
@@ -380,8 +389,9 @@ public class ImportService {
                     document.setInvoiceDate(first.date());
                     document.setCustomer(party);
                     document.setDueDate(first.date().plusDays(termDays(first.terms())));
-                    document.setPaidAmount(first.paid());
-                    document.setPaymentStatus(first.paid() > 0 ? "PARTIAL" : "PENDING");
+                    document.setPaidAmount(0d);
+                    document.setPaymentStatus("PENDING");
+                    document.setSource("IMPORT");
                     document.setRemarks(first.remarks());
                     document.setGstType(taxType);
                     document.setCharges(extras.charges());
@@ -406,11 +416,16 @@ public class ImportService {
                     service.save(document);
                     existingDocuments.add(entry.getKey().toUpperCase(Locale.ROOT));
                     if (extras.attachmentSource() != null) {
-                        Sales persisted = service.getByInvoice(document.getInvoiceNo());
-                        if (persisted == null || persisted.getId() <= 0)
-                            throw new IllegalStateException("Imported sale was saved but could not be reloaded for attachment upload");
-                        String reference = new SupportApiClient().uploadDocumentAttachment("SALE", persisted.getId(), extras.attachmentSource());
-                        document.setAttachmentPath(reference);
+                        try {
+                            Sales persisted = service.getByInvoice(document.getInvoiceNo());
+                            if (persisted == null || persisted.getId() <= 0)
+                                throw new IllegalStateException("saved sale could not be reloaded for attachment upload");
+                            String reference = new SupportApiClient().uploadDocumentAttachment("SALE", persisted.getId(), extras.attachmentSource());
+                            document.setAttachmentPath(reference);
+                        } catch (Exception attachmentFailure) {
+                            postSaveWarning = "Record imported successfully; attachment could not be uploaded: "
+                                + safeImportMessage(attachmentFailure);
+                        }
                     }
                 } else {
                     PurchaseService service = purchaseService;
@@ -425,14 +440,15 @@ public class ImportService {
 
                     PurchaseImportExtras extras=purchaseImportExtras(file,entry.getValue());
                     Purchase document = new Purchase();
-                    document.setInvoiceNo(entry.getKey());
+                    document.setInvoiceNo(null);
+                    document.setReferenceNo(entry.getKey());
                     document.setInvoiceDate(first.date());
                     document.setSupplier(party);
                     document.setDueDate(first.date().plusDays(termDays(first.terms())));
                     document.setDeliveryDate(document.getDueDate());
                     document.setPaymentTerms(first.terms());
-                    document.setPaidAmount(first.paid());
-                    document.setPaymentStatus(first.paid() > 0 ? "PARTIAL" : "PENDING");
+                    document.setPaidAmount(0d);
+                    document.setPaymentStatus("PENDING");
                     document.setRemarks(first.remarks());
                     document.setNotes(first.remarks());
                     document.setCurrency("INR - Indian Rupee");
@@ -466,16 +482,25 @@ public class ImportService {
                     service.save(document);
                     existingDocuments.add(entry.getKey().toUpperCase(Locale.ROOT));
                     if(!extras.attachmentSources().isEmpty()){
-                        Purchase persisted=service.getByInvoice(document.getInvoiceNo());
-                        if(persisted==null||persisted.getId()<=0)throw new IllegalStateException("Imported purchase was saved but could not be reloaded for attachment upload");
-                        SupportApiClient api=new SupportApiClient();
-                        for(Path source:extras.attachmentSources())api.addDocumentAttachment("PURCHASE",persisted.getId(),source);
+                        try {
+                            Purchase persisted=service.getByInvoice(document.getInvoiceNo());
+                            if(persisted==null||persisted.getId()<=0)throw new IllegalStateException("saved purchase could not be reloaded for attachment upload");
+                            SupportApiClient api=new SupportApiClient();
+                            for(Path source:extras.attachmentSources())api.addDocumentAttachment("PURCHASE",persisted.getId(),source);
+                        } catch (Exception attachmentFailure) {
+                            postSaveWarning = "Record imported successfully; one or more attachments could not be uploaded: "
+                                + safeImportMessage(attachmentFailure);
+                        }
                     }
                 }
 
                 imported++;
-                details.add(new ImportRowResult(rowRange, entry.getKey(), "PASSED", "CREATED",
-                    taxDescription(taxType, representativeRate), taxType, representativeRate));
+                String action = postSaveWarning.isBlank() ? "CREATED" : "CREATED WITH WARNING";
+                String detailMessage = postSaveWarning.isBlank()
+                    ? taxDescription(taxType, representativeRate)
+                    : taxDescription(taxType, representativeRate) + " | " + postSaveWarning;
+                details.add(new ImportRowResult(rowRange, entry.getKey(), "PASSED", action,
+                    detailMessage, taxType, representativeRate));
             } catch (Exception ex) {
                 skipped++;
                 String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
@@ -486,6 +511,13 @@ public class ImportService {
         }
 
         return new ImportResult(grouped.size(), imported, 0, skipped, errors, details);
+    }
+
+    private static String safeImportMessage(Throwable failure) {
+        if (failure == null) return "unexpected attachment error";
+        String message = failure.getMessage();
+        if (message == null || message.isBlank()) return failure.getClass().getSimpleName();
+        return message.replaceAll("[\r\n]+", " ").trim();
     }
 
     /** Imports both master categories and their reusable values. */
@@ -634,6 +666,11 @@ public class ImportService {
 
         return new ImportResult(processed, imported, updated, skipped, errors, details);
 
+    }
+
+    private static void addDocumentIdentity(Set<String> identities, String value) {
+        if (identities == null || value == null || value.isBlank()) return;
+        identities.add(value.trim().toUpperCase(Locale.ROOT));
     }
 
     private static String rootMessage(Throwable failure) {
@@ -914,6 +951,21 @@ public class ImportService {
         }
         return selected;
     }
+
+    private static void validateDocumentHeaderConsistency(List<DocumentImportRow> rows) {
+        if (rows == null || rows.isEmpty()) throw new IllegalArgumentException("Invoice contains no rows");
+        DocumentImportRow first = rows.getFirst();
+        for (DocumentImportRow row : rows) {
+            if (!Objects.equals(first.date(), row.date())) throw new IllegalArgumentException("Invoice rows contain different invoice dates");
+            if (!sameHeaderText(first.party(), row.party())) throw new IllegalArgumentException("Invoice rows contain different party codes");
+            if (!sameHeaderText(first.terms(), row.terms())) throw new IllegalArgumentException("Invoice rows contain different payment terms");
+            if (!sameHeaderText(first.taxType(), row.taxType())) throw new IllegalArgumentException("Invoice rows contain different GST/IGST treatment");
+            if (Math.abs(first.paid() - row.paid()) > .009) throw new IllegalArgumentException("Invoice rows contain inconsistent paid amounts");
+            if (!sameHeaderText(first.remarks(), row.remarks())) throw new IllegalArgumentException("Invoice rows contain inconsistent remarks");
+        }
+        if (Math.abs(first.paid()) > .009) throw new IllegalArgumentException("Invoice import cannot establish a paid balance. Import payments through the supported payment workflow.");
+    }
+    private static boolean sameHeaderText(String a,String b){return Objects.equals(a==null?"":a.trim(),b==null?"":b.trim());}
 
     private String sourceRows(List<?> rawRows) {
         if (rawRows == null || rawRows.isEmpty()) return "";

@@ -53,6 +53,7 @@ import org.example.util.IconFactory;
 import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 import org.example.util.UiTaskExecutor;
+import org.example.util.ScreenRefreshPolicy;
 
 import java.io.File;
 import java.io.IOException;
@@ -316,7 +317,7 @@ public class SalesController {
                     .filter(item -> safeItem(item.getItemCode()).equalsIgnoreCase(safeItem(newLine.getItemCode())))
                     .findFirst().orElse(null);
                 if (cachedItem != null) {
-                    selectItem(cachedItem);
+                    selectItem(cachedItem, false);
                 } else if (!safeItem(newLine.getItemCode()).isBlank()) {
                     String code = newLine.getItemCode();
                     UiTaskExecutor.submitLatest(
@@ -325,7 +326,7 @@ public class SalesController {
                         matches -> matches.stream()
                             .filter(item -> safeItem(item.getItemCode()).equalsIgnoreCase(safeItem(code)))
                             .findFirst()
-                            .ifPresent(item -> { mergeItemCache(List.of(item)); selectItem(item); }),
+                            .ifPresent(item -> { mergeItemCache(List.of(item)); selectItem(item, false); }),
                         error -> System.err.println("Create Sale line item lookup: " + rootMessage(error))
                     );
                 }
@@ -699,13 +700,16 @@ public class SalesController {
     private static String safeParty(String value) { return value == null ? "" : value.trim(); }
     private static String customerDisplay(Party party) { return party == null ? "" : safeParty(party.getPartyCode()) + " - " + safeParty(party.getName()); }
 
-    private void selectItem(Item item) {
+    private void selectItem(Item item) { selectItem(item, true); }
+
+    /** Select Item Master identity without overwriting persisted line values while editing an existing transaction. */
+    private void selectItem(Item item, boolean applyMasterDefaults) {
         selectedItem = item;
         updatingItemSearch = true;
         try { txtItemSearch.setText(item == null ? "" : itemSearchDisplay(item)); }
         finally { updatingItemSearch = false; }
         itemSuggestions.hide();
-        if (item != null) {
+        if (item != null && applyMasterDefaults) {
             txtRate.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getSellingPrice()));
             txtGST.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getGst()));
             txtLineDiscount.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getDiscountPercent()));
@@ -1017,7 +1021,7 @@ public class SalesController {
         colDiscount.setOnEditCommit(event -> {
             SalesLine line = event.getRowValue();
             double value = event.getNewValue() == null ? 0 : event.getNewValue();
-            line.setDiscountPercent(Math.max(0, Math.min(100, value)));
+            line.setDiscountPercent(value);
             recalculateLine(line);
             tableLines.refresh();
             recalculate();
@@ -1074,6 +1078,7 @@ public class SalesController {
                 attachmentWarning == null ? "Sales saved successfully" : "Sales saved successfully, but the attachment could not be updated.\n\n" + attachmentWarning
             ).showAndWait();
 
+            ScreenRefreshPolicy.invalidate("sales-register");
             NavigationManager.getInstance()
                 .loadPage("/fxml/pages/SalesList.fxml");
 
@@ -1194,7 +1199,7 @@ public class SalesController {
         sale.setSameAsBilling(chkSameAsBilling != null && chkSameAsBilling.isSelected());
         sale.setTransporterGstin(txtTransporterGstin == null ? "" : txtTransporterGstin.getText());
         sale.setPaymentTerms(cmbPaymentTerms.getValue());
-        sale.setGstType(cmbGstType == null ? "" : cmbGstType.getValue());
+        sale.setGstType(cmbGstType == null || cmbGstType.getValue() == null || cmbGstType.getValue().isBlank() ? "GST" : cmbGstType.getValue());
         sale.setTransporter(cmbTransporter == null || cmbTransporter.getValue() == null ? "" : cmbTransporter.getValue().getLookupValue());
         sale.setDoorDelivery(editingSale == null ? "" : editingSale.getDoorDelivery());
         sale.setVehicleNumber(txtVehicleNumber == null ? "" : txtVehicleNumber.getText());
@@ -1344,7 +1349,12 @@ public class SalesController {
         List<DocumentCalculationEngine.ChargeInput> charges = invoiceCharges.stream()
                 .map(charge -> new DocumentCalculationEngine.ChargeInput(charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
                 .toList();
+        // The form is created before API-backed GST master values arrive. During
+        // that short bootstrap window the ComboBox exists but has no selected
+        // value yet. Treat the empty UI state as the normal intra-state GST mode
+        // instead of sending an empty string to the strict shared tax engine.
         String taxType = cmbGstType == null ? "GST" : safeText(cmbGstType.getValue());
+        if (taxType.isBlank()) taxType = "GST";
         return DocumentCalculationEngine.totals(lines, charges, DocumentCalculationEngine.taxMode(taxType));
     }
 
@@ -1752,6 +1762,7 @@ public class SalesController {
         if (editingSale == null) return;
         duplicateSource = editingSale;
         editingSale = null;
+        if (txtOrderNo != null) txtOrderNo.clear();
         pendingAttachment = null;
         attachmentRemovalPending = false;
         if (txtAttachment != null) txtAttachment.clear();

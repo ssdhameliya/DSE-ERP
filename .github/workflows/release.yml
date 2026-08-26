@@ -64,6 +64,18 @@ jobs:
         run: python3 scripts/audit-9.0.4-bank-reconciliation-contract.py
       - name: Enforce 9.0.5 reconciliation/navigation UI contract
         run: python3 scripts/audit-9.0.5-reconciliation-navigation-ui-contract.py
+      - name: Enforce 9.0.6 business-integrity contract
+        run: python3 scripts/audit-9.0.6-business-integrity-contract.py
+      - name: Enforce 9.0.8 PDF Studio safety contract
+        run: python3 scripts/audit-9.0.8-pdf-studio-contract.py
+      - name: Enforce 9.0.11 consolidated corrective contract
+        run: python3 scripts/audit-9.0.11-corrective-contract.py
+      - name: Enforce 9.0.12 Sales/payment compatibility contract
+        run: python3 scripts/audit-9.0.12-sales-payment-compatibility.py
+      - name: Enforce 9.0.13 register/KPI/login/history contract
+        run: python3 scripts/audit-9.0.13-register-login-history-contract.py
+      - name: Enforce 9.0.14 quotation/register contract
+        run: python3 scripts/audit-9.0.14-quotation-register-contract.py
       - name: Run tests
         run: mvn -B -ntp clean verify
 

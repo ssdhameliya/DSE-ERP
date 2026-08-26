@@ -8,6 +8,7 @@ import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.example.server.persistence.JpaNativeRepository;
+import org.example.shared.SecretValueCodec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,7 +65,7 @@ public class SmtpMailService {
         if (cleanedPassword.isBlank()) throw new IllegalArgumentException("Email app password is required.");
         if (cleanedPort < 1 || cleanedPort > 65535) throw new IllegalArgumentException("SMTP port must be between 1 and 65535.");
         put("smtp.email", cleanedEmail);
-        put("smtp.appPassword", cleanedPassword);
+        put("smtp.appPassword", SecretValueCodec.encrypt(cleanedPassword));
         put("smtp.host", cleanedHost);
         put("smtp.port", Integer.toString(cleanedPort));
         return settingsFromDatabase(new Settings(cleanedHost, cleanedPort, cleanedEmail, cleanedPassword));
@@ -151,7 +152,8 @@ public class SmtpMailService {
         try (InputStream input = Files.newInputStream(path)) {
             values.load(input);
             String currentEmail = values.getProperty("smtp.email", fallback.email()).trim();
-            String currentPassword = values.getProperty("smtp.appPassword", fallback.password()).replaceAll("\\s+", "");
+            String storedPassword = values.getProperty("smtp.appPassword", fallback.password());
+            String currentPassword = SecretValueCodec.decrypt(storedPassword).replaceAll("\\s+", "");
             String currentHost = values.getProperty("smtp.host", fallback.host()).trim();
             String configuredPort = values.getProperty("smtp.port", Integer.toString(fallback.port())).trim();
             int currentPort = configuredPort.isBlank() ? 587 : Integer.parseInt(configuredPort);
@@ -164,7 +166,9 @@ public class SmtpMailService {
 
     private Settings settingsFromDatabase(Settings fallback) {
         String currentEmail = setting("smtp.email", fallback.email()).trim();
-        String currentPassword = setting("smtp.appPassword", fallback.password()).replaceAll("\\s+", "");
+        String storedPassword = setting("smtp.appPassword", fallback.password());
+        String currentPassword = SecretValueCodec.decrypt(storedPassword).replaceAll("\\s+", "");
+        if(!storedPassword.isBlank()&&!SecretValueCodec.isEncrypted(storedPassword)) put("smtp.appPassword",SecretValueCodec.encrypt(currentPassword));
         String currentHost = setting("smtp.host", fallback.host()).trim();
         int currentPort;
         try { currentPort = Integer.parseInt(setting("smtp.port", Integer.toString(fallback.port())).trim()); }

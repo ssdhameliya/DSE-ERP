@@ -102,15 +102,23 @@ public class ServerBackupService {
             throw new IOException(e);
         }
         if (process.exitValue() != 0) return new Validation(false, "Backup validation failed: " + concise(output));
-        return new Validation(true, "PostgreSQL backup structure is valid.");
+        Validation content=validateArchiveListing(output);
+        if(!content.valid())return content;
+        return new Validation(true, "DSE ERP PostgreSQL backup structure is valid.");
     }
 
     public synchronized String stageRestore(String name, byte[] data) throws IOException {
         if (data == null || data.length < 16) throw new IOException("Restore backup is empty");
         Files.createDirectories(root);
-        Path pending = root.resolve("restore-pending.pgbackup");
-        Files.write(pending, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        Files.writeString(root.resolve("restore-pending.marker"), "STAGED " + Instant.now() + " " + safeName(name));
+        Path candidate=root.resolve("restore-validation-"+UUID.randomUUID()+".pgbackup");
+        try{
+            Files.write(candidate,data,StandardOpenOption.CREATE_NEW);
+            Validation validation=validate(candidate.getFileName().toString());
+            if(!validation.valid())throw new IOException(validation.message());
+            Path pending=root.resolve("restore-pending.pgbackup");
+            Files.move(candidate,pending,StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
+            Files.writeString(root.resolve("restore-pending.marker"),"STAGED "+Instant.now()+" "+safeName(name));
+        }finally{Files.deleteIfExists(candidate);}
         return "Restore staged on the server. Restart the company server with the staged-restore procedure before normal startup.";
     }
 
@@ -175,6 +183,18 @@ public class ServerBackupService {
             Files.deleteIfExists(target);
             throw new IOException("pg_dump failed: " + concise(output));
         }
+    }
+
+
+    private Validation validateArchiveListing(String output){
+        String listing=output==null?"":output.toUpperCase(Locale.ROOT);
+        for(String required:List.of("TABLE PUBLIC SALES_HEADER","TABLE PUBLIC PURCHASE_HEADER","TABLE PUBLIC PARTY_MASTER","TABLE PUBLIC ITEM_MASTER","TABLE PUBLIC APPLICATION_METADATA")){
+            if(!listing.contains(required))return new Validation(false,"Backup is a PostgreSQL archive but not a complete DSE ERP backup (missing "+required.substring("TABLE PUBLIC ".length()).toLowerCase(Locale.ROOT)+").");
+        }
+        for(String forbidden:List.of(" EVENT TRIGGER "," FOREIGN DATA WRAPPER "," USER MAPPING "," SUBSCRIPTION "," PUBLICATION "," PROCEDURAL LANGUAGE ")){
+            if(listing.contains(forbidden))return new Validation(false,"Backup contains unsupported database objects and cannot be restored safely.");
+        }
+        return new Validation(true,"DSE ERP archive contents validated.");
     }
 
     private int retention() {

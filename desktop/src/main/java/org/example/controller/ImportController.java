@@ -287,10 +287,16 @@ public class ImportController {
                     return;
                 }
 
+                invalidatePreflight("Import type changed • Run validation again");
                 reloadSelectedWorkbookForModule();
             }
         );
         cmbImportMode.setDisable("Purchase Recon".equals(cmbImportModule.getValue()) || "Bank Statement".equals(cmbImportModule.getValue()));
+        cmbImportMode.valueProperty().addListener((observable, oldValue, newValue) -> {
+            if (Objects.equals(oldValue, newValue) || selectedFile == null) return;
+            invalidatePreflight("Import mode changed • Run validation again");
+            updateMappingSummary();
+        });
     }
 
 
@@ -854,6 +860,7 @@ public class ImportController {
                         newValue
                     );
 
+                    invalidatePreflight("Mappings changed • Run validation again");
                     updateMappingSummary();
                     schedulePreviewRefresh();
                 }
@@ -942,17 +949,14 @@ public class ImportController {
             mapped + " of " + total + " fields mapped"
         );
 
-        btnRunImport.setDisable(
-            selectedFile == null
-                || !requiredMappingsComplete()
-                || (!preflightPassed)
-        );
+        boolean mappingsComplete = requiredMappingsComplete();
+        btnRunImport.setDisable(!isImportReady());
 
         if (selectedFile == null) {
             lblReadyStatus.setText(
                 "Bank Statement".equals(cmbImportModule.getValue()) ? "Choose a bank statement CSV to begin" : "Choose an Excel file to begin"
             );
-        } else if (!requiredMappingsComplete()) {
+        } else if (!mappingsComplete) {
             lblReadyStatus.setText(
                 "Map all required fields before importing"
             );
@@ -961,6 +965,17 @@ public class ImportController {
         } else {
             lblReadyStatus.setText("All validations passed • Ready to import " + selectedFile.getName());
         }
+    }
+
+    private boolean isImportReady() {
+        return !importRunning && selectedFile != null && preflightPassed;
+    }
+
+    private void invalidatePreflight(String status) {
+        preflightPassed = false;
+        lastPreflightResult = null;
+        if (btnRunImport != null) btnRunImport.setDisable(true);
+        if (status != null && !status.isBlank() && lblReadyStatus != null) lblReadyStatus.setText(status);
     }
 
     private boolean requiredMappingsComplete() {
@@ -1016,7 +1031,7 @@ public class ImportController {
             rebuildingMapping = false;
         }
 
-        preflightPassed = false; lastPreflightResult = null;
+        invalidatePreflight("Mappings changed • Run validation again");
         refreshAllMappingStatuses();
         updateMappingSummary();
         schedulePreviewRefresh();
@@ -1040,7 +1055,7 @@ public class ImportController {
             rebuildingMapping = false;
         }
 
-        preflightPassed = false; lastPreflightResult = null;
+        invalidatePreflight("Mappings changed • Run validation again");
         refreshAllMappingStatuses();
         updateMappingSummary();
         schedulePreviewRefresh();
@@ -1613,6 +1628,7 @@ public class ImportController {
 
         selectedFile = file;
         currentHeaders = List.copyOf(headers);
+        invalidatePreflight("File changed • Run validation again");
 
         long sizeInKb =
             Math.max(
@@ -1755,7 +1771,7 @@ public class ImportController {
             if (tblValidation != null) tblValidation.getItems().clear();
             lblPreviewStatus.setText("Validation failed: " + safeMessage(task.getException()));
             lblReadyStatus.setText("Validation failed • Import blocked");
-            btnRunImport.setDisable(true);
+            updateMappingSummary();
         });
         Thread thread = new Thread(task, "dse-import-preflight");
         thread.setDaemon(true);
@@ -2153,12 +2169,7 @@ public class ImportController {
         progressContainer.setManaged(running);
         progressContainer.setVisible(running);
 
-        btnRunImport.setDisable(
-            running
-                || selectedFile == null
-                || !requiredMappingsComplete()
-                || (!preflightPassed)
-        );
+        btnRunImport.setDisable(!isImportReady());
 
         btnChooseFile.setDisable(running);
         cmbImportModule.setDisable(running);
@@ -2225,9 +2236,20 @@ public class ImportController {
             System.err.println("Could not write import result report: " + safeMessage(exception));
         }
 
-        Alert alert = new OwnedAlert(Alert.AlertType.INFORMATION);
+        boolean dryRun = chkDryRun.isSelected();
+        int failed = result.failedCount();
+        boolean warning = !dryRun && hasImportWarnings(result);
+        int succeeded = result.imported + result.updated;
+        Alert.AlertType type = dryRun || (failed == 0 && !warning)
+            ? Alert.AlertType.INFORMATION
+            : (succeeded > 0 || failed == 0 ? Alert.AlertType.WARNING : Alert.AlertType.ERROR);
+        Alert alert = new OwnedAlert(type);
         alert.setTitle("Import Result");
-        alert.setHeaderText(chkDryRun.isSelected() ? "Validation completed" : "Import completed");
+        if (dryRun) alert.setHeaderText("Validation completed");
+        else if (failed == 0 && succeeded == 0 && result.skipped > 0 && !warning) alert.setHeaderText("Import completed — no changes required");
+        else if (failed == 0 && !warning) alert.setHeaderText("Import completed successfully");
+        else if (failed == 0 || succeeded > 0) alert.setHeaderText("Import completed with warnings");
+        else alert.setHeaderText("Import could not be completed");
 
         StringBuilder message = new StringBuilder()
             .append("Processed: ").append(result.processed).append("\n")
@@ -2236,6 +2258,9 @@ public class ImportController {
             .append("Updated: ").append(result.updated).append("\n")
             .append("Skipped: ").append(result.skipped).append("\n")
             .append("Failed: ").append(result.failedCount());
+        if (!dryRun && succeeded > 0 && (warning || result.failedCount() > 0)) {
+            message.append("\n\nSuccessfully imported records remain saved. Review the result report for warnings or failed rows.");
+        }
 
         if (report != null) {
             message.append("\n\nDetailed Excel result report generated.");
@@ -2253,6 +2278,16 @@ public class ImportController {
         if (report != null && selected.isPresent() && selected.get() == openReport) {
             openReport(report);
         }
+    }
+
+    private boolean hasImportWarnings(ImportService.ImportResult result) {
+        if (result == null) return false;
+        if (result.failedCount() > 0) return true;
+        // A skipped existing/duplicate row is an informational no-op, not an import failure.
+        // Only explicit row warnings should produce the warning state.
+        return result.details.stream().anyMatch(row ->
+            (row.action != null && row.action.toUpperCase(Locale.ROOT).contains("WARNING"))
+                || (row.message != null && row.message.toLowerCase(Locale.ROOT).contains("warning")));
     }
 
     private Path writeImportResultReport(ImportService.ImportResult result) throws Exception {
@@ -2378,9 +2413,11 @@ public class ImportController {
                 + result.updated + " updated • " + result.skipped + " skipped");
         }
         btnRunImport.setDisable(true);
-        lblReadyStatus.setText("Import completed successfully");
-        lblReadyStatus.getStyleClass().removeAll("import-warning-text");
-        if (!lblReadyStatus.getStyleClass().contains("import-success-text")) lblReadyStatus.getStyleClass().add("import-success-text");
+        boolean warning = hasImportWarnings(result);
+        lblReadyStatus.setText(warning ? "Import completed with warnings" : "Import completed successfully");
+        lblReadyStatus.getStyleClass().removeAll("import-warning-text", "import-success-text");
+        String stateClass = warning ? "import-warning-text" : "import-success-text";
+        if (!lblReadyStatus.getStyleClass().contains(stateClass)) lblReadyStatus.getStyleClass().add(stateClass);
     }
 
     @FXML private void viewImportedRecords() {
@@ -2494,7 +2531,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 9.0.5 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 9.0.14 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

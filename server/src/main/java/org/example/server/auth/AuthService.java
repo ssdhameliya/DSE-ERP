@@ -278,7 +278,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public List<AuthDtos.RoleOption> registrationRoles() {
-        return loginRoles().stream().filter(option -> !"ADMIN".equals(option.code())).toList();
+        return loginRoles().stream().filter(option -> "USER".equalsIgnoreCase(option.code())).toList();
     }
 
     @Transactional
@@ -356,7 +356,7 @@ public class AuthService {
         if (email == null || !email.trim().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"))
             return "A valid email address is required";
         String normalizedRole = normalizeRole(role);
-        if ("ADMIN".equals(normalizedRole) || !roleMaster.isActive(normalizedRole)) return "Select an active non-Admin role from Role Master";
+        if (!"USER".equals(normalizedRole) || !roleMaster.isActive(normalizedRole)) return "Public registration is restricted to the active USER role";
         return null;
     }
 

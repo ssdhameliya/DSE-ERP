@@ -9292,13 +9292,26 @@
     -fx-opacity: 0.65;
 }
 .permission-special-menu {
-    -fx-min-width: 86px;
-    -fx-pref-width: 96px;
+    -fx-min-width: 104px;
+    -fx-pref-width: 116px;
     -fx-background-color: -color-surface-2;
     -fx-text-fill: -color-text;
+    -fx-font-weight: 700;
     -fx-border-color: -color-border;
     -fx-border-radius: 7px;
     -fx-background-radius: 7px;
+}
+.permission-matrix-table .table-cell .permission-special-menu {
+    -fx-min-width: 82px;
+    -fx-pref-width: 94px;
+    -fx-max-width: 116px;
+    -fx-min-height: 30px;
+    -fx-pref-height: 32px;
+    -fx-max-height: 36px;
+    -fx-padding: 4px 8px;
+}
+.permission-special-check {
+    -fx-padding: 0;
 }
 .permission-special-menu:hover {
     -fx-border-color: -app-primary;

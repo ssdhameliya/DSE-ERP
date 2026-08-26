@@ -4,7 +4,7 @@ public record TaxInvoiceCharge(String name, double amount, boolean taxable, doub
     public TaxInvoiceCharge {
         name = name == null ? "" : name.trim();
         amount = Math.max(0, amount);
-        gstPercent = taxable ? Math.max(0, Math.min(100, gstPercent)) : 0;
+        gstPercent = taxable ? org.example.shared.DocumentCalculationEngine.percent(gstPercent) : 0;
     }
 
     public double taxAmount() { return taxable ? amount * gstPercent / 100d : 0; }

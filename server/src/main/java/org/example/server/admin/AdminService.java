@@ -113,6 +113,9 @@ public class AdminService {
             boolean previousLocked = Boolean.TRUE.equals(jdbc.queryForObject(
                     "SELECT locked FROM users WHERE id=?", Boolean.class, request.id()));
             String previousRole = jdbc.queryForObject("SELECT COALESCE(role,'') FROM users WHERE id=?", String.class, request.id());
+            if (request.id() == CurrentUser.require().id() && previousRole != null && !assignedRole.equalsIgnoreCase(previousRole.trim()))
+                throw new IllegalArgumentException("You cannot change your own role. Another administrator must perform that change.");
+            ensureActiveAdministratorRemains(request.id(), assignedRole, request.active(), request.locked());
             if (request.id() == CurrentUser.require().id() && (request.locked() || !request.active()))
                 throw new IllegalArgumentException("You cannot lock or deactivate your own account");
             jdbc.update("UPDATE users SET username=?,full_name=?,email=?,role=?,role_id=NULL," +
@@ -160,6 +163,7 @@ public class AdminService {
     @Transactional
     public void deleteUser(int id) {
         if (id == CurrentUser.require().id()) throw new IllegalArgumentException("You cannot delete your own account");
+        ensureActiveAdministratorRemains(id, null, false, true);
         tokens.revokeUser(id);
         if (jdbc.update("DELETE FROM users WHERE id=?", id) != 1) throw new IllegalArgumentException("User not found");
     }
@@ -177,6 +181,7 @@ public class AdminService {
     @Transactional
     public void setLocked(int id, boolean locked) {
         if (id == CurrentUser.require().id() && locked) throw new IllegalArgumentException("You cannot lock your own account");
+        if (locked) ensureActiveAdministratorRemains(id, null, true, true);
         int updated = locked
                 ? jdbc.update("UPDATE users SET locked=1,lock_reason='ADMIN' WHERE id=?", id)
                 : jdbc.update("UPDATE users SET locked=0,lock_reason='NONE',failed_attempts=0,mfa_failed_attempts=0 WHERE id=?", id);
@@ -201,6 +206,18 @@ public class AdminService {
     public void audit(AdminDtos.AuditRequest request) {
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
                 request.userId(), request.action(), request.detail(), CurrentUser.require().username(), BusinessClock.nowUtcText());
+    }
+
+    private void ensureActiveAdministratorRemains(int targetId, String nextRole, boolean nextActive, boolean nextLocked) {
+        Map<String,Object> current = jdbc.queryForMap("SELECT COALESCE(role,'') role,COALESCE(active,1) active,COALESCE(locked,0) locked FROM users WHERE id=?", targetId);
+        String currentRole = String.valueOf(current.get("role")).trim();
+        boolean currentActive = flag(current.get("active"));
+        boolean currentLocked = flag(current.get("locked"));
+        if (!"ADMIN".equalsIgnoreCase(currentRole) || !currentActive || currentLocked) return;
+        String effectiveRole = nextRole == null ? currentRole : nextRole;
+        if ("ADMIN".equalsIgnoreCase(effectiveRole) && nextActive && !nextLocked) return;
+        Long others = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE id<>? AND UPPER(TRIM(COALESCE(role,'')))='ADMIN' AND COALESCE(active,1)<>0 AND COALESCE(locked,0)=0", Long.class, targetId);
+        if (others == null || others == 0) throw new IllegalStateException("At least one other active, unlocked administrator is required before removing this administrator's authority.");
     }
 
     private void validateUniqueIdentity(AdminDtos.UserSaveRequest request) {

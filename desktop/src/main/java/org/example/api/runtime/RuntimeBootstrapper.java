@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 
 /**
- * 7.1.2 runtime foundation.
+ * DSE ERP 9.0.14 managed runtime bootstrap.
  *
  * Ensures managed PostgreSQL and the packaged Spring Boot backend are running before API-backed JavaFX screens open.
  */
@@ -204,7 +204,7 @@ public final class RuntimeBootstrapper {
             String finalName = "dse-erp-server-dev-cache-" + shortFingerprint;
             Path cached = root.resolve("server/target/" + finalName + ".jar");
 
-            if (Files.isRegularFile(cached) && isExecutableSpringBootJar(cached)) {
+            if (Files.isRegularFile(cached) && isExpectedDevelopmentServerJar(cached)) {
                 return cached.toAbsolutePath().normalize();
             }
 
@@ -245,7 +245,7 @@ public final class RuntimeBootstrapper {
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
             Process build = builder.start();
             int exit = build.waitFor();
-            if (exit != 0 || !Files.isRegularFile(expected) || !isExecutableSpringBootJar(expected)) return null;
+            if (exit != 0 || !Files.isRegularFile(expected) || !isExpectedDevelopmentServerJar(expected)) return null;
 
             cleanupOldDevelopmentServerJars(expected);
             return expected.toAbsolutePath().normalize();
@@ -298,6 +298,18 @@ public final class RuntimeBootstrapper {
             String main = manifest.getMainAttributes().getValue("Main-Class");
             String start = manifest.getMainAttributes().getValue("Start-Class");
             return main != null && !main.isBlank() && start != null && !start.isBlank();
+        } catch (IOException exception) {
+            return false;
+        }
+    }
+
+    private static boolean isExpectedDevelopmentServerJar(Path jar) {
+        if (!isExecutableSpringBootJar(jar)) return false;
+        try (java.util.jar.JarFile file = new java.util.jar.JarFile(jar.toFile())) {
+            var manifest = file.getManifest();
+            if (manifest == null) return false;
+            String version = manifest.getMainAttributes().getValue("Implementation-Version");
+            return RuntimeContract.APP_VERSION.equals(version);
         } catch (IOException exception) {
             return false;
         }
