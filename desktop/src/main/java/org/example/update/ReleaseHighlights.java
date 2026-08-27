@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.17".equals(version)) {
+            return """
+                    DSE ERP 9.0.17
+
+                    • Moves IntelliJ development-server execution outside Maven target so Windows clean/rebuild is never blocked by the running backend JAR.
+                    • Cleans orphaned project-owned development backends safely while leaving active and packaged/shared servers untouched.
+                    • Hardens Hikari/PostgreSQL connection lifetime, keepalive, validation and idle-pool behavior for restart/recovery stability.
+                    • Preserves all v9.0.16 business calculations, Sales/Purchase flows, document generation and production behavior.
+                    • Synchronizes desktop, server, runtime, bootstrap and update release identity to 9.0.17.
+                    """;
+        }
         if ("9.0.16".equals(version)) {
             return """
                     DSE ERP 9.0.16

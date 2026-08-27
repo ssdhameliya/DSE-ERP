@@ -11,6 +11,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 
 /**
- * DSE ERP 9.0.16 managed runtime bootstrap.
+ * DSE ERP 9.0.17 managed runtime bootstrap.
  *
  * Ensures managed PostgreSQL and the packaged Spring Boot backend are running before API-backed JavaFX screens open.
  */
@@ -44,6 +45,10 @@ public final class RuntimeBootstrapper {
             // A shared client never starts or owns PostgreSQL/Spring. The central server
             // is the only authority for business data, authentication and migrations.
             return DeploymentConnectionService.test(ConfigManager.getConfiguredServerUrl());
+        }
+        if (!isPackagedRuntime() && (managedServer == null || !managedServer.isAlive())) {
+            Path root = findProjectRoot();
+            if (root != null) cleanupOrphanDevelopmentServers(root);
         }
         ManagedPostgresRuntime.ensureReady();
         prepareManagedServerEndpoint();
@@ -202,7 +207,8 @@ public final class RuntimeBootstrapper {
             String fingerprint = developmentServerFingerprint(root);
             String shortFingerprint = fingerprint.substring(0, 16);
             String finalName = "dse-erp-server-dev-cache-" + shortFingerprint;
-            Path cached = root.resolve("server/target/" + finalName + ".jar");
+            Path cacheDir = developmentServerCacheDirectory(root);
+            Path cached = cacheDir.resolve(finalName + ".jar");
 
             if (Files.isRegularFile(cached) && isExpectedDevelopmentServerJar(cached)) {
                 return cached.toAbsolutePath().normalize();
@@ -214,7 +220,7 @@ public final class RuntimeBootstrapper {
         }
     }
 
-    private static Path buildDevelopmentServer(Path root, String finalName, Path expected) {
+    private static Path buildDevelopmentServer(Path root, String finalName, Path cached) {
         try {
             List<String> command = new ArrayList<>();
             boolean windows = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
@@ -245,13 +251,86 @@ public final class RuntimeBootstrapper {
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
             Process build = builder.start();
             int exit = build.waitFor();
-            if (exit != 0 || !Files.isRegularFile(expected) || !isExpectedDevelopmentServerJar(expected)) return null;
 
-            cleanupOldDevelopmentServerJars(expected);
-            return expected.toAbsolutePath().normalize();
+            Path built = root.resolve("server/target/" + finalName + ".jar");
+            if (exit != 0 || !Files.isRegularFile(built) || !isExpectedDevelopmentServerJar(built)) return null;
+
+            // Never execute the development backend from Maven's target directory. Windows
+            // locks a running JAR, which previously made a later `mvn clean` fail. Copy the
+            // verified artifact to a project-specific runtime cache outside the source tree.
+            Files.createDirectories(cached.getParent());
+            Path staging = cached.resolveSibling(cached.getFileName() + ".tmp-" + ProcessHandle.current().pid());
+            Files.copy(built, staging, StandardCopyOption.REPLACE_EXISTING);
+            if (!isExpectedDevelopmentServerJar(staging)) {
+                Files.deleteIfExists(staging);
+                return null;
+            }
+            try {
+                Files.move(staging, cached, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                Files.move(staging, cached, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            cleanupOldDevelopmentServerJars(cached);
+            return cached.toAbsolutePath().normalize();
         } catch (Exception exception) {
             return null;
         }
+    }
+
+    private static Path developmentServerCacheDirectory(Path root) {
+        String normalizedRoot = root.toAbsolutePath().normalize().toString().replace('\\', '/');
+        if (isWindows()) normalizedRoot = normalizedRoot.toLowerCase(Locale.ROOT);
+        String key;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            key = HexFormat.of().formatHex(digest.digest(normalizedRoot.getBytes(StandardCharsets.UTF_8))).substring(0, 16);
+        } catch (Exception ignored) {
+            key = Integer.toUnsignedString(normalizedRoot.hashCode(), 16);
+        }
+        return Path.of(System.getProperty("user.home"), ".dse-erp", "dev-server-cache", key)
+                .toAbsolutePath().normalize();
+    }
+
+    private static void cleanupOrphanDevelopmentServers(Path root) {
+        String legacyTarget = normalizeProcessPath(root.resolve("server/target"));
+        String externalCache = normalizeProcessPath(developmentServerCacheDirectory(root));
+        long currentPid = ProcessHandle.current().pid();
+        ProcessHandle.allProcesses().forEach(handle -> {
+            if (handle.pid() == currentPid || !handle.isAlive()) return;
+            String command = handle.info().commandLine().orElse("");
+            if (command.isBlank()) return;
+            String normalized = command.replace('\\', '/').toLowerCase(Locale.ROOT);
+            boolean dseDevServer = normalized.contains("dse-erp-server-dev-cache-");
+            boolean belongsToProject = normalized.contains(legacyTarget) || normalized.contains(externalCache);
+            if (!dseDevServer || !belongsToProject || hasLiveOwningParent(handle)) return;
+            stopOrphanProcess(handle);
+        });
+    }
+
+    private static String normalizeProcessPath(Path path) {
+        return path.toAbsolutePath().normalize().toString().replace('\\', '/').toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean hasLiveOwningParent(ProcessHandle child) {
+        var parent = child.parent();
+        if (parent.isEmpty() || !parent.get().isAlive()) return false;
+        var childStart = child.info().startInstant();
+        var parentStart = parent.get().info().startInstant();
+        if (childStart.isPresent() && parentStart.isPresent() && parentStart.get().isAfter(childStart.get())) return false;
+        return true;
+    }
+
+    private static void stopOrphanProcess(ProcessHandle handle) {
+        handle.destroy();
+        for (int i = 0; i < 20 && handle.isAlive(); i++) {
+            try { Thread.sleep(50); }
+            catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        if (handle.isAlive()) handle.destroyForcibly();
     }
 
     private static String developmentServerFingerprint(Path root) throws Exception {

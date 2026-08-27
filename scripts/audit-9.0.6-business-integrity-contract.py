@@ -71,6 +71,6 @@ if pay:
     req('BANK_RECONCILIATION' in pay,'bank-reconciled payment edit protection must remain')
 req('rounding_adjustment' in ret,'Return refund balance must retain rounding adjustment handling')
 # One exact startup identity
-req('APP_VERSION = "9.0.16"' in runtime and 'BUILD_REVISION = "9.0.16"' in runtime,'desktop version/build must both be 9.0.16')
-req('dse.app.version=9.0.16' in props and 'dse.build.revision=9.0.16' in props,'server version/build must both be 9.0.16')
-print('PASS: DSE ERP 9.0.16 runtime with 9.0.6 business-integrity contract')
+req('APP_VERSION = "9.0.17"' in runtime and 'BUILD_REVISION = "9.0.17"' in runtime,'desktop version/build must both be 9.0.17')
+req('dse.app.version=9.0.17' in props and 'dse.build.revision=9.0.17' in props,'server version/build must both be 9.0.17')
+print('PASS: DSE ERP 9.0.17 runtime with 9.0.6 business-integrity contract')
