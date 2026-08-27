@@ -58,10 +58,10 @@ public class MasterDataService {
     }
 
     private void ensureCategory(String code,String name,String description,int order){
-        if(categories.findByCategoryCode(code).isPresent()) return;
+        // Startup assurance resolves only the requested category code/name.
+        if(resolveCanonicalCategoryByCode(code)!=null) return;
         MasterCategoryEntity e=new MasterCategoryEntity();e.setCategoryCode(code);e.setCategoryName(name);e.setDescription(description);e.setDisplayOrder(order);e.setActive(1);categories.save(e);
     }
-
 
 
     private void ensureReferenceFormat(String lookupCode,String value,String description,int order){
@@ -333,7 +333,7 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<String> valuesByCategoryCode(String code) {
-        MasterCategoryEntity c = categories.findByCategoryCode(code).orElse(null);
+        MasterCategoryEntity c = resolveCategoryByCode(code);
         return c == null ? List.of() : values(c.getCategoryName());
     }
 
@@ -351,10 +351,10 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public List<MasterDtos.LookupDto> lookupsByCategoryCode(String code) {
-        MasterCategoryEntity c = categories.findByCategoryCode(code).orElse(null);
-        if (c == null) return List.of();
-        return lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(c.getCategoryName())
-            .stream().map(this::lookupDto).toList();
+        MasterCategoryEntity c = resolveCategoryByCode(code);
+        return c == null ? List.of() :
+            lookups.findByLookupTypeAndActiveTrueOrderByDisplayOrderAscLookupValueAsc(c.getCategoryName())
+                .stream().map(this::lookupDto).toList();
     }
 
     @Transactional
@@ -545,6 +545,7 @@ public class MasterDataService {
                 addUsage(usage, countText("payment_record", "payment_mode", value), "Payment records");
             }
             case "PAYMENT_TERMS" -> addUsage(usage, countText("sales_header", "payment_terms", value), "Sales invoices");
+            case "QUOTATION_SOURCE" -> addUsage(usage, countText("quotation_header", "source", value), "Quotations");
             case "GST_TYPE" -> addUsage(usage, countText("sales_header", "gst_type", value), "Sales invoices");
             case "CHARGES" -> {
                 addUsage(usage, countText("sales_header", "charge_type", value), "Sales charge headers");
@@ -623,6 +624,41 @@ public class MasterDataService {
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(e.getCategoryName());
         return categoryDto(e, values.size(), values.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
     }
+
+
+    private MasterCategoryEntity resolveCanonicalCategoryByCode(String code) {
+        String requested = normal(code);
+        if (requested.isBlank()) return null;
+        MasterCategoryEntity exact = categories.findByCategoryCode(requested).orElse(null);
+        if (exact != null) return exact;
+        String key = categoryKey(requested);
+        return categories.findAll().stream()
+            .filter(c -> key.equals(categoryKey(c.getCategoryCode())) || key.equals(categoryKey(c.getCategoryName())))
+            .min(Comparator.comparing((MasterCategoryEntity c) -> c.getId() == null ? Integer.MAX_VALUE : c.getId()))
+            .orElse(null);
+    }
+
+    private MasterCategoryEntity resolveCategoryByCode(String code) {
+        String requested = normal(code);
+        if (requested.isBlank()) return null;
+        MasterCategoryEntity exact = categories.findByCategoryCode(requested).orElse(null);
+        if (exact != null) return exact;
+
+        String key = categoryKey(requested);
+        List<MasterCategoryEntity> all = categories.findAll();
+        MasterCategoryEntity normalized = all.stream()
+            .filter(c -> key.equals(categoryKey(c.getCategoryCode())) || key.equals(categoryKey(c.getCategoryName())))
+            .min(Comparator.comparing((MasterCategoryEntity c) -> c.getId() == null ? Integer.MAX_VALUE : c.getId()))
+            .orElse(null);
+        if (normalized != null) return normalized;
+
+        return null;
+    }
+
+    private String categoryKey(String value) {
+        return normal(value).replaceAll("[^A-Z0-9]", "");
+    }
+
 
     private String normal(String v) {
         return v == null ? "" : v.trim().toUpperCase(Locale.ROOT);

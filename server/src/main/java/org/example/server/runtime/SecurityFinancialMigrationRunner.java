@@ -101,7 +101,13 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_15__reference_and_quotation_source_hardening",
                     "db/migration/V9_0_15__reference_and_quotation_source_hardening.sql"),
             new Migration("V9_0_16__quotation_source_navigation_hardening",
-                    "db/migration/V9_0_16__quotation_source_navigation_hardening.sql")
+                    "db/migration/V9_0_16__quotation_source_navigation_hardening.sql"),
+            new Migration("V9_0_18__quotation_source_master_authority",
+                    "db/migration/V9_0_18__quotation_source_master_authority.sql"),
+            new Migration("V9_0_19__quotation_source_master_resolution",
+                    "db/migration/V9_0_19__quotation_source_master_resolution.sql"),
+            new Migration("V9_0_22__quotation_source_generic_master",
+                    "db/migration/V9_0_22__quotation_source_generic_master.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

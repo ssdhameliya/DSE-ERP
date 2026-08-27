@@ -542,11 +542,16 @@ public class ImportService {
                     if (dryRun) {
                         details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + code, "PASSED", "VALIDATED", "All validations passed", "", 0));
                     } else {
-                        new MasterApiClient().upsertCategory(categoryCode, categoryName, getCellValue(row, mapping.get("category_description")));
-                        Lookup lookup = service.getByType(categoryCode).stream().filter(existing -> existing.getLookupCode().equalsIgnoreCase(code)).findFirst().orElse(null);
+                        MasterApiClient.CategoryDto category = new MasterApiClient().upsertCategory(
+                                categoryCode, categoryName, getCellValue(row, mapping.get("category_description")));
+                        String canonicalLookupType = category == null || category.categoryName() == null || category.categoryName().isBlank()
+                                ? categoryName.trim().toUpperCase(Locale.ROOT)
+                                : category.categoryName().trim();
+                        Lookup lookup = service.getByType(canonicalLookupType).stream()
+                                .filter(existing -> existing.getLookupCode().equalsIgnoreCase(code)).findFirst().orElse(null);
                         boolean exists = lookup != null;
                         if (!exists) lookup = new Lookup();
-                        lookup.setLookupType(categoryCode); lookup.setLookupCode(code); lookup.setLookupValue(value);
+                        lookup.setLookupType(canonicalLookupType); lookup.setLookupCode(code); lookup.setLookupValue(value);
                         lookup.setDescription(getCellValue(row, mapping.get("value_description")));
                         lookup.setDisplayOrder((int) parseDouble(getCellValue(row, mapping.get("display_order"))));
                         lookup.setActive(!"false".equalsIgnoreCase(getCellValue(row, mapping.get("is_active"))));

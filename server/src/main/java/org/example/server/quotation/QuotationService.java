@@ -4,6 +4,7 @@ import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
 import org.example.server.util.BusinessClock;
 import org.example.server.operations.BusinessOperationsService;
+import org.example.server.master.MasterDataService;
 import org.example.shared.DocumentCalculationEngine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,10 +17,12 @@ public class QuotationService {
     private static final String QUOTATION_SOURCE_CODE="QUOTATION_SOURCE";
     private final JpaNativeRepository jdbc;
     private final BusinessOperationsService operations;
+    private final MasterDataService masterData;
 
-    public QuotationService(JpaNativeRepository jdbc, BusinessOperationsService operations) {
+    public QuotationService(JpaNativeRepository jdbc, BusinessOperationsService operations, MasterDataService masterData) {
         this.jdbc = jdbc;
         this.operations = operations;
+        this.masterData = masterData;
     }
 
     @Transactional
@@ -78,33 +81,21 @@ public class QuotationService {
                         r.getDouble(5), r.getDouble(6), r.getDouble(7)), id);
     }
 
-    @Transactional(readOnly=true)
+    @Transactional
     public List<String> sourceChoices(){
         if(!(CurrentUser.hasPermission("QUOTATION.VIEW")||CurrentUser.hasPermission("QUOTATION.CREATE")||CurrentUser.hasPermission("QUOTATION.EDIT")))
             throw new SecurityException("Quotation Source requires Quotation access");
         return activeQuotationSources();
     }
 
-    /** Master Data may contain historical QUOTATION SOURCE category codes/names with spaces or underscores. */
+    /** Backward-compatible quotation endpoint; values come from the same generic Master service used by desktop Master-backed fields. */
     private List<String> activeQuotationSources(){
-        String sql="""
-                SELECT DISTINCT TRIM(COALESCE(l.lookup_value,'')) AS source_value
-                FROM lookup_master l
-                WHERE COALESCE(l.is_active,1)<>0
-                  AND NULLIF(TRIM(COALESCE(l.lookup_value,'')),'') IS NOT NULL
-                  AND (
-                        UPPER(REPLACE(REPLACE(TRIM(COALESCE(l.lookup_type,'')),'_',''),' ',''))='QUOTATIONSOURCE'
-                        OR EXISTS (
-                            SELECT 1 FROM master_category c
-                            WHERE COALESCE(c.is_active,1)<>0
-                              AND UPPER(REPLACE(REPLACE(TRIM(COALESCE(c.category_code,'')),'_',''),' ',''))='QUOTATIONSOURCE'
-                              AND UPPER(TRIM(l.lookup_type)) IN (UPPER(TRIM(c.category_name)),UPPER(TRIM(c.category_code)))
-                        )
-                  )
-                ORDER BY source_value
-                """;
-        return jdbc.query(sql,(r,i)->r.getString(1)).stream()
-                .filter(v->v!=null&&!v.isBlank()).map(String::trim).distinct().toList();
+        return masterData.valuesByCategoryCode(QUOTATION_SOURCE_CODE).stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(v->!v.isBlank())
+                .distinct()
+                .toList();
     }
 
     @Transactional(readOnly=true)

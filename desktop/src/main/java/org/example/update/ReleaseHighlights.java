@@ -8,6 +8,60 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.22".equals(version)) {
+            return """
+                    DSE ERP 9.0.22
+
+                    • Refactors Quotation Source to the same generic Master Data lookup path used by Transporter, Brand, Category and other Master-backed fields.
+                    • Removes quotation-only Source fallback, alias scanning, request-time seeding and special runtime Master logic.
+                    • Desktop Quotation create/edit and register filters now read QUOTATION_SOURCE through LookupService.getValuesByCategoryCode(), matching other Master controls.
+                    • Adds a one-time compatibility migration that moves historical SOURCE/Quotation Source values into the canonical QUOTATION_SOURCE category; future runtime reads are generic only.
+                    • Keeps /api/quotations/sources as a backward-compatible mobile endpoint that delegates to the same generic Master service.
+                    """;
+        }
+        if ("9.0.21".equals(version)) {
+            return """
+                    DSE ERP 9.0.21
+
+                    • Assures Quotation Source Master values on the /api/quotations/sources request itself instead of relying only on startup ordering.
+                    • Refreshes Quotation Source whenever the editor dropdown is opened, so newly added Master values and delayed server readiness are reflected immediately.
+                    • Logs the resolved Quotation Source category/value count on the server for precise runtime diagnostics and never silently returns an empty list after assurance.
+                    • Fixes the confirmed Dashboard cash-position SQL ambiguity by qualifying return_refund.amount in joined refund queries.
+                    • Keeps the existing quotation REST paths/DTOs backward-compatible with current iOS and Android clients and preserves unrelated business behavior.
+                    """;
+        }
+        if ("9.0.20".equals(version)) {
+            return """
+                    DSE ERP 9.0.20
+
+                    • Fixes the remaining Quotation Source runtime gap when user-maintained Master categories are named Lead Source, Sales Source, Customer Source or another source-like alias.
+                    • Ensures a generic SOURCE category can no longer suppress startup assurance for the canonical QUOTATION_SOURCE category.
+                    • Keeps Quotation Source fully Master-driven, prefers the canonical category, and uses one best active source-like Master group without mixing unrelated values.
+                    • Keeps the existing /api/quotations/sources REST contract unchanged for desktop, iOS and Android clients.
+                    • Preserves all v9.0.19 Sales, Purchase, PDF/email, banking and unrelated business behavior.
+                    """;
+        }
+        if ("9.0.19".equals(version)) {
+            return """
+                    DSE ERP 9.0.19
+
+                    • Fixes Quotation Source loading when Master category codes differ only by case/spacing or values live under the historical SOURCE category.
+                    • Keeps MasterDataService as the single runtime authority and copies legacy SOURCE values into the canonical Quotation Source category without deleting the original Master data.
+                    • Keeps the existing /api/quotations/sources REST contract unchanged for desktop, iOS and Android clients.
+                    • Preserves all v9.0.18 Sales, Purchase, PDF/email, banking and other unrelated business behavior.
+                    """;
+        }
+        if ("9.0.18".equals(version)) {
+            return """
+                    DSE ERP 9.0.18
+
+                    • Makes Quotation Source use the canonical Master Data category-code service for both dropdown choices and server validation.
+                    • Repairs lookup values written under historical/category-code lookup types and prevents the desktop Master Import from recreating that mismatch.
+                    • Preserves a quotation's saved historical Source visibly during edit instead of showing a blank field when that value is no longer active.
+                    • Keeps all existing REST endpoint paths and request/response contracts backward-compatible with the current iOS and Android mobile apps.
+                    • Preserves v9.0.17 Sales, Purchase, PDF/email, banking and other unrelated business behavior.
+                    """;
+        }
         if ("9.0.17".equals(version)) {
             return """
                     DSE ERP 9.0.17

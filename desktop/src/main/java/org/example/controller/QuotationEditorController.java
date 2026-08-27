@@ -16,6 +16,7 @@ import org.example.api.support.SupportApiClient;
 import org.example.model.Party;
 import org.example.navigation.NavigationManager;
 import org.example.service.PartyService;
+import org.example.service.LookupService;
 import org.example.service.SessionService;
 import org.example.util.AttachmentPreviewSupport;
 import org.example.util.BusinessClock;
@@ -31,7 +32,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.*;
 
-/** Sale-style Quotation create/edit workspace backed by Quotation-specific server lookups. */
+/** Sale-style Quotation create/edit workspace backed by the shared Master Data lookup service. */
 public final class QuotationEditorController {
     @FXML private Label lblPageTitle,lblPageSubtitle,lblSubtotal,lblDiscount,lblTaxable,lblGst,lblGrandTotal,lblLineCount,lblAttachmentName;
     @FXML private ComboBox<CustomerChoice> cmbCustomer;
@@ -47,6 +48,7 @@ public final class QuotationEditorController {
 
     private final QuotationApiClient api=new QuotationApiClient();
     private final PartyService partyService=new PartyService();
+    private final LookupService lookupService=new LookupService();
     private final SupportApiClient supportApi=new SupportApiClient();
     private final ObservableList<ItemChoice> itemCache=FXCollections.observableArrayList();
     private final ContextMenu itemSuggestions=new ContextMenu();
@@ -79,10 +81,33 @@ public final class QuotationEditorController {
         configureTable();
         configureItemSearch();
         configureCustomerSearch();
+        configureSourceRefresh();
         quotationId=QuotationEditorContext.consume();
         loadEditorBootstrapAsync();
         tableLines.getItems().addListener((javafx.collections.ListChangeListener<LineRow>)change->{dirty=true;updateTotals();});
         txtRemarks.textProperty().addListener((o,a,b)->dirty=true);
+    }
+
+
+    private void configureSourceRefresh(){
+        cmbSource.setOnShowing(event -> refreshQuotationSources());
+    }
+
+    private void refreshQuotationSources(){
+        String selected=safe(cmbSource.getValue()).trim();
+        UiTaskExecutor.submitLatest("quotation-source-refresh",()->lookupService.getValuesByCategoryCode("QUOTATION_SOURCE"),rows->{
+            List<String> values=(rows==null?List.<String>of():rows).stream()
+                    .filter(Objects::nonNull).map(String::trim).filter(v->!v.isBlank())
+                    .distinct().toList();
+            cmbSource.getItems().setAll(values);
+            String match=values.stream().filter(v->v.equalsIgnoreCase(selected)).findFirst().orElse(null);
+            if(match!=null)cmbSource.setValue(match);
+            else if(!values.isEmpty())cmbSource.getSelectionModel().selectFirst();
+            cmbSource.setPromptText(values.isEmpty()?"No active Source in Master Data":"Select from Master Data...");
+        },failure->{
+            cmbSource.setPromptText("Source could not be loaded");
+            System.err.println("Quotation Source refresh failed: "+message(failure));
+        });
     }
 
     private void configureTable(){
@@ -144,8 +169,8 @@ public final class QuotationEditorController {
     private void selectQuotationCustomer(int customerId,String customerName){CustomerChoice local=cmbCustomer.getItems().stream().filter(c->c.id==customerId).findFirst().orElse(null);if(local!=null){cmbCustomer.setValue(local);return;}UiTaskExecutor.submitLatest("quotation-customer-selected",()->partyService.search("CUSTOMER",safe(customerName),30),rows->{CustomerChoice match=(rows==null?List.<Party>of():rows).stream().filter(p->p.getId()==customerId).findFirst().map(CustomerChoice::new).orElse(null);if(match!=null){cmbCustomer.getItems().add(0,match);cmbCustomer.setValue(match);}},failure->System.err.println("Quotation selected customer: "+message(failure)));}
 
     private record EditorBootstrap(List<Party> customers,List<String> sources,QuotationApiClient.QuoteDto quote,List<QuotationApiClient.LineDto> lines){}
-    private void loadEditorBootstrapAsync(){Integer requestedId=quotationId;UiTaskExecutor.submitLatest("quotation-editor-bootstrap",()->{List<Party> customers;try{customers=partyService.search("CUSTOMER","",40);}catch(Exception e){customers=List.of();}List<String> sources=api.sources();QuotationApiClient.QuoteDto quote=null;List<QuotationApiClient.LineDto> lines=List.of();if(requestedId!=null){quote=api.quote(requestedId);lines=api.lines(requestedId);}return new EditorBootstrap(customers==null?List.of():List.copyOf(customers),sources==null?List.of():sources.stream().filter(v->v!=null&&!v.isBlank()).distinct().toList(),quote,lines==null?List.of():List.copyOf(lines));},this::applyEditorBootstrap,failure->error(asException(failure)));}
-    private void applyEditorBootstrap(EditorBootstrap data){cmbCustomer.getItems().setAll(data.customers().stream().map(CustomerChoice::new).toList());cmbSource.getItems().setAll(data.sources());if(!cmbSource.getItems().isEmpty())cmbSource.getSelectionModel().selectFirst();else cmbSource.setPromptText("Add QUOTATION SOURCE in Masters");QuotationApiClient.QuoteDto quote=data.quote();if(quote!=null){selectQuotationCustomer(quote.customerId(),quote.customer());dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));if(data.sources().stream().anyMatch(v->v.equalsIgnoreCase(safe(quote.source()))))cmbSource.setValue(data.sources().stream().filter(v->v.equalsIgnoreCase(safe(quote.source()))).findFirst().orElse(null));else cmbSource.setValue(null);txtRemarks.setText(safe(quote.remarks()));tableLines.getItems().setAll(data.lines().stream().map(LineRow::new).toList());existingAttachment=safe(quote.attachment());selectedAttachment=null;attachmentRemovalPending=false;lblPageTitle.setText("Edit Quotation");lblPageSubtitle.setText(quote.no()+"  |  "+quote.customer());dirty=false;}updateAttachmentLabel();updateTotals();tableLines.refresh();}
+    private void loadEditorBootstrapAsync(){Integer requestedId=quotationId;UiTaskExecutor.submitLatest("quotation-editor-bootstrap",()->{List<Party> customers;try{customers=partyService.search("CUSTOMER","",40);}catch(Exception e){customers=List.of();}List<String> sources=lookupService.getValuesByCategoryCode("QUOTATION_SOURCE");QuotationApiClient.QuoteDto quote=null;List<QuotationApiClient.LineDto> lines=List.of();if(requestedId!=null){quote=api.quote(requestedId);lines=api.lines(requestedId);}return new EditorBootstrap(customers==null?List.of():List.copyOf(customers),sources==null?List.of():sources.stream().filter(v->v!=null&&!v.isBlank()).distinct().toList(),quote,lines==null?List.of():List.copyOf(lines));},this::applyEditorBootstrap,failure->error(asException(failure)));}
+    private void applyEditorBootstrap(EditorBootstrap data){cmbCustomer.getItems().setAll(data.customers().stream().map(CustomerChoice::new).toList());cmbSource.getItems().setAll(data.sources());if(!cmbSource.getItems().isEmpty())cmbSource.getSelectionModel().selectFirst();else{cmbSource.setPromptText("No active Source in Master Data");refreshQuotationSources();}QuotationApiClient.QuoteDto quote=data.quote();if(quote!=null){selectQuotationCustomer(quote.customerId(),quote.customer());dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));String savedSource=safe(quote.source()).trim();String activeSource=data.sources().stream().filter(v->v.equalsIgnoreCase(savedSource)).findFirst().orElse(null);cmbSource.setValue(activeSource!=null?activeSource:(savedSource.isBlank()?null:savedSource));txtRemarks.setText(safe(quote.remarks()));tableLines.getItems().setAll(data.lines().stream().map(LineRow::new).toList());existingAttachment=safe(quote.attachment());selectedAttachment=null;attachmentRemovalPending=false;lblPageTitle.setText("Edit Quotation");lblPageSubtitle.setText(quote.no()+"  |  "+quote.customer());dirty=false;}updateAttachmentLabel();updateTotals();tableLines.refresh();}
 
     @FXML private void addItem(){try{ItemChoice item=Objects.requireNonNull(resolveTypedItem(txtItemSearch.getText()),"Select an item from Item Master search.");double qty=positive(txtQuantity.getText(),"Quantity"),rate=nonNegative(txtRate.getText(),"Rate"),gst=percent(txtGst.getText(),"GST"),discount=percent(txtDiscount.getText(),"Discount");LineRow line=new LineRow(item.code,item.description,qty,rate,gst,discount);if(editingLine==null)tableLines.getItems().add(line);else{tableLines.getItems().set(editingIndex,line);}clearLineEditor();}catch(Exception e){error(e);}}
     @FXML private void deleteSelectedLine(){LineRow row=tableLines.getSelectionModel().getSelectedItem();if(row==null)return;tableLines.getItems().remove(row);clearLineEditor();}

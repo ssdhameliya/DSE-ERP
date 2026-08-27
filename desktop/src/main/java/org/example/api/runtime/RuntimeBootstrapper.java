@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 
 /**
- * DSE ERP 9.0.17 managed runtime bootstrap.
+ * DSE ERP 9.0.20 managed runtime bootstrap.
  *
  * Ensures managed PostgreSQL and the packaged Spring Boot backend are running before API-backed JavaFX screens open.
  */
