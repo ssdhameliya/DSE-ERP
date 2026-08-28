@@ -9,6 +9,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import org.example.config.ConfigManager;
 import org.example.service.LookupService;
@@ -49,14 +50,15 @@ public class BankExpenseController implements ScreenLifecycle {
     }
 
     @FXML private Label lblTitle, lblSubtitle, formTitle, listTitle;
-    @FXML private Button btnBankMode, btnExpenseMode, btnBankRecon, saveButton, addButton;
+    @FXML private Button btnBankMode, btnExpenseMode, btnBankRecon, saveButton, addButton, btnResetFilters, btnRefreshEntries;
     @FXML private Label kpi1Icon,kpi1Label,kpi1Value,kpi1Note,kpi2Icon,kpi2Label,kpi2Value,kpi2Note,kpi3Icon,kpi3Label,kpi3Value,kpi3Note,kpi4Icon,kpi4Label,kpi4Value,kpi4Note;
-    @FXML private DatePicker entryDate;
+    @FXML private DatePicker entryDate, filterFrom, filterTo;
     @FXML private VBox bankOnlyFields, expenseOnlyFields, billBox, entryFormPanel;
     @FXML private HBox workspaceRow;
-    @FXML private ComboBox<String> bankAccount, expenseCategory, expenseAccount, paymentMode, typeFilter, periodFilter;
+    @FXML private ComboBox<String> bankAccount, expenseCategory, expenseAccount, paymentMode, typeFilter;
     @FXML private RadioButton creditRadio, debitRadio;
     @FXML private TextField referenceNo, amount, searchField;
+    @FXML private StackPane financeSearchIcon;
     @FXML private TextArea description;
     @FXML private Label billName, showingLabel, pageLabel;
     @FXML private TableView<EntryRow> table;
@@ -82,6 +84,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private Dialog<ButtonType> entryDialog;
     private RegisterDetailDrawer detailDrawer;
     private EntryRow detailRow;
+    private boolean explicitRefreshPending;
 
     @FXML public void initialize() {
         entryDate.setValue(BusinessClock.today());
@@ -99,7 +102,12 @@ public class BankExpenseController implements ScreenLifecycle {
         if(btnBankMode!=null)btnBankMode.setGraphic(IconFactory.compactIcon("bank",15));
         if(btnExpenseMode!=null)btnExpenseMode.setGraphic(IconFactory.compactIcon("payment",15));
         if(btnBankRecon!=null)btnBankRecon.setGraphic(IconFactory.compactIcon("link",15));
-        periodFilter.setItems(FXCollections.observableArrayList("3 Months","6 Months","This Month","This Year","All Time")); periodFilter.setValue("3 Months");
+        if(financeSearchIcon!=null)financeSearchIcon.getChildren().setAll(IconFactory.compactIcon("search",14));
+        if(btnResetFilters!=null)btnResetFilters.setGraphic(IconFactory.compactIcon("reset",14));
+        if(btnRefreshEntries!=null)btnRefreshEntries.setGraphic(IconFactory.compactIcon("refresh",14));
+        LocalDate today=BusinessClock.today();
+        if(filterFrom!=null){filterFrom.setValue(today.minusMonths(3));filterFrom.valueProperty().addListener((o,a,b)->applyFilters());}
+        if(filterTo!=null){filterTo.setValue(today);filterTo.valueProperty().addListener((o,a,b)->applyFilters());}
         Mode initialMode = consumeRequestedMode();
         mode = initialMode == null ? Mode.BANK : initialMode;
         applyMode(mode);
@@ -340,16 +348,35 @@ public class BankExpenseController implements ScreenLifecycle {
     @FXML private void chooseBill(){ FileChooser f=new FileChooser(); f.setTitle("Choose expense bill"); f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bill files","*.pdf","*.png","*.jpg","*.jpeg")); selectedBill=f.showOpenDialog(table.getScene().getWindow()); if(selectedBill!=null)billName.setText(selectedBill.getName()); }
 
     @FXML private void applyFilters(){ currentPage=0; reloadRows(); }
+    @FXML private void resetFilters(){
+        if(searchField!=null)searchField.clear();
+        if(typeFilter!=null&&!typeFilter.getItems().isEmpty())typeFilter.getSelectionModel().selectFirst();
+        LocalDate today=BusinessClock.today();
+        if(filterFrom!=null)filterFrom.setValue(today.minusMonths(3));
+        if(filterTo!=null)filterTo.setValue(today);
+        currentPage=0;reloadRows();
+    }
+    @FXML private void refreshWithFeedback(){
+        explicitRefreshPending=true;
+        if(btnRefreshEntries!=null){btnRefreshEntries.setDisable(true);btnRefreshEntries.setText("Refreshing...");}
+        reloadRows();loadMetrics();
+    }
+    private void finishExplicitRefresh(boolean success){
+        if(!explicitRefreshPending)return;explicitRefreshPending=false;
+        if(btnRefreshEntries!=null){btnRefreshEntries.setDisable(false);btnRefreshEntries.setText("Refresh");}
+        if(success)org.example.util.ToastManager.info(table,"Refreshed",mode==Mode.EXPENSE?"Expense Entry is up to date.":"Bank Entry is up to date.");
+    }
     private void reloadRows(){
         org.example.util.OperationalUiSupport.showLoading(table, mode==Mode.EXPENSE?"Loading expenses…":"Loading bank entries…");
-        String q=searchField==null?"":searchField.getText().trim();String filter=typeFilter==null?"":safe(typeFilter.getValue(),"");String period=periodFilter==null?"":safe(periodFilter.getValue(),"");Mode requestedMode=mode;int requestedPage=currentPage;
-        UiTaskExecutor.submitLatest("finance-register-page",()->financeService.page(requestedPage,PAGE_SIZE,requestedMode==null?"":requestedMode.name(),period,filter,q),this::applyFinancePage,failure->{
+        String q=searchField==null?"":searchField.getText().trim();String filter=typeFilter==null?"":safe(typeFilter.getValue(),"");Mode requestedMode=mode;int requestedPage=currentPage;LocalDate from=filterFrom==null?null:filterFrom.getValue();LocalDate to=filterTo==null?null:filterTo.getValue();
+        UiTaskExecutor.submitLatest("finance-register-page",()->financeService.page(requestedPage,PAGE_SIZE,requestedMode==null?"":requestedMode.name(),"",filter,q,from,to),this::applyFinancePage,failure->{
+            finishExplicitRefresh(false);
             org.example.util.OperationalUiSupport.showError(table,"Finance register could not load",new IllegalStateException(userMessage(failure)));
             System.err.println("Finance register load failed: " + userMessage(failure));
         });
     }
     private void applyFinancePage(OperationsApiClient.FinancePage page){
-        filtered.clear();if(page!=null&&page.rows()!=null)for(var e:page.rows())filtered.add(toRow(e));currentPage=page==null?0:page.page();totalPages=page==null?0:page.totalPages();totalRows=page==null?0:page.totalRows();renderPage();if(filtered.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,mode==Mode.EXPENSE?"No expenses found":"No bank entries found","Adjust the filters or add a new entry.");
+        filtered.clear();if(page!=null&&page.rows()!=null)for(var e:page.rows())filtered.add(toRow(e));currentPage=page==null?0:page.page();totalPages=page==null?0:page.totalPages();totalRows=page==null?0:page.totalRows();renderPage();if(filtered.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,mode==Mode.EXPENSE?"No expenses found":"No bank entries found","Adjust the filters or add a new entry.");finishExplicitRefresh(true);
     }
     private EntryRow toRow(OperationsApiClient.FinanceEntry e){String raw=safe(e.voucherType(),"");String type=raw.toUpperCase(Locale.ROOT).contains("DEPOSIT")?"Deposit":raw.toUpperCase(Locale.ROOT).contains("WITHDRAW")?"Withdrawal":safe(e.category(),"Other");return new EntryRow(e.id()==null?0:e.id(),e.voucherDate(),type,safe(e.notes(),""),safe(e.accountName(),""),safe(e.paymentMode(),""),safe(e.referenceNo(),""),e.amount(),raw,e.statementTransactionId(),safe(e.linkedTargetType(),""),e.linkedTargetId(),safe(e.linkedDocumentNo(),""),e.rowVersion());}
     private void renderPage(){table.getItems().setAll(filtered);long from=totalRows==0?0:(long)currentPage*PAGE_SIZE+1,to=totalRows==0?0:Math.min(totalRows,from+filtered.size()-1);showingLabel.setText(totalRows==0?"Showing 0 to 0 of 0 entries":"Showing "+from+" to "+to+" of "+totalRows+" entries");pageLabel.setText(totalPages<=0?"0 / 0":(currentPage+1)+" / "+totalPages);}

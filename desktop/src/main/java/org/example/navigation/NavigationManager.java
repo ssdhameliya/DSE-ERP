@@ -38,7 +38,7 @@ public class NavigationManager {
     private static final Map<String, CachedPage> pageCache = new LinkedHashMap<>(16, 0.75f, true);
     private static final int MAX_CACHED_PAGES = 16;
     private static final java.util.Set<String> NON_CACHEABLE = java.util.Set.of(
-        "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/Registration.fxml",
+        "/fxml/pages/Sale.fxml", "/fxml/pages/Purchase.fxml", "/fxml/pages/QuotationEditor.fxml", "/fxml/pages/Registration.fxml",
         "/fxml/pages/SetupWizard.fxml", "/fxml/pages/Import.fxml",
         "/fxml/pages/EmailSettings.fxml", "/fxml/pages/PdfDesigner.fxml",
         "/fxml/pages/ExcelDesigner.fxml"

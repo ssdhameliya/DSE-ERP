@@ -9717,3 +9717,47 @@
     -fx-background-color: rgba(139, 92, 246, 0.055);
     -fx-border-color: rgba(167, 139, 250, 0.16);
 }
+
+/* 9.0.32 register header search mirrors the Item Master search used on create screens. */
+.register-header-search-shell {
+    -fx-alignment: center-left;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-min-height: 36px;
+}
+.register-header-search-icon { -fx-alignment: center; -fx-opacity: .84; }
+.register-header-search-input { -fx-padding: 7px 40px 7px 10px; }
+
+.finance-filter-search-shell {
+    -fx-alignment: center-left;
+    -fx-background-color: -color-surface-2;
+    -fx-background-radius: 9px;
+    -fx-border-color: -color-border;
+    -fx-border-radius: 9px;
+    -fx-border-width: 1px;
+    -fx-min-height: 36px;
+}
+.finance-filter-search-icon { -fx-alignment: center; -fx-opacity: .78; }
+.finance-filter-search-input {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 7px 10px 7px 0;
+}
+.filter-label,
+.finance-filter-label { -fx-font-size: 11px; -fx-font-weight: 800; }
+.filter-label-customer, .filter-label-supplier { -fx-text-fill: #2563eb; }
+.filter-label-date, .finance-filter-label-date { -fx-text-fill: #7c3aed; }
+.filter-label-document { -fx-text-fill: #0f766e; }
+.filter-label-payment { -fx-text-fill: #16a34a; }
+.filter-label-due { -fx-text-fill: #d97706; }
+.finance-filter-label-search { -fx-text-fill: #2563eb; }
+.finance-filter-label-type { -fx-text-fill: #0f766e; }
+.quick-range-all { -fx-text-fill: #7c3aed; -fx-font-weight: 800; }
+.quick-range-today { -fx-text-fill: #16a34a; -fx-font-weight: 800; }
+.quick-range-yesterday { -fx-text-fill: #2563eb; -fx-font-weight: 800; }
+.quick-range-week { -fx-text-fill: #d97706; -fx-font-weight: 800; }
+.quick-range-month { -fx-text-fill: #db2777; -fx-font-weight: 800; }
+.finance-filter-toolbar { -fx-padding: 2px 0 2px 0; }
+.quick-range-seven { -fx-text-fill: #d97706; -fx-font-weight: 800; }
+.quick-range-thirty { -fx-text-fill: #db2777; -fx-font-weight: 800; }

@@ -8,6 +8,38 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.32".equals(version)) {
+            return """
+                    DSE ERP 9.0.32
+
+                    • Removes the Payment Due filter from Sales and Purchase Registers while retaining the Payment Due table column and its Settled / Due / Overdue lifecycle wording.
+                    • Restyles Sales, Purchase and Quotation register header Search to match the Item Master search field used on create screens, including the embedded right-side search icon.
+                    • Fixes Create Quotation first-open Master population by loading all active Customers and all active Quotation Sources before those controls become interactive, and gives Quotation the same fresh non-cached editor lifecycle as Sale/Purchase.
+                    • Preserves the configurable Show / Hide Sidebar, the 9.0.31 Payment Status/Payment Due display separation, Bank Statement Browse Statements root-cause sizing fix and protected Dashboard Global Search.
+                    """;
+        }
+        if ("9.0.31".equals(version)) {
+            return """
+                    DSE ERP 9.0.31
+
+                    • Separates Payment Status from Payment Due in Sales and Purchase registers so Return Pending/Partial/Paid never reuse due-date wording.
+                    • Keeps overdue timing exclusively in Payment Due and removes OVERDUE from the Payment Status filter.
+                    • Fixes Bank Statement Browse Statements sizing at the real controller authority: the history workspace now receives roughly 52–60% of available width instead of being snapped back to 520–680 px.
+                    • Preserves Dashboard Global Search and all 9.0.30 Return, Master, financial-authority, register-search and sidebar behavior.
+                    """;
+        }
+        if ("9.0.30".equals(version)) {
+            return """
+                    DSE ERP 9.0.30
+
+                    • Moves Sales, Purchase and Quotation register search into each page header immediately before its primary New action while leaving Dashboard Global Search untouched.
+                    • Aligns visible register filters, adds colorful quick-date controls and Payment Due support for Purchase, and keeps Advanced Filters hidden.
+                    • Cleans Sales/Purchase Return side-panel actions, adds lifecycle-aware Approve/Reject controls, and preserves PDF/email actions in the row action menu.
+                    • Aligns Bank/Expense Search, Type and From/To Date filters with visible refresh feedback.
+                    • Fixes sidebar hide/show workspace reflow and gives Bank Statement History an adaptive, usable right-side width.
+                    • Retains the 9.0.28 financial authority/integrity, 9.0.27 sidebar shortcut, 9.0.26 Master numbering and 9.0.25 Return lifecycle corrections.
+                    """;
+        }
         if ("9.0.28".equals(version)) {
             return """
                     DSE ERP 9.0.28

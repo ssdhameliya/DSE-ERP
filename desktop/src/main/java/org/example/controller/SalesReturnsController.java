@@ -54,11 +54,12 @@ public class SalesReturnsController implements ScreenLifecycle {
     @FXML private TableColumn<Row, String> no, date, invoice, customer, reason, status, refundStatus;
     @FXML private TableColumn<Row, Number> amount;
     @FXML private TableColumn<Row, Void> action;
-    @FXML private Button btnRefundSelected, btnPrevPage, btnNextPage;
+    @FXML private Button btnRefundSelected, btnPrevPage, btnNextPage, btnEditReasonSelected, btnApproveSelected, btnRejectSelected, btnRefreshReturns;
     @FXML private SplitPane mainSplit;
     @FXML private VBox detailDrawer;
     private final List<Row> all = new ArrayList<>();
     private Row selected;
+    private boolean explicitRefreshPending;
     private final RegisterPageState pageState=new RegisterPageState(); private static final int PAGE_SIZE=25;
 
     @FXML public void initialize() {
@@ -102,7 +103,7 @@ public class SalesReturnsController implements ScreenLifecycle {
             final MenuButton menu = new MenuButton();
             {
                 add("View Details", "view", e -> showDetails(row()));
-                add("Edit Return", "edit", e -> edit(row()));
+                add("Edit Reason", "edit", e -> edit(row()));
                 add("Print / PDF", "print", e -> pdf(row()));
                 add("View / Download Excel", "document", e -> excel(row()));
                 add("Send Email", "email", e -> email(row()));
@@ -110,7 +111,6 @@ public class SalesReturnsController implements ScreenLifecycle {
                 add("Approve Return", "approve", e -> approveReturn(row()));
                 add("Reject Return", "reject", e -> rejectReturn(row()));
                 add("Record Refund", "payment", e -> recordRefund(row()));
-                add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row()));
                 add("Delete Return", "delete", e -> delete(row()));
                 menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));IconFactory.decorateActionMenu(menu);
@@ -129,6 +129,7 @@ public class SalesReturnsController implements ScreenLifecycle {
                         if(mi.getText().startsWith("Approve Return"))mi.setDisable(!waiting||!PermissionService.allowed("SALES.APPROVE"));
                         else if(mi.getText().startsWith("Reject Return"))mi.setDisable(!waiting||!PermissionService.allowed("SALES.APPROVE"));
                         else if(mi.getText().startsWith("Record Refund")){mi.setDisable(!approved);mi.setText(approved?"Record Refund":"Record Refund (Approval Required)");}
+                        else if(mi.getText().startsWith("Cancel Return")||mi.getText().startsWith("Delete Return"))mi.setDisable(!canCancelOrDelete(current));
                     }
                 }
                 setGraphic(empty ? null : menu);
@@ -141,9 +142,10 @@ public class SalesReturnsController implements ScreenLifecycle {
             TableRow<Row> row = new TableRow<>();
             row.setOnMouseClicked(event -> { if (event.getButton()!=javafx.scene.input.MouseButton.PRIMARY || event.getClickCount()!=1 || row.isEmpty() || RegisterUiSupport.isInteractiveTableTarget(event.getPickResult().getIntersectedNode(), row)) return; Row clicked=row.getItem(); if(detailDrawer.isVisible() && selected==clicked) closeDetails(); else { table.getSelectionModel().select(clicked); showDetails(clicked); } event.consume(); });
             MenuItem add = new MenuItem("Add Sales Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
-            MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
+            MenuItem edit = new MenuItem("Edit Reason", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem remove = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); remove.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
             ContextMenu menu = new ContextMenu(edit, remove);
+            menu.setOnShowing(e->{Row current=row.isEmpty()?null:row.getItem();edit.setDisable(current==null||isCancelled(current));remove.setDisable(!canCancelOrDelete(current));});
             IconFactory.decorateActionMenu(menu);
             row.contextMenuProperty().bind(javafx.beans.binding.Bindings.when(row.emptyProperty()).then((ContextMenu) null).otherwise(menu));
             return row;
@@ -168,12 +170,12 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void load() {
         String party=customerFilter.getValue(),state=statusFilter.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();int requested=pageState.currentPage();
         org.example.util.OperationalUiSupport.showLoading(table,"Loading sales returns…");
-        UiTaskExecutor.submitLatest("sales-returns-load",()->returnApi.page("SALES RETURN",requested,PAGE_SIZE,search.getText(),party,state,str(from),str(to)),this::applyPage,failure->{org.example.util.OperationalUiSupport.showError(table,"Sales returns could not load",failure);error(asException(failure));});
+        UiTaskExecutor.submitLatest("sales-returns-load",()->returnApi.page("SALES RETURN",requested,PAGE_SIZE,search.getText(),party,state,str(from),str(to)),this::applyPage,failure->{finishExplicitRefresh(false);org.example.util.OperationalUiSupport.showError(table,"Sales returns could not load",failure);error(asException(failure));});
     }
     private void applyPage(ReturnApiClient.Page page){
         pageState.runApplying(()->{all.clear();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())all.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());
         String selectedParty=customerFilter.getValue();org.example.util.PartySearchUi.preserveSelection(customerFilter,selectedParty,"All Customers");
-        statusFilter.setItems(FXCollections.observableArrayList("All Status", "PENDING APPROVAL", "APPROVED", "REJECTED", "CANCELLED"));if(statusFilter.getValue()==null)statusFilter.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No sales returns found","Adjust the filters or create a return from Sales Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();ScreenRefreshPolicy.markRefreshed("sales-returns");});
+        statusFilter.setItems(FXCollections.observableArrayList("All Status", "PENDING APPROVAL", "APPROVED", "REJECTED", "CANCELLED"));if(statusFilter.getValue()==null)statusFilter.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No sales returns found","Adjust the filters or create a return from Sales Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();ScreenRefreshPolicy.markRefreshed("sales-returns");finishExplicitRefresh(true);});
     }
     private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));month.setText(money(m.monthAmount()));approved.setText(money(m.approvedAmount()));pending.setText(money(Math.max(0,m.total()-m.approvedAmount())));refund.setText(money(m.refundAmount()));}
     private void updatePageInfo(){pageInfo.setText(pageState.rangeWithPageText(PAGE_SIZE,all.size(),"returns"));RegisterUiSupport.updatePageNavigation(pageState,btnPrevPage,btnNextPage);}
@@ -181,7 +183,8 @@ public class SalesReturnsController implements ScreenLifecycle {
     @FXML private void previousPage(){if(pageState.previous())load();}
     @FXML private void nextPage(){if(pageState.next())load();}
     @FXML private void reset(){search.clear();customerFilter.setValue("All Customers");statusFilter.setValue("All Status");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());pageState.reset();load();}
-    @FXML private void refresh(){load();}
+    @FXML private void refreshWithFeedback(){explicitRefreshPending=true;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(true);btnRefreshReturns.setText("Refreshing...");}load();}
+    private void finishExplicitRefresh(boolean success){if(!explicitRefreshPending)return;explicitRefreshPending=false;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(false);btnRefreshReturns.setText("Refresh");}if(success)org.example.util.ToastManager.info(table,"Refreshed","Sales Returns is up to date.");}
     @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(search);if(reusedFromCache||all.isEmpty()||ScreenRefreshPolicy.shouldRefresh("sales-returns",ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(30)))load();}
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("sales-returns-");}
 
@@ -211,12 +214,23 @@ public class SalesReturnsController implements ScreenLifecycle {
     private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("invoice"))return"sale";if(t.contains("customer"))return"customer";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("original"))return"sale";if(t.contains("close"))return"cancel";return null;}
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
     private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
-    private void showDetails(Row row) { if(row==null)return; selected=row; RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}}
+    private void showDetails(Row row) { if(row==null)return; selected=row; RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}updateSelectedActions(row);}
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
     @FXML private void originalSelected(){if(selected!=null)original(selected);}
     @FXML private void refundSelected(){if(selected!=null)recordRefund(selected);}
+    @FXML private void editReasonSelected(){if(selected!=null)edit(selected);}
+    @FXML private void approveSelected(){if(selected!=null)approveReturn(selected);}
+    @FXML private void rejectSelected(){if(selected!=null)rejectReturn(selected);}
+    private void updateSelectedActions(Row row){
+        boolean waiting=isPendingApproval(row), allowed=PermissionService.allowed("SALES.APPROVE");
+        if(btnApproveSelected!=null){btnApproveSelected.setManaged(waiting);btnApproveSelected.setVisible(waiting);btnApproveSelected.setDisable(!allowed);}
+        if(btnRejectSelected!=null){btnRejectSelected.setManaged(waiting);btnRejectSelected.setVisible(waiting);btnRejectSelected.setDisable(!allowed);}
+        if(btnEditReasonSelected!=null)btnEditReasonSelected.setDisable(row==null||isCancelled(row));
+    }
+    private boolean canCancelOrDelete(Row row){return row!=null&&(isPendingApproval(row)||isApproved(row))&&row.refund()<=0.0001;}
+
 
     private void edit(Row row) { input(row.reason(), "Edit return reason - " + row.no(), "Reason:").ifPresent(value -> update(row.no(), "reason", value)); }
     private void notes(Row row) { input("", "Return notes - " + row.no(), "Notes:").ifPresent(value -> update(row.no(), "notes", value)); }

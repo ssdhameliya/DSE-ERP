@@ -47,7 +47,7 @@
             <TextField fx:id="txtSearch" promptText="Search narration, reference, amount..." HBox.hgrow="ALWAYS" onAction="#applyFilters"/>
             <Button fx:id="btnSearch" text="Search" onAction="#applyFilters" styleClass="approved-button,approved-primary-button"/>
             <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/>
-            <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnRefresh" text="Refresh" onAction="#refreshWithFeedback" styleClass="approved-button,approved-secondary-button"/>
           </HBox>
           <HBox spacing="10" alignment="CENTER_LEFT" styleClass="bank-bulk-toolbar">
             <CheckBox fx:id="chkSelectAll" text="Select all visible" onAction="#selectAllVisible" styleClass="bank-select-all"/>
@@ -103,7 +103,7 @@
         </HBox>
       </VBox>
 
-      <VBox fx:id="statementHistoryDrawer" prefWidth="920" minWidth="780" maxWidth="1120" spacing="10" styleClass="erp-detail-drawer-card,bank-statement-history-drawer">
+      <VBox fx:id="statementHistoryDrawer" minWidth="640" prefWidth="900" maxWidth="Infinity" spacing="10" styleClass="erp-detail-drawer-card,bank-statement-history-drawer">
         <HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="historyIcon" styleClass="erp-page-header-icon"/><VBox><Label text="Bank Statement History" styleClass="section-title"/><Label text="Search and open any previous import without loading the full history into the selector." wrapText="true" styleClass="muted-label"/></VBox><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseHistory" text="Close" onAction="#closeStatementHistory" styleClass="approved-button,approved-secondary-button"/></HBox>
         <TextField fx:id="txtHistorySearch" promptText="Search bank, account, filename or imported by..." onAction="#searchStatementHistory"/>
         <GridPane hgap="8" vgap="8"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
@@ -113,7 +113,7 @@
           <VBox GridPane.rowIndex="1" GridPane.columnIndex="1" spacing="2"><Label text="Statement To" styleClass="bank-recon-field-caption"/><DatePicker fx:id="historyTo" maxWidth="Infinity"/></VBox>
         </GridPane>
         <HBox spacing="8" alignment="CENTER_RIGHT"><Button text="Reset" onAction="#resetStatementHistory" styleClass="approved-button,approved-secondary-button"/><Button text="Search" onAction="#searchStatementHistory" styleClass="approved-button,approved-primary-button"/></HBox>
-        <TableView fx:id="tableHistory" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,bank-statement-history-table"><columns><TableColumn fx:id="colHistoryImported" text="Imported" minWidth="135" prefWidth="160"/><TableColumn fx:id="colHistoryBank" text="Bank / Account" minWidth="185" prefWidth="235"/><TableColumn fx:id="colHistoryPeriod" text="Statement Period" minWidth="180" prefWidth="210"/><TableColumn fx:id="colHistoryStatus" text="Status" minWidth="135" prefWidth="155"/><TableColumn fx:id="colHistoryRows" text="Rows" minWidth="72" prefWidth="80"/></columns></TableView>
+        <TableView fx:id="tableHistory" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-responsive,bank-statement-history-table"><columns><TableColumn fx:id="colHistoryImported" text="Imported" minWidth="110" prefWidth="125"/><TableColumn fx:id="colHistoryBank" text="Bank / Account" minWidth="150" prefWidth="180"/><TableColumn fx:id="colHistoryPeriod" text="Statement Period" minWidth="150" prefWidth="175"/><TableColumn fx:id="colHistoryStatus" text="Status" minWidth="105" prefWidth="120"/><TableColumn fx:id="colHistoryRows" text="Rows" minWidth="58" prefWidth="65"/></columns></TableView>
         <HBox alignment="CENTER_LEFT" spacing="8"><Label fx:id="lblHistoryShowing" text="Showing 0 statements" styleClass="finance-showing-label"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnHistoryPrev" text="Previous" onAction="#previousStatementHistoryPage" styleClass="approved-button,approved-secondary-button"/><Label fx:id="lblHistoryPage" text="Page 0 of 0" styleClass="finance-showing-label"/><Button fx:id="btnHistoryNext" text="Next" onAction="#nextStatementHistoryPage" styleClass="approved-button,approved-secondary-button"/></HBox>
         <HBox spacing="8"><Button fx:id="btnHistoryDelete" text="Delete Statement" onAction="#deleteSelectedHistory" disable="true" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-danger-button"/><Button fx:id="btnOpenStatement" text="Open Statement" onAction="#openSelectedHistory" disable="true" HBox.hgrow="ALWAYS" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/></HBox>
       </VBox>

@@ -1,6 +1,8 @@
 package org.example.util;
 
+import javafx.application.Platform;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.Label;
@@ -35,6 +37,32 @@ public final class RegisterUiSupport {
         if (state == null) return;
         if (info != null) info.setText(state.rangeText(pageSize, currentRows, noun));
         if (pageNumber != null) pageNumber.setText(state.pageNumberText());
+    }
+
+    /** Forces the active workspace to consume released shell space after the global sidebar changes. */
+    public static void reflowAfterShellResize(Node root) {
+        if (root == null) return;
+        Runnable pass = () -> {
+            try {
+                root.applyCss();
+                root.autosize();
+                if (root instanceof Parent parent) {
+                    parent.requestLayout();
+                    parent.layout();
+                } else if (root.getParent() != null) {
+                    root.getParent().requestLayout();
+                }
+                for (Node node : root.lookupAll(".split-pane")) {
+                    if (!(node instanceof SplitPane split)) continue;
+                    long active = split.getItems().stream().filter(Node::isManaged).filter(Node::isVisible).count();
+                    double[] positions = split.getDividerPositions();
+                    split.requestLayout();
+                    if (active <= 1 && positions.length > 0) split.setDividerPositions(1.0);
+                    else if (positions.length > 0) split.setDividerPositions(positions);
+                }
+            } catch (RuntimeException ignored) { }
+        };
+        Platform.runLater(() -> { pass.run(); Platform.runLater(pass); });
     }
 
     public static void showDrawer(Region drawer, SplitPane splitPane, double dividerPosition) {

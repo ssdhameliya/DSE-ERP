@@ -82,6 +82,7 @@ public final class QuotationEditorController {
         configureItemSearch();
         configureCustomerSearch();
         configureSourceRefresh();
+        prepareMasterControlsForBootstrap();
         quotationId=QuotationEditorContext.consume();
         loadEditorBootstrapAsync();
         tableLines.getItems().addListener((javafx.collections.ListChangeListener<LineRow>)change->{dirty=true;updateTotals();});
@@ -89,8 +90,15 @@ public final class QuotationEditorController {
     }
 
 
+    private void prepareMasterControlsForBootstrap(){
+        cmbCustomer.setDisable(true);
+        cmbSource.setDisable(true);
+        cmbCustomer.setPromptText("Loading customers...");
+        cmbSource.setPromptText("Loading sources...");
+    }
+
     private void configureSourceRefresh(){
-        cmbSource.setOnShowing(event -> refreshQuotationSources());
+        cmbSource.setOnShowing(event -> { if(!cmbSource.isDisabled()) refreshQuotationSources(); });
     }
 
     private void refreshQuotationSources(){
@@ -169,8 +177,45 @@ public final class QuotationEditorController {
     private void selectQuotationCustomer(int customerId,String customerName){CustomerChoice local=cmbCustomer.getItems().stream().filter(c->c.id==customerId).findFirst().orElse(null);if(local!=null){cmbCustomer.setValue(local);return;}UiTaskExecutor.submitLatest("quotation-customer-selected",()->partyService.search("CUSTOMER",safe(customerName),30),rows->{CustomerChoice match=(rows==null?List.<Party>of():rows).stream().filter(p->p.getId()==customerId).findFirst().map(CustomerChoice::new).orElse(null);if(match!=null){cmbCustomer.getItems().add(0,match);cmbCustomer.setValue(match);}},failure->System.err.println("Quotation selected customer: "+message(failure)));}
 
     private record EditorBootstrap(List<Party> customers,List<String> sources,QuotationApiClient.QuoteDto quote,List<QuotationApiClient.LineDto> lines){}
-    private void loadEditorBootstrapAsync(){Integer requestedId=quotationId;UiTaskExecutor.submitLatest("quotation-editor-bootstrap",()->{List<Party> customers;try{customers=partyService.search("CUSTOMER","",40);}catch(Exception e){customers=List.of();}List<String> sources=lookupService.getValuesByCategoryCode("QUOTATION_SOURCE");QuotationApiClient.QuoteDto quote=null;List<QuotationApiClient.LineDto> lines=List.of();if(requestedId!=null){quote=api.quote(requestedId);lines=api.lines(requestedId);}return new EditorBootstrap(customers==null?List.of():List.copyOf(customers),sources==null?List.of():sources.stream().filter(v->v!=null&&!v.isBlank()).distinct().toList(),quote,lines==null?List.of():List.copyOf(lines));},this::applyEditorBootstrap,failure->error(asException(failure)));}
-    private void applyEditorBootstrap(EditorBootstrap data){cmbCustomer.getItems().setAll(data.customers().stream().map(CustomerChoice::new).toList());cmbSource.getItems().setAll(data.sources());if(!cmbSource.getItems().isEmpty())cmbSource.getSelectionModel().selectFirst();else{cmbSource.setPromptText("No active Source in Master Data");refreshQuotationSources();}QuotationApiClient.QuoteDto quote=data.quote();if(quote!=null){selectQuotationCustomer(quote.customerId(),quote.customer());dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));String savedSource=safe(quote.source()).trim();String activeSource=data.sources().stream().filter(v->v.equalsIgnoreCase(savedSource)).findFirst().orElse(null);cmbSource.setValue(activeSource!=null?activeSource:(savedSource.isBlank()?null:savedSource));txtRemarks.setText(safe(quote.remarks()));tableLines.getItems().setAll(data.lines().stream().map(LineRow::new).toList());existingAttachment=safe(quote.attachment());selectedAttachment=null;attachmentRemovalPending=false;lblPageTitle.setText("Edit Quotation");lblPageSubtitle.setText(quote.no()+"  |  "+quote.customer());dirty=false;}updateAttachmentLabel();updateTotals();tableLines.refresh();}
+    private void loadEditorBootstrapAsync(){
+        Integer requestedId=quotationId;
+        UiTaskExecutor.submitLatest("quotation-editor-bootstrap",()->{
+            QuotationApiClient.QuoteDto quote=null;
+            List<QuotationApiClient.LineDto> lines=List.of();
+            if(requestedId!=null){quote=api.quote(requestedId);lines=api.lines(requestedId);}
+            final int selectedCustomerId=quote==null?0:quote.customerId();
+            List<Party> customers;
+            try{
+                customers=partyService.getByType("CUSTOMER").stream()
+                        .filter(Objects::nonNull)
+                        .filter(p->p.isActive()||p.getId()==selectedCustomerId)
+                        .sorted(Comparator.comparing(p->safe(p.getName()),String.CASE_INSENSITIVE_ORDER))
+                        .toList();
+            }catch(Exception e){customers=List.of();}
+            List<String> sources;
+            try{sources=lookupService.getValuesByCategoryCode("QUOTATION_SOURCE");}
+            catch(Exception e){sources=List.of();}
+            return new EditorBootstrap(
+                    customers==null?List.of():List.copyOf(customers),
+                    sources==null?List.of():sources.stream().filter(Objects::nonNull).map(String::trim).filter(v->!v.isBlank()).distinct().toList(),
+                    quote,lines==null?List.of():List.copyOf(lines));
+        },this::applyEditorBootstrap,failure->{
+            cmbCustomer.setDisable(false);cmbSource.setDisable(false);
+            cmbCustomer.setPromptText("Search customer...");cmbSource.setPromptText("Select from Master Data...");
+            error(asException(failure));
+        });
+    }
+    private void applyEditorBootstrap(EditorBootstrap data){
+        cmbCustomer.getItems().setAll(data.customers().stream().map(CustomerChoice::new).toList());
+        cmbSource.getItems().setAll(data.sources());
+        cmbCustomer.setDisable(false);cmbSource.setDisable(false);
+        cmbCustomer.setPromptText(data.customers().isEmpty()?"No active Customers available":"Search customer...");
+        cmbSource.setPromptText(data.sources().isEmpty()?"No active Source in Master Data":"Select from Master Data...");
+        if(!cmbSource.getItems().isEmpty())cmbSource.getSelectionModel().selectFirst();
+        QuotationApiClient.QuoteDto quote=data.quote();
+        if(quote!=null){selectQuotationCustomer(quote.customerId(),quote.customer());dpDate.setValue(parse(quote.date()));dpValid.setValue(parse(quote.valid()));dpFollowUp.setValue(parse(quote.followUp()));String savedSource=safe(quote.source()).trim();String activeSource=data.sources().stream().filter(v->v.equalsIgnoreCase(savedSource)).findFirst().orElse(null);cmbSource.setValue(activeSource!=null?activeSource:(savedSource.isBlank()?null:savedSource));txtRemarks.setText(safe(quote.remarks()));tableLines.getItems().setAll(data.lines().stream().map(LineRow::new).toList());existingAttachment=safe(quote.attachment());selectedAttachment=null;attachmentRemovalPending=false;lblPageTitle.setText("Edit Quotation");lblPageSubtitle.setText(quote.no()+"  |  "+quote.customer());dirty=false;}
+        updateAttachmentLabel();updateTotals();tableLines.refresh();
+    }
 
     @FXML private void addItem(){try{ItemChoice item=Objects.requireNonNull(resolveTypedItem(txtItemSearch.getText()),"Select an item from Item Master search.");double qty=positive(txtQuantity.getText(),"Quantity"),rate=nonNegative(txtRate.getText(),"Rate"),gst=percent(txtGst.getText(),"GST"),discount=percent(txtDiscount.getText(),"Discount");LineRow line=new LineRow(item.code,item.description,qty,rate,gst,discount);if(editingLine==null)tableLines.getItems().add(line);else{tableLines.getItems().set(editingIndex,line);}clearLineEditor();}catch(Exception e){error(e);}}
     @FXML private void deleteSelectedLine(){LineRow row=tableLines.getSelectionModel().getSelectedItem();if(row==null)return;tableLines.getItems().remove(row);clearLineEditor();}

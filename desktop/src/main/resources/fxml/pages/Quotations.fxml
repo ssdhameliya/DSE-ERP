@@ -12,6 +12,12 @@
                     <Label text="Manage all quotations, follow-ups, conversion and customer communication" styleClass="screen-subtitle"/>
                 </VBox>
                 <Region HBox.hgrow="ALWAYS"/>
+                <StackPane prefWidth="340" minWidth="240" maxWidth="360" styleClass="erp-item-search-shell,register-header-search-shell,quotation-header-search-shell">
+                    <TextField fx:id="txtSearch" promptText="Search quotation, customer, mobile or GSTIN..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
+                    <StackPane fx:id="quotationHeaderSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon">
+                        <StackPane.margin><Insets right="8"/></StackPane.margin>
+                    </StackPane>
+                </StackPane>
                 <Button fx:id="btnNewQuotation" text="New Quotation" onAction="#newQuotation" styleClass="quotation-primary-button"/>
             </HBox>
 
@@ -49,45 +55,40 @@
                     <VBox spacing="4"><Label text="Average Value" styleClass="metric-label"/><Label fx:id="lblAverage" styleClass="metric-value"/><Label text="All quotations" styleClass="metric-note"/></VBox>
                 </HBox>
             </HBox>
-                    <VBox spacing="12" styleClass="quotation-filter-card,approved-filter-bar">
-                        
-
-                        <HBox spacing="10" alignment="CENTER_LEFT">
-                            <TextField fx:id="txtSearch" promptText="Search quotation, customer, mobile or GSTIN..." HBox.hgrow="ALWAYS" styleClass="approved-input"/>
-                            <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced" styleClass="quotation-toolbar-button" visible="false" managed="false"/>
-                            <MenuButton fx:id="savedViewsMenu" text="Saved Views" styleClass="quotation-saved-view-button,approved-menu-button" visible="false" managed="false"/>
-                            <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="quotation-toolbar-button,approved-button,approved-secondary-button"/>
-                            <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="quotation-toolbar-button,approved-button,approved-secondary-button"/>
-                        </HBox>
-
-                        <GridPane fx:id="advancedFilters" hgap="12" vgap="10" styleClass="quotation-filter-grid,approved-filter-bar">
-                            <columnConstraints>
-                                <ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/>
-                                <ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.70"/>
-                            </columnConstraints>
-                            <VBox spacing="4" GridPane.rowIndex="0" GridPane.columnIndex="0"><Label text="Quotation No." styleClass="filter-label"/><TextField fx:id="txtNumber" promptText="Quotation no." styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="1" GridPane.rowIndex="0"><Label text="Customer" styleClass="filter-label"/><ComboBox fx:id="cmbCustomer" maxWidth="Infinity" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="2" GridPane.rowIndex="0"><Label text="From Date" styleClass="filter-label"/><DatePicker fx:id="dpFrom" maxWidth="Infinity" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="3" GridPane.rowIndex="0"><Label text="To Date" styleClass="filter-label"/><DatePicker fx:id="dpTo" maxWidth="Infinity" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="4" GridPane.rowIndex="0"><Label text="Status" styleClass="filter-label"/><ComboBox fx:id="cmbStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.columnIndex="5" visible="false" managed="false"><Label text="Valid Upto" styleClass="filter-label"/><DatePicker fx:id="dpValid" maxWidth="Infinity" promptText="Any date" visible="false" managed="false" styleClass="approved-input"/></VBox>
-
-                            <VBox spacing="4" GridPane.rowIndex="1" visible="false" managed="false"><Label text="Sales Person" styleClass="filter-label"/><ComboBox fx:id="cmbSalesperson" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1" visible="false" managed="false"><Label text="Amount From" styleClass="filter-label"/><TextField fx:id="txtAmountFrom" promptText="Min Amount" visible="false" managed="false" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2" visible="false" managed="false"><Label text="Amount To" styleClass="filter-label"/><TextField fx:id="txtAmountTo" promptText="Max Amount" visible="false" managed="false" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3" visible="false" managed="false"><Label text="Follow Up" styleClass="filter-label"/><ComboBox fx:id="cmbFollowUp" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input"/></VBox>
-                            <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="4" visible="false" managed="false"><Label text="Source" styleClass="filter-label"/><ComboBox fx:id="cmbSource" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input"/></VBox>
-                            <HBox spacing="8" alignment="BOTTOM_RIGHT" GridPane.rowIndex="0" GridPane.columnIndex="5">
-                                <Button fx:id="btnSaveView" text="Save View" onAction="#saveCurrentView" styleClass="quotation-save-view-button,approved-button,approved-primary-button" visible="false" managed="false"/>
-                                <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" styleClass="quotation-apply-button,approved-button,approved-primary-button"/>
-                            </HBox>
+                    <VBox spacing="10" styleClass="quotation-filter-card,approved-filter-bar,erp-filter-section">
+                        <GridPane hgap="10" vgap="7" styleClass="register-visible-filter-grid,quotation-visible-filter-grid">
+                            <columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="18"/><ColumnConstraints percentWidth="18"/><ColumnConstraints percentWidth="21"/><ColumnConstraints percentWidth="18"/></columnConstraints>
+                            <VBox spacing="4"><Label text="Customer" styleClass="filter-label,filter-label-customer"/><ComboBox fx:id="cmbCustomer" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="1"><Label text="From Date" styleClass="filter-label,filter-label-date"/><DatePicker fx:id="dpFrom" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="2"><Label text="To Date" styleClass="filter-label,filter-label-date"/><DatePicker fx:id="dpTo" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="3"><Label text="Document Status" styleClass="filter-label,filter-label-document"/><ComboBox fx:id="cmbStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="4"><Label text="Quotation No." styleClass="filter-label,filter-label-document"/><TextField fx:id="txtNumber" promptText="Quotation no." styleClass="approved-input"/></VBox>
                         </GridPane>
-                        <HBox spacing="8" alignment="CENTER_LEFT" styleClass="quick-date-row">
-                            <Button fx:id="btnTodayRange" text="Today" onAction="#showToday" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
-                            <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
-                            <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
-                            <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="quick-range-button,approved-button,approved-secondary-button"/>
-                            <Button fx:id="btnCustomRange" text="Custom Range" onAction="#showCustomRange" styleClass="quick-range-button,quick-range-custom,approved-button,approved-secondary-button"/>
+
+                        <GridPane fx:id="advancedFilters" hgap="12" vgap="10" visible="false" managed="false" styleClass="quotation-filter-grid,approved-filter-bar">
+                            <VBox spacing="4"><Label text="Valid Upto" styleClass="filter-label"/><DatePicker fx:id="dpValid" maxWidth="Infinity" promptText="Any date" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="1"><Label text="Sales Person" styleClass="filter-label"/><ComboBox fx:id="cmbSalesperson" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="2"><Label text="Amount From" styleClass="filter-label"/><TextField fx:id="txtAmountFrom" promptText="Min Amount" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="3"><Label text="Amount To" styleClass="filter-label"/><TextField fx:id="txtAmountTo" promptText="Max Amount" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="4"><Label text="Follow Up" styleClass="filter-label"/><ComboBox fx:id="cmbFollowUp" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <VBox spacing="4" GridPane.columnIndex="5"><Label text="Source" styleClass="filter-label"/><ComboBox fx:id="cmbSource" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+                            <Button fx:id="btnSaveView" text="Save View" onAction="#saveCurrentView" visible="false" managed="false"/>
+                            <Button fx:id="btnApplyFilters" text="Apply Filters" onAction="#applyFilters" visible="false" managed="false"/>
+                        </GridPane>
+
+                        <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="false" onAction="#toggleAdvanced" visible="false" managed="false"/>
+                        <MenuButton fx:id="savedViewsMenu" text="Saved Views" visible="false" managed="false"/>
+
+                        <HBox spacing="8" alignment="CENTER_LEFT" styleClass="quick-date-row,register-quick-range-row">
+                            <Button fx:id="btnAllDatesRange" text="All Date" onAction="#showAllDates" styleClass="quick-range-button,quick-range-all,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnTodayRange" text="Today" onAction="#showToday" styleClass="quick-range-today,quick-range-button,quick-range-today,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnYesterdayRange" text="Yesterday" onAction="#showYesterday" styleClass="quick-range-yesterday,quick-range-button,quick-range-yesterday,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnSevenDaysRange" text="7 Days" onAction="#showSevenDays" styleClass="quick-range-button,quick-range-seven,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="quick-range-button,quick-range-thirty,approved-button,approved-secondary-button"/>
+                            <Button fx:id="btnCustomRange" text="Custom Range" onAction="#showCustomRange" visible="false" managed="false" styleClass="quick-range-button,quick-range-custom,approved-button,approved-secondary-button"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="quotation-toolbar-button,approved-button,approved-secondary-button,register-reset-button"/>
+                            <Button fx:id="btnRefresh" text="Refresh" onAction="#refreshWithFeedback" styleClass="quotation-toolbar-button,approved-button,approved-secondary-button,register-refresh-button"/>
                         </HBox>
                         <FlowPane fx:id="activeFilterChips" hgap="6" vgap="5" visible="false" managed="false"/>
                     </VBox>

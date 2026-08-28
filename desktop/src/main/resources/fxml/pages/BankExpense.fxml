@@ -56,11 +56,29 @@
 
     <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="finance-list-card">
       <Label fx:id="listTitle" text="Bank Entries" styleClass="finance-section-title"/>
-      <HBox spacing="8" alignment="CENTER_LEFT">
-        <TextField fx:id="searchField" promptText="Search by reference, description..." prefWidth="315" onKeyReleased="#applyFilters"/>
-        <ComboBox fx:id="typeFilter" prefWidth="150" onAction="#applyFilters"/>
-        <ComboBox fx:id="periodFilter" prefWidth="145" onAction="#applyFilters"/>
+      <HBox spacing="10" alignment="BOTTOM_LEFT" styleClass="finance-filter-toolbar">
+        <VBox spacing="4">
+          <Label text="Search" styleClass="finance-filter-label,finance-filter-label-search"/>
+          <HBox alignment="CENTER_LEFT" spacing="0" styleClass="finance-filter-search-shell">
+            <StackPane fx:id="financeSearchIcon" minWidth="32" prefWidth="32" styleClass="finance-filter-search-icon"/>
+            <TextField fx:id="searchField" promptText="Search reference, description..." prefWidth="270" onKeyReleased="#applyFilters" styleClass="finance-filter-search-input"/>
+          </HBox>
+        </VBox>
+        <VBox spacing="4">
+          <Label text="Type" styleClass="finance-filter-label,finance-filter-label-type"/>
+          <ComboBox fx:id="typeFilter" prefWidth="160" onAction="#applyFilters"/>
+        </VBox>
+        <VBox spacing="4">
+          <Label text="From Date" styleClass="finance-filter-label,finance-filter-label-date"/>
+          <DatePicker fx:id="filterFrom" prefWidth="150"/>
+        </VBox>
+        <VBox spacing="4">
+          <Label text="To Date" styleClass="finance-filter-label,finance-filter-label-date"/>
+          <DatePicker fx:id="filterTo" prefWidth="150"/>
+        </VBox>
         <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/>
+        <Button fx:id="btnRefreshEntries" text="Refresh" onAction="#refreshWithFeedback" styleClass="approved-button,approved-secondary-button"/>
         <Button fx:id="addButton" text="Add Entry" onAction="#focusForm" styleClass="approved-button,approved-primary-button"/>
       </HBox>
       <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="finance-table,erp-table-profile-register,erp-purple-selection-table">

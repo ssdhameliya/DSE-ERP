@@ -17,5 +17,5 @@ req('return c == null ? List.of() : values(c.getCategoryName());' in master,'cat
 req('canonicalLookupType' in imp,'Master import canonical lookup-type repair must remain')
 req('savedSource=safe(quote.source()).trim()' in qedit,'historical saved Source must remain visible during edit')
 req('V9_0_18__quotation_source_master_authority' in runner,'v9.0.18 compatibility migration must remain registered')
-req('APP_VERSION = "9.0.28"' in runtime,'current runtime identity must be 9.0.28')
-print('PASS: v9.0.18 Quotation Source authority protections retained under v9.0.28 generic Master architecture')
+req('APP_VERSION = "9.0.32"' in runtime,'current runtime identity must be 9.0.32')
+print('PASS: v9.0.18 Quotation Source authority protections retained under v9.0.32 generic Master architecture')

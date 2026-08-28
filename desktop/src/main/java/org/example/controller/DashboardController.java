@@ -591,6 +591,7 @@ public class DashboardController {
         if (contentPane != null) {
             contentPane.requestLayout();
             if (contentPane.getParent() != null) contentPane.getParent().requestLayout();
+            org.example.util.RegisterUiSupport.reflowAfterShellResize(contentPane);
         }
     }
 

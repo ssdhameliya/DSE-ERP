@@ -5,7 +5,7 @@ import java.util.List;
 public class FinanceService {
  private final OperationsApiClient api=new OperationsApiClient();
  public List<OperationsApiClient.FinanceEntry> getAll(){return api.finance();}
- public OperationsApiClient.FinancePage page(int page,int size,String mode,String period,String type,String query){return api.financePage(page,size,mode,period,type,query);}
+ public OperationsApiClient.FinancePage page(int page,int size,String mode,String period,String type,String query,java.time.LocalDate from,java.time.LocalDate to){return api.financePage(page,size,mode,period,type,query,from,to);}
  public OperationsApiClient.FinanceEntry get(int id){return api.finance(id);}
  public OperationsApiClient.FinanceMetrics metrics(){return api.financeMetrics();}
  public OperationsApiClient.FinanceEntry save(OperationsApiClient.FinanceEntry e){return api.saveFinance(e);}

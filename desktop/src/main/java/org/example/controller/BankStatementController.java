@@ -68,6 +68,7 @@ public class BankStatementController implements ScreenLifecycle {
     private long totalRows;
     private boolean suppressFilterReload;
     private Long pendingLinkedTransactionId;
+    private boolean explicitRefreshPending;
     private int historyPage,historyTotalPages;
     private long historyTotalRows;
     private final Map<String,String> historyAccountTokens=new LinkedHashMap<>();
@@ -91,6 +92,8 @@ public class BankStatementController implements ScreenLifecycle {
         configureTable();
         configureBatchSelector();
         configureHistoryTable();
+        if(tableHistory!=null)tableHistory.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        if(statementWorkspace!=null){statementWorkspace.widthProperty().addListener((o,a,b)->{if(isStatementHistoryOpen())applyStatementHistoryWidth();});}
         if(statementWorkspace!=null&&statementHistoryDrawer!=null)statementWorkspace.getItems().remove(statementHistoryDrawer);
         cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
@@ -285,7 +288,20 @@ public class BankStatementController implements ScreenLifecycle {
     }
     private TableCell<BankStatementApiClient.BatchDto,String> historyTextCell(){return new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);String text=empty?null:safe(value);setText(text);setTooltip(text==null||text.isBlank()?null:new Tooltip(text));}};}
     private boolean isStatementHistoryOpen(){return statementWorkspace!=null&&statementHistoryDrawer!=null&&statementWorkspace.getItems().contains(statementHistoryDrawer);}
-    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null||statementWorkspace==null)return;if(isStatementHistoryOpen()){closeStatementHistory();return;}statementWorkspace.getItems().add(statementHistoryDrawer);statementHistoryDrawer.setManaged(true);statementHistoryDrawer.setVisible(true);statementWorkspace.setDividerPositions(.46);historyPage=0;loadStatementHistory();}
+    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null||statementWorkspace==null)return;if(isStatementHistoryOpen()){closeStatementHistory();return;}statementWorkspace.getItems().add(statementHistoryDrawer);statementHistoryDrawer.setManaged(true);statementHistoryDrawer.setVisible(true);applyStatementHistoryWidth();historyPage=0;loadStatementHistory();}
+    private void applyStatementHistoryWidth(){
+        if(statementWorkspace==null||!isStatementHistoryOpen())return;
+        double width=statementWorkspace.getWidth();
+        if(width<=0){javafx.application.Platform.runLater(this::applyStatementHistoryWidth);return;}
+        // Bank Statement history is intentionally a large working drawer, not a compact details pane.
+        // Keep one sizing authority here so FXML/CSS cannot fight the divider listener.
+        double historyShare=width>=1800?.52:width>=1450?.56:.60;
+        double divider=1.0-historyShare;
+        statementWorkspace.setDividerPositions(divider);
+        javafx.application.Platform.runLater(()->{
+            if(isStatementHistoryOpen())statementWorkspace.setDividerPositions(divider);
+        });
+    }
     @FXML private void closeStatementHistory(){if(statementWorkspace!=null&&statementHistoryDrawer!=null)statementWorkspace.getItems().remove(statementHistoryDrawer);}
     private void prepareForLinkedTransactionNavigation(){
         closeStatementHistory();
@@ -385,9 +401,10 @@ public class BankStatementController implements ScreenLifecycle {
                     totalPages=0;totalRows=0;updatePageFooter();
                     clearMetrics();
                     org.example.util.OperationalUiSupport.showEmpty(table,"No bank statements imported","Import a bank statement to start reconciliation.");
+                    finishExplicitRefresh(true);
                 }
             },
-            failure->{org.example.util.OperationalUiSupport.showError(table,"Bank statements could not load",failure);error(failure);}
+            failure->{finishExplicitRefresh(false);org.example.util.OperationalUiSupport.showError(table,"Bank statements could not load",failure);error(failure);}
         );
     }
 
@@ -413,8 +430,9 @@ public class BankStatementController implements ScreenLifecycle {
                     Row match=rows.stream().filter(r->Objects.equals(r.dto.id(),pendingLinkedTransactionId)).findFirst().orElse(null);
                     if(match!=null){table.getSelectionModel().select(match);table.scrollTo(match);table.requestFocus();pendingLinkedTransactionId=null;org.example.navigation.DeepLinkSupport.pulse(table);}
                 }
+                finishExplicitRefresh(true);
             },
-            failure->{org.example.util.OperationalUiSupport.showError(table,"Statement transactions could not load",failure);error(failure);}
+            failure->{finishExplicitRefresh(false);org.example.util.OperationalUiSupport.showError(table,"Statement transactions could not load",failure);error(failure);}
         );
     }
 
@@ -447,7 +465,9 @@ public class BankStatementController implements ScreenLifecycle {
         finally{suppressFilterReload=false;}
         reloadCurrentPage();
     }
-    @FXML private void refresh(){reloadCurrentPage();}
+    @FXML private void refreshWithFeedback(){explicitRefreshPending=true;if(btnRefresh!=null){btnRefresh.setDisable(true);btnRefresh.setText("Refreshing...");}reloadCurrentPage();}
+    private void refresh(){reloadCurrentPage();}
+    private void finishExplicitRefresh(boolean success){if(!explicitRefreshPending)return;explicitRefreshPending=false;if(btnRefresh!=null){btnRefresh.setDisable(false);btnRefresh.setText("Refresh");}if(success)org.example.util.ToastManager.info(table,"Refreshed","Bank Statement is up to date.");}
     @FXML private void previousPage(){if(currentPage>0){currentPage--;reloadCurrentPage();}}
     @FXML private void nextPage(){if(currentPage+1<totalPages){currentPage++;reloadCurrentPage();}}
     private void resetPageAndLoad(){currentPage=0;reloadCurrentPage();}

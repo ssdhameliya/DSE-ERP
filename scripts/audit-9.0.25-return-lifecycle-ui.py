@@ -20,12 +20,12 @@ ps = text(Path('desktop/src/main/java/org/example/service/PurchaseService.java')
 runtime = text(Path('shared/src/main/java/org/example/shared/RuntimeContract.java'))
 props = text(Path('server/src/main/resources/application.properties'))
 
-req('APP_VERSION = "9.0.28"' in runtime and 'BUILD_REVISION = "9.0.28"' in runtime,
-    'desktop/shared release identity is 9.0.28')
-req('dse.app.version=9.0.28' in props and 'dse.build.revision=9.0.28' in props,
-    'server release identity is 9.0.28')
+req('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,
+    'desktop/shared release identity is 9.0.32')
+req('dse.app.version=9.0.32' in props and 'dse.build.revision=9.0.32' in props,
+    'server release identity is 9.0.32')
 req('V9_0_25__return_lifecycle_completion' in runner,
-    '9.0.28 lifecycle cleanup migration is registered')
+    '9.0.32 lifecycle cleanup migration is registered')
 req("refund_status='WAITING APPROVAL'" in mig and "refund_status='N/A'" in mig,
     'migration normalizes waiting and terminal refund states')
 
@@ -72,4 +72,4 @@ for rel,name in ((Path('desktop/src/main/resources/fxml/pages/SalesList.fxml'),'
     req('Advanced Filters' not in data,
         f'{name} does not expose an Advanced Filters button')
 
-print('PASS: DSE ERP 9.0.28 Return lifecycle + register UI contract')
+print('PASS: DSE ERP 9.0.32 Return lifecycle + register UI contract')

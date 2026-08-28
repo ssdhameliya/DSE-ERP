@@ -54,8 +54,10 @@ require('onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSu
         'Purchase Return must reload whenever the screen is shown')
 
 # Bank Statement history scale/master-account contract.
-require('fx:id="statementWorkspace"' in bank_fxml and 'fx:id="statementHistoryDrawer" prefWidth="920" minWidth="780" maxWidth="1120"' in bank_fxml,
-        'Bank Statement History must use the wider resizable split workspace')
+require('fx:id="statementWorkspace"' in bank_fxml and 'fx:id="statementHistoryDrawer" minWidth="640" prefWidth="900" maxWidth="Infinity"' in bank_fxml,
+        'Bank Statement History must use the wide adaptive right-side workspace')
+require('applyStatementHistoryWidth()' in bank and 'CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN' in bank,
+        'Bank Statement History must adapt its drawer and table width to the workspace')
 require('fx:id="cmbHistoryAccount" editable="true"' in bank_fxml,
         'Bank Statement History account filter must be a searchable ComboBox')
 require('lookupService.getByCategoryCode("BANK_ACCOUNT")' in bank and 'resolveBankAccount' in bank,
@@ -78,9 +80,9 @@ require('-fx-text-fill: #3b1b68;' not in css[css.find('9.0.5 global record-table
         'Shared selection contract must not leak light-theme selected text colours into dark mode')
 
 # Runtime/startup compatibility remains one exact value.
-require('APP_VERSION = "9.0.28"' in runtime and 'BUILD_REVISION = "9.0.28"' in runtime,
+require('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,
         'Desktop app/build identity must both be current 9.0.18')
-require('dse.app.version=9.0.28' in server_props and 'dse.build.revision=9.0.28' in server_props,
+require('dse.app.version=9.0.32' in server_props and 'dse.build.revision=9.0.32' in server_props,
         'Spring Boot app/build identity must exactly match desktop 9.0.18')
 
 print('PASS: DSE ERP 9.0.5 reconciliation/navigation/UI contract')

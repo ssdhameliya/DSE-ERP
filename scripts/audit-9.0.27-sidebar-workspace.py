@@ -20,10 +20,10 @@ props = text('server/src/main/resources/application.properties')
 app = text('desktop/src/main/resources/app-version.properties')
 release = text('desktop/src/main/java/org/example/update/ReleaseHighlights.java')
 
-req('APP_VERSION = "9.0.28"' in runtime and 'BUILD_REVISION = "9.0.28"' in runtime,
-    'desktop/server runtime identity is 9.0.28')
-req('dse.app.version=9.0.28' in props and 'dse.build.revision=9.0.28' in props and 'version=9.0.28' in app,
-    'server and desktop resource identity is 9.0.28')
+req('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,
+    'desktop/server runtime identity is 9.0.32')
+req('dse.app.version=9.0.32' in props and 'dse.build.revision=9.0.32' in props and 'version=9.0.32' in app,
+    'server and desktop resource identity is 9.0.32')
 req('fx:id="btnSidebarToggle"' in fxml and 'onAction="#toggleSidebar"' in fxml,
     'global Dashboard top bar owns a sidebar toggle button')
 req('fx:id="sidebarRoot"' in fxml and 'fx:id="contentPane"' in fxml,
@@ -44,7 +44,7 @@ req('case TOGGLE_SIDEBAR -> toggleSidebar();' in controller,
     'central shell shortcut dispatcher invokes the exact same sidebar toggle action as the button')
 req('ShortcutRegistry.display(Action.TOGGLE_SIDEBAR)' in controller,
     'sidebar tooltip reflects the configured shortcut rather than hard-coding only the default')
-req('DSE ERP 9.0.28' in release and 'Show / Hide Sidebar' in release,
-    '9.0.28 release highlights document the workspace/sidebar feature')
+req('DSE ERP 9.0.32' in release and 'Show / Hide Sidebar' in release,
+    '9.0.32 release highlights document the workspace/sidebar feature')
 
-print('PASS: DSE ERP 9.0.28 Sidebar workspace + shortcut contract')
+print('PASS: DSE ERP 9.0.32 Sidebar workspace + shortcut contract')
