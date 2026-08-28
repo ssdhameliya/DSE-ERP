@@ -71,7 +71,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private FlowPane activeFilterChips;
     @FXML private MenuButton savedViewsMenu;
     @FXML private TableView<Sales> tableSales;
-    @FXML private TableColumn<Sales,String> colInvoice,colDate,colCustomer,colMobile,colGstin,colDue,colStatus,colMail;
+    @FXML private TableColumn<Sales,String> colInvoice,colDate,colCustomer,colMobile,colGstin,colDue,colStatus,colPaymentStatus,colMail;
     @FXML private TableColumn<Sales,Double> colTotal,colPaid,colBalance;
     @FXML private TableColumn<Sales,Void> colAction;
     @FXML private ComboBox<Integer> cmbPageSize;
@@ -218,10 +218,8 @@ public class SalesListController implements ScreenLifecycle {
     }
 
     private void simplifyFilters(){
-        hide(txtInvoice);hide(txtAmountFrom);hide(txtAmountTo);hide(cmbPaymentDue);hide(cmbWhatsappStatus);hide(cmbInvoiceType);hide(btnAdvanced);hide(savedViewsMenu);
-        advancedFilters.setVisible(true);advancedFilters.setManaged(true);
-        place(cmbCustomer,0);place(dpFrom,1);place(dpTo,2);place(cmbPaymentStatus,3);place(cmbMailStatus,4);
-        for(Node child:advancedFilters.getChildren())if(child instanceof HBox actions){javafx.scene.layout.GridPane.setRowIndex(actions,0);javafx.scene.layout.GridPane.setColumnIndex(actions,5);if(!actions.getChildren().isEmpty()){Node save=actions.getChildren().getFirst();save.setVisible(false);save.setManaged(false);}}
+        hide(btnAdvanced);hide(savedViewsMenu);hide(btnCustomRange);
+        if(advancedFilters!=null){advancedFilters.setVisible(false);advancedFilters.setManaged(false);}
     }
     private void place(Node control,int column){Node box=control.getParent();javafx.scene.layout.GridPane.setRowIndex(box,0);javafx.scene.layout.GridPane.setColumnIndex(box,column);}
     private void hide(Node node){if(node==null)return;Node target=node.getParent() instanceof javafx.scene.layout.VBox?node.getParent():node;target.setVisible(false);target.setManaged(false);}
@@ -237,11 +235,13 @@ public class SalesListController implements ScreenLifecycle {
         colBalance.setCellValueFactory(v->new javafx.beans.property.SimpleDoubleProperty(v.getValue().getBalanceAmount()).asObject());
         colDue.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(dueLabel(v.getValue())));
         colStatus.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(documentStatus(v.getValue())));
+        colPaymentStatus.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(paymentStatusDisplay(v.getValue())));
         colMail.setCellValueFactory(v->new javafx.beans.property.SimpleStringProperty(v.getValue().isEmailSent()?"Sent":"Not Sent"));
         colTotal.setCellFactory(x->totalMoneyCell());
         colPaid.setCellFactory(x->paidMoneyCell());
         colBalance.setCellFactory(x->balanceMoneyCell());
         colStatus.setCellFactory(x->SemanticTableCells.status("document"));
+        colPaymentStatus.setCellFactory(x->SemanticTableCells.status("payment"));
         colMail.setCellFactory(x->SemanticTableCells.status("email"));
         colDue.setCellFactory(x->SemanticTableCells.dueDate());
         tableSales.setPlaceholder(new Label("No sales invoices match the selected filters"));
@@ -258,6 +258,7 @@ public class SalesListController implements ScreenLifecycle {
         setHeaderIcon(colBalance,"balance");
         setHeaderIcon(colDue,"reminder");
         setHeaderIcon(colStatus,"status");
+        setHeaderIcon(colPaymentStatus,"payment");
         setHeaderIcon(colMail,"email");
         setHeaderIcon(colAction,"actions");
     }
@@ -272,26 +273,31 @@ public class SalesListController implements ScreenLifecycle {
     private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-amount-total","register-balance-open","register-balance-settled");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
     private TableCell<Sales,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-paid-positive","register-paid-zero");if(!e&&v!=null)getStyleClass().add(v>.009?"register-paid-positive":"register-paid-zero");}};}
     private TableCell<Sales,String> statusCell(String semantic){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("pill-success","pill-warning","pill-danger","pill-neutral");if(!e&&v!=null){boolean returned=v.equalsIgnoreCase("RETURNED"),partialReturn=v.equalsIgnoreCase("PARTIALLY RETURNED");boolean good=v.equalsIgnoreCase("COMPLETED")||v.equalsIgnoreCase("PAID")||v.equalsIgnoreCase("SENT")||returned;boolean pending=v.equalsIgnoreCase("IN PROGRESS")||v.equalsIgnoreCase("PARTIAL")||v.equalsIgnoreCase("PENDING")||v.equalsIgnoreCase("PENDING APPROVAL")||partialReturn;getStyleClass().add(good?"pill-success":pending?"pill-warning":"pill-danger");String icon = returned||partialReturn ? "return" : (good ? semantic : (pending ? ("status".equals(semantic)?"reminder":semantic) : "error"));setGraphic(IconFactory.compactIcon(icon,15));}}};}
-    private TableCell<Sales,String> dueCell(){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("due-overdue","due-soon","due-paid");if(!e&&v!=null){boolean paid=v.equals("Paid"),overdue=v.startsWith("Overdue");getStyleClass().add(overdue?"due-overdue":paid?"due-paid":"due-soon");setGraphic(IconFactory.compactIcon(overdue?"error":paid?"complete":"reminder",15));}}};}
+    private TableCell<Sales,String> dueCell(){return new TableCell<>(){protected void updateItem(String v,boolean e){super.updateItem(v,e);setText(e?null:v);setGraphic(null);getStyleClass().removeAll("due-overdue","due-soon","due-paid");if(!e&&v!=null){boolean paid=v.equals("Paid")||v.contains("Completed"),overdue=v.contains("Overdue");getStyleClass().add(overdue?"due-overdue":paid?"due-paid":"due-soon");setGraphic(IconFactory.compactIcon(overdue?"error":paid?"complete":"reminder",15));}}};}
     private String documentStatus(Sales sale){
-        String stored = safe(sale.getDocumentStatus()).trim();
-        String normalized = stored.toUpperCase(java.util.Locale.ROOT);
-        if (java.util.Set.of("CANCELLED","DELETED","RETURNED","PARTIALLY RETURNED","DRAFT","PENDING APPROVAL","REJECTED").contains(normalized)) return normalized;
-        if(sale.getBalanceAmount()<=.01)return "COMPLETED";
-        if(sale.getPaidAmount()>0)return "IN PROGRESS";
-        return "PENDING";
+        String stored=safe(sale==null?null:sale.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+        return stored.isBlank()?"PENDING APPROVAL":stored;
+    }
+    private String paymentStatusDisplay(Sales sale){
+        if(sale==null)return "";
+        String status=safe(sale.getPaymentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+        if("RETURN APPROVAL PENDING".equals(status))return "Return Pending Approval";
+        if("RETURN PAID".equals(status))return "Return Completed";
+        if("RETURN PARTIAL".equals(status))return "Return Partial";
+        if("RETURN PENDING".equals(status))return dueLabel(sale);
+        return status;
     }
 
     private void configureFilters(){
-        cmbPaymentStatus.getItems().setAll("All","PENDING","PARTIAL","PAID","OVERDUE");cmbPaymentStatus.setValue("All");
+        cmbPaymentStatus.getItems().setAll("All","PENDING","PARTIAL","PAID","OVERDUE","RETURN APPROVAL PENDING","RETURN PENDING","RETURN PARTIAL","RETURN PAID");cmbPaymentStatus.setValue("All");
         cmbPaymentDue.getItems().setAll("All","Overdue","Due Today","Next 7 Days","Next 30 Days");cmbPaymentDue.setValue("All");
         cmbMailStatus.getItems().setAll("All","Sent","Not Sent");cmbMailStatus.setValue("All");
         cmbWhatsappStatus.getItems().setAll("All","Sent","Not Sent");cmbWhatsappStatus.setValue("All");
         cmbInvoiceType.getItems().setAll("All","TAX INVOICE","PROFORMA","CASH MEMO");cmbInvoiceType.setValue("All");
-        cmbDocumentStatus.getItems().setAll("All","PENDING","IN PROGRESS","COMPLETED","DRAFT","PENDING APPROVAL","REJECTED","CANCELLED","RETURNED","PARTIALLY RETURNED");cmbDocumentStatus.setValue("All");
+        cmbDocumentStatus.getItems().setAll("All","PENDING APPROVAL","APPROVED","REJECTED","CANCELLED");cmbDocumentStatus.setValue("All");
         org.example.util.PartySearchUi.install(cmbCustomer,"CUSTOMER","All customers","sales-register-customer-search");
-        dpFrom.setValue(BusinessClock.today().minusMonths(6));
-        dpTo.setValue(BusinessClock.today());
+        dpFrom.setValue(null);
+        dpTo.setValue(null);
         dpFrom.setPromptText("Any date");
         dpTo.setPromptText("Any date");
         for (ComboBox<String> box : List.of(cmbCustomer,cmbPaymentStatus,cmbPaymentDue,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus))
@@ -389,7 +395,7 @@ public class SalesListController implements ScreenLifecycle {
         pageState.runApplying(() -> {
             long started=System.nanoTime();allSales=new ArrayList<>(loaded.rows()==null?List.of():loaded.rows());filteredSales=allSales;pageState.apply(loaded.page(),loaded.totalPages(),loaded.totalRows());
             String selectedCustomer=cmbCustomer.getValue();org.example.util.PartySearchUi.preserveSelection(cmbCustomer,selectedCustomer,"All customers");
-            renderPage();if(allSales.isEmpty())org.example.util.OperationalUiSupport.showEmpty(tableSales,"No sales invoices found","Adjust the filters or create a new Sale.");applyMetrics(loaded.metrics());applyFooter(loaded.filteredTotals());renderChips();openLinkedRecordIfRequested();if(!PlatformUiSupport.isMac())javafx.application.Platform.runLater(()->updateCharts(loaded.metrics()));ScreenRefreshPolicy.markRefreshed("sales-register");
+            renderPage();if(allSales.isEmpty())org.example.util.OperationalUiSupport.showEmpty(tableSales,"No sales invoices found","Adjust the filters or create a new Sale.");applyMetrics(loaded.metrics());if(loaded.metrics()!=null)lblInvoiceCount.setText(loaded.metrics().invoiceCount()+" active • "+loaded.totalRows()+" records");applyFooter(loaded.filteredTotals());renderChips();openLinkedRecordIfRequested();if(!PlatformUiSupport.isMac())javafx.application.Platform.runLater(()->updateCharts(loaded.metrics()));ScreenRefreshPolicy.markRefreshed("sales-register");
             long ms=(System.nanoTime()-started)/1_000_000L;if(ms>=20)PerformanceMonitor.event("controller-phase","sales-register-page-apply | "+ms+" ms | rows="+allSales.size()+" | total="+pageState.totalRows());
         });
     }
@@ -542,19 +548,20 @@ public class SalesListController implements ScreenLifecycle {
 
     private boolean isFinanciallyLocked(Sales sale){
         if(sale==null)return false;
-        String payment=safe(sale.getPaymentStatus()).toUpperCase(java.util.Locale.ROOT);
-        return sale.getPaidAmount()>.009 || sale.getBalanceAmount()<=.009 || payment.contains("PAID") || payment.contains("SETTLED") || payment.contains("PARTIAL");
+        String payment=safe(sale.getBasePaymentStatus()).toUpperCase(java.util.Locale.ROOT);
+        return sale.getPaidAmount()>.009 || payment.contains("PAID") || payment.contains("SETTLED") || payment.contains("PARTIAL");
     }
     private boolean isFullyPaid(Sales sale){
         if(sale==null)return false;
-        String payment=safe(sale.getPaymentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
-        return sale.getBalanceAmount()<=.009 || payment.contains("PAID") || payment.contains("SETTLED");
+        String payment=safe(sale.getBasePaymentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+        return payment.equals("PAID")||payment.equals("SETTLED")||sale.getPaidAmount()+.009>=sale.getTotalAmount();
     }
     private boolean isApprovalLocked(Sales sale){String status=safe(sale==null?null:sale.getDocumentStatus()).trim().toUpperCase(Locale.ROOT);return Set.of("PENDING APPROVAL","REJECTED").contains(status);}
     private boolean isReturnEligible(Sales sale){
         if(sale==null||!isFullyPaid(sale))return false;
         String document=safe(sale.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
-        return !java.util.Set.of("CANCELLED","DELETED","RETURNED").contains(document);
+        String current=safe(sale.getPaymentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+        return "APPROVED".equals(document)&&!Set.of("RETURN APPROVAL PENDING","RETURN PENDING","RETURN PARTIAL").contains(current);
     }
 
     private void cancelSale(Sales sale){
@@ -614,16 +621,33 @@ public class SalesListController implements ScreenLifecycle {
         File f=chooseSave("Export Sales Register PDF","Sales_Register.pdf","PDF","*.pdf");if(f==null)return;
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";String selectedCustomer=customer;
         String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due=cmbPaymentDue.getValue(),mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
-        UiTaskExecutor.submitAction("sales-register-export-pdf",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,min,max);org.example.service.BrandedRegisterPdfService.export(f.toPath(),"Sales Register",new String[]{"Invoice","Date","Customer","Amount","Paid","Balance","Status"},rows.stream().map(x->new String[]{x.getInvoiceNo(),str(x.getInvoiceDate()),x.getCustomer()==null?"":safe(x.getCustomer().getName()),exportMoney(x.getTotalAmount()),exportMoney(x.getPaidAmount()),exportMoney(x.getBalanceAmount()),"PAID".equalsIgnoreCase(x.getPaymentStatus())?"COMPLETED":safe(x.getPaymentStatus())}).toList(),new float[]{2,1.3f,2.6f,1.4f,1.4f,1.4f,1.2f});return rows.size();},count->info("Sales register PDF exported • "+count+" records."),this::error);
+        UiTaskExecutor.submitAction("sales-register-export-pdf",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,min,max);org.example.service.BrandedRegisterPdfService.export(f.toPath(),"Sales Register",new String[]{"Invoice","Date","Customer","Amount","Paid","Pending","Document Status","Payment Status"},rows.stream().map(x->new String[]{x.getInvoiceNo(),str(x.getInvoiceDate()),x.getCustomer()==null?"":safe(x.getCustomer().getName()),exportMoney(x.getTotalAmount()),exportMoney(x.getPaidAmount()),exportMoney(x.getBalanceAmount()),documentStatus(x),paymentStatusDisplay(x)}).toList(),new float[]{2,1.3f,2.4f,1.3f,1.3f,1.3f,1.5f,1.6f});return rows.size();},count->info("Sales register PDF exported • "+count+" records."),this::error);
     }
-    private void writeSalesExcel(File f,List<Sales> rows)throws Exception{try(Workbook w=new XSSFWorkbook();FileOutputStream out=new FileOutputStream(f)){Sheet sh=w.createSheet("Sales Register");String[]h={"Invoice No","Date","Customer","Mobile","GSTIN","Amount","Paid","Balance","Due Date","Payment Status","Email","WhatsApp"};Row row=sh.createRow(0);for(int i=0;i<h.length;i++)row.createCell(i).setCellValue(h[i]);int n=1;for(Sales x:rows){row=sh.createRow(n++);org.example.model.Party party=x.getCustomer();Object[]v={x.getInvoiceNo(),str(x.getInvoiceDate()),party==null?"":safe(party.getName()),party==null?"":safe(party.getPhone()),party==null?"":safe(party.getGstin()),x.getTotalAmount(),x.getPaidAmount(),x.getBalanceAmount(),str(x.getDueDate()),x.getPaymentStatus(),x.isEmailSent()?"Sent":"Not Sent",x.isWhatsappSent()?"Sent":"Not Sent"};for(int i=0;i<v.length;i++){if(v[i] instanceof Number z)row.createCell(i).setCellValue(z.doubleValue());else row.createCell(i).setCellValue(String.valueOf(v[i]));}}for(int i=0;i<h.length;i++)sh.autoSizeColumn(i);w.write(out);}}
+    private void writeSalesExcel(File f,List<Sales> rows)throws Exception{try(Workbook w=new XSSFWorkbook();FileOutputStream out=new FileOutputStream(f)){Sheet sh=w.createSheet("Sales Register");String[]h={"Invoice No","Date","Customer","Mobile","GSTIN","Amount","Paid","Pending","Due Date","Document Status","Payment Status","Email","WhatsApp"};Row row=sh.createRow(0);for(int i=0;i<h.length;i++)row.createCell(i).setCellValue(h[i]);int n=1;for(Sales x:rows){row=sh.createRow(n++);org.example.model.Party party=x.getCustomer();Object[]v={x.getInvoiceNo(),str(x.getInvoiceDate()),party==null?"":safe(party.getName()),party==null?"":safe(party.getPhone()),party==null?"":safe(party.getGstin()),x.getTotalAmount(),x.getPaidAmount(),x.getBalanceAmount(),dueLabel(x),documentStatus(x),paymentStatusDisplay(x),x.isEmailSent()?"Sent":"Not Sent",x.isWhatsappSent()?"Sent":"Not Sent"};for(int i=0;i<v.length;i++){if(v[i] instanceof Number z)row.createCell(i).setCellValue(z.doubleValue());else row.createCell(i).setCellValue(String.valueOf(v[i]));}}for(int i=0;i<h.length;i++)sh.autoSizeColumn(i);w.write(out);}}
     private String exportMoney(double value){return NumberFormat.getCurrencyInstance(Locale.of("en","IN")).format(value).replace("₹","₹ ");}
     @FXML private void printRegister(){PrinterJob job=PrinterJob.createPrinterJob();if(job!=null&&job.showPrintDialog(tableSales.getScene().getWindow())){boolean ok=job.printPage(tableSales);if(ok)job.endJob();}}
     private File chooseSave(String title,String name,String label,String pattern){FileChooser c=new FileChooser();c.setTitle(title);c.setInitialFileName(name);c.getExtensionFilters().add(new FileChooser.ExtensionFilter(label,pattern));return c.showSaveDialog(tableSales.getScene().getWindow());}
     private void communication(String type,int id,String channel,String recipient,String subject,String status,String error){try{support.communication(new SupportApiClient.CommunicationRequest(type,id,channel,recipient,subject,status,error,user()));}catch(Exception ignored){}}
     private void log(String type,int id,String action,String detail){try{support.activity(type,id,action,detail,user());}catch(Exception ignored){}}
     private String user(){return SessionService.current()==null?"System":SessionService.current().getFullName();}
-    private String dueLabel(Sales s){String document=safe(s.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);if(document.contains("DELETE"))return "Deleted";if(document.contains("CANCEL"))return "Cancelled";if(s.getBalanceAmount()<=.01)return "Paid";if(s.getDueDate()==null)return "Not set";long d=java.time.temporal.ChronoUnit.DAYS.between(BusinessClock.today(),s.getDueDate());return d<0?"Overdue by "+Math.abs(d)+" days":d==0?"Due today":"Due in "+d+" days";}
+    private String dueLabel(Sales s){
+        String document=safe(s.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);
+        if(document.contains("DELETE"))return "Deleted";
+        if(document.contains("CANCEL"))return "Cancelled";
+        String payment=safe(s.getPaymentStatus()).toUpperCase(java.util.Locale.ROOT);
+        if("RETURN APPROVAL PENDING".equals(payment))return "Return Pending Approval";
+        if("RETURN PAID".equals(payment))return "Return Completed";
+        if("RETURN PENDING".equals(payment)||"RETURN PARTIAL".equals(payment)){
+            LocalDate due=s.getReturnDueDate();
+            if(due==null)return "Return Due";
+            long d=java.time.temporal.ChronoUnit.DAYS.between(BusinessClock.today(),due);
+            return d<0?"Return Overdue by "+Math.abs(d)+" days":d==0?"Return Due Today":"Return Due in "+d+" Days";
+        }
+        if(s.getBalanceAmount()<=.01)return "Paid";
+        if(s.getDueDate()==null)return "Not set";
+        long d=java.time.temporal.ChronoUnit.DAYS.between(BusinessClock.today(),s.getDueDate());
+        return d<0?"Overdue by "+Math.abs(d)+" days":d==0?"Due today":"Due in "+d+" days";
+    }
     private String money(double v){return currency.format(v).replace("₹","₹ ");}
     private String safe(String v){return v==null?"":v;}
     private String lower(String v){return safe(v).toLowerCase(Locale.ROOT);}

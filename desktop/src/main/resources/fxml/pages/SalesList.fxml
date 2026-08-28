@@ -28,7 +28,7 @@
             <HBox spacing="12" alignment="CENTER_LEFT" minWidth="0" maxWidth="1.7976931348623157E308" styleClass="sales-metric-card,sales-metric-total" HBox.hgrow="ALWAYS">
               <StackPane fx:id="totalSalesIcon" styleClass="sales-metric-icon,total-sales-icon"/>
               <VBox spacing="4">
-                <Label text="Total Sales" styleClass="metric-label"/>
+                <Label text="Active Sales" styleClass="metric-label"/>
                 <Label fx:id="lblTotalSales" styleClass="metric-value"/>
                 <Label fx:id="lblInvoiceCount" styleClass="metric-note"/>
               </VBox>
@@ -79,13 +79,12 @@
             <HBox spacing="9" alignment="CENTER_LEFT">
               <TextField fx:id="txtSearch" promptText="Search by invoice, customer, mobile or GSTIN..." prefWidth="300" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
               <ComboBox fx:id="cmbDocumentStatus" promptText="Document Status" prefWidth="170" styleClass="approved-input"/>
-              <ToggleButton fx:id="btnAdvanced" text="Advanced Filters" selected="true" onAction="#toggleAdvanced"/>
-              <MenuButton text="Saved Views" fx:id="savedViewsMenu" styleClass="approved-menu-button"/>
+              <ComboBox fx:id="cmbPaymentStatus" promptText="Payment Status" prefWidth="190" styleClass="approved-input"/>
               <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="secondary-button,sales-toolbar-button"/>
               <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refresh" styleClass="secondary-button,sales-toolbar-button"/>
             </HBox>
 
-            <GridPane fx:id="advancedFilters" hgap="12" vgap="9" styleClass="sales-filter-grid,approved-filter-bar">
+            <GridPane fx:id="advancedFilters" hgap="12" vgap="9" visible="false" managed="false" styleClass="sales-filter-grid,approved-filter-bar">
               <columnConstraints>
                 <ColumnConstraints percentWidth="16.66"/>
                 <ColumnConstraints percentWidth="16.66"/>
@@ -100,7 +99,6 @@
               <VBox spacing="4" GridPane.columnIndex="3"><Label text="To Date" styleClass="filter-label"/><DatePicker fx:id="dpTo" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.columnIndex="4"><Label text="Amount From" styleClass="filter-label"/><TextField fx:id="txtAmountFrom" promptText="Min amount" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.columnIndex="5"><Label text="Amount To" styleClass="filter-label"/><TextField fx:id="txtAmountTo" promptText="Max amount" styleClass="approved-input"/></VBox>
-              <VBox spacing="4" GridPane.rowIndex="1"><Label text="Payment Status" styleClass="filter-label"/><ComboBox fx:id="cmbPaymentStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="1"><Label text="Payment Due" styleClass="filter-label"/><ComboBox fx:id="cmbPaymentDue" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="2"><Label text="Email Status" styleClass="filter-label"/><ComboBox fx:id="cmbMailStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.rowIndex="1" GridPane.columnIndex="3"><Label text="WhatsApp Status" styleClass="filter-label"/><ComboBox fx:id="cmbWhatsappStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
@@ -134,6 +132,7 @@
                 <TableColumn fx:id="colBalance" text="Pending" prefWidth="90" minWidth="82" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colPaymentStatus" text="Payment Status" prefWidth="118" minWidth="108" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
               </columns>

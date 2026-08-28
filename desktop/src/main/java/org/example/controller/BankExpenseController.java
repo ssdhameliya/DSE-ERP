@@ -89,6 +89,10 @@ public class BankExpenseController implements ScreenLifecycle {
         installKpiIcons();
         loadMasterLookups();
         loadAccounts();
+        paymentMode.setOnShowing(e -> loadMasterLookups());
+        expenseCategory.setOnShowing(e -> loadMasterLookups());
+        bankAccount.setOnShowing(e -> loadAccounts());
+        expenseAccount.setOnShowing(e -> loadAccounts());
         configureTable();
         if (workspaceRow != null && entryFormPanel != null) { workspaceRow.getChildren().remove(entryFormPanel); entryFormPanel.setManaged(true); entryFormPanel.setVisible(true); }
         installDetailDrawer();
@@ -201,7 +205,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private void loadAccounts() {
         List<String> accounts = new ArrayList<>();
         try {
-            for (org.example.model.Lookup l : lookupService.getByType("BANK ACCOUNT")) {
+            for (org.example.model.Lookup l : lookupService.getByCategoryCode("BANK_ACCOUNT")) {
                 if (!l.isActive() || l.getLookupValue()==null || l.getLookupValue().isBlank()) continue;
                 String bankName = l.getDescription()==null?"":l.getDescription().trim();
                 accounts.add(bankName.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+bankName);

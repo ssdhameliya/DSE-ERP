@@ -98,6 +98,9 @@
     <top>
         <!-- The header is intentionally identical for every ERP page. -->
         <HBox fx:id="topBar" alignment="CENTER_LEFT" styleClass="erp-topbar">
+            <Button fx:id="btnSidebarToggle" contentDisplay="GRAPHIC_ONLY" onAction="#toggleSidebar" styleClass="top-icon,approved-button,approved-secondary-button,approved-icon-button,sidebar-toggle-button">
+                <tooltip><Tooltip text="Hide navigation (Ctrl/Cmd + B)"/></tooltip>
+            </Button>
             <StackPane fx:id="shellPageIcon" styleClass="shell-page-icon"/>
             <VBox><Label fx:id="lblPageTitle" text="Dashboard" styleClass="erp-page-title"/><Label fx:id="lblBreadcrumb" text="Welcome back, Admin!" styleClass="erp-breadcrumb"/></VBox>
             <Region HBox.hgrow="ALWAYS"/>

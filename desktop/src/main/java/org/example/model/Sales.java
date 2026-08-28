@@ -43,6 +43,11 @@ public class Sales {
     private LocalDate dueDate;
     private double paidAmount;
     private String paymentStatus;
+    /** Historical payment state of the original Sale (PENDING/PARTIAL/PAID/OVERDUE). */
+    private String basePaymentStatus;
+    /** Current remaining amount owed back because of approved Returns. */
+    private double returnPendingAmount;
+    private LocalDate returnDueDate;
     private boolean whatsappSent;
     private String invoiceType;
     private String salesperson;
@@ -203,10 +208,38 @@ public class Sales {
     public double getBalanceAmount() {
         String status = getDocumentStatus();
         if ("CANCELLED".equalsIgnoreCase(status) || "DELETED".equalsIgnoreCase(status)) return 0;
+        if (hasReturnSettlement()) return Math.max(0, returnPendingAmount);
         return Math.max(0, totalAmount - paidAmount);
     }
     public String getPaymentStatus() { return paymentStatus == null ? "PENDING" : paymentStatus; }
-    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    /**
+     * Server/base payment state setter. Return overlays must use applyReturnSettlement()
+     * so a Return never destroys the original Sale payment history.
+     */
+    public void setPaymentStatus(String paymentStatus) {
+        this.basePaymentStatus = paymentStatus == null || paymentStatus.isBlank() ? "PENDING" : paymentStatus;
+        this.paymentStatus = this.basePaymentStatus;
+        this.returnPendingAmount = 0;
+        this.returnDueDate = null;
+    }
+    public String getBasePaymentStatus() { return basePaymentStatus == null ? getPaymentStatus() : basePaymentStatus; }
+    public double getReturnPendingAmount() { return returnPendingAmount; }
+    public LocalDate getReturnDueDate() { return returnDueDate; }
+    public boolean hasReturnSettlement() { return getPaymentStatus().toUpperCase(java.util.Locale.ROOT).startsWith("RETURN "); }
+    public void applyReturnSettlement(String status, double pendingAmount, LocalDate dueDate) {
+        if (status == null || !status.toUpperCase(java.util.Locale.ROOT).startsWith("RETURN ")) {
+            clearReturnSettlement();
+            return;
+        }
+        this.paymentStatus = status.trim().toUpperCase(java.util.Locale.ROOT);
+        this.returnPendingAmount = Math.max(0, pendingAmount);
+        this.returnDueDate = dueDate;
+    }
+    public void clearReturnSettlement() {
+        this.paymentStatus = basePaymentStatus == null || basePaymentStatus.isBlank() ? "PENDING" : basePaymentStatus;
+        this.returnPendingAmount = 0;
+        this.returnDueDate = null;
+    }
     public boolean isWhatsappSent() { return whatsappSent; }
     public void setWhatsappSent(boolean whatsappSent) { this.whatsappSent = whatsappSent; }
     public String getInvoiceType() { return invoiceType == null ? "TAX INVOICE" : invoiceType; }
@@ -282,7 +315,7 @@ public class Sales {
     public void setAttachmentPath(String attachmentPath) { this.attachmentPath = attachmentPath; }
     public String getContactPersonMobile() { return contactPersonMobile == null ? "" : contactPersonMobile; }
     public void setContactPersonMobile(String contactPersonMobile) { this.contactPersonMobile = contactPersonMobile; }
-    public String getDocumentStatus() { return documentStatus == null || documentStatus.isBlank() ? "PENDING" : documentStatus; }
+    public String getDocumentStatus() { return documentStatus == null || documentStatus.isBlank() ? "PENDING APPROVAL" : documentStatus; }
     public void setDocumentStatus(String documentStatus) { this.documentStatus = documentStatus; }
 
 

@@ -9,6 +9,11 @@ public class PurchaseLine implements InvoiceLine {
 
     private String itemDescription;
 
+    // Immutable transaction snapshots used by historical document rendering.
+    private String itemHsn;
+    private String itemUnit;
+    private String itemRemarks;
+
     private double quantity;
 
     private double rate;
@@ -51,6 +56,15 @@ public class PurchaseLine implements InvoiceLine {
 
         this.itemDescription = itemDescription;
     }
+
+    public String getItemHsn() { return itemHsn; }
+    public void setItemHsn(String itemHsn) { this.itemHsn = itemHsn; }
+
+    public String getItemUnit() { return itemUnit; }
+    public void setItemUnit(String itemUnit) { this.itemUnit = itemUnit; }
+
+    public String getItemRemarks() { return itemRemarks; }
+    public void setItemRemarks(String itemRemarks) { this.itemRemarks = itemRemarks; }
 
 
     @Override

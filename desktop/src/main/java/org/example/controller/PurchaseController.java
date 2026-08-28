@@ -690,7 +690,7 @@ public class PurchaseController implements ScreenLifecycle {
         purchase.setGstAmount(totals.taxAmount());
         purchase.setTotalAmount(totals.grandTotal());
         purchase.setCharges(invoiceCharges.stream().map(PurchaseCharge::copy).toList());
-        purchase.setRemarks(txtRemarks.getText());
+        purchase.setRemarks(editingPurchase==null?"":safeValue(editingPurchase.getRemarks(),""));
         purchase.setDueDate(dpDueDate.getValue());
         purchase.setDeliveryDate(dpDeliveryDate==null?dpDueDate.getValue():dpDeliveryDate.getValue());
         purchase.setWarehouse(editingPurchase==null?safeValue(cmbWarehouse.getValue(),"Main Warehouse"):safeValue(editingPurchase.getWarehouse(),cmbWarehouse.getValue()));
@@ -735,7 +735,7 @@ public class PurchaseController implements ScreenLifecycle {
             "purchase-note-"+purchaseId,
             () -> { supportApi.notes("PURCHASE",purchaseId,note); return null; },
             ignored -> {
-                if(editingPurchase!=null&&editingPurchase.getId()==purchaseId) editingPurchase.setRemarks(note);
+                if(editingPurchase!=null&&editingPurchase.getId()==purchaseId) editingPurchase.setNotes(note);
                 NotificationService.add("Purchase note saved for "+invoiceNo+".");
             },
             failure -> warn("Unable to save purchase note: "+rootMessage(failure))
@@ -1409,11 +1409,7 @@ public class PurchaseController implements ScreenLifecycle {
 
 
 
-        txtRemarks.setText(
-            purchase.getRemarks()==null
-                ? ""
-                : purchase.getRemarks()
-        );
+        txtRemarks.setText(purchase.getNotes()==null ? "" : purchase.getNotes());
         if(txtBillingAddress!=null)txtBillingAddress.setText(safeValue(purchase.getBillingAddress(),purchase.getSupplier()==null?"":purchase.getSupplier().getAddress()));
         if(txtDeliveryAddress!=null)txtDeliveryAddress.setText(safeValue(purchase.getDeliveryAddress(),purchase.getBillingAddress()));
         if(txtBillingGstin!=null)txtBillingGstin.setText(safeValue(purchase.getBillingGstin(),purchase.getSupplier()==null?"":purchase.getSupplier().getGstin()));

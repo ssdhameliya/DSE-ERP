@@ -12,6 +12,7 @@ import org.example.api.returns.ReturnApiClient;
 import org.example.api.support.SupportApiClient;
 import org.example.config.ConfigManager;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
 import org.example.service.LookupService;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
@@ -29,7 +30,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 /** Shared full-page refund workspace for Sales Return and Purchase Return. */
-public class ReturnRefundController {
+public class ReturnRefundController implements ScreenLifecycle {
     private final ReturnApiClient api=new ReturnApiClient();
     private final SupportApiClient support=new SupportApiClient();
     private final LookupService lookups=new LookupService();
@@ -50,19 +51,27 @@ public class ReturnRefundController {
     @FXML private VBox proofDropZone;
     @FXML private StackPane refundPageIcon;
 
-    @FXML public void initialize(){if(refundPageIcon!=null)refundPageIcon.getChildren().setAll(IconFactory.icon("refund",24));configureForm();configureHistory();load();}
+    @FXML public void initialize(){if(refundPageIcon!=null)refundPageIcon.getChildren().setAll(IconFactory.icon("refund",24));configureForm();configureHistory();}
+
+    @Override public void onScreenShown(boolean reusedFromCache){load();}
 
     private void configureForm(){
         refundDate.setValue(BusinessClock.today());
-        List<String> modes=new ArrayList<>();try{modes.addAll(lookups.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
-        if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
-        mode.setItems(FXCollections.observableArrayList(modes));if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer");else mode.getSelectionModel().selectFirst();
-        List<String> accounts=new ArrayList<>();try{for(var l:lookups.getByType("BANK ACCOUNT"))if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String d=l.getDescription()==null?"":l.getDescription().trim();accounts.add(d.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+d);}}catch(Exception ignored){}
-        if(accounts.isEmpty()){String bank=ConfigManager.get("payment.bankName","").trim(),acct=ConfigManager.get("payment.accountNumber","").trim();if(!acct.isBlank())accounts.add(bank.isBlank()?acct:acct+" - "+bank);}
-        bankAccount.getItems().setAll(accounts);if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst();else bankAccount.setPromptText("Add BANK ACCOUNT in Masters");
+        refreshMasterLookups();
+        mode.setOnShowing(e->refreshMasterLookups());bankAccount.setOnShowing(e->refreshMasterLookups());
         ToggleGroup g=new ToggleGroup();fullRefund.setToggleGroup(g);partialRefund.setToggleGroup(g);fullRefund.setSelected(true);
         fullRefund.setOnAction(e->selectFull());partialRefund.setOnAction(e->{amount.clear();amount.requestFocus();});amount.textProperty().addListener((o,a,b)->updateAfter());
         mode.valueProperty().addListener((o,a,b)->bankAccount.setDisable(b==null||!(b.toLowerCase(Locale.ROOT).contains("bank")||b.equalsIgnoreCase("NEFT")||b.equalsIgnoreCase("RTGS"))));
+    }
+
+    private void refreshMasterLookups(){
+        String selectedMode=mode==null?null:mode.getValue(),selectedAccount=bankAccount==null?null:bankAccount.getValue();
+        List<String> modes=new ArrayList<>();try{modes.addAll(lookups.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
+        if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
+        mode.getItems().setAll(modes);if(selectedMode!=null&&modes.contains(selectedMode))mode.setValue(selectedMode);else if(modes.contains("Bank Transfer"))mode.setValue("Bank Transfer");else mode.getSelectionModel().selectFirst();
+        List<String> accounts=new ArrayList<>();try{for(var l:lookups.getByCategoryCode("BANK_ACCOUNT"))if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String d=l.getDescription()==null?"":l.getDescription().trim();accounts.add(d.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+d);}}catch(Exception ignored){}
+        if(accounts.isEmpty()){String bank=ConfigManager.get("payment.bankName","").trim(),acct=ConfigManager.get("payment.accountNumber","").trim();if(!acct.isBlank())accounts.add(bank.isBlank()?acct:acct+" - "+bank);}
+        bankAccount.getItems().setAll(accounts);if(selectedAccount!=null&&accounts.contains(selectedAccount))bankAccount.setValue(selectedAccount);else if(!accounts.isEmpty())bankAccount.getSelectionModel().selectFirst();else bankAccount.setPromptText("Add BANK ACCOUNT in Masters");
     }
 
     private void configureHistory(){

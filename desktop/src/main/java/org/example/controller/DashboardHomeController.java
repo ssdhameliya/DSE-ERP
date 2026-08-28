@@ -22,6 +22,7 @@ import javafx.scene.layout.StackPane;
 import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
 import org.example.navigation.NavigationManager;
+import org.example.navigation.ScreenLifecycle;
 
 import java.text.NumberFormat;
 import java.util.List;
@@ -31,7 +32,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class DashboardHomeController {
+public class DashboardHomeController implements ScreenLifecycle {
     private String fallbackPeriod = "This Month";
     public DashboardHomeController() {
         // JavaFX creates the controller before injecting the FXML controls.
@@ -154,6 +155,10 @@ public class DashboardHomeController {
 
     /** Cycles the shared dashboard reporting period and reloads all database widgets. */
 
+    @Override public void onScreenShown(boolean reusedFromCache) {
+        if (reusedFromCache) reload();
+    }
+
     @FXML
     private void refreshDashboard() {
         reload();
@@ -259,8 +264,8 @@ public class DashboardHomeController {
         if (lblLowStockValue != null) lblLowStockValue.setText(String.valueOf(d.lowStock()));
         if (lblLowStockNote != null) lblLowStockNote.setText(d.lowStock()==0 ? "Stock levels healthy" : d.lowStock()+" item"+plural(d.lowStock())+" need attention");
         if (lblTrendSales != null) lblTrendSales.setText(money(d.salesValue()));
-        lblSalesNote.setText(d.invoices()+" sales invoice"+plural(d.invoices()));
-        lblPurchaseNote.setText(d.purchases()+" purchase invoice"+plural(d.purchases()));
+        lblSalesNote.setText(d.invoices()+" active sales invoice"+plural(d.invoices()));
+        lblPurchaseNote.setText(d.purchases()+" active purchase invoice"+plural(d.purchases()));
         lblReceivableNote.setText(d.openReceivables()+" open sales invoice"+plural(d.openReceivables()));
         lblStockNote.setText(d.openPayables()+" open purchase invoice"+plural(d.openPayables()));
         if (lblProductsNote != null) lblProductsNote.setText(d.products()+" active catalog item"+plural(d.products()));

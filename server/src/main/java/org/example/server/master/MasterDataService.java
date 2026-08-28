@@ -55,6 +55,22 @@ public class MasterDataService {
         ensureReferenceFormat("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX","Finance voucher reference",90);
         ensureReferenceFormat("REF_RECON_SUPPLIER","RSP-YYYY-XXXXX","Recon Supplier reference",100);
         ensureReferenceFormat("REF_PURCHASE_RECON","PRC-YYYY-XXXXX","Purchase Recon reference",110);
+        ensureReferenceFormat("REF_LOOKUP_CATEGORY","CATXXX","Category Master code reference",210);
+        ensureReferenceFormat("REF_LOOKUP_UNIT","UNTXXX","Unit Master code reference",220);
+        ensureReferenceFormat("REF_LOOKUP_MATERIAL","MATXXX","Material Master code reference",230);
+        ensureReferenceFormat("REF_LOOKUP_BRAND","BRDXXX","Brand Master code reference",240);
+        ensureReferenceFormat("REF_LOOKUP_GST","GSTXXX","GST Master code reference",250);
+        ensureReferenceFormat("REF_LOOKUP_ROLE","ROLXXX","Role Master code reference",260);
+        ensureReferenceFormat("REF_LOOKUP_DISCOUNT","DSCXXX","Discount Master code reference",270);
+        ensureReferenceFormat("REF_LOOKUP_GST_TYPE","GTPXXX","GST Type Master code reference",280);
+        ensureReferenceFormat("REF_LOOKUP_TRANSPORTER","TRNXXX","Transporter Master code reference",290);
+        ensureReferenceFormat("REF_LOOKUP_PAYMENT_TERMS","PTMXXX","Payment Terms Master code reference",300);
+        ensureReferenceFormat("REF_LOOKUP_CHARGES","CHGXXX","Charges Master code reference",310);
+        ensureReferenceFormat("REF_LOOKUP_PAYMENT_MODE","PMDXXX","Payment Mode Master code reference",320);
+        ensureReferenceFormat("REF_LOOKUP_EXPENSE_CATEGORY","EXPXXX","Expense Category Master code reference",330);
+        ensureReferenceFormat("REF_LOOKUP_BANK_ACCOUNT","BNKXXX","Bank Account Master code reference",340);
+        ensureReferenceFormat("REF_LOOKUP_QUOTATION_SOURCE","QTSXXX","Quotation Source Master code reference",350);
+        ensureReferenceFormat("REF_LOOKUP_REFERENCE_FORMAT","RFMXXX","Reference Format Master code reference",360);
     }
 
     private void ensureCategory(String code,String name,String description,int order){
@@ -115,9 +131,30 @@ public class MasterDataService {
         PartyEntity e = parties.findById(id).orElseThrow(() -> new IllegalArgumentException("Party not found"));
         requirePartyPermission(e.getPartyType(), "DELETE");
         assertVersion(rowVersion, e.getRowVersion(), "Party " + e.getPartyCode());
+        List<String> usages = partyDeleteUsages(e.getId());
+        if (!usages.isEmpty()) {
+            throw new IllegalStateException("This " + e.getPartyType().toLowerCase(Locale.ROOT) + " cannot be deleted because it is used by ERP transactions (" + String.join(", ", usages) + "). Edit the party and mark it Inactive instead so historical documents remain valid.");
+        }
         parties.delete(e);
         parties.flush();
         audit.log("PARTY", e.getId(), "DELETED", e.getPartyType() + " " + e.getPartyCode());
+    }
+
+    private List<String> partyDeleteUsages(int partyId) {
+        List<String> usages = new ArrayList<>();
+        addPartyUsage(usages, "sales_header", "customer_id", partyId, "Sales");
+        addPartyUsage(usages, "purchase_header", "supplier_id", partyId, "Purchases");
+        addPartyUsage(usages, "quotation_header", "customer_id", partyId, "Quotations");
+        addPartyUsage(usages, "return_register", "party_id", partyId, "Returns");
+        addPartyUsage(usages, "finance_register", "party_id", partyId, "Finance");
+        return List.copyOf(usages);
+    }
+
+    private void addPartyUsage(List<String> usages, String table, String column, int partyId, String label) {
+        Number count = (Number) entityManager.createNativeQuery("SELECT COUNT(*) FROM " + table + " WHERE " + column + " = :partyId")
+            .setParameter("partyId", partyId).getSingleResult();
+        long total = count == null ? 0L : count.longValue();
+        if (total > 0) usages.add(label + " " + total);
     }
 
     @Transactional(readOnly = true)
@@ -422,35 +459,68 @@ public class MasterDataService {
 
     @Transactional(readOnly = true)
     public String nextLookupCode(String type) {
-        String normalized = normal(type);
-        String prefix = switch (normalized) {
-            case "CATEGORY" -> "CAT";
-            case "UNIT" -> "UNT";
-            case "MATERIAL" -> "MAT";
-            case "BRAND" -> "BRD";
-            case "GST" -> "GST";
-            case "ROLE" -> "ROL";
-            default -> "GEN";
-        };
-        List<String> existing = lookups.findByLookupTypeOrderByLookupCodeDesc(normalized).stream()
+        LookupNumberingScope scope = lookupNumberingScope(type);
+        List<String> existing = lookups.findByLookupTypeOrderByLookupCodeDesc(scope.lookupType()).stream()
                 .map(LookupEntity::getLookupCode).filter(Objects::nonNull).toList();
-        return referenceNumbers.previewConfiguredReference("REF_LOOKUP_" + normalized, prefix + "XXX", existing);
+        return referenceNumbers.previewConfiguredReference(scope.referenceKey(), scope.prefix() + "XXX", existing);
     }
 
     private String allocateLookupCode(String type) {
-        String normalized = normal(type);
-        String prefix = switch (normalized) {
+        LookupNumberingScope scope = lookupNumberingScope(type);
+        List<String> existing = lookups.findByLookupTypeOrderByLookupCodeDesc(scope.lookupType()).stream()
+                .map(LookupEntity::getLookupCode).filter(Objects::nonNull).toList();
+        return referenceNumbers.nextConfiguredReference(scope.referenceKey(), scope.prefix() + "XXX", existing);
+    }
+
+    /**
+     * Master lookup numbering is keyed by the immutable category_code, never the editable
+     * category_name. This keeps preview/save on the same sequence after a Master category is
+     * renamed and prevents unrelated Masters from sharing the legacy GEN counter.
+     */
+    private LookupNumberingScope lookupNumberingScope(String type) {
+        String requested = normal(type);
+        if (requested.isBlank()) throw new IllegalArgumentException("Lookup type is required");
+
+        MasterCategoryEntity category = categories.findByCategoryName(requested).orElse(null);
+        if (category == null) category = resolveCanonicalCategoryByCode(requested);
+
+        String categoryCode = category == null ? code(requested) : normal(category.getCategoryCode());
+        String lookupType = category == null ? requested : normal(category.getCategoryName());
+        String prefix = lookupPrefix(categoryCode);
+        return new LookupNumberingScope(categoryCode, lookupType, prefix);
+    }
+
+    private String lookupPrefix(String categoryCode) {
+        return switch (normal(categoryCode)) {
             case "CATEGORY" -> "CAT";
-            case "UNIT" -> "UNT";
+            case "UNIT", "UOM" -> "UNT";
             case "MATERIAL" -> "MAT";
             case "BRAND" -> "BRD";
             case "GST" -> "GST";
             case "ROLE" -> "ROL";
-            default -> "GEN";
+            case "DISCOUNT" -> "DSC";
+            case "GST_TYPE" -> "GTP";
+            case "TRANSPORTER" -> "TRN";
+            case "PAYMENT_TERMS" -> "PTM";
+            case "CHARGES" -> "CHG";
+            case "PAYMENT_MODE" -> "PMD";
+            case "EXPENSE_CATEGORY" -> "EXP";
+            case "BANK_ACCOUNT" -> "BNK";
+            case "QUOTATION_SOURCE" -> "QTS";
+            case "REFERENCE_FORMAT" -> "RFM";
+            default -> derivedMasterPrefix(categoryCode);
         };
-        List<String> existing = lookups.findByLookupTypeOrderByLookupCodeDesc(normalized).stream()
-                .map(LookupEntity::getLookupCode).filter(Objects::nonNull).toList();
-        return referenceNumbers.nextConfiguredReference("REF_LOOKUP_" + normalized, prefix + "XXX", existing);
+    }
+
+    private String derivedMasterPrefix(String categoryCode) {
+        String compact = normal(categoryCode).replaceAll("[^A-Z0-9]", "");
+        if (compact.isBlank()) return "MST";
+        if (compact.length() >= 3) return compact.substring(0, 3);
+        return (compact + "MST").substring(0, 3);
+    }
+
+    private record LookupNumberingScope(String categoryCode, String lookupType, String prefix) {
+        String referenceKey() { return "REF_LOOKUP_" + categoryCode; }
     }
 
     @Transactional(readOnly = true)

@@ -22,6 +22,7 @@ import org.example.documentstudio.service.ExcelOutputService;
 import org.example.service.EmailService;
 import org.example.service.InvoicePdfService;
 import org.example.service.NotificationService;
+import org.example.service.PermissionService;
 import org.example.service.ReturnWorkflowService;
 import org.example.util.IconFactory;
 import org.example.util.UiTaskExecutor;
@@ -106,6 +107,8 @@ public class SalesReturnsController implements ScreenLifecycle {
                 add("View / Download Excel", "document", e -> excel(row()));
                 add("Send Email", "email", e -> email(row()));
                 add("View Original Sale", "sale", e -> original(row()));
+                add("Approve Return", "approve", e -> approveReturn(row()));
+                add("Reject Return", "reject", e -> rejectReturn(row()));
                 add("Record Refund", "payment", e -> recordRefund(row()));
                 add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row()));
@@ -116,7 +119,20 @@ public class SalesReturnsController implements ScreenLifecycle {
             private void add(String text, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) {
                 MenuItem item = new MenuItem(text, IconFactory.compactIcon(icon, 16)); item.setOnAction(handler); menu.getItems().add(item);
             }
-            @Override protected void updateItem(Void value, boolean empty) { super.updateItem(value, empty); if(!empty && getIndex()>=0 && getIndex()<getTableView().getItems().size()){ Row current=getTableView().getItems().get(getIndex()); for(MenuItem mi:menu.getItems()) if(mi.getText()!=null && mi.getText().startsWith("Record Refund")){mi.setDisable(isCancelled(current));mi.setText(isCancelled(current)?"Record Refund (Cancelled)":"Record Refund");}} setGraphic(empty ? null : menu); }
+            @Override protected void updateItem(Void value, boolean empty) {
+                super.updateItem(value, empty);
+                if(!empty && getIndex()>=0 && getIndex()<getTableView().getItems().size()){
+                    Row current=getTableView().getItems().get(getIndex());
+                    boolean waiting=isPendingApproval(current), approved=isApproved(current);
+                    for(MenuItem mi:menu.getItems()){
+                        if(mi.getText()==null)continue;
+                        if(mi.getText().startsWith("Approve Return"))mi.setDisable(!waiting||!PermissionService.allowed("SALES.APPROVE"));
+                        else if(mi.getText().startsWith("Reject Return"))mi.setDisable(!waiting||!PermissionService.allowed("SALES.APPROVE"));
+                        else if(mi.getText().startsWith("Record Refund")){mi.setDisable(!approved);mi.setText(approved?"Record Refund":"Record Refund (Approval Required)");}
+                    }
+                }
+                setGraphic(empty ? null : menu);
+            }
         });
     }
 
@@ -157,7 +173,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void applyPage(ReturnApiClient.Page page){
         pageState.runApplying(()->{all.clear();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())all.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());
         String selectedParty=customerFilter.getValue();org.example.util.PartySearchUi.preserveSelection(customerFilter,selectedParty,"All Customers");
-        statusFilter.setItems(FXCollections.observableArrayList("All Status", "PENDING", "APPROVED", "REJECTED", "COMPLETED", "PARTIAL", "CANCELLED"));if(statusFilter.getValue()==null)statusFilter.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No sales returns found","Adjust the filters or create a return from Sales Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();ScreenRefreshPolicy.markRefreshed("sales-returns");});
+        statusFilter.setItems(FXCollections.observableArrayList("All Status", "PENDING APPROVAL", "APPROVED", "REJECTED", "CANCELLED"));if(statusFilter.getValue()==null)statusFilter.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No sales returns found","Adjust the filters or create a return from Sales Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();ScreenRefreshPolicy.markRefreshed("sales-returns");});
     }
     private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));month.setText(money(m.monthAmount()));approved.setText(money(m.approvedAmount()));pending.setText(money(Math.max(0,m.total()-m.approvedAmount())));refund.setText(money(m.refundAmount()));}
     private void updatePageInfo(){pageInfo.setText(pageState.rangeWithPageText(PAGE_SIZE,all.size(),"returns"));RegisterUiSupport.updatePageNavigation(pageState,btnPrevPage,btnNextPage);}
@@ -195,7 +211,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("invoice"))return"sale";if(t.contains("customer"))return"customer";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("original"))return"sale";if(t.contains("close"))return"cancel";return null;}
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
     private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
-    private void showDetails(Row row) { if(row==null)return; selected=row; RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(isCancelled(row));btnRefundSelected.setTooltip(isCancelled(row)?new Tooltip("Cancelled returns cannot be refunded."):null);}}
+    private void showDetails(Row row) { if(row==null)return; selected=row; RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}}
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
@@ -205,7 +221,28 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void edit(Row row) { input(row.reason(), "Edit return reason - " + row.no(), "Reason:").ifPresent(value -> update(row.no(), "reason", value)); }
     private void notes(Row row) { input("", "Return notes - " + row.no(), "Notes:").ifPresent(value -> update(row.no(), "notes", value)); }
     private void original(Row row) { if(row==null)return; LinkedRecordContext.open("SALE",null,row.invoice(),"VIEW","Sales Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
-    private void recordRefund(Row row) { if(row==null)return; if(isCancelled(row)){ org.example.util.ModernDialog.warning(table, "Refund blocked", "Cancelled return", "A cancelled return cannot receive or record a refund."); return; } ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
+    private void recordRefund(Row row) {
+        if(row==null)return;
+        if(!isApproved(row)){org.example.util.ModernDialog.warning(table,"Refund blocked","Return approval required","Refund/settlement can be recorded only after Admin approves the Return.");return;}
+        ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");
+    }
+    private void approveReturn(Row row){
+        if(row==null||!isPendingApproval(row))return;
+        if(!confirm("Approve "+row.no()+"?\n\nApproval posts the Return stock movement and starts the Return settlement due period."))return;
+        UiTaskExecutor.submitSerial("sales-return-approve-"+row.no(),()->{ReturnWorkflowService.approve(row.no());return true;},ignored->{
+            ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");
+            NotificationService.add(row.no()+" approved.");load();
+        },failure->error(asException(failure)));
+    }
+    private void rejectReturn(Row row){
+        if(row==null||!isPendingApproval(row))return;
+        input("", "Reject Return", "Reason:").ifPresent(reason->UiTaskExecutor.submitSerial("sales-return-reject-"+row.no(),()->{ReturnWorkflowService.reject(row.no(),reason);return true;},ignored->{
+            ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");
+            NotificationService.add(row.no()+" rejected.");load();
+        },failure->error(asException(failure))));
+    }
+    private boolean isPendingApproval(Row row){return row!=null&&"PENDING APPROVAL".equalsIgnoreCase(safe(row.status()).trim());}
+    private boolean isApproved(Row row){return row!=null&&"APPROVED".equalsIgnoreCase(safe(row.status()).trim());}
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("sales-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" cancelled.");load();},failure->error(asException(failure))); }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("sales-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");load();},failure->error(asException(failure))); }

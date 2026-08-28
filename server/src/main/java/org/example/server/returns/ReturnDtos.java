@@ -7,6 +7,7 @@ public final class ReturnDtos{private ReturnDtos(){}
  public record CreateLine(String code,double quantity,double amount,String reason){}
  public record CreateRequest(String type,String invoiceNo,int partyId,String returnDate,List<CreateLine> lines){}
  public record Created(String returnNo){}
+ public record Settlement(String invoiceNo,String status,double pendingAmount,double approvedReturnAmount,double settledAmount,String dueDate){}
  public record UpdateRequest(String field,String value){}
  public record RefundRequest(double amount){}
  public record RefundCreateRequest(String date,double amount,String mode,String reference,String bankAccount,String refundedParty,String notes,String refundType,String createdBy){}

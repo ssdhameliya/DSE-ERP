@@ -20,6 +20,7 @@ email = text('server/src/main/java/org/example/server/authority/BusinessEmailCon
 pdf = text('server/src/main/java/org/example/server/authority/PdfStudioTemplateController.java')
 insights_c = text('server/src/main/java/org/example/server/insights/InsightsController.java')
 insights_s = text('server/src/main/java/org/example/server/insights/InsightsService.java')
+cash_position = text('server/src/main/java/org/example/server/insights/CashPositionService.java')
 master = text('server/src/main/java/org/example/server/master/MasterDataService.java')
 admin = text('server/src/main/java/org/example/server/admin/AdminService.java')
 quote = text('server/src/main/java/org/example/server/quotation/QuotationService.java')
@@ -172,9 +173,9 @@ req('loadLines(' in quote and quote.count('loadLines(') >= 3,
     'Quotation action paths must use internal loadLines')
 
 # 20. Dashboard cash position includes manual bank deposits and withdrawals.
-req('BANK DEPOSIT' in insights_s and 'BANK WITHDRAWAL' in insights_s and
-    'bankDeposits' in insights_s and 'bankWithdrawals' in insights_s,
-    'Dashboard cash position must include manual bank deposit/withdrawal finance entries')
+req('BANK DEPOSIT' in cash_position and 'BANK WITHDRAWAL' in cash_position and
+    'deposits' in cash_position and 'withdrawals' in cash_position and 'cashPosition::cashPosition' in insights_s,
+    'Dashboard cash position must include manual bank deposit/withdrawal finance entries through canonical CashPositionService')
 
 
 # Preserved v9.0.10 compile/cache correction: Purchase Recon import has no Other Adjustment column,
@@ -256,25 +257,25 @@ build_bat = text('Build Production Windows.bat')
 postgres_bat = text('scripts/start-postgresql.cmd')
 safe_rollback = text('desktop/src/main/resources/fxml/pages/SafeRollback.fxml')
 
-req('<version>9.0.22</version>' in root_pom and '<dse.phase>9.0.22</dse.phase>' in root_pom,
+req('<version>9.0.28</version>' in root_pom and '<dse.phase>9.0.28</dse.phase>' in root_pom,
     'root Maven release identity must be 9.0.18')
 for name,pom in [('server',server_pom),('desktop',desktop_pom),('shared',shared_pom)]:
-    req('<version>9.0.22</version>' in pom, f'{name} parent version must be 9.0.18')
-req('APP_VERSION = "9.0.22"' in runtime and 'BUILD_REVISION = "9.0.22"' in runtime,
+    req('<version>9.0.28</version>' in pom, f'{name} parent version must be 9.0.18')
+req('APP_VERSION = "9.0.28"' in runtime and 'BUILD_REVISION = "9.0.28"' in runtime,
     'shared runtime identity must be 9.0.18')
-req('dse.app.version=9.0.22' in props and 'dse.build.revision=9.0.22' in props,
+req('dse.app.version=9.0.28' in props and 'dse.build.revision=9.0.28' in props,
     'server runtime identity must be 9.0.18')
-req('version=9.0.22' in app_version and 'DEFAULT_VERSION="9.0.22"' in update,
+req('version=9.0.28' in app_version and 'DEFAULT_VERSION="9.0.28"' in update,
     'desktop resource/updater identity must be 9.0.18')
 if runtime_manifest:
-    req('runtime.phase=9.0.22' in runtime_manifest, 'bundled runtime phase must be 9.0.18')
-req('DSE ERP 9.0.22 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    req('runtime.phase=9.0.28' in runtime_manifest, 'bundled runtime phase must be 9.0.18')
+req('DSE ERP 9.0.28 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
     'IntelliJ launcher banner must be 9.0.18')
-req('DSE ERP 9.0.22 - PRODUCTION WINDOWS BUILD' in build_bat,
+req('DSE ERP 9.0.28 - PRODUCTION WINDOWS BUILD' in build_bat,
     'production build banner must be 9.0.18')
-req('DSE ERP 9.0.22 uses application-managed PostgreSQL.' in postgres_bat,
+req('DSE ERP 9.0.28 uses application-managed PostgreSQL.' in postgres_bat,
     'PostgreSQL launcher banner must be 9.0.18')
-req('fx:id="lblCurrentVersion" text="9.0.22"' in safe_rollback,
+req('fx:id="lblCurrentVersion" text="9.0.28"' in safe_rollback,
     'Safe Rollback current-version fallback must be 9.0.18')
 
 # Locked production document-generation boundary: unchanged from corrected v9.0.8.

@@ -1,6 +1,6 @@
 package org.example.controller;
 
-import org.example.util.BusinessClock;
+import org.example.util.*;
 
 
 import javafx.beans.property.SimpleDoubleProperty;
@@ -21,13 +21,8 @@ import org.example.navigation.ScreenLifecycle;
 import org.example.service.EmailService;
 import org.example.service.InvoicePdfService;
 import org.example.service.NotificationService;
+import org.example.service.PermissionService;
 import org.example.service.ReturnWorkflowService;
-import org.example.util.IconFactory;
-import org.example.util.UiTaskExecutor;
-import org.example.util.TableSelectionSupport;
-import org.example.util.SemanticTableCells;
-import org.example.util.RegisterPageState;
-import org.example.util.RegisterUiSupport;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -47,15 +42,15 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     @FXML private TextField search;
     @FXML private ComboBox<String> supplier, status;
     @FXML private DatePicker dpFrom, dpTo;
-    @FXML private TableView<Row> table;
-    @FXML private TableColumn<Row, String> cNo, cDate, cInvoice, cSupplier, cStatus, cRefundStatus;
-    @FXML private TableColumn<Row, Number> cTotal, cRefund;
-    @FXML private TableColumn<Row, Void> cAction;
+    @FXML private TableView<org.example.controller.PurchaseReturnsController.Row> table;
+    @FXML private TableColumn<org.example.controller.PurchaseReturnsController.Row, String> cNo, cDate, cInvoice, cSupplier, cStatus, cRefundStatus;
+    @FXML private TableColumn<org.example.controller.PurchaseReturnsController.Row, Number> cTotal, cRefund;
+    @FXML private TableColumn<org.example.controller.PurchaseReturnsController.Row, Void> cAction;
     @FXML private Button btnRefundSelected, btnPrevPage, btnNextPage;
     @FXML private SplitPane mainSplit;
     @FXML private VBox detailDrawer;
-    private List<Row> all = List.of();
-    private Row selected;
+    private List<org.example.controller.PurchaseReturnsController.Row> all = List.of();
+    private org.example.controller.PurchaseReturnsController.Row selected;
     private final RegisterPageState pageState=new RegisterPageState(); private static final int PAGE_SIZE=25;
     private boolean suppressAutoFilter;
 
@@ -70,7 +65,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
         cRefund.setCellValueFactory(x -> new SimpleDoubleProperty(x.getValue().refund()));
         cStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().status()));
         cRefundStatus.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().refundStatus()));
-        for (TableColumn<Row, Number> column : List.of(cTotal, cRefund)) column.setCellFactory(x -> moneyCell());
+        for (TableColumn<org.example.controller.PurchaseReturnsController.Row, Number> column : List.of(cTotal, cRefund)) column.setCellFactory(x -> moneyCell());
         cStatus.setCellFactory(x -> SemanticTableCells.status("return")); cRefundStatus.setCellFactory(x -> SemanticTableCells.status("refund"));
         installActions(); installRows(); configureDrawer();
         dpFrom.setValue(null); dpTo.setValue(null);
@@ -85,12 +80,12 @@ public class PurchaseReturnsController implements ScreenLifecycle {
 
     @SuppressWarnings("unchecked")
     private void installSelection() {
-        TableColumn<Row, Boolean> selection = (TableColumn<Row, Boolean>) (TableColumn<?, ?>) table.getColumns().getFirst();
+        TableColumn<org.example.controller.PurchaseReturnsController.Row, Boolean> selection = (TableColumn<org.example.controller.PurchaseReturnsController.Row, Boolean>) (TableColumn<?, ?>) table.getColumns().getFirst();
         selection.setMinWidth(42); selection.setPrefWidth(42); selection.setMaxWidth(42); TableSelectionSupport.install(table, selection);
     }
 
-    private TableCell<Row, Number> moneyCell() { return new TableCell<>() { @Override protected void updateItem(Number value, boolean empty) { super.updateItem(value, empty); setText(empty ? null : money(value.doubleValue())); setAlignment(Pos.CENTER_RIGHT); } }; }
-    private TableCell<Row, String> statusCell(String icon) {
+    private TableCell<org.example.controller.PurchaseReturnsController.Row, Number> moneyCell() { return new TableCell<>() { @Override protected void updateItem(Number value, boolean empty) { super.updateItem(value, empty); setText(empty ? null : money(value.doubleValue())); setAlignment(Pos.CENTER_RIGHT); } }; }
+    private TableCell<org.example.controller.PurchaseReturnsController.Row, String> statusCell(String icon) {
         return new TableCell<>() {
             @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty); setText(empty ? null : value); setGraphic(null); getStyleClass().removeAll("pill-success", "pill-warning", "pill-danger");
@@ -109,20 +104,36 @@ public class PurchaseReturnsController implements ScreenLifecycle {
             {
                 add("View Details", "view", e -> showDetails(row())); add("Edit Return", "edit", e -> edit(row()));
                 add("Print / PDF", "print", e -> pdf(row())); add("View / Download Excel", "excel", e -> excel(row())); add("Send Email", "email", e -> email(row()));
-                add("View Original Purchase", "purchase", e -> original(row())); add("Record Refund", "payment", e -> recordRefund(row()));
- add("Notes / Remarks", "document", e -> notes(row()));
+                add("View Original Purchase", "purchase", e -> original(row()));
+                add("Approve Return", "approve", e -> approveReturn(row()));
+                add("Reject Return", "reject", e -> rejectReturn(row()));
+                add("Record Refund", "payment", e -> recordRefund(row()));
+                add("Notes / Remarks", "document", e -> notes(row()));
                 add("Cancel Return", "cancel", e -> cancel(row())); add("Delete Return", "delete", e -> delete(row()));
                 menu.getStyleClass().add("row-actions");menu.setGraphic(IconFactory.compactIcon("actions",16));menu.setText("Actions");menu.setContentDisplay(ContentDisplay.LEFT);menu.setGraphicTextGap(6);menu.setTooltip(new Tooltip("Actions"));IconFactory.decorateActionMenu(menu);
             }
-            private Row row() { return getTableView().getItems().get(getIndex()); }
+            private org.example.controller.PurchaseReturnsController.Row row() { return getTableView().getItems().get(getIndex()); }
             private void add(String name, String icon, javafx.event.EventHandler<javafx.event.ActionEvent> handler) { MenuItem item = new MenuItem(name, IconFactory.compactIcon(icon, 16)); item.setOnAction(handler); menu.getItems().add(item); }
-            @Override protected void updateItem(Void value, boolean empty) { super.updateItem(value, empty); if(!empty && getIndex()>=0 && getIndex()<getTableView().getItems().size()){ Row current=getTableView().getItems().get(getIndex()); for(MenuItem mi:menu.getItems()) if(mi.getText()!=null && mi.getText().startsWith("Record Refund")){mi.setDisable(isCancelled(current));mi.setText(isCancelled(current)?"Record Refund (Cancelled)":"Record Refund");}} setGraphic(empty ? null : menu); }
+            @Override protected void updateItem(Void value, boolean empty) {
+                super.updateItem(value, empty);
+                if(!empty && getIndex()>=0 && getIndex()<getTableView().getItems().size()){
+                    org.example.controller.PurchaseReturnsController.Row current=getTableView().getItems().get(getIndex());
+                    boolean waiting=isPendingApproval(current), approved=isApproved(current);
+                    for(MenuItem mi:menu.getItems()){
+                        if(mi.getText()==null)continue;
+                        if(mi.getText().startsWith("Approve Return"))mi.setDisable(!waiting||!PermissionService.allowed("PURCHASE.APPROVE"));
+                        else if(mi.getText().startsWith("Reject Return"))mi.setDisable(!waiting||!PermissionService.allowed("PURCHASE.APPROVE"));
+                        else if(mi.getText().startsWith("Record Refund")){mi.setDisable(!approved);mi.setText(approved?"Record Refund":"Record Refund (Approval Required)");}
+                    }
+                }
+                setGraphic(empty ? null : menu);
+            }
         });
     }
 
     private void installRows() {
         table.setRowFactory(view -> {
-            TableRow<Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY || e.getClickCount()!=1 || row.isEmpty() || RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return; Row clicked=row.getItem(); if(detailDrawer.isVisible() && selected==clicked)closeDetails(); else{table.getSelectionModel().select(clicked);showDetails(clicked);}e.consume(); });
+            TableRow<org.example.controller.PurchaseReturnsController.Row> row = new TableRow<>(); row.setOnMouseClicked(e -> { if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY || e.getClickCount()!=1 || row.isEmpty() || RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return; org.example.controller.PurchaseReturnsController.Row clicked=row.getItem(); if(detailDrawer.isVisible() && selected==clicked)closeDetails(); else{table.getSelectionModel().select(clicked);showDetails(clicked);}e.consume(); });
             MenuItem add = new MenuItem("Add Purchase Return", IconFactory.compactIcon("add", 16)); add.setOnAction(e -> create());
             MenuItem edit = new MenuItem("Edit Return", IconFactory.compactIcon("edit", 16)); edit.setOnAction(e -> { if (!row.isEmpty()) edit(row.getItem()); });
             MenuItem delete = new MenuItem("Delete Return", IconFactory.compactIcon("delete", 16)); delete.setOnAction(e -> { if (!row.isEmpty()) delete(row.getItem()); });
@@ -131,7 +142,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     }
 
     @FXML private void load(){String selectedSupplier=supplier.getValue(),selectedStatus=status.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();int requested=pageState.currentPage();org.example.util.OperationalUiSupport.showLoading(table,"Loading purchase returns…");UiTaskExecutor.submitLatest("purchase-returns-load",()->returnApi.page("PURCHASE RETURN",requested,PAGE_SIZE,search.getText(),selectedSupplier,selectedStatus,str(from),str(to)),this::applyPage,failure->{org.example.util.OperationalUiSupport.showError(table,"Purchase returns could not load",failure);error(asException(failure));});}
-    private void applyPage(ReturnApiClient.Page page){pageState.runApplying(()->{List<Row> loaded=new ArrayList<>();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())loaded.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));all=List.copyOf(loaded);pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());String selectedSupplier=supplier.getValue();org.example.util.PartySearchUi.preserveSelection(supplier,selectedSupplier,"All Suppliers");status.setItems(FXCollections.observableArrayList("All Status","PENDING","APPROVED","COMPLETED","PARTIAL","CANCELLED"));if(status.getValue()==null)status.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No purchase returns found","Adjust the filters or create a return from Purchase Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();});}
+    private void applyPage(ReturnApiClient.Page page){pageState.runApplying(()->{List<org.example.controller.PurchaseReturnsController.Row> loaded=new ArrayList<>();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())loaded.add(new org.example.controller.PurchaseReturnsController.Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));all=List.copyOf(loaded);pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());String selectedSupplier=supplier.getValue();org.example.util.PartySearchUi.preserveSelection(supplier,selectedSupplier,"All Suppliers");status.setItems(FXCollections.observableArrayList("All Status","PENDING APPROVAL","APPROVED","REJECTED","CANCELLED"));if(status.getValue()==null)status.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No purchase returns found","Adjust the filters or create a return from Purchase Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();});}
     private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));count.setText(String.valueOf(m.count()));if(monthCount!=null)monthCount.setText(String.valueOf(m.monthCount()));refund.setText(money(m.refundAmount()));average.setText(money(m.average()));}
     private void updatePageInfo(){pageInfo.setText(pageState.rangeWithPageText(PAGE_SIZE,all.size(),"returns"));RegisterUiSupport.updatePageNavigation(pageState,btnPrevPage,btnNextPage);}
     @FXML private void filter(){if(suppressAutoFilter||pageState.isApplyingServerPage())return;pageState.reset();load();}
@@ -148,19 +159,19 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("purchase")||t.contains("original"))return"purchase";if(t.contains("supplier"))return"supplier";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("detail"))return"view";if(t.contains("close"))return"cancel";return null;}
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
     private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
-    private void showDetails(Row row){if(row==null)return;selected=row;RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(isCancelled(row));btnRefundSelected.setTooltip(isCancelled(row)?new Tooltip("Cancelled returns cannot be refunded."):null);}}
+    private void showDetails(org.example.controller.PurchaseReturnsController.Row row){if(row==null)return;selected=row;RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}}
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
     @FXML private void originalSelected(){if(selected!=null)original(selected);}
     @FXML private void refundSelected(){if(selected!=null)recordRefund(selected);}
 
-    private void original(Row row) { if(row==null)return; LinkedRecordContext.open("PURCHASE",null,row.invoice(),"VIEW","Purchase Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
-    private void edit(Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
-    private void notes(Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }
-    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
-    private void excel(Row row) { if(row==null)return; try { java.awt.Desktop.getDesktop().open(org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.PURCHASE_RETURN,row.no()).toFile()); } catch(Exception e) { error(e); } }
-    private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",InvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
+    private void original(org.example.controller.PurchaseReturnsController.Row row) { if(row==null)return; LinkedRecordContext.open("PURCHASE",null,row.invoice(),"VIEW","Purchase Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
+    private void edit(org.example.controller.PurchaseReturnsController.Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
+    private void notes(org.example.controller.PurchaseReturnsController.Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }
+    private void pdf(org.example.controller.PurchaseReturnsController.Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
+    private void excel(org.example.controller.PurchaseReturnsController.Row row) { if(row==null)return; try { java.awt.Desktop.getDesktop().open(org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.PURCHASE_RETURN,row.no()).toFile()); } catch(Exception e) { error(e); } }
+    private void email(org.example.controller.PurchaseReturnsController.Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",InvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
     private Optional<String> input(String title, String prompt) {
         return input("", title, prompt);
     }
@@ -175,10 +186,32 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     }
 
     private String partyEmail(String returnNo){return supportApi.returnPartyEmail(returnNo);}
-    private void recordRefund(Row row) { if(row==null)return; if(isCancelled(row)){ org.example.util.ModernDialog.warning(table, "Refund blocked", "Cancelled return", "A cancelled return cannot receive or record a refund."); return; } ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml"); }
-    private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
-    private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("purchase-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),false);return true;},ignored->{NotificationService.add(row.no()+" cancelled.");load();},failure->error(asException(failure))); }
-    private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("purchase-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),false);return true;},ignored->{NotificationService.add(row.no()+" deleted from register; audit record retained.");load();},failure->error(asException(failure))); }
+    private void recordRefund(org.example.controller.PurchaseReturnsController.Row row) {
+        if(row==null)return;
+        if(!isApproved(row)){org.example.util.ModernDialog.warning(table,"Refund blocked","Return approval required","Refund/settlement can be recorded only after Admin approves the Return.");return;}
+        ReturnRefundContext.select(row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/ReturnRefund.fxml");
+    }
+    private void approveReturn(org.example.controller.PurchaseReturnsController.Row row){
+        if(row==null||!isPendingApproval(row))return;
+        if(!confirm("Approve "+row.no()+"?\n\nApproval posts the Return stock movement and starts the Return settlement due period."))return;
+        UiTaskExecutor.submitSerial("purchase-return-approve-"+row.no(),()->{ReturnWorkflowService.approve(row.no());return true;},ignored->{
+            ScreenRefreshPolicy.invalidate("purchase-returns");
+            ScreenRefreshPolicy.invalidate("purchase-register");
+            NotificationService.add(row.no()+" approved.");load();
+        },failure->error(asException(failure)));
+    }
+    private void rejectReturn(org.example.controller.PurchaseReturnsController.Row row){
+        if(row==null||!isPendingApproval(row))return;
+        input("", "Reject Return", "Reason:").ifPresent(reason->UiTaskExecutor.submitSerial("purchase-return-reject-"+row.no(),()->{ReturnWorkflowService.reject(row.no(),reason);return true;},ignored->{
+            ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");
+            NotificationService.add(row.no()+" rejected.");load();
+        },failure->error(asException(failure))));
+    }
+    private boolean isPendingApproval(org.example.controller.PurchaseReturnsController.Row row){return row!=null&&"PENDING APPROVAL".equalsIgnoreCase(safe(row.status()).trim());}
+    private boolean isApproved(org.example.controller.PurchaseReturnsController.Row row){return row!=null&&"APPROVED".equalsIgnoreCase(safe(row.status()).trim());}
+    private boolean isCancelled(org.example.controller.PurchaseReturnsController.Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
+    private void cancel(org.example.controller.PurchaseReturnsController.Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("purchase-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),false);return true;}, ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" cancelled.");load();}, failure->error(asException(failure))); }
+    private void delete(org.example.controller.PurchaseReturnsController.Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("purchase-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),false);return true;}, ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");load();}, failure->error(asException(failure))); }
     private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("purchase-return-update-"+no+"-"+column,()->{returnApi.update(no,column,value);return true;},ignored->load(),failure->error(asException(failure)));}
 
     @FXML private void export() {

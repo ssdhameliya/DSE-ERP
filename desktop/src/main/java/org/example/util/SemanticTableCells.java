@@ -54,7 +54,7 @@ public final class SemanticTableCells {
                 if (empty || value == null || value.isBlank()) return;
                 String v = value.trim().toUpperCase(Locale.ROOT);
                 Presentation p;
-                if (v.startsWith("PAID") || v.contains("CLOSED") || v.contains("SETTLED")) {
+                if (v.startsWith("PAID") || v.contains("CLOSED") || v.contains("SETTLED") || v.contains("COMPLETE")) {
                     p = new Presentation("complete", State.SUCCESS);
                 } else if (v.contains("OVERDUE") || v.contains("PAST DUE")) {
                     p = new Presentation("warning", State.DANGER);

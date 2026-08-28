@@ -196,7 +196,7 @@ public class PaymentIntegrityService {
 
     private static boolean purchaseLifecycleLocked(String value) {
         String status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        return status.equals("DRAFT") || status.equals("RETURNED") || status.equals("PARTIALLY RETURNED");
+        return status.equals("DRAFT");
     }
 
     private record Target(BigDecimal total, BigDecimal paid, String status) {

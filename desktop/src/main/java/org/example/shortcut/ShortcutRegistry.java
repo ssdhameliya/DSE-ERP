@@ -43,6 +43,7 @@ public final class ShortcutRegistry {
      */
     public enum Action {
         GLOBAL_SEARCH("global.search", "Global Search", "Search & Filter", "Shortcut+K", Scope.GLOBAL, null),
+        TOGGLE_SIDEBAR("global.toggleSidebar", "Show / Hide Sidebar", "Application Actions", "Shortcut+B", Scope.GLOBAL, null),
         SAVE_CURRENT("global.saveCurrent", "Save Current", "Application Actions", "Shortcut+S", Scope.GLOBAL, null),
         EDIT_CURRENT("global.editCurrent", "Edit Current / Selected", "Application Actions", "Shortcut+E", Scope.GLOBAL, null),
         REFRESH_CURRENT("global.refreshCurrent", "Refresh Current Page", "Application Actions", "F5", Scope.GLOBAL, null),
@@ -145,7 +146,9 @@ public final class ShortcutRegistry {
         if(action==null)return Scope.GLOBAL;
         return Scope.fromStored(ConfigManager.get(optionKey(action,"scope"),action.scope().name()),action.scope());
     }
-    public static boolean allowInTextInput(Action action){return boolOption(action,"allowText",false);}
+    public static boolean allowInTextInput(Action action){
+        return boolOption(action,"allowText",action==Action.TOGGLE_SIDEBAR);
+    }
     public static boolean requireSelection(Action action){
         boolean fallback=action==Action.EDIT_CURRENT||action==Action.OPEN_SELECTED||action==Action.DELETE_SELECTED;
         return boolOption(action,"requireSelection",fallback);

@@ -100,6 +100,7 @@ public class BankStatementController implements ScreenLifecycle {
     }
 
     @Override public void onScreenShown(boolean reusedFromCache) {
+        configureBankAccountMaster();
         org.example.util.OperationalUiSupport.focusSearch(txtSearch);
         LinkedRecordContext.Target target=LinkedRecordContext.consume("BANK_STATEMENT");
         if(target==null || target.recordId()==null) return;
@@ -259,14 +260,14 @@ public class BankStatementController implements ScreenLifecycle {
     private void configureBankAccountMaster(){
         List<BankAccountOption> options=new ArrayList<>();historyAccountTokens.clear();
         try{
-            for(var lookup:lookupService.getByType("BANK ACCOUNT")){
+            for(var lookup:lookupService.getByCategoryCode("BANK_ACCOUNT")){
                 if(lookup==null||!lookup.isActive()||safe(lookup.getLookupValue()).isBlank())continue;
                 BankAccountOption option=new BankAccountOption(lookup.getLookupValue().trim(),safe(lookup.getDescription()).trim());
                 options.add(option);historyAccountTokens.put(option.toString(),option.accountNumber());
             }
         }catch(Exception ignored){}
         bankAccountOptions=List.copyOf(options);
-        if(cmbHistoryAccount!=null){cmbHistoryAccount.getItems().setAll(options.stream().map(BankAccountOption::toString).toList());cmbHistoryAccount.setEditable(true);cmbHistoryAccount.setPromptText(options.isEmpty()?"Configure BANK ACCOUNT in Master Data":"All Bank Accounts");}
+        if(cmbHistoryAccount!=null){cmbHistoryAccount.getItems().setAll(options.stream().map(BankAccountOption::toString).toList());cmbHistoryAccount.setEditable(true);cmbHistoryAccount.setPromptText(options.isEmpty()?"Configure BANK ACCOUNT in Master Data":"All Bank Accounts");cmbHistoryAccount.setOnShowing(e->configureBankAccountMaster());}
     }
     private void configureHistoryTable(){
         if(tableHistory==null)return;
@@ -340,6 +341,7 @@ public class BankStatementController implements ScreenLifecycle {
     private static String batchStatusSemantic(String status){String state=up(status);return state.contains("FULL")||state.equals("RECONCILED")?"complete":state.contains("PARTIAL")?"warning":"document";}
 
     @FXML private void importStatement(){
+        configureBankAccountMaster();
         FileChooser f=new FileChooser();f.setTitle("Import Bank Statement CSV");f.getExtensionFilters().add(new FileChooser.ExtensionFilter("Bank statement CSV","*.csv"));
         File file=f.showOpenDialog(table.getScene().getWindow()); if(file==null)return;
         String importedBy=user();

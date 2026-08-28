@@ -81,7 +81,7 @@ public final class OperationsApiClient {
     }
     private PurchaseDto purchaseDto(Purchase p){
         Party c=p.getSupplier(); PartyDto party=c==null?null:new PartyDto(c.getId(),c.getPartyCode(),c.getName(),c.getEmail(),c.getPhone(),c.getGstin(),c.getAddress());
-        List<LineDto> lines=p.getLines()==null?List.of():p.getLines().stream().map(x->new LineDto(x.getItemCode(),x.getItemDescription(),null,null,null,x.getQuantity(),x.getRate(),x.getDiscountPercent(),x.getDiscountAmount(),x.getGstPercent(),x.getTotalAmount())).toList();
+        List<LineDto> lines=p.getLines()==null?List.of():p.getLines().stream().map(x->new LineDto(x.getItemCode(),x.getItemDescription(),x.getItemHsn(),x.getItemUnit(),x.getItemRemarks(),x.getQuantity(),x.getRate(),x.getDiscountPercent(),x.getDiscountAmount(),x.getGstPercent(),x.getTotalAmount())).toList();
         List<ChargeDto> charges=p.getCharges()==null?List.of():p.getCharges().stream().map(x->new ChargeDto(x.getChargeType(),x.getAmount(),x.isTaxable(),x.getGstPercent())).toList();
         return new PurchaseDto(p.getId(),p.getInvoiceNo(),str(p.getInvoiceDate()),party,p.getSubtotal(),p.getGstAmount(),p.getTotalAmount(),p.getRemarks(),p.getCreatedAt(),p.isEmailSent(),str(p.getDueDate()),p.getPaidAmount(),p.getPaymentStatus(),p.getDocumentStatus(),p.getWarehouse(),p.getPaymentTerms(),p.getCurrency(),p.getReferenceNo(),p.getGstTreatment(),p.getTransporter(),p.getLrAwbNo(),p.getDiscountType(),p.getDiscountAmount(),p.getAttachmentPath(),p.getCreatedBy(),str(p.getDeliveryDate()),p.getBillingAddress(),p.getDeliveryAddress(),p.getBillingGstin(),p.getDeliveryGstin(),p.getGstType(),p.getTransporterGstin(),p.getVehicleNumber(),p.getContactPerson(),p.getContactPersonMobile(),p.getNotes(),p.getOrderNo(),str(p.getPoDate()),p.isSameAsBilling(),p.getQuantity(),charges,lines,p.getRowVersion());
     }
@@ -90,7 +90,7 @@ public final class OperationsApiClient {
     }
     private Party party(PartyDto d){if(d==null)return null;Party p=new Party();p.setId(n(d.id));p.setPartyCode(d.partyCode);p.setName(d.name);p.setEmail(d.email);p.setPhone(d.phone);p.setGstin(d.gstin);p.setAddress(d.address);return p;}
     private SalesLine salesLine(LineDto d){SalesLine x=new SalesLine();x.setItemCode(d.itemCode);x.setItemDescription(d.itemDescription);x.setItemHsn(d.itemHsn);x.setItemUnit(d.itemUnit);x.setItemRemarks(d.itemRemarks);x.setQuantity(d.quantity);x.setRate(d.rate);x.setDiscountPercent(d.discountPercent);x.setGstPercent(d.gstPercent);x.recalculate();return x;}
-    private PurchaseLine purchaseLine(LineDto d){PurchaseLine x=new PurchaseLine();x.setItemCode(d.itemCode);x.setItemDescription(d.itemDescription);x.setQuantity(d.quantity);x.setRate(d.rate);x.setDiscountPercent(d.discountPercent);x.setGstPercent(d.gstPercent);x.calculateAmounts();return x;}
+    private PurchaseLine purchaseLine(LineDto d){PurchaseLine x=new PurchaseLine();x.setItemCode(d.itemCode);x.setItemDescription(d.itemDescription);x.setItemHsn(d.itemHsn);x.setItemUnit(d.itemUnit);x.setItemRemarks(d.itemRemarks);x.setQuantity(d.quantity);x.setRate(d.rate);x.setDiscountPercent(d.discountPercent);x.setGstPercent(d.gstPercent);x.calculateAmounts();return x;}
 
     private <T>T get(String path,Class<T> c){return request("GET",path,null,c,null);} private <T>T get(String path,TypeReference<T> t){return request("GET",path,null,null,t);}
     private <T>T post(String path,Object b,Class<T> c){return request("POST",path,b,c,null);} private <T>T put(String path,Object b,Class<T> c){return request("PUT",path,b,c,null);}

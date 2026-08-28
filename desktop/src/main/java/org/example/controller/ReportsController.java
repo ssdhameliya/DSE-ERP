@@ -58,7 +58,7 @@ public class ReportsController implements ScreenLifecycle {
         return new FilterData(f.parties(), f.items(), f.salespeople());
     }
     private void applyFilters(FilterData data){ long started=System.nanoTime(); setOptions(cmbParty,"All Customers / Suppliers",data.parties()); setOptions(cmbItem,"All Items",data.items()); setOptions(cmbSalesPerson,"All Sales Persons",data.salespeople()); PerformanceMonitor.event("controller-phase","reports-filter-apply | "+((System.nanoTime()-started)/1_000_000L)+" ms"); }
-    private void setOptions(ComboBox<String> box,String all,List<String> values){box.getItems().setAll(all);box.getItems().addAll(values);box.getSelectionModel().selectFirst();}
+    private void setOptions(ComboBox<String> box,String all,List<String> values){String selected=box.getValue();box.getItems().setAll(all);box.getItems().addAll(values);if(selected!=null&&box.getItems().contains(selected))box.setValue(selected);else box.getSelectionModel().selectFirst();}
 
 
     @FXML private void resetFilters(){cmbReportType.getSelectionModel().selectFirst();cmbParty.getSelectionModel().selectFirst();cmbItem.getSelectionModel().selectFirst();cmbSalesPerson.getSelectionModel().selectFirst();dpFrom.setValue(BusinessClock.today().withDayOfMonth(1));dpTo.setValue(BusinessClock.today());refresh();}
@@ -131,7 +131,7 @@ public class ReportsController implements ScreenLifecycle {
 
 
 
-    @Override public void onScreenShown(boolean reusedFromCache){ if(!loadRequested && (!loaded || ScreenRefreshPolicy.shouldRefresh("reports", ScreenRefreshPolicy.Mode.WHEN_STALE))) requestRefresh(); }
+    @Override public void onScreenShown(boolean reusedFromCache){ loadFiltersAsync(); if(!loadRequested && (!loaded || ScreenRefreshPolicy.shouldRefresh("reports", ScreenRefreshPolicy.Mode.WHEN_STALE))) requestRefresh(); }
     @Override public void onScreenHidden(){ loadRequested=false; UiTaskExecutor.cancelPrefix("reports-"); }
     @FXML private void exportPdf(){export("PDF Report","business-report.pdf","*.pdf",true);}@FXML private void exportExcel(){export("Excel Report","business-report.xlsx","*.xlsx",false);}
     @FXML private void viewAllSales(){navigate("/fxml/pages/SalesList.fxml");}@FXML private void viewAllPurchases(){navigate("/fxml/pages/PurchaseList.fxml");}

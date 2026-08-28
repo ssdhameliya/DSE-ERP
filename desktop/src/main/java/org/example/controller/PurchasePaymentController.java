@@ -80,7 +80,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         Platform.runLater(this::wireProofDropZone);
     }
 
-    @Override public void onScreenShown(boolean reusedFromCache) { if (reusedFromCache) loadSelectedInvoice(); }
+    @Override public void onScreenShown(boolean reusedFromCache) { loadPaymentLookupsAsync(); if (reusedFromCache) loadSelectedInvoice(); }
     @Override public void onScreenHidden() { UiTaskExecutor.cancelPrefix("purchase-payment-"); }
 
     private void loadSelectedInvoice() {
@@ -129,6 +129,8 @@ public final class PurchasePaymentController implements ScreenLifecycle {
         partialPayment.setOnAction(e -> selectPartial());
         amount.textProperty().addListener((o, a, b) -> updateBalancePreview());
         mode.valueProperty().addListener((o, a, b) -> updateBankAccountState(b));
+        mode.setOnShowing(e->loadPaymentLookupsAsync());
+        bankAccount.setOnShowing(e->loadPaymentLookupsAsync());
         updateBankAccountState(mode.getValue());
         loadPaymentLookupsAsync();
     }
@@ -144,7 +146,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                     if (modes.isEmpty()) modes.addAll(List.of("Bank Transfer", "Cash", "Cheque", "UPI", "Card", "Other"));
                     List<String> accounts = new ArrayList<>();
                     try {
-                        for (org.example.model.Lookup lookup : lookupService.getByType("BANK ACCOUNT")) {
+                        for (org.example.model.Lookup lookup : lookupService.getByCategoryCode("BANK_ACCOUNT")) {
                             if (!lookup.isActive() || lookup.getLookupValue() == null || lookup.getLookupValue().isBlank()) continue;
                             String description = lookup.getDescription() == null ? "" : lookup.getDescription().trim();
                             accounts.add(description.isBlank() ? lookup.getLookupValue().trim()

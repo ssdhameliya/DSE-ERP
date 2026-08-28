@@ -32,7 +32,11 @@ public class Purchase {
     private LocalDate dueDate;
     private double paidAmount;
     private String paymentStatus;
-    private String documentStatus="COMPLETED", warehouse, paymentTerms, currency, referenceNo, gstTreatment, transporter, lrAwbNo, discountType, attachmentPath, createdBy;
+    /** Historical payment state of the original Purchase. */
+    private String basePaymentStatus;
+    private double returnPendingAmount;
+    private LocalDate returnDueDate;
+    private String documentStatus="PENDING APPROVAL", warehouse, paymentTerms, currency, referenceNo, gstTreatment, transporter, lrAwbNo, discountType, attachmentPath, createdBy;
     private String billingAddress, deliveryAddress, billingGstin, deliveryGstin, gstType, transporterGstin, vehicleNumber, contactPerson, contactPersonMobile, notes, orderNo;
     private boolean sameAsBilling = true;
     private LocalDate poDate;
@@ -144,9 +148,31 @@ public class Purchase {
     public double getChargesTaxAmount(){return charges==null?0:charges.stream().mapToDouble(PurchaseCharge::getTaxAmount).sum();}
     public LocalDate getDueDate(){return dueDate;} public void setDueDate(LocalDate value){dueDate=value;}
     public double getPaidAmount(){return paidAmount;} public void setPaidAmount(double value){paidAmount=value;}
-    public double getBalanceAmount(){return Math.max(0,totalAmount-paidAmount);}
-    public String getPaymentStatus(){return paymentStatus==null?"PENDING":paymentStatus;} public void setPaymentStatus(String value){paymentStatus=value;}
-    public String getDocumentStatus(){return documentStatus==null?"COMPLETED":documentStatus;} public void setDocumentStatus(String v){documentStatus=v;}
+    public double getBalanceAmount(){
+        String status=getDocumentStatus();
+        if("CANCELLED".equalsIgnoreCase(status)||"DELETED".equalsIgnoreCase(status))return 0;
+        if(hasReturnSettlement())return Math.max(0,returnPendingAmount);
+        return Math.max(0,totalAmount-paidAmount);
+    }
+    public String getPaymentStatus(){return paymentStatus==null?"PENDING":paymentStatus;}
+    public void setPaymentStatus(String value){
+        basePaymentStatus=value==null||value.isBlank()?"PENDING":value;
+        paymentStatus=basePaymentStatus;
+        returnPendingAmount=0;
+        returnDueDate=null;
+    }
+    public String getBasePaymentStatus(){return basePaymentStatus==null?getPaymentStatus():basePaymentStatus;}
+    public double getReturnPendingAmount(){return returnPendingAmount;}
+    public LocalDate getReturnDueDate(){return returnDueDate;}
+    public boolean hasReturnSettlement(){return getPaymentStatus().toUpperCase(java.util.Locale.ROOT).startsWith("RETURN ");}
+    public void applyReturnSettlement(String status,double pendingAmount,LocalDate dueDate){
+        if(status==null||!status.toUpperCase(java.util.Locale.ROOT).startsWith("RETURN ")){clearReturnSettlement();return;}
+        paymentStatus=status.trim().toUpperCase(java.util.Locale.ROOT);
+        returnPendingAmount=Math.max(0,pendingAmount);
+        returnDueDate=dueDate;
+    }
+    public void clearReturnSettlement(){paymentStatus=basePaymentStatus==null||basePaymentStatus.isBlank()?"PENDING":basePaymentStatus;returnPendingAmount=0;returnDueDate=null;}
+    public String getDocumentStatus(){return documentStatus==null||documentStatus.isBlank()?"PENDING APPROVAL":documentStatus;} public void setDocumentStatus(String v){documentStatus=v;}
     public String getWarehouse(){return warehouse;} public void setWarehouse(String v){warehouse=v;} public String getPaymentTerms(){return paymentTerms;} public void setPaymentTerms(String v){paymentTerms=v;}
     public String getCurrency(){return currency;} public void setCurrency(String v){currency=v;} public String getReferenceNo(){return referenceNo;} public void setReferenceNo(String v){referenceNo=v;}
     public String getGstTreatment(){return gstTreatment;} public void setGstTreatment(String v){gstTreatment=v;} public String getTransporter(){return transporter;} public void setTransporter(String v){transporter=v;}

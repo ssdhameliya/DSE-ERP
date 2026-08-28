@@ -82,7 +82,7 @@ public class RecordPaymentController implements ScreenLifecycle {
         Platform.runLater(this::wireUi);
     }
 
-    @Override public void onScreenShown(boolean reusedFromCache) { loadSelectedInvoice(); }
+    @Override public void onScreenShown(boolean reusedFromCache) { loadPaymentLookupsAsync(); loadSelectedInvoice(); }
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("record-payment-");}
 
     private void loadSelectedInvoice() {
@@ -124,6 +124,7 @@ public class RecordPaymentController implements ScreenLifecycle {
         historyFromDate.valueProperty().addListener((o,a,b)->applyHistoryFilter());
         historyToDate.valueProperty().addListener((o,a,b)->applyHistoryFilter());
         mode.valueProperty().addListener((o,a,b)->bankAccount.setDisable(b==null||!(b.toLowerCase(Locale.ROOT).contains("bank")||b.equalsIgnoreCase("NEFT")||b.equalsIgnoreCase("RTGS"))));
+        mode.setOnShowing(e->loadPaymentLookupsAsync());bankAccount.setOnShowing(e->loadPaymentLookupsAsync());
         loadPaymentLookupsAsync();
     }
 
@@ -137,7 +138,7 @@ public class RecordPaymentController implements ScreenLifecycle {
                 try{modes.addAll(lookupService.getValuesByCategoryCode("PAYMENT_MODE"));}catch(Exception ignored){}
                 if(modes.isEmpty())modes.addAll(List.of("Bank Transfer","Cash","Cheque","UPI","Card","Other"));
                 List<String> accounts=new ArrayList<>();
-                try{for(org.example.model.Lookup l:lookupService.getByType("BANK ACCOUNT")){if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String n=l.getDescription()==null?"":l.getDescription().trim();accounts.add(n.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+n);}}}catch(Exception ignored){}
+                try{for(org.example.model.Lookup l:lookupService.getByCategoryCode("BANK_ACCOUNT")){if(l.isActive()&&l.getLookupValue()!=null&&!l.getLookupValue().isBlank()){String n=l.getDescription()==null?"":l.getDescription().trim();accounts.add(n.isBlank()?l.getLookupValue().trim():l.getLookupValue().trim()+" - "+n);}}}catch(Exception ignored){}
                 if(accounts.isEmpty())accounts.addAll(configuredBankAccounts());
                 return new PaymentLookups(List.copyOf(modes),List.copyOf(accounts));
             },

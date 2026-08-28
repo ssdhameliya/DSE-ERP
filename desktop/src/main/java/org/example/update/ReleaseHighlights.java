@@ -8,9 +8,30 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
-        if ("9.0.22".equals(version)) {
+        if ("9.0.28".equals(version)) {
             return """
-                    DSE ERP 9.0.22
+                    DSE ERP 9.0.28
+
+                    • Adds a global Show / Hide Sidebar control so users can reclaim the full workspace width on register and detail-heavy pages without changing page business logic.
+                    • Adds Ctrl/Cmd + B as the default configurable sidebar shortcut in Keyboard Shortcuts, including while focus is inside normal search/text fields.
+                    • Remembers sidebar visibility per signed-in desktop user and preserves the current navigation selection/submenu state when the sidebar is hidden and restored.
+                    • Retains the complete 9.0.26 Master numbering correction and 9.0.25 Sales/Purchase Return lifecycle/register UI corrections.
+                    """;
+        }
+        if ("9.0.26".equals(version)) {
+            return """
+                    DSE ERP 9.0.26
+
+                    • Fixes Master Add numbering so Bank, Transporter, Payment Terms, Payment Mode, Expense Category, Charges and other Masters no longer share the generic GEN sequence.
+                    • Keys Master numbering to immutable category_code, so renaming a Master category does not reset or fork its sequence.
+                    • Keeps the server authoritative for final allocation while the Add dialog previews the same next Master-specific code.
+                    • Preserves all existing GENxxx historical IDs; only new Master values use the corrected category-specific numbering.
+                    • Retains the complete 9.0.25 Sales/Purchase Return lifecycle and register UI corrections.
+                    """;
+        }
+        if ("9.0.25".equals(version)) {
+            return """
+                    DSE ERP 9.0.25
 
                     • Refactors Quotation Source to the same generic Master Data lookup path used by Transporter, Brand, Category and other Master-backed fields.
                     • Removes quotation-only Source fallback, alias scanning, request-time seeding and special runtime Master logic.

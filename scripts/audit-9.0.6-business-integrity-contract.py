@@ -29,7 +29,7 @@ req('must contain at least one item line' in ops,'Sales/Purchase must reject zer
 req('discount for "+d.itemCode()+" must be between 0 and 100' in ops and 'GST for "+d.itemCode()+" must be between 0 and 100' in ops,'document percentages must be rejected, not clamped')
 req('Unsupported tax mode' in calc,'unknown tax mode must be rejected')
 req('Return party must match the original invoice party' in ret and 'source_line_id' in ret,'Returns must bind to original party and exact source line')
-req('original.lineTotal()/original.quantity()' in ret,'Return amount must be derived server-side from source invoice lines')
+req('original.lineTotal() / original.quantity()' in ret,'Return amount must be derived server-side from source invoice lines')
 # Quotation/security
 for permission in ('QUOTATION.VIEW','QUOTATION.CREATE','QUOTATION.EDIT','QUOTATION.DELETE'):
     req(permission in quote,f'Quotation permission missing: {permission}')
@@ -49,7 +49,7 @@ req('payment_date' in ins and 'paymentTotal(' in ins,'payment reports must use p
 req('long salesCount=' in ins and 'purchaseCount=' in ins and 'sales/salesCount' in ins,'report KPIs must use full dataset counts')
 req('salesReturns' in ins and 'purchaseReturns' in ins and 'returnCogs' in ins,'returns must be netted from reporting/profit')
 req("due+\"=CURRENT_DATE\"" in ops or "due+\"=CURRENT_DATE" in ops,'Due Today must exclude overdue balances')
-req('openingBalance(' in ins and 'opening_balance' in ins,'AR/AP must include opening balances')
+req(('BusinessKpiPolicy.effectiveOutstanding' in ins or 'BusinessKpiPolicy.outstanding' in ins) and 'effectivePaid' in t('server/src/main/java/org/example/server/insights/BusinessKpiPolicy.java'),'AR/AP must use canonical invoice/Return-aware outstanding/payment authority')
 req('inventory_cost_state' in ins and 'unit_cost_snapshot' in ins,'inventory valuation/gross profit must use historical cost state')
 req('getReservedStock' in ops and 'Insufficient available stock' in ops,'Sales stock posting must enforce reserved stock')
 # Import/master/snapshots/reference
@@ -71,6 +71,6 @@ if pay:
     req('BANK_RECONCILIATION' in pay,'bank-reconciled payment edit protection must remain')
 req('rounding_adjustment' in ret,'Return refund balance must retain rounding adjustment handling')
 # One exact startup identity
-req('APP_VERSION = "9.0.22"' in runtime and 'BUILD_REVISION = "9.0.22"' in runtime,'desktop version/build must both be 9.0.18')
-req('dse.app.version=9.0.22' in props and 'dse.build.revision=9.0.22' in props,'server version/build must both be 9.0.18')
+req('APP_VERSION = "9.0.28"' in runtime and 'BUILD_REVISION = "9.0.28"' in runtime,'desktop version/build must both be 9.0.18')
+req('dse.app.version=9.0.28' in props and 'dse.build.revision=9.0.28' in props,'server version/build must both be 9.0.18')
 print('PASS: DSE ERP 9.0.18 runtime with 9.0.6 business-integrity contract')

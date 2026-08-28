@@ -107,7 +107,15 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_19__quotation_source_master_resolution",
                     "db/migration/V9_0_19__quotation_source_master_resolution.sql"),
             new Migration("V9_0_22__quotation_source_generic_master",
-                    "db/migration/V9_0_22__quotation_source_generic_master.sql")
+                    "db/migration/V9_0_22__quotation_source_generic_master.sql"),
+            new Migration("V9_0_24__return_lifecycle_authority",
+                    "db/migration/V9_0_24__return_lifecycle_authority.sql"),
+            new Migration("V9_0_25__return_lifecycle_completion",
+                    "db/migration/V9_0_25__return_lifecycle_completion.sql"),
+            new Migration("V9_0_26__master_lookup_reference_authority",
+                    "db/migration/V9_0_26__master_lookup_reference_authority.sql"),
+            new Migration("V9_0_28__financial_authority_integrity",
+                    "db/migration/V9_0_28__financial_authority_integrity.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -219,6 +227,10 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("purchase_header", "supplier_name_snapshot");
         requireColumn("purchase_line", "item_description_snapshot");
         requireColumn("purchase_line", "unit_cost_snapshot");
+        requireColumn("sales_header", "rejected_by");
+        requireColumn("sales_header", "rejected_at");
+        requireColumn("purchase_header", "rejected_by");
+        requireColumn("purchase_header", "rejected_at");
         requireFunction("dse_safe_date");
     }
 

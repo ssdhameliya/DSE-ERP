@@ -58,7 +58,7 @@ require('fx:id="statementWorkspace"' in bank_fxml and 'fx:id="statementHistoryDr
         'Bank Statement History must use the wider resizable split workspace')
 require('fx:id="cmbHistoryAccount" editable="true"' in bank_fxml,
         'Bank Statement History account filter must be a searchable ComboBox')
-require('lookupService.getByType("BANK ACCOUNT")' in bank and 'resolveBankAccount' in bank,
+require('lookupService.getByCategoryCode("BANK_ACCOUNT")' in bank and 'resolveBankAccount' in bank,
         'Bank Statement history/import account ownership must come from BANK ACCOUNT Master Data')
 require('OwnedChoiceDialog' in bank and 'Select Bank Account' in bank,
         'Unmatched/blank imported Bank Account must require explicit master selection')
@@ -78,9 +78,9 @@ require('-fx-text-fill: #3b1b68;' not in css[css.find('9.0.5 global record-table
         'Shared selection contract must not leak light-theme selected text colours into dark mode')
 
 # Runtime/startup compatibility remains one exact value.
-require('APP_VERSION = "9.0.22"' in runtime and 'BUILD_REVISION = "9.0.22"' in runtime,
+require('APP_VERSION = "9.0.28"' in runtime and 'BUILD_REVISION = "9.0.28"' in runtime,
         'Desktop app/build identity must both be current 9.0.18')
-require('dse.app.version=9.0.22' in server_props and 'dse.build.revision=9.0.22' in server_props,
+require('dse.app.version=9.0.28' in server_props and 'dse.build.revision=9.0.28' in server_props,
         'Spring Boot app/build identity must exactly match desktop 9.0.18')
 
 print('PASS: DSE ERP 9.0.5 reconciliation/navigation/UI contract')

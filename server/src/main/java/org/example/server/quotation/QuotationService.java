@@ -54,7 +54,7 @@ public class QuotationService {
         String joins=" FROM quotation_header q JOIN party_master p ON p.id=q.customer_id";Object[] base=args.toArray();long total=jdbc.queryForObject("SELECT COUNT(*)"+joins+where,Long.class,base);Double filtered=jdbc.queryForObject("SELECT COALESCE(SUM(q.total_amount),0)"+joins+where,Double.class,base);int pages=total==0?0:(int)Math.ceil(total/(double)safeSize);if(pages>0&&safePage>=pages)safePage=pages-1;List<Object> pageArgs=new ArrayList<>(args);pageArgs.add(safeSize);pageArgs.add((long)safePage*safeSize);
         List<QuotationDtos.QuoteDto> rows=jdbc.query(quoteSelect()+joins+where+" ORDER BY q.quotation_date DESC,q.id DESC LIMIT ? OFFSET ?",this::mapQuote,pageArgs.toArray());
         List<String> customers=jdbc.query("SELECT DISTINCT p.name"+joins+" WHERE UPPER(COALESCE(q.status,''))<>'DELETED' AND COALESCE(p.name,'')<>'' ORDER BY p.name LIMIT 40",(r,i)->r.getString(1));List<String> salespersons=jdbc.query("SELECT DISTINCT q.salesperson FROM quotation_header q WHERE UPPER(COALESCE(q.status,''))<>'DELETED' AND COALESCE(q.salesperson,'')<>'' ORDER BY q.salesperson",(r,i)->r.getString(1));
-        return new QuotationDtos.Page(rows,safePage,safeSize,total,pages,filtered==null?0:filtered,metrics(),customers,salespersons);
+        return new QuotationDtos.Page(rows,safePage,safeSize,total,pages,filtered==null?0:filtered,metrics(joins,where.toString(),base),customers,salespersons);
     }
 
     @Transactional
@@ -63,7 +63,14 @@ public class QuotationService {
     private void expireQuotations(){jdbc.update("UPDATE quotation_header SET status='EXPIRED' WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND NULLIF(TRIM(valid_until),'') IS NOT NULL AND dse_safe_date(valid_until) < ?",BusinessClock.today());}
     private String quoteSelect(){return "SELECT q.id,q.customer_id,q.quotation_no,CAST(q.quotation_date AS text),p.name,COALESCE(CAST(q.valid_until AS text),''),COALESCE(q.status,''),COALESCE(CAST(q.follow_up_date AS text),''),COALESCE(q.converted_invoice_no,''),COALESCE(q.salesperson,''),COALESCE(q.created_by,''),COALESCE(q.total_amount,0),COALESCE(p.phone,''),COALESCE(p.email,''),COALESCE(p.gstin,''),COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,'')";}
     private QuotationDtos.QuoteDto mapQuote(org.example.server.persistence.JpaNativeRepository.NativeRow r,Integer i){return new QuotationDtos.QuoteDto(r.getInt(1),r.getInt(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getString(9),r.getString(10),r.getString(11),r.getDouble(12),r.getString(13),r.getString(14),r.getString(15),r.getString(16),r.getString(17),r.getDouble(18),r.getString(19));}
-    private QuotationDtos.Metrics metrics(){List<Number[]> m=jdbc.query("SELECT COALESCE(SUM(total_amount),0),COUNT(*),COALESCE(SUM(CASE WHEN status IN ('DRAFT','SENT') THEN total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN status IN ('DRAFT','SENT') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='ACCEPTED' THEN total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='ACCEPTED' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='EXPIRED' THEN total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN status='EXPIRED' THEN 1 ELSE 0 END),0) FROM quotation_header WHERE UPPER(COALESCE(status,''))<>'DELETED'",(r,i)->new Number[]{(Number)r.getObject(1),(Number)r.getObject(2),(Number)r.getObject(3),(Number)r.getObject(4),(Number)r.getObject(5),(Number)r.getObject(6),(Number)r.getObject(7),(Number)r.getObject(8)});Number[] x=m.getFirst();double total=n(x[0]),pending=n(x[2]),accepted=n(x[4]),expired=n(x[6]);long count=l(x[1]),pc=l(x[3]),ac=l(x[5]),ec=l(x[7]);List<QuotationDtos.MetricPoint> trend=jdbc.query("SELECT TO_CHAR(DATE_TRUNC('month',dse_safe_date(quotation_date)),'YYYY-MM'),COALESCE(SUM(total_amount),0) FROM quotation_header WHERE UPPER(COALESCE(status,''))<>'DELETED' AND dse_safe_date(quotation_date)>=DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '7 months' GROUP BY DATE_TRUNC('month',dse_safe_date(quotation_date)) ORDER BY DATE_TRUNC('month',dse_safe_date(quotation_date))",(r,i)->new QuotationDtos.MetricPoint(r.getString(1),r.getDouble(2)));List<QuotationDtos.MetricPoint> statuses=jdbc.query("SELECT COALESCE(status,'DRAFT'),COUNT(*) FROM quotation_header WHERE UPPER(COALESCE(status,''))<>'DELETED' GROUP BY COALESCE(status,'DRAFT') ORDER BY 1",(r,i)->new QuotationDtos.MetricPoint(r.getString(1),r.getDouble(2)));return new QuotationDtos.Metrics(total,count,pending,pc,accepted,ac,expired,ec,count==0?0:ac*100d/count,count==0?0:total/count,trend,statuses);}
+    private QuotationDtos.Metrics metrics(String joins,String where,Object[] args){
+        String state="COALESCE(NULLIF(UPPER(TRIM(q.status)),''),'DRAFT')";
+        List<Number[]> m=jdbc.query("SELECT COALESCE(SUM(q.total_amount),0),COUNT(*),COALESCE(SUM(CASE WHEN "+state+" IN ('DRAFT','SENT') THEN q.total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+" IN ('DRAFT','SENT') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='ACCEPTED' THEN q.total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='ACCEPTED' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='EXPIRED' THEN q.total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='EXPIRED' THEN 1 ELSE 0 END),0)"+joins+where,(r,i)->new Number[]{(Number)r.getObject(1),(Number)r.getObject(2),(Number)r.getObject(3),(Number)r.getObject(4),(Number)r.getObject(5),(Number)r.getObject(6),(Number)r.getObject(7),(Number)r.getObject(8)},args);
+        Number[] x=m.getFirst();double total=n(x[0]),pending=n(x[2]),accepted=n(x[4]),expired=n(x[6]);long count=l(x[1]),pc=l(x[3]),ac=l(x[5]),ec=l(x[7]);
+        List<QuotationDtos.MetricPoint> trend=jdbc.query("SELECT TO_CHAR(DATE_TRUNC('month',dse_safe_date(q.quotation_date)),'YYYY-MM'),COALESCE(SUM(q.total_amount),0)"+joins+where+" AND dse_safe_date(q.quotation_date)>=DATE_TRUNC('month',CURRENT_DATE)-INTERVAL '7 months' GROUP BY DATE_TRUNC('month',dse_safe_date(q.quotation_date)) ORDER BY DATE_TRUNC('month',dse_safe_date(q.quotation_date))",(r,i)->new QuotationDtos.MetricPoint(r.getString(1),r.getDouble(2)),args);
+        List<QuotationDtos.MetricPoint> statuses=jdbc.query("SELECT "+state+",COUNT(*)"+joins+where+" GROUP BY "+state+" ORDER BY 1",(r,i)->new QuotationDtos.MetricPoint(r.getString(1),r.getDouble(2)),args);
+        return new QuotationDtos.Metrics(total,count,pending,pc,accepted,ac,expired,ec,count==0?0:ac*100d/count,count==0?0:total/count,trend,statuses);
+    }
     private static String trim(String v){return v==null||v.isBlank()?null:v.trim();}private static String up(String v){String x=trim(v);return x==null?null:x.toUpperCase(Locale.ROOT);}private static Double numberOrNull(String v){try{return trim(v)==null?null:Double.parseDouble(v.replace(",","").replace("₹","").trim());}catch(Exception e){return null;}}private static LocalDate dateOrNull(String v){try{return trim(v)==null?null:LocalDate.parse(v);}catch(Exception e){return null;}}private static double n(Number v){return v==null?0:v.doubleValue();}private static long l(Number v){return v==null?0:v.longValue();}
 
     @Transactional(readOnly = true)
@@ -120,6 +127,7 @@ public class QuotationService {
         if(validUntil.isBefore(quotationDate))throw new IllegalArgumentException("Quotation valid-until date cannot be before quotation date.");
         String source=requireQuotationSource(d.source());
         int id;
+        if(create){requireCustomerReference(d.customerId(),true);requireActiveQuotationItems(d.lines(),Set.of());}
         if (create) {
             String no = nextNo();
             Integer x = jdbc.queryForObject(
@@ -133,12 +141,15 @@ public class QuotationService {
         } else {
             id = d.id();
             Map<String, Object> existing = jdbc.queryForMap(
-                    "SELECT COALESCE(converted_invoice_no,'') converted,COALESCE(status,'DRAFT') status FROM quotation_header WHERE id=? FOR UPDATE",
+                    "SELECT COALESCE(converted_invoice_no,'') converted,COALESCE(status,'DRAFT') status,customer_id FROM quotation_header WHERE id=? FOR UPDATE",
                     id);
             String existingStatus = Objects.toString(existing.get("status"), "DRAFT").trim().toUpperCase(Locale.ROOT);
             if ("DELETED".equals(existingStatus)) throw new IllegalStateException("Deleted quotations are read-only.");
             if (!Objects.toString(existing.get("converted"), "").isBlank())
                 throw new IllegalStateException("Converted quotations are read-only. Duplicate the quotation if a new revision is required.");
+            int existingCustomer=((Number)existing.get("customer_id")).intValue();
+            requireCustomerReference(d.customerId(),existingCustomer!=d.customerId());
+            requireActiveQuotationItems(d.lines(),quotationItemCodes(id));
             jdbc.update(
                     "UPDATE quotation_header SET quotation_date=?,valid_until=?,customer_id=?,subtotal=?,discount_amount=?," +
                     "gst_amount=?,total_amount=?,remarks=?,follow_up_date=?,salesperson=?,source=? WHERE id=?",
@@ -151,6 +162,19 @@ public class QuotationService {
                     id,l.code(),l.quantity(),l.rate(),l.gst(),l.discount(),l.total(),l.description());
         }
         return quote(id);
+    }
+
+    private void requireCustomerReference(int customerId,boolean requireActive){
+        List<int[]> rows=jdbc.query("SELECT CASE WHEN UPPER(COALESCE(party_type,''))='CUSTOMER' THEN 1 ELSE 0 END,CASE WHEN COALESCE(is_active,1)<>0 THEN 1 ELSE 0 END FROM party_master WHERE id=?",(r,i)->new int[]{r.getInt(1),r.getInt(2)},customerId);
+        if(rows.isEmpty()||rows.getFirst()[0]==0)throw new IllegalArgumentException("Quotation customer must reference a CUSTOMER Master record.");
+        if(requireActive&&rows.getFirst()[1]==0)throw new IllegalArgumentException("Quotation customer is inactive. Reactivate it in Customer Master before using it on a new quotation or Sale.");
+    }
+
+    private Set<String> quotationItemCodes(int quotationId){return new HashSet<>(jdbc.query("SELECT DISTINCT UPPER(TRIM(item_code)) FROM quotation_line WHERE quotation_id=? AND COALESCE(item_code,'')<>''",(r,i)->r.getString(1),quotationId));}
+
+    private void requireActiveQuotationItems(List<QuotationDtos.LineDto> lines,Set<String> historicalCodes){
+        Set<String> checked=new HashSet<>();Set<String> historical=historicalCodes==null?Set.of():historicalCodes;
+        for(var line:lines==null?List.<QuotationDtos.LineDto>of():lines){if(line==null||line.code()==null||line.code().isBlank())continue;String code=line.code().trim().toUpperCase(Locale.ROOT);if(!checked.add(code)||historical.contains(code))continue;Long count=jdbc.queryForObject("SELECT COUNT(*) FROM item_master WHERE UPPER(TRIM(item_code))=? AND COALESCE(is_active,1)<>0",Long.class,code);if(count==null||count==0)throw new IllegalArgumentException("Quotation item "+line.code()+" is inactive or missing. Reactivate it in Item Master before using it on a new or changed quotation.");}
     }
 
     @Transactional
@@ -189,6 +213,9 @@ public class QuotationService {
             throw new IllegalStateException("A " + status.toLowerCase(Locale.ROOT) + " quotation cannot be converted to a Sale.");
         }
 
+        requireCustomerReference(((Number)q.get("customer_id")).intValue(),true);
+        List<QuotationDtos.LineDto> conversionLines=loadLines(id);
+        requireActiveQuotationItems(conversionLines,Set.of());
         LocalDate today = BusinessClock.today();
         String invoice = nextSale();
         boolean admin = "ADMIN".equalsIgnoreCase(CurrentUser.require().role());
@@ -206,7 +233,7 @@ public class QuotationService {
                 q.get("salesperson"), q.get("source"), q.get("remarks"), documentStatus, "PENDING", approvalStatus,
                 admin ? null : actor, admin ? null : now, admin ? actor : null, admin ? now : null, admin);
         jdbc.update("UPDATE sales_header h SET customer_name_snapshot=p.name,customer_email_snapshot=p.email,customer_phone_snapshot=p.phone,customer_gstin_snapshot=p.gstin,customer_address_snapshot=p.address FROM party_master p WHERE h.id=? AND p.id=h.customer_id",sid);
-        for (var l : loadLines(id)) {
+        for (var l : conversionLines) {
             if (!Double.isFinite(l.quantity()) || l.quantity() <= 0) {
                 throw new IllegalArgumentException("Quotation quantity must be a finite number greater than zero.");
             }
@@ -230,6 +257,9 @@ public class QuotationService {
     public String duplicate(int id, String ignoredUser) {
         CurrentUser.requirePermission("QUOTATION.CREATE","Duplicate quotation");
         Map<String, Object> q = jdbc.queryForMap("SELECT * FROM quotation_header WHERE id=?", id);
+        requireCustomerReference(((Number)q.get("customer_id")).intValue(),true);
+        List<QuotationDtos.LineDto> duplicateLines=loadLines(id);
+        requireActiveQuotationItems(duplicateLines,Set.of());
         String no = nextNo();
         LocalDate today = BusinessClock.today();
         Integer nid = jdbc.queryForObject(
@@ -238,7 +268,7 @@ public class QuotationService {
                 Integer.class, no, today, today.plusDays(30), q.get("customer_id"), q.get("subtotal"), q.get("discount_amount"),
                 q.get("gst_amount"), q.get("total_amount"), q.get("remarks"), today.plusDays(7), q.get("salesperson"),
                 q.get("source"), CurrentUser.require().username(), BusinessClock.nowUtcText());
-        for (var l : loadLines(id)) {
+        for (var l : duplicateLines) {
             jdbc.update("INSERT INTO quotation_line(quotation_id,item_code,quantity,rate,gst_percent,discount_percent,line_total,item_description_snapshot) VALUES(?,?,?,?,?,?,?,?)",
                     nid, l.code(), l.quantity(), l.rate(), l.gst(), l.discount(), l.total(), l.description());
         }

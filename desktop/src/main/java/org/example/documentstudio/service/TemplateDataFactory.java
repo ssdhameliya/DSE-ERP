@@ -174,7 +174,7 @@ public final class TemplateDataFactory {
             gst += taxAmount;
             String code = safe(line.code());
             Item master = itemByCode.get(normalize(code));
-            items.add(itemWithMaster(serial++, code, safe(line.name()), "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
+            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
         }
         put(v, "totals.subtotal", money(subtotal));
         put(v, "totals.discountAmount", "0.00");
@@ -225,7 +225,7 @@ public final class TemplateDataFactory {
             gst += taxAmount;
             String code = safe(line.code());
             Item master = itemByCode.get(normalize(code));
-            items.add(itemWithMaster(serial++, code, safe(line.name()), "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
+            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
         }
         put(v, "totals.subtotal", money(subtotal));
         put(v, "totals.discountAmount", "0.00");
@@ -534,8 +534,9 @@ public final class TemplateDataFactory {
             String code = safe(line.getItemCode());
             Item master = itemByCode.get(normalize(code));
             items.add(itemWithMaster(serial++, code, cleanDescription(line.getItemDescription(), code),
-                    master == null ? "" : safe(master.getRemarks()), line.getQuantity(),
-                    master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS"),
+                    firstNonBlank(line.getItemRemarks(), master == null ? "" : safe(master.getRemarks())),
+                    line.getItemHsn(), line.getQuantity(),
+                    firstNonBlank(line.getItemUnit(), master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS")),
                     line.getRate(), line.getDiscountPercent(), line.getGstPercent(), master));
         }
         return items;
@@ -550,8 +551,9 @@ public final class TemplateDataFactory {
             String code = safe(line.getItemCode());
             Item master = itemByCode.get(normalize(code));
             items.add(itemWithMaster(serial++, code, cleanDescription(line.getItemDescription(), code),
-                    master == null ? "" : safe(master.getRemarks()), line.getQuantity(),
-                    master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS"),
+                    firstNonBlank(line.getItemRemarks(), master == null ? "" : safe(master.getRemarks())),
+                    line.getItemHsn(), line.getQuantity(),
+                    firstNonBlank(line.getItemUnit(), master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS")),
                     line.getRate(), line.getDiscountPercent(), line.getGstPercent(), master));
         }
         return items;
@@ -565,7 +567,7 @@ public final class TemplateDataFactory {
             if (line == null) continue;
             String code = safe(line.code());
             Item master = itemByCode.get(normalize(code));
-            items.add(itemWithMaster(serial++, code, safe(line.description()), master == null ? "" : safe(master.getRemarks()),
+            items.add(itemWithMaster(serial++, code, safe(line.description()), master == null ? "" : safe(master.getRemarks()), "",
                     line.quantity(), master == null ? "NOS" : firstNonBlank(master.getUnit(), "NOS"),
                     line.rate(), line.discount(), line.gst(), master));
         }
@@ -582,10 +584,10 @@ public final class TemplateDataFactory {
         return itemByCode;
     }
 
-    private static TaxInvoiceItem itemWithMaster(int serial, String code, String description, String remarks,
+    private static TaxInvoiceItem itemWithMaster(int serial, String code, String description, String remarks, String snapshotHsn,
                                                   double quantity, String unit, double rate, double discount, double gst,
                                                   Item master) {
-        String hsn = master == null ? "" : safe(master.getHsn());
+        String hsn = firstNonBlank(snapshotHsn, master == null ? "" : safe(master.getHsn()));
         return new TaxInvoiceItem(serial, hsn, description, remarks, quantity, unit, rate, discount, gst,
                 code,
                 master == null ? "" : safe(master.getCategory()),

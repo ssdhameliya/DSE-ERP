@@ -189,6 +189,7 @@ public class DashboardController {
     @FXML private Button btnEmailCenter;
     @FXML private Button btnWhatsappCenter;
     @FXML private Button btnShortcutInfo;
+    @FXML private Button btnSidebarToggle;
 
     @FXML
     private MenuButton menuUser;
@@ -208,6 +209,7 @@ public class DashboardController {
 
         navigationManager = new NavigationManager(contentPane);
         initializeSidebarAccordion();
+        applySidebarVisibility(loadSidebarVisiblePreference(), false);
 
         if (navigationManager.loadPage("/fxml/pages/DashboardHome.fxml")) {
             lblPageTitle.setText("Dashboard");
@@ -366,6 +368,7 @@ public class DashboardController {
         if (btnEmailCenter != null) btnEmailCenter.setGraphic(IconFactory.icon("email"));
         if (btnWhatsappCenter != null) btnWhatsappCenter.setGraphic(IconFactory.icon("whatsapp"));
         if (btnShortcutInfo != null) btnShortcutInfo.setGraphic(IconFactory.icon("info"));
+        refreshSidebarTogglePresentation();
         if (btnDocumentStudio != null) {
             btnDocumentStudio.setGraphic(IconFactory.icon("document", 18));
             btnDocumentStudio.getProperties().put("erp.icon.semantic", "document");
@@ -459,6 +462,7 @@ public class DashboardController {
     private void runShortcutAction(Action action) {
         switch (action) {
             case GLOBAL_SEARCH -> { txtSearch.requestFocus(); txtSearch.selectAll(); }
+            case TOGGLE_SIDEBAR -> toggleSidebar();
             case SAVE_CURRENT, EDIT_CURRENT, REFRESH_CURRENT, NEW_CURRENT, OPEN_SELECTED, DELETE_SELECTED, PRINT_CURRENT, EXPORT_CURRENT, CLOSE_BACK,
                  MASTER_DELETE, MASTER_EDIT, MASTER_REFRESH, MASTER_NEW -> ApplicationCommandDispatcher.execute(action);
             case NEW_SALE -> createSale();
@@ -569,6 +573,48 @@ public class DashboardController {
         btnTheme.setSelected(dark);
         btnTheme.setText(dark ? "Dark" : "Light");
         btnTheme.setGraphic(IconFactory.icon(dark ? "moon" : "sun"));
+    }
+
+
+    @FXML
+    private void toggleSidebar() {
+        boolean visible = sidebarRoot == null || !sidebarRoot.isManaged();
+        applySidebarVisibility(visible, true);
+    }
+
+    private void applySidebarVisibility(boolean visible, boolean persist) {
+        if (sidebarRoot == null) return;
+        sidebarRoot.setManaged(visible);
+        sidebarRoot.setVisible(visible);
+        if (persist) ConfigManager.set(sidebarPreferenceKey(), Boolean.toString(visible));
+        refreshSidebarTogglePresentation();
+        if (contentPane != null) {
+            contentPane.requestLayout();
+            if (contentPane.getParent() != null) contentPane.getParent().requestLayout();
+        }
+    }
+
+    private boolean loadSidebarVisiblePreference() {
+        return Boolean.parseBoolean(ConfigManager.get(sidebarPreferenceKey(), "true"));
+    }
+
+    private String sidebarPreferenceKey() {
+        String username = SessionService.current() == null ? "" : SessionService.current().getUsername();
+        if (username == null || username.isBlank()) return "ui.sidebar.visible";
+        String safe = username.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]", "_");
+        return "ui.user." + safe + ".sidebar.visible";
+    }
+
+    private void refreshSidebarTogglePresentation() {
+        if (btnSidebarToggle == null) return;
+        boolean visible = sidebarRoot == null || sidebarRoot.isManaged();
+        btnSidebarToggle.setGraphic(IconFactory.icon("menu"));
+        btnSidebarToggle.setAccessibleText(visible ? "Hide navigation" : "Show navigation");
+        if (btnSidebarToggle.getTooltip() != null) {
+            String shortcut = ShortcutRegistry.display(Action.TOGGLE_SIDEBAR);
+            String suffix = "Disabled".equals(shortcut) ? "" : " (" + shortcut + ")";
+            btnSidebarToggle.getTooltip().setText((visible ? "Hide navigation" : "Show navigation") + suffix);
+        }
     }
 
     private void selectMenu(Button button) {
