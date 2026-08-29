@@ -22,6 +22,7 @@ import org.example.util.WindowUtilsFx;
 import org.example.util.PerformanceMonitor;
 import org.example.util.PerformanceBudgets;
 import org.example.util.FxResponsivenessMonitor;
+import org.example.util.DesktopLog;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,6 +38,8 @@ public final class Main {
         stage.initStyle(StageStyle.DECORATED);
         stage.setResizable(true);
         WorkspaceManager.initialize();
+        DesktopLog.initialize();
+        DesktopLog.info("Main", "START", "DSE ERP desktop start requested");
         SceneManager.initialize(stage);
         WindowUtilsFx.apply(stage, 1200, 800);
 
@@ -74,7 +77,7 @@ public final class Main {
                 SceneManager.updateSplashStage(2, "PostgreSQL is ready.");
             }
         } catch (Exception exception) {
-            exception.printStackTrace();
+            DesktopLog.error("Main", "POSTGRES_START_FAILED", "Managed PostgreSQL startup failed", exception);
             Platform.runLater(() -> {
                 Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
                         BrandingService.applicationName() + " could not prepare its local PostgreSQL database.\n\n" + exception.getMessage());
@@ -87,7 +90,7 @@ public final class Main {
                 ? BackupManager.RestoreResult.none()
                 : BackupManager.applyPendingRestoreIfPresent();
         if (restoreResult.attempted() && !restoreResult.applied()) {
-            if (restoreResult.failure() != null) restoreResult.failure().printStackTrace();
+            if (restoreResult.failure() != null) DesktopLog.error("Main", "RESTORE_FAILED", restoreResult.message(), restoreResult.failure());
         }
         try {
             SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
@@ -103,7 +106,7 @@ public final class Main {
             SceneManager.updateSplashStage(5, "Finalizing " + BrandingService.applicationName() + "...");
             SceneManager.markSplashReady("Services ready. Opening " + BrandingService.applicationName() + "...");
         } catch (Exception exception) {
-            exception.printStackTrace();
+            DesktopLog.error("Main", "SERVER_START_FAILED", "Spring services could not start", exception);
             Platform.runLater(() -> {
                 Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
                         BrandingService.applicationName() + " services could not start automatically.\n\n" + exception.getMessage()
@@ -157,7 +160,7 @@ public final class Main {
                     if (SessionService.current() == null) SceneManager.showLogin();
                 });
             } catch (Exception exception) {
-                exception.printStackTrace();
+                DesktopLog.error("Main", "FIRST_RUN_START_FAILED", "Services could not start after setup", exception);
                 Platform.runLater(() -> {
                     Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
                             BrandingService.applicationName() + " services could not start after setup.\n\n" + exception.getMessage()
@@ -222,7 +225,7 @@ public final class Main {
             try {
                 application.start(stage);
             } catch (Throwable failure) {
-                failure.printStackTrace();
+                DesktopLog.error("Main", "UNCAUGHT_START_FAILURE", "Desktop startup failed", failure);
                 application.stop();
                 Platform.exit();
             }

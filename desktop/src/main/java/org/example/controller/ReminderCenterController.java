@@ -70,7 +70,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         configureVisualIcons();
         configureDetailActionMenu();
         org.example.util.OperationalUiSupport.installEscapeClose(reminderWorkspace,()->reminderDetailPanel!=null&&reminderDetailPanel.isVisible(),this::closeDetails);
-        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
+        org.example.util.OperationalUiSupport.focusWorkArea(table);
         refresh();
     }
 
@@ -748,7 +748,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         }
     }
 
-    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(txtSearch);if(reusedFromCache)refresh();}
+    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);if(reusedFromCache)refresh();}
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("reminder-");}
 
     private static Exception asException(Throwable failure) {

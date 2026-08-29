@@ -5,6 +5,7 @@
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.QuotationEditorController"
             styleClass="approved-ui,approved-screen,quotation-editor-page,erp-screen-root">
+  <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
   <top>
     <HBox alignment="CENTER_LEFT" spacing="12" styleClass="page-heading,erp-page-identity-header,quotation-entry-reference-header">
       <StackPane fx:id="quotationTitleIcon" styleClass="quotation-editor-title-icon"/>
@@ -19,7 +20,7 @@
   <center>
     <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="AS_NEEDED" vbarPolicy="AS_NEEDED" styleClass="quotation-editor-scroll">
       <content>
-        <HBox spacing="14" styleClass="quotation-editor-content,quotation-editor-single-page">
+        <HBox spacing="14" styleClass="quotation-editor-content,quotation-editor-single-page,quotation-editor-root-padded-content">
           <VBox spacing="12" HBox.hgrow="ALWAYS">
             <VBox spacing="10" styleClass="quotation-editor-card,quotation-details-card">
               <HBox alignment="CENTER_LEFT">

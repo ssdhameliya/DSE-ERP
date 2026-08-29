@@ -28,7 +28,7 @@ runner=text('server/src/main/java/org/example/server/runtime/SecurityFinancialMi
 mig=text('server/src/main/resources/db/migration/V9_0_28__financial_authority_integrity.sql')
 version=text('desktop/src/main/resources/app-version.properties')
 
-req('v9.0.32 runtime identity', 'version=9.0.32' in version)
+req('v9.0.34 runtime identity', 'version=9.0.34' in version)
 req('only APPROVED Returns are financially active', "status,''))='APPROVED'" in kpi and "NOT IN ('CANCELLED','DELETED')" not in kpi)
 req('effective Return payment status is centralized', 'effectivePaymentStatus' in kpi and 'RETURN APPROVAL PENDING' in kpi and 'RETURN PARTIAL' in kpi and 'RETURN PAID' in kpi)
 req('effective Return outstanding amount is centralized', 'effectiveOutstanding' in kpi and 'approvedReturnTotal' in kpi and 'settledReturnTotal' in kpi)
@@ -42,7 +42,7 @@ req('Sales/Purchase new or changed lines reject inactive items', 'validateActive
 req('Quotation enforces active customer/item on create/convert/duplicate', quote.count('requireCustomerReference') >= 4 and quote.count('requireActiveQuotationItems') >= 4)
 req('Party delete explicitly blocks referenced accounting parties', 'partyDeleteUsages' in master and 'cannot be deleted because it is used by' in master and 'mark it Inactive' in master)
 req('Rejected Sale/Purchase no longer populate approval audit fields', ops.count('setApprovedBy(null)') >= 2 and ops.count('setApprovedAt(null)') >= 2 and 'rejected_by' in ops and 'rejected_at' in ops)
-req('9.0.32 rejection audit migration is registered', 'V9_0_28__financial_authority_integrity' in runner and 'rejected_by' in mig and 'rejected_at' in mig)
+req('9.0.34 rejection audit migration is registered', 'V9_0_28__financial_authority_integrity' in runner and 'rejected_by' in mig and 'rejected_at' in mig)
 req('Purchase desktop retains item snapshots', all(x in pline for x in ['itemHsn','itemUnit','itemRemarks']) and all(x in api for x in ['x.getItemHsn()','x.getItemUnit()','x.getItemRemarks()']))
 req('Document Studio renders Sales/Purchase snapshots before current master', 'firstNonBlank(line.getItemRemarks()' in tpl and tpl.count('line.getItemHsn()') >= 2 and tpl.count('line.getItemUnit()') >= 2)
 req('Fallback PDF renderer uses snapshot HSN/unit', 'snapshotHsn' in pdf and 'snapshotUnit' in pdf and 'l.getItemHsn()' in pdf and 'l.getItemUnit()' in pdf)
@@ -51,5 +51,5 @@ req('Return details prefer source transaction snapshots', 'sl.item_description_s
 if fail:
     print(f'FAILED: {len(fail)} assertion(s)')
     sys.exit(1)
-print('PASS: v9.0.32 financial authority and integrity audit complete')
+print('PASS: v9.0.34 financial authority and integrity audit complete')
 sys.exit(0)

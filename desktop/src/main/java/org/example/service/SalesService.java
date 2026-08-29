@@ -54,7 +54,7 @@ public class SalesService {
         }
     }
     private String documentStatus(Sales x){String stored=Objects.toString(x.getDocumentStatus(),"").trim().toUpperCase(Locale.ROOT);return stored.isBlank()?"PENDING APPROVAL":stored;}
-    private boolean active(Sales x){String d=Objects.toString(x.getDocumentStatus(),"").toUpperCase(Locale.ROOT);return !"CANCELLED".equals(d)&&!"DELETED".equals(d);}
+    private boolean active(Sales x){String d=Objects.toString(x.getDocumentStatus(),"").toUpperCase(Locale.ROOT);return !Set.of("CANCELLED","DELETED","DRAFT","REJECTED","PENDING APPROVAL").contains(d);}
     private static String low(String v){return v==null?"":v.trim().toLowerCase(Locale.ROOT);}
     private static double sum(List<Sales> rows,java.util.function.ToDoubleFunction<Sales> f){return rows.stream().mapToDouble(f).sum();}
 }

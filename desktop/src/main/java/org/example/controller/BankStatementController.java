@@ -57,7 +57,8 @@ public class BankStatementController implements ScreenLifecycle {
     @FXML private Label kpiTotal,kpiUnmatched,kpiSuggested,kpiMatched,kpiExpense,kpiCredits,kpiDebits,kpiReconciled,lblShowing,lblProgressText,lblBatchStatus,lblPage;
     @FXML private Label lblSelected,lblHistoryShowing,lblHistoryPage;
     @FXML private VBox statementHistoryDrawer;
-    @FXML private SplitPane statementWorkspace;
+    private OwnedDialog<Void> statementHistoryDialog;
+    @FXML private StackPane statementWorkspace;
     @FXML private ProgressBar reconciliationProgress;
 
     private final BankStatementApiClient api = new BankStatementApiClient();
@@ -93,8 +94,7 @@ public class BankStatementController implements ScreenLifecycle {
         configureBatchSelector();
         configureHistoryTable();
         if(tableHistory!=null)tableHistory.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        if(statementWorkspace!=null){statementWorkspace.widthProperty().addListener((o,a,b)->{if(isStatementHistoryOpen())applyStatementHistoryWidth();});}
-        if(statementWorkspace!=null&&statementHistoryDrawer!=null)statementWorkspace.getItems().remove(statementHistoryDrawer);
+        if(statementHistoryDrawer!=null){statementHistoryDrawer.setManaged(false);statementHistoryDrawer.setVisible(false);}
         cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbPageSize.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
@@ -104,7 +104,7 @@ public class BankStatementController implements ScreenLifecycle {
 
     @Override public void onScreenShown(boolean reusedFromCache) {
         configureBankAccountMaster();
-        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
+        org.example.util.OperationalUiSupport.focusWorkArea(table);
         LinkedRecordContext.Target target=LinkedRecordContext.consume("BANK_STATEMENT");
         if(target==null || target.recordId()==null) return;
         prepareForLinkedTransactionNavigation();
@@ -287,27 +287,42 @@ public class BankStatementController implements ScreenLifecycle {
         IconFactory.applyTableHeaderIcon(colHistoryImported,"calendar");IconFactory.applyTableHeaderIcon(colHistoryBank,"bank");IconFactory.applyTableHeaderIcon(colHistoryPeriod,"calendar");IconFactory.applyTableHeaderIcon(colHistoryStatus,"status");IconFactory.applyTableHeaderIcon(colHistoryRows,"quantity");
     }
     private TableCell<BankStatementApiClient.BatchDto,String> historyTextCell(){return new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);String text=empty?null:safe(value);setText(text);setTooltip(text==null||text.isBlank()?null:new Tooltip(text));}};}
-    private boolean isStatementHistoryOpen(){return statementWorkspace!=null&&statementHistoryDrawer!=null&&statementWorkspace.getItems().contains(statementHistoryDrawer);}
-    @FXML private void toggleStatementHistory(){if(statementHistoryDrawer==null||statementWorkspace==null)return;if(isStatementHistoryOpen()){closeStatementHistory();return;}statementWorkspace.getItems().add(statementHistoryDrawer);statementHistoryDrawer.setManaged(true);statementHistoryDrawer.setVisible(true);applyStatementHistoryWidth();historyPage=0;loadStatementHistory();}
-    private void applyStatementHistoryWidth(){
-        if(statementWorkspace==null||!isStatementHistoryOpen())return;
-        double width=statementWorkspace.getWidth();
-        if(width<=0){javafx.application.Platform.runLater(this::applyStatementHistoryWidth);return;}
-        // Bank Statement history is intentionally a large working drawer, not a compact details pane.
-        // Keep one sizing authority here so FXML/CSS cannot fight the divider listener.
-        double historyShare=width>=1800?.52:width>=1450?.56:.60;
-        double divider=1.0-historyShare;
-        statementWorkspace.setDividerPositions(divider);
-        javafx.application.Platform.runLater(()->{
-            if(isStatementHistoryOpen())statementWorkspace.setDividerPositions(divider);
-        });
+    private boolean isStatementHistoryOpen(){return statementHistoryDialog!=null&&statementHistoryDialog.isShowing();}
+    @FXML private void toggleStatementHistory(){
+        if(statementHistoryDrawer==null||statementWorkspace==null)return;
+        if(isStatementHistoryOpen()){closeStatementHistory();return;}
+        if(statementHistoryDrawer.getParent()!=null) statementWorkspace.getChildren().remove(statementHistoryDrawer);
+        statementHistoryDrawer.setManaged(true);
+        statementHistoryDrawer.setVisible(true);
+        statementHistoryDrawer.setMinWidth(0);
+        statementHistoryDrawer.setPrefWidth(1040);
+        statementHistoryDrawer.setMaxWidth(Double.MAX_VALUE);
+        statementHistoryDialog=new OwnedDialog<>(statementWorkspace);
+        statementHistoryDialog.setTitle("Bank Statement History");
+        statementHistoryDialog.setHeaderText(null);
+        statementHistoryDialog.getDialogPane().getStyleClass().addAll("bank-workspace-dialog","bank-statement-history-dialog");
+        statementHistoryDialog.getDialogPane().setContent(statementHistoryDrawer);
+        statementHistoryDialog.getDialogPane().setPrefSize(1080,720);
+        statementHistoryDialog.getDialogPane().setMinSize(900,580);
+        statementHistoryDialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        statementHistoryDialog.setOnCloseRequest(e->restoreStatementHistoryDrawer());
+        statementHistoryDialog.setResultConverter(button->null);
+        historyPage=0;
+        loadStatementHistory();
+        statementHistoryDialog.show();
     }
-    @FXML private void closeStatementHistory(){if(statementWorkspace!=null&&statementHistoryDrawer!=null)statementWorkspace.getItems().remove(statementHistoryDrawer);}
+    private void restoreStatementHistoryDrawer(){
+        if(statementHistoryDrawer==null||statementWorkspace==null)return;
+        if(statementHistoryDrawer.getParent()==null)statementWorkspace.getChildren().add(statementHistoryDrawer);
+        statementHistoryDrawer.setVisible(false);
+        statementHistoryDrawer.setManaged(false);
+        if(statementHistoryDialog!=null&&!statementHistoryDialog.isShowing())statementHistoryDialog=null;
+    }
+    @FXML private void closeStatementHistory(){if(statementHistoryDialog!=null){statementHistoryDialog.close();}else restoreStatementHistoryDrawer();}
     private void prepareForLinkedTransactionNavigation(){
         closeStatementHistory();
         if(tableHistory!=null)tableHistory.getSelectionModel().clearSelection();
         historyPage=0;
-        if(statementWorkspace!=null&&statementWorkspace.getItems().size()==1)statementWorkspace.setDividerPositions(1.0);
     }
     @FXML private void searchStatementHistory(){historyPage=0;loadStatementHistory();}
     @FXML private void resetStatementHistory(){txtHistorySearch.clear();if(cmbHistoryAccount!=null){cmbHistoryAccount.setValue(null);cmbHistoryAccount.getEditor().clear();}cmbHistoryStatus.setValue("All Status");historyFrom.setValue(null);historyTo.setValue(null);historyPage=0;loadStatementHistory();}

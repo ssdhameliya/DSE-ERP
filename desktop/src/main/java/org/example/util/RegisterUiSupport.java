@@ -10,11 +10,41 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.TextField;
+import javafx.scene.control.DatePicker;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+
+import java.time.LocalDate;
 
 /** Shared, behavior-only helpers for register rows and detail drawers. */
 public final class RegisterUiSupport {
     private RegisterUiSupport() { }
+
+
+    /** Standardizes the register-header search treatment used across operational lists. */
+    public static void configureHeaderSearch(TextField search, StackPane iconHost, String prompt) {
+        if (search != null) {
+            if (prompt != null && !prompt.isBlank()) search.setPromptText(prompt);
+            if (!search.getStyleClass().contains("erp-item-search")) search.getStyleClass().add("erp-item-search");
+            if (!search.getStyleClass().contains("register-header-search-input")) search.getStyleClass().add("register-header-search-input");
+        }
+        if (iconHost != null) {
+            iconHost.getChildren().setAll(IconFactory.compactIcon("search", 16));
+            if (!iconHost.getStyleClass().contains("register-header-search-icon")) iconHost.getStyleClass().add("register-header-search-icon");
+        }
+    }
+
+    /** Applies a deterministic date interval without duplicating date math in controllers. */
+    public static void setDateRange(DatePicker from, DatePicker to, LocalDate start, LocalDate end) {
+        if (from != null) from.setValue(start);
+        if (to != null) to.setValue(end);
+    }
+
+    public static void setCurrentYearRange(DatePicker from, DatePicker to, LocalDate today) {
+        LocalDate effective = today == null ? LocalDate.now() : today;
+        setDateRange(from, to, effective.withDayOfYear(1), effective);
+    }
 
     /** Returns true when the click originated from a control embedded in a table row. */
     public static boolean isInteractiveTableTarget(Node target, TableRow<?> row) {

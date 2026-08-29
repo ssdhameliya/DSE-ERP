@@ -37,6 +37,7 @@
                             </VBox>
                             <FlowPane hgap="10" vgap="10">
                                 <Button text="Open Workspace" onAction="#openWorkspaceFolder" styleClass="settings-action-button,settings-secondary-button"/>
+                                <Button text="Export Diagnostic Package" onAction="#exportDiagnostics" styleClass="settings-action-button,settings-secondary-button"/>
                                 <Button text="Move Workspace" onAction="#moveWorkspace" styleClass="settings-action-button,settings-primary-button"/>
                             </FlowPane>
                         </VBox>

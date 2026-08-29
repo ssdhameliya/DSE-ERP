@@ -61,7 +61,7 @@ import java.util.function.Predicate;
 public class SalesListController implements ScreenLifecycle {
     @FXML private Label lblTotalSales,lblInvoiceCount,lblTodaySales,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblDueSoon,lblDueSoonCount,lblEmailRate;
     @FXML private StackPane salesTitleIcon,salesHeaderSearchIcon,totalSalesIcon,todaySalesIcon,pendingSalesIcon,overdueSalesIcon,dueSoonIcon,emailRateIcon;
-    @FXML private Button btnNewSale,btnResetFilters,btnRefreshSales,btnExportExcel,btnExportPdf,btnPrintRegister;
+    @FXML private Button btnNewSale,btnSaveView,btnResetFilters,btnRefreshSales,btnExportExcel,btnExportPdf,btnPrintRegister;
     @FXML private Button btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnCloseDetails,btnApproveSale,btnRejectSale;
     @FXML private TextField txtSearch,txtInvoice,txtAmountFrom,txtAmountTo;
     @FXML private ComboBox<String> cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus;
@@ -95,8 +95,9 @@ public class SalesListController implements ScreenLifecycle {
     private boolean linkedRecordReloadInProgress;
 
     @FXML public void initialize(){
-        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();
+        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();loadSavedViews();org.example.util.RegisterColumnPreferences.install(tableSales,"SALES_REGISTER");
         configureExplicitTableHeaderIcons();
+        RegisterUiSupport.configureHeaderSearch(txtSearch,salesHeaderSearchIcon,"Search invoice, customer, mobile or GSTIN...");
         simplifyFilters();
         RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);
         org.example.util.OperationalUiSupport.installEscapeClose(mainSplit, () -> detailDrawer != null && detailDrawer.isVisible(), this::closeDetails);
@@ -148,7 +149,9 @@ public class SalesListController implements ScreenLifecycle {
         setIcon(dueSoonIcon,"calendar",24);
         setIcon(emailRateIcon,"email",24);
         setButtonIcon(btnNewSale,"sale");
-        setButtonIcon(btnResetFilters,"refresh");
+        setButtonIcon(btnSaveView,"save");
+        setButtonIcon(savedViewsMenu,"view");
+        setButtonIcon(btnResetFilters,"reset");
         setButtonIcon(btnRefreshSales,"refresh");
         setButtonIcon(btnExportExcel,"excel");
         setButtonIcon(btnExportPdf,"pdf");
@@ -221,7 +224,7 @@ public class SalesListController implements ScreenLifecycle {
     }
 
     private void simplifyFilters(){
-        hide(btnAdvanced);hide(savedViewsMenu);hide(btnCustomRange);
+        hide(btnAdvanced);hide(btnCustomRange);
         if(advancedFilters!=null){advancedFilters.setVisible(false);advancedFilters.setManaged(false);}
     }
     private void place(Node control,int column){Node box=control.getParent();javafx.scene.layout.GridPane.setRowIndex(box,0);javafx.scene.layout.GridPane.setColumnIndex(box,column);}
@@ -296,7 +299,7 @@ public class SalesListController implements ScreenLifecycle {
         cmbMailStatus.getItems().setAll("All","Sent","Not Sent");cmbMailStatus.setValue("All");
         cmbWhatsappStatus.getItems().setAll("All","Sent","Not Sent");cmbWhatsappStatus.setValue("All");
         cmbInvoiceType.getItems().setAll("All","TAX INVOICE","PROFORMA","CASH MEMO");cmbInvoiceType.setValue("All");
-        cmbDocumentStatus.getItems().setAll("All","PENDING APPROVAL","APPROVED","REJECTED","CANCELLED");cmbDocumentStatus.setValue("All");
+        cmbDocumentStatus.getItems().setAll("All","DRAFT","PENDING APPROVAL","APPROVED","REJECTED","CANCELLED");cmbDocumentStatus.setValue("All");
         org.example.util.PartySearchUi.install(cmbCustomer,"CUSTOMER","All customers","sales-register-customer-search");
         dpFrom.setValue(BusinessClock.today().minusMonths(6));
         dpTo.setValue(BusinessClock.today());
@@ -325,6 +328,7 @@ public class SalesListController implements ScreenLifecycle {
                 menu.setGraphic(IconFactory.compactIcon("actions", 15));
                 add("Sale Invoice", "pdf", e -> openSaleInvoicePdf(row()));
                 add("View Sale", "view", e -> viewSale(row()));
+                add("Activity Timeline", "history", e -> org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",row().getId(),row().getInvoiceNo()));
                 edit = add("Edit Sale", "edit", e -> edit(row()));
                 add("Duplicate Sale", "copy", e -> duplicate(row()));
                 add("Print / Download PDF", "print", e -> openPdf(row()));
@@ -445,7 +449,7 @@ public class SalesListController implements ScreenLifecycle {
 
     @Override public void onScreenShown(boolean reusedFromCache){
         refreshShortcutLabels();
-        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
+        org.example.util.OperationalUiSupport.focusWorkArea(tableSales);
         if (ImportViewContext.consume("Sales")) {
             dpFrom.setValue(BusinessClock.today().minusYears(20));
             dpTo.setValue(BusinessClock.today());
@@ -546,7 +550,8 @@ public class SalesListController implements ScreenLifecycle {
     private Object nonAll(ComboBox<String>b){return b.getValue()==null||b.getValue().equals("All")?null:b.getValue();}private void addChip(String name,Object value){if(value==null)return;Label chip=new Label(name+": "+value);chip.getStyleClass().add("filter-chip");activeFilterChips.getChildren().add(chip);}
 
     @FXML private void saveCurrentView(){TextInputDialog d=new OwnedTextInputDialog();d.setTitle("Save Filter View");d.setHeaderText("Save the current sales filters");d.setContentText("View name:");d.showAndWait().map(String::trim).filter(x->!x.isBlank()).ifPresent(name->{String data=String.join("|",safe(txtInvoice.getText()),safe(cmbCustomer.getValue()),str(dpFrom.getValue()),str(dpTo.getValue()),safe(cmbPaymentStatus.getValue()),"All",safe(cmbMailStatus.getValue()),safe(cmbWhatsappStatus.getValue()),safe(cmbInvoiceType.getValue()),safe(txtAmountFrom.getText()),safe(txtAmountTo.getText()),safe(cmbDocumentStatus.getValue()));try{Integer uid=SessionService.current()==null?null:SessionService.current().getId();support.saveView(uid,"SALES_REGISTER",name,data);loadSavedViews();info("Saved view created.");}catch(Exception e){error(e);}});}
-    private void loadSavedViews(){savedViewsMenu.getItems().clear();try{Integer uid=SessionService.current()==null?null:SessionService.current().getId();for(SupportApiClient.SavedView v:support.savedViews("SALES_REGISTER",uid)){MenuItem i=new MenuItem(v.name());i.setOnAction(e->applySaved(v.data()));savedViewsMenu.getItems().add(i);}}catch(Exception ignored){}if(savedViewsMenu.getItems().isEmpty())savedViewsMenu.getItems().add(new MenuItem("No saved views"));}
+    private MenuItem savedViewPlaceholder(){MenuItem i=new MenuItem("No saved views");i.getStyleClass().add("register-saved-view-item");i.setDisable(true);return i;}
+    private void loadSavedViews(){savedViewsMenu.getItems().clear();try{Integer uid=SessionService.current()==null?null:SessionService.current().getId();for(SupportApiClient.SavedView v:support.savedViews("SALES_REGISTER",uid)){MenuItem i=new MenuItem(v.name());i.getStyleClass().add("register-saved-view-item");i.setOnAction(e->applySaved(v.data()));savedViewsMenu.getItems().add(i);}}catch(Exception ignored){}if(savedViewsMenu.getItems().isEmpty())savedViewsMenu.getItems().add(savedViewPlaceholder());}
     private void applySaved(String data){String[]x=data.split("\\|",-1);if(x.length<11)return;txtInvoice.setText(x[0]);cmbCustomer.setValue(x[1]);dpFrom.setValue(date(x[2]));dpTo.setValue(date(x[3]));String savedPayment=x[4];if("OVERDUE".equalsIgnoreCase(savedPayment))savedPayment="All";cmbPaymentStatus.setValue(savedPayment);cmbMailStatus.setValue(x[6]);cmbWhatsappStatus.setValue(x[7]);cmbInvoiceType.setValue(x[8]);txtAmountFrom.setText(x[9]);txtAmountTo.setText(x[10]);if(x.length>11&&!x[11].isBlank())cmbDocumentStatus.setValue(x[11]);else cmbDocumentStatus.setValue("All");applyFilters();}
 
     @FXML private void newSale(){NavigationManager.navigateOrReport("/fxml/pages/Sale.fxml");}

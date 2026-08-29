@@ -7943,3 +7943,22 @@
     -fx-background-radius: 8;
     -fx-padding: 7 10 7 10;
 }
+
+
+/* v9.0.34 register action buttons match the quick-range button family. */
+.register-action-button {
+    -fx-background-color: #3e2b63 !important;
+    -fx-border-color: #7253a8 !important;
+    -fx-text-fill: #f1eaff !important;
+}
+.register-action-button:hover {
+    -fx-background-color: #4d3678 !important;
+    -fx-border-color: #8d6ac8 !important;
+}
+.register-action-button:disabled {
+    -fx-opacity: 0.65;
+}
+.register-action-button:hover {
+    -fx-background-color: #4d3678;
+    -fx-border-color: #8d6ac8;
+}

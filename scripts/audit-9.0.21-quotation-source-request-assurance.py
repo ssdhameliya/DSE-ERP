@@ -17,5 +17,5 @@ req('lookupService.getValuesByCategoryCode("QUOTATION_SOURCE")' in editor,'dropd
 req('ensureQuotationSourceDefaults' not in master and 'Quotation Source resolved {}' not in master,'request-time Quotation-specific assurance must be removed')
 req('masterData.valuesByCategoryCode(QUOTATION_SOURCE_CODE)' in qsvc,'backward-compatible server endpoint must use generic Master service')
 req('SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)),0) FROM return_refund rr JOIN return_register' in cash,'v9.0.21 Dashboard refund SQL qualification fix must remain in canonical cash service')
-req('APP_VERSION = "9.0.32"' in runtime,'current runtime identity must be 9.0.32')
-print('PASS: v9.0.21 refresh/Dashboard protections retained under v9.0.32 generic Master architecture')
+req('APP_VERSION = "9.0.34"' in runtime,'current runtime identity must be 9.0.34')
+print('PASS: v9.0.21 refresh/Dashboard protections retained under v9.0.34 generic Master architecture')

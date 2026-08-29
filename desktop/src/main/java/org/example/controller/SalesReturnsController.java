@@ -185,7 +185,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     @FXML private void reset(){search.clear();customerFilter.setValue("All Customers");statusFilter.setValue("All Status");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());pageState.reset();load();}
     @FXML private void refreshWithFeedback(){explicitRefreshPending=true;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(true);btnRefreshReturns.setText("Refreshing...");}load();}
     private void finishExplicitRefresh(boolean success){if(!explicitRefreshPending)return;explicitRefreshPending=false;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(false);btnRefreshReturns.setText("Refresh");}if(success)org.example.util.ToastManager.info(table,"Refreshed","Sales Returns is up to date.");}
-    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(search);if(reusedFromCache||all.isEmpty()||ScreenRefreshPolicy.shouldRefresh("sales-returns",ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(30)))load();}
+    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);if(reusedFromCache||all.isEmpty()||ScreenRefreshPolicy.shouldRefresh("sales-returns",ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(30)))load();}
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("sales-returns-");}
 
     @FXML private void create() {

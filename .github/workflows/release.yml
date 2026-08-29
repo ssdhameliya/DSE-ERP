@@ -35,11 +35,11 @@ jobs:
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
           else
-            VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
+            VERSION="$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
             TAG="v${VERSION}"
           fi
           VERSION="${TAG#v}"
-          POM_VERSION="$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
+          POM_VERSION="$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
           if [[ "$VERSION" != "$POM_VERSION" ]]; then
             echo "Tag version $VERSION does not match pom.xml version $POM_VERSION" >&2
             exit 1
@@ -80,8 +80,10 @@ jobs:
         run: python3 scripts/audit-9.0.15-reference-item-import-contract.py
       - name: Enforce 9.0.16 quotation-source / linked-sale contract
         run: python3 scripts/audit-9.0.16-quotation-source-sale-link-contract.py
+      - name: Enforce 9.0.34 engineering hardening contract
+        run: python3 scripts/audit-9.0.34-engineering-hardening.py
       - name: Run tests
-        run: mvn -B -ntp clean verify
+        run: ./mvnw -B -ntp clean verify
 
   windows:
     needs: validate
@@ -97,7 +99,7 @@ jobs:
           cache: maven
       - name: Verify project on Windows
         shell: pwsh
-        run: mvn -B -ntp clean verify
+        run: ./mvnw -B -ntp clean verify
       - name: Ensure WiX Toolset is available
         shell: pwsh
         run: |
@@ -148,7 +150,7 @@ jobs:
         run: zsh -n ./scripts/package-macos.sh
       - name: Verify project on macOS
         shell: zsh {0}
-        run: mvn -B -ntp clean verify
+        run: ./mvnw -B -ntp clean verify
       - name: Build macOS Apple Silicon DMG
         shell: zsh {0}
         run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
@@ -184,7 +186,7 @@ jobs:
         run: zsh -n ./scripts/package-macos.sh
       - name: Verify project on macOS
         shell: zsh {0}
-        run: mvn -B -ntp clean verify
+        run: ./mvnw -B -ntp clean verify
       - name: Build macOS Intel DMG
         shell: zsh {0}
         run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'

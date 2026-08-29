@@ -68,6 +68,16 @@ public final class OperationalUiSupport {
         });
     }
 
+
+    /** Gives the page a neutral working focus instead of automatically activating Search. */
+    public static void focusWorkArea(Node preferred) {
+        if (preferred == null) return;
+        Platform.runLater(() -> {
+            if (preferred.getScene() == null || !preferred.isVisible() || preferred.isDisabled()) return;
+            preferred.requestFocus();
+        });
+    }
+
     /**
      * Makes Escape close an existing detail drawer while keyboard focus is within
      * the supplied operational screen anchor. The handler is idempotent per anchor.

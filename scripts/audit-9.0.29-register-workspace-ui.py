@@ -29,7 +29,7 @@ dash_c=text('desktop/src/main/java/org/example/controller/DashboardController.ja
 reg_ui=text('desktop/src/main/java/org/example/util/RegisterUiSupport.java')
 runtime=text('shared/src/main/java/org/example/shared/RuntimeContract.java')
 
-req('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,'9.0.32 runtime identity')
+req('APP_VERSION = "9.0.34"' in runtime and 'BUILD_REVISION = "9.0.34"' in runtime,'9.0.34 runtime identity')
 # Dashboard Global Search FXML must be byte-identical to protected 9.0.28 baseline.
 req(sha256(dash_f).hexdigest()=='afe7a8e641dd7e1d3574fd8a5d912228837b0129456bc5bc11b823550d8aec8f','Dashboard Global Search/layout FXML must remain untouched')
 for name,f,primary in [('Sales',sales_f,'fx:id="btnNewSale"'),('Purchase',pur_f,'fx:id="btnNewPurchase"'),('Quotation',quo_f,'fx:id="btnNewQuotation"')]:
@@ -65,7 +65,7 @@ req('periodFilter' not in finance_f and 'financeService.page' in finance_c and '
 req('refreshWithFeedback' in finance_c and 'ToastManager.info' in finance_c,'Bank/Expense explicit refresh feedback')
 # Sidebar reflow / adaptive bank history.
 req('RegisterUiSupport.reflowAfterShellResize(contentPane)' in dash_c and 'reflowAfterShellResize' in reg_ui,'Sidebar must force active workspace reflow')
-req('applyStatementHistoryWidth()' in bank_c and 'historyShare=width>=1800?.52:width>=1450?.56:.60' in bank_c and 'Math.min(680' not in bank_c,'Bank Statement history must use the wide adaptive right-side workspace')
-req('minWidth="640" prefWidth="900" maxWidth="Infinity"' in bank_f,'Bank Statement history drawer wide size contract')
+req('statementHistoryDialog=new OwnedDialog<>(statementWorkspace)' in bank_c and 'setOnCloseRequest(e->restoreStatementHistoryDrawer())' in bank_c and 'setDividerPositions' not in bank_c and 'width*.55' not in bank_c,'Bank Statement history must use a window popup rather than a side overlay')
+req('fx:id="statementHistoryDrawer"' in bank_f and 'bank-statement-history-popup-content' in bank_f and 'StackPane.alignment="CENTER_RIGHT"' not in bank_f,'Bank Statement history content must be popup-friendly rather than right-drawer constrained')
 req('refreshWithFeedback' in bank_c and 'onAction="#refreshWithFeedback"' in bank_f,'Bank Statement refresh feedback')
-print('PASS: DSE ERP 9.0.32 register/workspace UI scope contract')
+print('PASS: DSE ERP 9.0.34 register/workspace UI scope contract')

@@ -165,7 +165,7 @@ public class SalesController {
 
     @FXML
     private Button btnAddLine;
-    @FXML private Button btnRemoveLine, btnSaveDraft;
+    @FXML private Button btnRemoveLine;
     @FXML private Button btnManageCharges;
     @FXML private Label lblChargeManagerSummary, lblAttachmentName;
     @FXML private Button btnAttachmentAdd, btnAttachmentPreview, btnAttachmentRemove;
@@ -1571,7 +1571,6 @@ public class SalesController {
 
     private String sanitizeAttachmentFileName(String value){String name=value==null?"attachment":value.replaceAll("[^A-Za-z0-9._() -]","_").trim();return name.isBlank()?"attachment":name;}
     @FXML private void preview(){Sales sale=buildSale();if(sale!=null)new OwnedAlert(Alert.AlertType.INFORMATION,"Invoice "+sale.getInvoiceNo()+"\nCustomer: "+sale.getCustomer().getName()+"\nItems: "+sale.getLines().size()+"\nTotal: "+String.format("₹ %,.2f",sale.getTotalAmount())).showAndWait();}
-    @FXML private void saveDraft(){Sales sale=buildSale();if(sale==null)return;sale.setRemarks("DRAFT\n"+sale.getRemarks());try{salesService.save(sale);persistAttachmentAfterSave(sale);notifySalesStatus(sale.getInvoiceNo());cancel();}catch(Exception e){warn(e.getMessage());}}
 
     private void notifySalesStatus(String invoiceNo){
         Sales persisted=salesService.getByInvoice(invoiceNo);
@@ -1814,7 +1813,6 @@ public class SalesController {
 
         btnAddLine.setDisable(value);
         if (btnRemoveLine != null) btnRemoveLine.setDisable(value);
-        if (btnSaveDraft != null) btnSaveDraft.setDisable(value);
         if (btnAddCustomer != null) btnAddCustomer.setDisable(value);
 
         btnSaveSale.setDisable(value);

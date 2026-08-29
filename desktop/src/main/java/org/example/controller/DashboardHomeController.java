@@ -5,7 +5,10 @@ import org.example.util.BusinessClock;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Button;
@@ -18,11 +21,14 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.concurrent.Task;
 import javafx.application.Platform;
 import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
 
 import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
+import org.example.theme.ThemeManager;
+import org.example.util.PlatformUiSupport;
 
 import java.text.NumberFormat;
 import java.util.List;
@@ -107,7 +113,7 @@ public class DashboardHomeController implements ScreenLifecycle {
         setButtonIcon(quickSale, "sale");
         setButtonIcon(quickPurchase, "purchase");
         setButtonIcon(quickQuotation, "quotation");
-        setButtonIcon(quickPayment, "payment");
+        setButtonIcon(quickPayment, "item");
         setButtonIcon(quickCustomer, "customer");
         setButtonIcon(quickSupplier, "supplier");
         setButtonIcon(quickBank, "payment");
@@ -333,14 +339,33 @@ public class DashboardHomeController implements ScreenLifecycle {
 
     @FXML private void newSale(ActionEvent event) { open(event, "/fxml/pages/Sale.fxml"); }
     @FXML private void newPurchase(ActionEvent event) { open(event, "/fxml/pages/Purchase.fxml"); }
-    @FXML private void newQuotation(ActionEvent event) { open(event, "/fxml/pages/Quotations.fxml"); }
-    @FXML private void addPayment(ActionEvent event) { open(event, "/fxml/pages/SalesList.fxml"); }
-    @FXML private void addCustomer(ActionEvent event) { open(event, "/fxml/pages/Customer.fxml"); }
-    @FXML private void addSupplier(ActionEvent event) { open(event, "/fxml/pages/Suppliers.fxml"); }
-    @FXML private void bankEntry(ActionEvent event) { BankExpenseController.requestMode(BankExpenseController.Mode.BANK); open(event, "/fxml/pages/BankExpense.fxml"); }
-    @FXML private void expenseEntry(ActionEvent event) { BankExpenseController.requestMode(BankExpenseController.Mode.EXPENSE); open(event, "/fxml/pages/BankExpense.fxml"); }
+    @FXML private void newQuotation(ActionEvent event) { QuotationEditorContext.open(null); open(event, "/fxml/pages/QuotationEditor.fxml"); }
+    @FXML private void addPayment(ActionEvent event) { openItemCreateDialog(event); }
+    @FXML private void addCustomer(ActionEvent event) { openPartyCreateDialog(event,"CUSTOMER","Add Customer"); }
+    @FXML private void addSupplier(ActionEvent event) { openPartyCreateDialog(event,"SUPPLIER","Add Supplier"); }
+    @FXML private void bankEntry(ActionEvent event) { BankExpenseController.requestNewEntry(BankExpenseController.Mode.BANK); open(event, "/fxml/pages/BankExpense.fxml"); }
+    @FXML private void expenseEntry(ActionEvent event) { BankExpenseController.requestNewEntry(BankExpenseController.Mode.EXPENSE); open(event, "/fxml/pages/BankExpense.fxml"); }
     @FXML private void openItems(ActionEvent event) { open(event, "/fxml/pages/ItemMaster.fxml"); }
     @FXML private void openImport(ActionEvent event) { open(event, "/fxml/pages/Import.fxml"); }
+
+    private Node actionOwner(ActionEvent event){return event!=null&&event.getSource() instanceof Node node?node:dashboardRoot;}
+    private void openPartyCreateDialog(ActionEvent event,String type,String title){
+        try{
+            FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/PartyDialog.fxml"));
+            Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);
+            PartyDialogController controller=loader.getController();controller.configure(type,null);
+            Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage,actionOwner(event),title,false);
+            Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.showAndWait();reload();
+        }catch(Exception e){org.example.util.ModernDialog.error(actionOwner(event),title+" could not open","Dashboard remains available",e.getMessage()==null?e.toString():e.getMessage());}
+    }
+    private void openItemCreateDialog(ActionEvent event){
+        try{
+            FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Itemdialog.fxml"));
+            Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);
+            Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage,actionOwner(event),"Add Item Master",false);
+            Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.showAndWait();reload();
+        }catch(Exception e){org.example.util.ModernDialog.error(actionOwner(event),"Item Master could not open","Dashboard remains available",e.getMessage()==null?e.toString():e.getMessage());}
+    }
 
     private void open(ActionEvent event, String fxml) {
         NavigationManager.navigateOrReport(fxml);

@@ -14,12 +14,12 @@ lookup_service = text(Path('desktop/src/main/java/org/example/service/LookupServ
 runtime = text(Path('shared/src/main/java/org/example/shared/RuntimeContract.java'))
 props = text(Path('server/src/main/resources/application.properties'))
 
-req('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,
-    'runtime identity is 9.0.32')
-req('dse.app.version=9.0.32' in props and 'dse.build.revision=9.0.32' in props,
-    'server identity is 9.0.32')
+req('APP_VERSION = "9.0.34"' in runtime and 'BUILD_REVISION = "9.0.34"' in runtime,
+    'runtime identity is 9.0.34')
+req('dse.app.version=9.0.34' in props and 'dse.build.revision=9.0.34' in props,
+    'server identity is 9.0.34')
 req('V9_0_26__master_lookup_reference_authority' in runner,
-    '9.0.32 Master numbering migration is registered')
+    '9.0.34 Master numbering migration is registered')
 req('LookupNumberingScope scope = lookupNumberingScope(type);' in svc,
     'preview and allocation resolve one shared Master numbering scope')
 req('return "REF_LOOKUP_" + categoryCode;' in svc,
@@ -42,4 +42,4 @@ req("'REF_LOOKUP_' || UPPER(TRIM(c.category_code))" in mig and "'REF_LOOKUP_' ||
     'migration preserves old display-name custom formats under stable category-code keys')
 req('GEN01' not in svc and 'GENXXX' not in svc,
     'Master service contains no legacy GEN numbering fallback')
-print('PASS: DSE ERP 9.0.32 Master numbering authority contract')
+print('PASS: DSE ERP 9.0.34 Master numbering authority contract')

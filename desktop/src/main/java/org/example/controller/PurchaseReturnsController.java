@@ -159,7 +159,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     @FXML private void reset(){suppressAutoFilter=true;try{search.clear();supplier.setValue("All Suppliers");status.setValue("All Status");dpFrom.setValue(null);dpTo.setValue(null);}finally{suppressAutoFilter=false;}pageState.reset();load();}
     @FXML private void refreshWithFeedback(){explicitRefreshPending=true;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(true);btnRefreshReturns.setText("Refreshing...");}load();}
     private void finishExplicitRefresh(boolean success){if(!explicitRefreshPending)return;explicitRefreshPending=false;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(false);btnRefreshReturns.setText("Refresh");}if(success)org.example.util.ToastManager.info(table,"Refreshed","Purchase Returns is up to date.");}
-    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(search);load();}
+    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);load();}
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("purchase-returns-");}
 
     @FXML private void create() { info("Create a purchase return from the Purchase Register so stock and supplier balances remain linked."); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }

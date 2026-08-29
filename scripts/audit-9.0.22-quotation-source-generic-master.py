@@ -56,7 +56,7 @@ req('return get("/api/quotations/sources",new TypeReference<List<String>>(){});'
 
 # Migration is compatibility-only: canonicalize/copy once, then runtime stays generic.
 req('V9_0_22__quotation_source_generic_master' in runner,
-    'v9.0.32 generic-master compatibility migration must be registered')
+    'v9.0.34 generic-master compatibility migration must be registered')
 req("'QUOTATION_SOURCE','QUOTATION SOURCE'" in mig and 'QSRC_MIG_' in mig,
     'migration must assure canonical category and bridge historical Source values')
 req('quotationSourceUsesSameGenericCategoryCodeLookupAsTransporter' in test and
@@ -64,12 +64,12 @@ req('quotationSourceUsesSameGenericCategoryCodeLookupAsTransporter' in test and
     'regression tests must enforce the generic-only runtime contract')
 
 # Release identity.
-req('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,
-    'runtime identity must be 9.0.32')
-req('dse.app.version=9.0.32' in props and 'dse.build.revision=9.0.32' in props,
-    'server identity must be 9.0.32')
-req('<version>9.0.32</version>' in pom and '<dse.phase>9.0.32</dse.phase>' in pom,
-    'Maven identity must be 9.0.32')
-req('version=9.0.32' in app and 'DEFAULT_VERSION="9.0.32"' in update,
-    'desktop/update identity must be 9.0.32')
-print('PASS: DSE ERP 9.0.32 Quotation Source generic Master contract')
+req('APP_VERSION = "9.0.34"' in runtime and 'BUILD_REVISION = "9.0.34"' in runtime,
+    'runtime identity must be 9.0.34')
+req('dse.app.version=9.0.34' in props and 'dse.build.revision=9.0.34' in props,
+    'server identity must be 9.0.34')
+req('<version>9.0.34</version>' in pom and '<dse.phase>9.0.34</dse.phase>' in pom,
+    'Maven identity must be 9.0.34')
+req('version=9.0.34' in app and 'DEFAULT_VERSION="9.0.34"' in update,
+    'desktop/update identity must be 9.0.34')
+print('PASS: DSE ERP 9.0.34 Quotation Source generic Master contract')

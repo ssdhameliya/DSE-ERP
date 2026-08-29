@@ -41,6 +41,7 @@ import org.example.config.WorkspaceManager;
 import org.example.config.DeploymentMode;
 import org.example.api.runtime.DeploymentConnectionService;
 import org.example.service.EmailService;
+import org.example.service.DiagnosticBundleService;
 import org.example.service.BrandAssetPolicy;
 import org.example.service.BrandImagePresenter;
 import org.example.service.NotificationService;
@@ -1272,6 +1273,19 @@ public class SettingsController implements ScreenLifecycle {
             Desktop.getDesktop().open(WorkspaceManager.getWorkspaceRoot().toFile());
         } catch (Exception exception) {
             showError("The workspace folder could not be opened: " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void exportDiagnostics() {
+        try {
+            Path bundle = DiagnosticBundleService.export();
+            new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "Diagnostic package created successfully.\n\n" + bundle +
+                    "\n\nIt contains version/runtime information and recent logs only; database and business documents are not included.",
+                    ButtonType.OK).showAndWait();
+        } catch (Exception exception) {
+            showError("The diagnostic package could not be created: " + exception.getMessage());
         }
     }
 

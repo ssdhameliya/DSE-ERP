@@ -85,7 +85,7 @@ public abstract class PartyMasterController {
         configureTableInteractions();
         installDetailDrawer();
         txtSearch.textProperty().addListener((o, oldValue, newValue) -> applyLocalFilter());
-        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
+        org.example.util.OperationalUiSupport.focusWorkArea(tableParties);
         load();
     }
 

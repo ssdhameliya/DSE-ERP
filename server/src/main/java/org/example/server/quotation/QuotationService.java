@@ -73,6 +73,27 @@ public class QuotationService {
     }
     private static String trim(String v){return v==null||v.isBlank()?null:v.trim();}private static String up(String v){String x=trim(v);return x==null?null:x.toUpperCase(Locale.ROOT);}private static Double numberOrNull(String v){try{return trim(v)==null?null:Double.parseDouble(v.replace(",","").replace("₹","").trim());}catch(Exception e){return null;}}private static LocalDate dateOrNull(String v){try{return trim(v)==null?null:LocalDate.parse(v);}catch(Exception e){return null;}}private static double n(Number v){return v==null?0:v.doubleValue();}private static long l(Number v){return v==null?0:v.longValue();}
 
+    @Transactional
+    public QuotationDtos.EditorBootstrapDto editorBootstrap(Integer id) {
+        if (!(CurrentUser.hasPermission("QUOTATION.VIEW") || CurrentUser.hasPermission("QUOTATION.CREATE") || CurrentUser.hasPermission("QUOTATION.EDIT")))
+            throw new SecurityException("Quotation editor requires Quotation access");
+        QuotationDtos.QuoteDto quote = null;
+        List<QuotationDtos.LineDto> lines = List.of();
+        int selectedCustomerId = 0;
+        if (id != null) {
+            quote = quote(id);
+            selectedCustomerId = quote.customerId();
+            lines = loadLines(id);
+        }
+        int keepCustomerId = selectedCustomerId;
+        List<QuotationDtos.CustomerChoiceDto> customers = jdbc.query(
+                "SELECT id,COALESCE(party_code,''),COALESCE(name,'') FROM party_master " +
+                "WHERE UPPER(COALESCE(party_type,''))='CUSTOMER' AND (COALESCE(is_active,1)<>0 OR id=?) " +
+                "ORDER BY LOWER(COALESCE(name,'')),LOWER(COALESCE(party_code,''))",
+                (r,i)->new QuotationDtos.CustomerChoiceDto(r.getInt(1),r.getString(2),r.getString(3)), keepCustomerId);
+        return new QuotationDtos.EditorBootstrapDto(List.copyOf(customers), activeQuotationSources(), quote, List.copyOf(lines));
+    }
+
     @Transactional(readOnly = true)
     public List<QuotationDtos.LineDto> lines(int id) {
         CurrentUser.requirePermission("QUOTATION.VIEW","View quotation");

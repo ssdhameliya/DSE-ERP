@@ -7650,6 +7650,11 @@
     -fx-padding: 14;
 }
 
+/* 9.0.33: the Quotation page root now owns the same 14px page gutter as Sale/Purchase. */
+.quotation-editor-content.quotation-editor-root-padded-content {
+    -fx-padding: 0;
+}
+
 .quotation-editor-card, .quotation-summary-card, .bank-bulk-toolbar, .notification-filter-bar {
     -fx-background-radius: 12;
     -fx-border-radius: 12;
@@ -9718,7 +9723,7 @@
     -fx-border-color: rgba(167, 139, 250, 0.16);
 }
 
-/* 9.0.32 register header search mirrors the Item Master search used on create screens. */
+/* 9.0.33 register header search mirrors the Item Master search used on create screens. */
 .register-header-search-shell {
     -fx-alignment: center-left;
     -fx-background-color: transparent;
@@ -9761,3 +9766,87 @@
 .finance-filter-toolbar { -fx-padding: 2px 0 2px 0; }
 .quick-range-seven { -fx-text-fill: #d97706; -fx-font-weight: 800; }
 .quick-range-thirty { -fx-text-fill: #db2777; -fx-font-weight: 800; }
+
+
+/* Register action controls: preserve the filter-panel design and keep every label readable. */
+.register-action-button {
+    -fx-min-height: 34px;
+    -fx-pref-height: 34px;
+    -fx-padding: 7px 12px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-background-color: #3e2b63;
+    -fx-border-color: #7253a8;
+    -fx-text-fill: #f1eaff;
+    -fx-font-weight: 800;
+    -fx-graphic-text-gap: 6px;
+    -fx-content-display: LEFT;
+}
+.register-action-button:hover {
+    -fx-background-color: #4d3678;
+    -fx-border-color: #8d6ac8;
+}
+.register-view-button { -fx-min-width: 128px; -fx-pref-width: 128px; }
+.register-saved-views-menu { -fx-min-width: 180px; -fx-pref-width: 180px; }
+.register-reset-button { -fx-min-width: 92px; -fx-pref-width: 92px; }
+.register-refresh-button { -fx-min-width: 104px; -fx-pref-width: 104px; }
+.register-saved-views-menu > .label { -fx-text-overrun: clip; -fx-alignment: CENTER_LEFT; }
+.register-saved-views-menu > .arrow-button { -fx-padding: 0 7px 0 4px; }
+.register-saved-views-menu > .label { -fx-padding: 0 0 0 1px; }
+.context-menu .menu-item.register-saved-view-item {
+    -fx-min-width: 320px;
+    -fx-pref-width: 320px;
+    -fx-padding: 8px 12px;
+}
+.context-menu .menu-item.register-saved-view-item > .label {
+    -fx-text-overrun: clip;
+    -fx-wrap-text: false;
+    -fx-padding: 0 4px;
+}
+.register-column-chooser-menu {
+    -fx-min-width: 360px;
+    -fx-pref-width: 380px;
+    -fx-padding: 6px;
+}
+.register-column-chooser-menu .menu-item {
+    -fx-padding: 7px 10px;
+    -fx-min-height: 34px;
+}
+.register-column-chooser-menu .menu-item > .graphic {
+    -fx-max-width: 100%;
+}
+
+
+.bank-statement-history-dialog {
+    -fx-background-radius: 14px;
+}
+.bank-statement-history-dialog > .content {
+    -fx-padding: 0;
+}
+.bank-statement-history-popup-content {
+    -fx-padding: 14px;
+    -fx-min-width: 900px;
+    -fx-pref-width: 1040px;
+    -fx-max-width: 1180px;
+    -fx-min-height: 520px;
+    -fx-pref-height: 680px;
+}
+
+/* JavaFX TableView column chooser: keep column names visible and the chooser readable. */
+.table-view .column-header .show-hide-columns-button {
+    -fx-min-width: 34px;
+    -fx-pref-width: 34px;
+    -fx-min-height: 34px;
+    -fx-pref-height: 34px;
+    -fx-padding: 5px;
+}
+.show-hide-column-menu-item {
+    -fx-min-width: 280px;
+    -fx-pref-width: 320px;
+    -fx-padding: 8px 12px;
+}
+.show-hide-column-menu-item > .label {
+    -fx-text-overrun: clip;
+    -fx-padding: 0 6px;
+}

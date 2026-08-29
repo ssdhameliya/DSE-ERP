@@ -8,14 +8,29 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
-        if ("9.0.32".equals(version)) {
+        if ("9.0.34".equals(version)) {
             return """
-                    DSE ERP 9.0.32
+                    DSE ERP 9.0.34
 
-                    • Removes the Payment Due filter from Sales and Purchase Registers while retaining the Payment Due table column and its Settled / Due / Overdue lifecycle wording.
-                    • Restyles Sales, Purchase and Quotation register header Search to match the Item Master search field used on create screens, including the embedded right-side search icon.
-                    • Fixes Create Quotation first-open Master population by loading all active Customers and all active Quotation Sources before those controls become interactive, and gives Quotation the same fresh non-cached editor lifecycle as Sale/Purchase.
-                    • Preserves the configurable Show / Hide Sidebar, the 9.0.31 Payment Status/Payment Due display separation, Bank Statement Browse Statements root-cause sizing fix and protected Dashboard Global Search.
+                    • Adds a pinned Maven Wrapper and Java 25 CI release gate, including a real PostgreSQL integration-test lane for the Sales Return/refund lifecycle.
+                    • Adds structured desktop diagnostics and a support-safe Export Diagnostic Package action in Settings.
+                    • Adds a session-scoped Master/reference cache with mutation and sign-in/sign-out invalidation to reduce repeated Customer/Supplier/Item/Lookup loads.
+                    • Keeps Sales and Purchase transaction Save as the immediate committed workflow: normal approval/posting rules apply, with no new transaction Draft mode.
+                    • Adds a reusable read-only Activity Timeline for Sales, Purchase and Quotation records.
+                    • Adds shared register UI helpers, per-user register column visibility/width/order persistence, and Saved Views across Sales, Purchase and Quotation registers.
+                    • Retains all 9.0.33 Return, financial-authority, Bank Statement workspace, Quotation bootstrap and Dashboard Global Search protections.
+                    """;
+        }
+        if ("9.0.33".equals(version)) {
+            return """
+                    DSE ERP 9.0.33
+
+                    • Fixes Create Quotation first-open Customer/Source loading through one server bootstrap response and aligns the full page to the same 14px outer gutter used by Sale/Purchase.
+                    • Changes Bank/Expense register defaults and Reset to January 1 through today.
+                    • Rebuilds Bank Statement Browse Statements as an independent right overlay so transaction-table minimum widths can no longer squeeze History to ~300px.
+                    • Stops operational screens from automatically focusing Search when users navigate to them; their table/work area receives neutral focus instead. Dashboard Global Search is unchanged.
+                    • Dashboard Quick Actions now open the actual Create/Add workflows: Sale, Purchase, Customer, Quotation, Item Master, Supplier, Bank Entry and Expense Entry.
+                    • Retains the 9.0.32 register-search cosmetic work, Payment Due column behavior, Return lifecycle, Master numbering and financial-authority corrections.
                     """;
         }
         if ("9.0.31".equals(version)) {

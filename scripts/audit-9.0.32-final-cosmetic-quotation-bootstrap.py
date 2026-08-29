@@ -16,7 +16,7 @@ css=text('desktop/src/main/resources/css/ui-components.css')
 runtime=text('shared/src/main/java/org/example/shared/RuntimeContract.java')
 dash=(ROOT/'desktop/src/main/resources/fxml/pages/Dashboard.fxml').read_bytes()
 
-req('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,'9.0.32 runtime identity')
+req('APP_VERSION = "9.0.34"' in runtime and 'BUILD_REVISION = "9.0.34"' in runtime,'9.0.34 runtime identity')
 req(sha256(dash).hexdigest()=='afe7a8e641dd7e1d3574fd8a5d912228837b0129456bc5bc11b823550d8aec8f','Dashboard Global Search must remain untouched')
 for name,f,icon in [('Sales',sales_f,'salesHeaderSearchIcon'),('Purchase',pur_f,'purchaseHeaderSearchIcon'),('Quotation',quo_f,'quotationHeaderSearchIcon')]:
     req('erp-item-search-shell,register-header-search-shell' in f,f'{name} header search must reuse Item Master search shell')
@@ -32,9 +32,9 @@ for name,f,c in [('Sales',sales_f,sales),('Purchase',pur_f,purchase)]:
 
 req('prepareMasterControlsForBootstrap();' in editor,'Create Quotation must prepare Customer/Source controls before bootstrap')
 req('cmbCustomer.setDisable(true);' in editor and 'cmbSource.setDisable(true);' in editor,'Create Quotation must prevent first-click races while Master data loads')
-req('partyService.getByType("CUSTOMER")' in editor and '.filter(p->p.isActive()||p.getId()==selectedCustomerId)' in editor,'Create Quotation must preload all active Customers and preserve an inactive historical edit customer')
-req('lookupService.getValuesByCategoryCode("QUOTATION_SOURCE")' in editor,'Create Quotation must preload all active Quotation Sources from Master Data')
+req('api.editorBootstrap(requestedId)' in editor,'Create Quotation must load Customer/Source through one server bootstrap request')
+req('EditorBootstrapDto' in text('desktop/src/main/java/org/example/api/quotation/QuotationApiClient.java'),'Create Quotation bootstrap must return all active Master choices together')
 req('cmbCustomer.setDisable(false);cmbSource.setDisable(false);' in editor,'Create Quotation must enable Master controls only after bootstrap is applied')
 req('Loading customers...' in editor and 'Loading sources...' in editor,'Create Quotation must show deterministic loading state')
 req('"/fxml/pages/QuotationEditor.fxml"' in nav and 'NON_CACHEABLE' in nav,'Quotation editor must use the same fresh non-cached lifecycle as Sale/Purchase')
-print('PASS: DSE ERP 9.0.32 final cosmetic + Quotation first-open bootstrap contract')
+print('PASS: DSE ERP 9.0.34 final cosmetic + Quotation first-open bootstrap contract')

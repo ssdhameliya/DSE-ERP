@@ -79,19 +79,19 @@ req('PREF_PASSWORD' in login and 'PREFS.remove(PREF_PASSWORD)' in login,
     'Remembered encrypted password must be removable/reset-safe')
 
 # Bank Statement History width/readability.
-req('fx:id="statementHistoryDrawer" minWidth="640" prefWidth="900" maxWidth="Infinity"' in bank_fxml,
-    'Bank Statement History drawer must use the wide working-panel contract')
+req('<StackPane fx:id="statementWorkspace"' in bank_fxml and 'bank-statement-history-popup-content' in bank_fxml and 'StackPane.alignment="CENTER_RIGHT"' not in bank_fxml,
+    'Bank Statement History must use the owned popup workspace contract')
 req('colHistoryBank" text="Bank / Account" minWidth="150" prefWidth="180"' in bank_fxml,
     'Bank Statement History Bank/Account column must remain readable')
-req('applyStatementHistoryWidth()' in bank_controller and 'historyShare=width>=1800?.52:width>=1450?.56:.60' in bank_controller and 'Math.min(680' not in bank_controller,'Browse Statements must use the wide adaptive history share without the old snap-back clamp')
+req('statementHistoryDialog=new OwnedDialog<>(statementWorkspace)' in bank_controller and 'setOnCloseRequest(e->restoreStatementHistoryDrawer())' in bank_controller and 'setDividerPositions' not in bank_controller,'Browse Statements must use an independent owned popup')
 req('historyTextCell()' in bank_controller and 'new Tooltip(text)' in bank_controller,
     'History text columns must retain full values via tooltips')
 
 # Exact current release identity.
-req('APP_VERSION = "9.0.32"' in runtime and 'BUILD_REVISION = "9.0.32"' in runtime,'Runtime identity must be 9.0.18')
-req('dse.app.version=9.0.32' in props and 'dse.build.revision=9.0.32' in props,'Server identity must be 9.0.18')
-req('<version>9.0.32</version>' in root_pom and '<dse.phase>9.0.32</dse.phase>' in root_pom,'Maven identity must be 9.0.18')
-req('version=9.0.32' in app_version and 'DEFAULT_VERSION="9.0.32"' in update,'Desktop/updater identity must be 9.0.18')
+req('APP_VERSION = "9.0.34"' in runtime and 'BUILD_REVISION = "9.0.34"' in runtime,'Runtime identity must be 9.0.18')
+req('dse.app.version=9.0.34' in props and 'dse.build.revision=9.0.34' in props,'Server identity must be 9.0.18')
+req('<version>9.0.34</version>' in root_pom and '<dse.phase>9.0.34</dse.phase>' in root_pom,'Maven identity must be 9.0.18')
+req('version=9.0.34' in app_version and 'DEFAULT_VERSION="9.0.34"' in update,'Desktop/updater identity must be 9.0.18')
 
 # Locked production document generators must remain identical to v9.0.12 hashes.
 protected={

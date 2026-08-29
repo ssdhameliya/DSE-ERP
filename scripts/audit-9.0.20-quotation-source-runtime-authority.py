@@ -15,5 +15,5 @@ req('masterData.valuesByCategoryCode(QUOTATION_SOURCE_CODE)' in qsvc,'Quotation 
 req('@GetMapping("/sources")' in qctrl and 'public List<String> sources()' in qapi,'backward-compatible Source REST route must remain')
 req('quotationSourceLookups' not in master and 'sourceScore(' not in master and 'sourceLike(' not in master,'source-alias runtime selection must be removed')
 req('public List<String> valuesByCategoryCode(String code)' in master,'generic Master category-code resolver must remain')
-req('APP_VERSION = "9.0.32"' in runtime,'current runtime identity must be 9.0.32')
-print('PASS: v9.0.20 API compatibility retained under v9.0.32 generic Master runtime')
+req('APP_VERSION = "9.0.34"' in runtime,'current runtime identity must be 9.0.34')
+print('PASS: v9.0.20 API compatibility retained under v9.0.34 generic Master runtime')

@@ -70,6 +70,8 @@ public class PurchaseController implements ScreenLifecycle {
     @FXML private Button btnAddSupplier;
     @FXML private Button btnManageCharges;
     @FXML private Button btnSavePurchase, btnRemoveLine;
+    @FXML private Button btnSaveView, btnReset, btnRefresh;
+    @FXML private MenuButton savedViewsMenu;
     @FXML private javafx.scene.layout.StackPane purchasePageIcon;
 
 
@@ -218,6 +220,10 @@ public class PurchaseController implements ScreenLifecycle {
     @FXML
     public void initialize(){
         if(purchasePageIcon!=null)purchasePageIcon.getChildren().setAll(IconFactory.icon("purchase",24));
+        if(btnSaveView!=null)btnSaveView.setGraphic(IconFactory.compactIcon("save",15));
+        if(savedViewsMenu!=null)savedViewsMenu.setGraphic(IconFactory.compactIcon("view",15));
+        if(btnReset!=null)btnReset.setGraphic(IconFactory.compactIcon("refresh",15));
+        if(btnRefresh!=null)btnRefresh.setGraphic(IconFactory.compactIcon("refresh",15));
         if (btnAddSupplier != null) { btnAddSupplier.setGraphic(IconFactory.compactIcon("supplier", 20)); btnAddSupplier.getProperties().put("erp-icon-preserve", true); }
         if (chkSameAsBilling != null) {
             Region noActionIcon = new Region();
@@ -584,13 +590,6 @@ public class PurchaseController implements ScreenLifecycle {
 
     @FXML
     private void savePurchase(){ savePurchase("COMPLETED",false,false); }
-    @FXML private void saveDraft(){
-        if(editingPurchase!=null && !"DRAFT".equalsIgnoreCase(editingPurchase.getDocumentStatus())){
-            new OwnedAlert(Alert.AlertType.INFORMATION,"A posted purchase cannot be moved back to Draft. Use Save to update permitted details.").showAndWait();
-            return;
-        }
-        savePurchase("DRAFT",false,false);
-    }
     @FXML private void saveAndPrint(){ savePurchase("COMPLETED",true,false); }
     @FXML private void saveAndEmail(){ savePurchase("COMPLETED",false,true); }
     private void savePurchase(String documentStatus, boolean print, boolean email){

@@ -212,6 +212,6 @@ private void setupActions(){colActions.setCellFactory(c->new TableCell<>(){final
         IconFactory.applyTableHeaderIcon(colActions, "actions");
     }
 
- @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusSearch(txtSearch);if(!reusedFromCache||ScreenRefreshPolicy.shouldRefresh("inventory",ScreenRefreshPolicy.Mode.WHEN_STALE))refresh();}
+ @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(tableItems);if(!reusedFromCache||ScreenRefreshPolicy.shouldRefresh("inventory",ScreenRefreshPolicy.Mode.WHEN_STALE))refresh();}
  @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("inventory-");searchDebouncer.cancel();}
 }

@@ -79,6 +79,6 @@ public class PurchaseService {
         }
     }
     private String documentStatus(Purchase x){String stored=Objects.toString(x.getDocumentStatus(),"").trim().toUpperCase(Locale.ROOT);return stored.isBlank()?"PENDING APPROVAL":stored;}
-    private boolean active(Purchase x){String d=Objects.toString(x.getDocumentStatus(),"").toUpperCase(Locale.ROOT);return !d.contains("CANCEL")&&!d.contains("DELETE")&&!"DRAFT".equals(d);}
+    private boolean active(Purchase x){String d=Objects.toString(x.getDocumentStatus(),"").toUpperCase(Locale.ROOT);return !Set.of("CANCELLED","DELETED","DRAFT","REJECTED","PENDING APPROVAL").contains(d);}
     private static String low(String v){return v==null?"":v.trim().toLowerCase(Locale.ROOT);}
 }

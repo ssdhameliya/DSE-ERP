@@ -2,6 +2,7 @@ package org.example.server.support;
 import java.util.List;
 public final class SupportDtos { private SupportDtos(){}
  public record SavedView(String name,String data){} public record SavedViewSave(Integer userId,String screen,String name,String data){}
+ public record ActivityRow(long id,String entityType,int entityId,String action,String detail,String createdBy,String createdAt){}
  public record PaymentRow(int id,String date,String reference,String mode,double amount,String notes,String receivedFrom,String attachment,String paymentType){} public record PaymentCreated(int id){}
  public record PaymentRequest(String documentType,int documentId,String date,double amount,String mode,String reference,String notes,String receivedFrom,String paymentType,String attachment,String createdBy){} public record PaymentUpdateRequest(String date,double amount,String mode,String reference,String notes,String receivedFrom){}
  public record CommunicationRow(int id,String entityType,int entityId,String documentLabel,String channel,String recipient,String subject,String status,String errorMessage,String createdBy,String createdAt){}

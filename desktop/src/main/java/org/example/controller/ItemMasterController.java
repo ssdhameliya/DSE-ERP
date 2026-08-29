@@ -226,7 +226,7 @@ public class ItemMasterController implements ScreenLifecycle {
         installDetailDrawer();
 
         // initial load
-        org.example.util.OperationalUiSupport.focusSearch(txtSearch);
+        org.example.util.OperationalUiSupport.focusWorkArea(tableItems);
         loadItems();
     }
 

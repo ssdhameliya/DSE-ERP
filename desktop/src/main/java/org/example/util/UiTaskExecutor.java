@@ -247,6 +247,7 @@ public final class UiTaskExecutor {
 
         try {
             PerformanceMonitor.event("background-work-failed", key + " | " + safeMessage(error));
+            DesktopLog.error("UiTaskExecutor", "READ_FAILED", key + " | " + safeMessage(error), error);
             invokeFailureHandler(key, onFailure, error);
         } finally {
             cleanupReadIfCurrent(key, token);
@@ -277,6 +278,7 @@ public final class UiTaskExecutor {
             Consumer<Throwable> onFailure) {
         try {
             PerformanceMonitor.event("background-action-failed", key + " | " + safeMessage(error));
+            DesktopLog.error("UiTaskExecutor", "ACTION_FAILED", key + " | " + safeMessage(error), error);
             invokeFailureHandler(key, onFailure, error);
         } finally {
             ACTIVE_ACTIONS.remove(key);

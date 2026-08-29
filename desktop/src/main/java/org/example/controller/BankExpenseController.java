@@ -34,6 +34,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private static volatile ExpensePrefill requestedExpensePrefill;
     private static volatile BankEntryPrefill requestedBankEntryPrefill;
     private static volatile Integer requestedLinkedEntryId;
+    private static volatile boolean requestedCreateEntry;
     public record ExpensePrefill(long statementTransactionId,String date,double amount,String reference,String description,String accountName,String paymentMode){}
     public record BankEntryPrefill(long statementTransactionId,String date,double debit,double credit,String reference,String description,String accountName,String paymentMode){}
     public static void requestExpensePrefill(ExpensePrefill prefill){ requestedExpensePrefill=prefill; requestedMode=Mode.EXPENSE; }
@@ -41,6 +42,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private static ExpensePrefill consumeExpensePrefill(){ExpensePrefill p=requestedExpensePrefill;requestedExpensePrefill=null;return p;}
     private static BankEntryPrefill consumeBankEntryPrefill(){BankEntryPrefill p=requestedBankEntryPrefill;requestedBankEntryPrefill=null;return p;}
     public static void requestMode(Mode mode) { requestedMode = mode == null ? Mode.BANK : mode; }
+    public static void requestNewEntry(Mode mode){requestedMode=mode==null?Mode.BANK:mode;requestedCreateEntry=true;}
     public static void requestLinkedEntry(Mode mode,Integer entryId){requestedMode=mode==null?Mode.BANK:mode;requestedLinkedEntryId=entryId;}
 
     private static Mode consumeRequestedMode() {
@@ -106,8 +108,9 @@ public class BankExpenseController implements ScreenLifecycle {
         if(btnResetFilters!=null)btnResetFilters.setGraphic(IconFactory.compactIcon("reset",14));
         if(btnRefreshEntries!=null)btnRefreshEntries.setGraphic(IconFactory.compactIcon("refresh",14));
         LocalDate today=BusinessClock.today();
-        if(filterFrom!=null){filterFrom.setValue(today.minusMonths(3));filterFrom.valueProperty().addListener((o,a,b)->applyFilters());}
-        if(filterTo!=null){filterTo.setValue(today);filterTo.valueProperty().addListener((o,a,b)->applyFilters());}
+        org.example.util.RegisterUiSupport.setCurrentYearRange(filterFrom,filterTo,today);
+        if(filterFrom!=null)filterFrom.valueProperty().addListener((o,a,b)->applyFilters());
+        if(filterTo!=null)filterTo.valueProperty().addListener((o,a,b)->applyFilters());
         Mode initialMode = consumeRequestedMode();
         mode = initialMode == null ? Mode.BANK : initialMode;
         applyMode(mode);
@@ -196,7 +199,8 @@ public class BankExpenseController implements ScreenLifecycle {
         applyRequestedExpensePrefill();
         applyRequestedBankEntryPrefill();
         revealRequestedLinkedEntry();
-        org.example.util.OperationalUiSupport.focusSearch(searchField);
+        if(requestedCreateEntry){requestedCreateEntry=false;javafx.application.Platform.runLater(this::focusForm);}
+        org.example.util.OperationalUiSupport.focusWorkArea(table);
     }
 
     private void revealRequestedLinkedEntry(){
@@ -352,8 +356,7 @@ public class BankExpenseController implements ScreenLifecycle {
         if(searchField!=null)searchField.clear();
         if(typeFilter!=null&&!typeFilter.getItems().isEmpty())typeFilter.getSelectionModel().selectFirst();
         LocalDate today=BusinessClock.today();
-        if(filterFrom!=null)filterFrom.setValue(today.minusMonths(3));
-        if(filterTo!=null)filterTo.setValue(today);
+        org.example.util.RegisterUiSupport.setCurrentYearRange(filterFrom,filterTo,today);
         currentPage=0;reloadRows();
     }
     @FXML private void refreshWithFeedback(){

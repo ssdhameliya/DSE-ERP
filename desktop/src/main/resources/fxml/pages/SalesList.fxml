@@ -115,8 +115,10 @@
               <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="sales-range-button,quick-range-button,quick-range-thirty,approved-button,approved-secondary-button"/>
               <Button fx:id="btnCustomRange" text="Custom Range" onAction="#focusCustomRange" visible="false" managed="false" styleClass="sales-range-button,sales-custom-range-button,approved-button,approved-secondary-button"/>
               <Region HBox.hgrow="ALWAYS"/>
-              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="secondary-button,sales-toolbar-button,register-reset-button"/>
-              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refreshWithFeedback" styleClass="secondary-button,sales-toolbar-button,register-refresh-button"/>
+              <Button fx:id="btnSaveView" text="Save View" onAction="#saveCurrentView" styleClass="register-action-button,register-view-button"/>
+              <MenuButton fx:id="savedViewsMenu" text="Saved Views" styleClass="register-action-button,register-saved-views-menu"/>
+              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="register-action-button,register-reset-button"/>
+              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refreshWithFeedback" styleClass="register-action-button,register-refresh-button"/>
             </HBox>
 
             <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" visible="false" managed="false" styleClass="sales-filter-chips,approved-filter-bar"/>
