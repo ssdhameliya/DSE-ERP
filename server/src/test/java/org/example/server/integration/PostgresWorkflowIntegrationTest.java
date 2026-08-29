@@ -1,5 +1,6 @@
 package org.example.server.integration;
 
+import org.example.server.config.TestSecurityConfig;
 import org.example.server.returns.ReturnDtos;
 import org.example.server.returns.ReturnService;
 import org.example.server.security.AuthenticatedUser;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * supplies DSE_IT_DB_URL so ordinary unit tests do not require Docker/PostgreSQL.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@Import(TestSecurityConfig.class)
 @EnabledIfEnvironmentVariable(named = "DSE_IT_DB_URL", matches = ".+")
 class PostgresWorkflowIntegrationTest {
     private static final String INVOICE = "IT-SALE-9034";
@@ -72,13 +75,14 @@ class PostgresWorkflowIntegrationTest {
                 ITEM, "Integration Item", "Nos", 18d, 50d, 100d, 10d, 1d);
 
         Integer saleId = jdbc.queryForObject(
-                "INSERT INTO sales_header(invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,paid_amount,payment_status,document_status,approval_status,inventory_posted,created_at,email_sent,whatsapp_sent,row_version) " +
-                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,0) RETURNING id",
+                "INSERT INTO sales_header(invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,paid_amount,payment_status,document_status,approval_status,inventory_posted,created_at,created_by,modified_by) " +
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0) RETURNING id",
                 Integer.class, INVOICE, LocalDate.now().toString(), partyId, 100d, 0d, 100d, 100d,
                 "PAID", "APPROVED", "APPROVED", true, java.time.Instant.now().toString(), 0, 0);
         assertNotNull(saleId);
 
-        jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,unit_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,unit_snapshot) " +
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 saleId, ITEM, 1d, 100d, 0d, 0d, 0d, 100d, 50d, "Integration Item", "Nos");
 
         double before = stock();
