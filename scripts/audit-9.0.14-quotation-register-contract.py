@@ -79,10 +79,10 @@ req('if (result.failedCount() > 0) return true;' in imp,'Import warnings must di
 req('import org.example.util.ScreenRefreshPolicy;' in refund and 'ScreenRefreshPolicy.invalidate(' in refund,'ReturnRefundController must import ScreenRefreshPolicy')
 
 # Release identity.
-req('APP_VERSION = "9.0.34"' in runtime and 'BUILD_REVISION = "9.0.34"' in runtime,'Runtime identity must be 9.0.18')
-req('dse.app.version=9.0.34' in props and 'dse.build.revision=9.0.34' in props,'Server identity must be 9.0.18')
-req('<version>9.0.34</version>' in pom and '<dse.phase>9.0.34</dse.phase>' in pom,'Maven identity must be 9.0.18')
-req('version=9.0.34' in app and 'DEFAULT_VERSION="9.0.34"' in update,'Desktop/update identity must be 9.0.18')
+req('APP_VERSION = "9.0.35"' in runtime and 'BUILD_REVISION = "9.0.35"' in runtime,'Runtime identity must be 9.0.18')
+req('dse.app.version=9.0.35' in props and 'dse.build.revision=9.0.35' in props,'Server identity must be 9.0.18')
+req('<version>9.0.35</version>' in pom and '<dse.phase>9.0.35</dse.phase>' in pom,'Maven identity must be 9.0.18')
+req('version=9.0.35' in app and 'DEFAULT_VERSION="9.0.35"' in update,'Desktop/update identity must be 9.0.18')
 
 protected={
  'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java':'5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c',

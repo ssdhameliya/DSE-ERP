@@ -8,6 +8,18 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.35".equals(version)) {
+            return """
+                    DSE ERP 9.0.35
+
+                    • Promotes the release identity from 9.0.34 while retaining all approved 9.0.34 functionality and UI corrections.
+                    • Hardens GitHub Actions Maven Wrapper execution so CI remains safe even when checkout restores executable permissions inconsistently.
+                    • Finalizes Sales, Purchase and Quotation register Search Bar actions with readable Save View, Saved Views, Reset and Refresh controls.
+                    • Keeps the readable table-column chooser with icon, column value and visible checked state.
+                    • Keeps Create Quotation Customer aligned with the proven Sale customer-loading path and Quotation Source backed by QUOTATION_SOURCE Master Data with independent fallback loading.
+                    • Keeps Bank Statement History in the owned popup workspace and preserves the existing history design.
+                    """;
+        }
         if ("9.0.34".equals(version)) {
             return """
                     DSE ERP 9.0.34
