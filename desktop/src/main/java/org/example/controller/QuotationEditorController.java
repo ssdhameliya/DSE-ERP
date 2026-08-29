@@ -101,8 +101,8 @@ public final class QuotationEditorController {
         // This matches Create Sale: the actual data source is loaded independently.
         cmbCustomer.setDisable(false);
         cmbSource.setDisable(false);
-        cmbCustomer.setPromptText("Select customers...");
-        cmbSource.setPromptText("Select sources...");
+        cmbCustomer.setPromptText("Select Customer");
+        cmbSource.setPromptText("Select Source");
     }
 
     private record QuotationMasterBootstrap(List<Party> customers, List<String> sources) {}

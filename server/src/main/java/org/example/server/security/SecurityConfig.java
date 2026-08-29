@@ -1,5 +1,6 @@
 package org.example.server.security;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +23,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     SecurityFilterChain securityFilterChain(HttpSecurity http, BearerTokenAuthenticationFilter bearerFilter)
             throws Exception {
         http.csrf(csrf -> csrf.disable())

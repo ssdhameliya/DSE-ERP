@@ -81,8 +81,8 @@ jobs:
         run: python scripts/audit-9.0.15-reference-item-import-contract.py
       - name: Enforce 9.0.16 quotation-source / linked-sale contract
         run: python scripts/audit-9.0.16-quotation-source-sale-link-contract.py
-      - name: Enforce 9.0.35 engineering hardening contract
-        run: python scripts/audit-9.0.35-engineering-hardening.py
+      - name: Enforce 9.0.36 engineering hardening contract
+        run: python scripts/audit-9.0.36-engineering-hardening.py
       - name: Verify final UI source contract
         shell: python
         run: |
