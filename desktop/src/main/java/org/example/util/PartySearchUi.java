@@ -14,6 +14,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Lightweight capped type-ahead for customer/supplier register filters. */
 public final class PartySearchUi {
+    private static final String INTERNAL_UPDATE_KEY = PartySearchUi.class.getName() + ".internalUpdate";
+    private static final String DEBOUNCE_KEY = PartySearchUi.class.getName() + ".debounce";
+    private static final String TASK_KEY = PartySearchUi.class.getName() + ".taskKey";
+
     private PartySearchUi() {}
 
     public static void install(ComboBox<String> box, String type, String allLabel, String taskKey) {
@@ -21,11 +25,18 @@ public final class PartySearchUi {
         PartyService service = new PartyService();
         PauseTransition debounce = new PauseTransition(Duration.millis(180));
         AtomicBoolean internal = new AtomicBoolean(false);
+        box.getProperties().put(DEBOUNCE_KEY, debounce);
+        box.getProperties().put(TASK_KEY, taskKey);
         box.setEditable(true);
         internal.set(true);
-        box.getItems().setAll(allLabel);
-        box.setValue(allLabel);
-        internal.set(false);
+        setInternalUpdate(box, true);
+        try {
+            box.getItems().setAll(allLabel);
+            box.setValue(allLabel);
+        } finally {
+            setInternalUpdate(box, false);
+            internal.set(false);
+        }
 
         java.util.function.Consumer<String> search = raw -> {
             String query = normalizeQuery(raw, allLabel);
@@ -39,19 +50,24 @@ public final class PartySearchUi {
                 }
                 if (selected != null && !selected.isBlank() && !selected.equalsIgnoreCase(allLabel)) names.add(selected);
                 internal.set(true);
-                box.getItems().setAll(new ArrayList<>(names));
-                if (selected != null && !selected.isBlank()) box.setValue(selected);
-                if (box.getEditor() != null && typed != null && !typed.isBlank() && !typed.equals(selected)) {
-                    box.getEditor().setText(typed);
-                    box.getEditor().positionCaret(typed.length());
+                setInternalUpdate(box, true);
+                try {
+                    box.getItems().setAll(new ArrayList<>(names));
+                    if (selected != null && !selected.isBlank()) box.setValue(selected);
+                    if (box.getEditor() != null && typed != null && !typed.isBlank() && !typed.equals(selected)) {
+                        box.getEditor().setText(typed);
+                        box.getEditor().positionCaret(typed.length());
+                    }
+                } finally {
+                    setInternalUpdate(box, false);
+                    internal.set(false);
                 }
-                internal.set(false);
                 if (!query.isBlank() && box.isShowing()) Platform.runLater(box::show);
             }, failure -> { /* filter suggestions are non-critical; typed filtering still works */ });
         };
 
         if (box.getEditor() != null) box.getEditor().textProperty().addListener((obs, oldValue, newValue) -> {
-            if (internal.get()) return;
+            if (internal.get() || isInternalUpdate(box)) return;
             String value = newValue == null ? "" : newValue.trim();
             if (value.equalsIgnoreCase(allLabel)) return;
             debounce.stop();
@@ -64,10 +80,34 @@ public final class PartySearchUi {
 
     public static void preserveSelection(ComboBox<String> box, String selected, String allLabel) {
         if (box == null) return;
+        Object debounce = box.getProperties().get(DEBOUNCE_KEY);
+        if (debounce instanceof PauseTransition pause) pause.stop();
+        Object taskKey = box.getProperties().get(TASK_KEY);
+        if (taskKey instanceof String key && !key.isBlank()) UiTaskExecutor.cancel(key);
+
         String value = selected == null || selected.isBlank() ? allLabel : selected;
-        if (!box.getItems().contains(allLabel)) box.getItems().add(0, allLabel);
-        if (!box.getItems().contains(value)) box.getItems().add(value);
-        box.setValue(value);
+        setInternalUpdate(box, true);
+        try {
+            if (!box.getItems().contains(allLabel)) box.getItems().add(0, allLabel);
+            if (!box.getItems().contains(value)) box.getItems().add(value);
+            box.setValue(value);
+            if (box.isEditable() && box.getEditor() != null) {
+                box.getEditor().setText(value);
+                box.getEditor().positionCaret(value.length());
+            }
+        } finally {
+            setInternalUpdate(box, false);
+        }
+    }
+
+    public static boolean isInternalUpdate(ComboBox<?> box) {
+        return box != null && Boolean.TRUE.equals(box.getProperties().get(INTERNAL_UPDATE_KEY));
+    }
+
+    private static void setInternalUpdate(ComboBox<?> box, boolean value) {
+        if (box == null) return;
+        if (value) box.getProperties().put(INTERNAL_UPDATE_KEY, Boolean.TRUE);
+        else box.getProperties().remove(INTERNAL_UPDATE_KEY);
     }
 
     private static String normalizeQuery(String raw, String allLabel) {

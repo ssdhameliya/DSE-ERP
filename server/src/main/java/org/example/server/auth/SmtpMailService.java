@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.List;
 
 /**
  * One SMTP authority for login OTP and business email.
@@ -91,6 +92,14 @@ public class SmtpMailService {
     }
 
     public void sendBusiness(String recipient, String subject, String body, String attachmentName, byte[] attachment) {
+        List<Attachment> attachments = attachment == null || attachment.length == 0
+                ? List.of()
+                : List.of(new Attachment(attachmentName == null ? "document.pdf" : attachmentName,
+                "application/octet-stream", attachment));
+        sendBusiness(recipient, subject, body, attachments);
+    }
+
+    public void sendBusiness(String recipient, String subject, String body, List<Attachment> attachments) {
         Settings settings = settings();
         if (settings.host().isBlank() || settings.email().isBlank() || settings.password().isBlank())
             throw new IllegalStateException("Server business email is not configured");
@@ -100,16 +109,21 @@ public class SmtpMailService {
             message.setFrom(new InternetAddress(settings.email()));
             message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipient, true));
             message.setSubject(subject == null ? "DSE ERP document" : subject);
-            if (attachment == null || attachment.length == 0) message.setText(body == null ? "" : body);
+            List<Attachment> files = attachments == null ? List.of() : attachments.stream()
+                    .filter(a -> a != null && a.data() != null && a.data().length > 0).toList();
+            if (files.isEmpty()) message.setText(body == null ? "" : body);
             else {
                 var multipart = new jakarta.mail.internet.MimeMultipart();
                 var text = new jakarta.mail.internet.MimeBodyPart();
                 text.setText(body == null ? "" : body);
                 multipart.addBodyPart(text);
-                var file = new jakarta.mail.internet.MimeBodyPart();
-                file.setFileName(attachmentName == null ? "document.pdf" : attachmentName);
-                file.setContent(attachment, "application/octet-stream");
-                multipart.addBodyPart(file);
+                for (Attachment attachment : files) {
+                    var file = new jakarta.mail.internet.MimeBodyPart();
+                    file.setFileName(attachment.name() == null || attachment.name().isBlank() ? "attachment" : attachment.name());
+                    file.setContent(attachment.data(), attachment.contentType() == null || attachment.contentType().isBlank()
+                            ? "application/octet-stream" : attachment.contentType());
+                    multipart.addBodyPart(file);
+                }
                 message.setContent(multipart);
             }
             Transport.send(message);
@@ -199,5 +213,6 @@ public class SmtpMailService {
         return "";
     }
 
+    public record Attachment(String name, String contentType, byte[] data) {}
     public record Settings(String host, int port, String email, String password) {}
 }

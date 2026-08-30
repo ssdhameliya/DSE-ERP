@@ -92,7 +92,7 @@ public class ReturnService {
             "MAX(COALESCE(r.reason,'')) reason,MAX(COALESCE(r.status,'PENDING APPROVAL')) status," +
             "CASE WHEN MAX(UPPER(COALESCE(r.status,'PENDING APPROVAL')))='PENDING APPROVAL' THEN 'WAITING APPROVAL' " +
             "WHEN MAX(UPPER(COALESCE(r.status,'PENDING APPROVAL'))) IN ('REJECTED','CANCELLED','DELETED') THEN 'N/A' " +
-            "WHEN COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no=r.return_no),0)>=SUM(r.amount) AND SUM(r.amount)>0 THEN 'PAID' " +
+            "WHEN COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no=r.return_no),0)>=SUM(r.amount) AND SUM(r.amount)>0 THEN 'REFUNDED' " +
             "WHEN COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no=r.return_no),0)>0 THEN 'PARTIAL' ELSE 'PENDING' END refund_status," +
             "MAX(COALESCE(p.email,'')) email FROM return_register r LEFT JOIN party_master p ON p.id=r.party_id " +
             "WHERE r.return_type=? AND UPPER(COALESCE(r.status,'PENDING APPROVAL'))<>'DELETED' GROUP BY r.return_no)";
@@ -192,20 +192,47 @@ public class ReturnService {
     @Transactional(readOnly = true)
     public List<ReturnDtos.Settlement> settlements(String type) {
         String normalized = normalizeType(type);
-        String sql = "SELECT invoice_no,approved_total,settled_total," +
-            "CASE WHEN waiting_count>0 THEN 0 ELSE GREATEST(approved_total-settled_total,0) END pending_amount," +
-            "CASE WHEN waiting_count>0 THEN 'RETURN APPROVAL PENDING' " +
-            "WHEN approved_total>0 AND GREATEST(approved_total-settled_total,0)<=0.01 THEN 'RETURN PAID' " +
-            "WHEN settled_total>0 THEN 'RETURN PARTIAL' WHEN approved_total>0 THEN 'RETURN PENDING' ELSE NULL END current_status,due_date FROM (" +
-            "SELECT x.invoice_no,SUM(CASE WHEN x.state='APPROVED' THEN x.return_total ELSE 0 END) approved_total," +
+        boolean salesReturn = "SALES RETURN".equals(normalized);
+        String originalQtySql = salesReturn
+            ? "COALESCE((SELECT SUM(COALESCE(sl.quantity,0)) FROM sales_line sl JOIN sales_header sh ON sh.id=sl.sales_id WHERE sh.invoice_no=a.invoice_no),0)"
+            : "COALESCE((SELECT SUM(COALESCE(pl.quantity,0)) FROM purchase_line pl JOIN purchase_header ph ON ph.id=pl.purchase_id WHERE ph.invoice_no=a.invoice_no),0)";
+        String unreturnedLinesSql = salesReturn
+            ? "COALESCE((SELECT COUNT(*) FROM sales_line sl JOIN sales_header sh ON sh.id=sl.sales_id WHERE sh.invoice_no=a.invoice_no AND COALESCE((SELECT SUM(rr.quantity) FROM return_register rr WHERE rr.source_line_id=sl.id AND UPPER(COALESCE(rr.return_type,'')) IN ('SALE RETURN','SALES RETURN') AND UPPER(COALESCE(rr.status,''))='APPROVED'),0)+0.0001<COALESCE(sl.quantity,0)),0)"
+            : "COALESCE((SELECT COUNT(*) FROM purchase_line pl JOIN purchase_header ph ON ph.id=pl.purchase_id WHERE ph.invoice_no=a.invoice_no AND COALESCE((SELECT SUM(rr.quantity) FROM return_register rr WHERE rr.source_line_id=pl.id AND UPPER(COALESCE(rr.return_type,''))='PURCHASE RETURN' AND UPPER(COALESCE(rr.status,''))='APPROVED'),0)+0.0001<COALESCE(pl.quantity,0)),0)";
+        String sql = "SELECT a.invoice_no,a.approved_total,a.settled_total," +
+            "CASE WHEN a.waiting_count>0 THEN 0 ELSE GREATEST(a.approved_total-a.settled_total,0) END pending_amount," +
+            "CASE WHEN a.waiting_count>0 THEN 'RETURN APPROVAL PENDING' " +
+            "WHEN a.approved_total>0 AND GREATEST(a.approved_total-a.settled_total,0)<=0.01 THEN 'RETURN PAID' " +
+            "WHEN a.settled_total>0 THEN 'RETURN PARTIAL' WHEN a.approved_total>0 THEN 'RETURN PENDING' ELSE NULL END current_status,a.due_date," +
+            "a.approved_qty," + originalQtySql + " original_qty," + unreturnedLinesSql + " unreturned_lines " +
+            "FROM (SELECT x.invoice_no,SUM(CASE WHEN x.state='APPROVED' THEN x.return_total ELSE 0 END) approved_total," +
             "SUM(CASE WHEN x.state='APPROVED' THEN x.refunded ELSE 0 END) settled_total," +
+            "SUM(CASE WHEN x.state='APPROVED' THEN x.return_qty ELSE 0 END) approved_qty," +
             "SUM(CASE WHEN x.state='PENDING APPROVAL' THEN 1 ELSE 0 END) waiting_count," +
             "MAX(CASE WHEN x.state='APPROVED' THEN x.due_date END) due_date FROM (" +
-            "SELECT MAX(r.invoice_no) invoice_no,r.return_no,MAX(UPPER(COALESCE(r.status,'PENDING APPROVAL'))) state,SUM(COALESCE(r.amount,0)) return_total," +
+            "SELECT MAX(r.invoice_no) invoice_no,r.return_no,MAX(UPPER(COALESCE(r.status,'PENDING APPROVAL'))) state," +
+            "SUM(COALESCE(r.amount,0)) return_total,SUM(COALESCE(r.quantity,0)) return_qty," +
             "COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no=r.return_no),0) refunded," +
             "MAX(r.settlement_due_date) due_date FROM return_register r WHERE r.return_type=? AND UPPER(COALESCE(r.status,'PENDING APPROVAL')) IN ('PENDING APPROVAL','APPROVED') GROUP BY r.return_no" +
-            ") x GROUP BY x.invoice_no) a WHERE waiting_count>0 OR approved_total>0 ORDER BY invoice_no";
-        return jdbc.query(sql, (r, i) -> new ReturnDtos.Settlement(r.getString(1), r.getString(5), r.getDouble(4), r.getDouble(2), r.getDouble(3), r.getObject(6) == null ? null : String.valueOf(r.getObject(6))), normalized);
+            ") x GROUP BY x.invoice_no) a WHERE a.waiting_count>0 OR a.approved_total>0 ORDER BY a.invoice_no";
+        return jdbc.query(sql, (r, i) -> {
+            double approved = r.getDouble(2), settled = r.getDouble(3), returnedQty = r.getDouble(7), originalQty = r.getDouble(8);
+            long unreturnedLines = r.getLong(9);
+            String current = r.getString(5);
+            String returnStatus;
+            if ("RETURN APPROVAL PENDING".equalsIgnoreCase(current)) returnStatus = "PENDING APPROVAL";
+            else if (approved <= 0.01 || returnedQty <= 0.0001) returnStatus = "N/A";
+            else if (originalQty > 0.0001 && unreturnedLines == 0) returnStatus = "FULLY RETURNED";
+            else returnStatus = "PARTIALLY RETURNED";
+            String refundStatus;
+            if ("PENDING APPROVAL".equals(returnStatus)) refundStatus = "N/A";
+            else if (approved <= 0.01) refundStatus = "N/A";
+            else if (settled + 0.01 >= approved) refundStatus = "REFUNDED";
+            else if (settled > 0.01) refundStatus = "PARTIAL";
+            else refundStatus = "PENDING";
+            return new ReturnDtos.Settlement(r.getString(1), current, r.getDouble(4), approved, settled,
+                r.getObject(6) == null ? null : String.valueOf(r.getObject(6)), returnStatus, refundStatus, returnedQty, originalQty);
+        }, normalized);
     }
 
     @Transactional(readOnly = true)

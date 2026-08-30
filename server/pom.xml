@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.example</groupId>
         <artifactId>dse-erp-parent</artifactId>
-        <version>9.0.38</version>
+        <version>9.0.40</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>org.example</groupId>
@@ -34,6 +34,10 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
@@ -42,6 +46,21 @@
             <groupId>org.eclipse.angus</groupId>
             <artifactId>angus-mail</artifactId>
             <version>2.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${poi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>kernel</artifactId>
+            <version>7.2.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.itextpdf</groupId>
+            <artifactId>layout</artifactId>
+            <version>7.2.6</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

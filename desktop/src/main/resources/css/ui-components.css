@@ -9850,3 +9850,43 @@
     -fx-text-overrun: clip;
     -fx-padding: 0 6px;
 }
+
+/* DSE ERP 9.0.40 unified reporting viewer */
+.report-viewer-root { -fx-padding: 10 14 12 14; }
+.report-viewer-root .report-card { -fx-background-radius: 10; -fx-border-radius: 10; }
+.report-viewer-root .report-metric-strip { -fx-padding: 2 0 2 0; }
+.report-viewer-root .report-kpi-card { -fx-min-width: 145; -fx-pref-width: 170; -fx-padding: 9 12 9 12; }
+.report-viewer-root .report-number-cell { -fx-alignment: CENTER-RIGHT; }
+.report-viewer-root .table-view { -fx-min-height: 260; }
+.report-viewer-root .combo-box, .report-viewer-root .date-picker, .report-viewer-root .text-field { -fx-min-height: 32; }
+.report-viewer-root .metric-value { -fx-font-size: 15px; -fx-font-weight: bold; }
+.report-viewer-root .flow-pane { -fx-alignment: CENTER-LEFT; }
+
+/* 9.0.40 reporting workspace - approved mockup geometry */
+.reports-single-page { -fx-padding: 8 10 10 10; }
+.reports-single-page .reports-header { -fx-min-height: 64px; -fx-pref-height: 64px; -fx-padding: 8 12 8 12; }
+.reporting-tabs > .tab-header-area { -fx-padding: 0 0 8 0; }
+.reporting-tabs > .tab-header-area > .headers-region > .tab { -fx-min-width: 138px; -fx-pref-width: 138px; -fx-min-height: 38px; -fx-pref-height: 38px; -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-padding: 0 14px; }
+.reporting-tabs > .tab-header-area > .headers-region > .tab > .tab-container > .tab-label { -fx-font-weight: 700; }
+.reporting-tabs > .tab-header-area > .tab-header-background { -fx-background-color: transparent; }
+.reporting-tabs > .tab-content-area { -fx-padding: 0; }
+.report-kpi-clickable { -fx-cursor: hand; }
+.report-date-range { -fx-min-width: 300px; }
+.report-center-root { -fx-padding: 0; }
+.report-category-panel { -fx-min-width: 250px; -fx-pref-width: 250px; }
+.report-category-list { -fx-min-height: 540px; }
+.report-category-list .list-cell { -fx-min-height: 40px; -fx-padding: 9 12px; -fx-background-radius: 7px; -fx-border-radius: 7px; }
+.report-category-heading { -fx-font-size: 13px; -fx-font-weight: 800; -fx-padding: 2 0 4 2; }
+.report-center-card { -fx-padding: 12 14px; -fx-background-radius: 10px; -fx-border-radius: 10px; }
+.report-center-card .report-card-title { -fx-font-size: 15px; -fx-font-weight: 800; }
+.report-favorite-button { -fx-min-width: 28px; -fx-pref-width: 28px; -fx-min-height: 28px; -fx-pref-height: 28px; -fx-padding: 0; -fx-background-color: transparent; -fx-border-color: transparent; -fx-font-size: 17px; }
+.saved-report-panel { -fx-padding: 12px; }
+.report-view-nav { -fx-padding: 0 0 2 0; }
+.report-nav-button { -fx-min-width: 138px; -fx-pref-width: 138px; -fx-min-height: 38px; -fx-pref-height: 38px; -fx-background-radius: 8px; -fx-border-radius: 8px; }
+.report-back-link { -fx-background-color: transparent; -fx-border-color: transparent; -fx-padding: 2 0; -fx-font-weight: 700; }
+.report-viewer-filter-panel { -fx-padding: 10 12px; }
+.report-results-toolbar { -fx-padding: 8 10px; }
+.report-viewer-footer { -fx-padding: 3px 0 0 0; }
+.report-viewer-root .report-kpi-card { -fx-min-width: 175px; -fx-pref-width: 230px; -fx-min-height: 70px; -fx-padding: 9 12px; }
+.report-viewer-root .report-table { -fx-min-height: 300px; }
+.report-viewer-root .table-view .column-header { -fx-min-height: 34px; }

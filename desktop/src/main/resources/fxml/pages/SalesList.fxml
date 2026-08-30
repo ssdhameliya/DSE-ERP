@@ -137,7 +137,8 @@
                 <TableColumn fx:id="colBalance" text="Pending" prefWidth="90" minWidth="82" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colPaymentStatus" text="Payment Status" prefWidth="118" minWidth="108" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colPaymentStatus" text="Payment Status" prefWidth="112" minWidth="102" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colReturnStatus" text="Return Status" prefWidth="122" minWidth="112" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
                 <TableColumn fx:id="colAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
               </columns>

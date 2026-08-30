@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.example.controller.ReportViewerController"
+      spacing="8" styleClass="approved-ui,approved-screen,erp-screen-root,report-viewer-root,reports-single-page">
+
+    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="reports-header,approved-section-header,erp-page-identity-header">
+        <StackPane fx:id="viewerPageIcon" styleClass="erp-page-header-icon"/>
+        <VBox spacing="2"><Label text="Reports" styleClass="page-title"/><Label text="Financial and operational intelligence" styleClass="page-subtitle,reports-header-subtitle"/></VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <MenuButton text="Export" styleClass="primary-button,reports-export-button"><items><MenuItem text="PDF" onAction="#exportPdf"/><MenuItem text="Excel" onAction="#exportExcel"/><MenuItem text="CSV" onAction="#exportCsv"/></items></MenuButton>
+        <Button text="Refresh" onAction="#refreshReport" styleClass="secondary-button"/>
+    </HBox>
+
+    <HBox spacing="8" alignment="CENTER_LEFT" styleClass="report-view-nav">
+        <Button text="Dashboard" onAction="#goDashboard" styleClass="report-nav-button"/>
+        <Button text="Report Center" onAction="#goReportCenter" styleClass="report-nav-button,report-nav-selected"/>
+        <Button text="Saved Reports" onAction="#goSavedReports" styleClass="report-nav-button"/>
+        <Button text="Scheduled" onAction="#goScheduled" styleClass="report-nav-button"/>
+    </HBox>
+
+    <VBox spacing="2">
+        <Button text="← Report Center" onAction="#backToReports" styleClass="report-back-link"/>
+        <HBox alignment="CENTER_LEFT"><VBox spacing="2"><Label fx:id="lblTitle" text="Report" styleClass="page-title"/><Label fx:id="lblDescription" styleClass="page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="ⓘ Report Information" onAction="#showInformation" styleClass="secondary-button"/></HBox>
+    </VBox>
+
+    <VBox fx:id="filterPanel" spacing="7" styleClass="report-card,approved-filter-bar,report-viewer-filter-panel">
+        <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Filters" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCollapseFilters" text="Collapse ▲" onAction="#toggleFilters" styleClass="link-button"/></HBox>
+        <GridPane fx:id="filterGrid" hgap="9" vgap="7">
+            <columnConstraints><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/></columnConstraints>
+            <VBox fx:id="boxPeriod" spacing="3"><Label text="Period" styleClass="metric-label"/><ComboBox fx:id="cmbDatePreset" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxParty" GridPane.columnIndex="1" spacing="3"><Label text="Party" styleClass="metric-label"/><ComboBox fx:id="cmbParty" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxItem" GridPane.columnIndex="2" spacing="3"><Label text="Item" styleClass="metric-label"/><ComboBox fx:id="cmbItem" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxSalesperson" GridPane.columnIndex="3" spacing="3"><Label text="Salesperson" styleClass="metric-label"/><ComboBox fx:id="cmbSalesperson" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxDocumentStatus" GridPane.columnIndex="4" spacing="3"><Label text="Status" styleClass="metric-label"/><ComboBox fx:id="cmbDocumentStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxPaymentStatus" GridPane.columnIndex="5" spacing="3"><Label text="Payment" styleClass="metric-label"/><ComboBox fx:id="cmbPaymentStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+
+            <VBox fx:id="boxFrom" GridPane.rowIndex="1" spacing="3"><Label text="From Date" styleClass="metric-label"/><DatePicker fx:id="dpFrom" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxTo" GridPane.rowIndex="1" GridPane.columnIndex="1" spacing="3"><Label text="To Date" styleClass="metric-label"/><DatePicker fx:id="dpTo" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxReturnStatus" GridPane.rowIndex="1" GridPane.columnIndex="2" spacing="3"><Label text="Return Status" styleClass="metric-label"/><ComboBox fx:id="cmbReturnStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxGstRate" GridPane.rowIndex="1" GridPane.columnIndex="3" spacing="3"><Label text="GST Rate" styleClass="metric-label"/><ComboBox fx:id="cmbGstRate" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxWarehouse" GridPane.rowIndex="1" GridPane.columnIndex="4" spacing="3"><Label text="Warehouse / Location" styleClass="metric-label"/><ComboBox fx:id="cmbWarehouse" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxBankStatus" GridPane.rowIndex="1" GridPane.columnIndex="5" spacing="3"><Label text="Bank Status" styleClass="metric-label"/><ComboBox fx:id="cmbBankStatus" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+
+            <VBox fx:id="boxMinAmount" GridPane.rowIndex="2" spacing="3"><Label text="Min Amount" styleClass="metric-label"/><TextField fx:id="txtMinAmount" promptText="Any" styleClass="approved-input"/></VBox>
+            <VBox fx:id="boxMaxAmount" GridPane.rowIndex="2" GridPane.columnIndex="1" spacing="3"><Label text="Max Amount" styleClass="metric-label"/><TextField fx:id="txtMaxAmount" promptText="Any" styleClass="approved-input"/></VBox>
+        </GridPane>
+        <HBox alignment="CENTER_LEFT" spacing="8"><Label fx:id="lblActiveFilters" text="Active filters: Period" styleClass="page-subtitle"/><Region HBox.hgrow="ALWAYS"/><Button text="Reset" onAction="#resetFilters" styleClass="secondary-button"/><Button fx:id="btnApply" text="Apply" onAction="#applyFilters" styleClass="primary-button"/></HBox>
+    </VBox>
+
+    <FlowPane fx:id="metricPane" hgap="9" vgap="8" prefWrapLength="1400" styleClass="report-metric-strip"/>
+
+    <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-card,report-results-toolbar">
+        <TextField fx:id="txtSearch" promptText="Search invoice / party / item / reference..." prefWidth="300" styleClass="approved-input"/>
+        <Label fx:id="lblRecords" styleClass="page-subtitle"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label text="Group By" styleClass="metric-label"/><ComboBox fx:id="cmbGroup" prefWidth="155"/>
+        <Label text="Sort" styleClass="metric-label"/><ComboBox fx:id="cmbSort" prefWidth="155"/><ComboBox fx:id="cmbDirection" prefWidth="100"/>
+        <MenuButton fx:id="btnColumns" text="Columns ⚙" styleClass="secondary-button"/>
+        <Button text="Save Report" onAction="#saveReport" styleClass="success-button"/>
+    </HBox>
+
+    <TableView fx:id="tblReport" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table" fixedCellSize="31"/>
+
+    <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-viewer-footer">
+        <Label text="Double-click a row to drill down to its source transaction." styleClass="page-subtitle"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label text="Rows per page" styleClass="metric-label"/><ComboBox fx:id="cmbRows" prefWidth="82"/>
+        <Button fx:id="btnFirst" text="⏮" onAction="#firstPage" styleClass="secondary-button"/>
+        <Button fx:id="btnPrev" text="‹" onAction="#previousPage" styleClass="secondary-button"/>
+        <Label fx:id="lblPage" text="1 / 1" styleClass="section-title"/>
+        <Button fx:id="btnNext" text="›" onAction="#nextPage" styleClass="secondary-button"/>
+        <Button fx:id="btnLast" text="⏭" onAction="#lastPage" styleClass="secondary-button"/>
+        <Separator orientation="VERTICAL"/>
+        <Button text="PDF" onAction="#exportPdf" styleClass="primary-button"/>
+        <Button text="Excel" onAction="#exportExcel" styleClass="success-button"/>
+        <Button text="CSV" onAction="#exportCsv" styleClass="secondary-button"/>
+        <Button text="Print" onAction="#printReport" styleClass="secondary-button"/>
+    </HBox>
+</VBox>

@@ -75,7 +75,7 @@ public class PurchaseService {
             if(s==null){row.clearReturnSettlement();continue;}
             LocalDate due=null;
             try{if(s.dueDate()!=null&&!s.dueDate().isBlank())due=LocalDate.parse(s.dueDate());}catch(Exception ignored){}
-            row.applyReturnSettlement(s.status(),s.pendingAmount(),due);
+            row.applyReturnSettlement(s.status(),s.pendingAmount(),due,s.approvedReturnAmount(),s.settledAmount(),s.returnStatus(),s.refundStatus(),s.returnedQuantity(),s.originalQuantity());
         }
     }
     private String documentStatus(Purchase x){String stored=Objects.toString(x.getDocumentStatus(),"").trim().toUpperCase(Locale.ROOT);return stored.isBlank()?"PENDING APPROVAL":stored;}

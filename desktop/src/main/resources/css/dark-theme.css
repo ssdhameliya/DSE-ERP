@@ -7962,3 +7962,24 @@
     -fx-background-color: #4d3678;
     -fx-border-color: #8d6ac8;
 }
+
+/* 9.0.40 reporting workspace - approved mockup palette */
+.reporting-tabs > .tab-header-area > .headers-region > .tab,
+.report-nav-button { -fx-background-color: #11263d; -fx-border-color: #294a69; -fx-text-fill: #aebed0; }
+.reporting-tabs > .tab-header-area > .headers-region > .tab:selected,
+.report-nav-selected { -fx-background-color: #18466d; -fx-border-color: #3982ba; }
+.reporting-tabs > .tab-header-area > .headers-region > .tab:selected .tab-label,
+.report-nav-selected { -fx-text-fill: #f4f8ff; }
+.report-category-list .list-cell { -fx-text-fill: #b7c4d5; -fx-background-color: transparent; }
+.report-category-list .list-cell:selected { -fx-background-color: #204c73; -fx-text-fill: white; -fx-border-color: #4a86b5; }
+.report-category-heading { -fx-text-fill: #5fa8ff; }
+.report-center-card { -fx-background-color: #10253a; -fx-border-color: #294b68; }
+.report-center-card:hover { -fx-background-color: #132c45; -fx-border-color: #3d6f99; }
+.report-center-card .report-card-title { -fx-text-fill: #f2f6fb; }
+.report-favorite-button { -fx-text-fill: #f2ba2d; }
+.report-back-link { -fx-text-fill: #62a9ff; }
+.metric-tone-purple { -fx-background-color: #291d48; -fx-border-color: #7046a0; }
+.metric-tone-red { -fx-background-color: #48222b; -fx-border-color: #914255; }
+.metric-tone-green { -fx-background-color: #113d2c; -fx-border-color: #23865c; }
+.metric-tone-blue { -fx-background-color: #153453; -fx-border-color: #3473a7; }
+.metric-tone-amber { -fx-background-color: #3b3015; -fx-border-color: #987018; }

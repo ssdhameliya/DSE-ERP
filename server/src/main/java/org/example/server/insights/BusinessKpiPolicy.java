@@ -58,36 +58,21 @@ public final class BusinessKpiPolicy {
                 "THEN COALESCE(" + headerAlias + ".total_amount,0) ELSE 0 END))";
     }
 
-    /** Effective Sale/Purchase balance, including an approved Return refund obligation/receivable. */
+    /** Original invoice outstanding. Approved Return refunds are a separate liability/receivable lifecycle. */
     public static String effectiveOutstanding(String headerAlias, String documentType) {
-        String approved = approvedReturnTotal(headerAlias, documentType);
-        String settled = settledReturnTotal(headerAlias, documentType);
-        String base = "GREATEST(COALESCE(" + headerAlias + ".total_amount,0)-(" + effectivePaidCorrelated(headerAlias, documentType) + "),0)";
-        return "CASE WHEN (" + approved + ")>0 THEN GREATEST((" + approved + ")-(" + settled + "),0) ELSE (" + base + ") END";
+        return "GREATEST(COALESCE(" + headerAlias + ".total_amount,0)-(" + effectivePaidCorrelated(headerAlias, documentType) + "),0)";
     }
 
-    /** Effective payment/Return state used everywhere a document status is presented. */
+    /** Original invoice payment state; Return/refund lifecycle is presented separately. */
     public static String effectivePaymentStatus(String headerAlias, String documentType) {
-        String approved = approvedReturnTotal(headerAlias, documentType);
-        String settled = settledReturnTotal(headerAlias, documentType);
-        String pendingApproval = pendingApprovalReturnCount(headerAlias, documentType);
-        String pending = "GREATEST((" + approved + ")-(" + settled + "),0)";
         String paid = effectivePaidCorrelated(headerAlias, documentType);
-        String base = "CASE WHEN COALESCE(" + headerAlias + ".total_amount,0)>0 AND (" + paid + ")+0.0001>=COALESCE(" + headerAlias + ".total_amount,0) THEN 'PAID' " +
+        return "CASE WHEN COALESCE(" + headerAlias + ".total_amount,0)>0 AND (" + paid + ")+0.0001>=COALESCE(" + headerAlias + ".total_amount,0) THEN 'PAID' " +
                 "WHEN (" + paid + ")>0.0001 THEN 'PARTIAL' ELSE COALESCE(NULLIF(UPPER(" + headerAlias + ".payment_status),''),'PENDING') END";
-        return "CASE WHEN (" + pendingApproval + ")>0 THEN 'RETURN APPROVAL PENDING' " +
-                "WHEN (" + approved + ")>0 THEN CASE WHEN " + pending + "<=0.01 THEN 'RETURN PAID' WHEN (" + settled + ")>0 THEN 'RETURN PARTIAL' ELSE 'RETURN PENDING' END " +
-                "ELSE " + base + " END";
     }
 
-    /** Effective due date: Return settlement due date while an approved Return remains unsettled. */
+    /** Original invoice due date. Return settlement due date is reported in the Return lifecycle, not here. */
     public static String effectiveDueDate(String headerAlias, String documentType, String baseDueDateSql) {
-        String approved = approvedReturnTotal(headerAlias, documentType);
-        String settled = settledReturnTotal(headerAlias, documentType);
-        String pending = "GREATEST((" + approved + ")-(" + settled + "),0)";
-        String type = returnType(documentType);
-        String returnDue = "(SELECT MAX(dse_safe_date(rx.settlement_due_date)) FROM return_register rx WHERE rx.invoice_no=" + headerAlias + ".invoice_no AND UPPER(COALESCE(rx.return_type,''))='" + type + "' AND UPPER(COALESCE(rx.status,''))='APPROVED')";
-        return "CASE WHEN (" + approved + ")>0 AND " + pending + ">0.01 THEN " + returnDue + " ELSE (" + baseDueDateSql + ") END";
+        return "(" + baseDueDateSql + ")";
     }
 
     private static String pendingApprovalReturnCount(String headerAlias, String documentType) {

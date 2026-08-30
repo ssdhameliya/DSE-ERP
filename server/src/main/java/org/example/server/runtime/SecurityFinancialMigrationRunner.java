@@ -115,7 +115,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_26__master_lookup_reference_authority",
                     "db/migration/V9_0_26__master_lookup_reference_authority.sql"),
             new Migration("V9_0_28__financial_authority_integrity",
-                    "db/migration/V9_0_28__financial_authority_integrity.sql")
+                    "db/migration/V9_0_28__financial_authority_integrity.sql"),
+            new Migration("V9_0_40__scheduled_reporting",
+                    "db/migration/V9_0_40__scheduled_reporting.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -231,6 +233,8 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("sales_header", "rejected_at");
         requireColumn("purchase_header", "rejected_by");
         requireColumn("purchase_header", "rejected_at");
+        requireTable("report_schedule");
+        requireTable("report_schedule_run");
         requireFunction("dse_safe_date");
     }
 

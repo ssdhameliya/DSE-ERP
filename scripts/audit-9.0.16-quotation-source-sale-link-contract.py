@@ -30,12 +30,12 @@ req('asException(' not in sales,'Sales deep-link async failure path must use the
 req('DeepLinkSupport.highlight(tableSales,sale)' in sales,'linked Sale row must receive exact row highlight')
 req('txtInvoice.setText(found.getInvoiceNo())' in sales and 'reloadPage();' in sales,'off-page linked Sale must reload the register around the exact invoice')
 req('LinkedRecordContext.open("SALE",null,q.converted.get()' in qctl,'Quotation must publish converted Sale reference into linked-record context')
-req('APP_VERSION = "9.0.38"' in runtime and 'BUILD_REVISION = "9.0.38"' in runtime,'runtime identity must be 9.0.18')
-req('dse.app.version=9.0.38' in props and 'dse.build.revision=9.0.38' in props,'server identity must be 9.0.18')
-req('<version>9.0.38</version>' in pom and '<dse.phase>9.0.38</dse.phase>' in pom,'Maven identity must be 9.0.18')
-req('version=9.0.38' in app and 'DEFAULT_VERSION="9.0.38"' in update,'desktop/update identity must be 9.0.18')
+req('APP_VERSION = "9.0.40"' in runtime and 'BUILD_REVISION = "9.0.40"' in runtime,'runtime identity must be 9.0.18')
+req('dse.app.version=9.0.40' in props and 'dse.build.revision=9.0.40' in props,'server identity must be 9.0.18')
+req('<version>9.0.40</version>' in pom and '<dse.phase>9.0.40</dse.phase>' in pom,'Maven identity must be 9.0.18')
+req('version=9.0.40' in app and 'DEFAULT_VERSION="9.0.40"' in update,'desktop/update identity must be 9.0.18')
 req("req(runtime_manifest_path.exists(), 'runtime identity manifest must be tracked in every release source handoff')" in pdf_audit,'PDF Studio CI contract must require the tracked runtime identity manifest')
-req("runtime identity manifest phase must be 9.0.18" in pdf_audit and 'runtime.phase=9.0.38' in manifest,'GitHub/source runtime identity manifest must be pinned to 9.0.18')
+req("runtime identity manifest phase must be 9.0.18" in pdf_audit and 'runtime.phase=9.0.40' in manifest,'GitHub/source runtime identity manifest must be pinned to 9.0.18')
 req('".dse-erp", "dev-server-cache"' in bootstrap and 'Files.copy(built, staging, StandardCopyOption.REPLACE_EXISTING)' in bootstrap,
     'IntelliJ backend must execute from an external project-specific cache, never directly from Maven target')
 req('cleanupOrphanDevelopmentServers(root)' in bootstrap and 'hasLiveOwningParent(handle)' in bootstrap,

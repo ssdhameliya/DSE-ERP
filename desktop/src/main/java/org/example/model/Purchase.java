@@ -35,6 +35,12 @@ public class Purchase {
     /** Historical payment state of the original Purchase. */
     private String basePaymentStatus;
     private double returnPendingAmount;
+    private double approvedReturnAmount;
+    private double settledReturnAmount;
+    private double returnedQuantity;
+    private double originalQuantity;
+    private String returnStatus="N/A";
+    private String refundStatus="N/A";
     private LocalDate returnDueDate;
     private String documentStatus="PENDING APPROVAL", warehouse, paymentTerms, currency, referenceNo, gstTreatment, transporter, lrAwbNo, discountType, attachmentPath, createdBy;
     private String billingAddress, deliveryAddress, billingGstin, deliveryGstin, gstType, transporterGstin, vehicleNumber, contactPerson, contactPersonMobile, notes, orderNo;
@@ -151,27 +157,27 @@ public class Purchase {
     public double getBalanceAmount(){
         String status=getDocumentStatus();
         if("CANCELLED".equalsIgnoreCase(status)||"DELETED".equalsIgnoreCase(status))return 0;
-        if(hasReturnSettlement())return Math.max(0,returnPendingAmount);
         return Math.max(0,totalAmount-paidAmount);
     }
     public String getPaymentStatus(){return paymentStatus==null?"PENDING":paymentStatus;}
-    public void setPaymentStatus(String value){
-        basePaymentStatus=value==null||value.isBlank()?"PENDING":value;
-        paymentStatus=basePaymentStatus;
-        returnPendingAmount=0;
-        returnDueDate=null;
-    }
+    public void setPaymentStatus(String value){basePaymentStatus=value==null||value.isBlank()?"PENDING":value;paymentStatus=basePaymentStatus;clearReturnSettlement();}
     public String getBasePaymentStatus(){return basePaymentStatus==null?getPaymentStatus():basePaymentStatus;}
     public double getReturnPendingAmount(){return returnPendingAmount;}
+    public double getApprovedReturnAmount(){return approvedReturnAmount;}
+    public double getSettledReturnAmount(){return settledReturnAmount;}
+    public double getReturnedQuantity(){return returnedQuantity;}
+    public double getOriginalQuantity(){return originalQuantity;}
+    public String getReturnStatus(){return returnStatus==null||returnStatus.isBlank()?"N/A":returnStatus;}
+    public String getRefundStatus(){return refundStatus==null||refundStatus.isBlank()?"N/A":refundStatus;}
     public LocalDate getReturnDueDate(){return returnDueDate;}
-    public boolean hasReturnSettlement(){return getPaymentStatus().toUpperCase(java.util.Locale.ROOT).startsWith("RETURN ");}
-    public void applyReturnSettlement(String status,double pendingAmount,LocalDate dueDate){
-        if(status==null||!status.toUpperCase(java.util.Locale.ROOT).startsWith("RETURN ")){clearReturnSettlement();return;}
-        paymentStatus=status.trim().toUpperCase(java.util.Locale.ROOT);
-        returnPendingAmount=Math.max(0,pendingAmount);
-        returnDueDate=dueDate;
+    public boolean hasReturnSettlement(){return !"N/A".equalsIgnoreCase(getReturnStatus());}
+    public void applyReturnSettlement(String workflowStatus,double pendingAmount,LocalDate dueDate,double approvedAmount,double settledAmount,String returnStatus,String refundStatus,double returnedQuantity,double originalQuantity){
+        returnPendingAmount=Math.max(0,pendingAmount);approvedReturnAmount=Math.max(0,approvedAmount);settledReturnAmount=Math.max(0,settledAmount);returnDueDate=dueDate;
+        this.returnStatus=returnStatus==null||returnStatus.isBlank()?"N/A":returnStatus.trim().toUpperCase(java.util.Locale.ROOT);
+        this.refundStatus=refundStatus==null||refundStatus.isBlank()?"N/A":refundStatus.trim().toUpperCase(java.util.Locale.ROOT);
+        this.returnedQuantity=Math.max(0,returnedQuantity);this.originalQuantity=Math.max(0,originalQuantity);
     }
-    public void clearReturnSettlement(){paymentStatus=basePaymentStatus==null||basePaymentStatus.isBlank()?"PENDING":basePaymentStatus;returnPendingAmount=0;returnDueDate=null;}
+    public void clearReturnSettlement(){paymentStatus=basePaymentStatus==null||basePaymentStatus.isBlank()?"PENDING":basePaymentStatus;returnPendingAmount=0;approvedReturnAmount=0;settledReturnAmount=0;returnedQuantity=0;originalQuantity=0;returnStatus="N/A";refundStatus="N/A";returnDueDate=null;}
     public String getDocumentStatus(){return documentStatus==null||documentStatus.isBlank()?"PENDING APPROVAL":documentStatus;} public void setDocumentStatus(String v){documentStatus=v;}
     public String getWarehouse(){return warehouse;} public void setWarehouse(String v){warehouse=v;} public String getPaymentTerms(){return paymentTerms;} public void setPaymentTerms(String v){paymentTerms=v;}
     public String getCurrency(){return currency;} public void setCurrency(String v){currency=v;} public String getReferenceNo(){return referenceNo;} public void setReferenceNo(String v){referenceNo=v;}

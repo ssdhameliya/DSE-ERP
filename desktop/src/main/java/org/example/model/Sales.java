@@ -45,8 +45,14 @@ public class Sales {
     private String paymentStatus;
     /** Historical payment state of the original Sale (PENDING/PARTIAL/PAID/OVERDUE). */
     private String basePaymentStatus;
-    /** Current remaining amount owed back because of approved Returns. */
+    /** Return/refund lifecycle is separate from the original invoice payment lifecycle. */
     private double returnPendingAmount;
+    private double approvedReturnAmount;
+    private double settledReturnAmount;
+    private double returnedQuantity;
+    private double originalQuantity;
+    private String returnStatus = "N/A";
+    private String refundStatus = "N/A";
     private LocalDate returnDueDate;
     private boolean whatsappSent;
     private String invoiceType;
@@ -208,36 +214,47 @@ public class Sales {
     public double getBalanceAmount() {
         String status = getDocumentStatus();
         if ("CANCELLED".equalsIgnoreCase(status) || "DELETED".equalsIgnoreCase(status)) return 0;
-        if (hasReturnSettlement()) return Math.max(0, returnPendingAmount);
+        // Invoice balance remains the original invoice/payment balance. Return refunds are separate.
         return Math.max(0, totalAmount - paidAmount);
     }
     public String getPaymentStatus() { return paymentStatus == null ? "PENDING" : paymentStatus; }
-    /**
-     * Server/base payment state setter. Return overlays must use applyReturnSettlement()
-     * so a Return never destroys the original Sale payment history.
-     */
     public void setPaymentStatus(String paymentStatus) {
         this.basePaymentStatus = paymentStatus == null || paymentStatus.isBlank() ? "PENDING" : paymentStatus;
         this.paymentStatus = this.basePaymentStatus;
-        this.returnPendingAmount = 0;
-        this.returnDueDate = null;
+        clearReturnSettlement();
     }
     public String getBasePaymentStatus() { return basePaymentStatus == null ? getPaymentStatus() : basePaymentStatus; }
     public double getReturnPendingAmount() { return returnPendingAmount; }
+    public double getApprovedReturnAmount() { return approvedReturnAmount; }
+    public double getSettledReturnAmount() { return settledReturnAmount; }
+    public double getReturnedQuantity() { return returnedQuantity; }
+    public double getOriginalQuantity() { return originalQuantity; }
+    public String getReturnStatus() { return returnStatus == null || returnStatus.isBlank() ? "N/A" : returnStatus; }
+    public String getRefundStatus() { return refundStatus == null || refundStatus.isBlank() ? "N/A" : refundStatus; }
     public LocalDate getReturnDueDate() { return returnDueDate; }
-    public boolean hasReturnSettlement() { return getPaymentStatus().toUpperCase(java.util.Locale.ROOT).startsWith("RETURN "); }
-    public void applyReturnSettlement(String status, double pendingAmount, LocalDate dueDate) {
-        if (status == null || !status.toUpperCase(java.util.Locale.ROOT).startsWith("RETURN ")) {
-            clearReturnSettlement();
-            return;
-        }
-        this.paymentStatus = status.trim().toUpperCase(java.util.Locale.ROOT);
+    public boolean hasReturnSettlement() { return !"N/A".equalsIgnoreCase(getReturnStatus()); }
+    public void applyReturnSettlement(String workflowStatus, double pendingAmount, LocalDate dueDate,
+                                      double approvedAmount, double settledAmount, String returnStatus,
+                                      String refundStatus, double returnedQuantity, double originalQuantity) {
         this.returnPendingAmount = Math.max(0, pendingAmount);
+        this.approvedReturnAmount = Math.max(0, approvedAmount);
+        this.settledReturnAmount = Math.max(0, settledAmount);
         this.returnDueDate = dueDate;
+        this.returnStatus = returnStatus == null || returnStatus.isBlank() ? "N/A" : returnStatus.trim().toUpperCase(java.util.Locale.ROOT);
+        this.refundStatus = refundStatus == null || refundStatus.isBlank() ? "N/A" : refundStatus.trim().toUpperCase(java.util.Locale.ROOT);
+        this.returnedQuantity = Math.max(0, returnedQuantity);
+        this.originalQuantity = Math.max(0, originalQuantity);
+        // Deliberately do not overwrite paymentStatus; original payment history is immutable.
     }
     public void clearReturnSettlement() {
         this.paymentStatus = basePaymentStatus == null || basePaymentStatus.isBlank() ? "PENDING" : basePaymentStatus;
         this.returnPendingAmount = 0;
+        this.approvedReturnAmount = 0;
+        this.settledReturnAmount = 0;
+        this.returnedQuantity = 0;
+        this.originalQuantity = 0;
+        this.returnStatus = "N/A";
+        this.refundStatus = "N/A";
         this.returnDueDate = null;
     }
     public boolean isWhatsappSent() { return whatsappSent; }

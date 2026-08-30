@@ -8,6 +8,18 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.40".equals(version)) {
+            return """
+                    DSE ERP 9.0.40
+
+                    • Corrects partial-return lifecycle accounting without rewriting historical Sale/Purchase payments, finance entries or bank allocations.
+                    • Separates invoice Payment Status from Return Status and Refund Status; non-return transactions display N/A.
+                    • Makes Sales, Purchase and Quotation Saved Views apply atomically with one final reload.
+                    • Adds the approved Reporting hub with Dashboard, Report Center, Saved Reports and scheduler-ready architecture.
+                    • Makes management exports return-aware and keeps approved Return values separate from original invoice payment history.
+                    • Retains the pinned Maven Wrapper and production build tooling for reproducible 9.0.40 builds.
+                    """;
+        }
         if ("9.0.38".equals(version)) {
             return """
                     DSE ERP 9.0.38
