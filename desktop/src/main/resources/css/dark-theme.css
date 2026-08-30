@@ -7945,7 +7945,7 @@
 }
 
 
-/* v9.0.37 register action buttons match the quick-range button family. */
+/* v9.0.38 register action buttons match the quick-range button family. */
 .register-action-button {
     -fx-background-color: #3e2b63 !important;
     -fx-border-color: #7253a8 !important;
