@@ -289,7 +289,7 @@ public class ReportsController implements ScreenLifecycle {
         colSavedStatus.setCellValueFactory(v->new SimpleStringProperty("NOT SCHEDULED"));
         colSavedStatus.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String v,boolean empty){super.updateItem(v,empty);setText(empty?null:v);getStyleClass().removeAll("report-status-paid","report-status-pending");if(!empty)getStyleClass().add("report-status-other");}});
         colSavedActions.setCellFactory(c->new TableCell<>(){ final Button open=new Button("Open"); {open.getStyleClass().add("link-button"); open.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)applySavedReport(row);});} @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:open);} });
-        tblSavedReports.setRowFactory(t->{TableRow<SavedReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())applySavedReport(row.getItem());});return row;});
+        tblSavedReports.setRowFactory(t->{TableRow<SavedReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==1&&!row.isEmpty())applySavedReport(row.getItem());});return row;});
         tblSavedReports.setPlaceholder(new Label("No saved reports yet. Open a report from Report Center and choose Save Report."));
     }
     private void configureSavedSearch(){ if(txtSavedSearch!=null)txtSavedSearch.textProperty().addListener((o,a,b)->filterSavedReports()); }
@@ -347,7 +347,7 @@ public class ReportsController implements ScreenLifecycle {
                 if(empty||row==null){setGraphic(null);return;}toggle.setText("ACTIVE".equalsIgnoreCase(row.status())?"Pause":"Resume");setGraphic(actions);
             }
         });
-        tblSchedules.setRowFactory(t->{TableRow<ScheduleRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())editSchedule(row.getItem());});return row;});
+        tblSchedules.setRowFactory(t->new TableRow<>());
         tblSchedules.setPlaceholder(new Label("No schedules configured yet. Create a Saved Report first, then select + New Schedule."));
         cmbScheduleStatus.getItems().setAll("All Status","ACTIVE","PAUSED");cmbScheduleStatus.setValue("All Status");
         cmbScheduleFormat.getItems().setAll("All Formats","PDF","XLSX","PDF + XLSX","CSV");cmbScheduleFormat.setValue("All Formats");

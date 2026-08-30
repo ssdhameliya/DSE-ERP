@@ -71,7 +71,7 @@ public class ReportViewerController implements ScreenLifecycle {
         cmbDirection.valueProperty().addListener((o,a,b)->{if(!initializing&&!rendering&&current!=null){page=0;requestLoad();}});
         txtSearch.setOnAction(e->applyFilters());
         tblReport.setPlaceholder(new Label("No transactions found for the selected criteria."));
-        tblReport.setRowFactory(t->{TableRow<ReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())drillDown(row.getItem());});return row;});
+        tblReport.setRowFactory(t->{TableRow<ReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==1&&!row.isEmpty())drillDown(row.getItem());});return row;});
         if(viewerPageIcon!=null)viewerPageIcon.getChildren().setAll(IconFactory.icon("report",24));
         loadFilterOptions();
         consumeContext();
