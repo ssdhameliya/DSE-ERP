@@ -5,6 +5,7 @@ import org.example.server.security.CurrentUser;
 import org.example.server.util.BusinessClock;
 import org.example.server.operations.BusinessOperationsService;
 import org.example.server.master.MasterDataService;
+import org.example.server.audit.AuditService;
 import org.example.shared.DocumentCalculationEngine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +19,13 @@ public class QuotationService {
     private final JpaNativeRepository jdbc;
     private final BusinessOperationsService operations;
     private final MasterDataService masterData;
+    private final AuditService audit;
 
-    public QuotationService(JpaNativeRepository jdbc, BusinessOperationsService operations, MasterDataService masterData) {
+    public QuotationService(JpaNativeRepository jdbc, BusinessOperationsService operations, MasterDataService masterData, AuditService audit) {
         this.jdbc = jdbc;
         this.operations = operations;
         this.masterData = masterData;
+        this.audit = audit;
     }
 
     @Transactional
@@ -240,7 +243,9 @@ public class QuotationService {
         LocalDate today = BusinessClock.today();
         String invoice = nextSale();
         boolean admin = "ADMIN".equalsIgnoreCase(CurrentUser.require().role());
-        String documentStatus = admin ? "PENDING" : "PENDING APPROVAL";
+        // Keep quotation conversion aligned with the normal Sale creation workflow:
+        // an Admin-created document is already approved; non-Admins still require approval.
+        String documentStatus = admin ? "APPROVED" : "PENDING APPROVAL";
         String approvalStatus = admin ? "APPROVED" : "PENDING";
         String actor = CurrentUser.require().username();
         String now = BusinessClock.nowUtcText();
@@ -269,6 +274,10 @@ public class QuotationService {
                     "Sales " + invoice + " • PENDING APPROVAL", invoice + " was created from quotation " + q.get("quotation_no") + " by " + actor + " and is waiting for Admin approval.",
                     "WARNING", "APPROVAL", "/fxml/pages/SalesList.fxml", invoice, "SALE", sid, "APPROVE", System.currentTimeMillis());
         }
+        // Record the Sale activity as well as the existing quotation conversion activity.
+        // This makes the converted document visible in the same Activity Summary/history
+        // used by normally-created Sales documents.
+        audit.log("SALE", sid, "CREATED", invoice + " • Converted from " + q.get("quotation_no"));
         jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=? WHERE id=?", invoice, id);
         activity(id, "CONVERTED", invoice, ignoredUser);
         return invoice;

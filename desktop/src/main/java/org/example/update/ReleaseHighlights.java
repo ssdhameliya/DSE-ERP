@@ -8,9 +8,9 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
-        if ("9.0.36".equals(version)) {
+        if ("9.0.37".equals(version)) {
             return """
-                    DSE ERP 9.0.36
+                    DSE ERP 9.0.37
 
                     • Promotes the release identity from 9.0.34 while retaining all approved 9.0.34 functionality and UI corrections.
                     • Hardens GitHub Actions Maven Wrapper execution so CI remains safe even when checkout restores executable permissions inconsistently.

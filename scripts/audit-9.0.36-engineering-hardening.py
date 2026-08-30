@@ -18,12 +18,12 @@ def forbid(rel,*tokens):
     for token in tokens:
         if token in s: FAIL.append(f"{rel}: forbidden {token!r}")
 
-need('pom.xml','<version>9.0.36</version>','<maven.compiler.release>25</maven.compiler.release>')
+need('pom.xml','<version>9.0.37</version>','<maven.compiler.release>25</maven.compiler.release>')
 need('mvnw','3.9.11')
 need('mvnw.cmd','3.9.11')
 need('.mvn/wrapper/maven-wrapper.properties','apache-maven-3.9.11-bin.zip')
 need('.github/workflows/ci.yml','./mvnw','postgres-integration','DSE_IT_DB_URL','PostgresWorkflowIntegrationTest')
-need('.github/workflows/release.yml','./mvnw','audit-9.0.36-engineering-hardening.py')
+need('.github/workflows/release.yml','./mvnw','audit-9.0.37-engineering-hardening.py')
 need('server/src/test/java/org/example/server/integration/PostgresWorkflowIntegrationTest.java','RETURN APPROVAL PENDING','RETURN PENDING','RETURN PARTIAL','RETURN PAID','assertThrows')
 need('desktop/src/main/java/org/example/util/DesktopLog.java','desktop.log','BUNDLE_EXPORTED' if False else 'Structured desktop log')
 need('desktop/src/main/java/org/example/service/DiagnosticBundleService.java','config-sanitized.properties','<redacted>','database and business documents' if False else 'Business documents/database contents are never included')
@@ -45,10 +45,10 @@ need('desktop/src/main/java/org/example/controller/PurchaseListController.java',
 need('desktop/src/main/java/org/example/controller/QuotationController.java','Activity Timeline','RegisterColumnPreferences.install(table','QUOTATION_REGISTER')
 need('desktop/src/main/java/org/example/util/RegisterUiSupport.java','configureHeaderSearch','setCurrentYearRange')
 need('desktop/src/main/java/org/example/util/RegisterColumnPreferences.java','setTableMenuButtonVisible(true)','visibleProperty()','widthProperty()','order')
-need('desktop/src/main/java/org/example/update/ReleaseHighlights.java','if ("9.0.36".equals(version))','Engineering' if False else 'Maven Wrapper')
+need('desktop/src/main/java/org/example/update/ReleaseHighlights.java','if ("9.0.37".equals(version))','Engineering' if False else 'Maven Wrapper')
 
 if FAIL:
-    print('FAIL: 9.0.36 engineering hardening audit')
+    print('FAIL: 9.0.37 engineering hardening audit')
     for f in FAIL: print(' -',f)
     sys.exit(1)
-print('PASS: 9.0.36 engineering hardening audit')
+print('PASS: 9.0.37 engineering hardening audit')
