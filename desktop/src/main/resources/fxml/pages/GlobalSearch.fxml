@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <BorderPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.controller.GlobalSearchController"
-            styleClass="dse-global-search-v3-root" stylesheets="@../../css/global-search-v3.css">
+            styleClass="dse-global-search-v3-root">
   <top>
     <VBox spacing="9" styleClass="dse-global-search-v3-top">
       <padding><Insets top="12" right="14" bottom="8" left="14"/></padding>

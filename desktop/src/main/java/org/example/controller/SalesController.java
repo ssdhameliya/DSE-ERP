@@ -236,8 +236,6 @@ public class SalesController {
             chkSameAsBilling.setGraphicTextGap(0);
             chkSameAsBilling.getProperties().put("erp-icon-preserve", true);
         }
-        configureExplicitTableHeaderIcons();
-
         setupTable();
         configureEmptyState();
 
@@ -2063,17 +2061,5 @@ public class SalesController {
         while (current.getCause() != null && current.getCause() != current) current = current.getCause();
         String message = current.getMessage();
         return message == null || message.isBlank() ? current.getClass().getSimpleName() : message;
-    }
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colItem, "item");
-        IconFactory.applyTableHeaderIcon(colQuantity, "quantity");
-        IconFactory.applyTableHeaderIcon(colRate, "currency");
-        IconFactory.applyTableHeaderIcon(colGst, "tax");
-        IconFactory.applyTableHeaderIcon(colDiscount, "discount");
-        IconFactory.applyTableHeaderIcon(colDiscountAmount, "discount");
-        IconFactory.applyTableHeaderIcon(colGstAmount, "tax");
-        IconFactory.applyTableHeaderIcon(colNetAmount, "currency");
-        IconFactory.applyTableHeaderIcon(colTotal, "currency");
     }
 }

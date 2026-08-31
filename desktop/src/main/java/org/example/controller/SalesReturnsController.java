@@ -63,7 +63,6 @@ public class SalesReturnsController implements ScreenLifecycle {
     private final RegisterPageState pageState=new RegisterPageState(); private static final int PAGE_SIZE=25;
 
     @FXML public void initialize() {
-        configureExplicitTableHeaderIcons();
         no.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().no()));
         date.setCellValueFactory(x -> new SimpleStringProperty(BusinessClock.formatDate(x.getValue().date())));
         invoice.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().invoice()));
@@ -94,7 +93,6 @@ public class SalesReturnsController implements ScreenLifecycle {
     @SuppressWarnings("unchecked")
     private void installSelection() {
         TableColumn<Row, Boolean> selection = (TableColumn<Row, Boolean>) (TableColumn<?, ?>) table.getColumns().getFirst();
-        selection.setMinWidth(42); selection.setPrefWidth(42); selection.setMaxWidth(42);
         TableSelectionSupport.install(table, selection);
     }
 
@@ -162,7 +160,7 @@ public class SalesReturnsController implements ScreenLifecycle {
                 boolean good = normalized.contains("APPROVED") || normalized.contains("COMPLETED") || normalized.contains("REFUNDED");
                 boolean bad = normalized.contains("REJECT") || normalized.contains("CANCEL") || normalized.contains("FAILED");
                 getStyleClass().add(good ? "pill-success" : bad ? "pill-danger" : "pill-warning");
-                setGraphic(IconFactory.statusIcon(bad ? "error" : good ? "save" : icon, bad ? "#dc2626" : good ? "#16a34a" : "#2563eb"));
+                setGraphic(IconFactory.statusIcon(bad ? "error" : good ? "save" : icon, bad ? "danger" : good ? "success" : "info"));
             }
         };
     }
@@ -213,8 +211,8 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void applyValueIcon(Label label,String semantic){if(label!=null&&label.getGraphic()==null){label.setGraphic(IconFactory.compactIcon(semantic,15));label.setGraphicTextGap(7);label.getProperties().put("erp-icon-preserve",true);}}
     private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("invoice"))return"sale";if(t.contains("customer"))return"customer";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("original"))return"sale";if(t.contains("close"))return"cancel";return null;}
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
-    private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
-    private void showDetails(Row row) { if(row==null)return; selected=row; RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}updateSelectedActions(row);}
+    private String returnState(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"danger";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"success";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"info";return"warning";}
+    private void showDetails(Row row) { if(row==null)return; selected=row; RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnState(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnState(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}updateSelectedActions(row);}
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
@@ -288,21 +286,6 @@ public class SalesReturnsController implements ScreenLifecycle {
     private boolean confirm(String text) { return org.example.util.ModernDialog.confirm(table, "Confirmation", "Are you sure?", text); }
     private void info(String value) { org.example.util.ToastManager.success(table, "Completed", value); }
     private void error(Exception e) { org.example.util.ModernDialog.error(table, "Operation failed", "Something went wrong", e.getMessage() == null ? "Operation failed" : e.getMessage()); }
-
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(no, "return");
-        IconFactory.applyTableHeaderIcon(date, "calendar");
-        IconFactory.applyTableHeaderIcon(invoice, "sale");
-        IconFactory.applyTableHeaderIcon(customer, "customer");
-        IconFactory.applyTableHeaderIcon(reason, "notes");
-        IconFactory.applyTableHeaderIcon(amount, "currency");
-        IconFactory.applyTableHeaderIcon(status, "status");
-        IconFactory.applyTableHeaderIcon(refundStatus, "status");
-        action.setText("Actions"); IconFactory.applyTableHeaderIcon(action, "actions");
-    }
-
     private Exception asException(Throwable failure){return failure instanceof Exception e?e:new RuntimeException(failure);}
     private static String str(Object v){return v==null?"":String.valueOf(v);}
 

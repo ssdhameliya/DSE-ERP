@@ -99,7 +99,6 @@ public class SalesListController implements ScreenLifecycle {
 
     @FXML public void initialize(){
         configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();loadSavedViews();org.example.util.RegisterColumnPreferences.install(tableSales,"SALES_REGISTER");
-        configureExplicitTableHeaderIcons();
         RegisterUiSupport.configureHeaderSearch(txtSearch,salesHeaderSearchIcon,"Search invoice, customer, mobile or GSTIN...");
         simplifyFilters();
         RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);
@@ -256,29 +255,7 @@ public class SalesListController implements ScreenLifecycle {
         colDue.setCellFactory(x->SemanticTableCells.dueDate());
         tableSales.setPlaceholder(new Label("No sales invoices match the selected filters"));
     }
-
-    private void configureExplicitTableHeaderIcons(){
-        setHeaderIcon(colInvoice,"document");
-        setHeaderIcon(colDate,"calendar");
-        setHeaderIcon(colCustomer,"customer");
-        setHeaderIcon(colMobile,"phone");
-        setHeaderIcon(colGstin,"tax");
-        setHeaderIcon(colTotal,"currency");
-        setHeaderIcon(colPaid,"complete");
-        setHeaderIcon(colBalance,"balance");
-        setHeaderIcon(colDue,"reminder");
-        setHeaderIcon(colStatus,"status");
-        setHeaderIcon(colPaymentStatus,"payment");
-        if(colReturnStatus!=null)setHeaderIcon(colReturnStatus,"return");
-        setHeaderIcon(colMail,"email");
-        setHeaderIcon(colAction,"actions");
-    }
-
-    private void setHeaderIcon(TableColumn<?,?> column,String semantic){
-        IconFactory.applyTableHeaderIcon(column, semantic);
-    }
-
-    private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);}};}
+private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);}};}
     private TableCell<Sales,Double> totalMoneyCell(){return coloredMoneyCell("register-amount-total","register-amount-total");}
     private TableCell<Sales,Double> balanceMoneyCell(){return coloredMoneyCell("register-balance-open","register-balance-settled");}
     private TableCell<Sales,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:money(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-amount-total","register-balance-open","register-balance-settled");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}

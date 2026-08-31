@@ -192,7 +192,6 @@ public final class QuotationEditorController {
         colDiscount.setCellValueFactory(v->v.getValue().discount);
         colGst.setCellValueFactory(v->v.getValue().gst);
         colAmount.setCellValueFactory(v->v.getValue().total);
-        IconFactory.applyTableHeaderIcon(colItem,"item");IconFactory.applyTableHeaderIcon(colCode,"document");IconFactory.applyTableHeaderIcon(colQty,"quantity");IconFactory.applyTableHeaderIcon(colRate,"currency");IconFactory.applyTableHeaderIcon(colDiscount,"discount");IconFactory.applyTableHeaderIcon(colGst,"tax");IconFactory.applyTableHeaderIcon(colAmount,"currency");
         for(TableColumn<LineRow,Number> column:List.of(colQty,colRate,colDiscount,colGst,colAmount))column.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);setText(empty||value==null?null:String.format(Locale.ENGLISH,"%,.2f",value.doubleValue()));setAlignment(Pos.CENTER_RIGHT);}});
         tableLines.getSelectionModel().selectedItemProperty().addListener((o,old,row)->editLine(row));
     }

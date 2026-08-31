@@ -25,7 +25,7 @@
 
   <center>
     <SplitPane fx:id="mainSplit" dividerPositions="0.81" styleClass="register-split,sales-register-split">
-      
+
       <items>
         <VBox spacing="10" minWidth="620" styleClass="register-workspace,sales-register-workspace">
           <padding><Insets top="0" right="12" bottom="0" left="0"/></padding>
@@ -127,20 +127,20 @@
           <VBox spacing="0" minHeight="0" VBox.vgrow="ALWAYS" styleClass="sales-table-card">
             <TableView fx:id="tableSales" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,sales-register-table,erp-table-profile-register">
               <columns>
-                <TableColumn fx:id="colInvoice" text="Invoice No." prefWidth="98" minWidth="88" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colDate" text="Date" prefWidth="82" minWidth="76" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="128" minWidth="110" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colMobile" text="Mobile" prefWidth="92" minWidth="84" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colGstin" text="GSTIN" prefWidth="112" minWidth="100" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colTotal" text="Amount" prefWidth="96" minWidth="88" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colPaid" text="Paid" prefWidth="82" minWidth="74" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colBalance" text="Pending" prefWidth="90" minWidth="82" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colDue" text="Payment Due" prefWidth="102" minWidth="94" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colStatus" text="Document Status" prefWidth="104" minWidth="96" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colPaymentStatus" text="Payment Status" prefWidth="112" minWidth="102" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colReturnStatus" text="Return Status" prefWidth="122" minWidth="112" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colMail" text="Email" prefWidth="70" minWidth="64" styleClass="approved-table-column"/>
-                <TableColumn fx:id="colAction" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
+                <TableColumn fx:id="colInvoice" text="Invoice No." styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDate" text="Date" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colCustomer" text="Customer" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMobile" text="Mobile" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colGstin" text="GSTIN" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colTotal" text="Amount" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colPaid" text="Paid" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colBalance" text="Pending" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colDue" text="Payment Due" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colStatus" text="Document Status" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colPaymentStatus" text="Payment Status" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colReturnStatus" text="Return Status" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colMail" text="Email" styleClass="approved-table-column"/>
+                <TableColumn fx:id="colAction" text="Actions" styleClass="approved-table-column" sortable="false" resizable="false"/>
               </columns>
             </TableView>
 

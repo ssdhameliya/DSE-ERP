@@ -246,14 +246,6 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                 setGraphic(actions);
             }
         });
-        IconFactory.applyTableHeaderIcon(historyDate, "calendar");
-        IconFactory.applyTableHeaderIcon(historyMode, "payment");
-        IconFactory.applyTableHeaderIcon(historyReference, "document");
-        IconFactory.applyTableHeaderIcon(historyPaidTo, "supplier");
-        IconFactory.applyTableHeaderIcon(historyAmount, "currency");
-        IconFactory.applyTableHeaderIcon(historyStatus, "status");
-        IconFactory.applyTableHeaderIcon(historyNotes, "document");
-        IconFactory.applyTableHeaderIcon(historyAction, "actions");
     }
 
     private void refreshInvoiceAmounts() {

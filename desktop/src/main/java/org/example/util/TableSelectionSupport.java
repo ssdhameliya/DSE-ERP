@@ -26,9 +26,6 @@ public final class TableSelectionSupport {
         column.setSortable(false);
         column.setReorderable(false);
         column.setResizable(false);
-        column.setMinWidth(54);
-        column.setPrefWidth(54);
-        column.setMaxWidth(54);
         column.setCellValueFactory(data -> new ReadOnlyBooleanWrapper(data.getValue() != null));
         CheckBox all = new CheckBox();
         all.setTooltip(new Tooltip("Select all visible rows"));

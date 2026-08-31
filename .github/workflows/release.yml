@@ -83,8 +83,24 @@ jobs:
         run: python3 scripts/audit-9.0.15-reference-item-import-contract.py
       - name: Enforce 9.0.16 quotation-source / linked-sale contract
         run: python3 scripts/audit-9.0.16-quotation-source-sale-link-contract.py
-      - name: Enforce 9.0.40 engineering hardening contract
-        run: python3 scripts/audit-9.0.40-engineering-hardening.py
+      - name: Enforce 9.0.41 approved UI/behavior freeze
+        run: python3 scripts/audit-9.0.41-ui-behavior-freeze.py
+      - name: Enforce 9.0.41 Phase 2 two-theme contract
+        run: python3 scripts/audit-9.0.41-phase2-two-theme-contract.py
+      - name: Enforce 9.0.41 Phase 3 semantic UI contract
+        run: python3 scripts/audit-9.0.41-phase3-semantic-ui-contract.py
+      - name: Enforce 9.0.41 Phase 4 responsive KPI contract
+        run: python3 scripts/audit-9.0.41-phase4-responsive-kpi-contract.py
+      - name: Enforce 9.0.41 Phase 5 dynamic TableView contract
+        run: python3 scripts/audit-9.0.41-phase5-dynamic-table-contract.py
+      - name: Enforce 9.0.41 Phase 6 controller/UI ownership contract
+        run: python3 scripts/audit-9.0.41-phase6-controller-cleanup-contract.py
+      - name: Enforce 9.0.41 Phase 7 production-clean contract
+        run: python3 scripts/audit-9.0.41-phase7-production-clean-contract.py
+      - name: Enforce 9.0.41 corrective UI stabilization contract
+        run: python3 scripts/audit-9.0.41-phase8-ui-stabilization-contract.py
+      - name: Enforce 9.0.41 engineering hardening contract
+        run: python3 scripts/audit-9.0.41-engineering-hardening.py
       - name: Run tests
         run: ./mvnw -B -ntp clean verify
 

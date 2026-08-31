@@ -44,7 +44,7 @@ public class SplashController {
         clock = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshElapsed()));
         clock.setCycleCount(Timeline.INDEFINITE);
         clock.play();
-        
+
     }
 
     public void refreshBranding() {

@@ -8,6 +8,18 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.41".equals(version)) {
+            return """
+                    DSE ERP 9.0.41
+
+                    • Preserves the approved 9.0.40 view, navigation, dialogs, confirmations, warnings and business workflows behind repeatable UI/behavior freeze audits.
+                    • Consolidates runtime styling to exactly two canonical themes: light-theme.css and dark-theme.css.
+                    • Adds the shared semantic icon/colour registry for field labels, TableView headers, KPI captions and business-state values.
+                    • Makes KPI bands responsive so managed cards automatically share all available width when cards are added, hidden or removed.
+                    • Adds one DynamicTableLayoutManager for every ERP TableView: header icon/text and live row content drive widths, saved views retain visibility/order only, and readable horizontal scrolling replaces fixed controller/FXML column widths.
+                    • Keeps table row density visually compatible while removing Java row-height/resize-policy conflicts and enforcing exactly two CSS files in CI/release validation.
+                    """;
+        }
         if ("9.0.40".equals(version)) {
             return """
                     DSE ERP 9.0.40

@@ -26,26 +26,16 @@ public final class ThemeManager {
     public static void applyTheme(Scene scene) {
         installWindowHook();
 
-        // CSS ownership contract: shared layout/component styles load first and
-        // are the canonical home for geometry/behavior. Theme sheets load last
-        // for palette/state styling only. Responsive/platform geometry is owned
-        // by the shared layout/component sheets and must not be reintroduced here.
-        addOnce(scene, "/css/ui-layout.css");
-        addOnce(scene, "/css/ui-components.css");
-        scene.getStylesheets().removeIf(css ->
-            css.contains("light-theme.css") || css.contains("dark-theme.css"));
-
-        if (currentTheme == Theme.DARK) {
-
-            scene.getStylesheets().add(
-                org.example.util.ResourceLocator.require("/css/dark-theme.css").toExternalForm());
-
-        } else {
-
-            scene.getStylesheets().add(
-                org.example.util.ResourceLocator.require("/css/light-theme.css").toExternalForm());
-
-        }
+        // 9.0.41 Phase 2 CSS ownership contract: exactly one canonical theme
+        // stylesheet is active. Each theme now contains the previously reviewed
+        // layout, component, palette and scoped page CSS in the same effective
+        // cascade order, so switching theme changes presentation without stacking
+        // multiple author stylesheets or rebuilding the view.
+        String activeTheme = currentTheme == Theme.DARK
+                ? "/css/dark-theme.css"
+                : "/css/light-theme.css";
+        scene.getStylesheets().setAll(
+                org.example.util.ResourceLocator.require(activeTheme).toExternalForm());
 
         // Theme switches must not rebuild tables, icons or page structure.
         // Only responsive classes and the active color palette are refreshed.
@@ -60,11 +50,6 @@ public final class ThemeManager {
             }
         }
 
-    }
-
-    private static void addOnce(Scene scene, String resource) {
-        String url = org.example.util.ResourceLocator.require(resource).toExternalForm();
-        if (!scene.getStylesheets().contains(url)) scene.getStylesheets().add(url);
     }
 
     private static synchronized void installWindowHook() {

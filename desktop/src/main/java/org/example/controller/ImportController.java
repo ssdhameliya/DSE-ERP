@@ -1145,12 +1145,10 @@ public class ImportController {
         if ("Purchase Recon".equals(cmbImportModule.getValue())) {
             TableColumn<Map<String, String>, String> sheetColumn = new TableColumn<>("Sheet");
             sheetColumn.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getOrDefault("_source_sheet", "")));
-            sheetColumn.setMinWidth(125); sheetColumn.setPrefWidth(145);
             IconFactory.applyTableHeaderIcon(sheetColumn, "document");
             tblPreview.getColumns().add(sheetColumn);
             TableColumn<Map<String, String>, String> rowColumn = new TableColumn<>("Row");
             rowColumn.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getOrDefault("_source_row", "")));
-            rowColumn.setMinWidth(72); rowColumn.setPrefWidth(78);
             IconFactory.applyTableHeaderIcon(rowColumn, "reference");
             tblPreview.getColumns().add(rowColumn);
         }
@@ -1167,12 +1165,6 @@ public class ImportController {
                             .getValue()
                             .getOrDefault(field, "")
                     )
-            );
-
-            configurePreviewColumnWidth(
-                column,
-                field,
-                mappedFields.size()
             );
             IconFactory.applyTableHeaderIcon(column, semanticIconForField(field));
 
@@ -1229,58 +1221,6 @@ public class ImportController {
             case "is_active" -> "status";
             default -> "document";
         };
-    }
-
-    private void configurePreviewColumnWidth(
-        TableColumn<Map<String, String>, String> column,
-        String field,
-        int totalColumns
-    ) {
-
-        double minimumWidth =
-            switch (field) {
-
-                case "description",
-                     "address",
-                     "remarks",
-                     "category_description",
-                     "value_description",
-                     "attachment_file",
-                     "attachment_files",
-                     "additional_charges" -> 220;
-
-                case "email" -> 190;
-
-                case "name",
-                     "contact_person",
-                     "category_name",
-                     "value",
-                     "charge_1_type",
-                     "charge_2_type" -> 170;
-
-                case "invoice_no",
-                     "party_code",
-                     "item_code",
-                     "gstin",
-                     "hsn" -> 145;
-
-                case "invoice_date",
-                     "payment_terms" -> 130;
-
-                default -> 115;
-            };
-
-        if (totalColumns <= 6) {
-
-            column.setMinWidth(
-                Math.min(minimumWidth, 135)
-            );
-
-        } else {
-
-            column.setMinWidth(minimumWidth);
-            column.setPrefWidth(minimumWidth);
-        }
     }
 
     private void loadPreviewRows() {
@@ -1809,13 +1749,13 @@ public class ImportController {
 
     private void showValidationTable(ImportService.ImportResult result) {
         tblValidation.getColumns().clear();
-        addValidationColumn("Sheet / Rows", "rows", 135);
-        addValidationColumn("Record / Reference", "reference", 165);
-        addValidationColumn("Mandatory", "mandatory", 110);
-        addValidationColumn("Format", "format", 110);
-        addValidationColumn("Master Match", "master", 125);
-        addValidationColumn("Data / Duplicate", "data", 135);
-        addValidationColumn("Result / Error", "message", 330);
+        addValidationColumn("Sheet / Rows", "rows");
+        addValidationColumn("Record / Reference", "reference");
+        addValidationColumn("Mandatory", "mandatory");
+        addValidationColumn("Format", "format");
+        addValidationColumn("Master Match", "master");
+        addValidationColumn("Data / Duplicate", "data");
+        addValidationColumn("Result / Error", "message");
         List<Map<String,String>> rows = new ArrayList<>();
         if (result != null) {
             for (ImportService.ImportRowResult row : result.details) {
@@ -1855,14 +1795,12 @@ public class ImportController {
         }
     }
 
-    private void addValidationColumn(String title, String key, double width) {
+    private void addValidationColumn(String title, String key) {
         TableColumn<Map<String,String>,String> c = new TableColumn<>(title);
         c.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().getOrDefault(key, "")));
         if (Set.of("mandatory", "format", "master", "data").contains(key)) {
             c.setCellFactory(column -> SemanticTableCells.status("validation"));
         }
-        c.setMinWidth(width);
-        c.setPrefWidth(width);
         tblValidation.getColumns().add(c);
     }
 
@@ -2556,7 +2494,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 9.0.40 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 9.0.41 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

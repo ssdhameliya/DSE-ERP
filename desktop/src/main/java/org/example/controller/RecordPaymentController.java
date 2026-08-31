@@ -218,15 +218,6 @@ public class RecordPaymentController implements ScreenLifecycle {
                 setGraphic(actions);
             }
         });
-        IconFactory.applyTableHeaderIcon(historyDate, "calendar");
-        IconFactory.applyTableHeaderIcon(historyMode, "payment");
-        IconFactory.applyTableHeaderIcon(historyReference, "reference");
-        IconFactory.applyTableHeaderIcon(historyFrom, "customer");
-        IconFactory.applyTableHeaderIcon(historyAmount, "currency");
-        IconFactory.applyTableHeaderIcon(historyStatus, "status");
-        IconFactory.applyTableHeaderIcon(historyNotes, "notes");
-        IconFactory.applyTableHeaderIcon(historyAction, "actions");
-        historyTable.setFixedCellSize(42);
     }
 
     private void refreshInvoiceAmounts() {

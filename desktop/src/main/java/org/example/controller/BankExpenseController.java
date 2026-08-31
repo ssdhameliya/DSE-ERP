@@ -256,7 +256,7 @@ public class BankExpenseController implements ScreenLifecycle {
         }
         typeFilter.getSelectionModel().selectFirst();
         colType.setText(bank ? "Type" : "Category"); colMode.setVisible(!bank);
-        configureHeaderIcons(); loadMetrics(); applyFilters();
+        loadMetrics(); applyFilters();
     }
 
     private void styleModeButton(Button button, boolean selected) {
@@ -267,25 +267,13 @@ public class BankExpenseController implements ScreenLifecycle {
     private void configureTable() {
         colDate.setCellValueFactory(v->v.getValue().date); colType.setCellValueFactory(v->v.getValue().type); colDescription.setCellValueFactory(v->v.getValue().description);
         colAccount.setCellValueFactory(v->v.getValue().account); colMode.setCellValueFactory(v->v.getValue().paymentMode); colReference.setCellValueFactory(v->v.getValue().reference); colAmount.setCellValueFactory(v->v.getValue().amount); colMatch.setCellValueFactory(v->v.getValue().match);
-        colAmount.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(Number n, boolean empty){ super.updateItem(n,empty); if(empty||n==null){setText(null);setStyle("");return;} EntryRow row=getTableRow()==null?null:getTableRow().getItem(); setText(money(n.doubleValue())); boolean positive=row!=null && row.rawType.contains("DEPOSIT"); setStyle("-fx-text-fill:" + (positive ? "#22c55e" : "#ef4444") + ";-fx-font-weight:800;"); }});
+        colAmount.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(Number n, boolean empty){ super.updateItem(n,empty); getStyleClass().removeAll("erp-value-positive","erp-value-negative"); if(empty||n==null){setText(null);return;} EntryRow row=getTableRow()==null?null:getTableRow().getItem(); setText(money(n.doubleValue())); boolean positive=row!=null && row.rawType.contains("DEPOSIT"); getStyleClass().add(positive ? "erp-value-positive" : "erp-value-negative"); }});
         colMatch.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String text, boolean empty){ super.updateItem(text,empty); setText(null); setGraphic(null); if(empty||text==null||text.isBlank()||getIndex()<0||getIndex()>=getTableView().getItems().size())return; EntryRow row=getTableView().getItems().get(getIndex()); Hyperlink link=new Hyperlink(row.statementTransactionId!=null?"View Bank Statement":text); link.getStyleClass().add("bank-match-link"); link.setGraphic(IconFactory.compactIcon(row.statementTransactionId!=null?"bank":"link",13)); link.setOnAction(e->{if(row.statementTransactionId!=null)openBankStatement(row);else openLinkedErp(row);}); setGraphic(link);} });
         colType.setCellFactory(c->new TableCell<>() { @Override protected void updateItem(String s, boolean empty){ super.updateItem(s,empty); setText(empty?null:s); setGraphic(null); getStyleClass().removeAll("finance-chip-green","finance-chip-red","finance-chip-purple","finance-chip-blue","finance-chip-orange","finance-chip-teal"); if(!empty&&s!=null){getStyleClass().add(chipStyle(s));String v=s.toLowerCase(Locale.ROOT);String semantic=v.contains("deposit")?"credit":v.contains("withdraw")?"debit":v.contains("travel")||v.contains("transport")?"delivery":v.contains("office")?"notes":v.contains("marketing")||v.contains("maintenance")?"category":"payment";setGraphic(IconFactory.compactIcon(semantic,13));setGraphicTextGap(5);setContentDisplay(ContentDisplay.LEFT);}}});
         colAction.setCellFactory(c->new TableCell<>() { private final MenuButton actions=new MenuButton("Actions"); private EntryRow row; { actions.getStyleClass().addAll("bank-row-action","table-action-menu","approved-row-action"); actions.setGraphic(IconFactory.compactIcon("actions",15)); actions.setOnShowing(e->rebuild()); IconFactory.decorateActionMenu(actions); } private void rebuild(){actions.getItems().clear();if(row==null)return;String noun=mode==Mode.EXPENSE?"Expense":"Bank Entry";MenuItem view=new MenuItem("View "+noun,IconFactory.compactIcon("view",15));view.setOnAction(e->{table.getSelectionModel().select(row);showEntryDetails(row);});actions.getItems().add(view);if(row.statementTransactionId!=null){MenuItem statement=new MenuItem("Open Bank Statement",IconFactory.compactIcon("bank",15));statement.setOnAction(e->openBankStatement(row));actions.getItems().add(statement);}if(hasLinkedErp(row)){MenuItem linked=new MenuItem("Open Linked ERP Record",IconFactory.compactIcon("link",15));linked.setOnAction(e->openLinkedErp(row));actions.getItems().add(linked);}MenuItem edit=new MenuItem("Edit "+noun,IconFactory.compactIcon("edit",15));edit.setOnAction(e->editRow(row));MenuItem del=new MenuItem("Delete "+noun,IconFactory.compactIcon("delete",15));del.getStyleClass().add("danger-menu-item");del.setOnAction(e->deleteRow(row));actions.getItems().addAll(edit,del);} @Override protected void updateItem(Void v, boolean empty){super.updateItem(v,empty);row=empty||getIndex()<0||getIndex()>=getTableView().getItems().size()?null:getTableView().getItems().get(getIndex());if(row==null){actions.hide();actions.getItems().clear();setGraphic(null);}else{rebuild();setGraphic(actions);}} });
         table.setPlaceholder(new Label("No entries found"));
         table.setRowFactory(tv->{TableRow<EntryRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getButton()!=javafx.scene.input.MouseButton.PRIMARY||e.getClickCount()!=1||row.isEmpty()||org.example.util.RegisterUiSupport.isInteractiveTableTarget(e.getPickResult().getIntersectedNode(),row))return;EntryRow clicked=row.getItem();if(detailDrawer!=null&&detailDrawer.isOpen()&&detailRow==clicked){closeEntryDetails();}else{table.getSelectionModel().select(clicked);showEntryDetails(clicked);}e.consume();});return row;});
-        colDate.setMinWidth(85);       colDate.setPrefWidth(95);
-        colType.setMinWidth(100);      colType.setPrefWidth(115);
-        colDescription.setMinWidth(180); colDescription.setPrefWidth(260);
-        colAccount.setMinWidth(130);   colAccount.setPrefWidth(180);
-        colMode.setMinWidth(90);       colMode.setPrefWidth(110);
-        colReference.setMinWidth(115); colReference.setPrefWidth(150);
-        colAmount.setMinWidth(110);    colAmount.setPrefWidth(130);
-        colMatch.setMinWidth(125);     colMatch.setPrefWidth(150);
-        configureHeaderIcons();
-    }
-
-    private void configureHeaderIcons(){ IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colType, mode==Mode.EXPENSE?"category":"status"); IconFactory.applyTableHeaderIcon(colDescription,"notes"); IconFactory.applyTableHeaderIcon(colAccount,"bank"); IconFactory.applyTableHeaderIcon(colMode,"payment"); IconFactory.applyTableHeaderIcon(colReference,"reference"); IconFactory.applyTableHeaderIcon(colAmount,"currency"); IconFactory.applyTableHeaderIcon(colMatch,"link"); IconFactory.applyTableHeaderIcon(colAction,"actions"); }
-
+        }
     private void loadMetrics() {
         Mode requestedMode = mode;
         UiTaskExecutor.submitLatest("finance-metrics-" + (requestedMode == null ? "unknown" : requestedMode.name()), financeService::metrics, m -> {

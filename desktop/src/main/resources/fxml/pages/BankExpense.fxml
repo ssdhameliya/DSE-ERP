@@ -91,7 +91,7 @@
           <TableColumn fx:id="colReference" text="Reference"/>
           <TableColumn fx:id="colAmount" text="Amount"/>
           <TableColumn fx:id="colMatch" text="Match / Link"/>
-          <TableColumn fx:id="colAction" text="Actions" minWidth="156" prefWidth="160" maxWidth="168" sortable="false" resizable="false"/>
+          <TableColumn fx:id="colAction" text="Actions" sortable="false" resizable="false"/>
         </columns>
       </TableView>
       <HBox alignment="CENTER_LEFT">

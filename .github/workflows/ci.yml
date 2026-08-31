@@ -81,8 +81,24 @@ jobs:
         run: python scripts/audit-9.0.15-reference-item-import-contract.py
       - name: Enforce 9.0.16 quotation-source / linked-sale contract
         run: python scripts/audit-9.0.16-quotation-source-sale-link-contract.py
-      - name: Enforce 9.0.40 engineering hardening contract
-        run: python scripts/audit-9.0.40-engineering-hardening.py
+      - name: Enforce 9.0.41 approved UI/behavior freeze
+        run: python scripts/audit-9.0.41-ui-behavior-freeze.py
+      - name: Enforce 9.0.41 Phase 2 two-theme contract
+        run: python scripts/audit-9.0.41-phase2-two-theme-contract.py
+      - name: Enforce 9.0.41 Phase 3 semantic UI contract
+        run: python scripts/audit-9.0.41-phase3-semantic-ui-contract.py
+      - name: Enforce 9.0.41 Phase 4 responsive KPI contract
+        run: python scripts/audit-9.0.41-phase4-responsive-kpi-contract.py
+      - name: Enforce 9.0.41 Phase 5 dynamic TableView contract
+        run: python scripts/audit-9.0.41-phase5-dynamic-table-contract.py
+      - name: Enforce 9.0.41 Phase 6 controller/UI ownership contract
+        run: python scripts/audit-9.0.41-phase6-controller-cleanup-contract.py
+      - name: Enforce 9.0.41 Phase 7 production-clean contract
+        run: python scripts/audit-9.0.41-phase7-production-clean-contract.py
+      - name: Enforce 9.0.41 corrective UI stabilization contract
+        run: python scripts/audit-9.0.41-phase8-ui-stabilization-contract.py
+      - name: Enforce 9.0.41 engineering hardening contract
+        run: python scripts/audit-9.0.41-engineering-hardening.py
       - name: Verify final UI source contract
         shell: python
         run: |
@@ -98,24 +114,18 @@ jobs:
           for path in fxml:
               ET.parse(path)
 
-          for css_name in ('ui-layout.css', 'ui-components.css', 'light-theme.css', 'dark-theme.css'):
+          css_files = sorted(path.name for path in (root / 'css').glob('*.css'))
+          if css_files != ['dark-theme.css', 'light-theme.css']:
+              raise SystemExit(f'Exactly two canonical CSS files required, found {css_files}')
+          for css_name in css_files:
               text = (root / 'css' / css_name).read_text(encoding='utf-8')
               if text.count('{') != text.count('}'):
                   raise SystemExit(f'Unbalanced CSS braces in {css_name}')
               if '-fx-font-weight: 850' in text:
                   raise SystemExit(f'Invalid JavaFX font weight remains in {css_name}')
-
-          responsive = ('platform-macos', 'platform-windows', 'compact-shell', 'ultra-compact-shell', 'small-display', 'compact-layout', 'narrow-shell')
-          palette = {'-fx-background-color', '-fx-text-fill', '-fx-border-color', '-fx-fill', '-fx-stroke', '-fx-accent', '-fx-focus-color', '-fx-faint-focus-color'}
-          for css_name in ('light-theme.css', 'dark-theme.css'):
-              text = (root / 'css' / css_name).read_text(encoding='utf-8')
-              for match in re.finditer(r'([^{}]+)\{([^{}]*)\}', text, re.S):
-                  selector = re.sub(r'/\*.*?\*/', '', match.group(1), flags=re.S)
-                  if not any(marker in selector for marker in responsive):
-                      continue
-                  for prop in re.findall(r'(-fx-[\w-]+)\s*:', match.group(2)):
-                      if prop not in palette:
-                          raise SystemExit(f'{css_name}: responsive non-palette property remains: {selector.strip()} -> {prop}')
+          for path in fxml:
+              if 'stylesheets=' in path.read_text(encoding='utf-8'):
+                  raise SystemExit(f'FXML-local stylesheet is not allowed after Phase 2: {path}')
 
           platform_support = Path('desktop/src/main/java/org/example/util/PlatformUiSupport.java').read_text(encoding='utf-8')
           for contract in ('width < 1250', '"narrow-shell"', 'width < 1050', '"small-display"'):
@@ -125,10 +135,11 @@ jobs:
           if 'installResponsiveShellSizing' in dashboard:
               raise SystemExit('Dashboard still owns responsive shell sizing')
 
-          shared_css = (root / 'css' / 'ui-layout.css').read_text(encoding='utf-8') + (root / 'css' / 'ui-components.css').read_text(encoding='utf-8')
+          light_css = (root / 'css' / 'light-theme.css').read_text(encoding='utf-8')
+          dark_css = (root / 'css' / 'dark-theme.css').read_text(encoding='utf-8')
           for selector in ('.platform-macos .erp-sidebar', '.narrow-shell .erp-sidebar', '.small-display .erp-sidebar', '.platform-macos .erp-global-search', '.compact-shell .erp-global-search'):
-              if selector not in shared_css:
-                  raise SystemExit(f'Missing responsive CSS selector: {selector}')
+              if selector not in light_css or selector not in dark_css:
+                  raise SystemExit(f'Missing canonical responsive CSS selector: {selector}')
 
           profiles = ((1024, 768), (1280, 720), (1366, 768), (1440, 900), (1512, 982), (1600, 900), (1920, 1080), (2560, 1440))
           for width, height in profiles:

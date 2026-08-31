@@ -24,7 +24,7 @@
             </HBox>
 
             <!-- KPI cards -->
-            <GridPane hgap="12" vgap="12" styleClass="backup-metrics-grid">
+            <GridPane hgap="12" vgap="12" styleClass="backup-metrics-grid,erp-kpi-section">
                 <columnConstraints>
                     <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
                     <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
@@ -160,12 +160,12 @@
 
                 <TableView fx:id="backupTable" VBox.vgrow="ALWAYS" minHeight="170" styleClass="backup-history-table,approved-table,erp-table-profile-history">
                     <columns>
-                        <TableColumn fx:id="colBackupName" text="Backup Name" prefWidth="330" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colCreated" text="Date &amp; Time" prefWidth="190" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colSize" text="Size" prefWidth="100" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colStatus" text="Status" prefWidth="130" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colSource" text="Source" prefWidth="120" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colActions" text="Actions" styleClass="approved-table-column" minWidth="148" prefWidth="154" maxWidth="166" sortable="false" resizable="false"/>
+                        <TableColumn fx:id="colBackupName" text="Backup Name" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colCreated" text="Date &amp; Time" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colSize" text="Size" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colStatus" text="Status" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colSource" text="Source" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colActions" text="Actions" styleClass="approved-table-column" sortable="false" resizable="false"/>
                     </columns>
                 </TableView>
 

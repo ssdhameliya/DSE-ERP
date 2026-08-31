@@ -3,10 +3,13 @@ package org.example.controller;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -27,11 +30,11 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
-/** Unified 9.0.40 report viewer used by every Report Center definition. */
+/** Unified 9.0.41 report viewer used by every Report Center definition. */
 public class ReportViewerController implements ScreenLifecycle {
     private static final String LOAD_KEY="report-viewer-load";
     @FXML private Label lblTitle,lblDescription,lblActiveFilters,lblRecords,lblPage;
-    @FXML private StackPane viewerPageIcon;
+    @FXML private StackPane viewerPageIcon,reportSearchIcon;
     @FXML private DatePicker dpFrom,dpTo;
     @FXML private ComboBox<String> cmbDatePreset,cmbParty,cmbItem,cmbSalesperson,cmbDocumentStatus,cmbPaymentStatus,cmbReturnStatus,cmbGstRate,cmbWarehouse,cmbBankStatus,cmbGroup,cmbSort,cmbDirection;
     @FXML private ComboBox<Integer> cmbRows;
@@ -70,8 +73,10 @@ public class ReportViewerController implements ScreenLifecycle {
         cmbSort.valueProperty().addListener((o,a,b)->{if(!initializing&&!rendering&&current!=null){page=0;requestLoad();}});
         cmbDirection.valueProperty().addListener((o,a,b)->{if(!initializing&&!rendering&&current!=null){page=0;requestLoad();}});
         txtSearch.setOnAction(e->applyFilters());
+        RegisterUiSupport.configureHeaderSearch(txtSearch,reportSearchIcon,"Search invoice / party / item / reference...");
+        filterGrid.widthProperty().addListener((o,a,b)->reflowFilterGrid());
         tblReport.setPlaceholder(new Label("No transactions found for the selected criteria."));
-        tblReport.setRowFactory(t->{TableRow<ReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==1&&!row.isEmpty())drillDown(row.getItem());});return row;});
+        tblReport.setRowFactory(t->{TableRow<ReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())drillDown(row.getItem());});return row;});
         if(viewerPageIcon!=null)viewerPageIcon.getChildren().setAll(IconFactory.icon("report",24));
         loadFilterOptions();
         consumeContext();
@@ -119,8 +124,21 @@ public class ReportViewerController implements ScreenLifecycle {
         showBox(boxWarehouse,fallback||supported.contains("WAREHOUSE"));
         showBox(boxBankStatus,fallback||supported.contains("BANK STATUS"));
         boolean amount=fallback||supported.contains("AMOUNT");showBox(boxMinAmount,amount);showBox(boxMaxAmount,amount);
+        reflowFilterGrid();
     }
     private void showBox(VBox box,boolean show){if(box!=null){box.setVisible(show);box.setManaged(show);}}
+
+    private void reflowFilterGrid(){
+        if(filterGrid==null)return;
+        List<VBox> boxes=List.of(boxPeriod,boxParty,boxItem,boxSalesperson,boxDocumentStatus,boxPaymentStatus,boxFrom,boxTo,boxReturnStatus,boxGstRate,boxWarehouse,boxBankStatus,boxMinAmount,boxMaxAmount);
+        List<VBox> visible=boxes.stream().filter(Objects::nonNull).filter(Node::isManaged).toList();
+        if(visible.isEmpty())return;
+        double width=filterGrid.getWidth();
+        int columns=width>0?Math.max(1,Math.min(4,(int)Math.floor(width/220.0))):4;
+        filterGrid.getColumnConstraints().clear();
+        for(int i=0;i<columns;i++){ColumnConstraints c=new ColumnConstraints();c.setPercentWidth(100.0/columns);c.setHgrow(Priority.ALWAYS);c.setFillWidth(true);filterGrid.getColumnConstraints().add(c);}
+        for(int i=0;i<visible.size();i++){VBox box=visible.get(i);GridPane.setColumnIndex(box,i%columns);GridPane.setRowIndex(box,i/columns);GridPane.setHgrow(box,Priority.ALWAYS);}
+    }
 
     private void loadFilterOptions(){
         UiTaskExecutor.submitLatest("report-viewer-filters",api::filters,this::applyFilterOptions,e->PerformanceMonitor.event("report-viewer-filters",String.valueOf(e.getMessage())));
@@ -164,7 +182,7 @@ public class ReportViewerController implements ScreenLifecycle {
         for(int index=0;index<result.columns().size();index++){
             ReportColumn meta=result.columns().get(index);CheckMenuItem item=new CheckMenuItem(meta.label());item.setSelected(visibleKeys.contains(meta.key()));item.selectedProperty().addListener((o,a,b)->{if(b)visibleKeys.add(meta.key());else visibleKeys.remove(meta.key());configureColumns(current);});btnColumns.getItems().add(item);
             if(!visibleKeys.contains(meta.key()))continue;
-            final int p=index;TableColumn<ReportRow,String> col=new TableColumn<>(meta.label());col.setPrefWidth(meta.preferredWidth());col.setMinWidth(Math.min(70,meta.preferredWidth()));col.setSortable(false);col.setCellValueFactory(v->new SimpleStringProperty(value(v.getValue(),p)));
+            final int p=index;TableColumn<ReportRow,String> col=new TableColumn<>(meta.label());col.setSortable(false);col.setCellValueFactory(v->new SimpleStringProperty(value(v.getValue(),p)));
             IconFactory.applyTableHeaderIcon(col,semanticForColumn(meta.key()));
             col.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String v,boolean empty){super.updateItem(v,empty);if(empty||v==null){setText(null);getStyleClass().remove("report-number-cell");return;}setText(display(meta,v));if(meta.numeric()&&!getStyleClass().contains("report-number-cell"))getStyleClass().add("report-number-cell");setStyle(meta.numeric()?"-fx-alignment:CENTER-RIGHT;":"");}});
             tblReport.getColumns().add(col);
@@ -180,7 +198,7 @@ public class ReportViewerController implements ScreenLifecycle {
             StackPane iconBox=new StackPane();iconBox.getStyleClass().add("sales-metric-icon");iconBox.getChildren().setAll(IconFactory.compactIcon(metricSemantic(m.key()),16));
             VBox text=new VBox(2);Label label=new Label(m.label());label.getStyleClass().add("metric-label");Label value=new Label(metric(m));value.getStyleClass().addAll("metric-value","report-responsive-value");text.getChildren().addAll(label,value);
             if(m.note()!=null&&!m.note().isBlank()){Label note=new Label(m.note());note.getStyleClass().add("page-subtitle");text.getChildren().add(note);}
-            card.getChildren().addAll(iconBox,text);card.setMinWidth(175);card.setPrefWidth(230);metricPane.getChildren().add(card);
+            card.getChildren().addAll(iconBox,text);metricPane.getChildren().add(card);
         }
     }
     private String metricTone(String key,int index){String k=safe(key).toLowerCase(Locale.ROOT);if(k.contains("return")||k.contains("refund")||k.contains("overdue")||k.contains("failure"))return "metric-tone-red";if(k.contains("net")||k.contains("profit")||k.contains("paid")||k.contains("received"))return "metric-tone-green";if(k.contains("gst")||k.contains("tax")||k.contains("stock")||k.contains("quantity"))return "metric-tone-blue";if(k.contains("outstanding")||k.contains("payable")||k.contains("pending")||k.contains("balance"))return "metric-tone-amber";return index%2==0?"metric-tone-purple":"metric-tone-blue";}
@@ -199,8 +217,7 @@ public class ReportViewerController implements ScreenLifecycle {
     @FXML private void goReportCenter(){ReportsController.requestTab(1);NavigationManager.navigateOrReport("/fxml/pages/Reports.fxml");}
     @FXML private void goSavedReports(){ReportsController.requestTab(2);NavigationManager.navigateOrReport("/fxml/pages/Reports.fxml");}
     @FXML private void goScheduled(){ReportsController.requestTab(3);NavigationManager.navigateOrReport("/fxml/pages/Reports.fxml");}
-    @FXML private void backToReports(){goReportCenter();}
-    @FXML private void showInformation(){String formula=switch(reportId){case "SALES_REGISTER","SALES_BY_CUSTOMER","SALES_BY_ITEM"->"Gross Sales are original approved invoice values. Approved Sales Returns are deducted only from Net Sales. Original invoice Payment Status is never replaced by Return refund status.";case "PURCHASE_REGISTER"->"Gross Purchases are posted approved purchase values. Approved Purchase Returns are deducted from Net Purchases. Supplier payment and Return refund settlement remain separate.";case "RECEIVABLE_AGEING","PAYABLE_AGEING"->"Outstanding is original document value minus posted payments. Return refund obligations are reported in the Return lifecycle and are not rewritten into historical payment rows.";case "PROFITABILITY"->"Profit = net taxable sales after approved Returns minus historical unit-cost COGS after the corresponding returned quantities.";default->"This report is calculated by the server-owned 9.0.40 reporting engine. UI, PDF, Excel, CSV and Print consume the same ReportResult.";};Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,formula);a.setHeaderText(lblTitle.getText()+" — calculation rules");a.showAndWait();}
+    @FXML private void showInformation(){String formula=switch(reportId){case "SALES_REGISTER","SALES_BY_CUSTOMER","SALES_BY_ITEM"->"Gross Sales are original approved invoice values. Approved Sales Returns are deducted only from Net Sales. Original invoice Payment Status is never replaced by Return refund status.";case "PURCHASE_REGISTER"->"Gross Purchases are posted approved purchase values. Approved Purchase Returns are deducted from Net Purchases. Supplier payment and Return refund settlement remain separate.";case "RECEIVABLE_AGEING","PAYABLE_AGEING"->"Outstanding is original document value minus posted payments. Return refund obligations are reported in the Return lifecycle and are not rewritten into historical payment rows.";case "PROFITABILITY"->"Profit = net taxable sales after approved Returns minus historical unit-cost COGS after the corresponding returned quantities.";default->"This report is calculated by the server-owned 9.0.41 reporting engine. UI, PDF, Excel, CSV and Print consume the same ReportResult.";};Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,formula);a.setHeaderText(lblTitle.getText()+" — calculation rules");a.showAndWait();}
 
     @FXML private void saveReport(){
         if(current==null)return;TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Save Report");d.setContentText("Name:");d.showAndWait().map(String::trim).filter(x->!x.isBlank()).ifPresent(name->{ReportRequest req=requestFor(0,cmbRows.getValue()==null?25:cmbRows.getValue());String payload=ReportingSavedConfig.encode(name,cmbDatePreset.getValue(),req);Integer uid=SessionService.current()==null?null:SessionService.current().getId();UiTaskExecutor.submitAction("save-unified-report",()->{supportApi.saveView(uid,"REPORT_CENTER",name,payload);return true;},x->ToastManager.success(tblReport,"Saved","Report configuration saved with filters, grouping, sorting, columns and date mode."),e->error("Could not save report: "+root(e)));});

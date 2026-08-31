@@ -69,7 +69,6 @@ public abstract class PartyMasterController {
         if(kpiActiveIcon!=null)kpiActiveIcon.getChildren().setAll(IconFactory.icon("complete",20));
         if(kpiGstIcon!=null)kpiGstIcon.getChildren().setAll(IconFactory.icon("tax",20));
         if(kpiBalanceIcon!=null)kpiBalanceIcon.getChildren().setAll(IconFactory.icon("balance",20));
-        configureExplicitTableHeaderIcons();
         colCode.setCellValueFactory(new PropertyValueFactory<>("partyCode"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
         colContact.setCellValueFactory(new PropertyValueFactory<>("contactPerson"));
@@ -81,7 +80,6 @@ public abstract class PartyMasterController {
         colActive.setCellValueFactory(new PropertyValueFactory<>("active"));
         colActive.setCellFactory(column -> SemanticTableCells.activeBoolean());
         configureActionColumn();
-        tableParties.setFixedCellSize(40);
         configureTableInteractions();
         installDetailDrawer();
         txtSearch.textProperty().addListener((o, oldValue, newValue) -> applyLocalFilter());
@@ -104,7 +102,7 @@ public abstract class PartyMasterController {
                 actions.setGraphic(IconFactory.compactIcon("actions", 16));
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                
+
                 actions.setTooltip(new Tooltip("Actions"));
                 view.setOnAction(event -> viewForRow(this));
                 edit.setOnAction(event -> runForRow(this, false));
@@ -357,21 +355,5 @@ public abstract class PartyMasterController {
         } catch (Exception ex) {
             error("Could not export the workbook: " + ex.getMessage());
         }
-    }
-
-
-
-    private void configureExplicitTableHeaderIcons() {
-        String partySemantic = "CUSTOMER".equals(partyType()) ? "customer" : "supplier";
-        IconFactory.applyTableHeaderIcon(colCode, "identity");
-        IconFactory.applyTableHeaderIcon(colName, partySemantic);
-        IconFactory.applyTableHeaderIcon(colContact, "user");
-        IconFactory.applyTableHeaderIcon(colPhone, "phone");
-        IconFactory.applyTableHeaderIcon(colEmail, "email");
-        IconFactory.applyTableHeaderIcon(colGstin, "tax");
-        IconFactory.applyTableHeaderIcon(colAddress, "location");
-        IconFactory.applyTableHeaderIcon(colOpeningBalance, "balance");
-        IconFactory.applyTableHeaderIcon(colActive, "status");
-        if (colActions != null) IconFactory.applyTableHeaderIcon(colActions, "actions");
     }
 }

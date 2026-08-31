@@ -98,14 +98,14 @@
     </HBox>
     <TableView fx:id="historyTable" prefHeight="240" minHeight="190" maxHeight="Infinity" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-register">
      <columns>
-      <TableColumn fx:id="historyDate" text="Payment Date" prefWidth="135"/>
-      <TableColumn fx:id="historyMode" text="Payment Mode" prefWidth="155"/>
-      <TableColumn fx:id="historyReference" text="Reference No." prefWidth="165"/>
-      <TableColumn fx:id="historyPaidTo" text="Paid To" prefWidth="190"/>
-      <TableColumn fx:id="historyAmount" text="Amount (₹)" prefWidth="145"/>
-      <TableColumn fx:id="historyStatus" text="Status" prefWidth="125"/>
-      <TableColumn fx:id="historyNotes" text="Notes" prefWidth="220"/>
-      <TableColumn fx:id="historyAction" text="Actions" prefWidth="145"/>
+      <TableColumn fx:id="historyDate" text="Payment Date"/>
+      <TableColumn fx:id="historyMode" text="Payment Mode"/>
+      <TableColumn fx:id="historyReference" text="Reference No."/>
+      <TableColumn fx:id="historyPaidTo" text="Paid To"/>
+      <TableColumn fx:id="historyAmount" text="Amount (₹)"/>
+      <TableColumn fx:id="historyStatus" text="Status"/>
+      <TableColumn fx:id="historyNotes" text="Notes"/>
+      <TableColumn fx:id="historyAction" text="Actions"/>
      </columns>
     </TableView>
    </VBox>

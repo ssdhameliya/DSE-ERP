@@ -68,7 +68,6 @@ public class DashboardHomeController implements ScreenLifecycle {
 
     @FXML
     public void initialize() {
-        configureExplicitTableHeaderIcons();
         installKpiIcons();
         installQuickActionIcons();
         installDashboardHeaderIcons();
@@ -384,14 +383,5 @@ public class DashboardHomeController implements ScreenLifecycle {
             this.type = new SimpleStringProperty(type); this.number = new SimpleStringProperty(number);
             this.party = new SimpleStringProperty(party); this.date = new SimpleStringProperty(date); this.amount = new SimpleStringProperty(amount);
         }
-    }
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colType, "category");
-        IconFactory.applyTableHeaderIcon(colNumber, "document");
-        IconFactory.applyTableHeaderIcon(colParty, "customer");
-        IconFactory.applyTableHeaderIcon(colDate, "calendar");
-        IconFactory.applyTableHeaderIcon(colAmount, "currency");
     }
 }

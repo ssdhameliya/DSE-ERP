@@ -78,8 +78,7 @@ public class ItemMasterController implements ScreenLifecycle {
 
     @FXML
     public void initialize() {
-        installKpiIcons();configureExplicitTableHeaderIcons();
-        // Item Master owns its checkbox model. The global table enhancer must
+        installKpiIcons();// Item Master owns its checkbox model. The global table enhancer must
         // not replace colSelect with a TableView-selection-backed checkbox.
         tableItems.getProperties().put("erp-keep-selection", true);
         configureBulkSelection();
@@ -164,7 +163,7 @@ public class ItemMasterController implements ScreenLifecycle {
                 actions.setText("Actions");
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                
+
                 actions.setTooltip(new Tooltip("Item actions"));
 
                 MenuItem create = new MenuItem("Create Item", IconFactory.compactIcon("add", 16));
@@ -570,26 +569,5 @@ public class ItemMasterController implements ScreenLifecycle {
         Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message);
         alert.setHeaderText(null);
         alert.showAndWait();
-    }
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colCode, "identity");
-        IconFactory.applyTableHeaderIcon(colDescription, "item");
-        IconFactory.applyTableHeaderIcon(colCategory, "category");
-        IconFactory.applyTableHeaderIcon(colBrand, "category");
-        IconFactory.applyTableHeaderIcon(colMaterial, "item");
-        IconFactory.applyTableHeaderIcon(colSize, "quantity");
-        IconFactory.applyTableHeaderIcon(colUnit, "unit");
-        IconFactory.applyTableHeaderIcon(colHsn, "tax");
-        IconFactory.applyTableHeaderIcon(colGst, "tax");
-        IconFactory.applyTableHeaderIcon(colDiscount, "discount");
-        IconFactory.applyTableHeaderIcon(colPurchasePrice, "currency");
-        IconFactory.applyTableHeaderIcon(colSellingPrice, "currency");
-        IconFactory.applyTableHeaderIcon(colOpeningStock, "quantity");
-        IconFactory.applyTableHeaderIcon(colMinimumStock, "minimum");
-        IconFactory.applyTableHeaderIcon(colLocation, "location");
-        IconFactory.applyTableHeaderIcon(colRemarks, "notes");
-        IconFactory.applyTableHeaderIcon(colAction, "actions");
     }
 }

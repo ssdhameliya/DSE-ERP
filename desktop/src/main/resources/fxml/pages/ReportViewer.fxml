@@ -22,10 +22,11 @@
         <Button text="Scheduled" onAction="#goScheduled" styleClass="report-nav-button"/>
     </HBox>
 
-    <VBox spacing="2">
-        <Button text="← Report Center" onAction="#backToReports" styleClass="report-back-link"/>
-        <HBox alignment="CENTER_LEFT"><VBox spacing="2"><Label fx:id="lblTitle" text="Report" styleClass="page-title"/><Label fx:id="lblDescription" styleClass="page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="ⓘ Report Information" onAction="#showInformation" styleClass="secondary-button"/></HBox>
-    </VBox>
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="report-card,report-viewer-identity-panel">
+        <VBox spacing="2"><Label fx:id="lblTitle" text="Report" styleClass="page-title"/><Label fx:id="lblDescription" styleClass="page-subtitle"/></VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button text="Report Information" onAction="#showInformation" styleClass="secondary-button"/>
+    </HBox>
 
     <VBox fx:id="filterPanel" spacing="7" styleClass="report-card,approved-filter-bar,report-viewer-filter-panel">
         <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Filters" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCollapseFilters" text="Collapse ▲" onAction="#toggleFilters" styleClass="link-button"/></HBox>
@@ -51,10 +52,13 @@
         <HBox alignment="CENTER_LEFT" spacing="8"><Label fx:id="lblActiveFilters" text="Active filters: Period" styleClass="page-subtitle"/><Region HBox.hgrow="ALWAYS"/><Button text="Reset" onAction="#resetFilters" styleClass="secondary-button"/><Button fx:id="btnApply" text="Apply" onAction="#applyFilters" styleClass="primary-button"/></HBox>
     </VBox>
 
-    <FlowPane fx:id="metricPane" hgap="9" vgap="8" prefWrapLength="1400" styleClass="report-metric-strip"/>
+    <FlowPane fx:id="metricPane" hgap="9" vgap="8" prefWrapLength="1400" styleClass="report-metric-strip,erp-kpi-section"/>
 
     <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-card,report-results-toolbar">
-        <TextField fx:id="txtSearch" promptText="Search invoice / party / item / reference..." prefWidth="300" styleClass="approved-input"/>
+        <StackPane minWidth="260" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
+            <TextField fx:id="txtSearch" promptText="Search invoice / party / item / reference..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
+            <StackPane fx:id="reportSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
+        </StackPane>
         <Label fx:id="lblRecords" styleClass="page-subtitle"/>
         <Region HBox.hgrow="ALWAYS"/>
         <Label text="Group By" styleClass="metric-label"/><ComboBox fx:id="cmbGroup" prefWidth="155"/>
@@ -63,9 +67,11 @@
         <Button text="Save Report" onAction="#saveReport" styleClass="success-button"/>
     </HBox>
 
-    <TableView fx:id="tblReport" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table" fixedCellSize="31"/>
+    <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="report-card,report-results-panel">
+        <TableView fx:id="tblReport" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table,erp-table-profile-register"/>
+    </VBox>
 
-    <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-viewer-footer">
+    <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-card,report-viewer-footer">
         <Label text="Double-click a row to drill down to its source transaction." styleClass="page-subtitle"/>
         <Region HBox.hgrow="ALWAYS"/>
         <Label text="Rows per page" styleClass="metric-label"/><ComboBox fx:id="cmbRows" prefWidth="82"/>
@@ -75,9 +81,6 @@
         <Button fx:id="btnNext" text="›" onAction="#nextPage" styleClass="secondary-button"/>
         <Button fx:id="btnLast" text="⏭" onAction="#lastPage" styleClass="secondary-button"/>
         <Separator orientation="VERTICAL"/>
-        <Button text="PDF" onAction="#exportPdf" styleClass="primary-button"/>
-        <Button text="Excel" onAction="#exportExcel" styleClass="success-button"/>
-        <Button text="CSV" onAction="#exportCsv" styleClass="secondary-button"/>
         <Button text="Print" onAction="#printReport" styleClass="secondary-button"/>
     </HBox>
 </VBox>

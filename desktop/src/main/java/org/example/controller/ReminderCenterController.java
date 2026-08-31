@@ -62,7 +62,6 @@ public class ReminderCenterController implements ScreenLifecycle {
     @FXML
     public void initialize() {
         if (reminderPageIcon != null) reminderPageIcon.getChildren().setAll(IconFactory.icon("reminder", 24));
-        configureExplicitTableHeaderIcons();
         configureFilters();
         configureColumns();
         configureTable();
@@ -812,16 +811,5 @@ public class ReminderCenterController implements ScreenLifecycle {
     private static String cleanReference(String reference){
         String value = reference == null ? "" : reference.trim();
         return value.isBlank() || value.equalsIgnoreCase("null") || value.equals("—") ? "No reference" : value;
-    }
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colTitle, "reminder");
-        IconFactory.applyTableHeaderIcon(colReference, "reference");
-        IconFactory.applyTableHeaderIcon(colDue, "calendar");
-        IconFactory.applyTableHeaderIcon(colPriority, "warning");
-        IconFactory.applyTableHeaderIcon(colStatus, "status");
-        IconFactory.applyTableHeaderIcon(colCreatedBy, "user");
-        colActions.setText("Actions");
-        IconFactory.applyTableHeaderIcon(colActions, "actions");
     }
 }

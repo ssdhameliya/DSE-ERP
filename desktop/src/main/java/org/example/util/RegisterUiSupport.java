@@ -100,7 +100,10 @@ public final class RegisterUiSupport {
             drawer.setManaged(true);
             drawer.setVisible(true);
         }
-        if (splitPane != null) splitPane.setDividerPositions(dividerPosition);
+        if (splitPane != null) {
+            splitPane.setDividerPositions(dividerPosition);
+            reflowDrawerTables(splitPane);
+        }
     }
 
     public static void hideDrawer(Region drawer, SplitPane splitPane, TableView<?> table) {
@@ -108,7 +111,20 @@ public final class RegisterUiSupport {
             drawer.setManaged(false);
             drawer.setVisible(false);
         }
-        if (splitPane != null) splitPane.setDividerPositions(1.0);
+        if (splitPane != null) {
+            splitPane.setDividerPositions(1.0);
+            reflowDrawerTables(splitPane);
+        }
         if (table != null) table.getSelectionModel().clearSelection();
+    }
+
+    private static void reflowDrawerTables(SplitPane splitPane) {
+        Platform.runLater(() -> {
+            try {
+                splitPane.applyCss();
+                splitPane.layout();
+                DynamicTableLayoutManager.requestLayoutIn(splitPane);
+            } catch (RuntimeException ignored) { }
+        });
     }
 }

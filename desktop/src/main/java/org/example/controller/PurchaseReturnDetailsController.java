@@ -62,7 +62,6 @@ public class PurchaseReturnDetailsController {
 
     @FXML
     public void initialize() {
-        configureExplicitTableHeaderIcons();
         cName.setCellValueFactory(value -> new SimpleStringProperty(value.getValue().name()));
         cCode.setCellValueFactory(value -> new SimpleStringProperty(value.getValue().code()));
         cUnit.setCellValueFactory(value -> new SimpleStringProperty(value.getValue().unit()));
@@ -159,17 +158,5 @@ public class PurchaseReturnDetailsController {
         new OwnedAlert(Alert.AlertType.ERROR,
             exception.getMessage() == null ? "Operation failed." : exception.getMessage())
             .showAndWait();
-    }
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(cName, "item");
-        IconFactory.applyTableHeaderIcon(cCode, "identity");
-        IconFactory.applyTableHeaderIcon(cUnit, "unit");
-        IconFactory.applyTableHeaderIcon(cReason, "notes");
-        IconFactory.applyTableHeaderIcon(cQty, "quantity");
-        IconFactory.applyTableHeaderIcon(cRate, "currency");
-        IconFactory.applyTableHeaderIcon(cTax, "tax");
-        IconFactory.applyTableHeaderIcon(cAmount, "currency");
     }
 }

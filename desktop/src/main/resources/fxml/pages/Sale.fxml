@@ -164,15 +164,15 @@
                         </VBox>
                     </placeholder>
                     <columns>
-                        <TableColumn fx:id="colItem" text="Description" prefWidth="320" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colQuantity" text="Qty" prefWidth="75" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colRate" text="Rate (₹)" prefWidth="105" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colDiscount" text="Discount %" prefWidth="105" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colDiscountAmount" text="Discount (₹)" prefWidth="105" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colGst" text="GST %" prefWidth="78" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colNetAmount" text="Taxable (₹)" prefWidth="120" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colGstAmount" text="GST Amount (₹)" prefWidth="125" styleClass="approved-table-column"/>
-                        <TableColumn fx:id="colTotal" text="Amount (₹)" prefWidth="125" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colItem" text="Description" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colQuantity" text="Qty" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colRate" text="Rate (₹)" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colDiscount" text="Discount %" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colDiscountAmount" text="Discount (₹)" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colGst" text="GST %" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colNetAmount" text="Taxable (₹)" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colGstAmount" text="GST Amount (₹)" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colTotal" text="Amount (₹)" styleClass="approved-table-column"/>
                     </columns>
                 </TableView>
 

@@ -35,14 +35,14 @@
         <Label text="Return Items" styleClass="purchase-section-title"/>
         <TableView fx:id="table" prefHeight="280" styleClass="approved-table,erp-table-profile-detail">
           <columns>
-            <TableColumn fx:id="cName" text="Item Name" prefWidth="260" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cName" text="Item Name" styleClass="approved-table-column"/>
             <TableColumn fx:id="cCode" text="Item Code" styleClass="approved-table-column"/>
             <TableColumn fx:id="cQty" text="Qty" styleClass="approved-table-column"/>
             <TableColumn fx:id="cUnit" text="Unit" styleClass="approved-table-column"/>
             <TableColumn fx:id="cRate" text="Rate" styleClass="approved-table-column"/>
             <TableColumn fx:id="cTax" text="Tax (%)" styleClass="approved-table-column"/>
             <TableColumn fx:id="cAmount" text="Amount" styleClass="approved-table-column"/>
-            <TableColumn fx:id="cReason" text="Reason" prefWidth="180" styleClass="approved-table-column"/>
+            <TableColumn fx:id="cReason" text="Reason" styleClass="approved-table-column"/>
           </columns>
         </TableView>
       </VBox>

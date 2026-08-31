@@ -107,7 +107,7 @@
 
 
 
-                        
+
                             <Separator/>
                             <VBox spacing="10" maxWidth="Infinity" styleClass="settings-information-card,settings-application-branding-panel">
                                 <VBox spacing="4">
@@ -157,4 +157,4 @@
                             </VBox>
 </VBox>
 
-                        
+

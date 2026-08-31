@@ -240,9 +240,6 @@ public class PurchaseController implements ScreenLifecycle {
             listAttachments.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
             listAttachments.getSelectionModel().selectedItemProperty().addListener((o,a,b)->updateAttachmentButtons());
         }
-        configureExplicitTableHeaderIcons();
-
-
         setupTable();
 
         setupAmountFormatting();
@@ -1687,19 +1684,5 @@ public class PurchaseController implements ScreenLifecycle {
 
         line.calculateAmounts();
 
-    }
-
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colItem, "item");
-        IconFactory.applyTableHeaderIcon(colQuantity, "quantity");
-        IconFactory.applyTableHeaderIcon(colRate, "currency");
-        IconFactory.applyTableHeaderIcon(colGst, "tax");
-        IconFactory.applyTableHeaderIcon(colDiscount, "discount");
-        IconFactory.applyTableHeaderIcon(colDiscountAmount, "discount");
-        IconFactory.applyTableHeaderIcon(colGstAmount, "tax");
-        IconFactory.applyTableHeaderIcon(colNetAmount, "currency");
-        IconFactory.applyTableHeaderIcon(colTotal, "currency");
     }
 }

@@ -24,7 +24,7 @@
     </HBox>
 
     <!-- Summary cards -->
-    <HBox spacing="10" styleClass="reminder-metrics-row">
+    <HBox spacing="10" styleClass="reminder-metrics-row,erp-kpi-section">
         <VBox spacing="8" styleClass="standard-kpi-card,kpi-blue,reminder-metric-card" HBox.hgrow="ALWAYS">
             <HBox alignment="CENTER_LEFT">
                 <VBox spacing="3">
@@ -111,13 +111,13 @@
                 </placeholder>
 
                 <columns>
-                    <TableColumn fx:id="colTitle" text="Reminder" prefWidth="270" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colReference" text="Reference" prefWidth="145" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colDue" text="Due Date" prefWidth="125" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colPriority" text="Priority" prefWidth="105" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colStatus" text="Status" prefWidth="115" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="125" styleClass="approved-table-column"/>
-                    <TableColumn fx:id="colActions" text="Actions" prefWidth="160" minWidth="156" maxWidth="168" sortable="false" resizable="false" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colTitle" text="Reminder" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colReference" text="Reference" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colDue" text="Due Date" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colPriority" text="Priority" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colStatus" text="Status" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colCreatedBy" text="Created By" styleClass="approved-table-column"/>
+                    <TableColumn fx:id="colActions" text="Actions" sortable="false" resizable="false" styleClass="approved-table-column"/>
                 </columns>
             </TableView>
             <HBox alignment="CENTER_RIGHT" styleClass="table-footer,reminder-table-footer">

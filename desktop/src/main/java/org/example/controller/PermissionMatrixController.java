@@ -86,7 +86,6 @@ public class PermissionMatrixController implements ScreenLifecycle {
     private void configureTable() {
         table.setItems(tableRows);
         table.setEditable(true);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setRowFactory(tv -> new TableRow<>() {
             @Override protected void updateItem(MatrixRow item, boolean empty) {
                 super.updateItem(item, empty);
@@ -105,10 +104,6 @@ public class PermissionMatrixController implements ScreenLifecycle {
         configureActionColumn(colExport, "EXPORT", "Export");
         configureActionColumn(colApprove, "APPROVE", "Approve");
         configureSpecialColumn();
-        colModule.setPrefWidth(260);
-        colAll.setPrefWidth(72);
-        for (TableColumn<MatrixRow, MatrixRow> c : List.of(colView, colCreate, colEdit, colDelete, colExport, colApprove)) c.setPrefWidth(82);
-        colSpecial.setPrefWidth(130);
     }
 
     private void configureAllColumn() {

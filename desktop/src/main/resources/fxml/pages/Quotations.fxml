@@ -95,17 +95,17 @@
                     <VBox spacing="0" styleClass="quotation-table-card" VBox.vgrow="ALWAYS">
                         <TableView fx:id="table" minHeight="0" VBox.vgrow="ALWAYS" styleClass="professional-table,quotation-register-table,erp-table-profile-register,erp-purple-selection-table">
                             <columns>
-                                <TableColumn fx:id="colNo" text="Quotation No." prefWidth="130" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colDate" text="Date" prefWidth="95" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colCustomer" text="Customer" prefWidth="175" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colAmount" text="Amount" prefWidth="110" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colValid" text="Valid Upto" prefWidth="105" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colStatus" text="Status" prefWidth="95" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colFollowUp" text="Follow Up" prefWidth="105" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colConverted" text="Converted To" prefWidth="115" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colSalesperson" text="Sales Person" prefWidth="120" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colCreatedBy" text="Created By" prefWidth="100" styleClass="approved-table-column"/>
-                                <TableColumn fx:id="colActions" text="Actions" styleClass="approved-table-column" minWidth="120" prefWidth="124" maxWidth="132" sortable="false" resizable="false"/>
+                                <TableColumn fx:id="colNo" text="Quotation No." styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colDate" text="Date" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colCustomer" text="Customer" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colAmount" text="Amount" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colValid" text="Valid Upto" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colStatus" text="Status" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colFollowUp" text="Follow Up" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colConverted" text="Converted To" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colSalesperson" text="Sales Person" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colCreatedBy" text="Created By" styleClass="approved-table-column"/>
+                                <TableColumn fx:id="colActions" text="Actions" styleClass="approved-table-column" sortable="false" resizable="false"/>
                             </columns>
                         </TableView>
 

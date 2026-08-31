@@ -50,7 +50,6 @@ public class OperationsController implements ScreenLifecycle {
     @FXML private TableView<UserRow> userTable; @FXML private TableColumn<UserRow,String> uName,uFull,uEmail,uRole,uStatus;
 
     @FXML public void initialize(){
-        configureExplicitTableHeaderIcons();
         rNo.setCellValueFactory(v->v.getValue().no);rType.setCellValueFactory(v->v.getValue().type);rDate.setCellValueFactory(v->v.getValue().date);rInvoice.setCellValueFactory(v->v.getValue().invoice);rParty.setCellValueFactory(v->v.getValue().party);rItem.setCellValueFactory(v->v.getValue().item);rQty.setCellValueFactory(v->v.getValue().qty);rAmount.setCellValueFactory(v->v.getValue().amount);rReason.setCellValueFactory(v->v.getValue().reason);
         fNo.setCellValueFactory(v->v.getValue().no);fType.setCellValueFactory(v->v.getValue().type);fDate.setCellValueFactory(v->v.getValue().date);fParty.setCellValueFactory(v->v.getValue().party);fCategory.setCellValueFactory(v->v.getValue().category);fReference.setCellValueFactory(v->v.getValue().reference);fMode.setCellValueFactory(v->v.getValue().mode);fAmount.setCellValueFactory(v->v.getValue().amount);
         mTitle.setCellValueFactory(v->v.getValue().title);mReference.setCellValueFactory(v->v.getValue().reference);mDue.setCellValueFactory(v->v.getValue().due);mPriority.setCellValueFactory(v->v.getValue().priority);mStatus.setCellValueFactory(v->v.getValue().status);setupReminderActions();
@@ -184,36 +183,4 @@ public class OperationsController implements ScreenLifecycle {
     public static final class FinanceRow{final SimpleStringProperty no,type,date,party,category,reference,mode;final SimpleDoubleProperty amount;FinanceRow(String a,String b,String c,String d,String e,String f,String g,double h){no=new SimpleStringProperty(a);type=new SimpleStringProperty(b);date=new SimpleStringProperty(c);party=new SimpleStringProperty(d);category=new SimpleStringProperty(e);reference=new SimpleStringProperty(f);mode=new SimpleStringProperty(g);amount=new SimpleDoubleProperty(h);}}
     public static final class ReminderRow{final long id;final SimpleStringProperty title,reference,due,priority,status;ReminderRow(long i,String a,String b,String c,String d,String e){id=i;title=new SimpleStringProperty(a);reference=new SimpleStringProperty(b);due=new SimpleStringProperty(c);priority=new SimpleStringProperty(d);status=new SimpleStringProperty(e);}}
     public static final class UserRow{final SimpleStringProperty username,fullName,email,role,status;UserRow(String a,String b,String c,String d,String e){username=new SimpleStringProperty(a);fullName=new SimpleStringProperty(b);email=new SimpleStringProperty(c);role=new SimpleStringProperty(d);status=new SimpleStringProperty(e);}}
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(rNo, "document");
-        IconFactory.applyTableHeaderIcon(rType, "return");
-        IconFactory.applyTableHeaderIcon(rDate, "calendar");
-        IconFactory.applyTableHeaderIcon(rInvoice, "document");
-        IconFactory.applyTableHeaderIcon(rParty, "customer");
-        IconFactory.applyTableHeaderIcon(rItem, "item");
-        IconFactory.applyTableHeaderIcon(rReason, "notes");
-        IconFactory.applyTableHeaderIcon(rQty, "quantity");
-        IconFactory.applyTableHeaderIcon(rAmount, "currency");
-        IconFactory.applyTableHeaderIcon(fNo, "document");
-        IconFactory.applyTableHeaderIcon(fType, "category");
-        IconFactory.applyTableHeaderIcon(fDate, "calendar");
-        IconFactory.applyTableHeaderIcon(fParty, "customer");
-        IconFactory.applyTableHeaderIcon(fCategory, "category");
-        IconFactory.applyTableHeaderIcon(fReference, "reference");
-        IconFactory.applyTableHeaderIcon(fMode, "payment");
-        IconFactory.applyTableHeaderIcon(fAmount, "currency");
-        IconFactory.applyTableHeaderIcon(mTitle, "reminder");
-        IconFactory.applyTableHeaderIcon(mReference, "reference");
-        IconFactory.applyTableHeaderIcon(mDue, "calendar");
-        IconFactory.applyTableHeaderIcon(mPriority, "warning");
-        IconFactory.applyTableHeaderIcon(mStatus, "status");
-        IconFactory.applyTableHeaderIcon(mAction, "actions");
-        IconFactory.applyTableHeaderIcon(uName, "user");
-        IconFactory.applyTableHeaderIcon(uFull, "user");
-        IconFactory.applyTableHeaderIcon(uEmail, "email");
-        IconFactory.applyTableHeaderIcon(uRole, "role");
-        IconFactory.applyTableHeaderIcon(uStatus, "status");
-    }
 }

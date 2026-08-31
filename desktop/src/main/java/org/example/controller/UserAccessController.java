@@ -93,15 +93,6 @@ public class UserAccessController {
         colStatus.setCellFactory(c->SemanticTableCells.status("status"));
         colMfa.setCellFactory(c->SemanticTableCells.status("status"));
         colActions.setCellFactory(c->userActionCell());
-        colUser.setMinWidth(82); colUser.setPrefWidth(95);
-        colEmail.setMinWidth(135); colEmail.setPrefWidth(170);
-        colRole.setMinWidth(68); colRole.setPrefWidth(78);
-        colDepartment.setMinWidth(72); colDepartment.setPrefWidth(88);
-        colAccess.setMinWidth(72); colAccess.setPrefWidth(82);
-        colBranch.setMinWidth(62); colBranch.setPrefWidth(72);
-        colStatus.setMinWidth(72); colStatus.setPrefWidth(82);
-        colLastLogin.setMinWidth(98); colLastLogin.setPrefWidth(112);
-        colMfa.setMinWidth(48); colMfa.setPrefWidth(56);
         table.setRowFactory(tv->{
             TableRow<UserRow> row=new TableRow<>();
             row.setOnMouseClicked(e->{
@@ -119,7 +110,6 @@ public class UserAccessController {
     private void configureRoleTable(){
         colRoleName.setCellValueFactory(v->v.getValue().name); colRoleDescription.setCellValueFactory(v->v.getValue().description);
         colRoleUsers.setCellValueFactory(v->v.getValue().users); colRoleStatus.setCellValueFactory(v->v.getValue().status); colRoleStatus.setCellFactory(c->SemanticTableCells.status("status")); colRoleActions.setCellFactory(c->roleActionCell());
-        colRoleName.setMinWidth(100); colRoleDescription.setMinWidth(220); colRoleUsers.setMinWidth(62); colRoleStatus.setMinWidth(78);
         roleTable.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{if(b!=null){cmbPermissionRole.setValue(b.code);lblRoleHint.setText(b.description.get());}});
     }
     private void configurePermissionTable(){
@@ -241,8 +231,6 @@ public class UserAccessController {
     private void warning(String message){new OwnedAlert(Alert.AlertType.WARNING,message).showAndWait();} private void error(String message,Exception e){e.printStackTrace();new OwnedAlert(Alert.AlertType.ERROR,message+".\n\n"+e.getMessage()).showAndWait();}
 
     private void configureIcons(){
-        IconFactory.applyTableHeaderIcon(colUser,"user");IconFactory.applyTableHeaderIcon(colEmail,"email");IconFactory.applyTableHeaderIcon(colRole,"role");IconFactory.applyTableHeaderIcon(colDepartment,"category");IconFactory.applyTableHeaderIcon(colAccess,"security");IconFactory.applyTableHeaderIcon(colBranch,"location");IconFactory.applyTableHeaderIcon(colStatus,"status");IconFactory.applyTableHeaderIcon(colLastLogin,"calendar");IconFactory.applyTableHeaderIcon(colMfa,"security");IconFactory.applyTableHeaderIcon(colActions,"actions");
-        IconFactory.applyTableHeaderIcon(colRoleName,"role");IconFactory.applyTableHeaderIcon(colRoleDescription,"notes");IconFactory.applyTableHeaderIcon(colRoleUsers,"users");IconFactory.applyTableHeaderIcon(colRoleStatus,"status");IconFactory.applyTableHeaderIcon(colRoleActions,"actions");IconFactory.applyTableHeaderIcon(colPermissionModule,"category");IconFactory.applyTableHeaderIcon(colPermissionAction,"security");IconFactory.applyTableHeaderIcon(colPermissionDescription,"notes");IconFactory.applyTableHeaderIcon(colPermissionAllowed,"complete");
     }
 
     public static final class UserRow{final int id;final String roleCode;final SimpleStringProperty user,email,role,department,access,branch,status,lastLogin,mfa;final String fullName;final boolean active,locked;final java.time.LocalDate lastLoginDate;UserRow(AdminApiClient.UserDto r,Map<String,String> roleNames){id=r.id();user=new SimpleStringProperty(r.username());fullName=blank(r.fullName(),r.username());email=new SimpleStringProperty(blank(r.email(),"—"));roleCode=blank(r.role(),"SALES").toUpperCase(Locale.ROOT);role=new SimpleStringProperty(roleNames.getOrDefault(roleCode,roleCode));department=new SimpleStringProperty(blank(r.department(),"—"));access=new SimpleStringProperty(blank(r.accessLevel(),"STANDARD"));branch=new SimpleStringProperty(blank(r.branch(),"—"));active=r.active();locked=r.locked();status=new SimpleStringProperty(locked?"Locked":active?"Active":"Inactive");lastLoginDate=BusinessClock.localDateOfTimestamp(r.lastLogin());lastLogin=new SimpleStringProperty(blank(r.lastLogin(),"Never").equals("Never")?"Never":BusinessClock.formatTimestamp(r.lastLogin()));mfa=new SimpleStringProperty(r.mfaEnabled()?"Enabled":"—");}}

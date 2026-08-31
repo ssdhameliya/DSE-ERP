@@ -48,6 +48,7 @@ public final class ProfessionalUiEnhancer {
     }
 
     private static void walk(Node node) {
+        ResponsiveKpiLayoutManager.install(node);
         if (node instanceof TableView<?> table) enhanceTable(table);
         if (node instanceof DialogPane pane) enhanceDialog(pane);
         if (node instanceof PasswordField passwordField) schedulePasswordReveal(passwordField);
@@ -243,17 +244,18 @@ public final class ProfessionalUiEnhancer {
 
         decorateColumns(table.getColumns());
         installCellValueTooltips(table);
-        // Native constrained resize is the single register/master sizing authority.
-        // Avoid a second asynchronous width pass after the page becomes visible.
+        TablePerformanceOptimizer.optimize(table);
+        DynamicTableLayoutManager.install(table);
 
         // Controllers add a number of business columns after FXML loading.
         // Keep header decoration live so those columns receive the exact same
         // icon-and-label treatment without requiring screen-specific code.
         if (!Boolean.TRUE.equals(table.getProperties().get("erp-column-listener"))) {
             table.getProperties().put("erp-column-listener", true);
-            table.getColumns().addListener((ListChangeListener<TableColumn>) change ->
-                decorateColumns(table.getColumns())
-            );
+            table.getColumns().addListener((ListChangeListener<TableColumn>) change -> {
+                decorateColumns(table.getColumns());
+                DynamicTableLayoutManager.requestLayout(table);
+            });
         }
 
         if (!table.getColumns().isEmpty()) {
@@ -286,9 +288,6 @@ public final class ProfessionalUiEnhancer {
                 first.setSortable(false);
                 first.setReorderable(false);
                 first.setResizable(false);
-                first.setMinWidth(54);
-                first.setPrefWidth(54);
-                first.setMaxWidth(54);
                 table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
                 CheckBox all = new CheckBox();
                 all.setTooltip(new Tooltip("Select all visible rows"));
@@ -409,20 +408,12 @@ public final class ProfessionalUiEnhancer {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void applyTableProfile(TableView table) {
-        if (Boolean.TRUE.equals(table.getProperties().get("erp-preserve-resize-policy"))) return;
         String profile = detectTableProfile(table);
         table.getProperties().put("erp-table-profile", profile);
         String profileClass = "erp-table-profile-" + profile;
         if (!table.getStyleClass().contains(profileClass)) table.getStyleClass().add(profileClass);
-
-        switch (profile) {
-            case "import" -> table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
-            case "permission", "summary", "responsive" ->
-                table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-            case "register", "master", "history", "administration", "line-item", "detail", "dialog" ->
-                table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-            default -> table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
-        }
+        // Phase 5: resize policy and all leaf-column widths are owned only by
+        // DynamicTableLayoutManager. Profiles remain presentation/behaviour tags.
     }
 
     private static String detectTableProfile(TableView<?> table) {
@@ -481,9 +472,10 @@ public final class ProfessionalUiEnhancer {
             }
 
             Object explicit = column.getProperties().get("erp-header-semantic");
-            String semantic = Boolean.TRUE.equals(column.getProperties().get("erp-header-explicit"))
-                && explicit instanceof String value && !value.isBlank() ? value : null;
-            if (semantic == null) semantic = headerSemantic(heading, columnId);
+            String semantic = UiSemanticRegistry.headerSemantic(heading);
+            if (semantic == null && Boolean.TRUE.equals(column.getProperties().get("erp-header-explicit"))
+                && explicit instanceof String value && !value.isBlank()) semantic = value;
+            if (semantic == null) semantic = headerSemantic(heading, columnId); // dynamic/programmatic compatibility fallback
             if (semantic == null && !heading.isBlank()) semantic = fallbackHeaderSemantic(heading, columnId);
 
             if (semantic != null) {
@@ -498,7 +490,6 @@ public final class ProfessionalUiEnhancer {
                         column.getStyleClass().add("erp-icon-table-column");
                     }
                 }
-                applyResponsiveWidth(column, heading, semantic);
             }
 
             // Do not replace factories installed by business controllers. This
@@ -512,29 +503,6 @@ public final class ProfessionalUiEnhancer {
     }
 
 
-    @SuppressWarnings("rawtypes")
-    private static void applyResponsiveWidth(TableColumn column, String heading, String semantic) {
-        String h = heading == null ? "" : heading.toLowerCase(Locale.ROOT);
-
-        // Ordinary business columns keep the widths declared by their screen. This is
-        // essential when a details drawer opens: JavaFX can shrink the data columns
-        // naturally instead of being blocked by semantic minimums added after FXML load.
-        if ("actions".equals(semantic)) {
-            column.setMinWidth(156);
-            column.setPrefWidth(160);
-            column.setMaxWidth(168);
-            column.setResizable(false);
-            column.setSortable(false);
-            return;
-        }
-
-        if (h.equals("no.") || h.equals("#")) {
-            column.setMinWidth(62);
-            column.setPrefWidth(62);
-            column.setMaxWidth(72);
-            column.setResizable(false);
-        }
-    }
 
     private static boolean isStatusHeading(String heading) {
         String value = heading.toLowerCase(Locale.ROOT);
@@ -710,10 +678,11 @@ public final class ProfessionalUiEnhancer {
             String value = String.valueOf(item).trim();
             String state = state(value);
             String semantic;
-            if ("email".equals(columnSemantic)) semantic = "email";
-            else if ("whatsapp".equals(columnSemantic)) semantic = "whatsapp";
+            if ("email".equals(columnSemantic) || "email-status".equals(columnSemantic)) semantic = "email";
+            else if ("whatsapp".equals(columnSemantic) || "whatsapp-status".equals(columnSemantic)) semantic = "whatsapp";
             else if ("reminder".equals(columnSemantic)) semantic = "reminder";
-            else if ("document".equals(columnSemantic) || "status".equals(columnSemantic)) {
+            else if ("payment-status".equals(columnSemantic)) semantic = "payment";
+            else if ("document".equals(columnSemantic) || "document-status".equals(columnSemantic) || "status".equals(columnSemantic)) {
                 semantic = state.equals("positive") ? "complete"
                     : state.equals("negative") ? "error"
                     : state.equals("warning") ? "status" : "document";
@@ -723,10 +692,10 @@ public final class ProfessionalUiEnhancer {
                     : columnSemantic == null ? "warning" : columnSemantic;
             }
             Label label = new Label(value);
-            String colour = state.equals("positive") ? "#16a34a"
-                : state.equals("negative") ? "#dc2626"
-                : state.equals("warning") ? "#d97706" : "#2563eb";
-            HBox content = new HBox(6, IconFactory.compactIcon(semantic, 15), label);
+            String iconState = state.equals("positive") ? "success"
+                : state.equals("negative") ? "danger"
+                : state.equals("warning") ? "warning" : "info";
+            HBox content = new HBox(6, IconFactory.statusIcon(semantic, iconState), label);
             content.setAlignment(Pos.CENTER_LEFT);
             content.getStyleClass().add("erp-status-content");
             setText(null);

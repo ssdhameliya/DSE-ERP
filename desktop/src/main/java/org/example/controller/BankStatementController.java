@@ -93,7 +93,6 @@ public class BankStatementController implements ScreenLifecycle {
         configureTable();
         configureBatchSelector();
         configureHistoryTable();
-        if(tableHistory!=null)tableHistory.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         if(statementHistoryDrawer!=null){statementHistoryDrawer.setManaged(false);statementHistoryDrawer.setVisible(false);}
         cmbStatus.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
@@ -186,17 +185,12 @@ public class BankStatementController implements ScreenLifecycle {
                 setGraphic(actionMenu(getTableView().getItems().get(getIndex())));
             }
         });
-        IconFactory.applyTableHeaderIcon(colDate,"calendar"); IconFactory.applyTableHeaderIcon(colValueDate,"calendar");
-        IconFactory.applyTableHeaderIcon(colReference,"reference"); IconFactory.applyTableHeaderIcon(colDescription,"notes");
-        IconFactory.applyTableHeaderIcon(colDebit,"debit"); IconFactory.applyTableHeaderIcon(colCredit,"credit");
-        IconFactory.applyTableHeaderIcon(colBalance,"balance"); IconFactory.applyTableHeaderIcon(colStatus,"status");
-        IconFactory.applyTableHeaderIcon(colMatch,"link"); IconFactory.applyTableHeaderIcon(colAction,"actions");
     }
 
     private void moneyCell(TableColumn<Row,Number> col,boolean debit){
         col.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number n,boolean empty){
-            super.updateItem(n,empty); if(empty||n==null){setText(null);setStyle("");return;} setText(String.format(Locale.ENGLISH,"%,.2f",n.doubleValue()));
-            setStyle(n.doubleValue()>0?"-fx-text-fill:"+(debit?"#ef4444":"#16a34a")+";-fx-font-weight:800;":"");
+            super.updateItem(n,empty); getStyleClass().removeAll("erp-value-positive","erp-value-negative"); if(empty||n==null){setText(null);return;} setText(String.format(Locale.ENGLISH,"%,.2f",n.doubleValue()));
+            if(n.doubleValue()>0)getStyleClass().add(debit?"erp-value-negative":"erp-value-positive");
         }});
     }
 
@@ -284,7 +278,6 @@ public class BankStatementController implements ScreenLifecycle {
         colHistoryPeriod.setCellFactory(c->historyTextCell());
         colHistoryStatus.setCellFactory(c->SemanticTableCells.status("reconcile"));
         tableHistory.getSelectionModel().selectedItemProperty().addListener((o,a,b)->{btnOpenStatement.setDisable(b==null);updateDeleteButtons();});
-        IconFactory.applyTableHeaderIcon(colHistoryImported,"calendar");IconFactory.applyTableHeaderIcon(colHistoryBank,"bank");IconFactory.applyTableHeaderIcon(colHistoryPeriod,"calendar");IconFactory.applyTableHeaderIcon(colHistoryStatus,"status");IconFactory.applyTableHeaderIcon(colHistoryRows,"quantity");
     }
     private TableCell<BankStatementApiClient.BatchDto,String> historyTextCell(){return new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);String text=empty?null:safe(value);setText(text);setTooltip(text==null||text.isBlank()?null:new Tooltip(text));}};}
     private boolean isStatementHistoryOpen(){return statementHistoryDialog!=null&&statementHistoryDialog.isShowing();}
@@ -648,34 +641,34 @@ public class BankStatementController implements ScreenLifecycle {
         TableColumn<CandidateRow,Boolean> selected=new TableColumn<>("Select");
         selected.setCellValueFactory(v->v.getValue().selected);
         selected.setCellFactory(CheckBoxTableCell.forTableColumn(selected));
-        selected.setPrefWidth(64);
+
         TableColumn<CandidateRow,Number> score=new TableColumn<>("Score");
         score.setCellValueFactory(v->v.getValue().confidence);
-        score.setPrefWidth(70);
+
         TableColumn<CandidateRow,String> type=new TableColumn<>("Type");
         type.setCellValueFactory(v->v.getValue().type);
         TableColumn<CandidateRow,String> document=new TableColumn<>("Document");
         document.setCellValueFactory(v->v.getValue().document);
-        document.setPrefWidth(130);
+
         TableColumn<CandidateRow,String> party=new TableColumn<>("Customer / Supplier");
         party.setCellValueFactory(v->v.getValue().party);
-        party.setPrefWidth(190);
+
         TableColumn<CandidateRow,String> date=new TableColumn<>("Date");
         date.setCellValueFactory(v->v.getValue().date);
         TableColumn<CandidateRow,Number> total=new TableColumn<>("Document Total");
         total.setCellValueFactory(v->v.getValue().total);
-        total.setPrefWidth(105);
+
         TableColumn<CandidateRow,Number> paid=new TableColumn<>("Paid / Refunded");
         paid.setCellValueFactory(v->v.getValue().paid);
-        paid.setPrefWidth(90);
+
         TableColumn<CandidateRow,Number> outstanding=new TableColumn<>("Outstanding");
         outstanding.setCellValueFactory(v->v.getValue().outstanding);
-        outstanding.setPrefWidth(105);
+
         TableColumn<CandidateRow,Double> allocation=new TableColumn<>("Allocation");
         allocation.setCellValueFactory(v->v.getValue().allocation.asObject());
         allocation.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
         allocation.setOnEditCommit(e->{double value=e.getNewValue()==null?0:e.getNewValue();e.getRowValue().allocation.set(value);e.getRowValue().selected.set(value>.0001);});
-        allocation.setPrefWidth(110);
+
         candidatesTable.getColumns().setAll(selected,score,type,document,party,date,total,paid,outstanding,allocation);
         CheckBox selectAllCandidates=new CheckBox();
         selectAllCandidates.getProperties().put("erp.icon.skip",true);
@@ -830,16 +823,16 @@ public class BankStatementController implements ScreenLifecycle {
         linkedTable.setPrefHeight(Math.min(360,80+linked.size()*42));
         TableColumn<BankStatementApiClient.AllocationDto,String> document=new TableColumn<>("Document No");
         document.setCellValueFactory(v->new SimpleStringProperty(safe(v.getValue().documentNo()).isBlank()?up(v.getValue().targetType())+" #"+v.getValue().targetId():v.getValue().documentNo()));
-        document.setPrefWidth(190);
+
         TableColumn<BankStatementApiClient.AllocationDto,String> type=new TableColumn<>("Transaction Type");
-        type.setCellValueFactory(v->new SimpleStringProperty(up(v.getValue().targetType()).replace('_',' ')));type.setPrefWidth(170);
+        type.setCellValueFactory(v->new SimpleStringProperty(up(v.getValue().targetType()).replace('_',' ')));
         TableColumn<BankStatementApiClient.AllocationDto,Number> amount=new TableColumn<>("Bank Amount");
-        amount.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().allocatedAmount()));amount.setPrefWidth(135);
+        amount.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().allocatedAmount()));
         amount.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);getStyleClass().remove("erp-quantity-positive");setText(empty||value==null?null:"₹ "+money(value.doubleValue()));if(!empty)getStyleClass().add("erp-quantity-positive");}});
         TableColumn<BankStatementApiClient.AllocationDto,Number> roundOff=new TableColumn<>("Round-off");
-        roundOff.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().roundingAdjustment()));roundOff.setPrefWidth(115);
+        roundOff.setCellValueFactory(v->new SimpleDoubleProperty(v.getValue().roundingAdjustment()));
         roundOff.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Number value,boolean empty){super.updateItem(value,empty);setText(empty||value==null?null:signedMoney(value.doubleValue()));}});
-        TableColumn<BankStatementApiClient.AllocationDto,Void> action=new TableColumn<>("Action");action.setPrefWidth(145);
+        TableColumn<BankStatementApiClient.AllocationDto,Void> action=new TableColumn<>("Action");
         action.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(Void value,boolean empty){super.updateItem(value,empty);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}var allocation=getTableView().getItems().get(getIndex());Button view=new Button(linkActionLabel(allocation.targetType()));view.getStyleClass().addAll("approved-button","approved-primary-button");view.setGraphic(IconFactory.compactIcon("view",14));view.setOnAction(e->{dialog.close();openAllocation(allocation,"Bank Statement #"+row.dto.id());});setGraphic(view);}});
         IconFactory.applyTableHeaderIcon(document,"document");IconFactory.applyTableHeaderIcon(type,"category");IconFactory.applyTableHeaderIcon(amount,"currency");IconFactory.applyTableHeaderIcon(roundOff,"warning");IconFactory.applyTableHeaderIcon(action,"actions");
         linkedTable.getColumns().setAll(document,type,amount,roundOff,action);

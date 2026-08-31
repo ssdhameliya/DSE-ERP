@@ -102,18 +102,6 @@ public class SafeRollbackController {
 
         // Phase 11: shared table profiles are the single resize authority.
 
-        IconFactory.applyTableHeaderIcon(colVersion, "version");
-        IconFactory.applyTableHeaderIcon(colPackage, "package");
-        IconFactory.applyTableHeaderIcon(colSchema, "database");
-        IconFactory.applyTableHeaderIcon(colCompatibility, "compatibility");
-        IconFactory.applyTableHeaderIcon(colStatus, "status");
-        IconFactory.applyTableHeaderIcon(colActions, "actions");
-        IconFactory.applyTableHeaderIcon(colHistoryTime, "calendar");
-        IconFactory.applyTableHeaderIcon(colHistoryAction, "workflow");
-        IconFactory.applyTableHeaderIcon(colHistoryVersion, "reference");
-        IconFactory.applyTableHeaderIcon(colHistoryResult, "status");
-        IconFactory.applyTableHeaderIcon(colHistoryDetail, "info");
-
         colVersion.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().version()));
         colPackage.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().installer().getFileName().toString()));
         colSchema.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().databaseSchema() > 0 ? "Schema " + v.getValue().databaseSchema() : "Unknown"));

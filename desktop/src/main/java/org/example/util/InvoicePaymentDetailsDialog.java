@@ -55,7 +55,6 @@ public final class InvoicePaymentDetailsDialog {
 
         TableView<SupportApiClient.PaymentRow> table = new TableView<>();
         table.getStyleClass().addAll("professional-table", "approved-table", "invoice-payment-table", "erp-table-profile-dialog");
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("No payment records have been recorded for this invoice."));
         TableColumn<SupportApiClient.PaymentRow, String> date = textColumn("Date", "calendar", SupportApiClient.PaymentRow::date);
         TableColumn<SupportApiClient.PaymentRow, String> reference = textColumn("Reference", "document", SupportApiClient.PaymentRow::reference);
@@ -75,6 +74,7 @@ public final class InvoicePaymentDetailsDialog {
         IconFactory.applyTableHeaderIcon(amount, "currency");
         TableColumn<SupportApiClient.PaymentRow, String> notes = textColumn("Notes", "notes", SupportApiClient.PaymentRow::notes);
         table.getColumns().addAll(date, reference, from, mode, amount, notes);
+        DynamicTableLayoutManager.install(table);
         table.getItems().setAll(payments);
         VBox.setVgrow(table, Priority.ALWAYS);
 

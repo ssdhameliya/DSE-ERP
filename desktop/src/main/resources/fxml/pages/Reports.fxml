@@ -82,10 +82,13 @@
             <Tab text="Report Center">
                 <VBox spacing="10">
                     <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
-                    <HBox alignment="CENTER_LEFT" spacing="10">
+                    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="report-card,report-section-toolbar">
                         <VBox spacing="2"><Label text="Report Center" styleClass="page-title"/><Label text="Choose a report. Every report opens in the same DSE ERP viewer and export framework." styleClass="page-subtitle"/></VBox>
                         <Region HBox.hgrow="ALWAYS"/>
-                        <TextField fx:id="txtReportSearch" promptText="Search reports, e.g. GST..." prefWidth="330" styleClass="approved-input"/>
+                        <StackPane minWidth="280" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
+                            <TextField fx:id="txtReportSearch" promptText="Search reports, e.g. GST..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
+                            <StackPane fx:id="reportCenterSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
+                        </StackPane>
                     </HBox>
                     <BorderPane VBox.vgrow="ALWAYS" styleClass="report-center-root">
                         <left>
@@ -114,7 +117,13 @@
                     <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
                     <HBox alignment="CENTER_LEFT" spacing="10"><VBox spacing="2"><Label text="Saved Reports" styleClass="page-title"/><Label text="Reusable report definitions. Relative date presets remain dynamic for future scheduling." styleClass="page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Create from Report Center" onAction="#openReportCenterTab" styleClass="secondary-button"/></HBox>
                     <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="report-card,saved-report-panel">
-                        <HBox alignment="CENTER_LEFT" spacing="10"><TextField fx:id="txtSavedSearch" promptText="Search saved reports..." prefWidth="340" styleClass="approved-input"/><Region HBox.hgrow="ALWAYS"/><Button text="Refresh" onAction="#loadSavedReports" styleClass="secondary-button"/></HBox>
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <StackPane minWidth="280" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
+                                <TextField fx:id="txtSavedSearch" promptText="Search saved reports..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
+                                <StackPane fx:id="savedReportSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
+                            </StackPane>
+                            <Region HBox.hgrow="ALWAYS"/><Button text="Refresh" onAction="#loadSavedReports" styleClass="secondary-button"/>
+                        </HBox>
                         <TableView fx:id="tblSavedReports" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table">
                             <columns>
                                 <TableColumn fx:id="colSavedName" text="Saved Report"/>
@@ -136,7 +145,7 @@
                 <VBox spacing="10">
                     <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
                     <HBox alignment="CENTER_LEFT"><VBox spacing="2"><Label text="Scheduled Reports" styleClass="page-title"/><Label text="Run Saved Reports automatically using dynamic date presets, PDF/Excel/CSV exports, email and server archive delivery." styleClass="page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/></HBox>
-                    <GridPane hgap="10" vgap="10" styleClass="report-kpi-grid">
+                    <GridPane hgap="10" vgap="10" styleClass="report-kpi-grid,erp-kpi-section">
                         <columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/></columnConstraints>
                         <HBox alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,kpi-profit"><StackPane styleClass="sales-metric-icon"/><VBox><Label text="Active Schedules" styleClass="metric-label"/><Label fx:id="lblActiveSchedules" text="0" styleClass="metric-value"/><Label text="Enabled" styleClass="page-subtitle"/></VBox></HBox>
                         <HBox GridPane.columnIndex="1" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,kpi-stock"><StackPane styleClass="sales-metric-icon"/><VBox><Label text="Next Run" styleClass="metric-label"/><Label fx:id="lblNextRun" text="Not scheduled" styleClass="metric-value"/><Label text="Server scheduler" styleClass="page-subtitle"/></VBox></HBox>
@@ -144,7 +153,14 @@
                         <HBox GridPane.columnIndex="3" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,kpi-profit"><StackPane styleClass="sales-metric-icon"/><VBox><Label text="Failures" styleClass="metric-label"/><Label fx:id="lblScheduleFailures" text="0" styleClass="metric-value"/><Label text="Last 30 days" styleClass="page-subtitle"/></VBox></HBox>
                     </GridPane>
                     <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="report-card">
-                        <HBox spacing="10" alignment="CENTER_LEFT"><TextField fx:id="txtScheduleSearch" promptText="Search schedules..." prefWidth="320" styleClass="approved-input"/><ComboBox fx:id="cmbScheduleStatus" prefWidth="190" styleClass="approved-input"/><ComboBox fx:id="cmbScheduleFormat" prefWidth="190" styleClass="approved-input"/></HBox>
+                        <HBox spacing="10" alignment="CENTER_LEFT">
+                            <StackPane minWidth="280" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
+                                <TextField fx:id="txtScheduleSearch" promptText="Search schedules..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
+                                <StackPane fx:id="scheduleSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
+                            </StackPane>
+                            <ComboBox fx:id="cmbScheduleStatus" prefWidth="190" styleClass="approved-input"/><ComboBox fx:id="cmbScheduleFormat" prefWidth="190" styleClass="approved-input"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                        </HBox>
                         <TableView fx:id="tblSchedules" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table">
                             <columns>
                                 <TableColumn fx:id="colScheduleName" text="Schedule"/><TableColumn fx:id="colScheduleReport" text="Saved Report"/><TableColumn fx:id="colScheduleFrequency" text="Frequency"/><TableColumn fx:id="colScheduleTime" text="Time"/><TableColumn fx:id="colScheduleFormat" text="Format"/><TableColumn fx:id="colScheduleDelivery" text="Delivery"/><TableColumn fx:id="colScheduleNextRun" text="Next Run"/><TableColumn fx:id="colScheduleStatus" text="Status"/><TableColumn fx:id="colScheduleActions" text="Actions"/>

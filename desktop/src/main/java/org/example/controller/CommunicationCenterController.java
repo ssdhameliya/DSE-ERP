@@ -33,7 +33,6 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private List<Row> all=List.of();
     @FXML public void initialize(){
         installKpiIcons();
-        configureExplicitTableHeaderIcons();
         colTime.setCellValueFactory(v->v.getValue().time);
         colEntity.setCellValueFactory(v->v.getValue().entity);
         colChannel.setCellValueFactory(v->v.getValue().channel);
@@ -203,16 +202,4 @@ public class CommunicationCenterController implements ScreenLifecycle {
         if(all.isEmpty())refresh();
     }
     @Override public void onScreenHidden(){UiTaskExecutor.cancel("communication-load");}
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colTime, "calendar");
-        IconFactory.applyTableHeaderIcon(colEntity, "document");
-        IconFactory.applyTableHeaderIcon(colChannel, "communication");
-        IconFactory.applyTableHeaderIcon(colRecipient, "user");
-        IconFactory.applyTableHeaderIcon(colSubject, "notes");
-        IconFactory.applyTableHeaderIcon(colStatus, "status");
-        IconFactory.applyTableHeaderIcon(colError, "error");
-        IconFactory.applyTableHeaderIcon(colUser, "user");
-        IconFactory.applyTableHeaderIcon(colActions, "refresh");
-    }
 }

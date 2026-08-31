@@ -82,7 +82,6 @@ public class BackupRestoreController {
     @FXML
     public void initialize() {
         installIcons();
-        configureExplicitTableHeaderIcons();
         configureTable();
         configureScheduleControls();
 
@@ -212,7 +211,7 @@ public class BackupRestoreController {
                 actions.setGraphic(IconFactory.compactIcon("actions", 15));
                 actions.setContentDisplay(ContentDisplay.LEFT);
                 actions.setGraphicTextGap(6);
-                
+
                 actions.setFocusTraversable(false);
                 actions.setTooltip(new Tooltip("Backup actions"));
                 IconFactory.decorateActionMenu(actions);
@@ -772,15 +771,5 @@ public class BackupRestoreController {
             String status,
             String source
     ) {
-    }
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colBackupName, "backup");
-        IconFactory.applyTableHeaderIcon(colCreated, "calendar");
-        IconFactory.applyTableHeaderIcon(colSize, "quantity");
-        IconFactory.applyTableHeaderIcon(colStatus, "status");
-        IconFactory.applyTableHeaderIcon(colSource, "source");
-        colActions.setText("Actions"); IconFactory.applyTableHeaderIcon(colActions, "actions");
     }
 }

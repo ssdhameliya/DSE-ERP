@@ -1,6 +1,7 @@
 package org.example.service;
 
 import org.example.util.BusinessClock;
+import org.example.util.DynamicTableLayoutManager;
 import org.example.util.IconFactory;
 
 import org.example.util.OwnedAlert;
@@ -175,35 +176,25 @@ public final class ReturnEditorService {
         // Deliberate exception to numbered register rows: a return transaction
         // can select several invoice lines with a different quantity per line.
         table.getProperties().put("erp-keep-selection", true);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
 
         TableColumn<ReturnLine, Boolean> selected = new TableColumn<>("Select");
         selected.setCellValueFactory(value -> value.getValue().selectedProperty());
         selected.setCellFactory(CheckBoxTableCell.forTableColumn(selected));
         selected.setEditable(true);
-        selected.setMinWidth(62);
-        selected.setMaxWidth(72);
 
-        TableColumn<ReturnLine, String> code = textColumn("Item Code", 110,
-            row -> row.codeProperty());
-        TableColumn<ReturnLine, String> item = textColumn("Item Name", 210,
-            row -> row.descriptionProperty());
-        TableColumn<ReturnLine, Number> invoiced = numberColumn("Invoiced", 88,
-            row -> row.invoicedProperty());
-        TableColumn<ReturnLine, Number> returned = numberColumn("Returned", 88,
-            row -> row.returnedProperty());
-        TableColumn<ReturnLine, Number> available = numberColumn("Available", 88,
-            row -> row.availableProperty());
+        TableColumn<ReturnLine, String> code = textColumn("Item Code", row -> row.codeProperty());
+        TableColumn<ReturnLine, String> item = textColumn("Item Name", row -> row.descriptionProperty());
+        TableColumn<ReturnLine, Number> invoiced = numberColumn("Invoiced", row -> row.invoicedProperty());
+        TableColumn<ReturnLine, Number> returned = numberColumn("Returned", row -> row.returnedProperty());
+        TableColumn<ReturnLine, Number> available = numberColumn("Available", row -> row.availableProperty());
 
         TableColumn<ReturnLine, ReturnLine> quantity = new TableColumn<>("Return Qty");
         quantity.setCellValueFactory(value -> new javafx.beans.property.ReadOnlyObjectWrapper<>(value.getValue()));
         quantity.setCellFactory(column -> new QuantityEditorCell());
-        quantity.setPrefWidth(95);
 
-        TableColumn<ReturnLine, Number> rate = numberColumn("Rate", 90, row -> row.rateProperty());
-        TableColumn<ReturnLine, Number> tax = numberColumn("Tax %", 72, row -> row.taxProperty());
-        TableColumn<ReturnLine, Number> amount = numberColumn("Return Amount", 120,
-            row -> new SimpleDoubleProperty(row.returnAmount()));
+        TableColumn<ReturnLine, Number> rate = numberColumn("Rate", row -> row.rateProperty());
+        TableColumn<ReturnLine, Number> tax = numberColumn("Tax %", row -> row.taxProperty());
+        TableColumn<ReturnLine, Number> amount = numberColumn("Return Amount", row -> new SimpleDoubleProperty(row.returnAmount()));
         amount.setCellFactory(column -> new TableCell<>() {
             @Override protected void updateItem(Number value, boolean empty) {
                 super.updateItem(value, empty);
@@ -224,7 +215,6 @@ public final class ReturnEditorService {
         TableColumn<ReturnLine, ReturnLine> reason = new TableColumn<>("Reason");
         reason.setCellValueFactory(value -> new javafx.beans.property.ReadOnlyObjectWrapper<>(value.getValue()));
         reason.setCellFactory(column -> new ReasonEditorCell());
-        reason.setPrefWidth(190);
 
         IconFactory.applyTableHeaderIcon(selected, "select");
         IconFactory.applyTableHeaderIcon(code, "identity");
@@ -240,24 +230,23 @@ public final class ReturnEditorService {
 
         table.getColumns().addAll(selected, code, item, invoiced, returned, available,
             quantity, rate, tax, amount, reason);
+        DynamicTableLayoutManager.install(table);
         return table;
     }
 
     private static TableColumn<ReturnLine, String> textColumn(
-        String title, double width,
+        String title,
         java.util.function.Function<ReturnLine, javafx.beans.value.ObservableValue<String>> value) {
         TableColumn<ReturnLine, String> column = new TableColumn<>(title);
         column.setCellValueFactory(cell -> value.apply(cell.getValue()));
-        column.setPrefWidth(width);
         return column;
     }
 
     private static TableColumn<ReturnLine, Number> numberColumn(
-        String title, double width,
+        String title,
         java.util.function.Function<ReturnLine, javafx.beans.value.ObservableValue<Number>> value) {
         TableColumn<ReturnLine, Number> column = new TableColumn<>(title);
         column.setCellValueFactory(cell -> value.apply(cell.getValue()));
-        column.setPrefWidth(width);
         return column;
     }
 

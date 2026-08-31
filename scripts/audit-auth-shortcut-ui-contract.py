@@ -14,6 +14,7 @@ login=text('desktop/src/main/java/org/example/controller/LoginController.java')
 quote=text('desktop/src/main/java/org/example/api/quotation/QuotationApiClient.java')
 recon_api=text('desktop/src/main/java/org/example/api/recon/PurchaseReconApiClient.java')
 settings=text('desktop/src/main/java/org/example/controller/SettingsController.java')
+shortcut_support=text('desktop/src/main/java/org/example/shortcut/SettingsShortcutSupport.java')
 api_session=text('desktop/src/main/java/org/example/api/ApiSession.java')
 config=text('desktop/src/main/java/org/example/config/ConfigManager.java')
 runtime_contract=text('shared/src/main/java/org/example/shared/RuntimeContract.java')
@@ -30,7 +31,7 @@ purchase_recon_batch=text('server/src/main/java/org/example/server/persistence/e
 insights_service=text('server/src/main/java/org/example/server/insights/InsightsService.java')
 
 require('spring-security-bearer-v5' in runtime_contract, 'R12 must use the signed bearer-v5 API contract')
-require('BUILD_REVISION = "9.0.40"' in runtime_contract and 'APP_VERSION = "9.0.40"' in runtime_contract, '9.0.18 must publish one exact desktop/server version/build contract so stale backends are rejected')
+require('BUILD_REVISION = "9.0.41"' in runtime_contract and 'APP_VERSION = "9.0.41"' in runtime_contract, '9.0.18 must publish one exact desktop/server version/build contract so stale backends are rejected')
 require('buildRevision' in runtime_controller, 'Runtime health must expose the backend build revision')
 require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION, RuntimeContract.BUILD_REVISION)') == 2,
         'RuntimeController tests must instantiate the four-argument runtime contract constructor')
@@ -106,9 +107,10 @@ require('FROM reminder_register' in insights_service
         and 'reminder KPIs' in insights_service,
         'Dashboard reminder KPI query must select from reminder_register')
 
-require('validateShortcutManager' in settings and 'ShortcutRegistry.validateActions' in settings,
+require('SettingsShortcutSupport.validate' in settings
+        and 'ShortcutRegistry.validateActions(values, scopes, managerActions())' in shortcut_support,
         'Shortcut Manager must validate only its owned visible catalog')
-require('ShortcutRegistry.validate(' not in settings,
+require('ShortcutRegistry.validate(' not in settings and 'ShortcutRegistry.validate(' not in shortcut_support,
         'Shortcut Manager must not validate hidden PDF/Excel/Master default conflicts')
 require('#disableSelectedShortcut' in shortcuts and '#deleteSelectedShortcut' in shortcuts,
         'Shortcut drawer must expose Disable and Delete Assignment controls')

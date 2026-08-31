@@ -67,7 +67,7 @@ public class RegistrationController {
         } catch (Exception e) {
             message("Unable to load account roles: " + e.getMessage(), true);
         }
-        
+
     }
 
     private void applyBranding(){

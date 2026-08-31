@@ -4,7 +4,7 @@
 <?import javafx.scene.layout.*?>
 <VBox fx:id="panelShortcuts" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
       spacing="12" minHeight="0" maxHeight="Infinity"
-      styleClass="dse-shortcut-v3-root" stylesheets="@../../../css/shortcut-manager.css">
+      styleClass="dse-shortcut-v3-root">
   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="dse-shortcut-v3-header">

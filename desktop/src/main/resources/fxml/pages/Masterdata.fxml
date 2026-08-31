@@ -13,7 +13,7 @@
 
     <top>
         <VBox spacing="10" styleClass="page-header,master-modern-header,master-header-stack,erp-transparent-section-stack">
-            
+
 
             <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-section-header,erp-page-identity-header,master-identity-card">
                 <StackPane fx:id="masterPageIcon" styleClass="erp-page-header-icon"/>
@@ -44,7 +44,7 @@
         <VBox prefWidth="372" minWidth="350" maxWidth="410" spacing="14"
               styleClass="sidebar,master-category-panel">
             <BorderPane.margin><Insets top="6" right="0" bottom="14" left="14"/></BorderPane.margin>
-            
+
 
             <HBox alignment="CENTER_LEFT" spacing="10">
                 <StackPane fx:id="categoryPanelIcon" styleClass="master-panel-title-icon"/>
@@ -165,13 +165,13 @@
                             </ContextMenu>
                         </contextMenu>
                         <columns>
-                            <TableColumn fx:id="colCode" text="Code" prefWidth="120"
+                            <TableColumn fx:id="colCode" text="Code"
                                          styleClass="approved-table-column"/>
-                            <TableColumn fx:id="colValue" text="Value" prefWidth="190"
+                            <TableColumn fx:id="colValue" text="Value"
                                          styleClass="approved-table-column"/>
-                            <TableColumn fx:id="colDescription" text="Description" prefWidth="330"
+                            <TableColumn fx:id="colDescription" text="Description"
                                          styleClass="approved-table-column"/>
-                            <TableColumn fx:id="colLookupStatus" text="Status" prefWidth="120" minWidth="110"
+                            <TableColumn fx:id="colLookupStatus" text="Status"
                                          styleClass="approved-table-column"/>
                         </columns>
                     </TableView>

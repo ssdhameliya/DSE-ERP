@@ -70,13 +70,13 @@
               </HBox>
               <TableView fx:id="tableLines" prefHeight="320" minHeight="220" VBox.vgrow="ALWAYS" styleClass="erp-table-profile-line-item">
                 <columns>
-                  <TableColumn fx:id="colItem" text="Description" prefWidth="300"/>
-                  <TableColumn fx:id="colCode" text="Code" prefWidth="100"/>
-                  <TableColumn fx:id="colQty" text="Qty" prefWidth="80"/>
-                  <TableColumn fx:id="colRate" text="Rate" prefWidth="100"/>
-                  <TableColumn fx:id="colDiscount" text="Discount %" prefWidth="95"/>
-                  <TableColumn fx:id="colGst" text="GST %" prefWidth="80"/>
-                  <TableColumn fx:id="colAmount" text="Amount" prefWidth="120"/>
+                  <TableColumn fx:id="colItem" text="Description"/>
+                  <TableColumn fx:id="colCode" text="Code"/>
+                  <TableColumn fx:id="colQty" text="Qty"/>
+                  <TableColumn fx:id="colRate" text="Rate"/>
+                  <TableColumn fx:id="colDiscount" text="Discount %"/>
+                  <TableColumn fx:id="colGst" text="GST %"/>
+                  <TableColumn fx:id="colAmount" text="Amount"/>
                 </columns>
               </TableView>
             </VBox>

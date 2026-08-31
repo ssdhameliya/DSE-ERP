@@ -39,8 +39,8 @@ public final class SemanticTableCells {
                 if (!getStyleClass().contains("semantic-register-cell")) getStyleClass().add("semantic-register-cell");
                 setText(value ? "Active" : "Inactive");
                 Presentation p = value ? new Presentation("complete", State.SUCCESS) : new Presentation("cancel", State.DANGER);
-                setStyle("-fx-text-fill: " + p.state.color + "; -fx-font-weight: 800;");
-                setGraphic(IconFactory.statusIcon(p.icon, p.state.color));
+                getStyleClass().add(p.state.styleClass);
+                setGraphic(IconFactory.statusIcon(p.icon, p.state.iconState));
                 setGraphicTextGap(5);
             }
         };
@@ -186,10 +186,9 @@ public final class SemanticTableCells {
 
     private static void apply(TableCell<?, String> cell, Presentation p) {
         cell.getStyleClass().add(p.state.styleClass);
-        cell.setStyle("-fx-text-fill: " + p.state.color + "; -fx-font-weight: 800;");
-        // Status cells must use the dedicated status glyph renderer. compactIcon() is
-        // intended for actions/headers and can collapse to a tiny square at table scale.
-        Node graphic = IconFactory.statusIcon(p.icon, p.state.color);
+        // Status cells use the dedicated CSS-state glyph renderer; active theme CSS
+        // owns both text and icon colour so controllers never carry palette hex values.
+        Node graphic = IconFactory.statusIcon(p.icon, p.state.iconState);
         cell.setGraphic(graphic);
         cell.setGraphicTextGap(5);
     }
@@ -209,14 +208,14 @@ public final class SemanticTableCells {
     private record Presentation(String icon, State state) {}
 
     private enum State {
-        SUCCESS("pill-success","#16a34a"),
-        INFO("pill-info","#2563eb"),
-        PURPLE("pill-info","#7c3aed"),
-        WARNING("pill-warning","#d97706"),
-        DANGER("pill-danger","#dc2626"),
-        NEUTRAL("pill-neutral","#64748b");
+        SUCCESS("pill-success","success"),
+        INFO("pill-info","info"),
+        PURPLE("pill-info","purple"),
+        WARNING("pill-warning","warning"),
+        DANGER("pill-danger","danger"),
+        NEUTRAL("pill-neutral","neutral");
         private final String styleClass;
-        private final String color;
-        State(String styleClass,String color){this.styleClass=styleClass;this.color=color;}
+        private final String iconState;
+        State(String styleClass,String iconState){this.styleClass=styleClass;this.iconState=iconState;}
     }
 }

@@ -22,7 +22,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.geometry.Pos;
-import org.kordamp.ikonli.Ikon;
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -72,46 +71,30 @@ public final class IconFactory {
         return tile;
     }
 
-    /** Creates a standalone status glyph with an explicit business-state colour. */
-    public static Node statusIcon(String name, String color) {
+    /** Creates a standalone status glyph whose colour is owned by the active theme. */
+    public static Node statusIcon(String name, String state) {
         String semantic = normalize(name);
         if ("save".equals(semantic)) semantic = "complete";
+        String normalizedState = state == null ? "neutral" : state.toLowerCase(Locale.ROOT).trim();
+        if (!normalizedState.matches("success|info|warning|danger|neutral|purple")) normalizedState = "neutral";
 
-        // Status icons are created from the FontAwesome enum, not an icon-literal
-        // string. This binds the glyph to the correct Ikonli font handler directly
-        // and prevents table cells from falling back to a missing-glyph square.
-        FontIcon glyph = new FontIcon(statusIkon(semantic));
+        // Status icons use enum glyphs for the long-standing status vocabulary.
+        // Colour is expressed only through a CSS state class, never a controller hex value.
+        FontIcon glyph = new FontIcon(literal(semantic));
         glyph.setIconSize(16);
-        glyph.setIconColor(javafx.scene.paint.Color.web(color));
-        glyph.getStyleClass().add("erp-status-glyph");
+        glyph.getStyleClass().addAll("erp-status-glyph", "erp-status-glyph-" + normalizedState);
         glyph.setMouseTransparent(true);
         glyph.getProperties().put("erp.icon.factory", true);
         glyph.getProperties().put("erp.icon.semantic", semantic);
+        glyph.getProperties().put("erp.status.state", normalizedState);
         return glyph;
     }
 
-    private static Ikon statusIkon(String semantic) {
-        return switch (semantic) {
-            case "complete" -> FontAwesomeSolid.CHECK_CIRCLE;
-            case "warning", "error" -> FontAwesomeSolid.EXCLAMATION_CIRCLE;
-            case "delete" -> FontAwesomeSolid.TRASH_ALT;
-            case "cancel" -> FontAwesomeSolid.TIMES;
-            case "calendar" -> FontAwesomeSolid.CALENDAR_ALT;
-            case "reminder", "snooze" -> FontAwesomeSolid.CLOCK;
-            case "email" -> FontAwesomeSolid.ENVELOPE;
-            case "sent" -> FontAwesomeSolid.PAPER_PLANE;
-            case "refresh" -> FontAwesomeSolid.SYNC_ALT;
-            case "return" -> FontAwesomeSolid.UNDO_ALT;
-            case "refund" -> FontAwesomeSolid.UNDO;
-            case "partial" -> FontAwesomeSolid.ADJUST;
-            case "payment" -> FontAwesomeSolid.CREDIT_CARD;
-            case "status" -> FontAwesomeSolid.TASKS;
-            case "draft", "document" -> FontAwesomeSolid.FILE_ALT;
-            default -> FontAwesomeSolid.QUESTION_CIRCLE;
-        };
+    /** Convenience status icon using the semantic colour family as a neutral presentation. */
+    public static Node statusIcon(String name) {
+        return statusIcon(name, "neutral");
     }
-
-    /** Adds the shared icon vocabulary to every newly loaded page and dialog. */
+/** Adds the shared icon vocabulary to every newly loaded page and dialog. */
     public static void decorate(Node node) {
         // A custom dialog supplies its own title icon and action presentation.
         // Do not infer icons from button text inside that shell, otherwise
@@ -203,7 +186,7 @@ public final class IconFactory {
                 menu.setContentDisplay(ContentDisplay.LEFT);
                 menu.setGraphic(actionIcon("actions", 16));
                 menu.setGraphicTextGap(6);
-                // Geometry belongs to ui-components.css. Java supplies only semantics/behaviour.
+                // Geometry belongs to the canonical Light/Dark theme CSS. Java supplies only semantics/behaviour.
                 if (menu.getTooltip() == null) menu.setTooltip(new Tooltip("Open actions"));
             }
             decorateMenuItems(menu, actionMenu);
@@ -233,6 +216,10 @@ public final class IconFactory {
         if (text.isBlank()) return;
         String styles = String.join(" ", label.getStyleClass()).toLowerCase(Locale.ROOT);
         boolean fieldCaptionStyle = styles.contains("field-caption");
+        if (styles.contains("metric-label") || styles.contains("metric-title") || styles.contains("kpi-label") || styles.contains("kpi-title")) {
+            decorateKpiLabel(label, text);
+            return;
+        }
         if (styles.contains("erp-table-header-label") || styles.contains("page-title") || styles.contains("screen-title")
                 || styles.contains("metric-value") || styles.contains("metric-note")
                 || styles.contains("subtitle") || styles.contains("description")
@@ -256,7 +243,8 @@ public final class IconFactory {
                 || styles.contains("location-label") || isGridFieldLabel(label)
                 || isStructurallyPairedFieldLabel(label);
         if (!fieldStyle && !panelTitleStyle) return;
-        String semantic = semanticForLabel(text);
+        String semantic = UiSemanticRegistry.fieldSemantic(text);
+        if (semantic == null) semantic = semanticForLabel(text); // dynamic/programmatic compatibility fallback
         if (semantic == null) semantic = panelTitleStyle ? "document" : "identity";
         if (label.getGraphic() == null) {
             Node graphic = compactIcon(semantic, panelTitleStyle ? 14 : 13);
@@ -265,8 +253,59 @@ public final class IconFactory {
             label.setContentDisplay(ContentDisplay.LEFT);
             label.setGraphicTextGap(5);
         }
-        if (fieldStyle) applySemanticLabelColour(label, semantic);
+        applySemanticLabelColour(label, semantic);
         label.getProperties().put("erp.label.icon.semantic", semantic);
+    }
+
+    /** Applies the Phase 3 semantic identity to a KPI caption and its existing value/icon shell. */
+    private static void decorateKpiLabel(Label label, String text) {
+        String semantic = UiSemanticRegistry.kpiSemantic(text);
+        if (semantic == null) semantic = semanticForLabel(text);
+        if (semantic == null) semantic = "report";
+        String colour = semanticColour(semantic);
+
+        label.getStyleClass().removeIf(style -> style != null && style.startsWith("erp-kpi-label-colour-"));
+        label.getStyleClass().add("erp-kpi-label-colour-" + colour);
+        label.getProperties().put("erp.kpi.semantic", semantic);
+
+        Parent valueParent = label.getParent();
+        if (valueParent instanceof Pane pane) {
+            for (Node sibling : pane.getChildren()) {
+                if (sibling instanceof Label value) {
+                    String valueStyles = String.join(" ", value.getStyleClass()).toLowerCase(Locale.ROOT);
+                    if (valueStyles.contains("metric-value") || valueStyles.contains("kpi-value")) {
+                        value.getStyleClass().removeIf(style -> style != null && style.startsWith("erp-kpi-value-colour-"));
+                        value.getStyleClass().add("erp-kpi-value-colour-" + colour);
+                        value.getProperties().put("erp.kpi.semantic", semantic);
+                    }
+                }
+            }
+        }
+
+        Parent card = valueParent == null ? null : valueParent.getParent();
+        StackPane holder = findKpiIconHolder(card);
+        if (holder != null) {
+            holder.getProperties().put("erp.kpi.semantic", semantic);
+            if (holder.getChildren().isEmpty()) {
+                Node icon = compactIcon(semantic, 16);
+                icon.getStyleClass().add("erp-kpi-managed-icon");
+                holder.getChildren().setAll(icon);
+            }
+        } else if (label.getGraphic() == null) {
+            label.setGraphic(compactIcon(semantic, 14));
+            label.setContentDisplay(ContentDisplay.LEFT);
+            label.setGraphicTextGap(5);
+        }
+    }
+
+    private static StackPane findKpiIconHolder(Parent card) {
+        if (!(card instanceof Pane pane)) return null;
+        for (Node child : pane.getChildren()) {
+            if (!(child instanceof StackPane holder)) continue;
+            String styles = String.join(" ", holder.getStyleClass()).toLowerCase(Locale.ROOT);
+            if (styles.contains("kpi-icon") || styles.contains("metric-icon")) return holder;
+        }
+        return null;
     }
 
     /** Applies the shared semantic accent to a field/drawer caption without using inline CSS. */
@@ -430,10 +469,11 @@ public final class IconFactory {
      */
     public static void applyTableHeaderIcon(TableColumn<?, ?> column, String semantic) {
         if (column == null) return;
-        String normalized = normalize(semantic);
         Object stored = column.getProperties().get("erp-header-label");
         String heading = stored instanceof String value ? value : column.getText();
         heading = heading == null ? "" : heading.trim();
+        String registered = UiSemanticRegistry.headerSemantic(heading);
+        String normalized = normalize(registered == null ? semantic : registered);
         if ("actions".equals(normalized) && heading.isBlank()) heading = "Actions";
 
         column.getProperties().put("erp-header-label", heading);
@@ -450,7 +490,8 @@ public final class IconFactory {
     /** One canonical icon-plus-label renderer for every ERP TableColumn header. */
     public static Node tableHeader(String label, String semantic) {
         Label title = new Label(label == null ? "" : label);
-        title.getStyleClass().add("erp-table-header-label");
+        title.getStyleClass().addAll("erp-table-header-label", "erp-table-header-colour-" + semanticColour(semantic));
+        title.getProperties().put("erp.header.semantic", normalize(semantic));
         HBox header = new HBox(6, compactIcon(semantic, 14), title);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setMouseTransparent(true);
@@ -460,7 +501,8 @@ public final class IconFactory {
 
     /** Public label lookup used by tables, dialogs and future ERP controls. */
     public static String semanticForLabel(String text) {
-        return semantic(text);
+        String exact = UiSemanticRegistry.fieldSemantic(text);
+        return exact != null ? exact : semantic(text);
     }
 
     /**
@@ -566,6 +608,8 @@ public final class IconFactory {
 
     /** FontAwesome 5 literal used by Ikonli; no external image file is loaded. */
     private static String literal(String semantic) {
+        String registered = UiSemanticRegistry.iconLiteral(semantic);
+        if (registered != null) return registered;
         return switch (semantic) {
             case "dashboard" -> "fas-th-large";
             case "business" -> "fas-building";
@@ -686,6 +730,8 @@ public final class IconFactory {
 
     /** Assigns a recognisable business colour to each semantic icon. */
     private static String colour(String semantic) {
+        String registered = UiSemanticRegistry.colour(semantic);
+        if (registered != null) return registered;
         return switch (semantic) {
             case "sale", "complete", "add", "import", "whatsapp", "save", "validate", "excel" -> "green";
             case "purchase", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";

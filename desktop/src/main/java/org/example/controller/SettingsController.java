@@ -21,6 +21,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
@@ -39,11 +40,13 @@ import javafx.stage.Window;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.config.DeploymentMode;
+import org.example.config.SettingsValidationSupport;
 import org.example.api.runtime.DeploymentConnectionService;
 import org.example.service.EmailService;
 import org.example.service.DiagnosticBundleService;
 import org.example.service.BrandAssetPolicy;
 import org.example.service.BrandImagePresenter;
+import org.example.service.SettingsAssetService;
 import org.example.service.NotificationService;
 import org.example.service.SessionService;
 import org.example.ui.SharedApplicationFooter;
@@ -54,6 +57,7 @@ import org.example.util.IconFactory;
 import org.example.util.PerformanceMonitor;
 import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
+import org.example.shortcut.SettingsShortcutSupport;
 import org.example.util.UiTaskExecutor;
 import javafx.application.Platform;
 
@@ -61,11 +65,7 @@ import java.io.File;
 import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.io.InputStream;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -557,44 +557,16 @@ public class SettingsController implements ScreenLifecycle {
             case COMPANY -> showCompany();
         }
     }
-
-    private void selectComboValue(
-        ComboBox<String> comboBox,
-        String configuredValue
-    ) {
-
-        if (
-            configuredValue == null
-                || configuredValue.isBlank()
-        ) {
-            return;
-        }
-
-        if (
-            !comboBox
-                .getItems()
-                .contains(configuredValue)
-        ) {
-            comboBox
-                .getItems()
-                .add(configuredValue);
-        }
-
+    private void selectComboValue(ComboBox<String> comboBox, String configuredValue) {
+        if (configuredValue == null || configuredValue.isBlank()) return;
+        if (!comboBox.getItems().contains(configuredValue)) comboBox.getItems().add(configuredValue);
         comboBox.setValue(configuredValue);
     }
-
     private LocalDate parseDate(String value) {
-
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-
-        try {
-            return LocalDate.parse(value);
-        } catch (Exception ignored) {
-            return null;
-        }
+        if (value == null || value.isBlank()) return null;
+        try { return LocalDate.parse(value); } catch (Exception ignored) { return null; }
     }
+
 
     /* =========================================================
        IMAGE UPLOAD ACTIONS
@@ -706,19 +678,14 @@ public class SettingsController implements ScreenLifecycle {
             lblQrFile
         );
     }
-
     private void previewConfiguredAsset(String configKey, String label) {
         try {
-            String configured = ConfigManager.get(configKey, "");
-            if (configured == null || configured.isBlank()) throw new IllegalStateException("No " + label + " is attached.");
-            Path path = Path.of(configured).toAbsolutePath().normalize();
-            if (!Files.isRegularFile(path)) throw new IllegalStateException("The configured " + label + " is unavailable.");
-            if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Preview is not supported on this computer.");
-            Desktop.getDesktop().open(path.toFile());
+            SettingsAssetService.openConfigured(configKey, label);
         } catch (Exception error) {
             showError(safeMessage(error));
         }
     }
+
 
     private void selectAndStoreImage(
         String configKey,
@@ -742,7 +709,7 @@ public class SettingsController implements ScreenLifecycle {
         String taskKey = "settings-asset-inspect-" + configKey;
         UiTaskExecutor.submitLatest(
             taskKey,
-            () -> new AssetSelection(selectedPath, BrandAssetPolicy.inspect(selectedPath, role)),
+            () -> SettingsAssetService.inspect(selectedPath, role),
             selection -> {
                 if (selection.inspection().hasWarnings()
                         && !confirmImageWarnings(role, selection.inspection())) {
@@ -762,13 +729,13 @@ public class SettingsController implements ScreenLifecycle {
         VBox placeholder,
         Label fileLabel,
         BrandAssetPolicy.Role role,
-        AssetSelection selection
+        SettingsAssetService.Selection selection
     ) {
         String previousConfiguredPath = ConfigManager.get(configKey, "");
         String taskKey = "settings-asset-store-" + configKey;
         UiTaskExecutor.submitAction(
             taskKey,
-            () -> storeSelectedImage(configKey, baseName, role, selection, previousConfiguredPath),
+            () -> SettingsAssetService.store(configKey, baseName, role, selection, previousConfiguredPath),
             result -> {
                 ++assetPreviewRevision; // invalidate an older queued preview refresh
                 applyImagePreview(result.path(), result.previewImage(), result.inspection(),
@@ -777,65 +744,6 @@ public class SettingsController implements ScreenLifecycle {
             error -> showError("The image could not be saved: " + safeMessage(error))
         );
     }
-
-    private AssetStoreResult storeSelectedImage(
-        String configKey,
-        String baseName,
-        BrandAssetPolicy.Role role,
-        AssetSelection selection,
-        String previousConfiguredPath
-    ) throws Exception {
-        String extension = getSafeExtension(selection.path().getFileName().toString());
-        Path assetsFolder = ConfigManager.getConfigurationFolder().resolve("assets");
-        Files.createDirectories(assetsFolder);
-
-        // Use a new managed filename for every replacement. Consumers never see a
-        // partially overwritten image and Windows cannot hold us on a stale file handle.
-        String revision = Long.toUnsignedString(System.nanoTime());
-        Path destination = assetsFolder.resolve(baseName + "-" + revision + extension);
-        Path temporary = Files.createTempFile(assetsFolder, "." + baseName + "-", ".uploading");
-        boolean configCommitted = false;
-        try {
-            Files.copy(selection.path(), temporary, StandardCopyOption.REPLACE_EXISTING);
-            if (Thread.currentThread().isInterrupted()) throw new InterruptedException("Image upload was superseded.");
-
-            // Decode exactly one bounded preview from the copied bytes before committing.
-            // Corrupt files therefore cannot replace a previously working asset.
-            Image previewImage = loadPreviewImage(temporary, role);
-            if (Thread.currentThread().isInterrupted()) throw new InterruptedException("Image upload was superseded.");
-            try {
-                Files.move(temporary, destination, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, destination);
-            }
-
-            if (Thread.currentThread().isInterrupted()) {
-                Files.deleteIfExists(destination);
-                throw new InterruptedException("Image upload was superseded.");
-            }
-            try {
-                ConfigManager.set(configKey, destination.toAbsolutePath().toString());
-                String persisted = ConfigManager.get(configKey, "");
-                if (!ConfigManager.isSharedClient() && !destination.toAbsolutePath().toString().equals(persisted)) {
-                    throw new IllegalStateException("The saved image path could not be verified.");
-                }
-                configCommitted = true;
-            } catch (Exception configError) {
-                ConfigManager.setWithoutSaving(configKey, previousConfiguredPath);
-                try { Files.deleteIfExists(destination); } catch (Exception ignored) { }
-                throw configError;
-            }
-
-            removeOlderManagedAssetVersions(assetsFolder, baseName, destination);
-            return new AssetStoreResult(destination, previewImage, selection.inspection());
-        } finally {
-            try { Files.deleteIfExists(temporary); } catch (Exception ignored) { }
-            if (!configCommitted) {
-                try { Files.deleteIfExists(destination); } catch (Exception ignored) { }
-            }
-        }
-    }
-
     private boolean confirmImageWarnings(BrandAssetPolicy.Role role, BrandAssetPolicy.Inspection inspection) {
         StringBuilder message = new StringBuilder();
         message.append("Image: ").append(inspection.dimensions())
@@ -850,54 +758,6 @@ public class SettingsController implements ScreenLifecycle {
                 ButtonType.NO
         ).showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
     }
-
-    private String getSafeExtension(String fileName) {
-
-        String lowerName =
-            fileName == null
-                ? ""
-                : fileName.toLowerCase();
-
-        if (lowerName.endsWith(".jpg")) {
-            return ".jpg";
-        }
-
-        if (lowerName.endsWith(".jpeg")) {
-            return ".jpeg";
-        }
-
-        return ".png";
-    }
-
-    private void removeOlderManagedAssetVersions(
-        Path assetsFolder,
-        String baseName,
-        Path keep
-    ) {
-        try (var files = Files.list(assetsFolder)) {
-            files.filter(Files::isRegularFile)
-                .filter(path -> isManagedAssetVersion(path.getFileName().toString(), baseName))
-                .filter(path -> keep == null || !path.toAbsolutePath().normalize()
-                        .equals(keep.toAbsolutePath().normalize()))
-                .forEach(path -> {
-                    try { Files.deleteIfExists(path); } catch (Exception ignored) { }
-                });
-        } catch (Exception ignored) {
-            // Cleanup is best-effort only after the new path is safely persisted.
-        }
-    }
-
-    private boolean isManagedAssetVersion(String fileName, String baseName) {
-        if (fileName == null || baseName == null) return false;
-        String lower = fileName.toLowerCase();
-        String base = baseName.toLowerCase();
-        boolean supported = lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg");
-        return supported && (lower.equals(base + ".png")
-                || lower.equals(base + ".jpg")
-                || lower.equals(base + ".jpeg")
-                || lower.startsWith(base + "-"));
-    }
-
     private void removeConfiguredAsset(
         String configKey,
         ImageView imageView,
@@ -931,16 +791,7 @@ public class SettingsController implements ScreenLifecycle {
             "No image selected"
         );
 
-        if (!configuredPath.isBlank()) {
-
-            try {
-                Files.deleteIfExists(
-                    Path.of(configuredPath)
-                );
-            } catch (Exception ignored) {
-                // Configuration removal still succeeds.
-            }
-        }
+        SettingsAssetService.deleteConfiguredFile(configuredPath);
     }
 
     private void refreshAllAssetPreviewsAsync() {
@@ -971,23 +822,8 @@ public class SettingsController implements ScreenLifecycle {
         long started = System.nanoTime();
         List<AssetPreviewResult> results = new ArrayList<>(requests.size());
         for (AssetPreviewRequest request : requests) {
-            String configuredPath = ConfigManager.get(request.configKey(), "");
-            if (configuredPath.isBlank()) {
-                results.add(new AssetPreviewResult(request, null, null, null));
-                continue;
-            }
-            try {
-                Path path = Path.of(configuredPath);
-                if (!Files.isRegularFile(path)) {
-                    results.add(new AssetPreviewResult(request, null, null, null));
-                    continue;
-                }
-                BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(path, request.role());
-                Image image = loadPreviewImage(path, request.role());
-                results.add(new AssetPreviewResult(request, image, path, inspection));
-            } catch (Exception ignored) {
-                results.add(new AssetPreviewResult(request, null, null, null));
-            }
+            SettingsAssetService.Preview preview = SettingsAssetService.loadPreview(request.configKey(), request.role());
+            results.add(new AssetPreviewResult(request, preview.image(), preview.path(), preview.inspection()));
         }
         long elapsed = (System.nanoTime() - started) / 1_000_000L;
         if (elapsed >= 20) PerformanceMonitor.event("controller-phase", "settings-preview-background | " + elapsed + " ms");
@@ -1010,50 +846,6 @@ public class SettingsController implements ScreenLifecycle {
             request.fileLabel().setText(result.path().getFileName() + " • " + result.inspection().dimensions());
         }
     }
-
-    private void refreshAssetPreview(
-        String configKey,
-        ImageView imageView,
-        VBox placeholder,
-        Label fileLabel,
-        BrandAssetPolicy.Role role
-    ) {
-        String configuredPath = ConfigManager.get(configKey, "");
-        if (configuredPath.isBlank()) {
-            clearImagePreview(imageView, placeholder, fileLabel);
-            return;
-        }
-        try {
-            Path path = Path.of(configuredPath);
-            if (!Files.isRegularFile(path)) {
-                clearImagePreview(imageView, placeholder, fileLabel);
-                return;
-            }
-            showImagePreview(path, imageView, placeholder, fileLabel, role);
-        } catch (Exception ignored) {
-            clearImagePreview(imageView, placeholder, fileLabel);
-        }
-    }
-
-    private void showImagePreview(
-        Path path,
-        ImageView imageView,
-        VBox placeholder,
-        Label fileLabel,
-        BrandAssetPolicy.Role role
-    ) {
-        // User-selected image changes are infrequent. Keep this immediate path
-        // synchronous, but decode only a preview-sized bitmap rather than the full
-        // source image. Startup previews use refreshAllAssetPreviewsAsync() above.
-        try {
-            BrandAssetPolicy.Inspection inspection = BrandAssetPolicy.inspect(path, role);
-            Image image = loadPreviewImage(path, role);
-            applyImagePreview(path, image, inspection, imageView, placeholder, fileLabel);
-        } catch (Exception exception) {
-            clearImagePreview(imageView, placeholder, fileLabel);
-        }
-    }
-
     private Window resolveAssetChooserOwner(ImageView imageView) {
         if (imageView != null && imageView.getScene() != null) {
             return imageView.getScene().getWindow();
@@ -1063,35 +855,6 @@ public class SettingsController implements ScreenLifecycle {
         }
         return null;
     }
-
-    private Image loadPreviewImage(Path path, BrandAssetPolicy.Role role) throws Exception {
-        double requestedWidth = switch (role) {
-            case APPLICATION_BANNER -> 1200.0;
-            case APPLICATION_MARK -> 420.0;
-            case COMPANY_LOGO -> 720.0;
-            case SIGNATURE -> 720.0;
-            case PAYMENT_QR -> 420.0;
-        };
-        double requestedHeight = switch (role) {
-            case APPLICATION_BANNER -> 320.0;
-            case APPLICATION_MARK -> 420.0;
-            case COMPANY_LOGO -> 260.0;
-            case SIGNATURE -> 260.0;
-            case PAYMENT_QR -> 420.0;
-        };
-
-        try (InputStream input = Files.newInputStream(path)) {
-            Image image = new Image(input, requestedWidth, requestedHeight, true, true);
-            if (image.isError() || image.getWidth() <= 0 || image.getHeight() <= 0) {
-                Throwable cause = image.getException();
-                throw new IllegalArgumentException(
-                        cause == null ? "The selected image could not be decoded." : cause.getMessage(),
-                        cause);
-            }
-            return image;
-        }
-    }
-
     private void applyImagePreview(
         Path path,
         Image image,
@@ -1113,19 +876,7 @@ public class SettingsController implements ScreenLifecycle {
         String message = error.getMessage();
         return message == null || message.isBlank() ? error.toString() : message;
     }
-
-    private record AssetSelection(
-        Path path,
-        BrandAssetPolicy.Inspection inspection
-    ) { }
-
-    private record AssetStoreResult(
-        Path path,
-        Image previewImage,
-        BrandAssetPolicy.Inspection inspection
-    ) { }
-
-    private record AssetPreviewRequest(
+private record AssetPreviewRequest(
         String configKey,
         ImageView imageView,
         VBox placeholder,
@@ -1139,126 +890,39 @@ public class SettingsController implements ScreenLifecycle {
         Path path,
         BrandAssetPolicy.Inspection inspection
     ) { }
-
-    private void clearImagePreview(
-        ImageView imageView,
-        VBox placeholder,
-        Label fileLabel
-    ) {
-
+    private void clearImagePreview(ImageView imageView, VBox placeholder, Label fileLabel) {
         imageView.setImage(null);
-
-        imageView.setVisible(false);
-        imageView.setManaged(false);
-
-        placeholder.setVisible(true);
-        placeholder.setManaged(true);
-
-        fileLabel.setText(
-            "No image selected"
-        );
+        imageView.setVisible(false); imageView.setManaged(false);
+        placeholder.setVisible(true); placeholder.setManaged(true);
+        fileLabel.setText("No image selected");
     }
+
 
     /* =========================================================
        TAB NAVIGATION
        ========================================================= */
-
-    private void selectSection(
-        HBox selectedNavigation,
-        VBox selectedPanel
-    ) {
-
-        HBox[] navigationItems = {
-            navCompany,
-            navPayment,
-            navInvoice,
-            navNotifications,
-            navEmail,
-            navWorkspace,
-            navUpdates
-        };
-
-        for (HBox item : navigationItems) {
-
-            if (item == null) {
-                continue;
-            }
-
-            item
-                .getStyleClass()
-                .remove(
-                    "settings-navigation-item-selected"
-                );
+    private void selectSection(HBox selectedNavigation, VBox selectedPanel) {
+        HBox[] navigationItems = {navCompany, navPayment, navInvoice, navNotifications, navEmail, navWorkspace, navUpdates};
+        for (HBox item : navigationItems) if (item != null) item.getStyleClass().remove("settings-navigation-item-selected");
+        if (selectedNavigation != null && !selectedNavigation.getStyleClass().contains("settings-navigation-item-selected")) {
+            selectedNavigation.getStyleClass().add("settings-navigation-item-selected");
         }
-
-        if (
-            selectedNavigation != null
-                && !selectedNavigation
-                .getStyleClass()
-                .contains(
-                    "settings-navigation-item-selected"
-                )
-        ) {
-
-            selectedNavigation
-                .getStyleClass()
-                .add(
-                    "settings-navigation-item-selected"
-                );
-        }
-
-        if (selectedPanel != null && panelHost != null) {
-            selectedPanel.setVisible(true);
-            selectedPanel.setManaged(true);
-            if (panelHost.getChildren().size() != 1 || panelHost.getChildren().getFirst() != selectedPanel) {
-                panelHost.getChildren().setAll(selectedPanel);
-            }
-            // Shortcut Manager owns a premium full-width identity header and must not
-            // compete with the generic Settings header. Other Settings sections keep
-            // the standard page identity/actions unchanged.
-            boolean shortcutMode = selectedPanel == panelShortcuts;
-            if (settingsPageHeader != null) {
-                settingsPageHeader.setVisible(!shortcutMode);
-                settingsPageHeader.setManaged(!shortcutMode);
-            }
-            // Section visibility changes are synchronous; JavaFX owns the normal CSS/layout pulse.
-            if (panelScroll != null) {
-                panelScroll.setVbarPolicy(shortcutMode
-                        ? ScrollPane.ScrollBarPolicy.NEVER : ScrollPane.ScrollBarPolicy.AS_NEEDED);
-                Platform.runLater(() -> panelScroll.setVvalue(0.0));
-            }
+        if (selectedPanel == null || panelHost == null) return;
+        selectedPanel.setVisible(true); selectedPanel.setManaged(true);
+        if (panelHost.getChildren().size() != 1 || panelHost.getChildren().getFirst() != selectedPanel) panelHost.getChildren().setAll(selectedPanel);
+        boolean shortcutMode = selectedPanel == panelShortcuts;
+        if (settingsPageHeader != null) { settingsPageHeader.setVisible(!shortcutMode); settingsPageHeader.setManaged(!shortcutMode); }
+        if (panelScroll != null) {
+            panelScroll.setVbarPolicy(shortcutMode ? ScrollPane.ScrollBarPolicy.NEVER : ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            Platform.runLater(() -> panelScroll.setVvalue(0.0));
         }
     }
+    @FXML private void showCompany() { selectSection(navCompany, ensureSectionLoaded(Section.COMPANY)); }
+    @FXML private void showPayment() { selectSection(navPayment, ensureSectionLoaded(Section.PAYMENT)); }
+    @FXML private void showInvoice() { selectSection(navInvoice, ensureSectionLoaded(Section.INVOICE)); }
+    @FXML private void showNotifications() { selectSection(navNotifications, ensureSectionLoaded(Section.NOTIFICATIONS)); }
+    @FXML private void showEmail() { selectSection(navEmail, ensureSectionLoaded(Section.EMAIL)); }
 
-    @FXML
-    private void showCompany() {
-
-        selectSection(navCompany, ensureSectionLoaded(Section.COMPANY));
-    }
-
-    @FXML
-    private void showPayment() {
-
-        selectSection(navPayment, ensureSectionLoaded(Section.PAYMENT));
-    }
-
-    @FXML
-    private void showInvoice() {
-
-        selectSection(navInvoice, ensureSectionLoaded(Section.INVOICE));
-    }
-
-    @FXML
-    private void showNotifications() {
-
-        selectSection(navNotifications, ensureSectionLoaded(Section.NOTIFICATIONS));
-    }
-
-    @FXML
-    private void showEmail() {
-
-        selectSection(navEmail, ensureSectionLoaded(Section.EMAIL));
-    }
 
 
     @FXML
@@ -1329,13 +993,13 @@ public class SettingsController implements ScreenLifecycle {
     @FXML
     private void resetAllShortcuts() {
         ensureSectionLoaded(Section.SHORTCUTS);
-        for (Action action : shortcutManagerActions()) {
+        for (Action action : SettingsShortcutSupport.managerActions()) {
             shortcutDraftValues.put(action, action.defaultBinding());
             shortcutDraftScopes.put(action, action.scope());
             ShortcutRegistry.saveOptions(action, action.scope(), false,
                     action == Action.EDIT_CURRENT || action == Action.OPEN_SELECTED || action == Action.DELETE_SELECTED);
         }
-        ShortcutRegistry.saveActions(shortcutManagerDraft(), shortcutManagerScopeDraft(), shortcutManagerActions());
+        ShortcutRegistry.saveActions(shortcutManagerDraft(), shortcutManagerScopeDraft(), SettingsShortcutSupport.managerActions());
         refreshShortcutWorkspace();
         if (selectedShortcutAction != null) openShortcutEditor(selectedShortcutAction);
         org.example.util.ToastManager.success(panelHost, "Shortcuts reset", "All keyboard shortcuts were restored to product defaults.");
@@ -1394,11 +1058,11 @@ public class SettingsController implements ScreenLifecycle {
         configureShortcutActionConverter();
         configureShortcutList();
 
-        List<String> categories = shortcutUiCategories();
+        List<String> categories = SettingsShortcutSupport.categories();
         shortcutUiLoading = true;
         cmbShortcutCategory.setItems(FXCollections.observableArrayList(categories));
         if (cmbShortcutCategory.getSelectionModel().getSelectedIndex() < 0) cmbShortcutCategory.getSelectionModel().selectFirst();
-        cmbShortcutAction.setItems(FXCollections.observableArrayList(shortcutManagerActions()));
+        cmbShortcutAction.setItems(FXCollections.observableArrayList(SettingsShortcutSupport.managerActions()));
         cmbShortcutScope.setItems(FXCollections.observableArrayList(
                 java.util.Arrays.stream(ShortcutRegistry.Scope.values()).map(ShortcutRegistry.Scope::label).toList()));
         shortcutUiLoading = false;
@@ -1414,8 +1078,8 @@ public class SettingsController implements ScreenLifecycle {
             });
             cmbShortcutScope.valueProperty().addListener((obs, oldValue, value) -> {
                 if (!shortcutUiLoading && selectedShortcutAction != null) {
-                    ShortcutRegistry.Scope scope = shortcutScopeFromLabel(value, selectedShortcutAction.scope());
-                    if (lblShortcutScopeHint != null) lblShortcutScopeHint.setText(shortcutScopeHint(scope));
+                    ShortcutRegistry.Scope scope = SettingsShortcutSupport.scopeFromLabel(value, selectedShortcutAction.scope());
+                    if (lblShortcutScopeHint != null) lblShortcutScopeHint.setText(SettingsShortcutSupport.scopeHint(scope));
                     refreshSelectedShortcutConflict();
                 }
             });
@@ -1429,7 +1093,7 @@ public class SettingsController implements ScreenLifecycle {
         }
 
         if (selectedShortcutAction == null || !ShortcutRegistry.permitted(selectedShortcutAction)) {
-            selectedShortcutAction = shortcutManagerActions().stream().findFirst().orElse(Action.SAVE_CURRENT);
+            selectedShortcutAction = SettingsShortcutSupport.managerActions().stream().findFirst().orElse(Action.SAVE_CURRENT);
         }
         refreshShortcutWorkspace();
         closeShortcutDrawer();
@@ -1455,7 +1119,7 @@ public class SettingsController implements ScreenLifecycle {
         if (cmbShortcutAction == null || cmbShortcutAction.getConverter() != null) return;
         cmbShortcutAction.setConverter(new javafx.util.StringConverter<>() {
             @Override public String toString(Action action) {
-                return action == null ? "" : shortcutUiCategory(action) + "  •  " + action.label();
+                return action == null ? "" : SettingsShortcutSupport.category(action) + "  •  " + action.label();
             }
             @Override public Action fromString(String value) { return null; }
         });
@@ -1469,13 +1133,13 @@ public class SettingsController implements ScreenLifecycle {
                 if (empty || action == null) { setText(null); setGraphic(null); return; }
                 Label name = new Label(action.label());
                 name.getStyleClass().add("dse-shortcut-v3-list-name");
-                Label category = new Label(shortcutUiCategory(action));
+                Label category = new Label(SettingsShortcutSupport.category(action));
                 category.getStyleClass().add("dse-shortcut-v3-list-category");
                 VBox labels = new VBox(2, name, category);
                 HBox.setHgrow(labels, javafx.scene.layout.Priority.ALWAYS);
                 Label scope = new Label(shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)).label());
                 scope.getStyleClass().add("dse-shortcut-v3-scope-badge");
-                Label key = new Label(displayShortcut(shortcutDraftValues.get(action)));
+                Label key = new Label(SettingsShortcutSupport.display(shortcutDraftValues.get(action)));
                 key.getStyleClass().add("dse-shortcut-v3-key-badge");
                 ToggleButton enabled = shortcutToggle(action);
                 Button delete = new Button("Delete");
@@ -1492,27 +1156,9 @@ public class SettingsController implements ScreenLifecycle {
             if (selected != null && event.getClickCount() >= 2) openShortcutEditor(selected);
         });
     }
-
-    private List<String> shortcutUiCategories() {
-        List<String> categories = new ArrayList<>();
-        categories.add("All Categories");
-        for (Action action : shortcutManagerActions()) {
-            String category = shortcutUiCategory(action);
-            if (!categories.contains(category)) categories.add(category);
-        }
-        return categories;
-    }
-
-    private List<Action> shortcutManagerActions() {
-        return ShortcutRegistry.availableActions().stream().filter(action -> {
-            String category=shortcutUiCategory(action);
-            return "Application Actions".equals(category)||"Quick Create".equals(category)||"Navigation".equals(category);
-        }).toList();
-    }
-
     private Map<Action,String> shortcutManagerDraft() {
         Map<Action,String> values = new LinkedHashMap<>();
-        for (Action action : shortcutManagerActions()) {
+        for (Action action : SettingsShortcutSupport.managerActions()) {
             values.put(action, shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)));
         }
         return values;
@@ -1520,52 +1166,11 @@ public class SettingsController implements ScreenLifecycle {
 
     private Map<Action,ShortcutRegistry.Scope> shortcutManagerScopeDraft() {
         Map<Action,ShortcutRegistry.Scope> scopes = new LinkedHashMap<>();
-        for (Action action : shortcutManagerActions()) {
+        for (Action action : SettingsShortcutSupport.managerActions()) {
             scopes.put(action, shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)));
         }
         return scopes;
     }
-
-    private List<String> validateShortcutManager(Map<Action,String> values, Map<Action,ShortcutRegistry.Scope> scopes) {
-        return ShortcutRegistry.validateActions(values, scopes, shortcutManagerActions());
-    }
-
-    private String shortcutUiCategory(Action action) {
-        if(action==Action.GLOBAL_SEARCH)return "Application Actions";
-        String category=action == null || action.category() == null || action.category().isBlank() ? "Application Actions" : action.category();
-        return "Search & Filter".equals(category)?"Application Actions":category;
-    }
-
-    private String shortcutCategoryAccent(String category) {
-        if (category == null) return "purple";
-        return switch (category) {
-            case "Quick Create" -> "green";
-            case "Navigation" -> "blue";
-            case "Search & Filter" -> "amber";
-            case "PDF Studio" -> "pink";
-            case "Excel Studio" -> "teal";
-            case "Master Data" -> "violet";
-            case "Reports & Tools" -> "teal";
-            case "Settings & Tools" -> "pink";
-            default -> "purple";
-        };
-    }
-
-    private String shortcutCategoryIcon(String category) {
-        if (category == null) return "adjust";
-        return switch (category) {
-            case "Quick Create" -> "register";
-            case "Navigation" -> "link";
-            case "Search & Filter" -> "search";
-            case "PDF Studio" -> "document";
-            case "Excel Studio" -> "file";
-            case "Master Data" -> "database";
-            case "Reports & Tools" -> "report";
-            case "Settings & Tools" -> "settings";
-            default -> "adjust";
-        };
-    }
-
     private void refreshShortcutWorkspace() {
         if (shortcutCards == null) return;
         refreshShortcutCards();
@@ -1579,11 +1184,11 @@ public class SettingsController implements ScreenLifecycle {
                 ? "" : txtShortcutSearch.getText().trim().toLowerCase(java.util.Locale.ROOT);
 
         List<Action> filtered = new ArrayList<>();
-        for (Action action : shortcutManagerActions()) {
-            String category = shortcutUiCategory(action);
+        for (Action action : SettingsShortcutSupport.managerActions()) {
+            String category = SettingsShortcutSupport.category(action);
             if (categoryFilter != null && !categoryFilter.equals("All Categories") && !categoryFilter.equals(category)) continue;
             if (!query.isBlank()) {
-                String haystack = (action.label() + " " + category + " " + displayShortcut(shortcutDraftValues.get(action)) + " "
+                String haystack = (action.label() + " " + category + " " + SettingsShortcutSupport.display(shortcutDraftValues.get(action)) + " "
                         + shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)).label()).toLowerCase(java.util.Locale.ROOT);
                 if (!haystack.contains(query)) continue;
             }
@@ -1611,8 +1216,8 @@ public class SettingsController implements ScreenLifecycle {
         RowConstraints rowConstraint=new RowConstraints();rowConstraint.setVgrow(javafx.scene.layout.Priority.ALWAYS);rowConstraint.setFillHeight(true);shortcutCards.getRowConstraints().add(rowConstraint);
 
         Map<String,List<Action>> grouped = new LinkedHashMap<>();
-        for (Action action : shortcutManagerActions())
-            grouped.computeIfAbsent(shortcutUiCategory(action), ignored -> new ArrayList<>()).add(action);
+        for (Action action : SettingsShortcutSupport.managerActions())
+            grouped.computeIfAbsent(SettingsShortcutSupport.category(action), ignored -> new ArrayList<>()).add(action);
 
         int cardIndex = 0;
         for (Map.Entry<String,List<Action>> entry : grouped.entrySet()) {
@@ -1646,14 +1251,14 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private VBox buildShortcutCategoryCard(String category, List<Action> actions) {
-        String accent = shortcutCategoryAccent(category);
+        String accent = SettingsShortcutSupport.categoryAccent(category);
         VBox card = new VBox(7);
         card.getStyleClass().addAll("dse-shortcut-v3-card", "dse-shortcut-v3-card-" + accent);
         card.setMaxWidth(Double.MAX_VALUE);card.setMaxHeight(Double.MAX_VALUE);
 
         StackPane iconBox = new StackPane();
         iconBox.getStyleClass().addAll("dse-shortcut-v3-card-icon", "dse-shortcut-v3-accent-" + accent);
-        setShortcutIcon(iconBox, shortcutCategoryIcon(category), 15);
+        setShortcutIcon(iconBox, SettingsShortcutSupport.categoryIcon(category), 15);
         Label title = new Label(category); title.getStyleClass().add("dse-shortcut-v3-card-title");
         Label count = new Label(Integer.toString(actions.size())); count.getStyleClass().addAll("dse-shortcut-v3-card-count", "dse-shortcut-v3-accent-" + accent);
         HBox spacer = new HBox(); HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
@@ -1672,7 +1277,7 @@ public class SettingsController implements ScreenLifecycle {
     private HBox buildShortcutRow(Action action, String accent) {
         Label name = new Label(action.label()); name.setMaxWidth(Double.MAX_VALUE);
         name.getStyleClass().add("dse-shortcut-v3-action-name"); HBox.setHgrow(name, javafx.scene.layout.Priority.ALWAYS);
-        Label key = new Label(displayShortcut(shortcutDraftValues.get(action))); key.getStyleClass().add("dse-shortcut-v3-key-badge");
+        Label key = new Label(SettingsShortcutSupport.display(shortcutDraftValues.get(action))); key.getStyleClass().add("dse-shortcut-v3-key-badge");
         ToggleButton enabled = shortcutToggle(action);
         Button delete = new Button("×"); delete.setTooltip(new Tooltip("Delete shortcut assignment")); delete.getStyleClass().addAll("dse-shortcut-v3-more", "dse-shortcut-v3-row-delete");
         delete.setOnAction(event -> deleteShortcutAssignment(action));
@@ -1685,18 +1290,18 @@ public class SettingsController implements ScreenLifecycle {
 
     private void refreshShortcutKpis() {
         if (lblShortcutTotal == null) return;
-        int total = shortcutManagerActions().size();
+        int total = SettingsShortcutSupport.managerActions().size();
         int custom = 0;
-        for (Action action : shortcutManagerActions()) {
-            String current = normalizeShortcut(shortcutDraftValues.get(action));
-            String defaults = normalizeShortcut(action.defaultBinding());
+        for (Action action : SettingsShortcutSupport.managerActions()) {
+            String current = SettingsShortcutSupport.normalize(shortcutDraftValues.get(action));
+            String defaults = SettingsShortcutSupport.normalize(action.defaultBinding());
             if (!current.equalsIgnoreCase(defaults)) custom++;
         }
-        List<String> conflicts = validateShortcutManager(shortcutManagerDraft(), shortcutManagerScopeDraft());
+        List<String> conflicts = SettingsShortcutSupport.validate(shortcutManagerDraft(), shortcutManagerScopeDraft());
         lblShortcutTotal.setText(Integer.toString(total));
         lblShortcutCustom.setText(Integer.toString(custom));
         lblShortcutConflicts.setText(Integer.toString(conflicts.size()));
-        lblShortcutCategories.setText(Integer.toString(shortcutUiCategories().size() - 1));
+        lblShortcutCategories.setText(Integer.toString(SettingsShortcutSupport.categories().size() - 1));
     }
 
     @FXML
@@ -1705,8 +1310,8 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private void addShortcut(String preferredCategory) {
-        List<Action> candidates = shortcutManagerActions().stream()
-                .filter(action -> preferredCategory == null || preferredCategory.equals(shortcutUiCategory(action)))
+        List<Action> candidates = SettingsShortcutSupport.managerActions().stream()
+                .filter(action -> preferredCategory == null || preferredCategory.equals(SettingsShortcutSupport.category(action)))
                 .toList();
         Action candidate = candidates.stream()
                 .filter(action -> shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)).isBlank())
@@ -1723,19 +1328,19 @@ public class SettingsController implements ScreenLifecycle {
         shortcutUiLoading = true;
         cmbShortcutAction.getSelectionModel().select(action);
         String raw = shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action));
-        txtShortcutKeys.setText(displayShortcut(raw));
+        txtShortcutKeys.setText(SettingsShortcutSupport.display(raw));
         chkShortcutActive.setSelected(raw != null && !raw.isBlank());
         ShortcutRegistry.Scope configuredScope = shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action));
-        List<ShortcutRegistry.Scope> allowedScopes = shortcutScopesForAction(action);
+        List<ShortcutRegistry.Scope> allowedScopes = SettingsShortcutSupport.scopesForAction(action);
         cmbShortcutScope.setItems(FXCollections.observableArrayList(allowedScopes.stream().map(ShortcutRegistry.Scope::label).toList()));
         if (!allowedScopes.contains(configuredScope)) configuredScope = action.scope();
         cmbShortcutScope.getSelectionModel().select(configuredScope.label());
         cmbShortcutScope.setDisable(allowedScopes.size() == 1);
-        txtShortcutDescription.setText(shortcutDescription(action));
+        txtShortcutDescription.setText(SettingsShortcutSupport.description(action));
         if (chkShortcutAllowTextInput != null) chkShortcutAllowTextInput.setSelected(ShortcutRegistry.allowInTextInput(action));
         if (chkShortcutRequireSelection != null) chkShortcutRequireSelection.setSelected(ShortcutRegistry.requireSelection(action));
         lblShortcutDrawerTitle.setText("Edit Shortcut");
-        if (lblShortcutScopeHint != null) lblShortcutScopeHint.setText(shortcutScopeHint(configuredScope));
+        if (lblShortcutScopeHint != null) lblShortcutScopeHint.setText(SettingsShortcutSupport.scopeHint(configuredScope));
         shortcutUiLoading = false;
         if (shortcutDrawer != null) { shortcutDrawer.setVisible(true); shortcutDrawer.setManaged(true); }
         refreshSelectedShortcutConflict();
@@ -1758,7 +1363,7 @@ public class SettingsController implements ScreenLifecycle {
     private void captureShortcutDraft(KeyEvent event) {
         if (selectedShortcutAction == null || txtShortcutKeys == null) return;
         if (event.getCode() == KeyCode.ESCAPE) {
-            txtShortcutKeys.setText(displayShortcut(shortcutDraftValues.get(selectedShortcutAction)));
+            txtShortcutKeys.setText(SettingsShortcutSupport.display(shortcutDraftValues.get(selectedShortcutAction)));
             event.consume();
             return;
         }
@@ -1772,7 +1377,7 @@ public class SettingsController implements ScreenLifecycle {
         }
         String captured = ShortcutRegistry.fromEvent(event);
         if (!captured.isBlank()) {
-            txtShortcutKeys.setText(displayShortcut(captured));
+            txtShortcutKeys.setText(SettingsShortcutSupport.display(captured));
             chkShortcutActive.setSelected(true);
             refreshSelectedShortcutConflict();
         }
@@ -1845,7 +1450,7 @@ public class SettingsController implements ScreenLifecycle {
     @FXML
     private void resetSelectedShortcut() {
         if (selectedShortcutAction == null) return;
-        txtShortcutKeys.setText(displayShortcut(selectedShortcutAction.defaultBinding()));
+        txtShortcutKeys.setText(SettingsShortcutSupport.display(selectedShortcutAction.defaultBinding()));
         chkShortcutActive.setSelected(!selectedShortcutAction.defaultBinding().isBlank());
         ShortcutRegistry.Scope defaultScope = selectedShortcutAction.scope();
         if (cmbShortcutScope != null) cmbShortcutScope.getSelectionModel().select(defaultScope.label());
@@ -1859,14 +1464,14 @@ public class SettingsController implements ScreenLifecycle {
     private void saveSelectedShortcut() {
         if (selectedShortcutAction == null) return;
         String raw = chkShortcutActive != null && chkShortcutActive.isSelected()
-                ? normalizeShortcut(txtShortcutKeys == null ? "" : txtShortcutKeys.getText()) : "";
-        ShortcutRegistry.Scope selectedScope = shortcutScopeFromLabel(
+                ? SettingsShortcutSupport.normalize(txtShortcutKeys == null ? "" : txtShortcutKeys.getText()) : "";
+        ShortcutRegistry.Scope selectedScope = SettingsShortcutSupport.scopeFromLabel(
                 cmbShortcutScope == null ? null : cmbShortcutScope.getValue(), selectedShortcutAction.scope());
         Map<Action,String> candidate = new LinkedHashMap<>(shortcutDraftValues);
         Map<Action,ShortcutRegistry.Scope> candidateScopes = new LinkedHashMap<>(shortcutDraftScopes);
         candidate.put(selectedShortcutAction, raw);
         candidateScopes.put(selectedShortcutAction, selectedScope);
-        List<String> errors = validateShortcutManager(candidate, candidateScopes);
+        List<String> errors = SettingsShortcutSupport.validate(candidate, candidateScopes);
         if (!errors.isEmpty()) {
             refreshSelectedShortcutConflict();
             warn("Keyboard shortcut conflict:\n" + String.join("\n", errors));
@@ -1874,7 +1479,7 @@ public class SettingsController implements ScreenLifecycle {
         }
         shortcutDraftValues.put(selectedShortcutAction, raw);
         shortcutDraftScopes.put(selectedShortcutAction, selectedScope);
-        ShortcutRegistry.saveActions(shortcutManagerDraft(), shortcutManagerScopeDraft(), shortcutManagerActions());
+        ShortcutRegistry.saveActions(shortcutManagerDraft(), shortcutManagerScopeDraft(), SettingsShortcutSupport.managerActions());
         ShortcutRegistry.saveOptions(selectedShortcutAction, selectedScope,
                 chkShortcutAllowTextInput != null && chkShortcutAllowTextInput.isSelected(),
                 chkShortcutRequireSelection != null && chkShortcutRequireSelection.isSelected());
@@ -1886,15 +1491,15 @@ public class SettingsController implements ScreenLifecycle {
     private void refreshSelectedShortcutConflict() {
         if (selectedShortcutAction == null || lblShortcutConflict == null) return;
         String raw = chkShortcutActive != null && chkShortcutActive.isSelected()
-                ? normalizeShortcut(txtShortcutKeys == null ? "" : txtShortcutKeys.getText()) : "";
+                ? SettingsShortcutSupport.normalize(txtShortcutKeys == null ? "" : txtShortcutKeys.getText()) : "";
         Map<Action,String> candidate = new LinkedHashMap<>(shortcutDraftValues);
         Map<Action,ShortcutRegistry.Scope> candidateScopes = new LinkedHashMap<>(shortcutDraftScopes);
         candidate.put(selectedShortcutAction, raw);
-        candidateScopes.put(selectedShortcutAction, shortcutScopeFromLabel(
+        candidateScopes.put(selectedShortcutAction, SettingsShortcutSupport.scopeFromLabel(
                 cmbShortcutScope == null ? null : cmbShortcutScope.getValue(), selectedShortcutAction.scope()));
-        List<String> errors = validateShortcutManager(candidate, candidateScopes);
+        List<String> errors = SettingsShortcutSupport.validate(candidate, candidateScopes);
         String relevant = errors.stream()
-                .filter(error -> error.contains(selectedShortcutAction.label()) || (!raw.isBlank() && error.toLowerCase(java.util.Locale.ROOT).contains(displayShortcut(raw).toLowerCase(java.util.Locale.ROOT))))
+                .filter(error -> error.contains(selectedShortcutAction.label()) || (!raw.isBlank() && error.toLowerCase(java.util.Locale.ROOT).contains(SettingsShortcutSupport.display(raw).toLowerCase(java.util.Locale.ROOT))))
                 .findFirst().orElse("");
         boolean conflict = !relevant.isBlank();
         lblShortcutConflict.setText(conflict ? relevant : "No conflicts for this shortcut.");
@@ -1913,7 +1518,7 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private boolean validateShortcutSettings() {
-        List<String> errors = validateShortcutManager(shortcutManagerDraft(), shortcutManagerScopeDraft());
+        List<String> errors = SettingsShortcutSupport.validate(shortcutManagerDraft(), shortcutManagerScopeDraft());
         if (lblShortcutValidation != null) lblShortcutValidation.setText(errors.isEmpty() ? "No shortcut conflicts detected." : errors.getFirst());
         if (!errors.isEmpty()) {
             warn("Keyboard shortcut conflict:\n" + String.join("\n", errors));
@@ -1924,7 +1529,7 @@ public class SettingsController implements ScreenLifecycle {
 
     private void refreshShortcutValidation() {
         if (lblShortcutValidation == null) return;
-        List<String> errors = validateShortcutManager(shortcutManagerDraft(), shortcutManagerScopeDraft());
+        List<String> errors = SettingsShortcutSupport.validate(shortcutManagerDraft(), shortcutManagerScopeDraft());
         lblShortcutValidation.setText(errors.isEmpty() ? "No shortcut conflicts detected." : errors.getFirst());
         lblShortcutValidation.getStyleClass().removeAll("dse-shortcut-v3-validation-ok", "dse-shortcut-v3-validation-warning");
         lblShortcutValidation.getStyleClass().add(errors.isEmpty() ? "dse-shortcut-v3-validation-ok" : "dse-shortcut-v3-validation-warning");
@@ -1933,9 +1538,9 @@ public class SettingsController implements ScreenLifecycle {
     private void saveShortcutSettings() {
         Map<Action,String> draft = shortcutManagerDraft();
         Map<Action,ShortcutRegistry.Scope> scopes = shortcutManagerScopeDraft();
-        List<String> errors = validateShortcutManager(draft, scopes);
+        List<String> errors = SettingsShortcutSupport.validate(draft, scopes);
         if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("\n", errors));
-        ShortcutRegistry.saveActions(draft, scopes, shortcutManagerActions());
+        ShortcutRegistry.saveActions(draft, scopes, SettingsShortcutSupport.managerActions());
     }
 
     @FXML
@@ -1951,18 +1556,18 @@ public class SettingsController implements ScreenLifecycle {
             properties.load(reader);
             Map<Action,String> imported = new LinkedHashMap<>(shortcutDraftValues);
             Map<Action,ShortcutRegistry.Scope> importedScopes = new LinkedHashMap<>(shortcutDraftScopes);
-            for (Action action : shortcutManagerActions()) {
+            for (Action action : SettingsShortcutSupport.managerActions()) {
                 String value = properties.getProperty(action.id());
-                if (value != null) imported.put(action, normalizeShortcut(value));
+                if (value != null) imported.put(action, SettingsShortcutSupport.normalize(value));
                 String scopeValue = properties.getProperty(action.id() + ".scope");
-                if (scopeValue != null) importedScopes.put(action, shortcutScopeFromLabel(scopeValue, action.scope()));
+                if (scopeValue != null) importedScopes.put(action, SettingsShortcutSupport.scopeFromLabel(scopeValue, action.scope()));
             }
-            List<String> errors = validateShortcutManager(imported, importedScopes);
+            List<String> errors = SettingsShortcutSupport.validate(imported, importedScopes);
             if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("\n", errors));
             shortcutDraftValues.clear(); shortcutDraftValues.putAll(imported);
             shortcutDraftScopes.clear(); shortcutDraftScopes.putAll(importedScopes);
-            ShortcutRegistry.saveActions(imported, importedScopes, shortcutManagerActions());
-            for (Action action : shortcutManagerActions()) {
+            ShortcutRegistry.saveActions(imported, importedScopes, SettingsShortcutSupport.managerActions());
+            for (Action action : SettingsShortcutSupport.managerActions()) {
                 boolean allowText = Boolean.parseBoolean(properties.getProperty(action.id() + ".allowText", Boolean.toString(ShortcutRegistry.allowInTextInput(action))));
                 boolean requireSelection = Boolean.parseBoolean(properties.getProperty(action.id() + ".requireSelection", Boolean.toString(ShortcutRegistry.requireSelection(action))));
                 ShortcutRegistry.saveOptions(action, importedScopes.getOrDefault(action, action.scope()), allowText, requireSelection);
@@ -1986,7 +1591,7 @@ public class SettingsController implements ScreenLifecycle {
         if (selected == null) return;
         try (var writer = Files.newBufferedWriter(selected.toPath())) {
             Properties properties = new Properties();
-            for (Action action : shortcutManagerActions()) {
+            for (Action action : SettingsShortcutSupport.managerActions()) {
                 properties.setProperty(action.id(), shortcutDraftValues.getOrDefault(action, ""));
                 properties.setProperty(action.id() + ".scope", shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)).name());
                 properties.setProperty(action.id() + ".allowText", Boolean.toString(ShortcutRegistry.allowInTextInput(action)));
@@ -1998,79 +1603,6 @@ public class SettingsController implements ScreenLifecycle {
             showError("The shortcut profile could not be exported: " + exception.getMessage());
         }
     }
-
-
-    private List<ShortcutRegistry.Scope> shortcutScopesForAction(Action action) {
-        if (action == null) return List.of(ShortcutRegistry.Scope.GLOBAL);
-        if (action.scope() == ShortcutRegistry.Scope.PDF_STUDIO) return List.of(ShortcutRegistry.Scope.PDF_STUDIO);
-        if (action.scope() == ShortcutRegistry.Scope.EXCEL_STUDIO) return List.of(ShortcutRegistry.Scope.EXCEL_STUDIO);
-        if (action.scope() == ShortcutRegistry.Scope.MASTER_DATA) return List.of(ShortcutRegistry.Scope.MASTER_DATA);
-        return java.util.Arrays.asList(ShortcutRegistry.Scope.values());
-    }
-    private ShortcutRegistry.Scope shortcutScopeFromLabel(String value, ShortcutRegistry.Scope fallback) {
-        return ShortcutRegistry.Scope.fromStored(value, fallback == null ? ShortcutRegistry.Scope.GLOBAL : fallback);
-    }
-
-    private String shortcutScopeHint(ShortcutRegistry.Scope scope) {
-        if (scope == null) scope = ShortcutRegistry.Scope.GLOBAL;
-        return switch (scope) {
-            case GLOBAL -> "Runs across the ERP when the signed-in user has permission for the selected action.";
-            case CURRENT_SCREEN -> "Runs only in the currently active page context; useful for Save, Edit, Refresh and other contextual commands.";
-            case SALES -> "Runs only while a Sales or Quotation screen is active.";
-            case PURCHASE -> "Runs only while a Purchase screen is active.";
-            case INVENTORY -> "Runs only in Inventory or Item Master screens.";
-            case CUSTOMERS -> "Runs only in Customer screens.";
-            case SUPPLIERS -> "Runs only in Supplier screens.";
-            case REPORTS -> "Runs only in Reports.";
-            case COMMUNICATION -> "Runs only in Communication screens.";
-            case SETTINGS -> "Runs only inside Settings.";
-            case PDF_STUDIO -> "Runs only while PDF Studio owns the keyboard context.";
-            case EXCEL_STUDIO -> "Runs only while Excel Studio owns the keyboard context.";
-            case MASTER_DATA -> "Runs only inside the Master Data workspace.";
-        };
-    }
-
-    private String shortcutDescription(Action action) {
-        return switch (action) {
-            case GLOBAL_SEARCH -> "Opens Global Search across every ERP module permitted for the signed-in user.";
-            case SAVE_CURRENT -> "Saves the current record or document when the active screen supports Save.";
-            case EDIT_CURRENT -> "Edits the current or selected record when the active screen supports Edit.";
-            case REFRESH_CURRENT -> "Refreshes the data on the current application page.";
-            case NEW_CURRENT -> "Creates a new record in the current page when that page supports New.";
-            case OPEN_SELECTED -> "Opens the currently selected record.";
-            case DELETE_SELECTED -> "Deletes the selected record after the screen's normal permission and confirmation checks.";
-            case PRINT_CURRENT -> "Prints the current document or page when printing is supported.";
-            case EXPORT_CURRENT -> "Exports the current data when the active screen supports Export.";
-            case CLOSE_BACK -> "Closes the current editor or returns to the previous application view.";
-            case NEW_SALE -> "Opens a new Sales Invoice quickly.";
-            case NEW_PURCHASE -> "Opens a new Purchase document quickly.";
-            case NEW_QUOTATION -> "Opens a new Quotation quickly.";
-            case ITEM_MASTER -> "Navigates directly to Item Master.";
-            case MASTERS -> "Navigates directly to Master Data.";
-            case BANK_STATEMENT -> "Navigates directly to Bank Statement reconciliation.";
-            case BANK_ENTRY -> "Opens Bank Entry.";
-            case EXPENSE_ENTRY -> "Opens Expense Entry.";
-            default -> "Opens or executes " + action.label() + " using the selected shortcut scope.";
-        };
-    }
-
-    private String displayShortcut(String raw) {
-        if (raw == null || raw.isBlank()) return "Disabled";
-        return raw.replace("Shortcut", "Ctrl/Cmd");
-    }
-
-    private String normalizeShortcut(String value) {
-        if (value == null) return "";
-        String raw = value.trim();
-        if (raw.equalsIgnoreCase("Disabled") || raw.equalsIgnoreCase("None")) return "";
-        return raw.replaceAll("(?i)ctrl/cmd", "Shortcut")
-                .replaceAll("(?i)cmd", "Shortcut")
-                .replaceAll("(?i)command", "Shortcut")
-                .replaceAll("(?i)control", "Shortcut")
-                .replaceAll("(?i)ctrl", "Shortcut")
-                .replaceAll("\\s*\\+\\s*", "+");
-    }
-
     /* =========================================================
        SAVE
        ========================================================= */
@@ -2170,177 +1702,40 @@ public class SettingsController implements ScreenLifecycle {
         }, "dse-settings-server-test");
         worker.setDaemon(true); worker.start();
     }
-
     private void saveCompanyDetails() {
-
-        putSetting(
-            "company.name",
-            txtCompanyName
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.phone",
-            txtPhone
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.email",
-            txtEmail
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.gstin",
-            txtGstin
-                .getText()
-                .trim()
-                .toUpperCase()
-        );
-
-        putSetting(
-            "company.pan",
-            txtCompanyPan
-                .getText()
-                .trim()
-                .toUpperCase()
-        );
-
-        putSetting(
-            "company.businessType",
-            valueOrEmpty(cmbBusinessType)
-        );
-
-        putSetting(
-            "company.industry",
-            valueOrEmpty(cmbIndustry)
-        );
-
-        putSetting(
-            "company.financialYearStart",
-            dpFinancialYearStart.getValue() == null
-                ? ""
-                : dpFinancialYearStart
-                .getValue()
-                .toString()
-        );
-
-        putSetting("application.displayName", txtApplicationName.getText().trim());
-        putSetting("application.tagline", txtApplicationTagline.getText().trim());
-        putSetting("application.startingText", txtApplicationStartingText.getText().trim());
+        putSetting("company.name", text(txtCompanyName));
+        putSetting("company.phone", text(txtPhone));
+        putSetting("company.email", text(txtEmail));
+        putSetting("company.gstin", upper(txtGstin));
+        putSetting("company.pan", upper(txtCompanyPan));
+        putSetting("company.businessType", valueOrEmpty(cmbBusinessType));
+        putSetting("company.industry", valueOrEmpty(cmbIndustry));
+        putSetting("company.financialYearStart", dpFinancialYearStart.getValue() == null ? "" : dpFinancialYearStart.getValue().toString());
+        putSetting("application.displayName", text(txtApplicationName));
+        putSetting("application.tagline", text(txtApplicationTagline));
+        putSetting("application.startingText", text(txtApplicationStartingText));
     }
-
     private void savePaymentDetails() {
-
-        putSetting(
-            "payment.upiId",
-            txtUpiId
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "payment.accountHolder",
-            txtAccountHolder
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "payment.bankName",
-            txtBankName
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "payment.accountNumber",
-            txtAccountNumber
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "payment.ifsc",
-            txtIfsc
-                .getText()
-                .trim()
-                .toUpperCase()
-        );
-
-        putSetting(
-            "payment.branch",
-            txtBranch
-                .getText()
-                .trim()
-        );
-
-        putSetting("payment.bankMatchRoundingTolerance", txtBankMatchRoundingTolerance.getText().trim());
+        putSetting("payment.upiId", text(txtUpiId));
+        putSetting("payment.accountHolder", text(txtAccountHolder));
+        putSetting("payment.bankName", text(txtBankName));
+        putSetting("payment.accountNumber", text(txtAccountNumber));
+        putSetting("payment.ifsc", upper(txtIfsc));
+        putSetting("payment.branch", text(txtBranch));
+        putSetting("payment.bankMatchRoundingTolerance", text(txtBankMatchRoundingTolerance));
     }
-
     private void saveInvoiceIdentity() {
-
-        putSetting(
-            "company.address",
-            txtCompanyAddress
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.state",
-            txtCompanyState
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.website",
-            txtCompanyWebsite
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.tagline",
-            txtCompanyTagline
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.shipAddress",
-            txtShipAddress
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.terms",
-            txtInvoiceTerms
-                .getText()
-                .trim()
-        );
-
-        putSetting(
-            "company.currency",
-            valueOrEmpty(cmbCurrency)
-        );
-
-        putSetting(
-            "company.timeZone",
-            valueOrEmpty(cmbTimeZone)
-        );
-
-        putSetting(
-            "company.dateFormat",
-            valueOrEmpty(cmbDateFormat)
-        );
+        putSetting("company.address", text(txtCompanyAddress));
+        putSetting("company.state", text(txtCompanyState));
+        putSetting("company.website", text(txtCompanyWebsite));
+        putSetting("company.tagline", text(txtCompanyTagline));
+        putSetting("company.shipAddress", text(txtShipAddress));
+        putSetting("company.terms", text(txtInvoiceTerms));
+        putSetting("company.currency", valueOrEmpty(cmbCurrency));
+        putSetting("company.timeZone", valueOrEmpty(cmbTimeZone));
+        putSetting("company.dateFormat", valueOrEmpty(cmbDateFormat));
     }
+
 
     private void saveEmailSettings() {
         String email = txtSmtpEmail.getText() == null ? "" : txtSmtpEmail.getText().trim();
@@ -2388,6 +1783,14 @@ public class SettingsController implements ScreenLifecycle {
     private void setNotificationCategoriesDisabled(boolean disabled) {
         CheckBox[] boxes = {chkNotifySales, chkNotifyPurchases, chkNotifyQuotations, chkNotifyReturns, chkNotifyPayments, chkNotifyInventory, chkNotifyReminders, chkNotifyCommunication, chkNotifySystem};
         for (CheckBox box : boxes) if (box != null) box.setDisable(disabled);
+    }
+
+    private String text(TextInputControl control) {
+        return control == null || control.getText() == null ? "" : control.getText().trim();
+    }
+
+    private String upper(TextInputControl control) {
+        return text(control).toUpperCase(java.util.Locale.ROOT);
     }
 
     private String valueOrEmpty(ComboBox<String> comboBox) {
@@ -2487,117 +1890,26 @@ public class SettingsController implements ScreenLifecycle {
         }
         return true;
     }
-
     private boolean validatePaymentDetails() {
-
-        String upi =
-            txtUpiId
-                .getText()
-                .trim();
-
-        String accountNumber =
-            txtAccountNumber
-                .getText()
-                .trim();
-
-        String ifsc =
-            txtIfsc
-                .getText()
-                .trim();
-
-        if (
-            !upi.isBlank()
-                && !upi.matches(
-                "^[A-Za-z0-9._-]{2,}@[A-Za-z0-9.-]{2,}$"
-            )
-        ) {
-
-            warn(
-                "Enter a valid UPI ID, for example company@bank."
-            );
-
+        SettingsValidationSupport.PaymentResult result = SettingsValidationSupport.validatePayment(
+                txtUpiId.getText(), txtAccountNumber.getText(), txtIfsc.getText(),
+                txtBankMatchRoundingTolerance.getText());
+        if (!result.valid()) {
+            warn(result.message());
             return false;
         }
-
-        if (
-            !accountNumber.isBlank()
-                && !accountNumber.matches(
-                "[0-9]{6,20}"
-            )
-        ) {
-
-            warn(
-                "Account number must contain 6 to 20 digits."
-            );
-
-            return false;
-        }
-
-        if (
-            !ifsc.isBlank()
-                && !ifsc.matches(
-                "(?i)^[A-Z]{4}0[A-Z0-9]{6}$"
-            )
-        ) {
-
-            warn(
-                "Enter a valid 11-character IFSC code."
-            );
-
-            return false;
-        }
-
-        try {
-            double tolerance = Double.parseDouble(txtBankMatchRoundingTolerance.getText().trim());
-            if (!Double.isFinite(tolerance) || tolerance < 0 || tolerance > 5) {
-                warn("Bank reconciliation round-off tolerance must be between ₹0.00 and ₹5.00.");
-                return false;
-            }
-            txtBankMatchRoundingTolerance.setText(String.format(java.util.Locale.ROOT, "%.2f", tolerance));
-        } catch (Exception exception) {
-            warn("Enter a valid bank reconciliation round-off tolerance, for example 1.00.");
-            return false;
-        }
-
+        txtBankMatchRoundingTolerance.setText(result.normalizedTolerance());
         return true;
     }
-
     private boolean validateEmailSettings() {
-
-        String smtpPort =
-            txtSmtpPort
-                .getText()
-                .trim();
-
-        if (
-            !smtpPort.isBlank()
-                && !smtpPort.matches("\\d{1,5}")
-        ) {
-
-            warn(
-                "SMTP port must be a valid number."
-            );
-
+        String error = SettingsValidationSupport.emailPortError(txtSmtpPort.getText());
+        if (error != null) {
+            warn(error);
             return false;
         }
-
-        if (!smtpPort.isBlank()) {
-
-            int port =
-                Integer.parseInt(smtpPort);
-
-            if (port < 1 || port > 65535) {
-
-                warn(
-                    "SMTP port must be between 1 and 65535."
-                );
-
-                return false;
-            }
-        }
-
         return true;
     }
+
 
     private void warn(String message) {
 

@@ -115,7 +115,7 @@ public final class PopupTableWorkspace {
         if (profileClass != null && !profileClass.isBlank() && !table.getStyleClass().contains(profileClass)) {
             table.getStyleClass().add(profileClass);
         }
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        DynamicTableLayoutManager.install(table);
     }
 
     private static String semanticClass(String semantic) {

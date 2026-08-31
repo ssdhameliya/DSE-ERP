@@ -22,7 +22,7 @@ import_controller=read(Path('desktop/src/main/java/org/example/controller/Import
 recon_controller=read(Path('desktop/src/main/java/org/example/controller/PurchaseReconController.java'))
 recon_fxml=read(Path('desktop/src/main/resources/fxml/pages/PurchaseRecon.fxml'))
 perm=read(Path('desktop/src/main/java/org/example/controller/PermissionMatrixController.java'))
-css=read(Path('desktop/src/main/resources/css/ui-components.css'))
+css=read(Path('desktop/src/main/resources/css/light-theme.css'))
 login=read(Path('desktop/src/main/java/org/example/controller/LoginController.java'))
 bank_fxml=read(Path('desktop/src/main/resources/fxml/pages/BankStatement.fxml'))
 bank_controller=read(Path('desktop/src/main/java/org/example/controller/BankStatementController.java'))
@@ -31,6 +31,7 @@ props=read(Path('server/src/main/resources/application.properties'))
 root_pom=read(Path('pom.xml'))
 app_version=read(Path('desktop/src/main/resources/app-version.properties'))
 update=read(Path('desktop/src/main/java/org/example/update/UpdateService.java'))
+dynamic_table=read(Path('desktop/src/main/java/org/example/util/DynamicTableLayoutManager.java'))
 
 # Mutation-driven register refresh.
 req('ScreenRefreshPolicy.invalidate("sales-register")' in sales_controller,'Sale save must invalidate Sales Register')
@@ -81,17 +82,17 @@ req('PREF_PASSWORD' in login and 'PREFS.remove(PREF_PASSWORD)' in login,
 # Bank Statement History width/readability.
 req('<StackPane fx:id="statementWorkspace"' in bank_fxml and 'bank-statement-history-popup-content' in bank_fxml and 'StackPane.alignment="CENTER_RIGHT"' not in bank_fxml,
     'Bank Statement History must use the owned popup workspace contract')
-req('colHistoryBank" text="Bank / Account" minWidth="150" prefWidth="180"' in bank_fxml,
-    'Bank Statement History Bank/Account column must remain readable')
+req('colHistoryBank" text="Bank / Account"' in bank_fxml and 'headerWidth(column, heading)' in dynamic_table and 'sampledContentWidth(table, column)' in dynamic_table,
+    'Bank Statement History Bank/Account column must remain readable through the global dynamic table authority')
 req('statementHistoryDialog=new OwnedDialog<>(statementWorkspace)' in bank_controller and 'setOnCloseRequest(e->restoreStatementHistoryDrawer())' in bank_controller and 'setDividerPositions' not in bank_controller,'Browse Statements must use an independent owned popup')
 req('historyTextCell()' in bank_controller and 'new Tooltip(text)' in bank_controller,
     'History text columns must retain full values via tooltips')
 
 # Exact current release identity.
-req('APP_VERSION = "9.0.40"' in runtime and 'BUILD_REVISION = "9.0.40"' in runtime,'Runtime identity must be 9.0.18')
-req('dse.app.version=9.0.40' in props and 'dse.build.revision=9.0.40' in props,'Server identity must be 9.0.18')
-req('<version>9.0.40</version>' in root_pom and '<dse.phase>9.0.40</dse.phase>' in root_pom,'Maven identity must be 9.0.18')
-req('version=9.0.40' in app_version and 'DEFAULT_VERSION="9.0.40"' in update,'Desktop/updater identity must be 9.0.18')
+req('APP_VERSION = "9.0.41"' in runtime and 'BUILD_REVISION = "9.0.41"' in runtime,'Runtime identity must be 9.0.18')
+req('dse.app.version=9.0.41' in props and 'dse.build.revision=9.0.41' in props,'Server identity must be 9.0.18')
+req('<version>9.0.41</version>' in root_pom and '<dse.phase>9.0.41</dse.phase>' in root_pom,'Maven identity must be 9.0.18')
+req('version=9.0.41' in app_version and 'DEFAULT_VERSION="9.0.41"' in update,'Desktop/updater identity must be 9.0.18')
 
 # Locked production document generators must remain identical to v9.0.12 hashes.
 protected={

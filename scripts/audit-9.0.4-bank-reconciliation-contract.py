@@ -24,6 +24,7 @@ client=text('desktop/src/main/java/org/example/api/bank/BankStatementApiClient.j
 ui=text('desktop/src/main/java/org/example/controller/BankStatementController.java')
 fxml=text('desktop/src/main/resources/fxml/pages/BankStatement.fxml')
 settings=text('desktop/src/main/java/org/example/controller/SettingsController.java')
+settings_validation=text('desktop/src/main/java/org/example/config/SettingsValidationSupport.java')
 payment_fxml=text('desktop/src/main/resources/fxml/pages/settings/PaymentSettingsPanel.fxml')
 config=text('desktop/src/main/java/org/example/config/ConfigManager.java')
 runtime=text('shared/src/main/java/org/example/shared/RuntimeContract.java')
@@ -55,7 +56,7 @@ require('getRoundingAdjustment' in service and 'setRoundingAdjustment' in servic
         'Matching/reversal must persist and use explicit round-off adjustment')
 require('rr.amount+COALESCE(rr.rounding_adjustment,0)' in return_service or 'amount+COALESCE(rounding_adjustment,0)' in return_service,
         'Return refund totals must include reconciliation round-off')
-require('txtBankMatchRoundingTolerance' in settings and 'tolerance < 0 || tolerance > 5' in settings,
+require('txtBankMatchRoundingTolerance' in settings and 'tolerance < 0 || tolerance > 5' in settings_validation,
         'Settings must expose and validate Bank Match round-off tolerance from ₹0 to ₹5')
 require('Round-off Tolerance (₹)' in payment_fxml and 'payment.bankMatchRoundingTolerance' in config,
         'Payment settings and ConfigManager must expose the shared round-off policy')
@@ -77,9 +78,9 @@ require('Delete Bank Statement?' in ui and 'Type DELETE to confirm:' in ui and '
         'Desktop deletion must use impact confirmation, typed DELETE and permission control')
 
 # Startup compatibility: one exact version/build across desktop and Spring Boot.
-require('APP_VERSION = "9.0.40"' in runtime and 'BUILD_REVISION = "9.0.40"' in runtime,
+require('APP_VERSION = "9.0.41"' in runtime and 'BUILD_REVISION = "9.0.41"' in runtime,
         'Desktop app version and build revision must both be 9.0.18')
-require('dse.app.version=9.0.40' in props and 'dse.build.revision=9.0.40' in props,
+require('dse.app.version=9.0.41' in props and 'dse.build.revision=9.0.41' in props,
         'Spring Boot app/build version must exactly match desktop 9.0.18')
 
 if failures:

@@ -49,7 +49,7 @@ public final class MasterApiClient {
  public void saveLookup(Lookup l){applyLookupIdentity(l,post("/api/master/lookups",lookupDto(l),LookupDto.class));}
  public void updateLookup(Lookup l){applyLookupIdentity(l,put("/api/master/lookups",lookupDto(l),LookupDto.class));}
  public void deleteLookup(int id){delete("/api/master/lookups/"+id);}
- public void deleteLookup(int id,long rowVersion){delete("/api/master/lookups/"+id+"?rowVersion="+Math.max(0,rowVersion));} 
+ public void deleteLookup(int id,long rowVersion){delete("/api/master/lookups/"+id+"?rowVersion="+Math.max(0,rowVersion));}
  public LookupDto setLookupActive(int id,boolean active,long rowVersion){return put("/api/master/lookups/"+id+"/active?active="+active+"&rowVersion="+Math.max(0,rowVersion),null,LookupDto.class);}
  public String nextLookupCode(String type){return get("/api/master/lookups/next-code?type="+enc(type),NextCodeResponse.class).code();}
  public List<CategoryDto> categories(){return get("/api/master/categories",new TypeReference<List<CategoryDto>>(){});}

@@ -37,7 +37,7 @@ public class ReportsController implements ScreenLifecycle {
 
     @FXML private Label lblPageTitle,lblPageSubtitle,lblPurchase,lblSales,lblStock,lblLowStock,lblProfit,lblReceivables,lblCustomers,lblMargin,lblReportCenterCategory;
     @FXML private Label lblActiveSchedules,lblNextRun,lblReportsMonth,lblScheduleFailures;
-    @FXML private StackPane reportPageIcon,reportSalesIcon,reportPurchaseIcon,reportProfitIcon,reportReceivableIcon,reportStockIcon,reportCustomerIcon;
+    @FXML private StackPane reportPageIcon,reportSalesIcon,reportPurchaseIcon,reportProfitIcon,reportReceivableIcon,reportStockIcon,reportCustomerIcon,reportCenterSearchIcon,savedReportSearchIcon,scheduleSearchIcon;
     @FXML private DatePicker dpFrom,dpTo;
     @FXML private ComboBox<String> cmbDashboardPeriod,cmbReportType,cmbParty,cmbItem,cmbSalesPerson,cmbScheduleStatus,cmbScheduleFormat;
     @FXML private ProgressBar profitProgress;
@@ -75,8 +75,10 @@ public class ReportsController implements ScreenLifecycle {
     public static void requestTab(int index) { pendingTab = Math.max(0, Math.min(3, index)); }
 
     @FXML public void initialize() {
-        configureExplicitTableHeaderIcons();
         configureIcons();
+        RegisterUiSupport.configureHeaderSearch(txtReportSearch,reportCenterSearchIcon,"Search reports, e.g. GST...");
+        RegisterUiSupport.configureHeaderSearch(txtSavedSearch,savedReportSearchIcon,"Search saved reports...");
+        RegisterUiSupport.configureHeaderSearch(txtScheduleSearch,scheduleSearchIcon,"Search schedules...");
         configureStatusCells();
         configureReportTables();
         configureSavedReportsTable();
@@ -288,8 +290,8 @@ public class ReportsController implements ScreenLifecycle {
         colSavedColumns.setCellValueFactory(v->new SimpleStringProperty(v.getValue().columns()));
         colSavedStatus.setCellValueFactory(v->new SimpleStringProperty("NOT SCHEDULED"));
         colSavedStatus.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String v,boolean empty){super.updateItem(v,empty);setText(empty?null:v);getStyleClass().removeAll("report-status-paid","report-status-pending");if(!empty)getStyleClass().add("report-status-other");}});
-        colSavedActions.setCellFactory(c->new TableCell<>(){ final Button open=new Button("Open"); {open.getStyleClass().add("link-button"); open.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)applySavedReport(row);});} @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:open);} });
-        tblSavedReports.setRowFactory(t->{TableRow<SavedReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==1&&!row.isEmpty())applySavedReport(row.getItem());});return row;});
+        colSavedActions.setCellFactory(c->new TableCell<>(){ final Button open=new Button("Open"); {open.getStyleClass().addAll("approved-button","approved-row-action","report-row-action");open.setGraphic(IconFactory.compactIcon("view",15));open.setGraphicTextGap(6);open.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)applySavedReport(row);});} @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:open);} });
+        tblSavedReports.setRowFactory(t->{TableRow<SavedReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())applySavedReport(row.getItem());});return row;});
         tblSavedReports.setPlaceholder(new Label("No saved reports yet. Open a report from Report Center and choose Save Report."));
     }
     private void configureSavedSearch(){ if(txtSavedSearch!=null)txtSavedSearch.textProperty().addListener((o,a,b)->filterSavedReports()); }
@@ -333,8 +335,10 @@ public class ReportsController implements ScreenLifecycle {
             private final MenuButton actions=new MenuButton("Actions");
             private final MenuItem run=new MenuItem("Run Now"), edit=new MenuItem("Edit"), toggle=new MenuItem("Pause"), duplicate=new MenuItem("Duplicate"), history=new MenuItem("View History"), delete=new MenuItem("Delete");
             {
-                actions.getStyleClass().add("table-action-button");
-                actions.getItems().addAll(run,edit,toggle,new SeparatorMenuItem(),duplicate,history,new SeparatorMenuItem(),delete);
+                actions.getStyleClass().addAll("row-actions","table-action-menu","approved-row-action","report-row-actions");
+                actions.setGraphic(IconFactory.compactIcon("actions",15));actions.setGraphicTextGap(6);actions.getProperties().put("erp.icon.semantic","actions");
+                run.setGraphic(IconFactory.compactIcon("refresh",14));edit.setGraphic(IconFactory.compactIcon("edit",14));toggle.setGraphic(IconFactory.compactIcon("status",14));duplicate.setGraphic(IconFactory.compactIcon("copy",14));history.setGraphic(IconFactory.compactIcon("history",14));delete.setGraphic(IconFactory.compactIcon("delete",14));
+                actions.getItems().addAll(run,edit,toggle,new SeparatorMenuItem(),duplicate,history,new SeparatorMenuItem(),delete);IconFactory.decorateActionMenu(actions);
                 run.setOnAction(e->withRow(this,ReportsController.this::runScheduleNow));
                 edit.setOnAction(e->withRow(this,ReportsController.this::editSchedule));
                 toggle.setOnAction(e->withRow(this,ReportsController.this::toggleSchedule));
@@ -347,7 +351,7 @@ public class ReportsController implements ScreenLifecycle {
                 if(empty||row==null){setGraphic(null);return;}toggle.setText("ACTIVE".equalsIgnoreCase(row.status())?"Pause":"Resume");setGraphic(actions);
             }
         });
-        tblSchedules.setRowFactory(t->new TableRow<>());
+        tblSchedules.setRowFactory(t->{TableRow<ScheduleRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())editSchedule(row.getItem());});return row;});
         tblSchedules.setPlaceholder(new Label("No schedules configured yet. Create a Saved Report first, then select + New Schedule."));
         cmbScheduleStatus.getItems().setAll("All Status","ACTIVE","PAUSED");cmbScheduleStatus.setValue("All Status");
         cmbScheduleFormat.getItems().setAll("All Formats","PDF","XLSX","PDF + XLSX","CSV");cmbScheduleFormat.setValue("All Formats");
@@ -355,10 +359,6 @@ public class ReportsController implements ScreenLifecycle {
         cmbScheduleStatus.valueProperty().addListener((o,a,b)->filterSchedules());
         cmbScheduleFormat.valueProperty().addListener((o,a,b)->filterSchedules());
         lblActiveSchedules.setText("0");lblNextRun.setText("Not scheduled");lblReportsMonth.setText("0");lblScheduleFailures.setText("0");
-        IconFactory.applyTableHeaderIcon(colScheduleName,"calendar");IconFactory.applyTableHeaderIcon(colScheduleReport,"report");
-        IconFactory.applyTableHeaderIcon(colScheduleFrequency,"refresh");IconFactory.applyTableHeaderIcon(colScheduleTime,"clock");
-        IconFactory.applyTableHeaderIcon(colScheduleFormat,"export");IconFactory.applyTableHeaderIcon(colScheduleDelivery,"email");
-        IconFactory.applyTableHeaderIcon(colScheduleNextRun,"calendar");IconFactory.applyTableHeaderIcon(colScheduleStatus,"status");IconFactory.applyTableHeaderIcon(colScheduleActions,"actions");
     }
 
     private static void withRow(TableCell<ScheduleRow,?> cell,java.util.function.Consumer<ScheduleRow> action){
@@ -489,9 +489,8 @@ public class ReportsController implements ScreenLifecycle {
     private static String titleCase(String v){if(v==null||v.isBlank())return "";StringBuilder b=new StringBuilder();for(String p:v.toLowerCase(Locale.ROOT).split("[ _]+")){if(p.isBlank())continue;if(!b.isEmpty())b.append(' ');b.append(Character.toUpperCase(p.charAt(0))).append(p.substring(1));}return b.toString();}
 
     private void configureReportTables(){
-        colSaleNo.setMinWidth(110); colSaleDate.setMinWidth(95); colSaleParty.setMinWidth(135); colSaleAmount.setMinWidth(105); colSaleStatus.setMinWidth(100);
-        colPurchaseNo.setMinWidth(110); colPurchaseDate.setMinWidth(95); colPurchaseParty.setMinWidth(135); colPurchaseAmount.setMinWidth(105); colPurchaseStatus.setMinWidth(100);
-        tblSales.setFixedCellSize(31);tblPurchases.setFixedCellSize(31);
+        org.example.util.DynamicTableLayoutManager.install(tblSales);
+        org.example.util.DynamicTableLayoutManager.install(tblPurchases);
     }
     private void configureIcons(){
         if(reportPageIcon!=null)reportPageIcon.getChildren().setAll(IconFactory.icon("report",24));
@@ -500,10 +499,6 @@ public class ReportsController implements ScreenLifecycle {
     }
     private void configureStatusCells(){statusCell(colSaleStatus);statusCell(colPurchaseStatus);}
     private void statusCell(TableColumn<String[],String> column){column.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);getStyleClass().removeAll("report-status-paid","report-status-pending","report-status-other");if(empty||value==null){setText(null);return;}setText(value);String v=value.toUpperCase(Locale.ROOT);getStyleClass().add(v.contains("PAID")||v.contains("COMPLETED")?"report-status-paid":v.contains("PENDING")?"report-status-pending":"report-status-other");}});}
-    private void configureExplicitTableHeaderIcons(){
-        IconFactory.applyTableHeaderIcon(colSaleNo,"document");IconFactory.applyTableHeaderIcon(colSaleDate,"calendar");IconFactory.applyTableHeaderIcon(colSaleParty,"customer");IconFactory.applyTableHeaderIcon(colSaleAmount,"currency");IconFactory.applyTableHeaderIcon(colSaleStatus,"status");IconFactory.applyTableHeaderIcon(colPurchaseNo,"document");IconFactory.applyTableHeaderIcon(colPurchaseDate,"calendar");IconFactory.applyTableHeaderIcon(colPurchaseParty,"supplier");IconFactory.applyTableHeaderIcon(colPurchaseAmount,"currency");IconFactory.applyTableHeaderIcon(colPurchaseStatus,"status");
-    }
-
     @Override public void onScreenShown(boolean reusedFromCache){ applyPendingTab(); loadFiltersAsync(); loadSavedReports(); if(!loadRequested&&(!loaded||ScreenRefreshPolicy.shouldRefresh("reports", ScreenRefreshPolicy.Mode.WHEN_STALE)))requestRefresh(); }
     @Override public void onScreenHidden(){ loadRequested=false; UiTaskExecutor.cancelPrefix("reports-"); }
 

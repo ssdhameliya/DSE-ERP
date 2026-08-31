@@ -12,7 +12,7 @@ sales=text('desktop/src/main/java/org/example/controller/SalesListController.jav
 purchase=text('desktop/src/main/java/org/example/controller/PurchaseListController.java')
 editor=text('desktop/src/main/java/org/example/controller/QuotationEditorController.java')
 nav=text('desktop/src/main/java/org/example/navigation/NavigationManager.java')
-css=text('desktop/src/main/resources/css/ui-components.css')
+css=text('desktop/src/main/resources/css/light-theme.css')
 runtime=text('shared/src/main/java/org/example/shared/RuntimeContract.java')
 dash=(ROOT/'desktop/src/main/resources/fxml/pages/Dashboard.fxml').read_bytes()
 

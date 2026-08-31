@@ -16,7 +16,7 @@ import org.example.service.SessionService;
 import java.util.*;
 import java.util.prefs.Preferences;
 
-/** Per-user persistence for register column visibility, width and order. */
+/** Per-user persistence for register column visibility and order. Width is Phase 5 dynamic. */
 public final class RegisterColumnPreferences {
     private RegisterColumnPreferences() { }
 
@@ -113,8 +113,8 @@ public final class RegisterColumnPreferences {
             for (TableColumn<?, ?> column : table.getColumns()) {
                 String key = key(column);
                 column.setVisible(prefs.getBoolean(key + ".visible", column.isVisible()));
-                double width = prefs.getDouble(key + ".width", column.getPrefWidth());
-                if (Double.isFinite(width) && width >= column.getMinWidth()) column.setPrefWidth(width);
+                // Remove legacy per-user widths once. Phase 5 sizes from live content.
+                prefs.remove(key + ".width");
             }
         } finally {
             restoring[0] = false;
@@ -122,9 +122,8 @@ public final class RegisterColumnPreferences {
 
         for (TableColumn<?, ?> column : table.getColumns()) {
             String key = key(column);
-            column.visibleProperty().addListener((o, a, b) -> { if (!restoring[0]) prefs.putBoolean(key + ".visible", b); });
-            column.widthProperty().addListener((o, a, b) -> {
-                if (!restoring[0] && b != null && Double.isFinite(b.doubleValue())) prefs.putDouble(key + ".width", b.doubleValue());
+            column.visibleProperty().addListener((o, a, b) -> {
+                if (!restoring[0]) prefs.putBoolean(key + ".visible", b);
             });
         }
         @SuppressWarnings({"rawtypes", "unchecked"})

@@ -17,11 +17,12 @@ recon = text('desktop/src/main/java/org/example/controller/PurchaseReconControll
 recon_fxml = text('desktop/src/main/resources/fxml/pages/PurchaseRecon.fxml')
 returns = text('desktop/src/main/java/org/example/controller/PurchaseReturnsController.java')
 returns_fxml = text('desktop/src/main/resources/fxml/pages/PurchaseReturns.fxml')
-css = text('desktop/src/main/resources/css/ui-components.css')
+css = text('desktop/src/main/resources/css/light-theme.css')
 dark_css = text('desktop/src/main/resources/css/dark-theme.css')
 light_css = text('desktop/src/main/resources/css/light-theme.css')
 runtime = text('shared/src/main/java/org/example/shared/RuntimeContract.java')
 server_props = text('server/src/main/resources/application.properties')
+enhancer = text('desktop/src/main/java/org/example/util/ProfessionalUiEnhancer.java')
 
 # Match workspace: no low-confidence first-row auto-allocation; bank and document states are distinct.
 require('candidate.confidence()>=75' in bank and 'autoSelect' in bank,
@@ -56,8 +57,8 @@ require('onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSu
 # Bank Statement history scale/master-account contract.
 require('<StackPane fx:id="statementWorkspace"' in bank_fxml and 'fx:id="statementHistoryDrawer"' in bank_fxml and 'bank-statement-history-popup-content' in bank_fxml and 'StackPane.alignment="CENTER_RIGHT"' not in bank_fxml,
         'Bank Statement History must use the wide independent popup workspace')
-require('statementHistoryDialog=new OwnedDialog<>(statementWorkspace)' in bank and 'CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN' in bank,
-        'Bank Statement History must use an owned popup while keeping the readable table policy')
+require('statementHistoryDialog=new OwnedDialog<>(statementWorkspace)' in bank and 'erp-table-profile-responsive' in bank_fxml and 'DynamicTableLayoutManager.install(table);' in enhancer,
+        'Bank Statement History must use an owned popup and the global readable dynamic-table policy')
 require('fx:id="cmbHistoryAccount" editable="true"' in bank_fxml,
         'Bank Statement History account filter must be a searchable ComboBox')
 require('lookupService.getByCategoryCode("BANK_ACCOUNT")' in bank and 'resolveBankAccount' in bank,
@@ -80,9 +81,9 @@ require('-fx-text-fill: #3b1b68;' not in css[css.find('9.0.5 global record-table
         'Shared selection contract must not leak light-theme selected text colours into dark mode')
 
 # Runtime/startup compatibility remains one exact value.
-require('APP_VERSION = "9.0.40"' in runtime and 'BUILD_REVISION = "9.0.40"' in runtime,
+require('APP_VERSION = "9.0.41"' in runtime and 'BUILD_REVISION = "9.0.41"' in runtime,
         'Desktop app/build identity must both be current 9.0.18')
-require('dse.app.version=9.0.40' in server_props and 'dse.build.revision=9.0.40' in server_props,
+require('dse.app.version=9.0.41' in server_props and 'dse.build.revision=9.0.41' in server_props,
         'Spring Boot app/build identity must exactly match desktop 9.0.18')
 
 print('PASS: DSE ERP 9.0.5 reconciliation/navigation/UI contract')

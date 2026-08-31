@@ -188,8 +188,6 @@ public class MasterDataController implements ScreenLifecycle {
         configureSectionIcons();
         configureActionIcons();
         configureCategoryListCells();
-        configureExplicitTableHeaderIcons();
-
         configureTableColumns();
         configureTableInteractions();
         installDetailDrawer();
@@ -250,7 +248,7 @@ public class MasterDataController implements ScreenLifecycle {
 
                 Label state = new Label(active ? "ACTIVE" : "INACTIVE");
                 state.getStyleClass().addAll("master-category-state", active ? "master-state-active" : "master-state-inactive");
-                state.setGraphic(IconFactory.statusIcon(active ? "complete" : "cancel", active ? "#16a34a" : "#dc2626"));
+                state.setGraphic(IconFactory.statusIcon(active ? "complete" : "cancel", active ? "success" : "danger"));
                 state.setGraphicTextGap(5);
 
                 HBox content = new HBox(10, IconFactory.icon(semantic, 18), text, state);
@@ -342,7 +340,7 @@ public class MasterDataController implements ScreenLifecycle {
                     getStyleClass().removeAll("master-lookup-active", "master-lookup-inactive");
                     if (empty || value == null) return;
                     boolean active = "Active".equalsIgnoreCase(value);
-                    setGraphic(IconFactory.statusIcon(active ? "complete" : "cancel", active ? "#16a34a" : "#dc2626"));
+                    setGraphic(IconFactory.statusIcon(active ? "complete" : "cancel", active ? "success" : "danger"));
                     setGraphicTextGap(6);
                     getStyleClass().add(active ? "master-lookup-active" : "master-lookup-inactive");
                 }
@@ -1106,14 +1104,6 @@ public class MasterDataController implements ScreenLifecycle {
         alert.setTitle("Error");
         alert.setHeaderText(null);
         alert.showAndWait();
-    }
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(colCode, "identity");
-        IconFactory.applyTableHeaderIcon(colValue, "category");
-        IconFactory.applyTableHeaderIcon(colDescription, "notes");
-        if (colLookupStatus != null) IconFactory.applyTableHeaderIcon(colLookupStatus, "status");
     }
     @FXML
     private void exportLookup() {

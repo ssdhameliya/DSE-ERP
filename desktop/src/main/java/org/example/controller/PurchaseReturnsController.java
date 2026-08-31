@@ -64,7 +64,6 @@ public class PurchaseReturnsController implements ScreenLifecycle {
 
     @FXML public void initialize() {
         installKpiIcons();
-        configureExplicitTableHeaderIcons();
         cNo.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().no()));
         cDate.setCellValueFactory(x -> new SimpleStringProperty(BusinessClock.formatDate(x.getValue().date())));
         cInvoice.setCellValueFactory(x -> new SimpleStringProperty(x.getValue().invoice()));
@@ -89,7 +88,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     @SuppressWarnings("unchecked")
     private void installSelection() {
         TableColumn<Row, Boolean> selection = (TableColumn<Row, Boolean>) (TableColumn<?, ?>) table.getColumns().getFirst();
-        selection.setMinWidth(42); selection.setPrefWidth(42); selection.setMaxWidth(42); TableSelectionSupport.install(table, selection);
+        TableSelectionSupport.install(table, selection);
     }
 
     private TableCell<Row, Number> moneyCell() { return new TableCell<>() { @Override protected void updateItem(Number value, boolean empty) { super.updateItem(value, empty); setText(empty ? null : money(value.doubleValue())); setAlignment(Pos.CENTER_RIGHT); } }; }
@@ -101,7 +100,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
                 boolean good = normalized.contains("COMPLETED") || normalized.contains("APPROVED") || normalized.contains("REFUNDED");
                 boolean bad = normalized.contains("CANCEL") || normalized.contains("REJECT") || normalized.contains("FAILED");
                 getStyleClass().add(good ? "pill-success" : bad ? "pill-danger" : "pill-warning");
-                setGraphic(IconFactory.statusIcon(bad ? "error" : good ? "save" : icon, bad ? "#dc2626" : good ? "#16a34a" : "#2563eb"));
+                setGraphic(IconFactory.statusIcon(bad ? "error" : good ? "save" : icon, bad ? "danger" : good ? "success" : "info"));
             }
         };
     }
@@ -168,8 +167,8 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private void applyValueIcon(Label l,String sem){if(l!=null&&l.getGraphic()==null){l.setGraphic(IconFactory.compactIcon(sem,15));l.setGraphicTextGap(7);l.getProperties().put("erp-icon-preserve",true);}}
     private String drawerSemantic(String value){String t=safe(value).toLowerCase(Locale.ROOT);if(t.contains("return"))return"return";if(t.contains("purchase")||t.contains("original"))return"purchase";if(t.contains("supplier"))return"supplier";if(t.contains("date"))return"calendar";if(t.contains("amount"))return"currency";if(t.contains("refund"))return"payment";if(t.contains("reason"))return"document";if(t.contains("status"))return"status";if(t.contains("pdf")||t.contains("print"))return"pdf";if(t.contains("email"))return"email";if(t.contains("detail"))return"view";if(t.contains("close"))return"cancel";return null;}
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
-    private String returnColor(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"#dc2626";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"#16a34a";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"#2563eb";return"#d97706";}
-    private void showDetails(Row row){if(row==null)return;selected=row;RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnColor(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnColor(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}updateSelectedActions(row);}
+    private String returnState(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"danger";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"success";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"info";return"warning";}
+    private void showDetails(Row row){if(row==null)return;selected=row;RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailSupplier.setText(row.supplier());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.total()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnState(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnState(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}updateSelectedActions(row);}
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
@@ -249,21 +248,6 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private boolean confirm(String text) { return org.example.util.ModernDialog.confirm(table, "Confirmation", "Are you sure?", text); }
     private void info(String value) { org.example.util.ToastManager.success(table, "Completed", value); }
     private void error(Exception e) { org.example.util.ModernDialog.error(table, "Operation failed", "Something went wrong", e.getMessage() == null ? "Operation failed" : e.getMessage()); }
-
-
-
-    private void configureExplicitTableHeaderIcons() {
-        IconFactory.applyTableHeaderIcon(cNo, "return");
-        IconFactory.applyTableHeaderIcon(cDate, "calendar");
-        IconFactory.applyTableHeaderIcon(cInvoice, "purchase");
-        IconFactory.applyTableHeaderIcon(cSupplier, "supplier");
-        IconFactory.applyTableHeaderIcon(cTotal, "currency");
-        IconFactory.applyTableHeaderIcon(cStatus, "status");
-        IconFactory.applyTableHeaderIcon(cRefund, "currency");
-        IconFactory.applyTableHeaderIcon(cRefundStatus, "status");
-        cAction.setText("Actions"); IconFactory.applyTableHeaderIcon(cAction, "actions");
-    }
-
     private void installKpiIcons(){setKpi(iconTotal,"return");setKpi(iconMonth,"calendar");setKpi(iconCount,"document");setKpi(iconRefund,"payment");setKpi(iconAverage,"currency");}
     private void setKpi(StackPane pane,String semantic){if(pane!=null)pane.getChildren().setAll(IconFactory.compactIcon(semantic,22));}
 
