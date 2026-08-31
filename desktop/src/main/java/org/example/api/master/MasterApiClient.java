@@ -52,6 +52,7 @@ public final class MasterApiClient {
  public void deleteLookup(int id,long rowVersion){delete("/api/master/lookups/"+id+"?rowVersion="+Math.max(0,rowVersion));}
  public LookupDto setLookupActive(int id,boolean active,long rowVersion){return put("/api/master/lookups/"+id+"/active?active="+active+"&rowVersion="+Math.max(0,rowVersion),null,LookupDto.class);}
  public String nextLookupCode(String type){return get("/api/master/lookups/next-code?type="+enc(type),NextCodeResponse.class).code();}
+ public LookupCodeResolution resolveLookupCode(String type,String code){return get("/api/master/lookups/resolve-code?type="+enc(type)+"&code="+enc(code),LookupCodeResolution.class);}
  public List<CategoryDto> categories(){return get("/api/master/categories",new TypeReference<List<CategoryDto>>(){});}
  public void addCategory(String name){postNoBody("/api/master/categories?name="+enc(name));}
  public CategoryDto upsertCategory(String code,String name,String description){return put("/api/master/categories/upsert",new CategoryUpsertRequest(code,name,description),CategoryDto.class);}
@@ -88,5 +89,5 @@ public final class MasterApiClient {
  public record ItemBulkDeleteRequest(List<String> itemCodes){}
  public record ItemDeleteIssue(String itemCode,String itemName,List<String> usages){}
  public record ItemBulkDeleteValidation(boolean valid,int requestedCount,List<ItemDeleteIssue> issues){}
- public record NextCodeResponse(String code){} public record ExistsResponse(boolean exists){} public record ValuesResponse(List<String> values){} public record OperationResponse(boolean success,String message){}
+ public record NextCodeResponse(String code){} public record LookupCodeResolution(String requestedCode,String canonicalCode,boolean aliasMatched){} public record ExistsResponse(boolean exists){} public record ValuesResponse(List<String> values){} public record OperationResponse(boolean success,String message){}
 }

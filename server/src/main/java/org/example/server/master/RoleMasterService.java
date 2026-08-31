@@ -18,6 +18,8 @@ import java.util.Locale;
 @Service
 public class RoleMasterService {
     private static final String ROLE_CATEGORY_CODE = "ROLE";
+    private static final String SELF_REGISTRATION_ROLE_SETTING = "auth.selfRegistrationRole";
+    private static final String UPGRADE_SAFE_REGISTRATION_ROLE = "SALES";
     private final JpaNativeRepository jdbc;
 
     public RoleMasterService(JpaNativeRepository jdbc) {
@@ -88,9 +90,68 @@ public class RoleMasterService {
         catch (IllegalArgumentException ignored) { return false; }
     }
 
+    /**
+     * Active non-Admin Role Master identity used by the public registration screen.
+     * SALES remains only an upgrade-safe default for existing installations; the value is persisted
+     * in application_setting and can be changed from Role Management without a software release.
+     */
+    @Transactional(readOnly = true)
+    public RoleDefinition selfRegistrationRole() {
+        String configured = configuredSelfRegistrationRole();
+        RoleDefinition selected = findActiveNonAdmin(configured);
+        if (selected != null) return selected;
+
+        selected = findActiveNonAdmin(UPGRADE_SAFE_REGISTRATION_ROLE);
+        if (selected != null) return selected;
+
+        return activeRoles().stream()
+                .filter(role -> !"ADMIN".equalsIgnoreCase(role.code()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No active non-Admin role is available for public registration"));
+    }
+
+    @Transactional
+    public RoleDefinition setSelfRegistrationRole(String value) {
+        RoleDefinition selected = requireActive(value);
+        if ("ADMIN".equalsIgnoreCase(selected.code())) {
+            throw new IllegalArgumentException("ADMIN cannot be used as the public registration role");
+        }
+        jdbc.update("INSERT INTO application_setting(setting_key,setting_value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP) " +
+                        "ON CONFLICT(setting_key) DO UPDATE SET setting_value=EXCLUDED.setting_value,updated_at=CURRENT_TIMESTAMP",
+                SELF_REGISTRATION_ROLE_SETTING, selected.code());
+        return selected;
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isSelfRegistrationRole(String value) {
+        String candidate = normalize(value);
+        if (candidate.isBlank()) return false;
+        try { return selfRegistrationRole().code().equalsIgnoreCase(candidate); }
+        catch (IllegalStateException ignored) { return false; }
+    }
+
     /** Normalized, case-insensitive identity derived exclusively from lookup_value. */
     public String code(String value) { return requireActive(value).code(); }
     public String displayName(String value) { return requireActive(value).displayName(); }
+
+    private String configuredSelfRegistrationRole() {
+        try {
+            String value = jdbc.queryForObject("SELECT setting_value FROM application_setting WHERE setting_key=?",
+                    String.class, SELF_REGISTRATION_ROLE_SETTING);
+            return normalize(value);
+        } catch (RuntimeException ignored) {
+            return UPGRADE_SAFE_REGISTRATION_ROLE;
+        }
+    }
+
+    private RoleDefinition findActiveNonAdmin(String value) {
+        try {
+            RoleDefinition role = requireActive(value);
+            return "ADMIN".equalsIgnoreCase(role.code()) ? null : role;
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
 
     private static String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);

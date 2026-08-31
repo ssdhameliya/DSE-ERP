@@ -1,12 +1,12 @@
 {
   "approved_scope": {
-    "database_changes": 0,
-    "fxml_structure_changes": "Reporting compact layout/semantic field-caption enrollment only; fx:id/event inventory preserved",
+    "database_changes": "v9.0.46 Master/Role cleanup migration only; no UI semantic database dependency",
+    "fxml_structure_changes": "Role Management registration-role policy control only; all other 9.0.45 UI enhancement structure preserved",
     "kpi_layout_changes": "Bank Statement single-row enrollment handled by Phase 4",
     "navigation_changes": 0,
     "table_width_changes": "Action control floor handled by Phase 5"
   },
-  "contract": "DSE ERP 9.0.45 Phase 3 semantic UI baseline",
+  "contract": "DSE ERP 9.0.46 Phase 3 semantic UI baseline",
   "core_distinct_semantics": {
     "address": {
       "colour": "pink",
@@ -68,11 +68,11 @@
     }
   },
   "registry": {
-    "field_mapping_count": 279,
+    "field_mapping_count": 280,
     "header_mapping_count": 159,
-    "kpi_mapping_count": 115,
+    "kpi_mapping_count": 116,
     "path": "desktop/src/main/resources/ui/semantic-registry.properties",
     "semantic_count": 156,
-    "sha256": "46e0482e6789d4ea055a07508832e25320172a345fdc08b935a30ad6c47bfc38"
+    "sha256": "3b2850d1e61d74fa847a942d866a8a46987de058582b776cda1aa9283777abf4"
   }
 }

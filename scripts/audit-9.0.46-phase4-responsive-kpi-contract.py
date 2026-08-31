@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.45 Phase 4 responsive KPI layout contract."""
+"""DSE ERP 9.0.46 Phase 4 responsive KPI layout contract."""
 from __future__ import annotations
 
 import hashlib
@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FXML_ROOT = ROOT / "desktop/src/main/resources/fxml/pages"
 MANAGER = ROOT / "desktop/src/main/java/org/example/util/ResponsiveKpiLayoutManager.java"
 ENHANCER = ROOT / "desktop/src/main/java/org/example/util/ProfessionalUiEnhancer.java"
-SOURCE_MAP = ROOT / "scripts/phase4-responsive-kpi-source-map-9.0.45.json"
+SOURCE_MAP = ROOT / "scripts/phase4-responsive-kpi-source-map-9.0.46.json"
 STYLE = "erp-kpi-section"
 
 

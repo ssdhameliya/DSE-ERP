@@ -11,7 +11,7 @@ public class UserEntity {
     @Column(nullable = false, unique = true) private String username;
     @Column(nullable = false) private String password;
     @Column(name = "full_name") private String fullName;
-    /** Stable Role Master lookup_code (ADMIN, MANAGER, SALES, ...). */
+    /** Stable security identity from ROLE Master lookup_value (ADMIN, PURCHASE, SALES, ...). The hidden ROLxxx lookup_code is never stored here. */
     @Column(nullable = false) private String role;
     private String email;
     @Column(nullable = false) private Integer active = 1;

@@ -193,6 +193,22 @@ public class AdminService {
                 CurrentUser.require().username(), BusinessClock.nowUtcText());
     }
 
+    @Transactional(readOnly = true)
+    public AdminDtos.RegistrationRoleDto registrationRole() {
+        RoleMasterService.RoleDefinition role = roleMaster.selfRegistrationRole();
+        return new AdminDtos.RegistrationRoleDto(role.code(), role.displayName());
+    }
+
+    @Transactional
+    public AdminDtos.RegistrationRoleDto setRegistrationRole(AdminDtos.RegistrationRoleSaveRequest request) {
+        if (request == null || request.role() == null || request.role().isBlank())
+            throw new IllegalArgumentException("Select an active non-Admin Role Master entry");
+        RoleMasterService.RoleDefinition role = roleMaster.setSelfRegistrationRole(request.role());
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('SECURITY',NULL,?,?,?,?)",
+                "REGISTRATION_ROLE_CHANGED", "Public registration role set to " + role.code(), CurrentUser.require().username(), BusinessClock.nowUtcText());
+        return new AdminDtos.RegistrationRoleDto(role.code(), role.displayName());
+    }
+
     /** Role definitions are edited only through Master Data ROLE lookups. */
     public AdminDtos.RoleDto saveRole(AdminDtos.RoleSaveRequest request) {
         throw new IllegalArgumentException("Manage role definitions in Master Data > Role");

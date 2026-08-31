@@ -13,6 +13,7 @@ public final class MasterDtos {
  public record RenameCategoryRequest(String oldName,String newName){}
  public record CategoryUpsertRequest(String code,String name,String description){}
  public record NextCodeResponse(String code){}
+ public record LookupCodeResolution(String requestedCode,String canonicalCode,boolean aliasMatched){}
  public record ExistsResponse(boolean exists){}
  public record ValuesResponse(List<String> values){}
  public record ReferenceFormatsResponse(java.util.Map<String,String> formats){}

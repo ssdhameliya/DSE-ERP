@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.45 table-first Reporting / icon+text / theme-parity UI contract."""
+"""DSE ERP 9.0.46 table-first Reporting / icon+text / theme-parity UI contract."""
 from __future__ import annotations
 import re, sys
 from pathlib import Path

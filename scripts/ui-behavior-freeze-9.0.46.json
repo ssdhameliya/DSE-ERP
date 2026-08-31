@@ -1,5 +1,5 @@
 {
-  "contract": "DSE ERP 9.0.45 approved UI/behavior freeze",
+  "contract": "DSE ERP 9.0.46 approved UI/behavior freeze",
   "css_visual_baseline_hashes": {
     "desktop/src/main/resources/css/dark-theme.css": "677c1502cd20b31df9abfc053d26dff2edcb367cfee4e431bd683a5fba4f976f",
     "desktop/src/main/resources/css/light-theme.css": "c186a29d3138a7ffcb72675e632695afae6813fff7bad48b1f2bad713f5e854a"
@@ -51,6 +51,7 @@
     "server/src/main/resources/db/migration/V9_0_28__financial_authority_integrity.sql": "99efb15aec0e3ffa0e53c3f36bc52a41901d6de2c3ee5fec57b60a497a3fa2d0",
     "server/src/main/resources/db/migration/V9_0_3__import_scalability.sql": "60fc47f11764611c822a4da4fbbe9eb57874f3507434a8699cc3f84f94c8c526",
     "server/src/main/resources/db/migration/V9_0_40__scheduled_reporting.sql": "fe29c795e7baadf6d24f1d1f6a8f2890b5be6485836cd3f79e7b543e45a2a4b1",
+    "server/src/main/resources/db/migration/V9_0_46__master_role_reference_cleanup.sql": "fdd5922f6b660d55871232b9bf453fef8d66ce61af5c739fd02caf321d4a01a1",
     "server/src/main/resources/db/migration/V9_0_4__bank_reconciliation_rounding.sql": "bd2cf06f82f80c2ff40e5e3ff2dda44466b2a197b2fda1a38c21789ea28a43d7",
     "server/src/main/resources/db/migration/V9_0_6__business_integrity_hardening.sql": "fbd8ceeb753e1eb2fe78f05b447bca889181cca4b1b289bf06b42b567c1594ba",
     "server/src/main/resources/db/migration/V9_0_9__corrective_integrity_hardening.sql": "84ee7b3139a363a42899be1520cce0002fb30dbf0f24a4da020ebabfe2358ae3",
@@ -751,9 +752,9 @@
       ".show(": 0,
       ".showAndWait(": 1,
       "Alert.AlertType.CONFIRMATION": 0,
-      "Alert.AlertType.ERROR": 1,
-      "Alert.AlertType.INFORMATION": 0,
-      "Alert.AlertType.WARNING": 0,
+      "Alert.AlertType.ERROR": 2,
+      "Alert.AlertType.INFORMATION": 1,
+      "Alert.AlertType.WARNING": 1,
       "ButtonType.CANCEL": 0,
       "ButtonType.NO": 0,
       "ButtonType.OK": 0,
@@ -77323,6 +77324,13 @@
           "#openPermissions"
         ],
         [
+          "/VBox[1]/HBox[3]/Button[1]",
+          "Button",
+          "btnSaveRegistrationRole",
+          "onAction",
+          "#saveRegistrationRole"
+        ],
+        [
           "/VBox[1]/VBox[1]/HBox[1]/Button[1]",
           "Button",
           "",
@@ -77345,12 +77353,15 @@
         ]
       ],
       "fx_ids": [
+        "btnSaveRegistrationRole",
+        "cmbRegistrationRole",
         "colDescription",
         "colName",
         "colStatus",
         "colUsers",
         "lblAssigned",
         "lblCustom",
+        "lblRegistrationRoleStatus",
         "lblRoles",
         "roleTable"
       ],
@@ -77485,7 +77496,7 @@
             ],
             [
               "text",
-              "Role definitions come from Master Data \u2192 Role; this page shows assignments and permission access"
+              "Create roles in Master Data \u2192 Role, grant permissions here, then assign the role to users"
             ]
           ]
         ],
@@ -77789,7 +77800,7 @@
             ],
             [
               "text",
-              "Protected Roles"
+              "Custom Roles"
             ]
           ]
         ],
@@ -77809,6 +77820,120 @@
             [
               "text",
               "0"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]",
+          "HBox",
+          "",
+          [
+            [
+              "alignment",
+              "CENTER_LEFT"
+            ],
+            [
+              "spacing",
+              "12"
+            ],
+            [
+              "styleClass",
+              "user-access-card,role-registration-policy-card"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/VBox[1]",
+          "VBox",
+          "",
+          [
+            [
+              "HBox.hgrow",
+              "ALWAYS"
+            ],
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/VBox[1]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "settings-form-label"
+            ],
+            [
+              "text",
+              "Public Registration Role"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/VBox[1]/Label[2]",
+          "Label",
+          "lblRegistrationRoleStatus",
+          [
+            [
+              "id",
+              "lblRegistrationRoleStatus"
+            ],
+            [
+              "styleClass",
+              "muted-label"
+            ],
+            [
+              "text",
+              "Current: loading\u2026"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/ComboBox[1]",
+          "ComboBox",
+          "cmbRegistrationRole",
+          [
+            [
+              "id",
+              "cmbRegistrationRole"
+            ],
+            [
+              "prefWidth",
+              "240"
+            ],
+            [
+              "promptText",
+              "Select active role"
+            ],
+            [
+              "styleClass",
+              "approved-input"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/Button[1]",
+          "Button",
+          "btnSaveRegistrationRole",
+          [
+            [
+              "id",
+              "btnSaveRegistrationRole"
+            ],
+            [
+              "onAction",
+              "#saveRegistrationRole"
+            ],
+            [
+              "styleClass",
+              "primary-button"
+            ],
+            [
+              "text",
+              "Save Role"
             ]
           ]
         ],
@@ -77874,7 +77999,7 @@
             ],
             [
               "text",
-              "Role codes and display names are owned by Master Data \u2192 Role. Permission assignments remain here."
+              "Role identity is the Role Master Value. Internal ROLxxx technical IDs are hidden and never used for security."
             ]
           ]
         ],
@@ -78019,7 +78144,7 @@
             ],
             [
               "text",
-              "Edit role definitions in Master Data \u2192 Role so Login, User Access and permissions use one source."
+              "Add PURCHASE or any future role in Master Data \u2192 Role, then grant only the required permissions."
             ]
           ]
         ],
@@ -78597,7 +78722,7 @@
             ],
             [
               "text",
-              "9.0.45"
+              "9.0.46"
             ]
           ]
         ],
@@ -96780,7 +96905,7 @@
             ],
             [
               "text",
-              "DSE ERP 9.0.45"
+              "DSE ERP 9.0.46"
             ]
           ]
         ],
@@ -105220,7 +105345,7 @@
             ],
             [
               "text",
-              "9.0.45"
+              "9.0.46"
             ]
           ]
         ],
@@ -106473,9 +106598,9 @@
       "light-theme.css"
     ],
     "dialog_java_files": 54,
-    "fxml_event_bindings": 630,
+    "fxml_event_bindings": 631,
     "fxml_files": 56,
-    "fxml_fx_ids": 1847,
+    "fxml_fx_ids": 1850,
     "table_behavior_java_files": 48,
     "table_columns": 299,
     "table_views": 39
@@ -107115,5 +107240,5 @@
       "RegisterColumnPreferences.install(": 0
     }
   },
-  "version": "9.0.45"
+  "version": "9.0.46"
 }

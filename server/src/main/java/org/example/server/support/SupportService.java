@@ -116,13 +116,21 @@ import org.example.server.persistence.JpaNativeRepository;import org.example.ser
      case "BANK_STATEMENT"->resolved(key,targetFor(key),"SELECT id,COALESCE(original_reference,'Row '||CAST(source_row_number AS text)) FROM bank_statement_transaction WHERE LOWER(TRIM(COALESCE(original_reference,'Row '||CAST(source_row_number AS text))))=LOWER(TRIM(?)) ORDER BY id DESC LIMIT 1",ref);
      case "REMINDER"->resolved(key,targetFor(key),"SELECT id,COALESCE(reference_no,'Reminder #'||CAST(id AS text)) FROM reminder_register WHERE LOWER(TRIM(COALESCE(reference_no,'Reminder #'||CAST(id AS text))))=LOWER(TRIM(?)) ORDER BY id DESC LIMIT 1",ref);
      case "STOCK_ADJUSTMENT"->resolved(key,targetFor(key),"SELECT id,COALESCE(reference_no,'Adjustment #'||CAST(id AS text)) FROM stock_adjustment WHERE LOWER(TRIM(COALESCE(reference_no,'Adjustment #'||CAST(id AS text))))=LOWER(TRIM(?)) ORDER BY id DESC LIMIT 1",ref);
-     case "MASTER"->resolved(key,targetFor(key),"SELECT id,lookup_code FROM lookup_master WHERE LOWER(TRIM(lookup_code))=LOWER(TRIM(?)) ORDER BY id DESC LIMIT 1",ref);
+     case "MASTER"->resolveMaster(ref);
      case "USER"->resolved(key,targetFor(key),"SELECT id,username FROM users WHERE LOWER(TRIM(username))=LOWER(TRIM(?)) ORDER BY id DESC LIMIT 1",ref);
      default->new SupportDtos.ResolvedRecord(false,key,null,ref,targetFor(key));
    };
    return found;
  }
  private SupportDtos.ResolvedRecord resolved(String key,String target,String sql,String reference){try{List<SupportDtos.ResolvedRecord> rows=jdbc.query(sql,(r,i)->new SupportDtos.ResolvedRecord(true,key,r.getLong(1),Objects.toString(r.getObject(2),reference),target),reference);return rows.isEmpty()?new SupportDtos.ResolvedRecord(false,key,null,reference,target):rows.getFirst();}catch(Exception ignored){return new SupportDtos.ResolvedRecord(false,key,null,reference,target);}}
+ private SupportDtos.ResolvedRecord resolveMaster(String reference){
+   String ref=reference==null?"":reference.trim();
+   if(ref.isBlank())return new SupportDtos.ResolvedRecord(false,"MASTER",null,ref,targetFor("MASTER"));
+   try{
+     List<SupportDtos.ResolvedRecord> rows=jdbc.query("SELECT lm.id,lm.lookup_code FROM lookup_master lm WHERE LOWER(TRIM(lm.lookup_code))=LOWER(TRIM(?)) OR EXISTS (SELECT 1 FROM lookup_code_alias a WHERE a.lookup_id=lm.id AND LOWER(TRIM(a.alias_code))=LOWER(TRIM(?))) ORDER BY lm.id DESC LIMIT 1",(r,i)->new SupportDtos.ResolvedRecord(true,"MASTER",r.getLong(1),r.getString(2),targetFor("MASTER")),ref,ref);
+     return rows.isEmpty()?new SupportDtos.ResolvedRecord(false,"MASTER",null,ref,targetFor("MASTER")):rows.getFirst();
+   }catch(Exception ignored){return new SupportDtos.ResolvedRecord(false,"MASTER",null,ref,targetFor("MASTER"));}
+ }
  private SupportDtos.ResolvedRecord resolvePayment(String reference){
    String ref=reference==null?"":reference.trim();
    if(ref.isBlank())return new SupportDtos.ResolvedRecord(false,"PAYMENT",null,"","");
@@ -155,7 +163,7 @@ import org.example.server.persistence.JpaNativeRepository;import org.example.ser
    search(out,"Reminders","REMINDER","/fxml/pages/ReminderCenter.fxml","REMINDERS.VIEW","SELECT id,COALESCE(reference_no,'Reminder #'||CAST(id AS text)),title,due_date||'  '||priority||'  '||status FROM reminder_register WHERE title ILIKE ? OR COALESCE(reference_no,'') ILIKE ? OR COALESCE(notes,'') ILIKE ? OR status ILIKE ? OR priority ILIKE ? ORDER BY id DESC LIMIT 50",like,5);
    search(out,"Communications","COMMUNICATION","/fxml/pages/CommunicationCenter.fxml","COMMUNICATION.VIEW","SELECT id,entity_type||' #'||CAST(entity_id AS text),COALESCE(subject,recipient,channel),channel||'  '||status||'  '||COALESCE(recipient,'') FROM communication_log WHERE entity_type ILIKE ? OR channel ILIKE ? OR COALESCE(recipient,'') ILIKE ? OR COALESCE(subject,'') ILIKE ? OR COALESCE(status,'') ILIKE ? OR COALESCE(error_message,'') ILIKE ? ORDER BY id DESC LIMIT 50",like,6);
    search(out,"Inventory Adjustments","STOCK_ADJUSTMENT","/fxml/pages/Inventory.fxml","INVENTORY.VIEW","SELECT id,COALESCE(reference_no,'Adjustment #'||CAST(id AS text)),item_code,adjustment_date||'  '||adjustment_type||'  Qty '||quantity||'  '||reason FROM stock_adjustment WHERE item_code ILIKE ? OR adjustment_type ILIKE ? OR reason ILIKE ? OR COALESCE(reference_no,'') ILIKE ? OR COALESCE(created_by,'') ILIKE ? ORDER BY id DESC LIMIT 50",like,5);
-   search(out,"Master Data","MASTER","/fxml/pages/Masterdata.fxml","MASTERS.VIEW","SELECT id,lookup_code,lookup_value,lookup_type||'  '||COALESCE(description,'') FROM lookup_master WHERE lookup_code ILIKE ? OR lookup_value ILIKE ? OR lookup_type ILIKE ? OR COALESCE(description,'') ILIKE ? ORDER BY lookup_type,display_order LIMIT 50",like,4);
+   search(out,"Master Data","MASTER","/fxml/pages/Masterdata.fxml","MASTERS.VIEW","SELECT lm.id,lm.lookup_code,lm.lookup_value,lm.lookup_type||'  '||COALESCE(lm.description,'') FROM lookup_master lm WHERE lm.lookup_code ILIKE ? OR lm.lookup_value ILIKE ? OR lm.lookup_type ILIKE ? OR COALESCE(lm.description,'') ILIKE ? OR EXISTS (SELECT 1 FROM lookup_code_alias a WHERE a.lookup_id=lm.id AND a.alias_code ILIKE ?) ORDER BY lm.lookup_type,lm.display_order LIMIT 50",like,5);
    search(out,"Users","USER","/fxml/pages/UserAccess.fxml","USERS.VIEW","SELECT id,username,COALESCE(full_name,username),COALESCE(email,'')||'  '||COALESCE(role,'') FROM users WHERE username ILIKE ? OR COALESCE(full_name,'') ILIKE ? OR COALESCE(email,'') ILIKE ? OR COALESCE(role,'') ILIKE ? ORDER BY username LIMIT 50",like,4);
    return out.stream().limit(500).toList();
  }

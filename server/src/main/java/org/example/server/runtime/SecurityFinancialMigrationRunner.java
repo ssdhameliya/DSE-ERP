@@ -117,7 +117,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_28__financial_authority_integrity",
                     "db/migration/V9_0_28__financial_authority_integrity.sql"),
             new Migration("V9_0_40__scheduled_reporting",
-                    "db/migration/V9_0_40__scheduled_reporting.sql")
+                    "db/migration/V9_0_40__scheduled_reporting.sql"),
+            new Migration("V9_0_46__master_role_reference_cleanup",
+                    "db/migration/V9_0_46__master_role_reference_cleanup.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

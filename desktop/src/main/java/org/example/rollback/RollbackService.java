@@ -168,7 +168,8 @@ public final class RollbackService {
             Map.entry("9.0.41", 1),
             Map.entry("9.0.42", 1),
             Map.entry("9.0.44", 1),
-            Map.entry("9.0.45", 1)
+            Map.entry("9.0.45", 1),
+            Map.entry("9.0.46", 1)
     );
 
     private final UpdateService updateService = new UpdateService();

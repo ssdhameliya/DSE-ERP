@@ -21,8 +21,6 @@ public class AuthService {
     private static final String LOCK_FAILED_PASSWORD = "FAILED_PASSWORD";
     private static final String LOCK_FAILED_MFA = "FAILED_MFA";
     private static final String LOCK_ADMIN = "ADMIN";
-    /** Public self-registration is deliberately restricted to one non-privileged Role Master identity. */
-    private static final String SELF_REGISTRATION_ROLE = "SALES";
 
     private final UserRepository users;
     private final RoleMasterService roleMaster;
@@ -280,10 +278,12 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public List<AuthDtos.RoleOption> registrationRoles() {
-        return roleMaster.activeRoles().stream()
-                .filter(role -> SELF_REGISTRATION_ROLE.equalsIgnoreCase(role.code()))
-                .map(role -> new AuthDtos.RoleOption(role.code(), role.displayName()))
-                .toList();
+        try {
+            RoleMasterService.RoleDefinition role = roleMaster.selfRegistrationRole();
+            return List.of(new AuthDtos.RoleOption(role.code(), role.displayName()));
+        } catch (IllegalStateException unavailable) {
+            return List.of();
+        }
     }
 
     @Transactional
@@ -361,8 +361,11 @@ public class AuthService {
         if (email == null || !email.trim().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"))
             return "A valid email address is required";
         String normalizedRole = normalizeRole(role);
-        if (!SELF_REGISTRATION_ROLE.equals(normalizedRole) || !roleMaster.isActive(normalizedRole))
-            return "Public registration is restricted to the active " + SELF_REGISTRATION_ROLE + " role";
+        RoleMasterService.RoleDefinition registrationRole;
+        try { registrationRole = roleMaster.selfRegistrationRole(); }
+        catch (IllegalStateException unavailable) { return "Public registration is not available because no active non-Admin registration role is configured"; }
+        if (!registrationRole.code().equalsIgnoreCase(normalizedRole))
+            return "Public registration is restricted to the active " + registrationRole.displayName() + " role";
         return null;
     }
 

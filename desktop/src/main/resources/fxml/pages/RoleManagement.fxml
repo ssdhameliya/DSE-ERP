@@ -4,18 +4,28 @@
   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
   <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
     <StackPane styleClass="erp-page-header-icon,user-access-header-icon"><Label text="♜" styleClass="erp-page-header-symbol"/></StackPane>
-    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Role Management" styleClass="screen-title"/><Label text="Role definitions come from Master Data → Role; this page shows assignments and permission access" styleClass="screen-subtitle"/></VBox>
+    <VBox spacing="3" HBox.hgrow="ALWAYS"><Label text="Role Management" styleClass="screen-title"/><Label text="Create roles in Master Data → Role, grant permissions here, then assign the role to users" styleClass="screen-subtitle"/></VBox>
     <Button text="Back to Users" onAction="#back" styleClass="approved-button,approved-secondary-button"/>
     <Button text="Permission Matrix" onAction="#openPermissions" styleClass="primary-button"/>
   </HBox>
   <HBox spacing="12" styleClass="standard-kpi-row,erp-kpi-section">
     <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-blue" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="♜"/></StackPane><VBox spacing="3"><Label text="System Roles" styleClass="metric-title"/><Label fx:id="lblRoles" text="0" styleClass="metric-value"/></VBox></HBox>
     <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-green" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="👥"/></StackPane><VBox spacing="3"><Label text="Assigned Users" styleClass="metric-title"/><Label fx:id="lblAssigned" text="0" styleClass="metric-value"/></VBox></HBox>
-    <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-purple" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="✓"/></StackPane><VBox spacing="3"><Label text="Protected Roles" styleClass="metric-title"/><Label fx:id="lblCustom" text="0" styleClass="metric-value"/></VBox></HBox>
+    <HBox spacing="12" alignment="CENTER_LEFT" styleClass="standard-kpi-card,kpi-purple" HBox.hgrow="ALWAYS"><StackPane styleClass="standard-kpi-icon"><Label text="✓"/></StackPane><VBox spacing="3"><Label text="Custom Roles" styleClass="metric-title"/><Label fx:id="lblCustom" text="0" styleClass="metric-value"/></VBox></HBox>
   </HBox>
+
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="user-access-card,role-registration-policy-card">
+    <VBox spacing="3" HBox.hgrow="ALWAYS">
+      <Label text="Public Registration Role" styleClass="settings-form-label"/>
+      <Label fx:id="lblRegistrationRoleStatus" text="Current: loading…" styleClass="muted-label"/>
+    </VBox>
+    <ComboBox fx:id="cmbRegistrationRole" promptText="Select active role" prefWidth="240" styleClass="approved-input"/>
+    <Button fx:id="btnSaveRegistrationRole" text="Save Role" onAction="#saveRegistrationRole" styleClass="primary-button"/>
+  </HBox>
+
   <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="user-access-card,ua-full-card">
-    <HBox alignment="CENTER_LEFT"><VBox><Label text="Role Master Snapshot" styleClass="section-title"/><Label text="Role codes and display names are owned by Master Data → Role. Permission assignments remain here." styleClass="muted-label"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/></HBox>
+    <HBox alignment="CENTER_LEFT"><VBox><Label text="Role Master Snapshot" styleClass="section-title"/><Label text="Role identity is the Role Master Value. Internal ROLxxx technical IDs are hidden and never used for security." styleClass="muted-label"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/></HBox>
     <TableView fx:id="roleTable" VBox.vgrow="ALWAYS" styleClass="approved-table,erp-table-profile-administration"><columns><TableColumn fx:id="colName" text="Role Name"/><TableColumn fx:id="colDescription" text="Description"/><TableColumn fx:id="colUsers" text="Users"/><TableColumn fx:id="colStatus" text="Status"/></columns></TableView>
-    <HBox alignment="CENTER_RIGHT" spacing="8"><Label text="Edit role definitions in Master Data → Role so Login, User Access and permissions use one source." styleClass="muted-label"/><Region HBox.hgrow="ALWAYS"/><Button text="Open Role Master" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/><Button text="Manage Permissions" onAction="#openPermissions" styleClass="primary-button"/></HBox>
+    <HBox alignment="CENTER_RIGHT" spacing="8"><Label text="Add PURCHASE or any future role in Master Data → Role, then grant only the required permissions." styleClass="muted-label"/><Region HBox.hgrow="ALWAYS"/><Button text="Open Role Master" onAction="#editRole" styleClass="approved-button,approved-secondary-button"/><Button text="Manage Permissions" onAction="#openPermissions" styleClass="primary-button"/></HBox>
   </VBox>
 </VBox>

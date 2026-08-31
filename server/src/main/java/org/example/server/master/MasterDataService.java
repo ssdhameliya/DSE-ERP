@@ -394,6 +394,30 @@ public class MasterDataService {
                 .stream().map(this::lookupDto).toList();
     }
 
+    /** Resolve a current Master code or a v9.0.46 legacy alias (for example GEN014 -> MAT001). */
+    @Transactional(readOnly = true)
+    public MasterDtos.LookupCodeResolution resolveLookupCode(String type, String code) {
+        String requestedType = normal(type);
+        String requestedCode = normal(code);
+        if (requestedType.isBlank() || requestedCode.isBlank())
+            return new MasterDtos.LookupCodeResolution(requestedCode, requestedCode, false);
+
+        LookupEntity current = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(requestedType).stream()
+                .filter(row -> requestedCode.equals(normal(row.getLookupCode())))
+                .findFirst().orElse(null);
+        if (current != null)
+            return new MasterDtos.LookupCodeResolution(requestedCode, normal(current.getLookupCode()), false);
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> aliases = entityManager.createNativeQuery(
+                        "select lm.lookup_code,a.alias_code from lookup_code_alias a join lookup_master lm on lm.id=a.lookup_id " +
+                        "where upper(trim(a.lookup_type))=upper(trim(:type)) and upper(trim(a.alias_code))=upper(trim(:code)) order by a.id limit 1")
+                .setParameter("type", requestedType).setParameter("code", requestedCode).getResultList();
+        if (aliases.isEmpty()) return new MasterDtos.LookupCodeResolution(requestedCode, requestedCode, false);
+        String canonical = aliases.getFirst()[0] == null ? requestedCode : normal(String.valueOf(aliases.getFirst()[0]));
+        return new MasterDtos.LookupCodeResolution(requestedCode, canonical, true);
+    }
+
     @Transactional
     public MasterDtos.LookupDto saveLookup(MasterDtos.LookupDto d) {
         requireMasterMutation("CREATE");
@@ -419,6 +443,7 @@ public class MasterDataService {
         cascadeRoleValueRenameIfNeeded(e, d);
         copy(d, e);
         e = lookups.saveAndFlush(e);
+        syncLookupAliases(e);
         audit.log("MASTER_LOOKUP", e.getId(), "UPDATED", e.getLookupType() + " / " + e.getLookupValue());
         return lookupDto(e);
     }
@@ -561,6 +586,7 @@ public class MasterDataService {
         c.setCategoryName(n);
         for (LookupEntity l : vals) l.setLookupType(n);
         lookups.saveAllAndFlush(vals);
+        vals.forEach(this::syncLookupAliases);
         c = categories.saveAndFlush(c);
         audit.log("MASTER_CATEGORY", c.getId(), "RENAMED", oldName + " -> " + c.getCategoryName());
         return categoryDto(c, vals.size(), vals.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
@@ -637,7 +663,10 @@ public class MasterDataService {
         if (previousName != null && !previousName.equalsIgnoreCase(nextName)) {
             List<LookupEntity> migrated = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(previousName);
             for (LookupEntity value : migrated) value.setLookupType(nextName);
-            if (!migrated.isEmpty()) lookups.saveAllAndFlush(migrated);
+            if (!migrated.isEmpty()) {
+                lookups.saveAllAndFlush(migrated);
+                migrated.forEach(this::syncLookupAliases);
+            }
         }
         audit.log("MASTER_CATEGORY", e.getId(), "UPSERTED", e.getCategoryName());
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(e.getCategoryName());
@@ -783,14 +812,31 @@ public class MasterDataService {
                 .setParameter("newRole", canonical).setParameter("oldRole", oldValue).executeUpdate();
         entityManager.createNativeQuery("update role_permission set role_code=:newRole where upper(trim(coalesce(role_code,'')))=upper(trim(:oldRole))")
                 .setParameter("newRole", canonical).setParameter("oldRole", oldValue).executeUpdate();
+        entityManager.createNativeQuery("update application_setting set setting_value=:newRole,updated_at=CURRENT_TIMESTAMP where setting_key='auth.selfRegistrationRole' and upper(trim(coalesce(setting_value,'')))=upper(trim(:oldRole))")
+                .setParameter("newRole", canonical).setParameter("oldRole", oldValue).executeUpdate();
     }
 
     private void validateRoleDeactivation(LookupEntity role) {
         if (role == null || !"ROLE".equals(normal(role.getLookupType()))) return;
         String roleValue = role.getLookupValue() == null ? "" : role.getLookupValue().trim();
         if ("ADMIN".equals(normal(roleValue))) throw new IllegalArgumentException("The Admin Role Master entry cannot be deactivated");
+        if (isConfiguredSelfRegistrationRole(roleValue))
+            throw new IllegalArgumentException("Choose another Public Registration Role in Role Management before deactivating this role");
         long assigned = countText("users", "role", roleValue);
         if (assigned > 0) throw new IllegalArgumentException("Move " + assigned + " assigned user" + (assigned == 1 ? "" : "s") + " to another active role before deactivating this role");
+    }
+
+
+    private boolean isConfiguredSelfRegistrationRole(String roleValue) {
+        try {
+            Number count = (Number) entityManager.createNativeQuery(
+                            "select count(*) from application_setting where setting_key='auth.selfRegistrationRole' " +
+                            "and upper(trim(coalesce(setting_value,'')))=upper(trim(:role))")
+                    .setParameter("role", roleValue).getSingleResult();
+            return count != null && count.longValue() > 0;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     private void copy(MasterDtos.LookupDto d, LookupEntity e) {
@@ -802,10 +848,25 @@ public class MasterDataService {
         e.setActive(d.active() ? 1 : 0);
     }
 
+
+    private void syncLookupAliases(LookupEntity lookup) {
+        if (lookup == null || lookup.getId() == null) return;
+        try {
+            entityManager.createNativeQuery("update lookup_code_alias set lookup_type=:type,canonical_code=:code where lookup_id=:id")
+                    .setParameter("type", lookup.getLookupType())
+                    .setParameter("code", lookup.getLookupCode())
+                    .setParameter("id", lookup.getId()).executeUpdate();
+        } catch (RuntimeException ignored) {
+            // Fresh databases without legacy aliases legitimately have nothing to synchronize.
+        }
+    }
+
     private void validateLookup(MasterDtos.LookupDto d) {
         if (d == null || d.lookupType() == null || d.lookupType().isBlank()) throw new IllegalArgumentException("Lookup type is required");
         boolean creating = d.id() == null || d.id() <= 0;
         if (!creating && (d.lookupCode() == null || d.lookupCode().isBlank())) throw new IllegalArgumentException("Lookup code is required");
+        if (creating && d.lookupCode() != null && normal(d.lookupCode()).matches("^GEN\\d+$"))
+            throw new IllegalArgumentException("GENxxx Master codes are retired. Leave the code blank so the server can allocate the category-specific reference.");
         if (d.lookupValue() == null || d.lookupValue().isBlank()) throw new IllegalArgumentException("Lookup value is required");
         MasterCategoryEntity referenceCategory = categories.findByCategoryCode("REFERENCE_FORMAT").orElse(null);
         if (referenceCategory != null && referenceCategory.getCategoryName().equalsIgnoreCase(d.lookupType().trim())) ReferenceFormatRules.requireValidFormat(d.lookupValue());

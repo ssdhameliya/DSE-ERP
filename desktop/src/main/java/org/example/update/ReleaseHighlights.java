@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.46".equals(version)) {
+            return """
+                    DSE ERP 9.0.46
+
+                    • Cleans historical GENxxx Master references into category-specific CAT/UNT/MAT/BRD/GST/... codes while preserving database ids, business values and legacy aliases.
+                    • Keeps Role Master lookup_value as the only security identity; hidden ROLxxx technical IDs never drive users, permissions, MFA or approvals.
+                    • Makes the public registration role configurable from Role Management instead of hard-coding SALES, while preserving SALES as the upgrade-safe default.
+                    • Keeps new roles dynamic: create PURCHASE (or any future role) in Master Data → Role, grant its permissions in Permission Matrix, then assign it in User Access with no Java change.
+                    • Adds compatibility resolution for old GENxxx imports/support lookups and prevents new GENxxx Master codes from being created.
+                    """;
+        }
         if ("9.0.45".equals(version)) {
             return """
                     DSE ERP 9.0.45

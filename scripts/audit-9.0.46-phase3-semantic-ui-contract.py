@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.45 Phase 3 semantic icon / colour contract."""
+"""DSE ERP 9.0.46 Phase 3 semantic icon / colour contract."""
 from __future__ import annotations
 
 import re
@@ -17,7 +17,7 @@ REGISTRY = ROOT / "desktop/src/main/resources/ui/semantic-registry.properties"
 ICON_FACTORY = ROOT / "desktop/src/main/java/org/example/util/IconFactory.java"
 ENHANCER = ROOT / "desktop/src/main/java/org/example/util/ProfessionalUiEnhancer.java"
 SEMANTIC_CELLS = ROOT / "desktop/src/main/java/org/example/util/SemanticTableCells.java"
-SOURCE_MAP = ROOT / "scripts/phase3-semantic-ui-source-map-9.0.45.json"
+SOURCE_MAP = ROOT / "scripts/phase3-semantic-ui-source-map-9.0.46.json"
 
 FIELD_STYLE_TOKENS = (
     "field-label", "finance-field-label", "form-label", "filter-label", "meta-label",

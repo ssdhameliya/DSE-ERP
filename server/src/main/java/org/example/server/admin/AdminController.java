@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;import java.util.*;
  @PostMapping("/users/{id}/password") public AdminDtos.Ok password(@PathVariable int id,@RequestBody AdminDtos.PasswordRequest d){s.resetPassword(id,d.password());return ok("Updated");}
  @PostMapping("/users/{id}/lock") public AdminDtos.Ok lock(@PathVariable int id,@RequestBody AdminDtos.LockRequest d){s.setLocked(id,d.locked());return ok("Updated");}
  @GetMapping("/roles") public List<AdminDtos.RoleDto> roles(){return s.roles();}
+ @GetMapping("/registration-role") public AdminDtos.RegistrationRoleDto registrationRole(){return s.registrationRole();}
+ @PutMapping("/registration-role") public AdminDtos.RegistrationRoleDto registrationRole(@RequestBody AdminDtos.RegistrationRoleSaveRequest d){return s.setRegistrationRole(d);}
  @PostMapping("/roles") public AdminDtos.RoleDto addRole(@RequestBody AdminDtos.RoleSaveRequest d){return s.saveRole(d);}
  @PutMapping("/roles/{id}") public AdminDtos.RoleDto updateRole(@PathVariable int id,@RequestBody AdminDtos.RoleSaveRequest d){return s.saveRole(new AdminDtos.RoleSaveRequest(id,d.name(),d.description(),d.active()));}
  @DeleteMapping("/roles/{id}") public AdminDtos.Ok deleteRole(@PathVariable int id){s.deleteRole(id);return ok("Deleted");}

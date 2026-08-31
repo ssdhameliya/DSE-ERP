@@ -34,6 +34,8 @@ public class SecurityConfig {
                                 "/api/auth/password-reset/request", "/api/auth/password-reset/complete").permitAll()
                         .requestMatchers("/api/auth/effective-permissions", "/api/auth/session").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/admin/users/**", "/api/admin/roles", "/api/admin/permissions").hasAnyAuthority("ROLE_ADMIN", "USERS.VIEW")
+                        .requestMatchers(HttpMethod.GET, "/api/admin/registration-role").hasAnyAuthority("ROLE_ADMIN", "USERS.MANAGE_ROLES")
+                        .requestMatchers(HttpMethod.PUT, "/api/admin/registration-role").hasAnyAuthority("ROLE_ADMIN", "USERS.MANAGE_ROLES")
                         .requestMatchers(HttpMethod.POST, "/api/admin/users").hasAnyAuthority("ROLE_ADMIN", "USERS.CREATE")
                         .requestMatchers(HttpMethod.PUT, "/api/admin/users/**").hasAnyAuthority("ROLE_ADMIN", "USERS.EDIT")
                         .requestMatchers(HttpMethod.DELETE, "/api/admin/users/**").hasAnyAuthority("ROLE_ADMIN", "USERS.DELETE")

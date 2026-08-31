@@ -37,6 +37,7 @@ public class MasterDataController {
  @DeleteMapping("/lookups/{id}") public MasterDtos.OperationResponse deleteLookup(@PathVariable int id,@RequestParam(defaultValue="-1") long rowVersion){service.deleteLookup(id,rowVersion);return new MasterDtos.OperationResponse(true,"OK");}
  @PutMapping("/lookups/{id}/active") public MasterDtos.LookupDto setLookupActive(@PathVariable int id,@RequestParam boolean active,@RequestParam(defaultValue="-1") long rowVersion){return service.setLookupActive(id,active,rowVersion);}
  @GetMapping("/lookups/next-code") public MasterDtos.NextCodeResponse lookupNext(@RequestParam String type){return new MasterDtos.NextCodeResponse(service.nextLookupCode(type));}
+ @GetMapping("/lookups/resolve-code") public MasterDtos.LookupCodeResolution lookupResolve(@RequestParam String type,@RequestParam String code){return service.resolveLookupCode(type,code);}
 
  @GetMapping("/categories") public List<MasterDtos.CategoryDto> categories(){return service.categories();}
  @PostMapping("/categories") public MasterDtos.CategoryDto addCategory(@RequestParam String name){return service.addCategory(name);}

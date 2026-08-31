@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.45 final IntelliJ/reporting/scheduler contract."""
+"""DSE ERP 9.0.46 final IntelliJ/reporting/scheduler contract."""
 from pathlib import Path
 import re, sys, xml.etree.ElementTree as ET
 from collections import Counter
@@ -11,10 +11,10 @@ def need(ok,msg):
 def text(rel): return (ROOT/rel).read_text(encoding='utf-8',errors='ignore')
 
 # Release identity / full runtime shell.
-need('<version>9.0.45</version>' in text('pom.xml') and '<dse.phase>9.0.45</dse.phase>' in text('pom.xml'),'root Maven identity is not 9.0.45')
-need('APP_VERSION = "9.0.45"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'desktop/shared runtime identity is not 9.0.45')
-need('dse.app.version=9.0.45' in text('server/src/main/resources/application.properties'),'server runtime identity is not 9.0.45')
-need('runtime.phase=9.0.45' in text('runtime/runtime-manifest.properties'),'bundled runtime manifest is not 9.0.45')
+need('<version>9.0.46</version>' in text('pom.xml') and '<dse.phase>9.0.46</dse.phase>' in text('pom.xml'),'root Maven identity is not 9.0.46')
+need('APP_VERSION = "9.0.46"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'desktop/shared runtime identity is not 9.0.46')
+need('dse.app.version=9.0.46' in text('server/src/main/resources/application.properties'),'server runtime identity is not 9.0.46')
+need('runtime.phase=9.0.46' in text('runtime/runtime-manifest.properties'),'bundled runtime manifest is not 9.0.46')
 pg=ROOT/'runtime/postgresql'
 need(pg.exists() and sum(1 for p in pg.rglob('*') if p.is_file())>100,'full bundled PostgreSQL runtime shell is missing')
 
@@ -56,7 +56,7 @@ need('renderedCellControlWidth(table, column)' in table_mgr and 'ACTION_CONTROL_
 
 # Responsive KPI must wrap before cards become cramped; individual viewer no longer enrolled.
 kpi=text('desktop/src/main/java/org/example/util/ResponsiveKpiLayoutManager.java')
-need('MIN_COMFORTABLE_CARD = 170.0' in kpi,'responsive KPI comfortable width floor is not the 9.0.45 compact 170px value')
+need('MIN_COMFORTABLE_CARD = 170.0' in kpi,'responsive KPI comfortable width floor is not the 9.0.46 compact 170px value')
 need('erp-kpi-single-row' in kpi,'responsive KPI manager lacks explicit single-row KPI contract')
 need('erp-kpi-single-row' in text('desktop/src/main/resources/fxml/pages/BankStatement.fxml'),'Bank Statement must keep all eight KPI cards in one row')
 need('GridPane.setRowIndex(card, i / columns)' in kpi,'responsive KPI wrapping is missing')
@@ -80,7 +80,9 @@ permission_matrix=text('desktop/src/main/java/org/example/controller/PermissionM
 registration_ctrl=text('desktop/src/main/java/org/example/controller/RegistrationController.java')
 sales_list=text('desktop/src/main/java/org/example/controller/SalesListController.java')
 need('UPPER(TRIM(lm.lookup_value)) AS role_identity' in role_master,'ROLE security identity must come from lookup_value')
-need('SELF_REGISTRATION_ROLE = "SALES"' in auth and '.filter(role -> SELF_REGISTRATION_ROLE.equalsIgnoreCase(role.code()))' in auth,'public registration must use the approved active SALES Role Master identity')
+need('SELF_REGISTRATION_ROLE = "SALES"' not in auth,'public registration role must not be hard-coded in AuthService')
+need('selfRegistrationRole()' in role_master and 'auth.selfRegistrationRole' in role_master and 'setSelfRegistrationRole' in role_master,'Role Master must own the configurable public-registration role')
+need('roleMaster.selfRegistrationRole()' in auth,'AuthService must consume the configured Role Master registration role')
 need('"USER".equalsIgnoreCase' not in auth,'obsolete USER self-registration assumption remains')
 for category in ('CATEGORY','UNIT','GST','DISCOUNT'):
     need(f'getValuesByCategoryCode("{category}")' in item_dialog,f'Item Dialog must resolve {category} by immutable category code')
@@ -92,6 +94,20 @@ need('users.registrationRoles()' in registration_ctrl and 'cmbRole.getItems().ge
 need('\"SALES\".equalsIgnoreCase' not in registration_ctrl,'Registration UI must not hard-code a role identity')
 need('getValuesByCategoryCode(\"PAYMENT_MODE\")' in sales_list,'Sales quick payment must read Payment Mode from immutable Master category code')
 need('observableArrayList(\"Cash\",\"Bank\",\"UPI\"' not in sales_list,'Sales quick payment still hard-codes Payment Mode values')
+
+
+master_migration=text('server/src/main/resources/db/migration/V9_0_46__master_role_reference_cleanup.sql')
+master_service=text('server/src/main/java/org/example/server/master/MasterDataService.java')
+role_mgmt=text('desktop/src/main/java/org/example/controller/RoleManagementController.java')
+role_fxml=text('desktop/src/main/resources/fxml/pages/RoleManagement.fxml')
+import_service=text('desktop/src/main/java/org/example/service/ImportService.java')
+need('CREATE TABLE IF NOT EXISTS lookup_code_alias' in master_migration and "~ '^GEN[0-9]+$'" in master_migration,'9.0.46 must migrate historical GENxxx codes and retain aliases')
+need("VALUES('auth.selfRegistrationRole', 'SALES')" in master_migration,'9.0.46 must seed an upgrade-safe configurable registration-role setting')
+need('resolveLookupCode' in master_service and 'lookup_code_alias' in master_service,'Master API must resolve legacy GEN aliases to canonical codes')
+need('GENxxx Master codes are retired' in master_service,'server must reject creation of new GENxxx Master codes')
+need('resolveLookupCode(canonicalLookupType, code)' in import_service and 'resolution.aliasMatched()' in import_service,'Master import must resolve old GEN aliases before create/update')
+need('fx:id="cmbRegistrationRole"' in role_fxml and 'onAction="#saveRegistrationRole"' in role_fxml,'Role Management must expose configurable public-registration role')
+need('api.setRegistrationRole(code)' in role_mgmt,'Role Management must persist the selected registration role through the admin API')
 
 dead_paths = (
     'desktop/src/main/java/org/example/service/OtpService.java',
@@ -148,7 +164,7 @@ need('exporter.pdf(pdf, result, visible); exporter.excel(xlsx, result, visible);
 need('format.getItems().setAll("PDF","XLSX","PDF + XLSX","CSV")' in reports_ctrl,'scheduled-report combined output option missing from UI')
 
 if FAIL:
-    print('FINAL_9_0_45_FAIL')
+    print('FINAL_9_0_46_FAIL')
     for x in FAIL: print(' -',x)
     sys.exit(1)
-print('FINAL_9_0_45_OK css=2 reporting=table-first action=icon+text bank_kpi=8x1 semantic_fields=yes theme_parity=yes dashboard_csv=yes schedule_pdf_xlsx=both role_master=yes dynamic_lookups=yes dead_code=clean full_runtime=yes')
+print('FINAL_9_0_46_OK css=2 reporting=table-first action=icon+text bank_kpi=8x1 semantic_fields=yes theme_parity=yes dashboard_csv=yes schedule_pdf_xlsx=both role_master=dynamic master_codes=clean registration_role=configurable dead_code=clean full_runtime=yes')
