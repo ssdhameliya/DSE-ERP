@@ -25,4 +25,4 @@ req('loadSourceFallback()' in qedit and 'getValuesByCategoryCode("QUOTATION_SOUR
 req('statementHistoryDialog=new OwnedDialog<>(statementWorkspace)' in bank and 'restoreStatementHistoryDrawer' in bank,'Bank Statement: History uses owned popup and restores host content on close')
 req('.show-hide-column-menu-item' in css and '-fx-min-width: 280px' in css,'Table column chooser: readable menu width and labels')
 req('.register-saved-view-item' in css and '-fx-min-width: 300px' in css and '-fx-text-overrun: clip' in css,'Saved Views: popup values have sufficient width and no ellipsis clipping')
-print('PASS: DSE ERP 9.0.41 locked register UI contract')
+print('PASS: DSE ERP 9.0.42 locked register UI contract')

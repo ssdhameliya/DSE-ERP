@@ -231,7 +231,7 @@ public final class DynamicTableLayoutManager {
         // clipped when a detail drawer reduces the viewport. The header fallback
         // remains content-derived rather than an FXML/controller pixel width.
         double renderedControl = renderedCellControlWidth(table, column);
-        if ("actions".equals(semantic)) content = Math.max(content, Math.max(renderedControl, header + 28.0));
+        if ("actions".equals(semantic)) content = Math.max(content, Math.max(renderedControl, header + 38.0));
 
         double minimum = Math.max(MIN_READABLE_COLUMN, header);
         if ("actions".equals(semantic) && renderedControl > 0) minimum = Math.max(minimum, renderedControl);

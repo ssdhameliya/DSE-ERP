@@ -50,7 +50,7 @@ public class ReportsController implements ScreenLifecycle {
     @FXML private TableColumn<ScheduleRow,Void> colScheduleActions;
     @FXML private Button btnRefresh,btnApply,btnReset,btnViewSales,btnViewPurchases,btnContextAction;
     @FXML private MenuButton btnExport;
-    @FXML private MenuItem miExcel,miPdf;
+    @FXML private MenuItem miExcel,miPdf,miCsv;
     @FXML private TabPane reportTabs;
     @FXML private TextField txtReportSearch,txtSavedSearch,txtScheduleSearch;
     @FXML private TilePane reportCards;
@@ -100,6 +100,7 @@ public class ReportsController implements ScreenLifecycle {
         setCell(colPurchaseNo,0); setCell(colPurchaseDate,1); setCell(colPurchaseParty,2); setCell(colPurchaseAmount,3); setCell(colPurchaseStatus,4);
 
         configureReportSearch();
+        configureReportCardGrid();
         configureSavedSearch();
         configureReportCategories();
         configureTabBehavior();
@@ -115,6 +116,20 @@ public class ReportsController implements ScreenLifecycle {
 
     private void setCell(TableColumn<String[],String> column,int index){ column.setCellValueFactory(v -> new SimpleStringProperty(part(v.getValue(), index))); }
     private static String part(String[] values,int index){ return values != null && index >= 0 && index < values.length && values[index] != null ? values[index] : ""; }
+
+    private void configureReportCardGrid(){
+        if(reportCards==null)return;
+        reportCards.widthProperty().addListener((o,a,b)->resizeReportCards(b==null?0:b.doubleValue()));
+        javafx.application.Platform.runLater(()->resizeReportCards(reportCards.getWidth()));
+    }
+    private void resizeReportCards(double width){
+        if(reportCards==null||!Double.isFinite(width)||width<120)return;
+        double gap=Math.max(0,reportCards.getHgap());
+        int columns=Math.max(1,Math.min(3,(int)Math.floor((width+gap)/(300.0+gap))));
+        double tile=Math.max(260.0,(width-Math.max(0,columns-1)*gap)/columns);
+        reportCards.setPrefColumns(columns);
+        reportCards.setPrefTileWidth(tile);
+    }
 
     private void configureTabBehavior(){
         if(reportTabs == null) return;
@@ -472,9 +487,12 @@ public class ReportsController implements ScreenLifecycle {
         VBox box=new VBox(8,new Label("Latest 100 runs"),list);box.setPadding(new javafx.geometry.Insets(8));VBox.setVgrow(list,Priority.ALWAYS);dialog.getDialogPane().setContent(box);dialog.showAndWait();
     }
 
-    @FXML private void exportPdf(){export("PDF Report","business-report.pdf","*.pdf",true);}
-    @FXML private void exportExcel(){export("Excel Report","business-report.xlsx","*.xlsx",false);}
-    private void export(String title,String name,String ext,boolean pdf){ FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,ext));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();String suffix=pdf?".pdf":".xlsx";if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitAction("reports-export",()->{if(pdf)reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());else reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());return target;},done->ToastManager.success(dpFrom,"Report created","Report created successfully:\n"+done),e->error("Could not create report: "+root(e))); }
+    @FXML private void exportPdf(){exportDashboard("PDF Report","business-report.pdf","pdf");}
+    @FXML private void exportExcel(){exportDashboard("Excel Report","business-report.xlsx","xlsx");}
+    @FXML private void exportCsv(){exportDashboard("CSV Report","business-report.csv","csv");}
+    private void exportDashboard(String title,String name,String format){
+        FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);String suffix="."+format.toLowerCase(Locale.ROOT);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*"+suffix));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitAction("reports-export-"+format,()->{switch(format){case "pdf"->reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());case "xlsx"->reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());case "csv"->reportService.exportCsv(target,dpFrom.getValue(),dpTo.getValue());default->throw new IllegalArgumentException("Unsupported export format: "+format);}return target;},done->ToastManager.success(dpFrom,"Report created","Report created successfully:\n"+done),e->error("Could not create report: "+root(e)));
+    }
 
     private void navigate(String page){NavigationManager.navigateOrReport(page);}
     private String money(double n){return "₹ "+String.format(Locale.of("en","IN"),"%,.2f",n);}

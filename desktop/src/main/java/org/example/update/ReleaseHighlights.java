@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.42".equals(version)) {
+            return """
+                    DSE ERP 9.0.42
+
+                    • Restores the full IntelliJ runtime shell while keeping the latest 9.0.41 UI-stabilized application source as the code baseline.
+                    • Keeps exactly two runtime CSS themes and removes legacy stylesheet ownership conflicts.
+                    • Stabilizes dynamic TableView first paint and preserves icon + Actions text without clipping when drawers or side panels reduce table width.
+                    • Cleans Reporting presentation, removes per-report KPI strips, keeps responsive dashboard KPI bands, standardizes search/action areas, and adds CSV to Dashboard export.
+                    • Fixes Scheduled Reports so PDF + XLSX is normalized and generated together in the same scheduled run; individual PDF, XLSX and CSV outputs remain unchanged.
+                    """;
+        }
         if ("9.0.41".equals(version)) {
             return """
                     DSE ERP 9.0.41

@@ -549,9 +549,16 @@
 .danger-button, .btn-danger {
     -fx-cursor: hand;}
 
-.icon-button, .table-action-button {
+.icon-button {
     -fx-content-display: GRAPHIC_ONLY;
-    -fx-alignment: CENTER;}
+    -fx-alignment: CENTER;
+}
+
+.table-action-button {
+    -fx-content-display: LEFT;
+    -fx-alignment: CENTER_LEFT;
+    -fx-graphic-text-gap: 6px;
+}
 
 .status-badge, .status-pill, .erp-status-summary {
     -fx-padding: 4 9 4 9;
@@ -15310,10 +15317,6 @@
     -fx-border-radius: 10;
     -fx-border-width: 1;
     -fx-padding: 12;
-}
-.report-viewer-root .report-metric-strip {
-    -fx-padding: 2 0 2 0;
-    -fx-alignment: TOP_LEFT;
 }
 .report-viewer-filter-panel,
 .report-section-toolbar,

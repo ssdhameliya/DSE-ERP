@@ -34,7 +34,7 @@ public final class ResponsiveKpiLayoutManager {
     private static final String INSTALLED = "erp.kpi.layout.installed";
     private static final String PENDING = "erp.kpi.layout.pending";
     private static final String ORIGINAL_COLUMN = "erp.kpi.original.column";
-    private static final double MIN_COMFORTABLE_CARD = 190.0;
+    private static final double MIN_COMFORTABLE_CARD = 220.0;
 
     private ResponsiveKpiLayoutManager() {}
 

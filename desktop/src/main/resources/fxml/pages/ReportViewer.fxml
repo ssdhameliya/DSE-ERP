@@ -52,7 +52,6 @@
         <HBox alignment="CENTER_LEFT" spacing="8"><Label fx:id="lblActiveFilters" text="Active filters: Period" styleClass="page-subtitle"/><Region HBox.hgrow="ALWAYS"/><Button text="Reset" onAction="#resetFilters" styleClass="secondary-button"/><Button fx:id="btnApply" text="Apply" onAction="#applyFilters" styleClass="primary-button"/></HBox>
     </VBox>
 
-    <FlowPane fx:id="metricPane" hgap="9" vgap="8" prefWrapLength="1400" styleClass="report-metric-strip,erp-kpi-section"/>
 
     <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-card,report-results-toolbar">
         <StackPane minWidth="260" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">

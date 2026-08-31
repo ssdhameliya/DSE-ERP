@@ -383,9 +383,9 @@ public class ReportScheduleService {
         else dom = null;
         if ("YEARLY".equals(frequency)) { if (moy == null) moy = 1; if (moy < 1 || moy > 12) throw new IllegalArgumentException("Select a valid month"); }
         else moy = null;
-        String format = normalize(request.format()).replace("+", "_"); if ("PDF_XLSX".equals(format) || "PDF__XLSX".equals(format)) format = "PDF_XLSX";
+        String format = canonicalToken(request.format());
         if (!FORMATS.contains(format)) throw new IllegalArgumentException("Unsupported output format");
-        String delivery = normalize(request.delivery()).replace("+", "_"); if ("EMAIL_ARCHIVE".equals(delivery) || "EMAIL__ARCHIVE".equals(delivery)) delivery = "EMAIL_ARCHIVE";
+        String delivery = canonicalToken(request.delivery());
         if (!DELIVERIES.contains(delivery)) throw new IllegalArgumentException("Unsupported delivery mode");
         String recipients = safe(request.recipients()).trim();
         if (delivery.contains("EMAIL")) {
@@ -531,6 +531,7 @@ public class ReportScheduleService {
     private static Instant parseInstant(String value) { try { return value == null || value.isBlank() ? null : BusinessClock.parseTimestamp(value); } catch (Exception e) { return null; } }
     private static String instantText(ZonedDateTime value) { return DateTimeFormatter.ISO_INSTANT.format(value.toInstant()); }
     private static String normalize(String value) { return safe(value).trim().toUpperCase(Locale.ROOT).replace(' ', '_'); }
+    private static String canonicalToken(String value) { return normalize(value).replaceAll("[^A-Z0-9]+", "_").replaceAll("_+", "_").replaceAll("^_|_$", ""); }
     private static String normalizeAll(String value) { String v = safe(value).trim(); return v.toUpperCase(Locale.ROOT).startsWith("ALL ") || "ALL".equalsIgnoreCase(v) ? "" : v; }
     private static String displayFormat(String value) { return "PDF_XLSX".equals(value) ? "PDF + XLSX" : value; }
     private static String displayDelivery(String value) { return "EMAIL_ARCHIVE".equals(value) ? "Email + Archive" : titleCase(value); }

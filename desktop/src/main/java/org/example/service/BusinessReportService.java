@@ -79,6 +79,40 @@ public final class BusinessReportService {
         }
     }
 
+
+    public void exportCsv(Path file, LocalDate from, LocalDate to) throws IOException {
+        ReportData data = load(from, to);
+        try (var out = Files.newBufferedWriter(file)) {
+            out.write("Section,Name,Count,Amount,Available,Minimum,Unit");
+            out.newLine();
+            out.write("Summary,Sales,," + csvValue(data.salesTotal) + ",,,"); out.newLine();
+            out.write("Summary,Purchases,," + csvValue(data.purchaseTotal) + ",,,"); out.newLine();
+            out.write("Summary,Inventory Value,," + csvValue(data.stockValue) + ",,,"); out.newLine();
+            for (Object[] row : data.salesByCustomer) {
+                out.write("Sales by Customer," + csvText(value(row,0)) + "," + csvText(value(row,1)) + "," + csvText(value(row,2)) + ",,,");
+                out.newLine();
+            }
+            for (Object[] row : data.purchasesBySupplier) {
+                out.write("Purchases by Supplier," + csvText(value(row,0)) + "," + csvText(value(row,1)) + "," + csvText(value(row,2)) + ",,,");
+                out.newLine();
+            }
+            for (Object[] row : data.lowStock) {
+                out.write("Low Stock," + csvText(value(row,0)) + ",,," + csvText(value(row,1)) + "," + csvText(value(row,2)) + "," + csvText(value(row,3)));
+                out.newLine();
+            }
+        }
+    }
+
+    private static String value(Object[] row, int index) {
+        return row != null && index >= 0 && index < row.length && row[index] != null ? String.valueOf(row[index]) : "";
+    }
+
+    private static String csvValue(double value) { return String.format(java.util.Locale.ROOT, "%.2f", value); }
+    private static String csvText(String value) {
+        String s = value == null ? "" : value;
+        return (s.contains(",") || s.contains("\"") || s.contains("\n")) ? "\"" + s.replace("\"", "\"\"") + "\"" : s;
+    }
+
     private ReportData load(LocalDate from, LocalDate to) {
         SupportApiClient.ReportSummary r = new SupportApiClient().businessReport(from.toString(), to.toString());
         return new ReportData(r.salesTotal(), r.purchaseTotal(), r.stockValue(),

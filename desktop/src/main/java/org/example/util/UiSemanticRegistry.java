@@ -8,7 +8,7 @@ import java.util.Properties;
 /**
  * Canonical Phase 3 semantic presentation registry.
  *
- * <p>The reviewed 9.0.41 FXML inventory is exact-mapped in
+ * <p>The reviewed 9.0.42 FXML inventory is exact-mapped in
  * {@code /ui/semantic-registry.properties}.  Runtime controls therefore share
  * one business vocabulary for field captions, TableView headers and KPI cards.
  * The registry owns icon identity and colour family; controllers continue to
