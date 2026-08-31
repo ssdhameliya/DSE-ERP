@@ -54,7 +54,7 @@
     "server/src/main/resources/db/migration/V9_0_4__bank_reconciliation_rounding.sql": "bd2cf06f82f80c2ff40e5e3ff2dda44466b2a197b2fda1a38c21789ea28a43d7",
     "server/src/main/resources/db/migration/V9_0_6__business_integrity_hardening.sql": "fbd8ceeb753e1eb2fe78f05b447bca889181cca4b1b289bf06b42b567c1594ba",
     "server/src/main/resources/db/migration/V9_0_9__corrective_integrity_hardening.sql": "84ee7b3139a363a42899be1520cce0002fb30dbf0f24a4da020ebabfe2358ae3",
-    "server/src/main/resources/schema.sql": "181fa8bf40d55b5f897092c9d90fd9ec860774a418d0d3dead7fbaee7b3a7259"
+    "server/src/main/resources/schema.sql": "479c4665ae268ca613e6b4f9db3a5fe3dec0170c10139f29ae50a81f8a0984ed"
   },
   "dialog_behavior": {
     "desktop/src/main/java/org/example/api/runtime/RuntimeConnectionState.java": {

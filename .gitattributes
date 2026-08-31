@@ -5,3 +5,4 @@
 *.fxml text eol=lf
 *.css text eol=lf
 *.java text eol=lf
+*.sql text eol=lf
