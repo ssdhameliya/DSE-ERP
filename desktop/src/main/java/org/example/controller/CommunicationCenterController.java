@@ -83,45 +83,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
             .toList());
     }
 
-    private void configureDataCellIcons() {
-        colTime.setCellFactory(c -> semanticTextCell(value -> "calendar"));
-        colEntity.setCellFactory(c -> semanticTextCell(value -> {
-            String v = value == null ? "" : value.toUpperCase(Locale.ROOT);
-            if (v.startsWith("SAL-")) return "sale";
-            if (v.startsWith("QT-")) return "quotation";
-            if (v.startsWith("PUR-") || v.startsWith("PO-")) return "purchase";
-            return "document";
-        }));
-        colChannel.setCellFactory(c -> semanticTextCell(value ->
-            "WHATSAPP".equalsIgnoreCase(value) ? "whatsapp" : "email"));
-        colRecipient.setCellFactory(c -> semanticTextCell(value -> "customer"));
-        colSubject.setCellFactory(c -> semanticTextCell(value -> "document"));
-        colStatus.setCellFactory(c -> semanticTextCell(value -> {
-            String v = value == null ? "" : value.toUpperCase(Locale.ROOT);
-            return v.contains("SENT") || v.contains("SUCCESS") ? "complete" : "error";
-        }));
-        colError.setCellFactory(c -> semanticTextCell(value ->
-            value == null || value.isBlank() ? "status" : "warning"));
-        colUser.setCellFactory(c -> semanticTextCell(value -> "user"));
-    }
 
-    private TableCell<Row, String> semanticTextCell(java.util.function.Function<String, String> semantic) {
-        return new TableCell<>() {
-            @Override protected void updateItem(String value, boolean empty) {
-                super.updateItem(value, empty);
-                if (empty || value == null || value.isBlank()) {
-                    setText(null);
-                    setGraphic(null);
-                    return;
-                }
-                setText(value);
-                setGraphic(IconFactory.compactIcon(semantic.apply(value), 13));
-                setContentDisplay(ContentDisplay.LEFT);
-                setGraphicTextGap(7);
-                setAlignment(Pos.CENTER_LEFT);
-            }
-        };
-    }
 
     private void configureActions(){
         if(colActions==null)return;

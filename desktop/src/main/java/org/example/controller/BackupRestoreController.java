@@ -681,19 +681,6 @@ public class BackupRestoreController {
         return Character.toUpperCase(lower.charAt(0)) + lower.substring(1);
     }
 
-    private void markStatus(Path path, String status) {
-        for (int index = 0; index < backupRows.size(); index++) {
-            BackupRow row = backupRows.get(index);
-            if (row.path().equals(path)) {
-                BackupRow updated = new BackupRow(
-                        row.path(), row.name(), row.created(), row.size(), status, row.source()
-                );
-                backupRows.set(index, updated);
-                backupTable.getSelectionModel().select(updated);
-                break;
-            }
-        }
-    }
 
     private void selectPath(Path path) {
         backupRows.stream()

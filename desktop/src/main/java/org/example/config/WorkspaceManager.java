@@ -175,29 +175,8 @@ public final class WorkspaceManager {
         });
     }
 
-    private static Path detectExistingWorkspace() {
-        Path platform = POINTER_FOLDER;
-        if (containsExistingConfig(platform)) return platform;
-        Path hidden = Path.of(System.getProperty("user.home"), ".dse-erp").toAbsolutePath().normalize();
-        if (containsExistingConfig(hidden)) return hidden;
-        return null;
-    }
 
-    private static boolean containsExistingConfig(Path folder) {
-        return Files.isDirectory(folder) && (
-                Files.isRegularFile(folder.resolve("config.properties"))
-                        || Files.isRegularFile(folder.resolve("Config").resolve("config.properties"))
-        );
-    }
 
-    private static void organizeExistingConfig(Path root) throws IOException {
-        ensureStructure(root);
-        Path oldConfig = root.resolve("config.properties");
-        Path newConfig = root.resolve("Config").resolve("config.properties");
-        if (Files.isRegularFile(oldConfig) && !Files.exists(newConfig)) {
-            Files.move(oldConfig, newConfig, StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
 
     private static Properties readProperties(Path file) throws IOException {
         Properties properties = new Properties();

@@ -99,14 +99,6 @@ public final class PlatformUiSupport {
         }));
     }
 
-    private static void centreOverOwner(Stage stage, Window owner) {
-        if (owner == null || !owner.isShowing()) {
-            stage.centerOnScreen();
-            return;
-        }
-        stage.setX(owner.getX() + Math.max(0, (owner.getWidth() - stage.getWidth()) / 2));
-        stage.setY(owner.getY() + Math.max(0, (owner.getHeight() - stage.getHeight()) / 2));
-    }
 
     private static void setVisibleManaged(Node node, boolean visible) {
         if (node == null) return;

@@ -1479,8 +1479,6 @@ public class SalesController {
 
     private double number(TextField field){try{return field==null||field.getText()==null||field.getText().isBlank()?0:Double.parseDouble(field.getText().replace(",",""));}catch(Exception e){return 0;}}
 
-    @FXML private void addMultipleItems(){new OwnedAlert(Alert.AlertType.INFORMATION,"Select an item, enter quantity/rate/tax and click Add Item. Repeat for each required item.").showAndWait();}
-    @FXML private void scanBarcode(){TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Scan or enter item code");d.showAndWait().ifPresent(code->{String value=code.trim();if(value.isBlank())return;UiTaskExecutor.submitLatest("create-sale-barcode-search",()->itemService.search(value,12),matches->matches.stream().filter(i->safeItem(i.getItemCode()).equalsIgnoreCase(value)).findFirst().ifPresentOrElse(i->{mergeItemCache(List.of(i));selectItem(i);},()->warn("Item code not found")),error->warn("Item search failed: "+rootMessage(error)));});}
 
     @FXML private void attachFile(){
         if (viewMode) return;

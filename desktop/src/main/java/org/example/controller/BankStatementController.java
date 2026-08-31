@@ -757,25 +757,6 @@ public class BankStatementController implements ScreenLifecycle {
             this::error
         );
     }
-    private void showCandidatePicker(Row row,List<BankStatementApiClient.CandidateDto> cs){
-        Label title=new Label("Find a Sale / Purchase / Return refund transaction"); title.getStyleClass().add("bank-dialog-title");
-        Label bank=new Label(row.dto.transactionDate()+"  •  "+safe(row.dto.reference())+"  •  "+safe(row.dto.description())); bank.setWrapText(true);
-        Label amount=new Label((row.dto.credit()>0?"Bank Credit: ":"Bank Debit: ")+money(bankAmount(row.dto))); amount.getStyleClass().add("bank-dialog-amount");
-        VBox bankBox=new VBox(4,new Label("BANK TRANSACTION"),bank,amount); bankBox.getStyleClass().add("bank-dialog-section");
-
-        ListView<BankStatementApiClient.CandidateDto> list=new ListView<>(FXCollections.observableArrayList(cs));
-        list.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE); list.setPrefSize(760,310);
-        list.setCellFactory(v->new ListCell<>(){@Override protected void updateItem(BankStatementApiClient.CandidateDto c,boolean empty){super.updateItem(c,empty);if(empty||c==null){setGraphic(null);setText(null);return;}
-            Label doc=new Label(c.type()+"  •  "+c.documentNo()+"  •  "+c.partyName()); doc.getStyleClass().add("bank-candidate-title");
-            Label detail=new Label("Date: "+safe(c.documentDate())+"   Outstanding: "+money(c.outstanding())+"   Confidence: "+String.format(Locale.ENGLISH,"%.0f%%",c.confidence()));
-            detail.getStyleClass().add("bank-candidate-note");
-            VBox box=new VBox(2,doc,detail); box.setPadding(new Insets(5,7,5,7)); setGraphic(box); setText(null);}});
-        Label hint=new Label("Select one or more open transactions. DSE ERP will allocate the bank amount across your selected records when you confirm."); hint.setWrapText(true); hint.getStyleClass().add("bank-dialog-help");
-        VBox content=new VBox(10,title,bankBox,hint,list); content.setPadding(new Insets(4));
-        Dialog<ButtonType>d=new OwnedDialog<>(); d.setTitle("Match Transaction"); d.setHeaderText("Review possible matches or choose another transaction"); d.getDialogPane().setContent(content);
-        ButtonType confirm=new ButtonType("Confirm Selection",ButtonBar.ButtonData.OK_DONE); d.getDialogPane().getButtonTypes().addAll(confirm,ButtonType.CANCEL);
-        d.showAndWait().filter(x->x==confirm).ifPresent(x->{var selected=new ArrayList<>(list.getSelectionModel().getSelectedItems());if(selected.isEmpty()){info("Match Transaction","Select at least one eligible Sale, Purchase or Return refund transaction before continuing.");return;}confirm(row,selected);});
-    }
     private void confirm(Row row,List<BankStatementApiClient.CandidateDto> selected){
         double remaining=bankAmount(row.dto);List<BankStatementApiClient.AllocationRequest> alloc=new ArrayList<>();
         for(var c:selected){double suggested=Math.min(c.outstanding(),remaining);TextInputDialog d=new OwnedTextInputDialog(String.format(Locale.ROOT,"%.2f",suggested));d.setTitle("Allocate Payment");d.setHeaderText(c.documentNo()+" • "+c.partyName()+" • Outstanding "+money(c.outstanding()));d.setContentText("Allocation amount:");Optional<String>v=d.showAndWait();if(v.isEmpty())return;double amount=Double.parseDouble(v.get().replace(",","").trim());alloc.add(new BankStatementApiClient.AllocationRequest(c.type(),c.id(),amount));remaining-=amount;}
@@ -789,10 +770,6 @@ public class BankStatementController implements ScreenLifecycle {
     private void moveToExpense(Row row){
         BankExpenseController.requestExpensePrefill(new BankExpenseController.ExpensePrefill(row.dto.id(),row.dto.transactionDate(),row.dto.debit(),row.dto.reference(),row.dto.description(),batchAccountName(),"Bank Statement"));
         DashboardController.navigateFromChild("Expense Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.EXPENSE);
-    }
-    private void moveToBankEntry(Row row){
-        BankExpenseController.requestBankEntryPrefill(new BankExpenseController.BankEntryPrefill(row.dto.id(),row.dto.transactionDate(),row.dto.debit(),row.dto.credit(),row.dto.reference(),row.dto.description(),batchAccountName(),"Bank Statement"));
-        DashboardController.navigateFromChild("Bank Entry","/fxml/pages/BankExpense.fxml",BankExpenseController.Mode.BANK);
     }
     private String batchAccountName(){
         var batch=cmbBatch==null?null:cmbBatch.getValue();

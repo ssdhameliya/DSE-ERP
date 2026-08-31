@@ -1118,13 +1118,6 @@ public final class TaxInvoicePdfGenerator {
         }
     }
 
-    private static Image classpathImage(String resource) {
-        try (InputStream input = org.example.util.ResourceLocator.open(resource)) {
-            return input == null ? null : new Image(ImageDataFactory.create(input.readAllBytes()));
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
 
     private static Image configuredSignatureImage(String configuredPath) {
         if (configuredPath == null || configuredPath.isBlank()) return null;
@@ -1244,23 +1237,8 @@ public final class TaxInvoicePdfGenerator {
         return text.regionMatches(true, 0, "INR :", 0, 5) ? text.substring(5).trim() : text;
     }
 
-    private static String zeroAsDashPlain(double value) {
-        return Math.abs(value) < 0.0000001 ? "-" : money(value);
-    }
 
-    private static String stateFromAddress(String address) {
-        if (address == null || address.isBlank()) return "-";
-        String[] parts = address.split(",");
-        return parts.length < 2 ? address.trim() : parts[parts.length - 2].trim();
-    }
 
-    private static String yesNo(String value) {
-        if (value == null || value.isBlank()) return "No";
-        String text = value.trim();
-        if (text.equalsIgnoreCase("yes") || text.equalsIgnoreCase("y") || text.equalsIgnoreCase("true") || text.equals("1")) return "Yes";
-        if (text.equalsIgnoreCase("no") || text.equalsIgnoreCase("n") || text.equalsIgnoreCase("false") || text.equals("0")) return "No";
-        return text;
-    }
 
     private static String formatIndianPhone(String value) {
         if (value == null || value.isBlank()) return "";
@@ -1284,9 +1262,6 @@ public final class TaxInvoicePdfGenerator {
         return String.format(Locale.of("en", "IN"), "%,.2f", value);
     }
 
-    private static String zeroAsDash(double value) {
-        return Math.abs(value) < 0.0000001 ? "-" : "INR " + money(value);
-    }
 
     private static String number(double value) {
         if (Math.abs(value - Math.rint(value)) < 0.0000001) return String.format(Locale.ROOT, "%.0f", value);

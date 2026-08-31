@@ -70,6 +70,11 @@ public class PermissionMatrixController implements ScreenLifecycle {
         loadRoles();
     }
 
+    @Override
+    public void onScreenShown(boolean reusedFromCache) {
+        if (reusedFromCache) loadRoles();
+    }
+
     private void configureIcons() {
         if (btnBack != null) btnBack.setGraphic(IconFactory.compactIcon("previous", 16));
         if (btnApplyTemplate != null) btnApplyTemplate.setGraphic(IconFactory.compactIcon("permission", 16));

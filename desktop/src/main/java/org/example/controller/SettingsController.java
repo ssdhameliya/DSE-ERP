@@ -23,15 +23,11 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.ToggleButton;
-import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
@@ -94,6 +90,7 @@ public class SettingsController implements ScreenLifecycle {
     private final EnumMap<Action, ShortcutRegistry.Scope> shortcutDraftScopes = new EnumMap<>(Action.class);
     private Action selectedShortcutAction;
     private boolean shortcutUiLoading;
+    private String shortcutCategoryFilter = "Application Actions";
 
     public static void requestSection(Section section) {
         requestedSection = section == null ? Section.COMPANY : section;
@@ -337,15 +334,9 @@ public class SettingsController implements ScreenLifecycle {
        KEYBOARD SHORTCUTS
        ========================================================= */
     @FXML private VBox panelShortcuts;
-    @FXML private GridPane shortcutCards;
-    @FXML private StackPane shortcutWorkspaceStack;
-    @FXML private VBox shortcutListPanel;
     @FXML private ListView<Action> lstShortcutActions;
-    @FXML private Label lblShortcutListTitle;
-    @FXML private Label lblShortcutListSubtitle;
     @FXML private TextField txtShortcutSearch;
     @FXML private TextField txtShortcutKeys;
-    @FXML private ComboBox<String> cmbShortcutCategory;
     @FXML private ComboBox<String> cmbShortcutScope;
     @FXML private ComboBox<Action> cmbShortcutAction;
     @FXML private TextArea txtShortcutDescription;
@@ -354,6 +345,9 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private CheckBox chkShortcutRequireSelection;
     @FXML private VBox shortcutDrawer;
     @FXML private VBox shortcutConflictBox;
+    @FXML private Button btnShortcutApplication;
+    @FXML private Button btnShortcutQuickCreate;
+    @FXML private Button btnShortcutNavigation;
     @FXML private StackPane shortcutHeaderIcon;
     @FXML private StackPane shortcutDrawerIcon;
     @FXML private StackPane shortcutKpiTotalIcon;
@@ -1045,7 +1039,7 @@ private record AssetPreviewRequest(
     }
 
     private void initializeShortcutSettings() {
-        if (shortcutCards == null || txtShortcutSearch == null || cmbShortcutCategory == null) return;
+        if (panelShortcuts == null || txtShortcutSearch == null || lstShortcutActions == null || cmbShortcutAction == null) return;
 
         shortcutDraftValues.clear();
         shortcutDraftScopes.clear();
@@ -1058,23 +1052,25 @@ private record AssetPreviewRequest(
         configureShortcutActionConverter();
         configureShortcutList();
 
-        List<String> categories = SettingsShortcutSupport.categories();
         shortcutUiLoading = true;
-        cmbShortcutCategory.setItems(FXCollections.observableArrayList(categories));
-        if (cmbShortcutCategory.getSelectionModel().getSelectedIndex() < 0) cmbShortcutCategory.getSelectionModel().selectFirst();
         cmbShortcutAction.setItems(FXCollections.observableArrayList(SettingsShortcutSupport.managerActions()));
         cmbShortcutScope.setItems(FXCollections.observableArrayList(
                 java.util.Arrays.stream(ShortcutRegistry.Scope.values()).map(ShortcutRegistry.Scope::label).toList()));
         shortcutUiLoading = false;
 
-        if (!Boolean.TRUE.equals(panelShortcuts.getProperties().get("dse.shortcut-v3.listeners"))) {
-            panelShortcuts.getProperties().put("dse.shortcut-v3.listeners", Boolean.TRUE);
+        if (!Boolean.TRUE.equals(panelShortcuts.getProperties().get("dse.shortcut-manager.listeners"))) {
+            panelShortcuts.getProperties().put("dse.shortcut-manager.listeners", Boolean.TRUE);
             txtShortcutSearch.textProperty().addListener((obs, oldValue, value) -> refreshShortcutWorkspace());
-            cmbShortcutCategory.valueProperty().addListener((obs, oldValue, value) -> {
-                if (!shortcutUiLoading) refreshShortcutWorkspace();
+            lstShortcutActions.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, value) -> {
+                if (!shortcutUiLoading && value != null && value != selectedShortcutAction) openShortcutEditor(value);
             });
             cmbShortcutAction.valueProperty().addListener((obs, oldValue, value) -> {
-                if (!shortcutUiLoading && value != null) openShortcutEditor(value);
+                if (!shortcutUiLoading && value != null && value != selectedShortcutAction) {
+                    shortcutCategoryFilter = SettingsShortcutSupport.category(value);
+                    refreshShortcutCategoryButtons();
+                    openShortcutEditor(value);
+                    refreshShortcutWorkspace();
+                }
             });
             cmbShortcutScope.valueProperty().addListener((obs, oldValue, value) -> {
                 if (!shortcutUiLoading && selectedShortcutAction != null) {
@@ -1092,11 +1088,15 @@ private record AssetPreviewRequest(
             txtShortcutKeys.setOnKeyPressed(this::captureShortcutDraft);
         }
 
-        if (selectedShortcutAction == null || !ShortcutRegistry.permitted(selectedShortcutAction)) {
-            selectedShortcutAction = SettingsShortcutSupport.managerActions().stream().findFirst().orElse(Action.SAVE_CURRENT);
+        if (selectedShortcutAction == null || !SettingsShortcutSupport.managerActions().contains(selectedShortcutAction)) {
+            selectedShortcutAction = SettingsShortcutSupport.managerActions().stream()
+                    .filter(action -> "Application Actions".equals(SettingsShortcutSupport.category(action)))
+                    .findFirst().orElse(SettingsShortcutSupport.managerActions().stream().findFirst().orElse(Action.SAVE_CURRENT));
         }
+        shortcutCategoryFilter = SettingsShortcutSupport.category(selectedShortcutAction);
+        refreshShortcutCategoryButtons();
         refreshShortcutWorkspace();
-        closeShortcutDrawer();
+        openShortcutEditor(selectedShortcutAction);
     }
 
     private void installShortcutIcons() {
@@ -1119,7 +1119,7 @@ private record AssetPreviewRequest(
         if (cmbShortcutAction == null || cmbShortcutAction.getConverter() != null) return;
         cmbShortcutAction.setConverter(new javafx.util.StringConverter<>() {
             @Override public String toString(Action action) {
-                return action == null ? "" : SettingsShortcutSupport.category(action) + "  •  " + action.label();
+                return action == null ? "" : action.label();
             }
             @Override public Action fromString(String value) { return null; }
         });
@@ -1131,31 +1131,38 @@ private record AssetPreviewRequest(
             @Override protected void updateItem(Action action, boolean empty) {
                 super.updateItem(action, empty);
                 if (empty || action == null) { setText(null); setGraphic(null); return; }
+
+                StackPane iconBox = new StackPane();
+                iconBox.getStyleClass().add("shortcut-list-icon");
+                var icon = IconFactory.icon(SettingsShortcutSupport.categoryIcon(SettingsShortcutSupport.category(action)), 16);
+                icon.getProperties().put("erp-icon-preserve", true);
+                iconBox.getChildren().setAll(icon);
+
                 Label name = new Label(action.label());
-                name.getStyleClass().add("dse-shortcut-v3-list-name");
+                name.getStyleClass().add("shortcut-list-name");
                 Label category = new Label(SettingsShortcutSupport.category(action));
-                category.getStyleClass().add("dse-shortcut-v3-list-category");
+                category.getStyleClass().add("shortcut-list-category");
                 VBox labels = new VBox(2, name, category);
                 HBox.setHgrow(labels, javafx.scene.layout.Priority.ALWAYS);
-                Label scope = new Label(shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)).label());
-                scope.getStyleClass().add("dse-shortcut-v3-scope-badge");
-                Label key = new Label(SettingsShortcutSupport.display(shortcutDraftValues.get(action)));
-                key.getStyleClass().add("dse-shortcut-v3-key-badge");
-                ToggleButton enabled = shortcutToggle(action);
-                Button delete = new Button("Delete");
-                delete.getStyleClass().addAll("dse-shortcut-v3-button", "dse-shortcut-v3-list-delete");
-                delete.setOnAction(event -> deleteShortcutAssignment(action));
-                HBox row = new HBox(8, labels, scope, key, enabled, delete);
+
+                ShortcutRegistry.Scope configuredScope = shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action));
+                Label scope = new Label(configuredScope.label());
+                scope.getStyleClass().add("shortcut-scope-badge");
+                String raw = shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action));
+                Label key = new Label(SettingsShortcutSupport.display(raw));
+                key.getStyleClass().add("shortcut-key-badge");
+                Label status = new Label(raw == null || raw.isBlank() ? "UNASSIGNED" : "ACTIVE");
+                status.getStyleClass().addAll("shortcut-status", raw == null || raw.isBlank() ? "status-unassigned" : "status-active");
+
+                HBox row = new HBox(10, iconBox, labels, key, scope, status);
                 row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-                row.getStyleClass().add("dse-shortcut-v3-list-row");
-                setText(null); setGraphic(row);
+                row.getStyleClass().add("shortcut-list-row");
+                setText(null);
+                setGraphic(row);
             }
         });
-        lstShortcutActions.setOnMouseClicked(event -> {
-            Action selected = lstShortcutActions.getSelectionModel().getSelectedItem();
-            if (selected != null && event.getClickCount() >= 2) openShortcutEditor(selected);
-        });
     }
+
     private Map<Action,String> shortcutManagerDraft() {
         Map<Action,String> values = new LinkedHashMap<>();
         for (Action action : SettingsShortcutSupport.managerActions()) {
@@ -1171,121 +1178,69 @@ private record AssetPreviewRequest(
         }
         return scopes;
     }
-    private void refreshShortcutWorkspace() {
-        if (shortcutCards == null) return;
-        refreshShortcutCards();
-        refreshShortcutKpis();
-        refreshShortcutValidation();
-    }
 
-    private void refreshShortcutCards() {
-        String categoryFilter = cmbShortcutCategory == null ? "All Categories" : cmbShortcutCategory.getValue();
-        String query = txtShortcutSearch == null || txtShortcutSearch.getText() == null
-                ? "" : txtShortcutSearch.getText().trim().toLowerCase(java.util.Locale.ROOT);
-
-        List<Action> filtered = new ArrayList<>();
-        for (Action action : SettingsShortcutSupport.managerActions()) {
-            String category = SettingsShortcutSupport.category(action);
-            if (categoryFilter != null && !categoryFilter.equals("All Categories") && !categoryFilter.equals(category)) continue;
-            if (!query.isBlank()) {
-                String haystack = (action.label() + " " + category + " " + SettingsShortcutSupport.display(shortcutDraftValues.get(action)) + " "
-                        + shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action)).label()).toLowerCase(java.util.Locale.ROOT);
-                if (!haystack.contains(query)) continue;
-            }
-            filtered.add(action);
-        }
-
-        // Search/category filtering uses the virtualized full-height list. Cards never expand.
-        if (!query.isBlank() || (categoryFilter != null && !categoryFilter.equals("All Categories"))) {
-            String title = !query.isBlank() ? "Search Results" : categoryFilter;
-            String subtitle = filtered.size() + (filtered.size() == 1 ? " shortcut" : " shortcuts")
-                    + (!query.isBlank() ? " matching ‘" + txtShortcutSearch.getText().trim() + "’" : "");
-            showShortcutList(filtered, title, subtitle);
-            return;
-        }
-
-        showShortcutOverview();
-        shortcutCards.getChildren().clear();
-        shortcutCards.getColumnConstraints().clear();
-        shortcutCards.getRowConstraints().clear();
-        for (int i = 0; i < 3; i++) {
-            ColumnConstraints column = new ColumnConstraints();
-            column.setPercentWidth(100.0/3.0); column.setFillWidth(true); column.setHgrow(javafx.scene.layout.Priority.ALWAYS);
-            shortcutCards.getColumnConstraints().add(column);
-        }
-        RowConstraints rowConstraint=new RowConstraints();rowConstraint.setVgrow(javafx.scene.layout.Priority.ALWAYS);rowConstraint.setFillHeight(true);shortcutCards.getRowConstraints().add(rowConstraint);
-
-        Map<String,List<Action>> grouped = new LinkedHashMap<>();
-        for (Action action : SettingsShortcutSupport.managerActions())
-            grouped.computeIfAbsent(SettingsShortcutSupport.category(action), ignored -> new ArrayList<>()).add(action);
-
-        int cardIndex = 0;
-        for (Map.Entry<String,List<Action>> entry : grouped.entrySet()) {
-            VBox card = buildShortcutCategoryCard(entry.getKey(), entry.getValue());
-            int column = cardIndex % 3; int row = cardIndex / 3;
-            GridPane.setHgrow(card, javafx.scene.layout.Priority.ALWAYS);GridPane.setVgrow(card, javafx.scene.layout.Priority.ALWAYS);
-            shortcutCards.add(card, column, row); cardIndex++;
-        }
-    }
-
-    private void showShortcutOverview() {
-        if (shortcutCards != null) { shortcutCards.setVisible(true); shortcutCards.setManaged(true); }
-        if (shortcutListPanel != null) { shortcutListPanel.setVisible(false); shortcutListPanel.setManaged(false); }
-    }
-
-    private void showShortcutList(List<Action> actions, String title, String subtitle) {
-        if (shortcutCards != null) { shortcutCards.setVisible(false); shortcutCards.setManaged(false); }
-        if (shortcutListPanel != null) { shortcutListPanel.setVisible(true); shortcutListPanel.setManaged(true); }
-        if (lblShortcutListTitle != null) lblShortcutListTitle.setText(title == null ? "Shortcuts" : title);
-        if (lblShortcutListSubtitle != null) lblShortcutListSubtitle.setText(subtitle == null ? "" : subtitle);
-        if (lstShortcutActions != null) lstShortcutActions.setItems(FXCollections.observableArrayList(actions));
+    @FXML
+    private void showShortcutApplicationActions() {
+        setShortcutCategoryFilter("Application Actions");
     }
 
     @FXML
-    private void showShortcutOverviewFromList() {
-        shortcutUiLoading = true;
-        if (txtShortcutSearch != null) txtShortcutSearch.clear();
-        if (cmbShortcutCategory != null) cmbShortcutCategory.getSelectionModel().select("All Categories");
-        shortcutUiLoading = false;
+    private void showShortcutQuickCreate() {
+        setShortcutCategoryFilter("Quick Create");
+    }
+
+    @FXML
+    private void showShortcutNavigation() {
+        setShortcutCategoryFilter("Navigation");
+    }
+
+    private void setShortcutCategoryFilter(String category) {
+        shortcutCategoryFilter = category;
+        refreshShortcutCategoryButtons();
         refreshShortcutWorkspace();
     }
 
-    private VBox buildShortcutCategoryCard(String category, List<Action> actions) {
-        String accent = SettingsShortcutSupport.categoryAccent(category);
-        VBox card = new VBox(7);
-        card.getStyleClass().addAll("dse-shortcut-v3-card", "dse-shortcut-v3-card-" + accent);
-        card.setMaxWidth(Double.MAX_VALUE);card.setMaxHeight(Double.MAX_VALUE);
-
-        StackPane iconBox = new StackPane();
-        iconBox.getStyleClass().addAll("dse-shortcut-v3-card-icon", "dse-shortcut-v3-accent-" + accent);
-        setShortcutIcon(iconBox, SettingsShortcutSupport.categoryIcon(category), 15);
-        Label title = new Label(category); title.getStyleClass().add("dse-shortcut-v3-card-title");
-        Label count = new Label(Integer.toString(actions.size())); count.getStyleClass().addAll("dse-shortcut-v3-card-count", "dse-shortcut-v3-accent-" + accent);
-        HBox spacer = new HBox(); HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
-        Button add = new Button("+ Add"); add.getStyleClass().addAll("dse-shortcut-v3-card-add", "dse-shortcut-v3-text-" + accent);
-        add.setOnAction(event -> addShortcut(category));
-        HBox header = new HBox(7, iconBox, title, count, spacer, add); header.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        card.getChildren().add(header);
-
-        VBox rows=new VBox(5);rows.setFillWidth(true);
-        for(Action action:actions)rows.getChildren().add(buildShortcutRow(action,accent));
-        ScrollPane scroll=new ScrollPane(rows);scroll.setFitToWidth(true);scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);scroll.getStyleClass().add("dse-shortcut-v3-card-scroll");
-        VBox.setVgrow(scroll,javafx.scene.layout.Priority.ALWAYS);card.getChildren().add(scroll);
-        return card;
+    private void refreshShortcutCategoryButtons() {
+        updateShortcutCategoryButton(btnShortcutApplication, "Application Actions".equals(shortcutCategoryFilter));
+        updateShortcutCategoryButton(btnShortcutQuickCreate, "Quick Create".equals(shortcutCategoryFilter));
+        updateShortcutCategoryButton(btnShortcutNavigation, "Navigation".equals(shortcutCategoryFilter));
     }
 
-    private HBox buildShortcutRow(Action action, String accent) {
-        Label name = new Label(action.label()); name.setMaxWidth(Double.MAX_VALUE);
-        name.getStyleClass().add("dse-shortcut-v3-action-name"); HBox.setHgrow(name, javafx.scene.layout.Priority.ALWAYS);
-        Label key = new Label(SettingsShortcutSupport.display(shortcutDraftValues.get(action))); key.getStyleClass().add("dse-shortcut-v3-key-badge");
-        ToggleButton enabled = shortcutToggle(action);
-        Button delete = new Button("×"); delete.setTooltip(new Tooltip("Delete shortcut assignment")); delete.getStyleClass().addAll("dse-shortcut-v3-more", "dse-shortcut-v3-row-delete");
-        delete.setOnAction(event -> deleteShortcutAssignment(action));
-        delete.setOnMouseClicked(event -> event.consume());
-        HBox row = new HBox(5, name, key, enabled, delete); row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        row.getStyleClass().add("dse-shortcut-v3-action-row");
-        row.setOnMouseClicked(event -> { if (!(event.getTarget() instanceof ToggleButton) && !(event.getTarget() instanceof Button)) openShortcutEditor(action); });
-        return row;
+    private void updateShortcutCategoryButton(Button button, boolean selected) {
+        if (button == null) return;
+        button.getStyleClass().remove("shortcut-group-selected");
+        if (selected) button.getStyleClass().add("shortcut-group-selected");
+    }
+
+    private void refreshShortcutWorkspace() {
+        if (lstShortcutActions == null) return;
+        String query = txtShortcutSearch == null || txtShortcutSearch.getText() == null
+                ? "" : txtShortcutSearch.getText().trim().toLowerCase(java.util.Locale.ROOT);
+
+        List<Action> filtered = SettingsShortcutSupport.managerActions().stream()
+                .filter(action -> shortcutCategoryFilter.equals(SettingsShortcutSupport.category(action)))
+                .filter(action -> {
+                    if (query.isBlank()) return true;
+                    String raw = shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action));
+                    ShortcutRegistry.Scope scope = shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action));
+                    String haystack = (action.label() + " " + SettingsShortcutSupport.category(action) + " "
+                            + SettingsShortcutSupport.display(raw) + " " + scope.label()).toLowerCase(java.util.Locale.ROOT);
+                    return haystack.contains(query);
+                }).toList();
+
+        shortcutUiLoading = true;
+        lstShortcutActions.setItems(FXCollections.observableArrayList(filtered));
+        if (selectedShortcutAction != null && filtered.contains(selectedShortcutAction)) {
+            lstShortcutActions.getSelectionModel().select(selectedShortcutAction);
+        } else if (!filtered.isEmpty()) {
+            selectedShortcutAction = filtered.getFirst();
+            lstShortcutActions.getSelectionModel().selectFirst();
+        }
+        shortcutUiLoading = false;
+
+        refreshShortcutKpis();
+        refreshShortcutValidation();
+        if (selectedShortcutAction != null && filtered.contains(selectedShortcutAction)) openShortcutEditor(selectedShortcutAction);
     }
 
     private void refreshShortcutKpis() {
@@ -1299,27 +1254,9 @@ private record AssetPreviewRequest(
         }
         List<String> conflicts = SettingsShortcutSupport.validate(shortcutManagerDraft(), shortcutManagerScopeDraft());
         lblShortcutTotal.setText(Integer.toString(total));
-        lblShortcutCustom.setText(Integer.toString(custom));
-        lblShortcutConflicts.setText(Integer.toString(conflicts.size()));
-        lblShortcutCategories.setText(Integer.toString(SettingsShortcutSupport.categories().size() - 1));
-    }
-
-    @FXML
-    private void addShortcut() {
-        addShortcut(null);
-    }
-
-    private void addShortcut(String preferredCategory) {
-        List<Action> candidates = SettingsShortcutSupport.managerActions().stream()
-                .filter(action -> preferredCategory == null || preferredCategory.equals(SettingsShortcutSupport.category(action)))
-                .toList();
-        Action candidate = candidates.stream()
-                .filter(action -> shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)).isBlank())
-                .findFirst().orElse(candidates.stream().findFirst().orElse(Action.SAVE_CURRENT));
-        openShortcutEditor(candidate);
-        if (lblShortcutDrawerTitle != null) lblShortcutDrawerTitle.setText("Add Shortcut");
-        if (shortcutDrawer != null) { shortcutDrawer.setVisible(true); shortcutDrawer.setManaged(true); }
-        if (cmbShortcutAction != null) cmbShortcutAction.requestFocus();
+        if (lblShortcutCustom != null) lblShortcutCustom.setText(Integer.toString(custom));
+        if (lblShortcutConflicts != null) lblShortcutConflicts.setText(Integer.toString(conflicts.size()));
+        if (lblShortcutCategories != null) lblShortcutCategories.setText("3");
     }
 
     private void openShortcutEditor(Action action) {
@@ -1328,29 +1265,23 @@ private record AssetPreviewRequest(
         shortcutUiLoading = true;
         cmbShortcutAction.getSelectionModel().select(action);
         String raw = shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action));
-        txtShortcutKeys.setText(SettingsShortcutSupport.display(raw));
-        chkShortcutActive.setSelected(raw != null && !raw.isBlank());
+        if (txtShortcutKeys != null) txtShortcutKeys.setText(SettingsShortcutSupport.display(raw));
+        if (chkShortcutActive != null) chkShortcutActive.setSelected(raw != null && !raw.isBlank());
         ShortcutRegistry.Scope configuredScope = shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action));
         List<ShortcutRegistry.Scope> allowedScopes = SettingsShortcutSupport.scopesForAction(action);
-        cmbShortcutScope.setItems(FXCollections.observableArrayList(allowedScopes.stream().map(ShortcutRegistry.Scope::label).toList()));
-        if (!allowedScopes.contains(configuredScope)) configuredScope = action.scope();
-        cmbShortcutScope.getSelectionModel().select(configuredScope.label());
-        cmbShortcutScope.setDisable(allowedScopes.size() == 1);
-        txtShortcutDescription.setText(SettingsShortcutSupport.description(action));
+        if (cmbShortcutScope != null) {
+            cmbShortcutScope.setItems(FXCollections.observableArrayList(allowedScopes.stream().map(ShortcutRegistry.Scope::label).toList()));
+            if (!allowedScopes.contains(configuredScope)) configuredScope = action.scope();
+            cmbShortcutScope.getSelectionModel().select(configuredScope.label());
+            cmbShortcutScope.setDisable(allowedScopes.size() == 1);
+        }
+        if (txtShortcutDescription != null) txtShortcutDescription.setText(SettingsShortcutSupport.description(action));
         if (chkShortcutAllowTextInput != null) chkShortcutAllowTextInput.setSelected(ShortcutRegistry.allowInTextInput(action));
         if (chkShortcutRequireSelection != null) chkShortcutRequireSelection.setSelected(ShortcutRegistry.requireSelection(action));
-        lblShortcutDrawerTitle.setText("Edit Shortcut");
+        if (lblShortcutDrawerTitle != null) lblShortcutDrawerTitle.setText(action.label());
         if (lblShortcutScopeHint != null) lblShortcutScopeHint.setText(SettingsShortcutSupport.scopeHint(configuredScope));
         shortcutUiLoading = false;
-        if (shortcutDrawer != null) { shortcutDrawer.setVisible(true); shortcutDrawer.setManaged(true); }
         refreshSelectedShortcutConflict();
-    }
-
-    @FXML
-    private void closeShortcutDrawer() {
-        if (shortcutDrawer == null) return;
-        shortcutDrawer.setVisible(false);
-        shortcutDrawer.setManaged(false);
     }
 
     @FXML
@@ -1370,7 +1301,7 @@ private record AssetPreviewRequest(
         if ((event.getCode() == KeyCode.BACK_SPACE || event.getCode() == KeyCode.DELETE)
                 && !event.isControlDown() && !event.isMetaDown() && !event.isAltDown() && !event.isShiftDown()) {
             txtShortcutKeys.clear();
-            chkShortcutActive.setSelected(false);
+            if (chkShortcutActive != null) chkShortcutActive.setSelected(false);
             refreshSelectedShortcutConflict();
             event.consume();
             return;
@@ -1378,80 +1309,28 @@ private record AssetPreviewRequest(
         String captured = ShortcutRegistry.fromEvent(event);
         if (!captured.isBlank()) {
             txtShortcutKeys.setText(SettingsShortcutSupport.display(captured));
-            chkShortcutActive.setSelected(true);
+            if (chkShortcutActive != null) chkShortcutActive.setSelected(true);
             refreshSelectedShortcutConflict();
         }
         event.consume();
     }
 
-
-    private ToggleButton shortcutToggle(Action action) {
-        boolean active = !shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)).isBlank();
-        ToggleButton toggle = new ToggleButton("●");
-        toggle.setSelected(active);
-        toggle.setAlignment(active ? javafx.geometry.Pos.CENTER_RIGHT : javafx.geometry.Pos.CENTER_LEFT);
-        toggle.setTooltip(new Tooltip(active ? "Disable shortcut" : "Enable shortcut"));
-        toggle.getStyleClass().add("dse-shortcut-v3-toggle");
-        toggle.selectedProperty().addListener((obs, oldValue, enabled) -> {
-            toggle.setAlignment(enabled ? javafx.geometry.Pos.CENTER_RIGHT : javafx.geometry.Pos.CENTER_LEFT);
-            toggle.setTooltip(new Tooltip(enabled ? "Disable shortcut" : "Enable shortcut"));
-        });
-        toggle.setOnAction(event -> setShortcutEnabled(action, toggle.isSelected()));
-        toggle.setOnMouseClicked(event -> event.consume());
-        return toggle;
-    }
-
-    private void setShortcutEnabled(Action action, boolean enabled) {
-        if (action == null) return;
-        if (!enabled) { disableShortcut(action); return; }
-        String binding = shortcutDraftValues.getOrDefault(action, "");
-        if (enabled && binding.isBlank()) binding = action.defaultBinding();
-        shortcutDraftValues.put(action, binding);
-        ShortcutRegistry.Scope scope = shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action));
-        ShortcutRegistry.saveActions(Map.of(action, binding), Map.of(action, scope), List.of(action));
-        refreshShortcutWorkspace();
-        org.example.util.ToastManager.success(panelHost, enabled ? "Shortcut enabled" : "Shortcut disabled",
-                action.label() + (enabled ? " is enabled for this user." : " is disabled for this user."));
-    }
-
     @FXML
     private void disableSelectedShortcut() {
-        if (selectedShortcutAction != null) disableShortcut(selectedShortcutAction);
-    }
-
-    @FXML
-    private void deleteSelectedShortcut() {
-        if (selectedShortcutAction != null) deleteShortcutAssignment(selectedShortcutAction);
-    }
-
-    private void disableShortcut(Action action) {
-        if (action == null) return;
-        shortcutDraftValues.put(action, "");
-        ShortcutRegistry.saveActions(Map.of(action, ""),
-                Map.of(action, shortcutDraftScopes.getOrDefault(action, ShortcutRegistry.configuredScope(action))),
-                List.of(action));
+        if (selectedShortcutAction == null) return;
+        shortcutDraftValues.put(selectedShortcutAction, "");
+        ShortcutRegistry.Scope scope = shortcutDraftScopes.getOrDefault(selectedShortcutAction, ShortcutRegistry.configuredScope(selectedShortcutAction));
+        ShortcutRegistry.saveActions(Map.of(selectedShortcutAction, ""), Map.of(selectedShortcutAction, scope), List.of(selectedShortcutAction));
         refreshShortcutWorkspace();
-        if (selectedShortcutAction == action) openShortcutEditor(action);
-        org.example.util.ToastManager.success(panelHost, "Shortcut disabled", action.label() + " is disabled for this user.");
-    }
-
-    private void deleteShortcutAssignment(Action action) {
-        if (action == null) return;
-        shortcutDraftValues.put(action, "");
-        shortcutDraftScopes.put(action, action.scope());
-        ShortcutRegistry.saveActions(Map.of(action, ""), Map.of(action, action.scope()), List.of(action));
-        ShortcutRegistry.saveOptions(action, action.scope(), false,
-                action == Action.EDIT_CURRENT || action == Action.OPEN_SELECTED || action == Action.DELETE_SELECTED);
-        refreshShortcutWorkspace();
-        if (selectedShortcutAction == action) closeShortcutDrawer();
-        org.example.util.ToastManager.success(panelHost, "Shortcut removed", action.label() + " has no assigned key. You can add it again at any time.");
+        openShortcutEditor(selectedShortcutAction);
+        org.example.util.ToastManager.success(panelHost, "Shortcut disabled", selectedShortcutAction.label() + " is disabled for this user.");
     }
 
     @FXML
     private void resetSelectedShortcut() {
         if (selectedShortcutAction == null) return;
-        txtShortcutKeys.setText(SettingsShortcutSupport.display(selectedShortcutAction.defaultBinding()));
-        chkShortcutActive.setSelected(!selectedShortcutAction.defaultBinding().isBlank());
+        if (txtShortcutKeys != null) txtShortcutKeys.setText(SettingsShortcutSupport.display(selectedShortcutAction.defaultBinding()));
+        if (chkShortcutActive != null) chkShortcutActive.setSelected(!selectedShortcutAction.defaultBinding().isBlank());
         ShortcutRegistry.Scope defaultScope = selectedShortcutAction.scope();
         if (cmbShortcutScope != null) cmbShortcutScope.getSelectionModel().select(defaultScope.label());
         if (chkShortcutAllowTextInput != null) chkShortcutAllowTextInput.setSelected(false);
@@ -1483,6 +1362,7 @@ private record AssetPreviewRequest(
         ShortcutRegistry.saveOptions(selectedShortcutAction, selectedScope,
                 chkShortcutAllowTextInput != null && chkShortcutAllowTextInput.isSelected(),
                 chkShortcutRequireSelection != null && chkShortcutRequireSelection.isSelected());
+        ShortcutRegistry.refreshBoundLabels();
         refreshShortcutWorkspace();
         openShortcutEditor(selectedShortcutAction);
         org.example.util.ToastManager.success(panelHost, "Shortcut saved", selectedShortcutAction.label() + " shortcut updated.");
@@ -1499,23 +1379,17 @@ private record AssetPreviewRequest(
                 cmbShortcutScope == null ? null : cmbShortcutScope.getValue(), selectedShortcutAction.scope()));
         List<String> errors = SettingsShortcutSupport.validate(candidate, candidateScopes);
         String relevant = errors.stream()
-                .filter(error -> error.contains(selectedShortcutAction.label()) || (!raw.isBlank() && error.toLowerCase(java.util.Locale.ROOT).contains(SettingsShortcutSupport.display(raw).toLowerCase(java.util.Locale.ROOT))))
+                .filter(error -> error.contains(selectedShortcutAction.label()) || (!raw.isBlank() && error.toLowerCase(java.util.Locale.ROOT)
+                        .contains(SettingsShortcutSupport.display(raw).toLowerCase(java.util.Locale.ROOT))))
                 .findFirst().orElse("");
         boolean conflict = !relevant.isBlank();
         lblShortcutConflict.setText(conflict ? relevant : "No conflicts for this shortcut.");
         if (shortcutConflictBox != null) {
-            shortcutConflictBox.getStyleClass().removeAll("dse-shortcut-v3-conflict-box-ok", "dse-shortcut-v3-conflict-box-warning");
-            shortcutConflictBox.getStyleClass().add(conflict ? "dse-shortcut-v3-conflict-box-warning" : "dse-shortcut-v3-conflict-box-ok");
+            shortcutConflictBox.getStyleClass().removeAll("shortcut-conflict-ok", "shortcut-conflict-warning");
+            shortcutConflictBox.getStyleClass().add(conflict ? "shortcut-conflict-warning" : "shortcut-conflict-ok");
         }
     }
 
-    private Map<Action, String> shortcutDraft() {
-        Map<Action,String> draft = new LinkedHashMap<>();
-        for (Action action : ShortcutRegistry.actions()) {
-            draft.put(action, shortcutDraftValues.getOrDefault(action, ShortcutRegistry.configuredBinding(action)));
-        }
-        return draft;
-    }
 
     private boolean validateShortcutSettings() {
         List<String> errors = SettingsShortcutSupport.validate(shortcutManagerDraft(), shortcutManagerScopeDraft());
@@ -1531,8 +1405,8 @@ private record AssetPreviewRequest(
         if (lblShortcutValidation == null) return;
         List<String> errors = SettingsShortcutSupport.validate(shortcutManagerDraft(), shortcutManagerScopeDraft());
         lblShortcutValidation.setText(errors.isEmpty() ? "No shortcut conflicts detected." : errors.getFirst());
-        lblShortcutValidation.getStyleClass().removeAll("dse-shortcut-v3-validation-ok", "dse-shortcut-v3-validation-warning");
-        lblShortcutValidation.getStyleClass().add(errors.isEmpty() ? "dse-shortcut-v3-validation-ok" : "dse-shortcut-v3-validation-warning");
+        lblShortcutValidation.getStyleClass().removeAll("shortcut-validation-ok", "shortcut-validation-warning");
+        lblShortcutValidation.getStyleClass().add(errors.isEmpty() ? "shortcut-validation-ok" : "shortcut-validation-warning");
     }
 
     private void saveShortcutSettings() {

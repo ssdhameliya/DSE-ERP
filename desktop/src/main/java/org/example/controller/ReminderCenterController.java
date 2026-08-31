@@ -262,7 +262,6 @@ public class ReminderCenterController implements ScreenLifecycle {
     @FXML private void addReminder() { openEditor(null); }
     @FXML private void editSelected() { edit(table.getSelectionModel().getSelectedItem()); }
     @FXML private void completeSelected() { complete(table.getSelectionModel().getSelectedItem()); }
-    @FXML private void snoozeSelected() { snooze(table.getSelectionModel().getSelectedItem()); }
 
     private void edit(ReminderRow row) {
         if (row != null) {

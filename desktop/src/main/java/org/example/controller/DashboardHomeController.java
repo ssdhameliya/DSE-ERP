@@ -70,6 +70,7 @@ public class DashboardHomeController implements ScreenLifecycle {
     public void initialize() {
         installKpiIcons();
         installQuickActionIcons();
+        bindShortcutLabels();
         installDashboardHeaderIcons();
         installColorfulDashboardLists();
         if (cmbPeriod != null) {
@@ -79,6 +80,17 @@ public class DashboardHomeController implements ScreenLifecycle {
         }
         ensureQuickActionsVisible();
         reload();
+    }
+
+
+    private void bindShortcutLabels() {
+        org.example.shortcut.ShortcutRegistry.bindLabel(quickSale, org.example.shortcut.ShortcutRegistry.Action.NEW_SALE, "New Sale");
+        org.example.shortcut.ShortcutRegistry.bindLabel(quickPurchase, org.example.shortcut.ShortcutRegistry.Action.NEW_PURCHASE, "Create Purchase");
+        org.example.shortcut.ShortcutRegistry.bindLabel(quickQuotation, org.example.shortcut.ShortcutRegistry.Action.NEW_QUOTATION, "New Quotation");
+        org.example.shortcut.ShortcutRegistry.bindLabel(quickCustomer, org.example.shortcut.ShortcutRegistry.Action.NEW_CUSTOMER, "New Customer");
+        org.example.shortcut.ShortcutRegistry.bindLabel(quickSupplier, org.example.shortcut.ShortcutRegistry.Action.NEW_SUPPLIER, "New Supplier");
+        org.example.shortcut.ShortcutRegistry.bindLabel(quickBank, org.example.shortcut.ShortcutRegistry.Action.BANK_ENTRY, "Bank Entry");
+        org.example.shortcut.ShortcutRegistry.bindLabel(quickExpense, org.example.shortcut.ShortcutRegistry.Action.EXPENSE_ENTRY, "Expense Entry");
     }
 
     /** Installs vector KPI symbols so no platform-dependent emoji can disappear. */
@@ -161,6 +173,7 @@ public class DashboardHomeController implements ScreenLifecycle {
     /** Cycles the shared dashboard reporting period and reloads all database widgets. */
 
     @Override public void onScreenShown(boolean reusedFromCache) {
+        bindShortcutLabels();
         if (reusedFromCache) reload();
     }
 
@@ -183,7 +196,6 @@ public class DashboardHomeController implements ScreenLifecycle {
     @FXML private void viewSalesInvoices() { openFromNode(lblOrders, "/fxml/pages/SalesList.fxml"); }
     @FXML private void viewPurchaseInvoices() { openFromNode(lblPurchases, "/fxml/pages/PurchaseList.fxml"); }
     @FXML private void viewReceivables() { openFromNode(agingList, "/fxml/pages/SalesList.fxml"); }
-    @FXML private void viewRecentInvoices() { openFromNode(recentTable, "/fxml/pages/SalesList.fxml"); }
     @FXML private void viewReminders() { openFromNode(activityList, "/fxml/pages/ReminderCenter.fxml"); }
 
     private void reload() {
@@ -344,7 +356,6 @@ public class DashboardHomeController implements ScreenLifecycle {
     @FXML private void addSupplier(ActionEvent event) { openPartyCreateDialog(event,"SUPPLIER","Add Supplier"); }
     @FXML private void bankEntry(ActionEvent event) { BankExpenseController.requestNewEntry(BankExpenseController.Mode.BANK); open(event, "/fxml/pages/BankExpense.fxml"); }
     @FXML private void expenseEntry(ActionEvent event) { BankExpenseController.requestNewEntry(BankExpenseController.Mode.EXPENSE); open(event, "/fxml/pages/BankExpense.fxml"); }
-    @FXML private void openItems(ActionEvent event) { open(event, "/fxml/pages/ItemMaster.fxml"); }
     @FXML private void openImport(ActionEvent event) { open(event, "/fxml/pages/Import.fxml"); }
 
     private Node actionOwner(ActionEvent event){return event!=null&&event.getSource() instanceof Node node?node:dashboardRoot;}

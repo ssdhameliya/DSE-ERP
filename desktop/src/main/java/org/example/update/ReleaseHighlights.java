@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.44".equals(version)) {
+            return """
+                    DSE ERP 9.0.44
+
+                    • Completes the Reporting and Shortcut Settings replacement rebuild while retaining the existing JavaFX/Spring/JPA/PostgreSQL architecture and exactly two runtime themes.
+                    • Keeps Role Master security identity on lookup_value, hides generated ROLxxx identifiers from the user-facing role code, and refreshes role-backed administration screens after Master changes.
+                    • Fixes self-registration role loading to use the active SALES role safely and migrates Item registration lookups to immutable Master category codes.
+                    • Removes confirmed orphan desktop screens/services and unreachable private methods while preserving shared API clients and active backend behavior.
+                    • Hardens the current GitHub CI/release contracts for Java 25, FXML, two-theme CSS, reporting, shortcuts, Master data and PostgreSQL integration.
+                    """;
+        }
         if ("9.0.42".equals(version)) {
             return """
                     DSE ERP 9.0.42

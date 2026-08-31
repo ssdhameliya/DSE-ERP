@@ -190,6 +190,7 @@ public class DashboardController {
     @FXML private Button btnWhatsappCenter;
     @FXML private Button btnShortcutInfo;
     @FXML private Button btnSidebarToggle;
+    @FXML private Button shellNewSale;
 
     @FXML
     private MenuButton menuUser;
@@ -223,6 +224,7 @@ public class DashboardController {
             if (lblSidebarUser != null) lblSidebarUser.setText(SessionService.current().getFullName());
         }
         configureProfileMenuIcons();
+        bindShortcutLabels();
         Platform.runLater(() -> {
             bindShellControls();
             if (contentPane != null && contentPane.getScene() != null)
@@ -234,6 +236,30 @@ public class DashboardController {
         notificationRefresh.setCycleCount(Timeline.INDEFINITE);
         notificationRefresh.play();
 
+    }
+
+
+    /** Keeps visible shell/navigation labels synchronized with the user shortcut registry. */
+    private void bindShortcutLabels() {
+        org.example.shortcut.ShortcutRegistry.bindLabel(shellNewSale, org.example.shortcut.ShortcutRegistry.Action.NEW_SALE, "New Sale");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnCreateSale, org.example.shortcut.ShortcutRegistry.Action.NEW_SALE, "Create Sale");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnCreatePurchase, org.example.shortcut.ShortcutRegistry.Action.NEW_PURCHASE, "Create Purchase");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnDashboard, org.example.shortcut.ShortcutRegistry.Action.DASHBOARD, "Dashboard");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnSalesRegister, org.example.shortcut.ShortcutRegistry.Action.SALES_REGISTER, "Sales Register");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnSalesReturn, org.example.shortcut.ShortcutRegistry.Action.SALES_RETURN, "Sales Return");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnQuotation, org.example.shortcut.ShortcutRegistry.Action.QUOTATION_REGISTER, "Quotation");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnPurchaseRegister, org.example.shortcut.ShortcutRegistry.Action.PURCHASE_REGISTER, "Purchase Register");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnPurchaseReturn, org.example.shortcut.ShortcutRegistry.Action.PURCHASE_RETURN, "Purchase Return");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnItem, org.example.shortcut.ShortcutRegistry.Action.ITEM_MASTER, "Item Master");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnInventory, org.example.shortcut.ShortcutRegistry.Action.INVENTORY, "Inventory");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnCustomer, org.example.shortcut.ShortcutRegistry.Action.CUSTOMERS, "Customers");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnSupplier, org.example.shortcut.ShortcutRegistry.Action.SUPPLIERS, "Suppliers");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnMasters, org.example.shortcut.ShortcutRegistry.Action.MASTERS, "Master Data");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnBankStatement, org.example.shortcut.ShortcutRegistry.Action.BANK_STATEMENT, "Bank Statement");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnBankEntry, org.example.shortcut.ShortcutRegistry.Action.BANK_ENTRY, "Bank Entry");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnExpenseEntry, org.example.shortcut.ShortcutRegistry.Action.EXPENSE_ENTRY, "Expense Entry");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnReminders, org.example.shortcut.ShortcutRegistry.Action.REMINDERS, "Reminder Center");
+        org.example.shortcut.ShortcutRegistry.bindLabel(btnUserAccess, org.example.shortcut.ShortcutRegistry.Action.USER_ACCESS, "User Access");
     }
 
     /** Reads all four shell counters off the JavaFX thread in one database round-trip. */
@@ -1150,60 +1176,18 @@ public class DashboardController {
     }
 
     /** Opens the selected result and preserves its document reference for detail screens. */
-    private void openSearchResult(SearchResult result) {
-        if (result.module().equals("Sales Invoice")) LinkedRecordContext.open("SALE",null,result.reference(),"VIEW","Global Search");
-        if (result.module().equals("Purchase Invoice")) LinkedRecordContext.open("PURCHASE",null,result.reference(),"VIEW","Global Search");
-        if (result.module().equals("Quotation")) LinkedRecordContext.open("QUOTATION",null,result.reference(),"VIEW","Global Search");
-        openPage(null, result.module(), result.targetFxml());
-    }
 
     /** Selects a semantic SVG icon for each search result module. */
-    private String iconForModule(String module) {
-        String value = module == null ? "" : module.toLowerCase(Locale.ROOT);
-        if (value.contains("sale")) return "sale";
-        if (value.contains("purchase")) return "purchase";
-        if (value.contains("customer")) return "customer";
-        if (value.contains("supplier")) return "supplier";
-        if (value.contains("payment")) return "payment";
-        if (value.contains("return")) return "return";
-        if (value.contains("quotation")) return "quotation";
-        if (value.contains("master")) return "master";
-        return "item";
-    }
 
     @FXML
     private void showNotifications() {
         openPage(null, "Notification Center", "/fxml/pages/NotificationCenter.fxml");
     }
 
-    private static String safeNotificationCategory(String category) {
-        return category == null || category.isBlank() || "GENERAL".equalsIgnoreCase(category) ? "System" : category;
-    }
 
-    private static String displayNotificationCategory(String category) {
-        String value = safeNotificationCategory(category).replace('_', ' ').toLowerCase(Locale.ROOT);
-        return Character.toUpperCase(value.charAt(0)) + value.substring(1);
-    }
 
-    private static String notificationSemantic(NotificationService.NotificationItem item) {
-        String severity = item.severity() == null ? "INFO" : item.severity().toUpperCase(Locale.ROOT);
-        if (List.of("ERROR", "CRITICAL", "FATAL").contains(severity)) return "error";
-        if ("WARN".equals(severity)) return "warning";
-        return switch (safeNotificationCategory(item.category()).toUpperCase(Locale.ROOT)) {
-            case "SALES" -> "sale"; case "PURCHASES" -> "purchase"; case "QUOTATIONS" -> "quotation";
-            case "PAYMENTS" -> "payment"; case "INVENTORY" -> "inventory"; case "SECURITY" -> "security";
-            case "BACKUP" -> "backup"; case "UPDATE" -> "refresh"; default -> "notification";
-        };
-    }
 
     /** Refreshes the red unread counter beside the header notification button. */
-    private void refreshNotificationBadge() {
-        if (lblNotificationBadge == null) return;
-        int count = NotificationService.unreadCount();
-        lblNotificationBadge.setText(count > 99 ? "99+" : Integer.toString(count));
-        lblNotificationBadge.setVisible(count > 0);
-        lblNotificationBadge.setManaged(count > 0);
-    }
 
     /** Refreshes the unread email-delivery activity badge in the application header. */
     private void refreshEmailBadge() {

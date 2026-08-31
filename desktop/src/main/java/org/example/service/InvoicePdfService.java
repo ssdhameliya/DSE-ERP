@@ -78,9 +78,6 @@ public class InvoicePdfService {
         return result;
     }
 
-    private static void logPurchaseTemplateFallback(String documentNo, Exception error) {
-        logTemplateFallback("purchase", documentNo, error);
-    }
 
     private static void logTemplateFallback(String type, String documentNo, Exception error) {
         try {

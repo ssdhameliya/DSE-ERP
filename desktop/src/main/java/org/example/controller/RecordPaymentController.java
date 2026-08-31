@@ -346,18 +346,8 @@ public class RecordPaymentController implements ScreenLifecycle {
         historyTable.setPlaceholder(new Label(rowCount == 0 ? "No payment records" : ""));
     }
 
-    @FXML private void clearHistoryFilter(){ historyModeFilter.setValue("All Modes"); historyFromDate.setValue(null); historyToDate.setValue(null); applyHistoryFilter(); }
     @FXML private void history(){ historySection.requestFocus(); historyTable.requestFocus(); if(!historyTable.getItems().isEmpty())historyTable.getSelectionModel().selectFirst(); }
 
-    @FXML private void exportHistory() {
-        FileChooser ch=new FileChooser(); ch.setInitialFileName("Payment_History_"+sale.getInvoiceNo()+".csv");
-        ch.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV File","*.csv"));
-        File out=ch.showSaveDialog(historyTable.getScene().getWindow()); if(out==null)return;
-        try(Writer w=new OutputStreamWriter(new FileOutputStream(out), StandardCharsets.UTF_8)){
-            w.write("Date,Reference,Received From,Mode,Amount,Status,Notes,Receipt\n");
-            for(PaymentRow r:historyTable.getItems()) w.write(csv(r.date())+","+csv(r.reference())+","+csv(r.from())+","+csv(r.mode())+","+r.amount()+","+csv(r.status())+","+csv(r.notes())+","+csv(r.receiptPath())+"\n");
-        }catch(IOException e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
-    }
 
     @FXML private void resetPayment(){ resetForm(); }
 
@@ -420,19 +410,9 @@ public class RecordPaymentController implements ScreenLifecycle {
         return AttachmentPreviewSupport.materialize(download,"payment-proof");
     }
 
-    @FXML private void downloadPdf(){ try{Path p=InvoicePdfService.sales(sale); Desktop.getDesktop().open(p.getParent().toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
     @FXML private void printInvoice(){ try{Desktop.getDesktop().print(InvoicePdfService.sales(sale).toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
     @FXML private void cancel(){ if(sale!=null)LinkedRecordContext.open("SALE",sale.getId(),sale.getInvoiceNo(),"VIEW","Record Payment"); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
 
-    @FXML private void sendReceipt() {
-        try {
-            PaymentRow row=latestPayment();
-            Path pdf=InvoicePdfService.sales(sale);
-            EmailService.send(sale.getCustomer().getEmail(),"Payment receipt - "+sale.getInvoiceNo(),
-                    "Thank you. We have recorded your payment of "+money(row.amount())+" for invoice "+sale.getInvoiceNo()+".",pdf);
-            org.example.util.ToastManager.success(amount,"Receipt sent","Receipt sent successfully.");
-        }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
-    }
 
     @FXML private void emailInvoice() {
         try {
@@ -441,17 +421,8 @@ public class RecordPaymentController implements ScreenLifecycle {
         }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }
 
-    @FXML private void whatsappReceipt() {
-        try {
-            PaymentRow row=latestPayment();
-            String message="Hello "+sale.getCustomer().getName()+", payment of "+money(row.amount())+" has been recorded for invoice "+sale.getInvoiceNo()+". Balance: "+money(sale.getBalanceAmount())+".";
-            WhatsappService.openWhatsappWithMessage(sale.getCustomer().getPhone().replaceAll("\\D",""),message,InvoicePdfService.sales(sale));
-        }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
-    }
 
-    @FXML private void downloadStatement(){ exportHistory(); }
 
-    private PaymentRow latestPayment(){ if(allPayments.isEmpty())throw new IllegalStateException("No payment has been recorded yet."); return allPayments.get(0); }
 
     private void refreshTimeline() {
         timelineCreated.setText("Invoice Created\n"+safeOr(sale.getCreatedAt(),formatDate(sale.getInvoiceDate()))+"\nAdmin");

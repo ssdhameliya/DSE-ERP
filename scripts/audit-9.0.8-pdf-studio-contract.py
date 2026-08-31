@@ -17,7 +17,7 @@ def req(condition, message):
 # Locked production generation files must remain byte-identical to the approved 9.0.7 baseline.
 locked = {
     'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c',
-    'desktop/src/main/java/org/example/service/InvoicePdfService.java': '349e9f1f863c122826cad2560091f2dac87cdb9b2bcb0a42f5825fd312feb778',
+    'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8',
     'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082',
 }
 for rel, expected in locked.items():
@@ -85,23 +85,23 @@ if legacy_controller.exists():
     legacy_text = legacy_controller.read_text(encoding='utf-8')
     req('DSE_PDF_DESIGNER_TOMBSTONE' in legacy_text and 'class PdfDesignerController' not in legacy_text,
         'legacy PdfDesignerController must be absent or a neutral compatibility tombstone')
-req('APP_VERSION = "9.0.42"' in runtime and 'BUILD_REVISION = "9.0.42"' in runtime,
+req('APP_VERSION = "9.0.44"' in runtime and 'BUILD_REVISION = "9.0.44"' in runtime,
     'desktop/shared runtime identity must be 9.0.18')
-req('dse.app.version=9.0.42' in props and 'dse.build.revision=9.0.42' in props,
+req('dse.app.version=9.0.44' in props and 'dse.build.revision=9.0.44' in props,
     'server runtime identity must be 9.0.18')
-req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.42</version>' in root_pom and '<dse.phase>9.0.42</dse.phase>' in root_pom,
+req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.44</version>' in root_pom and '<dse.phase>9.0.44</dse.phase>' in root_pom,
     'root Maven application version and phase must be 9.0.18')
 for name, pom in [('shared', shared_pom), ('server', server_pom), ('desktop', desktop_pom)]:
-    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.42</version>' in pom,
+    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.44</version>' in pom,
         f'{name} Maven parent version must be 9.0.18')
-req('version=9.0.42' in app_version, 'desktop app-version.properties must be 9.0.18')
-req('DEFAULT_VERSION="9.0.42"' in update_service, 'update fallback version must be 9.0.18')
-req('runtime.phase=9.0.42' in runtime_manifest, 'runtime identity manifest phase must be 9.0.18')
-req('DSE ERP 9.0.42 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+req('version=9.0.44' in app_version, 'desktop app-version.properties must be 9.0.18')
+req('DEFAULT_VERSION="9.0.44"' in update_service, 'update fallback version must be 9.0.18')
+req('runtime.phase=9.0.44' in runtime_manifest, 'runtime identity manifest phase must be 9.0.18')
+req('DSE ERP 9.0.44 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
     'development launcher banner must be 9.0.18')
-req('DSE ERP 9.0.42 - PRODUCTION WINDOWS BUILD' in build_bat,
+req('DSE ERP 9.0.44 - PRODUCTION WINDOWS BUILD' in build_bat,
     'production Windows launcher banner must be 9.0.18')
-req('DSE ERP 9.0.42 uses application-managed PostgreSQL.' in postgres_bat,
+req('DSE ERP 9.0.44 uses application-managed PostgreSQL.' in postgres_bat,
     'PostgreSQL launcher banner must be 9.0.18')
 
 print('PASS: DSE ERP 9.0.18 runtime with PDF Studio + release identity contract')

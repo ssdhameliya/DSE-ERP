@@ -10,6 +10,8 @@ import org.example.util.IconFactory;
 import org.example.util.OwnedAlert;
 import org.example.util.UiTaskExecutor;
 
+import java.util.Locale;
+
 public class LookupDialogController {
     @FXML private TextField txtCode, txtValue;
     @FXML private TextArea txtDescription;
@@ -23,6 +25,7 @@ public class LookupDialogController {
     private String lookupType;
     private Lookup editingLookup;
     private boolean saved;
+    private boolean roleMode;
 
     @FXML
     public void initialize() {
@@ -30,42 +33,54 @@ public class LookupDialogController {
         btnSave.setGraphic(IconFactory.icon("save"));
         btnCancel.setGraphic(IconFactory.icon("cancel"));
         headerIconHolder.getChildren().setAll(IconFactory.icon("master", 24));
-        txtValue.textProperty().addListener((o, a, b) -> clearError(txtValue, errValue));
+        txtValue.textProperty().addListener((o, a, b) -> {
+            clearError(txtValue, errValue);
+            if (roleMode && editingLookup == null) {
+                txtCode.setText(roleDisplayCode(b));
+                clearError(txtCode, errCode);
+            }
+        });
     }
 
     public void setLookupType(String type) {
         this.lookupType = type;
+        this.roleMode = isRoleType(type);
         txtCode.clear();
-        UiTaskExecutor.submitLatest(
-                "lookup-dialog-next-code-" + type,
-                () -> service.generateNextCode(type),
-                code -> { if (editingLookup == null && java.util.Objects.equals(this.lookupType, type)) txtCode.setText(code == null ? "" : code); },
-                failure -> showOperationError("Unable to generate master code", failure)
-        );
+        if (!roleMode) {
+            UiTaskExecutor.submitLatest(
+                    "lookup-dialog-next-code-" + type,
+                    () -> service.generateNextCode(type),
+                    code -> { if (editingLookup == null && java.util.Objects.equals(this.lookupType, type)) txtCode.setText(code == null ? "" : code); },
+                    failure -> showOperationError("Unable to generate master code", failure)
+            );
+        }
         lblTitle.setText("Add Master");
-        boolean role = "ROLE".equalsIgnoreCase(type == null ? "" : type.trim());
-        lblSubtitle.setText(role ? "Add an application role. The Role Name is the value used by Login, User Access and Permissions." : "Add a reusable value to " + type);
-        if (lblCodeLabel != null) lblCodeLabel.setText(role ? "Master ID" : "Code *");
-        if (lblValueLabel != null) lblValueLabel.setText(role ? "Role Name *" : "Value *");
-        if (lblCodeHint != null) lblCodeHint.setText(role ? "Technical ID only — not used for role validation" : "System-generated master identifier");
-        txtValue.setPromptText(role ? "Example: Purchase" : "Enter a meaningful value");
+        lblSubtitle.setText(roleMode ? "Add an application role. Role Name is the security identity used by Login, User Access and Permissions." : "Add a reusable value to " + type);
+        if (lblCodeLabel != null) lblCodeLabel.setText(roleMode ? "Role Code" : "Code *");
+        if (lblValueLabel != null) lblValueLabel.setText(roleMode ? "Role Name *" : "Value *");
+        if (lblCodeHint != null) lblCodeHint.setText(roleMode ? "Derived from Role Name; the internal master ID is hidden." : "System-generated master identifier");
+        txtCode.setEditable(!roleMode);
+        txtCode.setFocusTraversable(!roleMode);
+        txtValue.setPromptText(roleMode ? "Example: Purchase" : "Enter a meaningful value");
         btnSave.setText("Save Master");
     }
 
     public void setLookup(Lookup lookup) {
         this.editingLookup = lookup;
         this.lookupType = lookup.getLookupType();
-        txtCode.setText(lookup.getLookupCode());
+        this.roleMode = isRoleType(lookupType);
         txtValue.setText(lookup.getLookupValue());
+        txtCode.setText(roleMode ? roleDisplayCode(lookup.getLookupValue()) : lookup.getLookupCode());
         txtDescription.setText(lookup.getDescription());
         spnOrder.getValueFactory().setValue(lookup.getDisplayOrder());
         chkActive.setSelected(lookup.isActive());
         lblTitle.setText("Edit Master");
-        boolean role = "ROLE".equalsIgnoreCase(lookupType == null ? "" : lookupType.trim());
-        lblSubtitle.setText(role ? "Update the Role Name. Assigned users and permissions are migrated atomically when a role is renamed." : "Update the selected " + lookupType + " value");
-        if (lblCodeLabel != null) lblCodeLabel.setText(role ? "Master ID" : "Code *");
-        if (lblValueLabel != null) lblValueLabel.setText(role ? "Role Name *" : "Value *");
-        if (lblCodeHint != null) lblCodeHint.setText(role ? "Technical ID only — not used for role validation" : "System-generated master identifier");
+        lblSubtitle.setText(roleMode ? "Update the Role Name. Assigned users and permissions are migrated atomically when a role is renamed." : "Update the selected " + lookupType + " value");
+        if (lblCodeLabel != null) lblCodeLabel.setText(roleMode ? "Role Code" : "Code *");
+        if (lblValueLabel != null) lblValueLabel.setText(roleMode ? "Role Name *" : "Value *");
+        if (lblCodeHint != null) lblCodeHint.setText(roleMode ? "Derived from Role Name; the internal master ID is hidden." : "System-generated master identifier");
+        txtCode.setEditable(!roleMode);
+        txtCode.setFocusTraversable(!roleMode);
         btnSave.setText("Update Master");
     }
 
@@ -76,7 +91,7 @@ public class LookupDialogController {
         boolean created = editingLookup == null;
         Lookup lookup = created ? new Lookup() : editingLookup;
         lookup.setLookupType(lookupType);
-        lookup.setLookupCode(created ? "" : txtCode.getText().trim());
+        lookup.setLookupCode(created ? "" : (roleMode ? editingLookup.getLookupCode() : txtCode.getText().trim()));
         lookup.setLookupValue(txtValue.getText().trim());
         lookup.setDescription(txtDescription.getText().trim());
         lookup.setDisplayOrder(spnOrder.getValue());
@@ -90,9 +105,10 @@ public class LookupDialogController {
                     btnSave.setDisable(false);
                     saved = true;
                     close();
+                    String displayCode = roleMode ? roleDisplayCode(lookup.getLookupValue()) : lookup.getLookupCode();
                     org.example.util.ToastManager.success((javafx.stage.Window) null,
                             "Master value " + (created ? "saved" : "updated"),
-                            lookup.getLookupCode() + " - " + lookup.getLookupValue());
+                            displayCode + " - " + lookup.getLookupValue());
                 },
                 failure -> { btnSave.setDisable(false); showOperationError("Unable to save master value", failure); }
         );
@@ -109,7 +125,7 @@ public class LookupDialogController {
         clearError(txtCode, errCode);
         clearError(txtValue, errValue);
         boolean valid = true;
-        if (txtCode.getText() == null || txtCode.getText().isBlank()) {
+        if (!roleMode && (txtCode.getText() == null || txtCode.getText().isBlank())) {
             showError(txtCode, errCode, "Code could not be generated.");
             valid = false;
         }
@@ -133,6 +149,15 @@ public class LookupDialogController {
         label.setText("");
         label.setVisible(false);
         label.setManaged(false);
+    }
+
+
+    private static boolean isRoleType(String type) {
+        return "ROLE".equalsIgnoreCase(type == null ? "" : type.trim());
+    }
+
+    private static String roleDisplayCode(String value) {
+        return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 
     public boolean wasSaved() { return saved; }

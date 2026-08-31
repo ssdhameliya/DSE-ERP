@@ -587,8 +587,6 @@ public class PurchaseController implements ScreenLifecycle {
 
     @FXML
     private void savePurchase(){ savePurchase("COMPLETED",false,false); }
-    @FXML private void saveAndPrint(){ savePurchase("COMPLETED",true,false); }
-    @FXML private void saveAndEmail(){ savePurchase("COMPLETED",false,true); }
     private void savePurchase(String documentStatus, boolean print, boolean email){
         Purchase purchase = buildPurchase();
         if(purchase == null) return;
@@ -719,24 +717,6 @@ public class PurchaseController implements ScreenLifecycle {
 
     private void saveMetadata(Purchase p) { purchaseService.update(p); }
 
-    @FXML private void saveNote(){
-        String note=txtRemarks==null?"":txtRemarks.getText();
-        if(editingPurchase==null||editingPurchase.getId()<=0){
-            NotificationService.add("Purchase note is ready and will be saved with the Purchase.");
-            return;
-        }
-        int purchaseId=editingPurchase.getId();
-        String invoiceNo=editingPurchase.getInvoiceNo();
-        UiTaskExecutor.submitAction(
-            "purchase-note-"+purchaseId,
-            () -> { supportApi.notes("PURCHASE",purchaseId,note); return null; },
-            ignored -> {
-                if(editingPurchase!=null&&editingPurchase.getId()==purchaseId) editingPurchase.setNotes(note);
-                NotificationService.add("Purchase note saved for "+invoiceNo+".");
-            },
-            failure -> warn("Unable to save purchase note: "+rootMessage(failure))
-        );
-    }
 
     @FXML private void chooseAttachment(){
         FileChooser chooser=new FileChooser();
@@ -776,24 +756,6 @@ public class PurchaseController implements ScreenLifecycle {
         }
     }
 
-    @FXML private void saveAttachment(){
-        if(editingPurchase==null||editingPurchase.getId()<=0){
-            NotificationService.add("Purchase attachments are ready and will be saved with the Purchase.");return;
-        }
-        Purchase target=editingPurchase;
-        List<Long> removals=new ArrayList<>(attachmentRemovals);
-        List<PurchaseAttachmentEntry> attachments=new ArrayList<>(attachmentEntries);
-        UiTaskExecutor.submitAction(
-            "purchase-attachments-"+target.getId(),
-            () -> { persistAttachmentChanges(target,removals,attachments); return loadAttachmentEntriesFromServer(target); },
-            loaded -> {
-                attachmentRemovals.clear();
-                applyAttachmentEntries(target,loaded);
-                NotificationService.add("Purchase attachments saved for "+target.getInvoiceNo()+".");
-            },
-            failure -> warn("Unable to save purchase attachments: "+rootMessage(failure))
-        );
-    }
 
     @FXML private void viewAttachment(){
         PurchaseAttachmentEntry entry=listAttachments==null?null:listAttachments.getSelectionModel().getSelectedItem();
@@ -872,11 +834,6 @@ public class PurchaseController implements ScreenLifecycle {
         if(lblAttachment!=null)lblAttachment.setText(attachmentEntries.isEmpty()?"No attachments":attachmentEntries.size()+" attachment"+(attachmentEntries.size()==1?"":"s"));
     }
 
-    @FXML private void clearLines(){
-        if(tableLines.getItems().isEmpty()) return;
-        if(!confirmAction("Clear purchase items", "Remove all current lines from this purchase?")) return;
-        tableLines.getItems().clear();recalculate();
-    }
     @FXML private void preview(){new OwnedAlert(Alert.AlertType.INFORMATION,"Preview is available after saving the purchase.").showAndWait();}
     public void prepareDuplicate(){editingPurchase=null;attachmentEntries.clear();attachmentRemovals.clear();updateAttachmentButtons();txtInvoiceNo.clear();requestNextPurchaseNoAsync();}
     private double parse(String v){try{return v==null||v.isBlank()?0:Double.parseDouble(v);}catch(Exception e){return 0;}}private String str(LocalDate d){return d==null?null:d.toString();}

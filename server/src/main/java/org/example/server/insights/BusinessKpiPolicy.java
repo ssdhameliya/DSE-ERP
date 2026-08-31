@@ -75,26 +75,11 @@ public final class BusinessKpiPolicy {
         return "(" + baseDueDateSql + ")";
     }
 
-    private static String pendingApprovalReturnCount(String headerAlias, String documentType) {
-        String type = returnType(documentType);
-        return "COALESCE((SELECT COUNT(*) FROM (SELECT rpa.return_no FROM return_register rpa WHERE rpa.invoice_no=" + headerAlias + ".invoice_no AND UPPER(COALESCE(rpa.return_type,''))='" + type + "' GROUP BY rpa.return_no HAVING MAX(UPPER(COALESCE(rpa.status,'PENDING APPROVAL')))='PENDING APPROVAL') pending_returns),0)";
-    }
 
-    private static String approvedReturnTotal(String headerAlias, String documentType) {
-        String type = returnType(documentType);
-        return "COALESCE((SELECT SUM(ra.amount) FROM return_register ra WHERE ra.invoice_no=" + headerAlias + ".invoice_no AND UPPER(COALESCE(ra.return_type,''))='" + type + "' AND UPPER(COALESCE(ra.status,''))='APPROVED'),0)";
-    }
 
-    private static String settledReturnTotal(String headerAlias, String documentType) {
-        String type = returnType(documentType);
-        return "COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no IN (SELECT DISTINCT rs.return_no FROM return_register rs WHERE rs.invoice_no=" + headerAlias + ".invoice_no AND UPPER(COALESCE(rs.return_type,''))='" + type + "' AND UPPER(COALESCE(rs.status,''))='APPROVED')),0)";
-    }
 
     private static String documentType(String value) {
         return "PURCHASE".equalsIgnoreCase(value) ? "PURCHASE" : "SALE";
     }
 
-    private static String returnType(String value) {
-        return "PURCHASE".equalsIgnoreCase(value) ? "PURCHASE RETURN" : "SALES RETURN";
-    }
 }

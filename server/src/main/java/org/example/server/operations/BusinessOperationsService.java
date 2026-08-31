@@ -541,7 +541,6 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
   long allocated=allocatedValue==null?observed:allocatedValue;
   return prefix+String.format(Locale.ROOT,"%0"+width+"d",allocated)+suffix;
  }
- private String configuredNext(String lookupCode,String fallback,List<String> existing){return nextFromFormat(configuredFormat(lookupCode,fallback),existing==null?List.of():existing);}
  private String configuredFormat(String lookupCode,String fallback){
   String fmt=fallback;
   var category=categories.findByCategoryCode("REFERENCE_FORMAT").orElse(null);
@@ -553,7 +552,6 @@ private void copySale(OperationDtos.SaleDto d,SalesHeaderEntity h){h.setInvoiceN
   return fmt;
  }
  private String datedReferenceFormat(String fmt){LocalDate t=BusinessClock.today();return fmt.replace("DD-MM-YYYY",t.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).replace("DD/MM/YYYY",t.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).replace("YYYY-MM-DD",t.toString()).replace("YYYY",String.valueOf(t.getYear())).replace("YY",String.format(Locale.ROOT,"%02d",t.getYear()%100));}
- private String nextFromFormat(String fmt,List<String> existing){String dated=datedReferenceFormat(fmt);Matcher m=ReferenceFormatRules.sequenceMatcher(dated);int w=m.end()-m.start();String pre=dated.substring(0,m.start()),suf=dated.substring(m.end());long max=0;for(String x:existing){if(x!=null&&x.startsWith(pre)&&x.endsWith(suf)){String seq=x.substring(pre.length(),x.length()-suf.length());if(!seq.matches("\\d+"))continue;try{max=Math.max(max,Long.parseLong(seq));}catch(Exception ignored){}}}if(max==Long.MAX_VALUE)throw new IllegalStateException("Reference sequence reached the database numeric limit for "+fmt);return pre+String.format(Locale.ROOT,"%0"+w+"d",max+1)+suf;}
  private static String idCsv(Collection<Integer> ids){if(ids==null||ids.isEmpty())return "";return ids.stream().filter(Objects::nonNull).map(String::valueOf).collect(java.util.stream.Collectors.joining(","));}
  private static String sqlDate(String column){return "dse_safe_date("+column+")";}
  private static String trim(String v){return v==null?"":v.trim();}

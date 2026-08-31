@@ -1,0 +1,59 @@
+{
+  "approved_scope": {
+    "business_behavior_changes": 0,
+    "css_file_count": 2,
+    "database_changes": 0,
+    "navigation_changes": 0,
+    "row_density": "global/canonical table density with Reporting fixed-density overrides removed",
+    "saved_column_state": "visibility and order only; legacy widths removed",
+    "table_width_authority": "DynamicTableLayoutManager only; immediate first-paint sizing + rendered action-control floor"
+  },
+  "contract": "DSE ERP 9.0.44 Phase 5 dynamic TableView baseline",
+  "fxml_columns": 299,
+  "fxml_table_files": {
+    "desktop/src/main/resources/fxml/pages/BackupRestore.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/BankExpense.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/BankStatement.fxml": 2,
+    "desktop/src/main/resources/fxml/pages/CommunicationCenter.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/Customer.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/DashboardHome.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/Import.fxml": 2,
+    "desktop/src/main/resources/fxml/pages/Inventory.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/ItemMaster.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/Masterdata.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/PermissionMatrix.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/Purchase.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/PurchaseList.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/PurchasePayment.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/PurchaseRecon.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/PurchaseReturns.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/QuotationEditor.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/Quotations.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/ReconSupplier.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/RecordPayment.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/ReminderCenter.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/ReportViewer.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/Reports.fxml": 4,
+    "desktop/src/main/resources/fxml/pages/ReturnRefund.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/RoleManagement.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/SafeRollback.fxml": 2,
+    "desktop/src/main/resources/fxml/pages/Sale.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/SalesList.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/SalesReturns.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/Suppliers.fxml": 1,
+    "desktop/src/main/resources/fxml/pages/UserAccess.fxml": 3
+  },
+  "fxml_tables": 39,
+  "manager_sha256": "9502ea77ff3ed2d6e0bfd33c77a909eb16bd095ba2b2c2729bd3fd365169c3b3",
+  "programmatic_table_sites": {
+    "desktop/src/main/java/org/example/controller/BankStatementController.java": 2,
+    "desktop/src/main/java/org/example/controller/InventoryController.java": 1,
+    "desktop/src/main/java/org/example/service/ReturnEditorService.java": 1,
+    "desktop/src/main/java/org/example/update/UpdateDialogs.java": 1,
+    "desktop/src/main/java/org/example/util/InvoicePaymentDetailsDialog.java": 1
+  },
+  "theme_sha256": {
+    "dark-theme.css": "ae1a6c0e72668f6955141ce7448d0702ee4b0da72957bb77e9f524754f88c587",
+    "light-theme.css": "86f21b3ee0d762c7e2a49119f27a32a09632e6b4d86443a1400f7cc1e66afc29"
+  }
+}

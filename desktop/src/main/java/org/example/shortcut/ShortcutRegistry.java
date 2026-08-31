@@ -2,6 +2,9 @@ package org.example.shortcut;
 
 import javafx.scene.Node;
 import javafx.scene.control.TextInputControl;
+import javafx.scene.control.ButtonBase;
+import javafx.application.Platform;
+import java.lang.ref.WeakReference;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
@@ -16,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /** Central persisted keyboard shortcut registry and action catalog. */
 public final class ShortcutRegistry {
@@ -132,7 +136,61 @@ public final class ShortcutRegistry {
     }
 
     private static final String CONFIG_PREFIX="shortcut.";
+    private static final EnumMap<Action, CopyOnWriteArrayList<WeakReference<ButtonBase>>> LABEL_BINDINGS = new EnumMap<>(Action.class);
     private ShortcutRegistry(){}
+
+    /**
+     * Central live action-label binding. FXML stores only the base label; the currently
+     * configured user shortcut is appended at runtime and refreshed after every save.
+     * Example: New Sale + F2 -> "New Sale F2"; changing to F9 updates every bound button.
+     */
+    public static void bindLabel(ButtonBase button, Action action) {
+        bindLabel(button, action, button == null ? null : button.getText());
+    }
+
+    public static void bindLabel(ButtonBase button, Action action, String baseLabel) {
+        if (button == null || action == null) return;
+        String base = baseLabel == null || baseLabel.isBlank() ? action.label() : baseLabel.trim();
+        button.getProperties().put("erp.shortcut.action", action);
+        button.getProperties().put("erp.shortcut.baseLabel", base);
+        CopyOnWriteArrayList<WeakReference<ButtonBase>> refs = LABEL_BINDINGS.computeIfAbsent(action, ignored -> new CopyOnWriteArrayList<>());
+        boolean alreadyBound = refs.stream().map(WeakReference::get).anyMatch(existing -> existing == button);
+        if (!alreadyBound) refs.add(new WeakReference<>(button));
+        refreshBoundLabel(button, action, base);
+    }
+
+    public static String displayLabel(Action action, String baseLabel) {
+        String base = baseLabel == null || baseLabel.isBlank() ? (action == null ? "" : action.label()) : baseLabel.trim();
+        if (action == null) return base;
+        String key = display(action);
+        return key == null || key.isBlank() || "Disabled".equalsIgnoreCase(key) ? base : base + " " + key;
+    }
+
+    public static void refreshBoundLabels() {
+        Runnable update = () -> {
+            for (var entry : LABEL_BINDINGS.entrySet()) {
+                Action action = entry.getKey();
+                entry.getValue().removeIf(ref -> {
+                    ButtonBase button = ref.get();
+                    if (button == null) return true;
+                    Object base = button.getProperties().get("erp.shortcut.baseLabel");
+                    refreshBoundLabel(button, action, base instanceof String text ? text : action.label());
+                    return false;
+                });
+            }
+        };
+        if (Platform.isFxApplicationThread()) update.run(); else Platform.runLater(update);
+    }
+
+    private static void refreshBoundLabel(ButtonBase button, Action action, String baseLabel) {
+        button.setText(displayLabel(action, baseLabel));
+        String accessible = displayLabel(action, baseLabel);
+        button.setAccessibleText(accessible);
+        if (button.getTooltip() != null && button.getTooltip().getText() != null
+                && button.getTooltip().getText().startsWith(baseLabel)) {
+            button.getTooltip().setText(accessible);
+        }
+    }
 
     public static List<Action> actions(){return List.of(Action.values());}
     public static List<Action> availableActions(){return actions().stream().filter(ShortcutRegistry::permitted).toList();}
@@ -162,6 +220,7 @@ public final class ShortcutRegistry {
         ConfigManager.setWithoutSaving(optionKey(action,"allowText"),Boolean.toString(allowText));
         ConfigManager.setWithoutSaving(optionKey(action,"requireSelection"),Boolean.toString(requireSelection));
         ConfigManager.save();
+        refreshBoundLabels();
     }
 
     public static String storageKey(Action action){
@@ -223,14 +282,15 @@ public final class ShortcutRegistry {
 
     public static void save(Map<Action,String> values){
         List<String> errors=validate(values);if(!errors.isEmpty())throw new IllegalArgumentException(String.join("\n",errors));
-        for(Action a:Action.values())if(values!=null&&values.containsKey(a))ConfigManager.setWithoutSaving(storageKey(a),normalize(values.get(a))); ConfigManager.save();
+        for(Action a:Action.values())if(values!=null&&values.containsKey(a))ConfigManager.setWithoutSaving(storageKey(a),normalize(values.get(a))); ConfigManager.save(); refreshBoundLabels();
     }
     public static void saveActions(Map<Action,String> values,Map<Action,Scope> scopes,java.util.Collection<Action> actions){
         List<String> errors=validateActions(values,scopes,actions);if(!errors.isEmpty())throw new IllegalArgumentException(String.join("\n",errors));
         if(values!=null&&actions!=null)for(Action a:actions)if(a!=null&&values.containsKey(a))ConfigManager.setWithoutSaving(storageKey(a),normalize(values.get(a)));
         ConfigManager.save();
+        refreshBoundLabels();
     }
-    public static void reset(Action action){if(action==null)return;ConfigManager.setWithoutSaving(storageKey(action),action.defaultBinding());saveOptions(action,action.scope(),false,defaultRequireSelection(action));}
+    public static void reset(Action action){if(action==null)return;ConfigManager.setWithoutSaving(storageKey(action),action.defaultBinding());saveOptions(action,action.scope(),false,defaultRequireSelection(action));refreshBoundLabels();}
     private static boolean defaultRequireSelection(Action a){return a==Action.EDIT_CURRENT||a==Action.OPEN_SELECTED||a==Action.DELETE_SELECTED;}
     public static Map<Action,String> defaults(){Map<Action,String> r=new LinkedHashMap<>();for(Action a:Action.values())r.put(a,a.defaultBinding());return r;}
 

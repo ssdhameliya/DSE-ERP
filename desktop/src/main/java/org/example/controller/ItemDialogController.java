@@ -56,10 +56,10 @@ public class ItemDialogController {
         UiTaskExecutor.submitLatest(
                 "item-dialog-bootstrap",
                 () -> new ItemBootstrap(
-                        lookupService.getValues("CATEGORY"),
-                        lookupService.getValues("UNIT"),
-                        lookupService.getValues("GST"),
-                        lookupService.getValues("DISCOUNT")),
+                        lookupService.getValuesByCategoryCode("CATEGORY"),
+                        lookupService.getValuesByCategoryCode("UNIT"),
+                        lookupService.getValuesByCategoryCode("GST"),
+                        lookupService.getValuesByCategoryCode("DISCOUNT")),
                 this::applyBootstrap,
                 failure -> showLoadError(failure)
         );

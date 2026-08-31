@@ -175,7 +175,6 @@ import org.example.server.persistence.JpaNativeRepository;import org.example.ser
    }catch(Exception ignored){return false;}
  }
  private void requireSalesDocument(String type){String normalized=type==null?"":type.trim().toUpperCase(Locale.ROOT);if(!Set.of("SALE","PURCHASE").contains(normalized))throw new IllegalArgumentException("Document type must be SALE or PURCHASE");CurrentUser.requirePermission("PURCHASE".equals(normalized)?"PURCHASE.VIEW":"SALES.VIEW","Payment access");}
- private String documentTable(String type){requireSalesDocument(type);return documentTableUnchecked(type);}
  private String documentTableUnchecked(String type){String normalized=type==null?"":type.trim().toUpperCase(Locale.ROOT);if(!Set.of("SALE","PURCHASE").contains(normalized))throw new IllegalArgumentException("Document type must be SALE or PURCHASE");return "SALE".equals(normalized)?"sales_header":"purchase_header";}
  private void requireSalesEntity(String type){requireEntityPermission(type,"VIEW","Activity access");}
  private void requireEntityPermission(String type,String action,String label){String normalized=type==null?"":type.trim().toUpperCase(Locale.ROOT);String module=switch(normalized){case "PURCHASE","PURCHASE RETURN"->"PURCHASE";case "QUOTATION"->"QUOTATION";default->"SALES";};CurrentUser.requirePermission(module+"."+action,label);}

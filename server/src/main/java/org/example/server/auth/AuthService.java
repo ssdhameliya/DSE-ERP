@@ -21,6 +21,8 @@ public class AuthService {
     private static final String LOCK_FAILED_PASSWORD = "FAILED_PASSWORD";
     private static final String LOCK_FAILED_MFA = "FAILED_MFA";
     private static final String LOCK_ADMIN = "ADMIN";
+    /** Public self-registration is deliberately restricted to one non-privileged Role Master identity. */
+    private static final String SELF_REGISTRATION_ROLE = "SALES";
 
     private final UserRepository users;
     private final RoleMasterService roleMaster;
@@ -278,7 +280,10 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public List<AuthDtos.RoleOption> registrationRoles() {
-        return loginRoles().stream().filter(option -> "USER".equalsIgnoreCase(option.code())).toList();
+        return roleMaster.activeRoles().stream()
+                .filter(role -> SELF_REGISTRATION_ROLE.equalsIgnoreCase(role.code()))
+                .map(role -> new AuthDtos.RoleOption(role.code(), role.displayName()))
+                .toList();
     }
 
     @Transactional
@@ -356,7 +361,8 @@ public class AuthService {
         if (email == null || !email.trim().matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$"))
             return "A valid email address is required";
         String normalizedRole = normalizeRole(role);
-        if (!"USER".equals(normalizedRole) || !roleMaster.isActive(normalizedRole)) return "Public registration is restricted to the active USER role";
+        if (!SELF_REGISTRATION_ROLE.equals(normalizedRole) || !roleMaster.isActive(normalizedRole))
+            return "Public registration is restricted to the active " + SELF_REGISTRATION_ROLE + " role";
         return null;
     }
 

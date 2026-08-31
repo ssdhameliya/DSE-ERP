@@ -1,5 +1,6 @@
 package org.example.controller;
 import org.example.service.PermissionService;
+import org.example.navigation.ScreenLifecycle;
 
 import org.example.util.BusinessClock;
 
@@ -41,7 +42,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 /** Premium database-backed user, role and permission administration. */
-public class UserAccessController {
+public class UserAccessController implements ScreenLifecycle {
     @FXML private Label iconTotalUsers, iconActiveUsers, iconRoles, iconLocked, iconLogins;
     @FXML private Label lblTotal,lblActive,lblRoles,lblLocked,lblLogins,lblRoleHint;
     @FXML private TextField txtSearch;
@@ -84,6 +85,11 @@ public class UserAccessController {
         cmbStatus.valueProperty().addListener((o,a,b)->filter()); cmbBranch.valueProperty().addListener((o,a,b)->filter());
         cmbPermissionRole.valueProperty().addListener((o,a,b)->loadPermissions(b));
         refresh();
+    }
+
+    @Override
+    public void onScreenShown(boolean reusedFromCache) {
+        if (reusedFromCache) refresh();
     }
 
     private void configureUserTable(){
@@ -156,7 +162,6 @@ public class UserAccessController {
         try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList());PermissionService.refresh();NotificationService.add(role+" permissions updated.");}
         catch(Exception e){error("Permissions could not be saved",e);}
     }
-    @FXML private void resetPermissions(){loadPermissions(cmbPermissionRole.getValue());}
     @FXML private void showPermissionMatrix(){ DashboardController.navigateFromChildPage("Permission Matrix", "/fxml/pages/PermissionMatrix.fxml"); }
     @FXML private void manageRoles(){ openRoleMaster(); }
 

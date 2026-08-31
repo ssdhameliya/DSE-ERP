@@ -50,32 +50,11 @@ public final class SettingsShortcutSupport {
         return "Search & Filter".equals(category) ? "Application Actions" : category;
     }
 
-    public static String categoryAccent(String category) {
-        if (category == null) return "purple";
-        return switch (category) {
-            case "Quick Create" -> "green";
-            case "Navigation" -> "blue";
-            case "Search & Filter" -> "amber";
-            case "PDF Studio" -> "pink";
-            case "Excel Studio" -> "teal";
-            case "Master Data" -> "violet";
-            case "Reports & Tools" -> "teal";
-            case "Settings & Tools" -> "pink";
-            default -> "purple";
-        };
-    }
-
     public static String categoryIcon(String category) {
         if (category == null) return "adjust";
         return switch (category) {
             case "Quick Create" -> "register";
             case "Navigation" -> "link";
-            case "Search & Filter" -> "search";
-            case "PDF Studio" -> "document";
-            case "Excel Studio" -> "file";
-            case "Master Data" -> "database";
-            case "Reports & Tools" -> "report";
-            case "Settings & Tools" -> "settings";
             default -> "adjust";
         };
     }

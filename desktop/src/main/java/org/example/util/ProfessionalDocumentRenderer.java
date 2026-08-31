@@ -860,28 +860,8 @@ public final class ProfessionalDocumentRenderer {
         return card;
     }
 
-    private static Cell refCard(String title, String body, Color accent) {
-        Cell card = new Cell().setBorder(new SolidBorder(PDF_LINE, .7f))
-            .setPadding(0).setMinHeight(105);
-        card.add(new Paragraph(title).setBold().setFontSize(8).setFontColor(ColorConstants.WHITE)
-            .setBackgroundColor(accent).setPadding(4).setMargin(0));
-        card.add(new Paragraph(body).setFontSize(7.1f).setMultipliedLeading(1.25f).setPadding(7).setMargin(0));
-        return card;
-    }
 
-    private static Table referenceGstStrip(Color accent) {
-        Table strip = new Table(UnitValue.createPercentArray(new float[]{1, 1, 1})).useAllAvailableWidth();
-        strip.setMarginTop(4);
-        strip.addCell(stripCell("GST Treatment", "Business - Regular", accent));
-        strip.addCell(stripCell("Place of Supply", config("company.state", "Not configured"), accent));
-        strip.addCell(stripCell("Reverse Charge", "No", accent));
-        return strip;
-    }
 
-    private static Cell stripCell(String key, String value, Color accent) {
-        return new Cell().add(new Paragraph(key + "  :  " + value).setFontSize(7).setMargin(0))
-            .setBorder(new SolidBorder(PDF_LINE, .6f)).setPadding(4);
-    }
 
     /** Event-specific item table matching the column set in each supplied PDF. */
     private static Table referenceItems(Data data, Color accent, Kind kind) {
@@ -1283,233 +1263,18 @@ public final class ProfessionalDocumentRenderer {
     }
 
     /** Company identity and document identity header. */
-    private static Table buildHeader(Data data, Path logo, Color accent) {
-        Table table = new Table(UnitValue.createPercentArray(new float[]{1.2f, 3.8f, 2.8f}))
-            .useAllAvailableWidth();
-        table.setBorder(Border.NO_BORDER);
-
-        Cell logoCell = plainCell();
-        if (logo != null && Files.isRegularFile(logo)) {
-            try {
-                logoCell.add(new Image(ImageDataFactory.create(logo.toAbsolutePath().toString()))
-                    .setAutoScale(true).setMaxWidth(72).setMaxHeight(72));
-            } catch (Exception ignored) {
-                // Company text remains available if a configured logo is invalid.
-            }
-        }
-        logoCell.add(new Paragraph("DSE ERP 2.0").setBold().setFontColor(accent).setFontSize(11));
-        table.addCell(logoCell);
-
-        Cell company = plainCell()
-            .add(new Paragraph(config("company.name", "DSE INFOTECH PVT LTD"))
-                .setBold().setFontSize(20).setFontColor(INK))
-            .add(new Paragraph(config("company.tagline", "Business Solution - Simplified"))
-                .setBold().setFontColor(accent).setFontSize(10))
-            .add(new Paragraph(config("company.address", "Configure company address in Settings"))
-                .setFontSize(9))
-            .add(new Paragraph(config("company.phone", "") + "  |  " +
-                config("company.email", "") + "  |  " + config("company.website", ""))
-                .setFontSize(8))
-            .add(new Paragraph("GSTIN: " + present(config("company.gstin", "")) +
-                "   |   PAN: " + present(config("company.pan", "")))
-                .setBold().setFontSize(8));
-        table.addCell(company);
-
-        Cell identity = new Cell().setBorder(new SolidBorder(accent, 1)).setPadding(0);
-        identity.add(new Paragraph(data.title)
-            .setBold().setFontSize(17).setFontColor(ColorConstants.WHITE)
-            .setBackgroundColor(accent).setTextAlignment(TextAlignment.CENTER).setPadding(9));
-        Table pairs = new Table(UnitValue.createPercentArray(new float[]{1.25f, 1.7f}))
-            .useAllAvailableWidth();
-        addPair(pairs, data.numberLabel, data.number);
-        addPair(pairs, data.dateLabel, data.date);
-        addPair(pairs,
-            data.refund ? "Original Invoice" : data.quotation ? "Valid Until" : "Due Date",
-            data.refund ? data.originalNumber : data.dueDate);
-        addPair(pairs,
-            data.refund ? "Original Date" : "Place of Supply",
-            data.refund ? data.originalDate : config("company.state", "Not configured"));
-        identity.add(pairs);
-        table.addCell(identity);
-        return table;
-    }
 
     /** Bill-to, ship-to and context-specific identity cards. */
-    private static Table buildPartyCards(Data data, Color accent, Kind kind) {
-        Table cards = new Table(UnitValue.createPercentArray(new float[]{1.15f, 1.15f, 1f}))
-            .useAllAvailableWidth();
-        cards.setHorizontalBorderSpacing(7);
 
-        if (kind == Kind.PURCHASE_INVOICE) {
-            cards.addCell(card("SUPPLIER / VENDOR", partyText(data), accent));
-            cards.addCell(card("DELIVER TO", companyShipText(), accent));
-            cards.addCell(card("PURCHASE DETAILS",
-                "Purchase No.: " + present(data.number) +
-                    "\nPayment Terms: " + present(data.paymentTerms) +
-                    "\nTransport: " + present(data.transporter) +
-                    "\nReference: " + present(data.reference), accent));
-        } else if (data.refund) {
-            cards.addCell(card(kind == Kind.SALES_REFUND ? "CUSTOMER DETAILS" : "SUPPLIER DETAILS",
-                partyText(data), accent));
-            cards.addCell(card("REFUND DETAILS",
-                "Reason: " + present(data.reason) +
-                    "\nRefund Against: " + present(data.originalNumber) +
-                    "\nRefund Status: " + present(data.status) +
-                    "\nReference: " + present(data.number), accent));
-            cards.addCell(card("BANK DETAILS (FOR REFUND)", bankText(), accent));
-        } else {
-            cards.addCell(card("BILL TO", partyText(data), accent));
-            cards.addCell(card("SHIP TO", present(data.shipTo), accent));
-            cards.addCell(card(data.quotation ? "QUOTATION DETAILS" : "TAX / GST DETAILS",
-                contextDetails(data), accent));
-        }
-        return cards;
-    }
 
-    private static String partyText(Data data) {
-        return present(data.partyName) + "\n" + present(data.partyAddress) +
-            "\nGSTIN: " + present(data.partyGstin) +
-            "\nPhone: " + present(data.partyPhone);
-    }
-
-    private static String contextDetails(Data data) {
-        String first = data.quotation
-            ? "Quotation No.: " + present(data.number) + "\nValid Until: " + present(data.dueDate)
-            : "GSTIN: " + present(data.partyGstin) +
-                "\nPlace of Supply: " + config("company.state", "Not configured");
-        return first + "\nSales Person: " + present(data.salesperson) +
-            "\nPayment Terms: " + present(data.paymentTerms) +
-            "\nTransport: " + present(data.transporter) +
-            "\nReference: " + present(data.reference);
-    }
 
     /** Line-item table shared across invoices, quotations and refund notes. */
-    private static Table buildItems(Data data, Color accent) {
-        float[] widths = {.45f, 1.05f, 1.8f, .8f, .55f, .55f, .8f, .8f, .55f, .85f, .9f};
-        Table table = new Table(UnitValue.createPercentArray(widths)).useAllAvailableWidth();
-        String[] headers = {
-            "SR.", "ITEM CODE", "DESCRIPTION", "HSN / SAC", "UOM", "QTY",
-            "RATE (\u20B9)", "TAXABLE (\u20B9)", "GST %", "GST AMT (\u20B9)", "TOTAL (\u20B9)"
-        };
-        for (String header : headers) {
-            table.addHeaderCell(new Cell().add(new Paragraph(header).setBold().setFontSize(7))
-                .setFontColor(ColorConstants.WHITE).setBackgroundColor(accent)
-                .setTextAlignment(TextAlignment.CENTER).setPadding(5)
-                .setBorder(new SolidBorder(ColorConstants.WHITE, .35f)));
-        }
-
-        int rowNumber = 1;
-        for (Line line : data.lines) {
-            double taxable = line.quantity * line.rate - line.discount;
-            double gst = taxable * line.gst / 100;
-            double total = taxable + gst;
-            String[] values = {
-                String.valueOf(rowNumber++), line.code, line.description, present(line.hsn),
-                present(line.unit), quantity(line.quantity), money(line.rate), money(taxable),
-                quantity(line.gst) + "%", money(gst), money(total)
-            };
-            for (int column = 0; column < values.length; column++) {
-                table.addCell(new Cell().add(new Paragraph(values[column]).setFontSize(7.5f))
-                    .setTextAlignment(column >= 5 ? TextAlignment.RIGHT : TextAlignment.LEFT)
-                    .setPadding(5).setBackgroundColor(rowNumber % 2 == 0 ? PALE : ColorConstants.WHITE)
-                    .setBorder(new SolidBorder(LINE, .45f)));
-            }
-        }
-        return table;
-    }
 
     /** Amount in words, bank data and totals. */
-    private static Table buildSummary(Data data, Color accent) {
-        Table outer = new Table(UnitValue.createPercentArray(new float[]{1.55f, 1f}))
-            .useAllAvailableWidth();
-        Cell left = plainCell();
-        left.add(labelBox("AMOUNT IN WORDS", accent));
-        left.add(new Paragraph(amountWords(data.total) + " Only").setFontSize(9).setPaddingTop(5));
-        if (!data.refund) {
-            left.add(spacer(8));
-            left.add(labelBox("BANK DETAILS", accent));
-            left.add(new Paragraph(bankText()).setFontSize(8.5f));
-        }
-        outer.addCell(left);
-
-        Table totals = new Table(UnitValue.createPercentArray(new float[]{1.05f, 1.15f}))
-            .useAllAvailableWidth();
-        addTotal(totals, "Total Taxable Amount", data.subtotal, false, accent);
-        addTotal(totals, "Total GST Amount", data.gst, false, accent);
-        addTotal(totals, "Round Off", data.total - data.subtotal - data.gst, false, accent);
-        addTotal(totals, data.refund ? "REFUND AMOUNT" : "GRAND TOTAL", data.total, true, accent);
-        outer.addCell(new Cell().add(totals).setBorder(Border.NO_BORDER));
-        return outer;
-    }
 
     /** Terms and configured signature image. */
-    private static Table buildTerms(Data data, Color accent) {
-        Table table = new Table(UnitValue.createPercentArray(new float[]{2.3f, 1}))
-            .useAllAvailableWidth();
-        Cell terms = new Cell().setBorder(new SolidBorder(LINE, .7f)).setPadding(8);
-        terms.add(new Paragraph(data.refund ? "REFUND TERMS & CONDITIONS" : "TERMS & CONDITIONS")
-            .setBold().setFontColor(accent).setFontSize(9));
-        String defaultTerms = data.refund
-            ? "1. This is a system generated refund note.\n2. Refund will be processed after verification.\n3. All disputes are subject to local jurisdiction."
-            : "1. Goods once sold will not be taken back.\n2. Payment is due within the agreed period.\n3. All disputes are subject to local jurisdiction.";
-        terms.add(new Paragraph(configuredOr("company.terms", defaultTerms)).setFontSize(8));
-        table.addCell(terms);
-
-        Cell signature = new Cell().setBorder(new SolidBorder(LINE, .7f)).setPadding(8)
-            .setTextAlignment(TextAlignment.CENTER);
-        signature.add(new Paragraph("For " + config("company.name", "DSE INFOTECH PVT LTD"))
-            .setBold().setFontSize(8));
-        Path signaturePath = configuredAsset("company.signaturePath");
-        if (signaturePath != null) {
-            try {
-                signature.add(new Image(configuredAssetImageData(signaturePath, 360))
-                    .setAutoScale(true).setMaxHeight(44).setMaxWidth(115)
-                    .setHorizontalAlignment(HorizontalAlignment.CENTER));
-            } catch (Exception ignored) {
-                signature.add(new Paragraph("\n\n"));
-            }
-        } else {
-            signature.add(new Paragraph("\n\n"));
-        }
-        signature.add(new Paragraph("Authorized Signatory")
-            .setBold().setFontColor(accent).setFontSize(9));
-        table.addCell(signature);
-        return table;
-    }
 
     /** Uploaded UPI QR image, or generated UPI QR when no image was uploaded. */
-    private static Table buildFooter(Data data, Color accent, PdfDocument pdf) {
-        Table table = new Table(UnitValue.createPercentArray(new float[]{.8f, 2.2f, 1.25f}))
-            .useAllAvailableWidth();
-        Cell qrCell = plainCell();
-        if (!data.refund) {
-            qrCell.add(new Paragraph("QR CODE").setBold().setFontColor(accent)
-                .setFontSize(7).setMarginBottom(2));
-            Path qrPath = configuredAsset("payment.qrImagePath");
-            if (qrPath != null) {
-                try {
-                    qrCell.add(new Image(configuredQrImageData(qrPath))
-                        .setAutoScale(true).setMaxWidth(58).setMaxHeight(58));
-                } catch (Exception ignored) {
-                    addGeneratedQr(qrCell, data, pdf);
-                }
-            } else {
-                addGeneratedQr(qrCell, data, pdf);
-            }
-        }
-        table.addCell(qrCell);
-
-        String documentName = data.refund ? "refund note" : data.quotation ? "quotation" : "invoice";
-        table.addCell(plainCell().add(new Paragraph(
-                "Thank you for your business!\nThis is a computer generated " +
-                    documentName + ".\nNo signature is required.")
-            .setFontSize(8).setFontColor(accent)));
-        table.addCell(plainCell().add(new Paragraph(
-                "Powered by DSE ERP 2.0\n" + config("company.email", "") +
-                    "\n" + config("company.phone", ""))
-            .setFontSize(8).setTextAlignment(TextAlignment.RIGHT)));
-        return table;
-    }
 
     private static void addGeneratedQr(Cell cell, Data data, PdfDocument pdf) {
         String upi = config("payment.upiId", "");
@@ -1660,15 +1425,7 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
         return new Paragraph(" ").setFontSize(height).setMargin(0);
     }
 
-    private static Paragraph labelBox(String value, Color accent) {
-        return new Paragraph(value).setBold().setFontColor(ColorConstants.WHITE)
-            .setBackgroundColor(accent).setPadding(4).setFontSize(8).setWidth(150);
-    }
 
-    private static void addPair(Table table, String key, String value) {
-        table.addCell(plainCell().add(new Paragraph(key).setBold().setFontSize(8)));
-        table.addCell(plainCell().add(new Paragraph(present(value)).setFontSize(8)));
-    }
 
     private static void addTotal(Table table, String label, double amount,
                                  boolean grand, Color accent) {
@@ -1700,11 +1457,6 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
     }
 
     /** Builds a complete Ship To card, falling back to the billing address. */
-    private static String shipToText(Data data) {
-        return present(data.partyName) + "\n" +
-            present(firstNonBlank(data.shipTo, data.partyAddress)) + "\n" +
-            "Phone: " + present(data.partyPhone);
-    }
 
     private static Path configuredAsset(String key) {
         String value = config(key, "");

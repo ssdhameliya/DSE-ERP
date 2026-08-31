@@ -31,7 +31,7 @@ purchase_recon_batch=text('server/src/main/java/org/example/server/persistence/e
 insights_service=text('server/src/main/java/org/example/server/insights/InsightsService.java')
 
 require('spring-security-bearer-v5' in runtime_contract, 'R12 must use the signed bearer-v5 API contract')
-require('BUILD_REVISION = "9.0.42"' in runtime_contract and 'APP_VERSION = "9.0.42"' in runtime_contract, '9.0.18 must publish one exact desktop/server version/build contract so stale backends are rejected')
+require('BUILD_REVISION = "9.0.44"' in runtime_contract and 'APP_VERSION = "9.0.44"' in runtime_contract, '9.0.18 must publish one exact desktop/server version/build contract so stale backends are rejected')
 require('buildRevision' in runtime_controller, 'Runtime health must expose the backend build revision')
 require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION, RuntimeContract.BUILD_REVISION)') == 2,
         'RuntimeController tests must instantiate the four-argument runtime contract constructor')
@@ -112,10 +112,14 @@ require('SettingsShortcutSupport.validate' in settings
         'Shortcut Manager must validate only its owned visible catalog')
 require('ShortcutRegistry.validate(' not in settings and 'ShortcutRegistry.validate(' not in shortcut_support,
         'Shortcut Manager must not validate hidden PDF/Excel/Master default conflicts')
-require('#disableSelectedShortcut' in shortcuts and '#deleteSelectedShortcut' in shortcuts,
-        'Shortcut drawer must expose Disable and Delete Assignment controls')
-require('disableShortcut(action)' in settings and 'deleteShortcutAssignment(action)' in settings,
-        'Shortcut rows must expose per-action disable/delete behavior')
+require(all(token in shortcuts for token in ('#showShortcutApplicationActions', '#showShortcutQuickCreate', '#showShortcutNavigation')),
+        'Shortcut Manager must expose exactly the approved Application Actions, Quick Create and Navigation group selectors')
+require('#disableSelectedShortcut' in shortcuts and '#resetSelectedShortcut' in shortcuts and '#saveSelectedShortcut' in shortcuts
+        and '#deleteSelectedShortcut' not in shortcuts,
+        'Shortcut editor must use explicit Disable, Reset and Save controls without per-row delete behavior')
+require('shortcutCategoryFilter = "Application Actions"' in settings
+        and 'showShortcutQuickCreate()' in settings and 'showShortcutNavigation()' in settings,
+        'Shortcut Manager controller must own the approved three-group master/detail workspace')
 
 for name,xml in [('PurchaseRecon',prc),('ReconSupplier',rs)]:
     require('recon-metric-card' in xml, f'{name} KPI cards must use horizontal register-card anatomy')

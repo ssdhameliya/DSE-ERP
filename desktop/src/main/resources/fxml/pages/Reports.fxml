@@ -3,77 +3,77 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml"
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="org.example.controller.ReportsController"
-      spacing="8" styleClass="reports-content,reports-single-page,approved-ui,approved-screen,approved-screen-reports,erp-screen-root">
+      spacing="10" styleClass="approved-ui,approved-screen,approved-screen-reports,erp-screen-root,reports-workspace">
 
-    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="reports-header,approved-section-header,erp-page-identity-header">
+    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,approved-section-header,erp-page-identity-header,reports-header">
         <StackPane fx:id="reportPageIcon" styleClass="erp-page-header-icon"/>
-        <VBox spacing="2" alignment="CENTER_LEFT">
-            <Label fx:id="lblPageTitle" text="Reports Dashboard" styleClass="page-title"/>
-            <Label fx:id="lblPageSubtitle" text="Real-time financial and operational summary" styleClass="page-subtitle,reports-header-subtitle"/>
+        <VBox spacing="3" alignment="CENTER_LEFT">
+            <Label fx:id="lblPageTitle" text="Reports Dashboard" styleClass="approved-page-title,page-title"/>
+            <Label fx:id="lblPageSubtitle" text="Real-time financial and operational summary" styleClass="approved-page-subtitle,page-subtitle,reports-header-subtitle"/>
         </VBox>
         <Region HBox.hgrow="ALWAYS"/>
-        <ComboBox fx:id="cmbDashboardPeriod" prefWidth="145" styleClass="approved-input"/>
-        <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
-        <MenuButton fx:id="btnExport" text="Export" minWidth="120" prefWidth="120" styleClass="primary-button,approved-menu-button,reports-export-button">
+        <ComboBox fx:id="cmbDashboardPeriod" prefWidth="155" styleClass="approved-input"/>
+        <Button fx:id="btnRefresh" text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
+        <MenuButton fx:id="btnExport" text="Export" minWidth="120" prefWidth="120" styleClass="approved-menu-button,approved-button,approved-primary-button,reports-export-button">
             <items>
                 <MenuItem fx:id="miExcel" text="Export Excel" onAction="#exportExcel"/>
                 <MenuItem fx:id="miPdf" text="Export PDF" onAction="#exportPdf"/>
                 <MenuItem fx:id="miCsv" text="Export CSV" onAction="#exportCsv"/>
             </items>
         </MenuButton>
-        <Button fx:id="btnContextAction" text="Recent Exports" onAction="#headerContextAction" visible="false" managed="false" styleClass="secondary-button"/>
+        <Button fx:id="btnContextAction" text="Recent Exports" onAction="#headerContextAction" visible="false" managed="false" styleClass="approved-button,approved-primary-button"/>
     </HBox>
 
-    <TabPane fx:id="reportTabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" styleClass="reporting-tabs">
+    <TabPane fx:id="reportTabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" styleClass="reporting-tabs,reports-main-tabs">
         <tabs>
             <Tab text="Dashboard">
-                <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="reports-scroll">
+                <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="approved-page-scroll,reports-scroll">
                     <content>
-                        <VBox spacing="10">
-                            <padding><Insets top="8" right="8" bottom="8" left="8"/></padding>
-                            <GridPane hgap="10" vgap="10" styleClass="report-kpi-grid,erp-kpi-section">
-                                <columnConstraints>
-                                    <ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/>
-                                    <ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/><ColumnConstraints percentWidth="16.66"/>
-                                </columnConstraints>
-                                <HBox GridPane.columnIndex="0" onMouseClicked="#openSalesRegister" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,kpi-sales,report-kpi-clickable"><StackPane fx:id="reportSalesIcon" styleClass="sales-metric-icon"/><VBox spacing="2"><Label text="Active Sales" styleClass="metric-label"/><Label fx:id="lblSales" styleClass="kpi-value,metric-value,report-responsive-value"/><Label text="Selected period" styleClass="page-subtitle,metric-note"/></VBox></HBox>
-                                <HBox GridPane.columnIndex="1" onMouseClicked="#openPurchaseRegister" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,kpi-purchase,report-kpi-clickable"><StackPane fx:id="reportPurchaseIcon" styleClass="sales-metric-icon"/><VBox spacing="2"><Label text="Active Purchases" styleClass="metric-label"/><Label fx:id="lblPurchase" styleClass="kpi-value,metric-value,report-responsive-value"/><Label text="Selected period" styleClass="page-subtitle,metric-note"/></VBox></HBox>
-                                <HBox GridPane.columnIndex="2" onMouseClicked="#openProfitability" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,kpi-profit,report-kpi-clickable"><StackPane fx:id="reportProfitIcon" styleClass="sales-metric-icon"/><VBox spacing="2"><Label text="Gross Profit" styleClass="metric-label"/><Label fx:id="lblProfit" styleClass="kpi-value,metric-value,report-responsive-value"/><Label text="Sales less purchases" styleClass="page-subtitle,metric-note"/></VBox></HBox>
-                                <HBox GridPane.columnIndex="3" onMouseClicked="#openReceivables" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,kpi-receivable,report-kpi-clickable"><StackPane fx:id="reportReceivableIcon" styleClass="sales-metric-icon"/><VBox spacing="2"><Label text="Receivables" styleClass="metric-label"/><Label fx:id="lblReceivables" styleClass="kpi-value,metric-value,report-responsive-value"/><Label text="Outstanding sales" styleClass="page-subtitle,metric-note"/></VBox></HBox>
-                                <HBox GridPane.columnIndex="4" onMouseClicked="#openInventory" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,kpi-stock,report-kpi-clickable"><StackPane fx:id="reportStockIcon" styleClass="sales-metric-icon"/><VBox spacing="2"><Label text="Stock Value" styleClass="metric-label"/><Label fx:id="lblStock" styleClass="kpi-value,metric-value,report-responsive-value"/><Label fx:id="lblLowStock" styleClass="page-subtitle,metric-note"/></VBox></HBox>
-                                <HBox GridPane.columnIndex="5" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,sales-metric-card,kpi-customer"><StackPane fx:id="reportCustomerIcon" styleClass="sales-metric-icon"/><VBox spacing="2"><Label text="Total Customers" styleClass="metric-label"/><Label fx:id="lblCustomers" styleClass="kpi-value,metric-value"/><Label text="Active customers" styleClass="page-subtitle,metric-note"/></VBox></HBox>
-                            </GridPane>
+                        <VBox spacing="12" styleClass="reports-dashboard-page">
+                            <padding><Insets top="8" right="8" bottom="12" left="8"/></padding>
 
-                            <HBox spacing="9" alignment="CENTER_LEFT" styleClass="report-filter-card,approved-filter-bar">
-                                <HBox spacing="5" alignment="CENTER_LEFT" styleClass="report-date-range">
-                                    <DatePicker fx:id="dpFrom" prefWidth="145" styleClass="approved-input"/>
-                                    <Label text="to" styleClass="page-subtitle"/>
-                                    <DatePicker fx:id="dpTo" prefWidth="145" styleClass="approved-input"/>
-                                </HBox>
-                                <ComboBox fx:id="cmbReportType" prefWidth="170" visible="false" managed="false" styleClass="approved-input"/>
+                            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="report-filter-card,reports-dashboard-filter">
+                                <DatePicker fx:id="dpFrom" prefWidth="145" styleClass="approved-input"/>
+                                <Label text="to" styleClass="approved-page-subtitle"/>
+                                <DatePicker fx:id="dpTo" prefWidth="145" styleClass="approved-input"/>
+                                <ComboBox fx:id="cmbReportType" prefWidth="160" visible="false" managed="false" styleClass="approved-input"/>
                                 <ComboBox fx:id="cmbParty" prefWidth="235" styleClass="approved-input"/>
-                                <ComboBox fx:id="cmbItem" prefWidth="210" styleClass="approved-input"/>
+                                <ComboBox fx:id="cmbItem" prefWidth="205" styleClass="approved-input"/>
                                 <ComboBox fx:id="cmbSalesPerson" prefWidth="190" styleClass="approved-input"/>
                                 <Region HBox.hgrow="ALWAYS"/>
-                                <Button fx:id="btnApply" text="Apply Filters" onAction="#refresh" styleClass="primary-button"/>
-                                <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="secondary-button"/>
+                                <Button fx:id="btnReset" text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/>
+                                <Button fx:id="btnApply" text="Apply Filters" onAction="#refresh" styleClass="approved-button,approved-primary-button"/>
                             </HBox>
 
-                            <GridPane hgap="10" vgap="10" prefHeight="260">
-                                <columnConstraints><ColumnConstraints percentWidth="40"/><ColumnConstraints percentWidth="40"/><ColumnConstraints percentWidth="20"/></columnConstraints>
-                                <VBox GridPane.columnIndex="0" spacing="6" styleClass="report-card"><HBox alignment="CENTER_LEFT"><Label text="Recent Sales Invoices" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnViewSales" text="View Report" onAction="#openSalesRegister" styleClass="secondary-button"/></HBox><TableView fx:id="tblSales" VBox.vgrow="ALWAYS" styleClass="report-table,approved-table"><columns><TableColumn fx:id="colSaleNo" text="Invoice No."/><TableColumn fx:id="colSaleDate" text="Date"/><TableColumn fx:id="colSaleParty" text="Customer"/><TableColumn fx:id="colSaleAmount" text="Amount"/><TableColumn fx:id="colSaleStatus" text="Status"/></columns></TableView></VBox>
-                                <VBox GridPane.columnIndex="1" spacing="6" styleClass="report-card"><HBox alignment="CENTER_LEFT"><Label text="Recent Purchase Invoices" styleClass="section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnViewPurchases" text="View Report" onAction="#openPurchaseRegister" styleClass="secondary-button"/></HBox><TableView fx:id="tblPurchases" VBox.vgrow="ALWAYS" styleClass="report-table,approved-table"><columns><TableColumn fx:id="colPurchaseNo" text="Invoice No."/><TableColumn fx:id="colPurchaseDate" text="Date"/><TableColumn fx:id="colPurchaseParty" text="Supplier"/><TableColumn fx:id="colPurchaseAmount" text="Amount"/><TableColumn fx:id="colPurchaseStatus" text="Status"/></columns></TableView></VBox>
-                                <VBox GridPane.columnIndex="2" spacing="8" styleClass="report-card"><Label text="Payment Summary" styleClass="section-title"/><ListView fx:id="paymentSummary" VBox.vgrow="ALWAYS" styleClass="summary-list,approved-list"/></VBox>
+                            <GridPane hgap="10" vgap="10" styleClass="report-kpi-grid,erp-kpi-section">
+                                <columnConstraints>
+                                    <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+                                    <ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/><ColumnConstraints percentWidth="16.666" hgrow="ALWAYS"/>
+                                </columnConstraints>
+                                <HBox GridPane.columnIndex="0" onMouseClicked="#openSalesRegister" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,report-kpi-clickable,kpi-sales"><StackPane fx:id="reportSalesIcon" styleClass="sales-metric-icon,approved-kpi-icon"/><VBox spacing="2"><Label text="Active Sales" styleClass="metric-label,approved-kpi-caption"/><Label fx:id="lblSales" styleClass="metric-value,approved-kpi-value,report-responsive-value"/><Label text="View Sales Register →" styleClass="metric-note,approved-link"/></VBox></HBox>
+                                <HBox GridPane.columnIndex="1" onMouseClicked="#openPurchaseRegister" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,report-kpi-clickable,kpi-purchase"><StackPane fx:id="reportPurchaseIcon" styleClass="sales-metric-icon,approved-kpi-icon"/><VBox spacing="2"><Label text="Active Purchases" styleClass="metric-label,approved-kpi-caption"/><Label fx:id="lblPurchase" styleClass="metric-value,approved-kpi-value,report-responsive-value"/><Label text="View Purchase Register →" styleClass="metric-note,approved-link"/></VBox></HBox>
+                                <HBox GridPane.columnIndex="2" onMouseClicked="#openProfitability" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,report-kpi-clickable,kpi-profit"><StackPane fx:id="reportProfitIcon" styleClass="sales-metric-icon,approved-kpi-icon"/><VBox spacing="2"><Label text="Gross Profit" styleClass="metric-label,approved-kpi-caption"/><Label fx:id="lblProfit" styleClass="metric-value,approved-kpi-value,report-responsive-value"/><Label text="View Profitability →" styleClass="metric-note,approved-link"/></VBox></HBox>
+                                <HBox GridPane.columnIndex="3" onMouseClicked="#openReceivables" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,report-kpi-clickable,kpi-receivable"><StackPane fx:id="reportReceivableIcon" styleClass="sales-metric-icon,approved-kpi-icon"/><VBox spacing="2"><Label text="Receivables" styleClass="metric-label,approved-kpi-caption"/><Label fx:id="lblReceivables" styleClass="metric-value,approved-kpi-value,report-responsive-value"/><Label text="View Ageing →" styleClass="metric-note,approved-link"/></VBox></HBox>
+                                <HBox GridPane.columnIndex="4" onMouseClicked="#openInventory" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,report-kpi-clickable,kpi-stock"><StackPane fx:id="reportStockIcon" styleClass="sales-metric-icon,approved-kpi-icon"/><VBox spacing="2"><Label text="Stock Value" styleClass="metric-label,approved-kpi-caption"/><Label fx:id="lblStock" styleClass="metric-value,approved-kpi-value,report-responsive-value"/><Label fx:id="lblLowStock" styleClass="metric-note,approved-link"/></VBox></HBox>
+                                <HBox GridPane.columnIndex="5" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,kpi-customer"><StackPane fx:id="reportCustomerIcon" styleClass="sales-metric-icon,approved-kpi-icon"/><VBox spacing="2"><Label text="Customers" styleClass="metric-label,approved-kpi-caption"/><Label fx:id="lblCustomers" styleClass="metric-value,approved-kpi-value"/><Label text="Active customers" styleClass="metric-note"/></VBox></HBox>
                             </GridPane>
 
-                            <GridPane hgap="10" vgap="10" prefHeight="205">
-                                <columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/></columnConstraints>
-                                <VBox GridPane.columnIndex="0" spacing="8" styleClass="report-card"><Label text="Top Customers" styleClass="section-title"/><ListView fx:id="topCustomersSummary" VBox.vgrow="ALWAYS" styleClass="summary-list,approved-list"/></VBox>
-                                <VBox GridPane.columnIndex="1" spacing="8" styleClass="report-card"><Label text="Top Selling Items" styleClass="section-title"/><ListView fx:id="topItemsSummary" VBox.vgrow="ALWAYS" styleClass="summary-list,approved-list"/></VBox>
-                                <VBox GridPane.columnIndex="2" spacing="8" styleClass="report-card"><Label text="Performance Summary" styleClass="section-title"/><Label fx:id="lblMargin" text="0.00%" styleClass="report-big-value"/><ProgressBar fx:id="profitProgress" maxWidth="Infinity"/><ListView fx:id="performanceSummary" VBox.vgrow="ALWAYS" styleClass="summary-list,approved-list"/></VBox>
-                                <VBox GridPane.columnIndex="3" spacing="8" styleClass="report-card"><Label text="Stock Overview" styleClass="section-title"/><ListView fx:id="stockSummary" VBox.vgrow="ALWAYS" styleClass="summary-list,approved-list"/></VBox>
+                            <GridPane hgap="10" vgap="10" prefHeight="280" styleClass="reports-dashboard-primary-row">
+                                <columnConstraints><ColumnConstraints percentWidth="40" hgrow="ALWAYS"/><ColumnConstraints percentWidth="40" hgrow="ALWAYS"/><ColumnConstraints percentWidth="20" hgrow="ALWAYS"/></columnConstraints>
+                                <VBox GridPane.columnIndex="0" spacing="8" styleClass="report-card"><HBox alignment="CENTER_LEFT"><Label text="Recent Sales Invoices" styleClass="approved-card-title,section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnViewSales" text="View Report" onAction="#openSalesRegister" styleClass="approved-button,approved-secondary-button"/></HBox><TableView fx:id="tblSales" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table,erp-table-profile-summary"><columns><TableColumn fx:id="colSaleNo" text="Invoice No."/><TableColumn fx:id="colSaleDate" text="Date"/><TableColumn fx:id="colSaleParty" text="Customer"/><TableColumn fx:id="colSaleAmount" text="Amount"/><TableColumn fx:id="colSaleStatus" text="Status"/></columns></TableView></VBox>
+                                <VBox GridPane.columnIndex="1" spacing="8" styleClass="report-card"><HBox alignment="CENTER_LEFT"><Label text="Recent Purchase Invoices" styleClass="approved-card-title,section-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnViewPurchases" text="View Report" onAction="#openPurchaseRegister" styleClass="approved-button,approved-secondary-button"/></HBox><TableView fx:id="tblPurchases" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table,erp-table-profile-summary"><columns><TableColumn fx:id="colPurchaseNo" text="Invoice No."/><TableColumn fx:id="colPurchaseDate" text="Date"/><TableColumn fx:id="colPurchaseParty" text="Supplier"/><TableColumn fx:id="colPurchaseAmount" text="Amount"/><TableColumn fx:id="colPurchaseStatus" text="Status"/></columns></TableView></VBox>
+                                <VBox GridPane.columnIndex="2" spacing="8" styleClass="report-card"><Label text="Payment Snapshot" styleClass="approved-card-title,section-title"/><ListView fx:id="paymentSummary" VBox.vgrow="ALWAYS" styleClass="approved-list,summary-list,reports-summary-list"/></VBox>
+                            </GridPane>
+
+                            <GridPane hgap="10" vgap="10" prefHeight="205" styleClass="reports-dashboard-insight-row">
+                                <columnConstraints><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/></columnConstraints>
+                                <VBox GridPane.columnIndex="0" spacing="8" styleClass="report-card"><Label text="Top Customers" styleClass="approved-card-title,section-title"/><ListView fx:id="topCustomersSummary" VBox.vgrow="ALWAYS" styleClass="approved-list,summary-list,reports-summary-list"/></VBox>
+                                <VBox GridPane.columnIndex="1" spacing="8" styleClass="report-card"><Label text="Top Selling Items" styleClass="approved-card-title,section-title"/><ListView fx:id="topItemsSummary" VBox.vgrow="ALWAYS" styleClass="approved-list,summary-list,reports-summary-list"/></VBox>
+                                <VBox GridPane.columnIndex="2" spacing="8" styleClass="report-card"><Label text="Business Health" styleClass="approved-card-title,section-title"/><Label text="Gross Margin" styleClass="approved-page-subtitle,page-subtitle"/><Label fx:id="lblMargin" text="0.00%" styleClass="metric-value"/><ProgressBar fx:id="profitProgress" progress="0" maxWidth="Infinity"/><ListView fx:id="performanceSummary" VBox.vgrow="ALWAYS" styleClass="approved-list,summary-list,reports-summary-list"/></VBox>
+                                <VBox GridPane.columnIndex="3" spacing="8" styleClass="report-card"><Label text="Stock Attention" styleClass="approved-card-title,section-title"/><ListView fx:id="stockSummary" VBox.vgrow="ALWAYS" styleClass="approved-list,summary-list,reports-summary-list"/></VBox>
                             </GridPane>
                         </VBox>
                     </content>
@@ -81,51 +81,54 @@
             </Tab>
 
             <Tab text="Report Center">
-                <VBox spacing="10">
-                    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
-                    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="report-card,report-section-toolbar">
-                        <VBox spacing="2"><Label text="Report Center" styleClass="page-title"/><Label text="Choose a report. Every report opens in the same DSE ERP viewer and export framework." styleClass="page-subtitle"/></VBox>
-                        <Region HBox.hgrow="ALWAYS"/>
-                        <StackPane minWidth="280" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
-                            <TextField fx:id="txtReportSearch" promptText="Search reports, e.g. GST..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
-                            <StackPane fx:id="reportCenterSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
-                        </StackPane>
-                    </HBox>
-                    <BorderPane VBox.vgrow="ALWAYS" styleClass="report-center-root">
-                        <left>
-                            <VBox spacing="8" prefWidth="255" styleClass="report-card,report-category-panel">
-                                <padding><Insets top="12" right="10" bottom="12" left="10"/></padding>
-                                <ListView fx:id="reportCategories" VBox.vgrow="ALWAYS" styleClass="report-category-list,approved-list"/>
-                            </VBox>
-                        </left>
-                        <center>
-                            <ScrollPane fitToWidth="true" styleClass="reports-scroll">
-                                <content>
-                                    <VBox spacing="10">
-                                        <padding><Insets top="6" right="6" bottom="6" left="18"/></padding>
-                                        <Label fx:id="lblReportCenterCategory" text="SALES REPORTS" styleClass="report-category-heading"/>
-                                        <TilePane fx:id="reportCards" prefColumns="3" hgap="12" vgap="12" tileAlignment="TOP_LEFT"/>
-                                    </VBox>
-                                </content>
-                            </ScrollPane>
-                        </center>
-                    </BorderPane>
-                </VBox>
+                <BorderPane styleClass="reports-tab-page,report-center-root">
+                    <top>
+                        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="reports-tab-toolbar">
+                            <VBox spacing="2"><Label text="Report Center" styleClass="approved-page-title,page-title"/><Label text="Choose a report category, search the catalog and open a unified report viewer." styleClass="approved-page-subtitle,page-subtitle"/></VBox>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <StackPane minWidth="330" prefWidth="390" maxWidth="460" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
+                                <TextField fx:id="txtReportSearch" promptText="Search reports, e.g. GST..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
+                                <StackPane fx:id="reportCenterSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
+                            </StackPane>
+                        </HBox>
+                    </top>
+                    <left>
+                        <VBox spacing="8" prefWidth="238" styleClass="approved-card,approved-surface,report-category-panel">
+                            <Label text="Report Categories" styleClass="approved-card-title,section-title"/>
+                            <ListView fx:id="reportCategories" VBox.vgrow="ALWAYS" styleClass="approved-list,report-category-list"/>
+                        </VBox>
+                    </left>
+                    <center>
+                        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="reports-scroll,report-center-scroll">
+                            <content>
+                                <VBox spacing="12" styleClass="report-center-content">
+                                    <padding><Insets top="4" right="4" bottom="12" left="14"/></padding>
+                                    <Label fx:id="lblReportCenterCategory" text="SALES REPORTS" styleClass="report-category-heading,approved-card-title"/>
+                                    <TilePane fx:id="reportCards" prefColumns="3" hgap="12" vgap="12" tileAlignment="TOP_LEFT" styleClass="report-center-cards"/>
+                                </VBox>
+                            </content>
+                        </ScrollPane>
+                    </center>
+                </BorderPane>
             </Tab>
 
             <Tab text="Saved Reports">
-                <VBox spacing="10">
-                    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
-                    <HBox alignment="CENTER_LEFT" spacing="10"><VBox spacing="2"><Label text="Saved Reports" styleClass="page-title"/><Label text="Reusable report definitions. Relative date presets remain dynamic for future scheduling." styleClass="page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/><Button text="Create from Report Center" onAction="#openReportCenterTab" styleClass="secondary-button"/></HBox>
+                <VBox spacing="12" styleClass="reports-tab-page">
+                    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="reports-tab-toolbar">
+                        <VBox spacing="2"><Label text="Saved Reports" styleClass="approved-page-title,page-title"/><Label text="Reusable report configurations with dynamic periods, grouping, sorting and visible columns." styleClass="approved-page-subtitle,page-subtitle"/></VBox>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Button text="Create from Report Center" onAction="#openReportCenterTab" styleClass="approved-button,approved-primary-button"/>
+                    </HBox>
                     <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="report-card,saved-report-panel">
                         <HBox alignment="CENTER_LEFT" spacing="10">
-                            <StackPane minWidth="280" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
+                            <StackPane minWidth="300" prefWidth="390" maxWidth="460" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
                                 <TextField fx:id="txtSavedSearch" promptText="Search saved reports..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
                                 <StackPane fx:id="savedReportSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
                             </StackPane>
-                            <Region HBox.hgrow="ALWAYS"/><Button text="Refresh" onAction="#loadSavedReports" styleClass="secondary-button"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Button text="Refresh" onAction="#loadSavedReports" styleClass="approved-button,approved-secondary-button"/>
                         </HBox>
-                        <TableView fx:id="tblSavedReports" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table">
+                        <TableView fx:id="tblSavedReports" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table,erp-table-profile-register">
                             <columns>
                                 <TableColumn fx:id="colSavedName" text="Saved Report"/>
                                 <TableColumn fx:id="colSavedBase" text="Base Report"/>
@@ -137,37 +140,37 @@
                                 <TableColumn fx:id="colSavedActions" text="Actions"/>
                             </columns>
                         </TableView>
-                        <Label text="Saved report stores filters, grouping, sorting, visible columns and relative date mode — not frozen report data." styleClass="page-subtitle"/>
+                        <Label text="Saved Reports store configuration only. Opening one restores the filters and runs fresh server data." wrapText="true" styleClass="approved-page-subtitle,page-subtitle"/>
                     </VBox>
                 </VBox>
             </Tab>
 
             <Tab text="Scheduled">
-                <VBox spacing="10">
-                    <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
-                    <HBox alignment="CENTER_LEFT"><VBox spacing="2"><Label text="Scheduled Reports" styleClass="page-title"/><Label text="Run Saved Reports automatically using dynamic date presets, PDF/Excel/CSV exports, email and server archive delivery." styleClass="page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/></HBox>
+                <VBox spacing="12" styleClass="reports-tab-page">
+                    <HBox alignment="CENTER_LEFT" styleClass="reports-tab-toolbar"><VBox spacing="2"><Label text="Scheduled Reports" styleClass="approved-page-title,page-title"/><Label text="Server-side schedules built from Saved Reports with dynamic date presets and delivery history." styleClass="approved-page-subtitle,page-subtitle"/></VBox><Region HBox.hgrow="ALWAYS"/></HBox>
                     <GridPane hgap="10" vgap="10" styleClass="report-kpi-grid,erp-kpi-section">
-                        <columnConstraints><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/><ColumnConstraints percentWidth="25"/></columnConstraints>
-                        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,kpi-profit"><StackPane styleClass="sales-metric-icon"/><VBox><Label text="Active Schedules" styleClass="metric-label"/><Label fx:id="lblActiveSchedules" text="0" styleClass="metric-value"/><Label text="Enabled" styleClass="page-subtitle"/></VBox></HBox>
-                        <HBox GridPane.columnIndex="1" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,kpi-stock"><StackPane styleClass="sales-metric-icon"/><VBox><Label text="Next Run" styleClass="metric-label"/><Label fx:id="lblNextRun" text="Not scheduled" styleClass="metric-value"/><Label text="Server scheduler" styleClass="page-subtitle"/></VBox></HBox>
-                        <HBox GridPane.columnIndex="2" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,kpi-customer"><StackPane styleClass="sales-metric-icon"/><VBox><Label text="Reports This Month" styleClass="metric-label"/><Label fx:id="lblReportsMonth" text="0" styleClass="metric-value"/><Label text="Generated" styleClass="page-subtitle"/></VBox></HBox>
-                        <HBox GridPane.columnIndex="3" alignment="CENTER_LEFT" spacing="10" styleClass="report-kpi-card,kpi-profit"><StackPane styleClass="sales-metric-icon"/><VBox><Label text="Failures" styleClass="metric-label"/><Label fx:id="lblScheduleFailures" text="0" styleClass="metric-value"/><Label text="Last 30 days" styleClass="page-subtitle"/></VBox></HBox>
+                        <columnConstraints><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/></columnConstraints>
+                        <HBox alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,kpi-profit"><StackPane styleClass="sales-metric-icon,approved-kpi-icon"/><VBox><Label text="Active Schedules" styleClass="metric-label"/><Label fx:id="lblActiveSchedules" text="0" styleClass="metric-value"/><Label text="Enabled" styleClass="metric-note"/></VBox></HBox>
+                        <HBox GridPane.columnIndex="1" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,kpi-stock"><StackPane styleClass="sales-metric-icon,approved-kpi-icon"/><VBox><Label text="Next Run" styleClass="metric-label"/><Label fx:id="lblNextRun" text="Not scheduled" styleClass="metric-value"/><Label text="Server scheduler" styleClass="metric-note"/></VBox></HBox>
+                        <HBox GridPane.columnIndex="2" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,kpi-customer"><StackPane styleClass="sales-metric-icon,approved-kpi-icon"/><VBox><Label text="Reports This Month" styleClass="metric-label"/><Label fx:id="lblReportsMonth" text="0" styleClass="metric-value"/><Label text="Generated" styleClass="metric-note"/></VBox></HBox>
+                        <HBox GridPane.columnIndex="3" alignment="CENTER_LEFT" spacing="10" styleClass="sales-metric-card,report-kpi-card,kpi-profit"><StackPane styleClass="sales-metric-icon,approved-kpi-icon"/><VBox><Label text="Failures" styleClass="metric-label"/><Label fx:id="lblScheduleFailures" text="0" styleClass="metric-value"/><Label text="Last 30 days" styleClass="metric-note"/></VBox></HBox>
                     </GridPane>
                     <VBox spacing="10" VBox.vgrow="ALWAYS" styleClass="report-card">
                         <HBox spacing="10" alignment="CENTER_LEFT">
-                            <StackPane minWidth="280" prefWidth="340" maxWidth="420" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
+                            <StackPane minWidth="300" prefWidth="390" maxWidth="460" styleClass="erp-item-search-shell,register-header-search-shell,report-search-shell">
                                 <TextField fx:id="txtScheduleSearch" promptText="Search schedules..." maxWidth="Infinity" styleClass="approved-input,erp-item-search,register-header-search-input"/>
                                 <StackPane fx:id="scheduleSearchIcon" mouseTransparent="true" minWidth="24" prefWidth="24" maxWidth="24" minHeight="24" prefHeight="24" maxHeight="24" StackPane.alignment="CENTER_RIGHT" styleClass="erp-item-search-icon-box,register-header-search-icon"><StackPane.margin><Insets right="8"/></StackPane.margin></StackPane>
                             </StackPane>
-                            <ComboBox fx:id="cmbScheduleStatus" prefWidth="190" styleClass="approved-input"/><ComboBox fx:id="cmbScheduleFormat" prefWidth="190" styleClass="approved-input"/>
+                            <ComboBox fx:id="cmbScheduleStatus" prefWidth="180" styleClass="approved-input"/>
+                            <ComboBox fx:id="cmbScheduleFormat" prefWidth="180" styleClass="approved-input"/>
                             <Region HBox.hgrow="ALWAYS"/>
                         </HBox>
-                        <TableView fx:id="tblSchedules" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table">
+                        <TableView fx:id="tblSchedules" VBox.vgrow="ALWAYS" styleClass="approved-table,report-table,erp-table-profile-register">
                             <columns>
                                 <TableColumn fx:id="colScheduleName" text="Schedule"/><TableColumn fx:id="colScheduleReport" text="Saved Report"/><TableColumn fx:id="colScheduleFrequency" text="Frequency"/><TableColumn fx:id="colScheduleTime" text="Time"/><TableColumn fx:id="colScheduleFormat" text="Format"/><TableColumn fx:id="colScheduleDelivery" text="Delivery"/><TableColumn fx:id="colScheduleNextRun" text="Next Run"/><TableColumn fx:id="colScheduleStatus" text="Status"/><TableColumn fx:id="colScheduleActions" text="Actions"/>
                             </columns>
                         </TableView>
-                        <Label text="Schedules run on the company server, resolve the Saved Report relative period at execution time, then export and deliver the result automatically." styleClass="page-subtitle"/>
+                        <Label text="Schedules run on the server, resolve the Saved Report period at execution time, export the same report result and record delivery history." wrapText="true" styleClass="approved-page-subtitle,page-subtitle"/>
                     </VBox>
                 </VBox>
             </Tab>

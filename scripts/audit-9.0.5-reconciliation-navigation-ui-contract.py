@@ -81,9 +81,9 @@ require('-fx-text-fill: #3b1b68;' not in css[css.find('9.0.5 global record-table
         'Shared selection contract must not leak light-theme selected text colours into dark mode')
 
 # Runtime/startup compatibility remains one exact value.
-require('APP_VERSION = "9.0.42"' in runtime and 'BUILD_REVISION = "9.0.42"' in runtime,
+require('APP_VERSION = "9.0.44"' in runtime and 'BUILD_REVISION = "9.0.44"' in runtime,
         'Desktop app/build identity must both be current 9.0.18')
-require('dse.app.version=9.0.42' in server_props and 'dse.build.revision=9.0.42' in server_props,
+require('dse.app.version=9.0.44' in server_props and 'dse.build.revision=9.0.44' in server_props,
         'Spring Boot app/build identity must exactly match desktop 9.0.18')
 
 print('PASS: DSE ERP 9.0.5 reconciliation/navigation/UI contract')

@@ -318,9 +318,9 @@ public class MasterDataController implements ScreenLifecycle {
 
     private void configureTableColumns() {
 
-        colCode.setCellValueFactory(
-            new PropertyValueFactory<>("lookupCode")
-        );
+        // ROLE is special: lookup_value is the security/business identity. The generic ROLxxx
+        // lookup_code remains an internal Master identifier and must never be presented as a role ID.
+        colCode.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(displayLookupCode(value.getValue())));
 
         colValue.setCellValueFactory(
             new PropertyValueFactory<>("lookupValue")
@@ -348,6 +348,30 @@ public class MasterDataController implements ScreenLifecycle {
         }
     }
 
+    private boolean isRoleCategory(String category) {
+        return category != null && "ROLE".equalsIgnoreCase(category.trim());
+    }
+
+    private boolean isRoleCategorySelected() {
+        return lstTypes != null && isRoleCategory(lstTypes.getSelectionModel().getSelectedItem());
+    }
+
+    private String displayLookupCode(Lookup lookup) {
+        if (lookup == null) return "";
+        if (!isRoleCategorySelected() && !isRoleCategory(lookup.getLookupType())) return safeText(lookup.getLookupCode());
+        return safeText(lookup.getLookupValue()).trim().toUpperCase(Locale.ROOT);
+    }
+
+    private void updateLookupColumnLabels(String category) {
+        boolean role = isRoleCategory(category);
+        if (colCode != null) colCode.setText(role ? "Role Code" : "Code");
+        if (colValue != null) colValue.setText(role ? "Role Name" : "Value");
+    }
+
+    private static String safeText(String value) {
+        return value == null ? "" : value;
+    }
+
     private void configureListeners() {
 
         lstTypes.getSelectionModel()
@@ -363,6 +387,7 @@ public class MasterDataController implements ScreenLifecycle {
                         if ("ROLE".equalsIgnoreCase(newValue)) root.getStyleClass().add("master-role-selected");
                     }
                     updateCategoryActionState(newValue);
+                    updateLookupColumnLabels(newValue);
                     loadTable();
                 } else {
                     clearTable();
@@ -430,18 +455,16 @@ public class MasterDataController implements ScreenLifecycle {
         String category = lookup.getLookupType() == null || lookup.getLookupType().isBlank()
             ? String.valueOf(lstTypes.getSelectionModel().getSelectedItem()) : lookup.getLookupType();
         String status = lookup.isActive() ? "Active" : "Inactive";
-        detailDrawer.showRecord(
-            lookup.getLookupValue(),
-            lookup.getLookupCode(),
-            List.of(
-                RegisterDetailDrawer.field("Master Category", category, categorySemantic(category)),
-                RegisterDetailDrawer.field("Code", lookup.getLookupCode(), "reference"),
-                RegisterDetailDrawer.field("Value", lookup.getLookupValue(), "details"),
-                RegisterDetailDrawer.field("Description", lookup.getDescription(), "notes"),
-                RegisterDetailDrawer.field("Display Order", String.valueOf(lookup.getDisplayOrder()), "sort"),
-                RegisterDetailDrawer.field("Status", status, lookup.isActive() ? "active" : "inactive")
-            )
-        );
+        boolean role = isRoleCategory(category);
+        String displayCode = displayLookupCode(lookup);
+        List<RegisterDetailDrawer.Field> fields = new ArrayList<>();
+        fields.add(RegisterDetailDrawer.field("Master Category", category, categorySemantic(category)));
+        fields.add(RegisterDetailDrawer.field(role ? "Role Code" : "Code", displayCode, "reference"));
+        fields.add(RegisterDetailDrawer.field(role ? "Role Name" : "Value", lookup.getLookupValue(), "details"));
+        fields.add(RegisterDetailDrawer.field("Description", lookup.getDescription(), "notes"));
+        fields.add(RegisterDetailDrawer.field("Display Order", String.valueOf(lookup.getDisplayOrder()), "sort"));
+        fields.add(RegisterDetailDrawer.field("Status", status, lookup.isActive() ? "active" : "inactive"));
+        detailDrawer.showRecord(lookup.getLookupValue(), displayCode, fields);
         Button editButton = new Button("Edit Master", IconFactory.compactIcon("edit", 15));
         editButton.getStyleClass().addAll("approved-button", "approved-secondary-button");
         editButton.setOnAction(event -> { tblLookup.getSelectionModel().select(lookup); editLookup(); });
@@ -692,9 +715,6 @@ public class MasterDataController implements ScreenLifecycle {
        PIE CHART
        ========================================================= */
 
-    private void loadCategoryChart() {
-        applyCategoryChart(new ArrayList<>(categoryByName.values()));
-    }
 
     private void applyCategoryChart(List<MasterCategoryService.Category> rows) {
         if (categoryPieChart == null) return;
@@ -1114,10 +1134,11 @@ public class MasterDataController implements ScreenLifecycle {
         java.io.File selected = chooser.showSaveDialog(tblLookup.getScene().getWindow());
         if (selected == null) return;
         try (BufferedWriter writer = Files.newBufferedWriter(selected.toPath(), StandardCharsets.UTF_8)) {
-            writer.write("Code,Value,Description");
+            boolean role = isRoleCategory(category);
+            writer.write(role ? "Role Code,Role Name,Description" : "Code,Value,Description");
             writer.newLine();
             for (Lookup row : tblLookup.getItems()) {
-                writer.write(csv(row.getLookupCode()) + "," + csv(row.getLookupValue()) + "," + csv(row.getDescription()));
+                writer.write(csv(displayLookupCode(row)) + "," + csv(row.getLookupValue()) + "," + csv(row.getDescription()));
                 writer.newLine();
             }
             setStatus("Master data exported successfully.");

@@ -55,7 +55,7 @@ public class QuotationController implements org.example.navigation.ScreenLifecyc
  private void selectLinked(QuoteRow quote,LinkedRecordContext.Target target){table.getSelectionModel().select(quote);if(!table.getItems().contains(quote))table.getItems().setAll(quote);table.scrollTo(quote);org.example.navigation.DeepLinkSupport.pulse(table);showDetails(quote);org.example.util.PerformanceMonitor.event("linked-navigation","QUOTATION -> "+quote.no.get()+" | source="+target.source());}
  @Override public void onScreenShown(boolean reused){refreshShortcutLabel();refreshSourceFilter();loadSavedViews();org.example.util.OperationalUiSupport.focusWorkArea(table);if(!reused)return;if(org.example.util.ScreenRefreshPolicy.shouldRefresh("quotations",org.example.util.ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(60)))refresh();}
 
- private void refreshShortcutLabel(){if(btnNewQuotation==null)return;String key=org.example.shortcut.ShortcutRegistry.display(org.example.shortcut.ShortcutRegistry.Action.NEW_QUOTATION);btnNewQuotation.setText("Disabled".equals(key)?"New Quotation":"New Quotation ("+key+")");}
+ private void refreshShortcutLabel(){org.example.shortcut.ShortcutRegistry.bindLabel(btnNewQuotation,org.example.shortcut.ShortcutRegistry.Action.NEW_QUOTATION,"New Quotation");}
  @Override public void onScreenHidden(){org.example.util.UiTaskExecutor.cancelPrefix("quotation-");}
  // Filters may fire while dropdowns are still being populated; null means "All".
  @FXML public void applyFilters(){if(pageState.isApplyingServerPage()||applyingSavedView)return;pageState.reset();loadPage();}

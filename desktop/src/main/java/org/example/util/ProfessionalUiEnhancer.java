@@ -721,11 +721,6 @@ public final class ProfessionalUiEnhancer {
      * Reuses the screen's own business handler instead of duplicating CRUD logic.
      * The closest visible button whose label matches the requested action is fired.
      */
-    private static void fireNamedAction(TableView<?> table, String... names) {
-        Node root = table.getScene() == null ? table : table.getScene().getRoot();
-        ButtonBase action = findAction(root, names);
-        if (action != null && !action.isDisabled()) action.fire();
-    }
 
     private static ButtonBase findAction(Node node, String... names) {
         if (node instanceof ButtonBase button && button.isVisible()) {

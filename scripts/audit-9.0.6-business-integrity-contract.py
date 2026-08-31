@@ -35,7 +35,7 @@ for permission in ('QUOTATION.VIEW','QUOTATION.CREATE','QUOTATION.EDIT','QUOTATI
     req(permission in quote,f'Quotation permission missing: {permission}')
 req('QuoteCalculation calc=calculate(d.lines())' in quote and 'DocumentCalculationEngine.line' in quote,'Quotation values must be recalculated server-side')
 req('discount_amount' in quote and 'l.discount()' in quote,'Quotation conversion must preserve discount semantics')
-req('role.equalsIgnoreCase("USER")' in auth or '"USER".equalsIgnoreCase' in auth,'public registration must be restricted to USER role')
+req('SELF_REGISTRATION_ROLE = "SALES"' in auth and 'SELF_REGISTRATION_ROLE.equalsIgnoreCase(role.code())' in auth,'public registration must be restricted to the approved SALES self-registration role')
 # Secrets/restore
 req('SecretValueCodec.encrypt' in smtp and 'SecretValueCodec.decrypt' in smtp,'SMTP password must be encrypted at rest')
 req('validateArchiveListing' in backup and 'stageRestore' in backup and 'validate(candidate' in backup,'restore candidate must be validated before staging')
@@ -71,6 +71,6 @@ if pay:
     req('BANK_RECONCILIATION' in pay,'bank-reconciled payment edit protection must remain')
 req('rounding_adjustment' in ret,'Return refund balance must retain rounding adjustment handling')
 # One exact startup identity
-req('APP_VERSION = "9.0.42"' in runtime and 'BUILD_REVISION = "9.0.42"' in runtime,'desktop version/build must both be 9.0.18')
-req('dse.app.version=9.0.42' in props and 'dse.build.revision=9.0.42' in props,'server version/build must both be 9.0.18')
+req('APP_VERSION = "9.0.44"' in runtime and 'BUILD_REVISION = "9.0.44"' in runtime,'desktop version/build must both be 9.0.18')
+req('dse.app.version=9.0.44' in props and 'dse.build.revision=9.0.44' in props,'server version/build must both be 9.0.18')
 print('PASS: DSE ERP 9.0.18 runtime with 9.0.6 business-integrity contract')

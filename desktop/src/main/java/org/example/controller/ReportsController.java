@@ -282,14 +282,9 @@ public class ReportsController implements ScreenLifecycle {
     private String reportSemantic(String category){ String c=safe(category).toLowerCase(Locale.ROOT); if(c.contains("purchase"))return "purchase"; if(c.contains("return"))return "return"; if(c.contains("gst")||c.contains("tax"))return "tax"; if(c.contains("receiv")||c.contains("payable"))return "payment"; if(c.contains("inventory"))return "inventory"; if(c.contains("bank"))return "bank"; if(c.contains("profit"))return "chart"; return "sales"; }
 
     @FXML private void openSalesRegister(){openUnified("SALES_REGISTER","None");}
-    @FXML private void openSalesByCustomer(){openUnified("SALES_BY_CUSTOMER","Customer");}
-    @FXML private void openSalesByItem(){openUnified("SALES_BY_ITEM","Item");}
     @FXML private void openPurchaseRegister(){openUnified("PURCHASE_REGISTER","None");}
     @FXML private void openReturns(){openUnified("RETURNS_ANALYSIS","Return Type");}
     @FXML private void openInventory(){openUnified("STOCK_SUMMARY","Category");}
-    @FXML private void openItemLedger(){openUnified("ITEM_LEDGER","Item");}
-    @FXML private void openBanking(){openUnified("BANK_RECONCILIATION","Status");}
-    @FXML private void openGst(){openUnified("GST_TAX","GST Rate");}
     @FXML private void openReceivables(){openUnified("RECEIVABLE_AGEING","Age Bucket");}
     @FXML private void openPayables(){openUnified("PAYABLE_AGEING","Age Bucket");}
     @FXML private void openProfitability(){openUnified("PROFITABILITY","Customer");}
@@ -305,8 +300,21 @@ public class ReportsController implements ScreenLifecycle {
         colSavedColumns.setCellValueFactory(v->new SimpleStringProperty(v.getValue().columns()));
         colSavedStatus.setCellValueFactory(v->new SimpleStringProperty("NOT SCHEDULED"));
         colSavedStatus.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String v,boolean empty){super.updateItem(v,empty);setText(empty?null:v);getStyleClass().removeAll("report-status-paid","report-status-pending");if(!empty)getStyleClass().add("report-status-other");}});
-        colSavedActions.setCellFactory(c->new TableCell<>(){ final Button open=new Button("Open"); {open.getStyleClass().addAll("approved-button","approved-row-action","report-row-action");open.setGraphic(IconFactory.compactIcon("view",15));open.setGraphicTextGap(6);open.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)applySavedReport(row);});} @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:open);} });
-        tblSavedReports.setRowFactory(t->{TableRow<SavedReportRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())applySavedReport(row.getItem());});return row;});
+        colSavedActions.setCellFactory(c->new TableCell<>(){
+            final Button open=new Button("Open");
+            final Button schedule=new Button("Schedule");
+            final HBox actions=new HBox(6,open,schedule);
+            {
+                open.getStyleClass().addAll("approved-button","approved-row-action","report-row-action");
+                open.setGraphic(IconFactory.compactIcon("view",15));open.setGraphicTextGap(6);
+                open.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)applySavedReport(row);});
+                schedule.getStyleClass().addAll("approved-button","approved-secondary-button","approved-row-action","report-row-action");
+                schedule.setGraphic(IconFactory.compactIcon("calendar",15));schedule.setGraphicTextGap(6);
+                schedule.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)scheduleSavedReport(row);});
+                actions.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+            }
+            @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:actions);}
+        });
         tblSavedReports.setPlaceholder(new Label("No saved reports yet. Open a report from Report Center and choose Save Report."));
     }
     private void configureSavedSearch(){ if(txtSavedSearch!=null)txtSavedSearch.textProperty().addListener((o,a,b)->filterSavedReports()); }
@@ -366,7 +374,6 @@ public class ReportsController implements ScreenLifecycle {
                 if(empty||row==null){setGraphic(null);return;}toggle.setText("ACTIVE".equalsIgnoreCase(row.status())?"Pause":"Resume");setGraphic(actions);
             }
         });
-        tblSchedules.setRowFactory(t->{TableRow<ScheduleRow> row=new TableRow<>();row.setOnMouseClicked(e->{if(e.getClickCount()==2&&!row.isEmpty())editSchedule(row.getItem());});return row;});
         tblSchedules.setPlaceholder(new Label("No schedules configured yet. Create a Saved Report first, then select + New Schedule."));
         cmbScheduleStatus.getItems().setAll("All Status","ACTIVE","PAUSED");cmbScheduleStatus.setValue("All Status");
         cmbScheduleFormat.getItems().setAll("All Formats","PDF","XLSX","PDF + XLSX","CSV");cmbScheduleFormat.setValue("All Formats");
@@ -422,23 +429,26 @@ public class ReportsController implements ScreenLifecycle {
     private static String monthName(Integer value){try{return java.time.Month.of(value==null?1:value).getDisplayName(java.time.format.TextStyle.SHORT,Locale.ENGLISH);}catch(Exception e){return "Jan";}}
     private static String ordinal(Integer value){int n=value==null?1:value;int mod=n%100;String suffix=(mod>=11&&mod<=13)?"th":switch(n%10){case 1->"st";case 2->"nd";case 3->"rd";default->"th";};return n+suffix;}
 
-    @FXML private void newSchedule(){loadScheduleOptions(null);}
-    private void editSchedule(ScheduleRow row){if(row!=null)loadScheduleOptions(row);}
-    private void loadScheduleOptions(ScheduleRow row){
+    @FXML private void newSchedule(){loadScheduleOptions(null,null);}
+    private void editSchedule(ScheduleRow row){if(row!=null)loadScheduleOptions(row,null);}
+    private void scheduleSavedReport(SavedReportRow row){if(row!=null)loadScheduleOptions(null,row.name());}
+    private void loadScheduleOptions(ScheduleRow row,String preferredSavedReport){
         UiTaskExecutor.submitLatest("reports-schedule-options",scheduleApi::savedReports,options->{
             if(options==null||options.isEmpty()){info("Scheduled Reports","Create and save a report in Report Viewer before creating a schedule.");return;}
-            showScheduleDialog(row,options);
+            showScheduleDialog(row,options,preferredSavedReport);
         },e->error("Could not load Saved Reports for scheduling: "+root(e)));
     }
 
-    private void showScheduleDialog(ScheduleRow existing,List<SavedReportOption> options){
+    private void showScheduleDialog(ScheduleRow existing,List<SavedReportOption> options,String preferredSavedReport){
         OwnedDialog<ScheduleRequest> dialog=new OwnedDialog<>(tblSchedules);dialog.setTitle(existing==null?"New Schedule":"Edit Schedule");DialogPresentation.configureWorkspace(dialog,"info");
         DialogPane pane=dialog.getDialogPane();ButtonType saveType=new ButtonType(existing==null?"Create Schedule":"Save Changes",ButtonBar.ButtonData.OK_DONE);pane.getButtonTypes().setAll(ButtonType.CANCEL,saveType);
         GridPane grid=new GridPane();grid.setHgap(12);grid.setVgap(10);grid.setPadding(new javafx.geometry.Insets(8));
         ColumnConstraints a=new ColumnConstraints();a.setMinWidth(145);ColumnConstraints b=new ColumnConstraints();b.setHgrow(Priority.ALWAYS);grid.getColumnConstraints().addAll(a,b);
         TextField name=new TextField(existing==null?"":safe(existing.name()));name.setPromptText("e.g. Daily Sales Summary");name.getStyleClass().add("approved-input");
         ComboBox<SavedReportOption> saved=new ComboBox<>(FXCollections.observableArrayList(options));saved.setMaxWidth(Double.MAX_VALUE);saved.getStyleClass().add("approved-input");
-        if(existing!=null)options.stream().filter(x->x.name().equals(existing.savedReport())).findFirst().ifPresent(saved::setValue);if(saved.getValue()==null)saved.getSelectionModel().selectFirst();
+        if(existing!=null)options.stream().filter(x->x.name().equals(existing.savedReport())).findFirst().ifPresent(saved::setValue);
+        else if(!blank(preferredSavedReport))options.stream().filter(x->x.name().equals(preferredSavedReport)).findFirst().ifPresent(saved::setValue);
+        if(saved.getValue()==null)saved.getSelectionModel().selectFirst();
         ComboBox<String> frequency=new ComboBox<>();frequency.getItems().setAll("Daily","Weekly","Monthly","Quarterly","Yearly");frequency.setMaxWidth(Double.MAX_VALUE);frequency.getStyleClass().add("approved-input");frequency.setValue(existing==null?"Daily":titleCase(existing.frequency()));
         ComboBox<String> weekday=new ComboBox<>();for(DayOfWeek d:DayOfWeek.values())weekday.getItems().add(d.getDisplayName(java.time.format.TextStyle.FULL,Locale.ENGLISH));weekday.setMaxWidth(Double.MAX_VALUE);weekday.getStyleClass().add("approved-input");weekday.getSelectionModel().select(existing==null||existing.dayOfWeek()==null?0:Math.max(0,existing.dayOfWeek()-1));
         Spinner<Integer> day=new Spinner<>(1,31,existing==null||existing.dayOfMonth()==null?1:existing.dayOfMonth());day.setEditable(true);day.setMaxWidth(Double.MAX_VALUE);

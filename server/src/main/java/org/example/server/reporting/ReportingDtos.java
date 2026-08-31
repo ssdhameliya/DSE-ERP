@@ -3,7 +3,7 @@ package org.example.server.reporting;
 import java.util.List;
 import java.util.Map;
 
-/** REST contract for the 9.0.42 unified reporting platform. */
+/** REST contract for the 9.0.44 unified reporting platform. */
 public final class ReportingDtos {
     private ReportingDtos() {}
 

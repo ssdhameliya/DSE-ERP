@@ -63,7 +63,7 @@ public class RegistrationController {
         if (chkMfa != null) { chkMfa.setSelected(true); chkMfa.setDisable(true); chkMfa.setTooltip(new Tooltip("MFA is mandatory for every non-Admin registration role.")); }
         try {
             cmbRole.getItems().setAll(users.registrationRoles());
-            cmbRole.getItems().stream().filter(r -> "SALES".equalsIgnoreCase(r.code())).findFirst().ifPresent(cmbRole::setValue);
+            if (!cmbRole.getItems().isEmpty()) cmbRole.setValue(cmbRole.getItems().getFirst());
         } catch (Exception e) {
             message("Unable to load account roles: " + e.getMessage(), true);
         }

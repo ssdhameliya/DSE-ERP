@@ -598,47 +598,7 @@ public class MasterDataService {
         audit.log("MASTER_CATEGORY", category.getId(), "DEACTIVATED", category.getCategoryName());
     }
 
-    private List<String> lookupUsage(LookupEntity lookup) {
-        String type = normal(lookup.getLookupType());
-        String code = categories.findByCategoryName(lookup.getLookupType())
-            .map(MasterCategoryEntity::getCategoryCode).map(this::normal).orElse(type.replace(' ', '_'));
-        String value = lookup.getLookupValue() == null ? "" : lookup.getLookupValue().trim();
-        List<String> usage = new ArrayList<>();
-        switch (code) {
-            case "CATEGORY" -> addUsage(usage, countText("item_master", "category", value), "Item Master category");
-            case "BRAND" -> addUsage(usage, countText("item_master", "brand", value), "Item Master brand");
-            case "MATERIAL" -> addUsage(usage, countText("item_master", "material", value), "Item Master material");
-            case "UNIT", "UOM" -> addUsage(usage, countText("item_master", "unit", value), "Item Master unit");
-            case "EXPENSE_CATEGORY" -> addUsage(usage, countText("finance_register", "category", value), "Expense records");
-            case "PAYMENT_MODE" -> {
-                addUsage(usage, countText("finance_register", "payment_mode", value), "Finance records");
-                addUsage(usage, countText("payment_record", "payment_mode", value), "Payment records");
-            }
-            case "PAYMENT_TERMS" -> addUsage(usage, countText("sales_header", "payment_terms", value), "Sales invoices");
-            case "QUOTATION_SOURCE" -> addUsage(usage, countText("quotation_header", "source", value), "Quotations");
-            case "GST_TYPE" -> addUsage(usage, countText("sales_header", "gst_type", value), "Sales invoices");
-            case "CHARGES" -> {
-                addUsage(usage, countText("sales_header", "charge_type", value), "Sales charge headers");
-                long chargeUses = countText("sales_charge", "charge_name", value);
-                if (lookup.getLookupCode() != null && !lookup.getLookupCode().isBlank()) {
-                    chargeUses += countText("sales_charge", "charge_code", lookup.getLookupCode());
-                }
-                addUsage(usage, chargeUses, "Sales charges");
-            }
-            case "GST" -> addUsage(usage, countNumber("item_master", "gst", value), "Item Master GST");
-            case "DISCOUNT" -> addUsage(usage, countNumber("item_master", "discount_percent", value), "Item Master discount");
-            case "ROLE" -> {
-                String roleValue = lookup.getLookupValue() == null ? "" : lookup.getLookupValue().trim();
-                addUsage(usage, countText("users", "role", roleValue), "Assigned users");
-            }
-            default -> { }
-        }
-        return usage;
-    }
 
-    private void addUsage(List<String> usage, long count, String label) {
-        if (count > 0) usage.add(label + ": " + count);
-    }
 
     private long countText(String table, String column, String value) {
         Number n = (Number) entityManager.createNativeQuery(
@@ -647,17 +607,6 @@ public class MasterDataService {
         return n.longValue();
     }
 
-    private long countNumber(String table, String column, String value) {
-        try {
-            double parsed = Double.parseDouble(value.replace("%", "").trim());
-            Number n = (Number) entityManager.createNativeQuery(
-                "select count(*) from " + table + " where " + column + " = :value")
-                .setParameter("value", parsed).getSingleResult();
-            return n.longValue();
-        } catch (Exception ignored) {
-            return 0;
-        }
-    }
 
     @Transactional
     public void saveItems(List<MasterDtos.ItemDto> rows) {

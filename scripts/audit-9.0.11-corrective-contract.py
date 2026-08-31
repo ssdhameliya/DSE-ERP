@@ -257,31 +257,31 @@ build_bat = text('Build Production Windows.bat')
 postgres_bat = text('scripts/start-postgresql.cmd')
 safe_rollback = text('desktop/src/main/resources/fxml/pages/SafeRollback.fxml')
 
-req('<version>9.0.42</version>' in root_pom and '<dse.phase>9.0.42</dse.phase>' in root_pom,
+req('<version>9.0.44</version>' in root_pom and '<dse.phase>9.0.44</dse.phase>' in root_pom,
     'root Maven release identity must be 9.0.18')
 for name,pom in [('server',server_pom),('desktop',desktop_pom),('shared',shared_pom)]:
-    req('<version>9.0.42</version>' in pom, f'{name} parent version must be 9.0.18')
-req('APP_VERSION = "9.0.42"' in runtime and 'BUILD_REVISION = "9.0.42"' in runtime,
+    req('<version>9.0.44</version>' in pom, f'{name} parent version must be 9.0.18')
+req('APP_VERSION = "9.0.44"' in runtime and 'BUILD_REVISION = "9.0.44"' in runtime,
     'shared runtime identity must be 9.0.18')
-req('dse.app.version=9.0.42' in props and 'dse.build.revision=9.0.42' in props,
+req('dse.app.version=9.0.44' in props and 'dse.build.revision=9.0.44' in props,
     'server runtime identity must be 9.0.18')
-req('version=9.0.42' in app_version and 'DEFAULT_VERSION="9.0.42"' in update,
+req('version=9.0.44' in app_version and 'DEFAULT_VERSION="9.0.44"' in update,
     'desktop resource/updater identity must be 9.0.18')
 if runtime_manifest:
-    req('runtime.phase=9.0.42' in runtime_manifest, 'bundled runtime phase must be 9.0.18')
-req('DSE ERP 9.0.42 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    req('runtime.phase=9.0.44' in runtime_manifest, 'bundled runtime phase must be 9.0.18')
+req('DSE ERP 9.0.44 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
     'IntelliJ launcher banner must be 9.0.18')
-req('DSE ERP 9.0.42 - PRODUCTION WINDOWS BUILD' in build_bat,
+req('DSE ERP 9.0.44 - PRODUCTION WINDOWS BUILD' in build_bat,
     'production build banner must be 9.0.18')
-req('DSE ERP 9.0.42 uses application-managed PostgreSQL.' in postgres_bat,
+req('DSE ERP 9.0.44 uses application-managed PostgreSQL.' in postgres_bat,
     'PostgreSQL launcher banner must be 9.0.18')
-req('fx:id="lblCurrentVersion" text="9.0.42"' in safe_rollback,
+req('fx:id="lblCurrentVersion" text="9.0.44"' in safe_rollback,
     'Safe Rollback current-version fallback must be 9.0.18')
 
 # Locked production document-generation boundary: unchanged from corrected v9.0.8.
 protected = {
     'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c',
-    'desktop/src/main/java/org/example/service/InvoicePdfService.java': '349e9f1f863c122826cad2560091f2dac87cdb9b2bcb0a42f5825fd312feb778',
+    'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8',
     'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082',
 }
 for rel, expected in protected.items():

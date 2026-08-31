@@ -39,8 +39,6 @@ public class BankExpenseController implements ScreenLifecycle {
     public record BankEntryPrefill(long statementTransactionId,String date,double debit,double credit,String reference,String description,String accountName,String paymentMode){}
     public static void requestExpensePrefill(ExpensePrefill prefill){ requestedExpensePrefill=prefill; requestedMode=Mode.EXPENSE; }
     public static void requestBankEntryPrefill(BankEntryPrefill prefill){ requestedBankEntryPrefill=prefill; requestedMode=Mode.BANK; }
-    private static ExpensePrefill consumeExpensePrefill(){ExpensePrefill p=requestedExpensePrefill;requestedExpensePrefill=null;return p;}
-    private static BankEntryPrefill consumeBankEntryPrefill(){BankEntryPrefill p=requestedBankEntryPrefill;requestedBankEntryPrefill=null;return p;}
     public static void requestMode(Mode mode) { requestedMode = mode == null ? Mode.BANK : mode; }
     public static void requestNewEntry(Mode mode){requestedMode=mode==null?Mode.BANK:mode;requestedCreateEntry=true;}
     public static void requestLinkedEntry(Mode mode,Integer entryId){requestedMode=mode==null?Mode.BANK:mode;requestedLinkedEntryId=entryId;}

@@ -4,154 +4,140 @@
 <?import javafx.scene.layout.*?>
 <VBox fx:id="panelShortcuts" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
       spacing="12" minHeight="0" maxHeight="Infinity"
-      styleClass="dse-shortcut-v3-root">
+      styleClass="approved-ui,approved-screen,erp-screen-root,dse-shortcut-v3-root,shortcut-manager-root">
   <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
 
-  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="dse-shortcut-v3-header">
-    <StackPane fx:id="shortcutHeaderIcon" minWidth="46" prefWidth="46" minHeight="46" prefHeight="46" styleClass="dse-shortcut-v3-header-icon"/>
+  <HBox alignment="CENTER_LEFT" spacing="12" styleClass="approved-page-header,approved-section-header,erp-page-identity-header,shortcut-manager-header">
+    <StackPane fx:id="shortcutHeaderIcon" minWidth="46" prefWidth="46" minHeight="46" prefHeight="46"
+               styleClass="erp-page-header-icon,shortcut-manager-header-icon"/>
     <VBox spacing="3" HBox.hgrow="ALWAYS">
-      <Label text="Shortcut Manager" styleClass="dse-shortcut-v3-title"/>
-      <Label text="Manage every application shortcut without disturbing the workspace." styleClass="dse-shortcut-v3-subtitle"/>
+      <Label text="Keyboard Shortcuts" styleClass="approved-page-title,page-title,shortcut-manager-title"/>
+      <Label text="Manage application actions, quick-create commands and navigation shortcuts."
+             styleClass="approved-page-subtitle,page-subtitle,shortcut-manager-subtitle"/>
     </VBox>
-    <Button text="Import" onAction="#importShortcuts" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-import"/>
-    <Button text="Export" onAction="#exportShortcuts" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-export"/>
-    <Button text="Reset to Defaults" onAction="#resetAllShortcuts" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-reset-all"/>
-    <Button text="Add Shortcut" onAction="#addShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-primary"/>
+    <Button text="Import" onAction="#importShortcuts" styleClass="approved-button,approved-secondary-button"/>
+    <Button text="Export" onAction="#exportShortcuts" styleClass="approved-button,approved-secondary-button"/>
+    <Button text="Reset Defaults" onAction="#resetAllShortcuts" styleClass="approved-button,approved-secondary-button"/>
   </HBox>
 
-  <HBox alignment="CENTER_LEFT" spacing="10" styleClass="dse-shortcut-v3-toolbar">
-    <TextField fx:id="txtShortcutSearch" promptText="Search actions, categories, keys or scope..." HBox.hgrow="ALWAYS" styleClass="dse-shortcut-v3-search"/>
-    <ComboBox fx:id="cmbShortcutCategory" prefWidth="220" promptText="All Categories" styleClass="dse-shortcut-v3-filter"/>
-    <Label fx:id="lblShortcutValidation" text="No shortcut conflicts detected." styleClass="dse-shortcut-v3-validation"/>
+  <HBox spacing="10" styleClass="shortcut-kpi-row">
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiTotalIcon" styleClass="approved-kpi-icon"/>
+      <VBox spacing="1">
+        <Label fx:id="lblShortcutTotal" text="0" styleClass="approved-kpi-value"/>
+        <Label text="Available Actions" styleClass="approved-metric-note"/>
+        <Label text="Three user-facing groups" styleClass="metric-note"/>
+      </VBox>
+    </HBox>
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiCustomIcon" styleClass="approved-kpi-icon"/>
+      <VBox spacing="1">
+        <Label fx:id="lblShortcutCustom" text="0" styleClass="approved-kpi-value"/>
+        <Label text="Custom Assignments" styleClass="approved-metric-note"/>
+        <Label text="Changed from defaults" styleClass="metric-note"/>
+      </VBox>
+    </HBox>
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiConflictIcon" styleClass="approved-kpi-icon"/>
+      <VBox spacing="1">
+        <Label fx:id="lblShortcutConflicts" text="0" styleClass="approved-kpi-value"/>
+        <Label text="Conflicts" styleClass="approved-metric-note"/>
+        <Label text="Must be zero to save" styleClass="metric-note"/>
+      </VBox>
+    </HBox>
+    <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface,approved-kpi-card,shortcut-kpi-card">
+      <StackPane fx:id="shortcutKpiCategoryIcon" styleClass="approved-kpi-icon"/>
+      <VBox spacing="1">
+        <Label fx:id="lblShortcutCategories" text="3" styleClass="approved-kpi-value"/>
+        <Label text="Groups" styleClass="approved-metric-note"/>
+        <Label text="Application • Quick Create • Navigation" styleClass="metric-note"/>
+      </VBox>
+    </HBox>
+  </HBox>
+
+  <HBox alignment="CENTER_LEFT" spacing="8" styleClass="approved-filter-bar,shortcut-group-bar">
+    <Button fx:id="btnShortcutApplication" text="Application Actions" onAction="#showShortcutApplicationActions"
+            styleClass="shortcut-group-button"/>
+    <Button fx:id="btnShortcutQuickCreate" text="Quick Create" onAction="#showShortcutQuickCreate"
+            styleClass="shortcut-group-button"/>
+    <Button fx:id="btnShortcutNavigation" text="Navigation" onAction="#showShortcutNavigation"
+            styleClass="shortcut-group-button"/>
+    <Region HBox.hgrow="ALWAYS"/>
+    <Label fx:id="lblShortcutValidation" text="No shortcut conflicts detected." styleClass="shortcut-validation"/>
   </HBox>
 
   <HBox spacing="12" VBox.vgrow="ALWAYS">
-    <VBox spacing="12" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
-      <HBox spacing="10" styleClass="dse-shortcut-v3-kpi-row">
-        <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="dse-shortcut-v3-kpi,dse-shortcut-v3-kpi-purple">
-          <StackPane fx:id="shortcutKpiTotalIcon" styleClass="dse-shortcut-v3-kpi-icon"/>
-          <VBox spacing="1"><Label fx:id="lblShortcutTotal" text="0" styleClass="dse-shortcut-v3-kpi-value"/><Label text="Total Shortcuts" styleClass="dse-shortcut-v3-kpi-label"/><Label text="Available actions" styleClass="dse-shortcut-v3-kpi-caption"/></VBox>
-        </HBox>
-        <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="dse-shortcut-v3-kpi,dse-shortcut-v3-kpi-green">
-          <StackPane fx:id="shortcutKpiCustomIcon" styleClass="dse-shortcut-v3-kpi-icon"/>
-          <VBox spacing="1"><Label fx:id="lblShortcutCustom" text="0" styleClass="dse-shortcut-v3-kpi-value"/><Label text="Custom Shortcuts" styleClass="dse-shortcut-v3-kpi-label"/><Label text="Changed from defaults" styleClass="dse-shortcut-v3-kpi-caption"/></VBox>
-        </HBox>
-        <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="dse-shortcut-v3-kpi,dse-shortcut-v3-kpi-amber">
-          <StackPane fx:id="shortcutKpiConflictIcon" styleClass="dse-shortcut-v3-kpi-icon"/>
-          <VBox spacing="1"><Label fx:id="lblShortcutConflicts" text="0" styleClass="dse-shortcut-v3-kpi-value"/><Label text="Conflicts Found" styleClass="dse-shortcut-v3-kpi-label"/><Label text="Needs attention" styleClass="dse-shortcut-v3-kpi-caption"/></VBox>
-        </HBox>
-        <HBox spacing="10" alignment="CENTER_LEFT" HBox.hgrow="ALWAYS" styleClass="dse-shortcut-v3-kpi,dse-shortcut-v3-kpi-blue">
-          <StackPane fx:id="shortcutKpiCategoryIcon" styleClass="dse-shortcut-v3-kpi-icon"/>
-          <VBox spacing="1"><Label fx:id="lblShortcutCategories" text="0" styleClass="dse-shortcut-v3-kpi-value"/><Label text="Categories" styleClass="dse-shortcut-v3-kpi-label"/><Label text="Shortcut groups" styleClass="dse-shortcut-v3-kpi-caption"/></VBox>
-        </HBox>
+    <VBox spacing="10" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS" styleClass="approved-card,approved-surface,shortcut-list-card">
+      <HBox alignment="CENTER_LEFT" spacing="10">
+        <TextField fx:id="txtShortcutSearch" promptText="Search action, key or scope..." HBox.hgrow="ALWAYS"
+                   styleClass="approved-input,register-header-search-input"/>
       </HBox>
-
-      <StackPane fx:id="shortcutWorkspaceStack" VBox.vgrow="ALWAYS" styleClass="dse-shortcut-v3-workspace">
-        <GridPane fx:id="shortcutCards" hgap="10" vgap="10" alignment="TOP_LEFT" maxWidth="Infinity" maxHeight="Infinity" StackPane.alignment="CENTER" styleClass="dse-shortcut-v3-cards"/>
-        <VBox fx:id="shortcutListPanel" visible="false" managed="false" spacing="9" styleClass="dse-shortcut-v3-list-panel">
-          <HBox alignment="CENTER_LEFT" spacing="10">
-            <Button text="← Overview" onAction="#showShortcutOverviewFromList" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-secondary"/>
-            <VBox spacing="1" HBox.hgrow="ALWAYS">
-              <Label fx:id="lblShortcutListTitle" text="Shortcuts" styleClass="dse-shortcut-v3-list-title"/>
-              <Label fx:id="lblShortcutListSubtitle" text="" styleClass="dse-shortcut-v3-list-subtitle"/>
-            </VBox>
-            <Button text="Add Shortcut" onAction="#addShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-primary"/>
-          </HBox>
-          <ListView fx:id="lstShortcutActions" VBox.vgrow="ALWAYS" styleClass="dse-shortcut-v3-list"/>
-        </VBox>
-      </StackPane>
+      <ListView fx:id="lstShortcutActions" VBox.vgrow="ALWAYS" styleClass="shortcut-action-list"/>
     </VBox>
 
-    <VBox fx:id="shortcutDrawer" visible="false" managed="false" prefWidth="365" minWidth="330" maxWidth="410" spacing="10" styleClass="dse-shortcut-v3-drawer">
+    <VBox fx:id="shortcutDrawer" prefWidth="410" minWidth="370" maxWidth="450" spacing="10"
+          styleClass="approved-card,approved-surface,shortcut-editor-card">
       <HBox alignment="CENTER_LEFT" spacing="10">
-        <StackPane fx:id="shortcutDrawerIcon" styleClass="dse-shortcut-v3-drawer-icon"/>
+        <StackPane fx:id="shortcutDrawerIcon" styleClass="approved-kpi-icon"/>
         <VBox spacing="2" HBox.hgrow="ALWAYS">
-          <Label fx:id="lblShortcutDrawerTitle" text="Add / Edit Shortcut" styleClass="dse-shortcut-v3-drawer-title"/>
-          <Label text="Assign any permitted ERP action and choose where it works." styleClass="dse-shortcut-v3-drawer-subtitle" wrapText="true"/>
+          <Label text="Edit Shortcut" styleClass="approved-card-title,section-title"/>
+          <Label fx:id="lblShortcutDrawerTitle" text="Select an action" styleClass="shortcut-editor-action"/>
         </VBox>
-        <Button text="×" onAction="#closeShortcutDrawer" styleClass="dse-shortcut-v3-close"/>
       </HBox>
 
-      <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" styleClass="dse-shortcut-v3-tabs">
-        <tabs>
-          <Tab text="Details">
-            <content>
-              <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="dse-shortcut-v3-drawer-scroll">
-                <content>
-                  <VBox spacing="10">
-                    <Label text="Action *" styleClass="dse-shortcut-v3-field-label"/>
-                    <ComboBox fx:id="cmbShortcutAction" maxWidth="Infinity" visibleRowCount="14" styleClass="dse-shortcut-v3-input"/>
-                    <Label text="The catalog includes Application Actions, Quick Create and Navigation commands allowed for this user." wrapText="true" styleClass="dse-shortcut-v3-help"/>
+      <Label text="Action" styleClass="approved-field-label,field-label"/>
+      <ComboBox fx:id="cmbShortcutAction" maxWidth="Infinity" visibleRowCount="14" styleClass="approved-input"/>
 
-                    <Label text="Shortcut Keys *" styleClass="dse-shortcut-v3-field-label"/>
-                    <HBox spacing="7">
-                      <TextField fx:id="txtShortcutKeys" promptText="Press Capture Keys" HBox.hgrow="ALWAYS" editable="false" styleClass="dse-shortcut-v3-input,dse-shortcut-v3-key-capture"/>
-                      <Button text="Capture Keys" onAction="#focusShortcutCapture" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-capture"/>
-                    </HBox>
-                    <Label text="Press a key combination. Use Disable to turn an action off, or Delete Assignment to remove its user key." styleClass="dse-shortcut-v3-help" wrapText="true"/>
+      <Label text="Shortcut Keys" styleClass="approved-field-label,field-label"/>
+      <HBox spacing="8">
+        <TextField fx:id="txtShortcutKeys" promptText="Press shortcut keys" HBox.hgrow="ALWAYS" editable="false"
+                   styleClass="approved-input,shortcut-key-capture"/>
+        <Button text="Capture" onAction="#focusShortcutCapture" styleClass="approved-button,approved-secondary-button"/>
+      </HBox>
 
-                    <Label text="Applies To *" styleClass="dse-shortcut-v3-field-label"/>
-                    <ComboBox fx:id="cmbShortcutScope" maxWidth="Infinity" styleClass="dse-shortcut-v3-input"/>
-                    <Label fx:id="lblShortcutScopeHint" text="Choose Application (Global) or narrow the shortcut to a module/context." wrapText="true" styleClass="dse-shortcut-v3-help"/>
+      <Label text="Applies To" styleClass="approved-field-label,field-label"/>
+      <ComboBox fx:id="cmbShortcutScope" maxWidth="Infinity" styleClass="approved-input"/>
+      <Label fx:id="lblShortcutScopeHint" text="Choose where this shortcut can run." wrapText="true" styleClass="approved-page-subtitle,field-help"/>
 
-                    <Label text="Description" styleClass="dse-shortcut-v3-field-label"/>
-                    <TextArea fx:id="txtShortcutDescription" prefRowCount="3" wrapText="true" editable="false" styleClass="dse-shortcut-v3-description"/>
+      <Label text="Description" styleClass="approved-field-label,field-label"/>
+      <TextArea fx:id="txtShortcutDescription" prefRowCount="3" wrapText="true" editable="false"
+                styleClass="approved-input,shortcut-description"/>
 
-                    <HBox alignment="CENTER_LEFT" spacing="8">
-                      <VBox spacing="1" HBox.hgrow="ALWAYS"><Label text="Active" styleClass="dse-shortcut-v3-field-label"/><Label text="Disable to temporarily turn this shortcut off." styleClass="dse-shortcut-v3-help"/></VBox>
-                      <ToggleButton fx:id="chkShortcutActive" text="●" selected="true" alignment="CENTER_RIGHT" styleClass="dse-shortcut-v3-active-toggle,dse-shortcut-v3-toggle"/>
-                    </HBox>
+      <HBox alignment="CENTER_LEFT" spacing="8" styleClass="shortcut-option-row">
+        <VBox spacing="1" HBox.hgrow="ALWAYS">
+          <Label text="Active" styleClass="shortcut-option-title"/>
+          <Label text="Turn this assignment on or off without changing the action." styleClass="approved-page-subtitle,field-help" wrapText="true"/>
+        </VBox>
+        <ToggleButton fx:id="chkShortcutActive" text="●" selected="true" alignment="CENTER_RIGHT" styleClass="shortcut-active-toggle"/>
+      </HBox>
 
-                    <VBox fx:id="shortcutConflictBox" spacing="4" styleClass="dse-shortcut-v3-conflict-box">
-                      <Label text="Conflict Warning" styleClass="dse-shortcut-v3-conflict-title"/>
-                      <Label fx:id="lblShortcutConflict" text="No conflicts for this shortcut." wrapText="true" styleClass="dse-shortcut-v3-conflict-text"/>
-                    </VBox>
-                  </VBox>
-                </content>
-              </ScrollPane>
-            </content>
-          </Tab>
-          <Tab text="Advanced">
-            <content>
-              <ScrollPane fitToWidth="true" hbarPolicy="NEVER" styleClass="dse-shortcut-v3-drawer-scroll">
-                <content>
-                  <VBox spacing="12" styleClass="dse-shortcut-v3-advanced">
-                    <Label text="Context Behaviour" styleClass="dse-shortcut-v3-field-label"/>
-                    <HBox alignment="CENTER_LEFT" spacing="8">
-                      <VBox spacing="2" HBox.hgrow="ALWAYS">
-                        <Label text="Allow while typing" styleClass="dse-shortcut-v3-advanced-title"/>
-                        <Label text="When enabled, this shortcut may run while focus is inside a text input. Keep this off for normal typing safety." wrapText="true" styleClass="dse-shortcut-v3-help"/>
-                      </VBox>
-                      <CheckBox fx:id="chkShortcutAllowTextInput"/>
-                    </HBox>
-                    <Separator/>
-                    <HBox alignment="CENTER_LEFT" spacing="8">
-                      <VBox spacing="2" HBox.hgrow="ALWAYS">
-                        <Label text="Require a selected record" styleClass="dse-shortcut-v3-advanced-title"/>
-                        <Label text="Useful for Edit, Open or Delete. The shortcut is ignored until the active table/list has a selection." wrapText="true" styleClass="dse-shortcut-v3-help"/>
-                      </VBox>
-                      <CheckBox fx:id="chkShortcutRequireSelection"/>
-                    </HBox>
-                    <Separator/>
-                    <Label text="Permission Guard" styleClass="dse-shortcut-v3-field-label"/>
-                    <Label text="Security permissions are always enforced and cannot be bypassed by a shortcut assignment." wrapText="true" styleClass="dse-shortcut-v3-help"/>
-                    <Separator/>
-                    <Label text="Scope Resolution" styleClass="dse-shortcut-v3-field-label"/>
-                    <Label text="Application (Global) works anywhere. Module scopes run only when that module is active. Editor commands retain their editor keyboard ownership." wrapText="true" styleClass="dse-shortcut-v3-help"/>
-                  </VBox>
-                </content>
-              </ScrollPane>
-            </content>
-          </Tab>
-        </tabs>
-      </TabPane>
+      <HBox alignment="CENTER_LEFT" spacing="8" styleClass="shortcut-option-row">
+        <VBox spacing="1" HBox.hgrow="ALWAYS">
+          <Label text="Allow while typing" styleClass="shortcut-option-title"/>
+          <Label text="Enable only for commands that are safe while focus is in a text field." styleClass="approved-page-subtitle,field-help" wrapText="true"/>
+        </VBox>
+        <CheckBox fx:id="chkShortcutAllowTextInput"/>
+      </HBox>
 
+      <HBox alignment="CENTER_LEFT" spacing="8" styleClass="shortcut-option-row">
+        <VBox spacing="1" HBox.hgrow="ALWAYS">
+          <Label text="Require selected record" styleClass="shortcut-option-title"/>
+          <Label text="Useful for View, Edit and Delete actions." styleClass="approved-page-subtitle,field-help" wrapText="true"/>
+        </VBox>
+        <CheckBox fx:id="chkShortcutRequireSelection"/>
+      </HBox>
+
+      <VBox fx:id="shortcutConflictBox" spacing="4" styleClass="shortcut-conflict-box,shortcut-conflict-ok">
+        <Label text="Conflict Check" styleClass="shortcut-option-title"/>
+        <Label fx:id="lblShortcutConflict" text="No conflicts for this shortcut." wrapText="true" styleClass="shortcut-conflict-text"/>
+      </VBox>
+
+      <Region VBox.vgrow="ALWAYS"/>
       <HBox alignment="CENTER_RIGHT" spacing="8">
-        <Button text="Disable" onAction="#disableSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-secondary"/>
-        <Button text="Delete Assignment" onAction="#deleteSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-danger"/>
+        <Button text="Disable" onAction="#disableSelectedShortcut" styleClass="approved-button,approved-secondary-button"/>
+        <Button text="Reset" onAction="#resetSelectedShortcut" styleClass="approved-button,approved-secondary-button"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <Button text="Reset" onAction="#resetSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-secondary"/>
-        <Button text="Save Shortcut" onAction="#saveSelectedShortcut" styleClass="dse-shortcut-v3-button,dse-shortcut-v3-primary"/>
+        <Button text="Save Shortcut" onAction="#saveSelectedShortcut" styleClass="approved-button,approved-primary-button"/>
       </HBox>
     </VBox>
   </HBox>

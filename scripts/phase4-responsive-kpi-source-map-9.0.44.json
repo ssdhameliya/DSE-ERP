@@ -1,0 +1,368 @@
+{
+  "approved_scope": {
+    "css_file_count": 2,
+    "database_changes": 0,
+    "kpi_layout_changes": "responsive width distribution and balanced wrapping only",
+    "navigation_changes": 0,
+    "table_width_changes": 0
+  },
+  "contract": "DSE ERP 9.0.44 Phase 4 responsive KPI baseline",
+  "manager_sha256": "51b6118cc95d0c7697b920b8f860308e3a747608ffbf61cd171fb6024b058170",
+  "responsive_kpi_containers": [
+    {
+      "file": "BackupRestore.fxml",
+      "ordinal": 1,
+      "container": "GridPane",
+      "cards": 4,
+      "card_tags": [
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox"
+      ],
+      "style_class": "backup-metrics-grid,erp-kpi-section"
+    },
+    {
+      "file": "BankExpense.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox"
+      ],
+      "style_class": "erp-kpi-section"
+    },
+    {
+      "file": "BankStatement.fxml",
+      "ordinal": 1,
+      "container": "GridPane",
+      "cards": 8,
+      "card_tags": [
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox"
+      ],
+      "style_class": "bank-recon-kpi-panel,erp-kpi-section"
+    },
+    {
+      "file": "CommunicationCenter.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "standard-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "Customer.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "entity-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "DashboardHome.fxml",
+      "ordinal": 1,
+      "container": "GridPane",
+      "cards": 6,
+      "card_tags": [
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox"
+      ],
+      "style_class": "approved-kpi-grid,approved-kpi,erp-kpi-section"
+    },
+    {
+      "file": "DashboardHome.fxml",
+      "ordinal": 2,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "dashboard-mini-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "DocumentStudio.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "doc-studio-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "Inventory.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 5,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "standard-kpi-row,inventory-metrics,erp-kpi-section"
+    },
+    {
+      "file": "ItemMaster.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "standard-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "Masterdata.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox"
+      ],
+      "style_class": "master-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "NotificationCenter.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 3,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "dse-notification-v3-summary-row,erp-kpi-section"
+    },
+    {
+      "file": "PurchaseList.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 5,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "standard-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "PurchaseRecon.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 6,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "standard-kpi-row,recon-metric-row,erp-kpi-section"
+    },
+    {
+      "file": "PurchaseReturns.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 5,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "return-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "Quotations.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 6,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "quotation-metric-row,erp-kpi-section"
+    },
+    {
+      "file": "ReconSupplier.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "standard-kpi-row,recon-metric-row,erp-kpi-section"
+    },
+    {
+      "file": "ReminderCenter.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox"
+      ],
+      "style_class": "reminder-metrics-row,erp-kpi-section"
+    },
+    {
+      "file": "Reports.fxml",
+      "ordinal": 1,
+      "container": "GridPane",
+      "cards": 6,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "report-kpi-grid,erp-kpi-section"
+    },
+    {
+      "file": "Reports.fxml",
+      "ordinal": 2,
+      "container": "GridPane",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "report-kpi-grid,erp-kpi-section"
+    },
+    {
+      "file": "RoleManagement.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 3,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "standard-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "SafeRollback.fxml",
+      "ordinal": 1,
+      "container": "GridPane",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "safe-rollback-metrics-grid,erp-kpi-section"
+    },
+    {
+      "file": "SalesList.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 6,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "sales-metric-row,sales-kpi-panel,erp-kpi-section"
+    },
+    {
+      "file": "SalesReturns.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 5,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "return-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "Suppliers.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 4,
+      "card_tags": [
+        "HBox",
+        "HBox",
+        "HBox",
+        "HBox"
+      ],
+      "style_class": "entity-kpi-row,erp-kpi-section"
+    },
+    {
+      "file": "UserAccess.fxml",
+      "ordinal": 1,
+      "container": "HBox",
+      "cards": 5,
+      "card_tags": [
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox",
+        "VBox"
+      ],
+      "style_class": "erp-kpi-section"
+    }
+  ]
+}
