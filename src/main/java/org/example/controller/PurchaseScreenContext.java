@@ -1,1 +1,0 @@
-package org.example.controller; public final class PurchaseScreenContext{private static String invoice;private PurchaseScreenContext(){}public static void select(String value){invoice=value;}public static String invoice(){return invoice;}}

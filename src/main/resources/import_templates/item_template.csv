@@ -1,2 +1,0 @@
-item_code,description,category,unit,hsn,gst,discount_percent,purchase_price,selling_price,remarks,opening_stock,minimum_stock,location
-ITEM001,Example Item,Valve,Nos,841290,18,5,100.0,120.0,Sample remark,10,2,Warehouse A
