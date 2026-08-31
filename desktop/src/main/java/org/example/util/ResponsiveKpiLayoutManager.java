@@ -34,7 +34,7 @@ public final class ResponsiveKpiLayoutManager {
     private static final String INSTALLED = "erp.kpi.layout.installed";
     private static final String PENDING = "erp.kpi.layout.pending";
     private static final String ORIGINAL_COLUMN = "erp.kpi.original.column";
-    private static final double MIN_COMFORTABLE_CARD = 220.0;
+    private static final double MIN_COMFORTABLE_CARD = 170.0;
 
     private ResponsiveKpiLayoutManager() {}
 
@@ -113,7 +113,9 @@ public final class ResponsiveKpiLayoutManager {
         grid.getColumnConstraints().clear();
         if (cards.isEmpty()) return;
 
-        int columns = responsiveColumnCount(cards.size(), grid.getWidth(), grid.getHgap());
+        int columns = grid.getStyleClass().contains("erp-kpi-single-row")
+            ? cards.size()
+            : responsiveColumnCount(cards.size(), grid.getWidth(), grid.getHgap());
         double percent = 100.0d / columns;
         for (int i = 0; i < columns; i++) {
             ColumnConstraints column = new ColumnConstraints();

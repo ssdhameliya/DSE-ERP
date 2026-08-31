@@ -6,9 +6,9 @@
     "navigation_changes": 0,
     "row_density": "global/canonical table density with Reporting fixed-density overrides removed",
     "saved_column_state": "visibility and order only; legacy widths removed",
-    "table_width_authority": "DynamicTableLayoutManager only; immediate first-paint sizing + rendered action-control floor"
+    "table_width_authority": "DynamicTableLayoutManager only; first-paint sizing + rendered icon/text Actions floor (112px minimum column content)"
   },
-  "contract": "DSE ERP 9.0.44 Phase 5 dynamic TableView baseline",
+  "contract": "DSE ERP 9.0.45 Phase 5 dynamic TableView baseline",
   "fxml_columns": 299,
   "fxml_table_files": {
     "desktop/src/main/resources/fxml/pages/BackupRestore.fxml": 1,
@@ -44,7 +44,7 @@
     "desktop/src/main/resources/fxml/pages/UserAccess.fxml": 3
   },
   "fxml_tables": 39,
-  "manager_sha256": "9502ea77ff3ed2d6e0bfd33c77a909eb16bd095ba2b2c2729bd3fd365169c3b3",
+  "manager_sha256": "f5d3ad0b8a2c18f8dfbaf092b3e27c8963556b04711ca08d0ceffb9409330cd1",
   "programmatic_table_sites": {
     "desktop/src/main/java/org/example/controller/BankStatementController.java": 2,
     "desktop/src/main/java/org/example/controller/InventoryController.java": 1,
@@ -53,7 +53,7 @@
     "desktop/src/main/java/org/example/util/InvoicePaymentDetailsDialog.java": 1
   },
   "theme_sha256": {
-    "dark-theme.css": "ae1a6c0e72668f6955141ce7448d0702ee4b0da72957bb77e9f524754f88c587",
-    "light-theme.css": "86f21b3ee0d762c7e2a49119f27a32a09632e6b4d86443a1400f7cc1e66afc29"
+    "dark-theme.css": "677c1502cd20b31df9abfc053d26dff2edcb367cfee4e431bd683a5fba4f976f",
+    "light-theme.css": "c186a29d3138a7ffcb72675e632695afae6813fff7bad48b1f2bad713f5e854a"
   }
 }

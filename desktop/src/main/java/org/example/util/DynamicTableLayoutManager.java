@@ -41,6 +41,7 @@ public final class DynamicTableLayoutManager {
     private static final String COLUMN_LISTENER = "erp.table.dynamic-layout.column-listener";
     private static final String COLUMN_BOUND = "erp.table.dynamic-layout.column-bound";
     private static final String NATURAL_FLOOR = "erp.table.dynamic-layout.natural-floor";
+    private static final double ACTION_CONTROL_MIN_WIDTH = 112.0;
     private static final int SAMPLE_LIMIT = 48;
     private static final double TABLE_CHROME_ALLOWANCE = 20.0;
     private static final double CELL_HORIZONTAL_PADDING = 24.0;
@@ -231,10 +232,10 @@ public final class DynamicTableLayoutManager {
         // clipped when a detail drawer reduces the viewport. The header fallback
         // remains content-derived rather than an FXML/controller pixel width.
         double renderedControl = renderedCellControlWidth(table, column);
-        if ("actions".equals(semantic)) content = Math.max(content, Math.max(renderedControl, header + 38.0));
+        if ("actions".equals(semantic)) content = Math.max(content, Math.max(ACTION_CONTROL_MIN_WIDTH, Math.max(renderedControl, header + 38.0)));
 
         double minimum = Math.max(MIN_READABLE_COLUMN, header);
-        if ("actions".equals(semantic) && renderedControl > 0) minimum = Math.max(minimum, renderedControl);
+        if ("actions".equals(semantic)) minimum = Math.max(minimum, Math.max(ACTION_CONTROL_MIN_WIDTH, renderedControl));
         double natural = Math.max(minimum, Math.max(header, content));
 
         // Do not make a column visibly contract every time paging/filtering swaps

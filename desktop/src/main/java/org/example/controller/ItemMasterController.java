@@ -154,7 +154,7 @@ public class ItemMasterController implements ScreenLifecycle {
             return cell;
         });
 
-        // Compact icon-only action menu. Full labels remain inside the menu.
+        // Compact icon + text Actions menu. Full row operations remain inside the menu.
         colAction.setCellFactory(tc -> new TableCell<>() {
             private final MenuButton actions = new MenuButton();
             {

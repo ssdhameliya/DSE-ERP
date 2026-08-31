@@ -229,6 +229,15 @@ public class ReportsController implements ScreenLifecycle {
 
     private void configureReportCategories(){
         if(reportCategories==null)return;
+        reportCategories.setCellFactory(list->new ListCell<>(){
+            @Override protected void updateItem(String value,boolean empty){
+                super.updateItem(value,empty);
+                if(empty||value==null){setText(null);setGraphic(null);return;}
+                setText(value);String semantic=reportCategorySemantic(value);
+                setGraphic(IconFactory.compactIcon(semantic,14));setGraphicTextGap(6);
+                getProperties().put("erp.icon.semantic",semantic);
+            }
+        });
         reportCategories.getSelectionModel().selectedItemProperty().addListener((o,a,b)->renderReportCards());
     }
     private void configureReportSearch(){ if(txtReportSearch!=null)txtReportSearch.textProperty().addListener((o,a,b)->renderReportCards()); }
@@ -268,18 +277,34 @@ public class ReportsController implements ScreenLifecycle {
     private Node createReportCard(ReportDefinition def){
         VBox card=new VBox(7); card.getStyleClass().addAll("report-center-card","report-card"); card.setMinWidth(260); card.setPrefWidth(330); card.setMinHeight(112); card.setPrefHeight(112);
         HBox top=new HBox(8); top.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        Label title=new Label(def.title()); title.getStyleClass().add("report-card-title"); title.setGraphic(IconFactory.compactIcon(reportSemantic(def.category()),16));
+        Label title=new Label(def.title()); title.getStyleClass().add("report-card-title"); title.setGraphic(IconFactory.compactIcon(reportSemantic(def),16));
         Region spacer=new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         Button star=new Button(favoriteReportIds.contains(def.id())?"★":"☆"); star.getStyleClass().add("report-favorite-button");
         star.setOnAction(e->{ if(favoriteReportIds.contains(def.id()))favoriteReportIds.remove(def.id());else favoriteReportIds.add(def.id()); persistFavorites(); renderReportCards(); });
         top.getChildren().addAll(title,spacer,star);
         Label description=new Label(def.description()); description.setWrapText(true); description.getStyleClass().add("page-subtitle");
         Region grow=new Region(); VBox.setVgrow(grow, Priority.ALWAYS);
-        Button open=new Button("Open Report →"); open.getStyleClass().add("link-button"); open.setOnAction(e->openUnified(def.id(),defaultGroup(def)));
+        Button open=new Button("Open Report"); open.getStyleClass().addAll("approved-button","approved-primary-button","report-card-open-button"); open.setGraphic(IconFactory.compactIcon("view",15));open.setGraphicTextGap(6);open.setOnAction(e->openUnified(def.id(),defaultGroup(def)));
         card.getChildren().addAll(top,description,grow,open); return card;
     }
     private String defaultGroup(ReportDefinition def){ if(def==null||def.groupByOptions()==null||def.groupByOptions().isEmpty())return "None"; return def.groupByOptions().stream().filter(x->"None".equalsIgnoreCase(x)).findFirst().orElse("None"); }
-    private String reportSemantic(String category){ String c=safe(category).toLowerCase(Locale.ROOT); if(c.contains("purchase"))return "purchase"; if(c.contains("return"))return "return"; if(c.contains("gst")||c.contains("tax"))return "tax"; if(c.contains("receiv")||c.contains("payable"))return "payment"; if(c.contains("inventory"))return "inventory"; if(c.contains("bank"))return "bank"; if(c.contains("profit"))return "chart"; return "sales"; }
+    private String reportSemantic(ReportDefinition def){
+        if(def==null)return "report";String id=safe(def.id()).toUpperCase(Locale.ROOT);
+        return switch(id){
+            case "SALES_REGISTER" -> "invoice";
+            case "SALES_BY_CUSTOMER" -> "customer";
+            case "SALES_BY_ITEM","ITEM_LEDGER" -> "item";
+            case "PURCHASE_REGISTER" -> "purchase";
+            case "RETURNS_ANALYSIS" -> "return";
+            case "GST_TAX" -> "tax";
+            case "RECEIVABLE_AGEING","PAYABLE_AGEING" -> "payment";
+            case "STOCK_SUMMARY" -> "inventory";
+            case "BANK_RECONCILIATION" -> "bank";
+            case "PROFITABILITY" -> "report";
+            default -> reportCategorySemantic(def.category());
+        };
+    }
+    private String reportCategorySemantic(String category){ String c=safe(category).toLowerCase(Locale.ROOT); if(c.contains("favorite"))return "favorite"; if(c.contains("purchase"))return "purchase"; if(c.contains("return"))return "return"; if(c.contains("gst")||c.contains("tax"))return "tax"; if(c.contains("receiv")||c.contains("payable"))return "payment"; if(c.contains("inventory"))return "inventory"; if(c.contains("bank"))return "bank"; if(c.contains("profit"))return "report"; return "sale"; }
 
     @FXML private void openSalesRegister(){openUnified("SALES_REGISTER","None");}
     @FXML private void openPurchaseRegister(){openUnified("PURCHASE_REGISTER","None");}
@@ -301,17 +326,15 @@ public class ReportsController implements ScreenLifecycle {
         colSavedStatus.setCellValueFactory(v->new SimpleStringProperty("NOT SCHEDULED"));
         colSavedStatus.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String v,boolean empty){super.updateItem(v,empty);setText(empty?null:v);getStyleClass().removeAll("report-status-paid","report-status-pending");if(!empty)getStyleClass().add("report-status-other");}});
         colSavedActions.setCellFactory(c->new TableCell<>(){
-            final Button open=new Button("Open");
-            final Button schedule=new Button("Schedule");
-            final HBox actions=new HBox(6,open,schedule);
+            final MenuButton actions=new MenuButton("Actions");
+            final MenuItem open=new MenuItem("Open Report"), schedule=new MenuItem("Schedule");
             {
-                open.getStyleClass().addAll("approved-button","approved-row-action","report-row-action");
-                open.setGraphic(IconFactory.compactIcon("view",15));open.setGraphicTextGap(6);
+                actions.getStyleClass().addAll("row-actions","table-action-menu","approved-row-action","report-row-actions");
+                actions.setGraphic(IconFactory.compactIcon("actions",15));actions.setGraphicTextGap(6);actions.getProperties().put("erp.icon.semantic","actions");
+                open.setGraphic(IconFactory.compactIcon("view",14));schedule.setGraphic(IconFactory.compactIcon("calendar",14));
+                actions.getItems().addAll(open,schedule);IconFactory.decorateActionMenu(actions);
                 open.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)applySavedReport(row);});
-                schedule.getStyleClass().addAll("approved-button","approved-secondary-button","approved-row-action","report-row-action");
-                schedule.setGraphic(IconFactory.compactIcon("calendar",15));schedule.setGraphicTextGap(6);
                 schedule.setOnAction(e->{SavedReportRow row=getTableRow()==null?null:getTableRow().getItem();if(row!=null)scheduleSavedReport(row);});
-                actions.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
             }
             @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:actions);}
         });
@@ -522,7 +545,8 @@ public class ReportsController implements ScreenLifecycle {
     }
     private void configureIcons(){
         if(reportPageIcon!=null)reportPageIcon.getChildren().setAll(IconFactory.icon("report",24));
-        btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));
+        if(reportTabs!=null&&reportTabs.getTabs().size()>=4){reportTabs.getTabs().get(0).setGraphic(IconFactory.compactIcon("dashboard",14));reportTabs.getTabs().get(1).setGraphic(IconFactory.compactIcon("report",14));reportTabs.getTabs().get(2).setGraphic(IconFactory.compactIcon("save",14));reportTabs.getTabs().get(3).setGraphic(IconFactory.compactIcon("calendar",14));}
+        btnRefresh.setGraphic(IconFactory.icon("refresh",16));btnApply.setGraphic(IconFactory.icon("filter",16));btnReset.setGraphic(IconFactory.icon("reset",16));btnExport.setGraphic(IconFactory.icon("export",16));btnViewSales.setGraphic(IconFactory.icon("view",15));btnViewPurchases.setGraphic(IconFactory.icon("view",15));miExcel.setGraphic(IconFactory.icon("excel",15));miPdf.setGraphic(IconFactory.icon("pdf",15));miCsv.setGraphic(IconFactory.icon("document",15));
         reportSalesIcon.getChildren().setAll(IconFactory.icon("sales",22));reportPurchaseIcon.getChildren().setAll(IconFactory.icon("purchase",22));reportProfitIcon.getChildren().setAll(IconFactory.icon("chart",22));reportReceivableIcon.getChildren().setAll(IconFactory.icon("payment",22));reportStockIcon.getChildren().setAll(IconFactory.icon("inventory",22));reportCustomerIcon.getChildren().setAll(IconFactory.icon("customer",22));
     }
     private void configureStatusCells(){statusCell(colSaleStatus);statusCell(colPurchaseStatus);}

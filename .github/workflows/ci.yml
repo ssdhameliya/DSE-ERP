@@ -81,26 +81,28 @@ jobs:
         run: python scripts/audit-9.0.15-reference-item-import-contract.py
       - name: Enforce 9.0.16 quotation-source / linked-sale contract
         run: python scripts/audit-9.0.16-quotation-source-sale-link-contract.py
-      - name: Enforce 9.0.44 approved UI/behavior freeze
-        run: python scripts/audit-9.0.44-ui-behavior-freeze.py
-      - name: Enforce 9.0.44 Phase 2 two-theme contract
-        run: python scripts/audit-9.0.44-phase2-two-theme-contract.py
-      - name: Enforce 9.0.44 Phase 3 semantic UI contract
-        run: python scripts/audit-9.0.44-phase3-semantic-ui-contract.py
-      - name: Enforce 9.0.44 Phase 4 responsive KPI contract
-        run: python scripts/audit-9.0.44-phase4-responsive-kpi-contract.py
-      - name: Enforce 9.0.44 Phase 5 dynamic TableView contract
-        run: python scripts/audit-9.0.44-phase5-dynamic-table-contract.py
-      - name: Enforce 9.0.44 Phase 6 controller/UI ownership contract
-        run: python scripts/audit-9.0.44-phase6-controller-cleanup-contract.py
-      - name: Enforce 9.0.44 Phase 7 production-clean contract
-        run: python scripts/audit-9.0.44-phase7-production-clean-contract.py
-      - name: Enforce 9.0.44 corrective UI stabilization contract
-        run: python scripts/audit-9.0.44-phase8-ui-stabilization-contract.py
-      - name: Enforce 9.0.44 engineering hardening contract
-        run: python scripts/audit-9.0.44-engineering-hardening.py
-      - name: Enforce 9.0.44 final reporting/runtime contract
-        run: python scripts/audit-9.0.44-final-contract.py
+      - name: Enforce 9.0.45 approved UI/behavior freeze
+        run: python scripts/audit-9.0.45-ui-behavior-freeze.py
+      - name: Enforce 9.0.45 Phase 2 two-theme contract
+        run: python scripts/audit-9.0.45-phase2-two-theme-contract.py
+      - name: Enforce 9.0.45 Phase 3 semantic UI contract
+        run: python scripts/audit-9.0.45-phase3-semantic-ui-contract.py
+      - name: Enforce 9.0.45 Phase 4 responsive KPI contract
+        run: python scripts/audit-9.0.45-phase4-responsive-kpi-contract.py
+      - name: Enforce 9.0.45 Phase 5 dynamic TableView contract
+        run: python scripts/audit-9.0.45-phase5-dynamic-table-contract.py
+      - name: Enforce 9.0.45 Phase 6 controller/UI ownership contract
+        run: python scripts/audit-9.0.45-phase6-controller-cleanup-contract.py
+      - name: Enforce 9.0.45 Phase 7 production-clean contract
+        run: python scripts/audit-9.0.45-phase7-production-clean-contract.py
+      - name: Enforce 9.0.45 corrective UI stabilization contract
+        run: python scripts/audit-9.0.45-phase8-ui-stabilization-contract.py
+      - name: Enforce 9.0.45 UI enhancement contract
+        run: python scripts/audit-9.0.45-ui-enhancement-contract.py
+      - name: Enforce 9.0.45 engineering hardening contract
+        run: python scripts/audit-9.0.45-engineering-hardening.py
+      - name: Enforce 9.0.45 final reporting/runtime contract
+        run: python scripts/audit-9.0.45-final-contract.py
       - name: Verify final UI source contract
         shell: python
         run: |

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.44 Phase 2 final two-theme contract.
+"""DSE ERP 9.0.45 Phase 2 final two-theme contract.
 
 Phase 7 removed the temporary merge markers/source-map that were useful while
 seven stylesheets were being consolidated. The approved final CSS bytes are now
-frozen by audit-9.0.44-ui-behavior-freeze.py; this contract enforces the runtime
+frozen by audit-9.0.45-ui-behavior-freeze.py; this contract enforces the runtime
 architecture: exactly two canonical themes, no FXML-local stylesheets, one active
 theme in ThemeManager, and no unreviewed Light/Dark geometry drift.
 """
@@ -33,7 +33,7 @@ STRUCTURAL_PROPERTIES = {
     "-fx-translate-x", "-fx-translate-y", "-fx-scale-x", "-fx-scale-y",
     "-fx-alignment", "-fx-content-display",
 }
-# This one difference existed in the approved 9.0.44 visual baseline before
+# This one difference existed in the approved 9.0.45 visual baseline before
 # Phase 7 and is intentionally preserved rather than silently redesigning it.
 APPROVED_STRUCTURAL_DIFFERENCES = {
     (".date-picker-popup > * > .month-year-pane > .spinner > .button", "-fx-border-width"):
@@ -82,7 +82,7 @@ def main() -> int:
         preview = sorted((k, v) for k, v in actual_diffs.items())[:10]
         fail(f"Light/Dark structural geometry drift detected: {preview}")
 
-    # 9.0.44 consolidation: legacy Reporting / Shortcut namespaces must not remain,
+    # 9.0.45 consolidation: legacy Reporting / Shortcut namespaces must not remain,
     # and the central structural selectors may not define the same geometry property
     # more than once inside a theme. This prevents old/new CSS layers fighting.
     forbidden_legacy = {

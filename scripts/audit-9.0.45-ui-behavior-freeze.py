@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.44 reviewed UI / behavior preservation audit.
+"""DSE ERP 9.0.45 reviewed UI / behavior preservation audit.
 
-The baseline freezes the currently approved 9.0.44 IntelliJ source after each
+The baseline freezes the currently approved 9.0.45 IntelliJ source after each
 reviewed UI migration phase. It may be updated only when the approved phase
 delta is intentional and navigation, database, controller/table/dialog behavior
 and all non-approved FXML structure remain equivalent.
@@ -18,7 +18,7 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINE = ROOT / "scripts" / "ui-behavior-freeze-9.0.44.json"
+BASELINE = ROOT / "scripts" / "ui-behavior-freeze-9.0.45.json"
 FXML_ROOT = ROOT / "desktop" / "src" / "main" / "resources" / "fxml"
 CSS_ROOT = ROOT / "desktop" / "src" / "main" / "resources" / "css"
 JAVA_ROOT = ROOT / "desktop" / "src" / "main" / "java"
@@ -138,8 +138,8 @@ def capture() -> dict:
 
     fxml = {rel(path): fxml_snapshot(path) for path in fxml_files}
     return {
-        "contract": "DSE ERP 9.0.44 approved UI/behavior freeze",
-        "version": "9.0.44",
+        "contract": "DSE ERP 9.0.45 approved UI/behavior freeze",
+        "version": "9.0.45",
         "protected_navigation_hashes": {p: sha256(ROOT / p) for p in PROTECTED_NAVIGATION},
         "database_schema_hashes": {rel(p): sha256(p) for p in database_files},
         "css_visual_baseline_hashes": {rel(p): sha256(p) for p in css_files},

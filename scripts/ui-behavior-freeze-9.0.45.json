@@ -1,8 +1,8 @@
 {
-  "contract": "DSE ERP 9.0.44 approved UI/behavior freeze",
+  "contract": "DSE ERP 9.0.45 approved UI/behavior freeze",
   "css_visual_baseline_hashes": {
-    "desktop/src/main/resources/css/dark-theme.css": "1c6936af0d5d84d6d5440113dc32de093c0e9a0f447f9741317927bf9111bc53",
-    "desktop/src/main/resources/css/light-theme.css": "3fceba96703950a5b7ae6c314271f9c98c4dd62487069b9cc8849925825039bf"
+    "desktop/src/main/resources/css/dark-theme.css": "677c1502cd20b31df9abfc053d26dff2edcb367cfee4e431bd683a5fba4f976f",
+    "desktop/src/main/resources/css/light-theme.css": "c186a29d3138a7ffcb72675e632695afae6813fff7bad48b1f2bad713f5e854a"
   },
   "database_schema_hashes": {
     "server/src/main/resources/db/migration/V5_1_18__security_financial_integrity.sql": "673fa8195040a10767f1e07d3b5c4d2cb6db0ece0a292e11adaee6a2d7f48378",
@@ -5959,7 +5959,7 @@
             ],
             [
               "styleClass",
-              "bank-recon-kpi-panel,erp-kpi-section"
+              "bank-recon-kpi-panel,erp-kpi-section,erp-kpi-single-row"
             ],
             [
               "vgap",
@@ -68681,6 +68681,13 @@
           "Button",
           "",
           "onAction",
+          "#showInformation"
+        ],
+        [
+          "/VBox[1]/HBox[1]/Button[2]",
+          "Button",
+          "",
+          "onAction",
           "#refreshReport"
         ],
         [
@@ -68737,56 +68744,7 @@
           "Button",
           "",
           "onAction",
-          "#showInformation"
-        ],
-        [
-          "/VBox[1]/HBox[4]/Button[1]",
-          "Button",
-          "",
-          "onAction",
           "#saveReport"
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[1]",
-          "Button",
-          "",
-          "onAction",
-          "#viewSelectedSource"
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[2]",
-          "Button",
-          "btnFirst",
-          "onAction",
-          "#firstPage"
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[3]",
-          "Button",
-          "btnPrev",
-          "onAction",
-          "#previousPage"
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[4]",
-          "Button",
-          "btnNext",
-          "onAction",
-          "#nextPage"
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[5]",
-          "Button",
-          "btnLast",
-          "onAction",
-          "#lastPage"
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[6]",
-          "Button",
-          "",
-          "onAction",
-          "#printReport"
         ],
         [
           "/VBox[1]/VBox[1]/HBox[1]/Button[1]",
@@ -68808,6 +68766,48 @@
           "btnApply",
           "onAction",
           "#applyFilters"
+        ],
+        [
+          "/VBox[1]/VBox[2]/HBox[1]/Button[1]",
+          "Button",
+          "",
+          "onAction",
+          "#viewSelectedSource"
+        ],
+        [
+          "/VBox[1]/VBox[2]/HBox[1]/Button[2]",
+          "Button",
+          "btnFirst",
+          "onAction",
+          "#firstPage"
+        ],
+        [
+          "/VBox[1]/VBox[2]/HBox[1]/Button[3]",
+          "Button",
+          "btnPrev",
+          "onAction",
+          "#previousPage"
+        ],
+        [
+          "/VBox[1]/VBox[2]/HBox[1]/Button[4]",
+          "Button",
+          "btnNext",
+          "onAction",
+          "#nextPage"
+        ],
+        [
+          "/VBox[1]/VBox[2]/HBox[1]/Button[5]",
+          "Button",
+          "btnLast",
+          "onAction",
+          "#lastPage"
+        ],
+        [
+          "/VBox[1]/VBox[2]/HBox[1]/Button[6]",
+          "Button",
+          "",
+          "onAction",
+          "#printReport"
         ]
       ],
       "fx_ids": [
@@ -68870,7 +68870,7 @@
           [
             [
               "spacing",
-              "10"
+              "8"
             ],
             [
               "styleClass",
@@ -68893,7 +68893,7 @@
             ],
             [
               "styleClass",
-              "approved-page-header,approved-section-header,erp-page-identity-header,reports-header"
+              "approved-page-header,approved-section-header,erp-page-identity-header,reports-header,report-viewer-header"
             ]
           ]
         ],
@@ -68926,30 +68926,38 @@
         [
           "/VBox[1]/HBox[1]/VBox[1]/Label[1]",
           "Label",
-          "",
+          "lblTitle",
           [
+            [
+              "id",
+              "lblTitle"
+            ],
             [
               "styleClass",
               "approved-page-title,page-title"
             ],
             [
               "text",
-              "Reports"
+              "Report"
             ]
           ]
         ],
         [
           "/VBox[1]/HBox[1]/VBox[1]/Label[2]",
           "Label",
-          "",
+          "lblDescription",
           [
+            [
+              "id",
+              "lblDescription"
+            ],
             [
               "styleClass",
               "approved-page-subtitle,page-subtitle,reports-header-subtitle"
             ],
             [
               "text",
-              "Financial and operational intelligence"
+              "Unified financial and operational report"
             ]
           ]
         ],
@@ -68966,6 +68974,25 @@
         ],
         [
           "/VBox[1]/HBox[1]/Button[1]",
+          "Button",
+          "",
+          [
+            [
+              "onAction",
+              "#showInformation"
+            ],
+            [
+              "styleClass",
+              "approved-button,approved-secondary-button"
+            ],
+            [
+              "text",
+              "Report Information"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[1]/Button[2]",
           "Button",
           "",
           [
@@ -69145,100 +69172,6 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[3]",
-          "HBox",
-          "",
-          [
-            [
-              "alignment",
-              "CENTER_LEFT"
-            ],
-            [
-              "spacing",
-              "10"
-            ],
-            [
-              "styleClass",
-              "report-card,report-viewer-identity-panel"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/HBox[3]/VBox[1]",
-          "VBox",
-          "",
-          [
-            [
-              "spacing",
-              "3"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/HBox[3]/VBox[1]/Label[1]",
-          "Label",
-          "lblTitle",
-          [
-            [
-              "id",
-              "lblTitle"
-            ],
-            [
-              "styleClass",
-              "approved-page-title,page-title"
-            ],
-            [
-              "text",
-              "Report"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/HBox[3]/VBox[1]/Label[2]",
-          "Label",
-          "lblDescription",
-          [
-            [
-              "id",
-              "lblDescription"
-            ],
-            [
-              "styleClass",
-              "approved-page-subtitle,page-subtitle"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/HBox[3]/Region[1]",
-          "Region",
-          "",
-          [
-            [
-              "HBox.hgrow",
-              "ALWAYS"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/HBox[3]/Button[1]",
-          "Button",
-          "",
-          [
-            [
-              "onAction",
-              "#showInformation"
-            ],
-            [
-              "styleClass",
-              "approved-button,approved-secondary-button"
-            ],
-            [
-              "text",
-              "Report Information"
-            ]
-          ]
-        ],
-        [
           "/VBox[1]/VBox[1]",
           "VBox",
           "filterPanel",
@@ -69249,11 +69182,11 @@
             ],
             [
               "spacing",
-              "8"
+              "7"
             ],
             [
               "styleClass",
-              "report-card,report-viewer-filter-panel"
+              "report-filter-card,report-viewer-filter-panel"
             ]
           ]
         ],
@@ -69336,7 +69269,7 @@
             ],
             [
               "vgap",
-              "8"
+              "7"
             ]
           ]
         ],
@@ -69357,7 +69290,7 @@
             ],
             [
               "percentWidth",
-              "16.66"
+              "25"
             ]
           ]
         ],
@@ -69372,7 +69305,7 @@
             ],
             [
               "percentWidth",
-              "16.66"
+              "25"
             ]
           ]
         ],
@@ -69387,7 +69320,7 @@
             ],
             [
               "percentWidth",
-              "16.66"
+              "25"
             ]
           ]
         ],
@@ -69402,37 +69335,7 @@
             ],
             [
               "percentWidth",
-              "16.66"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[5]",
-          "ColumnConstraints",
-          "",
-          [
-            [
-              "hgrow",
-              "ALWAYS"
-            ],
-            [
-              "percentWidth",
-              "16.66"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[6]",
-          "ColumnConstraints",
-          "",
-          [
-            [
-              "hgrow",
-              "ALWAYS"
-            ],
-            [
-              "percentWidth",
-              "16.66"
+              "25"
             ]
           ]
         ],
@@ -69447,7 +69350,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69500,7 +69403,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69553,7 +69456,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69606,7 +69509,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69650,8 +69553,8 @@
           "boxDocumentStatus",
           [
             [
-              "GridPane.columnIndex",
-              "4"
+              "GridPane.rowIndex",
+              "1"
             ],
             [
               "id",
@@ -69659,7 +69562,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69704,7 +69607,11 @@
           [
             [
               "GridPane.columnIndex",
-              "5"
+              "1"
+            ],
+            [
+              "GridPane.rowIndex",
+              "1"
             ],
             [
               "id",
@@ -69712,7 +69619,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69756,6 +69663,10 @@
           "boxFrom",
           [
             [
+              "GridPane.columnIndex",
+              "2"
+            ],
+            [
               "GridPane.rowIndex",
               "1"
             ],
@@ -69765,7 +69676,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69810,7 +69721,7 @@
           [
             [
               "GridPane.columnIndex",
-              "1"
+              "3"
             ],
             [
               "GridPane.rowIndex",
@@ -69822,7 +69733,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69866,12 +69777,8 @@
           "boxReturnStatus",
           [
             [
-              "GridPane.columnIndex",
-              "2"
-            ],
-            [
               "GridPane.rowIndex",
-              "1"
+              "2"
             ],
             [
               "id",
@@ -69879,7 +69786,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69924,11 +69831,11 @@
           [
             [
               "GridPane.columnIndex",
-              "3"
+              "1"
             ],
             [
               "GridPane.rowIndex",
-              "1"
+              "2"
             ],
             [
               "id",
@@ -69936,7 +69843,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -69981,11 +69888,11 @@
           [
             [
               "GridPane.columnIndex",
-              "4"
+              "2"
             ],
             [
               "GridPane.rowIndex",
-              "1"
+              "2"
             ],
             [
               "id",
@@ -69993,7 +69900,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -70038,11 +69945,11 @@
           [
             [
               "GridPane.columnIndex",
-              "5"
+              "3"
             ],
             [
               "GridPane.rowIndex",
-              "1"
+              "2"
             ],
             [
               "id",
@@ -70050,7 +69957,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -70095,7 +70002,7 @@
           [
             [
               "GridPane.rowIndex",
-              "2"
+              "3"
             ],
             [
               "id",
@@ -70103,7 +70010,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -70152,7 +70059,7 @@
             ],
             [
               "GridPane.rowIndex",
-              "2"
+              "3"
             ],
             [
               "id",
@@ -70160,7 +70067,7 @@
             ],
             [
               "spacing",
-              "4"
+              "3"
             ]
           ]
         ],
@@ -70286,13 +70193,13 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]",
+          "/VBox[1]/HBox[3]",
           "HBox",
           "",
           [
             [
               "alignment",
-              "CENTER_LEFT"
+              "BOTTOM_LEFT"
             ],
             [
               "spacing",
@@ -70300,18 +70207,18 @@
             ],
             [
               "styleClass",
-              "report-card,report-results-toolbar"
+              "approved-toolbar,report-results-toolbar"
             ]
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/StackPane[1]",
+          "/VBox[1]/HBox[3]/StackPane[1]",
           "StackPane",
           "",
           [
             [
               "maxWidth",
-              "440"
+              "520"
             ],
             [
               "minWidth",
@@ -70328,7 +70235,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/StackPane[1]/TextField[1]",
+          "/VBox[1]/HBox[3]/StackPane[1]/TextField[1]",
           "TextField",
           "txtSearch",
           [
@@ -70351,7 +70258,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/StackPane[1]/StackPane[1]",
+          "/VBox[1]/HBox[3]/StackPane[1]/StackPane[1]",
           "StackPane",
           "reportSearchIcon",
           [
@@ -70398,13 +70305,13 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/StackPane[1]/StackPane[1]/StackPane.margin[1]",
+          "/VBox[1]/HBox[3]/StackPane[1]/StackPane[1]/StackPane.margin[1]",
           "StackPane.margin",
           "",
           []
         ],
         [
-          "/VBox[1]/HBox[4]/StackPane[1]/StackPane[1]/StackPane.margin[1]/Insets[1]",
+          "/VBox[1]/HBox[3]/StackPane[1]/StackPane[1]/StackPane.margin[1]/Insets[1]",
           "Insets",
           "",
           [
@@ -70415,7 +70322,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/Label[1]",
+          "/VBox[1]/HBox[3]/Label[1]",
           "Label",
           "lblRecords",
           [
@@ -70430,7 +70337,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/Region[1]",
+          "/VBox[1]/HBox[3]/Region[1]",
           "Region",
           "",
           [
@@ -70441,13 +70348,24 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/Label[2]",
+          "/VBox[1]/HBox[3]/VBox[1]",
+          "VBox",
+          "",
+          [
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/VBox[1]/Label[1]",
           "Label",
           "",
           [
             [
               "styleClass",
-              "approved-page-subtitle,page-subtitle"
+              "field-label"
             ],
             [
               "text",
@@ -70456,7 +70374,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/ComboBox[1]",
+          "/VBox[1]/HBox[3]/VBox[1]/ComboBox[1]",
           "ComboBox",
           "cmbGroup",
           [
@@ -70466,7 +70384,7 @@
             ],
             [
               "prefWidth",
-              "150"
+              "145"
             ],
             [
               "styleClass",
@@ -70475,13 +70393,24 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/Label[3]",
+          "/VBox[1]/HBox[3]/VBox[2]",
+          "VBox",
+          "",
+          [
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/VBox[2]/Label[1]",
           "Label",
           "",
           [
             [
               "styleClass",
-              "approved-page-subtitle,page-subtitle"
+              "field-label"
             ],
             [
               "text",
@@ -70490,7 +70419,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/ComboBox[2]",
+          "/VBox[1]/HBox[3]/VBox[2]/ComboBox[1]",
           "ComboBox",
           "cmbSort",
           [
@@ -70500,7 +70429,7 @@
             ],
             [
               "prefWidth",
-              "150"
+              "145"
             ],
             [
               "styleClass",
@@ -70509,7 +70438,33 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/ComboBox[3]",
+          "/VBox[1]/HBox[3]/VBox[3]",
+          "VBox",
+          "",
+          [
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/VBox[3]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "Direction"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/HBox[3]/VBox[3]/ComboBox[1]",
           "ComboBox",
           "cmbDirection",
           [
@@ -70519,7 +70474,7 @@
             ],
             [
               "prefWidth",
-              "100"
+              "115"
             ],
             [
               "styleClass",
@@ -70528,7 +70483,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/MenuButton[1]",
+          "/VBox[1]/HBox[3]/MenuButton[1]",
           "MenuButton",
           "btnColumns",
           [
@@ -70547,7 +70502,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[4]/Button[1]",
+          "/VBox[1]/HBox[3]/Button[1]",
           "Button",
           "",
           [
@@ -70576,7 +70531,7 @@
             ],
             [
               "spacing",
-              "0"
+              "6"
             ],
             [
               "styleClass",
@@ -70604,7 +70559,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]",
+          "/VBox[1]/VBox[2]/HBox[1]",
           "HBox",
           "",
           [
@@ -70618,27 +70573,12 @@
             ],
             [
               "styleClass",
-              "report-card,report-viewer-footer"
+              "report-viewer-footer"
             ]
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Label[1]",
-          "Label",
-          "",
-          [
-            [
-              "styleClass",
-              "approved-page-subtitle,page-subtitle"
-            ],
-            [
-              "text",
-              "Select a row and use View Source to open the originating transaction."
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[1]",
+          "/VBox[1]/VBox[2]/HBox[1]/Button[1]",
           "Button",
           "",
           [
@@ -70657,7 +70597,22 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Region[1]",
+          "/VBox[1]/VBox[2]/HBox[1]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "approved-page-subtitle,page-subtitle"
+            ],
+            [
+              "text",
+              "Select a row to open the originating transaction."
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/VBox[2]/HBox[1]/Region[1]",
           "Region",
           "",
           [
@@ -70668,13 +70623,13 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Label[2]",
+          "/VBox[1]/VBox[2]/HBox[1]/Label[2]",
           "Label",
           "",
           [
             [
               "styleClass",
-              "approved-page-subtitle,page-subtitle"
+              "field-label"
             ],
             [
               "text",
@@ -70683,7 +70638,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/ComboBox[1]",
+          "/VBox[1]/VBox[2]/HBox[1]/ComboBox[1]",
           "ComboBox",
           "cmbRows",
           [
@@ -70702,7 +70657,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Button[2]",
+          "/VBox[1]/VBox[2]/HBox[1]/Button[2]",
           "Button",
           "btnFirst",
           [
@@ -70725,7 +70680,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Button[3]",
+          "/VBox[1]/VBox[2]/HBox[1]/Button[3]",
           "Button",
           "btnPrev",
           [
@@ -70748,7 +70703,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Label[3]",
+          "/VBox[1]/VBox[2]/HBox[1]/Label[3]",
           "Label",
           "lblPage",
           [
@@ -70767,7 +70722,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Button[4]",
+          "/VBox[1]/VBox[2]/HBox[1]/Button[4]",
           "Button",
           "btnNext",
           [
@@ -70790,7 +70745,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Button[5]",
+          "/VBox[1]/VBox[2]/HBox[1]/Button[5]",
           "Button",
           "btnLast",
           [
@@ -70813,18 +70768,7 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[5]/Separator[1]",
-          "Separator",
-          "",
-          [
-            [
-              "orientation",
-              "VERTICAL"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/HBox[5]/Button[6]",
+          "/VBox[1]/VBox[2]/HBox[1]/Button[6]",
           "Button",
           "",
           [
@@ -71099,14 +71043,14 @@
           "#openPurchaseRegister"
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/Button[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/HBox[1]/Button[1]",
           "Button",
           "btnReset",
           "onAction",
           "#resetFilters"
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/Button[2]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/HBox[1]/Button[2]",
           "Button",
           "btnApply",
           "onAction",
@@ -71224,7 +71168,7 @@
           [
             [
               "spacing",
-              "10"
+              "8"
             ],
             [
               "styleClass",
@@ -71331,25 +71275,6 @@
           ]
         ],
         [
-          "/VBox[1]/HBox[1]/ComboBox[1]",
-          "ComboBox",
-          "cmbDashboardPeriod",
-          [
-            [
-              "id",
-              "cmbDashboardPeriod"
-            ],
-            [
-              "prefWidth",
-              "155"
-            ],
-            [
-              "styleClass",
-              "approved-input"
-            ]
-          ]
-        ],
-        [
           "/VBox[1]/HBox[1]/Button[1]",
           "Button",
           "btnRefresh",
@@ -71380,14 +71305,6 @@
             [
               "id",
               "btnExport"
-            ],
-            [
-              "minWidth",
-              "120"
-            ],
-            [
-              "prefWidth",
-              "120"
             ],
             [
               "styleClass",
@@ -71565,7 +71482,7 @@
           [
             [
               "spacing",
-              "12"
+              "10"
             ],
             [
               "styleClass",
@@ -71586,7 +71503,7 @@
           [
             [
               "bottom",
-              "12"
+              "10"
             ],
             [
               "left",
@@ -71598,22 +71515,18 @@
             ],
             [
               "top",
-              "8"
+              "6"
             ]
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]",
-          "HBox",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]",
+          "VBox",
           "",
           [
             [
-              "alignment",
-              "CENTER_LEFT"
-            ],
-            [
               "spacing",
-              "10"
+              "8"
             ],
             [
               "styleClass",
@@ -71622,7 +71535,193 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/DatePicker[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]",
+          "GridPane",
+          "",
+          [
+            [
+              "hgap",
+              "10"
+            ],
+            [
+              "vgap",
+              "6"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]",
+          "columnConstraints",
+          "",
+          []
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[1]",
+          "ColumnConstraints",
+          "",
+          [
+            [
+              "hgrow",
+              "ALWAYS"
+            ],
+            [
+              "percentWidth",
+              "16.666"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[2]",
+          "ColumnConstraints",
+          "",
+          [
+            [
+              "hgrow",
+              "ALWAYS"
+            ],
+            [
+              "percentWidth",
+              "16.666"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[3]",
+          "ColumnConstraints",
+          "",
+          [
+            [
+              "hgrow",
+              "ALWAYS"
+            ],
+            [
+              "percentWidth",
+              "16.666"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[4]",
+          "ColumnConstraints",
+          "",
+          [
+            [
+              "hgrow",
+              "ALWAYS"
+            ],
+            [
+              "percentWidth",
+              "16.666"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[5]",
+          "ColumnConstraints",
+          "",
+          [
+            [
+              "hgrow",
+              "ALWAYS"
+            ],
+            [
+              "percentWidth",
+              "16.666"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/columnConstraints[1]/ColumnConstraints[6]",
+          "ColumnConstraints",
+          "",
+          [
+            [
+              "hgrow",
+              "ALWAYS"
+            ],
+            [
+              "percentWidth",
+              "16.666"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[1]",
+          "VBox",
+          "",
+          [
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[1]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "Period"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[1]/ComboBox[1]",
+          "ComboBox",
+          "cmbDashboardPeriod",
+          [
+            [
+              "id",
+              "cmbDashboardPeriod"
+            ],
+            [
+              "maxWidth",
+              "Infinity"
+            ],
+            [
+              "styleClass",
+              "approved-input"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[2]",
+          "VBox",
+          "",
+          [
+            [
+              "GridPane.columnIndex",
+              "1"
+            ],
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[2]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "From Date"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[2]/DatePicker[1]",
           "DatePicker",
           "dpFrom",
           [
@@ -71631,8 +71730,8 @@
               "dpFrom"
             ],
             [
-              "prefWidth",
-              "145"
+              "maxWidth",
+              "Infinity"
             ],
             [
               "styleClass",
@@ -71641,22 +71740,37 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/Label[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[3]",
+          "VBox",
+          "",
+          [
+            [
+              "GridPane.columnIndex",
+              "2"
+            ],
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[3]/Label[1]",
           "Label",
           "",
           [
             [
               "styleClass",
-              "approved-page-subtitle"
+              "field-label"
             ],
             [
               "text",
-              "to"
+              "To Date"
             ]
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/DatePicker[2]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[3]/DatePicker[1]",
           "DatePicker",
           "dpTo",
           [
@@ -71665,8 +71779,8 @@
               "dpTo"
             ],
             [
-              "prefWidth",
-              "145"
+              "maxWidth",
+              "Infinity"
             ],
             [
               "styleClass",
@@ -71675,7 +71789,154 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/ComboBox[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[4]",
+          "VBox",
+          "",
+          [
+            [
+              "GridPane.columnIndex",
+              "3"
+            ],
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[4]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "Party"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[4]/ComboBox[1]",
+          "ComboBox",
+          "cmbParty",
+          [
+            [
+              "id",
+              "cmbParty"
+            ],
+            [
+              "maxWidth",
+              "Infinity"
+            ],
+            [
+              "styleClass",
+              "approved-input"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[5]",
+          "VBox",
+          "",
+          [
+            [
+              "GridPane.columnIndex",
+              "4"
+            ],
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[5]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "Item"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[5]/ComboBox[1]",
+          "ComboBox",
+          "cmbItem",
+          [
+            [
+              "id",
+              "cmbItem"
+            ],
+            [
+              "maxWidth",
+              "Infinity"
+            ],
+            [
+              "styleClass",
+              "approved-input"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[6]",
+          "VBox",
+          "",
+          [
+            [
+              "GridPane.columnIndex",
+              "5"
+            ],
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[6]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "Salesperson"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/GridPane[1]/VBox[6]/ComboBox[1]",
+          "ComboBox",
+          "cmbSalesPerson",
+          [
+            [
+              "id",
+              "cmbSalesPerson"
+            ],
+            [
+              "maxWidth",
+              "Infinity"
+            ],
+            [
+              "styleClass",
+              "approved-input"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/ComboBox[1]",
           "ComboBox",
           "cmbReportType",
           [
@@ -71688,10 +71949,6 @@
               "false"
             ],
             [
-              "prefWidth",
-              "160"
-            ],
-            [
               "styleClass",
               "approved-input"
             ],
@@ -71702,75 +71959,22 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/ComboBox[2]",
-          "ComboBox",
-          "cmbParty",
-          [
-            [
-              "id",
-              "cmbParty"
-            ],
-            [
-              "prefWidth",
-              "235"
-            ],
-            [
-              "styleClass",
-              "approved-input"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/ComboBox[3]",
-          "ComboBox",
-          "cmbItem",
-          [
-            [
-              "id",
-              "cmbItem"
-            ],
-            [
-              "prefWidth",
-              "205"
-            ],
-            [
-              "styleClass",
-              "approved-input"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/ComboBox[4]",
-          "ComboBox",
-          "cmbSalesPerson",
-          [
-            [
-              "id",
-              "cmbSalesPerson"
-            ],
-            [
-              "prefWidth",
-              "190"
-            ],
-            [
-              "styleClass",
-              "approved-input"
-            ]
-          ]
-        ],
-        [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/Region[1]",
-          "Region",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/HBox[1]",
+          "HBox",
           "",
           [
             [
-              "HBox.hgrow",
-              "ALWAYS"
+              "alignment",
+              "CENTER_RIGHT"
+            ],
+            [
+              "spacing",
+              "8"
             ]
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/Button[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/HBox[1]/Button[1]",
           "Button",
           "btnReset",
           [
@@ -71793,7 +71997,7 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/HBox[1]/Button[2]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[1]/ScrollPane[1]/content[1]/VBox[1]/VBox[1]/HBox[1]/Button[2]",
           "Button",
           "btnApply",
           [
@@ -73235,7 +73439,7 @@
           [
             [
               "styleClass",
-              "approved-page-subtitle,page-subtitle"
+              "field-label"
             ],
             [
               "text",
@@ -73382,7 +73586,18 @@
           []
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]",
+          "VBox",
+          "",
+          [
+            [
+              "spacing",
+              "8"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]",
           "HBox",
           "",
           [
@@ -73401,7 +73616,7 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/VBox[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/VBox[1]",
           "VBox",
           "",
           [
@@ -73412,7 +73627,7 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/VBox[1]/Label[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/VBox[1]/Label[1]",
           "Label",
           "",
           [
@@ -73427,7 +73642,7 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/VBox[1]/Label[2]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/VBox[1]/Label[2]",
           "Label",
           "",
           [
@@ -73437,12 +73652,12 @@
             ],
             [
               "text",
-              "Choose a report category, search the catalog and open a unified report viewer."
+              "Choose a category, search the catalog and open a unified report viewer."
             ]
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/Region[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/Region[1]",
           "Region",
           "",
           [
@@ -73453,13 +73668,13 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/StackPane[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/StackPane[1]",
           "StackPane",
           "",
           [
             [
               "maxWidth",
-              "460"
+              "520"
             ],
             [
               "minWidth",
@@ -73476,7 +73691,7 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/StackPane[1]/TextField[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/StackPane[1]/TextField[1]",
           "TextField",
           "txtReportSearch",
           [
@@ -73499,7 +73714,7 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/StackPane[1]/StackPane[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/StackPane[1]/StackPane[1]",
           "StackPane",
           "reportCenterSearchIcon",
           [
@@ -73546,13 +73761,13 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/StackPane[1]/StackPane[1]/StackPane.margin[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/StackPane[1]/StackPane[1]/StackPane.margin[1]",
           "StackPane.margin",
           "",
           []
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/HBox[1]/StackPane[1]/StackPane[1]/StackPane.margin[1]/Insets[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[1]/StackPane[1]/StackPane[1]/StackPane.margin[1]/Insets[1]",
           "Insets",
           "",
           [
@@ -73563,32 +73778,26 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/left[1]",
-          "left",
-          "",
-          []
-        ],
-        [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/left[1]/VBox[1]",
-          "VBox",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[2]",
+          "HBox",
           "",
           [
             [
-              "prefWidth",
-              "238"
+              "alignment",
+              "CENTER_LEFT"
             ],
             [
               "spacing",
-              "8"
+              "10"
             ],
             [
               "styleClass",
-              "approved-card,approved-surface,report-category-panel"
+              "approved-card,approved-surface,report-category-strip"
             ]
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/left[1]/VBox[1]/Label[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[2]/Label[1]",
           "Label",
           "",
           [
@@ -73603,12 +73812,12 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/left[1]/VBox[1]/ListView[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[2]/BorderPane[1]/top[1]/VBox[1]/HBox[2]/ListView[1]",
           "ListView",
           "reportCategories",
           [
             [
-              "VBox.vgrow",
+              "HBox.hgrow",
               "ALWAYS"
             ],
             [
@@ -73616,8 +73825,24 @@
               "reportCategories"
             ],
             [
+              "maxHeight",
+              "52"
+            ],
+            [
+              "minHeight",
+              "52"
+            ],
+            [
+              "orientation",
+              "HORIZONTAL"
+            ],
+            [
+              "prefHeight",
+              "52"
+            ],
+            [
               "styleClass",
-              "approved-list,report-category-list"
+              "approved-list,report-category-list,report-category-strip-list"
             ]
           ]
         ],
@@ -73659,7 +73884,7 @@
           [
             [
               "spacing",
-              "12"
+              "10"
             ],
             [
               "styleClass",
@@ -73684,7 +73909,7 @@
             ],
             [
               "left",
-              "14"
+              "4"
             ],
             [
               "right",
@@ -73692,7 +73917,7 @@
             ],
             [
               "top",
-              "4"
+              "8"
             ]
           ]
         ],
@@ -73764,7 +73989,7 @@
           [
             [
               "spacing",
-              "12"
+              "10"
             ],
             [
               "styleClass",
@@ -73873,7 +74098,7 @@
             ],
             [
               "spacing",
-              "10"
+              "8"
             ],
             [
               "styleClass",
@@ -73903,7 +74128,7 @@
           [
             [
               "maxWidth",
-              "460"
+              "520"
             ],
             [
               "minWidth",
@@ -74218,7 +74443,7 @@
           [
             [
               "spacing",
-              "12"
+              "10"
             ],
             [
               "styleClass",
@@ -74741,7 +74966,7 @@
             ],
             [
               "spacing",
-              "10"
+              "8"
             ],
             [
               "styleClass",
@@ -74756,7 +74981,7 @@
           [
             [
               "alignment",
-              "CENTER_LEFT"
+              "BOTTOM_LEFT"
             ],
             [
               "spacing",
@@ -74771,7 +74996,7 @@
           [
             [
               "maxWidth",
-              "460"
+              "520"
             ],
             [
               "minWidth",
@@ -74875,7 +75100,33 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/ComboBox[1]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/VBox[1]",
+          "VBox",
+          "",
+          [
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/VBox[1]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "Status"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/VBox[1]/ComboBox[1]",
           "ComboBox",
           "cmbScheduleStatus",
           [
@@ -74894,7 +75145,33 @@
           ]
         ],
         [
-          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/ComboBox[2]",
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/VBox[2]",
+          "VBox",
+          "",
+          [
+            [
+              "spacing",
+              "3"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/VBox[2]/Label[1]",
+          "Label",
+          "",
+          [
+            [
+              "styleClass",
+              "field-label"
+            ],
+            [
+              "text",
+              "Format"
+            ]
+          ]
+        ],
+        [
+          "/VBox[1]/TabPane[1]/tabs[1]/Tab[4]/VBox[1]/VBox[1]/HBox[1]/VBox[2]/ComboBox[1]",
           "ComboBox",
           "cmbScheduleFormat",
           [
@@ -78320,7 +78597,7 @@
             ],
             [
               "text",
-              "9.0.44"
+              "9.0.45"
             ]
           ]
         ],
@@ -96503,7 +96780,7 @@
             ],
             [
               "text",
-              "DSE ERP 9.0.44"
+              "DSE ERP 9.0.45"
             ]
           ]
         ],
@@ -104943,7 +105220,7 @@
             ],
             [
               "text",
-              "9.0.44"
+              "9.0.45"
             ]
           ]
         ],
@@ -106553,7 +106830,7 @@
     },
     "desktop/src/main/java/org/example/controller/ReportsController.java": {
       ".getSelectionModel()": 20,
-      ".setCellFactory(": 5,
+      ".setCellFactory(": 6,
       ".setCellValueFactory(": 16,
       ".setComparator(": 0,
       ".setOnKeyPressed(": 0,
@@ -106838,5 +107115,5 @@
       "RegisterColumnPreferences.install(": 0
     }
   },
-  "version": "9.0.44"
+  "version": "9.0.45"
 }

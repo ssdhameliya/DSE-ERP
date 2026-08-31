@@ -30,7 +30,7 @@ import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
-/** Unified 9.0.44 report viewer used by every Report Center definition. */
+/** Unified 9.0.45 report viewer used by every Report Center definition. */
 public class ReportViewerController implements ScreenLifecycle {
     private static final String LOAD_KEY="report-viewer-load";
     @FXML private Label lblTitle,lblDescription,lblActiveFilters,lblRecords,lblPage;
@@ -75,12 +75,28 @@ public class ReportViewerController implements ScreenLifecycle {
         RegisterUiSupport.configureHeaderSearch(txtSearch,reportSearchIcon,"Search invoice / party / item / reference...");
         filterGrid.widthProperty().addListener((o,a,b)->reflowFilterGrid());
         tblReport.setPlaceholder(new Label("No transactions found for the selected criteria."));
-        if(viewerPageIcon!=null)viewerPageIcon.getChildren().setAll(IconFactory.icon("report",24));
+        updateReportIdentityIcon();
         loadFilterOptions();
         consumeContext();
         loadDefinition();
         initializing=false;
         requestLoad();
+    }
+
+
+    private void updateReportIdentityIcon(){
+        if(viewerPageIcon==null)return;String id=safe(reportId).toUpperCase(Locale.ROOT);String semantic=switch(id){
+            case "SALES_REGISTER" -> "invoice";
+            case "SALES_BY_CUSTOMER" -> "customer";
+            case "SALES_BY_ITEM","ITEM_LEDGER" -> "item";
+            case "PURCHASE_REGISTER" -> "purchase";
+            case "RETURNS_ANALYSIS" -> "return";
+            case "GST_TAX" -> "tax";
+            case "RECEIVABLE_AGEING","PAYABLE_AGEING" -> "payment";
+            case "STOCK_SUMMARY" -> "inventory";
+            case "BANK_RECONCILIATION" -> "bank";
+            default -> "report";
+        };viewerPageIcon.getChildren().setAll(IconFactory.icon(semantic,24));
     }
 
     private void consumeContext(){
@@ -102,7 +118,7 @@ public class ReportViewerController implements ScreenLifecycle {
     private void loadDefinition(){
         UiTaskExecutor.submitLatest("report-viewer-definition",api::definitions,defs->{
             definition=defs==null?null:defs.stream().filter(d->d.id()!=null&&d.id().equalsIgnoreCase(reportId)).findFirst().orElse(null);
-            configureFilterVisibility();
+            updateReportIdentityIcon();configureFilterVisibility();
         },e->PerformanceMonitor.event("report-viewer-definition",String.valueOf(e.getMessage())));
     }
 
@@ -132,7 +148,7 @@ public class ReportViewerController implements ScreenLifecycle {
         List<VBox> visible=boxes.stream().filter(Objects::nonNull).filter(Node::isManaged).toList();
         if(visible.isEmpty())return;
         double width=filterGrid.getWidth();
-        int columns=width>0?Math.max(1,Math.min(4,(int)Math.floor(width/220.0))):4;
+        int columns=width>0?Math.max(1,Math.min(5,(int)Math.floor(width/205.0))):4;
         filterGrid.getColumnConstraints().clear();
         for(int i=0;i<columns;i++){ColumnConstraints c=new ColumnConstraints();c.setPercentWidth(100.0/columns);c.setHgrow(Priority.ALWAYS);c.setFillWidth(true);filterGrid.getColumnConstraints().add(c);}
         for(int i=0;i<visible.size();i++){VBox box=visible.get(i);GridPane.setColumnIndex(box,i%columns);GridPane.setRowIndex(box,i/columns);GridPane.setHgrow(box,Priority.ALWAYS);}
@@ -168,7 +184,7 @@ public class ReportViewerController implements ScreenLifecycle {
 
     private void applyResult(ReportResult result){
         rendering=true;
-        current=result;page=result.page();lblTitle.setText(result.title());lblDescription.setText(result.description());
+        current=result;page=result.page();lblTitle.setText(result.title());lblDescription.setText(result.description());updateReportIdentityIcon();
         if(visibleKeys.isEmpty())for(ReportColumn c:result.columns())if(c.defaultVisible())visibleKeys.add(c.key());
         configureColumns(result);configureGroups(result);configureSort(result);renderFilters(result);tblReport.getItems().setAll(result.rows());
         lblRecords.setText("Showing "+(result.rows().isEmpty()?0:(page*result.size()+1))+" to "+Math.min(result.totalRows(),(long)(page*result.size()+result.rows().size()))+" of "+result.totalRows()+" entries");
@@ -202,7 +218,7 @@ public class ReportViewerController implements ScreenLifecycle {
     @FXML private void goReportCenter(){ReportsController.requestTab(1);NavigationManager.navigateOrReport("/fxml/pages/Reports.fxml");}
     @FXML private void goSavedReports(){ReportsController.requestTab(2);NavigationManager.navigateOrReport("/fxml/pages/Reports.fxml");}
     @FXML private void goScheduled(){ReportsController.requestTab(3);NavigationManager.navigateOrReport("/fxml/pages/Reports.fxml");}
-    @FXML private void showInformation(){String formula=switch(reportId){case "SALES_REGISTER","SALES_BY_CUSTOMER","SALES_BY_ITEM"->"Gross Sales are original approved invoice values. Approved Sales Returns are deducted only from Net Sales. Original invoice Payment Status is never replaced by Return refund status.";case "PURCHASE_REGISTER"->"Gross Purchases are posted approved purchase values. Approved Purchase Returns are deducted from Net Purchases. Supplier payment and Return refund settlement remain separate.";case "RECEIVABLE_AGEING","PAYABLE_AGEING"->"Outstanding is original document value minus posted payments. Return refund obligations are reported in the Return lifecycle and are not rewritten into historical payment rows.";case "PROFITABILITY"->"Profit = net taxable sales after approved Returns minus historical unit-cost COGS after the corresponding returned quantities.";default->"This report is calculated by the server-owned 9.0.44 reporting engine. UI, PDF, Excel, CSV and Print consume the same ReportResult.";};Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,formula);a.setHeaderText(lblTitle.getText()+" — calculation rules");a.showAndWait();}
+    @FXML private void showInformation(){String formula=switch(reportId){case "SALES_REGISTER","SALES_BY_CUSTOMER","SALES_BY_ITEM"->"Gross Sales are original approved invoice values. Approved Sales Returns are deducted only from Net Sales. Original invoice Payment Status is never replaced by Return refund status.";case "PURCHASE_REGISTER"->"Gross Purchases are posted approved purchase values. Approved Purchase Returns are deducted from Net Purchases. Supplier payment and Return refund settlement remain separate.";case "RECEIVABLE_AGEING","PAYABLE_AGEING"->"Outstanding is original document value minus posted payments. Return refund obligations are reported in the Return lifecycle and are not rewritten into historical payment rows.";case "PROFITABILITY"->"Profit = net taxable sales after approved Returns minus historical unit-cost COGS after the corresponding returned quantities.";default->"This report is calculated by the server-owned 9.0.45 reporting engine. UI, PDF, Excel, CSV and Print consume the same ReportResult.";};Alert a=new OwnedAlert(Alert.AlertType.INFORMATION,formula);a.setHeaderText(lblTitle.getText()+" — calculation rules");a.showAndWait();}
 
     @FXML private void saveReport(){
         if(current==null)return;TextInputDialog d=new OwnedTextInputDialog();d.setHeaderText("Save Report");d.setContentText("Name:");d.showAndWait().map(String::trim).filter(x->!x.isBlank()).ifPresent(name->{ReportRequest req=requestFor(0,cmbRows.getValue()==null?25:cmbRows.getValue());String payload=ReportingSavedConfig.encode(name,cmbDatePreset.getValue(),req);Integer uid=SessionService.current()==null?null:SessionService.current().getId();UiTaskExecutor.submitAction("save-unified-report",()->{supportApi.saveView(uid,"REPORT_CENTER",name,payload);return true;},x->ToastManager.success(tblReport,"Saved","Report configuration saved with filters, grouping, sorting, columns and date mode."),e->error("Could not save report: "+root(e)));});

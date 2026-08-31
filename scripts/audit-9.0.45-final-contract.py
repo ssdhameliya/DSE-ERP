@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.44 final IntelliJ/reporting/scheduler contract."""
+"""DSE ERP 9.0.45 final IntelliJ/reporting/scheduler contract."""
 from pathlib import Path
 import re, sys, xml.etree.ElementTree as ET
 from collections import Counter
@@ -11,10 +11,10 @@ def need(ok,msg):
 def text(rel): return (ROOT/rel).read_text(encoding='utf-8',errors='ignore')
 
 # Release identity / full runtime shell.
-need('<version>9.0.44</version>' in text('pom.xml') and '<dse.phase>9.0.44</dse.phase>' in text('pom.xml'),'root Maven identity is not 9.0.44')
-need('APP_VERSION = "9.0.44"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'desktop/shared runtime identity is not 9.0.44')
-need('dse.app.version=9.0.44' in text('server/src/main/resources/application.properties'),'server runtime identity is not 9.0.44')
-need('runtime.phase=9.0.44' in text('runtime/runtime-manifest.properties'),'bundled runtime manifest is not 9.0.44')
+need('<version>9.0.45</version>' in text('pom.xml') and '<dse.phase>9.0.45</dse.phase>' in text('pom.xml'),'root Maven identity is not 9.0.45')
+need('APP_VERSION = "9.0.45"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'desktop/shared runtime identity is not 9.0.45')
+need('dse.app.version=9.0.45' in text('server/src/main/resources/application.properties'),'server runtime identity is not 9.0.45')
+need('runtime.phase=9.0.45' in text('runtime/runtime-manifest.properties'),'bundled runtime manifest is not 9.0.45')
 pg=ROOT/'runtime/postgresql'
 need(pg.exists() and sum(1 for p in pg.rglob('*') if p.is_file())>100,'full bundled PostgreSQL runtime shell is missing')
 
@@ -41,6 +41,10 @@ need('fx:id="metricPane"' not in v and 'report-metric-strip' not in v,'individua
 for action in ('#exportPdf','#exportExcel','#exportCsv','#printReport'):
     need(v.count(f'onAction="{action}"')==1,f'Report Viewer must expose {action} exactly once')
 need('fx:id="miCsv" text="Export CSV" onAction="#exportCsv"' in r,'Reports Dashboard CSV export is missing')
+need('report-viewer-identity-panel' not in v,'obsolete separate Report Viewer identity panel must remain removed')
+need('VBox.vgrow="ALWAYS" styleClass="report-card,report-results-panel"' in v,'Report Viewer result table must own remaining vertical space')
+need('orientation="HORIZONTAL"' in r and 'report-category-strip-list' in r,'Report Center must use compact horizontal category navigation')
+need('report-category-panel' not in r,'obsolete full-height Report Center category rail remains')
 
 # Action controls: icon + text, never global graphic-only table action behavior.
 for theme in css:
@@ -48,15 +52,19 @@ for theme in css:
     need(not re.search(r'\.icon-button\s*,\s*\.table-action-button\s*\{[^}]*GRAPHIC_ONLY',raw,re.S),f'{theme} still makes table actions graphic-only')
     need(re.search(r'\.table-action-button\s*\{[^}]*-fx-content-display\s*:\s*LEFT',raw,re.S) is not None,f'{theme} lacks icon+text table action rule')
 table_mgr=text('desktop/src/main/java/org/example/util/DynamicTableLayoutManager.java')
-need('renderedCellControlWidth(table, column)' in table_mgr and 'header + 38.0' in table_mgr,'dynamic action-column rendered-control floor is missing')
+need('renderedCellControlWidth(table, column)' in table_mgr and 'ACTION_CONTROL_MIN_WIDTH = 112.0' in table_mgr,'dynamic icon+text action-column rendered-control floor is missing')
 
 # Responsive KPI must wrap before cards become cramped; individual viewer no longer enrolled.
 kpi=text('desktop/src/main/java/org/example/util/ResponsiveKpiLayoutManager.java')
-need('MIN_COMFORTABLE_CARD = 220.0' in kpi,'responsive KPI comfortable width floor is not 220px')
+need('MIN_COMFORTABLE_CARD = 170.0' in kpi,'responsive KPI comfortable width floor is not the 9.0.45 compact 170px value')
+need('erp-kpi-single-row' in kpi,'responsive KPI manager lacks explicit single-row KPI contract')
+need('erp-kpi-single-row' in text('desktop/src/main/resources/fxml/pages/BankStatement.fxml'),'Bank Statement must keep all eight KPI cards in one row')
 need('GridPane.setRowIndex(card, i / columns)' in kpi,'responsive KPI wrapping is missing')
 
 # Dashboard/Viewer CSV implementation.
 reports_ctrl=text('desktop/src/main/java/org/example/controller/ReportsController.java')
+need('private String reportSemantic(ReportDefinition def)' in reports_ctrl and 'case "GST_TAX" -> "tax"' in reports_ctrl,'Report Center lacks report-specific semantic icons')
+need('final MenuButton actions=new MenuButton("Actions")' in reports_ctrl,'Saved Reports Actions menu must expose icon + Actions text')
 service=text('desktop/src/main/java/org/example/service/BusinessReportService.java')
 need('@FXML private void exportCsv(){exportDashboard("CSV Report","business-report.csv","csv");}' in reports_ctrl,'dashboard CSV controller action missing')
 need('public void exportCsv(Path file, LocalDate from, LocalDate to)' in service,'BusinessReportService CSV export missing')
@@ -140,7 +148,7 @@ need('exporter.pdf(pdf, result, visible); exporter.excel(xlsx, result, visible);
 need('format.getItems().setAll("PDF","XLSX","PDF + XLSX","CSV")' in reports_ctrl,'scheduled-report combined output option missing from UI')
 
 if FAIL:
-    print('FINAL_9_0_44_FAIL')
+    print('FINAL_9_0_45_FAIL')
     for x in FAIL: print(' -',x)
     sys.exit(1)
-print('FINAL_9_0_44_OK css=2 report_viewer_kpi=removed action=icon+text dashboard_csv=yes schedule_pdf_xlsx=both role_master=yes dynamic_lookups=yes dead_code=clean full_runtime=yes')
+print('FINAL_9_0_45_OK css=2 reporting=table-first action=icon+text bank_kpi=8x1 semantic_fields=yes theme_parity=yes dashboard_csv=yes schedule_pdf_xlsx=both role_master=yes dynamic_lookups=yes dead_code=clean full_runtime=yes')

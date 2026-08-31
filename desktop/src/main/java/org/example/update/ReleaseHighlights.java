@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.45".equals(version)) {
+            return """
+                    DSE ERP 9.0.45
+
+                    • Rebuilds Reporting around a table-first workspace: compact report identity, filters and result controls leave the majority of the screen to report data.
+                    • Gives Report Center a full-width responsive catalog with report-specific semantic icons instead of a tall empty category rail.
+                    • Restores icon + visible text Actions across register/table rows and hardens dynamic action-column measurement against clipping.
+                    • Keeps Bank Statement's eight KPI cards in a single desktop row while retaining shared responsive KPI behavior elsewhere.
+                    • Aligns Reporting field labels, headers and controls with the colorful semantic icon system and improves light/dark control contrast without adding extra stylesheets.
+                    """;
+        }
         if ("9.0.44".equals(version)) {
             return """
                     DSE ERP 9.0.44

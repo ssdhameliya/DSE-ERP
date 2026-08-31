@@ -647,7 +647,7 @@
     -fx-border-color: #8b5cf6;
     -fx-text-fill: white;
 }
-.button.erp-button-icon, .table-cell .button, .table-cell .menu-button {
+.button.erp-button-icon, .table-cell .approved-icon-button, .table-cell .icon-button {
 -fx-min-width: 32px;
     -fx-pref-width: 34px;
     -fx-max-width: 38px;
@@ -4673,7 +4673,7 @@
 -fx-stroke-width: 2.5px;
 }
 .report-card {
--fx-min-height: 230;
+-fx-min-height: 0;
 }
 .summary-list .list-cell {
 -fx-padding: 10 8;
@@ -8498,7 +8498,8 @@
     -fx-padding: 0 6px;
 }
 .report-viewer-root {
--fx-padding: 10 14 12 14;
+    -fx-padding: 8 12 10 12;
+    -fx-spacing: 8;
 }
 .report-viewer-root .report-card {
 -fx-background-radius: 10; -fx-border-radius: 10;
@@ -8540,10 +8541,10 @@
 -fx-padding: 0;
 }
 .report-category-panel {
--fx-min-width: 250px; -fx-pref-width: 250px;
+-fx-min-width: 0; -fx-pref-width: -1;
 }
 .report-category-list {
--fx-min-height: 540px;
+-fx-min-height: 0;
 }
 .saved-report-panel {
 -fx-padding: 12px;
@@ -8555,7 +8556,7 @@
 -fx-min-width: 138px; -fx-pref-width: 138px; -fx-min-height: 38px; -fx-pref-height: 38px; -fx-background-radius: 8px; -fx-border-radius: 8px;
 }
 .report-viewer-root .report-table {
--fx-min-height: 300px;
+    -fx-min-height: 260px;
 }
 .report-viewer-root .table-view .column-header {
 -fx-min-height: 34px;
@@ -15543,13 +15544,15 @@
     -fx-font-weight: 800;
 }
 .report-center-card {
--fx-background-radius: 10;
+    -fx-background-radius: 10;
     -fx-border-radius: 10;
     -fx-border-width: 1;
     -fx-padding: 12;
+    -fx-min-height: 140px;
+    -fx-pref-height: 148px;
 }
 .report-center-card .report-card-title {
--fx-font-size: 13px;
+    -fx-font-size: 13px;
     -fx-font-weight: 800;
 }
 .report-filter-card, .report-card, .report-center-card {
@@ -15840,3 +15843,165 @@
 -fx-text-fill: -color-text;
 }
 
+.table-view .table-cell .menu-button.table-action-menu,
+.table-view .table-cell .menu-button.row-actions,
+.table-view .table-cell .menu-button.user-action-menu,
+.table-view .table-cell .menu-button.backup-row-actions,
+.table-view .table-cell .menu-button.bank-row-action,
+.table-view .table-cell .menu-button.reminder-action-button,
+.table-view .table-cell .approved-row-action {
+    -fx-min-height: 32px;
+    -fx-pref-height: 34px;
+    -fx-max-height: 38px;
+    -fx-padding: 5px 8px;
+    -fx-content-display: left;
+    -fx-alignment: center-left;
+    -fx-graphic-text-gap: 6px;
+}
+.table-view .table-cell .menu-button.table-action-menu > .label,
+.table-view .table-cell .menu-button.row-actions > .label,
+.table-view .table-cell .menu-button.user-action-menu > .label,
+.table-view .table-cell .menu-button.backup-row-actions > .label,
+.table-view .table-cell .menu-button.bank-row-action > .label,
+.table-view .table-cell .menu-button.reminder-action-button > .label {
+    -fx-content-display: left;
+    -fx-alignment: center-left;
+    -fx-graphic-text-gap: 6px;
+    -fx-padding: 0 3px 0 1px;
+}
+
+.report-viewer-root .report-viewer-header {
+    -fx-min-height: 58px;
+    -fx-pref-height: 58px;
+    -fx-padding: 8 12;
+}
+.report-viewer-root .report-card,
+.report-viewer-root .report-filter-card,
+.reports-workspace .report-card,
+.reports-workspace .report-filter-card {
+    -fx-min-height: 0;
+}
+.report-viewer-root .report-viewer-filter-panel {
+    -fx-padding: 8 10;
+}
+.report-viewer-root .report-results-toolbar {
+    -fx-min-height: 58px;
+    -fx-pref-height: 58px;
+    -fx-padding: 6 10;
+}
+.report-viewer-root .report-results-panel {
+    -fx-min-height: 260px;
+    -fx-padding: 0;
+}
+.report-viewer-root .report-viewer-footer {
+    -fx-min-height: 42px;
+    -fx-pref-height: 42px;
+    -fx-padding: 5 8;
+}
+
+.report-category-strip {
+    -fx-padding: 6 10;
+    -fx-min-height: 62px;
+    -fx-pref-height: 62px;
+}
+.report-category-strip-list {
+    -fx-min-height: 46px;
+    -fx-pref-height: 46px;
+    -fx-max-height: 46px;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+.report-category-strip-list .virtual-flow .scroll-bar:vertical {
+    -fx-pref-width: 0;
+    -fx-opacity: 0;
+}
+.report-category-strip-list .list-cell {
+    -fx-min-width: 118px;
+    -fx-pref-width: 128px;
+    -fx-max-width: 170px;
+    -fx-min-height: 38px;
+    -fx-pref-height: 38px;
+    -fx-padding: 7 10;
+    -fx-alignment: center-left;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-text-fill: #d9e3f3;
+    -fx-border-color: #30445f;
+}
+.report-center-content {
+    -fx-padding: 4 4 12 4;
+}
+.report-center-cards {
+    -fx-pref-tile-width: 330px;
+    -fx-pref-tile-height: 148px;
+}
+
+.report-card-open-button {
+    -fx-min-width: 116px;
+}
+.reports-dashboard-filter .field-label,
+.report-viewer-root .field-label,
+.reports-tab-page .field-label {
+    -fx-font-weight: 800;
+}
+.bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi {
+    -fx-min-width: 0;
+    -fx-max-width: Infinity;
+    -fx-padding: 9 10;
+}
+.bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi-caption {
+    -fx-font-size: 10px;
+}
+.bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi-value {
+    -fx-font-size: 16px;
+}
+.bank-recon-kpi-panel.erp-kpi-single-row .bank-recon-kpi-note {
+    -fx-font-size: 9px;
+}
+
+.table-view .table-cell .menu-button.table-action-menu,
+.table-view .table-cell .menu-button.row-actions,
+.table-view .table-cell .menu-button.user-action-menu,
+.table-view .table-cell .menu-button.backup-row-actions,
+.table-view .table-cell .menu-button.bank-row-action,
+.table-view .table-cell .menu-button.reminder-action-button {
+    -fx-background-color: #2b2252;
+    -fx-border-color: #7257d9;
+    -fx-text-fill: #e9ddff;
+}
+.table-view .table-cell .menu-button.table-action-menu > .label,
+.table-view .table-cell .menu-button.row-actions > .label,
+.table-view .table-cell .menu-button.user-action-menu > .label,
+.table-view .table-cell .menu-button.backup-row-actions > .label,
+.table-view .table-cell .menu-button.bank-row-action > .label,
+.table-view .table-cell .menu-button.reminder-action-button > .label { -fx-text-fill: #e9ddff; }
+.table-view .table-cell .menu-button.table-action-menu:hover,
+.table-view .table-cell .menu-button.table-action-menu:showing,
+.table-view .table-cell .menu-button.row-actions:hover,
+.table-view .table-cell .menu-button.row-actions:showing {
+    -fx-background-color: #3b2a6d;
+    -fx-border-color: #a78bfa;
+}
+
+.report-category-strip-list .list-cell:filled:hover { -fx-background-color: #192a45; -fx-border-color: #7257d9; }
+.report-category-strip-list .list-cell:filled:selected { -fx-background-color: #2b2252; -fx-border-color: #8b5cf6; -fx-text-fill: #e9ddff; }
+.approved-primary-button > .label,
+.approved-menu-button.approved-primary-button > .label,
+.register-action-button > .label {
+    -fx-text-fill: white;
+}
+.approved-secondary-button > .label,
+.approved-menu-button > .label {
+    -fx-text-fill: #eaf2ff;
+}
+.approved-menu-button.approved-primary-button > .arrow-button > .arrow,
+.register-action-button > .arrow-button > .arrow {
+    -fx-background-color: white;
+}
+.approved-menu-button > .arrow-button > .arrow {
+    -fx-background-color: #eaf2ff;
+}
+.approved-menu-button.approved-primary-button > .arrow-button > .arrow {
+    -fx-background-color: white;
+}

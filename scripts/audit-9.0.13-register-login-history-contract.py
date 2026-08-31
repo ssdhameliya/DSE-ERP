@@ -89,10 +89,10 @@ req('historyTextCell()' in bank_controller and 'new Tooltip(text)' in bank_contr
     'History text columns must retain full values via tooltips')
 
 # Exact current release identity.
-req('APP_VERSION = "9.0.44"' in runtime and 'BUILD_REVISION = "9.0.44"' in runtime,'Runtime identity must be 9.0.18')
-req('dse.app.version=9.0.44' in props and 'dse.build.revision=9.0.44' in props,'Server identity must be 9.0.18')
-req('<version>9.0.44</version>' in root_pom and '<dse.phase>9.0.44</dse.phase>' in root_pom,'Maven identity must be 9.0.18')
-req('version=9.0.44' in app_version and 'DEFAULT_VERSION="9.0.44"' in update,'Desktop/updater identity must be 9.0.18')
+req('APP_VERSION = "9.0.45"' in runtime and 'BUILD_REVISION = "9.0.45"' in runtime,'Runtime identity must be 9.0.18')
+req('dse.app.version=9.0.45' in props and 'dse.build.revision=9.0.45' in props,'Server identity must be 9.0.18')
+req('<version>9.0.45</version>' in root_pom and '<dse.phase>9.0.45</dse.phase>' in root_pom,'Maven identity must be 9.0.18')
+req('version=9.0.45' in app_version and 'DEFAULT_VERSION="9.0.45"' in update,'Desktop/updater identity must be 9.0.18')
 
 # Locked production document generators must remain identical to v9.0.12 hashes.
 protected={

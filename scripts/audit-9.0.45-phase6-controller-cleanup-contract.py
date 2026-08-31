@@ -102,7 +102,7 @@ if 'TablePerformanceOptimizer.optimize(table);' not in enhancer:
 # Phase 6 is presentation/ownership cleanup only. The established structural
 # freeze remains the authority for FXML events, navigation, dialogs and schema.
 if FAIL:
-    print('FAIL: 9.0.44 Phase 6 controller/UI ownership contract')
+    print('FAIL: 9.0.45 Phase 6 controller/UI ownership contract')
     for failure in FAIL:
         print(' -', failure)
     sys.exit(1)

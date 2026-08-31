@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.44 corrective UI stabilization contract.
+"""DSE ERP 9.0.45 corrective UI stabilization contract.
 
 Locks the post-Phase-7 fixes for first-paint table sizing, action-column
 readability, drawer-triggered reflow, purple warning-button surfaces, and the
@@ -82,7 +82,7 @@ for path in (VIEWER, REPORTS):
 if 'fixedCellSize=' in viewer_raw:
     fail("ReportViewer.fxml still owns a fixed row height")
 if 'fx:id="metricPane"' in viewer_raw or 'report-metric-strip' in viewer_raw:
-    fail("Individual Report Viewer KPI strip must remain removed in 9.0.44")
+    fail("Individual Report Viewer KPI strip must remain removed in 9.0.45")
 for action in ("#exportPdf", "#exportExcel", "#exportCsv", "#printReport"):
     expected = 1
     actual = viewer_raw.count(f'onAction="{action}"')
@@ -139,11 +139,24 @@ for token in (
     "RegisterUiSupport.configureHeaderSearch(txtSavedSearch,savedReportSearchIcon",
     "RegisterUiSupport.configureHeaderSearch(txtScheduleSearch,scheduleSearchIcon",
     'actions.getStyleClass().addAll("row-actions","table-action-menu","approved-row-action","report-row-actions")',
-    'open.getStyleClass().addAll("approved-button","approved-row-action","report-row-action")',
+    'open.getStyleClass().addAll("approved-button","approved-primary-button","report-card-open-button")',
 ):
     if token not in reports_ctrl:
         fail(f"Reports canonical search/action behavior missing: {token}")
 
+# 9.0.45 table-first Reporting / icon+text / Bank KPI contracts.
+if 'report-viewer-identity-panel' in viewer_raw:
+    fail("obsolete separate Report Viewer identity panel returned")
+if 'VBox.vgrow="ALWAYS" styleClass="report-card,report-results-panel"' not in viewer_raw:
+    fail("Report Viewer table-first vgrow panel is missing")
+if 'orientation="HORIZONTAL"' not in reports_raw or 'report-category-strip-list' not in reports_raw:
+    fail("Report Center horizontal semantic category strip is missing")
+if 'erp-kpi-single-row' not in (ROOT / "desktop/src/main/resources/fxml/pages/BankStatement.fxml").read_text(encoding="utf-8"):
+    fail("Bank Statement eight-card single-row KPI marker is missing")
+if 'ACTION_CONTROL_MIN_WIDTH = 112.0' not in manager:
+    fail("icon+text Actions column minimum content floor is missing")
+if 'erp-kpi-single-row' not in kpi:
+    fail("single-row KPI layout support is missing")
 if FAIL:
     print("PHASE8_UI_STABILIZATION_FAIL")
     for item in FAIL:

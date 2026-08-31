@@ -397,6 +397,11 @@ public final class IconFactory {
      */
     public static void decorateActionMenu(MenuButton menu) {
         if (menu == null) return;
+        menu.setText("Actions");
+        if (menu.getGraphic() == null) menu.setGraphic(compactIcon("actions", 15));
+        menu.setContentDisplay(ContentDisplay.LEFT);
+        menu.setGraphicTextGap(6);
+        menu.getProperties().put("erp.icon.semantic", "actions");
         decorateMenuItems(menu, true);
         if (!Boolean.TRUE.equals(menu.getProperties().get("erp.action-menu.semantic-bound"))) {
             menu.getProperties().put("erp.action-menu.semantic-bound", true);
@@ -538,6 +543,14 @@ public final class IconFactory {
         if (value.contains("rectangle")) return "category";
         if (value.equals("line")) return "link";
         if (value.contains("dashboard")) return "dashboard";
+        if (value.contains("report information")) return "info";
+        if (value.contains("report center")) return "report";
+        if (value.contains("saved report")) return "save";
+        if (value.equals("scheduled") || value.contains("schedule report") || value.contains("schedule")) return "calendar";
+        if (value.contains("recent export")) return "history";
+        if (value.equals("columns") || value.contains("visible columns")) return "columns";
+        if (value.contains("group by") || value.equals("group")) return "grouping";
+        if (value.equals("sort") || value.contains("sorting")) return "sorting";
         String resolved = semantic(title);
         return resolved == null ? "document" : resolved;
     }

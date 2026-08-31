@@ -21,7 +21,7 @@
         <Button fx:id="btnImport" text="Import Statement" onAction="#importStatement" styleClass="approved-button,approved-primary-button,bank-recon-import-button"/>
       </HBox>
 
-      <GridPane hgap="10" vgap="0" styleClass="bank-recon-kpi-panel,erp-kpi-section">
+      <GridPane hgap="10" vgap="0" styleClass="bank-recon-kpi-panel,erp-kpi-section,erp-kpi-single-row">
         <columnConstraints>
           <ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/>
           <ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/>
