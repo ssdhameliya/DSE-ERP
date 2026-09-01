@@ -159,6 +159,15 @@ public class JpaNativeRepository {
         public long getLong(String key){ Object v=value(key); return v==null?0L:((Number)v).longValue(); }
         public double getDouble(int index){ Object v=value(index); return v==null?0d:((Number)v).doubleValue(); }
         public double getDouble(String key){ Object v=value(key); return v==null?0d:((Number)v).doubleValue(); }
+        public BigDecimal getBigDecimal(int index){ Object v=value(index); return asBigDecimal(v); }
+        public BigDecimal getBigDecimal(String key){ Object v=value(key); return asBigDecimal(v); }
+        private static BigDecimal asBigDecimal(Object value){
+            if(value==null) return BigDecimal.ZERO;
+            if(value instanceof BigDecimal b) return b;
+            if(value instanceof Number n) return new BigDecimal(n.toString());
+            String text=String.valueOf(value).trim();
+            return text.isEmpty()?BigDecimal.ZERO:new BigDecimal(text);
+        }
         public boolean getBoolean(int index){ return asBoolean(value(index)); }
         public boolean getBoolean(String key){ return asBoolean(value(key)); }
         private static boolean asBoolean(Object value){

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="org.example.controller.WorkflowEditorShellController"
+      spacing="12" prefWidth="860" styleClass="workflow-editor-shell,approved-ui">
+    <HBox alignment="CENTER_LEFT" spacing="10" styleClass="approved-section-header,workflow-dialog-header">
+        <StackPane fx:id="headerIcon" minWidth="38" prefWidth="38" maxWidth="38" minHeight="38" prefHeight="38" maxHeight="38" styleClass="approved-title-icon"/>
+        <VBox spacing="2" HBox.hgrow="ALWAYS">
+            <Label fx:id="title" text="Workflow Record" styleClass="section-title"/>
+            <Label fx:id="subtitle" text="Use existing ERP master and workflow records." wrapText="true" styleClass="muted-text"/>
+        </VBox>
+    </HBox>
+    <GridPane fx:id="formGrid" hgap="14" vgap="10" maxWidth="Infinity" styleClass="workflow-editor-form">
+        <columnConstraints>
+            <ColumnConstraints minWidth="175" prefWidth="190" halignment="RIGHT"/>
+            <ColumnConstraints minWidth="420" prefWidth="620" hgrow="ALWAYS"/>
+        </columnConstraints>
+    </GridPane>
+    <VBox spacing="8" maxWidth="Infinity" styleClass="approved-card,workflow-editor-lines-card">
+        <HBox alignment="CENTER_LEFT" spacing="8">
+            <Label text="Line Items" styleClass="section-title"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="btnAddLine" text="Add Line" styleClass="approved-button,approved-secondary-button"/>
+        </HBox>
+        <VBox fx:id="lineBox" spacing="8" maxWidth="Infinity"/>
+    </VBox>
+    <VBox spacing="5" maxWidth="Infinity">
+        <Label text="Notes" styleClass="field-label"/>
+        <TextArea fx:id="notes" prefRowCount="2" wrapText="true" maxWidth="Infinity" styleClass="approved-input"/>
+    </VBox>
+</VBox>

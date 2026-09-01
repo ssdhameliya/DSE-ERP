@@ -30,12 +30,13 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/error", "/api/runtime/health", "/api/auth/health", "/api/auth/login", "/api/auth/login/mfa/complete", "/api/auth/login/mfa/resend", "/api/setup/bootstrap", "/api/setup/status",
-                                "/api/auth/login-roles", "/api/auth/registration-roles", "/api/auth/registration/request", "/api/auth/registration/complete",
+                                "/api/auth/login-roles", "/api/auth/registration-roles", "/api/auth/registration/captcha", "/api/auth/registration/request", "/api/auth/registration/email/verify", "/api/auth/registration/mfa/complete",
                                 "/api/auth/password-reset/request", "/api/auth/password-reset/complete").permitAll()
                         .requestMatchers("/api/auth/effective-permissions", "/api/auth/session").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/admin/users/**", "/api/admin/roles", "/api/admin/permissions").hasAnyAuthority("ROLE_ADMIN", "USERS.VIEW")
-                        .requestMatchers(HttpMethod.GET, "/api/admin/registration-role").hasAnyAuthority("ROLE_ADMIN", "USERS.MANAGE_ROLES")
+                        .requestMatchers(HttpMethod.GET, "/api/admin/registration-role", "/api/admin/registrations/**").hasAnyAuthority("ROLE_ADMIN", "USERS.MANAGE_ROLES")
                         .requestMatchers(HttpMethod.PUT, "/api/admin/registration-role").hasAnyAuthority("ROLE_ADMIN", "USERS.MANAGE_ROLES")
+                        .requestMatchers(HttpMethod.POST, "/api/admin/registrations/**").hasAnyAuthority("ROLE_ADMIN", "USERS.MANAGE_ROLES")
                         .requestMatchers(HttpMethod.POST, "/api/admin/users").hasAnyAuthority("ROLE_ADMIN", "USERS.CREATE")
                         .requestMatchers(HttpMethod.PUT, "/api/admin/users/**").hasAnyAuthority("ROLE_ADMIN", "USERS.EDIT")
                         .requestMatchers(HttpMethod.DELETE, "/api/admin/users/**").hasAnyAuthority("ROLE_ADMIN", "USERS.DELETE")

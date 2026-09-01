@@ -1,0 +1,78 @@
+{
+  "approved_scope": {
+    "database_changes": "v9.0.49 financial integrity and multi-user hardening migration; semantic UI database dependency unchanged",
+    "fxml_structure_changes": "Five additive Project Execution screens; existing business screens preserved",
+    "kpi_layout_changes": "Bank Statement single-row enrollment handled by Phase 4",
+    "navigation_changes": "Project Execution group added; existing navigation retained",
+    "table_width_changes": "Action control floor handled by Phase 5"
+  },
+  "contract": "DSE ERP 9.0.49 Phase 3 semantic UI baseline",
+  "core_distinct_semantics": {
+    "address": {
+      "colour": "pink",
+      "icon": "fas-map-marked-alt"
+    },
+    "amount": {
+      "colour": "green",
+      "icon": "fas-rupee-sign"
+    },
+    "bank-account": {
+      "colour": "blue",
+      "icon": "fas-money-check"
+    },
+    "code": {
+      "colour": "indigo",
+      "icon": "fas-barcode"
+    },
+    "customer": {
+      "colour": "blue",
+      "icon": "fas-user-tag"
+    },
+    "email": {
+      "colour": "teal",
+      "icon": "fas-envelope"
+    },
+    "gstin": {
+      "colour": "orange",
+      "icon": "fas-receipt"
+    },
+    "invoice": {
+      "colour": "blue",
+      "icon": "fas-file-invoice"
+    },
+    "number": {
+      "colour": "indigo",
+      "icon": "fas-hashtag"
+    },
+    "phone": {
+      "colour": "teal",
+      "icon": "fas-phone-alt"
+    },
+    "quantity": {
+      "colour": "orange",
+      "icon": "fas-sort-numeric-up"
+    },
+    "reference": {
+      "colour": "orange",
+      "icon": "fas-link"
+    }
+  },
+  "css_semantic_blocks": {
+    "dark-theme.css": {
+      "block_lines": 116,
+      "block_sha256": "63881ea8754302899b4a1624ecc9f53feb92dc67ccc54425a207b7b45ba057ed"
+    },
+    "light-theme.css": {
+      "block_lines": 88,
+      "block_sha256": "67edaa924046f34895023fce8270137199708ee09032d8d51e2b87d864431df8"
+    }
+  },
+  "registry": {
+    "field_mapping_count": 280,
+    "header_mapping_count": 159,
+    "kpi_mapping_count": 116,
+    "path": "desktop/src/main/resources/ui/semantic-registry.properties",
+    "semantic_count": 156,
+    "sha256": "381bfd0057e2af39e3824a3f80e49c6517cc2d2853d621276df8218ac518b7f8"
+  }
+}

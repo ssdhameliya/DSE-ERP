@@ -24,7 +24,7 @@
 
             </VBox>
 
-            <Button text="Test Email" onAction="#testEmail" styleClass="settings-action-button,settings-secondary-button">
+            <Button fx:id="btnTestEmail" text="Test Email" onAction="#testEmail" styleClass="settings-action-button,settings-secondary-button">
 
                 <graphic>
                     <SVGPath content="M2 4h16v12H2V4zm2 2v.3l6 4.2 6-4.2V6H4zm12 8V8.7l-5.4 3.8a1 1 0 0 1-1.2 0L4 8.7V14h12z" styleClass="settings-button-icon"/>
@@ -32,7 +32,7 @@
 
             </Button>
 
-            <Button text="Save Settings" onAction="#save" defaultButton="true" styleClass="settings-action-button,settings-primary-button">
+            <Button fx:id="btnSaveSettings" text="Save Settings" onAction="#save" defaultButton="true" styleClass="settings-action-button,settings-primary-button">
 
                 <graphic>
                     <SVGPath content="M3 2h11l3 3v12H3V2zm2 2v4h8V4H5zm1 8v3h8v-3H6z" styleClass="settings-button-icon"/>

@@ -70,6 +70,7 @@ import org.example.service.GlobalSearchService;
 import org.example.service.GlobalSearchService.SearchResult;
 import org.example.service.PermissionService;
 import org.example.util.IconFactory;
+import org.example.util.UiActionIcons;
 import org.example.config.ConfigManager;
 import org.example.api.insights.InsightsApiClient;
 import org.example.shortcut.ShortcutRegistry;
@@ -93,6 +94,14 @@ public class DashboardController {
     public Button btnImport;
     @FXML
     private Button btnDashboard;
+    @FXML private Button btnProjectExecution;
+    @FXML private Button btnProjects;
+    @FXML private Button btnSalesOrders;
+    @FXML private Button btnPurchaseOrders;
+    @FXML private Button btnGrn;
+    @FXML private Button btnDispatch;
+    @FXML private VBox projectExecutionSubmenu;
+    @FXML private Label lblProjectExecutionChevron;
     @FXML
     private Button btnMasters;
 
@@ -146,6 +155,7 @@ public class DashboardController {
     @FXML private Button btnSettingsInvoice;
     @FXML private Button btnSettingsNotifications;
     @FXML private Button btnSettingsEmail;
+    @FXML private Button btnSettingsSecurity;
     @FXML private Button btnSettingsWorkspace;
     @FXML private Button btnSettingsShortcuts;
     @FXML private Button btnSettingsUpdates;
@@ -224,6 +234,7 @@ public class DashboardController {
             if (lblSidebarUser != null) lblSidebarUser.setText(SessionService.current().getFullName());
         }
         configureProfileMenuIcons();
+        applyNavigationSemanticIcons();
         bindShortcutLabels();
         Platform.runLater(() -> {
             bindShellControls();
@@ -238,6 +249,42 @@ public class DashboardController {
 
     }
 
+
+
+    /** Explicit business semantics prevent parent/submenu and import/export actions from sharing generic glyphs. */
+    private void applyNavigationSemanticIcons() {
+        UiActionIcons.apply(btnDashboard,"dashboard","Dashboard");
+        UiActionIcons.apply(btnProjectExecution,"workflow","Project Execution");
+        UiActionIcons.apply(btnProjects,"project","Projects / Jobs");
+        UiActionIcons.apply(btnSalesOrders,"sales-order","Sales Orders");
+        UiActionIcons.apply(btnPurchaseOrders,"purchase-order","Purchase Orders");
+        UiActionIcons.apply(btnGrn,"goods-receipt","Goods Receipt (GRN)");
+        UiActionIcons.apply(btnDispatch,"dispatch","Dispatch");
+        UiActionIcons.apply(btnSales,"sale","Sales");
+        UiActionIcons.apply(btnSalesRegister,"sale","Sales Register");
+        UiActionIcons.apply(btnCreateSale,"add","Create Sale");
+        UiActionIcons.apply(btnSalesReturn,"return","Sales Return");
+        UiActionIcons.apply(btnQuotation,"quotation","Quotations");
+        UiActionIcons.apply(btnPurchase,"purchase","Purchase");
+        UiActionIcons.apply(btnPurchaseRegister,"purchase","Purchase Register");
+        UiActionIcons.apply(btnCreatePurchase,"add","Create Purchase");
+        UiActionIcons.apply(btnPurchaseReturn,"return","Purchase Return");
+        UiActionIcons.apply(btnItem,"item","Item Master");
+        UiActionIcons.apply(btnMasters,"master","Master Data");
+        UiActionIcons.apply(btnBankExpense,"bank","Bank & Expense");
+        UiActionIcons.apply(btnImport,"import","Data Import");
+        UiActionIcons.apply(btnInventory,"inventory","Inventory");
+        UiActionIcons.apply(btnCustomer,"customer","Customers");
+        UiActionIcons.apply(btnSupplier,"supplier","Suppliers");
+        UiActionIcons.apply(btnReports,"report","Reports");
+        UiActionIcons.apply(btnReminders,"reminder","Reminder Center");
+        UiActionIcons.apply(btnUserAccess,"permission","User Access");
+        UiActionIcons.apply(btnDocumentStudio,"document","Document Studio");
+        UiActionIcons.apply(btnSettings,"settings","Settings");
+        UiActionIcons.apply(btnSettingsSecurity,"security","Security & Session");
+        UiActionIcons.apply(btnSafeRollback,"rollback","Safe Rollback");
+        UiActionIcons.apply(btnBackup,"backup","Backup & Restore");
+    }
 
     /** Keeps visible shell/navigation labels synchronized with the user shortcut registry. */
     private void bindShortcutLabels() {
@@ -322,7 +369,7 @@ public class DashboardController {
 
     /** Disables protected navigation modules when the signed-in role lacks VIEW access. */
     private void applyRolePermissions() {
-        protect(btnSales, "SALES.VIEW"); protect(btnPurchase, "PURCHASE.VIEW");
+        protect(btnProjectExecution, "PROJECT_EXECUTION.VIEW"); protect(btnSales, "SALES.VIEW"); protect(btnPurchase, "PURCHASE.VIEW");
         protect(btnQuotation, "QUOTATION.VIEW"); protect(btnItem, "INVENTORY.VIEW");
         protect(btnInventory, "INVENTORY.VIEW"); protect(btnCustomer, "CUSTOMERS.VIEW");
         protect(btnSupplier, "SUPPLIERS.VIEW"); protect(btnMasters, "MASTERS.VIEW");
@@ -340,6 +387,7 @@ public class DashboardController {
         }
         if (btnQuotation != null) btnQuotation.setDisable(!quotationAllowed);
 
+        inheritGroupPermission(btnProjectExecution, btnProjects, btnSalesOrders, btnPurchaseOrders, btnGrn, btnDispatch);
         inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
 
         // Purchase Recon is a server-backed reconciliation domain with its own permissions.
@@ -355,7 +403,7 @@ public class DashboardController {
         if (btnReconSupplier != null) btnReconSupplier.setDisable(!reconSupplierAllowed);
         inheritGroupPermission(btnDocumentStudio, btnPdfStudio, btnExcelStudio);
         inheritGroupPermission(btnSettings, btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice,
-                btnSettingsNotifications, btnSettingsEmail, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates);
+                btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates);
     }
 
     private void protect(Button button, String permission) {
@@ -649,15 +697,17 @@ public class DashboardController {
         if (button != null && !button.getStyleClass().contains("menu-selected")) button.getStyleClass().add("menu-selected");
     }
 
-    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE, DOCUMENT_STUDIO, SETTINGS }
+    private enum NavGroup { NONE, PROJECT_EXECUTION, SALES, PURCHASE, BANK_EXPENSE, DOCUMENT_STUDIO, SETTINGS }
 
     /** Initializes the sidebar in a compact state so a new login shows only top-level modules. */
     private void initializeSidebarAccordion() {
+        configureChevron(lblProjectExecutionChevron);
         configureChevron(lblSalesChevron);
         configureChevron(lblPurchaseChevron);
         configureChevron(lblBankExpenseChevron);
         configureChevron(lblDocumentStudioChevron);
         configureChevron(lblSettingsChevron);
+        setGroupExpanded(NavGroup.PROJECT_EXECUTION, false, false);
         setGroupExpanded(NavGroup.SALES, false, false);
         setGroupExpanded(NavGroup.PURCHASE, false, false);
         setGroupExpanded(NavGroup.BANK_EXPENSE, false, false);
@@ -672,6 +722,7 @@ public class DashboardController {
         chevron.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
 
+    @FXML private void toggleProjectExecutionMenu() { toggleGroup(NavGroup.PROJECT_EXECUTION); }
     @FXML private void toggleSalesMenu() { toggleGroup(NavGroup.SALES); }
     @FXML private void togglePurchaseMenu() { toggleGroup(NavGroup.PURCHASE); }
     @FXML private void toggleBankExpenseMenu() { toggleGroup(NavGroup.BANK_EXPENSE); }
@@ -696,7 +747,7 @@ public class DashboardController {
     }
 
     private void collapseAllSubmenus(NavGroup except) {
-        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.DOCUMENT_STUDIO, NavGroup.SETTINGS}) {
+        for (NavGroup group : new NavGroup[]{NavGroup.PROJECT_EXECUTION, NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.DOCUMENT_STUDIO, NavGroup.SETTINGS}) {
             if (group != except) setGroupExpanded(group, false, true);
         }
     }
@@ -727,6 +778,7 @@ public class DashboardController {
 
     private VBox submenuFor(NavGroup group) {
         return switch (group) {
+            case PROJECT_EXECUTION -> projectExecutionSubmenu;
             case SALES -> salesSubmenu;
             case PURCHASE -> purchaseSubmenu;
             case BANK_EXPENSE -> bankExpenseSubmenu;
@@ -738,6 +790,7 @@ public class DashboardController {
 
     private Label chevronFor(NavGroup group) {
         return switch (group) {
+            case PROJECT_EXECUTION -> lblProjectExecutionChevron;
             case SALES -> lblSalesChevron;
             case PURCHASE -> lblPurchaseChevron;
             case BANK_EXPENSE -> lblBankExpenseChevron;
@@ -749,6 +802,7 @@ public class DashboardController {
 
     private Button parentButton(NavGroup group) {
         return switch (group) {
+            case PROJECT_EXECUTION -> btnProjectExecution;
             case SALES -> btnSales;
             case PURCHASE -> btnPurchase;
             case BANK_EXPENSE -> btnBankExpense;
@@ -759,6 +813,7 @@ public class DashboardController {
     }
 
     private NavGroup groupFor(Button button, String fxmlPath) {
+        if (button == btnProjectExecution || button == btnProjects || button == btnSalesOrders || button == btnPurchaseOrders || button == btnGrn || button == btnDispatch) return NavGroup.PROJECT_EXECUTION;
         if (button == btnSales || button == btnSalesRegister || button == btnCreateSale || button == btnSalesReturn || button == btnQuotation)
             return NavGroup.SALES;
         if (button == btnPurchase || button == btnPurchaseRegister || button == btnCreatePurchase || button == btnPurchaseReturn)
@@ -768,10 +823,11 @@ public class DashboardController {
         if (button == btnDocumentStudio || button == btnPdfStudio || button == btnExcelStudio)
             return NavGroup.DOCUMENT_STUDIO;
         if (button == btnSettings || button == btnSettingsCompany || button == btnSettingsPayment
-                || button == btnSettingsInvoice || button == btnSettingsNotifications || button == btnSettingsEmail
+                || button == btnSettingsInvoice || button == btnSettingsNotifications || button == btnSettingsEmail || button == btnSettingsSecurity
                 || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates)
             return NavGroup.SETTINGS;
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
+        if (path.contains("projects.fxml") || path.contains("salesorders") || path.contains("purchaseorders") || path.contains("goodsreceipts") || path.contains("dispatches")) return NavGroup.PROJECT_EXECUTION;
         if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
         if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
         if (path.contains("bankexpense") || path.contains("bankstatement") || path.contains("purchaserecon") || path.contains("reconsupplier")) return NavGroup.BANK_EXPENSE;
@@ -782,6 +838,11 @@ public class DashboardController {
 
     private Button selectionButtonFor(Button button, String fxmlPath) {
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
+        if (path.contains("projects.fxml")) return btnProjects;
+        if (path.contains("salesorders")) return btnSalesOrders;
+        if (path.contains("purchaseorders")) return btnPurchaseOrders;
+        if (path.contains("goodsreceipts")) return btnGrn;
+        if (path.contains("dispatches")) return btnDispatch;
         if (path.contains("saleslist")) return btnSalesRegister;
         if (path.endsWith("/sale.fxml")) return btnCreateSale;
         if (path.contains("salesreturns")) return btnSalesReturn;
@@ -815,6 +876,8 @@ public class DashboardController {
 
         if (btnDashboard != null)
             btnDashboard.getStyleClass().remove("menu-selected");
+        if (btnProjectExecution != null) btnProjectExecution.getStyleClass().remove("menu-selected");
+        for (Button b : new Button[]{btnProjects, btnSalesOrders, btnPurchaseOrders, btnGrn, btnDispatch}) if (b != null) b.getStyleClass().remove("menu-selected");
 
         if (btnItem != null)
             btnItem.getStyleClass().remove("menu-selected");
@@ -845,7 +908,7 @@ public class DashboardController {
         for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
                 btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
                 btnPdfStudio, btnExcelStudio,
-                btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail,
+                btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity,
                 btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates}) {
             if (child != null) child.getStyleClass().remove("menu-selected");
         }
@@ -915,6 +978,12 @@ public class DashboardController {
         );
 
     }
+
+    @FXML private void openProjects() { openPage(btnProjects, "Projects / Jobs", "/fxml/pages/Projects.fxml"); }
+    @FXML private void openSalesOrders() { openPage(btnSalesOrders, "Sales Orders", "/fxml/pages/SalesOrders.fxml"); }
+    @FXML private void openPurchaseOrders() { openPage(btnPurchaseOrders, "Purchase Orders", "/fxml/pages/PurchaseOrders.fxml"); }
+    @FXML private void openGoodsReceipts() { openPage(btnGrn, "Goods Receipt Notes", "/fxml/pages/GoodsReceipts.fxml"); }
+    @FXML private void openDispatches() { openPage(btnDispatch, "Dispatch / Delivery Challan", "/fxml/pages/Dispatches.fxml"); }
 
     @FXML
     private void openItemMaster() {
@@ -1047,6 +1116,17 @@ public class DashboardController {
     }
 
     @FXML private void createSale() { openPage(btnCreateSale, "Create Sale", "/fxml/pages/Sale.fxml"); }
+    public static void createSaleFromWorkflow() {
+        DashboardController c = currentVisibleShell();
+        if (c == null) { NavigationManager.navigateOrReport("/fxml/pages/Sale.fxml"); return; }
+        javafx.application.Platform.runLater(() -> c.openPage(c.btnCreateSale, "Create Sale", "/fxml/pages/Sale.fxml"));
+    }
+
+    public static void createPurchaseFromWorkflow() {
+        DashboardController c = currentVisibleShell();
+        if (c == null) { NavigationManager.navigateOrReport("/fxml/pages/Purchase.fxml"); return; }
+        javafx.application.Platform.runLater(() -> c.openPage(c.btnCreatePurchase, "Create Purchase", "/fxml/pages/Purchase.fxml"));
+    }
     @FXML private void createPurchase() { openPage(btnCreatePurchase, "Create Purchase", "/fxml/pages/Purchase.fxml"); }
     @FXML private void openReturns() { openPage(btnSalesReturn, "Sales Return Register", "/fxml/pages/SalesReturns.fxml"); }
     @FXML private void openPurchaseReturns() { openPage(btnPurchaseReturn, "Purchase Return", "/fxml/pages/PurchaseReturns.fxml"); }
@@ -1127,6 +1207,10 @@ public class DashboardController {
 
     @FXML private void openSettingsEmail() {
         openSettingsSection(btnSettingsEmail, SettingsController.Section.EMAIL, "Email Settings");
+    }
+
+    @FXML private void openSettingsSecurity() {
+        openSettingsSection(btnSettingsSecurity, SettingsController.Section.SECURITY, "Security & Session");
     }
 
     @FXML private void openSettingsWorkspace() {

@@ -25,6 +25,8 @@ public class UserEntity {
     @Column(name = "mfa_enabled") private Integer mfaEnabled = 0;
     @Column(name = "last_login") private java.time.LocalDateTime lastLogin;
     @Column(name = "last_login_utc") private String lastLoginUtc;
+    @Column(name = "totp_secret_enc") private String totpSecretEnc;
+    @Column(name = "approval_status", nullable = false) private String approvalStatus = "APPROVED";
 
     public Integer getId() { return id; }
     public String getUsername() { return username; }
@@ -41,6 +43,8 @@ public class UserEntity {
     public void setLocked(boolean locked) { this.locked = locked ? 1 : 0; }
     public void setLockReason(String lockReason) { this.lockReason = normalizeLockReason(lockReason); }
     public void setMfaEnabled(boolean mfaEnabled) { this.mfaEnabled = mfaEnabled ? 1 : 0; }
+    public void setTotpSecretEnc(String value) { this.totpSecretEnc = value; }
+    public void setApprovalStatus(String value) { this.approvalStatus = value == null || value.isBlank() ? "APPROVED" : value.trim().toUpperCase(java.util.Locale.ROOT); }
 
     public String getFullName() { return fullName; }
     public String getRoleName() { return role; }
@@ -55,6 +59,8 @@ public class UserEntity {
     public int getMfaFailedAttempts() { return mfaFailedAttempts == null ? 0 : mfaFailedAttempts; }
     public String getLockReason() { return normalizeLockReason(lockReason); }
     public boolean isMfaEnabled() { return Integer.valueOf(1).equals(mfaEnabled); }
+    public String getTotpSecretEnc() { return totpSecretEnc; }
+    public String getApprovalStatus() { return approvalStatus == null || approvalStatus.isBlank() ? "APPROVED" : approvalStatus.trim().toUpperCase(java.util.Locale.ROOT); }
     public int recordFailedPasswordAttempt() { this.failedAttempts = getFailedAttempts() + 1; return this.failedAttempts; }
     public int recordFailedMfaAttempt() { this.mfaFailedAttempts = getMfaFailedAttempts() + 1; return this.mfaFailedAttempts; }
     public void resetPasswordFailures() { this.failedAttempts = 0; }

@@ -484,23 +484,29 @@ public final class RuntimeBootstrapper {
     }
 
     private static void prepareManagedServerEndpoint() {
-        if (!isPackagedRuntime()) return;
-
-        // Packaged DSE ERP owns its local Spring backend. Bundled config.properties
-        // contains development fallback URLs and must never be treated as a user
-        // override. Only explicit environment variables may opt into another API.
+        // LOCAL mode owns one managed Spring endpoint in both packaged and IntelliJ runs.
+        // Never let bundled development properties silently fall back to :8080 because
+        // that can bind the desktop session to a stale server from another build.
+        // Explicit environment variables remain the only LOCAL-mode endpoint override.
         if (System.getenv("DSE_AUTH_API_URL") != null || System.getenv("DSE_DATA_API_URL") != null) return;
 
         String current = ConfigManager.getDataApiBaseUrlUnbound();
         try {
             URI uri = URI.create(current);
-            int port = uri.getPort() > 0 ? uri.getPort() : 8080;
+            int port = uri.getPort() > 0 ? uri.getPort() : DEFAULT_MANAGED_SERVER_PORT;
             RuntimeApiClient.RuntimeStatus existing = tryStatus(new RuntimeApiClient());
-            if (existing != null && existing.ready()) return;
-            if (!isPortListening(port)) {
+            if (existing != null && existing.ready()) {
+                requireCompatible(existing);
                 ConfigManager.applyRuntimeApiBaseUrl("http://127.0.0.1:" + port);
                 return;
             }
+            if (port >= DEFAULT_MANAGED_SERVER_PORT && port < DEFAULT_MANAGED_SERVER_PORT + SERVER_PORT_SEARCH_LIMIT
+                    && !isPortListening(port)) {
+                ConfigManager.applyRuntimeApiBaseUrl("http://127.0.0.1:" + port);
+                return;
+            }
+        } catch (IllegalStateException incompatible) {
+            // A listening but incompatible local endpoint must never be reused.
         } catch (Exception ignored) {}
         int port = findAvailableServerPort(DEFAULT_MANAGED_SERVER_PORT);
         ConfigManager.applyRuntimeApiBaseUrl("http://127.0.0.1:" + port);

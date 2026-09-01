@@ -8,6 +8,8 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.example.theme.ThemeManager;
 import org.example.service.BrandingService;
+import org.example.service.SessionActivityManager;
+import org.example.service.SessionService;
 
 import java.io.IOException;
 
@@ -65,6 +67,7 @@ public class SceneManager {
     }
 
     public static void showLogin() {
+        SessionActivityManager.stop();
         load("/fxml/pages/Login.fxml");
     }
     /** Updates the approved startup splash from background runtime bootstrap work. */
@@ -151,6 +154,8 @@ public class SceneManager {
 
             PlatformUiSupport.installResponsiveClasses(scene);
             primaryStage.setScene(scene);
+            if (SessionService.current() != null && "/fxml/pages/Dashboard.fxml".equals(fxml)) SessionActivityManager.install(scene);
+            else if (SessionService.current() == null) SessionActivityManager.stop();
             if (!"/fxml/pages/Splash.fxml".equals(fxml)) {
                 primaryStage.setTitle(BrandingService.applicationName());
             }

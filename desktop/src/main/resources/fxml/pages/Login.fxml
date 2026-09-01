@@ -49,10 +49,10 @@
                     </VBox>
 
                     <VBox fx:id="otpPanel" spacing="5" maxWidth="620" managed="false" visible="false">
-                        <Label text="Multi-factor verification code" styleClass="auth-field-label"/>
+                        <Label text="Authenticator verification code" styleClass="auth-field-label"/>
                         <HBox spacing="8" alignment="CENTER_LEFT">
-                            <TextField fx:id="txtOtp" promptText="Enter the code sent to your registered email" prefHeight="44" HBox.hgrow="ALWAYS" styleClass="auth-input"/>
-                            <Button fx:id="btnResendOtp" text="Resend" onAction="#resendLoginOtp" styleClass="auth-secondary-button"/>
+                            <TextField fx:id="txtOtp" promptText="Enter current 6-digit authenticator code" prefHeight="44" HBox.hgrow="ALWAYS" styleClass="auth-input"/>
+                            <Button fx:id="btnResendOtp" text="Code Help" onAction="#resendLoginOtp" styleClass="auth-secondary-button"/>
                         </HBox>
                         <Label fx:id="lblOtpError" managed="false" visible="false" styleClass="field-error"/>
                     </VBox>
@@ -76,7 +76,7 @@
 
                 <VBox fx:id="resetPanel" managed="false" visible="false" spacing="11" maxWidth="620" alignment="CENTER">
                     <Label text="Reset your password" styleClass="auth-eyebrow"/>
-                    <Label text="A verification code will be sent to the registered email address." wrapText="true" styleClass="auth-description"/>
+                    <Label text="Admin keeps the existing email-OTP recovery flow. Non-Admin users must also enter their current authenticator code." wrapText="true" styleClass="auth-description"/>
 
                     <VBox spacing="5" maxWidth="620">
                         <Label text="Email or username *" styleClass="auth-field-label"/>
@@ -90,6 +90,12 @@
                         <Label text="Reset verification code *" styleClass="auth-field-label"/>
                         <TextField fx:id="txtResetOtp" promptText="6-digit verification code" prefHeight="44" styleClass="auth-input"/>
                         <Label fx:id="lblResetOtpError" managed="false" visible="false" styleClass="field-error"/>
+                    </VBox>
+
+                    <VBox spacing="5" maxWidth="620">
+                        <Label text="Authenticator code (non-Admin only)" styleClass="auth-field-label"/>
+                        <TextField fx:id="txtResetTotp" promptText="Current 6-digit authenticator code" prefHeight="44" styleClass="auth-input"/>
+                        <Label fx:id="lblResetTotpError" managed="false" visible="false" styleClass="field-error"/>
                     </VBox>
 
                     <VBox spacing="5" maxWidth="620">

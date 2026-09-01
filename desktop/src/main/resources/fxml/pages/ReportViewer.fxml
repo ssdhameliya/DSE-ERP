@@ -65,7 +65,7 @@
             <Button text="View Source" onAction="#viewSelectedSource" styleClass="approved-button,approved-secondary-button"/>
             <Label text="Select a row to open the originating transaction." styleClass="approved-page-subtitle,page-subtitle"/>
             <Region HBox.hgrow="ALWAYS"/>
-            <Label text="Rows per page" styleClass="field-label"/><ComboBox fx:id="cmbRows" prefWidth="82" styleClass="approved-input"/>
+            <Label text="Rows per page" styleClass="field-label"/><ComboBox fx:id="cmbRows" prefWidth="96" styleClass="approved-input"/>
             <Button fx:id="btnFirst" text="First" onAction="#firstPage" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnPrev" text="Previous" onAction="#previousPage" styleClass="approved-button,approved-secondary-button"/>
             <Label fx:id="lblPage" text="1 / 1" styleClass="section-title"/>

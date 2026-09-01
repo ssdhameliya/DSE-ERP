@@ -163,6 +163,7 @@ public class UserAccessController implements ScreenLifecycle {
         try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList(),permissionRowVersion);var set=adminApi.permissionSet(role);permissionRowVersion=set.rowVersion();PermissionService.refresh();NotificationService.add(role+" permissions updated.");}
         catch(Exception e){error("Permissions could not be saved. Reload the role if another administrator changed it first.",e);}
     }
+    @FXML private void registrationApprovals(){ DashboardController.navigateFromChildPage("Registration Approvals", "/fxml/pages/RegistrationApprovals.fxml"); }
     @FXML private void showPermissionMatrix(){ DashboardController.navigateFromChildPage("Permission Matrix", "/fxml/pages/PermissionMatrix.fxml"); }
     @FXML private void manageRoles(){ openRoleMaster(); }
 

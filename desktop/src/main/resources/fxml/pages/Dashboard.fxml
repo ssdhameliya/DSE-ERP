@@ -52,6 +52,19 @@
                 </VBox>
             </VBox>
             <Button fx:id="btnImport" text="Data Import" onAction="#openImport" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <VBox styleClass="nav-group">
+                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
+                    <Button fx:id="btnProjectExecution" text="Project Execution" onAction="#toggleProjectExecutionMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button"><tooltip><Tooltip text="Projects, orders, receiving and dispatch"/></tooltip></Button>
+                    <Label fx:id="lblProjectExecutionChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
+                </StackPane>
+                <VBox fx:id="projectExecutionSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
+                    <Button fx:id="btnProjects" text="Projects / Jobs" onAction="#openProjects" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSalesOrders" text="Sales Orders" onAction="#openSalesOrders" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnPurchaseOrders" text="Purchase Orders" onAction="#openPurchaseOrders" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnGrn" text="Goods Receipt (GRN)" onAction="#openGoodsReceipts" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnDispatch" text="Dispatch" onAction="#openDispatches" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                </VBox>
+            </VBox>
             <Button fx:id="btnInventory" text="Inventory" onAction="#openInventory" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnCustomer" text="CRM / Customers" onAction="#openCustomers" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnSupplier" text="HRM / Suppliers" onAction="#openSupplier" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -84,6 +97,7 @@
                     <Button fx:id="btnSettingsInvoice" text="Invoice &amp; Delivery" onAction="#openSettingsInvoice" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsNotifications" text="Notifications" onAction="#openSettingsNotifications" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsEmail" text="Email Settings" onAction="#openSettingsEmail" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <Button fx:id="btnSettingsSecurity" text="Security &amp; Session" onAction="#openSettingsSecurity" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsWorkspace" text="Workspace &amp; Storage" onAction="#openSettingsWorkspace" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsShortcuts" text="Keyboard Shortcuts" onAction="#openSettingsShortcuts" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSettingsUpdates" text="Application Updates" onAction="#openSettingsUpdates" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>

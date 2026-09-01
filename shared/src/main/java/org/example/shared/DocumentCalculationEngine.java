@@ -7,14 +7,18 @@ import java.util.List;
 /**
  * Canonical arithmetic for every business document.
  *
- * <p>9.0.47 numeric contract:</p>
+ * <p>Release-gate numeric contract:</p>
  * <ul>
  *   <li>money / sell-buy rate / document totals: 2 decimals, HALF_UP</li>
  *   <li>quantity and inventory unit cost: 4 decimals, HALF_UP</li>
  *   <li>percentage: 2 decimals, HALF_UP</li>
  * </ul>
- * Server persistence, PDF/XLSX rendering and desktop previews must delegate here
- * instead of maintaining independent rounding sequences.
+ *
+ * <p>The public DTO-facing API remains {@code double} for wire compatibility with
+ * existing 9.0.49 desktop/server clients, but all multiplication, division,
+ * accumulation and tax splitting are performed with {@link BigDecimal}. This
+ * removes binary floating-point arithmetic from the authoritative calculation
+ * path without forcing a breaking API migration.</p>
  */
 public final class DocumentCalculationEngine {
     public enum TaxMode { GST, IGST }
@@ -29,6 +33,10 @@ public final class DocumentCalculationEngine {
                          double taxableAmount, double taxAmount, double cgstAmount, double sgstAmount,
                          double igstAmount, double grandTotal) { }
 
+    private static final BigDecimal HUNDRED = new BigDecimal("100");
+    private static final BigDecimal TWO = new BigDecimal("2");
+    private static final BigDecimal ZERO_MONEY = new BigDecimal("0.00");
+
     private DocumentCalculationEngine() { }
 
     public static LineResult line(double quantity, double rate, double discountPercent, double taxPercent) {
@@ -37,15 +45,17 @@ public final class DocumentCalculationEngine {
 
     public static LineResult line(LineInput input) {
         if (input == null) return new LineResult(0, 0, 0, 0, 0);
-        double qty = quantity(input.quantity());
-        double rate = money(finiteNonNegative(input.rate()));
-        double discountPercent = percent(input.discountPercent());
-        double taxPercent = percent(input.taxPercent());
-        double gross = money(qty * rate);
-        double discount = money(gross * discountPercent / 100d);
-        double taxable = money(Math.max(0d, gross - discount));
-        double tax = money(taxable * taxPercent / 100d);
-        return new LineResult(gross, discount, taxable, tax, money(taxable + tax));
+        BigDecimal qty = quantityDecimal(input.quantity());
+        BigDecimal rate = moneyDecimal(finiteNonNegative(input.rate()));
+        BigDecimal discountPercent = percentDecimal(input.discountPercent());
+        BigDecimal taxPercent = percentDecimal(input.taxPercent());
+
+        BigDecimal gross = moneyDecimal(qty.multiply(rate));
+        BigDecimal discount = moneyDecimal(gross.multiply(discountPercent).divide(HUNDRED, 8, RoundingMode.HALF_UP));
+        BigDecimal taxable = moneyDecimal(gross.subtract(discount).max(BigDecimal.ZERO));
+        BigDecimal tax = moneyDecimal(taxable.multiply(taxPercent).divide(HUNDRED, 8, RoundingMode.HALF_UP));
+        BigDecimal total = moneyDecimal(taxable.add(tax));
+        return new LineResult(d(gross), d(discount), d(taxable), d(tax), d(total));
     }
 
     public static ChargeResult charge(double amount, boolean taxable, double taxPercent) {
@@ -54,43 +64,58 @@ public final class DocumentCalculationEngine {
 
     public static ChargeResult charge(ChargeInput input) {
         if (input == null) return new ChargeResult(0, 0, 0, 0);
-        double amount = money(finiteNonNegative(input.amount()));
-        double taxableAmount = input.taxable() ? amount : 0d;
-        double tax = input.taxable() ? money(amount * percent(input.taxPercent()) / 100d) : 0d;
-        return new ChargeResult(amount, taxableAmount, tax, money(amount + tax));
+        BigDecimal amount = moneyDecimal(finiteNonNegative(input.amount()));
+        BigDecimal taxableAmount = input.taxable() ? amount : ZERO_MONEY;
+        BigDecimal tax = input.taxable()
+                ? moneyDecimal(amount.multiply(percentDecimal(input.taxPercent())).divide(HUNDRED, 8, RoundingMode.HALF_UP))
+                : ZERO_MONEY;
+        return new ChargeResult(d(amount), d(taxableAmount), d(tax), d(moneyDecimal(amount.add(tax))));
     }
 
     public static Totals totals(List<LineInput> lines, List<ChargeInput> charges, TaxMode mode) {
-        double gross = 0, discount = 0, itemTaxable = 0, lineTax = 0;
+        BigDecimal gross = ZERO_MONEY;
+        BigDecimal discount = ZERO_MONEY;
+        BigDecimal itemTaxable = ZERO_MONEY;
+        BigDecimal lineTax = ZERO_MONEY;
         if (lines != null) for (LineInput input : lines) {
             LineResult result = line(input);
-            gross += result.grossAmount();
-            discount += result.discountAmount();
-            itemTaxable += result.taxableAmount();
-            lineTax += result.taxAmount();
+            gross = gross.add(moneyDecimal(result.grossAmount()));
+            discount = discount.add(moneyDecimal(result.discountAmount()));
+            itemTaxable = itemTaxable.add(moneyDecimal(result.taxableAmount()));
+            lineTax = lineTax.add(moneyDecimal(result.taxAmount()));
         }
-        double chargeAmount = 0, taxableCharges = 0, chargeTax = 0;
+
+        BigDecimal chargeAmount = ZERO_MONEY;
+        BigDecimal taxableCharges = ZERO_MONEY;
+        BigDecimal chargeTax = ZERO_MONEY;
         if (charges != null) for (ChargeInput input : charges) {
             ChargeResult result = charge(input);
-            chargeAmount += result.amount();
-            taxableCharges += result.taxableAmount();
-            chargeTax += result.taxAmount();
+            chargeAmount = chargeAmount.add(moneyDecimal(result.amount()));
+            taxableCharges = taxableCharges.add(moneyDecimal(result.taxableAmount()));
+            chargeTax = chargeTax.add(moneyDecimal(result.taxAmount()));
         }
-        gross = money(gross); discount = money(discount); itemTaxable = money(itemTaxable); lineTax = money(lineTax);
-        chargeAmount = money(chargeAmount); taxableCharges = money(taxableCharges); chargeTax = money(chargeTax);
-        double taxable = money(itemTaxable + taxableCharges);
-        double tax = money(lineTax + chargeTax);
-        double cgst = 0, sgst = 0, igst = 0;
+
+        gross = moneyDecimal(gross);
+        discount = moneyDecimal(discount);
+        itemTaxable = moneyDecimal(itemTaxable);
+        lineTax = moneyDecimal(lineTax);
+        chargeAmount = moneyDecimal(chargeAmount);
+        taxableCharges = moneyDecimal(taxableCharges);
+        chargeTax = moneyDecimal(chargeTax);
+
+        BigDecimal taxable = moneyDecimal(itemTaxable.add(taxableCharges));
+        BigDecimal tax = moneyDecimal(lineTax.add(chargeTax));
+        BigDecimal cgst = ZERO_MONEY, sgst = ZERO_MONEY, igst = ZERO_MONEY;
         if (mode == TaxMode.IGST) {
             igst = tax;
         } else {
-            // Keep paise exact: one half is rounded and the other is the remainder.
-            cgst = money(tax / 2d);
-            sgst = money(tax - cgst);
+            // Keep paise exact: one half is rounded and the other is the exact remainder.
+            cgst = moneyDecimal(tax.divide(TWO, 8, RoundingMode.HALF_UP));
+            sgst = moneyDecimal(tax.subtract(cgst));
         }
-        double grand = money(itemTaxable + lineTax + chargeAmount + chargeTax);
-        return new Totals(gross, discount, itemTaxable, lineTax, chargeAmount, taxableCharges, chargeTax,
-                taxable, tax, cgst, sgst, igst, grand);
+        BigDecimal grand = moneyDecimal(itemTaxable.add(lineTax).add(chargeAmount).add(chargeTax));
+        return new Totals(d(gross), d(discount), d(itemTaxable), d(lineTax), d(chargeAmount),
+                d(taxableCharges), d(chargeTax), d(taxable), d(tax), d(cgst), d(sgst), d(igst), d(grand));
     }
 
     public static TaxMode taxMode(String value) {
@@ -101,31 +126,37 @@ public final class DocumentCalculationEngine {
         throw new IllegalArgumentException("Unsupported tax mode: " + (value == null ? "<blank>" : value));
     }
 
-    public static double money(double value) {
-        return scaled(value, 2, "Money value");
+    public static double money(double value) { return d(moneyDecimal(value)); }
+    public static double quantity(double value) { return d(quantityDecimal(value)); }
+    public static double unitCost(double value) { return d(unitCostDecimal(value)); }
+    public static double percent(double value) { return d(percentDecimal(value)); }
+
+    public static BigDecimal moneyDecimal(double value) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException("Money value must be finite");
+        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
 
-    public static double quantity(double value) {
+    public static BigDecimal moneyDecimal(BigDecimal value) {
+        if (value == null) throw new IllegalArgumentException("Money value is required");
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public static BigDecimal quantityDecimal(double value) {
         if (!Double.isFinite(value) || value < 0d)
             throw new IllegalArgumentException("Quantity must be a finite non-negative number");
-        return scaled(value, 4, "Quantity");
+        return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
     }
 
-    public static double unitCost(double value) {
+    public static BigDecimal unitCostDecimal(double value) {
         if (!Double.isFinite(value) || value < 0d)
             throw new IllegalArgumentException("Unit cost must be a finite non-negative number");
-        return scaled(value, 4, "Unit cost");
+        return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
     }
 
-    public static double percent(double value) {
+    public static BigDecimal percentDecimal(double value) {
         if (!Double.isFinite(value) || value < 0d || value > 100d)
             throw new IllegalArgumentException("Percentage must be between 0 and 100");
-        return scaled(value, 2, "Percentage");
-    }
-
-    private static double scaled(double value, int scale, String label) {
-        if (!Double.isFinite(value)) throw new IllegalArgumentException(label + " must be finite");
-        return BigDecimal.valueOf(value).setScale(scale, RoundingMode.HALF_UP).doubleValue();
+        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }
 
     private static double finiteNonNegative(double value) {
@@ -133,4 +164,6 @@ public final class DocumentCalculationEngine {
             throw new IllegalArgumentException("Amount must be a finite non-negative number");
         return value;
     }
+
+    private static double d(BigDecimal value) { return value.doubleValue(); }
 }

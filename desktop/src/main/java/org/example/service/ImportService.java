@@ -556,7 +556,7 @@ public class ImportService {
                         boolean exists = lookup != null;
                         if (!exists) lookup = new Lookup();
                         lookup.setLookupType(canonicalLookupType);
-                        // Unknown GENxxx identifiers are retired in 9.0.47. Leaving the code blank lets
+                        // Unknown GENxxx identifiers are retired in 9.0.49. Leaving the code blank lets
                         // the server allocate the correct category-specific reference (MATxxx, UNTxxx, ...).
                         lookup.setLookupCode(!exists && !resolution.aliasMatched() && code.trim().matches("(?i)^GEN\\d+$") ? "" : effectiveCode);
                         lookup.setLookupValue(value);

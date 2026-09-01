@@ -63,18 +63,24 @@ public class AuthController {
         return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
     }
 
+    @GetMapping("/registration/captcha")
+    public AuthDtos.CaptchaResponse registrationCaptcha() { return auth.registrationCaptcha(); }
+
     @PostMapping("/registration/request")
-    public ResponseEntity<AuthDtos.ChallengeResponse> requestRegistrationOtp(
-            @RequestBody AuthDtos.RegistrationOtpRequest request) {
-        AuthDtos.ChallengeResponse result = auth.requestRegistrationOtp(request);
-        return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
+    public ResponseEntity<AuthDtos.ChallengeResponse> requestRegistrationOtp(@RequestBody AuthDtos.RegistrationOtpRequest request) {
+        AuthDtos.ChallengeResponse result=auth.requestRegistrationOtp(request);
+        return result.success()?ResponseEntity.ok(result):ResponseEntity.badRequest().body(result);
     }
 
-    @PostMapping("/registration/complete")
-    public ResponseEntity<AuthDtos.OperationResponse> completeRegistration(
-            @RequestBody AuthDtos.RegistrationCompleteRequest request) {
-        AuthDtos.OperationResponse result = auth.completeRegistration(request);
-        return result.success() ? ResponseEntity.ok(result) : ResponseEntity.badRequest().body(result);
+    @PostMapping("/registration/email/verify")
+    public ResponseEntity<AuthDtos.RegistrationMfaSetupResponse> verifyRegistrationEmail(@RequestBody AuthDtos.RegistrationEmailVerifyRequest request) {
+        return ResponseEntity.ok(auth.verifyRegistrationEmail(request));
+    }
+
+    @PostMapping("/registration/mfa/complete")
+    public ResponseEntity<AuthDtos.OperationResponse> completeRegistrationMfa(@RequestBody AuthDtos.RegistrationMfaCompleteRequest request) {
+        AuthDtos.OperationResponse result=auth.completeRegistrationMfa(request);
+        return result.success()?ResponseEntity.ok(result):ResponseEntity.badRequest().body(result);
     }
 
     @PostMapping("/password-reset/request")
@@ -92,12 +98,24 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public AuthDtos.OperationResponse logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public AuthDtos.OperationResponse logout(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                             @RequestHeader(value = "X-DSE-Logout-Reason", required = false) String reason,
+                                             @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {
         String token = authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)
                 ? authorization.substring(7).trim() : null;
-        auth.logout(token);
+        auth.logout(token, current, reason);
         return new AuthDtos.OperationResponse(true, "Signed out");
     }
+    @PostMapping("/session/extend")
+    public AuthDtos.SessionExtendResponse extendSession(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {
+        String token = authorization != null && authorization.regionMatches(true, 0, "Bearer ", 0, 7)
+                ? authorization.substring(7).trim() : null;
+        if (token == null || token.isBlank()) throw new SecurityException("Authentication required");
+        return auth.extendSession(token, current);
+    }
+
     @GetMapping("/session")
     public AuthDtos.OperationResponse session(
             @AuthenticationPrincipal org.example.server.security.AuthenticatedUser current) {

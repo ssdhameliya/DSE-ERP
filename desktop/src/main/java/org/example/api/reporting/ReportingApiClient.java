@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-/** Client for the 9.0.47 server-owned reporting calculation engine. */
+/** Client for the 9.0.49 server-owned reporting calculation engine. */
 public final class ReportingApiClient {
     private final HttpClient http = org.example.api.ApiRuntime.HTTP;
     private final com.fasterxml.jackson.databind.ObjectMapper json = org.example.api.ApiRuntime.JSON;

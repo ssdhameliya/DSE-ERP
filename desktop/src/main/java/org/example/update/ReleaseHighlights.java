@@ -8,9 +8,77 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
-        if ("9.0.47".equals(version)) {
+        if ("9.0.56".equals(version)) {
             return """
-                    DSE ERP 9.0.47
+                    DSE ERP 9.0.56 — UI Standards, Customer 360 & Configuration Stabilization
+
+                    • Synchronizes desktop, server, shared runtime contract, manifests, launcher and update identity on 9.0.56.
+                    • Repairs Customer 360 contacts, notes and customer-document schema/runtime guards and makes attachment timestamps PostgreSQL-safe.
+                    • Compacts Customer 360 customer details and KPI spacing so the active business tab receives more working space, with separated approved nine-tab navigation.
+                    • Standardizes Project Execution and Customer 360 owned dialogs on the existing ERP dialog language used by mature screens such as Bank Statement History.
+                    • Moves Project Execution document reference formats into Master Data REFERENCE FORMAT while retaining atomic number allocation only on successful Save.
+                    • Adds Settings → Security & Session with administrator-controlled inactivity timeout and warning values; defaults remain 10 minutes / 2 minutes.
+                    • Routes the idle-session warning through the central OwnedDialog presentation standard rather than a controller-owned custom window.
+                    • Reworks Registration to use the available desktop space without normal-screen scrolling and preserves automatic authenticator QR enrollment after Email OTP.
+                    • Tightens semantic field/action mappings so Project, Sales Order, Purchase Order, GRN, Dispatch, Import and Export retain distinct icons and theme-owned colours.
+                    • Preserves existing financial/payment/return calculations, server-owned persistence, multi-user locking, stock reservation and exactly two runtime CSS themes.
+                    """;
+        }
+        if ("9.0.53".equals(version)) {
+            return """
+                    DSE ERP 9.0.53 — Session Security & Workflow Focus
+
+                    • Adds a 10-minute user-inactivity timeout with a high-priority two-minute countdown and Stay Signed In / Log Out Now actions.
+                    • Extends the authenticated server token only when the user explicitly stays signed in; automatic logout clears the desktop session and returns to Login.
+                    • Adds centralized business-order focus handling for keyboard-first transaction entry, including context-aware Customer 360° → New Sale focus and Ctrl+S Save.
+                    • Improves Sales Order entry with live Item Master stock visibility: on-hand, reserved, free-to-promise, requested quantity and post-order balance.
+                    • Makes Sales Orders reserve/release Item Master reserved stock transactionally so multiple users see meaningful free-to-promise quantities.
+                    • Warns, but does not silently block, when a Sales Order exceeds free-to-promise stock; the server re-reads and updates reservations under row locks.
+                    • Removes decorative per-item icons from order-entry item search results while preserving the existing semantic icon system everywhere else.
+                    • Preserves Customer 360°, existing Sale/Purchase/Payment calculations, PostgreSQL ownership, row-version protection and the two-theme UI architecture.
+                    """;
+        }
+        if ("9.0.52".equals(version)) {
+            return """
+                    DSE ERP 9.0.52 — Customer 360°
+
+                    • Adds Customer 360° as a server-backed business overview opened from the existing Customers register.
+                    • Keeps the approved scope focused on Overview, Contacts, Quotations, Sales Orders, Projects, Invoices, Payments, Notes and Documents.
+                    • Uses Back to Customers, Edit Customer and New Sale as the primary header actions; New Sale opens the existing Sale screen with the customer preselected.
+                    • Reuses existing Quotation, Project Execution, Sales Invoice and Payment records rather than duplicating transaction logic or financial calculations.
+                    • Adds server-owned multi-contact and customer-note records with optimistic row-version protection for multi-user edits.
+                    • Extends the existing managed attachment framework to Customer documents with the same server-side storage and permission model.
+                    • Preserves the 9.0.51 UI stabilization, 9.0.50 registration security, 9.0.49 project execution, PostgreSQL ownership and existing Sale/Payment authority.
+                    """;
+        }
+        if ("9.0.51".equals(version)) {
+            return """
+                    DSE ERP 9.0.51 — UI Stabilization
+
+                    • Standardizes application actions on one 3D dual-tone semantic button system while preserving every existing action label, icon and handler.
+                    • Normalizes Back/Previous/Next/Close navigation presentation across screens and keeps destructive actions visually distinct.
+                    • Removes Save View and Saved Views from Sales Register, Purchase Register and Quotation Register to simplify crowded register toolbars.
+                    • Makes password reveal controls transparent and theme-safe instead of inheriting the blue action-button surface.
+                    • Extends semantic field-label treatment and improves compact input sizing so important values remain readable in both light and dark modes.
+                    • Makes What’s New reliable offline: the packaged release carries full notes and uses them whenever the online release body is missing or too short.
+                    • Preserves 9.0.50 registration security, 9.0.49 project execution, existing Sale/Purchase calculations, payments, PostgreSQL data ownership and multi-user behavior.
+                    """;
+        }
+        if ("9.0.50".equals(version)) {
+            return """
+                    DSE ERP 9.0.50 — Registration Security
+
+                    • Adds non-Admin self-registration with CAPTCHA, email OTP, authenticator TOTP enrollment and Pending Admin Approval.
+                    • Blocks pending/rejected non-Admin accounts from receiving a login session even when credentials are otherwise correct.
+                    • Prevents Admin/Super-Admin self-registration; privileged accounts remain controlled by existing Admin User Management.
+                    • Adds the Registration Approvals workspace with final role assignment, approve/reject actions and concurrent-review protection.
+                    • Aligns non-Admin Forgot Password with CAPTCHA, email OTP and existing authenticator verification while preserving the existing Admin exception.
+                    • Keeps an upgrade bridge for pre-9.0.50 non-Admin accounts so existing users are not unexpectedly locked out before TOTP migration.
+                    """;
+        }
+        if ("9.0.49".equals(version)) {
+            return """
+                    DSE ERP 9.0.49
 
                     • Unifies document arithmetic on one HALF_UP calculation authority: 2dp money/rates, 4dp quantities and inventory unit costs, and canonical PDF/XLSX totals.
                     • Preserves exact return value allocation down to the final paise, keeps original line discounts in Return previews/documents, and serializes concurrent Returns against the source document.
@@ -615,4 +683,13 @@ public final class ReleaseHighlights {
         }
         return "DSE ERP " + version + "\n\nRelease notes are unavailable offline for this version.";
     }
+
+    public static String resolve(String version, String onlineNotes) {
+        String fallback = forVersion(version);
+        String online = onlineNotes == null ? "" : onlineNotes.strip();
+        long meaningfulLines = online.lines().map(String::strip).filter(s -> !s.isBlank()).count();
+        if (online.isBlank() || meaningfulLines < 3) return fallback;
+        return online;
+    }
+
 }

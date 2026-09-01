@@ -55,6 +55,7 @@ import org.example.shortcut.ShortcutRegistry;
 import org.example.shortcut.ShortcutRegistry.Action;
 import org.example.shortcut.SettingsShortcutSupport;
 import org.example.util.UiTaskExecutor;
+import org.example.util.UiDiagnostics;
 import javafx.application.Platform;
 
 import java.io.File;
@@ -77,7 +78,7 @@ import java.util.Properties;
  */
 public class SettingsController implements ScreenLifecycle {
     public enum Section {
-        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, WORKSPACE, SHORTCUTS, UPDATES
+        COMPANY, PAYMENT, INVOICE, NOTIFICATIONS, EMAIL, SECURITY, WORKSPACE, SHORTCUTS, UPDATES
     }
 
     private static volatile Section requestedSection = Section.COMPANY;
@@ -100,7 +101,11 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private StackPane panelHost;
     @FXML private ScrollPane panelScroll;
 
-    @FXML private Button btnCheckUpdates;
+    @FXML private Button btnCheckUpdates,btnTestEmail,btnSaveSettings;
+    @FXML private VBox panelSecurity;
+    @FXML private TextField txtSessionTimeoutMinutes, txtSessionWarningMinutes;
+    @FXML private CheckBox chkUiDiagnostics;
+    @FXML private StackPane securityHeaderIcon;
 
     /* =========================================================
        COMPANY FIELDS
@@ -393,6 +398,8 @@ public class SettingsController implements ScreenLifecycle {
         // invokes initialize(). Only the root Settings.fxml performs startup.
         if (fragmentLoading || rootInitialized) return;
         rootInitialized = true;
+        if(btnTestEmail!=null) org.example.util.UiActionIcons.apply(btnTestEmail,"email","Test Email");
+        if(btnSaveSettings!=null) org.example.util.UiActionIcons.apply(btnSaveSettings,"save","Save Settings");
         showRequestedSection();
     }
 
@@ -405,6 +412,7 @@ public class SettingsController implements ScreenLifecycle {
             case INVOICE -> "InvoiceSettingsPanel.fxml";
             case NOTIFICATIONS -> "NotificationsSettingsPanel.fxml";
             case EMAIL -> "EmailSettingsPanel.fxml";
+            case SECURITY -> "SecuritySettingsPanel.fxml";
             case WORKSPACE -> "WorkspaceSettingsPanel.fxml";
             case SHORTCUTS -> "ShortcutsSettingsPanel.fxml";
             case UPDATES -> "UpdatesSettingsPanel.fxml";
@@ -504,6 +512,15 @@ public class SettingsController implements ScreenLifecycle {
                     txtSmtpPort.setText(ConfigManager.getSmtpPort());
                 }
             }
+            case SECURITY -> {
+                var support = new org.example.api.support.SupportApiClient();
+                txtSessionTimeoutMinutes.setText(support.setting("security.session.timeout.minutes", "10"));
+                txtSessionWarningMinutes.setText(support.setting("security.session.warning.minutes", "2"));
+                if (chkUiDiagnostics != null) chkUiDiagnostics.setSelected(UiDiagnostics.isEnabled());
+                if (securityHeaderIcon != null) securityHeaderIcon.getChildren().setAll(IconFactory.icon("security", 22));
+                boolean editable = SessionService.isAdmin();
+                txtSessionTimeoutMinutes.setDisable(!editable); txtSessionWarningMinutes.setDisable(!editable);
+            }
             case WORKSPACE -> {
                 refreshWorkspacePanel();
                 boolean admin = SessionService.isAdmin();
@@ -545,6 +562,7 @@ public class SettingsController implements ScreenLifecycle {
             case INVOICE -> showInvoice();
             case NOTIFICATIONS -> showNotifications();
             case EMAIL -> showEmail();
+            case SECURITY -> showSecurity();
             case WORKSPACE -> showWorkspace();
             case SHORTCUTS -> showShortcuts();
             case UPDATES -> showUpdates();
@@ -916,6 +934,7 @@ private record AssetPreviewRequest(
     @FXML private void showInvoice() { selectSection(navInvoice, ensureSectionLoaded(Section.INVOICE)); }
     @FXML private void showNotifications() { selectSection(navNotifications, ensureSectionLoaded(Section.NOTIFICATIONS)); }
     @FXML private void showEmail() { selectSection(navEmail, ensureSectionLoaded(Section.EMAIL)); }
+    @FXML private void showSecurity() { selectSection(null, ensureSectionLoaded(Section.SECURITY)); }
 
 
 
@@ -1510,6 +1529,7 @@ private record AssetPreviewRequest(
             if (loadedPanels.containsKey(Section.INVOICE)) saveInvoiceIdentity();
             if (loadedPanels.containsKey(Section.EMAIL)) saveEmailSettings();
             if (loadedPanels.containsKey(Section.NOTIFICATIONS)) saveNotificationSettings();
+            if (loadedPanels.containsKey(Section.SECURITY)) saveSecuritySettings();
             if (loadedPanels.containsKey(Section.WORKSPACE)) saveDeploymentSettings();
             if (loadedPanels.containsKey(Section.SHORTCUTS)) saveShortcutSettings();
             if (loadedPanels.containsKey(Section.UPDATES)) saveUpdateSettings();
@@ -1519,6 +1539,20 @@ private record AssetPreviewRequest(
         }
 
         return true;
+    }
+
+    private void saveSecuritySettings() {
+        if (chkUiDiagnostics != null) UiDiagnostics.setEnabled(chkUiDiagnostics.isSelected());
+        if (txtSessionTimeoutMinutes == null || txtSessionWarningMinutes == null || !SessionService.isAdmin()) return;
+        int timeout; int warning;
+        try { timeout = Integer.parseInt(txtSessionTimeoutMinutes.getText().trim()); warning = Integer.parseInt(txtSessionWarningMinutes.getText().trim()); }
+        catch (Exception e) { throw new IllegalArgumentException("Session timeout and warning must be whole minutes."); }
+        if (timeout < 5 || timeout > 120) throw new IllegalArgumentException("Session timeout must be between 5 and 120 minutes.");
+        if (warning < 1 || warning >= timeout) throw new IllegalArgumentException("Session warning must be at least 1 minute and less than the timeout.");
+        var support = new org.example.api.support.SupportApiClient();
+        support.setSetting("security.session.timeout.minutes", Integer.toString(timeout));
+        support.setSetting("security.session.warning.minutes", Integer.toString(warning));
+        org.example.service.SessionActivityManager.reloadPolicy();
     }
 
     private void saveDeploymentSettings() {
@@ -1748,6 +1782,18 @@ private record AssetPreviewRequest(
                 warn(exception.getMessage());
                 showWorkspace();
                 return false;
+            }
+        }
+        if (SessionService.isAdmin() && loadedPanels.containsKey(Section.SECURITY) && txtSessionTimeoutMinutes != null) {
+            try {
+                int timeout = Integer.parseInt(txtSessionTimeoutMinutes.getText().trim());
+                int warning = Integer.parseInt(txtSessionWarningMinutes.getText().trim());
+                if (timeout < 5 || timeout > 120) throw new IllegalArgumentException("Session timeout must be between 5 and 120 minutes.");
+                if (warning < 1 || warning >= timeout) throw new IllegalArgumentException("Session warning must be at least 1 minute and less than the timeout.");
+            } catch (NumberFormatException e) {
+                warn("Session timeout and warning must be whole minutes."); showSecurity(); return false;
+            } catch (IllegalArgumentException e) {
+                warn(e.getMessage()); showSecurity(); return false;
             }
         }
         if (loadedPanels.containsKey(Section.PAYMENT) && !validatePaymentDetails()) {

@@ -45,7 +45,7 @@ public final class UpdateDialogs {
                     String ownerName = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
                     String repository = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
                     UpdateRelease release = new GitHubReleaseClient().byVersion(ownerName, repository, version);
-                    if (release.notes() != null && !release.notes().isBlank()) return release.notes().strip();
+                    return ReleaseHighlights.resolve(version, release.notes());
                 } catch (Exception ignored) { }
                 return ReleaseHighlights.forVersion(version);
             }
@@ -106,7 +106,7 @@ public final class UpdateDialogs {
     public static void showRelease(Window owner, UpdateService service, UpdateRelease release) {
         Label badge = new Label("NEW RELEASE"); badge.getStyleClass().add("update-badge");
         Label title = new Label("DSE ERP " + release.version()); title.getStyleClass().add("update-release-title");
-        TextArea notes = new TextArea(release.notes().isBlank() ? "This release does not include release notes." : release.notes());
+        TextArea notes = new TextArea(ReleaseHighlights.resolve(release.version().toString(), release.notes()));
         notes.setEditable(false); notes.setWrapText(true); notes.setPrefRowCount(9);
         String size = PlatformPackage.select(release).map(a -> humanSize(a.size())).orElse("Installer not found");
         GridPane facts = new GridPane(); facts.setHgap(28); facts.setVgap(6);

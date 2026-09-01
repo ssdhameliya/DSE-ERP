@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?><?import javafx.scene.layout.*?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelSecurity" spacing="14" styleClass="settings-panel,approved-section-card">
+  <HBox alignment="CENTER_LEFT" spacing="10" styleClass="approved-section-header"><StackPane fx:id="securityHeaderIcon" styleClass="settings-section-icon"/><VBox spacing="2"><Label text="Security &amp; Session" styleClass="section-title"/><Label text="Administrator-controlled inactivity policy shared by all ERP clients." styleClass="muted-text"/></VBox></HBox>
+  <GridPane hgap="16" vgap="12"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
+    <VBox spacing="5"><Label text="Session Timeout (minutes)" styleClass="field-label-time"/><TextField fx:id="txtSessionTimeoutMinutes" promptText="10"/><Label text="Allowed: 5–120 minutes" styleClass="muted-text"/></VBox>
+    <VBox spacing="5" GridPane.columnIndex="1"><Label text="Warning Before Logout (minutes)" styleClass="field-label-reminder"/><TextField fx:id="txtSessionWarningMinutes" promptText="2"/><Label text="Must be at least 1 minute and less than the timeout." styleClass="muted-text"/></VBox>
+  </GridPane>
+  <HBox alignment="CENTER_LEFT" spacing="8" styleClass="settings-info-strip"><Label text="The timeout warning uses the same owned-dialog presentation standard as other ERP dialogs. Background refreshes do not count as activity." wrapText="true" styleClass="muted-text"/></HBox>
+  <VBox spacing="6" styleClass="approved-section-card"><CheckBox fx:id="chkUiDiagnostics" text="Enable UI Diagnostics"/><Label text="When enabled, rendered screen, KPI, table and semantic-icon contract results are written to desktop.log and included in the existing Diagnostic Package." wrapText="true" styleClass="muted-text"/></VBox>
+</VBox>

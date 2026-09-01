@@ -6,6 +6,7 @@ import org.example.server.security.CurrentUser;
 import org.example.server.security.TokenService;
 import org.example.server.util.BusinessClock;
 import org.example.server.web.ConcurrentEditException;
+import org.example.shared.SecretValueCodec;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -295,4 +296,36 @@ public class AdminService {
         String text = String.valueOf(value);
         return "1".equals(text) || "t".equalsIgnoreCase(text) || "true".equalsIgnoreCase(text);
     }
+    @Transactional(readOnly = true)
+    public List<AdminDtos.RegistrationRequestDto> registrations(String status) {
+        String wanted=status==null||status.isBlank()?"PENDING_ADMIN_APPROVAL":status.trim().toUpperCase();
+        return jdbc.query("SELECT r.id,r.username,r.full_name,r.email,r.requested_role,r.email_verified,r.mfa_verified,r.status,CAST(r.requested_at AS text),COALESCE(u.username,''),CAST(r.reviewed_at AS text),COALESCE(r.rejection_reason,''),r.row_version FROM registration_request r LEFT JOIN users u ON u.id=r.reviewed_by WHERE r.status=? ORDER BY r.requested_at ASC",
+                (row,i)->new AdminDtos.RegistrationRequestDto(row.getLong(1),row.getString(2),row.getString(3),row.getString(4),row.getString(5),flag(row.getObject(6)),flag(row.getObject(7)),row.getString(8),row.getString(9),row.getString(10),row.getString(11),row.getString(12),row.getLong(13)),wanted);
+    }
+
+    @Transactional
+    public AdminDtos.Ok approveRegistration(long id, AdminDtos.RegistrationDecisionRequest request) {
+        var row=jdbc.queryForMap("SELECT id,username,password_hash,full_name,email,requested_role,totp_secret_enc,email_verified,mfa_verified,status,row_version FROM registration_request WHERE id=? FOR UPDATE",id);
+        long version=((Number)row.get("row_version")).longValue(); if(request==null||request.rowVersion()!=version)throw new ConcurrentEditException("Registration request");
+        if(!"PENDING_ADMIN_APPROVAL".equals(String.valueOf(row.get("status"))))throw new IllegalArgumentException("Registration request has already been processed");
+        if(!flag(row.get("email_verified"))||!flag(row.get("mfa_verified")))throw new IllegalArgumentException("Registration identity verification is incomplete");
+        String assigned=request.role()==null||request.role().isBlank()?String.valueOf(row.get("requested_role")):request.role().trim().toUpperCase();
+        if("ADMIN".equals(assigned))throw new SecurityException("Administrator accounts cannot be created from self-registration. Use User Management.");
+        var role=roleMaster.requireActive(assigned);
+        String username=String.valueOf(row.get("username")),email=String.valueOf(row.get("email"));
+        Long duplicates=jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(COALESCE(email,''))=LOWER(?)",Long.class,username,email);if(duplicates!=null&&duplicates>0)throw new IllegalArgumentException("Username or email is already registered");
+        Integer userId=jdbc.queryForObject("INSERT INTO users(username,password,full_name,role,email,active,locked,mfa_enabled,access_level,totp_secret_enc,approval_status,row_version) VALUES(?,?,?,?,?,1,0,1,'STANDARD',?,'APPROVED',0) RETURNING id",Integer.class,username,String.valueOf(row.get("password_hash")),String.valueOf(row.get("full_name")),role.code(),email,String.valueOf(row.get("totp_secret_enc")));
+        var actor=CurrentUser.require();jdbc.update("UPDATE registration_request SET status='APPROVED',reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP,rejection_reason=NULL,row_version=row_version+1 WHERE id=?",actor.id(),id);
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",userId,"REGISTRATION_APPROVED","Self-registration approved with role "+role.code(),actor.username(),BusinessClock.nowUtcText());
+        return new AdminDtos.Ok(true,"Registration approved. The user can now sign in with password + authenticator.");
+    }
+
+    @Transactional
+    public AdminDtos.Ok rejectRegistration(long id, AdminDtos.RegistrationDecisionRequest request) {
+        var row=jdbc.queryForMap("SELECT username,status,row_version FROM registration_request WHERE id=? FOR UPDATE",id);long version=((Number)row.get("row_version")).longValue();if(request==null||request.rowVersion()!=version)throw new ConcurrentEditException("Registration request");
+        if(!"PENDING_ADMIN_APPROVAL".equals(String.valueOf(row.get("status"))))throw new IllegalArgumentException("Registration request has already been processed");
+        var actor=CurrentUser.require();String reason=request.reason()==null?"":request.reason().trim();jdbc.update("UPDATE registration_request SET status='REJECTED',reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP,rejection_reason=?,row_version=row_version+1 WHERE id=?",actor.id(),reason,id);
+        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('REGISTRATION',?,?,?,?,?)",id,"REGISTRATION_REJECTED",reason.isBlank()?"Registration rejected":reason,actor.username(),BusinessClock.nowUtcText());return new AdminDtos.Ok(true,"Registration rejected");
+    }
+
 }

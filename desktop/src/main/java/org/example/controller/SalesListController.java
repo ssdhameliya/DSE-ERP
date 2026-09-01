@@ -62,7 +62,8 @@ import java.util.function.Predicate;
 public class SalesListController implements ScreenLifecycle {
     @FXML private Label lblTotalSales,lblInvoiceCount,lblTodaySales,lblTodayCount,lblPending,lblPendingCount,lblOverdue,lblOverdueCount,lblDueSoon,lblDueSoonCount,lblEmailRate;
     @FXML private StackPane salesTitleIcon,salesHeaderSearchIcon,totalSalesIcon,todaySalesIcon,pendingSalesIcon,overdueSalesIcon,dueSoonIcon,emailRateIcon;
-    @FXML private Button btnNewSale,btnSaveView,btnResetFilters,btnRefreshSales,btnExportExcel,btnExportPdf,btnPrintRegister;
+    @FXML private Button btnNewSale,btnResetFilters,btnRefreshSales,btnExportExcel,btnExportPdf,btnPrintRegister;
+    private Button btnSaveView; private MenuButton savedViewsMenu;
     @FXML private Button btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnCloseDetails,btnApproveSale,btnRejectSale;
     @FXML private TextField txtSearch,txtInvoice,txtAmountFrom,txtAmountTo;
     @FXML private ComboBox<String> cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus;
@@ -70,7 +71,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private ToggleButton btnAdvanced;
     @FXML private javafx.scene.layout.GridPane advancedFilters;
     @FXML private FlowPane activeFilterChips;
-    @FXML private MenuButton savedViewsMenu;
+    
     @FXML private TableView<Sales> tableSales;
     @FXML private TableColumn<Sales,String> colInvoice,colDate,colCustomer,colMobile,colGstin,colDue,colStatus,colPaymentStatus,colReturnStatus,colMail;
     @FXML private TableColumn<Sales,Double> colTotal,colPaid,colBalance;
@@ -99,7 +100,7 @@ public class SalesListController implements ScreenLifecycle {
     private String pendingSavedViewName;
 
     @FXML public void initialize(){
-        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();loadSavedViews();org.example.util.RegisterColumnPreferences.install(tableSales,"SALES_REGISTER");
+        configureColumns();configureFilters();configureActions();configurePaging();configureVisualIcons();configureDetailFieldIcons();refreshShortcutLabels();org.example.util.RegisterColumnPreferences.install(tableSales,"SALES_REGISTER");
         RegisterUiSupport.configureHeaderSearch(txtSearch,salesHeaderSearchIcon,"Search invoice, customer, mobile or GSTIN...");
         simplifyFilters();
         RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);
@@ -152,8 +153,6 @@ public class SalesListController implements ScreenLifecycle {
         setIcon(dueSoonIcon,"calendar",24);
         setIcon(emailRateIcon,"email",24);
         setButtonIcon(btnNewSale,"sale");
-        setButtonIcon(btnSaveView,"save");
-        setButtonIcon(savedViewsMenu,"view");
         setButtonIcon(btnResetFilters,"reset");
         setButtonIcon(btnRefreshSales,"refresh");
         setButtonIcon(btnExportExcel,"excel");
@@ -439,7 +438,6 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
             reloadPage();
             return;
         }
-        loadSavedViews();
         if(reusedFromCache || allSales.isEmpty() || ScreenRefreshPolicy.shouldRefresh("sales-register", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) refresh();
     }
 

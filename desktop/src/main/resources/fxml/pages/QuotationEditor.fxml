@@ -61,10 +61,10 @@
                     <StackPane.margin><Insets right="8"/></StackPane.margin>
                   </StackPane>
                 </StackPane>
-                <TextField fx:id="txtQuantity" text="1.00" promptText="Qty" prefWidth="78"/>
-                <TextField fx:id="txtRate" text="0.00" promptText="Rate" prefWidth="100"/>
-                <TextField fx:id="txtDiscount" text="0.00" promptText="Discount %" prefWidth="100"/>
-                <TextField fx:id="txtGst" text="0.00" promptText="GST %" prefWidth="80"/>
+                <TextField fx:id="txtQuantity" text="1.00" promptText="Qty" prefWidth="100" minWidth="88"/>
+                <TextField fx:id="txtRate" text="0.00" promptText="Rate" prefWidth="120" minWidth="105"/>
+                <TextField fx:id="txtDiscount" text="0.00" promptText="Discount %" prefWidth="120" minWidth="105"/>
+                <TextField fx:id="txtGst" text="0.00" promptText="GST %" prefWidth="100" minWidth="88"/>
                 <Button fx:id="btnAdd" text="Add Item" onAction="#addItem" styleClass="approved-button,approved-primary-button"/>
                 <Button fx:id="btnDeleteLine" text="Delete Item" onAction="#deleteSelectedLine" disable="true" styleClass="approved-button,approved-danger-button"/>
               </HBox>

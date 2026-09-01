@@ -129,22 +129,32 @@ public final class AuthApiClient {
         }
     }
 
-    public ChallengeResponse requestRegistrationOtp(AppUser user) {
-        ChallengeResponse response = post("/api/auth/registration/request",
-                new RegistrationOtpRequest(user.getUsername(), user.getFullName(), user.getEmail(), user.getRole(),
-                        user.isMfaEnabled()),
-                ChallengeResponse.class);
-        if (response == null || !response.success())
-            throw new IllegalStateException(response == null ? "Registration verification failed" : response.message());
+    public CaptchaResponse registrationCaptcha() {
+        try {
+            HttpRequest request=HttpRequest.newBuilder(URI.create(baseUrl()+"/api/auth/registration/captcha")).timeout(REQUEST_TIMEOUT).header("Accept","application/json").GET().build();
+            HttpResponse<String> response=http.send(request,HttpResponse.BodyHandlers.ofString());
+            if(response.statusCode()<200||response.statusCode()>=300)throw new IllegalStateException(apiErrorMessage(response));
+            return json.readValue(response.body(),CaptchaResponse.class);
+        } catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException("CAPTCHA request was interrupted",e);} catch(IOException e){throw new IllegalStateException("Cannot load registration CAPTCHA",e);}
+    }
+
+    public ChallengeResponse requestRegistrationOtp(AppUser user,String captchaChallengeId,String captchaAnswer) {
+        ChallengeResponse response=post("/api/auth/registration/request",
+                new RegistrationOtpRequest(user.getUsername(),user.getFullName(),user.getEmail(),user.getRole(),true,captchaChallengeId,captchaAnswer),ChallengeResponse.class);
+        if(response==null||!response.success())throw new IllegalStateException(response==null?"Registration verification failed":response.message());
         return response;
     }
 
-    public void completeRegistration(AppUser user, String challengeId, String otp) {
-        OperationResponse response = post("/api/auth/registration/complete",
-                new RegistrationCompleteRequest(challengeId, otp, user.getUsername(), user.getPassword(),
-                        user.getFullName(), user.getEmail(), user.getRole(), user.isMfaEnabled()), OperationResponse.class);
-        if (response == null || !response.success())
-            throw new IllegalStateException(response == null ? "Registration failed" : response.message());
+    public RegistrationMfaSetupResponse verifyRegistrationEmail(AppUser user,String challengeId,String otp) {
+        RegistrationMfaSetupResponse response=post("/api/auth/registration/email/verify",
+                new RegistrationEmailVerifyRequest(challengeId,otp,user.getUsername(),user.getPassword(),user.getFullName(),user.getEmail(),user.getRole(),true),RegistrationMfaSetupResponse.class);
+        if(response==null||!response.success())throw new IllegalStateException(response==null?"Email verification failed":response.message());
+        return response;
+    }
+
+    public void completeRegistrationMfa(long registrationId,String otp) {
+        OperationResponse response=post("/api/auth/registration/mfa/complete",new RegistrationMfaCompleteRequest(registrationId,otp),OperationResponse.class);
+        if(response==null||!response.success())throw new IllegalStateException(response==null?"Authenticator verification failed":response.message());
     }
 
     public ChallengeResponse requestPasswordReset(String identity) {
@@ -155,17 +165,28 @@ public final class AuthApiClient {
         return response;
     }
 
-    public void completePasswordReset(String challengeId, String otp, String password) {
+    public void completePasswordReset(String challengeId, String otp, String totp, String password) {
         OperationResponse response = post("/api/auth/password-reset/complete",
-                new PasswordResetCompleteRequest(challengeId, otp, password), OperationResponse.class);
+                new PasswordResetCompleteRequest(challengeId, otp, totp, password), OperationResponse.class);
         if (response == null || !response.success())
             throw new IllegalStateException(response == null ? "Password reset failed" : response.message());
     }
 
-    public void logout() {
+    public void extendSession() {
+        String token = ApiSession.token();
+        if (token == null || token.isBlank()) throw new IllegalStateException("No authenticated session to extend");
+        SessionExtendResponse response = postAuthenticated("/api/auth/session/extend", null, SessionExtendResponse.class);
+        if (response == null || !response.success() || response.accessToken() == null || response.accessToken().isBlank())
+            throw new IllegalStateException(response == null ? "Session extension failed" : response.message());
+        ApiSession.establish(response.accessToken(), response.expiresAt(), baseUrl());
+    }
+
+    public void logout() { logout("MANUAL_LOGOUT"); }
+
+    public void logout(String reason) {
         String token = ApiSession.token();
         try {
-            if (token != null) postAuthenticated("/api/auth/logout", null, OperationResponse.class);
+            if (token != null) postAuthenticatedWithHeader("/api/auth/logout", "X-DSE-Logout-Reason", reason == null ? "MANUAL_LOGOUT" : reason, null, OperationResponse.class);
         } finally {
             ApiSession.clear();
         }
@@ -300,6 +321,27 @@ public final class AuthApiClient {
         }
     }
 
+    private <T> T postAuthenticatedWithHeader(String path, String header, String value, Object body, Class<T> responseType) {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl() + path))
+                    .timeout(REQUEST_TIMEOUT).header("Accept", "application/json")
+                    .header(header, value == null ? "" : value);
+            ApiSession.authorize(builder);
+            if (body == null) builder.POST(HttpRequest.BodyPublishers.noBody());
+            else builder.header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
+            HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 401) { throw ApiSession.rejected("Authentication request", response.body()); }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("Authentication API error (" + response.statusCode() + ")");
+            return json.readValue(response.body(), responseType);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Authentication API request was interrupted", exception);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Cannot reach authentication server at " + baseUrl(), exception);
+        }
+    }
+
     private <T> T postAuthenticated(String path, Object body, Class<T> responseType) {
         try {
             HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl() + path))
@@ -352,8 +394,10 @@ public final class AuthApiClient {
                 || !RuntimeContract.APP_VERSION.equals(status.version())
                 || !RuntimeContract.API_REVISION.equals(status.apiRevision())
                 || !RuntimeContract.BUILD_REVISION.equals(status.buildRevision())) {
-            throw new IllegalStateException("The running DSE ERP server is not the R12 backend required by this desktop. "
-                    + "Stop the stale backend and restart DSE ERP.");
+            throw new IllegalStateException("Desktop/server version mismatch. This desktop requires DSE ERP "
+                    + RuntimeContract.APP_VERSION + " build " + RuntimeContract.BUILD_REVISION
+                    + ", but the running backend reports version " + status.version() + " build " + status.buildRevision()
+                    + ". Stop the stale backend and restart DSE ERP.");
         }
     }
 
@@ -389,12 +433,13 @@ public final class AuthApiClient {
     public record ChangePasswordRequest(int userId, String currentPassword, String password) {}
     public record RegisterRequest(String username, String password, String fullName, String email, String role,
                                   boolean mfaEnabled) {}
-    public record RegistrationOtpRequest(String username, String fullName, String email, String role,
-                                         boolean mfaEnabled) {}
-    public record RegistrationCompleteRequest(String challengeId, String otp, String username, String password,
-                                               String fullName, String email, String role, boolean mfaEnabled) {}
+    public record CaptchaResponse(String challengeId,String question,String expiresIn) {}
+    public record RegistrationOtpRequest(String username,String fullName,String email,String role,boolean mfaEnabled,String captchaChallengeId,String captchaAnswer) {}
+    public record RegistrationEmailVerifyRequest(String challengeId,String otp,String username,String password,String fullName,String email,String role,boolean mfaEnabled) {}
+    public record RegistrationMfaSetupResponse(boolean success,Long registrationId,String manualSecret,String provisioningUri,String message) {}
+    public record RegistrationMfaCompleteRequest(long registrationId,String otp) {}
     public record PasswordResetOtpRequest(String identity) {}
-    public record PasswordResetCompleteRequest(String challengeId, String otp, String password) {}
+    public record PasswordResetCompleteRequest(String challengeId,String otp,String totp,String password) {}
     public record ChallengeResponse(boolean success, String challengeId, String message) {}
     public record LoginMfaChallengeResponse(boolean success, String challengeId, String message,
                                             String maskedDestination) {}
@@ -409,4 +454,6 @@ public final class AuthApiClient {
     public record UserPayload(int id, String username, String fullName, String role, Integer roleId,
                               String email, boolean active, String department, String branch,
                               String accessLevel, boolean locked, boolean mfaEnabled) {}
+
+    public record SessionExtendResponse(boolean success,String message,String accessToken,String expiresAt){}
 }

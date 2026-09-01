@@ -81,30 +81,10 @@ jobs:
         run: python scripts/audit-9.0.15-reference-item-import-contract.py
       - name: Enforce 9.0.16 quotation-source / linked-sale contract
         run: python scripts/audit-9.0.16-quotation-source-sale-link-contract.py
-      - name: Enforce 9.0.47 approved UI/behavior freeze
-        run: python scripts/audit-9.0.47-ui-behavior-freeze.py
-      - name: Enforce 9.0.47 Phase 2 two-theme contract
-        run: python scripts/audit-9.0.47-phase2-two-theme-contract.py
-      - name: Enforce 9.0.47 Phase 3 semantic UI contract
-        run: python scripts/audit-9.0.47-phase3-semantic-ui-contract.py
-      - name: Enforce 9.0.47 Phase 4 responsive KPI contract
-        run: python scripts/audit-9.0.47-phase4-responsive-kpi-contract.py
-      - name: Enforce 9.0.47 Phase 5 dynamic TableView contract
-        run: python scripts/audit-9.0.47-phase5-dynamic-table-contract.py
-      - name: Enforce 9.0.47 Phase 6 controller/UI ownership contract
-        run: python scripts/audit-9.0.47-phase6-controller-cleanup-contract.py
-      - name: Enforce 9.0.47 Phase 7 production-clean contract
-        run: python scripts/audit-9.0.47-phase7-production-clean-contract.py
-      - name: Enforce 9.0.47 corrective UI stabilization contract
-        run: python scripts/audit-9.0.47-phase8-ui-stabilization-contract.py
-      - name: Enforce 9.0.47 UI enhancement contract
-        run: python scripts/audit-9.0.47-ui-enhancement-contract.py
-      - name: Enforce 9.0.47 engineering hardening contract
-        run: python scripts/audit-9.0.47-engineering-hardening.py
-      - name: Enforce 9.0.47 financial integrity and multi-user contract
-        run: python scripts/audit-9.0.47-financial-multi-user-contract.py
-      - name: Enforce 9.0.47 final reporting/runtime contract
-        run: python scripts/audit-9.0.47-final-contract.py
+      - name: Enforce 9.0.56 Customer 360 contract
+        run: python scripts/audit-9.0.53-customer-360-contract.py
+      - name: Enforce 9.0.56 release gate aggregate
+        run: python scripts/audit-release-gates-9.0.56.py
       - name: Verify final UI source contract
         shell: python
         run: |

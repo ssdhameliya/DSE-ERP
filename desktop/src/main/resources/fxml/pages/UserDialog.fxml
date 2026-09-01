@@ -9,7 +9,7 @@
  <left>
    <VBox prefWidth="275" alignment="CENTER" spacing="16" styleClass="user-dialog-brand">
      <Label text="◈" styleClass="user-dialog-logo"/>
-     <Label text="DSE ERP 9.0.47" styleClass="title"/>
+     <Label text="DSE ERP 9.0.56" styleClass="title"/>
      <Label text="USER ACCESS" styleClass="metric-title"/>
      <Label text="Create and maintain secure application accounts with database-backed roles."
             wrapText="true" textAlignment="CENTER" styleClass="subtitle" maxWidth="210"/>
@@ -36,7 +36,7 @@
          <StackPane maxWidth="Infinity" styleClass="user-password-wrapper">
            <PasswordField fx:id="txtPassword" promptText="8+ characters, letter and number" maxWidth="Infinity" styleClass="approved-input,password-reveal-explicit,user-password-input"/>
            <TextField fx:id="txtPasswordVisible" promptText="8+ characters, letter and number" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input,user-password-input"/>
-           <Button fx:id="btnPasswordEye" onAction="#togglePasswordVisibility" focusTraversable="false" styleClass="user-password-eye" StackPane.alignment="CENTER_RIGHT">
+           <Button fx:id="btnPasswordEye" onAction="#togglePasswordVisibility" focusTraversable="false" styleClass="password-reveal-button,user-password-eye" StackPane.alignment="CENTER_RIGHT">
              <StackPane.margin><Insets right="7"/></StackPane.margin>
            </Button>
          </StackPane>
@@ -46,7 +46,7 @@
          <StackPane maxWidth="Infinity" styleClass="user-password-wrapper">
            <PasswordField fx:id="txtConfirm" promptText="Repeat password" maxWidth="Infinity" styleClass="approved-input,password-reveal-explicit,user-password-input"/>
            <TextField fx:id="txtConfirmVisible" promptText="Repeat password" maxWidth="Infinity" visible="false" managed="false" styleClass="approved-input,user-password-input"/>
-           <Button fx:id="btnConfirmEye" onAction="#toggleConfirmVisibility" focusTraversable="false" styleClass="user-password-eye" StackPane.alignment="CENTER_RIGHT">
+           <Button fx:id="btnConfirmEye" onAction="#toggleConfirmVisibility" focusTraversable="false" styleClass="password-reveal-button,user-password-eye" StackPane.alignment="CENTER_RIGHT">
              <StackPane.margin><Insets right="7"/></StackPane.margin>
            </Button>
          </StackPane>

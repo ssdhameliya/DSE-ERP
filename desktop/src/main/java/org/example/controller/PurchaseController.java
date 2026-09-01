@@ -106,7 +106,7 @@ public class PurchaseController implements ScreenLifecycle {
     @FXML
     private TextArea txtRemarks;
     @FXML private TextArea txtBillingAddress, txtDeliveryAddress;
-    @FXML private TextField txtBillingGstin, txtDeliveryGstin, txtTransporterGstin, txtVehicleNumber, txtContactPerson, txtContactPersonMobile, txtOrderNo;
+    @FXML private TextField txtBillingGstin, txtDeliveryGstin, txtTransporterGstin, txtVehicleNumber, txtContactPerson, txtContactPersonMobile, txtOrderNo, txtProjectNo, txtPurchaseOrderNo, txtGrnNo;
     @FXML private DatePicker txtPoDate;
     @FXML private CheckBox chkSameAsBilling;
 
@@ -326,6 +326,7 @@ public class PurchaseController implements ScreenLifecycle {
         cmbSupplier.valueProperty().addListener((obs, oldSupplier, supplier) -> { populateSupplierAddress(supplier); suggestGstTypeFromGstin(); });
         Platform.runLater(this::cleanPurchaseActions);
         resetNewPurchaseForm();
+        applyWorkflowInvoiceContext();
         loadPurchaseBootstrapAsync();
         Platform.runLater(() -> {
             if (editingPurchase == null && (txtInvoiceNo.getText() == null || txtInvoiceNo.getText().isBlank())) requestNextPurchaseNoAsync();
@@ -334,6 +335,15 @@ public class PurchaseController implements ScreenLifecycle {
     }
 
 
+
+
+    private void applyWorkflowInvoiceContext(){
+        WorkflowInvoiceContext.Link link=WorkflowInvoiceContext.consumePurchase();
+        if(link==null)return;
+        if(txtProjectNo!=null)txtProjectNo.setText(link.projectNo());
+        if(txtPurchaseOrderNo!=null)txtPurchaseOrderNo.setText(link.orderNo());
+        if(txtGrnNo!=null)txtGrnNo.setText(link.sourceNo());
+    }
 
     private void configureItemSearch(){
         if(itemSearchIconBox!=null)itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
@@ -708,6 +718,9 @@ public class PurchaseController implements ScreenLifecycle {
         purchase.setContactPersonMobile(value(txtContactPersonMobile==null?null:txtContactPersonMobile.getText()));
         purchase.setNotes(value(txtRemarks==null?null:txtRemarks.getText()));
         purchase.setOrderNo(value(txtOrderNo==null?null:txtOrderNo.getText()));
+        purchase.setProjectNo(value(txtProjectNo==null?null:txtProjectNo.getText()));
+        purchase.setPurchaseOrderNo(value(txtPurchaseOrderNo==null?null:txtPurchaseOrderNo.getText()));
+        purchase.setGrnNo(value(txtGrnNo==null?null:txtGrnNo.getText()));
         purchase.setPoDate(txtPoDate==null?null:txtPoDate.getValue());
         purchase.setSameAsBilling(chkSameAsBilling==null||chkSameAsBilling.isSelected());
         return purchase;
@@ -869,6 +882,9 @@ public class PurchaseController implements ScreenLifecycle {
         if(txtContactPerson!=null)txtContactPerson.clear();
         if(txtContactPersonMobile!=null)txtContactPersonMobile.clear();
         if(txtOrderNo!=null)txtOrderNo.clear();
+        if(txtProjectNo!=null)txtProjectNo.clear();
+        if(txtPurchaseOrderNo!=null)txtPurchaseOrderNo.clear();
+        if(txtGrnNo!=null)txtGrnNo.clear();
         if(txtPoDate!=null)txtPoDate.setValue(null);
         if(chkSameAsBilling!=null)chkSameAsBilling.setSelected(true);syncDeliveryAddressState();
         invoiceCharges.clear();
@@ -1373,7 +1389,7 @@ public class PurchaseController implements ScreenLifecycle {
         if(txtVehicleNumber!=null)txtVehicleNumber.setText(value(purchase.getVehicleNumber()));
         if(txtContactPerson!=null)txtContactPerson.setText(value(purchase.getContactPerson()));
         if(txtContactPersonMobile!=null)txtContactPersonMobile.setText(value(purchase.getContactPersonMobile()));
-        if(txtOrderNo!=null)txtOrderNo.setText(value(purchase.getOrderNo()));
+        if(txtProjectNo!=null)txtProjectNo.setText(value(purchase.getProjectNo()));if(txtPurchaseOrderNo!=null)txtPurchaseOrderNo.setText(value(purchase.getPurchaseOrderNo()));if(txtGrnNo!=null)txtGrnNo.setText(value(purchase.getGrnNo()));if(txtOrderNo!=null)txtOrderNo.setText(value(purchase.getOrderNo()));
         if(txtPoDate!=null)txtPoDate.setValue(purchase.getPoDate());
         invoiceCharges.setAll(purchase.getCharges()==null?List.of():purchase.getCharges().stream().map(PurchaseCharge::copy).toList());
 

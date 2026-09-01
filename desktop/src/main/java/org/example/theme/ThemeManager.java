@@ -26,7 +26,7 @@ public final class ThemeManager {
     public static void applyTheme(Scene scene) {
         installWindowHook();
 
-        // 9.0.47 Phase 2 CSS ownership contract: exactly one canonical theme
+        // 9.0.49 Phase 2 CSS ownership contract: exactly one canonical theme
         // stylesheet is active. Each theme now contains the previously reviewed
         // layout, component, palette and scoped page CSS in the same effective
         // cascade order, so switching theme changes presentation without stacking

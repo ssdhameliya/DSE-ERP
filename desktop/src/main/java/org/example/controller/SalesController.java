@@ -54,6 +54,7 @@ import org.example.theme.ThemeManager;
 import org.example.util.PlatformUiSupport;
 import org.example.util.UiTaskExecutor;
 import org.example.util.ScreenRefreshPolicy;
+import org.example.util.WorkflowFocusManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -94,7 +95,7 @@ public class SalesController {
     @FXML private ComboBox<String> cmbGstType,cmbChargeType;
     @FXML private ComboBox<Lookup> cmbTransporter;
     @FXML private TextField txtOtherCharges,txtTransport,txtReference,txtAttachment;
-    @FXML private TextField txtVehicleNumber,txtContactPerson,txtContactPersonMobile,txtTransportNote,txtOrderNo;
+    @FXML private TextField txtVehicleNumber,txtContactPerson,txtContactPersonMobile,txtTransportNote,txtOrderNo,txtProjectNo,txtSalesOrderNo,txtDispatchNo;
     @FXML private TextField txtBillingGstin,txtDeliveryGstin,txtTransporterGstin,txtChargeAmount;
     @FXML private CheckBox chkSameAsBilling;
     @FXML private TextArea txtInvoiceMessage;
@@ -105,6 +106,8 @@ public class SalesController {
     @FXML
     private TextField txtItemSearch;
     @FXML private StackPane itemSearchIconBox;
+    @FXML private HBox stockPositionBar;
+    @FXML private Label lblStockOnHand,lblStockReserved,lblStockAvailable,lblStockAfterSale,lblStockState;
 
     @FXML
     private TextArea txtRemarks;
@@ -446,12 +449,44 @@ public class SalesController {
         //-------------------------------------------------------
 
         configureItemSearch();
+        installBusinessFocusOrder();
 
         // The form itself is created immediately. API-backed master data and the
         // next invoice number are loaded away from the JavaFX Application Thread.
         newSale();
+        applyWorkflowInvoiceContext();
         loadSaleBootstrapAsync();
 
+    }
+
+
+    private void installBusinessFocusOrder() {
+        WorkflowFocusManager.install(java.util.List.of(
+                cmbCustomer, txtOrderNo, dpInvoiceDate, txtPoDate, cmbPaymentTerms,
+                txtItemSearch, txtQuantity, txtRate, txtLineDiscount, txtGST, btnAddLine, btnSaveSale));
+        WorkflowFocusManager.selectAllOnFocus(txtQuantity);
+        WorkflowFocusManager.selectAllOnFocus(txtRate);
+        WorkflowFocusManager.selectAllOnFocus(txtLineDiscount);
+        WorkflowFocusManager.selectAllOnFocus(txtGST);
+        txtGST.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) { btnAddLine.fire(); event.consume(); }
+        });
+        btnAddLine.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) { btnAddLine.fire(); event.consume(); }
+        });
+        if (salesEntryRoot != null) salesEntryRoot.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (event.isControlDown() && event.getCode() == javafx.scene.input.KeyCode.S) { btnSaveSale.fire(); event.consume(); }
+        });
+    }
+
+
+    private void applyWorkflowInvoiceContext() {
+        WorkflowInvoiceContext.Link link = WorkflowInvoiceContext.consumeSale();
+        if (link == null) return;
+        if (txtProjectNo != null) txtProjectNo.setText(link.projectNo());
+        if (txtSalesOrderNo != null) txtSalesOrderNo.setText(link.orderNo());
+        if (txtDispatchNo != null) txtDispatchNo.setText(link.sourceNo());
+        if (txtOrderNo != null && !link.customerPoNo().isBlank()) txtOrderNo.setText(link.customerPoNo());
     }
 
     private void loadSaleBootstrapAsync() {
@@ -518,6 +553,7 @@ public class SalesController {
         cmbCustomer.setItems(FXCollections.observableArrayList(bootstrap.customers()));
 
         Sales source = editingSale != null ? editingSale : duplicateSource;
+        Integer requestedCustomerId = source == null ? CustomerSaleContext.consume() : null;
         if (source == null) {
             selectDefaultPaymentTerms();
             if (!cmbGstType.getItems().isEmpty()) cmbGstType.getSelectionModel().selectFirst();
@@ -526,6 +562,23 @@ public class SalesController {
                 if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(bootstrap.invoiceNo());
             } else if ("Loading...".equals(txtInvoiceNo.getText())) {
                 txtInvoiceNo.clear();
+            }
+            if (requestedCustomerId != null) {
+                Party selectedCustomer = cmbCustomer.getItems().stream()
+                    .filter(party -> party.getId() == requestedCustomerId)
+                    .findFirst().orElse(null);
+                if (selectedCustomer != null) {
+                    cmbCustomer.setValue(selectedCustomer);
+                    WorkflowFocusManager.initial(txtItemSearch);
+                } else {
+                    UiTaskExecutor.submitLatest("create-sale-360-customer-lookup",
+                        () -> partyService.search("CUSTOMER", "", 100),
+                        customers -> customers.stream().filter(party -> party.getId() == requestedCustomerId).findFirst()
+                            .ifPresent(party -> { if (!cmbCustomer.getItems().contains(party)) cmbCustomer.getItems().add(party); cmbCustomer.setValue(party); WorkflowFocusManager.initial(txtItemSearch); }),
+                        error -> System.err.println("Customer 360 sale preselection: " + rootMessage(error)));
+                }
+            } else {
+                WorkflowFocusManager.initial(cmbCustomer);
             }
         } else {
             // loadSale() can run immediately after FXMLLoader.load(). If master
@@ -622,6 +675,7 @@ public class SalesController {
         if (itemSearchIconBox != null) itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
         itemSuggestions.getStyleClass().addAll("sales-entry-item-suggestions","erp-item-suggestions");
         itemSearchDebounce.setOnFinished(event -> refreshItemSuggestions(txtItemSearch.getText()));
+        if (txtQuantity != null) txtQuantity.textProperty().addListener((o,a,b)->updateSaleStockPosition());
         txtItemSearch.textProperty().addListener((obs, oldText, text) -> {
             if (updatingItemSearch) return;
             selectedItem = null;
@@ -654,7 +708,7 @@ public class SalesController {
                 mergeItemCache(matches);
                 itemSuggestions.getItems().clear();
                 for (Item item : matches) {
-                    MenuItem option = new MenuItem(itemSearchDisplay(item), IconFactory.compactIcon("item", 15));
+                    MenuItem option = new MenuItem(itemSearchDisplay(item));
                     option.setOnAction(event -> selectItem(item));
                     itemSuggestions.getItems().add(option);
                 }
@@ -712,9 +766,10 @@ public class SalesController {
             txtGST.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getGst()));
             txtLineDiscount.setText(String.format(java.util.Locale.ROOT, "%.2f", item.getDiscountPercent()));
         }
+        updateSaleStockPosition();
     }
 
-    private void clearItemSearch() { selectItem(null); }
+    private void clearItemSearch() { selectItem(null); updateSaleStockPosition(); }
 
     private Item resolveTypedItem(String text) {
         if (selectedItem != null) return selectedItem;
@@ -770,6 +825,23 @@ public class SalesController {
         return separator >= 0 && separator + 3 < fallback.length()
             ? fallback.substring(separator + 3).trim() : fallback;
     }
+
+    private void updateSaleStockPosition() {
+        if (stockPositionBar == null) return;
+        Item item = selectedItem;
+        boolean show = item != null;
+        stockPositionBar.setVisible(show); stockPositionBar.setManaged(show);
+        if (!show) return;
+        double onHand=Math.max(0,item.getOpeningStock()), reserved=Math.max(0,item.getReservedStock()), available=Math.max(0,onHand-reserved), requested=0;
+        try { requested=Double.parseDouble(txtQuantity==null?"0":txtQuantity.getText().trim()); } catch(Exception ignored) { }
+        double after=available-Math.max(0,requested);
+        lblStockOnHand.setText(qtyText(onHand)); lblStockReserved.setText(qtyText(reserved)); lblStockAvailable.setText(qtyText(available)); lblStockAfterSale.setText(qtyText(after));
+        lblStockAfterSale.getStyleClass().removeAll("stock-positive","stock-warning","stock-shortage"); lblStockState.getStyleClass().removeAll("stock-positive","stock-warning","stock-shortage");
+        if(after<-.0001){lblStockAfterSale.getStyleClass().add("stock-shortage");lblStockState.getStyleClass().add("stock-shortage");lblStockState.setText("Short by "+qtyText(-after));}
+        else if(available<=.0001){lblStockAfterSale.getStyleClass().add("stock-warning");lblStockState.getStyleClass().add("stock-warning");lblStockState.setText("No free stock");}
+        else{lblStockAfterSale.getStyleClass().add("stock-positive");lblStockState.getStyleClass().add("stock-positive");lblStockState.setText("Available to sell");}
+    }
+    private static String qtyText(double value){return java.math.BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();}
 
     private void configureTransporterSelector() {
         cmbTransporter.setConverter(new StringConverter<>() {
@@ -1184,6 +1256,9 @@ public class SalesController {
         sale.setDueDate(calculatePaymentDueDate(dpInvoiceDate.getValue(), cmbPaymentTerms.getValue()));
         sale.setPoDate(txtPoDate == null ? null : txtPoDate.getValue());
         sale.setOrderNo(txtOrderNo == null ? "" : txtOrderNo.getText());
+        sale.setProjectNo(txtProjectNo == null ? "" : txtProjectNo.getText());
+        sale.setSalesOrderNo(txtSalesOrderNo == null ? "" : txtSalesOrderNo.getText());
+        sale.setDispatchNo(txtDispatchNo == null ? "" : txtDispatchNo.getText());
         sale.setSalesperson(cmbSalesPerson.getValue());
         sale.setNotes(txtInvoiceMessage == null || txtInvoiceMessage.getText() == null ? "" : txtInvoiceMessage.getText());
         String billing = txtBillingAddress == null ? "" : txtBillingAddress.getText();
@@ -1304,6 +1379,9 @@ public class SalesController {
         txtDeliveryAddress.clear();
         if (chkSameAsBilling != null) chkSameAsBilling.setSelected(true);
         if (txtOrderNo != null) txtOrderNo.clear();
+        if (txtProjectNo != null) txtProjectNo.clear();
+        if (txtSalesOrderNo != null) txtSalesOrderNo.clear();
+        if (txtDispatchNo != null) txtDispatchNo.clear();
         if (txtBillingGstin != null) txtBillingGstin.clear();
         if (txtDeliveryGstin != null) txtDeliveryGstin.clear();
         if (txtTransporterGstin != null) txtTransporterGstin.clear();
@@ -1671,6 +1749,9 @@ public class SalesController {
         if (txtContactPersonMobile != null) txtContactPersonMobile.setText(sale.getContactPersonMobile());
         invoiceCharges.setAll(sale.getCharges().stream().map(SalesCharge::copy).toList());
         if (txtTransportNote != null) txtTransportNote.setText(sale.getTransportNote());
+        if (txtProjectNo != null) txtProjectNo.setText(sale.getProjectNo());
+        if (txtSalesOrderNo != null) txtSalesOrderNo.setText(sale.getSalesOrderNo());
+        if (txtDispatchNo != null) txtDispatchNo.setText(sale.getDispatchNo());
         if (txtOrderNo != null) {
             String savedCustomerPo = sale.getOrderNo();
             // Defensive compatibility for databases created by older 7.1.x
@@ -1849,8 +1930,9 @@ public class SalesController {
             double alreadyOnInvoice = tableLines.getItems().stream()
                 .filter(line -> line != editingLine && item.getItemCode().equals(line.getItemCode()))
                 .mapToDouble(SalesLine::getQuantity).sum();
-            if (qty + alreadyOnInvoice > item.getOpeningStock()) {
-                throw new IllegalArgumentException("Only " + item.getOpeningStock() + " units of " + item.getDescription() + " are available in stock");
+            double freeToPromise=Math.max(0,item.getOpeningStock()-item.getReservedStock());
+            if (qty + alreadyOnInvoice > freeToPromise + 0.0001) {
+                throw new IllegalArgumentException("Only " + qtyText(freeToPromise) + " free-to-promise units of " + item.getDescription() + " are currently available (On hand " + qtyText(item.getOpeningStock()) + ", Reserved " + qtyText(item.getReservedStock()) + ")");
             }
 
 

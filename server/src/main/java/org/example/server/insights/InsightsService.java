@@ -57,13 +57,13 @@ public class InsightsService {
 
    LocalDate today=BusinessClock.today();String dueExpr=BusinessKpiPolicy.effectiveDueDate("h","SALE",safeDateSql("h.due_date"));
    double[] buckets=dashboardSection("receivables ageing",()->jdbc.query(
-     "SELECT COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" < ?),0),"+
-     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"+
-     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"+
-     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" BETWEEN ? AND ?),0),"+
-     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" IS NULL OR "+dueExpr+" >= ?),0) " +
+     "SELECT COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" < CAST(? AS date)),0),"+
+     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" BETWEEN CAST(? AS date) AND CAST(? AS date)),0),"+
+     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" BETWEEN CAST(? AS date) AND CAST(? AS date)),0),"+
+     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" BETWEEN CAST(? AS date) AND CAST(? AS date)),0),"+
+     "COALESCE(SUM("+saleBalance+") FILTER (WHERE "+dueExpr+" IS NULL OR "+dueExpr+" >= CAST(? AS date)),0) " +
      "FROM sales_header h"+paymentJoin+" WHERE "+BusinessKpiPolicy.salesActive("h")+" AND "+saleBalance+">0.01",
-     (r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)},"SALE",today.minusDays(30),today.minusDays(30),today.minusDays(21),today.minusDays(20),today.minusDays(11),today.minusDays(10),today.minusDays(1),today).getFirst(),new double[]{0,0,0,0,0});
+     (r,i)->new double[]{r.getDouble(1),r.getDouble(2),r.getDouble(3),r.getDouble(4),r.getDouble(5)},today.minusDays(30),today.minusDays(30),today.minusDays(21),today.minusDays(20),today.minusDays(11),today.minusDays(10),today.minusDays(1),today,"SALE").getFirst(),new double[]{0,0,0,0,0});
    List<String> ageing=List.of("Overdue (> 30 Days)|"+buckets[0],"21 - 30 Days|"+buckets[1],"11 - 20 Days|"+buckets[2],"1 - 10 Days|"+buckets[3],"Not Due|"+buckets[4]);
    List<InsightDtos.NotificationDto> activity=dashboardSection("notifications",()->notifications(5),List.of());
    return new InsightDtos.DashboardBundle(snap,recent,top,ageing,activity);

@@ -134,11 +134,10 @@ public final class IconFactory {
             }
             String semantic = semantic(button);
             String originalText = clean(button.getText());
-            // v3.0.4 guarantees a visible semantic graphic on every actionable
-            // ButtonBase. Explicit mappings remain preferred; uncommon controls
-            // receive a neutral document/action fallback rather than no icon.
-            if (semantic == null && !Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))) {
-                semantic = originalText.isBlank() ? "actions" : "document";
+            // Only a known business/action semantic may receive an automatic icon.
+            // A generic document fallback made unrelated controls look identical.
+            if (semantic == null && originalText.isBlank() && button instanceof MenuButton) {
+                semantic = "actions";
             }
             if (semantic != null) {
                 button.setText(clean(button.getText()));
@@ -245,7 +244,7 @@ public final class IconFactory {
         if (!fieldStyle && !panelTitleStyle) return;
         String semantic = UiSemanticRegistry.fieldSemantic(text);
         if (semantic == null) semantic = semanticForLabel(text); // dynamic/programmatic compatibility fallback
-        if (semantic == null) semantic = panelTitleStyle ? "document" : "identity";
+        if (semantic == null) return; // Unknown captions are better without an icon than with a misleading repeated glyph.
         if (label.getGraphic() == null) {
             Node graphic = compactIcon(semantic, panelTitleStyle ? 14 : 13);
             graphic.getStyleClass().add("erp-field-label-icon");
@@ -261,7 +260,7 @@ public final class IconFactory {
     private static void decorateKpiLabel(Label label, String text) {
         String semantic = UiSemanticRegistry.kpiSemantic(text);
         if (semantic == null) semantic = semanticForLabel(text);
-        if (semantic == null) semantic = "report";
+        if (semantic == null) return;
         String colour = semanticColour(semantic);
 
         label.getStyleClass().removeIf(style -> style != null && style.startsWith("erp-kpi-label-colour-"));
@@ -421,9 +420,7 @@ public final class IconFactory {
             if (graphicSemantic instanceof String value && !value.isBlank()) return normalize(value);
         }
         String label = clean(item.getText());
-        String semantic = semantic(label);
-        if (semantic == null && !label.isBlank()) semantic = "document";
-        return semantic;
+        return semantic(label);
     }
 
     private static void decorateMenuItem(MenuItem item, String semantic, boolean colourActionText) {
@@ -629,7 +626,12 @@ public final class IconFactory {
             case "application" -> "fas-desktop";
             case "chevron" -> "fas-chevron-right";
             case "sale" -> "fas-shopping-cart";
+            case "sales-order" -> "fas-clipboard-list";
             case "purchase" -> "fas-briefcase";
+            case "purchase-order" -> "fas-file-invoice-dollar";
+            case "project" -> "fas-project-diagram";
+            case "goods-receipt" -> "fas-dolly-flatbed";
+            case "dispatch" -> "fas-shipping-fast";
             case "quotation" -> "fas-file-alt";
             case "payment" -> "fas-credit-card";
             case "refund" -> "fas-undo";
@@ -658,6 +660,7 @@ public final class IconFactory {
             case "delete" -> "fas-trash-alt";
             case "print" -> "fas-print";
             case "download" -> "fas-download";
+            case "export" -> "fas-file-export";
             case "excel" -> "fas-file-excel";
             case "pdf" -> "fas-file-pdf";
             case "first" -> "fas-angle-double-left";
@@ -746,14 +749,15 @@ public final class IconFactory {
         String registered = UiSemanticRegistry.colour(semantic);
         if (registered != null) return registered;
         return switch (semantic) {
-            case "sale", "complete", "add", "import", "whatsapp", "save", "validate", "excel" -> "green";
-            case "purchase", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
+            case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate" -> "green";
+            case "export", "excel" -> "blue";
+            case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
             case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application", "calendar" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
             case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
             case "credit" -> "green";
-            case "adjust", "bank", "delivery", "update", "permission", "register", "draft", "restart", "workflow", "reconcile", "version" -> "purple";
+            case "adjust", "bank", "delivery", "dispatch", "project", "update", "permission", "register", "draft", "restart", "workflow", "reconcile", "version" -> "purple";
             case "compatibility", "database-backup", "snapshot", "recovery" -> "blue";
             case "preserve" -> "green";
             case "installer" -> "orange";
@@ -773,8 +777,7 @@ public final class IconFactory {
         String byMetadata = semantic(id + " " + styles);
         if (byMetadata != null) return byMetadata;
         if (button instanceof MenuButton) return "actions";
-        String text = clean(button.getText());
-        return text.isBlank() ? null : "document";
+        return null;
     }
 
     private static String semantic(String text) {
@@ -804,6 +807,16 @@ public final class IconFactory {
         if (value.contains("register") || value.contains("create account")) return "register";
         if (value.contains("resend otp")) return "refresh";
         if (value.contains("test connection") || value.contains("test email")) return "test";
+        if (value.contains("report information")) return "info";
+        if (value.equals("report center") || value.contains("open report center")) return "report";
+        if (value.contains("saved report")) return "save";
+        if (value.equals("scheduled") || value.contains("scheduled report") || value.contains("schedule report")) return "calendar";
+        if (value.contains("recent export")) return "history";
+        if (value.contains("open report")) return "view";
+        if (value.contains("save report")) return "save";
+        if (value.equals("columns") || value.contains("choose columns")) return "columns";
+        if (value.contains("apply filter")) return "filter";
+        if (value.startsWith("collapse") || value.startsWith("expand")) return "chevron";
         if (value.contains("install") && value.contains("restart")) return "restart";
         if (value.contains("save") && value.contains("print")) return "print";
         if (value.contains("save") && value.contains("draft")) return "draft";
@@ -885,6 +898,15 @@ public final class IconFactory {
         if (value.contains("supplier") || value.contains("hrm")) return "supplier";
         if (value.contains("customer") || value.contains("crm")) return "customer";
         if (value.contains("user") || value.contains("profile")) return "user";
+        if (value.contains("project execution")) return "workflow";
+        if (value.contains("projects / jobs") || value.equals("projects") || value.equals("project")) return "project";
+        if (value.contains("sales order")) return "sales-order";
+        if (value.contains("purchase order")) return "purchase-order";
+        if (value.contains("goods receipt") || value.contains("grn")) return "goods-receipt";
+        if (value.contains("dispatch")) return "dispatch";
+        if (value.contains("import excel") || value.contains("import spreadsheet")) return "import";
+        if (value.contains("export excel") || value.contains("export spreadsheet")) return "export";
+        if (value.contains("export pdf")) return "pdf";
         if (value.contains("quotation")) return "quotation";
         if (value.contains("purchase")) return "purchase";
         if (value.contains("sale")) return "sale";
@@ -892,6 +914,7 @@ public final class IconFactory {
         if (value.contains("inventory")) return "inventory";
         if (value.contains("item") || value.contains("product")) return "item";
         if (value.contains("import") || value.contains("upload")) return "import";
+        if (value.contains("export")) return "export";
         if (value.contains("excel") || value.contains("spreadsheet")) return "excel";
         if (value.contains("pdf")) return "pdf";
         if (value.contains("reset")) return "reset";
@@ -903,7 +926,8 @@ public final class IconFactory {
         if (value.contains("delete") || value.contains("remove")) return "delete";
         if (value.contains("clear filter") || value.contains("reset filter")) return "refresh";
         if (value.contains("clear selection") || value.contains("clear search") || value.equals("clear")) return "cancel";
-        if (value.contains("cancel") || value.contains("close") || value.contains("back")) return "cancel";
+        if (value.contains("back")) return "previous";
+        if (value.contains("cancel") || value.contains("close")) return "cancel";
         if (value.contains("refresh") || value.contains("reset")) return "refresh";
         if (value.contains("filter")) return "filter";
         if (value.contains("print")) return "print";

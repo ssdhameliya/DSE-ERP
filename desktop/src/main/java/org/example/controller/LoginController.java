@@ -48,13 +48,13 @@ public class LoginController {
     private static final String PREF_ROLE = "login.role";
     private static final String PREF_PASSWORD = "login.password.encrypted";
 
-    @FXML private TextField txtUsername, txtOtp, txtResetIdentity, txtResetOtp;
+    @FXML private TextField txtUsername, txtOtp, txtResetIdentity, txtResetOtp, txtResetTotp;
     @FXML private PasswordField txtPassword, txtNewPassword, txtConfirmPassword;
     @FXML private ComboBox<String> cmbRole;
     @FXML private CheckBox chkRemember;
     @FXML private ToggleButton btnTheme;
     @FXML private Label lblClock, lblMessage, lblUsernameError, lblPasswordError, lblRoleError, lblOtpError, lblVersion;
-    @FXML private Label lblResetIdentityError, lblResetOtpError, lblNewPasswordError, lblConfirmPasswordError;
+    @FXML private Label lblResetIdentityError, lblResetOtpError, lblResetTotpError, lblNewPasswordError, lblConfirmPasswordError;
     @FXML private Label lblBrandMark, lblBrandName, lblBrandTagline, lblBrandDescription, lblBrandQuote;
     @FXML private Label lblFooterCompany, lblFooterPhone, lblFooterEmail, lblFooterWebsite;
     @FXML private ImageView imgBrandLogo, imgBrandMark, imgLoginLogo;
@@ -140,6 +140,7 @@ public class LoginController {
         installLiveClear(txtOtp, lblOtpError);
         installLiveClear(txtResetIdentity, lblResetIdentityError);
         installLiveClear(txtResetOtp, lblResetOtpError);
+        installLiveClear(txtResetTotp, lblResetTotpError);
         installLiveClear(txtNewPassword, lblNewPasswordError);
         installLiveClear(txtConfirmPassword, lblConfirmPasswordError);
 
@@ -301,7 +302,7 @@ public class LoginController {
             btnLogin.setText("VERIFY MFA");
             String destination = attempt.maskedDestination() == null || attempt.maskedDestination().isBlank()
                     ? "your registered email" : attempt.maskedDestination();
-            message("Verification code sent to " + destination + ".", false);
+            message("Enter the current 6-digit code from " + destination + ".", false);
             PerformanceMonitor.finish("login-click");
         }, exception -> {
             setLoginBusy(false, null);
@@ -448,12 +449,12 @@ public class LoginController {
         }
         txtOtp.setDisable(!mfaPending);
         if (!mfaPending && roleRequiresOtp) {
-            txtOtp.setPromptText("OTP is required after password verification");
+            txtOtp.setPromptText("Authenticator code is required after password verification");
         } else {
-            txtOtp.setPromptText("Enter the code sent to your registered email");
+            txtOtp.setPromptText("Enter current 6-digit authenticator code");
         }
         if (btnResendOtp != null) btnResendOtp.setDisable(!mfaPending);
-        btnLogin.setText(mfaPending ? "VERIFY OTP" : "LOGIN");
+        btnLogin.setText(mfaPending ? "VERIFY AUTHENTICATOR" : "LOGIN");
     }
 
     @FXML private void forgotPassword() {
@@ -493,6 +494,7 @@ public class LoginController {
 
         boolean valid = true;
         String otp = txtResetOtp.getText() == null ? "" : txtResetOtp.getText().trim();
+        String totp = txtResetTotp.getText() == null ? "" : txtResetTotp.getText().trim();
         String password = txtNewPassword.getText() == null ? "" : txtNewPassword.getText();
         String confirm = txtConfirmPassword.getText() == null ? "" : txtConfirmPassword.getText();
 
@@ -513,7 +515,7 @@ public class LoginController {
         if (!valid) return;
 
         try {
-            users.completePasswordReset(resetChallengeId, otp, password);
+            users.completePasswordReset(resetChallengeId, otp, totp, password);
             // A saved credential belongs to the old password and must never be replayed.
             PREFS.remove(PREF_PASSWORD);
             String identity = txtResetIdentity.getText().trim();
@@ -672,6 +674,7 @@ public class LoginController {
     private void clearResetErrors() {
         clearFieldError(txtResetIdentity, lblResetIdentityError);
         clearFieldError(txtResetOtp, lblResetOtpError);
+        clearFieldError(txtResetTotp, lblResetTotpError);
         clearFieldError(txtNewPassword, lblNewPasswordError);
         clearFieldError(txtConfirmPassword, lblConfirmPasswordError);
     }

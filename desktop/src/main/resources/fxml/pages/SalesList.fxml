@@ -115,8 +115,6 @@
               <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="sales-range-button,quick-range-button,quick-range-thirty,approved-button,approved-secondary-button"/>
               <Button fx:id="btnCustomRange" text="Custom Range" onAction="#focusCustomRange" visible="false" managed="false" styleClass="sales-range-button,sales-custom-range-button,approved-button,approved-secondary-button"/>
               <Region HBox.hgrow="ALWAYS"/>
-              <Button fx:id="btnSaveView" text="Save View" onAction="#saveCurrentView" styleClass="register-action-button,register-view-button"/>
-              <MenuButton fx:id="savedViewsMenu" text="Saved Views" styleClass="register-action-button,register-saved-views-menu"/>
               <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="register-action-button,register-reset-button"/>
               <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refreshWithFeedback" styleClass="register-action-button,register-refresh-button"/>
             </HBox>
@@ -148,7 +146,7 @@
               <Label fx:id="lblPageInfo" styleClass="muted-text,register-record-count"/>
               <Region HBox.hgrow="ALWAYS"/>
               <Label text="Rows per page" styleClass="sales-page-label,register-page-size-label"/>
-              <ComboBox fx:id="cmbPageSize" prefWidth="75" styleClass="approved-input"/>
+              <ComboBox fx:id="cmbPageSize" prefWidth="92" styleClass="approved-input"/>
               <Button text="|‹" onAction="#firstPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
               <Button text="‹" onAction="#previousPage" styleClass="pager-button,approved-button,approved-secondary-button"/>
               <Label fx:id="lblPageNumber" styleClass="page-number"/>

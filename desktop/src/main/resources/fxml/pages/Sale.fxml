@@ -115,6 +115,18 @@
                         <TextField fx:id="txtOrderNo" promptText="Enter PO order no. (optional)"
                                    styleClass="approved-input,sales-entry-order-field"/>
                     </VBox>
+                    <VBox spacing="4" GridPane.rowIndex="4" GridPane.columnSpan="2">
+                        <Label text="Project / Job No." styleClass="sales-entry-field-label,field-label-reference"/>
+                        <TextField fx:id="txtProjectNo" promptText="Project / Job reference (optional)" styleClass="approved-input"/>
+                    </VBox>
+                    <VBox spacing="4" GridPane.rowIndex="4" GridPane.columnIndex="2" GridPane.columnSpan="2">
+                        <Label text="Sales Order No." styleClass="sales-entry-field-label,field-label-reference"/>
+                        <TextField fx:id="txtSalesOrderNo" promptText="Sales Order reference (optional)" styleClass="approved-input"/>
+                    </VBox>
+                    <VBox spacing="4" GridPane.rowIndex="4" GridPane.columnIndex="4">
+                        <Label text="Dispatch No." styleClass="sales-entry-field-label,field-label-reference"/>
+                        <TextField fx:id="txtDispatchNo" promptText="Dispatch reference (optional)" styleClass="approved-input"/>
+                    </VBox>
                 </GridPane>
 
                 <!-- Compatibility/backing controls retained but removed from the visible workflow. -->
@@ -145,14 +157,24 @@
                             <StackPane.margin><Insets right="8"/></StackPane.margin>
                         </StackPane>
                     </StackPane>
-                    <TextField fx:id="txtQuantity" promptText="Qty" prefWidth="78" minWidth="72" maxWidth="88" styleClass="approved-input"/>
+                    <TextField fx:id="txtQuantity" promptText="Qty" prefWidth="100" minWidth="88" maxWidth="125" styleClass="approved-input"/>
                     <TextField fx:id="txtRate" promptText="Rate (₹)" prefWidth="105" minWidth="92" maxWidth="118" styleClass="approved-input"/>
                     <TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100" minWidth="92" maxWidth="112" styleClass="approved-input"/>
-                    <TextField fx:id="txtGST" promptText="GST %" prefWidth="80" minWidth="74" maxWidth="90" styleClass="approved-input"/>
+                    <TextField fx:id="txtGST" promptText="GST %" prefWidth="100" minWidth="88" maxWidth="125" styleClass="approved-input"/>
                     <Button fx:id="btnAddLine" text="Add Item" onAction="#addLine"
                             styleClass="sales-entry-add-button,approved-button,approved-primary-button"/>
                     <Button fx:id="btnRemoveLine" text="Remove" onAction="#removeLine"
                             styleClass="sales-entry-remove-button,approved-button,approved-danger-button"/>
+                </HBox>
+
+                <HBox fx:id="stockPositionBar" visible="false" managed="false" alignment="CENTER_LEFT" spacing="12" styleClass="sales-stock-position-bar,approved-toolbar">
+                    <Label text="Stock Position" styleClass="sales-stock-position-title"/>
+                    <Label text="On Hand" styleClass="sales-stock-caption"/><Label fx:id="lblStockOnHand" text="0" styleClass="sales-stock-value,stock-on-hand"/>
+                    <Label text="Reserved" styleClass="sales-stock-caption"/><Label fx:id="lblStockReserved" text="0" styleClass="sales-stock-value,stock-reserved"/>
+                    <Label text="Available" styleClass="sales-stock-caption"/><Label fx:id="lblStockAvailable" text="0" styleClass="sales-stock-value,stock-available"/>
+                    <Label text="After Sale" styleClass="sales-stock-caption"/><Label fx:id="lblStockAfterSale" text="0" styleClass="sales-stock-value,stock-after"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblStockState" text="" styleClass="sales-stock-state"/>
                 </HBox>
 
                 <TableView fx:id="tableLines" minHeight="190" VBox.vgrow="ALWAYS"

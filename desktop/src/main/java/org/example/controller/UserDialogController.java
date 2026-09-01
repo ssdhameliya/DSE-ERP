@@ -46,6 +46,10 @@ public class UserDialogController {
         txtConfirmVisible.textProperty().bindBidirectional(txtConfirm.textProperty());
         btnPasswordEye.setGraphic(IconFactory.compactIcon("view", 14));
         btnConfirmEye.setGraphic(IconFactory.compactIcon("view", 14));
+        btnPasswordEye.getProperties().put("erp.icon.skip", true);
+        btnConfirmEye.getProperties().put("erp.icon.skip", true);
+        btnPasswordEye.getProperties().put("erp-icon-preserve", true);
+        btnConfirmEye.getProperties().put("erp-icon-preserve", true);
         btnPasswordEye.setTooltip(new Tooltip("Show password"));
         btnConfirmEye.setTooltip(new Tooltip("Show confirmation password"));
         btnSave.setGraphic(IconFactory.icon("save", 16));

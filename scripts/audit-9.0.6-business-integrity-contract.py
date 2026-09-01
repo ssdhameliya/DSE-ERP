@@ -60,7 +60,7 @@ req('customer_name_snapshot' in mig and 'item_description_snapshot' in mig and '
 req('getItemRemarks()' in mapper,'tax invoice mapper must consume immutable item remarks snapshot')
 req('reference_counter.next_value+1' in ops and 'Reference sequence exhausted' not in ops and 'seq.length()>width' not in ops,'reference allocation must stay atomic and auto-expand beyond configured minimum padding width')
 # Invoice money precision
-req('DocumentCalculationEngine.totals' in tax and 'sgst = money(tax - cgst)' in t('shared/src/main/java/org/example/shared/DocumentCalculationEngine.java'),'invoice PDF must delegate to canonical paise-exact CGST/SGST calculation')
+req('DocumentCalculationEngine.totals' in tax and (('sgst = money(tax - cgst)' in t('shared/src/main/java/org/example/shared/DocumentCalculationEngine.java')) or ('sgst = moneyDecimal(tax.subtract(cgst))' in t('shared/src/main/java/org/example/shared/DocumentCalculationEngine.java'))),'invoice PDF must delegate to canonical paise-exact CGST/SGST calculation')
 req('PAISE' in words and 'setScale(2' in words,'amount-in-words must include paise')
 # Database migration
 req('ALTER COLUMN amount TYPE NUMERIC(19,2)' in mig,'finance REAL must migrate to NUMERIC(19,2)')
@@ -71,6 +71,6 @@ if pay:
     req('BANK_RECONCILIATION' in pay,'bank-reconciled payment edit protection must remain')
 req('rounding_adjustment' in ret,'Return refund balance must retain rounding adjustment handling')
 # One exact startup identity
-req('APP_VERSION = "9.0.47"' in runtime and 'BUILD_REVISION = "9.0.47"' in runtime,'desktop version/build must both be 9.0.18')
-req('dse.app.version=9.0.47' in props and 'dse.build.revision=9.0.47' in props,'server version/build must both be 9.0.18')
+req('APP_VERSION = "9.0.52"' in runtime and 'BUILD_REVISION = "9.0.52"' in runtime,'desktop version/build must both be 9.0.18')
+req('dse.app.version=9.0.52' in props and 'dse.build.revision=9.0.52' in props,'server version/build must both be 9.0.18')
 print('PASS: DSE ERP 9.0.18 runtime with 9.0.6 business-integrity contract')

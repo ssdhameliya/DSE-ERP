@@ -17,12 +17,16 @@ public class UserService {
     public AuthApiClient.LoginMfaChallengeResponse resendLoginMfa(String challengeId) { return authApi.resendLoginMfa(challengeId); }
     public void recordSuccessfulLogin(int id) { authApi.recordSuccessfulLogin(id); }
     public void register(AppUser user) { authApi.register(user); }
-    public AuthApiClient.ChallengeResponse requestRegistrationOtp(AppUser user) { return authApi.requestRegistrationOtp(user); }
-    public void completeRegistration(AppUser user, String challengeId, String otp) { authApi.completeRegistration(user, challengeId, otp); }
+    public AuthApiClient.CaptchaResponse registrationCaptcha() { return authApi.registrationCaptcha(); }
+    public AuthApiClient.ChallengeResponse requestRegistrationOtp(AppUser user,String captchaId,String captchaAnswer) { return authApi.requestRegistrationOtp(user,captchaId,captchaAnswer); }
+    public AuthApiClient.RegistrationMfaSetupResponse verifyRegistrationEmail(AppUser user,String challengeId,String otp) { return authApi.verifyRegistrationEmail(user,challengeId,otp); }
+    public void completeRegistrationMfa(long registrationId,String otp) { authApi.completeRegistrationMfa(registrationId,otp); }
     public AuthApiClient.ChallengeResponse requestPasswordReset(String identity) { return authApi.requestPasswordReset(identity); }
-    public void completePasswordReset(String challengeId, String otp, String password) { authApi.completePasswordReset(challengeId, otp, password); }
+    public void completePasswordReset(String challengeId,String otp,String totp,String password) { authApi.completePasswordReset(challengeId,otp,totp,password); }
     public List<AuthApiClient.RoleOption> loginRoles() { return authApi.loginRoles(); }
     public List<AuthApiClient.RoleOption> registrationRoles() { return authApi.registrationRoles(); }
     public void changePassword(int id, String currentPassword, String password) { authApi.changePassword(id, currentPassword, password); }
+    public void extendSession() { authApi.extendSession(); }
     public void logout() { authApi.logout(); }
+    public void logoutIdle() { authApi.logout("AUTO_LOGOUT_IDLE"); }
 }

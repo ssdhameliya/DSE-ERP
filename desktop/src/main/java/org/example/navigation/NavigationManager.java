@@ -13,6 +13,7 @@ import org.example.util.ModernDialog;
 import org.example.util.PerformanceMonitor;
 import org.example.util.ScreenRefreshPolicy;
 import org.example.util.PerformanceBudgets;
+import org.example.util.UiDiagnostics;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -208,6 +209,8 @@ public class NavigationManager {
             long attachStarted = System.nanoTime();
             contentPane.getChildren().setAll(cached.node());
             logPhase(fxml, "scene-attach", attachStarted);
+            Node auditedPage = cached.node();
+            Platform.runLater(() -> UiDiagnostics.audit(auditedPage, fxml));
             // New pages are enhanced once before attachment. Cached pages are reused
             // without another full CSS/layout/enhancement traversal. This is critical
             // for macOS Retina responsiveness and also benefits Windows.

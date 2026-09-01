@@ -131,7 +131,7 @@ public final class ConfigManager {
     private static String requirePostgresUrl(String url) {
         String value = url == null ? "" : url.trim();
         if (!value.startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("DSE ERP 9.0.47 production runtime requires PostgreSQL. Invalid database URL: " + value);
+            throw new IllegalStateException("DSE ERP 9.0.56 production runtime requires PostgreSQL. Invalid database URL: " + value);
         }
         return value;
     }
@@ -222,7 +222,7 @@ public final class ConfigManager {
         }
         if (!data.isBlank()) return data;
         if (!auth.isBlank()) return auth;
-        return "http://127.0.0.1:8080";
+        return "http://127.0.0.1:58080";
     }
 
     private static String normalizeApiUrl(String value) {

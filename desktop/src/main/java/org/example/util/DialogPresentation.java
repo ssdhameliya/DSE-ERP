@@ -300,16 +300,13 @@ public final class DialogPresentation {
     }
 
     private static String extractHttpCode(String message) {
-        String text = safe(message).toUpperCase(Locale.ROOT);
-        int index = text.indexOf("HTTP");
-        if (index < 0) return "";
-        int cursor = index + 4;
-        while (cursor < text.length() && !Character.isDigit(text.charAt(cursor))) cursor++;
-        StringBuilder digits = new StringBuilder(3);
-        while (cursor < text.length() && Character.isDigit(text.charAt(cursor)) && digits.length() < 3) {
-            digits.append(text.charAt(cursor++));
-        }
-        return digits.length() == 3 ? "HTTP " + digits : "";
+        String text = safe(message);
+        // Only a real HTTP status marker is valid. A URL such as
+        // http://127.0.0.1:58080 must never be interpreted as "HTTP 127".
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+            .compile("(?i)(?:^|[^A-Za-z0-9])HTTP\\s*[:#-]?\\s*([1-5][0-9]{2})(?=$|[^0-9])")
+            .matcher(text);
+        return matcher.find() ? "HTTP " + matcher.group(1) : "";
     }
 
     private static String stripHttpMarker(String message) {
@@ -344,7 +341,10 @@ public final class DialogPresentation {
             if (!PlatformUiSupport.isMac()) scene.setFill(Color.TRANSPARENT);
             ThemeManager.applyTheme(scene);
             PlatformUiSupport.installResponsiveClasses(scene);
-            if (scene.getRoot() != null) ProfessionalUiEnhancer.enhance(scene.getRoot());
+            if (scene.getRoot() != null) {
+                ProfessionalUiEnhancer.enhance(scene.getRoot());
+                UiDiagnostics.audit(scene.getRoot(), "dialog:" + safe(dialog.getTitle()));
+            }
         }
         String semantic = explicitString(pane, SEMANTIC);
         if (semantic.isBlank()) semantic = inferSemantic(dialog);

@@ -36,7 +36,7 @@
         <HBox spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group"><Button text="Preview Data" onAction="#preview" styleClass="approved-button,excel-tool-green"/><Button text="Download Template" onAction="#download" styleClass="approved-button,excel-tool-teal"/></HBox>
 
         <HBox spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group">
-          <ComboBox fx:id="cmbFont" promptText="Font" prefWidth="112" onAction="#fontChanged"/><ComboBox fx:id="cmbFontSize" promptText="Size" prefWidth="62" onAction="#fontSizeChanged"/>
+          <ComboBox fx:id="cmbFont" promptText="Font" prefWidth="112" onAction="#fontChanged"/><ComboBox fx:id="cmbFontSize" promptText="Size" prefWidth="78" onAction="#fontSizeChanged"/>
           <Button fx:id="btnBold" text="Bold" minWidth="68" onAction="#bold" styleClass="approved-button,excel-tool-amber"/><Button fx:id="btnItalic" text="Italic" minWidth="68" onAction="#italic" styleClass="approved-button,excel-tool-amber"/><Button fx:id="btnUnderline" text="Underline" minWidth="86" onAction="#underline" styleClass="approved-button,excel-tool-amber"/>
         </HBox>
         <HBox spacing="5" alignment="CENTER_LEFT" styleClass="excel-tool-group"><Button fx:id="btnAlignLeft" text="Left" onAction="#alignLeft" styleClass="approved-button,excel-tool-blue"/><Button fx:id="btnAlignCenter" text="Center" onAction="#alignCenter" styleClass="approved-button,excel-tool-blue"/><Button fx:id="btnAlignRight" text="Right" onAction="#alignRight" styleClass="approved-button,excel-tool-blue"/><Button fx:id="btnWrap" text="Wrap" onAction="#wrapText" styleClass="approved-button,excel-tool-blue"/></HBox>

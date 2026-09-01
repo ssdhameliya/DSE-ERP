@@ -19,5 +19,8 @@ import org.springframework.web.bind.annotation.*;import java.util.*;
  @GetMapping("/permissions/set") public AdminDtos.PermissionSetDto permissionSet(@RequestParam String role){return s.permissionSet(role);}
  @PutMapping("/permissions") public AdminDtos.Ok permissions(@RequestBody AdminDtos.PermissionSaveRequest d){s.savePermissions(d);return ok("Saved");}
  @PostMapping("/audit") public AdminDtos.Ok audit(@RequestBody AdminDtos.AuditRequest d){s.audit(d);return ok("Saved");}
+ @GetMapping("/registrations") public List<AdminDtos.RegistrationRequestDto> registrations(@RequestParam(defaultValue="PENDING_ADMIN_APPROVAL") String status){return s.registrations(status);}
+ @PostMapping("/registrations/{id}/approve") public AdminDtos.Ok approve(@PathVariable long id,@RequestBody AdminDtos.RegistrationDecisionRequest d){return s.approveRegistration(id,d);}
+ @PostMapping("/registrations/{id}/reject") public AdminDtos.Ok reject(@PathVariable long id,@RequestBody AdminDtos.RegistrationDecisionRequest d){return s.rejectRegistration(id,d);}
  private AdminDtos.Ok ok(String m){return new AdminDtos.Ok(true,m);}
 }

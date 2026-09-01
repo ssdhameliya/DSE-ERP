@@ -110,7 +110,7 @@ public class PaymentIntegrityService {
         }
 
         int updated = jdbc.update(
-                "UPDATE payment_record SET payment_date=?,amount=?,payment_mode=?,reference_no=?,notes=?,received_from=? WHERE id=?",
+                "UPDATE payment_record SET payment_date=?,amount=?,payment_mode=?,reference_no=?,notes=?,received_from=?,row_version=row_version+1 WHERE id=?",
                 paymentDate, newAmount, paymentMode, clean(request.reference()), clean(request.notes()),
                 clean(request.receivedFrom()), paymentId);
         if (updated != 1) throw new IllegalStateException("Payment record changed while saving");
@@ -144,7 +144,7 @@ public class PaymentIntegrityService {
         CurrentUser.requirePermission(existing.type == DocumentType.PURCHASE ? "PURCHASE.EDIT" : "SALES.EDIT", "Edit payment");
         if ("BANK_RECONCILIATION".equalsIgnoreCase(existing.paymentType))
             throw new IllegalStateException("Bank-reconciled payment proofs must be changed through the Bank Statement workflow");
-        if (jdbc.update("UPDATE payment_record SET attachment_path=? WHERE id=?", clean(path), paymentId) != 1)
+        if (jdbc.update("UPDATE payment_record SET attachment_path=?,row_version=row_version+1 WHERE id=?", clean(path), paymentId) != 1)
             throw new IllegalStateException("Payment record changed while saving proof");
         String detail = clean(path) == null ? "Payment #" + paymentId + " proof removed" : "Payment #" + paymentId + " proof updated";
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES(?,?,?,?,?,?)",
