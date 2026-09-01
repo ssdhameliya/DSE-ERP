@@ -68,6 +68,7 @@ public class UserAccessController implements ScreenLifecycle {
     private final ObservableList<RoleRow> roles=FXCollections.observableArrayList();
     private final ObservableList<PermissionRow> permissions=FXCollections.observableArrayList();
     private final AdminApiClient adminApi=new AdminApiClient();
+    private long permissionRowVersion;
     private final Map<String,String> roleDisplayNames=new LinkedHashMap<>();
     private FilteredList<UserRow> filtered;
     private RegisterDetailDrawer detailDrawer;
@@ -149,8 +150,8 @@ public class UserAccessController implements ScreenLifecycle {
     }
 
     private void loadPermissions(String roleName){
-        permissions.clear(); if(roleName==null)return; boolean admin=roleName.equalsIgnoreCase("ADMIN")||roleName.equalsIgnoreCase("ADMINISTRATOR");
-        try{for(var p:adminApi.permissions(roleName))permissions.add(new PermissionRow(p));}
+        permissions.clear(); permissionRowVersion=0L; if(roleName==null)return; boolean admin=roleName.equalsIgnoreCase("ADMIN")||roleName.equalsIgnoreCase("ADMINISTRATOR");
+        try{var set=adminApi.permissionSet(roleName);permissionRowVersion=set.rowVersion();for(var p:set.permissions())permissions.add(new PermissionRow(p));}
         catch(Exception e){error("Permissions could not be loaded",e);}
         lblRoleHint.setText(admin?"Administrator receives full access by system policy.":"Current saved permission picture for "+roleName+".");
         permissionTable.setDisable(admin);
@@ -159,8 +160,8 @@ public class UserAccessController implements ScreenLifecycle {
     @FXML private void savePermissions(){
         String role=cmbPermissionRole.getValue(); if(role==null)return;
         if(role.equalsIgnoreCase("ADMIN")||role.equalsIgnoreCase("ADMINISTRATOR")){warning("Administrator always has full access and does not require manual permission changes.");return;}
-        try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList());PermissionService.refresh();NotificationService.add(role+" permissions updated.");}
-        catch(Exception e){error("Permissions could not be saved",e);}
+        try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList(),permissionRowVersion);var set=adminApi.permissionSet(role);permissionRowVersion=set.rowVersion();PermissionService.refresh();NotificationService.add(role+" permissions updated.");}
+        catch(Exception e){error("Permissions could not be saved. Reload the role if another administrator changed it first.",e);}
     }
     @FXML private void showPermissionMatrix(){ DashboardController.navigateFromChildPage("Permission Matrix", "/fxml/pages/PermissionMatrix.fxml"); }
     @FXML private void manageRoles(){ openRoleMaster(); }

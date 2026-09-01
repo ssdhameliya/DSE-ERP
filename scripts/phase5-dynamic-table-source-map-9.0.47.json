@@ -8,7 +8,7 @@
     "saved_column_state": "visibility and order only; legacy widths removed",
     "table_width_authority": "DynamicTableLayoutManager only; first-paint sizing + rendered icon/text Actions floor (112px minimum column content)"
   },
-  "contract": "DSE ERP 9.0.46 Phase 5 dynamic TableView baseline",
+  "contract": "DSE ERP 9.0.47 Phase 5 dynamic TableView baseline",
   "fxml_columns": 299,
   "fxml_table_files": {
     "desktop/src/main/resources/fxml/pages/BackupRestore.fxml": 1,

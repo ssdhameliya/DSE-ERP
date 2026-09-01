@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.46 Phase 5 dynamic TableView layout / CSS cleanup contract."""
+"""DSE ERP 9.0.47 Phase 5 dynamic TableView layout / CSS cleanup contract."""
 from __future__ import annotations
 
 import hashlib
@@ -16,7 +16,7 @@ CSS_ROOT = ROOT / "desktop/src/main/resources/css"
 MANAGER = JAVA_ROOT / "org/example/util/DynamicTableLayoutManager.java"
 ENHANCER = JAVA_ROOT / "org/example/util/ProfessionalUiEnhancer.java"
 PREFERENCES = JAVA_ROOT / "org/example/util/RegisterColumnPreferences.java"
-SOURCE_MAP = ROOT / "scripts/phase5-dynamic-table-source-map-9.0.46.json"
+SOURCE_MAP = ROOT / "scripts/phase5-dynamic-table-source-map-9.0.47.json"
 EXPECTED_CSS = ["dark-theme.css", "light-theme.css"]
 
 

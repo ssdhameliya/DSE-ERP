@@ -165,19 +165,20 @@ public final class TemplateDataFactory {
 
         List<TaxInvoiceItem> items = new ArrayList<>();
         Map<String, Item> itemByCode = itemMasterByCode();
-        double subtotal = 0, gst = 0;
+        double subtotal = 0, discount = 0, gst = 0;
         int serial = 1;
         if (details.lines() != null) for (ReturnApiClient.Line line : details.lines()) {
-            double gross = line.quantity() * line.rate();
-            double taxAmount = gross * line.tax() / 100.0;
-            subtotal += gross;
-            gst += taxAmount;
+            ReturnLineFinancials f = returnLineFinancials(line);
+            subtotal += f.taxable();
+            discount += f.discount();
+            gst += f.tax();
             String code = safe(line.code());
             Item master = itemByCode.get(normalize(code));
-            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
+            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(),
+                    safeOr(line.unit(), "Nos"), line.rate(), f.discountPercent(), line.tax(), master));
         }
         put(v, "totals.subtotal", money(subtotal));
-        put(v, "totals.discountAmount", "0.00");
+        put(v, "totals.discountAmount", money(discount));
         put(v, "totals.gstAmount", money(gst));
         putTaxTotals(v, gst, originalPurchase == null ? "GST" : originalPurchase.getGstType());
         put(v, "totals.grandTotal", money(details.total()));
@@ -216,19 +217,20 @@ public final class TemplateDataFactory {
 
         List<TaxInvoiceItem> items = new ArrayList<>();
         Map<String, Item> itemByCode = itemMasterByCode();
-        double subtotal = 0, gst = 0;
+        double subtotal = 0, discount = 0, gst = 0;
         int serial = 1;
         if (details.lines() != null) for (ReturnApiClient.Line line : details.lines()) {
-            double gross = line.quantity() * line.rate();
-            double taxAmount = gross * line.tax() / 100.0;
-            subtotal += gross;
-            gst += taxAmount;
+            ReturnLineFinancials f = returnLineFinancials(line);
+            subtotal += f.taxable();
+            discount += f.discount();
+            gst += f.tax();
             String code = safe(line.code());
             Item master = itemByCode.get(normalize(code));
-            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(), safeOr(line.unit(), "Nos"), line.rate(), 0, line.tax(), master));
+            items.add(itemWithMaster(serial++, code, safe(line.name()), "", "", line.quantity(),
+                    safeOr(line.unit(), "Nos"), line.rate(), f.discountPercent(), line.tax(), master));
         }
         put(v, "totals.subtotal", money(subtotal));
-        put(v, "totals.discountAmount", "0.00");
+        put(v, "totals.discountAmount", money(discount));
         put(v, "totals.gstAmount", money(gst));
         putTaxTotals(v, gst, originalSale == null ? "GST" : originalSale.getGstType());
         put(v, "totals.grandTotal", money(details.total()));
@@ -237,6 +239,26 @@ public final class TemplateDataFactory {
         put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(details.total()));
         return new TemplateData(v, images, items, originalSale == null ? "" : safe(originalSale.getGstType()));
     }
+
+    /**
+     * Reconstructs the display breakdown from the server-authoritative return amount.
+     * The return amount already contains the original line discount and exact final-paise
+     * allocation, so return PDFs/XLSX must not rebuild it as qty × rate + GST.
+     */
+    private static ReturnLineFinancials returnLineFinancials(ReturnApiClient.Line line) {
+        double gross = DocumentCalculationEngine.money(Math.max(0d, line.quantity()) * Math.max(0d, line.rate()));
+        double total = DocumentCalculationEngine.money(Math.max(0d, line.amount()));
+        double taxPercent = DocumentCalculationEngine.percent(Math.max(0d, line.tax()));
+        double taxable = taxPercent <= 0d
+                ? total
+                : DocumentCalculationEngine.money(total / (1d + taxPercent / 100d));
+        double tax = DocumentCalculationEngine.money(Math.max(0d, total - taxable));
+        double discount = DocumentCalculationEngine.money(Math.max(0d, gross - taxable));
+        double discountPercent = gross <= 0d ? 0d : Math.max(0d, Math.min(100d, discount * 100d / gross));
+        return new ReturnLineFinancials(gross, taxable, discount, tax, discountPercent);
+    }
+
+    private record ReturnLineFinancials(double gross, double taxable, double discount, double tax, double discountPercent) { }
 
     public static TemplateData fromQuotation(QuotationApiClient.QuoteDto quote, List<QuotationApiClient.LineDto> lines) {
         if (quote == null) throw new IllegalArgumentException("Quotation is required.");

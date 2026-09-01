@@ -1,5 +1,7 @@
 package org.example.server.returns;
 
+import org.example.shared.DocumentCalculationEngine;
+
 import org.example.server.audit.AuditService;
 import org.example.server.operations.BusinessOperationsService;
 import org.example.server.persistence.JpaNativeRepository;
@@ -122,6 +124,7 @@ public class ReturnService {
         LocalDate returnDate = parseDate(d.returnDate());
         if (returnDate == null) throw new IllegalArgumentException("Return date must be a valid date.");
         boolean sales = "SALES RETURN".equals(type);
+        lockSourceDocument(sales, d.invoiceNo());
         if (sales) requireActiveSaleForReturn(d.invoiceNo()); else requirePostedPurchaseForReturn(d.invoiceNo());
         requireNoOpenReturn(type, d.invoiceNo());
         int expectedParty = sourcePartyId(sales, d.invoiceNo());
@@ -141,18 +144,23 @@ public class ReturnService {
             if (invoiced <= 0) throw new IllegalArgumentException("Item " + requested.code() + " is not present on invoice " + d.invoiceNo() + ".");
             if (requested.quantity() > invoiced - already + .0001) throw new IllegalArgumentException("Return quantity exceeds the remaining invoiced quantity for " + requested.code() + ".");
 
-            double toSkip = already, remaining = requested.quantity();
+            double remaining = DocumentCalculationEngine.quantity(requested.quantity());
             for (OriginalLine original : originals) {
                 if (remaining <= .0001) break;
-                double available = original.quantity();
-                if (toSkip >= available - .0001) { toSkip -= available; continue; }
-                available -= Math.max(0, toSkip); toSkip = 0;
+                double available = Math.max(0, DocumentCalculationEngine.quantity(original.quantity() - original.returnedQuantity()));
+                if (available <= .0001) continue;
                 double qty = Math.min(available, remaining);
-                double amount = money((original.lineTotal() / original.quantity()) * qty);
+                qty = DocumentCalculationEngine.quantity(qty);
+                // If this allocation closes the source line, assign the exact remaining paise.
+                // Earlier partial returns therefore cannot leave a 0.01 residual through independent rounding.
+                boolean closesSourceLine = qty + .0001 >= available;
+                double amount = closesSourceLine
+                        ? money(Math.max(0, original.lineTotal() - original.returnedAmount()))
+                        : money((original.lineTotal() / original.quantity()) * qty);
                 // v9.0.25: no stock/accounting movement until Admin approves the Return.
                 jdbc.update("INSERT INTO return_register(return_no,return_type,return_date,invoice_no,party_id,item_code,quantity,amount,reason,status,refund_amount,refund_status,created_at,updated_at,source_line_id,approval_requested_by,approval_requested_at) VALUES(?,?,?,?,?,?,?,?,?,'PENDING APPROVAL',0,'WAITING APPROVAL',?,?,?,?,?)",
                     no, type, returnDate.toString(), d.invoiceNo(), expectedParty, requested.code(), qty, amount, requested.reason(), now, now, original.id(), actor, now);
-                remaining -= qty;
+                remaining = DocumentCalculationEngine.quantity(Math.max(0, remaining - qty));
             }
             if (remaining > .0001) throw new IllegalStateException("Could not allocate the requested return quantity to original invoice lines for " + requested.code() + ".");
         }
@@ -433,6 +441,14 @@ public class ReturnService {
         return new ReturnOrigin(type, invoice);
     }
 
+
+    /** Serializes concurrent return creation against the same source document. */
+    private void lockSourceDocument(boolean sales, String invoice) {
+        String table = sales ? "sales_header" : "purchase_header";
+        List<Integer> ids = jdbc.query("SELECT id FROM " + table + " WHERE invoice_no=? FOR UPDATE", (r,i) -> r.getInt(1), invoice);
+        if (ids.isEmpty()) throw new IllegalArgumentException("Original invoice was not found.");
+    }
+
     private int sourcePartyId(boolean sales, String invoice) {
         Integer id = jdbc.queryForObject(sales ? "SELECT customer_id FROM sales_header WHERE invoice_no=?" : "SELECT supplier_id FROM purchase_header WHERE invoice_no=?", Integer.class, invoice);
         if (id == null || id <= 0) throw new IllegalArgumentException("Original invoice party was not found.");
@@ -440,10 +456,18 @@ public class ReturnService {
     }
 
     private List<OriginalLine> originalLines(boolean sales, String invoice, String code) {
-        String sql = sales
-            ? "SELECT l.id,l.quantity,l.line_total,COALESCE(l.unit_cost_snapshot,0) FROM sales_line l JOIN sales_header h ON h.id=l.sales_id WHERE h.invoice_no=? AND l.item_code=? ORDER BY l.id"
-            : "SELECT l.id,l.quantity,l.line_total,CASE WHEN COALESCE(l.quantity,0)>0 THEN GREATEST(0,(COALESCE(l.quantity,0)*COALESCE(l.rate,0)-COALESCE(l.discount_amount,0))/l.quantity) ELSE 0 END FROM purchase_line l JOIN purchase_header h ON h.id=l.purchase_id WHERE h.invoice_no=? AND l.item_code=? ORDER BY l.id";
-        return jdbc.query(sql, (r, i) -> new OriginalLine(r.getInt(1), r.getDouble(2), r.getDouble(3), r.getDouble(4)), invoice, code);
+        String lineTable = sales ? "sales_line" : "purchase_line";
+        String headerTable = sales ? "sales_header" : "purchase_header";
+        String fk = sales ? "sales_id" : "purchase_id";
+        String type = sales ? "SALES RETURN" : "PURCHASE RETURN";
+        String unitCost = sales
+                ? "COALESCE(l.unit_cost_snapshot,0)"
+                : "CASE WHEN COALESCE(l.quantity,0)>0 THEN GREATEST(0,(COALESCE(l.quantity,0)*COALESCE(l.rate,0)-COALESCE(l.discount_amount,0))/l.quantity) ELSE 0 END";
+        String sql = "SELECT l.id,l.quantity,l.line_total," + unitCost + "," +
+                "COALESCE((SELECT SUM(r.quantity) FROM return_register r WHERE r.source_line_id=l.id AND r.return_type=? AND UPPER(COALESCE(r.status,'PENDING APPROVAL')) IN ('PENDING APPROVAL','APPROVED')),0)," +
+                "COALESCE((SELECT SUM(r.amount) FROM return_register r WHERE r.source_line_id=l.id AND r.return_type=? AND UPPER(COALESCE(r.status,'PENDING APPROVAL')) IN ('PENDING APPROVAL','APPROVED')),0) " +
+                "FROM " + lineTable + " l JOIN " + headerTable + " h ON h.id=l." + fk + " WHERE h.invoice_no=? AND l.item_code=? ORDER BY l.id";
+        return jdbc.query(sql, (r, i) -> new OriginalLine(r.getInt(1), r.getDouble(2), r.getDouble(3), r.getDouble(4), r.getDouble(5), r.getDouble(6)), type, type, invoice, code);
     }
 
     private static String settlementStatus(double total, double paid) {
@@ -487,6 +511,6 @@ public class ReturnService {
         return null;
     }
 
-    private record OriginalLine(int id, double quantity, double lineTotal, double unitCost) { }
+    private record OriginalLine(int id, double quantity, double lineTotal, double unitCost, double returnedQuantity, double returnedAmount) { }
     private record ReturnOrigin(String type, String invoice) { }
 }

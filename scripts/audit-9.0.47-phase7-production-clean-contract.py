@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.46 Phase 7 production-source cleanliness contract."""
+"""DSE ERP 9.0.47 Phase 7 production-source cleanliness contract."""
 from __future__ import annotations
 
 import re
@@ -89,19 +89,19 @@ if trailing_files:
 
 # Version identity must be production-consistent.
 version_contract = {
-    "desktop/src/main/resources/app-version.properties": "version=9.0.46",
-    "runtime/runtime-manifest.properties": "runtime.phase=9.0.46",
-    "pom.xml": "<version>9.0.46</version>",
-    "desktop/pom.xml": "<version>9.0.46</version>",
-    "server/pom.xml": "<version>9.0.46</version>",
+    "desktop/src/main/resources/app-version.properties": "version=9.0.47",
+    "runtime/runtime-manifest.properties": "runtime.phase=9.0.47",
+    "pom.xml": "<version>9.0.47</version>",
+    "desktop/pom.xml": "<version>9.0.47</version>",
+    "server/pom.xml": "<version>9.0.47</version>",
 }
 for file_name, token in version_contract.items():
     path = ROOT / file_name
     if not path.exists() or token not in path.read_text(encoding="utf-8", errors="ignore"):
-        fail(f"9.0.46 version contract missing from {file_name}: {token}")
+        fail(f"9.0.47 version contract missing from {file_name}: {token}")
 
 # Temporary Phase-2 merge metadata must be gone after final canonicalization.
-if (ROOT / "scripts/phase2-two-theme-source-map-9.0.46.json").exists():
+if (ROOT / "scripts/phase2-two-theme-source-map-9.0.47.json").exists():
     fail("obsolete Phase-2 merge source-map remains")
 
 if FAIL:

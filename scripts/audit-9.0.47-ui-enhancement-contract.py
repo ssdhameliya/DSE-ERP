@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.46 table-first Reporting / icon+text / theme-parity UI contract."""
+"""DSE ERP 9.0.47 table-first Reporting / icon+text / theme-parity UI contract."""
 from __future__ import annotations
 import re, sys
 from pathlib import Path
@@ -90,7 +90,7 @@ manager=text('desktop/src/main/java/org/example/util/DynamicTableLayoutManager.j
 need('ACTION_CONTROL_MIN_WIDTH = 112.0' in manager and 'renderedCellControlWidth(table, column)' in manager,'dynamic action column does not measure icon+text control')
 
 if FAIL:
-    print('UI_ENHANCEMENT_9_0_45_FAIL')
+    print('UI_ENHANCEMENT_9_0_47_FAIL')
     for item in FAIL: print(' -',item)
     sys.exit(1)
-print('UI_ENHANCEMENT_9_0_45_OK reporting=table-first report_icons=semantic fields=semantic action=icon+text bank_kpi=8x1 theme_parity=light+dark css=2')
+print('UI_ENHANCEMENT_9_0_47_OK reporting=table-first report_icons=semantic fields=semantic action=icon+text bank_kpi=8x1 theme_parity=light+dark css=2')

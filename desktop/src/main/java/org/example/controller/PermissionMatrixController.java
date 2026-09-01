@@ -52,6 +52,7 @@ public class PermissionMatrixController implements ScreenLifecycle {
     private final Map<String, String> roleDisplayNames = new HashMap<>();
     private final Map<String, CheckBox> headerToggles = new HashMap<>();
     private boolean loading;
+    private long permissionRowVersion;
 
     @FXML private void initialize() {
         configureIcons();
@@ -258,8 +259,8 @@ public class PermissionMatrixController implements ScreenLifecycle {
         if (role == null || role.isBlank()) return;
         UiTaskExecutor.submitLatest(
                 "permission-matrix-role",
-                () -> api.permissions(role),
-                permissions -> applyRolePermissions(role, permissions),
+                () -> api.permissionSet(role),
+                set -> { permissionRowVersion = set.rowVersion(); applyRolePermissions(role, set.permissions()); },
                 failure -> showError("Permissions could not be loaded", asException(failure))
         );
     }
@@ -474,8 +475,9 @@ public class PermissionMatrixController implements ScreenLifecycle {
         btnSave.setDisable(true);
         UiTaskExecutor.submitAction(
                 "permission-matrix-save-" + role,
-                () -> { api.savePermissions(role, changes); PermissionService.refresh(); return null; },
-                ignored -> {
+                () -> { api.savePermissions(role, changes, permissionRowVersion); PermissionService.refresh(); return api.permissionSet(role); },
+                savedSet -> {
+                    permissionRowVersion = savedSet.rowVersion();
                     btnSave.setDisable(!canEdit());
                     ToastManager.success(root, "Permissions saved", role + " access has been updated.");
                     lblHint.setText("Permissions saved for " + role + ".");

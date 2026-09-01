@@ -4,6 +4,7 @@ import org.example.server.util.BusinessClock;
 
 import org.example.server.persistence.entity.*;
 import org.example.server.persistence.JpaNativeRepository;
+import org.example.shared.DocumentCalculationEngine;
 import org.example.server.returns.ReturnService;
 import org.example.server.persistence.repository.*;
 import org.springframework.stereotype.Service;
@@ -191,6 +192,6 @@ public class BankReconciliationService {
  private static String reconciliationNote(BankStatementTransactionEntity t,double roundOff){return "Reconciled from bank statement transaction #"+t.getId()+(Math.abs(roundOff)>.0001?" • Round-off "+signedMoney(roundOff):"");}
  private static String roundingDetail(double roundOff){return Math.abs(roundOff)>.0001?" • round-off "+signedMoney(roundOff):"";}
  private static String signedMoney(double v){return (v>=0?"+":"-")+"₹"+fmt(Math.abs(v));}
- private static double money(double v){return Math.round(v*100d)/100d;}
+ private static double money(double v){return DocumentCalculationEngine.money(v);}
  private static double bankAmount(BankStatementTransactionEntity t){return n(t.getCreditAmount())>0?n(t.getCreditAmount()):n(t.getDebitAmount());} private static boolean cancelled(String s){String x=up(s);return x.equals("CANCELLED")||x.equals("DELETED");} private static boolean approvalLocked(String s){String x=up(s);return x.equals("PENDING APPROVAL")||x.equals("REJECTED");} private static boolean purchaseLifecycleLocked(String s){String x=up(s);return x.equals("DRAFT");} private static int nv(Integer v){return v==null?0:v;} private static double n(Number v){return v==null?0:v.doubleValue();} private static String up(String s){return s==null?"":s.trim().toUpperCase(Locale.ROOT);} private static boolean blank(String s){return s==null||s.isBlank();} private static String safe(String s){return s==null?"":s;} private static String compact(String s){return up(s).replaceAll("[^A-Z0-9]","");} private static String fmt(double v){return String.format(Locale.ENGLISH,"%,.2f",v);} private static LocalDate date(String s){if(s==null||s.isBlank())return null;String v=s.trim();try{return LocalDate.parse(v.length()>=10?v.substring(0,10):v);}catch(Exception ignored){}try{return LocalDate.parse(v,java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu"));}catch(Exception ignored){}try{return LocalDate.parse(v,java.time.format.DateTimeFormatter.ofPattern("dd-MM-uuuu"));}catch(Exception ignored){return null;}}
 }

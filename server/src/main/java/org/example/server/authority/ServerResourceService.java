@@ -31,11 +31,21 @@ public class ServerResourceService {
 
     @Transactional
     public ResourceMeta put(String type,String key,String fileName,String contentType,byte[] content) {
+        return put(type,key,fileName,contentType,content,null);
+    }
+
+    @Transactional
+    public ResourceMeta put(String type,String key,String fileName,String contentType,byte[] content,String expectedChecksum) {
         if(content==null||content.length==0)throw new IllegalArgumentException("Resource content is empty");
+        String normalizedType=normalize(type), normalizedKey=normalizeKey(key);
+        List<String> current=db.query("SELECT checksum FROM server_resource WHERE resource_type=? AND resource_key=? FOR UPDATE",(r,i)->r.getString(1),normalizedType,normalizedKey);
+        String expected=expectedChecksum==null?"":expectedChecksum.trim();
+        if(!expected.isBlank()&&!current.isEmpty()&&!expected.equalsIgnoreCase(current.getFirst()))
+            throw new org.example.server.web.ConcurrentEditException("Server template");
         String checksum=sha256(content), now=BusinessClock.nowUtcText();
         db.update("INSERT INTO server_resource(resource_type,resource_key,file_name,content_type,content,checksum,updated_at,updated_by) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(resource_type,resource_key) DO UPDATE SET file_name=excluded.file_name,content_type=excluded.content_type,content=excluded.content,checksum=excluded.checksum,updated_at=excluded.updated_at,updated_by=excluded.updated_by",
-                normalize(type),normalizeKey(key),safeName(fileName),contentType==null?"application/octet-stream":contentType,content,checksum,now,CurrentUser.require().username());
-        return new ResourceMeta(normalizeKey(key),safeName(fileName),contentType,checksum,now,content.length);
+                normalizedType,normalizedKey,safeName(fileName),contentType==null?"application/octet-stream":contentType,content,checksum,now,CurrentUser.require().username());
+        return new ResourceMeta(normalizedKey,safeName(fileName),contentType,checksum,now,content.length);
     }
 
     @Transactional public void delete(String type,String key){db.update("DELETE FROM server_resource WHERE resource_type=? AND resource_key=?",normalize(type),normalizeKey(key));}

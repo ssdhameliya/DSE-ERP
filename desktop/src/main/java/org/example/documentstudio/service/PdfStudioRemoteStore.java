@@ -51,8 +51,10 @@ final class PdfStudioRemoteStore {
         if (!ConfigManager.isSharedClient()) return;
         try {
             byte[] zip = zip(folder);
-            new PdfStudioServerClient().put(key, key + ".zip", zip);
-            Files.writeString(folder.resolve(".server.sha256"), sha256(zip));
+            Path marker = folder.resolve(".server.sha256");
+            String expected = Files.isRegularFile(marker) ? Files.readString(marker).trim() : "";
+            new PdfStudioServerClient().put(key, key + ".zip", zip, expected);
+            Files.writeString(marker, sha256(zip));
         } catch (RuntimeException error) {
             throw new IOException("PDF Studio template could not be saved to the company server", error);
         }

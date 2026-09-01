@@ -6,6 +6,7 @@ import org.example.server.util.BusinessClock;
 import org.example.server.operations.BusinessOperationsService;
 import org.example.server.master.MasterDataService;
 import org.example.server.audit.AuditService;
+import org.example.server.web.ConcurrentEditException;
 import org.example.shared.DocumentCalculationEngine;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +33,7 @@ public class QuotationService {
     public List<QuotationDtos.QuoteDto> list() {
         CurrentUser.requirePermission("QUOTATION.VIEW","View quotations");
         jdbc.update(
-                "UPDATE quotation_header SET status='EXPIRED' " +
+                "UPDATE quotation_header SET status='EXPIRED',row_version=row_version+1 " +
                 "WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND NULLIF(TRIM(valid_until),'') IS NOT NULL AND dse_safe_date(valid_until) < ?",
                 BusinessClock.today());
         return jdbc.query(
@@ -40,13 +41,13 @@ public class QuotationService {
                 "COALESCE(CAST(q.valid_until AS text),''),COALESCE(q.status,''),COALESCE(CAST(q.follow_up_date AS text),'')," +
                 "COALESCE(q.converted_invoice_no,''),COALESCE(q.salesperson,''),COALESCE(q.created_by,'')," +
                 "COALESCE(q.total_amount,0),COALESCE(p.phone,''),COALESCE(p.email,''),COALESCE(p.gstin,'')," +
-                "COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,'') " +
+                "COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,''),COALESCE(q.row_version,0) " +
                 "FROM quotation_header q JOIN party_master p ON p.id=q.customer_id " +
                 "WHERE UPPER(COALESCE(q.status,''))<>'DELETED' ORDER BY q.quotation_date DESC,q.id DESC",
                 (r, i) -> new QuotationDtos.QuoteDto(r.getInt(1), r.getInt(2), r.getString(3), r.getString(4),
                         r.getString(5), r.getString(6), r.getString(7), r.getString(8), r.getString(9),
                         r.getString(10), r.getString(11), r.getDouble(12), r.getString(13), r.getString(14),
-                        r.getString(15), r.getString(16), r.getString(17), r.getDouble(18), r.getString(19)));
+                        r.getString(15), r.getString(16), r.getString(17), r.getDouble(18), r.getString(19), r.getLong(20)));
     }
 
     @Transactional
@@ -63,9 +64,9 @@ public class QuotationService {
     @Transactional
     public QuotationDtos.QuoteDto quote(int id){CurrentUser.requirePermission("QUOTATION.VIEW","View quotation");expireQuotations();List<QuotationDtos.QuoteDto> rows=jdbc.query(quoteSelect()+" FROM quotation_header q JOIN party_master p ON p.id=q.customer_id WHERE q.id=? AND UPPER(COALESCE(q.status,''))<>'DELETED'",this::mapQuote,id);if(rows.isEmpty())throw new IllegalArgumentException("Quotation not found.");return rows.getFirst();}
 
-    private void expireQuotations(){jdbc.update("UPDATE quotation_header SET status='EXPIRED' WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND NULLIF(TRIM(valid_until),'') IS NOT NULL AND dse_safe_date(valid_until) < ?",BusinessClock.today());}
-    private String quoteSelect(){return "SELECT q.id,q.customer_id,q.quotation_no,CAST(q.quotation_date AS text),p.name,COALESCE(CAST(q.valid_until AS text),''),COALESCE(q.status,''),COALESCE(CAST(q.follow_up_date AS text),''),COALESCE(q.converted_invoice_no,''),COALESCE(q.salesperson,''),COALESCE(q.created_by,''),COALESCE(q.total_amount,0),COALESCE(p.phone,''),COALESCE(p.email,''),COALESCE(p.gstin,''),COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,'')";}
-    private QuotationDtos.QuoteDto mapQuote(org.example.server.persistence.JpaNativeRepository.NativeRow r,Integer i){return new QuotationDtos.QuoteDto(r.getInt(1),r.getInt(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getString(9),r.getString(10),r.getString(11),r.getDouble(12),r.getString(13),r.getString(14),r.getString(15),r.getString(16),r.getString(17),r.getDouble(18),r.getString(19));}
+    private void expireQuotations(){jdbc.update("UPDATE quotation_header SET status='EXPIRED',row_version=row_version+1 WHERE status NOT IN ('ACCEPTED','REJECTED','DELETED') AND NULLIF(TRIM(valid_until),'') IS NOT NULL AND dse_safe_date(valid_until) < ?",BusinessClock.today());}
+    private String quoteSelect(){return "SELECT q.id,q.customer_id,q.quotation_no,CAST(q.quotation_date AS text),p.name,COALESCE(CAST(q.valid_until AS text),''),COALESCE(q.status,''),COALESCE(CAST(q.follow_up_date AS text),''),COALESCE(q.converted_invoice_no,''),COALESCE(q.salesperson,''),COALESCE(q.created_by,''),COALESCE(q.total_amount,0),COALESCE(p.phone,''),COALESCE(p.email,''),COALESCE(p.gstin,''),COALESCE(q.source,''),COALESCE(q.remarks,''),COALESCE(q.discount_amount,0),COALESCE(q.attachment_path,''),COALESCE(q.row_version,0)";}
+    private QuotationDtos.QuoteDto mapQuote(org.example.server.persistence.JpaNativeRepository.NativeRow r,Integer i){return new QuotationDtos.QuoteDto(r.getInt(1),r.getInt(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getString(9),r.getString(10),r.getString(11),r.getDouble(12),r.getString(13),r.getString(14),r.getString(15),r.getString(16),r.getString(17),r.getDouble(18),r.getString(19),r.getLong(20));}
     private QuotationDtos.Metrics metrics(String joins,String where,Object[] args){
         String state="COALESCE(NULLIF(UPPER(TRIM(q.status)),''),'DRAFT')";
         List<Number[]> m=jdbc.query("SELECT COALESCE(SUM(q.total_amount),0),COUNT(*),COALESCE(SUM(CASE WHEN "+state+" IN ('DRAFT','SENT') THEN q.total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+" IN ('DRAFT','SENT') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='ACCEPTED' THEN q.total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='ACCEPTED' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='EXPIRED' THEN q.total_amount ELSE 0 END),0),COALESCE(SUM(CASE WHEN "+state+"='EXPIRED' THEN 1 ELSE 0 END),0)"+joins+where,(r,i)->new Number[]{(Number)r.getObject(1),(Number)r.getObject(2),(Number)r.getObject(3),(Number)r.getObject(4),(Number)r.getObject(5),(Number)r.getObject(6),(Number)r.getObject(7),(Number)r.getObject(8)},args);
@@ -174,11 +175,12 @@ public class QuotationService {
             int existingCustomer=((Number)existing.get("customer_id")).intValue();
             requireCustomerReference(d.customerId(),existingCustomer!=d.customerId());
             requireActiveQuotationItems(d.lines(),quotationItemCodes(id));
-            jdbc.update(
+            int changed = jdbc.update(
                     "UPDATE quotation_header SET quotation_date=?,valid_until=?,customer_id=?,subtotal=?,discount_amount=?," +
-                    "gst_amount=?,total_amount=?,remarks=?,follow_up_date=?,salesperson=?,source=? WHERE id=?",
+                    "gst_amount=?,total_amount=?,remarks=?,follow_up_date=?,salesperson=?,source=?,row_version=row_version+1 WHERE id=? AND row_version=?",
                     quotationDate, validUntil, d.customerId(), calc.subtotal(), calc.discount(), calc.tax(),
-                    calc.total(), d.remarks(), date(d.followUp()), d.salesperson(), source, id);
+                    calc.total(), d.remarks(), date(d.followUp()), d.salesperson(), source, id, d.rowVersion());
+            if (changed != 1) throw new ConcurrentEditException("Quotation");
             jdbc.update("DELETE FROM quotation_line WHERE quotation_id=?", id);
         }
         for (var l : calc.lines()) {
@@ -204,14 +206,14 @@ public class QuotationService {
     @Transactional
     public void notes(int id, String v) {
         CurrentUser.requirePermission("QUOTATION.EDIT","Edit quotation notes");requireEditable(id);
-        jdbc.update("UPDATE quotation_header SET remarks=? WHERE id=?", v, id);
+        jdbc.update("UPDATE quotation_header SET remarks=?,row_version=row_version+1 WHERE id=?", v, id);
     }
 
     @Transactional
     public void markSent(int id, String ch) {
         CurrentUser.requirePermission("QUOTATION.EDIT","Update quotation delivery status");requireEditable(id);
         String col = "WHATSAPP".equalsIgnoreCase(ch) ? "whatsapp_sent" : "email_sent";
-        jdbc.update("UPDATE quotation_header SET " + col + "=1,status=CASE WHEN status='DRAFT' THEN 'SENT' ELSE status END WHERE id=?", id);
+        jdbc.update("UPDATE quotation_header SET " + col + "=1,status=CASE WHEN status='DRAFT' THEN 'SENT' ELSE status END,row_version=row_version+1 WHERE id=?", id);
     }
 
     @Transactional
@@ -220,7 +222,7 @@ public class QuotationService {
         var q = jdbc.queryForMap("SELECT quotation_no,customer_id FROM quotation_header WHERE id=?", id);
         String customer = jdbc.queryForObject("SELECT name FROM party_master WHERE id=?", String.class, q.get("customer_id"));
         String followUp = date(d.date()) == null ? null : date(d.date()).toString();
-        jdbc.update("UPDATE quotation_header SET follow_up_date=? WHERE id=?", followUp, id);
+        jdbc.update("UPDATE quotation_header SET follow_up_date=?,row_version=row_version+1 WHERE id=?", followUp, id);
         jdbc.update("INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,'OPEN',?,?,?)",
                 "Quotation follow-up: " + customer, q.get("quotation_no"), followUp, "NORMAL", d.notes(),
                 CurrentUser.require().username(), BusinessClock.nowUtcText(), BusinessClock.nowUtcText());
@@ -278,7 +280,7 @@ public class QuotationService {
         // This makes the converted document visible in the same Activity Summary/history
         // used by normally-created Sales documents.
         audit.log("SALE", sid, "CREATED", invoice + " • Converted from " + q.get("quotation_no"));
-        jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=? WHERE id=?", invoice, id);
+        jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=?,row_version=row_version+1 WHERE id=?", invoice, id);
         activity(id, "CONVERTED", invoice, ignoredUser);
         return invoice;
     }
@@ -316,7 +318,7 @@ public class QuotationService {
         if (!Objects.toString(current.get("converted"), "").isBlank()) {
             throw new IllegalStateException("A converted quotation cannot be deleted because it is linked to a Sales invoice.");
         }
-        jdbc.update("UPDATE quotation_header SET status='DELETED' WHERE id=?", id);
+        jdbc.update("UPDATE quotation_header SET status='DELETED',row_version=row_version+1 WHERE id=?", id);
         activity(id, "DELETED", "Quotation soft-deleted", null);
     }
 
@@ -344,7 +346,7 @@ public class QuotationService {
             if(!Double.isFinite(l.rate())||l.rate()<0)throw new IllegalArgumentException("Quotation rate must be non-negative.");
             DocumentCalculationEngine.LineResult r=DocumentCalculationEngine.line(l.quantity(),l.rate(),l.discount(),l.gst());
             subtotal+=r.taxableAmount();discount+=r.discountAmount();tax+=r.taxAmount();total+=r.totalAmount();
-            normalized.add(new QuotationDtos.LineDto(l.code(),l.description(),l.quantity(),l.rate(),l.gst(),l.discount(),r.totalAmount()));}
+            normalized.add(new QuotationDtos.LineDto(l.code(),l.description(),DocumentCalculationEngine.quantity(l.quantity()),DocumentCalculationEngine.money(l.rate()),DocumentCalculationEngine.percent(l.gst()),DocumentCalculationEngine.percent(l.discount()),r.totalAmount()));}
         return new QuoteCalculation(DocumentCalculationEngine.money(subtotal),DocumentCalculationEngine.money(discount),DocumentCalculationEngine.money(tax),DocumentCalculationEngine.money(total),List.copyOf(normalized));
     }
     private static LocalDate requireDate(String v,String field){try{if(v==null||v.isBlank())throw new Exception();return LocalDate.parse(v.trim());}catch(Exception ex){throw new IllegalArgumentException(field+" must be a valid YYYY-MM-DD date");}}

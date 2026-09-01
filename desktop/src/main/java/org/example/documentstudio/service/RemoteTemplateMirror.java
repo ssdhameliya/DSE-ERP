@@ -21,7 +21,7 @@ final class RemoteTemplateMirror {
     }
     static void publish(String type,String key,Path folder)throws IOException{
         if(!ConfigManager.isSharedClient())return;
-        try{byte[] zip=zip(folder);new ServerResourceClient().put(type,key,key+".zip",zip);Files.writeString(folder.resolve(".server.sha256"),sha256(zip));}catch(RuntimeException e){throw new IOException("Template could not be saved to the company server",e);}
+        try{byte[] zip=zip(folder);Path marker=folder.resolve(".server.sha256");String expected=Files.isRegularFile(marker)?Files.readString(marker).trim():"";new ServerResourceClient().put(type,key,key+".zip",zip,expected);Files.writeString(marker,sha256(zip));}catch(RuntimeException e){throw new IOException("Template could not be saved to the company server",e);}
     }
     static void delete(String type,String key)throws IOException{if(!ConfigManager.isSharedClient())return;try{new ServerResourceClient().delete(type,key);}catch(RuntimeException e){throw new IOException("Template could not be removed from the company server",e);}}
     private static byte[] zip(Path root)throws IOException{ByteArrayOutputStream bytes=new ByteArrayOutputStream();try(ZipOutputStream out=new ZipOutputStream(bytes);var walk=Files.walk(root)){for(Path p:walk.filter(Files::isRegularFile).filter(p->!p.getFileName().toString().equals(".server.sha256")).toList()){ZipEntry e=new ZipEntry(root.relativize(p).toString().replace('\\','/'));out.putNextEntry(e);Files.copy(p,out);out.closeEntry();}}return bytes.toByteArray();}

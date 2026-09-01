@@ -15274,7 +15274,7 @@
 -fx-padding:2 0 1 0;
 }
 .dse-global-search-v3-root .dse-global-search-v3-token {
--fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:650; -fx-padding:4 8; -fx-background-color:rgba(148,163,184,.08); -fx-background-radius:6;
+-fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:600; -fx-padding:4 8; -fx-background-color:rgba(148,163,184,.08); -fx-background-radius:6;
 }
 .dse-global-search-v3-root .dse-global-search-v3-token-separator {
 -fx-text-fill:rgba(148,163,184,.72); -fx-font-size:13px; -fx-font-weight:900; -fx-padding:4 0;
@@ -15550,7 +15550,7 @@
 -fx-text-fill:-color-text-secondary; -fx-font-size:13px; -fx-font-weight:600;
 }
 .dse-notification-v3-root .dse-notification-v3-detail-meta, .dse-notification-v3-root .dse-notification-v3-detail-reference {
--fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:650; -fx-graphic-text-gap:8;
+-fx-text-fill:-color-text-secondary; -fx-font-size:12px; -fx-font-weight:600; -fx-graphic-text-gap:8;
 }
 .dse-notification-v3-root .separator .line {
 -fx-border-color:rgba(148,163,184,.14); -fx-border-width:1 0 0 0;
@@ -15917,7 +15917,7 @@
 .reports-workspace .erp-kpi-section .report-kpi-card {
 -fx-min-width: 0;
     -fx-pref-width: 0;
-    -fx-max-width: 1.7976931348623157E308;
+    -fx-max-width: 1000000px;
     -fx-min-height: 76;
     -fx-pref-height: 76;
     -fx-padding: 10 12;

@@ -5,11 +5,16 @@ import java.math.RoundingMode;
 import java.util.List;
 
 /**
- * Shared arithmetic used by Sales, Purchase and server-side validation.
+ * Canonical arithmetic for every business document.
  *
- * <p>The engine deliberately contains no JavaFX, persistence or document-specific state.
- * Both Sales and Purchase therefore use the exact same rounding sequence for line discounts,
- * taxable values, GST/IGST, charges and grand totals.</p>
+ * <p>9.0.47 numeric contract:</p>
+ * <ul>
+ *   <li>money / sell-buy rate / document totals: 2 decimals, HALF_UP</li>
+ *   <li>quantity and inventory unit cost: 4 decimals, HALF_UP</li>
+ *   <li>percentage: 2 decimals, HALF_UP</li>
+ * </ul>
+ * Server persistence, PDF/XLSX rendering and desktop previews must delegate here
+ * instead of maintaining independent rounding sequences.
  */
 public final class DocumentCalculationEngine {
     public enum TaxMode { GST, IGST }
@@ -32,8 +37,8 @@ public final class DocumentCalculationEngine {
 
     public static LineResult line(LineInput input) {
         if (input == null) return new LineResult(0, 0, 0, 0, 0);
-        double qty = finiteNonNegative(input.quantity());
-        double rate = finiteNonNegative(input.rate());
+        double qty = quantity(input.quantity());
+        double rate = money(finiteNonNegative(input.rate()));
         double discountPercent = percent(input.discountPercent());
         double taxPercent = percent(input.taxPercent());
         double gross = money(qty * rate);
@@ -97,14 +102,30 @@ public final class DocumentCalculationEngine {
     }
 
     public static double money(double value) {
-        if (!Double.isFinite(value)) throw new IllegalArgumentException("Money value must be finite");
-        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).doubleValue();
+        return scaled(value, 2, "Money value");
+    }
+
+    public static double quantity(double value) {
+        if (!Double.isFinite(value) || value < 0d)
+            throw new IllegalArgumentException("Quantity must be a finite non-negative number");
+        return scaled(value, 4, "Quantity");
+    }
+
+    public static double unitCost(double value) {
+        if (!Double.isFinite(value) || value < 0d)
+            throw new IllegalArgumentException("Unit cost must be a finite non-negative number");
+        return scaled(value, 4, "Unit cost");
     }
 
     public static double percent(double value) {
         if (!Double.isFinite(value) || value < 0d || value > 100d)
             throw new IllegalArgumentException("Percentage must be between 0 and 100");
-        return money(value);
+        return scaled(value, 2, "Percentage");
+    }
+
+    private static double scaled(double value, int scale, String label) {
+        if (!Double.isFinite(value)) throw new IllegalArgumentException(label + " must be finite");
+        return BigDecimal.valueOf(value).setScale(scale, RoundingMode.HALF_UP).doubleValue();
     }
 
     private static double finiteNonNegative(double value) {

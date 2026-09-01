@@ -27,6 +27,7 @@ public class UserDialogController {
 
     private Integer editingUserId;
     private String originalUsername;
+    private long editingRowVersion;
     private final AdminApiClient api = new AdminApiClient();
     private final Map<String,String> roleDisplay = new LinkedHashMap<>();
 
@@ -70,6 +71,7 @@ public class UserDialogController {
         try {
             var u = api.user(userId);
             originalUsername = u.username();
+            editingRowVersion = u.rowVersion();
             txtFullName.setText(nvl(u.fullName()));
             txtUsername.setText(nvl(u.username()));
             txtEmail.setText(nvl(u.email()));
@@ -142,7 +144,7 @@ public class UserDialogController {
                     blank(txtPassword.getText()) ? null : txtPassword.getText(), txtFullName.getText().trim(),
                     txtEmail.getText().trim(), canonicalRole(cmbRole.getValue()), txtDepartment.getText().trim(),
                     cmbAccess.getValue(), txtBranch.getText().trim(), chkActive.isSelected(), chkLocked.isSelected(),
-                    chkMfa.isSelected()));
+                    chkMfa.isSelected(), editingRowVersion));
             NotificationService.add(editingUserId == null
                     ? "User " + txtUsername.getText().trim() + " created with " + roleDisplay.getOrDefault(canonicalRole(cmbRole.getValue()), displayRole(cmbRole.getValue())) + " access."
                     : "User " + originalUsername + " updated.");

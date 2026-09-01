@@ -16,7 +16,7 @@ import java.util.function.Function;
 import static org.example.server.reporting.ReportingDtos.*;
 
 /**
- * 9.0.46 unified reporting calculation source.
+ * 9.0.47 unified reporting calculation source.
  *
  * <p>The JavaFX viewer and every export consume the same ReportResult. The
  * service never mutates accounting rows. Approved Returns reduce net business

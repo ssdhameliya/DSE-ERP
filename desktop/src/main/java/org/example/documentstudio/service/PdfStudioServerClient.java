@@ -32,9 +32,9 @@ final class PdfStudioServerClient {
         catch (Exception error) { throw failure(error); }
     }
 
-    void put(String key, String fileName, byte[] content) {
+    void put(String key, String fileName, byte[] content, String expectedChecksum) {
         try {
-            String path = path(key) + "?filename=" + enc(fileName);
+            String path = path(key) + "?filename=" + enc(fileName) + "&expectedChecksum=" + enc(expectedChecksum);
             sendBytes("PUT", path, content);
         } catch (Exception error) { throw failure(error); }
     }

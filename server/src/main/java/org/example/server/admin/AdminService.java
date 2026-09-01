@@ -5,6 +5,7 @@ import org.example.server.persistence.JpaNativeRepository;
 import org.example.server.security.CurrentUser;
 import org.example.server.security.TokenService;
 import org.example.server.util.BusinessClock;
+import org.example.server.web.ConcurrentEditException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 @Service
 public class AdminService {
+    private static final long USER_AUTHORITY_LOCK = 51018047L;
     private final JpaNativeRepository jdbc;
     private final PasswordEncoder passwords;
     private final TokenService tokens;
@@ -31,11 +33,11 @@ public class AdminService {
     @Transactional(readOnly = true)
     public List<AdminDtos.UserDto> users() {
         return jdbc.query("SELECT u.id,u.username,u.full_name,u.email,COALESCE(NULLIF(TRIM(u.role),''),'SALES')," +
-                        "u.department,u.access_level,u.branch,u.active,u.locked,u.mfa_enabled,COALESCE(NULLIF(u.last_login_utc,''),CAST(u.last_login AS text)) " +
+                        "u.department,u.access_level,u.branch,u.active,u.locked,u.mfa_enabled,COALESCE(NULLIF(u.last_login_utc,''),CAST(u.last_login AS text)),COALESCE(u.row_version,0) " +
                         "FROM users u ORDER BY u.full_name,u.username",
                 (row, index) -> new AdminDtos.UserDto(row.getInt(1), row.getString(2), row.getString(3), row.getString(4),
                         row.getString(5), row.getString(6), row.getString(7), row.getString(8), flag(row.getObject(9)),
-                        flag(row.getObject(10)), flag(row.getObject(11)), BusinessClock.toUtcText(row.getObject(12))));
+                        flag(row.getObject(10)), flag(row.getObject(11)), BusinessClock.toUtcText(row.getObject(12)), row.getLong(13)));
     }
 
     @Transactional(readOnly = true)
@@ -65,9 +67,22 @@ public class AdminService {
     }
 
     @Transactional
+    public AdminDtos.PermissionSetDto permissionSet(String role) {
+        String code = role(role);
+        jdbc.update("INSERT INTO role_permission_revision(role_code,row_version) VALUES(?,0) ON CONFLICT(role_code) DO NOTHING", code);
+        Long revision = jdbc.queryForObject("SELECT row_version FROM role_permission_revision WHERE role_code=?", Long.class, code);
+        return new AdminDtos.PermissionSetDto(revision == null ? 0L : revision, permissions(code));
+    }
+
+    @Transactional
     public void savePermissions(AdminDtos.PermissionSaveRequest request) {
         String code = role(request == null ? null : request.role());
         if ("ADMIN".equals(code)) return;
+        jdbc.update("INSERT INTO role_permission_revision(role_code,row_version) VALUES(?,0) ON CONFLICT(role_code) DO NOTHING", code);
+        Long currentRevision = jdbc.queryForObject("SELECT row_version FROM role_permission_revision WHERE role_code=? FOR UPDATE", Long.class, code);
+        long actualRevision = currentRevision == null ? 0L : currentRevision;
+        if (request.rowVersion() != actualRevision)
+            throw new ConcurrentEditException("Permission Matrix for " + code);
         Map<Long, Boolean> requested = new LinkedHashMap<>();
         if (request.permissions() != null) {
             for (var permission : request.permissions()) {
@@ -86,6 +101,7 @@ public class AdminService {
             jdbc.update("INSERT INTO role_permission(role_code,permission_id,allowed) VALUES(?,?,?)",
                     code, permission.getKey(), permission.getValue() ? 1 : 0);
         }
+        jdbc.update("UPDATE role_permission_revision SET row_version=row_version+1,updated_at=CURRENT_TIMESTAMP::text WHERE role_code=?", code);
     }
 
     @Transactional
@@ -108,6 +124,10 @@ public class AdminService {
                     request.locked() ? "ADMIN" : "NONE", enforcedMfa ? 1 : 0,
                     clean(request.department()), clean(request.branch()), clean(request.accessLevel()));
         } else {
+            jdbc.query("SELECT pg_advisory_xact_lock(?)", (row,index) -> row.getObject(1), USER_AUTHORITY_LOCK);
+            Map<String,Object> lockedUser = jdbc.queryForMap("SELECT COALESCE(row_version,0) row_version FROM users WHERE id=? FOR UPDATE", request.id());
+            long actualVersion = ((Number)lockedUser.get("row_version")).longValue();
+            if (request.rowVersion() != actualVersion) throw new ConcurrentEditException("User account");
             boolean previousMfa = Boolean.TRUE.equals(jdbc.queryForObject(
                     "SELECT mfa_enabled FROM users WHERE id=?", Boolean.class, request.id()));
             boolean previousLocked = Boolean.TRUE.equals(jdbc.queryForObject(
@@ -119,10 +139,10 @@ public class AdminService {
             if (request.id() == CurrentUser.require().id() && (request.locked() || !request.active()))
                 throw new IllegalArgumentException("You cannot lock or deactivate your own account");
             jdbc.update("UPDATE users SET username=?,full_name=?,email=?,role=?,role_id=NULL," +
-                            "active=?,locked=?,mfa_enabled=?,department=?,branch=?,access_level=? WHERE id=?",
+                            "active=?,locked=?,mfa_enabled=?,department=?,branch=?,access_level=?,row_version=row_version+1 WHERE id=? AND row_version=?",
                     request.username().trim(), clean(request.fullName()), clean(request.email()), assignedRole,
                     request.active() ? 1 : 0, request.locked() ? 1 : 0, enforcedMfa ? 1 : 0,
-                    clean(request.department()), clean(request.branch()), clean(request.accessLevel()), request.id());
+                    clean(request.department()), clean(request.branch()), clean(request.accessLevel()), request.id(), request.rowVersion());
             if (previousLocked && !request.locked()) {
                 jdbc.update("UPDATE users SET failed_attempts=0,mfa_failed_attempts=0,lock_reason='NONE' WHERE id=?", request.id());
                 jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
@@ -163,6 +183,8 @@ public class AdminService {
     @Transactional
     public void deleteUser(int id) {
         if (id == CurrentUser.require().id()) throw new IllegalArgumentException("You cannot delete your own account");
+        jdbc.query("SELECT pg_advisory_xact_lock(?)", (row,index) -> row.getObject(1), USER_AUTHORITY_LOCK);
+        jdbc.queryForMap("SELECT id FROM users WHERE id=? FOR UPDATE", id);
         ensureActiveAdministratorRemains(id, null, false, true);
         tokens.revokeUser(id);
         if (jdbc.update("DELETE FROM users WHERE id=?", id) != 1) throw new IllegalArgumentException("User not found");
@@ -171,7 +193,7 @@ public class AdminService {
     @Transactional
     public void resetPassword(int id, String password) {
         validatePassword(password);
-        if (jdbc.update("UPDATE users SET password=?,failed_attempts=0,mfa_failed_attempts=0,locked=0,lock_reason='NONE' WHERE id=?", passwords.encode(password), id) != 1)
+        if (jdbc.update("UPDATE users SET password=?,failed_attempts=0,mfa_failed_attempts=0,locked=0,lock_reason='NONE',row_version=row_version+1 WHERE id=?", passwords.encode(password), id) != 1)
             throw new IllegalArgumentException("User not found");
         tokens.revokeUser(id);
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",
@@ -181,10 +203,12 @@ public class AdminService {
     @Transactional
     public void setLocked(int id, boolean locked) {
         if (id == CurrentUser.require().id() && locked) throw new IllegalArgumentException("You cannot lock your own account");
+        jdbc.query("SELECT pg_advisory_xact_lock(?)", (row,index) -> row.getObject(1), USER_AUTHORITY_LOCK);
+        jdbc.queryForMap("SELECT id FROM users WHERE id=? FOR UPDATE", id);
         if (locked) ensureActiveAdministratorRemains(id, null, true, true);
         int updated = locked
-                ? jdbc.update("UPDATE users SET locked=1,lock_reason='ADMIN' WHERE id=?", id)
-                : jdbc.update("UPDATE users SET locked=0,lock_reason='NONE',failed_attempts=0,mfa_failed_attempts=0 WHERE id=?", id);
+                ? jdbc.update("UPDATE users SET locked=1,lock_reason='ADMIN',row_version=row_version+1 WHERE id=?", id)
+                : jdbc.update("UPDATE users SET locked=0,lock_reason='NONE',failed_attempts=0,mfa_failed_attempts=0,row_version=row_version+1 WHERE id=?", id);
         if (updated != 1) throw new IllegalArgumentException("User not found");
         if (locked) tokens.revokeUser(id);
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",

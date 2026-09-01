@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.46 final IntelliJ/reporting/scheduler contract."""
+"""DSE ERP 9.0.47 final IntelliJ/reporting/scheduler contract."""
 from pathlib import Path
 import re, sys, xml.etree.ElementTree as ET
 from collections import Counter
@@ -11,10 +11,10 @@ def need(ok,msg):
 def text(rel): return (ROOT/rel).read_text(encoding='utf-8',errors='ignore')
 
 # Release identity / full runtime shell.
-need('<version>9.0.46</version>' in text('pom.xml') and '<dse.phase>9.0.46</dse.phase>' in text('pom.xml'),'root Maven identity is not 9.0.46')
-need('APP_VERSION = "9.0.46"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'desktop/shared runtime identity is not 9.0.46')
-need('dse.app.version=9.0.46' in text('server/src/main/resources/application.properties'),'server runtime identity is not 9.0.46')
-need('runtime.phase=9.0.46' in text('runtime/runtime-manifest.properties'),'bundled runtime manifest is not 9.0.46')
+need('<version>9.0.47</version>' in text('pom.xml') and '<dse.phase>9.0.47</dse.phase>' in text('pom.xml'),'root Maven identity is not 9.0.47')
+need('APP_VERSION = "9.0.47"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'desktop/shared runtime identity is not 9.0.47')
+need('dse.app.version=9.0.47' in text('server/src/main/resources/application.properties'),'server runtime identity is not 9.0.47')
+need('runtime.phase=9.0.47' in text('runtime/runtime-manifest.properties'),'bundled runtime manifest is not 9.0.47')
 pg=ROOT/'runtime/postgresql'
 need(pg.exists() and sum(1 for p in pg.rglob('*') if p.is_file())>100,'full bundled PostgreSQL runtime shell is missing')
 
@@ -51,12 +51,15 @@ for theme in css:
     raw=text('desktop/src/main/resources/css/'+theme)
     need(not re.search(r'\.icon-button\s*,\s*\.table-action-button\s*\{[^}]*GRAPHIC_ONLY',raw,re.S),f'{theme} still makes table actions graphic-only')
     need(re.search(r'\.table-action-button\s*\{[^}]*-fx-content-display\s*:\s*LEFT',raw,re.S) is not None,f'{theme} lacks icon+text table action rule')
+    numeric_weights=[int(x) for x in re.findall(r'-fx-font-weight\s*:\s*(\d+)\s*;',raw)]
+    need(all(100 <= value <= 900 and value % 100 == 0 for value in numeric_weights),f'{theme} contains a JavaFX-invalid numeric font weight')
+    need('1.7976931348623157E308' not in raw,f'{theme} contains Java Double.MAX_VALUE scientific notation that JavaFX CSS cannot parse')
 table_mgr=text('desktop/src/main/java/org/example/util/DynamicTableLayoutManager.java')
 need('renderedCellControlWidth(table, column)' in table_mgr and 'ACTION_CONTROL_MIN_WIDTH = 112.0' in table_mgr,'dynamic icon+text action-column rendered-control floor is missing')
 
 # Responsive KPI must wrap before cards become cramped; individual viewer no longer enrolled.
 kpi=text('desktop/src/main/java/org/example/util/ResponsiveKpiLayoutManager.java')
-need('MIN_COMFORTABLE_CARD = 170.0' in kpi,'responsive KPI comfortable width floor is not the 9.0.46 compact 170px value')
+need('MIN_COMFORTABLE_CARD = 170.0' in kpi,'responsive KPI comfortable width floor is not the 9.0.47 compact 170px value')
 need('erp-kpi-single-row' in kpi,'responsive KPI manager lacks explicit single-row KPI contract')
 need('erp-kpi-single-row' in text('desktop/src/main/resources/fxml/pages/BankStatement.fxml'),'Bank Statement must keep all eight KPI cards in one row')
 need('GridPane.setRowIndex(card, i / columns)' in kpi,'responsive KPI wrapping is missing')
@@ -101,8 +104,8 @@ master_service=text('server/src/main/java/org/example/server/master/MasterDataSe
 role_mgmt=text('desktop/src/main/java/org/example/controller/RoleManagementController.java')
 role_fxml=text('desktop/src/main/resources/fxml/pages/RoleManagement.fxml')
 import_service=text('desktop/src/main/java/org/example/service/ImportService.java')
-need('CREATE TABLE IF NOT EXISTS lookup_code_alias' in master_migration and "~ '^GEN[0-9]+$'" in master_migration,'9.0.46 must migrate historical GENxxx codes and retain aliases')
-need("VALUES('auth.selfRegistrationRole', 'SALES')" in master_migration,'9.0.46 must seed an upgrade-safe configurable registration-role setting')
+need('CREATE TABLE IF NOT EXISTS lookup_code_alias' in master_migration and "~ '^GEN[0-9]+$'" in master_migration,'9.0.47 must migrate historical GENxxx codes and retain aliases')
+need("VALUES('auth.selfRegistrationRole', 'SALES')" in master_migration,'9.0.47 must seed an upgrade-safe configurable registration-role setting')
 need('resolveLookupCode' in master_service and 'lookup_code_alias' in master_service,'Master API must resolve legacy GEN aliases to canonical codes')
 need('GENxxx Master codes are retired' in master_service,'server must reject creation of new GENxxx Master codes')
 need('resolveLookupCode(canonicalLookupType, code)' in import_service and 'resolution.aliasMatched()' in import_service,'Master import must resolve old GEN aliases before create/update')
@@ -164,7 +167,7 @@ need('exporter.pdf(pdf, result, visible); exporter.excel(xlsx, result, visible);
 need('format.getItems().setAll("PDF","XLSX","PDF + XLSX","CSV")' in reports_ctrl,'scheduled-report combined output option missing from UI')
 
 if FAIL:
-    print('FINAL_9_0_46_FAIL')
+    print('FINAL_9_0_47_FAIL')
     for x in FAIL: print(' -',x)
     sys.exit(1)
-print('FINAL_9_0_46_OK css=2 reporting=table-first action=icon+text bank_kpi=8x1 semantic_fields=yes theme_parity=yes dashboard_csv=yes schedule_pdf_xlsx=both role_master=dynamic master_codes=clean registration_role=configurable dead_code=clean full_runtime=yes')
+print('FINAL_9_0_47_OK css=2 reporting=table-first action=icon+text bank_kpi=8x1 semantic_fields=yes theme_parity=yes dashboard_csv=yes schedule_pdf_xlsx=both role_master=dynamic master_codes=clean registration_role=configurable dead_code=clean full_runtime=yes')

@@ -1,8 +1,8 @@
 {
-  "contract": "DSE ERP 9.0.46 approved UI/behavior freeze",
+  "contract": "DSE ERP 9.0.47 approved UI/behavior freeze",
   "css_visual_baseline_hashes": {
-    "desktop/src/main/resources/css/dark-theme.css": "677c1502cd20b31df9abfc053d26dff2edcb367cfee4e431bd683a5fba4f976f",
-    "desktop/src/main/resources/css/light-theme.css": "c186a29d3138a7ffcb72675e632695afae6813fff7bad48b1f2bad713f5e854a"
+    "desktop/src/main/resources/css/dark-theme.css": "7e2f450d948220a2eb646052ac885412c7a983ddf73f5eb54c950e845191ca7a",
+    "desktop/src/main/resources/css/light-theme.css": "bc6a21e1a2b651b1606a4d81318a47d19ca239c5d4603c57a0a3f3a055e40e45"
   },
   "database_schema_hashes": {
     "server/src/main/resources/db/migration/V5_1_18__security_financial_integrity.sql": "673fa8195040a10767f1e07d3b5c4d2cb6db0ece0a292e11adaee6a2d7f48378",
@@ -52,6 +52,7 @@
     "server/src/main/resources/db/migration/V9_0_3__import_scalability.sql": "60fc47f11764611c822a4da4fbbe9eb57874f3507434a8699cc3f84f94c8c526",
     "server/src/main/resources/db/migration/V9_0_40__scheduled_reporting.sql": "fe29c795e7baadf6d24f1d1f6a8f2890b5be6485836cd3f79e7b543e45a2a4b1",
     "server/src/main/resources/db/migration/V9_0_46__master_role_reference_cleanup.sql": "fdd5922f6b660d55871232b9bf453fef8d66ce61af5c739fd02caf321d4a01a1",
+    "server/src/main/resources/db/migration/V9_0_47__financial_multi_user_hardening.sql": "bc1dbc6e064493b1c6ad90628012983722b8df1189ba03b56102ab0732d9b31e",
     "server/src/main/resources/db/migration/V9_0_4__bank_reconciliation_rounding.sql": "bd2cf06f82f80c2ff40e5e3ff2dda44466b2a197b2fda1a38c21789ea28a43d7",
     "server/src/main/resources/db/migration/V9_0_6__business_integrity_hardening.sql": "fbd8ceeb753e1eb2fe78f05b447bca889181cca4b1b289bf06b42b567c1594ba",
     "server/src/main/resources/db/migration/V9_0_9__corrective_integrity_hardening.sql": "84ee7b3139a363a42899be1520cce0002fb30dbf0f24a4da020ebabfe2358ae3",
@@ -78722,7 +78723,7 @@
             ],
             [
               "text",
-              "9.0.46"
+              "9.0.47"
             ]
           ]
         ],
@@ -96905,7 +96906,7 @@
             ],
             [
               "text",
-              "DSE ERP 9.0.46"
+              "DSE ERP 9.0.47"
             ]
           ]
         ],
@@ -105345,7 +105346,7 @@
             ],
             [
               "text",
-              "9.0.46"
+              "9.0.47"
             ]
           ]
         ],
@@ -107240,5 +107241,5 @@
       "RegisterColumnPreferences.install(": 0
     }
   },
-  "version": "9.0.46"
+  "version": "9.0.47"
 }

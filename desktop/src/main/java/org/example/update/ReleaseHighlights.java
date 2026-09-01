@@ -8,6 +8,17 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.47".equals(version)) {
+            return """
+                    DSE ERP 9.0.47
+
+                    • Unifies document arithmetic on one HALF_UP calculation authority: 2dp money/rates, 4dp quantities and inventory unit costs, and canonical PDF/XLSX totals.
+                    • Preserves exact return value allocation down to the final paise, keeps original line discounts in Return previews/documents, and serializes concurrent Returns against the source document.
+                    • Rebuilds payment totals from authoritative ordinary payments plus active bank-reconciliation rounding adjustments so later payment edits cannot lose settlement paise.
+                    • Adds optimistic multi-user protection to Quotations, User Administration and Permission Matrix, including a transactional guard that always keeps at least one active unlocked Admin.
+                    • Adds checksum-based optimistic publishing for server-owned Document Studio/PDF Studio templates so one user's stale copy cannot silently overwrite another user's published revision.
+                    """;
+        }
         if ("9.0.46".equals(version)) {
             return """
                     DSE ERP 9.0.46

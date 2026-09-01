@@ -45,7 +45,8 @@ public class PaymentIntegrityService {
             throw new IllegalStateException("Admin approval is required before payments can be recorded against this document.");
         if (type == DocumentType.PURCHASE && purchaseLifecycleLocked(target.status))
             throw new IllegalStateException("Draft or returned purchases cannot receive ordinary payments. Post the draft or resolve the Purchase Return first.");
-        BigDecimal outstanding = target.total.subtract(target.paid).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal authoritativePaid = effectivePaid(type, request.documentId(), null);
+        BigDecimal outstanding = target.total.subtract(authoritativePaid).setScale(2, RoundingMode.HALF_UP);
         if (outstanding.compareTo(ZERO) <= 0) throw new IllegalStateException("This document is already fully paid");
         if (amount.compareTo(outstanding) > 0)
             throw new IllegalArgumentException("Payment exceeds the outstanding balance of " + outstanding.toPlainString());
@@ -54,7 +55,7 @@ public class PaymentIntegrityService {
                         "notes,received_from,payment_type,attachment_path,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?) RETURNING id", Integer.class,
                 type.name(), request.documentId(), date, amount, mode, clean(request.reference()), clean(request.notes()),
                 clean(request.receivedFrom()), clean(request.paymentType()), null, CurrentUser.require().username());
-        BigDecimal paid = target.paid.add(amount).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal paid = authoritativePaid.add(amount).setScale(2, RoundingMode.HALF_UP);
         String status = paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
         if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=?,row_version=row_version+1 WHERE id=?",
                 paid, status, BusinessClock.nowUtcText(), request.documentId()) != 1) throw new IllegalStateException("Payment target changed while saving");
@@ -101,11 +102,7 @@ public class PaymentIntegrityService {
         if (existing.type == DocumentType.PURCHASE && purchaseLifecycleLocked(target.status))
             throw new IllegalStateException("Payments cannot be edited while the Purchase is Draft or has an active Purchase Return.");
 
-        BigDecimal otherPaid = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(amount),0) FROM payment_record WHERE document_type=? AND document_id=? AND id<>?",
-                BigDecimal.class, existing.type.name(), existing.documentId, paymentId);
-        if (otherPaid == null) otherPaid = ZERO;
-        otherPaid = otherPaid.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal otherPaid = effectivePaid(existing.type, existing.documentId, paymentId);
         BigDecimal recalculatedPaid = otherPaid.add(newAmount).setScale(2, RoundingMode.HALF_UP);
         if (recalculatedPaid.compareTo(target.total) > 0) {
             BigDecimal maximum = target.total.subtract(otherPaid).max(ZERO).setScale(2, RoundingMode.HALF_UP);
@@ -118,11 +115,7 @@ public class PaymentIntegrityService {
                 clean(request.receivedFrom()), paymentId);
         if (updated != 1) throw new IllegalStateException("Payment record changed while saving");
 
-        BigDecimal paid = jdbc.queryForObject(
-                "SELECT COALESCE(SUM(amount),0) FROM payment_record WHERE document_type=? AND document_id=?",
-                BigDecimal.class, existing.type.name(), existing.documentId);
-        if (paid == null) paid = ZERO;
-        paid = paid.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal paid = effectivePaid(existing.type, existing.documentId, null);
         String status = paid.compareTo(ZERO) <= 0 ? "PENDING"
                 : paid.compareTo(target.total) >= 0 ? "PAID" : "PARTIAL";
 
@@ -156,6 +149,35 @@ public class PaymentIntegrityService {
         String detail = clean(path) == null ? "Payment #" + paymentId + " proof removed" : "Payment #" + paymentId + " proof updated";
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES(?,?,?,?,?,?)",
                 existing.type.name(), existing.documentId, "PAYMENT_PROOF_UPDATED", detail, CurrentUser.require().username(), BusinessClock.nowUtcText());
+    }
+
+
+    /**
+     * One authoritative settlement total for ordinary and bank-reconciled payments.
+     * Active reconciliation rounding adjustments belong to the effective payment even
+     * when an unrelated ordinary payment is edited later.
+     */
+    private BigDecimal effectivePaid(DocumentType type, int documentId, Integer excludedPaymentId) {
+        String exclusion = excludedPaymentId == null ? "" : " AND p.id<>?";
+        Object[] paymentArgs = excludedPaymentId == null
+                ? new Object[]{type.name(), documentId}
+                : new Object[]{type.name(), documentId, excludedPaymentId};
+        BigDecimal recorded = jdbc.queryForObject(
+                "SELECT COALESCE(SUM(p.amount),0) FROM payment_record p WHERE UPPER(p.document_type)=? AND p.document_id=?" + exclusion,
+                BigDecimal.class, paymentArgs);
+        if (recorded == null) recorded = ZERO;
+
+        String roundExclusion = excludedPaymentId == null ? "" : " AND a.payment_record_id<>?";
+        Object[] roundArgs = excludedPaymentId == null
+                ? new Object[]{type.name(), documentId}
+                : new Object[]{type.name(), documentId, excludedPaymentId};
+        BigDecimal rounding = jdbc.queryForObject(
+                "SELECT COALESCE(SUM(a.rounding_adjustment),0) FROM bank_reconciliation_allocation a " +
+                        "JOIN payment_record p ON p.id=a.payment_record_id " +
+                        "WHERE a.reversed_at IS NULL AND UPPER(p.document_type)=? AND p.document_id=?" + roundExclusion,
+                BigDecimal.class, roundArgs);
+        if (rounding == null) rounding = ZERO;
+        return recorded.add(rounding).setScale(2, RoundingMode.HALF_UP);
     }
 
     private static BigDecimal money(double value) {

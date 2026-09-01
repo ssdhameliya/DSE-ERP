@@ -394,7 +394,7 @@ public class MasterDataService {
                 .stream().map(this::lookupDto).toList();
     }
 
-    /** Resolve a current Master code or a v9.0.46 legacy alias (for example GEN014 -> MAT001). */
+    /** Resolve a current Master code or a v9.0.47 legacy alias (for example GEN014 -> MAT001). */
     @Transactional(readOnly = true)
     public MasterDtos.LookupCodeResolution resolveLookupCode(String type, String code) {
         String requestedType = normal(type);

@@ -119,7 +119,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_40__scheduled_reporting",
                     "db/migration/V9_0_40__scheduled_reporting.sql"),
             new Migration("V9_0_46__master_role_reference_cleanup",
-                    "db/migration/V9_0_46__master_role_reference_cleanup.sql")
+                    "db/migration/V9_0_46__master_role_reference_cleanup.sql"),
+            new Migration("V9_0_47__financial_multi_user_hardening",
+                    "db/migration/V9_0_47__financial_multi_user_hardening.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -219,6 +221,10 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("master_category", "row_version");
         requireColumn("recon_supplier", "row_version");
         requireColumn("purchase_recon", "row_version");
+        requireColumn("quotation_header", "row_version");
+        requireColumn("users", "row_version");
+        requireTable("role_permission_revision");
+        requireColumn("role_permission_revision", "row_version");
         requireTable("auth_session");
         requireColumn("auth_session", "token_hash");
         requireColumn("auth_session", "expires_at");

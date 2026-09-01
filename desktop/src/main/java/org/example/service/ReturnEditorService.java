@@ -64,7 +64,7 @@ public final class ReturnEditorService {
 
     /** Immutable invoice-line input used by both sales and purchase screens. */
     public record InvoiceItem(String code, String description, double quantity,
-                              double rate, double taxPercent) {
+                              double rate, double discountPercent, double taxPercent) {
     }
 
     private ReturnEditorService() {
@@ -383,6 +383,7 @@ public final class ReturnEditorService {
         private final DoubleProperty available;
         private final DoubleProperty returnQuantity = new SimpleDoubleProperty(0);
         private final DoubleProperty rate;
+        private final DoubleProperty discount;
         private final DoubleProperty tax;
         private final StringProperty reason = new SimpleStringProperty("Return requested");
 
@@ -393,6 +394,7 @@ public final class ReturnEditorService {
             returned = new SimpleDoubleProperty(alreadyReturned);
             available = new SimpleDoubleProperty(Math.max(0, item.quantity() - alreadyReturned));
             rate = new SimpleDoubleProperty(item.rate());
+            discount = new SimpleDoubleProperty(item.discountPercent());
             tax = new SimpleDoubleProperty(item.taxPercent());
         }
 
@@ -412,11 +414,15 @@ public final class ReturnEditorService {
         DoubleProperty returnQuantityProperty() { return returnQuantity; }
         double rate() { return rate.get(); }
         DoubleProperty rateProperty() { return rate; }
+        double discount() { return discount.get(); }
         double tax() { return tax.get(); }
         DoubleProperty taxProperty() { return tax; }
         String reason() { return reason.get() == null ? "" : reason.get().trim(); }
         void setReason(String value) { reason.set(value == null ? "" : value); }
         StringProperty reasonProperty() { return reason; }
-        double returnAmount() { return returnQuantity() * rate() * (1 + tax() / 100.0); }
+        double returnAmount() {
+            return org.example.shared.DocumentCalculationEngine.line(
+                    returnQuantity(), rate(), discount(), tax()).totalAmount();
+        }
     }
 }

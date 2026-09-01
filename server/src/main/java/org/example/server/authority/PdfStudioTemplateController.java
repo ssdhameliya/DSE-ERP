@@ -46,9 +46,10 @@ public class PdfStudioTemplateController {
     @PutMapping(value = "/{key}", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ServerResourceService.ResourceMeta put(@PathVariable String key,
                                                    @RequestParam(defaultValue = "pdf-studio-template.zip") String filename,
+                                                   @RequestParam(defaultValue = "") String expectedChecksum,
                                                    @RequestBody byte[] content) {
         CurrentUser.requirePermission("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "Manage PDF Studio templates");
-        return resources.put(RESOURCE_TYPE, key, filename, "application/zip", content);
+        return resources.put(RESOURCE_TYPE, key, filename, "application/zip", content, expectedChecksum);
     }
 
     @DeleteMapping("/{key}")

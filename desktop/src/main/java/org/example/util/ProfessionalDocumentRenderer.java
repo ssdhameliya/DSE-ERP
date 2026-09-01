@@ -1511,8 +1511,7 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
     }
 
     private static String amountWords(double amount) {
-        long value = Math.round(amount);
-        return value == 0 ? "Zero Rupees" : words(value) + " Rupees";
+        return org.example.invoice.calculation.AmountInWordsConverter.indianRupees(amount);
     }
 
     private static String words(long value) {
