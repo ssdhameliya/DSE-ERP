@@ -31,7 +31,18 @@ purchase_recon_batch=text('server/src/main/java/org/example/server/persistence/e
 insights_service=text('server/src/main/java/org/example/server/insights/InsightsService.java')
 
 require('spring-security-bearer-v5' in runtime_contract, 'R12 must use the signed bearer-v5 API contract')
-require('BUILD_REVISION = "9.0.52"' in runtime_contract and 'APP_VERSION = "9.0.52"' in runtime_contract, '9.0.18 must publish one exact desktop/server version/build contract so stale backends are rejected')
+import re
+app_match=re.search(r'APP_VERSION\s*=\s*"([^"]+)"', runtime_contract)
+build_match=re.search(r'BUILD_REVISION\s*=\s*"([^"]+)"', runtime_contract)
+current_app=app_match.group(1) if app_match else ""
+current_build=build_match.group(1) if build_match else ""
+server_props=text('server/src/main/resources/application.properties')
+desktop_version=text('desktop/src/main/resources/app-version.properties')
+require(bool(current_app) and current_app == current_build
+        and f'dse.app.version={current_app}' in server_props
+        and f'dse.build.revision={current_build}' in server_props
+        and f'version={current_app}' in desktop_version,
+        'Current release must publish one exact desktop/server version/build contract so stale backends are rejected')
 require('buildRevision' in runtime_controller, 'Runtime health must expose the backend build revision')
 require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION, RuntimeContract.BUILD_REVISION)') == 2,
         'RuntimeController tests must instantiate the four-argument runtime contract constructor')

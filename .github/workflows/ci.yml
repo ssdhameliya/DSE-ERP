@@ -47,44 +47,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.x'
-      - name: Enforce no new desktop JDBC debt
-        run: python scripts/audit-desktop-jdbc.py
-      - name: Enforce Phase 2 desktop data boundary
-        run: python scripts/audit-phase2-data-boundary.py
-      - name: Enforce PostgreSQL-only desktop runtime
-        run: python scripts/audit-postgres-only.py
-      - name: Enforce final Spring/Hibernate data architecture
-        run: python scripts/audit-final-data-architecture.py
-      - name: Enforce auth, shortcut and recon UI contract
-        run: python scripts/audit-auth-shortcut-ui-contract.py
-      - name: Enforce global register and dialog UI contract
-        run: python scripts/audit-global-ui-contract.py
-      - name: Enforce 9.0.3 import and history contract
-        run: python scripts/audit-9.0.3-import-contract.py
-      - name: Enforce 9.0.4 Bank reconciliation contract
-        run: python scripts/audit-9.0.4-bank-reconciliation-contract.py
-      - name: Enforce 9.0.5 reconciliation/navigation UI contract
-        run: python scripts/audit-9.0.5-reconciliation-navigation-ui-contract.py
-      - name: Enforce 9.0.6 business-integrity contract
-        run: python scripts/audit-9.0.6-business-integrity-contract.py
-      - name: Enforce 9.0.8 PDF Studio safety contract
-        run: python scripts/audit-9.0.8-pdf-studio-contract.py
-      - name: Enforce 9.0.11 consolidated corrective contract
-        run: python scripts/audit-9.0.11-corrective-contract.py
-      - name: Enforce 9.0.12 Sales/payment compatibility contract
-        run: python scripts/audit-9.0.12-sales-payment-compatibility.py
-      - name: Enforce 9.0.13 register/KPI/login/history contract
-        run: python scripts/audit-9.0.13-register-login-history-contract.py
-      - name: Enforce 9.0.14 quotation/register contract
-        run: python scripts/audit-9.0.14-quotation-register-contract.py
-      - name: Enforce 9.0.15 reference/item/import/quotation-source contract
-        run: python scripts/audit-9.0.15-reference-item-import-contract.py
-      - name: Enforce 9.0.16 quotation-source / linked-sale contract
-        run: python scripts/audit-9.0.16-quotation-source-sale-link-contract.py
-      - name: Enforce 9.0.56 Customer 360 contract
-        run: python scripts/audit-9.0.53-customer-360-contract.py
-      - name: Enforce 9.0.56 release gate aggregate
-        run: python scripts/audit-release-gates-9.0.56.py
+      - name: Enforce current release contracts
+        run: python scripts/audit-release-gates.py
       - name: Verify final UI source contract
         shell: python
         run: |

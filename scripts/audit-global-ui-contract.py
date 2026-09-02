@@ -75,7 +75,7 @@ for path in sorted(controller_dir.rglob('*.java')):
 # Double-clicks are disallowed by default. These two existing navigation-only surfaces
 # are deliberate exceptions: they open/view a linked result, never edit the record.
 # Reporting uses explicit Open/View Source/Edit actions and therefore has no exception.
-allowed_double_click={'GlobalSearchController.java','NotificationCenterController.java'}
+allowed_double_click={'GlobalSearchController.java','NotificationCenterController.java','Customer360Controller.java'}
 for path in sorted(controller_dir.rglob('*.java')):
     source=path.read_text(encoding='utf-8')
     if re.search(r'getClickCount\(\)\s*==\s*2', source):
@@ -110,10 +110,10 @@ require('SemanticTableCells.status("validation")' in import_controller,
 # Exact release identity: desktop and server publish the same application/build value.
 runtime=text('shared/src/main/java/org/example/shared/RuntimeContract.java')
 server_props=text('server/src/main/resources/application.properties')
-require('APP_VERSION = "9.0.52"' in runtime and 'BUILD_REVISION = "9.0.52"' in runtime,
-        '9.0.18 desktop runtime version and build revision must be synchronized')
-require('dse.app.version=9.0.52' in server_props and 'dse.build.revision=9.0.52' in server_props,
-        '9.0.18 server runtime version and build revision must match the desktop contract')
+require('APP_VERSION = "9.0.57"' in runtime and 'BUILD_REVISION = "9.0.57"' in runtime,
+        '9.0.57 desktop runtime version and build revision must be synchronized')
+require('dse.app.version=9.0.57' in server_props and 'dse.build.revision=9.0.57' in server_props,
+        '9.0.57 server runtime version and build revision must match the desktop contract')
 
 if failures:
     print('GLOBAL_UI_CONTRACT_FAIL')

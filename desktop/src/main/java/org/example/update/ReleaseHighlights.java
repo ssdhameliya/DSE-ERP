@@ -8,6 +8,16 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.57".equals(version)) {
+            return """
+                    DSE ERP 9.0.57 — Audit Contract & Version Alignment
+
+                    • Advances desktop, server, shared runtime contract, manifests, launchers and update identity together to 9.0.57.
+                    • Removes the stale hard-coded 9.0.52/9.0.18 expectation from the Auth / Shortcut / Recon UI audit and validates the active shared runtime contract dynamically.
+                    • Adds the Auth / Shortcut / Recon UI contract to the current aggregate release gate so stale version assertions cannot silently return.
+                    • Preserves the 9.0.56 KPI rollback, Project Execution, Customer 360, Sales stock, session, registration, attachment and semantic UI corrections unchanged.
+                    """;
+        }
         if ("9.0.56".equals(version)) {
             return """
                     DSE ERP 9.0.56 — UI Standards, Customer 360 & Configuration Stabilization

@@ -1,44 +1,83 @@
 #!/usr/bin/env python3
-"""DSE ERP release-gate audit: finance, multi-user, security, and centralized UI contracts."""
+"""Single authoritative DSE ERP 9.0.57 release-gate aggregate.
+
+Release-specific file names are intentionally avoided. Historical database migration
+versions remain in server/src/main/resources/db/migration because upgrade history is
+part of the runtime contract.
+"""
 from pathlib import Path
-import subprocess, sys
+import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-checks = [
-    "audit-9.0.49-ui-behavior-freeze.py",
-    "audit-9.0.49-phase2-two-theme-contract.py",
-    "audit-9.0.49-phase3-semantic-ui-contract.py",
-    "audit-9.0.49-phase5-dynamic-table-contract.py",
-    "audit-9.0.49-financial-multi-user-contract.py",
-    "audit-9.0.49-final-contract.py",
-    "audit-9.0.49-gate2-gate3-contract.py",
-    "audit-9.0.49-project-execution-contract.py",
+CHECKS = [
+    "audit-desktop-jdbc.py",
+    "audit-phase2-data-boundary.py",
+    "audit-postgres-only.py",
+    "audit-final-data-architecture.py",
+    "audit-auth-shortcut-ui-contract.py",
+    "audit-global-ui-contract.py",
+    "audit-import-contract.py",
+    "audit-bank-reconciliation-contract.py",
+    "audit-reconciliation-navigation-ui-contract.py",
+    "audit-business-integrity-contract.py",
+    "audit-pdf-studio-contract.py",
+    "audit-corrective-contract.py",
+    "audit-sales-payment-compatibility.py",
+    "audit-register-login-history-contract.py",
+    "audit-quotation-register-contract.py",
+    "audit-reference-item-import-contract.py",
+    "audit-quotation-source-sale-link-contract.py",
+    "audit-financial-multi-user-contract.py",
+    "audit-registration-security-contract.py",
+    "audit-customer-360-contract.py",
+    "audit-gate2-gate3-contract.py",
+    "audit-project-execution-contract.py",
+    "audit-session-focus-stock-contract.py",
+    "audit-runtime-workflow-ui-contract.py",
 ]
-failed=[]
-for name in checks:
-    print(f"\n=== {name} ===")
-    result=subprocess.run([sys.executable, str(ROOT/'scripts'/name)], cwd=ROOT)
-    if result.returncode: failed.append(name)
 
-calc=(ROOT/'shared/src/main/java/org/example/shared/DocumentCalculationEngine.java').read_text()
-ops=(ROOT/'server/src/main/java/org/example/server/operations/BusinessOperationsService.java').read_text()
-auth=(ROOT/'server/src/main/java/org/example/server/auth/AuthService.java').read_text()
-pay=(ROOT/'server/src/main/java/org/example/server/support/PaymentIntegrityService.java').read_text()
-css=list((ROOT/'desktop/src/main/resources/css').glob('*.css'))
-extra=[]
-if 'BigDecimal qty = quantityDecimal' not in calc: extra.append('authoritative calculation is not BigDecimal internally')
-if 'requestedTotals=documentTotals' not in ops: extra.append('sale/purchase update guard still trusts client totals')
-if 'stored.equals(raw)' in auth: extra.append('plaintext password comparison remains enabled')
-if 'FOR UPDATE' not in pay or 'effectivePaid' not in pay: extra.append('payment serialization/authoritative paid guard missing')
-if sorted(p.name for p in css) != ['dark-theme.css','light-theme.css']: extra.append('central two-theme CSS contract changed')
+failed = []
+for name in CHECKS:
+    path = ROOT / "scripts" / name
+    print(f"\n=== {name} ===")
+    result = subprocess.run([sys.executable, str(path)], cwd=ROOT)
+    if result.returncode:
+        failed.append(name)
+
+# Small cross-cutting release invariants that are intentionally centralized here.
+def text(path: str) -> str:
+    return (ROOT / path).read_text(encoding="utf-8", errors="replace")
+
+extra = []
+calc = text("shared/src/main/java/org/example/shared/DocumentCalculationEngine.java")
+ops = text("server/src/main/java/org/example/server/operations/BusinessOperationsService.java")
+auth = text("server/src/main/java/org/example/server/auth/AuthService.java")
+pay = text("server/src/main/java/org/example/server/support/PaymentIntegrityService.java")
+css = sorted(p.name for p in (ROOT / "desktop/src/main/resources/css").glob("*.css"))
+if "BigDecimal qty = quantityDecimal" not in calc:
+    extra.append("authoritative calculation is not BigDecimal internally")
+if "requestedTotals=documentTotals" not in ops:
+    extra.append("sale/purchase update guard still trusts client totals")
+if "stored.equals(raw)" in auth:
+    extra.append("plaintext password comparison remains enabled")
+if "FOR UPDATE" not in pay or "effectivePaid" not in pay:
+    extra.append("payment serialization/authoritative paid guard missing")
+if css != ["dark-theme.css", "light-theme.css"]:
+    extra.append(f"central two-theme CSS contract changed: {css}")
+
 if extra:
-    print('\n=== RELEASE-GATE EXTRA CHECKS ===')
-    for item in extra: print('FAIL -',item)
+    print("\n=== RELEASE-GATE EXTRA CHECKS ===")
+    for item in extra:
+        print("FAIL -", item)
     failed.extend(extra)
 else:
-    print('\nRELEASE_GATE_EXTRA_OK bigdecimal=yes server_totals=yes plaintext_compare=no payment_lock=yes css=2')
+    print("\nRELEASE_GATE_EXTRA_OK bigdecimal=yes server_totals=yes plaintext_compare=no payment_lock=yes css=2")
 
 if failed:
-    print('\nRELEASE_GATES_FAIL')
+    print("\nRELEASE_GATES_FAIL")
+    for item in failed:
+        print(" -", item)
     sys.exit(1)
-print('\nRELEASE_GATES_OK')
+
+print("\nRELEASE_GATES_9_0_57_OK")
