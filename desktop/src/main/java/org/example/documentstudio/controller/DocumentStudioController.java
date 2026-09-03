@@ -336,10 +336,11 @@ public class DocumentStudioController implements ScreenLifecycle {
         MenuItem setDefault = new MenuItem(template.isRuntimeEnabled()?"Mark Default Again":"Mark as Default");
         setDefault.setDisable(!automatic || template.getPublishedVersion()<=0 || template.isUnpublishedChanges()); setDefault.setOnAction(e -> setDefault(template));
         MenuItem duplicate = new MenuItem("Duplicate"); duplicate.setOnAction(e -> duplicate(template));
+        MenuItem exportPackage = new MenuItem("Export Template + Mapping"); exportPackage.setOnAction(e -> exportTemplatePackage(template));
         MenuItem archive = new MenuItem(template.getStatus() == TemplateStatus.ARCHIVED ? "Keep Archived" : "Archive");
         archive.setDisable(template.getStatus() == TemplateStatus.ARCHIVED); archive.setOnAction(e -> archive(template));
         MenuItem delete = new MenuItem("Delete"); delete.setOnAction(e -> delete(template));
-        more.getItems().addAll(publish, setDefault, duplicate, archive, new SeparatorMenuItem(), delete);
+        more.getItems().addAll(publish, setDefault, duplicate, exportPackage, archive, new SeparatorMenuItem(), delete);
         edit.getStyleClass().addAll("approved-button", "approved-primary-button", "doc-template-action-button");
         previewButton.getStyleClass().addAll("approved-button", "approved-secondary-button", "doc-template-action-button");
         more.getStyleClass().addAll("approved-menu-button", "doc-template-more-button");
@@ -386,6 +387,43 @@ public class DocumentStudioController implements ScreenLifecycle {
 
     private Label badge(String text, String style) {
         Label label = new Label(text); label.getStyleClass().addAll("doc-template-badge", style); return label;
+    }
+
+    @FXML
+    private void importTemplatePackage() {
+        org.example.service.PermissionService.require("DOCUMENT_STUDIO.CREATE", "import a PDF Studio template package");
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Import DSE PDF Template");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DSE PDF Template", "*.dsetemplate"));
+        var file = chooser.showOpenDialog(root.getScene().getWindow());
+        if (file == null) return;
+        try {
+            DocumentTemplate imported = TemplateStorageService.importPackage(file.toPath());
+            refresh();
+            ModernDialog.success(root, "Template imported", imported.getName() + " was imported with its PDF, mappings and assets. It is a draft until you publish it.");
+        } catch (Exception error) {
+            ModernDialog.error(root, "Template import failed", "PDF Studio", rootMessage(error));
+        }
+    }
+
+    private void exportTemplatePackage(DocumentTemplate template) {
+        org.example.service.PermissionService.require("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "export a PDF Studio template package");
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Export PDF Template + Mapping");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DSE PDF Template", "*.dsetemplate"));
+        String safeName = template.getName().replaceAll("[^A-Za-z0-9._ -]", "_").trim();
+        chooser.setInitialFileName((safeName.isBlank() ? "DSE-PDF-Template" : safeName) + ".dsetemplate");
+        var file = chooser.showSaveDialog(root.getScene().getWindow());
+        if (file == null) return;
+        Path output = file.toPath();
+        if (!output.getFileName().toString().toLowerCase().endsWith(".dsetemplate"))
+            output = output.resolveSibling(output.getFileName() + ".dsetemplate");
+        try {
+            TemplateStorageService.exportPackage(template, output);
+            ModernDialog.success(root, "Template exported", "PDF + complete mapping + assets exported to:\n" + output);
+        } catch (Exception error) {
+            ModernDialog.error(root, "Template export failed", "PDF Studio", rootMessage(error));
+        }
     }
 
     private void openDesigner(DocumentTemplate template) {

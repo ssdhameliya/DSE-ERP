@@ -42,4 +42,7 @@ public final class TemplateStorageService {
     public static Path assetsFolder(DocumentTemplate template) throws IOException { return PdfStudioTemplateRepository.assetsFolder(template); }
     public static String importAsset(DocumentTemplate template, Path source) throws IOException { return PdfStudioTemplateRepository.importAsset(template, source); }
     public static Path resolveAsset(DocumentTemplate template, String relative) throws IOException { return PdfStudioTemplateRepository.resolveAsset(template, relative); }
+    public static Path exportPackage(DocumentTemplate template, Path output) throws IOException { return PdfStudioTemplatePackageService.exportPackage(template, output); }
+    public static DocumentTemplate importPackage(Path packageFile) throws IOException { return PdfStudioTemplatePackageService.importPackage(packageFile); }
 }
+

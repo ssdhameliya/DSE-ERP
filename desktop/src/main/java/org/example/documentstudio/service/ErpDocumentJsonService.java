@@ -9,6 +9,8 @@ import org.example.documentstudio.model.TemplateCharge;
 import org.example.documentstudio.model.TemplateData;
 import org.example.invoice.model.TaxInvoiceItem;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -204,9 +206,11 @@ public final class ErpDocumentJsonService {
     }
 
     private static void addCommonFinancialAliases(ObjectNode root, TemplateData data) {
-        alias(root, data, "totals.basicAmount", "totals.subtotal");
-        aliasFirst(root, data, "totals.taxableAmount", "totals.grossBeforeTax", "totals.subtotal");
+        aliasFirst(root, data, "totals.basicAmount", "totals.basicAmount", "totals.subtotal");
+        aliasFirst(root, data, "totals.taxableAmount", "totals.taxableAmount", "totals.grossBeforeTax", "totals.subtotal");
         putPath(root, "totals.freight", freightAmount(data));
+        putPath(root, "totals.chargeLabel", chargeSummaryLabel(data));
+        putPath(root, "totals.chargesAmount", totalChargeAmount(data));
         String words = data.value("totals.amountInWords");
         if (words != null && !words.isBlank())
             putPath(root, "totals.amountInWordsText", words.replaceFirst("(?i)^\\s*INR\\s*:\\s*", ""));
@@ -230,6 +234,74 @@ public final class ErpDocumentJsonService {
             putPath(root, "tax.secondaryLabel", sgst);
             alias(root, data, "tax.secondaryAmount", "totals.sgstAmount");
         }
+        putPath(root, "totals.breakdownLabels", financialBreakdownLabels(data));
+        putPath(root, "totals.breakdownAmounts", financialBreakdownAmounts(data));
+    }
+
+    private static String financialBreakdownLabels(TemplateData data) {
+        List<String> rows = new ArrayList<>();
+        rows.add("BASIC AMOUNT");
+        if (positiveMoney(data.value("totals.discountAmount"))) rows.add("DISCOUNT");
+        if (data.charges() != null) for (TemplateCharge charge : data.charges()) {
+            if (charge != null && charge.amount() > 0) rows.add(safe(charge.type()).isBlank() ? "CHARGE" : safe(charge.type()).toUpperCase(java.util.Locale.ROOT));
+        }
+        rows.add("TAXABLE AMOUNT");
+        double rate = singleGstRate(data);
+        String mode = data.gstType() == null ? "" : data.gstType().toUpperCase(java.util.Locale.ROOT);
+        if (mode.contains("IGST")) rows.add(rate > 0 ? "IGST @ " + percent(rate) + "%" : "IGST");
+        else {
+            rows.add(rate > 0 ? "CGST @ " + percent(rate / 2d) + "%" : "CGST");
+            rows.add(rate > 0 ? "SGST @ " + percent(rate / 2d) + "%" : "SGST");
+        }
+        rows.add("ROUND OFF");
+        return String.join("\n", rows);
+    }
+
+    private static String financialBreakdownAmounts(TemplateData data) {
+        List<String> rows = new ArrayList<>();
+        rows.add(valueOrZero(data, "totals.basicAmount"));
+        if (positiveMoney(data.value("totals.discountAmount"))) rows.add(valueOrZero(data, "totals.discountAmount"));
+        if (data.charges() != null) for (TemplateCharge charge : data.charges()) {
+            if (charge != null && charge.amount() > 0) rows.add(String.format(java.util.Locale.ENGLISH, "%,.2f", charge.amount()));
+        }
+        rows.add(valueOrZero(data, "totals.taxableAmount"));
+        String mode = data.gstType() == null ? "" : data.gstType().toUpperCase(java.util.Locale.ROOT);
+        if (mode.contains("IGST")) rows.add(valueOrZero(data, "totals.igstAmount"));
+        else { rows.add(valueOrZero(data, "totals.cgstAmount")); rows.add(valueOrZero(data, "totals.sgstAmount")); }
+        String round = data.value("totals.roundOff");
+        rows.add(round == null || round.isBlank() ? "-" : round);
+        return String.join("\n", rows);
+    }
+
+    private static boolean positiveMoney(String value) {
+        try { return Math.abs(Double.parseDouble(safe(value).replace(",", ""))) >= 0.005d; }
+        catch (Exception ignored) { return false; }
+    }
+
+    private static String valueOrZero(TemplateData data, String key) {
+        String value = data.value(key);
+        return value == null || value.isBlank() ? "0.00" : value;
+    }
+
+    private static String chargeSummaryLabel(TemplateData data) {
+        java.util.List<String> labels = data.charges().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(TemplateCharge::type)
+                .map(ErpDocumentJsonService::safe)
+                .filter(value -> !value.isBlank())
+                .map(value -> value.toUpperCase(java.util.Locale.ROOT))
+                .distinct()
+                .toList();
+        if (labels.isEmpty()) return "CHARGES";
+        return String.join(" + ", labels);
+    }
+
+    private static String totalChargeAmount(TemplateData data) {
+        double total = data.charges().stream()
+                .filter(java.util.Objects::nonNull)
+                .mapToDouble(TemplateCharge::amount)
+                .sum();
+        return String.format(java.util.Locale.ENGLISH, "%,.2f", total);
     }
 
     private static String freightAmount(TemplateData data) {

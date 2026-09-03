@@ -140,7 +140,7 @@ public class PurchaseController implements ScreenLifecycle {
 
 
     @FXML
-    private TableColumn<PurchaseLine,String> colItem;
+    private TableColumn<PurchaseLine,String> colItem, colCode, colCategory, colHsn, colUnit;
 
 
     @FXML
@@ -356,7 +356,7 @@ public class PurchaseController implements ScreenLifecycle {
         if(q.isBlank()||!txtItemSearch.isFocused()){itemSuggestions.hide();return;}
         List<Item> matches=allItems.stream().filter(item->itemSearchHaystack(item).contains(q)).limit(12).toList();
         itemSuggestions.getItems().clear();
-        for(Item item:matches){MenuItem option=new MenuItem(itemDisplay(item),IconFactory.compactIcon("item",15));option.setOnAction(event->selectItem(item));itemSuggestions.getItems().add(option);}
+        for(Item item:matches){MenuItem option=new MenuItem(itemSuggestionDisplay(item),IconFactory.compactIcon("item",15));option.setOnAction(event->selectItem(item));itemSuggestions.getItems().add(option);}
         if(matches.isEmpty())itemSuggestions.hide();else if(!itemSuggestions.isShowing())itemSuggestions.show(txtItemSearch,javafx.geometry.Side.BOTTOM,0,2);
     }
     private void selectItem(Item item){selectItem(item,true);}
@@ -372,8 +372,10 @@ public class PurchaseController implements ScreenLifecycle {
         if(selectedItem!=null)return selectedItem;String value=text==null?"":text.trim();if(value.isBlank())return null;
         return allItems.stream().filter(item->itemDisplay(item).equalsIgnoreCase(value)||safeItem(item.getItemCode()).equalsIgnoreCase(value)||safeItem(item.getDescription()).equalsIgnoreCase(value)||safeItem(item.getRemarks()).equalsIgnoreCase(value)).findFirst().orElse(null);
     }
-    private String itemSearchHaystack(Item item){return (safeItem(item.getItemCode())+" "+safeItem(item.getDescription())+" "+safeItem(item.getRemarks())+" "+safeItem(item.getHsn())).toLowerCase(java.util.Locale.ROOT);}
-    private String itemDisplay(Item item){if(item==null)return "";String remarks=safeItem(item.getRemarks()),description=safeItem(item.getDescription());if(remarks.isBlank())return description;if(description.isBlank())return remarks;return remarks+" • "+description;}
+    private String itemSearchHaystack(Item item){return (safeItem(item.getItemCode())+" "+safeItem(item.getDescription())+" "+safeItem(item.getRemarks())+" "+safeItem(item.getCategory())+" "+safeItem(item.getHsn())+" "+safeItem(item.getUnit())+" "+item.getGst()).toLowerCase(java.util.Locale.ROOT);}
+    private String itemDisplay(Item item){if(item==null)return "";String code=safeItem(item.getItemCode()),description=safeItem(item.getDescription());return code.isBlank()?description:(description.isBlank()?code:code+" - "+description);}
+    private String itemSuggestionDisplay(Item item){if(item==null)return "";return itemDisplay(item)+"  |  Category: "+valueOrDash(item.getCategory())+"  |  HSN: "+valueOrDash(item.getHsn())+"  |  Unit: "+valueOrDash(item.getUnit())+"  |  GST: "+String.format(java.util.Locale.ROOT,"%.2f%%",item.getGst());}
+    private String valueOrDash(String value){String v=safeItem(value);return v.isBlank()?"-":v;}
     private String safeItem(String value){return value==null?"":value.trim();}
     private String itemNameForDisplay(String itemCode,String persistedDescription){String code=safeItem(itemCode);if(!code.isBlank())for(Item item:allItems)if(code.equalsIgnoreCase(safeItem(item.getItemCode()))){String name=itemDisplay(item);if(!name.isBlank())return name;}String fallback=safeItem(persistedDescription);int separator=fallback.indexOf(" - ");return separator>=0&&separator+3<fallback.length()?fallback.substring(separator+3).trim():fallback;}
 
@@ -382,8 +384,12 @@ public class PurchaseController implements ScreenLifecycle {
     private void setupTable(){
 
 
+        colCode.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCode())));
         colItem.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
             itemNameForDisplay(value.getValue().getItemCode(), value.getValue().getItemDescription())));
+        colCategory.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCategory())));
+        colHsn.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemHsn())));
+        colUnit.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemUnit())));
 
 
         colQuantity.setCellValueFactory(
@@ -483,11 +489,11 @@ public class PurchaseController implements ScreenLifecycle {
             );
 
 
-            line.setItemDescription(
-                item.getItemCode()
-                    +" - "
-                    +item.getDescription()
-            );
+            line.setItemDescription(item.getDescription());
+            line.setItemCategory(item.getCategory());
+            line.setItemHsn(item.getHsn());
+            line.setItemUnit(item.getUnit());
+            line.setItemRemarks(item.getRemarks());
 
 
             line.setQuantity(qty);
@@ -1131,7 +1137,7 @@ public class PurchaseController implements ScreenLifecycle {
 
     private void importPurchaseItems(){
         FileChooser chooser=new FileChooser();chooser.setTitle("Import Purchase Items");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV File","*.csv"));File file=chooser.showOpenDialog(tableLines.getScene().getWindow());if(file==null)return;
-        try{int count=0;for(String row:Files.readAllLines(file.toPath())){if(row.isBlank()||row.toLowerCase().startsWith("item"))continue;String[]v=row.split(",");if(v.length<3)throw new IllegalArgumentException("CSV columns must be: item_code,quantity,rate,gst_percent");Item item=allItems.stream().filter(i->i.getItemCode().equalsIgnoreCase(v[0].trim())).findFirst().orElseThrow(()->new IllegalArgumentException("Unknown item code: "+v[0]));double q=Double.parseDouble(v[1].trim()),rate=Double.parseDouble(v[2].trim()),gst=v.length>3?Double.parseDouble(v[3].trim()):item.getGst();PurchaseLine line=new PurchaseLine();line.setItemCode(item.getItemCode());line.setItemDescription(item.getItemCode()+" - "+item.getDescription());line.setQuantity(q);line.setRate(rate);line.setGstPercent(gst);recalculateLine(line);tableLines.getItems().add(line);count++;}recalculate();org.example.util.ToastManager.success(tableLines,"Import complete",count+" purchase item(s) imported.");}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,"Could not import items: "+e.getMessage()).showAndWait();}
+        try{int count=0;for(String row:Files.readAllLines(file.toPath())){if(row.isBlank()||row.toLowerCase().startsWith("item"))continue;String[]v=row.split(",");if(v.length<3)throw new IllegalArgumentException("CSV columns must be: item_code,quantity,rate,gst_percent");Item item=allItems.stream().filter(i->i.getItemCode().equalsIgnoreCase(v[0].trim())).findFirst().orElseThrow(()->new IllegalArgumentException("Unknown item code: "+v[0]));double q=Double.parseDouble(v[1].trim()),rate=Double.parseDouble(v[2].trim()),gst=v.length>3?Double.parseDouble(v[3].trim()):item.getGst();PurchaseLine line=new PurchaseLine();line.setItemCode(item.getItemCode());line.setItemDescription(item.getDescription());line.setItemCategory(item.getCategory());line.setItemHsn(item.getHsn());line.setItemUnit(item.getUnit());line.setItemRemarks(item.getRemarks());line.setQuantity(q);line.setRate(rate);line.setGstPercent(gst);recalculateLine(line);tableLines.getItems().add(line);count++;}recalculate();org.example.util.ToastManager.success(tableLines,"Import complete",count+" purchase item(s) imported.");}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,"Could not import items: "+e.getMessage()).showAndWait();}
     }
 
 

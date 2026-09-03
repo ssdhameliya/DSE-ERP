@@ -4,6 +4,8 @@ import org.example.util.OwnedAlert;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ButtonBar;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.example.backup.BackupManager;
@@ -78,12 +80,10 @@ public final class Main {
             }
         } catch (Exception exception) {
             DesktopLog.error("Main", "POSTGRES_START_FAILED", "Managed PostgreSQL startup failed", exception);
-            Platform.runLater(() -> {
-                Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
-                        BrandingService.applicationName() + " could not prepare its local PostgreSQL database.\n\n" + exception.getMessage());
-                alert.setHeaderText("Database runtime startup failed");
-                alert.showAndWait();
-            });
+            Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(
+                    stage,
+                    "Database runtime startup failed",
+                    BrandingService.applicationName() + " could not prepare its local PostgreSQL database.\n\n" + exception.getMessage()));
             return;
         }
         BackupManager.RestoreResult restoreResult = ConfigManager.isSharedClient()
@@ -107,13 +107,11 @@ public final class Main {
             SceneManager.markSplashReady("Services ready. Opening " + BrandingService.applicationName() + "...");
         } catch (Exception exception) {
             DesktopLog.error("Main", "SERVER_START_FAILED", "Spring services could not start", exception);
-            Platform.runLater(() -> {
-                Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
-                        BrandingService.applicationName() + " services could not start automatically.\n\n" + exception.getMessage()
-                                + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath());
-                alert.setHeaderText(BrandingService.applicationName() + " startup failed");
-                alert.showAndWait();
-            });
+            Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(
+                    stage,
+                    BrandingService.applicationName() + " startup failed",
+                    BrandingService.applicationName() + " services could not start automatically.\n\n" + exception.getMessage()
+                            + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath()));
             return;
         }
         Platform.runLater(() -> {
@@ -135,6 +133,16 @@ public final class Main {
     }
 
     /** SetupWizardController has created the workspace and bootstrapped company/admin data through the Spring API. */
+    private void showStartupFailureWithWorkspaceRecovery(Stage stage, String header, String message) {
+        ButtonType existing = new ButtonType("Select Existing Workspace", ButtonBar.ButtonData.OTHER);
+        ButtonType exit = new ButtonType("Exit", ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message, existing, exit);
+        alert.setHeaderText(header);
+        ButtonType choice = alert.showAndWait().orElse(exit);
+        if (choice == existing) SceneManager.showSetupWizard(() -> completeFirstRun(stage));
+        else Platform.exit();
+    }
+
     private void completeFirstRun(Stage stage) {
         // The setup wizard has now created the workspace, so load its configuration
         // before constructing the splash and immediately show the user's branding.

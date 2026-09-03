@@ -40,6 +40,11 @@
                         <Label text="Select a reliable internal drive, secondary drive, network-synchronised folder, or external SSD. Avoid temporary folders and removable drives that are not always connected." wrapText="true" styleClass="setup-help"/>
                         <Label text="Workspace location *" styleClass="setup-field-label"/>
                         <HBox spacing="10"><TextField fx:id="txtWorkspace" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button fx:id="btnBrowse" text="Browse" onAction="#browseWorkspace" styleClass="setup-secondary-button"/></HBox>
+                        <VBox spacing="8" styleClass="setup-folder-preview">
+                            <Label text="Already have a DSE ERP workspace?" styleClass="setup-field-label"/>
+                            <Label text="If an update, moved drive, missing pointer or configuration error sends you here, reconnect the existing workspace instead of creating a new company." wrapText="true" styleClass="setup-help"/>
+                            <Button fx:id="btnUseExisting" text="Use Existing Workspace" onAction="#useExistingWorkspace" maxWidth="Infinity" styleClass="setup-secondary-button"/>
+                        </VBox>
                         <VBox fx:id="localWorkspacePreview" spacing="8" styleClass="setup-folder-preview">
                             <Label text="DSE ERP will create:" styleClass="setup-field-label"/>
                             <Label text="Database  •  Config  •  Backups  •  Reports  •  Imports  •  Exports  •  Attachments  •  Templates  •  Logs" wrapText="true" styleClass="setup-help"/>

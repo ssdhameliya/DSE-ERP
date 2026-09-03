@@ -139,7 +139,9 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_59__full_application_defect_corrections",
                     "db/migration/V9_0_59__full_application_defect_corrections.sql"),
             new Migration("V9_0_62__remove_project_execution",
-                    "db/migration/V9_0_62__remove_project_execution.sql")
+                    "db/migration/V9_0_62__remove_project_execution.sql"),
+            new Migration("V9_0_63__workspace_master_email_stability",
+                    "db/migration/V9_0_63__workspace_master_email_stability.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -214,6 +216,11 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("quotation_header", "converted_invoice_no");
         requireColumn("quotation_header", "discount_amount");
         requireColumn("quotation_line", "discount_percent");
+        requireColumn("sales_line", "category_snapshot");
+        requireColumn("purchase_line", "category_snapshot");
+        requireColumn("quotation_line", "category_snapshot");
+        requireColumn("quotation_line", "hsn_snapshot");
+        requireColumn("quotation_line", "unit_snapshot");
         requireColumn("purchase_header", "billing_address");
         requireColumn("purchase_header", "delivery_address");
         requireColumn("purchase_header", "gst_type");

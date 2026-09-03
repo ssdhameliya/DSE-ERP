@@ -121,6 +121,109 @@ public final class TaxInvoicePdfGenerator {
         return generate(invoice, output, Presentation.FULL);
     }
 
+    /**
+     * Shared dynamic Sales layout contract consumed by both the Standard Sales renderer
+     * and PDF Studio. The plan is measured by the same iText tables and live content
+     * used by the Standard renderer, so Studio never has to guess row heights, page
+     * splits, or closing-stack dimensions from hard-coded template coordinates.
+     */
+    public record SalesLayoutPage(int fromIndex, int toIndex, boolean finalPage) {
+        public int itemCount() { return Math.max(0, toIndex - fromIndex); }
+    }
+
+    public record SalesLayoutPlan(
+            List<SalesLayoutPage> pages,
+            float standardRowMinHeight,
+            float physicalRowMinHeight,
+            float financialHeight,
+            float closingHeight,
+            float termsHeight,
+            float financialY,
+            float closingY,
+            float termsY,
+            float firstIntermediateCapacity,
+            float firstFinalCapacity) {
+        public int totalPages() { return pages == null ? 0 : pages.size(); }
+    }
+
+    public static SalesLayoutPlan layoutPlan(TaxInvoiceDocument invoice) throws Exception {
+        validateCustomerFacingRemarks(invoice);
+        try (ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+             PdfWriter writer = new PdfWriter(bytes);
+             PdfDocument pdf = new PdfDocument(writer);
+             Document doc = new Document(pdf, PageSize.A4)) {
+            doc.setMargins(8, 24, FOOTER_RESERVED_BOTTOM, 24);
+            configureTypography(doc);
+            doc.setFontSize(7.0f);
+
+            addCompanyHeader(doc, invoice.company(), true);
+            addInvoiceTitleAndMeta(doc, invoice);
+            addAddressCards(doc, invoice);
+            addTransportStrip(doc, invoice);
+
+            List<TaxInvoiceItem> items = new ArrayList<>(invoice.items());
+            ClosingGeometry closing = closingGeometry(doc, invoice);
+            float financialHeight = measureTableHeight(doc, buildFinancialTable(invoice));
+            float closingHeight = measureTableHeight(doc, buildClosingTotalsTable(invoice));
+            float termsHeight = measureTableHeight(doc, buildTermsAndSignatureTable(invoice));
+            float initialFinalCapacity = finalItemCapacity(doc, invoice);
+            float initialIntermediateCapacity = intermediateItemCapacity(doc);
+
+            List<SalesLayoutPage> pages = new ArrayList<>();
+            if (items.isEmpty()) {
+                return new SalesLayoutPlan(List.of(), 0f, FILLER_ROW_HEIGHT, financialHeight, closingHeight, termsHeight,
+                        closing.financialY(), closing.closingY(), closing.termsY(),
+                        initialIntermediateCapacity, initialFinalCapacity);
+            }
+
+            if (items.size() <= MAX_ITEMS_PER_PAGE && fitsItems(doc, items, initialFinalCapacity)) {
+                pages.add(new SalesLayoutPage(0, items.size(), true));
+                return new SalesLayoutPlan(List.copyOf(pages), 0f, FILLER_ROW_HEIGHT, financialHeight, closingHeight, termsHeight,
+                        closing.financialY(), closing.closingY(), closing.termsY(),
+                        initialIntermediateCapacity, initialFinalCapacity);
+            }
+
+            int firstCount = Math.min(MAX_ITEMS_PER_PAGE,
+                    Math.max(1, maxFittingCount(doc, items, initialIntermediateCapacity)));
+            float standardRowMinHeight = expandedRowMinHeight(doc, items.subList(0, firstCount), initialIntermediateCapacity);
+            float headerOnlyHeight = measureItemsTableHeight(doc, List.of(), standardRowMinHeight);
+            float firstTableHeight = measureItemsTableHeight(doc, items.subList(0, firstCount), standardRowMinHeight);
+            float physicalRowMinHeight = Math.max(FILLER_ROW_HEIGHT,
+                    (firstTableHeight - headerOnlyHeight) / Math.max(1, firstCount));
+
+            int offset = 0;
+            while (offset < items.size()) {
+                List<TaxInvoiceItem> remaining = items.subList(offset, items.size());
+                float finalCapacity = finalItemCapacity(doc, invoice);
+                if (remaining.size() <= MAX_ITEMS_PER_PAGE
+                        && fitsItems(doc, remaining, finalCapacity, standardRowMinHeight)) {
+                    pages.add(new SalesLayoutPage(offset, items.size(), true));
+                    break;
+                }
+
+                float pageCapacity = intermediateItemCapacity(doc);
+                int physicalFit = maxFittingCount(doc, remaining, pageCapacity, standardRowMinHeight);
+                int fit = Math.min(MAX_ITEMS_PER_PAGE, physicalFit);
+                if (remaining.size() <= MAX_ITEMS_PER_PAGE && remaining.size() > 1) {
+                    fit = Math.min(fit, remaining.size() - 1);
+                }
+                fit = Math.max(1, fit);
+                pages.add(new SalesLayoutPage(offset, offset + fit, false));
+                offset += fit;
+
+                doc.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+                addCompanyHeader(doc, invoice.company(), true);
+                addInvoiceTitleAndMeta(doc, invoice);
+                addAddressCards(doc, invoice);
+                addTransportStrip(doc, invoice);
+            }
+
+            return new SalesLayoutPlan(List.copyOf(pages), standardRowMinHeight, physicalRowMinHeight, financialHeight, closingHeight, termsHeight,
+                    closing.financialY(), closing.closingY(), closing.termsY(),
+                    initialIntermediateCapacity, initialFinalCapacity);
+        }
+    }
+
     public static Path generate(TaxInvoiceDocument invoice, Path output, Presentation presentation) throws Exception {
         validateCustomerFacingRemarks(invoice);
         Presentation mode = presentation == null ? Presentation.FULL : presentation;

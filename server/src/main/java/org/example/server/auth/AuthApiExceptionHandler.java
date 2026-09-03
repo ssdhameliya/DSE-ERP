@@ -18,7 +18,7 @@ import java.time.DateTimeException;
 public class AuthApiExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<AuthDtos.OperationResponse> badRequest(IllegalArgumentException ex) {
-        return ResponseEntity.badRequest().body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
+        return ResponseEntity.badRequest().body(new AuthDtos.OperationResponse(false, directMessage(ex)));
     }
 
 
@@ -34,16 +34,22 @@ public class AuthApiExceptionHandler {
                 "Invalid request data. Check date/time values and try again."));
     }
 
+    @ExceptionHandler(EmailDeliveryException.class)
+    ResponseEntity<AuthDtos.OperationResponse> emailUnavailable(EmailDeliveryException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new AuthDtos.OperationResponse(false, ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     ResponseEntity<AuthDtos.OperationResponse> conflict(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
+                .body(new AuthDtos.OperationResponse(false, directMessage(ex)));
     }
 
     @ExceptionHandler(SecurityException.class)
     ResponseEntity<AuthDtos.OperationResponse> forbidden(SecurityException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new AuthDtos.OperationResponse(false, rootMessage(ex)));
+                .body(new AuthDtos.OperationResponse(false, directMessage(ex)));
     }
 
     @ExceptionHandler(EmptyResultDataAccessException.class)
@@ -70,10 +76,8 @@ public class AuthApiExceptionHandler {
         return ResponseEntity.internalServerError().body(new AuthDtos.OperationResponse(false, "The request could not be completed"));
     }
 
-    private String rootMessage(Throwable failure) {
-        Throwable root = failure;
-        while (root.getCause() != null && root.getCause() != root) root = root.getCause();
-        String message = root.getMessage();
-        return message == null || message.isBlank() ? root.getClass().getSimpleName() : message;
+    private String directMessage(Throwable failure) {
+        String message = failure == null ? null : failure.getMessage();
+        return message == null || message.isBlank() ? "The request could not be completed" : message;
     }
 }

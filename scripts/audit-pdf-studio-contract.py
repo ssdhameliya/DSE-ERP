@@ -115,9 +115,20 @@ req('viewJsonData' in controller and 'ErpDocumentJsonService.pretty' in controll
 library_controller = text('desktop/src/main/java/org/example/documentstudio/controller/DocumentStudioController.java')
 req('choosePdfType' in library_controller and 'Arrays.asList(DocumentType.values())' in library_controller,
     'Import PDF and blank PDF workflows must allow General PDF plus every supported ERP document type')
-req('private static final int RELEASE_VERSION = 3;' in builtin_installer
+req('private static final int RELEASE_VERSION = 5;' in builtin_installer
     and '58.6688, 224.05' in builtin_installer and '337.6388, 224.05' in builtin_installer,
-    '9.0.62 built-in Sales template must migrate Billing/Delivery GSTIN to the corrected source-PDF baseline')
+    '9.0.73 built-in Sales template must migrate Billing/Delivery GSTIN to the corrected source-PDF baseline')
+req('.builtin-sales-invoice-deleted' in builtin_installer and 'markIntentionallyDeleted' in builtin_installer and 'enforceIntentionalDeletion' in builtin_installer,
+    'intentional built-in Sales template deletion must be persisted and honored by runtime lookup')
+req('INTERMEDIATE' in builtin_installer and 'case "INTERMEDIATE"' in renderer,
+    'multi-page PDF Studio Sales output must support final-only closing-stack suppression')
+req('totals.breakdownLabels' in builtin_installer and 'totals.breakdownAmounts' in builtin_installer
+    and 'financialBreakdownLabels' in json_service and 'financialBreakdownAmounts' in json_service
+    and 'totals.chargeLabel' in json_service and 'totals.chargesAmount' in json_service,
+    'fixed Sales template must render Standard-compatible zero/one/multiple charge breakdown rows while retaining compatibility aliases')
+req('limit(2)' not in text('desktop/src/main/java/org/example/model/Sales.java')
+    and 'maximum of two additional charges' not in text('server/src/main/java/org/example/server/operations/BusinessOperationsService.java'),
+    'Sales additional charges must not be artificially limited to two rows')
 for action in ['#showDesignMode', '#showDataPreviewMode', '#showFinalMode', '#saveDraft', '#publishTemplate', '#markDefault', '#addHideArea']:
     req(action in fxml, f'missing PDF Studio action {action}')
 ET.parse(fxml_path)
@@ -126,23 +137,23 @@ if legacy_controller.exists():
     legacy_text = legacy_controller.read_text(encoding='utf-8')
     req('DSE_PDF_DESIGNER_TOMBSTONE' in legacy_text and 'class PdfDesignerController' not in legacy_text,
         'legacy PdfDesignerController must be absent or a neutral compatibility tombstone')
-req('APP_VERSION = "9.0.62"' in runtime and 'BUILD_REVISION = "9.0.62"' in runtime,
-    'desktop/shared runtime identity must be 9.0.62')
-req('dse.app.version=9.0.62' in props and 'dse.build.revision=9.0.62' in props,
-    'server runtime identity must be 9.0.62')
-req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.62</version>' in root_pom and '<dse.phase>9.0.62</dse.phase>' in root_pom,
-    'root Maven application version and phase must be 9.0.62')
+req('APP_VERSION = "9.0.73"' in runtime and 'BUILD_REVISION = "9.0.73"' in runtime,
+    'desktop/shared runtime identity must be 9.0.73')
+req('dse.app.version=9.0.73' in props and 'dse.build.revision=9.0.73' in props,
+    'server runtime identity must be 9.0.73')
+req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.73</version>' in root_pom and '<dse.phase>9.0.73</dse.phase>' in root_pom,
+    'root Maven application version and phase must be 9.0.73')
 for name, pom in [('shared', shared_pom), ('server', server_pom), ('desktop', desktop_pom)]:
-    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.62</version>' in pom,
-        f'{name} Maven parent version must be 9.0.62')
-req('version=9.0.62' in app_version, 'desktop app-version.properties must be 9.0.62')
-req('DEFAULT_VERSION="9.0.62"' in update_service, 'update fallback version must be 9.0.62')
-req('runtime.phase=9.0.62' in runtime_manifest, 'runtime identity manifest phase must be 9.0.62')
-req('DSE ERP 9.0.62 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
-    'development launcher banner must be 9.0.62')
-req('DSE ERP 9.0.62 - PRODUCTION WINDOWS BUILD' in build_bat,
-    'production Windows launcher banner must be 9.0.62')
-req('DSE ERP 9.0.62 uses application-managed PostgreSQL.' in postgres_bat,
-    'PostgreSQL launcher banner must be 9.0.62')
+    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.73</version>' in pom,
+        f'{name} Maven parent version must be 9.0.73')
+req('version=9.0.73' in app_version, 'desktop app-version.properties must be 9.0.73')
+req('DEFAULT_VERSION="9.0.73"' in update_service, 'update fallback version must be 9.0.73')
+req('runtime.phase=9.0.73' in runtime_manifest, 'runtime identity manifest phase must be 9.0.73')
+req('DSE ERP 9.0.73 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    'development launcher banner must be 9.0.73')
+req('DSE ERP 9.0.73 - PRODUCTION WINDOWS BUILD' in build_bat,
+    'production Windows launcher banner must be 9.0.73')
+req('DSE ERP 9.0.73 uses application-managed PostgreSQL.' in postgres_bat,
+    'PostgreSQL launcher banner must be 9.0.73')
 
-print('PDF_STUDIO_CONTRACT_OK version=9.0.62')
+print('PDF_STUDIO_CONTRACT_OK version=9.0.73')

@@ -1,6 +1,7 @@
 package org.example.server.web;
 
 import org.springframework.http.HttpStatus;
+import org.example.server.auth.EmailDeliveryException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -47,6 +48,15 @@ public class ApiExceptionHandler {
             "status", HttpStatus.BAD_REQUEST.value(),
             "code", "BAD_REQUEST",
             "message", message(error, "Invalid request")
+        ));
+    }
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<Map<String, Object>> emailUnavailable(EmailDeliveryException error) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
+            "status", HttpStatus.SERVICE_UNAVAILABLE.value(),
+            "code", "EMAIL_DELIVERY_UNAVAILABLE",
+            "message", error.getMessage()
         ));
     }
 

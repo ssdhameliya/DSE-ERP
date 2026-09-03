@@ -63,9 +63,10 @@ public final class PdfStudioTemplateRepository {
     public static List<DocumentTemplate> listAll() {
         List<DocumentTemplate> result = new ArrayList<>();
         Path templateRoot;
-        try { templateRoot = root(); PdfStudioRemoteStore.refresh(templateRoot); }
+        try { templateRoot = root(); PdfStudioRemoteStore.refresh(templateRoot); BuiltInPdfTemplateInstaller.enforceIntentionalDeletion(templateRoot); BuiltInModernSalesTemplateInstaller.enforceIntentionalDeletion(templateRoot); }
         catch (Exception error) { logFailure("server-refresh", null, error); try { templateRoot = root(); } catch (Exception fatal) { return result; } }
         BuiltInPdfTemplateInstaller.ensureInstalled(templateRoot);
+        BuiltInModernSalesTemplateInstaller.ensureInstalled(templateRoot);
         try (Stream<Path> folders = Files.list(templateRoot)) {
             folders.filter(Files::isDirectory).forEach(folder -> {
                 try { loadWorking(folder).ifPresent(result::add); }
@@ -396,8 +397,13 @@ public final class PdfStudioTemplateRepository {
 
     public static synchronized void delete(DocumentTemplate template) throws IOException {
         if (template == null) return;
+        Path templateRoot = root();
         PdfStudioRemoteStore.delete(template.getId());
-        deleteTree(folder(template));
+        if (BuiltInPdfTemplateInstaller.SALES_TEMPLATE_ID.equals(template.getId()))
+            BuiltInPdfTemplateInstaller.markIntentionallyDeleted(templateRoot);
+        if (BuiltInModernSalesTemplateInstaller.TEMPLATE_ID.equals(template.getId()))
+            BuiltInModernSalesTemplateInstaller.markIntentionallyDeleted(templateRoot);
+        deleteTree(templateRoot.resolve(template.getId()));
     }
 
     public static Path folder(DocumentTemplate template) throws IOException {

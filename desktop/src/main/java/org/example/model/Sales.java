@@ -313,7 +313,7 @@ public class Sales {
         return List.copyOf(charges);
     }
     public void setCharges(List<SalesCharge> charges) {
-        this.charges = charges == null ? new ArrayList<>() : charges.stream().filter(java.util.Objects::nonNull).limit(2).map(SalesCharge::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        this.charges = charges == null ? new ArrayList<>() : charges.stream().filter(java.util.Objects::nonNull).map(SalesCharge::copy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         if (!this.charges.isEmpty()) {
             SalesCharge first = this.charges.get(0);
             setChargeType(first.getChargeType());

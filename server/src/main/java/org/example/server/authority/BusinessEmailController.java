@@ -1,6 +1,7 @@
 package org.example.server.authority;
 
 import org.example.server.auth.SmtpMailService;
+import org.example.server.auth.EmailDeliveryException;
 import org.example.server.security.CurrentUser;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,25 +34,37 @@ public class BusinessEmailController {
 
     @GetMapping("/settings")
     public Settings settings() {
+        requireAdmin();
         var current = mail.currentSettings();
-        return new Settings(current.email(), current.password(), current.host(), current.port());
+        return new Settings(current.email(), "", current.host(), current.port(), !current.password().isBlank());
     }
 
     @PutMapping("/settings")
     public Settings settings(@RequestBody Settings requested) {
+        requireAdmin();
         var saved = mail.saveSettings(requested.email(), requested.appPassword(), requested.host(), requested.port());
-        return new Settings(saved.email(), saved.password(), saved.host(), saved.port());
+        return new Settings(saved.email(), "", saved.host(), saved.port(), !saved.password().isBlank());
     }
 
     @PostMapping("/test")
     public Result test(@RequestBody TestRequest request) {
+        requireAdmin();
         String recipient = request == null ? null : request.recipient();
-        mail.sendBusiness(recipient, "DSE ERP email test", "Your DSE ERP company-server email configuration is working correctly.", null, null);
-        return new Result(true, "Test email sent successfully");
+        try {
+            mail.sendBusiness(recipient, "DSE ERP email test", "Your DSE ERP company-server email configuration is working correctly.", null, null);
+            return new Result(true, "Test email sent successfully");
+        } catch (EmailDeliveryException failure) {
+            throw new IllegalStateException(failure.adminMessage(), failure);
+        }
+    }
+
+    private void requireAdmin() {
+        if (!"ADMIN".equalsIgnoreCase(CurrentUser.require().role()))
+            throw new SecurityException("Company email settings require Administrator access");
     }
 
     public record Request(String recipient, String subject, String body, String attachmentName, String attachmentBase64) {}
-    public record Settings(String email, String appPassword, String host, Integer port) {}
+    public record Settings(String email, String appPassword, String host, Integer port, boolean passwordConfigured) {}
     public record TestRequest(String recipient) {}
     public record Result(boolean success, String message) {}
 }

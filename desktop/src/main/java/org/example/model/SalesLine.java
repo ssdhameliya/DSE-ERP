@@ -6,6 +6,7 @@ public class SalesLine implements InvoiceLine {
 
     private String itemCode;
     private String itemDescription;
+    private String itemCategory;
     private String itemHsn;
     private String itemUnit;
     private String itemRemarks;
@@ -45,6 +46,8 @@ public class SalesLine implements InvoiceLine {
         this.itemDescription = itemDescription;
     }
 
+    public String getItemCategory(){ return itemCategory; }
+    public void setItemCategory(String value){ itemCategory=value; }
     public String getItemHsn(){ return itemHsn; }
     public void setItemHsn(String value){ itemHsn=value; }
     public String getItemUnit(){ return itemUnit; }

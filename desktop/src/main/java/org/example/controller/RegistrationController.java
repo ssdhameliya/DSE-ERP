@@ -82,7 +82,10 @@ public class RegistrationController {
             challengeId=c.challengeId();
             message(c.message()+". Enter the email OTP below.",false);
             txtOtp.requestFocus();
-        }catch(Exception e){message(e.getMessage(),true);refreshCaptcha();}
+        }catch(Exception e){
+            message(RegistrationErrorPolicy.userMessage(e),true);
+            if(RegistrationErrorPolicy.isCaptchaFailure(e)) refreshCaptcha();
+        }
     }
 
     @FXML private void verifyEmail(){

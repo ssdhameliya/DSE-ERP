@@ -15,6 +15,11 @@ import org.apache.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState;
 import org.apache.pdfbox.util.Matrix;
 import org.example.documentstudio.model.*;
 import org.example.invoice.calculation.InvoiceTaxCalculator;
+import org.example.invoice.calculation.AmountInWordsConverter;
+import org.example.invoice.pdf.TaxInvoicePdfGenerator;
+import org.example.invoice.model.CompanyProfile;
+import org.example.invoice.model.InvoiceParty;
+import org.example.invoice.model.TaxInvoiceDocument;
 import org.example.invoice.model.InvoiceTotals;
 import org.example.invoice.model.TaxInvoiceCharge;
 import org.example.invoice.model.TaxInvoiceItem;
@@ -23,6 +28,8 @@ import org.example.shared.DocumentCalculationEngine;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -68,11 +75,20 @@ public final class PdfStudioRenderer {
         try (PDDocument sourceDoc = Loader.loadPDF(source.toFile()); PDDocument targetDoc = new PDDocument()) {
             if (sourceDoc.getNumberOfPages() == 0) throw new IOException("Template PDF has no pages.");
 
+            TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout = null;
+            if (template.getDocumentType() == DocumentType.SALES_INVOICE && !"MAPPED_FIXED".equals(template.getLayoutMode())) {
+                try {
+                    salesLayout = TaxInvoicePdfGenerator.layoutPlan(toSalesLayoutDocument(data));
+                } catch (Exception ex) {
+                    throw new IOException("Unable to calculate shared Standard Sales layout plan.", ex);
+                }
+            }
+
             Map<Integer, FlowPlan> plans = new HashMap<>();
             for (int sourceIndex = 0; sourceIndex < sourceDoc.getNumberOfPages(); sourceIndex++) {
                 final int page = sourceIndex;
                 List<TemplateElement> pageElements = elements.stream().filter(e -> PdfStyleResolver.effectivelyVisible(template,e)).filter(e -> e.getPageIndex() == page).toList();
-                plans.put(sourceIndex, FlowPlan.forPage(pageElements, data));
+                plans.put(sourceIndex, FlowPlan.forPage(pageElements, data, salesLayout));
             }
 
             Map<Integer, List<Integer>> sourceToOutputPages = new HashMap<>();
@@ -118,18 +134,29 @@ public final class PdfStudioRenderer {
                     List<TemplateCharge> chargeChunk = plan.chargeChunk(data.charges(), part);
                     try (PDPageContentStream cs = new PDPageContentStream(targetDoc, outputPage,
                             PDPageContentStream.AppendMode.APPEND, true, true)) {
+                        boolean sharedSalesLayout = template.getDocumentType() == DocumentType.SALES_INVOICE && salesLayout != null;
+                        if (sharedSalesLayout) {
+                            prepareDynamicSalesPage(outputPage, cs, plan, part, salesLayout);
+                        }
                         for (TemplateElement e : pageElements) {
+                            if (sharedSalesLayout && isLegacyFixedSalesClosingElement(e)) continue;
                             if (e.getType() == ElementType.ITEM_TABLE) {
-                                if (plan.drawItemTable(part)) drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages);
+                                if (plan.drawItemTable(part)) {
+                                    TemplateElement liveTable = sharedSalesLayout ? sharedSalesTableElement(e, plan, part, salesLayout) : e;
+                                    drawElement(targetDoc, outputPage, cs, template, data, liveTable, itemChunk, chargeChunk, outputIndex + 1, totalPages, salesLayout);
+                                }
                                 continue;
                             }
                             if (e.getType() == ElementType.CHARGE_TABLE) {
-                                if (plan.drawChargeTable(part)) drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages);
+                                if (plan.drawChargeTable(part)) drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages, salesLayout);
                                 continue;
                             }
                             if (shouldDraw(e, plan, part)) {
-                                drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages);
+                                drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages, salesLayout);
                             }
+                        }
+                        if (sharedSalesLayout && part == plan.totalCopies() - 1) {
+                            drawDynamicSalesClosing(targetDoc, outputPage, cs, data, salesLayout, plan);
                         }
                     }
                 }
@@ -141,13 +168,19 @@ public final class PdfStudioRenderer {
     }
 
     private static boolean shouldDraw(TemplateElement e, FlowPlan plan, int part) {
-        if (plan.totalCopies() <= 1) return true;
+        // Explicit page rules must also be honored for a one-page document.
+        // In particular, INTERMEDIATE means "all pages except the last"; for a
+        // single-page invoice there is no intermediate page.  The old early return
+        // drew INTERMEDIATE whiteouts on one-page invoices and erased the complete
+        // bank/totals/terms/signature closing stack.
         return switch (e.getPageRule()) {
             case "FIRST", "FIXED" -> part == 0;
             case "EVERY" -> true;
             case "CONTINUATION" -> part > 0;
+            case "INTERMEDIATE" -> part < plan.totalCopies() - 1;
             case "LAST" -> part == plan.totalCopies() - 1;
-            default -> legacyAutoRule(e, plan.primaryTable(), part, plan.totalCopies());
+            case "MULTI" -> plan.totalCopies() > 1;
+            default -> plan.totalCopies() <= 1 || legacyAutoRule(e, plan.primaryTable(), part, plan.totalCopies());
         };
     }
 
@@ -173,7 +206,8 @@ public final class PdfStudioRenderer {
     private static void drawElement(PDDocument doc, PDPage page, PDPageContentStream cs,
                                     DocumentTemplate template, TemplateData data, TemplateElement e,
                                     List<TaxInvoiceItem> tableItems, List<TemplateCharge> tableCharges,
-                                    int pageNumber, int totalPages) throws IOException {
+                                    int pageNumber, int totalPages,
+                                    TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout) throws IOException {
         TemplateElement draw = PdfStyleResolver.effective(template, e);
         boolean transformable = draw.getType() != ElementType.WHITEOUT;
         if (transformable) {
@@ -202,7 +236,8 @@ public final class PdfStudioRenderer {
                 case WHITEOUT -> drawRectangle(page, cs, draw, true);
                 case LINE -> drawLine(page, cs, draw);
                 case PATH -> drawPath(page, cs, draw);
-                case ITEM_TABLE -> drawItemTable(page, cs, draw, tableItems == null ? List.of() : tableItems, data.gstType());
+                case ITEM_TABLE -> drawItemTable(page, cs, draw, tableItems == null ? List.of() : tableItems, data.gstType(), pageNumber, totalPages,
+                        salesLayout == null ? Math.max(18.0, draw.getRowHeight()) : Math.max(18.0, salesLayout.standardRowMinHeight()));
                 case CHARGE_TABLE -> drawChargeTable(page, cs, draw, tableCharges == null ? List.of() : tableCharges, data.gstType());
             }
         } finally {
@@ -248,6 +283,9 @@ public final class PdfStudioRenderer {
                 double preRound = DocumentCalculationEngine.money(totals.grandTotal() - totals.roundOff());
                 double grossBeforeTax = DocumentCalculationEngine.money(
                         totals.basicAmount() - totals.discountAmount() + totals.chargesAmount());
+                values.put("totals.basicAmount", money(totals.basicAmount()));
+                values.put("totals.discountAmount", money(totals.discountAmount()));
+                values.put("totals.taxableAmount", money(totals.taxableAmount()));
                 values.put("totals.cgstAmount", money(totals.cgst()));
                 values.put("totals.sgstAmount", money(totals.sgst()));
                 values.put("totals.igstAmount", money(totals.igst()));
@@ -461,12 +499,93 @@ public final class PdfStudioRenderer {
     }
 
     private static void drawItemTable(PDPage page, PDPageContentStream cs, TemplateElement e,
-                                      List<TaxInvoiceItem> items, String gstType) throws IOException {
+                                      List<TaxInvoiceItem> items, String gstType, int pageNumber, int totalPages,
+                                      double fillerRowHeight) throws IOException {
         List<Column> columns = itemColumns(e.getTableColumns());
         if (columns.isEmpty()) columns = itemColumns(List.of("serial", "descriptionWithRemarks", "quantity", "rate", "total"));
-        drawTableScaffold(page, cs, e, columns);
-        int count = Math.min(rowsPerPage(e), items.size());
-        for (int r = 0; r < count; r++) drawItemRow(page, cs, e, columns, r, items.get(r), gstType);
+
+        TemplateElement effective = e;
+        int count = items == null ? 0 : items.size();
+        if (e.isUseSourceTableDesign()) {
+            effective = e.copy();
+            rebuildSourceSalesGridDynamic(page, cs, effective, count, pageNumber == totalPages, fillerRowHeight);
+        }
+
+        drawTableScaffold(page, cs, effective, columns);
+        for (int r = 0; r < count; r++) drawItemRow(page, cs, effective, columns, r, items.get(r), gstType);
+    }
+
+    private static void rebuildSourceSalesGrid(PDPage page, PDPageContentStream cs, TemplateElement e, double bottomTopLeftY) throws IOException {
+        float x = (float)e.getX();
+        float width = (float)e.getWidth();
+        float bodyTopY = (float)(e.getY() + e.getHeaderHeight());
+        float bottomY = (float)bottomTopLeftY;
+        float pdfBottom = toPdfY(page, bottomY);
+        float pdfTop = toPdfY(page, bodyTopY);
+
+        // Erase only inside the old table-body strokes, then redraw the Standard-blue scaffold.
+        setNonStroke(cs, "#FFFFFF");
+        cs.addRect(x + 0.7f, pdfBottom + 0.7f, width - 1.4f, Math.max(1f, pdfTop - pdfBottom - 1.4f));
+        cs.fill();
+        setStroke(cs, "#7FA4D3");
+        cs.setLineWidth(0.45f);
+
+        List<Float> widths = columnWidths(e, itemColumns(e.getTableColumns()), width);
+        float cursor = x;
+        cs.moveTo(x, pdfTop); cs.lineTo(x + width, pdfTop); cs.stroke();
+        for (float w : widths) {
+            cs.moveTo(cursor, pdfTop); cs.lineTo(cursor, pdfBottom); cs.stroke();
+            cursor += w;
+        }
+        cs.moveTo(x + width, pdfTop); cs.lineTo(x + width, pdfBottom); cs.stroke();
+
+        double rh = e.getRowHeight();
+        for (double y = bodyTopY; y < bottomY - 0.5; y += rh) {
+            float py = toPdfY(page, Math.min(bottomY, y));
+            cs.moveTo(x, py); cs.lineTo(x + width, py); cs.stroke();
+        }
+        cs.moveTo(x, pdfBottom); cs.lineTo(x + width, pdfBottom); cs.stroke();
+    }
+
+
+    private static void rebuildSourceSalesGridDynamic(PDPage page, PDPageContentStream cs, TemplateElement e,
+                                                      int realRows, boolean finalPage, double fillerRowHeight) throws IOException {
+        float x = (float)e.getX();
+        float width = (float)e.getWidth();
+        double bodyTop = e.getY() + e.getHeaderHeight();
+        double cursorY = bodyTop;
+        List<Double> lines = new ArrayList<>();
+        lines.add(bodyTop);
+        for (int i = 0; i < realRows; i++) {
+            cursorY += e.getRowHeight();
+            lines.add(cursorY);
+        }
+        if (finalPage) {
+            double targetBottom = e.getY() + e.getHeight();
+            while (cursorY + fillerRowHeight <= targetBottom + 0.6) {
+                cursorY += fillerRowHeight;
+                lines.add(cursorY);
+            }
+        }
+        float pdfTop = toPdfY(page, bodyTop);
+        float pdfBottom = toPdfY(page, cursorY);
+
+        setNonStroke(cs, "#FFFFFF");
+        cs.addRect(x + 0.7f, pdfBottom + 0.7f, width - 1.4f, Math.max(1f, pdfTop - pdfBottom - 1.4f));
+        cs.fill();
+        setStroke(cs, "#7FA4D3");
+        cs.setLineWidth(0.45f);
+        List<Float> widths = columnWidths(e, itemColumns(e.getTableColumns()), width);
+        float colX = x;
+        for (float w : widths) {
+            cs.moveTo(colX, pdfTop); cs.lineTo(colX, pdfBottom); cs.stroke();
+            colX += w;
+        }
+        cs.moveTo(x + width, pdfTop); cs.lineTo(x + width, pdfBottom); cs.stroke();
+        for (double y : lines) {
+            float py = toPdfY(page, y);
+            cs.moveTo(x, py); cs.lineTo(x + width, py); cs.stroke();
+        }
     }
 
     private static void drawChargeTable(PDPage page, PDPageContentStream cs, TemplateElement e,
@@ -569,6 +688,7 @@ public final class PdfStudioRenderer {
             case "rate" -> money(item.getRate());
             case "discountPercent" -> number(item.getDiscountPercent());
             case "discountAmount" -> money(result.discountAmount());
+            case "grossAmount" -> money(result.grossAmount());
             case "taxable" -> money(result.taxableAmount());
             case "gstPercent" -> number(item.getGstPercent());
             case "gstAmount" -> money(result.taxAmount());
@@ -649,7 +769,7 @@ public final class PdfStudioRenderer {
                 new Column("taxable", "Taxable", 1.2), new Column("gstPercent", "GST %", .8), new Column("gstAmount", "GST", 1.0),
                 new Column("cgstPercent", "CGST %", .8), new Column("cgstAmount", "CGST", 1.0),
                 new Column("sgstPercent", "SGST %", .8), new Column("sgstAmount", "SGST", 1.0),
-                new Column("igstPercent", "IGST %", .8), new Column("igstAmount", "IGST", 1.0), new Column("total", "Total", 1.3),
+                new Column("igstPercent", "IGST %", .8), new Column("igstAmount", "IGST", 1.0), new Column("grossAmount", "Amount", 1.3), new Column("total", "Total", 1.3),
                 new Column("location", "Location", 1.0), new Column("purchasePrice", "Purchase Price", 1.1),
                 new Column("sellingPrice", "Selling Price", 1.1), new Column("availableStock", "Available", .9),
                 new Column("openingStock", "Opening", .9), new Column("minimumStock", "Minimum", .9),
@@ -715,6 +835,30 @@ public final class PdfStudioRenderer {
         }
     }
 
+    private static void drawSingleLineCentered(PDPageContentStream cs, PDFont font, float fontSize,
+                                               String text, float x, float bottomY, float width, float height,
+                                               String color, String alignment) throws IOException {
+        String line = safePdfText(text == null ? "" : text);
+        setNonStroke(cs, color);
+        String effectiveAlignment = alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT);
+        float drawX = alignedX(font, fontSize, line, x, width, effectiveAlignment);
+        float ascent = fontSize;
+        float descent = 0f;
+        if (font.getFontDescriptor() != null) {
+            float fdAscent = font.getFontDescriptor().getAscent();
+            float fdDescent = font.getFontDescriptor().getDescent();
+            if (fdAscent != 0f) ascent = fdAscent / 1000f * fontSize;
+            descent = fdDescent / 1000f * fontSize;
+        }
+        float glyphHeight = Math.max(fontSize * 0.75f, ascent - descent);
+        float baseline = bottomY + Math.max(0f, (height - glyphHeight) / 2f) - descent;
+        cs.beginText();
+        cs.setFont(font, fontSize);
+        cs.newLineAtOffset(drawX, baseline);
+        cs.showText(line);
+        cs.endText();
+    }
+
     private static List<String> wrap(String text, PDFont font, float fontSize, float width) throws IOException {
         if (text == null || text.isEmpty()) return List.of("");
         List<String> result = new ArrayList<>();
@@ -761,34 +905,258 @@ public final class PdfStudioRenderer {
         return String.format(Locale.ENGLISH, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
+
+    private static TaxInvoiceDocument toSalesLayoutDocument(TemplateData data) {
+        List<TaxInvoiceCharge> charges = data.charges().stream()
+                .map(c -> new TaxInvoiceCharge(c.type(), c.amount(), c.taxable(), c.gstPercent()))
+                .toList();
+        InvoiceTotals totals = InvoiceTaxCalculator.calculate(data.items(), charges, data.gstType());
+        CompanyProfile company = new CompanyProfile(
+                data.value("company.name"), data.value("company.address"), data.value("company.gstin"),
+                data.value("company.email"), data.value("company.alternateEmail"), data.value("company.phone"),
+                data.value("payment.bankName"), data.value("payment.branch"), data.value("payment.accountNumber"),
+                data.value("payment.ifsc"), data.value("payment.accountType"), data.value("payment.mode"),
+                data.value("company.terms"), pathText(data.image("company.logo")), pathText(data.image("company.signature")),
+                data.value("company.certificationText"));
+        InvoiceParty billing = new InvoiceParty(data.value("party.name"), data.value("party.billingAddress"),
+                data.value("party.billingGstin"), data.value("party.contactPerson"), data.value("party.contact"));
+        InvoiceParty delivery = new InvoiceParty(data.value("party.name"), data.value("party.deliveryAddress"),
+                data.value("party.deliveryGstin"), data.value("party.contactPerson"), data.value("party.contact"));
+        String words = data.value("totals.amountInWords");
+        if (words.isBlank()) words = "INR : " + AmountInWordsConverter.indianRupees(totals.grandTotal());
+        return new TaxInvoiceDocument(company,
+                data.value("document.number"), parseDate(data.value("document.date")),
+                data.value("document.poNumber"), parseDate(data.value("document.poDate")), data.value("document.paymentTerms"),
+                billing, delivery, data.value("transport.name"), data.value("transport.gstin"), data.value("transport.vehicleNumber"),
+                data.value("transport.contactPerson"), data.value("transport.contact"), data.items(), data.gstType(), charges, totals, words);
+    }
+
+    private static String pathText(Path path) { return path == null ? "" : path.toString(); }
+
+    private static LocalDate parseDate(String value) {
+        if (value == null || value.isBlank()) return LocalDate.now();
+        for (DateTimeFormatter f : List.of(DateTimeFormatter.ofPattern("dd/MM/yyyy"), DateTimeFormatter.ofPattern("dd-MM-yyyy"), DateTimeFormatter.ISO_LOCAL_DATE)) {
+            try { return LocalDate.parse(value.trim(), f); } catch (Exception ignored) { }
+        }
+        return LocalDate.now();
+    }
+
+    private static boolean isLegacyFixedSalesClosingElement(TemplateElement e) {
+        if (e == null) return false;
+        boolean closingRule = "LAST".equals(e.getPageRule()) || "INTERMEDIATE".equals(e.getPageRule());
+        return closingRule && e.getY() >= 600.0 && e.getY() < 812.0;
+    }
+
+    private static TemplateElement sharedSalesTableElement(TemplateElement source, FlowPlan flow, int part,
+                                                            TaxInvoicePdfGenerator.SalesLayoutPlan layout) {
+        TemplateElement table = source.copy();
+        boolean finalPage = part == flow.totalCopies() - 1;
+        double capacity;
+        if (finalPage) {
+            double pageHeight = 841.8898; // A4 points; source templates retain A4 geometry.
+            double financialTopTopLeft = pageHeight - (layout.financialY() + layout.financialHeight());
+            capacity = financialTopTopLeft - table.getY() - 5.0;
+        } else {
+            capacity = layout.firstIntermediateCapacity();
+        }
+        table.setHeight(Math.max(table.getHeaderHeight() + 20.0, capacity));
+        table.setRowHeight(Math.max(18.0, layout.physicalRowMinHeight()));
+        return table;
+    }
+
+    private static void prepareDynamicSalesPage(PDPage page, PDPageContentStream cs, FlowPlan flow, int part,
+                                                TaxInvoicePdfGenerator.SalesLayoutPlan layout) throws IOException {
+        // Clear the fixed source closing artwork. The actual closing stack is rebuilt from
+        // measured Standard-Sales geometry on the final page; intermediate pages reuse this
+        // region for real item rows.
+        float top = 270.15f;
+        float bottom = 808.0f;
+        setNonStroke(cs, "#FFFFFF");
+        float pyBottom = toPdfY(page, bottom);
+        float pyTop = toPdfY(page, top);
+        cs.addRect(23.8f, pyBottom, 547.4f, Math.max(1f, pyTop - pyBottom));
+        cs.fill();
+    }
+
+    private static void drawDynamicSalesClosing(PDDocument doc, PDPage page, PDPageContentStream cs,
+                                                TemplateData data, TaxInvoicePdfGenerator.SalesLayoutPlan layout,
+                                                FlowPlan flow) throws IOException {
+        final float left = flow != null && flow.itemTable() != null ? (float)flow.itemTable().getX() : 24f;
+        final float width = flow != null && flow.itemTable() != null ? (float)flow.itemTable().getWidth() : 547f;
+        final float leftW = width * .65f;
+        final float gapW = width * .02f;
+        final float rightW = width * .33f;
+        final String stroke = "#7599C6";
+        final String navy = "#1E437B";
+
+        float financialH = layout.financialHeight();
+        float financialTop = page.getMediaBox().getHeight() - (layout.financialY() + financialH);
+        float financialBottomPdf = toPdfY(page, financialTop + financialH);
+        drawRoundedCard(cs, left, financialBottomPdf, leftW, financialH, 5f, "#FFFFFF", stroke);
+        drawRoundedCard(cs, left + leftW + gapW, financialBottomPdf, rightW, financialH, 5f, "#FFFFFF", stroke);
+
+        List<String[]> bankRows = new ArrayList<>();
+        addIfValue(bankRows, "Supplier GST NO", data.value("company.gstin"));
+        addIfValue(bankRows, "BANK NAME", data.value("payment.bankName"));
+        addIfValue(bankRows, "BRANCH", data.value("payment.branch"));
+        addIfValue(bankRows, "A/c NO", data.value("payment.accountNumber"));
+        addIfValue(bankRows, "IFSC CODE", data.value("payment.ifsc"));
+        addIfValue(bankRows, "ACCOUNT TYPE", data.value("payment.accountType"));
+        addIfValue(bankRows, "PAYMENT MODE", data.value("payment.mode"));
+        bankRows.add(new String[]{"PAYMENT TERMS", blankAs(data.value("document.paymentTerms"), "NA")});
+        List<String[]> totals = dynamicTotalsRows(data);
+        // Match Standard Sales: both sides keep their natural compact row rhythm and
+        // begin at the top of the financial card. The card itself grows to the taller
+        // side, but the shorter side must NOT stretch its rows to fill that height.
+        int naturalFinancialRows = Math.max(1, Math.max(bankRows.size(), totals.size()));
+        float naturalRowH = financialH / naturalFinancialRows;
+        float bankRowH = naturalRowH;
+        for (int i = 0; i < bankRows.size(); i++) {
+            float topY = financialTop + i * bankRowH;
+            String[] row = bankRows.get(i);
+            drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.1f, row[0], left + 6f,
+                    toPdfY(page, topY + bankRowH - 2.0f), leftW * .31f - 8f, bankRowH - 2f, "#000000");
+            drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA), 6.1f, ":  " + row[1], left + leftW * .31f,
+                    toPdfY(page, topY + bankRowH - 2.0f), leftW * .69f - 7f, bankRowH - 2f,
+                    (i == 0 || i == bankRows.size() - 1) ? navy : "#000000");
+        }
+
+        float calcX = left + leftW + gapW;
+        float calcRowH = naturalRowH;
+        setStroke(cs, stroke); cs.setLineWidth(.35f);
+        for (int i = 1; i < totals.size(); i++) {
+            float y = toPdfY(page, financialTop + i * calcRowH);
+            cs.moveTo(calcX, y); cs.lineTo(calcX + rightW, y); cs.stroke();
+        }
+        for (int i = 0; i < totals.size(); i++) {
+            float topY = financialTop + i * calcRowH;
+            String[] row = totals.get(i);
+            PDFont lf = (i == 0 || row[0].startsWith("TAXABLE")) ? font(Standard14Fonts.FontName.HELVETICA_BOLD) : font(Standard14Fonts.FontName.HELVETICA);
+            float rowBottom = toPdfY(page, topY + calcRowH);
+            // Calculation rows are a single continuous row: label uses the full left edge,
+            // amount uses the full right edge, and both share the same vertically-centred baseline.
+            // Do not use drawCellText here: that generic helper intentionally top-aligns wrapped text.
+            drawSingleLineCentered(cs, lf, 6.0f, row[0], calcX + 4f, rowBottom, rightW - 8f, calcRowH, "#000000", "LEFT");
+            drawSingleLineCentered(cs, lf, 6.0f, row[1], calcX + 4f, rowBottom, rightW - 8f, calcRowH, "#000000", "RIGHT");
+        }
+
+        float closingH = layout.closingHeight();
+        float closingTop = page.getMediaBox().getHeight() - (layout.closingY() + closingH);
+        float closingBottomPdf = toPdfY(page, closingTop + closingH);
+        drawRoundedCard(cs, left, closingBottomPdf, leftW, closingH, 5f, "#DFF5E3", stroke);
+        drawRoundedCard(cs, calcX, closingBottomPdf, rightW, closingH, 5f, "#DFF5E3", stroke);
+        drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 7.0f, "INR :", left + 6f,
+                closingBottomPdf + 2f, 38f, closingH - 3f, navy);
+        drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA), 6.8f,
+                blankAs(data.value("totals.amountInWordsText"), data.value("totals.amountInWords")), left + 45f,
+                closingBottomPdf + 2f, leftW - 50f, closingH - 3f, "#000000");
+        // Grand Total follows the same continuous-row rule as Calculation: full left label,
+        // full right amount, both optically centred between the top/bottom card rules.
+        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 7.0f, "G R A N D   T O T A L",
+                calcX + 5f, closingBottomPdf, rightW - 10f, closingH, navy, "LEFT");
+        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 8.0f, data.value("totals.roundedGrandTotal"),
+                calcX + 5f, closingBottomPdf, rightW - 10f, closingH, navy, "RIGHT");
+
+        float termsH = layout.termsHeight();
+        float termsTop = page.getMediaBox().getHeight() - (layout.termsY() + termsH);
+        float termsBottomPdf = toPdfY(page, termsTop + termsH);
+        drawRoundedCard(cs, left, termsBottomPdf, leftW, termsH, 5f, "#FFFFFF", stroke);
+        drawRoundedCard(cs, calcX, termsBottomPdf, rightW, termsH, 5f, "#FFFFFF", stroke);
+        drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 7.6f, "TERMS & CONDITIONS", left + 7f,
+                toPdfY(page, termsTop + 12f), leftW - 14f, 10f, navy);
+        drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA), 6.7f, data.value("company.terms"), left + 7f,
+                termsBottomPdf + 5f, leftW - 14f, Math.max(10f, termsH - 18f), "#000000");
+        drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 8.5f, "For, " + data.value("company.name"), calcX + 6f,
+                toPdfY(page, termsTop + 13f), rightW - 12f, 10f, navy);
+        Path signature = data.image("company.signature");
+        if (signature != null && Files.isRegularFile(signature)) {
+            PDImageXObject image = PDImageXObject.createFromFileByContent(signature.toFile(), doc);
+            float maxW = rightW - 18f, maxH = Math.max(8f, termsH - 31f);
+            float scale = Math.min(maxW / Math.max(1f, image.getWidth()), maxH / Math.max(1f, image.getHeight()));
+            float iw = image.getWidth() * scale, ih = image.getHeight() * scale;
+            cs.drawImage(image, calcX + (rightW - iw) / 2f, termsBottomPdf + 13f, iw, ih);
+        }
+        drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.1f, "AUTHORIZED SIGNATORY", calcX + 8f,
+                termsBottomPdf + 2f, rightW - 16f, 9f, "#000000");
+    }
+
+    private static void drawRoundedCard(PDPageContentStream cs, float x, float y, float w, float h, float radius,
+                                        String fill, String stroke) throws IOException {
+        setNonStroke(cs, fill); setStroke(cs, stroke); cs.setLineWidth(.55f);
+        roundedRect(cs, x, y, w, h, radius); cs.fillAndStroke();
+    }
+
+    private static void addIfValue(List<String[]> rows, String label, String value) {
+        if (value != null && !value.isBlank()) rows.add(new String[]{label, value.trim()});
+    }
+
+    private static String blankAs(String value, String fallback) {
+        return value == null || value.isBlank() ? (fallback == null ? "" : fallback) : value;
+    }
+
+    private static List<String[]> dynamicTotalsRows(TemplateData data) {
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{"BASIC AMOUNT", data.value("totals.basicAmount")});
+        if (!isZeroMoney(data.value("totals.discountAmount"))) rows.add(new String[]{"DISCOUNT", data.value("totals.discountAmount")});
+        for (TemplateCharge charge : data.charges()) {
+            rows.add(new String[]{charge.type().toUpperCase(Locale.ROOT), money(charge.amount())});
+        }
+        rows.add(new String[]{"TAXABLE AMOUNT", data.value("totals.taxableAmount")});
+        if (data.gstType().toUpperCase(Locale.ROOT).contains("IGST") || data.gstType().toUpperCase(Locale.ROOT).contains("INTER")) {
+            rows.add(new String[]{blankAs(data.value("tax.primaryLabel"), "IGST"), data.value("totals.igstAmount")});
+        } else {
+            rows.add(new String[]{blankAs(data.value("tax.primaryLabel"), "CGST"), data.value("totals.cgstAmount")});
+            rows.add(new String[]{blankAs(data.value("tax.secondaryLabel"), "SGST"), data.value("totals.sgstAmount")});
+        }
+        rows.add(new String[]{"ROUND OFF", blankAs(data.value("totals.roundOff"), "-")});
+        return rows;
+    }
+
+    private static boolean isZeroMoney(String value) {
+        if (value == null || value.isBlank() || "-".equals(value.trim())) return true;
+        try { return Math.abs(Double.parseDouble(value.replace(",", "").trim())) < .004; }
+        catch (Exception ignored) { return false; }
+    }
+
     private record Column(String key, String label, double weight) {}
 
     private record FlowPlan(TemplateElement itemTable, TemplateElement chargeTable,
-                            int itemPages, int chargePages, int totalCopies, int chargeStartPart) {
-        static FlowPlan forPage(List<TemplateElement> elements, TemplateData data) {
+                            int itemPages, int chargePages, int totalCopies, int chargeStartPart,
+                            TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout) {
+        static FlowPlan forPage(List<TemplateElement> elements, TemplateData data,
+                                TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout) {
             TemplateElement item = elements.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElse(null);
             TemplateElement charge = elements.stream().filter(e -> e.getType() == ElementType.CHARGE_TABLE).findFirst().orElse(null);
+            if (item != null && salesLayout != null && salesLayout.totalPages() > 0) {
+                return new FlowPlan(item, charge, salesLayout.totalPages(), 0,
+                        salesLayout.totalPages(), 0, salesLayout);
+            }
             int ip = item == null ? 0 : requiredPages(item, data.items().size());
             int cp = charge == null ? 0 : requiredPages(charge, data.charges().size());
-            if (item == null && charge == null) return new FlowPlan(null, null, 0, 0, 1, 0);
-            if (item != null && charge == null) return new FlowPlan(item, null, ip, 0, Math.max(1, ip), 0);
-            if (item == null) return new FlowPlan(null, charge, 0, cp, Math.max(1, cp), 0);
-            // When both regions share a source page, charges begin on the final
-            // item page and continue on additional copies only if they overflow.
+            if (item == null && charge == null) return new FlowPlan(null, null, 0, 0, 1, 0, null);
+            if (item != null && charge == null) return new FlowPlan(item, null, ip, 0, Math.max(1, ip), 0, null);
+            if (item == null) return new FlowPlan(null, charge, 0, cp, Math.max(1, cp), 0, null);
             int start = Math.max(0, ip - 1);
             int total = Math.max(1, ip + Math.max(0, cp - 1));
-            return new FlowPlan(item, charge, ip, cp, total, start);
+            return new FlowPlan(item, charge, ip, cp, total, start, null);
         }
 
         TemplateElement primaryTable() { return itemTable != null ? itemTable : chargeTable; }
         boolean drawItemTable(int part) { return itemTable != null && part < Math.max(1, itemPages); }
         boolean drawChargeTable(int part) {
+            if (salesLayout != null) return false;
             if (chargeTable == null) return false;
             int chargePart = part - chargeStartPart;
             return chargePart >= 0 && chargePart < Math.max(1, chargePages);
         }
         List<TaxInvoiceItem> itemChunk(List<TaxInvoiceItem> items, int part) {
             if (!drawItemTable(part) || items == null || items.isEmpty()) return List.of();
+            if (salesLayout != null && part < salesLayout.pages().size()) {
+                var page = salesLayout.pages().get(part);
+                int from = Math.min(items.size(), page.fromIndex());
+                int to = Math.min(items.size(), page.toIndex());
+                return items.subList(from, to);
+            }
             int rows = rowsPerPage(itemTable), from = Math.min(items.size(), part * rows), to = Math.min(items.size(), from + rows);
             return items.subList(from, to);
         }

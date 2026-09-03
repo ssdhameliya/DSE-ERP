@@ -50,7 +50,7 @@ public final class BusinessEmailClient {
             HttpResponse<String> response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 401) throw new ApiSession.AuthenticationRequiredException("Please sign in again");
             if (response.statusCode() < 200 || response.statusCode() >= 300)
-                throw new IllegalStateException("Company-server email error (" + response.statusCode() + "): " + response.body());
+                throw new IllegalStateException(serverMessage(response.statusCode(), response.body()));
             return json.readValue(response.body(), type);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -60,8 +60,17 @@ public final class BusinessEmailClient {
         }
     }
 
+    private String serverMessage(int status, String body) {
+        try {
+            var node=json.readTree(body==null?"":body);
+            String message=node.path("message").asText("").trim();
+            if(!message.isBlank()) return message;
+        } catch(Exception ignored) { }
+        return "Company-server email request failed (HTTP " + status + ").";
+    }
+
     private record Request(String recipient, String subject, String body, String attachmentName, String attachmentBase64) {}
     private record TestRequest(String recipient) {}
-    public record Settings(String email, String appPassword, String host, Integer port) {}
+    public record Settings(String email, String appPassword, String host, Integer port, boolean passwordConfigured) {}
     public record Result(boolean success, String message) {}
 }

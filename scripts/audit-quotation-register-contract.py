@@ -79,10 +79,10 @@ req('if (result.failedCount() > 0) return true;' in imp,'Import warnings must di
 req('import org.example.util.ScreenRefreshPolicy;' in refund and 'ScreenRefreshPolicy.invalidate(' in refund,'ReturnRefundController must import ScreenRefreshPolicy')
 
 # Release identity.
-req('APP_VERSION = "9.0.62"' in runtime and 'BUILD_REVISION = "9.0.62"' in runtime,'Runtime identity must be 9.0.62')
-req('dse.app.version=9.0.62' in props and 'dse.build.revision=9.0.62' in props,'Server identity must be 9.0.62')
-req('<version>9.0.62</version>' in pom and '<dse.phase>9.0.62</dse.phase>' in pom,'Maven identity must be 9.0.62')
-req('version=9.0.62' in app and 'DEFAULT_VERSION="9.0.62"' in update,'Desktop/update identity must be 9.0.62')
+req('APP_VERSION = "9.0.73"' in runtime and 'BUILD_REVISION = "9.0.73"' in runtime,'Runtime identity must be 9.0.73')
+req('dse.app.version=9.0.73' in props and 'dse.build.revision=9.0.73' in props,'Server identity must be 9.0.73')
+req('<version>9.0.73</version>' in pom and '<dse.phase>9.0.73</dse.phase>' in pom,'Maven identity must be 9.0.73')
+req('version=9.0.73' in app and 'DEFAULT_VERSION="9.0.73"' in update,'Desktop/update identity must be 9.0.73')
 
 protected={
  'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java':'5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c',
@@ -90,4 +90,4 @@ protected={
  'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java':'27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082',
 }
 for p,h in protected.items(): req(sha(Path(p))==h,'Protected production PDF generator changed: '+p)
-print('QUOTATION_REGISTER_CONTRACT_OK version=9.0.62')
+print('QUOTATION_REGISTER_CONTRACT_OK version=9.0.73')

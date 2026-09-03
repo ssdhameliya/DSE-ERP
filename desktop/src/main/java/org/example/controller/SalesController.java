@@ -136,7 +136,7 @@ public class SalesController {
     private TableView<SalesLine> tableLines;
 
     @FXML
-    private TableColumn<SalesLine, String> colItem;
+    private TableColumn<SalesLine, String> colItem, colCode, colCategory, colHsn, colUnit;
 
     @FXML
     private TableColumn<SalesLine, Double> colQuantity;
@@ -703,7 +703,7 @@ public class SalesController {
                 mergeItemCache(matches);
                 itemSuggestions.getItems().clear();
                 for (Item item : matches) {
-                    MenuItem option = new MenuItem(itemSearchDisplay(item));
+                    MenuItem option = new MenuItem(itemSearchSuggestionDisplay(item));
                     option.setOnAction(event -> selectItem(item));
                     itemSuggestions.getItems().add(option);
                 }
@@ -786,17 +786,28 @@ public class SalesController {
 
     private String buildItemSearchHaystack(Item item) {
         return (safeItem(item.getItemCode()) + " " + safeItem(item.getDescription()) + " "
-            + safeItem(item.getRemarks()) + " " + safeItem(item.getHsn())).toLowerCase(java.util.Locale.ROOT);
+            + safeItem(item.getRemarks()) + " " + safeItem(item.getCategory()) + " "
+            + safeItem(item.getHsn()) + " " + safeItem(item.getUnit()) + " " + item.getGst())
+            .toLowerCase(java.util.Locale.ROOT);
     }
 
     private String itemSearchDisplay(Item item) {
         if (item == null) return "";
-        String remark = itemRemark(item);
-        String description = safeItem(item.getDescription());
-        if (remark.isBlank()) return description;
-        if (description.isBlank()) return remark;
-        return remark + " • " + description;
+        String code=safeItem(item.getItemCode()), description=safeItem(item.getDescription());
+        if (code.isBlank()) return description;
+        return description.isBlank()?code:code+" - "+description;
     }
+
+    private String itemSearchSuggestionDisplay(Item item) {
+        if (item == null) return "";
+        return itemSearchDisplay(item)
+            + "  |  Category: " + valueOrDash(item.getCategory())
+            + "  |  HSN: " + valueOrDash(item.getHsn())
+            + "  |  Unit: " + valueOrDash(item.getUnit())
+            + "  |  GST: " + String.format(java.util.Locale.ROOT,"%.2f%%",item.getGst());
+    }
+
+    private String valueOrDash(String value){String v=safeItem(value);return v.isBlank()?"-":v;}
 
     private String itemRemark(Item item) {
         if (item == null) return "";
@@ -889,8 +900,12 @@ public class SalesController {
 
     private void setupTable() {
 
+        colCode.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCode())));
         colItem.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(
             itemNameForDisplay(value.getValue().getItemCode(), value.getValue().getItemDescription())));
+        colCategory.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemCategory())));
+        colHsn.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemHsn())));
+        colUnit.setCellValueFactory(value -> new javafx.beans.property.SimpleStringProperty(safeItem(value.getValue().getItemUnit())));
 
         colQuantity.setCellValueFactory(
             new PropertyValueFactory<>("quantity"));
@@ -1429,7 +1444,7 @@ public class SalesController {
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
         Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Additional Charges");
-        dialog.setHeaderText("Add up to two additional invoice charges");
+        dialog.setHeaderText("Add additional invoice charges as required");
         dialog.getDialogPane().getStyleClass().add("sales-charge-dialog");
 
         VBox rows = new VBox(9);
@@ -1438,7 +1453,7 @@ public class SalesController {
         totals.getStyleClass().add("sales-charge-editor-total");
         Button add = new Button("Add Charge", IconFactory.compactIcon("add", 14));
         add.getStyleClass().addAll("approved-button", "approved-primary-button", "sales-charge-add");
-        Label limit = new Label("Maximum: 2 charges");
+        Label limit = new Label("Add as many charges as required");
         limit.getStyleClass().add("sales-charge-limit");
         HBox addBar = new HBox(10, add, new Region(), limit);
         HBox.setHgrow(addBar.getChildren().get(1), Priority.ALWAYS);
@@ -1448,7 +1463,7 @@ public class SalesController {
             double beforeTax = draft.stream().mapToDouble(SalesCharge::getAmount).sum();
             double tax = draft.stream().mapToDouble(SalesCharge::getTaxAmount).sum();
             totals.setText(String.format("Charges ₹ %,.2f    GST ₹ %,.2f    Total ₹ %,.2f", beforeTax, tax, beforeTax + tax));
-            add.setDisable(draft.size() >= 2);
+            add.setDisable(false);
         };
         Runnable[] render = new Runnable[1];
         render[0] = () -> {
@@ -1485,7 +1500,7 @@ public class SalesController {
             }
             updateTotals.run();
         };
-        add.setOnAction(e->{if(draft.size()<2){draft.add(new SalesCharge("",0,true,18));render[0].run();}});
+        add.setOnAction(e->{draft.add(new SalesCharge("",0,true,18));render[0].run();});
         render[0].run();
 
         ScrollPane rowScroller = new ScrollPane(rows);
@@ -1524,7 +1539,6 @@ public class SalesController {
 
     private String validateCharges(List<SalesCharge> charges) {
         if (charges == null || charges.isEmpty()) return null;
-        if (charges.size() > 2) return "A maximum of two additional charges is allowed.";
         java.util.Set<String> names = new java.util.HashSet<>();
         for (SalesCharge charge : charges) {
             if (charge == null || charge.getChargeType().isBlank()) return "Select a charge type for every charge row.";
@@ -1955,7 +1969,11 @@ public class SalesController {
             );
 
 
-            line.setItemDescription(itemRemark(item));
+            line.setItemDescription(item.getDescription());
+            line.setItemCategory(item.getCategory());
+            line.setItemHsn(item.getHsn());
+            line.setItemUnit(item.getUnit());
+            line.setItemRemarks(item.getRemarks());
 
 
             line.setQuantity(qty);

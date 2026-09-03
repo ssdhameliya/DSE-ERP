@@ -42,8 +42,9 @@ public final class WorkspaceManager {
                 }
             }
 
-            // A missing pointer always means first-run selection. Never silently adopt
-            // an old AppData/.dse-erp folder, because it may contain a zero-user database.
+            // Missing/invalid pointers are recoverable. The setup/recovery screen always
+            // offers "Use Existing Workspace" so an upgrade never forces data recreation.
+            workspaceRoot = null;
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to initialize the DSE ERP workspace.", exception);
         }
@@ -61,6 +62,57 @@ public final class WorkspaceManager {
             return Boolean.parseBoolean(readProperties(config).getProperty("setup.completed", "false"));
         } catch (IOException exception) {
             return false;
+        }
+    }
+
+    /**
+     * Inspects a user-selected folder without creating, deleting or rewriting anything.
+     * Runtime/database verification is intentionally performed after this structural check.
+     */
+    public static synchronized ExistingWorkspaceInspection inspectExisting(Path selectedRoot) {
+        if (selectedRoot == null) return new ExistingWorkspaceInspection(false, null,
+                "Select the folder that contains your existing DSE ERP workspace.", false, false, false);
+        Path normalized = selectedRoot.toAbsolutePath().normalize();
+        if (!Files.isDirectory(normalized)) return new ExistingWorkspaceInspection(false, normalized,
+                "The selected folder does not exist or is not accessible. No files were changed.", false, false, false);
+        Path config = normalized.resolve("Config").resolve("config.properties");
+        Path database = normalized.resolve("Database");
+        Path pgVersion = database.resolve("PostgreSQL").resolve("data").resolve("PG_VERSION");
+        boolean hasConfig = Files.isRegularFile(config);
+        boolean hasDatabase = Files.isDirectory(database);
+        boolean hasPostgres = Files.isRegularFile(pgVersion);
+        if (!hasConfig || !hasDatabase) {
+            return new ExistingWorkspaceInspection(false, normalized,
+                    "This folder is not a valid DSE ERP workspace. Expected Config/config.properties and Database. No files were changed.",
+                    hasConfig, hasDatabase, hasPostgres);
+        }
+        return new ExistingWorkspaceInspection(true, normalized,
+                "Existing DSE ERP workspace structure detected.", hasConfig, hasDatabase, hasPostgres);
+    }
+
+    /**
+     * Connects to a structurally valid existing workspace. It never bootstraps or overwrites
+     * company/users/database data; callers must verify the existing database through Setup API.
+     */
+    public static synchronized void configureExisting(Path selectedRoot) throws IOException {
+        ExistingWorkspaceInspection inspection = inspectExisting(selectedRoot);
+        if (!inspection.valid()) throw new IllegalArgumentException(inspection.message());
+        verifyWritable(inspection.root());
+        writePointer(inspection.root());
+        workspaceRoot = inspection.root();
+        // Add only non-destructive standard folders that may have been introduced by newer releases.
+        ensureStructure(workspaceRoot);
+    }
+
+    /** Repairs only the local setup marker after the server proves the database already has users/admin. */
+    public static synchronized void markSetupComplete() throws IOException {
+        if (!isConfigured()) throw new IllegalStateException("DSE ERP workspace has not been configured yet.");
+        Path config = workspaceRoot.resolve("Config").resolve("config.properties");
+        Properties properties = Files.isRegularFile(config) ? readProperties(config) : new Properties();
+        properties.setProperty("setup.completed", "true");
+        Files.createDirectories(config.getParent());
+        try (OutputStream output = Files.newOutputStream(config, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            properties.store(output, "DSE ERP workspace configuration");
         }
     }
 
@@ -175,9 +227,6 @@ public final class WorkspaceManager {
         });
     }
 
-
-
-
     private static Properties readProperties(Path file) throws IOException {
         Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(file)) {
@@ -198,4 +247,8 @@ public final class WorkspaceManager {
         }
         return Path.of(System.getProperty("user.home"), ".dse-erp").toAbsolutePath().normalize();
     }
+
+    public record ExistingWorkspaceInspection(boolean valid, Path root, String message,
+                                              boolean configPresent, boolean databasePresent,
+                                              boolean postgresClusterPresent) {}
 }

@@ -39,6 +39,7 @@ import org.example.config.DeploymentMode;
 import org.example.config.SettingsValidationSupport;
 import org.example.api.runtime.DeploymentConnectionService;
 import org.example.service.EmailService;
+import org.example.service.EmailFailureMessages;
 import org.example.service.DiagnosticBundleService;
 import org.example.service.BrandAssetPolicy;
 import org.example.service.BrandImagePresenter;
@@ -500,7 +501,8 @@ public class SettingsController implements ScreenLifecycle {
                     if (SessionService.isAdmin()) {
                         var smtp = new org.example.api.authority.BusinessEmailClient().settings();
                         txtSmtpEmail.setText(smtp.email());
-                        txtSmtpPassword.setText(smtp.appPassword());
+                        txtSmtpPassword.clear();
+                        txtSmtpPassword.setPromptText(smtp.passwordConfigured()?"Configured — leave blank to keep current password":"Enter email app password");
                         txtSmtpHost.setText(smtp.host());
                         txtSmtpPort.setText(smtp.port() == null ? "587" : Integer.toString(smtp.port()));
                     } else {
@@ -970,6 +972,58 @@ private record AssetPreviewRequest(
                     ButtonType.OK).showAndWait();
         } catch (Exception exception) {
             showError("The diagnostic package could not be created: " + exception.getMessage());
+        }
+    }
+
+    @FXML
+    private void selectExistingWorkspace() {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Select Existing DSE ERP Workspace");
+        try {
+            File current = WorkspaceManager.getWorkspaceRoot().toFile();
+            if (current.isDirectory()) chooser.setInitialDirectory(current);
+        } catch (Exception ignored) { }
+        File selected = chooser.showDialog(panelWorkspace.getScene().getWindow());
+        if (selected == null) return;
+
+        Path chosen = selected.toPath().toAbsolutePath().normalize();
+        Path current = WorkspaceManager.getWorkspaceRoot().toAbsolutePath().normalize();
+        if (chosen.equals(current)) {
+            org.example.util.ToastManager.info(panelWorkspace, "Workspace unchanged",
+                    "The selected folder is already the active DSE ERP workspace.");
+            return;
+        }
+
+        WorkspaceManager.ExistingWorkspaceInspection inspection = WorkspaceManager.inspectExisting(chosen);
+        if (!inspection.valid()) {
+            showError(inspection.message());
+            return;
+        }
+
+        ButtonType switchWorkspace = new ButtonType("Switch Workspace", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+        OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                "Current workspace:\n" + current +
+                "\n\nSelected existing workspace:\n" + inspection.root() +
+                "\n\nDSE ERP will validate and save this existing workspace without copying or overwriting its business data. " +
+                "The application will then close so every database connection, service and screen can reopen cleanly against the selected workspace.",
+                ButtonType.CANCEL, switchWorkspace);
+        confirmation.setHeaderText("Switch to existing workspace?");
+        if (confirmation.showAndWait().orElse(ButtonType.CANCEL) != switchWorkspace) return;
+
+        try {
+            WorkspaceManager.configureExisting(inspection.root());
+            lblWorkspacePath.setText(inspection.root().toString());
+            lblWorkspaceStatus.setText("Existing workspace selected. Reopen DSE ERP to connect using this workspace.");
+            lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
+            lblWorkspaceStatus.getStyleClass().add("workspace-status-warning");
+            OwnedAlert done = new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "The existing workspace has been selected successfully.\n\nDSE ERP will close now. Reopen the application to start with:\n" + inspection.root(),
+                    ButtonType.OK);
+            done.setHeaderText("Workspace selected");
+            done.showAndWait();
+            Platform.exit();
+        } catch (Exception exception) {
+            showError("The existing workspace could not be selected: " + exception.getMessage());
         }
     }
 
@@ -1668,7 +1722,7 @@ private record AssetPreviewRequest(
         if (ConfigManager.isSharedClient()) {
             if (!SessionService.isAdmin()) return;
             new org.example.api.authority.BusinessEmailClient().saveSettings(
-                    new org.example.api.authority.BusinessEmailClient.Settings(email, password, host, port));
+                    new org.example.api.authority.BusinessEmailClient.Settings(email, password, host, port, !password.isBlank()));
             return;
         }
         putSetting("smtp.email", email);
@@ -1747,20 +1801,22 @@ private record AssetPreviewRequest(
 
         try {
 
-            EmailService.send(
-                recipient,
-                "DSE ERP email test",
-                "Your DSE ERP email configuration is working correctly."
-            );
+            if (ConfigManager.isSharedClient()) {
+                new org.example.api.authority.BusinessEmailClient().test(recipient);
+            } else {
+                EmailService.send(
+                    recipient,
+                    "DSE ERP email test",
+                    "Your DSE ERP email configuration is working correctly."
+                );
+            }
 
             org.example.util.ToastManager.success(panelWorkspace, "Test email sent",
                 "Test email sent successfully to " + recipient + ".");
 
         } catch (RuntimeException exception) {
 
-            showError(
-                exception.getMessage()
-            );
+            showError(EmailFailureMessages.forAdministrator(exception));
         }
     }
 

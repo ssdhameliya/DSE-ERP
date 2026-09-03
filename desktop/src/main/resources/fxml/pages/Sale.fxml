@@ -174,7 +174,11 @@
                         </VBox>
                     </placeholder>
                     <columns>
+                        <TableColumn fx:id="colCode" text="Item Code" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colItem" text="Description" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colCategory" text="Category" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colHsn" text="HSN/SAC" styleClass="approved-table-column"/>
+                        <TableColumn fx:id="colUnit" text="Unit" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colQuantity" text="Qty" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colRate" text="Rate (₹)" styleClass="approved-table-column"/>
                         <TableColumn fx:id="colDiscount" text="Discount %" styleClass="approved-table-column"/>

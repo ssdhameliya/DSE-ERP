@@ -34,6 +34,7 @@ CHECKS = [
     "audit-gate2-gate3-contract.py",
     "audit-project-execution-removal-contract.py",
     "audit-session-focus-stock-contract.py",
+    "audit-stability-contract.py",
 ]
 
 failed = []
@@ -105,4 +106,4 @@ if failed:
         print(" -", item)
     sys.exit(1)
 
-print("\nRELEASE_GATES_CURRENT_OK version=9.0.62")
+print("\nRELEASE_GATES_CURRENT_OK version=9.0.73")

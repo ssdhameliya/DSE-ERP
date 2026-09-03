@@ -40,6 +40,14 @@ public class MasterDataService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void ensureFinanceMasterCategories() {
+        // Item Master lookup categories must exist even when a fresh database seeded
+        // lookup_master before master_category was populated. This is idempotent and
+        // never overwrites/deletes user-defined lookup values.
+        ensureCategory("CATEGORY","CATEGORY","Item categories used by Item Master and transaction item selection",10);
+        ensureCategory("UNIT","UNIT","Units of measure used by Item Master and transaction lines",20);
+        ensureCategory("MATERIAL","MATERIAL","Item materials used by Item Master",30);
+        ensureCategory("BRAND","BRAND","Item brands used by Item Master",40);
+        ensureCategory("GST","GST","GST percentages used by Item Master and transaction lines",50);
         ensureCategory("PAYMENT_MODE","PAYMENT MODE","Payment methods used by Bank, Expense and Invoice Payment",130);
         ensureCategory("EXPENSE_CATEGORY","EXPENSE CATEGORY","Expense classifications used by Expense Entry",140);
         ensureCategory("BANK_ACCOUNT","BANK ACCOUNT","Bank account master: lookup value = account number, description = bank name",150);

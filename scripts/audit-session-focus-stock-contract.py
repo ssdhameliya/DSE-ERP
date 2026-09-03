@@ -5,8 +5,8 @@ R=Path(__file__).resolve().parents[1]
 def t(p): return (R/p).read_text(encoding="utf-8",errors="ignore")
 def need(ok,msg):
     if not ok: print("FAIL:",msg);sys.exit(1)
-need("<version>9.0.62</version>" in t("pom.xml") and "<dse.phase>9.0.62</dse.phase>" in t("pom.xml"),"root identity")
-need('APP_VERSION = "9.0.62"' in t("shared/src/main/java/org/example/shared/RuntimeContract.java"),"runtime identity")
+need("<version>9.0.73</version>" in t("pom.xml") and "<dse.phase>9.0.73</dse.phase>" in t("pom.xml"),"root identity")
+need('APP_VERSION = "9.0.73"' in t("shared/src/main/java/org/example/shared/RuntimeContract.java"),"runtime identity")
 sm=t("desktop/src/main/java/org/example/service/SessionActivityManager.java")
 for token in ["10 * 60","2 * 60","Stay Signed In","Log Out Now","MouseEvent.MOUSE_MOVED","logoutIdle","extendSession","Window.getWindows()"]:
     need(token in sm,"session manager missing "+token)
@@ -18,7 +18,9 @@ for token in ["KeyCode.TAB","KeyCode.ENTER","selectAllOnFocus","initial(Node nod
     need(token in focus,"focus manager missing "+token)
 sales=t("desktop/src/main/java/org/example/controller/SalesController.java")
 need("installBusinessFocusOrder" in sales and "KeyCode.S" in sales,"Sale focus/Ctrl+S")
-need("new MenuItem(itemSearchDisplay(item));" in sales,"Sale item search must be text-only")
+need("new MenuItem(itemSearchSuggestionDisplay(item));" in sales,"Sale item search must remain text-only")
+for token in ["Category: ","HSN: ","Unit: ","GST: "]:
+    need(token in sales,"Sale item search metadata missing "+token)
 fxml=list((R/"desktop/src/main/resources/fxml").rglob("*.fxml"));need(len(fxml)==59,f"expected 59 FXML, got {len(fxml)}")
 for f in fxml: ET.parse(f)
 need(sorted(x.name for x in (R/"desktop/src/main/resources/css").glob("*.css"))==["dark-theme.css","light-theme.css"],"exactly two runtime CSS files")

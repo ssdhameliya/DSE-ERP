@@ -166,7 +166,7 @@ public class TemplateElement {
     public String getPageRule() { return pageRule == null || pageRule.isBlank() ? "AUTO" : pageRule; }
     public void setPageRule(String pageRule) {
         String value = pageRule == null ? "AUTO" : pageRule.trim().toUpperCase(java.util.Locale.ROOT);
-        this.pageRule = switch (value) { case "FIRST", "EVERY", "CONTINUATION", "LAST", "FIXED" -> value; default -> "AUTO"; };
+        this.pageRule = switch (value) { case "FIRST", "EVERY", "CONTINUATION", "INTERMEDIATE", "LAST", "MULTI", "FIXED" -> value; default -> "AUTO"; };
     }
     public String getTextColor() { return textColor == null ? "#172033" : textColor; }
     public void setTextColor(String textColor) { this.textColor = safeColor(textColor, "#172033"); }

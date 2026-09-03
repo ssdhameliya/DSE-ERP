@@ -8,6 +8,29 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.73".equals(version)) {
+            return """
+                    DSE ERP 9.0.73 — PDF Studio Activation & Template Deletion Reliability
+
+                    • Completes PDF Studio Publish / Set as Default sample validation with realistic Item Master remarks required by the shared Standard Sales PDF layout.
+                    • Keeps GST/IGST sample validation on supported tax modes instead of business-treatment labels such as Registered Business.
+                    • Fixes deletion of the mapped DS Engineers Sales starter so an intentional delete stays deleted instead of being silently reinstalled on refresh.
+                    • Preserves intentional deletion/fallback behavior for the Jasvi default Sales template and the Settings → Select Existing Workspace workflow from 9.0.72.
+                    • Preserves portable PDF Studio template import/export, dynamic Sales PDF layout and the two-theme UI architecture.
+                    """;
+        }
+        if ("9.0.63".equals(version)) {
+            return """
+                    DSE ERP 9.0.63 — Workspace, Master Data & Email Stability
+
+                    • Adds permanent Existing Workspace recovery for missing pointers, moved workspaces and startup/runtime errors without recreating company/admin/business data.
+                    • Repairs Item Master category registrations for CATEGORY, UNIT, MATERIAL, BRAND and GST on fresh and upgraded PostgreSQL databases.
+                    • Preserves Category/HSN/Unit snapshots across Sales, Purchase and Quotation lines and exposes the missing Item metadata in transaction tables/search.
+                    • Sanitizes registration SMTP failures, keeps raw provider diagnostics out of public UI, and refreshes CAPTCHA only for CAPTCHA failures.
+                    • Protects company-server SMTP credentials by returning only a configured/not-configured state and retaining the stored app password when an Admin leaves the replacement field blank.
+                    • Preserves the 9.0.62 Project Execution removal, PDF Studio mapping/layout fixes, normal Sales/Purchase/Returns/Quotation flows and two-theme UI architecture.
+                    """;
+        }
         if ("9.0.62".equals(version)) {
             return """
                     DSE ERP 9.0.62 — Project Execution Removal

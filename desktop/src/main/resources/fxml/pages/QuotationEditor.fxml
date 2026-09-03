@@ -72,6 +72,9 @@
                 <columns>
                   <TableColumn fx:id="colItem" text="Description"/>
                   <TableColumn fx:id="colCode" text="Code"/>
+                  <TableColumn fx:id="colCategory" text="Category"/>
+                  <TableColumn fx:id="colHsn" text="HSN/SAC"/>
+                  <TableColumn fx:id="colUnit" text="Unit"/>
                   <TableColumn fx:id="colQty" text="Qty"/>
                   <TableColumn fx:id="colRate" text="Rate"/>
                   <TableColumn fx:id="colDiscount" text="Discount %"/>

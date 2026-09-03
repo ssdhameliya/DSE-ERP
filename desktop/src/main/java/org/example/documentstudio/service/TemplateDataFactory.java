@@ -185,7 +185,7 @@ public final class TemplateDataFactory {
         put(v, "totals.paidAmount", money(details.refund()));
         put(v, "totals.balanceAmount", money(Math.max(0, details.total() - details.refund())));
         put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(details.total()));
-        return new TemplateData(v, images, items, originalPurchase == null ? "" : safe(originalPurchase.getGstTreatment()));
+        return new TemplateData(v, images, items, originalPurchase == null ? "GST" : safeOr(originalPurchase.getGstType(), "GST"));
     }
 
     public static TemplateData fromSalesReturn(ReturnApiClient.Details details, Sales originalSale) {
@@ -296,7 +296,7 @@ public final class TemplateDataFactory {
         put(v, "totals.paidAmount", "0.00");
         put(v, "totals.balanceAmount", money(total));
         put(v, "totals.amountInWords", "INR : " + AmountInWordsConverter.indianRupees(total));
-        return new TemplateData(v, images, items, "Registered Business");
+        return new TemplateData(v, images, items, "GST");
     }
 
     /** Sample data for any supported document type; used by Design Preview. */
@@ -342,7 +342,7 @@ public final class TemplateDataFactory {
         v.put("supplier.phone", "+91 90000 00000");
         v.put("supplier.email", "accounts@supplier.example");
         addSampleTotals(v, 29800, 0, 5364, 35164);
-        return new TemplateData(v, images, sampleItems(), sampleCharges(), "Registered Business");
+        return new TemplateData(v, images, sampleItems(), sampleCharges(), "GST");
     }
 
     private static TemplateData samplePurchaseReturn() {
@@ -356,7 +356,7 @@ public final class TemplateDataFactory {
         v.put("party.address", "Industrial Estate, Ahmedabad, Gujarat");
         v.put("party.gstin", "24AABCA1234A1Z5");
         addSampleTotals(v, 5000, 0, 900, 5900);
-        return new TemplateData(v, images, sampleItems(), "Registered Business");
+        return new TemplateData(v, images, sampleItems(), "GST");
     }
 
     private static TemplateData sampleQuotation() {
@@ -375,7 +375,7 @@ public final class TemplateDataFactory {
         v.put("customer.phone", "+91 98765 43210");
         v.put("customer.email", "purchase@abcengineering.example");
         addSampleTotals(v, 29800, 0, 5364, 35164);
-        return new TemplateData(v, images, sampleItems(), "Registered Business");
+        return new TemplateData(v, images, sampleItems(), "GST");
     }
 
     private static TemplateData sampleDelivery() {
@@ -403,7 +403,7 @@ public final class TemplateDataFactory {
         v.put("party.address", "Ahmedabad, Gujarat");
         v.put("party.gstin", "24ABCDE1234F1Z5");
         addSampleTotals(v, 5000, 0, 900, 5900);
-        return new TemplateData(v, images, sampleItems(), "Registered Business");
+        return new TemplateData(v, images, sampleItems(), "GST");
     }
 
     private static TemplateData sampleReceipt() {
@@ -463,7 +463,7 @@ public final class TemplateDataFactory {
         v.put("customer.phone", "+91 98765 43210");
         v.put("customer.email", "accounts@abcengineering.example");
         addSampleTotals(v, 29800, 0, 5364, 35164);
-        return new TemplateData(v, images, sampleItems(), sampleCharges(), "Registered Business");
+        return new TemplateData(v, images, sampleItems(), sampleCharges(), safeOr(v.get("sales.gstType"), "GST"));
     }
 
     private static TemplateData sampleCustom() {
@@ -509,8 +509,8 @@ public final class TemplateDataFactory {
 
     private static List<TaxInvoiceItem> sampleItems() {
         return List.of(
-                new TaxInvoiceItem(1, "8483", "Motor Assembly", "", 2, "NOS", 12500, 0, 18),
-                new TaxInvoiceItem(2, "8482", "Bearing Set", "", 4, "NOS", 1200, 0, 18)
+                new TaxInvoiceItem(1, "8483", "Motor Assembly", "Industrial motor assembly", 2, "NOS", 12500, 0, 18),
+                new TaxInvoiceItem(2, "8482", "Bearing Set", "Heavy-duty bearing set", 4, "NOS", 1200, 0, 18)
         );
     }
 

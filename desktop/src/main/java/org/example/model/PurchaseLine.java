@@ -8,6 +8,7 @@ public class PurchaseLine implements InvoiceLine {
     private String itemCode;
 
     private String itemDescription;
+    private String itemCategory;
 
     // Immutable transaction snapshots used by historical document rendering.
     private String itemHsn;
@@ -56,6 +57,9 @@ public class PurchaseLine implements InvoiceLine {
 
         this.itemDescription = itemDescription;
     }
+
+    public String getItemCategory() { return itemCategory; }
+    public void setItemCategory(String itemCategory) { this.itemCategory = itemCategory; }
 
     public String getItemHsn() { return itemHsn; }
     public void setItemHsn(String itemHsn) { this.itemHsn = itemHsn; }

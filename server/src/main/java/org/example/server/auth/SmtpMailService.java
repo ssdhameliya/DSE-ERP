@@ -11,6 +11,8 @@ import org.example.server.persistence.JpaNativeRepository;
 import org.example.shared.SecretValueCodec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
@@ -27,6 +29,7 @@ import java.util.List;
  */
 @Service
 public class SmtpMailService {
+    private static final Logger LOG = LoggerFactory.getLogger(SmtpMailService.class);
     private final String host;
     private final int port;
     private final String email;
@@ -59,11 +62,13 @@ public class SmtpMailService {
     @Transactional
     public Settings saveSettings(String email, String password, String host, Integer port) {
         String cleanedEmail = email == null ? "" : email.trim();
-        String cleanedPassword = password == null ? "" : password.replaceAll("\\s+", "");
+        String requestedPassword = password == null ? "" : password.replaceAll("\\s+", "");
+        Settings existing = settings();
+        String cleanedPassword = requestedPassword.isBlank() ? existing.password() : requestedPassword;
         String cleanedHost = host == null ? "" : host.trim();
         int cleanedPort = port == null ? 587 : port;
         if (cleanedEmail.isBlank()) throw new IllegalArgumentException("Sending email address is required.");
-        if (cleanedPassword.isBlank()) throw new IllegalArgumentException("Email app password is required.");
+        if (cleanedPassword.isBlank()) throw new IllegalArgumentException("Email app password is required the first time email is configured.");
         if (cleanedPort < 1 || cleanedPort > 65535) throw new IllegalArgumentException("SMTP port must be between 1 and 65535.");
         put("smtp.email", cleanedEmail);
         put("smtp.appPassword", SecretValueCodec.encrypt(cleanedPassword));
@@ -87,7 +92,9 @@ public class SmtpMailService {
                     + ". It expires in 10 minutes. If you did not request this, ignore this email.");
             Transport.send(message);
         } catch (Exception exception) {
-            throw new IllegalStateException("The verification email could not be sent. Check SMTP settings.", exception);
+            EmailDeliveryException failure = EmailDeliveryException.verification(exception);
+            LOG.warn("Verification email delivery failed via {}:{} for sender {}: {}", settings.host(), settings.port(), masked(settings.email()), failure.adminMessage());
+            throw failure;
         }
     }
 
@@ -128,7 +135,9 @@ public class SmtpMailService {
             }
             Transport.send(message);
         } catch (Exception e) {
-            throw new IllegalStateException("Server could not send the business email", e);
+            EmailDeliveryException failure = EmailDeliveryException.business(e);
+            LOG.warn("Business email delivery failed via {}:{} for sender {}: {}", settings.host(), settings.port(), masked(settings.email()), failure.adminMessage());
+            throw failure;
         }
     }
 
@@ -211,6 +220,13 @@ public class SmtpMailService {
         if (address.endsWith("@outlook.com") || address.endsWith("@hotmail.com") || address.endsWith("@live.com")) return "smtp.office365.com";
         if (address.endsWith("@yahoo.com") || address.endsWith("@yahoo.in")) return "smtp.mail.yahoo.com";
         return "";
+    }
+
+    private static String masked(String address) {
+        if (address == null || address.isBlank()) return "(not configured)";
+        int at = address.indexOf('@');
+        if (at <= 1) return "***" + (at >= 0 ? address.substring(at) : "");
+        return address.substring(0, 1) + "***" + address.substring(at);
     }
 
     public record Attachment(String name, String contentType, byte[] data) {}

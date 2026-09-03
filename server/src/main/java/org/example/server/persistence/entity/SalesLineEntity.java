@@ -11,6 +11,7 @@ public class SalesLineEntity {
  @Column(name="gst_percent") private Double gstPercent;
  @Column(name="line_total") private Double lineTotal;
  @Column(name="item_description_snapshot") private String itemDescriptionSnapshot;
+ @Column(name="category_snapshot") private String categorySnapshot;
  @Column(name="hsn_snapshot") private String hsnSnapshot;
  @Column(name="unit_snapshot") private String unitSnapshot;
  @Column(name="item_remarks_snapshot") private String itemRemarksSnapshot;
@@ -22,6 +23,7 @@ public class SalesLineEntity {
  public Double getDiscountAmount(){return discountAmount;} public void setDiscountAmount(Double v){discountAmount=v;} public Double getGstPercent(){return gstPercent;} public void setGstPercent(Double v){gstPercent=v;}
  public Double getLineTotal(){return lineTotal;} public void setLineTotal(Double v){lineTotal=v;}
  public String getItemDescriptionSnapshot(){return itemDescriptionSnapshot;} public void setItemDescriptionSnapshot(String v){itemDescriptionSnapshot=v;}
+ public String getCategorySnapshot(){return categorySnapshot;} public void setCategorySnapshot(String v){categorySnapshot=v;}
  public String getHsnSnapshot(){return hsnSnapshot;} public void setHsnSnapshot(String v){hsnSnapshot=v;}
  public String getUnitSnapshot(){return unitSnapshot;} public void setUnitSnapshot(String v){unitSnapshot=v;}
  public String getItemRemarksSnapshot(){return itemRemarksSnapshot;} public void setItemRemarksSnapshot(String v){itemRemarksSnapshot=v;}

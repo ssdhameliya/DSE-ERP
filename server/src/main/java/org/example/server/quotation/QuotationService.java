@@ -106,11 +106,12 @@ public class QuotationService {
 
     private List<QuotationDtos.LineDto> loadLines(int id) {
         return jdbc.query(
-                "SELECT l.item_code,COALESCE(NULLIF(TRIM(l.item_description_snapshot),''),i.description,l.item_code),l.quantity,l.rate,l.gst_percent," +
-                "COALESCE(l.discount_percent,0),l.line_total FROM quotation_line l " +
-                "LEFT JOIN item_master i ON i.item_code=l.item_code WHERE l.quotation_id=? ORDER BY l.id",
-                (r, i) -> new QuotationDtos.LineDto(r.getString(1), r.getString(2), r.getDouble(3), r.getDouble(4),
-                        r.getDouble(5), r.getDouble(6), r.getDouble(7)), id);
+                "SELECT l.item_code,COALESCE(NULLIF(TRIM(l.item_description_snapshot),''),i.description,l.item_code)," +
+                "COALESCE(NULLIF(TRIM(l.category_snapshot),''),i.category,''),COALESCE(NULLIF(TRIM(l.hsn_snapshot),''),i.hsn,'')," +
+                "COALESCE(NULLIF(TRIM(l.unit_snapshot),''),i.unit,''),l.quantity,l.rate,l.gst_percent,COALESCE(l.discount_percent,0),l.line_total " +
+                "FROM quotation_line l LEFT JOIN item_master i ON i.item_code=l.item_code WHERE l.quotation_id=? ORDER BY l.id",
+                (r, i) -> new QuotationDtos.LineDto(r.getString(1), r.getString(2), r.getString(3), r.getString(4), r.getString(5),
+                        r.getDouble(6), r.getDouble(7), r.getDouble(8), r.getDouble(9), r.getDouble(10)), id);
     }
 
     @Transactional
@@ -136,8 +137,8 @@ public class QuotationService {
             throw new SecurityException("Quotation item search requires QUOTATION.CREATE or QUOTATION.EDIT permission");
         String q=query==null?"":query.trim().toLowerCase(Locale.ROOT);int safeLimit=Math.max(1,Math.min(limit,50));
         String pattern="%"+q+"%";
-        return jdbc.query("SELECT COALESCE(item_code,''),COALESCE(description,''),COALESCE(remarks,''),COALESCE(hsn,''),COALESCE(selling_price,0),COALESCE(gst,0),COALESCE(discount_percent,0) FROM item_master WHERE COALESCE(is_active,1)<>0 AND (?='' OR LOWER(CONCAT_WS(' ',COALESCE(item_code,''),COALESCE(description,''),COALESCE(remarks,''),COALESCE(hsn,''))) LIKE ?) ORDER BY COALESCE(description,''),COALESCE(item_code,'') LIMIT ?",
-            (r,i)->new QuotationDtos.ItemChoiceDto(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getDouble(5),r.getDouble(6),r.getDouble(7)),q,pattern,safeLimit);
+        return jdbc.query("SELECT COALESCE(item_code,''),COALESCE(description,''),COALESCE(remarks,''),COALESCE(category,''),COALESCE(hsn,''),COALESCE(unit,''),COALESCE(selling_price,0),COALESCE(gst,0),COALESCE(discount_percent,0) FROM item_master WHERE COALESCE(is_active,1)<>0 AND (?='' OR LOWER(CONCAT_WS(' ',COALESCE(item_code,''),COALESCE(description,''),COALESCE(remarks,''),COALESCE(category,''),COALESCE(hsn,''),COALESCE(unit,''),COALESCE(gst,0)::text)) LIKE ?) ORDER BY COALESCE(description,''),COALESCE(item_code,'') LIMIT ?",
+            (r,i)->new QuotationDtos.ItemChoiceDto(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getDouble(7),r.getDouble(8),r.getDouble(9)),q,pattern,safeLimit);
     }
 
     @Transactional
@@ -184,8 +185,9 @@ public class QuotationService {
             jdbc.update("DELETE FROM quotation_line WHERE quotation_id=?", id);
         }
         for (var l : calc.lines()) {
-            jdbc.update("INSERT INTO quotation_line(quotation_id,item_code,quantity,rate,gst_percent,discount_percent,line_total,item_description_snapshot) VALUES(?,?,?,?,?,?,?,?)",
-                    id,l.code(),l.quantity(),l.rate(),l.gst(),l.discount(),l.total(),l.description());
+            jdbc.update("INSERT INTO quotation_line(quotation_id,item_code,quantity,rate,gst_percent,discount_percent,line_total,item_description_snapshot,category_snapshot,hsn_snapshot,unit_snapshot) " +
+                            "SELECT ?,?,?,?,?,?,?,COALESCE(description,''),COALESCE(category,''),COALESCE(hsn,''),COALESCE(unit,'') FROM item_master WHERE item_code=?",
+                    id,l.code(),l.quantity(),l.rate(),l.gst(),l.discount(),l.total(),l.code());
         }
         return quote(id);
     }
@@ -273,7 +275,7 @@ public class QuotationService {
             Double unitCost=jdbc.queryForObject("SELECT COALESCE((SELECT average_unit_cost FROM inventory_cost_state WHERE item_code=?),(SELECT purchase_price FROM item_master WHERE item_code=?),0)",Double.class,l.code(),l.code());
             if (admin) operations.applyStockMovement(l.code(), -l.quantity(), true, unitCost==null?0:unitCost, "SALE", sid);
             DocumentCalculationEngine.LineResult converted=DocumentCalculationEngine.line(l.quantity(),l.rate(),l.discount(),l.gst());
-            jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,discount_percent,discount_amount,gst_percent,line_total,item_description_snapshot,hsn_snapshot,unit_snapshot,item_remarks_snapshot,unit_cost_snapshot) SELECT ?,?,?,?,?,?,?,?,description,hsn,unit,remarks,? FROM item_master WHERE item_code=?",
+            jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,discount_percent,discount_amount,gst_percent,line_total,item_description_snapshot,category_snapshot,hsn_snapshot,unit_snapshot,item_remarks_snapshot,unit_cost_snapshot) SELECT ?,?,?,?,?,?,?,?,description,category,hsn,unit,remarks,? FROM item_master WHERE item_code=?",
                     sid,l.code(),l.quantity(),l.rate(),l.discount(),converted.discountAmount(),l.gst(),converted.totalAmount(),unitCost==null?0:unitCost,l.code());
         }
         if (!admin) {
@@ -306,8 +308,9 @@ public class QuotationService {
                 q.get("gst_amount"), q.get("total_amount"), q.get("remarks"), today.plusDays(7), q.get("salesperson"),
                 q.get("source"), CurrentUser.require().username(), BusinessClock.nowUtcText());
         for (var l : duplicateLines) {
-            jdbc.update("INSERT INTO quotation_line(quotation_id,item_code,quantity,rate,gst_percent,discount_percent,line_total,item_description_snapshot) VALUES(?,?,?,?,?,?,?,?)",
-                    nid, l.code(), l.quantity(), l.rate(), l.gst(), l.discount(), l.total(), l.description());
+            jdbc.update("INSERT INTO quotation_line(quotation_id,item_code,quantity,rate,gst_percent,discount_percent,line_total,item_description_snapshot,category_snapshot,hsn_snapshot,unit_snapshot) " +
+                            "SELECT ?,?,?,?,?,?,?,COALESCE(description,''),COALESCE(category,''),COALESCE(hsn,''),COALESCE(unit,'') FROM item_master WHERE item_code=?",
+                    nid, l.code(), l.quantity(), l.rate(), l.gst(), l.discount(), l.total(), l.code());
         }
         return no;
     }
@@ -351,7 +354,7 @@ public class QuotationService {
             if(!Double.isFinite(l.rate())||l.rate()<0)throw new IllegalArgumentException("Quotation rate must be non-negative.");
             DocumentCalculationEngine.LineResult r=DocumentCalculationEngine.line(l.quantity(),l.rate(),l.discount(),l.gst());
             subtotal+=r.taxableAmount();discount+=r.discountAmount();tax+=r.taxAmount();total+=r.totalAmount();
-            normalized.add(new QuotationDtos.LineDto(l.code(),l.description(),DocumentCalculationEngine.quantity(l.quantity()),DocumentCalculationEngine.money(l.rate()),DocumentCalculationEngine.percent(l.gst()),DocumentCalculationEngine.percent(l.discount()),r.totalAmount()));}
+            normalized.add(new QuotationDtos.LineDto(l.code(),l.description(),l.category(),l.hsn(),l.unit(),DocumentCalculationEngine.quantity(l.quantity()),DocumentCalculationEngine.money(l.rate()),DocumentCalculationEngine.percent(l.gst()),DocumentCalculationEngine.percent(l.discount()),r.totalAmount()));}
         return new QuoteCalculation(DocumentCalculationEngine.money(subtotal),DocumentCalculationEngine.money(discount),DocumentCalculationEngine.money(tax),DocumentCalculationEngine.money(total),List.copyOf(normalized));
     }
     private static LocalDate requireDate(String v,String field){try{if(v==null||v.isBlank())throw new Exception();return LocalDate.parse(v.trim());}catch(Exception ex){throw new IllegalArgumentException(field+" must be a valid YYYY-MM-DD date");}}

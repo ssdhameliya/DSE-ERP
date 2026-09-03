@@ -32,7 +32,7 @@ public class SetupWizardController {
     @FXML private PasswordField txtSmtpPassword;
     @FXML private TextField txtAdminName, txtAdminUsername, txtAdminEmail;
     @FXML private PasswordField txtAdminPassword, txtAdminConfirm;
-    @FXML private Button btnBack, btnNext, btnBrowse;
+    @FXML private Button btnBack, btnNext, btnBrowse, btnUseExisting;
     @FXML private Button btnTestServer;
     @FXML private CheckBox chkConfigureEmail;
     @FXML private RadioButton rbLocal, rbShared;
@@ -58,6 +58,7 @@ public class SetupWizardController {
         rbShared.selectedProperty().addListener((o,a,shared)->updateDeploymentControls());
         txtServerUrl.textProperty().addListener((o,a,b)->validatedServerUrl=null);
         btnBrowse.setGraphic(IconFactory.icon("folder"));
+        if (btnUseExisting != null) btnUseExisting.setGraphic(IconFactory.icon("restore"));
         btnBack.setGraphic(IconFactory.icon("return"));
         btnNext.setGraphic(IconFactory.icon("complete"));
         chkConfigureEmail.selectedProperty().addListener((o,a,b)->setEmailControlsEnabled(b));
@@ -75,6 +76,67 @@ public class SetupWizardController {
         if (current.isDirectory()) chooser.setInitialDirectory(current);
         File selected = chooser.showDialog(btnBrowse.getScene().getWindow());
         if (selected != null) txtWorkspace.setText(selected.getAbsolutePath());
+    }
+
+
+    /**
+     * Permanent recovery path for upgrades, moved workspaces and lost workspace pointers.
+     * This path never creates a company/admin or initializes a new database.
+     */
+    @FXML private void useExistingWorkspace() {
+        clearError();
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Select Existing DSE ERP Workspace");
+        try {
+            File current = new File(txtWorkspace.getText() == null ? "" : txtWorkspace.getText().trim());
+            if (current.isDirectory()) chooser.setInitialDirectory(current);
+        } catch (Exception ignored) { }
+        File selected = chooser.showDialog(btnUseExisting.getScene().getWindow());
+        if (selected == null) return;
+        Path root = selected.toPath().toAbsolutePath().normalize();
+        var inspection = WorkspaceManager.inspectExisting(root);
+        if (!inspection.valid()) {
+            fail(inspection.message(), txtWorkspace);
+            return;
+        }
+        txtWorkspace.setText(root.toString());
+        btnNext.setDisable(true); btnBack.setDisable(true); btnUseExisting.setDisable(true);
+        lblError.setText("Verifying the existing workspace and database. No business data will be recreated...");
+        lblError.getStyleClass().remove("setup-error"); lblError.getStyleClass().add("setup-progress");
+        Thread worker = new Thread(() -> {
+            try {
+                WorkspaceManager.configureExisting(root);
+                ConfigManager.load();
+                if (ConfigManager.isSharedClient()) RuntimeBootstrapper.ensureServerReady();
+                else {
+                    ManagedPostgresRuntime.ensureReady();
+                    RuntimeBootstrapper.ensureServerReady();
+                }
+                if (new SetupApiClient().requiresSetup()) {
+                    throw new IllegalStateException("This workspace does not contain an initialized DSE ERP company/admin database. Select another existing workspace or create a new one.");
+                }
+                WorkspaceManager.markSetupComplete();
+                ConfigManager.load();
+                Platform.runLater(() -> {
+                    lblError.setText("Existing workspace verified. Opening DSE ERP...");
+                    if (onCompleted != null) onCompleted.run(); else SceneManager.showLogin();
+                });
+            } catch (Exception exception) {
+                Platform.runLater(() -> {
+                    btnNext.setDisable(false); btnBack.setDisable(false); btnUseExisting.setDisable(false);
+                    lblError.getStyleClass().remove("setup-progress"); lblError.getStyleClass().add("setup-error");
+                    lblError.setText("Existing workspace could not be opened: " + safeRecoveryMessage(exception)
+                            + " No company, administrator or business records were recreated.");
+                });
+            }
+        }, "dse-existing-workspace-recovery");
+        worker.setDaemon(true); worker.start();
+    }
+
+    private String safeRecoveryMessage(Exception exception) {
+        String message = exception == null ? null : exception.getMessage();
+        if (message == null || message.isBlank()) return "verification failed.";
+        return message;
     }
 
     @FXML private void previous() {

@@ -94,7 +94,7 @@ public final class EmailService {
             Transport.send(message);
         } catch (Exception e) {
             throw new RuntimeException(
-                "Email could not be sent using " + host + ".\n\n" + friendlyMessage(e), e);
+                "Email could not be sent using " + host + ".\n\n" + EmailFailureMessages.forAdministrator(e), e);
         }
     }
 
@@ -106,10 +106,4 @@ public final class EmailService {
         throw new IllegalStateException("Email provider was not recognized. Enter SMTP Host and Port in Settings.");
     }
 
-    private static String friendlyMessage(Exception exception) {
-        Throwable cause = exception;
-        while (cause.getCause() != null) cause = cause.getCause();
-        String message = cause.getMessage();
-        return message == null || message.isBlank() ? exception.getClass().getSimpleName() : message;
-    }
 }

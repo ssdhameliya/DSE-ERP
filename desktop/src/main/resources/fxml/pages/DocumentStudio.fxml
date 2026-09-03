@@ -18,6 +18,7 @@
                 </VBox>
                 <HBox fx:id="pdfActions" spacing="7" alignment="CENTER_RIGHT">
                     <Button text="Import PDF" onAction="#importPdf" styleClass="approved-button,approved-primary-button,doc-studio-entry-button"/>
+                    <Button text="Import Template" onAction="#importTemplatePackage" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
                     <Button text="Blank PDF" onAction="#createBlank" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
                     <Button text="ERP Template" onAction="#createErpTemplate" styleClass="approved-button,approved-secondary-button,doc-studio-entry-button"/>
                 </HBox>

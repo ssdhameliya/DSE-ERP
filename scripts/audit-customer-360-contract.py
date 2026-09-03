@@ -5,8 +5,8 @@ R=Path(__file__).resolve().parents[1]
 def t(p): return (R/p).read_text(encoding="utf-8")
 def need(ok,msg):
     if not ok: print("FAIL:",msg);sys.exit(1)
-need("<version>9.0.62</version>" in t("pom.xml") and "<dse.phase>9.0.62</dse.phase>" in t("pom.xml"),"root version")
-need('APP_VERSION = "9.0.62"' in t("shared/src/main/java/org/example/shared/RuntimeContract.java"),"runtime version")
+need("<version>9.0.73</version>" in t("pom.xml") and "<dse.phase>9.0.73</dse.phase>" in t("pom.xml"),"root version")
+need('APP_VERSION = "9.0.73"' in t("shared/src/main/java/org/example/shared/RuntimeContract.java"),"runtime version")
 fx=t("desktop/src/main/resources/fxml/pages/Customer360.fxml"); ctl=t("desktop/src/main/java/org/example/controller/Customer360Controller.java")
 ET.parse(R/"desktop/src/main/resources/fxml/pages/Customer360.fxml")
 for label in ("Overview","Contacts","Quotations","Invoices","Payments","Notes","Documents"):
