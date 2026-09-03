@@ -8,6 +8,16 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.75".equals(version)) {
+            return """
+                    DSE ERP 9.0.75 — Automatic Workspace Recovery
+
+                    • Starts automatically with the saved valid workspace instead of reopening the workspace/setup chooser only because an older setup.completed marker is missing or false.
+                    • Verifies the existing PostgreSQL/Spring company state first and repairs only the local setup marker when the workspace is already initialized.
+                    • Keeps the Setup Wizard for genuine first-time setup and keeps Select Existing Workspace / Move Workspace available under Settings.
+                    • Preserves the 9.0.74 import reliability, dialog semantics, immediate action feedback, Java 25, JavaFX 25.0.2 and exactly two runtime CSS themes.
+                    """;
+        }
         if ("9.0.74".equals(version)) {
             return """
                     DSE ERP 9.0.74 — Import Reliability & User Feedback

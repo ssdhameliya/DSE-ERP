@@ -70,9 +70,9 @@ require('txs.existsByTransactionFingerprint' in bank_service,
         'Overlapping Bank Statements must preserve transaction-level duplicate protection')
 
 # Desktop/server startup compatibility contract.
-require('APP_VERSION = "9.0.74"' in runtime and 'BUILD_REVISION = "9.0.74"' in runtime,
-        'Desktop APP_VERSION and BUILD_REVISION must both be 9.0.74')
-require('dse.app.version=9.0.74' in server_props and 'dse.build.revision=9.0.74' in server_props,
-        'Spring Boot version/build must match the desktop 9.0.74 runtime contract')
+require('APP_VERSION = "9.0.75"' in runtime and 'BUILD_REVISION = "9.0.75"' in runtime,
+        'Desktop APP_VERSION and BUILD_REVISION must both be 9.0.75')
+require('dse.app.version=9.0.75' in server_props and 'dse.build.revision=9.0.75' in server_props,
+        'Spring Boot version/build must match the desktop 9.0.75 runtime contract')
 
 print('IMPORT_CONTRACT_OK')

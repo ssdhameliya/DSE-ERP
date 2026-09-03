@@ -45,11 +45,19 @@ public final class Main {
         SceneManager.initialize(stage);
         WindowUtilsFx.apply(stage, 1200, 800);
 
-        if (!WorkspaceManager.isConfigured() || !WorkspaceManager.isSetupComplete()) {
+        if (requiresWorkspaceChooser(WorkspaceManager.isConfigured())) {
             SceneManager.showSetupWizard(() -> completeFirstRun(stage));
             return;
         }
+        // A saved, valid workspace must always be attempted automatically. Older workspaces may
+        // pre-date the local setup.completed marker; the authoritative setup state is verified
+        // through the server API after PostgreSQL/Spring services are ready.
         initializeConfiguredApplication(stage);
+    }
+
+
+    static boolean requiresWorkspaceChooser(boolean workspaceConfigured) {
+        return !workspaceConfigured;
     }
 
     private void initializeConfiguredApplication(Stage stage) {
@@ -103,6 +111,10 @@ public final class Main {
                 Platform.runLater(() -> SceneManager.showSetupWizard(() -> completeFirstRun(stage)));
                 return;
             }
+            // The database/server is already initialized, so repair only the local legacy marker.
+            // This is deliberately non-destructive and prevents upgrades from asking users to
+            // select an already-configured workspace again.
+            if (!WorkspaceManager.isSetupComplete()) WorkspaceManager.markSetupComplete();
             SceneManager.updateSplashStage(5, "Finalizing " + BrandingService.applicationName() + "...");
             SceneManager.markSplashReady("Services ready. Opening " + BrandingService.applicationName() + "...");
         } catch (Exception exception) {

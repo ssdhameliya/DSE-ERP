@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 echo ======================================================
-echo   DSE ERP 9.0.74 - RELEASE GATE VERIFICATION
+echo   DSE ERP 9.0.75 - RELEASE GATE VERIFICATION
 echo ======================================================
 python scripts\audit-release-gates.py
 if errorlevel 1 goto :fail
