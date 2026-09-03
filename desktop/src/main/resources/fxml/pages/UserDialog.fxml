@@ -9,7 +9,7 @@
  <left>
    <VBox prefWidth="275" alignment="CENTER" spacing="16" styleClass="user-dialog-brand">
      <Label text="◈" styleClass="user-dialog-logo"/>
-     <Label text="DSE ERP 9.0.57" styleClass="title"/>
+     <Label text="DSE ERP 9.0.62" styleClass="title"/>
      <Label text="USER ACCESS" styleClass="metric-title"/>
      <Label text="Create and maintain secure application accounts with database-backed roles."
             wrapText="true" textAlignment="CENTER" styleClass="subtitle" maxWidth="210"/>

@@ -95,7 +95,7 @@ public class SalesController {
     @FXML private ComboBox<String> cmbGstType,cmbChargeType;
     @FXML private ComboBox<Lookup> cmbTransporter;
     @FXML private TextField txtOtherCharges,txtTransport,txtReference,txtAttachment;
-    @FXML private TextField txtVehicleNumber,txtContactPerson,txtContactPersonMobile,txtTransportNote,txtOrderNo,txtProjectNo,txtSalesOrderNo,txtDispatchNo;
+    @FXML private TextField txtVehicleNumber,txtContactPerson,txtContactPersonMobile,txtTransportNote,txtOrderNo;
     @FXML private TextField txtBillingGstin,txtDeliveryGstin,txtTransporterGstin,txtChargeAmount;
     @FXML private CheckBox chkSameAsBilling;
     @FXML private TextArea txtInvoiceMessage;
@@ -454,7 +454,6 @@ public class SalesController {
         // The form itself is created immediately. API-backed master data and the
         // next invoice number are loaded away from the JavaFX Application Thread.
         newSale();
-        applyWorkflowInvoiceContext();
         loadSaleBootstrapAsync();
 
     }
@@ -479,16 +478,6 @@ public class SalesController {
         });
     }
 
-
-    private void applyWorkflowInvoiceContext() {
-        WorkflowInvoiceContext.Link link = WorkflowInvoiceContext.consumeSale();
-        if (link == null) return;
-        if (txtProjectNo != null) txtProjectNo.setText(link.projectNo());
-        if (txtSalesOrderNo != null) txtSalesOrderNo.setText(link.orderNo());
-        if (txtDispatchNo != null) txtDispatchNo.setText(link.sourceNo());
-        if (txtOrderNo != null && !link.customerPoNo().isBlank()) txtOrderNo.setText(link.customerPoNo());
-    }
-
     private void loadSaleBootstrapAsync() {
         UiTaskExecutor.submitLatest(
             "create-sale-bootstrap",
@@ -501,7 +490,7 @@ public class SalesController {
     private SaleBootstrap loadSaleBootstrap() {
         List<String> errors = new ArrayList<>();
         List<String> paymentTerms = List.of(), charges = List.of(), gstTypes = List.of();
-        List<Lookup> transporters = List.of(); List<Party> customers = List.of();
+        List<Lookup> transporters = List.of(); List<Party> customers = List.of(); List<Item> items = List.of();
         try {
             if (ConfigManager.isApiDataEnabled()) {
                 MasterApiClient.SalesEntryBootstrap master = masterApi.salesEntryBootstrap();
@@ -528,8 +517,9 @@ public class SalesController {
             transporters = loadOrDefault("Transporters", errors, () -> lookupService.getByCategoryCode("TRANSPORTER"), List.of());
             customers = loadOrDefault("Customers", errors, () -> partyService.search("CUSTOMER", "", 40), List.of());
         }
+        items = loadOrDefault("Items", errors, itemService::getAll, List.of());
         String invoiceNo = loadOrDefault("Next Invoice No", errors, salesService::nextInvoiceNo, "");
-        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters, customers, invoiceNo, List.copyOf(errors));
+        return new SaleBootstrap(paymentTerms, charges, gstTypes, transporters, customers, items, invoiceNo, List.copyOf(errors));
     }
 
     private <T> T loadOrDefault(String label, List<String> errors, Supplier<T> loader, T fallback) {
@@ -551,6 +541,9 @@ public class SalesController {
         cmbGstType.getItems().setAll(bootstrap.gstTypes());
         cmbTransporter.getItems().setAll(bootstrap.transporters());
         cmbCustomer.setItems(FXCollections.observableArrayList(bootstrap.customers()));
+        allItems.setAll(bootstrap.items());
+        itemSearchIndex.clear();
+        allItems.forEach(item -> itemSearchIndex.put(item, buildItemSearchHaystack(item)));
 
         Sales source = editingSale != null ? editingSale : duplicateSource;
         Integer requestedCustomerId = source == null ? CustomerSaleContext.consume() : null;
@@ -619,6 +612,7 @@ public class SalesController {
             }
         }
 
+
         if (!bootstrap.errors().isEmpty()) showSaleBootstrapWarning(bootstrap.errors());
     }
 
@@ -642,6 +636,7 @@ public class SalesController {
         List<String> gstTypes,
         List<Lookup> transporters,
         List<Party> customers,
+        List<Item> items,
         String invoiceNo,
         List<String> errors
     ) { }
@@ -1256,9 +1251,6 @@ public class SalesController {
         sale.setDueDate(calculatePaymentDueDate(dpInvoiceDate.getValue(), cmbPaymentTerms.getValue()));
         sale.setPoDate(txtPoDate == null ? null : txtPoDate.getValue());
         sale.setOrderNo(txtOrderNo == null ? "" : txtOrderNo.getText());
-        sale.setProjectNo(txtProjectNo == null ? "" : txtProjectNo.getText());
-        sale.setSalesOrderNo(txtSalesOrderNo == null ? "" : txtSalesOrderNo.getText());
-        sale.setDispatchNo(txtDispatchNo == null ? "" : txtDispatchNo.getText());
         sale.setSalesperson(cmbSalesPerson.getValue());
         sale.setNotes(txtInvoiceMessage == null || txtInvoiceMessage.getText() == null ? "" : txtInvoiceMessage.getText());
         String billing = txtBillingAddress == null ? "" : txtBillingAddress.getText();
@@ -1379,9 +1371,6 @@ public class SalesController {
         txtDeliveryAddress.clear();
         if (chkSameAsBilling != null) chkSameAsBilling.setSelected(true);
         if (txtOrderNo != null) txtOrderNo.clear();
-        if (txtProjectNo != null) txtProjectNo.clear();
-        if (txtSalesOrderNo != null) txtSalesOrderNo.clear();
-        if (txtDispatchNo != null) txtDispatchNo.clear();
         if (txtBillingGstin != null) txtBillingGstin.clear();
         if (txtDeliveryGstin != null) txtDeliveryGstin.clear();
         if (txtTransporterGstin != null) txtTransporterGstin.clear();
@@ -1749,9 +1738,6 @@ public class SalesController {
         if (txtContactPersonMobile != null) txtContactPersonMobile.setText(sale.getContactPersonMobile());
         invoiceCharges.setAll(sale.getCharges().stream().map(SalesCharge::copy).toList());
         if (txtTransportNote != null) txtTransportNote.setText(sale.getTransportNote());
-        if (txtProjectNo != null) txtProjectNo.setText(sale.getProjectNo());
-        if (txtSalesOrderNo != null) txtSalesOrderNo.setText(sale.getSalesOrderNo());
-        if (txtDispatchNo != null) txtDispatchNo.setText(sale.getDispatchNo());
         if (txtOrderNo != null) {
             String savedCustomerPo = sale.getOrderNo();
             // Defensive compatibility for databases created by older 7.1.x
@@ -1846,6 +1832,7 @@ public class SalesController {
         String nextInvoice = salesService.nextInvoiceNo();
         txtInvoiceNo.setText(nextInvoice);
         if (lblInvoiceDisplay != null) lblInvoiceDisplay.setText(nextInvoice);
+        if (dpInvoiceDate != null) dpInvoiceDate.setValue(BusinessClock.today());
     }
 
 //--------------------------------------------------

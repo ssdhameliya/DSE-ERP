@@ -15,10 +15,20 @@ public class BusinessEmailController {
     @PostMapping
     public Result send(@RequestBody Request r) {
         CurrentUser.requirePermission("COMMUNICATION.CREATE", "Send business email");
+        return sendInternal(r, "Sent by company server");
+    }
+
+    @PostMapping("/resend")
+    public Result resend(@RequestBody Request r) {
+        CurrentUser.requirePermission("COMMUNICATION.RESEND", "Re-send business email");
+        return sendInternal(r, "Re-sent by company server");
+    }
+
+    private Result sendInternal(Request r, String message) {
         byte[] attachment = r.attachmentBase64() == null || r.attachmentBase64().isBlank()
                 ? null : Base64.getDecoder().decode(r.attachmentBase64());
         mail.sendBusiness(r.recipient(), r.subject(), r.body(), r.attachmentName(), attachment);
-        return new Result(true, "Sent by company server");
+        return new Result(true, message);
     }
 
     @GetMapping("/settings")

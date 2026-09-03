@@ -7,7 +7,7 @@ def text(path):
 
 def require(condition, message):
     if not condition:
-        raise SystemExit('IMPORT_9_0_3_CONTRACT_FAIL: ' + message)
+        raise SystemExit('IMPORT_CONTRACT_FAIL: ' + message)
 
 import_fxml = text('desktop/src/main/resources/fxml/pages/Import.fxml')
 import_controller = text('desktop/src/main/java/org/example/controller/ImportController.java')
@@ -70,9 +70,9 @@ require('txs.existsByTransactionFingerprint' in bank_service,
         'Overlapping Bank Statements must preserve transaction-level duplicate protection')
 
 # Desktop/server startup compatibility contract.
-require('APP_VERSION = "9.0.57"' in runtime and 'BUILD_REVISION = "9.0.57"' in runtime,
-        'Desktop APP_VERSION and BUILD_REVISION must both be 9.0.57')
-require('dse.app.version=9.0.57' in server_props and 'dse.build.revision=9.0.57' in server_props,
-        'Spring Boot version/build must match the desktop 9.0.57 runtime contract')
+require('APP_VERSION = "9.0.62"' in runtime and 'BUILD_REVISION = "9.0.62"' in runtime,
+        'Desktop APP_VERSION and BUILD_REVISION must both be 9.0.62')
+require('dse.app.version=9.0.62' in server_props and 'dse.build.revision=9.0.62' in server_props,
+        'Spring Boot version/build must match the desktop 9.0.62 runtime contract')
 
-print('IMPORT_9_0_3_CONTRACT_OK')
+print('IMPORT_CONTRACT_OK')

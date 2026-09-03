@@ -18,6 +18,7 @@ public class InsightsService {
  // A malformed historical value or one failing optional query must not leave the
  // PostgreSQL transaction aborted and prevent the remaining independent sections.
  public InsightDtos.DashboardBundle dashboard(String period){
+   CurrentUser.requirePermission("DASHBOARD.VIEW","View Dashboard");
    String selectedPeriod=period==null||period.isBlank()?"This Month":period;
    String salesPeriod=periodSql(selectedPeriod,"h.invoice_date"),purchasePeriod=periodSql(selectedPeriod,"h.invoice_date");
    long[] master=dashboardSection("master totals",()->jdbc.query("""

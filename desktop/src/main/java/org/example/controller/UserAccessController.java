@@ -150,7 +150,7 @@ public class UserAccessController implements ScreenLifecycle {
     }
 
     private void loadPermissions(String roleName){
-        permissions.clear(); permissionRowVersion=0L; if(roleName==null)return; boolean admin=roleName.equalsIgnoreCase("ADMIN")||roleName.equalsIgnoreCase("ADMINISTRATOR");
+        permissions.clear(); permissionRowVersion=0L; if(roleName==null)return; boolean admin=org.example.service.SessionService.isAdminRole(roleName);
         try{var set=adminApi.permissionSet(roleName);permissionRowVersion=set.rowVersion();for(var p:set.permissions())permissions.add(new PermissionRow(p));}
         catch(Exception e){error("Permissions could not be loaded",e);}
         lblRoleHint.setText(admin?"Administrator receives full access by system policy.":"Current saved permission picture for "+roleName+".");
@@ -159,7 +159,7 @@ public class UserAccessController implements ScreenLifecycle {
 
     @FXML private void savePermissions(){
         String role=cmbPermissionRole.getValue(); if(role==null)return;
-        if(role.equalsIgnoreCase("ADMIN")||role.equalsIgnoreCase("ADMINISTRATOR")){warning("Administrator always has full access and does not require manual permission changes.");return;}
+        if(org.example.service.SessionService.isAdminRole(role)){warning("Administrator always has full access and does not require manual permission changes.");return;}
         try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList(),permissionRowVersion);var set=adminApi.permissionSet(role);permissionRowVersion=set.rowVersion();PermissionService.refresh();NotificationService.add(role+" permissions updated.");}
         catch(Exception e){error("Permissions could not be saved. Reload the role if another administrator changed it first.",e);}
     }

@@ -47,8 +47,8 @@ req('lookupService.getValuesByCategoryCode("QUOTATION_SOURCE")' in qe and 'looku
     'Quotation Source must use the same generic Master category-code path as other Master-backed fields')
 req('cmbSource.setItems(FXCollections.observableArrayList("Direct"' not in qe,'Quotation editor must not hard-code Source list')
 req("QUOTATION_SOURCE" in qs and "not an active QUOTATION SOURCE Master value" in qs,'Server must validate active Master-driven Quotation Source')
-req("QUOTATION_SOURCE" in mig and 'item_description_snapshot' in mig,'v9.0.57 migration must seed source master and snapshot historical descriptions')
-req('V9_0_14__quotation_register_hardening' in runner,'runtime migration runner must register v9.0.57 migration')
+req("QUOTATION_SOURCE" in mig and 'item_description_snapshot' in mig,'historical quotation migration must seed source master and snapshot descriptions')
+req('V9_0_14__quotation_register_hardening' in runner,'runtime migration runner must register the historical quotation migration')
 req('item_description_snapshot' in qs and 'l.description()' in qs,'Quotation save/duplicate must persist historical line description')
 
 # Converted Sale direct navigation and register side WhatsApp removal.
@@ -79,10 +79,10 @@ req('if (result.failedCount() > 0) return true;' in imp,'Import warnings must di
 req('import org.example.util.ScreenRefreshPolicy;' in refund and 'ScreenRefreshPolicy.invalidate(' in refund,'ReturnRefundController must import ScreenRefreshPolicy')
 
 # Release identity.
-req('APP_VERSION = "9.0.57"' in runtime and 'BUILD_REVISION = "9.0.57"' in runtime,'Runtime identity must be 9.0.57')
-req('dse.app.version=9.0.57' in props and 'dse.build.revision=9.0.57' in props,'Server identity must be 9.0.57')
-req('<version>9.0.57</version>' in pom and '<dse.phase>9.0.57</dse.phase>' in pom,'Maven identity must be 9.0.57')
-req('version=9.0.57' in app and 'DEFAULT_VERSION="9.0.57"' in update,'Desktop/update identity must be 9.0.57')
+req('APP_VERSION = "9.0.62"' in runtime and 'BUILD_REVISION = "9.0.62"' in runtime,'Runtime identity must be 9.0.62')
+req('dse.app.version=9.0.62' in props and 'dse.build.revision=9.0.62' in props,'Server identity must be 9.0.62')
+req('<version>9.0.62</version>' in pom and '<dse.phase>9.0.62</dse.phase>' in pom,'Maven identity must be 9.0.62')
+req('version=9.0.62' in app and 'DEFAULT_VERSION="9.0.62"' in update,'Desktop/update identity must be 9.0.62')
 
 protected={
  'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java':'5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c',
@@ -90,4 +90,4 @@ protected={
  'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java':'27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082',
 }
 for p,h in protected.items(): req(sha(Path(p))==h,'Protected production PDF generator changed: '+p)
-print('PASS: DSE ERP 9.0.57 quotation/register/import/edit-preservation contract')
+print('QUOTATION_REGISTER_CONTRACT_OK version=9.0.62')

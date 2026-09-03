@@ -212,6 +212,7 @@ public class SafeRollbackController {
     }
 
     private void confirmAndRollback(RollbackService.Candidate candidate) {
+        org.example.service.PermissionService.require("SAFE_ROLLBACK.PREPARE", "prepare a rollback recovery point");
         if (!candidate.compatibility().safe()) {
             error("Rollback blocked", candidate.compatibility().message());
             return;
@@ -246,6 +247,7 @@ public class SafeRollbackController {
                     ready.getButtonTypes().setAll(ButtonType.CANCEL, restart);
                     if (ready.showAndWait().orElse(ButtonType.CANCEL) == restart) {
                         try {
+                            org.example.service.PermissionService.require("SAFE_ROLLBACK.EXECUTE", "execute application rollback");
                             service.launch(preparation);
                             Platform.exit();
                         } catch (Exception error) {

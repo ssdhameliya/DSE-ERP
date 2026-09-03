@@ -641,12 +641,14 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     }
 
     @FXML private void exportSale(){
+        org.example.service.PermissionService.require("SALES.EXPORT", "Export Sales");
         File f=chooseSave("Export Sales Register","Sales_Register.xlsx","Excel","*.xlsx");if(f==null)return;
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";String selectedCustomer=customer;
         String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
         UiTaskExecutor.submitAction("sales-register-export-excel",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,min,max);writeSalesExcel(f,rows);return rows.size();},count->info("Sales register exported • "+count+" records."),this::error);
     }
     @FXML private void exportRegisterPdf(){
+        org.example.service.PermissionService.require("SALES.EXPORT", "Export Sales");
         File f=chooseSave("Export Sales Register PDF","Sales_Register.pdf","PDF","*.pdf");if(f==null)return;
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";String selectedCustomer=customer;
         String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());

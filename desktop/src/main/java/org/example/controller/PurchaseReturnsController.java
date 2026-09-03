@@ -234,6 +234,7 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("purchase-return-update-"+no+"-"+column,()->{returnApi.update(no,column,value);return true;},ignored->load(),failure->error(asException(failure)));}
 
     @FXML private void export() {
+        org.example.service.PermissionService.require("PURCHASE.EXPORT", "Export Purchase Returns");
         FileChooser chooser = new FileChooser(); chooser.setInitialFileName("Purchase_Returns.csv"); chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
         File file = chooser.showSaveDialog(table.getScene().getWindow()); if (file == null) return;
         String q=search.getText(),party=supplier.getValue(),state=status.getValue(),from=str(dpFrom.getValue()),to=str(dpTo.getValue());
@@ -243,7 +244,8 @@ public class PurchaseReturnsController implements ScreenLifecycle {
 
     private LocalDate parse(String value) { try { LocalDate parsed = BusinessClock.parseDate(value); return parsed == null ? LocalDate.MIN : parsed; } catch (Exception e) { return LocalDate.MIN; } }
     private String safe(String value) { return value == null ? "" : value; }
-    private String csv(String value) { return '"' + safe(value).replace("\"", "\"\"") + '"'; }
+    private String csv(String value) { String text=spreadsheetSafe(value); return '"' + text.replace("\"", "\"\"") + '"'; }
+    private String spreadsheetSafe(String value) { String text=safe(value),t=text.stripLeading(); if(t.isEmpty())return text; char c=t.charAt(0); boolean numericNegative=c=='-'&&t.matches("-\\d+(?:\\.\\d+)?"); return c=='='||c=='+'||c=='@'||(c=='-'&&!numericNegative)?"'"+text:text; }
     private String money(double value) { return String.format("₹ %,.2f", value); }
     private boolean confirm(String text) { return org.example.util.ModernDialog.confirm(table, "Confirmation", "Are you sure?", text); }
     private void info(String value) { org.example.util.ToastManager.success(table, "Completed", value); }

@@ -115,18 +115,6 @@
                         <TextField fx:id="txtOrderNo" promptText="Enter PO / supplier reference (optional)"
                                    styleClass="approved-input,sales-entry-order-field"/>
                     </VBox>
-                    <VBox spacing="4" GridPane.rowIndex="4" GridPane.columnSpan="2">
-                        <Label text="Project / Job No." styleClass="sales-entry-field-label,field-label-reference"/>
-                        <TextField fx:id="txtProjectNo" promptText="Project / Job reference (optional)" styleClass="approved-input"/>
-                    </VBox>
-                    <VBox spacing="4" GridPane.rowIndex="4" GridPane.columnIndex="2" GridPane.columnSpan="2">
-                        <Label text="Purchase Order No." styleClass="sales-entry-field-label,field-label-reference"/>
-                        <TextField fx:id="txtPurchaseOrderNo" promptText="Purchase Order reference (optional)" styleClass="approved-input"/>
-                    </VBox>
-                    <VBox spacing="4" GridPane.rowIndex="4" GridPane.columnIndex="4">
-                        <Label text="GRN No." styleClass="sales-entry-field-label,field-label-reference"/>
-                        <TextField fx:id="txtGrnNo" promptText="Goods Receipt reference (optional)" styleClass="approved-input"/>
-                    </VBox>
                 </GridPane>
 
                 <!-- Compatibility/backing controls retained but removed from the visible workflow. -->

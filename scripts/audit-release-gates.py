@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Single authoritative DSE ERP 9.0.57 release-gate aggregate.
+"""Single authoritative current DSE ERP release-gate aggregate.
 
 Release-specific file names are intentionally avoided. Historical database migration
 versions remain in server/src/main/resources/db/migration because upgrade history is
@@ -32,9 +32,8 @@ CHECKS = [
     "audit-registration-security-contract.py",
     "audit-customer-360-contract.py",
     "audit-gate2-gate3-contract.py",
-    "audit-project-execution-contract.py",
+    "audit-project-execution-removal-contract.py",
     "audit-session-focus-stock-contract.py",
-    "audit-runtime-workflow-ui-contract.py",
 ]
 
 failed = []
@@ -66,6 +65,32 @@ if "FOR UPDATE" not in pay or "effectivePaid" not in pay:
 if css != ["dark-theme.css", "light-theme.css"]:
     extra.append(f"central two-theme CSS contract changed: {css}")
 
+
+# Current focused production corrections.
+focused = [
+    ("server/src/main/java/org/example/server/reporting/ReportingService.java", "OUTPUT RETURN"),
+    ("server/src/main/java/org/example/server/reporting/ReportingService.java", "Return GST"),
+    ("server/src/main/java/org/example/server/auth/AuthService.java", "ADMIN_CONTROLLED"),
+    ("server/src/main/java/org/example/server/admin/AdminService.java", "effectiveMfa"),
+    ("server/src/main/resources/db/migration/V9_0_58__mfa_policy.sql", "security.auth.mfa.policy"),
+]
+for path, token in focused:
+    if token not in text(path):
+        extra.append(f"focused contract missing: {path} -> {token}")
+
+# KPI containment is deliberately opt-in. No other screen may inherit this rule.
+bounded=[]
+for f in (ROOT / "desktop/src/main/resources/fxml/pages").rglob("*.fxml"):
+    if "erp-kpi-bounded" in f.read_text(encoding="utf-8",errors="ignore"):
+        bounded.append(f.name)
+if bounded:
+    extra.append(f"rolled-back bounded KPI class remains: {sorted(bounded)}")
+
+# Packaging/source cleanliness: current audit scripts are generic; historical SQL migrations are retained.
+versioned_audits=[p.name for p in (ROOT/"scripts").glob("audit-*.py") if __import__("re").search(r"audit-\d+\.\d+",p.name)]
+if versioned_audits:
+    extra.append(f"version-numbered audit scripts remain: {versioned_audits}")
+
 if extra:
     print("\n=== RELEASE-GATE EXTRA CHECKS ===")
     for item in extra:
@@ -80,4 +105,4 @@ if failed:
         print(" -", item)
     sys.exit(1)
 
-print("\nRELEASE_GATES_9_0_57_OK")
+print("\nRELEASE_GATES_CURRENT_OK version=9.0.62")

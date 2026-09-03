@@ -30,7 +30,6 @@ import java.util.List;
  */
 public final class ResponsiveKpiLayoutManager {
     public static final String KPI_SECTION_STYLE = "erp-kpi-section";
-
     private static final String INSTALLED = "erp.kpi.layout.installed";
     private static final String PENDING = "erp.kpi.layout.pending";
     private static final String ORIGINAL_COLUMN = "erp.kpi.original.column";
@@ -41,6 +40,7 @@ public final class ResponsiveKpiLayoutManager {
     /** Installs responsive balancing when the supplied node is a marked KPI container. */
     public static void install(Node node) {
         if (!(node instanceof Pane pane) || !pane.getStyleClass().contains(KPI_SECTION_STYLE)) return;
+        prepareFlexibleContainer(pane);
         if (Boolean.TRUE.equals(pane.getProperties().get(INSTALLED))) {
             rebalance(pane);
             return;
@@ -116,10 +116,9 @@ public final class ResponsiveKpiLayoutManager {
         int columns = grid.getStyleClass().contains("erp-kpi-single-row")
             ? cards.size()
             : responsiveColumnCount(cards.size(), grid.getWidth(), grid.getHgap());
-        double percent = 100.0d / columns;
         for (int i = 0; i < columns; i++) {
             ColumnConstraints column = new ColumnConstraints();
-            column.setPercentWidth(percent);
+            column.setPercentWidth(100.0d / columns);
             column.setHgrow(Priority.ALWAYS);
             column.setFillWidth(true);
             grid.getColumnConstraints().add(column);
@@ -130,7 +129,7 @@ public final class ResponsiveKpiLayoutManager {
             GridPane.setColumnIndex(card, i % columns);
             GridPane.setRowIndex(card, i / columns);
             GridPane.setHgrow(card, Priority.ALWAYS);
-            prepareFlexibleCard(card);
+            prepareGridCard(card);
         }
     }
 
@@ -176,6 +175,22 @@ public final class ResponsiveKpiLayoutManager {
             if (child != null && child.isManaged()) cards.add(child);
         }
         return cards;
+    }
+
+    private static void prepareGridCard(Node card) {
+        if (card instanceof Region region) {
+            // Percentage columns own width. Preserve the card's computed preferred width so
+            // the first layout pulse cannot collapse the grid and temporarily create extra rows.
+            region.setMinWidth(0);
+            region.setMaxWidth(Double.MAX_VALUE);
+        }
+    }
+
+    private static void prepareFlexibleContainer(Pane pane) {
+        if (pane instanceof Region region) {
+            region.setMinWidth(0);
+            region.setMaxWidth(Double.MAX_VALUE);
+        }
     }
 
     private static void prepareFlexibleCard(Node card) {

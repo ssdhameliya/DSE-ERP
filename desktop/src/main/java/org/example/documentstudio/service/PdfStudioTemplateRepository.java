@@ -62,9 +62,11 @@ public final class PdfStudioTemplateRepository {
 
     public static List<DocumentTemplate> listAll() {
         List<DocumentTemplate> result = new ArrayList<>();
-        try { PdfStudioRemoteStore.refresh(root()); }
-        catch (Exception error) { logFailure("server-refresh", null, error); }
-        try (Stream<Path> folders = Files.list(root())) {
+        Path templateRoot;
+        try { templateRoot = root(); PdfStudioRemoteStore.refresh(templateRoot); }
+        catch (Exception error) { logFailure("server-refresh", null, error); try { templateRoot = root(); } catch (Exception fatal) { return result; } }
+        BuiltInPdfTemplateInstaller.ensureInstalled(templateRoot);
+        try (Stream<Path> folders = Files.list(templateRoot)) {
             folders.filter(Files::isDirectory).forEach(folder -> {
                 try { loadWorking(folder).ifPresent(result::add); }
                 catch (Exception error) { logFailure("list", folder, error); }
@@ -127,6 +129,7 @@ public final class PdfStudioTemplateRepository {
         if (sourcePdf == null || !Files.isRegularFile(sourcePdf)) throw new IOException("The selected PDF does not exist.");
         if (!sourcePdf.getFileName().toString().toLowerCase().endsWith(".pdf")) throw new IOException("Only PDF templates are supported.");
         DocumentTemplate template = fresh(name, type);
+        template.setLayoutMode("STRICT_FIXED");
         Path folder = folder(template);
         try {
             Files.createDirectories(folder.resolve(ASSETS));
@@ -162,7 +165,9 @@ public final class PdfStudioTemplateRepository {
 
     private static DocumentTemplate fresh(String name, DocumentType type) {
         DocumentTemplate template = new DocumentTemplate();
-        template.setStudioSchemaVersion(3);
+        template.setStudioSchemaVersion(4);
+        template.setDataContractVersion(1);
+        template.setLayoutMode("FREEFORM");
         template.setId(UUID.randomUUID().toString());
         template.setName(name);
         template.setDocumentType(type == null ? DocumentType.GENERAL_PDF : type);
@@ -178,8 +183,10 @@ public final class PdfStudioTemplateRepository {
     }
 
     public static synchronized boolean migrateToStudioV3(DocumentTemplate template) throws IOException {
-        if (template == null || template.getStudioSchemaVersion() >= 3) return false;
-        template.setStudioSchemaVersion(3);
+        if (template == null || template.getStudioSchemaVersion() >= 4) return false;
+        template.setStudioSchemaVersion(4);
+        template.setDataContractVersion(1);
+        if (template.getLayoutMode() == null || template.getLayoutMode().isBlank()) template.setLayoutMode("STRICT_FIXED");
         template.setDefaultTemplate(false);
         template.setRuntimeEnabled(false);
         template.setStatus(TemplateStatus.DRAFT);
@@ -193,7 +200,7 @@ public final class PdfStudioTemplateRepository {
     public static synchronized void saveDraft(DocumentTemplate template) throws IOException {
         if (template == null) throw new IllegalArgumentException("Template is required.");
         ensureWorkingTemplate(template);
-        template.setStudioSchemaVersion(3);
+        template.setStudioSchemaVersion(4);
         template.setUnpublishedChanges(true);
         if (!template.isRuntimeEnabled() && template.getStatus() != TemplateStatus.ARCHIVED) template.setStatus(TemplateStatus.DRAFT);
         writeWorkingAndMirror(template);
@@ -207,7 +214,7 @@ public final class PdfStudioTemplateRepository {
 
         int next = template.getPublishedVersion() <= 0 ? 1 : template.getPublishedVersion() + 1;
         DocumentTemplate snapshotMeta = deepCopy(template);
-        snapshotMeta.setStudioSchemaVersion(3);
+        snapshotMeta.setStudioSchemaVersion(4);
         snapshotMeta.setVersion(next);
         snapshotMeta.setPublishedVersion(next);
         snapshotMeta.setUnpublishedChanges(false);
@@ -354,7 +361,7 @@ public final class PdfStudioTemplateRepository {
         DocumentTemplate copy = deepCopy(source);
         copy.setId(UUID.randomUUID().toString());
         copy.setName(source.getName() + " Copy");
-        copy.setStudioSchemaVersion(3);
+        copy.setStudioSchemaVersion(4);
         copy.setStatus(TemplateStatus.DRAFT);
         copy.setDefaultTemplate(false);
         copy.setRuntimeEnabled(false);
@@ -471,8 +478,10 @@ public final class PdfStudioTemplateRepository {
         template.setStorageVariant("");
         boolean repair = false;
         if (template.getId() == null || template.getId().isBlank()) { template.setId(folder.getFileName().toString()); repair = true; }
-        if (template.getStudioSchemaVersion() < 3) {
-            template.setStudioSchemaVersion(3);
+        if (template.getStudioSchemaVersion() < 4) {
+            template.setStudioSchemaVersion(4);
+            template.setDataContractVersion(1);
+            if (template.getLayoutMode() == null || template.getLayoutMode().isBlank()) template.setLayoutMode("STRICT_FIXED");
             template.setDefaultTemplate(false);
             template.setRuntimeEnabled(false);
             template.setStatus(TemplateStatus.DRAFT);

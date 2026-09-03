@@ -25,12 +25,6 @@
 
             <!-- KPI cards -->
             <GridPane hgap="12" vgap="12" styleClass="backup-metrics-grid,erp-kpi-section">
-                <columnConstraints>
-                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
-                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
-                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
-                    <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
-                </columnConstraints>
 
                 <VBox spacing="8" styleClass="backup-metric-card" GridPane.columnIndex="0">
                     <HBox alignment="CENTER_LEFT">

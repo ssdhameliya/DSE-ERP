@@ -39,11 +39,11 @@ public class ReportingService {
                 def("SALES_BY_CUSTOMER","Sales","Sales by Customer","Customer performance with net sales and outstanding.",
                         List.of("Customer","Month","Payment Status"), commonSalesFilters()),
                 def("SALES_BY_ITEM","Sales","Sales by Item","Item quantity, taxable value, GST and net sales.",
-                        List.of("Item","Customer","Month","GST Rate"), commonSalesFilters()),
+                        List.of("Item","Customer","Month","GST Rate"), List.of("Period","Party","Item","Salesperson","GST Rate","Search","Amount")),
                 def("PURCHASE_REGISTER","Purchase","Purchase Register","Supplier invoices with GST, payments and Returns.",
                         List.of("None","Supplier","Payment Status","Return Status","Month"), commonPurchaseFilters()),
                 def("RETURNS_ANALYSIS","Returns","Returns Analysis","Approved Return quantity, value, source invoice and refund settlement.",
-                        List.of("Return Type","Party","Item","Refund Status","Month"), List.of("Period","Party","Item","Return Status","Search")),
+                        List.of("Return Type","Party","Item","Refund Status","Month"), List.of("Period","Party","Item","Document Status","Search")),
                 def("GST_TAX","GST / Tax","GST / Tax Report","Output and input GST with taxable value and transaction totals.",
                         List.of("Direction","GST Rate","Party","Month"), List.of("Period","Party","Item","GST Rate","Search")),
                 def("RECEIVABLE_AGEING","Receivable","Receivable Ageing","Outstanding customer invoices grouped by due-age bucket.",
@@ -57,7 +57,7 @@ public class ReportingService {
                 def("BANK_RECONCILIATION","Banking","Banking / Reconciliation","Imported statement activity with reconciliation status and allocations.",
                         List.of("Status","Bank","Month"), List.of("Period","Bank Status","Search","Amount")),
                 def("PROFITABILITY","Profitability","Profitability Analysis","Invoice profitability from net taxable sales and historical unit-cost snapshots.",
-                        List.of("Customer","Salesperson","Margin Band","Month"), commonSalesFilters())
+                        List.of("Customer","Salesperson","Margin Band","Month"), List.of("Period","Party","Item","Salesperson","Search","Amount"))
         );
     }
 
@@ -194,11 +194,15 @@ public class ReportingService {
         if(!r.documentStatus.isBlank())w.add("UPPER(COALESCE(r.status,''))=?",r.documentStatus);
         String originalQty="CASE WHEN UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') THEN COALESCE(sl.quantity,0) ELSE COALESCE(pl.quantity,0) END";
         String returnTypeNormalized="CASE WHEN UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') THEN 'SALES RETURN' ELSE 'PURCHASE RETURN' END";
-        String refunded="COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no=r.return_no),0)";
-        String refundState="CASE WHEN "+refunded+"+0.0001>=COALESCE((SELECT SUM(r2.amount) FROM return_register r2 WHERE r2.return_no=r.return_no AND "+BusinessKpiPolicy.returnsActive("r2")+"),0) AND COALESCE((SELECT SUM(r2.amount) FROM return_register r2 WHERE r2.return_no=r.return_no AND "+BusinessKpiPolicy.returnsActive("r2")+"),0)>0 THEN 'REFUNDED' WHEN "+refunded+">0.0001 THEN 'PARTIAL' WHEN UPPER(COALESCE(r.status,''))='APPROVED' THEN 'PENDING' ELSE 'N/A' END";
-        List<ReportColumn> c=cols(col("return_no","Return No.","TEXT",true,false,140),col("type","Return Type","TEXT",true,false,125),col("date","Date","DATE",true,false,105),col("invoice","Source Invoice","TEXT",true,false,140),col("party","Party","TEXT",true,false,180),col("item","Item","TEXT",true,false,180),col("quantity","Returned Qty","NUMBER",true,true,105),col("original_qty","Original Qty","NUMBER",true,true,100),col("amount","Return Value","MONEY",true,true,115),col("refunded","Refunded","MONEY",true,true,110),col("refund_status","Refund Status","STATUS",true,false,120),col("return_status","Approval","STATUS",true,false,115),col("reason","Reason","TEXT",false,false,200),col("settlement_due","Settlement Due","DATE",false,false,115));
-        List<ReportRow> rows=jdbc.query("SELECT r.id,r.return_no,"+returnTypeNormalized+","+safeDate("r.return_date")+",COALESCE(r.invoice_no,''),COALESCE(pm.name,''),COALESCE(NULLIF(im.description,''),r.item_code),r.quantity,"+originalQty+",r.amount,"+refunded+","+refundState+",UPPER(COALESCE(NULLIF(r.status,''),'PENDING APPROVAL')),COALESCE(r.reason,''),COALESCE(CAST(r.settlement_due_date AS text),'') FROM return_register r LEFT JOIN party_master pm ON pm.id=r.party_id LEFT JOIN item_master im ON im.item_code=r.item_code LEFT JOIN sales_line sl ON sl.id=r.source_line_id LEFT JOIN purchase_line pl ON pl.id=r.source_line_id WHERE "+w.sql,
-                (x,i)->row(x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),n(x,8),n(x,9),n(x,10),n(x,11),s(x,12),s(x,13),s(x,14),s(x,15)),"SALES RETURN".equals(s(x,3))?"/fxml/pages/SalesReturns.fxml":"/fxml/pages/PurchaseReturns.fxml",x.getLong(1),s(x,2)),w.args());
+        String returnTotal="COALESCE((SELECT SUM(r2.amount) FROM return_register r2 WHERE r2.return_no=r.return_no AND "+BusinessKpiPolicy.returnsActive("r2")+"),0)";
+        String refundedTotal="COALESCE((SELECT SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)) FROM return_refund rr WHERE rr.return_no=r.return_no),0)";
+        String refunded="CASE WHEN ("+returnTotal+")>0 THEN ("+refundedTotal+")*COALESCE(r.amount,0)/("+returnTotal+") ELSE 0 END";
+        String refundState="CASE WHEN "+refundedTotal+"+0.0001>=("+returnTotal+") AND ("+returnTotal+")>0 THEN 'REFUNDED' WHEN "+refundedTotal+">0.0001 THEN 'PARTIAL' WHEN UPPER(COALESCE(r.status,''))='APPROVED' THEN 'PENDING' ELSE 'N/A' END";
+        String sourceTaxable="CASE WHEN UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') AND COALESCE(sl.quantity,0)>0 THEN r.quantity*(((sl.quantity*sl.rate)-COALESCE(sl.discount_amount,0))/sl.quantity) WHEN UPPER(COALESCE(r.return_type,''))='PURCHASE RETURN' AND COALESCE(pl.quantity,0)>0 THEN r.quantity*(((pl.quantity*pl.rate)-COALESCE(pl.discount_amount,0))/pl.quantity) ELSE r.amount END";
+        String returnGst="GREATEST(r.amount-("+sourceTaxable+"),0)";
+        List<ReportColumn> c=cols(col("return_no","Return No.","TEXT",true,false,140),col("type","Return Type","TEXT",true,false,125),col("date","Date","DATE",true,false,105),col("invoice","Source Invoice","TEXT",true,false,140),col("party","Party","TEXT",true,false,180),col("item","Item","TEXT",true,false,180),col("quantity","Returned Qty","NUMBER",true,true,105),col("original_qty","Original Qty","NUMBER",true,true,100),col("taxable","Return Taxable","MONEY",true,true,115),col("gst","Return GST","MONEY",true,true,105),col("amount","Return Total","MONEY",true,true,115),col("refunded","Refunded","MONEY",true,true,110),col("refund_status","Refund Status","STATUS",true,false,120),col("return_status","Approval","STATUS",true,false,115),col("reason","Reason","TEXT",false,false,200),col("settlement_due","Settlement Due","DATE",false,false,115));
+        List<ReportRow> rows=jdbc.query("SELECT r.id,r.return_no,"+returnTypeNormalized+","+safeDate("r.return_date")+",COALESCE(r.invoice_no,''),COALESCE(pm.name,''),COALESCE(NULLIF(im.description,''),r.item_code),r.quantity,"+originalQty+","+sourceTaxable+","+returnGst+",r.amount,"+refunded+","+refundState+",UPPER(COALESCE(NULLIF(r.status,''),'PENDING APPROVAL')),COALESCE(r.reason,''),COALESCE(CAST(r.settlement_due_date AS text),'') FROM return_register r LEFT JOIN party_master pm ON pm.id=r.party_id LEFT JOIN item_master im ON im.item_code=r.item_code LEFT JOIN sales_line sl ON sl.id=r.source_line_id LEFT JOIN purchase_line pl ON pl.id=r.source_line_id WHERE "+w.sql,
+                (x,i)->row(x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),n(x,8),n(x,9),n(x,10),n(x,11),n(x,12),n(x,13),s(x,14),s(x,15),s(x,16),s(x,17)),"SALES RETURN".equals(s(x,3))?"/fxml/pages/SalesReturns.fxml":"/fxml/pages/PurchaseReturns.fxml",x.getLong(1),s(x,2)),w.args());
         return new Raw(c,rows,"amount");
     }
 
@@ -217,6 +221,44 @@ public class ReportingService {
         List<ReportRow> rows=new ArrayList<>();
         rows.addAll(jdbc.query(salesSql,(x,i)->row("S-"+x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),s(x,8),n(x,9),n(x,10),n(x,11),n(x,12),n(x,13),n(x,14),n(x,15)),"/fxml/pages/SalesList.fxml",null,s(x,3)),sw.args()));
         rows.addAll(jdbc.query(purchaseSql,(x,i)->row("P-"+x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),s(x,8),n(x,9),n(x,10),n(x,11),n(x,12),n(x,13),n(x,14),n(x,15)),"/fxml/pages/PurchaseList.fxml",null,s(x,3)),pw.args()));
+
+        // Taxable additional charges are part of the statutory invoice tax and must be reported alongside item lines.
+        // An item-specific filter intentionally suppresses charge-only rows because a charge is not attributable to one item.
+        if (r.item.isBlank()) {
+            Sql scw=new Sql(BusinessKpiPolicy.salesActive("h")+" AND "+safeDate("h.invoice_date")+" BETWEEN ? AND ? AND COALESCE(sc.taxable,FALSE)=TRUE",r.from,r.to);
+            if(!r.party.isBlank())scw.add("COALESCE(NULLIF(h.customer_name_snapshot,''),pm.name,'')=?",r.party);
+            if(!r.gstRate.isBlank())scw.add("CAST(COALESCE(sc.gst_percent,0) AS numeric)=CAST(? AS numeric)",r.gstRate);
+            String scTax="ROUND(COALESCE(sc.amount,0)*COALESCE(sc.gst_percent,0)/100.0,2)";
+            String scSql="SELECT sc.id,'OUTPUT CHARGE',h.invoice_no,"+safeDate("h.invoice_date")+",COALESCE(NULLIF(h.customer_name_snapshot,''),pm.name,''),COALESCE(NULLIF(h.customer_gstin_snapshot,''),h.gstin,pm.gstin,''),COALESCE(NULLIF(sc.charge_name,''),NULLIF(sc.charge_code,''),'Additional Charge'),'',COALESCE(sc.gst_percent,0),COALESCE(sc.amount,0),CASE WHEN UPPER(COALESCE(h.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE ("+scTax+")/2 END,CASE WHEN UPPER(COALESCE(h.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE ("+scTax+")/2 END,CASE WHEN UPPER(COALESCE(h.gst_type,'')) LIKE '%INTER%' THEN ("+scTax+") ELSE 0 END,("+scTax+"),COALESCE(sc.amount,0)+("+scTax+") FROM sales_charge sc JOIN sales_header h ON h.id=sc.sales_id LEFT JOIN party_master pm ON pm.id=h.customer_id WHERE "+scw.sql;
+            rows.addAll(jdbc.query(scSql,(x,i)->row("SC-"+x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),s(x,8),n(x,9),n(x,10),n(x,11),n(x,12),n(x,13),n(x,14),n(x,15)),"/fxml/pages/SalesList.fxml",null,s(x,3)),scw.args()));
+
+            Sql pcw=new Sql(BusinessKpiPolicy.purchasesActive("h")+" AND "+safeDate("h.invoice_date")+" BETWEEN ? AND ? AND COALESCE(pc.taxable,FALSE)=TRUE",r.from,r.to);
+            if(!r.party.isBlank())pcw.add("COALESCE(NULLIF(h.supplier_name_snapshot,''),pm.name,'')=?",r.party);
+            if(!r.gstRate.isBlank())pcw.add("CAST(COALESCE(pc.gst_percent,0) AS numeric)=CAST(? AS numeric)",r.gstRate);
+            String pcTax="ROUND(COALESCE(pc.amount,0)*COALESCE(pc.gst_percent,0)/100.0,2)";
+            String pcSql="SELECT pc.id,'INPUT CHARGE',h.invoice_no,"+safeDate("h.invoice_date")+",COALESCE(NULLIF(h.supplier_name_snapshot,''),pm.name,''),COALESCE(NULLIF(h.supplier_gstin_snapshot,''),pm.gstin,''),COALESCE(NULLIF(pc.charge_name,''),NULLIF(pc.charge_code,''),'Additional Charge'),'',COALESCE(pc.gst_percent,0),COALESCE(pc.amount,0),CASE WHEN UPPER(COALESCE(h.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE ("+pcTax+")/2 END,CASE WHEN UPPER(COALESCE(h.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE ("+pcTax+")/2 END,CASE WHEN UPPER(COALESCE(h.gst_type,'')) LIKE '%INTER%' THEN ("+pcTax+") ELSE 0 END,("+pcTax+"),COALESCE(pc.amount,0)+("+pcTax+") FROM purchase_charge pc JOIN purchase_header h ON h.id=pc.purchase_id LEFT JOIN party_master pm ON pm.id=h.supplier_id WHERE "+pcw.sql;
+            rows.addAll(jdbc.query(pcSql,(x,i)->row("PC-"+x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),s(x,8),n(x,9),n(x,10),n(x,11),n(x,12),n(x,13),n(x,14),n(x,15)),"/fxml/pages/PurchaseList.fxml",null,s(x,3)),pcw.args()));
+        }
+
+        // Approved Returns reverse the original taxable/GST movement on the Return date.
+        // The return_register amount remains GST-inclusive because it is the settlement/refund authority.
+        Sql srw=new Sql("UPPER(COALESCE(rr.status,''))='APPROVED' AND UPPER(COALESCE(rr.return_type,'')) IN ('SALE RETURN','SALES RETURN') AND "+safeDate("rr.return_date")+" BETWEEN ? AND ?",r.from,r.to);
+        if(!r.party.isBlank())srw.add("COALESCE(pm.name,'')=?",r.party);
+        if(!r.item.isBlank())srw.add("(COALESCE(NULLIF(im.description,''),rr.item_code)=? OR rr.item_code=?)",r.item,r.item);
+        if(!r.gstRate.isBlank())srw.add("CAST(COALESCE(sl.gst_percent,0) AS numeric)=CAST(? AS numeric)",r.gstRate);
+        String srTax="CASE WHEN COALESCE(sl.quantity,0)>0 THEN rr.quantity*(((sl.quantity*sl.rate)-COALESCE(sl.discount_amount,0))/sl.quantity) ELSE rr.amount END";
+        String srGst="GREATEST(rr.amount-("+srTax+"),0)";
+        String srSql="SELECT rr.id,'OUTPUT RETURN',rr.return_no,"+safeDate("rr.return_date")+",COALESCE(pm.name,''),COALESCE(pm.gstin,''),COALESCE(NULLIF(im.description,''),rr.item_code),COALESCE(NULLIF(sl.hsn_snapshot,''),im.hsn,''),COALESCE(sl.gst_percent,0),-("+srTax+") taxable,CASE WHEN UPPER(COALESCE(sh.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE -("+srGst+")/2 END cgst,CASE WHEN UPPER(COALESCE(sh.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE -("+srGst+")/2 END sgst,CASE WHEN UPPER(COALESCE(sh.gst_type,'')) LIKE '%INTER%' THEN -("+srGst+") ELSE 0 END igst,-("+srGst+"),-rr.amount FROM return_register rr LEFT JOIN sales_line sl ON sl.id=rr.source_line_id LEFT JOIN sales_header sh ON sh.id=sl.sales_id LEFT JOIN party_master pm ON pm.id=rr.party_id LEFT JOIN item_master im ON im.item_code=rr.item_code WHERE "+srw.sql;
+        rows.addAll(jdbc.query(srSql,(x,i)->row("SR-"+x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),s(x,8),n(x,9),n(x,10),n(x,11),n(x,12),n(x,13),n(x,14),n(x,15)),"/fxml/pages/SalesReturns.fxml",null,s(x,3)),srw.args()));
+
+        Sql prw=new Sql("UPPER(COALESCE(rr.status,''))='APPROVED' AND UPPER(COALESCE(rr.return_type,''))='PURCHASE RETURN' AND "+safeDate("rr.return_date")+" BETWEEN ? AND ?",r.from,r.to);
+        if(!r.party.isBlank())prw.add("COALESCE(pm.name,'')=?",r.party);
+        if(!r.item.isBlank())prw.add("(COALESCE(NULLIF(im.description,''),rr.item_code)=? OR rr.item_code=?)",r.item,r.item);
+        if(!r.gstRate.isBlank())prw.add("CAST(COALESCE(pl.gst_percent,0) AS numeric)=CAST(? AS numeric)",r.gstRate);
+        String prTax="CASE WHEN COALESCE(pl.quantity,0)>0 THEN rr.quantity*(((pl.quantity*pl.rate)-COALESCE(pl.discount_amount,0))/pl.quantity) ELSE rr.amount END";
+        String prGst="GREATEST(rr.amount-("+prTax+"),0)";
+        String prSql="SELECT rr.id,'INPUT RETURN',rr.return_no,"+safeDate("rr.return_date")+",COALESCE(pm.name,''),COALESCE(pm.gstin,''),COALESCE(NULLIF(im.description,''),rr.item_code),COALESCE(NULLIF(pl.hsn_snapshot,''),im.hsn,''),COALESCE(pl.gst_percent,0),-("+prTax+") taxable,CASE WHEN UPPER(COALESCE(ph.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE -("+prGst+")/2 END cgst,CASE WHEN UPPER(COALESCE(ph.gst_type,'')) LIKE '%INTER%' THEN 0 ELSE -("+prGst+")/2 END sgst,CASE WHEN UPPER(COALESCE(ph.gst_type,'')) LIKE '%INTER%' THEN -("+prGst+") ELSE 0 END igst,-("+prGst+"),-rr.amount FROM return_register rr LEFT JOIN purchase_line pl ON pl.id=rr.source_line_id LEFT JOIN purchase_header ph ON ph.id=pl.purchase_id LEFT JOIN party_master pm ON pm.id=rr.party_id LEFT JOIN item_master im ON im.item_code=rr.item_code WHERE "+prw.sql;
+        rows.addAll(jdbc.query(prSql,(x,i)->row("PR-"+x.getLong(1),List.of(s(x,2),s(x,3),s(x,4),s(x,5),s(x,6),s(x,7),s(x,8),n(x,9),n(x,10),n(x,11),n(x,12),n(x,13),n(x,14),n(x,15)),"/fxml/pages/PurchaseReturns.fxml",null,s(x,3)),prw.args()));
         return new Raw(c,rows,"invoice_value");
     }
 
@@ -239,7 +281,7 @@ public class ReportingService {
         Sql w=new Sql("COALESCE(i.is_active::text,'1') IN ('1','true','t')");
         if(!r.item.isBlank())w.add("(COALESCE(NULLIF(i.description,''),i.item_code)=? OR i.item_code=?)",r.item,r.item);
         if(!r.warehouse.isBlank())w.add("COALESCE(i.location,'')=?",r.warehouse);
-        String qty="COALESCE(cs.quantity,COALESCE(i.opening_stock,0)-COALESCE(i.reserved_stock,0),0)",cost="COALESCE(cs.average_unit_cost,i.purchase_price,0)",value="("+qty+")*("+cost+")";
+        String qty="COALESCE(cs.quantity,COALESCE(i.opening_stock,0),0)",cost="COALESCE(cs.average_unit_cost,i.purchase_price,0)",value="("+qty+")*("+cost+")";
         String status="CASE WHEN "+qty+"<=0 THEN 'OUT OF STOCK' WHEN "+qty+"<=COALESCE(i.minimum_stock,0) THEN 'LOW STOCK' ELSE 'IN STOCK' END";
         List<ReportColumn> c=cols(col("item","Item","TEXT",true,false,200),col("code","Code","TEXT",true,false,115),col("category","Category","TEXT",true,false,125),col("unit","Unit","TEXT",true,false,75),col("quantity","Closing Stock","NUMBER",true,true,110),col("reserved","Reserved","NUMBER",false,true,90),col("available","Available","NUMBER",true,true,95),col("avg_cost","Avg. Cost","MONEY",true,true,105),col("stock_value","Stock Value","MONEY",true,true,120),col("minimum","Minimum","NUMBER",true,true,90),col("stock_status","Status","STATUS",true,false,115),col("location","Location","TEXT",true,false,120));
         List<ReportRow> rows=jdbc.query("SELECT i.id,COALESCE(NULLIF(i.description,''),i.item_code),i.item_code,COALESCE(i.category,''),COALESCE(i.unit,''),"+qty+",COALESCE(i.reserved_stock,0),GREATEST(("+qty+")-COALESCE(i.reserved_stock,0),0),"+cost+","+value+",COALESCE(i.minimum_stock,0),"+status+",COALESCE(i.location,'') FROM item_master i LEFT JOIN inventory_cost_state cs ON cs.item_code=i.item_code WHERE "+w.sql,
@@ -285,9 +327,9 @@ public class ReportingService {
     private List<ReportRow> postFilter(List<ReportColumn> columns,List<ReportRow> source,Request r){
         Map<String,Integer> index=index(columns); List<ReportRow> out=new ArrayList<>();
         for(ReportRow row:source){
-            if(!r.paymentStatus.isBlank()&&!equalsAt(row,index,"payment_status",r.paymentStatus))continue;
-            if(!r.returnStatus.isBlank()&&!equalsAt(row,index,"return_status",r.returnStatus))continue;
-            if(!r.bankStatus.isBlank()&&!equalsAt(row,index,"bank_status",r.bankStatus))continue;
+            if(!r.paymentStatus.isBlank()&&index.containsKey("payment_status")&&!equalsAt(row,index,"payment_status",r.paymentStatus))continue;
+            if(!r.returnStatus.isBlank()&&index.containsKey("return_status")&&!equalsAt(row,index,"return_status",r.returnStatus))continue;
+            if(!r.bankStatus.isBlank()&&index.containsKey("bank_status")&&!equalsAt(row,index,"bank_status",r.bankStatus))continue;
             if(!r.search.isBlank()){String q=r.search.toLowerCase(Locale.ROOT);boolean hit=false;for(String v:row.values())if(v!=null&&v.toLowerCase(Locale.ROOT).contains(q)){hit=true;break;}if(!hit)continue;}
             if(r.minAmount!=null||r.maxAmount!=null){String key=amountKey(index);if(key!=null){double amount=parse(row.values().get(index.get(key)));if(r.minAmount!=null&&amount+EPS<r.minAmount)continue;if(r.maxAmount!=null&&amount-EPS>r.maxAmount)continue;}}
             out.add(row);

@@ -13,9 +13,6 @@ public class Customer360Controller {
     @PostMapping("/{id}/contacts") public Customer360Dtos.ContactRow saveContact(@PathVariable int id,@RequestBody Customer360Dtos.ContactSave d){return service.saveContact(id,d);}
     @DeleteMapping("/{id}/contacts/{contactId}") public Customer360Dtos.Ok deleteContact(@PathVariable int id,@PathVariable long contactId,@RequestParam long rowVersion){service.deleteContact(id,contactId,rowVersion);return new Customer360Dtos.Ok(true,"Deleted");}
     @GetMapping("/{id}/quotations") public List<Customer360Dtos.QuotationRow> quotations(@PathVariable int id){return service.quotations(id);}
-    @GetMapping("/{id}/sales-orders") public List<Customer360Dtos.WorkflowRow> salesOrders(@PathVariable int id){return service.salesOrders(id);}
- @GetMapping("/{id}/direct-sales") public List<Customer360Dtos.InvoiceRow> directSales(@PathVariable int id){return service.directSales(id);}
-    @GetMapping("/{id}/projects") public List<Customer360Dtos.WorkflowRow> projects(@PathVariable int id){return service.projects(id);}
     @GetMapping("/{id}/invoices") public List<Customer360Dtos.InvoiceRow> invoices(@PathVariable int id){return service.invoices(id);}
     @GetMapping("/{id}/payments") public List<Customer360Dtos.PaymentRow> payments(@PathVariable int id){return service.payments(id);}
     @GetMapping("/{id}/notes") public List<Customer360Dtos.NoteRow> notes(@PathVariable int id){return service.notes(id);}

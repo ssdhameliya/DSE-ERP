@@ -115,6 +115,7 @@ public class ImportService {
         List<Item> items = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         List<ImportRowResult> details = new ArrayList<>();
+        Map<String,Set<String>> suppliedItemFields = new HashMap<>();
         ItemService service = new ItemService();
         Map<String,String> referenceFormats = new MasterApiClient().referenceFormats();
 
@@ -143,14 +144,17 @@ public class ImportService {
                     item.setCategory(getCellValue(row, mapping.get("category")));
                     item.setUnit(required(getCellValue(row, mapping.get("unit")), "unit"));
                     item.setHsn(required(getCellValue(row, mapping.get("hsn")), "hsn"));
-                    item.setGst(parseDouble(getCellValue(row, mapping.get("gst"))));
-                    item.setDiscountPercent(parseDouble(getCellValue(row, mapping.get("discount_percent"))));
-                    item.setPurchasePrice(parseDouble(getCellValue(row, mapping.get("purchase_price"))));
-                    item.setSellingPrice(parseDouble(getCellValue(row, mapping.get("selling_price"))));
-                    item.setOpeningStock(parseDouble(getCellValue(row, mapping.get("opening_stock"))));
-                    item.setMinimumStock(parseDouble(getCellValue(row, mapping.get("minimum_stock"))));
+                    Set<String> supplied = new HashSet<>();
+                    String gstText=getCellValue(row,mapping.get("gst")); if(!blank(gstText))supplied.add("gst"); item.setGst(parseDouble(gstText));
+                    String discountText=getCellValue(row,mapping.get("discount_percent")); if(!blank(discountText))supplied.add("discount_percent"); item.setDiscountPercent(parseDouble(discountText));
+                    String purchaseText=getCellValue(row,mapping.get("purchase_price")); if(!blank(purchaseText))supplied.add("purchase_price"); item.setPurchasePrice(parseDouble(purchaseText));
+                    String sellingText=getCellValue(row,mapping.get("selling_price")); if(!blank(sellingText))supplied.add("selling_price"); item.setSellingPrice(parseDouble(sellingText));
+                    String openingText=getCellValue(row,mapping.get("opening_stock")); if(!blank(openingText))supplied.add("opening_stock"); item.setOpeningStock(parseDouble(openingText));
+                    String minimumText=getCellValue(row,mapping.get("minimum_stock")); if(!blank(minimumText))supplied.add("minimum_stock"); item.setMinimumStock(parseDouble(minimumText));
                     item.setLocation(getCellValue(row, mapping.get("location")));
                     item.setRemarks(required(getCellValue(row, mapping.get("remarks")), "remarks"));
+                    suppliedItemFields.put(code.toUpperCase(Locale.ROOT), supplied);
+                    validateItemForImport(item);
 
                     items.add(item);
                 } catch (Exception ex) {
@@ -194,7 +198,16 @@ public class ImportService {
                     Item existing = existingItems.get(item.getItemCode().toUpperCase(Locale.ROOT));
                     if (existing != null) {
                         if (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING) { skipped++; continue; }
-                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeItem(item, existing);
+                        applyItemUpdateIdentity(item, existing);
+                        if (mode == ImportMode.UPDATE_NON_BLANK) {
+                            mergeItem(item, existing);
+                            Set<String> supplied=suppliedItemFields.getOrDefault(item.getItemCode().toUpperCase(Locale.ROOT),Set.of());
+                            if(!supplied.contains("gst")) item.setGst(existing.getGst());
+                            if(!supplied.contains("discount_percent")) item.setDiscountPercent(existing.getDiscountPercent());
+                            if(!supplied.contains("purchase_price")) item.setPurchasePrice(existing.getPurchasePrice());
+                            if(!supplied.contains("selling_price")) item.setSellingPrice(existing.getSellingPrice());
+                            if(!supplied.contains("minimum_stock")) item.setMinimumStock(existing.getMinimumStock());
+                        }
                         service.update(item); updated++;
                     } else {
                         service.save(item);
@@ -528,6 +541,13 @@ public class ImportService {
         int processed = 0, imported = 0, updated = 0, skipped = 0;
         LookupService service = new LookupService();
         MasterApiClient masterApi = new MasterApiClient();
+        Map<String,MasterApiClient.CategoryDto> categories = new HashMap<>();
+        if (!dryRun) {
+            for (MasterApiClient.CategoryDto category : masterApi.categories()) {
+                if (category != null && category.categoryCode() != null)
+                    categories.put(category.categoryCode().trim().toUpperCase(Locale.ROOT), category);
+            }
+        }
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
             SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
             Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
@@ -535,38 +555,70 @@ public class ImportService {
             for (int i = layout.headerRowIndex() + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i); if (row == null) continue;
                 try {
-                    String categoryCode = required(getCellValue(row, mapping.get("category_code")), "category_code").toUpperCase(Locale.ROOT);
-                    String categoryName = required(getCellValue(row, mapping.get("category_name")), "category_name");
-                    String value = required(getCellValue(row, mapping.get("value")), "value");
-                    String code = required(getCellValue(row, mapping.get("value_code")), "value_code");
+                    String categoryCode = required(getCellValue(row, mapping.get("category_code")), "category_code").trim().toUpperCase(Locale.ROOT);
+                    String categoryName = required(getCellValue(row, mapping.get("category_name")), "category_name").trim();
+                    String categoryDescription = getCellValue(row, mapping.get("category_description"));
+                    String value = required(getCellValue(row, mapping.get("value")), "value").trim();
+                    String code = required(getCellValue(row, mapping.get("value_code")), "value_code").trim();
+                    String valueDescription = getCellValue(row, mapping.get("value_description"));
+                    String displayOrderText = getCellValue(row, mapping.get("display_order"));
+                    String activeText = getCellValue(row, mapping.get("is_active"));
+                    Integer displayOrder = blank(displayOrderText) ? null : (int) parseDouble(displayOrderText);
+                    Boolean active = blank(activeText) ? null : !Set.of("false","0","no","inactive","disabled").contains(activeText.trim().toLowerCase(Locale.ROOT));
                     processed++;
                     if (dryRun) {
                         details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + code, "PASSED", "VALIDATED", "All validations passed", "", 0));
                     } else {
-                        MasterApiClient.CategoryDto category = masterApi.upsertCategory(
-                                categoryCode, categoryName, getCellValue(row, mapping.get("category_description")));
-                        String canonicalLookupType = category == null || category.categoryName() == null || category.categoryName().isBlank()
-                                ? categoryName.trim().toUpperCase(Locale.ROOT)
-                                : category.categoryName().trim();
+                        MasterApiClient.CategoryDto existingCategory = categories.get(categoryCode);
+                        MasterApiClient.CategoryDto category = existingCategory;
+                        boolean categoryWriteAllowed = existingCategory == null || (mode != ImportMode.CREATE_ONLY && mode != ImportMode.SKIP_EXISTING);
+                        if (categoryWriteAllowed) {
+                            String effectiveDescription = categoryDescription;
+                            if (existingCategory != null && mode == ImportMode.UPDATE_NON_BLANK && blank(effectiveDescription))
+                                effectiveDescription = existingCategory.description();
+                            category = masterApi.upsertCategory(categoryCode, categoryName, effectiveDescription);
+                            if (category != null) categories.put(categoryCode, category);
+                        }
+                        String canonicalLookupType = category != null && !blank(category.categoryName())
+                                ? category.categoryName().trim()
+                                : (existingCategory != null && !blank(existingCategory.categoryName()) ? existingCategory.categoryName().trim() : categoryName);
                         MasterApiClient.LookupCodeResolution resolution = masterApi.resolveLookupCode(canonicalLookupType, code);
-                        String effectiveCode = resolution == null || resolution.canonicalCode() == null || resolution.canonicalCode().isBlank()
-                                ? code.trim().toUpperCase(Locale.ROOT) : resolution.canonicalCode().trim().toUpperCase(Locale.ROOT);
+                        String effectiveCode = resolution == null || blank(resolution.canonicalCode())
+                                ? code.toUpperCase(Locale.ROOT) : resolution.canonicalCode().trim().toUpperCase(Locale.ROOT);
                         Lookup lookup = service.getByType(canonicalLookupType).stream()
                                 .filter(existing -> existing.getLookupCode().equalsIgnoreCase(effectiveCode)).findFirst().orElse(null);
                         boolean exists = lookup != null;
+                        if (exists && (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING)) {
+                            skipped++;
+                            details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + effectiveCode, "SKIPPED", "NONE", "Existing master value preserved", "", 0));
+                            progress.accept(i, Math.max(1, total));
+                            continue;
+                        }
                         if (!exists) lookup = new Lookup();
                         lookup.setLookupType(canonicalLookupType);
-                        // Unknown GENxxx identifiers are retired in 9.0.49. Leaving the code blank lets
-                        // the server allocate the correct category-specific reference (MATxxx, UNTxxx, ...).
-                        lookup.setLookupCode(!exists && !resolution.aliasMatched() && code.trim().matches("(?i)^GEN\\d+$") ? "" : effectiveCode);
+                        boolean aliasMatched = resolution != null && resolution.aliasMatched();
+                        // Unknown GENxxx identifiers are retired. Leaving the code blank lets the server
+                        // allocate the correct category-specific reference (MATxxx, UNTxxx, ...).
+                        lookup.setLookupCode(!exists && !aliasMatched && code.matches("(?i)^GEN\\d+$") ? "" : effectiveCode);
                         lookup.setLookupValue(value);
-                        lookup.setDescription(getCellValue(row, mapping.get("value_description")));
-                        lookup.setDisplayOrder((int) parseDouble(getCellValue(row, mapping.get("display_order"))));
-                        lookup.setActive(!"false".equalsIgnoreCase(getCellValue(row, mapping.get("is_active"))));
-                        if (exists && (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING)) { skipped++; }
-                        else if (exists) { service.update(lookup); updated++; } else { service.save(lookup); imported++; }
+                        if (exists && mode == ImportMode.UPDATE_NON_BLANK) {
+                            if (!blank(valueDescription)) lookup.setDescription(valueDescription);
+                            if (displayOrder != null) lookup.setDisplayOrder(displayOrder);
+                            if (active != null) lookup.setActive(active);
+                        } else {
+                            lookup.setDescription(valueDescription);
+                            lookup.setDisplayOrder(displayOrder == null ? 0 : displayOrder);
+                            lookup.setActive(active == null || active);
+                        }
+                        if (exists) { service.update(lookup); updated++; }
+                        else { service.save(lookup); imported++; }
                     }
-                } catch (Exception ex) { skipped++; errors.add("Row " + (i + 1) + ": " + ex.getMessage()); details.add(new ImportRowResult(String.valueOf(i + 1), "", "FAILED", "NONE", ex.getMessage(), "", 0)); }
+                } catch (Exception ex) {
+                    skipped++;
+                    String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+                    errors.add("Row " + (i + 1) + ": " + message);
+                    details.add(new ImportRowResult(String.valueOf(i + 1), "", "FAILED", "NONE", message, "", 0));
+                }
                 progress.accept(i, Math.max(1, total));
             }
         }
@@ -580,6 +632,7 @@ public class ImportService {
         List<Party> parties = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         List<ImportRowResult> details = new ArrayList<>();
+        Map<String,Set<String>> suppliedPartyFields = new HashMap<>();
         PartyService service = new PartyService();
         Map<String,String> referenceFormats = new MasterApiClient().referenceFormats();
 
@@ -613,9 +666,12 @@ public class ImportService {
                     p.setEmail(email);
                     p.setGstin(getCellValue(row, mapping.get("gstin")));
                     p.setAddress(getCellValue(row, mapping.get("address")));
-                    p.setOpeningBalance(parseDouble(getCellValue(row, mapping.get("opening_balance"))));
-                    String activeValue = getCellValue(row, mapping.get("is_active"));
+                    Set<String> supplied = new HashSet<>();
+                    String openingBalanceText=getCellValue(row,mapping.get("opening_balance")); if(!blank(openingBalanceText))supplied.add("opening_balance");
+                    p.setOpeningBalance(parseDouble(openingBalanceText));
+                    String activeValue = getCellValue(row, mapping.get("is_active")); if(!blank(activeValue))supplied.add("is_active");
                     p.setActive(activeValue == null || activeValue.isBlank() || !Set.of("false","0","no","inactive","disabled").contains(activeValue.trim().toLowerCase(Locale.ROOT)));
+                    suppliedPartyFields.put(code.toUpperCase(Locale.ROOT), supplied);
 
                     parties.add(p);
                 } catch (Exception ex) {
@@ -661,7 +717,13 @@ public class ImportService {
                     Party existing = existingParties.get(p.getPartyCode().toUpperCase(Locale.ROOT));
                     if (existing != null) {
                         if (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING) { skipped++; continue; }
-                        if (mode == ImportMode.UPDATE_NON_BLANK) mergeParty(p, existing);
+                        applyPartyUpdateIdentity(p, existing);
+                        if (mode == ImportMode.UPDATE_NON_BLANK) {
+                            mergeParty(p, existing);
+                            Set<String> supplied=suppliedPartyFields.getOrDefault(p.getPartyCode().toUpperCase(Locale.ROOT),Set.of());
+                            if(!supplied.contains("opening_balance")) p.setOpeningBalance(existing.getOpeningBalance());
+                            if(!supplied.contains("is_active")) p.setActive(existing.isActive());
+                        }
                         service.update(p); updated++;
                     } else {
                         service.save(p);
@@ -693,9 +755,15 @@ public class ImportService {
         return message == null || message.isBlank() ? (root == null ? "Import save failed" : root.getClass().getSimpleName()) : message.trim();
     }
 
-    private static void mergeParty(Party incoming, Party existing) {
+    private static void applyPartyUpdateIdentity(Party incoming, Party existing) {
         if (existing == null) return;
         incoming.setId(existing.getId());
+        incoming.setRowVersion(existing.getRowVersion());
+    }
+
+    private static void mergeParty(Party incoming, Party existing) {
+        if (existing == null) return;
+        applyPartyUpdateIdentity(incoming, existing);
         if (blank(incoming.getName())) incoming.setName(existing.getName());
         if (blank(incoming.getContactPerson())) incoming.setContactPerson(existing.getContactPerson());
         if (blank(incoming.getPhone())) incoming.setPhone(existing.getPhone());
@@ -704,9 +772,18 @@ public class ImportService {
         if (blank(incoming.getAddress())) incoming.setAddress(existing.getAddress());
     }
 
-    private static void mergeItem(Item incoming, Item existing) {
+    private static void applyItemUpdateIdentity(Item incoming, Item existing) {
         if (existing == null) return;
         incoming.setId(existing.getId());
+        incoming.setRowVersion(existing.getRowVersion());
+        // Opening Stock is a creation baseline. Existing inventory changes must use Stock Adjustment.
+        incoming.setOpeningStock(existing.getOpeningStock());
+        incoming.setReservedStock(existing.getReservedStock());
+    }
+
+    private static void mergeItem(Item incoming, Item existing) {
+        if (existing == null) return;
+        applyItemUpdateIdentity(incoming, existing);
         if (blank(incoming.getDescription())) incoming.setDescription(existing.getDescription());
         if (blank(incoming.getCategory())) incoming.setCategory(existing.getCategory());
         if (blank(incoming.getBrand())) incoming.setBrand(existing.getBrand());
@@ -716,6 +793,23 @@ public class ImportService {
         if (blank(incoming.getHsn())) incoming.setHsn(existing.getHsn());
         if (blank(incoming.getLocation())) incoming.setLocation(existing.getLocation());
         if (blank(incoming.getRemarks())) incoming.setRemarks(existing.getRemarks());
+    }
+
+
+    private static void validateItemForImport(Item item) {
+        if (item == null) throw new IllegalArgumentException("Item row is empty");
+        if (!Double.isFinite(item.getGst()) || item.getGst() < 0 || item.getGst() > 100)
+            throw new IllegalArgumentException("GST percent must be between 0 and 100");
+        if (!Double.isFinite(item.getDiscountPercent()) || item.getDiscountPercent() < 0 || item.getDiscountPercent() > 100)
+            throw new IllegalArgumentException("Discount percent must be between 0 and 100");
+        if (!Double.isFinite(item.getPurchasePrice()) || item.getPurchasePrice() < 0)
+            throw new IllegalArgumentException("Purchase price must be a finite non-negative number");
+        if (!Double.isFinite(item.getSellingPrice()) || item.getSellingPrice() < 0)
+            throw new IllegalArgumentException("Selling price must be a finite non-negative number");
+        if (!Double.isFinite(item.getOpeningStock()) || item.getOpeningStock() < 0)
+            throw new IllegalArgumentException("Opening stock must be a finite non-negative number");
+        if (!Double.isFinite(item.getMinimumStock()) || item.getMinimumStock() < 0)
+            throw new IllegalArgumentException("Minimum stock must be a finite non-negative number");
     }
 
     private static boolean blank(String value) { return value == null || value.isBlank(); }
@@ -745,7 +839,15 @@ public class ImportService {
     }
 
     private double parseDouble(String val) {
-        try { return Double.parseDouble(val); } catch (Exception e) { return 0.0; }
+        if (val == null || val.isBlank()) return 0.0;
+        String normalized = val.trim().replace(",", "");
+        try {
+            double parsed = Double.parseDouble(normalized);
+            if (!Double.isFinite(parsed)) throw new NumberFormatException("not finite");
+            return parsed;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid numeric value: '" + val + "'");
+        }
     }
 
     private String required(String value, String field) {

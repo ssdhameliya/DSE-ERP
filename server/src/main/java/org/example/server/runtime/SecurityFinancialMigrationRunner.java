@@ -124,8 +124,6 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
                     "db/migration/V9_0_47__financial_multi_user_hardening.sql"),
             new Migration("V9_0_48__release_gate_2_3_hardening",
                     "db/migration/V9_0_48__release_gate_2_3_hardening.sql"),
-            new Migration("V9_0_49__project_execution_core",
-                    "db/migration/V9_0_49__project_execution_core.sql"),
             new Migration("V9_0_50__registration_approval_totp",
                     "db/migration/V9_0_50__registration_approval_totp.sql"),
             new Migration("V9_0_52__customer_360",
@@ -136,8 +134,12 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
                     "db/migration/V9_0_56_1__customer360_upgrade_compatibility.sql"),
             new Migration("V9_0_56_2__customer360_schema_repair",
                     "db/migration/V9_0_56_2__customer360_schema_repair.sql"),
-            new Migration("V9_0_56_3__workflow_party_link",
-                    "db/migration/V9_0_56_3__workflow_party_link.sql")
+            new Migration("V9_0_58__mfa_policy",
+                    "db/migration/V9_0_58__mfa_policy.sql"),
+            new Migration("V9_0_59__full_application_defect_corrections",
+                    "db/migration/V9_0_59__full_application_defect_corrections.sql"),
+            new Migration("V9_0_62__remove_project_execution",
+                    "db/migration/V9_0_62__remove_project_execution.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;
@@ -245,9 +247,6 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("payment_record", "row_version");
         requireColumn("bank_statement_transaction", "row_version");
         requireColumn("bank_statement_import", "row_version");
-        requireTable("workflow_document");
-        requireColumn("workflow_document", "party_id");
-        requireTable("workflow_document_line");
         requireTable("party_contact");
         requireColumn("party_contact", "party_id");
         requireColumn("party_contact", "row_version");
@@ -259,13 +258,6 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
         requireColumn("party_note", "created_at");
         requireColumn("party_note", "updated_at");
         requireColumn("party_master", "attachment_path");
-        requireColumn("sales_header", "project_no");
-        requireColumn("sales_header", "sales_order_no");
-        requireColumn("sales_header", "dispatch_no");
-        requireColumn("sales_header", "customer_po_no");
-        requireColumn("purchase_header", "project_no");
-        requireColumn("purchase_header", "purchase_order_no");
-        requireColumn("purchase_header", "grn_no");
         requireTable("role_permission_revision");
         requireColumn("role_permission_revision", "row_version");
         requireTable("auth_session");

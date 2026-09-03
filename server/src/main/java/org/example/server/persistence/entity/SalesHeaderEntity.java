@@ -27,7 +27,7 @@ public class SalesHeaderEntity {
  @Column(name="payment_terms") private String paymentTerms;
  private String transporter;
  @Column(name="reference_no") private String referenceNo;
- @Column(name="project_no") private String projectNo; @Column(name="sales_order_no") private String salesOrderNo; @Column(name="dispatch_no") private String dispatchNo; @Column(name="customer_po_no") private String customerPoNo;
+
  @Column(name="po_date") private String poDate;
  @Column(name="billing_address") private String billingAddress;
  @Column(name="gst_type") private String gstType;
@@ -83,7 +83,7 @@ public class SalesHeaderEntity {
  public String getPaymentTerms(){return paymentTerms;} public void setPaymentTerms(String v){paymentTerms=v;}
  public String getTransporter(){return transporter;} public void setTransporter(String v){transporter=v;}
  public String getReferenceNo(){return referenceNo;} public void setReferenceNo(String v){referenceNo=v;}
- public String getProjectNo(){return projectNo;} public void setProjectNo(String v){projectNo=v;} public String getSalesOrderNo(){return salesOrderNo;} public void setSalesOrderNo(String v){salesOrderNo=v;} public String getDispatchNo(){return dispatchNo;} public void setDispatchNo(String v){dispatchNo=v;} public String getCustomerPoNo(){return customerPoNo;} public void setCustomerPoNo(String v){customerPoNo=v;}
+
  public String getPoDate(){return poDate;} public void setPoDate(String v){poDate=v;}
  public String getBillingAddress(){return billingAddress;} public void setBillingAddress(String v){billingAddress=v;}
  public String getGstType(){return gstType;} public void setGstType(String v){gstType=v;}

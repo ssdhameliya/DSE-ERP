@@ -67,6 +67,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -104,6 +105,7 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private Button btnCheckUpdates,btnTestEmail,btnSaveSettings;
     @FXML private VBox panelSecurity;
     @FXML private TextField txtSessionTimeoutMinutes, txtSessionWarningMinutes;
+    @FXML private ComboBox<String> cmbMfaPolicy;
     @FXML private CheckBox chkUiDiagnostics;
     @FXML private StackPane securityHeaderIcon;
 
@@ -516,10 +518,15 @@ public class SettingsController implements ScreenLifecycle {
                 var support = new org.example.api.support.SupportApiClient();
                 txtSessionTimeoutMinutes.setText(support.setting("security.session.timeout.minutes", "10"));
                 txtSessionWarningMinutes.setText(support.setting("security.session.warning.minutes", "2"));
+                if (cmbMfaPolicy != null) {
+                    cmbMfaPolicy.getItems().setAll("Required", "Admin Controlled", "Disabled");
+                    String policy=support.setting("security.auth.mfa.policy", "REQUIRED").trim().toUpperCase(Locale.ROOT);
+                    cmbMfaPolicy.setValue("ADMIN_CONTROLLED".equals(policy)?"Admin Controlled":"DISABLED".equals(policy)?"Disabled":"Required");
+                }
                 if (chkUiDiagnostics != null) chkUiDiagnostics.setSelected(UiDiagnostics.isEnabled());
                 if (securityHeaderIcon != null) securityHeaderIcon.getChildren().setAll(IconFactory.icon("security", 22));
                 boolean editable = SessionService.isAdmin();
-                txtSessionTimeoutMinutes.setDisable(!editable); txtSessionWarningMinutes.setDisable(!editable);
+                txtSessionTimeoutMinutes.setDisable(!editable); txtSessionWarningMinutes.setDisable(!editable); if(cmbMfaPolicy!=null)cmbMfaPolicy.setDisable(!editable);
             }
             case WORKSPACE -> {
                 refreshWorkspacePanel();
@@ -1027,6 +1034,7 @@ private record AssetPreviewRequest(
 
     @FXML
     private void checkForUpdates() {
+        org.example.service.PermissionService.require("APPLICATION_UPDATES.CHECK", "check for application updates");
         saveUpdateSettings();
         UpdateDialogs.checkForUpdates(panelUpdates.getScene().getWindow(), false);
     }
@@ -1043,6 +1051,7 @@ private record AssetPreviewRequest(
 
     @FXML
     private void installOfflineUpdate() {
+        org.example.service.PermissionService.require("APPLICATION_UPDATES.INSTALL", "install an application update");
         saveUpdateSettings();
         UpdateDialogs.showOfflineUpdate(panelUpdates.getScene().getWindow());
     }
@@ -1552,6 +1561,11 @@ private record AssetPreviewRequest(
         var support = new org.example.api.support.SupportApiClient();
         support.setSetting("security.session.timeout.minutes", Integer.toString(timeout));
         support.setSetting("security.session.warning.minutes", Integer.toString(warning));
+        if (cmbMfaPolicy != null) {
+            String selected=cmbMfaPolicy.getValue();
+            String policy="Admin Controlled".equals(selected)?"ADMIN_CONTROLLED":"Disabled".equals(selected)?"DISABLED":"REQUIRED";
+            support.setSetting("security.auth.mfa.policy", policy);
+        }
         org.example.service.SessionActivityManager.reloadPolicy();
     }
 

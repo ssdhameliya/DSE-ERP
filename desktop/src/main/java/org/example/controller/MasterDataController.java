@@ -1127,6 +1127,7 @@ public class MasterDataController implements ScreenLifecycle {
     }
     @FXML
     private void exportLookup() {
+        org.example.service.PermissionService.require("MASTERS.EXPORT", "Export Master Data");
         FileChooser chooser = new FileChooser();
         String category = lstTypes.getSelectionModel().getSelectedItem();
         chooser.setInitialFileName((category == null ? "Master_Data" : category.replaceAll("[^A-Za-z0-9_-]", "_")) + ".csv");
@@ -1148,8 +1149,14 @@ public class MasterDataController implements ScreenLifecycle {
     }
 
     private String csv(String value) {
-        String safe = value == null ? "" : value.replace("\"", "\"\"");
-        return "\"" + safe + "\"";
+        String text = value == null ? "" : value;
+        String trimmed = text.stripLeading();
+        if (!trimmed.isEmpty()) {
+            char first = trimmed.charAt(0);
+            boolean numericNegative = first == '-' && trimmed.matches("-\\d+(?:\\.\\d+)?");
+            if (first == '=' || first == '+' || first == '@' || (first == '-' && !numericNegative)) text = "'" + text;
+        }
+        return "\"" + text.replace("\"", "\"\"") + "\"";
     }
 
 }

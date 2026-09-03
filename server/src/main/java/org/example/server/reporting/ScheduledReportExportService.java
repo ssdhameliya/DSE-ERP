@@ -262,9 +262,15 @@ public final class ScheduledReportExportService {
     }
 
     private static String csv(String value) {
-        String text = value == null ? "" : value;
+        String text = spreadsheetSafe(value);
         if (text.contains(",") || text.contains("\"") || text.contains("\n")) return "\"" + text.replace("\"", "\"\"") + "\"";
         return text;
+    }
+
+    private static String spreadsheetSafe(String value) {
+        String text = value == null ? "" : value; String trimmed = text.stripLeading(); if (trimmed.isEmpty()) return text;
+        char c = trimmed.charAt(0); boolean numericNegative = c == '-' && trimmed.matches("-\\d+(?:\\.\\d+)?");
+        return c == '=' || c == '+' || c == '@' || (c == '-' && !numericNegative) ? "'" + text : text;
     }
 
     private static String join(String... values) {

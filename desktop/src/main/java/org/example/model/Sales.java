@@ -82,9 +82,6 @@ public class Sales {
     private String contactPersonMobile;
     private String documentStatus;
     private String attachmentPath;
-    private String projectNo;
-    private String salesOrderNo;
-    private String dispatchNo;
 
 
     public int getId() {
@@ -278,12 +275,6 @@ public class Sales {
     public void setTransporter(String transporter) { this.transporter = transporter; }
     public String getReferenceNo() { return referenceNo == null ? "" : referenceNo; }
     public void setReferenceNo(String referenceNo) { this.referenceNo = referenceNo; }
-    public String getProjectNo() { return projectNo == null ? "" : projectNo; }
-    public void setProjectNo(String projectNo) { this.projectNo = projectNo; }
-    public String getSalesOrderNo() { return salesOrderNo == null ? "" : salesOrderNo; }
-    public void setSalesOrderNo(String salesOrderNo) { this.salesOrderNo = salesOrderNo; }
-    public String getDispatchNo() { return dispatchNo == null ? "" : dispatchNo; }
-    public void setDispatchNo(String dispatchNo) { this.dispatchNo = dispatchNo; }
     public LocalDate getPoDate() { return poDate; }
     public void setPoDate(LocalDate poDate) { this.poDate = poDate; }
     public String getBillingAddress() { return billingAddress == null ? "" : billingAddress; }

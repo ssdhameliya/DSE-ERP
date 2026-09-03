@@ -94,6 +94,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
         });
     }
     private void resend(Row row){
+        org.example.service.PermissionService.require("COMMUNICATION.RESEND", "re-send a communication");
         Task<Void> task=new Task<>(){@Override protected Void call() throws Exception{
             String channel=row.channel.get();
             String recipient=row.recipient.get();
@@ -101,8 +102,8 @@ public class CommunicationCenterController implements ScreenLifecycle {
             Path attachment=originalDocumentPdf(row);
             if("EMAIL".equalsIgnoreCase(channel)){
                 String body="Please find the original document attached.\n\nResent from DSE ERP Communication Center.";
-                if(attachment!=null) EmailService.send(recipient,subject,body,attachment);
-                else EmailService.send(recipient,subject,body);
+                if(attachment!=null) EmailService.resend(recipient,subject,body,attachment);
+                else EmailService.resend(recipient,subject,body,null);
             } else {
                 String phone=recipient.replaceAll("\\D","");
                 if(phone.length()==10)phone="91"+phone;

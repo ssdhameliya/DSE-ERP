@@ -347,6 +347,7 @@ public class ItemMasterController implements ScreenLifecycle {
 
     @FXML
     private void exportItems() {
+        org.example.service.PermissionService.require("INVENTORY.EXPORT", "Export Items");
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Export Item Master");
         chooser.setInitialFileName("item-master.xlsx");

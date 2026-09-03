@@ -311,7 +311,9 @@ public abstract class PartyMasterController {
         tableParties.getItems().setAll(cachedParties.stream().filter(p -> query.isEmpty()
             || (p.getPartyCode()!=null && p.getPartyCode().toLowerCase(Locale.ROOT).contains(query))
             || (p.getName()!=null && p.getName().toLowerCase(Locale.ROOT).contains(query))
-            || (p.getPhone() != null && p.getPhone().contains(query))).toList());
+            || (p.getPhone() != null && p.getPhone().toLowerCase(Locale.ROOT).contains(query))
+            || (p.getEmail()!=null && p.getEmail().toLowerCase(Locale.ROOT).contains(query))
+            || (p.getGstin()!=null && p.getGstin().toLowerCase(Locale.ROOT).contains(query))).toList());
         int count = tableParties.getItems().size();
         if(count==0)org.example.util.OperationalUiSupport.showEmpty(tableParties,"No "+displayName().toLowerCase(Locale.ROOT)+"s found","Add a "+displayName().toLowerCase(Locale.ROOT)+" or update the current search.");
         lblRecordCount.setText("Showing " + count + " Record" + (count == 1 ? "" : "s"));
@@ -333,6 +335,7 @@ public abstract class PartyMasterController {
 
     @FXML
     protected void exportparties() {
+        org.example.service.PermissionService.require("CUSTOMER".equalsIgnoreCase(partyType()) ? "CUSTOMERS.EXPORT" : "SUPPLIERS.EXPORT", "Export " + displayName() + "s");
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Export " + displayName() + "s");
         chooser.setInitialFileName(displayName().toLowerCase(Locale.ROOT) + "-master.xlsx");

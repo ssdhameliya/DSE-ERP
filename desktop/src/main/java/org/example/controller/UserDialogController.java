@@ -28,6 +28,7 @@ public class UserDialogController {
     private Integer editingUserId;
     private String originalUsername;
     private long editingRowVersion;
+    private String mfaPolicy = "REQUIRED";
     private final AdminApiClient api = new AdminApiClient();
     private final Map<String,String> roleDisplay = new LinkedHashMap<>();
 
@@ -41,6 +42,7 @@ public class UserDialogController {
         cmbAccess.getItems().setAll("FULL ACCESS", "STANDARD", "LIMITED ACCESS", "READ ONLY");
         cmbAccess.setValue("STANDARD");
         chkActive.setSelected(true);
+        try { mfaPolicy = new org.example.api.support.SupportApiClient().setting("security.auth.mfa.policy", "REQUIRED").trim().toUpperCase(Locale.ROOT); } catch (Exception ignored) { mfaPolicy="REQUIRED"; }
 
         txtPasswordVisible.textProperty().bindBidirectional(txtPassword.textProperty());
         txtConfirmVisible.textProperty().bindBidirectional(txtConfirm.textProperty());
@@ -85,6 +87,7 @@ public class UserDialogController {
             cmbAccess.setValue(blank(u.accessLevel(), "STANDARD"));
             chkActive.setSelected(u.active());
             chkLocked.setSelected(u.locked());
+            chkMfa.setSelected(u.mfaEnabled());
             applyRoleSecurityPolicy();
         } catch (Exception e) {
             message("Unable to load user: " + e.getMessage(), true);
@@ -116,12 +119,18 @@ public class UserDialogController {
     }
 
     private void applyRoleSecurityPolicy() {
-        boolean mfaRequired = !"ADMIN".equals(canonicalRole(cmbRole.getValue()));
-        chkMfa.setSelected(mfaRequired);
+        boolean admin = "ADMIN".equals(canonicalRole(cmbRole.getValue()));
+        if ("ADMIN_CONTROLLED".equals(mfaPolicy)) {
+            chkMfa.setDisable(false);
+            chkMfa.setTooltip(new Tooltip("Administrator controlled: this user will require MFA when selected."));
+            return;
+        }
+        boolean required = !"DISABLED".equals(mfaPolicy) && !admin;
+        chkMfa.setSelected(required);
         chkMfa.setDisable(true);
-        chkMfa.setTooltip(new Tooltip(mfaRequired
-                ? "MFA is mandatory for this role and is enforced by the server."
-                : "Admin sign-in uses the password factor only by policy."));
+        chkMfa.setTooltip(new Tooltip("DISABLED".equals(mfaPolicy)
+                ? "MFA is disabled by the server authentication policy."
+                : required ? "MFA is required for non-Admin users by server policy." : "Admin is exempt while MFA policy is Required."));
     }
 
     @FXML private void togglePasswordVisibility() { togglePassword(txtPassword, txtPasswordVisible, btnPasswordEye, "password"); }

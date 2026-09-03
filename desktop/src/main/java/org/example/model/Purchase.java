@@ -44,7 +44,6 @@ public class Purchase {
     private LocalDate returnDueDate;
     private String documentStatus="PENDING APPROVAL", warehouse, paymentTerms, currency, referenceNo, gstTreatment, transporter, lrAwbNo, discountType, attachmentPath, createdBy;
     private String billingAddress, deliveryAddress, billingGstin, deliveryGstin, gstType, transporterGstin, vehicleNumber, contactPerson, contactPersonMobile, notes, orderNo;
-    private String projectNo, purchaseOrderNo, grnNo;
     private boolean sameAsBilling = true;
     private LocalDate poDate;
     private LocalDate deliveryDate;
@@ -197,9 +196,6 @@ public class Purchase {
     public String getContactPersonMobile(){return contactPersonMobile;} public void setContactPersonMobile(String v){contactPersonMobile=v;}
     public String getNotes(){return notes==null?remarks:notes;} public void setNotes(String v){notes=v;}
     public String getOrderNo(){return orderNo;} public void setOrderNo(String v){orderNo=v;}
-    public String getProjectNo(){return projectNo==null?"":projectNo;} public void setProjectNo(String v){projectNo=v;}
-    public String getPurchaseOrderNo(){return purchaseOrderNo==null?"":purchaseOrderNo;} public void setPurchaseOrderNo(String v){purchaseOrderNo=v;}
-    public String getGrnNo(){return grnNo==null?"":grnNo;} public void setGrnNo(String v){grnNo=v;}
     public boolean isSameAsBilling(){return sameAsBilling;} public void setSameAsBilling(boolean v){sameAsBilling=v;}
     public LocalDate getPoDate(){return poDate;} public void setPoDate(LocalDate v){poDate=v;}
 

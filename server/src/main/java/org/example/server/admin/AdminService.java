@@ -111,7 +111,7 @@ public class AdminService {
             throw new IllegalArgumentException("Username is required");
         String assignedRole = role(request.role());
         validateUniqueIdentity(request);
-        boolean enforcedMfa = !"ADMIN".equals(assignedRole);
+        boolean enforcedMfa = effectiveMfa(assignedRole, request.mfaEnabled());
         String encoded = null;
         if (request.id() == null || (request.password() != null && !request.password().isBlank())) {
             validatePassword(request.password());
@@ -171,8 +171,8 @@ public class AdminService {
                 jdbc.update("UPDATE users SET mfa_failed_attempts=0 WHERE id=?", request.id());
                 jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) " +
                                 "VALUES('USER',?,?,?,?,?)", request.id(),
-                        enforcedMfa ? "MFA_ENFORCED" : "MFA_ADMIN_EXEMPT",
-                        enforcedMfa ? "MFA enforced by Role Master policy" : "Admin role is exempt from login OTP by policy",
+                        enforcedMfa ? "MFA_ENABLED" : "MFA_DISABLED",
+                        "MFA changed under server policy " + mfaPolicy(),
                         CurrentUser.require().username(), BusinessClock.nowUtcText());
             }
         }
@@ -261,6 +261,21 @@ public class AdminService {
         if (others == null || others == 0) throw new IllegalStateException("At least one other active, unlocked administrator is required before removing this administrator's authority.");
     }
 
+    private boolean effectiveMfa(String role, boolean requested) {
+        String policy=mfaPolicy();
+        if ("DISABLED".equals(policy)) return false;
+        if ("ADMIN_CONTROLLED".equals(policy)) return requested;
+        return !"ADMIN".equalsIgnoreCase(role==null?"":role.trim());
+    }
+
+    private String mfaPolicy() {
+        try {
+            String value=jdbc.queryForObject("SELECT setting_value FROM application_setting WHERE setting_key='security.auth.mfa.policy'",String.class);
+            String normalized=value==null?"REQUIRED":value.trim().toUpperCase(java.util.Locale.ROOT).replace(' ','_');
+            return switch(normalized){case "ADMIN_CONTROLLED","DISABLED"->normalized;default->"REQUIRED";};
+        } catch(RuntimeException ignored){return "REQUIRED";}
+    }
+
     private void validateUniqueIdentity(AdminDtos.UserSaveRequest request) {
         Integer id = request.id();
         String username = request.username() == null ? "" : request.username().trim();
@@ -314,10 +329,10 @@ public class AdminService {
         var role=roleMaster.requireActive(assigned);
         String username=String.valueOf(row.get("username")),email=String.valueOf(row.get("email"));
         Long duplicates=jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(COALESCE(email,''))=LOWER(?)",Long.class,username,email);if(duplicates!=null&&duplicates>0)throw new IllegalArgumentException("Username or email is already registered");
-        Integer userId=jdbc.queryForObject("INSERT INTO users(username,password,full_name,role,email,active,locked,mfa_enabled,access_level,totp_secret_enc,approval_status,row_version) VALUES(?,?,?,?,?,1,0,1,'STANDARD',?,'APPROVED',0) RETURNING id",Integer.class,username,String.valueOf(row.get("password_hash")),String.valueOf(row.get("full_name")),role.code(),email,String.valueOf(row.get("totp_secret_enc")));
+        boolean approvedMfa=effectiveMfa(role.code(),true);Integer userId=jdbc.queryForObject("INSERT INTO users(username,password,full_name,role,email,active,locked,mfa_enabled,access_level,totp_secret_enc,approval_status,row_version) VALUES(?,?,?,?,?,1,0,?,'STANDARD',?,'APPROVED',0) RETURNING id",Integer.class,username,String.valueOf(row.get("password_hash")),String.valueOf(row.get("full_name")),role.code(),email,approvedMfa?1:0,String.valueOf(row.get("totp_secret_enc")));
         var actor=CurrentUser.require();jdbc.update("UPDATE registration_request SET status='APPROVED',reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP,rejection_reason=NULL,row_version=row_version+1 WHERE id=?",actor.id(),id);
         jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('USER',?,?,?,?,?)",userId,"REGISTRATION_APPROVED","Self-registration approved with role "+role.code(),actor.username(),BusinessClock.nowUtcText());
-        return new AdminDtos.Ok(true,"Registration approved. The user can now sign in with password + authenticator.");
+        return new AdminDtos.Ok(true,approvedMfa?"Registration approved. The user can now sign in with password + authenticator.":"Registration approved. Current MFA policy permits password-only sign in.");
     }
 
     @Transactional

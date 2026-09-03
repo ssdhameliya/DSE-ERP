@@ -22,6 +22,15 @@ public final class EmailService {
         send(recipient, subject, body, null);
     }
 
+    public static void resend(String recipient, String subject, String body, Path attachment) {
+        org.example.service.PermissionService.require("COMMUNICATION.RESEND", "re-send a communication");
+        if (ConfigManager.isSharedClient()) {
+            new org.example.api.authority.BusinessEmailClient().resend(recipient, subject, body, attachment);
+            return;
+        }
+        send(recipient, subject, body, attachment);
+    }
+
     public static void send(String recipient, String subject, String body, Path attachment) {
         if (ConfigManager.isSharedClient()) {
             new org.example.api.authority.BusinessEmailClient().send(recipient, subject, body, attachment);

@@ -16185,7 +16185,6 @@
 /* DSE ERP 9.0.53 — session timeout + Sales Order availability */
 .session-timeout-dialog .dialog-pane { -fx-border-width: 1.5px; }
 .session-timeout-countdown { -fx-font-size: 18px; -fx-font-weight: 800; -fx-padding: 6 0 0 0; }
-.sales-order-stock-availability { -fx-font-size: 11px; -fx-font-weight: 700; -fx-opacity: 0.88; -fx-padding: 0 0 2 2; }
 
 
 /* DSE ERP 9.0.56 — Customer 360 / navigation / registration consistency */
@@ -16227,19 +16226,13 @@
 .customer-360-tabs > .tab-header-area .headers-region { -fx-spacing: 6; }
 .customer-360-tabs > .tab-header-area .headers-region .tab { -fx-padding: 5 14 5 14; -fx-background-insets: 0 3 0 0; }
 .customer-360-tab-content { -fx-padding: 6 0 0 0; }
-.workflow-standard-dialog, .customer-360-standard-dialog, .session-timeout-dialog { -fx-background-color: #ffffff; -fx-border-color: #c8d6e6; -fx-border-radius: 12; -fx-background-radius: 12; }
-.workflow-dialog-header { -fx-padding: 8 10 8 10; -fx-background-color: #f3f7fc; -fx-background-radius: 10; -fx-border-color: #cbd8e8; -fx-border-radius: 10; }
+.customer-360-standard-dialog, .session-timeout-dialog { -fx-background-color: #ffffff; -fx-border-color: #c8d6e6; -fx-border-radius: 12; -fx-background-radius: 12; }
 .registration-no-scroll { -fx-padding: 18 24 18 24; }
 .registration-center-host { -fx-padding: 12 24 12 24; }
 .settings-info-strip { -fx-padding: 10 12 10 12; -fx-background-color: #f3f7fc; -fx-background-radius: 9; -fx-border-color: #cbd8e8; -fx-border-radius: 9; }
 
 
-/* 9.0.56 final corrective: standard workflow/stock/KPI geometry */
-.workflow-editor-shell { -fx-padding: 12; }
-.workflow-editor-form .combo-box, .workflow-editor-form .text-field, .workflow-editor-form .date-picker { -fx-min-height: 34; -fx-pref-height: 34; }
-.workflow-editor-lines-card { -fx-padding: 10 12; }
 .derived-reference-field { -fx-opacity: 0.92; }
-.sales-order-stock-availability { -fx-font-size: 11px; -fx-font-weight: 700; -fx-padding: 2 4 0 4; }
 .sales-stock-position-bar { -fx-padding: 7 10; -fx-background-radius: 9; -fx-border-radius: 9; -fx-border-width: 1; }
 .sales-stock-position-title { -fx-font-weight: 800; }
 .sales-stock-caption { -fx-font-size: 10px; -fx-font-weight: 700; }
@@ -16247,3 +16240,17 @@
 .stock-positive { -fx-text-fill: #3ddc97; }
 .stock-warning { -fx-text-fill: #ffbd64; }
 .stock-shortage { -fx-text-fill: #ff6b78; }
+
+/* PDF Studio 9.0.61 simplified JSON mapping workspace */
+.pdf-mapper-root { -fx-background-color: #eef3f8; }
+.pdf-mapper-header, .pdf-mapper-titlebar, .pdf-mapper-toolbar { -fx-background-color: #ffffff; }
+.pdf-mapper-titlebar { -fx-border-color: #d8e1ea; -fx-border-width: 0 0 1 0; }
+.pdf-mapper-toolbar { -fx-border-color: #e3eaf1; -fx-border-width: 0 0 1 0; }
+.pdf-mapper-side { -fx-background-color: #ffffff; -fx-border-color: #d8e1ea; }
+.pdf-mapper-fields { -fx-border-width: 0 1 0 0; }
+.pdf-mapper-inspector { -fx-border-width: 0 0 0 1; }
+.pdf-mapper-panel-title { -fx-font-size: 14px; -fx-font-weight: 800; -fx-text-fill: #17324d; }
+.pdf-mapper-field-list .list-cell { -fx-padding: 7 8 7 8; }
+.pdf-mapper-field-list .list-cell:filled:hover { -fx-background-color: #edf5ff; }
+.pdf-mapper-field-list .list-cell:filled:selected { -fx-background-color: #e5eefc; -fx-text-fill: #17324d; }
+.pdf-mapper-mapped-list .list-cell { -fx-padding: 6 8 6 8; }

@@ -16,7 +16,7 @@
                 </StackPane>
                 <VBox fx:id="salesSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
                     <Button fx:id="btnSalesRegister" text="Sales Register" onAction="#openSales" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                    <Button fx:id="btnCreateSale" text="Create Sale" onAction="#createSale" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                    <Button fx:id="btnCreateSale" text="Create Sale" onAction="#createSale" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnSalesReturn" text="Sales Return" onAction="#openReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnQuotation" text="Quotations" onAction="#openQuotations" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
@@ -30,7 +30,7 @@
                 </StackPane>
                 <VBox fx:id="purchaseSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
                     <Button fx:id="btnPurchaseRegister" text="Purchase Register" onAction="#openPurchase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                    <Button fx:id="btnCreatePurchase" text="Create Purchase" onAction="#createPurchase" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                    <Button fx:id="btnCreatePurchase" text="Create Purchase" onAction="#createPurchase" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                     <Button fx:id="btnPurchaseReturn" text="Purchase Return" onAction="#openPurchaseReturns" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
                 </VBox>
             </VBox>
@@ -52,19 +52,6 @@
                 </VBox>
             </VBox>
             <Button fx:id="btnImport" text="Data Import" onAction="#openImport" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <VBox styleClass="nav-group">
-                <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
-                    <Button fx:id="btnProjectExecution" text="Project Execution" onAction="#toggleProjectExecutionMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button"><tooltip><Tooltip text="Projects, orders, receiving and dispatch"/></tooltip></Button>
-                    <Label fx:id="lblProjectExecutionChevron" mouseTransparent="true" styleClass="nav-chevron" StackPane.alignment="CENTER_RIGHT"/>
-                </StackPane>
-                <VBox fx:id="projectExecutionSubmenu" spacing="1" visible="false" managed="false" styleClass="nav-children">
-                    <Button fx:id="btnProjects" text="Projects / Jobs" onAction="#openProjects" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                    <Button fx:id="btnSalesOrders" text="Sales Orders" onAction="#openSalesOrders" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                    <Button fx:id="btnPurchaseOrders" text="Purchase Orders" onAction="#openPurchaseOrders" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                    <Button fx:id="btnGrn" text="Goods Receipt (GRN)" onAction="#openGoodsReceipts" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                    <Button fx:id="btnDispatch" text="Dispatch" onAction="#openDispatches" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-                </VBox>
-            </VBox>
             <Button fx:id="btnInventory" text="Inventory" onAction="#openInventory" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnCustomer" text="CRM / Customers" onAction="#openCustomers" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnSupplier" text="HRM / Suppliers" onAction="#openSupplier" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
@@ -104,7 +91,7 @@
                 </VBox>
             </VBox>
             <Button fx:id="btnSafeRollback" text="Safe Rollback" onAction="#openSafeRollback" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,safe-rollback-nav-button"/>
-            <Button fx:id="btnBackup" text="Backup &amp; Restore" onAction="#openBackup" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+            <Button fx:id="btnBackup" text="Backup &amp; Restore" onAction="#openBackup" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
               </VBox></content>
             </ScrollPane>
         </VBox>

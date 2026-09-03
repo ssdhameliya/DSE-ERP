@@ -6,6 +6,11 @@
     <VBox spacing="5"><Label text="Session Timeout (minutes)" styleClass="field-label-time"/><TextField fx:id="txtSessionTimeoutMinutes" promptText="10"/><Label text="Allowed: 5–120 minutes" styleClass="muted-text"/></VBox>
     <VBox spacing="5" GridPane.columnIndex="1"><Label text="Warning Before Logout (minutes)" styleClass="field-label-reminder"/><TextField fx:id="txtSessionWarningMinutes" promptText="2"/><Label text="Must be at least 1 minute and less than the timeout." styleClass="muted-text"/></VBox>
   </GridPane>
+  <VBox spacing="6" styleClass="approved-section-card">
+    <Label text="Authentication / MFA Policy" styleClass="field-label"/>
+    <ComboBox fx:id="cmbMfaPolicy" maxWidth="420"/>
+    <Label text="Required: non-Admin MFA remains mandatory. Admin Controlled: the MFA checkbox in User Access is authoritative. Disabled: password-only login for all users." wrapText="true" styleClass="muted-text"/>
+  </VBox>
   <HBox alignment="CENTER_LEFT" spacing="8" styleClass="settings-info-strip"><Label text="The timeout warning uses the same owned-dialog presentation standard as other ERP dialogs. Background refreshes do not count as activity." wrapText="true" styleClass="muted-text"/></HBox>
   <VBox spacing="6" styleClass="approved-section-card"><CheckBox fx:id="chkUiDiagnostics" text="Enable UI Diagnostics"/><Label text="When enabled, rendered screen, KPI, table and semantic-icon contract results are written to desktop.log and included in the existing Diagnostic Package." wrapText="true" styleClass="muted-text"/></VBox>
 </VBox>

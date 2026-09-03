@@ -25,6 +25,12 @@ for rel, expected in locked.items():
     req(digest == expected, f'locked production generation file changed: {rel}')
 
 repo = text('desktop/src/main/java/org/example/documentstudio/service/PdfStudioTemplateRepository.java')
+json_service = text('desktop/src/main/java/org/example/documentstudio/service/ErpDocumentJsonService.java')
+json_adapter = text('desktop/src/main/java/org/example/documentstudio/service/JsonTemplateDataAdapter.java')
+builtin_installer = text('desktop/src/main/java/org/example/documentstudio/service/BuiltInPdfTemplateInstaller.java')
+renderer = text('desktop/src/main/java/org/example/documentstudio/service/PdfStudioRenderer.java')
+element_model = text('desktop/src/main/java/org/example/documentstudio/model/TemplateElement.java')
+field_catalog = text('desktop/src/main/java/org/example/documentstudio/service/TemplateFieldCatalog.java')
 model = text('desktop/src/main/java/org/example/documentstudio/model/DocumentTemplate.java')
 controller = text('desktop/src/main/java/org/example/documentstudio/controller/PdfStudioController.java')
 fxml_path = ROOT / 'desktop/src/main/resources/fxml/pages/PdfDesigner.fxml'
@@ -75,8 +81,43 @@ req('PdfStudioTemplateRepository' in facade and 'PdfStudioRenderer' in renderer_
     'legacy entry-point class names must be compatibility facades, not the Studio implementation')
 req('PDF_STUDIO_V3_TEMPLATE' in server and '/api/pdf-studio/templates' in server,
     'server synchronization must have an isolated PDF Studio 3 endpoint and resource namespace')
+req('private int dataContractVersion = 2;' in model and 'private String layoutMode = "FREEFORM";' in model
+    and 'isStrictFixedLayout()' in model,
+    'PDF Studio template metadata must carry the stable ERP data-contract version and strict-layout mode')
+req('document.number' in json_service and 'party.name' in json_service and 'transport.name' in json_service
+    and 'totals.amountInWordsText' in json_service and 'items' in json_service,
+    'PDF Studio JSON contract must expose document, party, transport, item and total business paths')
+req('JsonTemplateDataAdapter.fromJson' in json_service and 'flatten(' in json_adapter,
+    'renderer compatibility adapter must derive flat lookup values from the JSON business contract')
+req('ErpDocumentJsonService.normalize' in renderer,
+    'production PDF Studio rendering must consume the same normalized JSON contract shown by the mapper')
+req('tableColumnWidths' in element_model and 'tableColumnAlignments' in element_model
+    and 'getTableColumnWidths()' in renderer and 'getTableColumnAlignments()' in renderer,
+    'fixed PDF item tables must support exact source-grid column geometry and alignment')
+req('STRICT_FIXED' in builtin_installer and 'demoteExistingSalesDefaults' in builtin_installer
+    and 'totals.amountInWordsText' in builtin_installer and 'PdfStudioRemoteStore.publish' in builtin_installer,
+    'approved built-in Sales template must install once as fixed default and remain server-shareable')
+req('UNIVERSAL_JSON' in field_catalog and 'document.number' in field_catalog and 'party.billingAddress' in field_catalog
+    and 'requiredPdfFieldsFor' in field_catalog and 'isPdfRequirementMapped' in field_catalog,
+    'every ERP PDF type must expose the universal JSON palette with backward-compatible required-field validation')
+source_pdf = ROOT / 'desktop/src/main/resources/documentstudio/defaults/sales-invoice-jasvi.pdf'
+req(source_pdf.exists(), 'approved Jasvi Sales Invoice PDF must be packaged as the built-in Sales template')
+req(hashlib.sha256(source_pdf.read_bytes()).hexdigest() == '08cfb11fb104aef7c7a84c1171a5a10886b8221f4ccdadb7dcebf6dfef3340f9',
+    'built-in Sales template PDF must remain byte-identical to the user-approved source PDF')
+req('Available ERP / JSON Fields' in fxml and 'Browse / Drag ERP Fields' in fxml
+    and '#validateMapping' in fxml and '#publishAndSetDefault' in fxml and '#viewJsonData' in fxml
+    and 'Fixed PDF artwork' in fxml,
+    'PDF Studio UI must expose the simplified fixed-PDF JSON mapping workflow')
 req('fx:controller="org.example.documentstudio.controller.PdfStudioController"' in fxml,
     'FXML must use the rebuilt PDF Studio controller')
+req('viewJsonData' in controller and 'ErpDocumentJsonService.pretty' in controller,
+    'PDF Studio must expose the generated read-only JSON used for mapping')
+library_controller = text('desktop/src/main/java/org/example/documentstudio/controller/DocumentStudioController.java')
+req('choosePdfType' in library_controller and 'Arrays.asList(DocumentType.values())' in library_controller,
+    'Import PDF and blank PDF workflows must allow General PDF plus every supported ERP document type')
+req('private static final int RELEASE_VERSION = 3;' in builtin_installer
+    and '58.6688, 224.05' in builtin_installer and '337.6388, 224.05' in builtin_installer,
+    '9.0.62 built-in Sales template must migrate Billing/Delivery GSTIN to the corrected source-PDF baseline')
 for action in ['#showDesignMode', '#showDataPreviewMode', '#showFinalMode', '#saveDraft', '#publishTemplate', '#markDefault', '#addHideArea']:
     req(action in fxml, f'missing PDF Studio action {action}')
 ET.parse(fxml_path)
@@ -85,23 +126,23 @@ if legacy_controller.exists():
     legacy_text = legacy_controller.read_text(encoding='utf-8')
     req('DSE_PDF_DESIGNER_TOMBSTONE' in legacy_text and 'class PdfDesignerController' not in legacy_text,
         'legacy PdfDesignerController must be absent or a neutral compatibility tombstone')
-req('APP_VERSION = "9.0.57"' in runtime and 'BUILD_REVISION = "9.0.57"' in runtime,
-    'desktop/shared runtime identity must be 9.0.57')
-req('dse.app.version=9.0.57' in props and 'dse.build.revision=9.0.57' in props,
-    'server runtime identity must be 9.0.57')
-req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.57</version>' in root_pom and '<dse.phase>9.0.57</dse.phase>' in root_pom,
-    'root Maven application version and phase must be 9.0.57')
+req('APP_VERSION = "9.0.62"' in runtime and 'BUILD_REVISION = "9.0.62"' in runtime,
+    'desktop/shared runtime identity must be 9.0.62')
+req('dse.app.version=9.0.62' in props and 'dse.build.revision=9.0.62' in props,
+    'server runtime identity must be 9.0.62')
+req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.62</version>' in root_pom and '<dse.phase>9.0.62</dse.phase>' in root_pom,
+    'root Maven application version and phase must be 9.0.62')
 for name, pom in [('shared', shared_pom), ('server', server_pom), ('desktop', desktop_pom)]:
-    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.57</version>' in pom,
-        f'{name} Maven parent version must be 9.0.57')
-req('version=9.0.57' in app_version, 'desktop app-version.properties must be 9.0.57')
-req('DEFAULT_VERSION="9.0.57"' in update_service, 'update fallback version must be 9.0.57')
-req('runtime.phase=9.0.57' in runtime_manifest, 'runtime identity manifest phase must be 9.0.57')
-req('DSE ERP 9.0.57 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
-    'development launcher banner must be 9.0.57')
-req('DSE ERP 9.0.57 - PRODUCTION WINDOWS BUILD' in build_bat,
-    'production Windows launcher banner must be 9.0.57')
-req('DSE ERP 9.0.57 uses application-managed PostgreSQL.' in postgres_bat,
-    'PostgreSQL launcher banner must be 9.0.57')
+    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.62</version>' in pom,
+        f'{name} Maven parent version must be 9.0.62')
+req('version=9.0.62' in app_version, 'desktop app-version.properties must be 9.0.62')
+req('DEFAULT_VERSION="9.0.62"' in update_service, 'update fallback version must be 9.0.62')
+req('runtime.phase=9.0.62' in runtime_manifest, 'runtime identity manifest phase must be 9.0.62')
+req('DSE ERP 9.0.62 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    'development launcher banner must be 9.0.62')
+req('DSE ERP 9.0.62 - PRODUCTION WINDOWS BUILD' in build_bat,
+    'production Windows launcher banner must be 9.0.62')
+req('DSE ERP 9.0.62 uses application-managed PostgreSQL.' in postgres_bat,
+    'PostgreSQL launcher banner must be 9.0.62')
 
-print('PASS: DSE ERP 9.0.57 runtime with PDF Studio + release identity contract')
+print('PDF_STUDIO_CONTRACT_OK version=9.0.62')

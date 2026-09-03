@@ -55,11 +55,6 @@ public class MasterDataService {
         ensureReferenceFormat("REF_FINANCE_VOUCHER","VCH-YYYY-XXXXX","Finance voucher reference",90);
         ensureReferenceFormat("REF_RECON_SUPPLIER","RSP-YYYY-XXXXX","Recon Supplier reference",100);
         ensureReferenceFormat("REF_PURCHASE_RECON","PRC-YYYY-XXXXX","Purchase Recon reference",110);
-        ensureReferenceFormat("REF_PROJECT","PRJ-YYYY-XXXXX","Project / Job reference",120);
-        ensureReferenceFormat("REF_SALES_ORDER","SO-YYYY-XXXXX","Sales Order reference",121);
-        ensureReferenceFormat("REF_PURCHASE_ORDER","PO-YYYY-XXXXX","Purchase Order reference",122);
-        ensureReferenceFormat("REF_GRN","GRN-YYYY-XXXXX","Goods Receipt reference",123);
-        ensureReferenceFormat("REF_DISPATCH","DC-YYYY-XXXXX","Dispatch reference",124);
         ensureReferenceFormat("REF_LOOKUP_CATEGORY","CATXXX","Category Master code reference",210);
         ensureReferenceFormat("REF_LOOKUP_UNIT","UNTXXX","Unit Master code reference",220);
         ensureReferenceFormat("REF_LOOKUP_MATERIAL","MATXXX","Material Master code reference",230);
@@ -253,6 +248,8 @@ public class MasterDataService {
         CurrentUser.requirePermission("INVENTORY.EDIT", "Edit item");
         ItemEntity e = items.findByItemCodeForUpdate(d.itemCode()).orElseThrow(() -> new IllegalArgumentException("Item not found"));
         assertVersion(d.rowVersion(), e.getRowVersion(), "Item " + e.getItemCode());
+        if (Math.abs(d.openingStock() - n(e.getOpeningStock())) > 0.0001)
+            throw new IllegalArgumentException("Opening Stock is fixed after item creation. Use Stock Adjustment to change inventory quantity.");
         copy(d, e, false);
         e = items.saveAndFlush(e);
         audit.log("ITEM", e.getId(), "UPDATED", e.getItemCode());

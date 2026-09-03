@@ -554,9 +554,19 @@ public final class IconFactory {
 
     /** Assigns one shared visual role without changing the button action. */
     private static void applyButtonVariant(ButtonBase button, String semantic) {
-        if (isInside(button, "erp-sidebar") || button.getStyleClass().contains("square-action")) {
+        if (isInside(button, "erp-sidebar")) {
+            // Navigation has its own state machine (normal/hover/group-active/selected).
+            // Action semantics such as import/backup must never paint a sidebar item as selected.
+            button.getStyleClass().removeAll(BUTTON_VARIANTS);
+            button.getStyleClass().remove("erp-action-button");
+            button.getStyleClass().removeIf(style -> style != null && style.startsWith("erp-semantic-"));
+            button.getStyleClass().removeAll("approved-primary-button", "primary-button");
+            if (!button.getStyleClass().contains("approved-button")) button.getStyleClass().add("approved-button");
+            if (!button.getStyleClass().contains("approved-secondary-button")) button.getStyleClass().add("approved-secondary-button");
+            if (!button.getStyleClass().contains("erp-nav-button")) button.getStyleClass().add("erp-nav-button");
             return;
         }
+        if (button.getStyleClass().contains("square-action")) return;
 
         button.getStyleClass().removeAll(BUTTON_VARIANTS);
         button.getStyleClass().removeIf(style -> style.startsWith("erp-semantic-"));
@@ -852,7 +862,9 @@ public final class IconFactory {
         if (value.contains("title")) return "document";
         if (value.contains("sha-256") || value.contains("sha256") || value.contains("sha-56") || value.contains("checksum")) return "validate";
         if (value.contains("party code")) return "reference";
-        if (value.equals("number") || value.endsWith(" number") || value.contains("no.")) return "reference";
+        // Business document identities must win before the generic Number/Reference fallback.
+        if (value.equals("number")) return "number";
+        if (value.endsWith(" number") || value.contains("no.")) return "reference";
         if (value.contains("category")) return "category";
         if (value.contains("company name") || value.contains("business name")) return "business";
         if (value.startsWith("pan") || value.contains(" pan")) return "identity";
@@ -898,12 +910,6 @@ public final class IconFactory {
         if (value.contains("supplier") || value.contains("hrm")) return "supplier";
         if (value.contains("customer") || value.contains("crm")) return "customer";
         if (value.contains("user") || value.contains("profile")) return "user";
-        if (value.contains("project execution")) return "workflow";
-        if (value.contains("projects / jobs") || value.equals("projects") || value.equals("project")) return "project";
-        if (value.contains("sales order")) return "sales-order";
-        if (value.contains("purchase order")) return "purchase-order";
-        if (value.contains("goods receipt") || value.contains("grn")) return "goods-receipt";
-        if (value.contains("dispatch")) return "dispatch";
         if (value.contains("import excel") || value.contains("import spreadsheet")) return "import";
         if (value.contains("export excel") || value.contains("export spreadsheet")) return "export";
         if (value.contains("export pdf")) return "pdf";

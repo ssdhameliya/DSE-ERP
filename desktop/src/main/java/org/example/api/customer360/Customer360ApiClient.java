@@ -6,10 +6,8 @@ import org.example.config.ConfigManager;
 
 import java.math.BigDecimal;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 
@@ -24,9 +22,6 @@ public final class Customer360ApiClient {
     public ContactRow saveContact(int id,ContactSave d){return post("/api/customer-360/"+id+"/contacts",d,ContactRow.class);}
     public void deleteContact(int id,long contactId,long rowVersion){delete("/api/customer-360/"+id+"/contacts/"+contactId+"?rowVersion="+rowVersion);}
     public List<QuotationRow> quotations(int id){return get("/api/customer-360/"+id+"/quotations",new TypeReference<List<QuotationRow>>(){});}
-    public List<WorkflowRow> salesOrders(int id){return get("/api/customer-360/"+id+"/sales-orders",new TypeReference<List<WorkflowRow>>(){});}
-    public List<InvoiceRow> directSales(int id){return get("/api/customer-360/"+id+"/direct-sales",new TypeReference<List<InvoiceRow>>(){});}
-    public List<WorkflowRow> projects(int id){return get("/api/customer-360/"+id+"/projects",new TypeReference<List<WorkflowRow>>(){});}
     public List<InvoiceRow> invoices(int id){return get("/api/customer-360/"+id+"/invoices",new TypeReference<List<InvoiceRow>>(){});}
     public List<PaymentRow> payments(int id){return get("/api/customer-360/"+id+"/payments",new TypeReference<List<PaymentRow>>(){});}
     public List<NoteRow> notes(int id){return get("/api/customer-360/"+id+"/notes",new TypeReference<List<NoteRow>>(){});}
@@ -52,10 +47,9 @@ public final class Customer360ApiClient {
     }
 
     public record Customer(int id,String code,String name,String contactPerson,String phone,String email,String gstin,String address,BigDecimal openingBalance,boolean active,long rowVersion){}
-    public record Summary(Customer customer,BigDecimal outstandingReceivable,BigDecimal openQuotationValue,long openQuotationCount,BigDecimal openSalesOrderValue,long openSalesOrderCount,long activeProjectCount,BigDecimal totalSales,BigDecimal lastPaymentAmount,String lastPaymentDate,List<QuotationRow> recentQuotations,List<WorkflowRow> recentSalesOrders,List<InvoiceRow> recentInvoices){}
+    public record Summary(Customer customer,BigDecimal outstandingReceivable,BigDecimal openQuotationValue,long openQuotationCount,BigDecimal totalSales,BigDecimal lastPaymentAmount,String lastPaymentDate,List<QuotationRow> recentQuotations,List<InvoiceRow> recentInvoices){}
     public record QuotationRow(int id,String no,String date,String valid,String salesperson,BigDecimal amount,String status,String followUp){}
-    public record WorkflowRow(int id,String documentType,String documentNo,String documentDate,String projectNo,String parentNo,String customerPoNo,String expectedDate,BigDecimal totalAmount,String status){}
-    public record InvoiceRow(int id,String invoiceNo,String invoiceDate,String salesOrderNo,String projectNo,BigDecimal totalAmount,BigDecimal paidAmount,BigDecimal outstanding,String paymentStatus,String documentStatus){}
+    public record InvoiceRow(int id,String invoiceNo,String invoiceDate,BigDecimal totalAmount,BigDecimal paidAmount,BigDecimal outstanding,String paymentStatus,String documentStatus){}
     public record PaymentRow(int id,String paymentDate,String referenceNo,String paymentMode,BigDecimal amount,String invoiceNo,String notes){}
     public record ContactRow(long id,int partyId,String name,String designation,String department,String mobile,String email,boolean primary,String notes,long rowVersion,String createdBy,String createdAt,String updatedBy,String updatedAt){}
     public record ContactSave(Long id,String name,String designation,String department,String mobile,String email,boolean primary,String notes,long rowVersion){}

@@ -223,9 +223,14 @@ public class QuotationService {
         String customer = jdbc.queryForObject("SELECT name FROM party_master WHERE id=?", String.class, q.get("customer_id"));
         String followUp = date(d.date()) == null ? null : date(d.date()).toString();
         jdbc.update("UPDATE quotation_header SET follow_up_date=?,row_version=row_version+1 WHERE id=?", followUp, id);
-        jdbc.update("INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,'OPEN',?,?,?)",
-                "Quotation follow-up: " + customer, q.get("quotation_no"), followUp, "NORMAL", d.notes(),
-                CurrentUser.require().username(), BusinessClock.nowUtcText(), BusinessClock.nowUtcText());
+        String quotationNo=Objects.toString(q.get("quotation_no"),"");
+        jdbc.update("UPDATE reminder_register SET status='CANCELLED',updated_at=? WHERE reference_no=? AND title LIKE 'Quotation follow-up:%' AND UPPER(COALESCE(status,'')) IN ('OPEN','SNOOZED')",
+                BusinessClock.nowUtcText(), quotationNo);
+        if (followUp != null) {
+            jdbc.update("INSERT INTO reminder_register(title,reference_no,due_date,priority,notes,status,created_by,created_at,updated_at) VALUES(?,?,?,?,?,'OPEN',?,?,?)",
+                    "Quotation follow-up: " + customer, quotationNo, followUp, "NORMAL", d.notes(),
+                    CurrentUser.require().username(), BusinessClock.nowUtcText(), BusinessClock.nowUtcText());
+        }
     }
 
     @Transactional
@@ -253,12 +258,12 @@ public class QuotationService {
         String now = BusinessClock.nowUtcText();
         Integer sid = jdbc.queryForObject(
                 "INSERT INTO sales_header(invoice_no,invoice_date,customer_id,subtotal,discount_amount,gst_amount,total_amount,remarks,created_at," +
-                "email_sent,due_date,paid_amount,payment_status,whatsapp_sent,invoice_type,salesperson,source,notes,document_status," +
+                "email_sent,due_date,paid_amount,payment_status,whatsapp_sent,invoice_type,payment_terms,salesperson,source,notes,document_status," +
                 "requested_document_status,approval_status,approval_requested_by,approval_requested_at,approved_by,approved_at,inventory_posted) " +
-                "VALUES(?,?,?,?,?,?,?,?,?,0,?,0,'PENDING',0,'TAX INVOICE',?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+                "VALUES(?,?,?,?,?,?,?,?,?,0,?,0,'PENDING',0,'TAX INVOICE',?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
                 Integer.class, invoice, today, q.get("customer_id"), q.get("subtotal"), q.get("discount_amount"), q.get("gst_amount"), q.get("total_amount"),
                 "Converted from " + q.get("quotation_no"), now, today.plusDays(30),
-                q.get("salesperson"), q.get("source"), q.get("remarks"), documentStatus, "PENDING", approvalStatus,
+                "30 Days", q.get("salesperson"), q.get("source"), q.get("remarks"), documentStatus, "PENDING", approvalStatus,
                 admin ? null : actor, admin ? null : now, admin ? actor : null, admin ? now : null, admin);
         jdbc.update("UPDATE sales_header h SET customer_name_snapshot=p.name,customer_email_snapshot=p.email,customer_phone_snapshot=p.phone,customer_gstin_snapshot=p.gstin,customer_address_snapshot=p.address FROM party_master p WHERE h.id=? AND p.id=h.customer_id",sid);
         for (var l : conversionLines) {

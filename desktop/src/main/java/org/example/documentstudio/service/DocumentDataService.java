@@ -62,8 +62,9 @@ public final class DocumentDataService {
     }
 
     public static TemplateData load(DocumentType type, String sampleId) {
-        if (sampleId == null || sampleId.isBlank()) return TemplateDataFactory.sampleFor(type);
-        return switch (type) {
+        TemplateData raw;
+        if (sampleId == null || sampleId.isBlank()) raw = TemplateDataFactory.sampleFor(type);
+        else raw = switch (type) {
             case SALES_INVOICE -> loadSales(sampleId);
             case PURCHASE_INVOICE, PURCHASE_ORDER -> loadPurchase(sampleId);
             case PURCHASE_RETURN -> loadPurchaseReturn(sampleId);
@@ -71,10 +72,11 @@ public final class DocumentDataService {
             case QUOTATION -> loadQuotation(sampleId);
             default -> throw new IllegalStateException((type == null ? "This document type" : type.label()) + " does not yet have a live ERP record connector. Sample data is available only inside Document Studio preview.");
         };
+        return ErpDocumentJsonService.normalize(type, raw);
     }
 
     public static TemplateData sample(DocumentType type) {
-        return TemplateDataFactory.sampleFor(type);
+        return ErpDocumentJsonService.normalize(type, TemplateDataFactory.sampleFor(type));
     }
 
     /** True when Excel/PDF Studio can select an actual persisted ERP record for this document type. */

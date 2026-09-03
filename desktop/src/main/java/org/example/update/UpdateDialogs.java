@@ -75,6 +75,7 @@ public final class UpdateDialogs {
     }
 
     public static void checkForUpdates(Window owner, boolean quietWhenCurrent) {
+        org.example.service.PermissionService.require("APPLICATION_UPDATES.CHECK", "check for application updates");
         UpdateService service = new UpdateService();
         ProgressIndicator indicator = new ProgressIndicator();
         Label message = new Label("Checking GitHub Releases for the latest DSE ERP version...");
@@ -163,6 +164,7 @@ public final class UpdateDialogs {
             ready.getButtonTypes().setAll(ButtonType.CANCEL, install);
             ready.showAndWait().ifPresent(b -> {
                 if (b == install) try {
+                    org.example.service.PermissionService.require("APPLICATION_UPDATES.INSTALL", "install an application update");
                     service.launchInstaller(installer, release.version().toString());
                     UpdateHistoryStore.append(release.version().toString(), ConfigManager.get("update.channel", "STABLE"), "INSTALLER_STARTED", installer.toString());
                     Platform.exit();
@@ -212,6 +214,7 @@ public final class UpdateDialogs {
     }
 
     public static void showOfflineUpdate(Window owner) {
+        org.example.service.PermissionService.require("APPLICATION_UPDATES.INSTALL", "install an offline update package");
         FileChooser chooser = new FileChooser(); chooser.setTitle("Select DSE ERP Update Package");
         chooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Installer packages", "*.exe", "*.msi", "*.dmg", "*.pkg"), new FileChooser.ExtensionFilter("All files", "*.*"));
         java.io.File selected = chooser.showOpenDialog(owner); if (selected == null) return;

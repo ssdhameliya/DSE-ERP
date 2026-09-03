@@ -524,6 +524,7 @@ public class ReportsController implements ScreenLifecycle {
     @FXML private void exportExcel(){exportDashboard("Excel Report","business-report.xlsx","xlsx");}
     @FXML private void exportCsv(){exportDashboard("CSV Report","business-report.csv","csv");}
     private void exportDashboard(String title,String name,String format){
+        org.example.service.PermissionService.require("REPORTS.EXPORT", "Export Reports");
         FileChooser f=new FileChooser();f.setTitle(title);f.setInitialFileName(name);String suffix="."+format.toLowerCase(Locale.ROOT);f.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*"+suffix));File selected=f.showSaveDialog(dpFrom.getScene().getWindow());if(selected==null)return;Path path=selected.toPath();if(!path.toString().toLowerCase(Locale.ROOT).endsWith(suffix))path=Path.of(path+suffix);final Path target=path;UiTaskExecutor.submitAction("reports-export-"+format,()->{switch(format){case "pdf"->reportService.exportPdf(target,dpFrom.getValue(),dpTo.getValue());case "xlsx"->reportService.exportExcel(target,dpFrom.getValue(),dpTo.getValue());case "csv"->reportService.exportCsv(target,dpFrom.getValue(),dpTo.getValue());default->throw new IllegalArgumentException("Unsupported export format: "+format);}return target;},done->ToastManager.success(dpFrom,"Report created","Report created successfully:\n"+done),e->error("Could not create report: "+root(e)));
     }
 

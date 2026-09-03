@@ -31,22 +31,20 @@ import java.util.*;
  * explicit repeated-page rules and dynamic unlimited charge tables.
  */
 public final class PdfStudioRenderer {
-    private static final PDFont HELVETICA = font(Standard14Fonts.FontName.HELVETICA);
-    private static final PDFont HELVETICA_BOLD = font(Standard14Fonts.FontName.HELVETICA_BOLD);
-    private static final PDFont HELVETICA_OBLIQUE = font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
-    private static final PDFont HELVETICA_BOLD_OBLIQUE = font(Standard14Fonts.FontName.HELVETICA_BOLD_OBLIQUE);
-    private static final PDFont TIMES = font(Standard14Fonts.FontName.TIMES_ROMAN);
-    private static final PDFont TIMES_BOLD = font(Standard14Fonts.FontName.TIMES_BOLD);
-    private static final PDFont TIMES_ITALIC = font(Standard14Fonts.FontName.TIMES_ITALIC);
-    private static final PDFont TIMES_BOLD_ITALIC = font(Standard14Fonts.FontName.TIMES_BOLD_ITALIC);
-    private static final PDFont COURIER = font(Standard14Fonts.FontName.COURIER);
-    private static final PDFont COURIER_BOLD = font(Standard14Fonts.FontName.COURIER_BOLD);
-    private static final PDFont COURIER_OBLIQUE = font(Standard14Fonts.FontName.COURIER_OBLIQUE);
-    private static final PDFont COURIER_BOLD_OBLIQUE = font(Standard14Fonts.FontName.COURIER_BOLD_OBLIQUE);
+    /*
+     * A PDFont owns COS objects that are adopted by the first PDDocument using it.
+     * Reusing static PDFont instances across invoice files can leave the next PDF
+     * with dangling font resources. Keep a fresh cache per rendering thread and
+     * clear it at the beginning of every render invocation.
+     */
+    private static final ThreadLocal<EnumMap<Standard14Fonts.FontName, PDFont>> RENDER_FONTS =
+            ThreadLocal.withInitial(() -> new EnumMap<>(Standard14Fonts.FontName.class));
 
     private PdfStudioRenderer() {}
 
-    private static PDFont font(Standard14Fonts.FontName name) { return new PDType1Font(name); }
+    private static PDFont font(Standard14Fonts.FontName name) {
+        return RENDER_FONTS.get().computeIfAbsent(name, PDType1Font::new);
+    }
 
     public static Path renderPurchase(DocumentTemplate template, org.example.model.Purchase purchase, Path output) throws IOException {
         return render(template, TemplateDataFactory.fromPurchase(purchase), output);
@@ -60,7 +58,8 @@ public final class PdfStudioRenderer {
         Objects.requireNonNull(template, "template");
         Objects.requireNonNull(data, "data");
         Objects.requireNonNull(output, "output");
-        data = enrichPdfData(data);
+        RENDER_FONTS.get().clear();
+        data = ErpDocumentJsonService.normalize(template.getDocumentType(), enrichPdfData(data));
         Path source = TemplateStorageService.sourcePdf(template);
         Path parent = output.toAbsolutePath().normalize().getParent();
         if (parent != null) Files.createDirectories(parent);
@@ -107,6 +106,12 @@ public final class PdfStudioRenderer {
                 List<Integer> outputPages = sourceToOutputPages.getOrDefault(sourceIndex, List.of());
                 FlowPlan plan = plans.get(sourceIndex);
                 for (int part = 0; part < outputPages.size(); part++) {
+                    // PDFBox Standard-14 font objects must not be reused across page resource
+                    // dictionaries. Reusing one PDType1Font on multiple pages can corrupt the
+                    // first page /Font references when the document is saved. Keep a tiny
+                    // per-page cache instead: the page still reuses Helvetica/Bold internally,
+                    // while every page owns valid font resource dictionaries.
+                    RENDER_FONTS.get().clear();
                     int outputIndex = outputPages.get(part);
                     PDPage outputPage = targetDoc.getPage(outputIndex);
                     List<TaxInvoiceItem> itemChunk = plan.itemChunk(data.items(), part);
@@ -352,9 +357,18 @@ public final class PdfStudioRenderer {
         String family = e.getFontFamily();
         boolean bold = e.isBold(), italic = e.isItalic();
         return switch (family) {
-            case "TIMES" -> bold && italic ? TIMES_BOLD_ITALIC : bold ? TIMES_BOLD : italic ? TIMES_ITALIC : TIMES;
-            case "COURIER" -> bold && italic ? COURIER_BOLD_OBLIQUE : bold ? COURIER_BOLD : italic ? COURIER_OBLIQUE : COURIER;
-            default -> bold && italic ? HELVETICA_BOLD_OBLIQUE : bold ? HELVETICA_BOLD : italic ? HELVETICA_OBLIQUE : HELVETICA;
+            case "TIMES" -> font(bold && italic ? Standard14Fonts.FontName.TIMES_BOLD_ITALIC
+                    : bold ? Standard14Fonts.FontName.TIMES_BOLD
+                    : italic ? Standard14Fonts.FontName.TIMES_ITALIC
+                    : Standard14Fonts.FontName.TIMES_ROMAN);
+            case "COURIER" -> font(bold && italic ? Standard14Fonts.FontName.COURIER_BOLD_OBLIQUE
+                    : bold ? Standard14Fonts.FontName.COURIER_BOLD
+                    : italic ? Standard14Fonts.FontName.COURIER_OBLIQUE
+                    : Standard14Fonts.FontName.COURIER);
+            default -> font(bold && italic ? Standard14Fonts.FontName.HELVETICA_BOLD_OBLIQUE
+                    : bold ? Standard14Fonts.FontName.HELVETICA_BOLD
+                    : italic ? Standard14Fonts.FontName.HELVETICA_OBLIQUE
+                    : Standard14Fonts.FontName.HELVETICA);
         };
     }
 
@@ -467,13 +481,15 @@ public final class PdfStudioRenderer {
     private static void drawTableScaffold(PDPage page, PDPageContentStream cs, TemplateElement e, List<Column> columns) throws IOException {
         if (e.isUseSourceTableDesign()) return;
         float x = (float) e.getX(), top = toPdfY(page, e.getY()), width = (float) e.getWidth();
-        float headerH = (float) e.getHeaderHeight(), totalWeight = totalWeight(columns);
+        float headerH = (float) e.getHeaderHeight();
+        List<Float> widths = columnWidths(e, columns, width);
         setNonStroke(cs, "#EEF4FF"); cs.addRect(x, top - headerH, width, headerH); cs.fill();
         setStroke(cs, "#9FB3C8"); cs.setLineWidth(0.65f); cs.addRect(x, top - (float)e.getHeight(), width, (float)e.getHeight()); cs.stroke();
         float cursorX = x;
-        for (Column column : columns) {
-            float cw = width * (float) column.weight() / totalWeight;
-            drawCellText(cs, HELVETICA_BOLD, 7.4f, column.label(), cursorX + 3, top - headerH + 7, cw - 6, Math.max(5, headerH - 5), "#24364B");
+        for (int i = 0; i < columns.size(); i++) {
+            Column column = columns.get(i);
+            float cw = widths.get(i);
+            drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 7.4f, column.label(), cursorX + 3, top - headerH + 7, cw - 6, Math.max(5, headerH - 5), "#24364B");
             cursorX += cw;
             if (cursorX < x + width - .5f) { cs.moveTo(cursorX, top); cs.lineTo(cursorX, top - (float)e.getHeight()); cs.stroke(); }
         }
@@ -495,20 +511,39 @@ public final class PdfStudioRenderer {
         float x = (float)e.getX(), top = toPdfY(page, e.getY()), width = (float)e.getWidth();
         float headerH = (float)Math.max(0, e.getHeaderHeight()), rowH = (float)e.getRowHeight();
         float rowTop = top - headerH - row * rowH, rowBottom = rowTop - rowH;
-        float totalWeight = totalWeight(columns), cursorX = x;
+        List<Float> widths = columnWidths(e, columns, width);
+        float cursorX = x;
         if (!e.isUseSourceTableDesign()) {
             setStroke(cs, "#9FB3C8"); cs.setLineWidth(.65f); cs.moveTo(x, rowBottom); cs.lineTo(x + width, rowBottom); cs.stroke();
         }
         PDFont font = fontFor(e);
         float fontSize = (float)Math.max(5, Math.min(e.getFontSize(), rowH * .58));
-        for (Column column : columns) {
-            float cw = width * (float)column.weight() / totalWeight;
-            drawCellText(cs, font, fontSize, value.apply(column.key()), cursorX + 3, rowBottom + 2, Math.max(4, cw - 6), Math.max(4, rowH - 3), e.getTextColor());
+        List<String> alignments = e.getTableColumnAlignments();
+        for (int i = 0; i < columns.size(); i++) {
+            Column column = columns.get(i);
+            float cw = widths.get(i);
+            String alignment = alignments != null && i < alignments.size() ? alignments.get(i) : "LEFT";
+            drawCellTextAligned(cs, font, fontSize, value.apply(column.key()), cursorX + 3, rowBottom + 2,
+                    Math.max(4, cw - 6), Math.max(4, rowH - 3), e.getTextColor(), alignment);
             cursorX += cw;
         }
     }
 
     private static float totalWeight(List<Column> columns) { return (float)columns.stream().mapToDouble(Column::weight).sum(); }
+
+    /** Exact PDF-template column widths win when supplied; legacy templates keep semantic proportional widths. */
+    private static List<Float> columnWidths(TemplateElement element, List<Column> columns, float totalWidth) {
+        List<Double> exact = element == null ? List.of() : element.getTableColumnWidths();
+        if (exact != null && exact.size() == columns.size() && exact.stream().allMatch(v -> v != null && v > 0)) {
+            double supplied = exact.stream().mapToDouble(Double::doubleValue).sum();
+            if (supplied > 0) {
+                double scale = totalWidth / supplied;
+                return exact.stream().map(v -> (float)(v * scale)).toList();
+            }
+        }
+        float totalWeight = totalWeight(columns);
+        return columns.stream().map(column -> totalWidth * (float)column.weight() / totalWeight).toList();
+    }
 
     private static String itemValue(String key, TaxInvoiceItem item, String gstType, int serial) {
         if (item == null) return "";
@@ -647,18 +682,35 @@ public final class PdfStudioRenderer {
     }
 
     private static List<Column> chooseColumns(List<Column> all, List<String> keys) {
-        Set<String> wanted = new LinkedHashSet<>(keys == null ? List.of() : keys);
-        return all.stream().filter(c -> wanted.contains(c.key())).toList();
+        // Preserve the template's explicit column order. Filtering the catalogue order
+        // silently swapped fields such as rate/unit when a source PDF used a different
+        // order from the generic catalogue.
+        Map<String, Column> byKey = new LinkedHashMap<>();
+        for (Column column : all) byKey.put(column.key(), column);
+        List<Column> selected = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (String key : keys == null ? List.<String>of() : keys) {
+            Column column = byKey.get(key);
+            if (column != null && seen.add(column.key())) selected.add(column);
+        }
+        return selected;
     }
 
     private static void drawCellText(PDPageContentStream cs, PDFont font, float fontSize,
                                      String text, float x, float y, float width, float height, String color) throws IOException {
+        drawCellTextAligned(cs, font, fontSize, text, x, y, width, height, color, "LEFT");
+    }
+
+    private static void drawCellTextAligned(PDPageContentStream cs, PDFont font, float fontSize,
+                                            String text, float x, float y, float width, float height,
+                                            String color, String alignment) throws IOException {
         setNonStroke(cs, color);
         List<String> lines = wrap(safePdfText(text), font, fontSize, Math.max(5, width));
         float lineHeight = fontSize * 1.12f, cy = y + height - fontSize;
         for (String line : lines) {
             if (cy < y) break;
-            cs.beginText(); cs.setFont(font, fontSize); cs.newLineAtOffset(x, cy); cs.showText(line); cs.endText();
+            float drawX = alignedX(font, fontSize, line, x, width, alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT));
+            cs.beginText(); cs.setFont(font, fontSize); cs.newLineAtOffset(drawX, cy); cs.showText(line); cs.endText();
             cy -= lineHeight;
         }
     }

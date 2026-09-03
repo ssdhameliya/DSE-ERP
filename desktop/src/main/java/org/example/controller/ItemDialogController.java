@@ -100,7 +100,7 @@ public class ItemDialogController {
     public void setItem(Item item) {
         this.editingItem = item;
         lblTitle.setText("Edit Item");
-        lblSubtitle.setText("Update item information");
+        lblSubtitle.setText("Update item information • Opening Stock is create-only; use Stock Adjustment for quantity changes");
         btnSave.setText("Update Item");
 
         txtItemCode.setText(safe(item.getItemCode()));
@@ -113,6 +113,8 @@ public class ItemDialogController {
         txtPurchasePrice.setText(String.valueOf(item.getPurchasePrice()));
         txtSellingPrice.setText(String.valueOf(item.getSellingPrice()));
         txtOpeningStock.setText(String.valueOf(item.getOpeningStock()));
+        txtOpeningStock.setEditable(false);
+        txtOpeningStock.setTooltip(new Tooltip("Opening Stock cannot be edited after item creation. Use Stock Adjustment to change inventory quantity."));
         txtMinimumStock.setText(String.valueOf(item.getMinimumStock()));
         txtLocation.setText(safe(item.getLocation()));
         txtRemarks.setText(safe(item.getRemarks()));
@@ -136,7 +138,7 @@ public class ItemDialogController {
         item.setDiscountPercent(parseLookupDouble(cmbDiscount));
         item.setPurchasePrice(parseFieldDouble(txtPurchasePrice));
         item.setSellingPrice(parseFieldDouble(txtSellingPrice));
-        item.setOpeningStock(parseFieldDouble(txtOpeningStock));
+        if (created) item.setOpeningStock(parseFieldDouble(txtOpeningStock));
         item.setMinimumStock(parseFieldDouble(txtMinimumStock));
         item.setLocation(txtLocation.getText().trim());
         item.setRemarks(txtRemarks.getText().trim());

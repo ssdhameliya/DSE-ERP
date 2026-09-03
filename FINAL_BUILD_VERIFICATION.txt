@@ -1,0 +1,42 @@
+DSE ERP 9.0.62 - FINAL PROJECT EXECUTION REMOVAL BUILD
+
+Toolchain:
+- Temurin OpenJDK 25.0.4.1 LTS
+- Apache Maven 3.9.16
+- PostgreSQL 18.6 live migration verification
+
+Final regression gate:
+- Server tests: 13 run, 0 failures, 0 errors, 1 skipped (environment-dependent test in Maven test shell)
+- Desktop tests: 17 run, 0 failures, 0 errors, 0 skipped
+- Total automated tests: 30 run, 0 failures, 0 errors, 1 skipped
+- PdfStudioUniversalJsonContractTest: 4 run, 0 failures, 0 errors
+- SalesPdfStudioFlowTest: 2 run, 0 failures, 0 errors
+- Project Execution removal contract: PASS
+- Customer 360 contract: PASS with Project Execution absent
+- Release/architecture contract checks: PASS
+- Maven Linux package: BUILD SUCCESS
+- Maven Windows JavaFX classifier package: BUILD SUCCESS
+
+9.0.62 removal scope:
+- Project Execution UI/navigation removed.
+- Project/Sales Order/Purchase Order/GRN/Dispatch workflow API, DTO/entity, repository and service stack removed.
+- PROJECT_EXECUTION permissions and workflow reference masters removed.
+- Sales/Purchase Project, SO/PO, GRN/Dispatch linkage fields and handoffs removed.
+- Customer 360 Project/Sales Order split and unlinked workflow logic removed while normal customer-owned quotations, invoices, payments, contacts, notes and documents remain.
+- Dashboard/search/icon/CSS/FXML/runtime audit references to the removed workflow module cleaned up.
+- Fresh schema no longer retains Project Execution objects after migrations.
+- Upgrade migration V9_0_62__remove_project_execution.sql removes obsolete workflow tables and linked columns from existing databases.
+
+Live PostgreSQL 18.6 verification:
+- Fresh 9.0.62 database: server started successfully and V9_0_62 migration recorded.
+- Fresh database: workflow tables=0, Project Execution permissions=0, workflow reference masters=0, Sales linkage columns=0, Purchase linkage columns=0.
+- Upgrade database: first started with the final 9.0.61 server, seeded customer/supplier + Sales/Purchase + Project Execution workflow data, then started with 9.0.62.
+- Upgrade result: obsolete workflow tables/permissions/reference masters/linkage columns removed.
+- Upgrade preservation: seeded customer, supplier, Sales Invoice and Purchase Invoice remained; Quotation and Customer 360 contact infrastructure remained.
+
+Preserved 9.0.61 functionality:
+- PDF Studio universal JSON/template mapping.
+- Billing/Delivery GSTIN alignment fix.
+- Per-render PDFBox font isolation.
+- Sales PDF single-page and multi-page generation.
+- Normal Sales Invoice, Purchase Invoice, Returns, Quotations, stock, payments, reporting and two-theme UI architecture.

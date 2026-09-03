@@ -54,6 +54,10 @@ public class TemplateElement {
     private String replacementSourceKey = "";
     private List<String> tableColumns = new ArrayList<>(List.of(
             "serial", "hsn", "description", "qty", "unit", "rate", "gst", "amount"));
+    /** Optional exact column widths in PDF points; when absent the renderer uses semantic weights. */
+    private List<Double> tableColumnWidths = new ArrayList<>();
+    /** Optional per-column LEFT/CENTER/RIGHT alignment for fixed source grids. */
+    private List<String> tableColumnAlignments = new ArrayList<>();
     private double rowHeight = 22;
     private double headerHeight = 24;
     private boolean useSourceTableDesign;
@@ -96,6 +100,8 @@ public class TemplateElement {
         c.styleOverrides = new ArrayList<>(styleOverrides == null ? List.of() : styleOverrides);
         c.replacementGroupId = replacementGroupId; c.replacementSourceKey = replacementSourceKey;
         c.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns);
+        c.tableColumnWidths = new ArrayList<>(tableColumnWidths == null ? List.of() : tableColumnWidths);
+        c.tableColumnAlignments = new ArrayList<>(tableColumnAlignments == null ? List.of() : tableColumnAlignments);
         c.rowHeight = rowHeight; c.headerHeight = headerHeight; c.useSourceTableDesign = useSourceTableDesign;
         c.pathCommands = pathCommands == null ? new ArrayList<>() : pathCommands.stream().map(PathCommand::copy)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
@@ -145,7 +151,7 @@ public class TemplateElement {
     public String getFontFamily() { return fontFamily == null || fontFamily.isBlank() ? "HELVETICA" : fontFamily; }
     public void setFontFamily(String fontFamily) {
         String value = fontFamily == null ? "HELVETICA" : fontFamily.trim().toUpperCase(java.util.Locale.ROOT);
-        this.fontFamily = switch (value) { case "TIMES", "COURIER" -> value; default -> "HELVETICA"; };
+        this.fontFamily = switch (value) { case "TIMES", "COURIER", "ARIAL" -> value; default -> "HELVETICA"; };
     }
     public String getTextFit() { return textFit == null || textFit.isBlank() ? "SHRINK" : textFit; }
     public void setTextFit(String textFit) {
@@ -231,6 +237,10 @@ public class TemplateElement {
     public void setReplacementSourceKey(String replacementSourceKey) { this.replacementSourceKey = replacementSourceKey == null ? "" : replacementSourceKey; }
     public List<String> getTableColumns() { return tableColumns == null ? List.of() : tableColumns; }
     public void setTableColumns(List<String> tableColumns) { this.tableColumns = new ArrayList<>(tableColumns == null ? List.of() : tableColumns); }
+    public List<Double> getTableColumnWidths() { return tableColumnWidths == null ? List.of() : tableColumnWidths; }
+    public void setTableColumnWidths(List<Double> tableColumnWidths) { this.tableColumnWidths = new ArrayList<>(tableColumnWidths == null ? List.of() : tableColumnWidths); }
+    public List<String> getTableColumnAlignments() { return tableColumnAlignments == null ? List.of() : tableColumnAlignments; }
+    public void setTableColumnAlignments(List<String> values) { this.tableColumnAlignments = new ArrayList<>(values == null ? List.of() : values); }
     public double getRowHeight() { return rowHeight; }
     public void setRowHeight(double rowHeight) { this.rowHeight = Math.max(1, finite(rowHeight, 22)); }
     public double getHeaderHeight() { return headerHeight; }

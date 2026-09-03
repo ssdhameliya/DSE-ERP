@@ -85,6 +85,7 @@ public class DashboardController {
     /** Periodically refreshes the unread badge while the main shell is open. */
     private Timeline notificationRefresh;
     private final Runnable shellIndicatorListener = this::refreshShellIndicatorsAsync;
+    private final Runnable permissionChangeListener = this::refreshRolePermissionsOnFxThread;
     private final AtomicBoolean indicatorRefreshRunning = new AtomicBoolean();
     private Scene shortcutScene;
     private final EventHandler<KeyEvent> dynamicShortcutHandler = this::handleDynamicShortcut;
@@ -94,14 +95,6 @@ public class DashboardController {
     public Button btnImport;
     @FXML
     private Button btnDashboard;
-    @FXML private Button btnProjectExecution;
-    @FXML private Button btnProjects;
-    @FXML private Button btnSalesOrders;
-    @FXML private Button btnPurchaseOrders;
-    @FXML private Button btnGrn;
-    @FXML private Button btnDispatch;
-    @FXML private VBox projectExecutionSubmenu;
-    @FXML private Label lblProjectExecutionChevron;
     @FXML
     private Button btnMasters;
 
@@ -210,6 +203,7 @@ public class DashboardController {
         if (previous != null && previous != this) previous.stopRecurringTasks();
         CURRENT = this;
         ShellIndicatorBus.subscribe(shellIndicatorListener);
+        PermissionService.addChangeListener(permissionChangeListener);
 
         ClockService.start(lblClock);
         // Company details do not change every second. Refreshing the complete
@@ -222,10 +216,12 @@ public class DashboardController {
         initializeSidebarAccordion();
         applySidebarVisibility(loadSidebarVisiblePreference(), false);
 
-        if (navigationManager.loadPage("/fxml/pages/DashboardHome.fxml")) {
-            lblPageTitle.setText("Dashboard");
-            updateShellPageIcon("Dashboard");
-            selectMenu(btnDashboard);
+        String landingPath = PermissionService.allowed("DASHBOARD.VIEW") ? "/fxml/pages/DashboardHome.fxml" : "/fxml/pages/Profile.fxml";
+        String landingTitle = PermissionService.allowed("DASHBOARD.VIEW") ? "Dashboard" : "My Profile";
+        if (navigationManager.loadPage(landingPath)) {
+            lblPageTitle.setText(landingTitle);
+            updateShellPageIcon(landingTitle);
+            selectMenu("Dashboard".equals(landingTitle) ? btnDashboard : null);
         }
         updateThemeButton();
         refreshShellIndicatorsAsync();
@@ -254,12 +250,6 @@ public class DashboardController {
     /** Explicit business semantics prevent parent/submenu and import/export actions from sharing generic glyphs. */
     private void applyNavigationSemanticIcons() {
         UiActionIcons.apply(btnDashboard,"dashboard","Dashboard");
-        UiActionIcons.apply(btnProjectExecution,"workflow","Project Execution");
-        UiActionIcons.apply(btnProjects,"project","Projects / Jobs");
-        UiActionIcons.apply(btnSalesOrders,"sales-order","Sales Orders");
-        UiActionIcons.apply(btnPurchaseOrders,"purchase-order","Purchase Orders");
-        UiActionIcons.apply(btnGrn,"goods-receipt","Goods Receipt (GRN)");
-        UiActionIcons.apply(btnDispatch,"dispatch","Dispatch");
         UiActionIcons.apply(btnSales,"sale","Sales");
         UiActionIcons.apply(btnSalesRegister,"sale","Sales Register");
         UiActionIcons.apply(btnCreateSale,"add","Create Sale");
@@ -337,6 +327,7 @@ public class DashboardController {
     /** Stops timers owned by an ERP shell that is no longer visible. */
     private void stopRecurringTasks() {
         ShellIndicatorBus.unsubscribe(shellIndicatorListener);
+        PermissionService.removeChangeListener(permissionChangeListener);
         if (shortcutScene != null) {
             shortcutScene.removeEventFilter(KeyEvent.KEY_PRESSED, dynamicShortcutHandler);
             if (shortcutScene.getProperties().get("dse.dynamic-shortcuts.owner") == this)
@@ -347,6 +338,14 @@ public class DashboardController {
             notificationRefresh.stop();
             notificationRefresh = null;
         }
+    }
+
+    /** Re-applies permission state immediately after a permission cache refresh. */
+    private void refreshRolePermissionsOnFxThread() {
+        Runnable apply = () -> {
+            if (CURRENT == this) applyRolePermissions();
+        };
+        if (Platform.isFxApplicationThread()) apply.run(); else Platform.runLater(apply);
     }
 
     /** Refreshes the shell footer from the current company configuration. */
@@ -369,7 +368,7 @@ public class DashboardController {
 
     /** Disables protected navigation modules when the signed-in role lacks VIEW access. */
     private void applyRolePermissions() {
-        protect(btnProjectExecution, "PROJECT_EXECUTION.VIEW"); protect(btnSales, "SALES.VIEW"); protect(btnPurchase, "PURCHASE.VIEW");
+        protect(btnSales, "SALES.VIEW"); protect(btnPurchase, "PURCHASE.VIEW");
         protect(btnQuotation, "QUOTATION.VIEW"); protect(btnItem, "INVENTORY.VIEW");
         protect(btnInventory, "INVENTORY.VIEW"); protect(btnCustomer, "CUSTOMERS.VIEW");
         protect(btnSupplier, "SUPPLIERS.VIEW"); protect(btnMasters, "MASTERS.VIEW");
@@ -387,7 +386,6 @@ public class DashboardController {
         }
         if (btnQuotation != null) btnQuotation.setDisable(!quotationAllowed);
 
-        inheritGroupPermission(btnProjectExecution, btnProjects, btnSalesOrders, btnPurchaseOrders, btnGrn, btnDispatch);
         inheritGroupPermission(btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn);
 
         // Purchase Recon is a server-backed reconciliation domain with its own permissions.
@@ -697,17 +695,15 @@ public class DashboardController {
         if (button != null && !button.getStyleClass().contains("menu-selected")) button.getStyleClass().add("menu-selected");
     }
 
-    private enum NavGroup { NONE, PROJECT_EXECUTION, SALES, PURCHASE, BANK_EXPENSE, DOCUMENT_STUDIO, SETTINGS }
+    private enum NavGroup { NONE, SALES, PURCHASE, BANK_EXPENSE, DOCUMENT_STUDIO, SETTINGS }
 
     /** Initializes the sidebar in a compact state so a new login shows only top-level modules. */
     private void initializeSidebarAccordion() {
-        configureChevron(lblProjectExecutionChevron);
         configureChevron(lblSalesChevron);
         configureChevron(lblPurchaseChevron);
         configureChevron(lblBankExpenseChevron);
         configureChevron(lblDocumentStudioChevron);
         configureChevron(lblSettingsChevron);
-        setGroupExpanded(NavGroup.PROJECT_EXECUTION, false, false);
         setGroupExpanded(NavGroup.SALES, false, false);
         setGroupExpanded(NavGroup.PURCHASE, false, false);
         setGroupExpanded(NavGroup.BANK_EXPENSE, false, false);
@@ -722,7 +718,6 @@ public class DashboardController {
         chevron.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
     }
 
-    @FXML private void toggleProjectExecutionMenu() { toggleGroup(NavGroup.PROJECT_EXECUTION); }
     @FXML private void toggleSalesMenu() { toggleGroup(NavGroup.SALES); }
     @FXML private void togglePurchaseMenu() { toggleGroup(NavGroup.PURCHASE); }
     @FXML private void toggleBankExpenseMenu() { toggleGroup(NavGroup.BANK_EXPENSE); }
@@ -747,7 +742,7 @@ public class DashboardController {
     }
 
     private void collapseAllSubmenus(NavGroup except) {
-        for (NavGroup group : new NavGroup[]{NavGroup.PROJECT_EXECUTION, NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.DOCUMENT_STUDIO, NavGroup.SETTINGS}) {
+        for (NavGroup group : new NavGroup[]{NavGroup.SALES, NavGroup.PURCHASE, NavGroup.BANK_EXPENSE, NavGroup.DOCUMENT_STUDIO, NavGroup.SETTINGS}) {
             if (group != except) setGroupExpanded(group, false, true);
         }
     }
@@ -778,7 +773,6 @@ public class DashboardController {
 
     private VBox submenuFor(NavGroup group) {
         return switch (group) {
-            case PROJECT_EXECUTION -> projectExecutionSubmenu;
             case SALES -> salesSubmenu;
             case PURCHASE -> purchaseSubmenu;
             case BANK_EXPENSE -> bankExpenseSubmenu;
@@ -790,7 +784,6 @@ public class DashboardController {
 
     private Label chevronFor(NavGroup group) {
         return switch (group) {
-            case PROJECT_EXECUTION -> lblProjectExecutionChevron;
             case SALES -> lblSalesChevron;
             case PURCHASE -> lblPurchaseChevron;
             case BANK_EXPENSE -> lblBankExpenseChevron;
@@ -802,7 +795,6 @@ public class DashboardController {
 
     private Button parentButton(NavGroup group) {
         return switch (group) {
-            case PROJECT_EXECUTION -> btnProjectExecution;
             case SALES -> btnSales;
             case PURCHASE -> btnPurchase;
             case BANK_EXPENSE -> btnBankExpense;
@@ -813,7 +805,6 @@ public class DashboardController {
     }
 
     private NavGroup groupFor(Button button, String fxmlPath) {
-        if (button == btnProjectExecution || button == btnProjects || button == btnSalesOrders || button == btnPurchaseOrders || button == btnGrn || button == btnDispatch) return NavGroup.PROJECT_EXECUTION;
         if (button == btnSales || button == btnSalesRegister || button == btnCreateSale || button == btnSalesReturn || button == btnQuotation)
             return NavGroup.SALES;
         if (button == btnPurchase || button == btnPurchaseRegister || button == btnCreatePurchase || button == btnPurchaseReturn)
@@ -827,7 +818,6 @@ public class DashboardController {
                 || button == btnSettingsWorkspace || button == btnSettingsShortcuts || button == btnSettingsUpdates)
             return NavGroup.SETTINGS;
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
-        if (path.contains("projects.fxml") || path.contains("salesorders") || path.contains("purchaseorders") || path.contains("goodsreceipts") || path.contains("dispatches")) return NavGroup.PROJECT_EXECUTION;
         if (path.contains("quotation") || path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return NavGroup.SALES;
         if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return NavGroup.PURCHASE;
         if (path.contains("bankexpense") || path.contains("bankstatement") || path.contains("purchaserecon") || path.contains("reconsupplier")) return NavGroup.BANK_EXPENSE;
@@ -838,11 +828,6 @@ public class DashboardController {
 
     private Button selectionButtonFor(Button button, String fxmlPath) {
         String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
-        if (path.contains("projects.fxml")) return btnProjects;
-        if (path.contains("salesorders")) return btnSalesOrders;
-        if (path.contains("purchaseorders")) return btnPurchaseOrders;
-        if (path.contains("goodsreceipts")) return btnGrn;
-        if (path.contains("dispatches")) return btnDispatch;
         if (path.contains("saleslist")) return btnSalesRegister;
         if (path.endsWith("/sale.fxml")) return btnCreateSale;
         if (path.contains("salesreturns")) return btnSalesReturn;
@@ -872,63 +857,25 @@ public class DashboardController {
     }
 
 
+    private List<Button> navigationButtons() {
+        return java.util.stream.Stream.of(
+                btnDashboard,
+                btnSales, btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
+                btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn,
+                btnItem, btnMasters, btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
+                btnImport, btnInventory, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess,
+                btnDocumentStudio, btnPdfStudio, btnExcelStudio, btnSettings, btnSettingsCompany, btnSettingsPayment,
+                btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace,
+                btnSettingsShortcuts, btnSettingsUpdates, btnSafeRollback, btnBackup)
+            .filter(java.util.Objects::nonNull)
+            .toList();
+    }
+
     private void clearSelection() {
-
-        if (btnDashboard != null)
-            btnDashboard.getStyleClass().remove("menu-selected");
-        if (btnProjectExecution != null) btnProjectExecution.getStyleClass().remove("menu-selected");
-        for (Button b : new Button[]{btnProjects, btnSalesOrders, btnPurchaseOrders, btnGrn, btnDispatch}) if (b != null) b.getStyleClass().remove("menu-selected");
-
-        if (btnItem != null)
-            btnItem.getStyleClass().remove("menu-selected");
-
-        if (btnMasters != null)
-            btnMasters.getStyleClass().remove("menu-selected");
-
-        if (btnCustomer != null)
-            btnCustomer.getStyleClass().remove("menu-selected");
-
-        if (btnSupplier != null)
-            btnSupplier.getStyleClass().remove("menu-selected");
-
-        if (btnInventory != null)
-            btnInventory.getStyleClass().remove("menu-selected");
-
-        if (btnPurchase != null)
-            btnPurchase.getStyleClass().remove("menu-selected");
-
-        if (btnSales != null) {
-            btnSales.getStyleClass().remove("menu-selected");
-            btnSales.getStyleClass().remove("menu-group-active");
+        for (Button button : navigationButtons()) button.getStyleClass().remove("menu-selected");
+        for (Button parent : new Button[]{btnSales, btnPurchase, btnBankExpense, btnDocumentStudio, btnSettings}) {
+            if (parent != null) parent.getStyleClass().remove("menu-group-active");
         }
-        if (btnPurchase != null) btnPurchase.getStyleClass().remove("menu-group-active");
-        if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-group-active");
-        if (btnDocumentStudio != null) btnDocumentStudio.getStyleClass().remove("menu-group-active");
-        if (btnSettings != null) btnSettings.getStyleClass().remove("menu-group-active");
-        for (Button child : new Button[]{btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
-                btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
-                btnPdfStudio, btnExcelStudio,
-                btnSettingsCompany, btnSettingsPayment, btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity,
-                btnSettingsWorkspace, btnSettingsShortcuts, btnSettingsUpdates}) {
-            if (child != null) child.getStyleClass().remove("menu-selected");
-        }
-        if (btnQuotation != null)
-            btnQuotation.getStyleClass().remove("menu-selected");
-        if (btnBankExpense != null) btnBankExpense.getStyleClass().remove("menu-selected");
-        if (btnReminders != null) btnReminders.getStyleClass().remove("menu-selected");
-        if (btnUserAccess != null) btnUserAccess.getStyleClass().remove("menu-selected");
-        if (btnDocumentStudio != null) btnDocumentStudio.getStyleClass().remove("menu-selected");
-        if (btnBackup != null) btnBackup.getStyleClass().remove("menu-selected");
-        if (btnSafeRollback != null) btnSafeRollback.getStyleClass().remove("menu-selected");
-
-        if (btnReports != null)
-            btnReports.getStyleClass().remove("menu-selected");
-
-        if (btnImport != null)
-            btnImport.getStyleClass().remove("menu-selected");
-
-        if (btnSettings != null)
-            btnSettings.getStyleClass().remove("menu-selected");
     }
 
     private String currentUserName() {
@@ -952,6 +899,11 @@ public class DashboardController {
                           String pageTitle,
                           String fxmlPath) {
 
+        String requiredPermission = permissionForPage(fxmlPath);
+        if (requiredPermission != null && !PermissionService.allowed(requiredPermission)) {
+            new OwnedAlert(Alert.AlertType.WARNING, "You do not have permission to open " + pageTitle + ". Required: " + requiredPermission).showAndWait();
+            return;
+        }
         if (navigationManager.loadPage(fxmlPath)) {
             NavGroup group = groupFor(button, fxmlPath);
             Button selectedButton = selectionButtonFor(button, fxmlPath);
@@ -968,6 +920,31 @@ public class DashboardController {
         }
     }
 
+    private String permissionForPage(String fxmlPath) {
+        String path = fxmlPath == null ? "" : fxmlPath.toLowerCase(Locale.ROOT);
+        if (path.contains("dashboardhome")) return "DASHBOARD.VIEW";
+        if (path.contains("quotation")) return "QUOTATION.VIEW";
+        if (path.contains("saleslist") || path.contains("salesreturns") || path.endsWith("/sale.fxml")) return "SALES.VIEW";
+        if (path.contains("purchaselist") || path.contains("purchasereturns") || path.endsWith("/purchase.fxml")) return "PURCHASE.VIEW";
+        if (path.contains("itemmaster") || path.contains("inventory")) return "INVENTORY.VIEW";
+        if (path.contains("customer.fxml")) return "CUSTOMERS.VIEW";
+        if (path.contains("suppliers.fxml")) return "SUPPLIERS.VIEW";
+        if (path.contains("masterdata")) return "MASTERS.VIEW";
+        if (path.contains("reports")) return "REPORTS.VIEW";
+        if (path.contains("reminder")) return "REMINDERS.VIEW";
+        if (path.contains("useraccess")) return "USERS.VIEW";
+        if (path.contains("backuprestore")) return "BACKUP.VIEW";
+        if (path.contains("settings")) return "SETTINGS.VIEW";
+        if (path.contains("saferollback")) return "SAFE_ROLLBACK.VIEW";
+        if (path.contains("documentstudio") || path.contains("pdfdesigner") || path.contains("exceldesigner")) return "DOCUMENT_STUDIO.VIEW";
+        if (path.contains("import.fxml")) return "IMPORT.VIEW";
+        if (path.contains("communication")) return "COMMUNICATION.VIEW";
+        if (path.contains("bankexpense") || path.contains("bankstatement")) return "BANK_EXPENSE.VIEW";
+        if (path.contains("purchaserecon")) return "PURCHASE_RECON.VIEW";
+        if (path.contains("reconsupplier")) return "RECON_SUPPLIER.VIEW";
+        return null;
+    }
+
     @FXML
     private void openDashboard() {
 
@@ -979,11 +956,6 @@ public class DashboardController {
 
     }
 
-    @FXML private void openProjects() { openPage(btnProjects, "Projects / Jobs", "/fxml/pages/Projects.fxml"); }
-    @FXML private void openSalesOrders() { openPage(btnSalesOrders, "Sales Orders", "/fxml/pages/SalesOrders.fxml"); }
-    @FXML private void openPurchaseOrders() { openPage(btnPurchaseOrders, "Purchase Orders", "/fxml/pages/PurchaseOrders.fxml"); }
-    @FXML private void openGoodsReceipts() { openPage(btnGrn, "Goods Receipt Notes", "/fxml/pages/GoodsReceipts.fxml"); }
-    @FXML private void openDispatches() { openPage(btnDispatch, "Dispatch / Delivery Challan", "/fxml/pages/Dispatches.fxml"); }
 
     @FXML
     private void openItemMaster() {

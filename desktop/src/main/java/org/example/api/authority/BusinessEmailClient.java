@@ -26,6 +26,16 @@ public final class BusinessEmailClient {
         }
     }
 
+    public void resend(String recipient, String subject, String body, Path attachment) {
+        try {
+            String name = attachment == null ? null : attachment.getFileName().toString();
+            String data = attachment == null ? null : Base64.getEncoder().encodeToString(Files.readAllBytes(attachment));
+            request("POST", base() + "/resend", new Request(recipient, subject, body, name, data), Result.class);
+        } catch (Exception e) {
+            throw e instanceof RuntimeException x ? x : new IllegalStateException(e);
+        }
+    }
+
     public Settings settings() { return request("GET", base() + "/settings", null, Settings.class); }
     public Settings saveSettings(Settings settings) { return request("PUT", base() + "/settings", settings, Settings.class); }
     public Result test(String recipient) { return request("POST", base() + "/test", new TestRequest(recipient), Result.class); }

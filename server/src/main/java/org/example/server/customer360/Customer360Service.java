@@ -26,14 +26,6 @@ public class Customer360Service {
             quoteCount=count("SELECT COUNT(*) FROM quotation_header WHERE customer_id=? AND UPPER(COALESCE(status,'')) NOT IN ('EXPIRED','REJECTED','DELETED','CONVERTED')",customerId);
             recentQuotes=quotations(customerId,5);
         }
-        BigDecimal orderValue=BigDecimal.ZERO; long orderCount=0, projectCount=0;
-        List<Customer360Dtos.WorkflowRow> recentOrders=List.of();
-        if(has("PROJECT_EXECUTION.VIEW")){
-            orderValue=money("SELECT COALESCE(SUM(total_amount),0) FROM workflow_document WHERE document_type='SALES_ORDER' AND (party_id=? OR (party_id IS NULL AND LOWER(TRIM(COALESCE(party_name,'')))=LOWER(TRIM(?)))) AND UPPER(COALESCE(status,'')) NOT IN ('CANCELLED','REJECTED','CLOSED')",customerId,customer.name());
-            orderCount=count("SELECT COUNT(*) FROM workflow_document WHERE document_type='SALES_ORDER' AND (party_id=? OR (party_id IS NULL AND LOWER(TRIM(COALESCE(party_name,'')))=LOWER(TRIM(?)))) AND UPPER(COALESCE(status,'')) NOT IN ('CANCELLED','REJECTED','CLOSED')",customerId,customer.name());
-            projectCount=count("SELECT COUNT(*) FROM workflow_document WHERE document_type='PROJECT' AND (party_id=? OR (party_id IS NULL AND LOWER(TRIM(COALESCE(party_name,'')))=LOWER(TRIM(?)))) AND UPPER(COALESCE(status,'')) NOT IN ('COMPLETED','CANCELLED','CLOSED')",customerId,customer.name());
-            recentOrders=workflow(customerId,"SALES_ORDER",5);
-        }
         BigDecimal totalSales=has("SALES.VIEW")?money("SELECT COALESCE(SUM(total_amount),0) FROM sales_header WHERE customer_id=? AND UPPER(COALESCE(document_status,'')) NOT IN ('DELETED','CANCELLED','REJECTED','PENDING APPROVAL')",customerId):BigDecimal.ZERO;
         BigDecimal lastPayment=BigDecimal.ZERO; String lastPaymentDate="";
         if(has("SALES.VIEW")){
@@ -41,43 +33,14 @@ public class Customer360Service {
             if(!p.isEmpty()){lastPayment=p.getFirst()[0] instanceof BigDecimal b?b:BigDecimal.ZERO;lastPaymentDate=Objects.toString(p.getFirst()[1],"");}
         }
         List<Customer360Dtos.InvoiceRow> recentInvoices=has("SALES.VIEW")?invoices(customerId,5):List.of();
-        return new Customer360Dtos.Summary(customer,outstanding,quoteValue,quoteCount,orderValue,orderCount,projectCount,totalSales,lastPayment,lastPaymentDate,recentQuotes,recentOrders,recentInvoices);
+        return new Customer360Dtos.Summary(customer,outstanding,quoteValue,quoteCount,totalSales,lastPayment,lastPaymentDate,recentQuotes,recentInvoices);
     }
 
     @Transactional(readOnly=true) public List<Customer360Dtos.QuotationRow> quotations(int customerId){CurrentUser.requirePermission("CUSTOMERS.VIEW","View Customer 360");CurrentUser.requirePermission("QUOTATION.VIEW","View customer quotations");requireCustomer(customerId);return quotations(customerId,500);}
     private List<Customer360Dtos.QuotationRow> quotations(int id,int limit){return jdbc.query("SELECT id,COALESCE(quotation_no,''),COALESCE(quotation_date::text,''),COALESCE(valid_until::text,''),COALESCE(salesperson,''),COALESCE(total_amount,0),COALESCE(status,''),COALESCE(follow_up_date::text,'') FROM quotation_header WHERE customer_id=? ORDER BY dse_safe_date(quotation_date) DESC,id DESC LIMIT "+limit,(r,i)->new Customer360Dtos.QuotationRow(r.getInt(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getBigDecimal(6),r.getString(7),r.getString(8)),id);}
 
-    @Transactional(readOnly=true) public List<Customer360Dtos.WorkflowRow> salesOrders(int customerId){CurrentUser.requirePermission("CUSTOMERS.VIEW","View Customer 360");CurrentUser.requirePermission("PROJECT_EXECUTION.VIEW","View customer Sales Orders");return workflow(customerId,"SALES_ORDER",500);}
-    @Transactional(readOnly=true) public List<Customer360Dtos.InvoiceRow> directSales(int customerId){
-        CurrentUser.requirePermission("CUSTOMERS.VIEW","View Customer 360");
-        requireCustomer(customerId);
-        if(!has("SALES.VIEW")) return List.of();
-        return jdbc.query("""
-            SELECT sh.id,COALESCE(sh.invoice_no,''),COALESCE(sh.invoice_date::text,''),
-                   COALESCE(sh.sales_order_no,''),COALESCE(sh.project_no,''),
-                   COALESCE(sh.total_amount,0),COALESCE(sh.paid_amount,0),
-                   GREATEST(COALESCE(sh.total_amount,0)-COALESCE(sh.paid_amount,0),0),
-                   COALESCE(sh.payment_status,''),COALESCE(sh.document_status,'')
-            FROM sales_header sh
-            WHERE sh.customer_id=?
-              AND UPPER(COALESCE(sh.document_status,''))<>'DELETED'
-              AND NOT EXISTS (
-                  SELECT 1 FROM workflow_document w
-                  WHERE (NULLIF(TRIM(COALESCE(sh.sales_order_no,'')),'') IS NOT NULL
-                         AND w.document_type='SALES_ORDER'
-                         AND UPPER(TRIM(w.document_no))=UPPER(TRIM(sh.sales_order_no)))
-                     OR (NULLIF(TRIM(COALESCE(sh.project_no,'')),'') IS NOT NULL
-                         AND w.document_type='PROJECT'
-                         AND UPPER(TRIM(w.document_no))=UPPER(TRIM(sh.project_no)))
-              )
-            ORDER BY dse_safe_date(sh.invoice_date) DESC,sh.id DESC
-            """,(r,i)->new Customer360Dtos.InvoiceRow(r.getInt(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getBigDecimal(6),r.getBigDecimal(7),r.getBigDecimal(8),r.getString(9),r.getString(10)),customerId);
-    }
-    @Transactional(readOnly=true) public List<Customer360Dtos.WorkflowRow> projects(int customerId){CurrentUser.requirePermission("CUSTOMERS.VIEW","View Customer 360");CurrentUser.requirePermission("PROJECT_EXECUTION.VIEW","View customer Projects");return workflow(customerId,"PROJECT",500);}
-    private List<Customer360Dtos.WorkflowRow> workflow(int customerId,String type,int limit){var c=customer(customerId);return jdbc.query("SELECT id,document_type,document_no,COALESCE(document_date::text,''),COALESCE(project_no,''),COALESCE(parent_no,''),COALESCE(customer_po_no,''),COALESCE(expected_date::text,''),COALESCE(total_amount,0),COALESCE(status,'') FROM workflow_document WHERE document_type=? AND (party_id=? OR (party_id IS NULL AND LOWER(TRIM(COALESCE(party_name,'')))=LOWER(TRIM(?)))) ORDER BY document_date DESC,id DESC LIMIT "+limit,(r,i)->new Customer360Dtos.WorkflowRow(r.getInt(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getString(6),r.getString(7),r.getString(8),r.getBigDecimal(9),r.getString(10)),type,customerId,c.name());}
-
     @Transactional(readOnly=true) public List<Customer360Dtos.InvoiceRow> invoices(int customerId){CurrentUser.requirePermission("CUSTOMERS.VIEW","View Customer 360");CurrentUser.requirePermission("SALES.VIEW","View customer invoices");requireCustomer(customerId);return invoices(customerId,500);}
-    private List<Customer360Dtos.InvoiceRow> invoices(int customerId,int limit){return jdbc.query("SELECT id,invoice_no,COALESCE(invoice_date::text,''),COALESCE(sales_order_no,''),COALESCE(project_no,''),COALESCE(total_amount,0),COALESCE(paid_amount,0),GREATEST(COALESCE(total_amount,0)-COALESCE(paid_amount,0),0),COALESCE(payment_status,''),COALESCE(document_status,'') FROM sales_header WHERE customer_id=? AND UPPER(COALESCE(document_status,''))<>'DELETED' ORDER BY dse_safe_date(invoice_date) DESC,id DESC LIMIT "+limit,(r,i)->new Customer360Dtos.InvoiceRow(r.getInt(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),r.getBigDecimal(6),r.getBigDecimal(7),r.getBigDecimal(8),r.getString(9),r.getString(10)),customerId);}
+    private List<Customer360Dtos.InvoiceRow> invoices(int customerId,int limit){return jdbc.query("SELECT id,invoice_no,COALESCE(invoice_date::text,''),COALESCE(total_amount,0),COALESCE(paid_amount,0),GREATEST(COALESCE(total_amount,0)-COALESCE(paid_amount,0),0),COALESCE(payment_status,''),COALESCE(document_status,'') FROM sales_header WHERE customer_id=? AND UPPER(COALESCE(document_status,''))<>'DELETED' ORDER BY dse_safe_date(invoice_date) DESC,id DESC LIMIT "+limit,(r,i)->new Customer360Dtos.InvoiceRow(r.getInt(1),r.getString(2),r.getString(3),r.getBigDecimal(4),r.getBigDecimal(5),r.getBigDecimal(6),r.getString(7),r.getString(8)),customerId);}
 
     @Transactional(readOnly=true) public List<Customer360Dtos.PaymentRow> payments(int customerId){CurrentUser.requirePermission("CUSTOMERS.VIEW","View Customer 360");CurrentUser.requirePermission("SALES.VIEW","View customer payments");requireCustomer(customerId);return jdbc.query("SELECT pr.id,COALESCE(pr.payment_date::text,''),COALESCE(pr.reference_no,''),COALESCE(pr.payment_mode,''),COALESCE(pr.amount,0),COALESCE(sh.invoice_no,''),COALESCE(pr.notes,'') FROM payment_record pr JOIN sales_header sh ON sh.id=pr.document_id AND pr.document_type='SALE' WHERE sh.customer_id=? ORDER BY dse_safe_date(pr.payment_date) DESC,pr.id DESC",(r,i)->new Customer360Dtos.PaymentRow(r.getInt(1),r.getString(2),r.getString(3),r.getString(4),r.getBigDecimal(5),r.getString(6),r.getString(7)),customerId);}
 

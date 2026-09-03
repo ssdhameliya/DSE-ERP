@@ -27,7 +27,6 @@ public final class PermissionCatalog {
     private static final Map<String, ModuleMeta> MODULES = Map.ofEntries(
             entry("DASHBOARD", "Dashboard", "Dashboard & Insights", "dashboard", 10),
             entry("SALES", "Sales Register", "Sales", "sales", 20),
-            entry("PROJECT_EXECUTION", "Project Execution", "Operations", "record", 25),
             entry("QUOTATION", "Quotation", "Sales", "quotation", 21),
             entry("CUSTOMERS", "Customers", "Sales", "customer", 22),
             entry("COMMUNICATION", "Communication", "Sales", "email", 23),

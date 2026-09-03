@@ -109,8 +109,13 @@ public final class BusinessReportService {
 
     private static String csvValue(double value) { return String.format(java.util.Locale.ROOT, "%.2f", value); }
     private static String csvText(String value) {
-        String s = value == null ? "" : value;
+        String s = spreadsheetSafe(value);
         return (s.contains(",") || s.contains("\"") || s.contains("\n")) ? "\"" + s.replace("\"", "\"\"") + "\"" : s;
+    }
+    private static String spreadsheetSafe(String value) {
+        String s = value == null ? "" : value; String t = s.stripLeading(); if (t.isEmpty()) return s;
+        char c = t.charAt(0); boolean numericNegative = c == '-' && t.matches("-\\d+(?:\\.\\d+)?");
+        return c == '=' || c == '+' || c == '@' || (c == '-' && !numericNegative) ? "'" + s : s;
     }
 
     private ReportData load(LocalDate from, LocalDate to) {

@@ -1934,6 +1934,17 @@ public class ImportController {
         ImportService.ImportMode importMode
     ) throws Exception {
 
+        if (!dryRun) {
+            if (importMode == ImportService.ImportMode.UPDATE_NON_BLANK) {
+                org.example.service.PermissionService.require("IMPORT.EDIT", "update existing records through Data Import");
+            } else if (importMode == ImportService.ImportMode.UPSERT) {
+                org.example.service.PermissionService.require("IMPORT.CREATE", "create records through Data Import");
+                org.example.service.PermissionService.require("IMPORT.EDIT", "update existing records through Data Import");
+            } else {
+                org.example.service.PermissionService.require("IMPORT.CREATE", "create records through Data Import");
+            }
+        }
+
         return switch (module) {
 
             case "Customers/CRM" ->
@@ -2441,6 +2452,7 @@ public class ImportController {
 
     @FXML
     private void downloadTemplate() {
+        org.example.service.PermissionService.require("IMPORT.EXPORT", "download an import template");
 
         FileChooser chooser =
             new FileChooser();
@@ -2494,7 +2506,7 @@ public class ImportController {
 
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP 9.0.49 Import Template", "Keep identifier and header names unchanged."},
+                {"DSE ERP 9.0.62 Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},

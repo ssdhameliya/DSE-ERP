@@ -115,9 +115,9 @@ need('requireColumn("users", "row_version")' in runner, "user row_version is not
 need('requireTable("role_permission_revision")' in runner, "permission revision table is not startup-verified")
 
 if FAIL:
-    print("FINANCIAL_MULTI_USER_9_0_47_FAIL")
+    print("FINANCIAL_MULTI_USER_CONTRACT_FAIL")
     for item in FAIL:
         print(" -", item)
     sys.exit(1)
 
-print("FINANCIAL_MULTI_USER_9_0_47_OK calculations=canonical inventory_cost=4dp payments=roundoff-safe returns=exact+serialized quotation_lock=yes admin_lock=yes permissions_lock=yes templates=optimistic")
+print("FINANCIAL_MULTI_USER_CONTRACT_OK calculations=canonical inventory_cost=4dp payments=roundoff-safe returns=exact+serialized quotation_lock=yes admin_lock=yes permissions_lock=yes templates=optimistic")

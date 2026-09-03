@@ -22,10 +22,6 @@
       </HBox>
 
       <GridPane hgap="10" vgap="0" styleClass="bank-recon-kpi-panel,erp-kpi-section,erp-kpi-single-row">
-        <columnConstraints>
-          <ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/>
-          <ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/><ColumnConstraints percentWidth="12.5"/>
-        </columnConstraints>
         <VBox spacing="5" styleClass="bank-recon-kpi,kpi-blue" GridPane.columnIndex="0"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiTotalIcon" styleClass="bank-recon-kpi-icon"/><Label text="Total Transactions" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiTotal" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Imported rows" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
         <VBox spacing="5" styleClass="bank-recon-kpi,kpi-red" GridPane.columnIndex="1"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiUnmatchedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Unmatched" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiUnmatched" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="Needs reconciliation" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>
         <VBox spacing="5" styleClass="bank-recon-kpi,kpi-orange" GridPane.columnIndex="2"><HBox alignment="CENTER_LEFT" spacing="8"><StackPane fx:id="kpiSuggestedIcon" styleClass="bank-recon-kpi-icon"/><Label text="Suggested" styleClass="bank-recon-kpi-caption"/></HBox><HBox alignment="BASELINE_LEFT" spacing="6"><Label fx:id="kpiSuggested" text="0" styleClass="bank-recon-kpi-value"/><Region HBox.hgrow="ALWAYS"/><Label text="System suggestions" wrapText="true" styleClass="bank-recon-kpi-note"/></HBox></VBox>

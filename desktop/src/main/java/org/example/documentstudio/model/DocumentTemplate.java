@@ -13,7 +13,11 @@ public class DocumentTemplate {
     private DocumentType documentType = DocumentType.PURCHASE_INVOICE;
     private TemplateCategory category;
     private int version = 1;
-    private int studioSchemaVersion = 3;
+    private int studioSchemaVersion = 4;
+    /** Stable ERP-to-template data contract version used by JSON mappings. */
+    private int dataContractVersion = 2;
+    /** STRICT_FIXED keeps the imported PDF artwork/page geometry immutable while allowing overlays. */
+    private String layoutMode = "FREEFORM";
     private TemplateStatus status = TemplateStatus.DRAFT;
     private boolean defaultTemplate;
     /** True only after an explicit Mark Default activation in PDF Studio 3+. */
@@ -50,6 +54,11 @@ public class DocumentTemplate {
     public void setVersion(int version) { this.version = Math.max(1, version); }
     public int getStudioSchemaVersion() { return studioSchemaVersion; }
     public void setStudioSchemaVersion(int studioSchemaVersion) { this.studioSchemaVersion = Math.max(1, studioSchemaVersion); }
+    public int getDataContractVersion() { return dataContractVersion; }
+    public void setDataContractVersion(int dataContractVersion) { this.dataContractVersion = Math.max(1, dataContractVersion); }
+    public String getLayoutMode() { return layoutMode == null || layoutMode.isBlank() ? "FREEFORM" : layoutMode; }
+    public void setLayoutMode(String layoutMode) { this.layoutMode = layoutMode == null || layoutMode.isBlank() ? "FREEFORM" : layoutMode.trim().toUpperCase(); }
+    @JsonIgnore public boolean isStrictFixedLayout() { return "STRICT_FIXED".equals(getLayoutMode()); }
     public TemplateStatus getStatus() { return status; }
     public void setStatus(TemplateStatus status) { this.status = status == null ? TemplateStatus.DRAFT : status; }
     public boolean isDefaultTemplate() { return defaultTemplate; }

@@ -242,7 +242,7 @@ req('new Label("IMAGE")' not in pdf_controller and 'new Label(region.kind())' no
 req('showErpFields()' in pdf_controller,
     'PDF Studio inspector must provide a direct path to the ERP Fields palette')
 
-# Release identity must be one exact 9.0.12 contract across active artifacts.
+# Release identity must be one exact current contract across active artifacts.
 root_pom = text('pom.xml')
 server_pom = text('server/pom.xml')
 desktop_pom = text('desktop/pom.xml')
@@ -257,26 +257,26 @@ build_bat = text('Build Production Windows.bat')
 postgres_bat = text('scripts/start-postgresql.cmd')
 safe_rollback = text('desktop/src/main/resources/fxml/pages/SafeRollback.fxml')
 
-req('<version>9.0.57</version>' in root_pom and '<dse.phase>9.0.57</dse.phase>' in root_pom,
-    'root Maven release identity must be 9.0.57')
+req('<version>9.0.62</version>' in root_pom and '<dse.phase>9.0.62</dse.phase>' in root_pom,
+    'root Maven release identity must be 9.0.62')
 for name,pom in [('server',server_pom),('desktop',desktop_pom),('shared',shared_pom)]:
-    req('<version>9.0.57</version>' in pom, f'{name} parent version must be 9.0.57')
-req('APP_VERSION = "9.0.57"' in runtime and 'BUILD_REVISION = "9.0.57"' in runtime,
-    'shared runtime identity must be 9.0.57')
-req('dse.app.version=9.0.57' in props and 'dse.build.revision=9.0.57' in props,
-    'server runtime identity must be 9.0.57')
-req('version=9.0.57' in app_version and 'DEFAULT_VERSION="9.0.57"' in update,
-    'desktop resource/updater identity must be 9.0.57')
+    req('<version>9.0.62</version>' in pom, f'{name} parent version must be 9.0.62')
+req('APP_VERSION = "9.0.62"' in runtime and 'BUILD_REVISION = "9.0.62"' in runtime,
+    'shared runtime identity must be 9.0.62')
+req('dse.app.version=9.0.62' in props and 'dse.build.revision=9.0.62' in props,
+    'server runtime identity must be 9.0.62')
+req('version=9.0.62' in app_version and 'DEFAULT_VERSION="9.0.62"' in update,
+    'desktop resource/updater identity must be 9.0.62')
 if runtime_manifest:
-    req('runtime.phase=9.0.57' in runtime_manifest, 'bundled runtime phase must be 9.0.57')
-req('DSE ERP 9.0.57 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
-    'IntelliJ launcher banner must be 9.0.57')
-req('DSE ERP 9.0.57 - PRODUCTION WINDOWS BUILD' in build_bat,
-    'production build banner must be 9.0.57')
-req('DSE ERP 9.0.57 uses application-managed PostgreSQL.' in postgres_bat,
-    'PostgreSQL launcher banner must be 9.0.57')
-req('fx:id="lblCurrentVersion" text="9.0.57"' in safe_rollback,
-    'Safe Rollback current-version fallback must be 9.0.57')
+    req('runtime.phase=9.0.62' in runtime_manifest, 'bundled runtime phase must be 9.0.62')
+req('DSE ERP 9.0.62 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    'IntelliJ launcher banner must be 9.0.62')
+req('DSE ERP 9.0.62 - PRODUCTION WINDOWS BUILD' in build_bat,
+    'production build banner must be 9.0.62')
+req('DSE ERP 9.0.62 uses application-managed PostgreSQL.' in postgres_bat,
+    'PostgreSQL launcher banner must be 9.0.62')
+req('fx:id="lblCurrentVersion" text="9.0.62"' in safe_rollback,
+    'Safe Rollback current-version fallback must be 9.0.62')
 
 # Locked production document-generation boundary: unchanged from corrected v9.0.8.
 protected = {
@@ -288,4 +288,4 @@ for rel, expected in protected.items():
     actual = hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()
     req(actual == expected, f'locked production PDF/Sales generation file changed: {rel}')
 
-print('PASS: DSE ERP 9.0.57 runtime with consolidated 20-defect + runtime/UI regression contract')
+print('CORRECTIVE_RUNTIME_UI_CONTRACT_OK version=9.0.62')

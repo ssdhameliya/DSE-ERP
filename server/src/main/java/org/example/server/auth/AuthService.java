@@ -76,8 +76,7 @@ public class AuthService {
 
         // ADMIN keeps the existing password-only production flow. Every non-Admin account
         // uses an RFC-6238 authenticator token enrolled during approved registration.
-        boolean mfaRequired = requiresMfa(role);
-        if (user.isMfaEnabled() != mfaRequired) user.setMfaEnabled(mfaRequired);
+        boolean mfaRequired = requiresMfa(user, role);
         user.resetPasswordFailures();
 
         if (mfaRequired) {
@@ -108,7 +107,7 @@ public class AuthService {
         if(userId==null)throw new IllegalArgumentException("The MFA challenge is invalid or expired");
         UserEntity user=users.findByIdForAuthentication(userId).orElseThrow(()->new IllegalArgumentException("The MFA challenge is invalid or expired"));
         String role=normalizeRole(user.getRoleName());
-        if(!user.isActive()||user.isLocked()||!"APPROVED".equals(user.getApprovalStatus())||role.isBlank()||!roleMaster.isActive(role)||!requiresMfa(role))return failedLogin(user.isLocked()?lockMessage(user):"This account is not available for sign in.");
+        if(!user.isActive()||user.isLocked()||!"APPROVED".equals(user.getApprovalStatus())||role.isBlank()||!roleMaster.isActive(role)||!requiresMfa(user,role))return failedLogin(user.isLocked()?lockMessage(user):"This account is not available for sign in.");
         boolean verified;
         if(authenticator){ verified=totp.verifyEncrypted(user.getTotpSecretEnc(),request.otp()); if(verified)totp.consumeLogin(request.challengeId()); }
         else { try{var v=otp.verify(AuthOtpService.Purpose.LOGIN_MFA,request.challengeId(),request.otp());verified=v.userId()!=null&&v.userId().equals(userId);}catch(IllegalArgumentException ex){verified=false;} }
@@ -152,7 +151,7 @@ public class AuthService {
         UserEntity user=new UserEntity(); user.setUsername(request.username().trim()); user.setPassword(passwords.encode(request.password()));
         user.setFullName(request.fullName()); user.setEmail(request.email()); user.setRole(role.code()); user.setActive(true); user.setApprovalStatus("APPROVED"); user.setLocked(false);
         // Preserve existing Admin behavior. Admin-created non-Admin users must enroll an authenticator before login.
-        user.setMfaEnabled(requiresMfa(role.code())); user.setAccessLevel("STANDARD"); users.save(user);
+        user.setMfaEnabled(mfaForRequestedUser(role.code(), request.mfaEnabled())); user.setAccessLevel("STANDARD"); users.save(user);
         return new AuthDtos.OperationResponse(true,"User registered");
     }
 
@@ -225,11 +224,11 @@ public class AuthService {
         if(verified.userId()==null)throw new IllegalArgumentException("The verification code is invalid or expired");
         UserEntity user=users.findById(verified.userId()).orElseThrow(()->new IllegalArgumentException("The verification code is invalid or expired"));
         String role=normalizeRole(user.getRoleName());
-        if(requiresMfa(role) && user.getTotpSecretEnc()!=null && !user.getTotpSecretEnc().isBlank()){
+        if(requiresMfa(user,role) && user.getTotpSecretEnc()!=null && !user.getTotpSecretEnc().isBlank()){
             if(!totp.verifyEncrypted(user.getTotpSecretEnc(),request.totp()))return new AuthDtos.OperationResponse(false,"Authenticator code is incorrect");
         }
         user.setPassword(passwords.encode(request.password())); String prior=user.getLockReason(); user.clearAutomaticLock(); tokens.revokeUser(user.getId());
-        audit(user.getId(),"PASSWORD_RESET_COMPLETED",requiresMfa(role)?"Password reset completed through email OTP + authenticator":"Admin password reset completed through existing email OTP flow",user.getUsername());
+        audit(user.getId(),"PASSWORD_RESET_COMPLETED",requiresMfa(user,role)?"Password reset completed through email OTP + authenticator":"Password reset completed through email OTP under current MFA policy",user.getUsername());
         if(LOCK_ADMIN.equals(prior)&&user.isLocked())return new AuthDtos.OperationResponse(true,"Password updated. This account remains locked by an administrator.");
         return new AuthDtos.OperationResponse(true,"Password updated. Automatic sign-in lock cleared.");
     }
@@ -399,8 +398,26 @@ public class AuthService {
         return role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
     }
 
-    private boolean requiresMfa(String role) {
+    private boolean requiresMfa(UserEntity user, String role) {
+        String policy = mfaPolicy();
+        if ("DISABLED".equals(policy)) return false;
+        if ("ADMIN_CONTROLLED".equals(policy)) return user != null && user.isMfaEnabled();
         return !"ADMIN".equals(normalizeRole(role));
+    }
+
+    private boolean mfaForRequestedUser(String role, boolean requested) {
+        String policy = mfaPolicy();
+        if ("DISABLED".equals(policy)) return false;
+        if ("ADMIN_CONTROLLED".equals(policy)) return requested;
+        return !"ADMIN".equals(normalizeRole(role));
+    }
+
+    private String mfaPolicy() {
+        try {
+            String value = db.queryForObject("SELECT setting_value FROM application_setting WHERE setting_key='security.auth.mfa.policy'", String.class);
+            String normalized = value == null ? "REQUIRED" : value.trim().toUpperCase(Locale.ROOT).replace(' ', '_');
+            return switch (normalized) { case "ADMIN_CONTROLLED", "DISABLED" -> normalized; default -> "REQUIRED"; };
+        } catch (RuntimeException ignored) { return "REQUIRED"; }
     }
 
     private boolean passwordMatches(String raw, String stored) {

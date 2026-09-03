@@ -10,6 +10,7 @@ import java.time.Instant;
 public final class UpdateStartupChecker {
     private UpdateStartupChecker() {}
     public static void checkLater(Window owner) {
+        if (!org.example.service.PermissionService.allowed("APPLICATION_UPDATES.CHECK")) return;
         if (!Boolean.parseBoolean(ConfigManager.get("update.checkAtStartup", "true"))) return;
         if (ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).isBlank() || ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).isBlank()) return;
         String raw = ConfigManager.get("update.lastChecked", "");

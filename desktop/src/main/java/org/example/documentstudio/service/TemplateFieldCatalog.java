@@ -155,6 +155,93 @@ public final class TemplateFieldCatalog {
             text("customer.email", "Customer Email", "Customer")
     );
 
+
+    /** Preferred JSON business contract shown by the simplified PDF Studio mapper. */
+    private static final List<TemplateFieldDefinition> SALES_JSON = List.of(
+            text("document.number", "Invoice Number", "Document"),
+            text("document.date", "Invoice Date", "Document"),
+            text("document.poNumber", "PO Number / Reference", "Document"),
+            text("document.poDate", "PO Date", "Document"),
+            text("document.dueDate", "Due Date", "Document"),
+            text("document.paymentTerms", "Payment Terms", "Document"),
+            text("document.status", "Document Status", "Document"),
+            text("document.paymentStatus", "Payment Status", "Document"),
+            text("party.code", "Customer Code", "Party (Customer)"),
+            text("party.name", "Customer Name", "Party (Customer)"),
+            text("party.address", "Customer Master Address", "Party (Customer)"),
+            text("party.gstin", "Customer GSTIN", "Party (Customer)"),
+            text("party.phone", "Customer Phone", "Party (Customer)"),
+            text("party.email", "Customer Email", "Party (Customer)"),
+            text("party.billingAddress", "Billing Address", "Party (Customer)"),
+            text("party.billingGstin", "Billing GSTIN", "Party (Customer)"),
+            text("party.deliveryAddress", "Delivery Address", "Party (Customer)"),
+            text("party.deliveryGstin", "Delivery GSTIN", "Party (Customer)"),
+            text("transport.name", "Transporter", "Transport"),
+            text("transport.gstin", "Transporter GSTIN", "Transport"),
+            text("transport.contact", "Transport Contact", "Transport"),
+            text("transport.vehicleNumber", "Vehicle Number", "Transport"),
+            text("tax.cgstLabel", "CGST Label / Rate", "Tax"),
+            text("tax.sgstLabel", "SGST Label / Rate", "Tax"),
+            text("tax.igstLabel", "IGST Label / Rate", "Tax"),
+            text("tax.primaryLabel", "Primary Tax Label", "Tax"),
+            text("tax.primaryAmount", "Primary Tax Amount", "Tax"),
+            text("tax.secondaryLabel", "Secondary Tax Label", "Tax"),
+            text("tax.secondaryAmount", "Secondary Tax Amount", "Tax"),
+            text("totals.amountInWordsText", "Amount in Words (without INR prefix)", "Totals")
+    );
+
+
+
+    /** Universal JSON V2 paths available to every ERP PDF template from 9.0.61 onward. */
+    private static final List<TemplateFieldDefinition> UNIVERSAL_JSON = List.of(
+            text("document.number", "Document Number", "JSON • Document"),
+            text("document.date", "Document Date", "JSON • Document"),
+            text("document.dueDate", "Due Date", "JSON • Document"),
+            text("document.deliveryDate", "Delivery Date", "JSON • Document"),
+            text("document.referenceNumber", "Reference Number", "JSON • Document"),
+            text("document.poNumber", "PO / Order Number", "JSON • Document"),
+            text("document.orderNumber", "Order Number", "JSON • Document"),
+            text("document.poDate", "PO / Order Date", "JSON • Document"),
+            text("document.validUntil", "Valid Until", "JSON • Document"),
+            text("document.paymentTerms", "Payment Terms", "JSON • Document"),
+            text("document.status", "Document Status", "JSON • Document"),
+            text("document.paymentStatus", "Payment Status", "JSON • Document"),
+            text("document.salesperson", "Salesperson", "JSON • Document"),
+            text("document.source", "Source", "JSON • Document"),
+            text("document.notes", "Notes", "JSON • Document"),
+            text("document.remarks", "Remarks", "JSON • Document"),
+            text("document.reason", "Return / Adjustment Reason", "JSON • Document"),
+            text("party.code", "Party Code", "JSON • Party"),
+            text("party.name", "Party Name", "JSON • Party"),
+            text("party.address", "Party Master Address", "JSON • Party"),
+            text("party.gstin", "Party GSTIN", "JSON • Party"),
+            text("party.phone", "Party Phone", "JSON • Party"),
+            text("party.email", "Party Email", "JSON • Party"),
+            text("party.contactPerson", "Party Contact Person", "JSON • Party"),
+            text("party.billingAddress", "Billing Address", "JSON • Party"),
+            text("party.billingGstin", "Billing GSTIN", "JSON • Party"),
+            text("party.deliveryAddress", "Delivery Address", "JSON • Party"),
+            text("party.deliveryGstin", "Delivery GSTIN", "JSON • Party"),
+            text("transport.name", "Transporter", "JSON • Transport"),
+            text("transport.gstin", "Transporter GSTIN", "JSON • Transport"),
+            text("transport.contact", "Transport Contact", "JSON • Transport"),
+            text("transport.contactPerson", "Transport Contact Person", "JSON • Transport"),
+            text("transport.vehicleNumber", "Vehicle Number", "JSON • Transport"),
+            text("transport.lrAwbNumber", "LR / AWB Number", "JSON • Transport"),
+            text("transport.note", "Transport Note", "JSON • Transport"),
+            text("tax.cgstLabel", "CGST Label / Rate", "JSON • Tax"),
+            text("tax.sgstLabel", "SGST Label / Rate", "JSON • Tax"),
+            text("tax.igstLabel", "IGST Label / Rate", "JSON • Tax"),
+            text("tax.primaryLabel", "Primary Tax Label", "JSON • Tax"),
+            text("tax.primaryAmount", "Primary Tax Amount", "JSON • Tax"),
+            text("tax.secondaryLabel", "Secondary Tax Label", "JSON • Tax"),
+            text("tax.secondaryAmount", "Secondary Tax Amount", "JSON • Tax"),
+            text("totals.basicAmount", "Basic Amount", "JSON • Totals"),
+            text("totals.taxableAmount", "Taxable Amount", "JSON • Totals"),
+            text("totals.freight", "Freight", "JSON • Totals"),
+            text("totals.amountInWordsText", "Amount in Words (without INR prefix)", "JSON • Totals")
+    );
+
     private static final List<TemplateFieldDefinition> SALES_EXCEL_EXTRA = List.of(
             text("sales.invoiceType", "Invoice Type", "Sales"),
             text("sales.orderNo", "Sales Order Number", "Sales"),
@@ -281,13 +368,59 @@ public final class TemplateFieldCatalog {
      * without changing Excel Studio or the legacy base catalogue used elsewhere.
      */
     public static List<TemplateFieldDefinition> pdfFieldsFor(DocumentType type) {
+        if (type == null || type == DocumentType.GENERAL_PDF) return List.of();
+        // Keep all legacy mappings visible, then add the stable V2 JSON contract used by every ERP type.
         List<TemplateFieldDefinition> result = new ArrayList<>(fieldsFor(type));
-        if (type == DocumentType.SALES_INVOICE) appendUnique(result, SALES_EXCEL_EXTRA);
+        appendUnique(result, UNIVERSAL_JSON);
+        if (type == DocumentType.SALES_INVOICE) appendUnique(result, SALES_JSON);
         if (result.stream().anyMatch(field -> field.key().equals("totals.grandTotal")))
             appendUnique(result, EXCEL_TOTALS_EXTRA);
         if (supportsItemRows(type)) appendUnique(result, EXCEL_ITEMS);
         if (supportsChargeRows(type)) appendUnique(result, EXCEL_CHARGES);
         return List.copyOf(result);
+    }
+
+    /** Preferred V2 JSON requirements. Legacy keys satisfy the same requirement through isPdfRequirementMapped. */
+    public static List<String> requiredPdfFieldsFor(DocumentType type) {
+        if (type == null || type == DocumentType.GENERAL_PDF || type == DocumentType.CUSTOM_ERP) return List.of();
+        return switch (type) {
+            case PAYMENT_RECEIPT -> List.of("document.number", "document.date", "party.name", "totals.grandTotal");
+            default -> List.of("document.number", "document.date", "party.name");
+        };
+    }
+
+    /** Backward-compatible requirement matching so 9.0.60 templates do not need to be remapped. */
+    public static boolean isPdfRequirementMapped(DocumentType type, String required, Set<String> mapped) {
+        if (mapped == null || required == null || mapped.contains(required)) return mapped != null && mapped.contains(required);
+        return switch (required) {
+            case "document.number" -> mapped.contains(switch (type) {
+                case SALES_INVOICE -> "sales.number";
+                case PURCHASE_INVOICE, PURCHASE_ORDER -> "purchase.number";
+                case PURCHASE_RETURN, SALES_RETURN, CREDIT_NOTE, DEBIT_NOTE -> "return.number";
+                case QUOTATION -> "quotation.number";
+                case DELIVERY_CHALLAN -> "delivery.number";
+                case PAYMENT_RECEIPT -> "receipt.number";
+                default -> "document.number";
+            });
+            case "document.date" -> mapped.contains(switch (type) {
+                case SALES_INVOICE -> "sales.date";
+                case PURCHASE_INVOICE, PURCHASE_ORDER -> "purchase.date";
+                case PURCHASE_RETURN, SALES_RETURN, CREDIT_NOTE, DEBIT_NOTE -> "return.date";
+                case QUOTATION -> "quotation.date";
+                case DELIVERY_CHALLAN -> "delivery.date";
+                case PAYMENT_RECEIPT -> "receipt.date";
+                default -> "document.date";
+            });
+            case "party.name" -> mapped.contains(switch (type) {
+                case SALES_INVOICE, QUOTATION, DELIVERY_CHALLAN -> "customer.name";
+                case PURCHASE_INVOICE, PURCHASE_ORDER -> "supplier.name";
+                case PURCHASE_RETURN, SALES_RETURN, CREDIT_NOTE, DEBIT_NOTE -> "party.name";
+                case PAYMENT_RECEIPT -> "receipt.partyName";
+                default -> "party.name";
+            });
+            case "totals.grandTotal" -> type == DocumentType.PAYMENT_RECEIPT && mapped.contains("receipt.amount");
+            default -> false;
+        };
     }
 
     public static TemplateFieldDefinition findPdf(DocumentType type, String key) {

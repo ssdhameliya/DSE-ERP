@@ -339,6 +339,7 @@ public class BackupRestoreController {
 
     @FXML
     private void createBackup() {
+        org.example.service.PermissionService.require("BACKUP.CREATE", "create a database backup");
         if (!confirm("Create database backup", "Create a new verified DSE ERP database backup now?")) return;
         if (ConfigManager.isSharedClient()) {
             runOperation("Creating a company-server database backup...", serverBackups::create, target -> {
@@ -366,6 +367,7 @@ public class BackupRestoreController {
     }
 
     private void restoreRow(BackupRow row) {
+        org.example.service.PermissionService.require("BACKUP.EDIT", "stage a database restore");
         if (row == null) return;
         backupTable.getSelectionModel().select(row);
 
@@ -442,6 +444,7 @@ public class BackupRestoreController {
     }
 
     private void importBackup(Path file) {
+        org.example.service.PermissionService.require("BACKUP.CREATE", "import a database backup");
         if (file == null) return;
         if (!confirm("Import database backup", "Validate and import " + file.getFileName() + " into DSE ERP backup history?")) return;
         if (ConfigManager.isSharedClient()) {
@@ -458,6 +461,7 @@ public class BackupRestoreController {
     }
 
     private void validateRow(BackupRow row) {
+        org.example.service.PermissionService.require("BACKUP.VIEW", "validate a database backup");
         if (row == null) return;
         if (ConfigManager.isSharedClient()) {
             runOperation("Validating backup integrity on the company server...", () -> serverBackups.validate(row.name()), validation -> {
@@ -479,6 +483,7 @@ public class BackupRestoreController {
     }
 
     private void deleteRow(BackupRow row) {
+        org.example.service.PermissionService.require("BACKUP.DELETE", "delete a database backup");
         if (row == null) return;
 
         Alert confirmation = new OwnedAlert(
@@ -634,6 +639,7 @@ public class BackupRestoreController {
 
     @FXML
     private void saveSettings() {
+        org.example.service.PermissionService.require("BACKUP.EDIT", "change backup schedule or retention settings");
         if (!confirm("Save backup schedule", "Save the selected backup schedule and retention settings?")) return;
         try {
             supportApi.setSetting("backup.schedule", cmbSchedule.getValue());

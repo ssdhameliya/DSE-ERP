@@ -17,8 +17,9 @@ public class CashPositionService {
         double purchasePayments=n("SELECT COALESCE(SUM(amount),0) FROM payment_record WHERE UPPER(document_type)='PURCHASE'");
         double salesRefunds=n("SELECT COALESCE(SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)),0) FROM return_refund rr JOIN return_register r ON r.return_no=rr.return_no WHERE UPPER(COALESCE(r.return_type,'')) IN ('SALE RETURN','SALES RETURN') AND UPPER(COALESCE(r.status,'')) NOT IN ('CANCELLED','DELETED')");
         double purchaseRefunds=n("SELECT COALESCE(SUM(rr.amount+COALESCE(rr.rounding_adjustment,0)),0) FROM return_refund rr JOIN return_register r ON r.return_no=rr.return_no WHERE UPPER(COALESCE(r.return_type,''))='PURCHASE RETURN' AND UPPER(COALESCE(r.status,'')) NOT IN ('CANCELLED','DELETED')");
-        double deposits=n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(COALESCE(voucher_type,''))='BANK DEPOSIT'");
-        double withdrawals=n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(COALESCE(voucher_type,''))='BANK WITHDRAWAL'");
+        String unrepeatedReconciliation=" AND NOT EXISTS (SELECT 1 FROM bank_reconciliation_allocation a WHERE a.finance_entry_id=finance_register.id AND a.reversed_at IS NULL AND a.payment_record_id IS NOT NULL AND UPPER(COALESCE(a.target_type,'')) IN ('SALE','PURCHASE','SALES_RETURN','PURCHASE_RETURN'))";
+        double deposits=n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(COALESCE(voucher_type,''))='BANK DEPOSIT'"+unrepeatedReconciliation);
+        double withdrawals=n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(COALESCE(voucher_type,''))='BANK WITHDRAWAL'"+unrepeatedReconciliation);
         double expenses=n("SELECT COALESCE(SUM(amount),0) FROM finance_register WHERE UPPER(COALESCE(voucher_type,''))='EXPENSE'");
         return opening+saleReceipts+purchaseRefunds+deposits-purchasePayments-salesRefunds-withdrawals-expenses;
     }

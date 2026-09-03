@@ -8,6 +8,39 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.62".equals(version)) {
+            return """
+                    DSE ERP 9.0.62 — Project Execution Removal
+
+                    • Removes the Project Execution module and its Projects, Sales Orders, Purchase Orders, GRN and Dispatch screens, APIs, permissions and server persistence layer.
+                    • Removes Project Execution reference fields and handoffs from normal Sales and Purchase invoices while preserving Customer PO / Order No. as the standard customer reference.
+                    • Simplifies Customer 360° to customer-owned Quotations, Invoices, Payments, Contacts, Notes and Documents without Project/Sales Order split or unlinked-sale classification.
+                    • Removes Project/Order/GRN/Dispatch reference formats from Master Data and provides an upgrade migration that drops the obsolete workflow tables, linkage columns and permissions from existing PostgreSQL databases.
+                    • Preserves PDF Studio 9.0.61 universal JSON/template mapping, GSTIN alignment, normal Sales/Purchase/Returns/Quotation flows, stock, payments, reporting and the two-theme UI architecture.
+                    """;
+        }
+        if ("9.0.61".equals(version)) {
+            return """
+                    DSE ERP 9.0.61 — Universal PDF Studio JSON & Template Mapping
+
+                    • Lets users import an existing PDF or create a blank PDF for General PDF and every supported ERP document type, including Purchase Return, Quotation, Sales Return, Delivery Challan, Credit/Debit Note and Payment Receipt.
+                    • Adds the universal PDF Studio JSON v2 contract across ERP templates: document.*, party.*, transport.*, tax.*, totals.*, items[] and charges[], while retaining all 9.0.60 legacy mapping keys.
+                    • Adds a read-only View JSON Data action in PDF Studio so users can verify the exact record payload being mapped without manually editing JSON.
+                    • Corrects Billing and Delivery GSTIN placement in the built-in Jasvi Sales Invoice by aligning mapped values to the source PDF GST-IN baseline without changing the approved artwork or page geometry.
+                    • Preserves the 9.0.60 Project Execution fixes, per-render PDF font isolation, fixed-layout pagination behavior, PostgreSQL ownership and exactly two runtime CSS themes.
+                    """;
+        }
+        if ("9.0.58".equals(version)) {
+            return """
+                    DSE ERP 9.0.58 — GST Returns, Admin MFA & Scoped UI Stabilization
+
+                    • Reconciles approved Sales/Purchase Returns into the GST report as negative taxable/GST movements while preserving GST-inclusive refund/settlement totals.
+                    • Adds an administrator-owned MFA policy (Required / Admin Controlled / Disabled) and makes the existing per-user MFA flag authoritative when Admin Controlled is selected.
+                    • Applies bounded responsive KPI geometry only to Dashboard and Safe Rollback; every other KPI container retains its existing behavior.
+                    • Cleans duplicate semantic mappings, prioritizes business-specific fields over generic reference inference, and separates Import/Export/View/Project/SO/GRN/Dispatch icon identities and colours.
+                    • Keeps the release-gate structure generic/current, preserves all historical database migrations, exactly two runtime CSS files and no Markdown packaging artifacts.
+                    """;
+        }
         if ("9.0.57".equals(version)) {
             return """
                     DSE ERP 9.0.57 — Audit Contract & Version Alignment
