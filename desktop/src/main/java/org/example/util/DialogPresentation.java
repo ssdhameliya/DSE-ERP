@@ -384,10 +384,21 @@ public final class DialogPresentation {
     }
 
     private static String inferSemantic(Dialog<?> dialog) {
-        DialogPane pane = dialog.getDialogPane();
         String combined = String.join(" ",
             safe(dialog.getTitle()), safe(dialog.getHeaderText()), safe(dialog.getContentText())
         ).toLowerCase(Locale.ROOT);
+
+        // AlertType is an explicit business semantic and must win over incidental words
+        // in the message. For example, a successful import summary legitimately contains
+        // "Failed: 0"; keyword-first inference incorrectly rendered that INFORMATION
+        // dialog as an error/rejection dialog. Confirmation alerts may still opt into a
+        // destructive/restore/backup presentation when the requested action is explicit.
+        if (dialog instanceof Alert alert) {
+            return inferAlertSemantic(alert.getAlertType(), combined);
+        }
+
+        // Non-Alert custom dialogs may not carry an AlertType, so keyword inference is
+        // retained only as a fallback for those legacy/custom surfaces.
         if (combined.contains("delete") || combined.contains("remove") || combined.contains("clear history")) return "delete";
         if (combined.contains("restore")) return "restore";
         if (combined.contains("backup")) return "backup";
@@ -395,16 +406,25 @@ public final class DialogPresentation {
         if (combined.contains("error") || combined.contains("failed") || combined.contains("could not")) return "error";
         if (combined.contains("success") || combined.contains("complete") || combined.contains("saved")) return "complete";
         if (combined.contains("notification")) return "notification";
-        if (dialog instanceof Alert alert) {
-            return switch (alert.getAlertType()) {
-                case CONFIRMATION -> "confirmation";
-                case WARNING -> "warning";
-                case ERROR -> "error";
-                case INFORMATION -> "notification";
-                default -> "notification";
-            };
-        }
         return "notification";
+    }
+
+
+    static String inferAlertSemantic(Alert.AlertType alertType, String combinedText) {
+        String combined = safe(combinedText).toLowerCase(Locale.ROOT);
+        Alert.AlertType type = alertType == null ? Alert.AlertType.NONE : alertType;
+        return switch (type) {
+            case ERROR -> "error";
+            case WARNING -> "warning";
+            case INFORMATION -> "notification";
+            case CONFIRMATION -> {
+                if (combined.contains("delete") || combined.contains("remove") || combined.contains("clear history")) yield "delete";
+                if (combined.contains("restore")) yield "restore";
+                if (combined.contains("backup")) yield "backup";
+                yield "confirmation";
+            }
+            default -> "notification";
+        };
     }
 
     private static String normalizeSemantic(String semantic) {

@@ -5,7 +5,7 @@ checks=[]
 def need(path,text):
  s=(r/path).read_text(encoding="utf-8")
  checks.append((f"{path}: {text}", text in s))
-need("pom.xml","<version>9.0.73</version>")
+need("pom.xml","<version>9.0.74</version>")
 need("server/src/main/resources/db/migration/V9_0_48__release_gate_2_3_hardening.sql","ck_payment_record_positive_amount")
 need("server/src/main/resources/db/migration/V9_0_48__release_gate_2_3_hardening.sql","row_version BIGINT NOT NULL DEFAULT 0")
 need("server/src/main/java/org/example/server/persistence/entity/PaymentRecordEntity.java","@Version")

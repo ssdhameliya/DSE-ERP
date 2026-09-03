@@ -168,6 +168,8 @@ public class ImportService {
         // --- Step 2: Process items ---
         Set<String> seenCodes = new HashSet<>();
         int processed = 0, imported = 0, updated = 0, skipped = 0;
+        Map<String,Item> existingItems = new HashMap<>();
+        service.getAll().forEach(existing -> existingItems.put(existing.getItemCode().toUpperCase(Locale.ROOT), existing));
 
         if (dryRun) {
             Set<String> seen = new HashSet<>();
@@ -178,13 +180,22 @@ public class ImportService {
                     String message = "Duplicate Item Code in workbook";
                     errors.add(item.getItemCode() + ": " + message);
                     details.add(new ImportRowResult("", item.getItemCode(), "FAILED", "NONE", message, "", 0));
+                    continue;
+                }
+                Item existing = existingItems.get(key);
+                if (existing != null && (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING)) {
+                    skipped++;
+                    details.add(new ImportRowResult("", item.getItemCode(), "PASSED", "SKIPPED",
+                            "Existing item will be preserved by the selected duplicate policy", "", 0));
+                } else if (existing != null) {
+                    details.add(new ImportRowResult("", item.getItemCode(), "PASSED", "WOULD UPDATE",
+                            "Existing item matches this code and will be updated by the selected policy", "", 0));
                 } else {
-                    details.add(new ImportRowResult("", item.getItemCode(), "PASSED", "VALIDATED", "All validations passed", "", 0));
+                    details.add(new ImportRowResult("", item.getItemCode(), "PASSED", "WOULD CREATE",
+                            "New item will be created", "", 0));
                 }
             }
         } else {
-            Map<String,Item> existingItems = new HashMap<>();
-            service.getAll().forEach(existing -> existingItems.put(existing.getItemCode().toUpperCase(Locale.ROOT), existing));
             for (Item item : items) {
                 if (seenCodes.contains(item.getItemCode())) {
                     errors.add("Duplicate in sheet skipped: " + item.getItemCode());
@@ -542,12 +553,11 @@ public class ImportService {
         LookupService service = new LookupService();
         MasterApiClient masterApi = new MasterApiClient();
         Map<String,MasterApiClient.CategoryDto> categories = new HashMap<>();
-        if (!dryRun) {
-            for (MasterApiClient.CategoryDto category : masterApi.categories()) {
-                if (category != null && category.categoryCode() != null)
-                    categories.put(category.categoryCode().trim().toUpperCase(Locale.ROOT), category);
-            }
+        for (MasterApiClient.CategoryDto category : masterApi.categories()) {
+            if (category != null && category.categoryCode() != null)
+                categories.put(category.categoryCode().trim().toUpperCase(Locale.ROOT), category);
         }
+        Map<String,List<Lookup>> lookupCache = new HashMap<>();
         try (Workbook workbook = WorkbookFactory.create(file.toFile())) {
             SpreadsheetLayoutDetector.Layout layout = SpreadsheetLayoutDetector.detect(workbook, mapping.values());
             Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
@@ -566,10 +576,31 @@ public class ImportService {
                     Integer displayOrder = blank(displayOrderText) ? null : (int) parseDouble(displayOrderText);
                     Boolean active = blank(activeText) ? null : !Set.of("false","0","no","inactive","disabled").contains(activeText.trim().toLowerCase(Locale.ROOT));
                     processed++;
+                    MasterApiClient.CategoryDto existingCategory = categories.get(categoryCode);
                     if (dryRun) {
-                        details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + code, "PASSED", "VALIDATED", "All validations passed", "", 0));
+                        String canonicalLookupType = existingCategory != null && !blank(existingCategory.categoryName())
+                                ? existingCategory.categoryName().trim() : categoryName;
+                        MasterApiClient.LookupCodeResolution resolution = masterApi.resolveLookupCode(canonicalLookupType, code);
+                        String effectiveCode = resolution == null || blank(resolution.canonicalCode())
+                                ? code.toUpperCase(Locale.ROOT) : resolution.canonicalCode().trim().toUpperCase(Locale.ROOT);
+                        Lookup lookup = lookupCache.computeIfAbsent(canonicalLookupType,
+                                        ignored -> new ArrayList<>(service.getByType(canonicalLookupType))).stream()
+                                .filter(existing -> existing.getLookupCode().equalsIgnoreCase(effectiveCode)).findFirst().orElse(null);
+                        if (lookup != null && (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING)) {
+                            skipped++;
+                            details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + effectiveCode,
+                                    "PASSED", "SKIPPED", "Existing master value will be preserved by the selected duplicate policy", "", 0));
+                        } else if (lookup != null) {
+                            details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + effectiveCode,
+                                    "PASSED", "WOULD UPDATE", "Existing master value will be updated by the selected policy", "", 0));
+                        } else {
+                            String message = existingCategory == null
+                                    ? "New master category/value will be created"
+                                    : "New master value will be created";
+                            details.add(new ImportRowResult(String.valueOf(i + 1), categoryCode + "/" + effectiveCode,
+                                    "PASSED", "WOULD CREATE", message, "", 0));
+                        }
                     } else {
-                        MasterApiClient.CategoryDto existingCategory = categories.get(categoryCode);
                         MasterApiClient.CategoryDto category = existingCategory;
                         boolean categoryWriteAllowed = existingCategory == null || (mode != ImportMode.CREATE_ONLY && mode != ImportMode.SKIP_EXISTING);
                         if (categoryWriteAllowed) {
@@ -687,6 +718,8 @@ public class ImportService {
         int imported = 0;
         int updated = 0;
         int skipped = 0;
+        Map<String,Party> existingParties = new HashMap<>();
+        service.getByType(partyType).forEach(existing -> existingParties.put(existing.getPartyCode().toUpperCase(Locale.ROOT), existing));
 
         if (dryRun) {
             Set<String> seen = new HashSet<>();
@@ -697,13 +730,22 @@ public class ImportService {
                     String message = "Duplicate code in workbook";
                     errors.add(party.getPartyCode() + ": " + message);
                     details.add(new ImportRowResult("", party.getPartyCode(), "FAILED", "NONE", message, "", 0));
+                    continue;
+                }
+                Party existing = existingParties.get(key);
+                if (existing != null && (mode == ImportMode.CREATE_ONLY || mode == ImportMode.SKIP_EXISTING)) {
+                    skipped++;
+                    details.add(new ImportRowResult("", party.getPartyCode(), "PASSED", "SKIPPED",
+                            "Existing " + partyType.toLowerCase(Locale.ROOT) + " will be preserved by the selected duplicate policy", "", 0));
+                } else if (existing != null) {
+                    details.add(new ImportRowResult("", party.getPartyCode(), "PASSED", "WOULD UPDATE",
+                            "Existing " + partyType.toLowerCase(Locale.ROOT) + " matches this code and will be updated", "", 0));
                 } else {
-                    details.add(new ImportRowResult("", party.getPartyCode(), "PASSED", "VALIDATED", "All validations passed", "", 0));
+                    details.add(new ImportRowResult("", party.getPartyCode(), "PASSED", "WOULD CREATE",
+                            "New " + partyType.toLowerCase(Locale.ROOT) + " will be created", "", 0));
                 }
             }
         } else {
-            Map<String,Party> existingParties = new HashMap<>();
-            service.getByType(partyType).forEach(existing -> existingParties.put(existing.getPartyCode().toUpperCase(Locale.ROOT), existing));
             for (Party p : parties) {
                 if (seenCodes.contains(p.getPartyCode())) {
                     errors.add("Duplicate in sheet skipped: " + p.getPartyCode());

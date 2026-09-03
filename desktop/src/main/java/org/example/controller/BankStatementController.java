@@ -866,7 +866,7 @@ public class BankStatementController implements ScreenLifecycle {
             String value=note.getText().trim(),performedBy=user();
             UiTaskExecutor.submitAction("bank-statement-note-"+t.id(),
                 () -> api.updateNote(t.id(),new BankStatementApiClient.NoteRequest(value,performedBy)),
-                ignored -> {refresh();},this::error);
+                ignored -> {org.example.util.ToastManager.success(table,"Note saved","Bank transaction note was saved successfully.");refresh();},this::error);
         });
     }
     private void viewStatementSource(){
@@ -896,7 +896,7 @@ public class BankStatementController implements ScreenLifecycle {
             String performedBy=user();
             UiTaskExecutor.submitAction("bank-statement-review-"+row.dto.id(),
                 () -> api.review(row.dto.id(),new BankStatementApiClient.NoteRequest(reason,performedBy)),
-                ignored -> refresh(),this::error);
+                ignored -> {org.example.util.ToastManager.success(table,"Marked for review","Bank transaction was marked for review.");refresh();},this::error);
         });
     }
     private void ignore(Row row){
@@ -907,7 +907,7 @@ public class BankStatementController implements ScreenLifecycle {
                 String performedBy=user();
                 UiTaskExecutor.submitAction("bank-statement-ignore-"+row.dto.id(),
                     () -> api.ignore(row.dto.id(),new BankStatementApiClient.IgnoreRequest(reason,performedBy)),
-                    ignored -> refresh(),this::error);
+                    ignored -> {org.example.util.ToastManager.success(table,"Transaction ignored","Bank transaction was excluded from reconciliation and retained in audit history.");refresh();},this::error);
             });
         });
     }
@@ -917,7 +917,7 @@ public class BankStatementController implements ScreenLifecycle {
         if(value.isEmpty())info(title,"A reason is required so the decision can be understood from the audit history.");
         return value;
     }
-    private void reverse(Row row){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Reverse this reconciliation? Linked payment/finance records will be safely reversed and the bank transaction will return to UNMATCHED.");a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{String performedBy=user();UiTaskExecutor.submitSerial("bank-statement-reverse-"+row.dto.id(),()->api.reverse(row.dto.id(),performedBy),ignored->refresh(),this::error);});}
+    private void reverse(Row row){Alert a=new OwnedAlert(Alert.AlertType.CONFIRMATION,"Reverse this reconciliation? Linked payment/finance records will be safely reversed and the bank transaction will return to UNMATCHED.");a.showAndWait().filter(x->x==ButtonType.OK).ifPresent(x->{String performedBy=user();UiTaskExecutor.submitSerial("bank-statement-reverse-"+row.dto.id(),()->api.reverse(row.dto.id(),performedBy),ignored->{org.example.util.ToastManager.success(table,"Reconciliation reversed","Bank transaction returned to UNMATCHED successfully.");refresh();},this::error);});}
     private void audit(Row row){
         UiTaskExecutor.submitLatest("bank-statement-audit-"+row.dto.id(),
             () -> api.audit(row.dto.id()),

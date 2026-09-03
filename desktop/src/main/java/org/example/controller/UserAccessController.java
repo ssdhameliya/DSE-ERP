@@ -160,7 +160,7 @@ public class UserAccessController implements ScreenLifecycle {
     @FXML private void savePermissions(){
         String role=cmbPermissionRole.getValue(); if(role==null)return;
         if(org.example.service.SessionService.isAdminRole(role)){warning("Administrator always has full access and does not require manual permission changes.");return;}
-        try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList(),permissionRowVersion);var set=adminApi.permissionSet(role);permissionRowVersion=set.rowVersion();PermissionService.refresh();NotificationService.add(role+" permissions updated.");}
+        try{adminApi.savePermissions(role,permissions.stream().map(x->new AdminApiClient.PermissionSave(x.id,x.allowed.get())).toList(),permissionRowVersion);var set=adminApi.permissionSet(role);permissionRowVersion=set.rowVersion();PermissionService.refresh();NotificationService.add(role+" permissions updated.");org.example.util.ToastManager.success(permissionTable,"Permissions saved",role+" permissions were updated successfully.");}
         catch(Exception e){error("Permissions could not be saved. Reload the role if another administrator changed it first.",e);}
     }
     @FXML private void registrationApprovals(){ DashboardController.navigateFromChildPage("Registration Approvals", "/fxml/pages/RegistrationApprovals.fxml"); }
@@ -177,10 +177,10 @@ public class UserAccessController implements ScreenLifecycle {
     @FXML private void resetSelected(){resetPassword(table.getSelectionModel().getSelectedItem());}
     private void resetPassword(UserRow row){
         if(row==null){warning("Select a user first.");return;}TextInputDialog d=new OwnedTextInputDialog();d.setTitle("Reset Password");d.setHeaderText("Set a temporary password for "+row.user.get());d.setContentText("Temporary password:");
-        d.showAndWait().map(String::trim).filter(x->x.length()>=6).ifPresent(password->{try{adminApi.resetPassword(row.id,password);audit(row.id,"PASSWORD_RESET",row.user.get());NotificationService.add("Password reset for "+row.user.get()+".");refresh();}catch(Exception e){error("Password could not be reset",e);}});
+        d.showAndWait().map(String::trim).filter(x->x.length()>=6).ifPresent(password->{try{adminApi.resetPassword(row.id,password);audit(row.id,"PASSWORD_RESET",row.user.get());NotificationService.add("Password reset for "+row.user.get()+".");org.example.util.ToastManager.success(table,"Password reset","Temporary password was set for "+row.user.get()+".");refresh();}catch(Exception e){error("Password could not be reset",e);}});
     }
-    private void toggleLock(UserRow row){if(row==null)return;try{adminApi.setLocked(row.id,!row.locked);audit(row.id,row.locked?"USER_UNLOCKED":"USER_LOCKED",row.user.get());refresh();}catch(Exception e){error("Lock status could not be changed",e);}}
-    private void deleteUser(UserRow row){if(row==null)return;if("admin".equalsIgnoreCase(row.user.get())){warning("The primary administrator cannot be deleted.");return;}if(!confirm("Delete user '"+row.user.get()+"'?"))return;try{adminApi.deleteUser(row.id);refresh();}catch(Exception e){error("User could not be deleted",e);}}
+    private void toggleLock(UserRow row){if(row==null)return;try{adminApi.setLocked(row.id,!row.locked);audit(row.id,row.locked?"USER_UNLOCKED":"USER_LOCKED",row.user.get());org.example.util.ToastManager.success(table,row.locked?"Account unlocked":"Account locked",row.user.get()+" was "+(row.locked?"unlocked":"locked")+" successfully.");refresh();}catch(Exception e){error("Lock status could not be changed",e);}}
+    private void deleteUser(UserRow row){if(row==null)return;if("admin".equalsIgnoreCase(row.user.get())){warning("The primary administrator cannot be deleted.");return;}if(!confirm("Delete user '"+row.user.get()+"'?"))return;try{adminApi.deleteUser(row.id);org.example.util.ToastManager.success(table,"User deleted",row.user.get()+" was deleted successfully.");refresh();}catch(Exception e){error("User could not be deleted",e);}}
 
     @FXML private void addRole(){openRoleMaster();}
     @FXML private void editRole(){openRoleMaster();}

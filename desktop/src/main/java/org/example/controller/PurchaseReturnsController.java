@@ -216,22 +216,22 @@ public class PurchaseReturnsController implements ScreenLifecycle {
         if(!confirm("Approve "+row.no()+"?\n\nApproval posts the Return stock movement and starts the Return settlement due period."))return;
         UiTaskExecutor.submitSerial("purchase-return-approve-"+row.no(),()->{ReturnWorkflowService.approve(row.no());return true;},ignored->{
             ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");
-            NotificationService.add(row.no()+" approved.");load();
+            NotificationService.add(row.no()+" approved.");org.example.util.ToastManager.success(table,"Return approved",row.no()+" was approved successfully.");load();
         },failure->error(asException(failure)));
     }
     private void rejectReturn(Row row){
         if(row==null||!isPendingApproval(row))return;
         input("", "Reject Return", "Reason:").ifPresent(reason->UiTaskExecutor.submitSerial("purchase-return-reject-"+row.no(),()->{ReturnWorkflowService.reject(row.no(),reason);return true;},ignored->{
             ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");
-            NotificationService.add(row.no()+" rejected.");load();
+            NotificationService.add(row.no()+" rejected.");org.example.util.ToastManager.success(table,"Return rejected",row.no()+" was rejected successfully.");load();
         },failure->error(asException(failure))));
     }
     private boolean isPendingApproval(Row row){return row!=null&&"PENDING APPROVAL".equalsIgnoreCase(safe(row.status()).trim());}
     private boolean isApproved(Row row){return row!=null&&"APPROVED".equalsIgnoreCase(safe(row.status()).trim());}
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
-    private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("purchase-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),false);return true;},ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" cancelled.");load();},failure->error(asException(failure))); }
-    private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("purchase-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),false);return true;},ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");load();},failure->error(asException(failure))); }
-    private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("purchase-return-update-"+no+"-"+column,()->{returnApi.update(no,column,value);return true;},ignored->load(),failure->error(asException(failure)));}
+    private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("purchase-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),false);return true;},ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" cancelled.");org.example.util.ToastManager.success(table,"Return cancelled",row.no()+" was cancelled successfully.");load();},failure->error(asException(failure))); }
+    private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("purchase-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),false);return true;},ignored->{ScreenRefreshPolicy.invalidate("purchase-returns");ScreenRefreshPolicy.invalidate("purchase-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");org.example.util.ToastManager.success(table,"Return deleted",row.no()+" was removed from the register; the audit record was retained.");load();},failure->error(asException(failure))); }
+    private void update(String no,String column,String value){if(!Set.of("reason","notes").contains(column))return;UiTaskExecutor.submitAction("purchase-return-update-"+no+"-"+column,()->{returnApi.update(no,column,value);return true;},ignored->{org.example.util.ToastManager.success(table,"Return updated",no+" "+column+" was updated.");load();},failure->error(asException(failure)));}
 
     @FXML private void export() {
         org.example.service.PermissionService.require("PURCHASE.EXPORT", "Export Purchase Returns");

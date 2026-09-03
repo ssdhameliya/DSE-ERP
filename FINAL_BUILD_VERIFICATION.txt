@@ -1,12 +1,12 @@
-DSE ERP 9.0.73 - PDF STUDIO ACTIVATION & TEMPLATE DELETION RELIABILITY
+DSE ERP 9.0.74 - IMPORT RELIABILITY & USER FEEDBACK
 
 Release scope:
-- PDF Studio Publish / Set as Default sample validation now supplies realistic Item Master remarks required by the shared Standard Sales PDF layout.
-- GST/IGST sample validation remains restricted to supported calculation tax modes; business-treatment labels such as Registered Business are not used as tax modes.
-- The mapped DS Engineers Sales starter can be intentionally deleted and stays deleted across PDF Studio refresh/list operations.
-- The existing Jasvi built-in Sales template keeps its intentional-delete marker and legacy Sales PDF fallback behavior.
-- Settings → Workspace & Storage → Select Existing Workspace from 9.0.72 remains unchanged.
-- Portable PDF Studio import/export, dynamic Sales PDF layout, Project Execution removal and the two-theme UI architecture remain protected by release gates.
-- No database schema migration is required for 9.0.73.
+- Bank Statement fresh actual imports commit each new versioned transaction once; exact same-source re-import remains idempotent and does not duplicate transactions or batches.
+- Customer, Supplier, Item and Master Value dry-run previews now evaluate existing database rows and the selected duplicate policy before commit.
+- Explicit INFORMATION, WARNING, ERROR and CONFIRMATION dialog types now remain authoritative; message words such as "Failed: 0" can no longer accidentally restyle a successful information dialog as an error/rejection dialog.
+- Completed mutation actions across Returns, Customer 360, Bank Statement, Inventory, Quotations, User Access, Party Master and Notification Center now provide immediate user-visible success feedback where the action otherwise completed silently.
+- Runtime connection and Activity Timeline modals now use the shared owned-dialog presentation path.
+- Existing Sales/Purchase same-document protection, Purchase Recon idempotence, PDF Studio behavior, Project Execution removal and the two-theme UI architecture remain protected by release gates.
+- No database schema migration is required for 9.0.74.
 
 Release evidence is distributed separately from the clean IntelliJ/GitHub source copies.

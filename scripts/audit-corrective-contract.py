@@ -257,26 +257,26 @@ build_bat = text('Build Production Windows.bat')
 postgres_bat = text('scripts/start-postgresql.cmd')
 safe_rollback = text('desktop/src/main/resources/fxml/pages/SafeRollback.fxml')
 
-req('<version>9.0.73</version>' in root_pom and '<dse.phase>9.0.73</dse.phase>' in root_pom,
-    'root Maven release identity must be 9.0.73')
+req('<version>9.0.74</version>' in root_pom and '<dse.phase>9.0.74</dse.phase>' in root_pom,
+    'root Maven release identity must be 9.0.74')
 for name,pom in [('server',server_pom),('desktop',desktop_pom),('shared',shared_pom)]:
-    req('<version>9.0.73</version>' in pom, f'{name} parent version must be 9.0.73')
-req('APP_VERSION = "9.0.73"' in runtime and 'BUILD_REVISION = "9.0.73"' in runtime,
-    'shared runtime identity must be 9.0.73')
-req('dse.app.version=9.0.73' in props and 'dse.build.revision=9.0.73' in props,
-    'server runtime identity must be 9.0.73')
-req('version=9.0.73' in app_version and 'DEFAULT_VERSION="9.0.73"' in update,
-    'desktop resource/updater identity must be 9.0.73')
+    req('<version>9.0.74</version>' in pom, f'{name} parent version must be 9.0.74')
+req('APP_VERSION = "9.0.74"' in runtime and 'BUILD_REVISION = "9.0.74"' in runtime,
+    'shared runtime identity must be 9.0.74')
+req('dse.app.version=9.0.74' in props and 'dse.build.revision=9.0.74' in props,
+    'server runtime identity must be 9.0.74')
+req('version=9.0.74' in app_version and 'DEFAULT_VERSION="9.0.74"' in update,
+    'desktop resource/updater identity must be 9.0.74')
 if runtime_manifest:
-    req('runtime.phase=9.0.73' in runtime_manifest, 'bundled runtime phase must be 9.0.73')
-req('DSE ERP 9.0.73 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
-    'IntelliJ launcher banner must be 9.0.73')
-req('DSE ERP 9.0.73 - PRODUCTION WINDOWS BUILD' in build_bat,
-    'production build banner must be 9.0.73')
-req('DSE ERP 9.0.73 uses application-managed PostgreSQL.' in postgres_bat,
-    'PostgreSQL launcher banner must be 9.0.73')
-req('fx:id="lblCurrentVersion" text="9.0.73"' in safe_rollback,
-    'Safe Rollback current-version fallback must be 9.0.73')
+    req('runtime.phase=9.0.74' in runtime_manifest, 'bundled runtime phase must be 9.0.74')
+req('DSE ERP 9.0.74 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    'IntelliJ launcher banner must be 9.0.74')
+req('DSE ERP 9.0.74 - PRODUCTION WINDOWS BUILD' in build_bat,
+    'production build banner must be 9.0.74')
+req('DSE ERP 9.0.74 uses application-managed PostgreSQL.' in postgres_bat,
+    'PostgreSQL launcher banner must be 9.0.74')
+req('fx:id="lblCurrentVersion" text="9.0.74"' in safe_rollback,
+    'Safe Rollback current-version fallback must be 9.0.74')
 
 # Locked production document-generation boundary: unchanged from corrected v9.0.8.
 protected = {
@@ -288,4 +288,4 @@ for rel, expected in protected.items():
     actual = hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()
     req(actual == expected, f'locked production PDF/Sales generation file changed: {rel}')
 
-print('CORRECTIVE_RUNTIME_UI_CONTRACT_OK version=9.0.73')
+print('CORRECTIVE_RUNTIME_UI_CONTRACT_OK version=9.0.74')

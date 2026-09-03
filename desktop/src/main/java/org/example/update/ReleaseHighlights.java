@@ -8,6 +8,18 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.74".equals(version)) {
+            return """
+                    DSE ERP 9.0.74 — Import Reliability & User Feedback
+
+                    • Fixes Bank Statement fresh imports so new versioned transactions commit once and exact same-source re-imports remain idempotent.
+                    • Makes Customer, Supplier, Item and Master Value dry-run previews honor the selected duplicate policy and existing database records before commit.
+                    • Keeps explicit dialog types authoritative so successful import summaries containing “Failed: 0” no longer render as rejection/error dialogs.
+                    • Standardizes immediate success feedback for completed mutation actions across Returns, Customer 360, Bank Statement, Inventory, Quotations, User Access, Party Master and Notification Center.
+                    • Routes remaining runtime and activity modal dialogs through the shared owned-dialog presentation system for consistent ownership, theme and semantics.
+                    • Preserves Java 25, JavaFX 25.0.2, PostgreSQL ownership, existing document calculations, PDF Studio behavior and exactly two runtime CSS themes.
+                    """;
+        }
         if ("9.0.73".equals(version)) {
             return """
                     DSE ERP 9.0.73 — PDF Studio Activation & Template Deletion Reliability

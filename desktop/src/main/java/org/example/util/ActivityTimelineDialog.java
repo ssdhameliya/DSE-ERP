@@ -28,10 +28,9 @@ public final class ActivityTimelineDialog {
 
     private static void showRows(Node owner, String entityType, String reference,
                                  List<SupportApiClient.ActivityRow> rows) {
-        Dialog<Void> dialog = new Dialog<>();
+        Dialog<Void> dialog = new OwnedDialog<>(owner);
         dialog.setTitle("Activity Timeline");
         dialog.setHeaderText((reference == null || reference.isBlank() ? entityType : reference) + " • Activity Timeline");
-        if (owner.getScene() != null && owner.getScene().getWindow() != null) dialog.initOwner(owner.getScene().getWindow());
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
         VBox content = new VBox(8);

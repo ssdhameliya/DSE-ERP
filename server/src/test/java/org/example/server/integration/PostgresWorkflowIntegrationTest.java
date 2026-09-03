@@ -2,6 +2,8 @@ package org.example.server.integration;
 
 import org.example.server.returns.ReturnDtos;
 import org.example.server.returns.ReturnService;
+import org.example.server.reconciliation.BankReconciliationDtos;
+import org.example.server.reconciliation.BankReconciliationService;
 import org.example.server.security.AuthenticatedUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +33,8 @@ class PostgresWorkflowIntegrationTest {
     private static final String INVOICE = "IT-SALE-9034";
     private static final String ITEM = "IT-ITEM-9034";
     private static final String PARTY = "IT-CUST-9034";
+    private static final String BANK_SOURCE = "IT-BANK-SOURCE-9034";
+    private static final String BANK_TX = "IT-BANK-TX-9034";
 
     @DynamicPropertySource
     static void postgres(DynamicPropertyRegistry registry) {
@@ -44,6 +48,7 @@ class PostgresWorkflowIntegrationTest {
 
     @Autowired JdbcTemplate jdbc;
     @Autowired ReturnService returns;
+    @Autowired BankReconciliationService bankReconciliation;
 
     @BeforeEach
     void setUp() {
@@ -105,6 +110,32 @@ class PostgresWorkflowIntegrationTest {
                 "A financially settled Return must not be cancellable");
     }
 
+    @Test
+    void freshBankStatementImportCommitsOnceAndSameSourceIsIdempotent() {
+        BankReconciliationDtos.ImportRequest request = new BankReconciliationDtos.ImportRequest(
+                "Integration Bank", "IT-ACCOUNT-9034", "Integration Account",
+                LocalDate.now().minusDays(1).toString(), LocalDate.now().toString(), "INR",
+                1000d, 1125d, BANK_SOURCE, "integration-bank.csv",
+                "Date,Description,Debit,Credit,Balance\n", "integration-admin", false,
+                List.of(new BankReconciliationDtos.ImportRow(
+                        2, LocalDate.now() + "T10:30:00", LocalDate.now().toString(), LocalDate.now().toString(),
+                        "Integration customer receipt", "IT-BANK-REF", 0d, 125d, 1125d, BANK_TX)));
+
+        BankReconciliationDtos.ImportResult first = bankReconciliation.importStatement(request);
+        assertNotNull(first.batch());
+        assertEquals(1, first.importedRows());
+        assertEquals(0, first.duplicateRows());
+        assertFalse(first.alreadyImported());
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM bank_statement_transaction WHERE transaction_fingerprint=?", Integer.class, BANK_TX));
+
+        BankReconciliationDtos.ImportResult second = bankReconciliation.importStatement(request);
+        assertTrue(second.alreadyImported(), "The exact same statement source must resolve to the existing batch");
+        assertEquals(0, second.importedRows());
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM bank_statement_transaction WHERE transaction_fingerprint=?", Integer.class, BANK_TX));
+    }
+
     private void assertSettlement(String returnNo, String expectedStatus, double expectedPending) {
         ReturnDtos.Settlement settlement = returns.settlements("SALES RETURN").stream()
                 .filter(x -> INVOICE.equals(x.invoiceNo()))
@@ -120,6 +151,10 @@ class PostgresWorkflowIntegrationTest {
     }
 
     private void cleanup() {
+        jdbc.update("DELETE FROM bank_reconciliation_audit WHERE statement_transaction_id IN (SELECT id FROM bank_statement_transaction WHERE transaction_fingerprint=?)", BANK_TX);
+        jdbc.update("DELETE FROM bank_reconciliation_allocation WHERE statement_transaction_id IN (SELECT id FROM bank_statement_transaction WHERE transaction_fingerprint=?)", BANK_TX);
+        jdbc.update("DELETE FROM bank_statement_transaction WHERE transaction_fingerprint=?", BANK_TX);
+        jdbc.update("DELETE FROM bank_statement_import WHERE source_fingerprint=?", BANK_SOURCE);
         jdbc.update("DELETE FROM return_refund WHERE return_no IN (SELECT return_no FROM return_register WHERE invoice_no=?)", INVOICE);
         jdbc.update("DELETE FROM activity_log WHERE (entity_type IN ('SALE','SALES_RETURN') AND (detail LIKE ? OR detail LIKE ?))", "%" + INVOICE + "%", "%IT-%");
         jdbc.update("DELETE FROM return_register WHERE invoice_no=?", INVOICE);

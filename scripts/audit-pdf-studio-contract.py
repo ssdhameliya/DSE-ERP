@@ -117,7 +117,7 @@ req('choosePdfType' in library_controller and 'Arrays.asList(DocumentType.values
     'Import PDF and blank PDF workflows must allow General PDF plus every supported ERP document type')
 req('private static final int RELEASE_VERSION = 5;' in builtin_installer
     and '58.6688, 224.05' in builtin_installer and '337.6388, 224.05' in builtin_installer,
-    '9.0.73 built-in Sales template must migrate Billing/Delivery GSTIN to the corrected source-PDF baseline')
+    '9.0.74 built-in Sales template must migrate Billing/Delivery GSTIN to the corrected source-PDF baseline')
 req('.builtin-sales-invoice-deleted' in builtin_installer and 'markIntentionallyDeleted' in builtin_installer and 'enforceIntentionalDeletion' in builtin_installer,
     'intentional built-in Sales template deletion must be persisted and honored by runtime lookup')
 req('INTERMEDIATE' in builtin_installer and 'case "INTERMEDIATE"' in renderer,
@@ -137,23 +137,23 @@ if legacy_controller.exists():
     legacy_text = legacy_controller.read_text(encoding='utf-8')
     req('DSE_PDF_DESIGNER_TOMBSTONE' in legacy_text and 'class PdfDesignerController' not in legacy_text,
         'legacy PdfDesignerController must be absent or a neutral compatibility tombstone')
-req('APP_VERSION = "9.0.73"' in runtime and 'BUILD_REVISION = "9.0.73"' in runtime,
-    'desktop/shared runtime identity must be 9.0.73')
-req('dse.app.version=9.0.73' in props and 'dse.build.revision=9.0.73' in props,
-    'server runtime identity must be 9.0.73')
-req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.73</version>' in root_pom and '<dse.phase>9.0.73</dse.phase>' in root_pom,
-    'root Maven application version and phase must be 9.0.73')
+req('APP_VERSION = "9.0.74"' in runtime and 'BUILD_REVISION = "9.0.74"' in runtime,
+    'desktop/shared runtime identity must be 9.0.74')
+req('dse.app.version=9.0.74' in props and 'dse.build.revision=9.0.74' in props,
+    'server runtime identity must be 9.0.74')
+req('<artifactId>dse-erp-parent</artifactId>\n  <version>9.0.74</version>' in root_pom and '<dse.phase>9.0.74</dse.phase>' in root_pom,
+    'root Maven application version and phase must be 9.0.74')
 for name, pom in [('shared', shared_pom), ('server', server_pom), ('desktop', desktop_pom)]:
-    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.73</version>' in pom,
-        f'{name} Maven parent version must be 9.0.73')
-req('version=9.0.73' in app_version, 'desktop app-version.properties must be 9.0.73')
-req('DEFAULT_VERSION="9.0.73"' in update_service, 'update fallback version must be 9.0.73')
-req('runtime.phase=9.0.73' in runtime_manifest, 'runtime identity manifest phase must be 9.0.73')
-req('DSE ERP 9.0.73 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
-    'development launcher banner must be 9.0.73')
-req('DSE ERP 9.0.73 - PRODUCTION WINDOWS BUILD' in build_bat,
-    'production Windows launcher banner must be 9.0.73')
-req('DSE ERP 9.0.73 uses application-managed PostgreSQL.' in postgres_bat,
-    'PostgreSQL launcher banner must be 9.0.73')
+    req('<artifactId>dse-erp-parent</artifactId>' in pom and '<version>9.0.74</version>' in pom,
+        f'{name} Maven parent version must be 9.0.74')
+req('version=9.0.74' in app_version, 'desktop app-version.properties must be 9.0.74')
+req('DEFAULT_VERSION="9.0.74"' in update_service, 'update fallback version must be 9.0.74')
+req('runtime.phase=9.0.74' in runtime_manifest, 'runtime identity manifest phase must be 9.0.74')
+req('DSE ERP 9.0.74 - DEVELOPMENT / INTELLIJ ONLY' in run_bat,
+    'development launcher banner must be 9.0.74')
+req('DSE ERP 9.0.74 - PRODUCTION WINDOWS BUILD' in build_bat,
+    'production Windows launcher banner must be 9.0.74')
+req('DSE ERP 9.0.74 uses application-managed PostgreSQL.' in postgres_bat,
+    'PostgreSQL launcher banner must be 9.0.74')
 
-print('PDF_STUDIO_CONTRACT_OK version=9.0.73')
+print('PDF_STUDIO_CONTRACT_OK version=9.0.74')

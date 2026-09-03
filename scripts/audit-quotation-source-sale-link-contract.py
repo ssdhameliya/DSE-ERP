@@ -30,12 +30,12 @@ req('asException(' not in sales,'Sales deep-link async failure path must use the
 req('DeepLinkSupport.highlight(tableSales,sale)' in sales,'linked Sale row must receive exact row highlight')
 req('txtInvoice.setText(found.getInvoiceNo())' in sales and 'reloadPage();' in sales,'off-page linked Sale must reload the register around the exact invoice')
 req('LinkedRecordContext.open("SALE",null,q.converted.get()' in qctl,'Quotation must publish converted Sale reference into linked-record context')
-req('APP_VERSION = "9.0.73"' in runtime and 'BUILD_REVISION = "9.0.73"' in runtime,'runtime identity must be 9.0.73')
-req('dse.app.version=9.0.73' in props and 'dse.build.revision=9.0.73' in props,'server identity must be 9.0.73')
-req('<version>9.0.73</version>' in pom and '<dse.phase>9.0.73</dse.phase>' in pom,'Maven identity must be 9.0.73')
-req('version=9.0.73' in app and 'DEFAULT_VERSION="9.0.73"' in update,'desktop/update identity must be 9.0.73')
+req('APP_VERSION = "9.0.74"' in runtime and 'BUILD_REVISION = "9.0.74"' in runtime,'runtime identity must be 9.0.74')
+req('dse.app.version=9.0.74' in props and 'dse.build.revision=9.0.74' in props,'server identity must be 9.0.74')
+req('<version>9.0.74</version>' in pom and '<dse.phase>9.0.74</dse.phase>' in pom,'Maven identity must be 9.0.74')
+req('version=9.0.74' in app and 'DEFAULT_VERSION="9.0.74"' in update,'desktop/update identity must be 9.0.74')
 req("req(runtime_manifest_path.exists(), 'runtime identity manifest must be tracked in every release source handoff')" in pdf_audit,'PDF Studio CI contract must require the tracked runtime identity manifest')
-req("runtime identity manifest phase must be 9.0.73" in pdf_audit and 'runtime.phase=9.0.73' in manifest,'GitHub/source runtime identity manifest must be pinned to 9.0.73')
+req("runtime identity manifest phase must be 9.0.74" in pdf_audit and 'runtime.phase=9.0.74' in manifest,'GitHub/source runtime identity manifest must be pinned to 9.0.74')
 req('".dse-erp", "dev-server-cache"' in bootstrap and 'Files.copy(built, staging, StandardCopyOption.REPLACE_EXISTING)' in bootstrap,
     'IntelliJ backend must execute from an external project-specific cache, never directly from Maven target')
 req('cleanupOrphanDevelopmentServers(root)' in bootstrap and 'hasLiveOwningParent(handle)' in bootstrap,
@@ -48,4 +48,4 @@ for prop in (
     'spring.datasource.hikari.keepalive-time=120000',
     'spring.datasource.hikari.data-source-properties.tcpKeepAlive=true'):
     req(prop in props, f'missing PostgreSQL/Hikari stability setting: {prop}')
-print('QUOTATION_SOURCE_SALE_LINK_CONTRACT_OK version=9.0.73')
+print('QUOTATION_SOURCE_SALE_LINK_CONTRACT_OK version=9.0.74')

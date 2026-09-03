@@ -246,6 +246,8 @@ public abstract class PartyMasterController {
                         "WARN",
                         partyType().equals("CUSTOMER") ? "/fxml/pages/Customer.fxml" : "/fxml/pages/Suppliers.fxml",
                         party.getPartyCode());
+                    org.example.util.ToastManager.success(tableParties, displayName() + " deleted",
+                        party.getPartyCode() + " - " + party.getName() + " was deleted successfully.");
                     load();
                 },
                 failure -> warning(message(failure))
