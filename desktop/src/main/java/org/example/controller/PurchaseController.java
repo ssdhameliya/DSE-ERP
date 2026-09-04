@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.document.DocumentLookupPolicy;
+
 import org.example.util.BusinessClock;
 import org.example.shared.DocumentCalculationEngine;
 
@@ -372,12 +374,15 @@ public class PurchaseController implements ScreenLifecycle {
         if(selectedItem!=null)return selectedItem;String value=text==null?"":text.trim();if(value.isBlank())return null;
         return allItems.stream().filter(item->itemDisplay(item).equalsIgnoreCase(value)||safeItem(item.getItemCode()).equalsIgnoreCase(value)||safeItem(item.getDescription()).equalsIgnoreCase(value)||safeItem(item.getRemarks()).equalsIgnoreCase(value)).findFirst().orElse(null);
     }
-    private String itemSearchHaystack(Item item){return (safeItem(item.getItemCode())+" "+safeItem(item.getDescription())+" "+safeItem(item.getRemarks())+" "+safeItem(item.getCategory())+" "+safeItem(item.getHsn())+" "+safeItem(item.getUnit())+" "+item.getGst()).toLowerCase(java.util.Locale.ROOT);}
-    private String itemDisplay(Item item){if(item==null)return "";String code=safeItem(item.getItemCode()),description=safeItem(item.getDescription());return code.isBlank()?description:(description.isBlank()?code:code+" - "+description);}
-    private String itemSuggestionDisplay(Item item){if(item==null)return "";return itemDisplay(item)+"  |  Category: "+valueOrDash(item.getCategory())+"  |  HSN: "+valueOrDash(item.getHsn())+"  |  Unit: "+valueOrDash(item.getUnit())+"  |  GST: "+String.format(java.util.Locale.ROOT,"%.2f%%",item.getGst());}
-    private String valueOrDash(String value){String v=safeItem(value);return v.isBlank()?"-":v;}
-    private String safeItem(String value){return value==null?"":value.trim();}
-    private String itemNameForDisplay(String itemCode,String persistedDescription){String code=safeItem(itemCode);if(!code.isBlank())for(Item item:allItems)if(code.equalsIgnoreCase(safeItem(item.getItemCode()))){String name=itemDisplay(item);if(!name.isBlank())return name;}String fallback=safeItem(persistedDescription);int separator=fallback.indexOf(" - ");return separator>=0&&separator+3<fallback.length()?fallback.substring(separator+3).trim():fallback;}
+    private String itemSearchHaystack(Item item) { return DocumentLookupPolicy.itemHaystack(item); }
+    private String itemDisplay(Item item) { return DocumentLookupPolicy.itemDisplay(item); }
+    private String itemSuggestionDisplay(Item item) { return DocumentLookupPolicy.itemSuggestionDisplay(item); }
+    private String valueOrDash(String value) { return DocumentLookupPolicy.valueOrDash(value); }
+    private String safeItem(String value) { return DocumentLookupPolicy.safe(value); }
+    private String itemNameForDisplay(String itemCode,String persistedDescription) {
+        return DocumentLookupPolicy.itemNameForDisplay(itemCode, persistedDescription, allItems);
+    }
+
 
 
 
@@ -1244,7 +1249,8 @@ public class PurchaseController implements ScreenLifecycle {
     private void applyTaxTreatment(PurchaseCharge charge,String treatment){if(treatment==null||treatment.startsWith("Non")){charge.setTaxable(false);charge.setGstPercent(0);return;}charge.setTaxable(true);java.util.regex.Matcher m=java.util.regex.Pattern.compile("([0-9.]+)").matcher(treatment);charge.setGstPercent(m.find()?Double.parseDouble(m.group(1)):0);}
     private double parseAmount(String value){try{return value==null||value.isBlank()?0:Double.parseDouble(value.replace(",","").trim());}catch(Exception e){return 0;}}
     private String percentText(double value){return Math.rint(value)==value?String.format(Locale.ROOT,"%.0f%%",value):String.format(Locale.ROOT,"%.2f%%",value);}
-    private String normalized(String value){return value==null?"":value.trim().toUpperCase(Locale.ROOT);}
+    private String normalized(String value) { return DocumentLookupPolicy.normalizedKey(value); }
+
 
     private void updateGstHeaders(){
         // Keep the create screen usable while GST master values are still loading.
@@ -1262,13 +1268,13 @@ public class PurchaseController implements ScreenLifecycle {
         setTaxRowVisible(rowIgst,igst);
     }
     private void setTaxRowVisible(HBox row,boolean visible){if(row!=null){row.setVisible(visible);row.setManaged(visible);}}
-    private void suggestGstTypeFromGstin(){
-        if(cmbGstType==null||cmbGstType.getItems().isEmpty()||txtBillingGstin==null)return;
-        String company=ConfigManager.get("company.gstin","").trim(),supplier=txtBillingGstin.getText()==null?"":txtBillingGstin.getText().trim();
-        if(company.length()<2||supplier.length()<2||!company.substring(0,2).matches("\\d{2}")||!supplier.substring(0,2).matches("\\d{2}"))return;
-        boolean interstate=!company.substring(0,2).equals(supplier.substring(0,2));
-        cmbGstType.getItems().stream().filter(v->{String n=v==null?"":v.toUpperCase(Locale.ROOT);return interstate?(n.contains("IGST")||n.contains("INTER")):(n.contains("GST")&&!n.contains("IGST")||n.contains("INTRA")||n.contains("CGST")||n.contains("SGST"));}).findFirst().ifPresent(cmbGstType::setValue);
+    private void suggestGstTypeFromGstin() {
+        if (cmbGstType == null || txtBillingGstin == null) return;
+        DocumentLookupPolicy.suggestedGstType(
+            ConfigManager.get("company.gstin", ""), txtBillingGstin.getText(), cmbGstType.getItems()
+        ).ifPresent(cmbGstType::setValue);
     }
+
 
 
 

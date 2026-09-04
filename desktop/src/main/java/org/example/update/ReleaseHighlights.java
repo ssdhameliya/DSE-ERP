@@ -8,6 +8,16 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.76".equals(version)) {
+            return """
+                    DSE ERP 9.0.76 — Core Architecture & Regression Hardening
+
+                    • Extracts import metadata, mapping, parsing, merge, template, result-report and result-semantic responsibilities from the oversized Import controller/service while preserving import behavior.
+                    • Introduces shared Sales/Purchase lookup policy and separates Settings field/asset helpers, Excel/PDF Studio history and geometry/selection policies, and professional document formatting from UI/rendering controllers.
+                    • Adds architecture characterization tests so the new seams remain behavior-preserving and independently testable without redesigning FXML screens.
+                    • Preserves the 9.0.75 automatic workspace recovery, 9.0.74 import/dialog reliability, Java 25, JavaFX 25.0.2, PostgreSQL ownership, document output and exactly two runtime CSS themes.
+                    """;
+        }
         if ("9.0.75".equals(version)) {
             return """
                     DSE ERP 9.0.75 — Automatic Workspace Recovery

@@ -1,5 +1,7 @@
 package org.example.controller;
 
+import org.example.document.DocumentLookupPolicy;
+
 import org.example.util.BusinessClock;
 import org.example.shared.DocumentCalculationEngine;
 
@@ -647,24 +649,12 @@ public class SalesController {
      * override the suggested GST type afterwards.
      */
     private void suggestGstTypeFromGstin() {
-        if (cmbGstType == null || cmbGstType.getItems().isEmpty() || txtBillingGstin == null) return;
-        String companyGstin = ConfigManager.get("company.gstin", "").trim();
-        String customerGstin = txtBillingGstin.getText() == null ? "" : txtBillingGstin.getText().trim();
-        if (companyGstin.length() < 2 || customerGstin.length() < 2
-                || !companyGstin.substring(0, 2).matches("\\d{2}")
-                || !customerGstin.substring(0, 2).matches("\\d{2}")) return;
-
-        boolean interstate = !companyGstin.substring(0, 2).equals(customerGstin.substring(0, 2));
-        cmbGstType.getItems().stream()
-                .filter(value -> {
-                    String normalized = value == null ? "" : value.toUpperCase(java.util.Locale.ROOT);
-                    return interstate
-                            ? normalized.contains("IGST") || normalized.contains("INTER")
-                            : normalized.contains("CGST") || normalized.contains("SGST") || normalized.contains("INTRA");
-                })
-                .findFirst()
-                .ifPresent(cmbGstType::setValue);
+        if (cmbGstType == null || txtBillingGstin == null) return;
+        DocumentLookupPolicy.suggestedGstType(
+            ConfigManager.get("company.gstin", ""), txtBillingGstin.getText(), cmbGstType.getItems()
+        ).ifPresent(cmbGstType::setValue);
     }
+
 
     private void configureItemSearch() {
         if (itemSearchIconBox != null) itemSearchIconBox.getChildren().setAll(IconFactory.compactIcon("search", 16));
@@ -744,8 +734,9 @@ public class SalesController {
         );
     }
 
-    private static String safeParty(String value) { return value == null ? "" : value.trim(); }
-    private static String customerDisplay(Party party) { return party == null ? "" : safeParty(party.getPartyCode()) + " - " + safeParty(party.getName()); }
+    private static String safeParty(String value) { return DocumentLookupPolicy.safe(value); }
+    private static String customerDisplay(Party party) { return DocumentLookupPolicy.partyDisplay(party); }
+
 
     private void selectItem(Item item) { selectItem(item, true); }
 
@@ -784,53 +775,28 @@ public class SalesController {
         return buildItemSearchHaystack(item);
     }
 
-    private String buildItemSearchHaystack(Item item) {
-        return (safeItem(item.getItemCode()) + " " + safeItem(item.getDescription()) + " "
-            + safeItem(item.getRemarks()) + " " + safeItem(item.getCategory()) + " "
-            + safeItem(item.getHsn()) + " " + safeItem(item.getUnit()) + " " + item.getGst())
-            .toLowerCase(java.util.Locale.ROOT);
-    }
+    private String buildItemSearchHaystack(Item item) { return DocumentLookupPolicy.itemHaystack(item); }
 
-    private String itemSearchDisplay(Item item) {
-        if (item == null) return "";
-        String code=safeItem(item.getItemCode()), description=safeItem(item.getDescription());
-        if (code.isBlank()) return description;
-        return description.isBlank()?code:code+" - "+description;
-    }
 
-    private String itemSearchSuggestionDisplay(Item item) {
-        if (item == null) return "";
-        return itemSearchDisplay(item)
-            + "  |  Category: " + valueOrDash(item.getCategory())
-            + "  |  HSN: " + valueOrDash(item.getHsn())
-            + "  |  Unit: " + valueOrDash(item.getUnit())
-            + "  |  GST: " + String.format(java.util.Locale.ROOT,"%.2f%%",item.getGst());
-    }
+    private String itemSearchDisplay(Item item) { return DocumentLookupPolicy.itemDisplay(item); }
 
-    private String valueOrDash(String value){String v=safeItem(value);return v.isBlank()?"-":v;}
 
-    private String itemRemark(Item item) {
-        if (item == null) return "";
-        return safeItem(item.getRemarks()).trim();
-    }
+    private String itemSearchSuggestionDisplay(Item item) { return DocumentLookupPolicy.itemSuggestionDisplay(item); }
 
-    private String safeItem(String value) { return value == null ? "" : value.trim(); }
+
+    private String valueOrDash(String value) { return DocumentLookupPolicy.valueOrDash(value); }
+
+
+    private String itemRemark(Item item) { return DocumentLookupPolicy.itemRemark(item); }
+
+
+    private String safeItem(String value) { return DocumentLookupPolicy.safe(value); }
+
 
     private String itemNameForDisplay(String itemCode, String persistedDescription) {
-        String code = safeItem(itemCode);
-        if (!code.isBlank()) {
-            for (Item item : allItems) {
-                if (code.equalsIgnoreCase(safeItem(item.getItemCode()))) {
-                    String name = itemSearchDisplay(item);
-                    if (!name.isBlank()) return name;
-                }
-            }
-        }
-        String fallback = safeItem(persistedDescription);
-        int separator = fallback.indexOf(" - ");
-        return separator >= 0 && separator + 3 < fallback.length()
-            ? fallback.substring(separator + 3).trim() : fallback;
+        return DocumentLookupPolicy.itemNameForDisplay(itemCode, persistedDescription, allItems);
     }
+
 
     private void updateSaleStockPosition() {
         if (stockPositionBar == null) return;

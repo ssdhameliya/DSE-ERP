@@ -19,6 +19,7 @@ purchase_fxml=read(Path('desktop/src/main/resources/fxml/pages/PurchaseList.fxml
 business=read(Path('server/src/main/java/org/example/server/operations/BusinessOperationsService.java'))
 import_service=read(Path('desktop/src/main/java/org/example/service/ImportService.java'))
 import_controller=read(Path('desktop/src/main/java/org/example/controller/ImportController.java'))
+import_result_policy=read(Path('desktop/src/main/java/org/example/importing/ImportResultPolicy.java'))
 recon_controller=read(Path('desktop/src/main/java/org/example/controller/PurchaseReconController.java'))
 recon_fxml=read(Path('desktop/src/main/resources/fxml/pages/PurchaseRecon.fxml'))
 perm=read(Path('desktop/src/main/java/org/example/controller/PermissionMatrixController.java'))
@@ -55,8 +56,8 @@ req('purchaseMetrics(where)' in business and 'private OperationDtos.PurchaseMetr
 req('CREATED WITH WARNING' in import_service and 'Record imported successfully; attachment could not be uploaded' in import_service,
     'Sales import must distinguish attachment warning from business-record failure')
 req('one or more attachments could not be uploaded' in import_service,'Purchase import must distinguish attachment warning')
-req('Import completed with warnings' in import_controller and 'hasImportWarnings' in import_controller,
-    'Import UI must have explicit warning completion state')
+req('Import completed with warnings' in import_controller and 'ImportResultPolicy.hasWarnings' in import_controller and 'hasWarnings' in import_result_policy,
+    'Import UI must have explicit warning completion state through extracted result policy')
 req('Successfully imported records remain saved.' in import_controller,'Import result must tell user committed records remain saved')
 
 # Purchase Recon link identity instead of amount.
@@ -89,10 +90,10 @@ req('historyTextCell()' in bank_controller and 'new Tooltip(text)' in bank_contr
     'History text columns must retain full values via tooltips')
 
 # Exact current release identity.
-req('APP_VERSION = "9.0.75"' in runtime and 'BUILD_REVISION = "9.0.75"' in runtime,'Runtime identity must be 9.0.75')
-req('dse.app.version=9.0.75' in props and 'dse.build.revision=9.0.75' in props,'Server identity must be 9.0.75')
-req('<version>9.0.75</version>' in root_pom and '<dse.phase>9.0.75</dse.phase>' in root_pom,'Maven identity must be 9.0.75')
-req('version=9.0.75' in app_version and 'DEFAULT_VERSION="9.0.75"' in update,'Desktop/updater identity must be 9.0.75')
+req('APP_VERSION = "9.0.76"' in runtime and 'BUILD_REVISION = "9.0.76"' in runtime,'Runtime identity must be 9.0.76')
+req('dse.app.version=9.0.76' in props and 'dse.build.revision=9.0.76' in props,'Server identity must be 9.0.76')
+req('<version>9.0.76</version>' in root_pom and '<dse.phase>9.0.76</dse.phase>' in root_pom,'Maven identity must be 9.0.76')
+req('version=9.0.76' in app_version and 'DEFAULT_VERSION="9.0.76"' in update,'Desktop/updater identity must be 9.0.76')
 
 # Locked production document generators must remain identical to v9.0.12 hashes.
 protected={
@@ -102,4 +103,4 @@ protected={
 }
 for path,expected in protected.items(): req(sha(Path(path))==expected, f'Protected production PDF generator changed: {path}')
 
-print('REGISTER_LOGIN_HISTORY_CONTRACT_OK version=9.0.75')
+print('REGISTER_LOGIN_HISTORY_CONTRACT_OK version=9.0.76')

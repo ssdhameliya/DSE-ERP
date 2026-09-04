@@ -100,8 +100,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private final Set<Integer> loadingPages = new HashSet<>();
     private final AtomicInteger renderSequence = new AtomicInteger();
 
-    private final Deque<List<TemplateElement>> undo = new ArrayDeque<>();
-    private final Deque<List<TemplateElement>> redo = new ArrayDeque<>();
+    private final PdfStudioHistory history = new PdfStudioHistory(50);
     private TemplateElement formatClipboard;
     private TemplateData currentPreviewData;
     private PdfAutoMappingService.Analysis currentMappingAnalysis = new PdfAutoMappingService.Analysis(List.of(),0,0,0,0);
@@ -1597,10 +1596,20 @@ public class PdfStudioController implements ScreenLifecycle {
     // Undo/redo and persistence
     // ---------------------------------------------------------------------
 
-    @FXML private void undo(){if(undo.isEmpty()||previewMode)return;redo.push(snapshot(template.getElements()));template.setElements(undo.pop());selectedIds.clear();autosave();clearInspector();renderCanvas();}
-    @FXML private void redo(){if(redo.isEmpty()||previewMode)return;undo.push(snapshot(template.getElements()));template.setElements(redo.pop());selectedIds.clear();autosave();clearInspector();renderCanvas();}
-    private void checkpoint(){undo.push(snapshot(template.getElements()));while(undo.size()>50)undo.removeLast();redo.clear();}
-    private List<TemplateElement> snapshot(List<TemplateElement> source){return source.stream().map(TemplateElement::snapshotCopy).collect(Collectors.toCollection(ArrayList::new));}
+    @FXML private void undo(){
+        if(previewMode||!history.canUndo())return;
+        List<TemplateElement> previous=history.undo(template.getElements());
+        if(previous==null)return;
+        template.setElements(previous);selectedIds.clear();autosave();clearInspector();renderCanvas();
+    }
+    @FXML private void redo(){
+        if(previewMode||!history.canRedo())return;
+        List<TemplateElement> next=history.redo(template.getElements());
+        if(next==null)return;
+        template.setElements(next);selectedIds.clear();autosave();clearInspector();renderCanvas();
+    }
+    private void checkpoint(){history.checkpoint(template.getElements());}
+    private List<TemplateElement> snapshot(List<TemplateElement> source){return PdfStudioHistory.snapshot(source);}
     private void autosave(){try{TemplateStorageService.saveDraft(template);lblSaveState.setText("Draft saved • production unchanged");}catch(Exception e){lblSaveState.setText("Save failed");}refreshMeta();updateDefaultButton();}
 
     // ---------------------------------------------------------------------
@@ -1656,7 +1665,7 @@ public class PdfStudioController implements ScreenLifecycle {
         int rgb=colors.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(0xFFFFFF);
         return String.format(Locale.ROOT,"#%06X",rgb&0xFFFFFF);
     }
-    private int clampInt(int value,int min,int max){return Math.max(min,Math.min(max,value));}
+    private int clampInt(int value,int min,int max){return PdfStudioGeometryPolicy.clamp(value,min,max);}
 
     private String resolveExpression(String text,TemplateData data){
         if(text==null||text.isBlank()||data==null)return text==null?"":text;String result=text;java.util.regex.Matcher m=java.util.regex.Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}").matcher(text);StringBuffer out=new StringBuffer();while(m.find()){String key=m.group(1);String value=data.value(key);m.appendReplacement(out,java.util.regex.Matcher.quoteReplacement(value));}m.appendTail(out);return out.toString();

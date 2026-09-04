@@ -1479,59 +1479,31 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
         return value == null || value.isBlank() ? fallback : value;
     }
 
-    private static String present(String value) {
-        return value == null || value.isBlank() ? "Not provided" : value;
-    }
+    private static String present(String value) { return ProfessionalDocumentFormatSupport.present(value); }
 
-    private static String pdfValue(String value) {
-        return value == null || value.isBlank() ? "NA" : value;
-    }
+
+    private static String pdfValue(String value) { return ProfessionalDocumentFormatSupport.pdfValue(value); }
+
 
     /** Returns the first non-blank value without replacing it with display text. */
-    private static String firstNonBlank(String first, String fallback) {
-        return first != null && !first.isBlank() ? first : Objects.toString(fallback, "");
-    }
+    private static String firstNonBlank(String first, String fallback) { return ProfessionalDocumentFormatSupport.firstNonBlank(first, fallback); }
 
-    private static String firstNonBlank(String first, String second, String fallback) {
-        return firstNonBlank(first, firstNonBlank(second, fallback));
-    }
 
-    private static String money(double value) {
-        return MONEY.format(value);
-    }
+    private static String firstNonBlank(String first, String second, String fallback) { return ProfessionalDocumentFormatSupport.firstNonBlank(first, second, fallback); }
 
-    private static String quantity(double value) {
-        return value == Math.rint(value)
-            ? String.valueOf((long) value)
-            : new DecimalFormat("0.###").format(value);
-    }
 
-    private static String url(String value) {
-        return value.replace(" ", "%20");
-    }
+    private static String money(double value) { return ProfessionalDocumentFormatSupport.money(value); }
 
-    private static String amountWords(double amount) {
-        return org.example.invoice.calculation.AmountInWordsConverter.indianRupees(amount);
-    }
 
-    private static String words(long value) {
-        String[] ones = {"", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
-            "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen",
-            "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"};
-        String[] tens = {"", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty",
-            "Seventy", "Eighty", "Ninety"};
-        if (value < 20) return ones[(int) value];
-        if (value < 100) return tens[(int) value / 10] +
-            (value % 10 == 0 ? "" : " " + ones[(int) value % 10]);
-        if (value < 1_000) return words(value / 100) + " Hundred" +
-            (value % 100 == 0 ? "" : " " + words(value % 100));
-        if (value < 100_000) return words(value / 1_000) + " Thousand" +
-            (value % 1_000 == 0 ? "" : " " + words(value % 1_000));
-        if (value < 10_000_000) return words(value / 100_000) + " Lakh" +
-            (value % 100_000 == 0 ? "" : " " + words(value % 100_000));
-        return words(value / 10_000_000) + " Crore" +
-            (value % 10_000_000 == 0 ? "" : " " + words(value % 10_000_000));
-    }
+    private static String quantity(double value) { return ProfessionalDocumentFormatSupport.quantity(value); }
+
+
+    private static String url(String value) { return ProfessionalDocumentFormatSupport.url(value); }
+
+
+    private static String amountWords(double amount) { return ProfessionalDocumentFormatSupport.amountWords(amount); }
+
+
 
     private static final class Data {
         String title;

@@ -18,6 +18,8 @@ import org.example.api.support.SupportApiClient;
 import org.example.util.SpreadsheetLayoutDetector;
 import org.example.shared.ReferenceFormatRules;
 import org.example.shared.DocumentCalculationEngine;
+import org.example.importing.ImportMergePolicy;
+import org.example.importing.ImportValueParser;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -798,61 +800,30 @@ public class ImportService {
     }
 
     private static void applyPartyUpdateIdentity(Party incoming, Party existing) {
-        if (existing == null) return;
-        incoming.setId(existing.getId());
-        incoming.setRowVersion(existing.getRowVersion());
+        ImportMergePolicy.applyPartyIdentity(incoming, existing);
     }
+
 
     private static void mergeParty(Party incoming, Party existing) {
-        if (existing == null) return;
-        applyPartyUpdateIdentity(incoming, existing);
-        if (blank(incoming.getName())) incoming.setName(existing.getName());
-        if (blank(incoming.getContactPerson())) incoming.setContactPerson(existing.getContactPerson());
-        if (blank(incoming.getPhone())) incoming.setPhone(existing.getPhone());
-        if (blank(incoming.getEmail())) incoming.setEmail(existing.getEmail());
-        if (blank(incoming.getGstin())) incoming.setGstin(existing.getGstin());
-        if (blank(incoming.getAddress())) incoming.setAddress(existing.getAddress());
+        ImportMergePolicy.mergePartyNonBlank(incoming, existing);
     }
+
 
     private static void applyItemUpdateIdentity(Item incoming, Item existing) {
-        if (existing == null) return;
-        incoming.setId(existing.getId());
-        incoming.setRowVersion(existing.getRowVersion());
-        // Opening Stock is a creation baseline. Existing inventory changes must use Stock Adjustment.
-        incoming.setOpeningStock(existing.getOpeningStock());
-        incoming.setReservedStock(existing.getReservedStock());
+        ImportMergePolicy.applyItemIdentity(incoming, existing);
     }
 
+
     private static void mergeItem(Item incoming, Item existing) {
-        if (existing == null) return;
-        applyItemUpdateIdentity(incoming, existing);
-        if (blank(incoming.getDescription())) incoming.setDescription(existing.getDescription());
-        if (blank(incoming.getCategory())) incoming.setCategory(existing.getCategory());
-        if (blank(incoming.getBrand())) incoming.setBrand(existing.getBrand());
-        if (blank(incoming.getMaterial())) incoming.setMaterial(existing.getMaterial());
-        if (blank(incoming.getSize())) incoming.setSize(existing.getSize());
-        if (blank(incoming.getUnit())) incoming.setUnit(existing.getUnit());
-        if (blank(incoming.getHsn())) incoming.setHsn(existing.getHsn());
-        if (blank(incoming.getLocation())) incoming.setLocation(existing.getLocation());
-        if (blank(incoming.getRemarks())) incoming.setRemarks(existing.getRemarks());
+        ImportMergePolicy.mergeItemNonBlank(incoming, existing);
     }
+
 
 
     private static void validateItemForImport(Item item) {
-        if (item == null) throw new IllegalArgumentException("Item row is empty");
-        if (!Double.isFinite(item.getGst()) || item.getGst() < 0 || item.getGst() > 100)
-            throw new IllegalArgumentException("GST percent must be between 0 and 100");
-        if (!Double.isFinite(item.getDiscountPercent()) || item.getDiscountPercent() < 0 || item.getDiscountPercent() > 100)
-            throw new IllegalArgumentException("Discount percent must be between 0 and 100");
-        if (!Double.isFinite(item.getPurchasePrice()) || item.getPurchasePrice() < 0)
-            throw new IllegalArgumentException("Purchase price must be a finite non-negative number");
-        if (!Double.isFinite(item.getSellingPrice()) || item.getSellingPrice() < 0)
-            throw new IllegalArgumentException("Selling price must be a finite non-negative number");
-        if (!Double.isFinite(item.getOpeningStock()) || item.getOpeningStock() < 0)
-            throw new IllegalArgumentException("Opening stock must be a finite non-negative number");
-        if (!Double.isFinite(item.getMinimumStock()) || item.getMinimumStock() < 0)
-            throw new IllegalArgumentException("Minimum stock must be a finite non-negative number");
+        ImportMergePolicy.validateItem(item);
     }
+
 
     private static boolean blank(String value) { return value == null || value.isBlank(); }
 
@@ -880,38 +851,30 @@ public class ImportService {
         return null;
     }
 
-    private double parseDouble(String val) {
-        if (val == null || val.isBlank()) return 0.0;
-        String normalized = val.trim().replace(",", "");
-        try {
-            double parsed = Double.parseDouble(normalized);
-            if (!Double.isFinite(parsed)) throw new NumberFormatException("not finite");
-            return parsed;
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid numeric value: '" + val + "'");
-        }
+    private double parseDouble(String value) {
+        return ImportValueParser.number(value);
     }
+
 
     private String required(String value, String field) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException("Missing " + field);
-        return value;
+        return ImportValueParser.required(value, field);
     }
+
 
     private String defaultText(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value.trim();
+        return ImportValueParser.defaultText(value, fallback);
     }
+
 
     private double parsePositive(String value, String field) {
-        double parsed = parseDouble(value);
-        if (parsed <= 0) throw new IllegalArgumentException(field + " must be greater than zero");
-        return parsed;
+        return ImportValueParser.positive(value, field);
     }
 
+
     private LocalDate parseDate(String value) {
-        LocalDate parsed = BusinessClock.parseDate(value);
-        if (parsed == null) throw new IllegalArgumentException("Missing required date");
-        return parsed;
+        return ImportValueParser.requiredDate(value);
     }
+
 
     private LocalDate getRequiredDateValue(Row row, String header, String field) {
         if (header == null || header.isBlank()) throw new IllegalArgumentException("Missing " + field + " mapping");
@@ -933,9 +896,9 @@ public class ImportService {
     }
 
     private int termDays(String term) {
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+)").matcher(defaultText(term, "0"));
-        return matcher.find() ? Integer.parseInt(matcher.group(1)) : 0;
+        return ImportValueParser.termDays(term);
     }
+
 
     private Item requireItem(Map<String,Item> itemByCode, String code) {
         Item item = itemByCode.get(code.toUpperCase(Locale.ROOT));

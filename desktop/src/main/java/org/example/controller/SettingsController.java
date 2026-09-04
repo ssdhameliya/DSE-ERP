@@ -1,5 +1,8 @@
 package org.example.controller;
 
+import org.example.config.SettingsFieldSupport;
+import org.example.service.SettingsAssetPreviewLoader;
+
 import org.example.util.BusinessClock;
 import org.example.navigation.ScreenLifecycle;
 
@@ -583,10 +586,8 @@ public class SettingsController implements ScreenLifecycle {
         if (!comboBox.getItems().contains(configuredValue)) comboBox.getItems().add(configuredValue);
         comboBox.setValue(configuredValue);
     }
-    private LocalDate parseDate(String value) {
-        if (value == null || value.isBlank()) return null;
-        try { return LocalDate.parse(value); } catch (Exception ignored) { return null; }
-    }
+    private LocalDate parseDate(String value) { return SettingsFieldSupport.parseDate(value); }
+
 
 
     /* =========================================================
@@ -840,16 +841,21 @@ public class SettingsController implements ScreenLifecycle {
     }
 
     private List<AssetPreviewResult> loadAssetPreviews(List<AssetPreviewRequest> requests) {
-        long started = System.nanoTime();
-        List<AssetPreviewResult> results = new ArrayList<>(requests.size());
+        Map<String, AssetPreviewRequest> byKey = new LinkedHashMap<>();
+        List<SettingsAssetPreviewLoader.Request> work = new ArrayList<>();
         for (AssetPreviewRequest request : requests) {
-            SettingsAssetService.Preview preview = SettingsAssetService.loadPreview(request.configKey(), request.role());
+            byKey.put(request.configKey(), request);
+            work.add(new SettingsAssetPreviewLoader.Request(request.configKey(), request.role()));
+        }
+        List<AssetPreviewResult> results = new ArrayList<>();
+        for (SettingsAssetPreviewLoader.Result loaded : SettingsAssetPreviewLoader.load(work)) {
+            AssetPreviewRequest request = byKey.get(loaded.request().configKey());
+            SettingsAssetService.Preview preview = loaded.preview();
             results.add(new AssetPreviewResult(request, preview.image(), preview.path(), preview.inspection()));
         }
-        long elapsed = (System.nanoTime() - started) / 1_000_000L;
-        if (elapsed >= 20) PerformanceMonitor.event("controller-phase", "settings-preview-background | " + elapsed + " ms");
         return results;
     }
+
 
     private void applyAssetPreviews(List<AssetPreviewResult> results) {
         if (results == null) return;
@@ -1762,12 +1768,14 @@ private record AssetPreviewRequest(
     }
 
     private String text(TextInputControl control) {
-        return control == null || control.getText() == null ? "" : control.getText().trim();
+        return SettingsFieldSupport.text(control == null ? null : control.getText());
     }
 
+
     private String upper(TextInputControl control) {
-        return text(control).toUpperCase(java.util.Locale.ROOT);
+        return SettingsFieldSupport.upper(control == null ? null : control.getText());
     }
+
 
     private String valueOrEmpty(ComboBox<String> comboBox) {
         return comboBox == null || comboBox.getValue() == null ? "" : comboBox.getValue().trim();
@@ -1930,14 +1938,6 @@ private record AssetPreviewRequest(
         putSetting("update.downloadInBackground", String.valueOf(chkDownloadInBackground.isSelected()));
     }
 
-    private String formatUpdateTimestamp(String raw) {
-        if (raw == null || raw.isBlank()) return "Never";
-        try {
-            return java.time.format.DateTimeFormatter.ofPattern(BusinessClock.datePattern() + ", hh:mm a")
-                    .withZone(BusinessClock.zone()).format(java.time.Instant.parse(raw));
-        } catch (Exception ignored) {
-            return raw;
-        }
-    }
+    private String formatUpdateTimestamp(String raw) { return SettingsFieldSupport.formatUpdateTimestamp(raw); }
 
 }

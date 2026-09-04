@@ -20,6 +20,12 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.service.ImportService;
+import org.example.importing.ImportModuleRegistry;
+import org.example.importing.ImportMappingSupport;
+import org.example.importing.ImportTemplateService;
+import org.example.importing.ImportResultReportService;
+import org.example.importing.ImportResultPolicy;
+import org.example.shared.RuntimeContract;
 import org.example.api.recon.PurchaseReconApiClient;
 import org.example.util.IconFactory;
 import org.example.util.SpreadsheetLayoutDetector;
@@ -103,6 +109,7 @@ public class ImportController {
        ========================================================= */
 
     private final ImportService importService = new ImportService();
+    private final ImportTemplateService importTemplateService = new ImportTemplateService();
     private final PurchaseReconApiClient purchaseReconApi = new PurchaseReconApiClient();
 
     /*
@@ -132,106 +139,6 @@ public class ImportController {
     private boolean importCompleted;
     private String completedModule;
 
-    /* =========================================================
-       MODULE FIELD DEFINITIONS
-       ========================================================= */
-
-    private static final List<String> ITEM_FIELDS = List.of(
-        "item_code",
-        "description",
-        "category",
-        "brand",
-        "material",
-        "size",
-        "unit",
-        "hsn",
-        "gst",
-        "discount_percent",
-        "purchase_price",
-        "selling_price",
-        "remarks",
-        "opening_stock",
-        "minimum_stock",
-        "location"
-    );
-
-    private static final List<String> CUSTOMER_FIELDS = List.of(
-        "party_code",
-        "name",
-        "contact_person",
-        "phone",
-        "email",
-        "gstin",
-        "address",
-        "opening_balance",
-        "is_active"
-    );
-
-    private static final List<String> SUPPLIER_FIELDS = List.of(
-        "party_code",
-        "name",
-        "contact_person",
-        "phone",
-        "email",
-        "gstin",
-        "address",
-        "opening_balance",
-        "is_active"
-    );
-
-    /** Purchase import intentionally mirrors the Sales one-sheet document contract. */
-    private static final List<String> PURCHASE_DOCUMENT_FIELDS = List.of(
-        "invoice_no", "invoice_date", "party_code", "item_code", "quantity", "rate", "gst_percent", "gst_type",
-        "payment_terms", "paid_amount", "remarks",
-        "charge_1_type", "charge_1_amount", "charge_1_taxable", "charge_1_gst_percent",
-        "charge_2_type", "charge_2_amount", "charge_2_taxable", "charge_2_gst_percent",
-        "additional_charges", "attachment_file", "attachment_files"
-    );
-
-    /** Sales optional invoice-level fields. Purchase deliberately uses the same shape for parity. */
-    private static final List<String> SALES_DOCUMENT_FIELDS = List.of(
-        "invoice_no",
-        "invoice_date",
-        "party_code",
-        "item_code",
-        "quantity",
-        "rate",
-        "gst_percent",
-        "gst_type",
-        "payment_terms",
-        "paid_amount",
-        "remarks",
-        "charge_1_type",
-        "charge_1_amount",
-        "charge_1_taxable",
-        "charge_1_gst_percent",
-        "charge_2_type",
-        "charge_2_amount",
-        "charge_2_taxable",
-        "charge_2_gst_percent",
-        "attachment_file"
-    );
-
-    private static final List<String> MASTER_FIELDS = List.of(
-        "category_code",
-        "category_name",
-        "category_description",
-        "value_code",
-        "value",
-        "value_description",
-        "display_order",
-        "is_active"
-    );
-
-
-    private static final List<String> PURCHASE_RECON_FIELDS = List.of(
-        "supplier_name", "supplier_gstin", "supplier_invoice_no", "invoice_date",
-        "taxable_value", "cgst", "sgst", "igst", "invoice_value"
-    );
-
-    private static final List<String> BANK_STATEMENT_FIELDS = List.of(
-        "transaction_date", "value_date", "description", "reference", "amount", "direction", "balance"
-    );
     /* =========================================================
        INITIALIZATION
        ========================================================= */
@@ -423,140 +330,24 @@ public class ImportController {
        ========================================================= */
 
     private List<String> getDomainFieldsForModule() {
-
-        String module = cmbImportModule.getValue();
-
-        return switch (module) {
-            case "Customers/CRM" -> CUSTOMER_FIELDS;
-            case "Suppliers/HRM" -> SUPPLIER_FIELDS;
-            case "Sales" -> SALES_DOCUMENT_FIELDS;
-            case "Purchases" -> PURCHASE_DOCUMENT_FIELDS;
-            case "Master Categories and Values" -> MASTER_FIELDS;
-            case "Purchase Recon" -> PURCHASE_RECON_FIELDS;
-            case "Bank Statement" -> BANK_STATEMENT_FIELDS;
-            default -> ITEM_FIELDS;
-        };
+        return ImportModuleRegistry.fields(cmbImportModule.getValue());
     }
+
 
     private Set<String> getRequiredFieldsForModule() {
-
-        String module = cmbImportModule.getValue();
-
-        return switch (module) {
-
-            case "Customers/CRM" -> Set.of("party_code", "name");
-            case "Suppliers/HRM" -> Set.of("party_code", "name", "email");
-
-            case "Sales", "Purchases" ->
-                Set.of(
-                    "invoice_no",
-                    "invoice_date",
-                    "party_code",
-                    "item_code",
-                    "quantity",
-                    "rate"
-                );
-
-            case "Master Categories and Values" ->
-                Set.of(
-                    "category_code",
-                    "category_name",
-                    "value_code",
-                    "value"
-                );
-
-            case "Purchase Recon" -> Set.of("supplier_name", "supplier_invoice_no", "invoice_date", "invoice_value");
-
-            case "Bank Statement" -> Set.of("transaction_date","value_date","description","reference","amount","direction","balance");
-
-            default ->
-                Set.of(
-                    "item_code",
-                    "description",
-                    "unit",
-                    "hsn",
-                    "remarks"
-                );
-        };
+        return ImportModuleRegistry.requiredFields(cmbImportModule.getValue());
     }
+
 
     private String getDataTypeForField(String field) {
-
-        return switch (field) {
-
-            case "invoice_date" -> "Date";
-
-            case "quantity",
-                 "rate",
-                 "gst",
-                 "gst_percent",
-                 "purchase_price",
-                 "selling_price",
-                 "opening_stock",
-                 "minimum_stock",
-                 "opening_balance",
-                 "paid_amount",
-                 "charge_1_amount",
-                 "charge_1_gst_percent",
-                 "charge_2_amount",
-                 "charge_2_gst_percent",
-                 "display_order",
-                 "taxable_value",
-                 "cgst",
-                 "sgst",
-                 "igst",
-                 "invoice_value",
-                 "amount",
-                 "balance" -> "Number";
-
-            case "is_active", "charge_1_taxable", "charge_2_taxable" -> "Boolean";
-
-            case "email" -> "Email";
-
-            case "phone" -> "Phone";
-
-            default -> "Text";
-        };
+        return ImportModuleRegistry.dataType(field);
     }
+
 
     private String humanize(String field) {
-
-        if (field == null || field.isBlank()) {
-            return "";
-        }
-
-        String[] words = field.split("_");
-        StringBuilder result = new StringBuilder();
-
-        for (String word : words) {
-
-            if (word.isBlank()) {
-                continue;
-            }
-
-            if (!result.isEmpty()) {
-                result.append(' ');
-            }
-
-            if (
-                word.equalsIgnoreCase("gst")
-                    || word.equalsIgnoreCase("gstin")
-                    || word.equalsIgnoreCase("hsn")
-            ) {
-                result.append(word.toUpperCase(Locale.ROOT));
-            } else {
-                result.append(
-                    Character.toUpperCase(word.charAt(0))
-                );
-
-                if (word.length() > 1) {
-                    result.append(word.substring(1));
-                }
-            }
-        }
-
-        return result.toString();
+        return ImportModuleRegistry.humanize(field);
     }
+
 
     /* =========================================================
        FILE INSPECTION AND MAPPING
@@ -598,108 +389,11 @@ public class ImportController {
     private Map<String, String> generateAutoMapping(
         List<String> headers
     ) {
-
-        Map<String, String> autoMapping =
-            new LinkedHashMap<>();
-
-        for (String field : getDomainFieldsForModule()) {
-
-            String normalizedField = normalize(field);
-
-            for (String header : headers) {
-
-                String normalizedHeader = normalize(header);
-
-                if (
-                    normalizedHeader.equals(normalizedField)
-                        || areKnownAliases(
-                        normalizedField,
-                        normalizedHeader
-                    )
-                ) {
-
-                    autoMapping.put(field, header);
-                    break;
-                }
-            }
-        }
-
-        return autoMapping;
+        return ImportMappingSupport.autoMap(getDomainFieldsForModule(), headers);
     }
 
-    private boolean areKnownAliases(
-        String normalizedField,
-        String normalizedHeader
-    ) {
 
-        return switch (normalizedField) {
 
-            case "gst" ->
-                normalizedHeader.equals("gstpercent")
-                    || normalizedHeader.equals("gstrate");
-
-            case "gstpercent" ->
-                normalizedHeader.equals("gst")
-                    || normalizedHeader.equals("gstrate");
-
-            case "partycode" ->
-                normalizedHeader.equals("customercode")
-                    || normalizedHeader.equals("suppliercode")
-                    || normalizedHeader.equals("partyid");
-
-            case "description" ->
-                normalizedHeader.equals("itemname")
-                    || normalizedHeader.equals("name");
-
-            case "invoiceNo", "invoiceno" ->
-                normalizedHeader.equals("billno")
-                    || normalizedHeader.equals("documentno");
-
-            case "invoiceDate", "invoicedate" ->
-                normalizedHeader.equals("billdate")
-                    || normalizedHeader.equals("documentdate");
-
-            case "suppliername" -> normalizedHeader.equals("tradelegalname") || normalizedHeader.equals("tradename") || normalizedHeader.equals("legalname") || normalizedHeader.equals("supplier") || normalizedHeader.equals("suppliername");
-            case "suppliergstin" -> normalizedHeader.equals("gstinofsupplier") || normalizedHeader.equals("suppliergstin") || normalizedHeader.equals("gstin");
-            case "supplierinvoiceno" -> normalizedHeader.equals("invoicenumber") || normalizedHeader.equals("invoiceno") || normalizedHeader.equals("billno") || normalizedHeader.equals("supplierinvoiceno");
-            case "taxablevalue" -> normalizedHeader.equals("taxablevalue") || normalizedHeader.equals("taxableamount");
-            case "cgst" -> normalizedHeader.equals("centraltax") || normalizedHeader.equals("cgst") || normalizedHeader.equals("cgstamount");
-            case "sgst" -> normalizedHeader.equals("stateuttax") || normalizedHeader.equals("statetax") || normalizedHeader.equals("sgst") || normalizedHeader.equals("sgstamount");
-            case "igst" -> normalizedHeader.equals("integratedtax") || normalizedHeader.equals("igst") || normalizedHeader.equals("igstamount");
-            case "invoicevalue" -> normalizedHeader.equals("invoicevalue") || normalizedHeader.equals("invoicetotal") || normalizedHeader.equals("totalinvoicevalue");
-
-            case "isactive" ->
-                normalizedHeader.equals("active")
-                    || normalizedHeader.equals("status");
-
-            case "transactiondate" -> normalizedHeader.equals("transactiondate");
-            case "valuedate" -> normalizedHeader.equals("valuedate");
-            case "reference" -> normalizedHeader.equals("chqrefno") || normalizedHeader.equals("referenceno");
-            case "amount" -> normalizedHeader.equals("amount");
-            case "direction" -> normalizedHeader.equals("drcr") || normalizedHeader.equals("debitcredit");
-            case "balance" -> normalizedHeader.equals("balance");
-            case "charge1type" -> normalizedHeader.equals("charge1") || normalizedHeader.equals("charge1name") || normalizedHeader.equals("additionalcharge1");
-            case "charge1amount" -> normalizedHeader.equals("charge1value") || normalizedHeader.equals("additionalcharge1amount");
-            case "charge1taxable" -> normalizedHeader.equals("charge1istaxable") || normalizedHeader.equals("charge1tax");
-            case "charge1gstpercent" -> normalizedHeader.equals("charge1gst") || normalizedHeader.equals("charge1gstrate");
-            case "charge2type" -> normalizedHeader.equals("charge2") || normalizedHeader.equals("charge2name") || normalizedHeader.equals("additionalcharge2");
-            case "charge2amount" -> normalizedHeader.equals("charge2value") || normalizedHeader.equals("additionalcharge2amount");
-            case "charge2taxable" -> normalizedHeader.equals("charge2istaxable") || normalizedHeader.equals("charge2tax");
-            case "charge2gstpercent" -> normalizedHeader.equals("charge2gst") || normalizedHeader.equals("charge2gstrate");
-            case "attachmentfile" -> normalizedHeader.equals("attachment") || normalizedHeader.equals("documentfile") || normalizedHeader.equals("attachmentpath");
-
-            default -> false;
-        };
-    }
-
-    private String normalize(String value) {
-
-        return value == null
-            ? ""
-            : value
-            .toLowerCase(Locale.ROOT)
-            .replaceAll("[^a-z0-9]", "");
-    }
 
     /* =========================================================
        RESPONSIVE MAPPING GRID
@@ -2211,19 +1905,17 @@ public class ImportController {
         }
 
         boolean dryRun = chkDryRun.isSelected();
-        int failed = result.failedCount();
-        boolean warning = !dryRun && hasImportWarnings(result);
-        int succeeded = result.imported + result.updated;
-        Alert.AlertType type = dryRun || (failed == 0 && !warning)
-            ? Alert.AlertType.INFORMATION
-            : (succeeded > 0 || failed == 0 ? Alert.AlertType.WARNING : Alert.AlertType.ERROR);
+        ImportResultPolicy.Presentation presentation = ImportResultPolicy.presentation(result, dryRun);
+        int succeeded = presentation.succeeded();
+        boolean warning = presentation.warning();
+        Alert.AlertType type = switch (presentation.semantic()) {
+            case INFORMATION -> Alert.AlertType.INFORMATION;
+            case WARNING -> Alert.AlertType.WARNING;
+            case ERROR -> Alert.AlertType.ERROR;
+        };
         Alert alert = new OwnedAlert(type);
         alert.setTitle("Import Result");
-        if (dryRun) alert.setHeaderText("Validation completed");
-        else if (failed == 0 && succeeded == 0 && result.skipped > 0 && !warning) alert.setHeaderText("Import completed — no changes required");
-        else if (failed == 0 && !warning) alert.setHeaderText("Import completed successfully");
-        else if (failed == 0 || succeeded > 0) alert.setHeaderText("Import completed with warnings");
-        else alert.setHeaderText("Import could not be completed");
+        alert.setHeaderText(presentation.header());
 
         StringBuilder message = new StringBuilder()
             .append("Processed: ").append(result.processed).append("\n")
@@ -2254,99 +1946,12 @@ public class ImportController {
         }
     }
 
-    private boolean hasImportWarnings(ImportService.ImportResult result) {
-        if (result == null) return false;
-        if (result.failedCount() > 0) return true;
-        // A skipped existing/duplicate row is an informational no-op, not an import failure.
-        // Only explicit row warnings should produce the warning state.
-        return result.details.stream().anyMatch(row ->
-            (row.action != null && row.action.toUpperCase(Locale.ROOT).contains("WARNING"))
-                || (row.message != null && row.message.toLowerCase(Locale.ROOT).contains("warning")));
-    }
 
     private Path writeImportResultReport(ImportService.ImportResult result) throws Exception {
-        Path folder = WorkspaceManager.getImportsFolder().resolve("Results");
-        Files.createDirectories(folder);
-
-        String module = cmbImportModule.getValue() == null ? "Import"
-            : cmbImportModule.getValue().replaceAll("[^A-Za-z0-9]+", "_");
-        String stamp = BusinessClock.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        Path target = folder.resolve("Import_Result_" + module + "_" + stamp + ".xlsx");
-
-        try (Workbook workbook = new XSSFWorkbook();
-             FileOutputStream output = new FileOutputStream(target.toFile())) {
-
-            CellStyle headerStyle = createTemplateHeaderStyle(workbook);
-
-            Sheet summary = workbook.createSheet("Summary");
-            String[][] summaryRows = {
-                {"Module", cmbImportModule.getValue() == null ? "" : cmbImportModule.getValue()},
-                {"Source File", selectedFile == null ? "" : selectedFile.getName()},
-                {"Mode", chkDryRun.isSelected() ? "Validate only" : "Import"},
-                {"Processed", String.valueOf(result.processed)},
-                {"Passed", String.valueOf(result.passedCount())},
-                {"Imported", String.valueOf(result.imported)},
-                {"Updated", String.valueOf(result.updated)},
-                {"Skipped", String.valueOf(result.skipped)},
-                {"Failed", String.valueOf(result.failedCount())},
-                {"Business Date", BusinessClock.formatDate(BusinessClock.today())},
-                {"Business Time", BusinessClock.now().format(DateTimeFormatter.ofPattern("hh:mm:ss a"))
-                    + " " + BusinessClock.zoneAbbreviation()}
-            };
-            for (int i = 0; i < summaryRows.length; i++) {
-                Row row = summary.createRow(i);
-                row.createCell(0).setCellValue(summaryRows[i][0]);
-                row.createCell(1).setCellValue(summaryRows[i][1]);
-            }
-            summary.setColumnWidth(0, 24 * 256);
-            summary.setColumnWidth(1, 70 * 256);
-
-            Sheet details = workbook.createSheet("Import Results");
-            String[] headers = {"Source Row(s)", "Reference", "Status", "Action", "Tax Type", "GST %", "Message"};
-            Row header = details.createRow(0);
-            for (int i = 0; i < headers.length; i++) {
-                Cell cell = header.createCell(i);
-                cell.setCellValue(headers[i]);
-                cell.setCellStyle(headerStyle);
-            }
-
-            int rowIndex = 1;
-            if (!result.details.isEmpty()) {
-                for (ImportService.ImportRowResult detail : result.details) {
-                    Row row = details.createRow(rowIndex++);
-                    row.createCell(0).setCellValue(detail.sourceRows);
-                    row.createCell(1).setCellValue(detail.reference);
-                    row.createCell(2).setCellValue(detail.status);
-                    row.createCell(3).setCellValue(detail.action);
-                    row.createCell(4).setCellValue(detail.taxType);
-                    row.createCell(5).setCellValue(detail.gstPercent);
-                    row.createCell(6).setCellValue(detail.message);
-                }
-            } else {
-                for (String error : result.errors) {
-                    Row row = details.createRow(rowIndex++);
-                    row.createCell(2).setCellValue("FAILED");
-                    row.createCell(3).setCellValue("NONE");
-                    row.createCell(6).setCellValue(error);
-                }
-                if (rowIndex == 1) {
-                    Row row = details.createRow(rowIndex);
-                    row.createCell(2).setCellValue("PASSED");
-                    row.createCell(3).setCellValue("SUMMARY");
-                    row.createCell(6).setCellValue("Import completed without row-level errors.");
-                }
-            }
-
-            details.createFreezePane(0, 1);
-            details.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(
-                0, Math.max(1, rowIndex - 1), 0, headers.length - 1));
-            int[] widths = {16, 24, 14, 16, 14, 12, 70};
-            for (int i = 0; i < widths.length; i++) details.setColumnWidth(i, widths[i] * 256);
-
-            workbook.write(output);
-        }
-        return target;
+        return ImportResultReportService.write(result, new ImportResultReportService.Context(
+            cmbImportModule.getValue(), selectedFile == null ? "" : selectedFile.getName(), chkDryRun.isSelected()));
     }
+
 
     private void openReport(Path report) {
         try {
@@ -2387,7 +1992,7 @@ public class ImportController {
                 + result.updated + " updated • " + result.skipped + " skipped");
         }
         btnRunImport.setDisable(true);
-        boolean warning = hasImportWarnings(result);
+        boolean warning = ImportResultPolicy.hasWarnings(result);
         lblReadyStatus.setText(warning ? "Import completed with warnings" : "Import completed successfully");
         lblReadyStatus.getStyleClass().removeAll("import-warning-text", "import-success-text");
         String stateClass = warning ? "import-warning-text" : "import-success-text";
@@ -2417,34 +2022,9 @@ public class ImportController {
     }
 
     private String targetFor(String module) {
-
-        return switch (module) {
-
-            case "Customers/CRM" ->
-                "/fxml/pages/Customer.fxml";
-
-            case "Suppliers/HRM" ->
-                "/fxml/pages/Suppliers.fxml";
-
-            case "Sales" ->
-                "/fxml/pages/SalesList.fxml";
-
-            case "Purchases" ->
-                "/fxml/pages/PurchaseList.fxml";
-
-            case "Master Categories and Values" ->
-                "/fxml/pages/Masterdata.fxml";
-
-            case "Purchase Recon" ->
-                "/fxml/pages/PurchaseRecon.fxml";
-
-            case "Bank Statement" ->
-                "/fxml/pages/BankStatement.fxml";
-
-            default ->
-                "/fxml/pages/ItemMaster.fxml";
-        };
+        return ImportModuleRegistry.target(module);
     }
+
 
     /* =========================================================
        TEMPLATE DOWNLOADS
@@ -2454,186 +2034,26 @@ public class ImportController {
     private void downloadTemplate() {
         org.example.service.PermissionService.require("IMPORT.EXPORT", "download an import template");
 
-        FileChooser chooser =
-            new FileChooser();
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save Import Template");
+        chooser.setInitialFileName(cmbImportModule.getValue().replaceAll("[^A-Za-z0-9]+", "_") + "_Template.xlsx");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel workbook", "*.xlsx"));
+        File target = chooser.showSaveDialog(cmbImportModule.getScene().getWindow());
+        if (target == null) return;
 
-        chooser.setTitle(
-            "Save Import Template"
-        );
-
-        chooser.setInitialFileName(
-            cmbImportModule
-                .getValue()
-                .replaceAll(
-                    "[^A-Za-z0-9]+",
-                    "_"
-                )
-                + "_Template.xlsx"
-        );
-
-        chooser
-            .getExtensionFilters()
-            .add(
-                new FileChooser.ExtensionFilter(
-                    "Excel workbook",
-                    "*.xlsx"
-                )
-            );
-
-        File target =
-            chooser.showSaveDialog(
-                cmbImportModule
-                    .getScene()
-                    .getWindow()
-            );
-
-        if (target == null) {
-            return;
-        }
-
-        try (
-            Workbook workbook =
-                new XSSFWorkbook();
-
-            FileOutputStream output =
-                new FileOutputStream(target)
-        ) {
-
-            Sheet sheet =
-                workbook.createSheet(
-                    "Import Template"
-                );
-
-            Sheet instructions = workbook.createSheet("Instructions");
-            String[][] guidance = {
-                {"DSE ERP 9.0.75 Import Template", "Keep identifier and header names unchanged."},
-                {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
-                {"Create new only", "Existing identifiers are skipped; only new records are created."},
-                {"Create or update", "Existing master records are replaced with supplied values."},
-                {"Skip existing", "Existing identifiers are never changed."},
-                {"Financial documents", "Existing posted Sales and Purchase invoices are always protected and skipped."},
-                {"GST / IGST", "For Sales/Purchases use gst_type = GST for intra-state or IGST for inter-state. Enter gst_percent only; DSE ERP calculates tax amounts from line values."},
-                {"GST calculation", "GST is calculated as CGST + SGST (equal halves); IGST applies the full GST rate as IGST. Do not enter tax amounts manually."},
-                {"Unlimited Purchase charges", "Purchases may use additional_charges with entries separated by semicolons. Each entry is Type|Amount|Taxable|GSTPercent, for example Freight|250|true|18;Packing|100|false|0."},
-                {"Multiple Purchase attachments", "Use attachment_files for semicolon-separated file paths. Paths may be absolute or relative to the import workbook. The older attachment_file column remains supported."},
-                {"Safe process", "Run Validate only first, review the preview and generated result report, then import."},
-                {"Identifiers", identifierGuidance(cmbImportModule.getValue())}
-            };
-            for (int i = 0; i < guidance.length; i++) {
-                Row row = instructions.createRow(i);
-                row.createCell(0).setCellValue(guidance[i][0]);
-                row.createCell(1).setCellValue(guidance[i][1]);
-            }
-            instructions.setColumnWidth(0, 28 * 256);
-            instructions.setColumnWidth(1, 92 * 256);
-
-            CellStyle headerStyle =
-                createTemplateHeaderStyle(
-                    workbook
-                );
-
-            Row header =
-                sheet.createRow(0);
-
-            List<String> fields =
-                getDomainFieldsForModule();
-
-            for (
-                int columnIndex = 0;
-                columnIndex < fields.size();
-                columnIndex++
-            ) {
-
-                Cell cell =
-                    header.createCell(
-                        columnIndex
-                    );
-
-                cell.setCellValue(
-                    fields.get(columnIndex)
-                );
-
-                cell.setCellStyle(
-                    headerStyle
-                );
-
-                sheet.setColumnWidth(
-                    columnIndex,
-                    Math.max(
-                        14,
-                        fields
-                            .get(columnIndex)
-                            .length() + 3
-                    ) * 256
-                );
-            }
-
-            List<List<String>> exampleRows = exampleRowsFor(cmbImportModule.getValue());
-            int lastSampleRow = 0;
-            for (int sampleIndex = 0; sampleIndex < exampleRows.size(); sampleIndex++) {
-                Row sample = sheet.createRow(sampleIndex + 1);
-                List<String> examples = exampleRows.get(sampleIndex);
-                for (int columnIndex = 0; columnIndex < Math.min(fields.size(), examples.size()); columnIndex++) {
-                    sample.createCell(columnIndex).setCellValue(examples.get(columnIndex));
-                }
-                lastSampleRow = sampleIndex + 1;
-            }
-
-            sheet.createFreezePane(0, 1);
-            sheet.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(
-                0, Math.max(1, lastSampleRow), 0, fields.size() - 1));
-
-            workbook.write(output);
-
-            org.example.util.ToastManager.success(btnRunImport,
-                "Template created",
+        try {
+            importTemplateService.write(target.toPath(), cmbImportModule.getValue(), RuntimeContract.APP_VERSION);
+            org.example.util.ToastManager.success(btnRunImport, "Template created",
                 "Template saved to: " + target.getAbsolutePath());
-
         } catch (Exception exception) {
-
-            Alert alert =
-                new OwnedAlert(
-                    Alert.AlertType.ERROR,
-                    "Could not create template: "
-                        + safeMessage(exception),
-                    ButtonType.OK
-                );
-
-            alert.setHeaderText(
-                "Template creation failed"
-            );
-
+            Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
+                "Could not create template: " + safeMessage(exception), ButtonType.OK);
+            alert.setHeaderText("Template creation failed");
             alert.showAndWait();
         }
     }
 
-    private CellStyle createTemplateHeaderStyle(
-        Workbook workbook
-    ) {
 
-        CellStyle style =
-            workbook.createCellStyle();
-
-        Font font =
-            workbook.createFont();
-
-        font.setBold(true);
-        font.setColor(
-            IndexedColors.WHITE.getIndex()
-        );
-
-        style.setFont(font);
-
-        style.setFillForegroundColor(
-            IndexedColors.ROYAL_BLUE.getIndex()
-        );
-
-        style.setFillPattern(
-            FillPatternType.SOLID_FOREGROUND
-        );
-
-        return style;
-    }
 
     private void downloadTemplateFor(
         String module
@@ -2680,151 +2100,8 @@ public class ImportController {
         );
     }
 
-    private List<List<String>> exampleRowsFor(String module) {
-        if ("Sales".equals(module)) {
-            return List.of(
-                List.of("SAL-GST-0001", BusinessClock.formatDate(BusinessClock.today()), "CUS-0001", "ITEM-0001",
-                    "2", "1500", "18", "GST", "15 Days", "0", "Sample intra-state sale with two optional charges",
-                    "Freight", "250", "true", "18", "Packing", "100", "false", "0", ""),
-                List.of("SAL-IGST-0002", BusinessClock.formatDate(BusinessClock.today()), "CUS-0002", "ITEM-0001",
-                    "1", "2000", "18", "IGST", "15 Days", "0", "Sample inter-state sale; attachment is optional",
-                    "", "", "", "", "", "", "", "", "")
-            );
-        }
-        if ("Purchases".equals(module)) {
-            return List.of(
-                List.of("PUR-GST-0001", BusinessClock.formatDate(BusinessClock.today()), "SUP-0001", "ITEM-0001",
-                    "10", "1200", "18", "GST", "15 Days", "0", "Sample intra-state purchase with unlimited charge syntax",
-                    "Freight", "250", "true", "18", "Packing", "100", "false", "0",
-                    "Insurance|75|true|18;Handling|50|false|0", "", ""),
-                List.of("PUR-IGST-0002", BusinessClock.formatDate(BusinessClock.today()), "SUP-0002", "ITEM-0001",
-                    "5", "1200", "18", "IGST", "15 Days", "0", "Sample inter-state purchase; multiple attachments are optional",
-                    "", "", "", "", "", "", "", "",
-                    "Freight|250|true|18", "", "invoice.pdf;quality-certificate.pdf")
-            );
-        }
-        return List.of(exampleRowFor(module));
-    }
 
-    private List<String> exampleRowFor(
-        String module
-    ) {
 
-        return switch (module) {
-
-            case "Customers/CRM" ->
-                List.of(
-                    "CUS-0001",
-                    "ABC Enterprises",
-                    "Ravi Patel",
-                    "9876543210",
-                    "accounts@example.com",
-                    "24AAAAA1111A1Z5",
-                    "Ahmedabad, Gujarat",
-                    "0",
-                    "true"
-                );
-
-            case "Suppliers/HRM" ->
-                List.of(
-                    "SUP-0001",
-                    "Steel Supplier Ltd",
-                    "Amit Shah",
-                    "9876500000",
-                    "sales@supplier.example",
-                    "24BBBBB2222B1Z4",
-                    "Rajkot, Gujarat",
-                    "0",
-                    "true"
-                );
-
-            case "Sales" ->
-                List.of(
-                    "SAL-0001",
-                    "2026-07-28",
-                    "CUS-0001",
-                    "ITEM-0001",
-                    "2",
-                    "1500",
-                    "18",
-                    "GST",
-                    "15 Days",
-                    "0",
-                    "Sample sales invoice",
-                    "Freight",
-                    "250",
-                    "true",
-                    "18",
-                    "Packing",
-                    "100",
-                    "false",
-                    "0",
-                    ""
-                );
-
-            case "Purchases" ->
-                List.of(
-                    "PUR-0001", "2026-07-28", "SUP-0001", "ITEM-0001", "10", "1200", "18", "GST", "15 Days", "0",
-                    "Sample purchase invoice", "Freight", "250", "true", "18", "Packing", "100", "false", "0", ""
-                );
-
-            case "Purchase Recon" ->
-                List.of(
-                    "Shree Ram Engineering Works",
-                    "24APCPJ0791E1Z9",
-                    "25/26/61",
-                    BusinessClock.formatDate(BusinessClock.today()),
-                    "10620.00",
-                    "955.80",
-                    "955.80",
-                    "0.00",
-                    "12532.00"
-                );
-
-            case "Master Categories and Values" ->
-                List.of(
-                    "UNIT",
-                    "Unit",
-                    "Units of measure",
-                    "UNT001",
-                    "Nos",
-                    "Number of items",
-                    "1",
-                    "true"
-                );
-
-            default ->
-                List.of(
-                    "ITEM-0001",
-                    "MS Round Pipe",
-                    "Pipe",
-                    "Jasvi",
-                    "Mild Steel",
-                    "25 mm",
-                    "Nos",
-                    "73063000",
-                    "18",
-                    "0",
-                    "1200",
-                    "1500",
-                    "Sample item",
-                    "0",
-                    "10",
-                    "Main Warehouse"
-                );
-        };
-    }
-
-    private String identifierGuidance(String module) {
-        return switch (module) {
-            case "Customers/CRM", "Suppliers/HRM" -> "party_code identifies the record to create, update or skip.";
-            case "Sales", "Purchases" -> "invoice_no groups all item rows into one document; existing posted documents are protected.";
-            case "Master Categories and Values" -> "category_code + value_code identify a reusable master value.";
-            case "Purchase Recon" -> "Recon Supplier is matched by GSTIN first, then normalized name; Supplier Invoice No. + financial year protects against duplicate Purchase Recon records.";
-            case "Bank Statement" -> "The source fingerprint and transaction row protect against duplicate imports.";
-            default -> "item_code identifies the item to create, update or skip.";
-        };
-    }
 
     /* =========================================================
        IMPORT GUIDE

@@ -33,6 +33,7 @@ resource_client = text("desktop/src/main/java/org/example/api/authority/ServerRe
 remote_mirror = text("desktop/src/main/java/org/example/documentstudio/service/RemoteTemplateMirror.java")
 pdf_remote = text("desktop/src/main/java/org/example/documentstudio/service/PdfStudioRemoteStore.java")
 renderer = text("desktop/src/main/java/org/example/util/ProfessionalDocumentRenderer.java")
+renderer_format = text("desktop/src/main/java/org/example/util/ProfessionalDocumentFormatSupport.java")
 return_editor = text("desktop/src/main/java/org/example/service/ReturnEditorService.java")
 template_data = text("desktop/src/main/java/org/example/documentstudio/service/TemplateDataFactory.java")
 bank = text("server/src/main/java/org/example/server/reconciliation/BankReconciliationService.java")
@@ -50,7 +51,7 @@ need("DocumentCalculationEngine.totals" in invoice_calc, "Invoice/PDF calculatio
 need("private static BigDecimal cost(double value)" in ops and "setScale(4,RoundingMode.HALF_UP)" in ops and "DocumentCalculationEngine.unitCost" in ops, "inventory unit-cost precision is not 4dp")
 need("return DocumentCalculationEngine.money(v);" in bank and "DocumentCalculationEngine.money(v).doubleValue()" not in bank, "bank reconciliation must delegate directly to canonical money rounding")
 need("return DocumentCalculationEngine.money(v);" in recon and "DocumentCalculationEngine.money(v).doubleValue()" not in recon, "purchase reconciliation must delegate directly to canonical money rounding")
-need("AmountInWordsConverter.indianRupees(amount)" in renderer, "amount-in-words must preserve paise")
+need("ProfessionalDocumentFormatSupport.amountWords" in renderer and "AmountInWordsConverter.indianRupees(amount)" in renderer_format, "amount-in-words must preserve paise through extracted formatting policy")
 need("item.discountPercent()" in return_editor and "DocumentCalculationEngine.line" in return_editor, "return editor preview does not preserve original line discount")
 need("returnLineFinancials" in template_data and "line.amount()" in template_data and '"totals.discountAmount", money(discount)' in template_data, "return PDF/XLSX breakdown does not use the server-authoritative discounted return amount")
 

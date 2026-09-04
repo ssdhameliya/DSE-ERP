@@ -32,6 +32,8 @@ import org.example.documentstudio.model.TemplateData;
 import org.example.documentstudio.model.DocumentSample;
 import org.example.documentstudio.model.TemplateFieldDefinition;
 import org.example.documentstudio.service.ExcelTemplateRenderer;
+import org.example.documentstudio.service.ExcelWorkbookHistory;
+import org.example.documentstudio.service.ExcelSelectionPolicy;
 import org.example.documentstudio.service.DocumentDataService;
 import org.example.documentstudio.service.ExcelTemplateStorageService;
 import org.example.documentstudio.service.TemplateFieldCatalog;
@@ -45,7 +47,6 @@ import org.example.theme.ThemeManager;
 
 import java.awt.Desktop;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -107,8 +108,7 @@ public class ExcelDesignerController {
     private FormatClipboard formatClipboard;
     private boolean updatingFormatControls;
     private boolean restoringHistory;
-    private final Deque<byte[]> undoStack = new ArrayDeque<>();
-    private final Deque<byte[]> redoStack = new ArrayDeque<>();
+    private final ExcelWorkbookHistory history = new ExcelWorkbookHistory(HISTORY_LIMIT);
     private final Map<String, List<String>> mappedFieldAddresses = new LinkedHashMap<>();
     private final List<String> unknownWorkbookTokens = new ArrayList<>();
     private TemplateData selectedPreviewData;
@@ -792,8 +792,8 @@ public class ExcelDesignerController {
         return null;
     }
 
-    private int clampRow(int row) { return Math.max(0, Math.min(VISIBLE_ROWS - 1, row)); }
-    private int clampCol(int col) { return Math.max(0, Math.min(VISIBLE_COLS - 1, col)); }
+    private int clampRow(int row) { return ExcelSelectionPolicy.clamp(row, VISIBLE_ROWS); }
+    private int clampCol(int col) { return ExcelSelectionPolicy.clamp(col, VISIBLE_COLS); }
 
     private void clearSelectedCells() {
         if (focusedRow < 0) return;
@@ -927,49 +927,40 @@ public class ExcelDesignerController {
     private void recordUndoPoint(){
         if(restoringHistory||workbook==null)return;
         dirty=true;
-        try{
-            undoStack.addLast(snapshotWorkbook());
-            while(undoStack.size()>HISTORY_LIMIT)undoStack.removeFirst();
-            redoStack.clear();
-        }catch(Exception e){System.err.println("[ExcelStudio] Could not capture undo state: "+e.getMessage());}
+        try{history.checkpoint(workbook);}
+        catch(Exception e){System.err.println("[ExcelStudio] Could not capture undo state: "+e.getMessage());}
         updateUndoRedoButtons();
     }
 
-    private byte[] snapshotWorkbook() throws IOException{
-        if(workbook==null)throw new IOException("The Excel workbook is not open. Reopen the template before saving.");
-        try(ByteArrayOutputStream out=new ByteArrayOutputStream()){
-            workbook.write(out);
-            return out.toByteArray();
-        }catch(IllegalStateException error){throw new IOException("The Excel workbook is no longer writable. Reopen the template and try again.",error);}
+
+    private byte[] snapshotWorkbook() throws IOException {
+        return ExcelWorkbookHistory.snapshot(workbook);
     }
+
 
     @FXML private void undo(){
         commitActiveEdit();
-        if(undoStack.isEmpty()){updateUndoRedoButtons();return;}
+        if(!history.canUndo()){updateUndoRedoButtons();return;}
         try{
-            byte[] current=snapshotWorkbook();
-            byte[] previous=undoStack.peekLast();
+            byte[] previous=history.undo(workbook);
             restoreWorkbook(previous);
-            undoStack.removeLast();
-            redoStack.addLast(current);
             dirty=true;
         }catch(Exception e){ModernDialog.error(root,"Undo failed","Excel Studio",rootMessage(e));}
         updateUndoRedoButtons();
     }
 
+
     @FXML private void redo(){
         commitActiveEdit();
-        if(redoStack.isEmpty()){updateUndoRedoButtons();return;}
+        if(!history.canRedo()){updateUndoRedoButtons();return;}
         try{
-            byte[] current=snapshotWorkbook();
-            byte[] next=redoStack.peekLast();
+            byte[] next=history.redo(workbook);
             restoreWorkbook(next);
-            redoStack.removeLast();
-            undoStack.addLast(current);
             dirty=true;
         }catch(Exception e){ModernDialog.error(root,"Redo failed","Excel Studio",rootMessage(e));}
         updateUndoRedoButtons();
     }
+
 
     private void restoreWorkbook(byte[] snapshot) throws Exception{
         if(snapshot==null||snapshot.length==0)throw new IOException("The workbook history snapshot is empty.");
@@ -1013,9 +1004,10 @@ public class ExcelDesignerController {
     }
 
     private void updateUndoRedoButtons(){
-        if(btnUndo!=null)btnUndo.setDisable(undoStack.isEmpty());
-        if(btnRedo!=null)btnRedo.setDisable(redoStack.isEmpty());
+        if(btnUndo!=null)btnUndo.setDisable(!history.canUndo());
+        if(btnRedo!=null)btnRedo.setDisable(!history.canRedo());
     }
+
 
     @FXML private void insertField(){
         TemplateFieldDefinition field=fieldList.getSelectionModel().getSelectedItem();
@@ -1173,11 +1165,7 @@ public class ExcelDesignerController {
     }
 
     private CellRangeAddress currentRange(){
-        int anchorRow=selectionAnchorRow<0?Math.max(0,focusedRow):selectionAnchorRow;
-        int anchorCol=selectionAnchorCol<0?Math.max(0,focusedCol):selectionAnchorCol;
-        int endRow=selectionEndRow<0?anchorRow:selectionEndRow;
-        int endCol=selectionEndCol<0?anchorCol:selectionEndCol;
-        return new CellRangeAddress(Math.min(anchorRow,endRow),Math.max(anchorRow,endRow),Math.min(anchorCol,endCol),Math.max(anchorCol,endCol));
+        return ExcelSelectionPolicy.range(selectionAnchorRow, selectionAnchorCol, selectionEndRow, selectionEndCol, focusedRow, focusedCol);
     }
 
     @FXML private void mergeAndCenter(){mergeRange(true);}
