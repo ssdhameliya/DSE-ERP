@@ -34,6 +34,7 @@ import org.example.documentstudio.model.TemplateFieldDefinition;
 import org.example.documentstudio.service.ExcelTemplateRenderer;
 import org.example.documentstudio.service.ExcelWorkbookHistory;
 import org.example.documentstudio.service.ExcelSelectionPolicy;
+import org.example.documentstudio.service.ExcelDimensionPolicy;
 import org.example.documentstudio.service.DocumentDataService;
 import org.example.documentstudio.service.ExcelTemplateStorageService;
 import org.example.documentstudio.service.TemplateFieldCatalog;
@@ -295,9 +296,9 @@ public class ExcelDesignerController {
 
         ColumnConstraints rowHeaderColumn = fixedColumn(54);
         cellGrid.getColumnConstraints().add(rowHeaderColumn);
-        for (int c = 0; c < VISIBLE_COLS; c++) cellGrid.getColumnConstraints().add(fixedColumn(columnWidthPixels(sheet, c)));
+        for (int c = 0; c < VISIBLE_COLS; c++) cellGrid.getColumnConstraints().add(fixedColumn(ExcelDimensionPolicy.columnWidthPixels(sheet, c)));
         cellGrid.getRowConstraints().add(fixedRow(28));
-        for (int r = 0; r < VISIBLE_ROWS; r++) cellGrid.getRowConstraints().add(fixedRow(rowHeightPixels(sheet, r)));
+        for (int r = 0; r < VISIBLE_ROWS; r++) cellGrid.getRowConstraints().add(fixedRow(ExcelDimensionPolicy.rowHeightPixels(sheet, r)));
 
         Label corner = new Label("");
         corner.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
@@ -427,27 +428,6 @@ public class ExcelDesignerController {
     }
 
     /** Excel stores widths in 1/256 character units; this keeps the JavaFX grid visually aligned with the workbook. */
-    private double columnWidthPixels(Sheet sheet,int col) {
-        if(sheet==null)return 70;
-        return Math.max(24,Math.min(1800,(sheet.getColumnWidth(col)/256d)*7d+5d));
-    }
-
-    private int pixelsToColumnWidth(double pixels) {
-        double chars=Math.max(1,(pixels-5d)/7d);
-        return Math.max(256,Math.min(255*256,(int)Math.round(chars*256d)));
-    }
-
-    private double rowHeightPixels(Sheet sheet,int rowIndex) {
-        Row row=sheet==null?null:sheet.getRow(rowIndex);
-        float points=row==null?sheet.getDefaultRowHeightInPoints():row.getHeightInPoints();
-        if(points<=0)points=15f;
-        return Math.max(18,Math.min(560,points*96d/72d+2d));
-    }
-
-    private float pixelsToRowPoints(double pixels) {
-        return (float)Math.max(2,Math.min(409,(pixels-2d)*72d/96d));
-    }
-
     private void configureColumnHeader(Label header,int col,Sheet sheet) {
         header.setOnMouseMoved(e->header.setCursor(e.getX()>=Math.max(0,header.getWidth()-7)?Cursor.H_RESIZE:Cursor.DEFAULT));
         header.setOnMouseExited(e->{if(resizingColumn!=col)header.setCursor(Cursor.DEFAULT);});
@@ -455,7 +435,7 @@ public class ExcelDesignerController {
             if(e.getButton()!=MouseButton.PRIMARY)return;
             if(e.getX()>=Math.max(0,header.getWidth()-7)){
                 commitActiveEdit();saveVisibleCells(false);recordUndoPoint();
-                resizingColumn=col;resizingRow=-1;resizeStartScreen=e.getScreenX();resizeStartPixels=columnWidthPixels(sheet,col);
+                resizingColumn=col;resizingRow=-1;resizeStartScreen=e.getScreenX();resizeStartPixels=ExcelDimensionPolicy.columnWidthPixels(sheet,col);
                 header.setCursor(Cursor.H_RESIZE);e.consume();
                 return;
             }
@@ -465,9 +445,9 @@ public class ExcelDesignerController {
         header.setOnMouseDragged(e->{
             if(resizingColumn!=col)return;
             double pixels=Math.max(24,Math.min(1800,resizeStartPixels+(e.getScreenX()-resizeStartScreen)));
-            sheet.setColumnWidth(col,pixelsToColumnWidth(pixels));
+            sheet.setColumnWidth(col,ExcelDimensionPolicy.pixelsToColumnWidth(pixels));
             ColumnConstraints constraint=cellGrid.getColumnConstraints().get(col+1);
-            double actual=columnWidthPixels(sheet,col);constraint.setMinWidth(actual);constraint.setPrefWidth(actual);constraint.setMaxWidth(actual);
+            double actual=ExcelDimensionPolicy.columnWidthPixels(sheet,col);constraint.setMinWidth(actual);constraint.setPrefWidth(actual);constraint.setMaxWidth(actual);
             e.consume();
         });
         header.setOnMouseReleased(e->{if(resizingColumn==col){resizingColumn=-1;header.setCursor(Cursor.DEFAULT);refreshSelectionUi();e.consume();}});
@@ -485,7 +465,7 @@ public class ExcelDesignerController {
             if(e.getButton()!=MouseButton.PRIMARY)return;
             if(e.getY()>=Math.max(0,header.getHeight()-6)){
                 commitActiveEdit();saveVisibleCells(false);recordUndoPoint();
-                resizingRow=row;resizingColumn=-1;resizeStartScreen=e.getScreenY();resizeStartPixels=rowHeightPixels(sheet,row);
+                resizingRow=row;resizingColumn=-1;resizeStartScreen=e.getScreenY();resizeStartPixels=ExcelDimensionPolicy.rowHeightPixels(sheet,row);
                 header.setCursor(Cursor.V_RESIZE);e.consume();
                 return;
             }
@@ -495,9 +475,9 @@ public class ExcelDesignerController {
         header.setOnMouseDragged(e->{
             if(resizingRow!=row)return;
             double pixels=Math.max(18,Math.min(560,resizeStartPixels+(e.getScreenY()-resizeStartScreen)));
-            Row target=sheet.getRow(row);if(target==null)target=sheet.createRow(row);target.setHeightInPoints(pixelsToRowPoints(pixels));
+            Row target=sheet.getRow(row);if(target==null)target=sheet.createRow(row);target.setHeightInPoints(ExcelDimensionPolicy.pixelsToRowPoints(pixels));
             RowConstraints constraint=cellGrid.getRowConstraints().get(row+1);
-            double actual=rowHeightPixels(sheet,row);constraint.setMinHeight(actual);constraint.setPrefHeight(actual);constraint.setMaxHeight(actual);
+            double actual=ExcelDimensionPolicy.rowHeightPixels(sheet,row);constraint.setMinHeight(actual);constraint.setPrefHeight(actual);constraint.setMaxHeight(actual);
             e.consume();
         });
         header.setOnMouseReleased(e->{if(resizingRow==row){resizingRow=-1;header.setCursor(Cursor.DEFAULT);refreshSelectionUi();e.consume();}});
@@ -539,25 +519,9 @@ public class ExcelDesignerController {
         try{
             commitActiveEdit();saveVisibleCells(false);recordUndoPoint();
             Sheet sheet=editorSheet();Row row=sheet.getRow(rowIndex);if(row==null)row=sheet.createRow(rowIndex);
-            row.setHeightInPoints(estimateAutoRowHeightPoints(sheet,rowIndex));
+            row.setHeightInPoints(ExcelDimensionPolicy.estimateAutoRowHeightPoints(sheet,rowIndex,this::cellText));
             renderSheet();
         }catch(Exception error){ModernDialog.error(root,"Row could not be AutoFit","Excel Studio",rootMessage(error));}
-    }
-
-    private float estimateAutoRowHeightPoints(Sheet sheet,int rowIndex) {
-        Row row=sheet.getRow(rowIndex);if(row==null)return sheet.getDefaultRowHeightInPoints();
-        int lines=1;
-        for(Cell cell:row){
-            String text=cellText(cell);if(text==null||text.isBlank())continue;
-            int explicit=Math.max(1,text.split("\\R",-1).length);
-            CellStyle style=cell.getCellStyle();
-            if(style!=null&&style.getWrapText()){
-                double chars=Math.max(4,sheet.getColumnWidth(cell.getColumnIndex())/256d-1d);
-                explicit=Math.max(explicit,(int)Math.ceil(text.length()/chars));
-            }
-            lines=Math.max(lines,explicit);
-        }
-        return (float)Math.max(15,Math.min(409,15d*lines+2d));
     }
 
     private void handleCellKeyPressed(TextField editor, int row, int col, KeyEvent event) {
@@ -1228,7 +1192,7 @@ public class ExcelDesignerController {
     }
 
     @FXML private void autoFitRows(){
-        if(focusedRow<0)return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=sheet.getRow(r);if(row==null)row=sheet.createRow(r);row.setHeightInPoints(estimateAutoRowHeightPoints(sheet,r));}renderSheet();}catch(Exception e){ModernDialog.error(root,"Rows could not be AutoFit","Excel Studio",rootMessage(e));}
+        if(focusedRow<0)return;try{commitActiveEdit();saveVisibleCells(false);recordUndoPoint();CellRangeAddress range=currentRange();Sheet sheet=editorSheet();for(int r=range.getFirstRow();r<=range.getLastRow();r++){Row row=sheet.getRow(r);if(row==null)row=sheet.createRow(r);row.setHeightInPoints(ExcelDimensionPolicy.estimateAutoRowHeightPoints(sheet,r,this::cellText));}renderSheet();}catch(Exception e){ModernDialog.error(root,"Rows could not be AutoFit","Excel Studio",rootMessage(e));}
     }
 
     @FXML private void autoFitColumns(){

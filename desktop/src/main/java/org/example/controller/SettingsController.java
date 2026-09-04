@@ -2,6 +2,7 @@ package org.example.controller;
 
 import org.example.config.SettingsFieldSupport;
 import org.example.service.SettingsAssetPreviewLoader;
+import org.example.service.WorkspaceSettingsService;
 
 import org.example.util.BusinessClock;
 import org.example.navigation.ScreenLifecycle;
@@ -962,7 +963,7 @@ private record AssetPreviewRequest(
     @FXML
     private void openWorkspaceFolder() {
         try {
-            Desktop.getDesktop().open(WorkspaceManager.getWorkspaceRoot().toFile());
+            WorkspaceSettingsService.openWorkspaceFolder();
         } catch (Exception exception) {
             showError("The workspace folder could not be opened: " + exception.getMessage());
         }
@@ -971,7 +972,7 @@ private record AssetPreviewRequest(
     @FXML
     private void exportDiagnostics() {
         try {
-            Path bundle = DiagnosticBundleService.export();
+            Path bundle = WorkspaceSettingsService.exportDiagnostics();
             new OwnedAlert(Alert.AlertType.INFORMATION,
                     "Diagnostic package created successfully.\n\n" + bundle +
                     "\n\nIt contains version/runtime information and recent logs only; database and business documents are not included.",
@@ -1000,7 +1001,7 @@ private record AssetPreviewRequest(
             return;
         }
 
-        WorkspaceManager.ExistingWorkspaceInspection inspection = WorkspaceManager.inspectExisting(chosen);
+        WorkspaceManager.ExistingWorkspaceInspection inspection = WorkspaceSettingsService.inspectExisting(chosen);
         if (!inspection.valid()) {
             showError(inspection.message());
             return;
@@ -1017,7 +1018,7 @@ private record AssetPreviewRequest(
         if (confirmation.showAndWait().orElse(ButtonType.CANCEL) != switchWorkspace) return;
 
         try {
-            WorkspaceManager.configureExisting(inspection.root());
+            WorkspaceSettingsService.configureExisting(inspection.root());
             lblWorkspacePath.setText(inspection.root().toString());
             lblWorkspaceStatus.setText("Existing workspace selected. Reopen DSE ERP to connect using this workspace.");
             lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
@@ -1040,7 +1041,7 @@ private record AssetPreviewRequest(
         File selected = chooser.showDialog(panelWorkspace.getScene().getWindow());
         if (selected == null) return;
         try {
-            WorkspaceManager.stageMove(selected.toPath());
+            WorkspaceSettingsService.stageMove(selected.toPath());
             lblWorkspaceStatus.setText("Move scheduled. Close and reopen DSE ERP to copy and verify the workspace. The current workspace will be retained as a recovery copy.");
             lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
             lblWorkspaceStatus.getStyleClass().add("workspace-status-warning");
@@ -1055,8 +1056,9 @@ private record AssetPreviewRequest(
 
     private void refreshWorkspacePanel() {
         if (lblWorkspacePath == null || lblWorkspaceStatus == null) return;
-        lblWorkspacePath.setText(WorkspaceManager.getWorkspaceRoot().toString());
-        boolean pending = WorkspaceManager.hasPendingMove();
+        WorkspaceSettingsService.Status workspace = WorkspaceSettingsService.status();
+        lblWorkspacePath.setText(workspace.root().toString());
+        boolean pending = workspace.pendingMove();
         lblWorkspaceStatus.setText(pending
                 ? "A workspace move is pending and will run before the database opens on the next start."
                 : "Workspace is available and writable. Application updates do not replace this folder.");

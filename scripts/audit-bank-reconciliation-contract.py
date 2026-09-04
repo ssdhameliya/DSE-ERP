@@ -78,10 +78,10 @@ require('Delete Bank Statement?' in ui and 'Type DELETE to confirm:' in ui and '
         'Desktop deletion must use impact confirmation, typed DELETE and permission control')
 
 # Startup compatibility: one exact version/build across desktop and Spring Boot.
-require('APP_VERSION = "9.0.76"' in runtime and 'BUILD_REVISION = "9.0.76"' in runtime,
-        'Desktop app version and build revision must both be 9.0.76')
-require('dse.app.version=9.0.76' in props and 'dse.build.revision=9.0.76' in props,
-        'Spring Boot app/build version must exactly match desktop 9.0.76')
+require('APP_VERSION = "9.0.77"' in runtime and 'BUILD_REVISION = "9.0.77"' in runtime,
+        'Desktop app version and build revision must both be 9.0.77')
+require('dse.app.version=9.0.77' in props and 'dse.build.revision=9.0.77' in props,
+        'Spring Boot app/build version must exactly match desktop 9.0.77')
 
 if failures:
     print('BANK_RECON_CONTRACT_FAIL')

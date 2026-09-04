@@ -1,23 +1,15 @@
-DSE ERP 9.0.76 - AUTOMATIC WORKSPACE RECOVERY
+DSE ERP 9.0.77 - ARCHITECTURE COMPLETION & UI REGRESSION SWEEP
 
 Release scope:
-- A saved valid workspace now starts automatically even when an older Config/config.properties file has setup.completed=false or no setup.completed marker.
-- Startup no longer opens the workspace/setup chooser solely because the local setup marker is missing or stale.
-- PostgreSQL/Spring services remain authoritative for setup state. If the server confirms the company database is already initialized, DSE ERP repairs only the local setup.completed marker and continues to Login.
-- The Setup Wizard remains available for genuine first-time setup when no saved workspace exists or when the initialized server truly reports that setup is required.
-- Settings -> Workspace & Storage continues to provide Select Existing Workspace and Move Workspace for deliberate workspace management.
-- All 9.0.74 import reliability, dialog semantics, immediate feedback, PDF Studio behavior, Project Execution removal and the two-theme UI architecture are preserved.
-- No database schema migration is required for 9.0.76.
+- Completes the next behavior-preserving architecture pass started in 9.0.76.
+- Import preview/execution coordination, shared Sales/Purchase charge editing, workspace settings operations, Excel dimension policy, PDF Studio selection policy, professional document data loading and import document policies are separated from oversized controllers/services.
+- Existing FXML layouts, sidebar, database schema, REST contracts, calculations, import behavior, document/PDF output, permissions, workspace startup behavior and exactly two runtime CSS themes are preserved.
+- No database schema migration is required for 9.0.77.
 
-Verified environment:
-- JDK/Javac 25.0.4.1
-- Maven 3.9.16
+Required environment:
+- JDK/Javac 25
+- Maven 3.9.x
 - Project Java 25
 - JavaFX 25.0.2
 
-Verification completed before packaging:
-- PostgreSQL 18.6 server tests: 15/15 PASS, 0 skipped.
-- Desktop tests using exact JavaFX 25.0.2 Windows classifier dependencies: 35/35 PASS, including WorkspaceStartupPolicyTest 2/2.
-- Release gates: PASS, version=9.0.76, css=2.
-
-Release evidence is distributed separately from the clean IntelliJ/GitHub source copies.
+Final verification results are captured in the 9.0.77 BUILD-TEST-EVIDENCE package generated with the final release artifacts.

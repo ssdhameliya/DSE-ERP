@@ -7,10 +7,10 @@ def need(ok,msg):
     if not ok:
         print('FAIL:',msg); sys.exit(1)
 # Release identity
-need('<version>9.0.76</version>' in text('pom.xml') and '<dse.phase>9.0.76</dse.phase>' in text('pom.xml'),'root identity')
-need('APP_VERSION = "9.0.76"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'shared identity')
-need('dse.app.version=9.0.76' in text('server/src/main/resources/application.properties'),'server identity')
-need('version=9.0.76' in text('desktop/src/main/resources/app-version.properties'),'desktop identity')
+need('<version>9.0.77</version>' in text('pom.xml') and '<dse.phase>9.0.77</dse.phase>' in text('pom.xml'),'root identity')
+need('APP_VERSION = "9.0.77"' in text('shared/src/main/java/org/example/shared/RuntimeContract.java'),'shared identity')
+need('dse.app.version=9.0.77' in text('server/src/main/resources/application.properties'),'server identity')
+need('version=9.0.77' in text('desktop/src/main/resources/app-version.properties'),'desktop identity')
 # Workspace recovery
 wm=text('desktop/src/main/java/org/example/config/WorkspaceManager.java')
 sw=text('desktop/src/main/java/org/example/controller/SetupWizardController.java')
@@ -26,7 +26,7 @@ mig=text('server/src/main/resources/db/migration/V9_0_63__workspace_master_email
 runner=text('server/src/main/java/org/example/server/runtime/SecurityFinancialMigrationRunner.java')
 for code in ['CATEGORY','UNIT','MATERIAL','BRAND','GST']:
     need("('"+code+"'" in mig or "('CATEGORY','CATEGORY'" in mig if code=='CATEGORY' else code in mig,'migration missing '+code)
-need('V9_0_63__workspace_master_email_stability' in runner,'9.0.76 migration not registered')
+need('V9_0_63__workspace_master_email_stability' in runner,'9.0.77 migration not registered')
 for col in ['category_snapshot','hsn_snapshot','unit_snapshot']:
     need(col in mig and col in runner,'snapshot migration/schema guard missing '+col)
 for f,tokens in {

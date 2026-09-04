@@ -90,15 +90,8 @@ public final class ProfessionalDocumentRenderer {
 
     /** Loads database data and writes the selected business document. */
     public static void render(Path output, Path logo, String number, Kind kind) throws Exception {
-        Data data = switch (kind) {
-            case SALES_INVOICE -> loadInvoice(number, true);
-            case PURCHASE_INVOICE -> loadInvoice(number, false);
-            case QUOTATION -> loadQuotation(number);
-            case SALES_REFUND -> loadRefund(number, true);
-            case PURCHASE_REFUND -> loadRefund(number, false);
-        };
+        Data data = ProfessionalDocumentDataLoader.load(number, kind);
 
-        normalizeTotals(data);
         Files.createDirectories(output.toAbsolutePath().getParent());
         logo = configuredDocumentLogo(logo);
 
@@ -1315,43 +1308,8 @@ public final class ProfessionalDocumentRenderer {
     }
 
     /** Loads a sales or purchase invoice through the Spring operations API. */
-    private static Data loadInvoice(String number, boolean sales) {
-        OperationsApiClient api=new OperationsApiClient(); MasterApiClient master=new MasterApiClient();
-        Data data=new Data(); data.title="TAX INVOICE";data.numberLabel="Invoice No.";data.dateLabel="Invoice Date";
-        Map<String,Item> itemMap=new java.util.HashMap<>();for(Item i:master.items())itemMap.put(i.getItemCode(),i);
-if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentException("Sales not found: "+number);data.number=doc.getInvoiceNo();data.date=strDate(doc.getInvoiceDate());data.dueDate=strDate(doc.getDueDate());data.poDate=strDate(doc.getPoDate());populateParty(data,doc.getCustomer());data.partyAddress=firstNonBlank(doc.getBillingAddress(),data.partyAddress);data.billingGstin=firstNonBlank(doc.getBillingGstin(),doc.getGstin(),data.partyGstin);data.sameAsBilling=doc.isSameAsBilling();data.shipTo=data.sameAsBilling?data.partyAddress:present(doc.getDeliveryAddress());data.deliveryGstin=data.sameAsBilling?data.billingGstin:present(doc.getDeliveryGstin());data.subtotal=doc.getSubtotal();data.gst=doc.getGstAmount();data.total=doc.getTotalAmount();data.salesperson=doc.getSalesperson();data.paymentTerms=doc.getPaymentTerms();data.transporter=doc.getTransporter();data.transporterGstin=doc.getTransporterGstin();data.gstType=doc.getGstType();data.vehicleNumber=doc.getVehicleNumber();data.contactPerson=doc.getContactPerson();data.contactPersonMobile=doc.getContactPersonMobile();data.transportNote=doc.getTransportNote();data.chargeType=doc.getChargeType();data.chargeAmount=doc.getChargeAmount();data.reference=doc.getReferenceNo();data.purchaseOrder=doc.getOrderNo();data.partyGstin=data.billingGstin;if(doc.getLines()!=null)for(SalesLine l:doc.getLines())data.lines.add(line(l.getItemCode(),l.getItemDescription(),l.getItemHsn(),l.getItemUnit(),l.getQuantity(),l.getRate(),l.getGstPercent(),l.getDiscountAmount(),itemMap));}
-        else{Purchase doc=api.purchase(number);if(doc==null)throw new IllegalArgumentException("Purchase not found: "+number);data.number=doc.getInvoiceNo();data.date=strDate(doc.getInvoiceDate());data.dueDate=strDate(doc.getDueDate());populateParty(data,doc.getSupplier());data.subtotal=doc.getSubtotal();data.gst=doc.getGstAmount();data.total=doc.getTotalAmount();data.paymentTerms=doc.getPaymentTerms();data.transporter=doc.getTransporter();data.reference=doc.getReferenceNo();data.shipTo=companyShipText();if(doc.getLines()!=null)for(PurchaseLine l:doc.getLines())data.lines.add(line(l.getItemCode(),l.getItemDescription(),l.getItemHsn(),l.getItemUnit(),l.getQuantity(),l.getRate(),l.getGstPercent(),l.getDiscountAmount(),itemMap));}
-        return data;
-    }
-
     /** Loads a quotation into the same branded model used by invoices. */
-    private static Data loadQuotation(String number) {
-        QuotationApiClient api=new QuotationApiClient();MasterApiClient master=new MasterApiClient();QuotationApiClient.QuoteDto q=api.list().stream().filter(x->x.no()!=null&&x.no().equalsIgnoreCase(number)).findFirst().orElseThrow(()->new IllegalArgumentException("Quotation not found: "+number));Data data=new Data();data.quotation=true;data.title="QUOTATION";data.numberLabel="Quotation No.";data.dateLabel="Quotation Date";data.number=q.no();data.date=q.date();data.dueDate=q.valid();Party party=master.parties("CUSTOMER").stream().filter(x->x.getId()==q.customerId()).findFirst().orElse(null);populateParty(data,party);data.subtotal=q.amount()-0;data.total=q.amount();data.salesperson=q.salesperson();data.paymentTerms="As agreed";data.reference=q.source();data.shipTo=data.partyAddress;Map<String,Item> itemMap=new java.util.HashMap<>();for(Item i:master.items())itemMap.put(i.getItemCode(),i);for(QuotationApiClient.LineDto l:api.lines(q.id()))data.lines.add(line(l.code(),l.description(),"","",l.quantity(),l.rate(),l.gst(),Math.max(0,l.quantity()*l.rate()-l.total()/(1+l.gst()/100.0)),itemMap));normalizeTotals(data);return data;
-    }
-
     /** Loads a sales/purchase return and derives its refund note details. */
-    private static Data loadRefund(String number, boolean sales) {
-        ReturnApiClient returns=new ReturnApiClient();OperationsApiClient operations=new OperationsApiClient();MasterApiClient master=new MasterApiClient();ReturnApiClient.Details d=returns.details(number);if(d==null||d.type()==null||sales&&!d.type().toUpperCase(Locale.ROOT).startsWith("SALES")||!sales&&!d.type().toUpperCase(Locale.ROOT).startsWith("PURCHASE"))throw new IllegalArgumentException("Refund record not found: "+number);Data data=new Data();data.refund=true;data.title=sales?"SALES REFUND NOTE":"PURCHASE REFUND NOTE";data.numberLabel="Refund Note No.";data.dateLabel="Refund Note Date";data.number=d.no();data.date=d.date();data.originalNumber=d.invoice();try{data.originalDate=sales?strDate(operations.sale(d.invoice()).getInvoiceDate()):strDate(operations.purchase(d.invoice()).getInvoiceDate());}catch(Exception ignored){}Party party=master.parties(sales?"CUSTOMER":"SUPPLIER").stream().filter(x->x.getName()!=null&&x.getName().equalsIgnoreCase(d.party())).findFirst().orElse(null);populateParty(data,party);data.status=d.refundStatus();data.total=d.total();if(d.lines()!=null)for(ReturnApiClient.Line l:d.lines()){Line item=new Line();item.code=l.code();item.description=present(l.name());item.unit=present(l.unit());item.quantity=l.quantity();item.rate=l.rate();item.gst=l.tax();item.discount=Math.max(0,item.quantity*item.rate-l.amount()/(1+item.gst/100.0));data.lines.add(item);if(data.reason.isBlank())data.reason=present(l.reason());}normalizeTotals(data);return data;
-    }
-
-    private static void populateParty(Data data, Party party){if(party==null)return;data.partyCode=present(party.getPartyCode());data.partyName=present(party.getName());data.partyAddress=present(party.getAddress());data.partyGstin=present(party.getGstin());data.partyPhone=present(party.getPhone());data.partyEmail=present(party.getEmail());}
-    private static Line line(String code,String description,String snapshotHsn,String snapshotUnit,double quantity,double rate,double gst,double discount,Map<String,Item> itemMap){Line item=new Line();item.code=present(code);item.description=present(description);Item master=itemMap.get(code);item.hsn=firstNonBlank(snapshotHsn,master==null?"":present(master.getHsn()));item.unit=firstNonBlank(snapshotUnit,master==null?"Nos":present(master.getUnit()));item.quantity=quantity;item.rate=rate;item.gst=gst;item.discount=Math.max(0,discount);return item;}
-    private static String strDate(java.time.LocalDate d){return d==null?"":d.toString();}
-
-    private static void normalizeTotals(Data data) {
-        if (data.lines.isEmpty()) return;
-        double taxable = 0;
-        double gst = 0;
-        for (Line line : data.lines) {
-            double base = line.quantity * line.rate - line.discount;
-            taxable += base;
-            gst += base * line.gst / 100;
-        }
-        data.subtotal = taxable;
-        data.gst = gst;
-        data.total = taxable + gst;
-    }
-
     private static Cell card(String title, String body, Color accent) {
         Cell cell = new Cell().setBorder(new SolidBorder(LINE, .7f)).setPadding(0);
         cell.add(new Paragraph(title).setBold().setFontColor(ColorConstants.WHITE)
@@ -1505,7 +1463,7 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
 
 
 
-    private static final class Data {
+    static final class Data {
         String title;
         String numberLabel;
         String dateLabel;
@@ -1549,7 +1507,7 @@ if(sales){Sales doc=api.sale(number);if(doc==null)throw new IllegalArgumentExcep
         List<Line> lines = new ArrayList<>();
     }
 
-    private static final class Line {
+    static final class Line {
         String code = "";
         String description = "";
         String hsn = "";

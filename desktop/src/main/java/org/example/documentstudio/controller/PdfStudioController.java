@@ -961,11 +961,11 @@ public class PdfStudioController implements ScreenLifecycle {
         else clearInspector();
     }
 
-    private TemplateElement selectedElement() { return selectedIds.size()==1 ? findById(selectedIds.iterator().next()) : null; }
-    private List<TemplateElement> selectedElements() { return selectedIds.stream().map(this::findById).filter(Objects::nonNull).toList(); }
-    private List<TemplateElement> selectedElementsWithDescendants() { Set<String> ids=idsWithDescendants(selectedIds);return template.getElements().stream().filter(e->ids.contains(e.getId())).toList(); }
-    private Set<String> idsWithDescendants(Collection<String> roots) { LinkedHashSet<String> ids=new LinkedHashSet<>(roots==null?List.of():roots);boolean changed;do{changed=false;for(TemplateElement e:template.getElements())if(!e.getParentId().isBlank()&&ids.contains(e.getParentId())&&ids.add(e.getId()))changed=true;}while(changed);return ids; }
-    private TemplateElement findById(String id) { return template==null?null:template.getElements().stream().filter(e->Objects.equals(e.getId(),id)).findFirst().orElse(null); }
+    private TemplateElement selectedElement() { return PdfStudioSelectionPolicy.single(selectedIds, template == null ? List.of() : template.getElements()); }
+    private List<TemplateElement> selectedElements() { return PdfStudioSelectionPolicy.selected(selectedIds, template == null ? List.of() : template.getElements()); }
+    private List<TemplateElement> selectedElementsWithDescendants() { return PdfStudioSelectionPolicy.selectedWithDescendants(selectedIds, template == null ? List.of() : template.getElements()); }
+    private Set<String> idsWithDescendants(Collection<String> roots) { return PdfStudioSelectionPolicy.idsWithDescendants(roots, template == null ? List.of() : template.getElements()); }
+    private TemplateElement findById(String id) { return PdfStudioSelectionPolicy.find(template == null ? List.of() : template.getElements(), id); }
 
     private void populateInspector(TemplateElement e) {
         if (e == null) { clearInspector(); return; }

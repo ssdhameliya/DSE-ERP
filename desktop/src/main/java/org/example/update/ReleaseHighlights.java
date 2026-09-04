@@ -8,6 +8,16 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.77".equals(version)) {
+            return """
+                    DSE ERP 9.0.77 — Architecture Completion & UI Regression Sweep
+
+                    • Completes the next behavior-preserving architecture pass by moving Import preview/execution coordination, shared Sales/Purchase charge editing, workspace settings operations, Excel sizing, PDF Studio selection, document loading and import document policies behind focused components.
+                    • Keeps the existing FXML layouts, sidebar, database schema, REST contracts, calculations, document output, import rules and two-theme runtime CSS architecture unchanged.
+                    • Strengthens architecture characterization and regression coverage so the new seams remain independently testable while preserving the 9.0.76 behavior baseline.
+                    • Preserves automatic workspace recovery, import idempotence, dialog semantics, immediate action feedback, Java 25, JavaFX 25.0.2 and PostgreSQL ownership.
+                    """;
+        }
         if ("9.0.76".equals(version)) {
             return """
                     DSE ERP 9.0.76 — Core Architecture & Regression Hardening

@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.document.DocumentLookupPolicy;
+import org.example.document.DocumentChargeDialog;
 
 import org.example.util.BusinessClock;
 import org.example.shared.DocumentCalculationEngine;
@@ -669,7 +670,7 @@ public class PurchaseController implements ScreenLifecycle {
         if(tableLines.getItems().isEmpty()){warn("Add items");return null;}
         if(cmbPaymentTerms.getValue()==null||cmbPaymentTerms.getValue().isBlank()){warn("Configure and select Payment Terms from Master Data.");return null;}
         if(cmbGstType!=null&&(cmbGstType.getValue()==null||cmbGstType.getValue().isBlank())){warn("Configure and select GST Type from Master Data.");return null;}
-        String chargeError=validateCharges(invoiceCharges);if(chargeError!=null){warn(chargeError);return null;}
+        String chargeError=DocumentChargeDialog.validatePurchase(invoiceCharges);if(chargeError!=null){warn(chargeError);return null;}
 
         Purchase purchase=new Purchase();
         // Preserve lifecycle/payment state while editing. Purchase entry owns header, lines, charges and attachments only.
@@ -1183,56 +1184,8 @@ public class PurchaseController implements ScreenLifecycle {
 
     @FXML
     private void manageCharges(){
-        List<PurchaseCharge> draft=invoiceCharges.stream().map(PurchaseCharge::copy)
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-        Dialog<ButtonType> dialog=new OwnedDialog<>();
-        dialog.setTitle("Purchase Additional Charges");
-        dialog.setHeaderText("Add purchase charges with the same GST / IGST calculation rules as the invoice");
-        dialog.getDialogPane().getStyleClass().add("sales-charge-dialog");
-        VBox rows=new VBox(9); rows.getStyleClass().add("sales-charge-editor-rows");
-        Label totals=new Label(); totals.getStyleClass().add("sales-charge-editor-total");
-        Button add=new Button("Add Charge",IconFactory.compactIcon("add",14));
-        add.getStyleClass().addAll("approved-button","approved-primary-button","sales-charge-add");
-        Label limit=new Label("Add as many purchase charges as required"); limit.getStyleClass().add("sales-charge-limit");
-        Region spacer=new Region(); HBox.setHgrow(spacer,Priority.ALWAYS);
-        HBox addBar=new HBox(10,add,spacer,limit); addBar.setAlignment(Pos.CENTER_LEFT);
-        Runnable updateTotals=()->{
-            double amount=draft.stream().mapToDouble(PurchaseCharge::getAmount).sum();
-            double tax=draft.stream().mapToDouble(PurchaseCharge::getTaxAmount).sum();
-            totals.setText(String.format("Charges ₹ %,.2f    GST ₹ %,.2f    Total ₹ %,.2f",amount,tax,amount+tax));
-        };
-        Runnable[] render=new Runnable[1];
-        render[0]=()->{
-            rows.getChildren().clear();
-            for(int index=0;index<draft.size();index++){
-                PurchaseCharge charge=draft.get(index);
-                ComboBox<String> type=new ComboBox<>(FXCollections.observableArrayList(availableChargeTypes));
-                if(!charge.getChargeType().isBlank()&&!type.getItems().contains(charge.getChargeType()))type.getItems().add(charge.getChargeType());
-                type.setValue(charge.getChargeType().isBlank()?null:charge.getChargeType());type.setPromptText("Select charge...");type.setMaxWidth(Double.MAX_VALUE);
-                TextField amount=new TextField(charge.getAmount()<=0?"":String.format(Locale.ROOT,"%.2f",charge.getAmount())); amount.setPromptText("Amount");
-                ComboBox<String> tax=new ComboBox<>(FXCollections.observableArrayList("Non-taxable","Taxable 0%","Taxable 5%","Taxable 12%","Taxable 18%","Taxable 28%"));
-                tax.setValue(charge.isTaxable()?"Taxable "+percentText(charge.getGstPercent()):"Non-taxable");
-                Button remove=new Button("Remove",IconFactory.compactIcon("delete",13)); remove.getStyleClass().addAll("approved-button","approved-danger-button","sales-charge-remove");
-                int rowIndex=index;
-                type.valueProperty().addListener((o,a,b)->charge.setChargeType(b));
-                amount.textProperty().addListener((o,a,b)->{charge.setAmount(parseAmount(b));updateTotals.run();});
-                tax.valueProperty().addListener((o,a,b)->{applyTaxTreatment(charge,b);updateTotals.run();});
-                remove.setOnAction(e->{draft.remove(rowIndex);render[0].run();});
-                GridPane row=new GridPane();row.setHgap(8);row.setVgap(3);row.getStyleClass().add("sales-charge-editor-row");
-                row.add(new Label("Charge "+(index+1)),0,0);row.add(new Label("Amount"),1,0);row.add(new Label("Tax Treatment"),2,0);
-                row.add(type,0,1);row.add(amount,1,1);row.add(tax,2,1);row.add(remove,3,1);GridPane.setHgrow(type,Priority.ALWAYS);rows.getChildren().add(row);
-            }
-            if(draft.isEmpty()){Label empty=new Label("No additional charges. Select Add Charge when required.");empty.getStyleClass().add("sales-charge-editor-empty");rows.getChildren().add(empty);}
-            updateTotals.run();
-        };
-        add.setOnAction(e->{draft.add(new PurchaseCharge("",0,true,18));render[0].run();});render[0].run();
-        ScrollPane scroller=new ScrollPane(rows);scroller.setFitToWidth(true);scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);scroller.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);scroller.setPrefViewportHeight(230);scroller.getStyleClass().add("sales-charge-editor-scroll");
-        VBox content=new VBox(12,scroller,addBar,new Separator(),totals);content.setPrefWidth(720);
-        dialog.getDialogPane().setContent(content);dialog.getDialogPane().setMinSize(700,450);dialog.setResizable(true);
-        ButtonType apply=new ButtonType("Apply Charges",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL,apply);
-        Node applyButton=dialog.getDialogPane().lookupButton(apply);
-        applyButton.addEventFilter(javafx.event.ActionEvent.ACTION,event->{String error=validateCharges(draft);if(error!=null){event.consume();warn(error);}});
-        dialog.showAndWait().filter(apply::equals).ifPresent(result->invoiceCharges.setAll(draft.stream().map(PurchaseCharge::copy).toList()));
+        DocumentChargeDialog.editPurchase(invoiceCharges, availableChargeTypes, this::warn)
+            .ifPresent(invoiceCharges::setAll);
     }
 
     private void updateChargeManagerSummary(){
@@ -1240,15 +1193,6 @@ public class PurchaseController implements ScreenLifecycle {
         double amount=invoiceCharges.stream().mapToDouble(PurchaseCharge::getAmount).sum();
         lblChargeManagerSummary.setText(invoiceCharges.isEmpty()?"No additional charges":String.format("%d charge%s · ₹ %,.2f",invoiceCharges.size(),invoiceCharges.size()==1?"":"s",amount));
     }
-    private String validateCharges(List<PurchaseCharge> charges){
-        if(charges==null||charges.isEmpty())return null;
-        java.util.Set<String> names=new java.util.HashSet<>();
-        for(PurchaseCharge charge:charges){if(charge==null||charge.getChargeType().isBlank())return "Select a charge type for every charge row.";if(charge.getAmount()<=0)return "Charge amount must be greater than zero.";if(!names.add(normalized(charge.getChargeType())))return "The same charge type cannot be selected twice.";}
-        return null;
-    }
-    private void applyTaxTreatment(PurchaseCharge charge,String treatment){if(treatment==null||treatment.startsWith("Non")){charge.setTaxable(false);charge.setGstPercent(0);return;}charge.setTaxable(true);java.util.regex.Matcher m=java.util.regex.Pattern.compile("([0-9.]+)").matcher(treatment);charge.setGstPercent(m.find()?Double.parseDouble(m.group(1)):0);}
-    private double parseAmount(String value){try{return value==null||value.isBlank()?0:Double.parseDouble(value.replace(",","").trim());}catch(Exception e){return 0;}}
-    private String percentText(double value){return Math.rint(value)==value?String.format(Locale.ROOT,"%.0f%%",value):String.format(Locale.ROOT,"%.2f%%",value);}
     private String normalized(String value) { return DocumentLookupPolicy.normalizedKey(value); }
 
 

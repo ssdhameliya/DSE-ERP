@@ -107,4 +107,4 @@ if failed:
         print(" -", item)
     sys.exit(1)
 
-print("\nRELEASE_GATES_CURRENT_OK version=9.0.76")
+print("\nRELEASE_GATES_CURRENT_OK version=9.0.77")

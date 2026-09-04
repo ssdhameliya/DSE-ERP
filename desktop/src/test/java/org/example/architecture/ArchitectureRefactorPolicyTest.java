@@ -4,18 +4,23 @@ import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.config.SettingsFieldSupport;
 import org.example.document.DocumentLookupPolicy;
+import org.example.document.DocumentChargeDialog;
 import org.example.documentstudio.model.ElementType;
 import org.example.documentstudio.model.TemplateElement;
 import org.example.documentstudio.service.ExcelSelectionPolicy;
+import org.example.documentstudio.service.ExcelDimensionPolicy;
 import org.example.documentstudio.service.ExcelWorkbookHistory;
 import org.example.documentstudio.service.PdfStudioGeometryPolicy;
 import org.example.documentstudio.service.PdfStudioHistory;
+import org.example.documentstudio.service.PdfStudioSelectionPolicy;
 import org.example.importing.ImportMappingSupport;
+import org.example.importing.ImportDocumentPolicy;
 import org.example.importing.ImportMergePolicy;
 import org.example.importing.ImportModuleRegistry;
 import org.example.importing.ImportValueParser;
 import org.example.model.Item;
 import org.example.model.Party;
+import org.example.model.SalesCharge;
 import org.example.util.ProfessionalDocumentFormatSupport;
 import org.junit.jupiter.api.Test;
 
@@ -106,5 +111,39 @@ class ArchitectureRefactorPolicyTest {
         assertEquals("2", ProfessionalDocumentFormatSupport.quantity(2));
         assertEquals("2.125", ProfessionalDocumentFormatSupport.quantity(2.125));
         assertEquals("NA", ProfessionalDocumentFormatSupport.pdfValue(""));
+    }
+
+    @Test void sharedChargeValidationRejectsDuplicateAndInvalidRows() {
+        SalesCharge first = new SalesCharge(); first.setChargeType("Freight"); first.setAmount(100);
+        SalesCharge duplicate = new SalesCharge(); duplicate.setChargeType("Freight"); duplicate.setAmount(50);
+        assertNull(DocumentChargeDialog.validateSales(List.of(first)));
+        assertTrue(DocumentChargeDialog.validateSales(List.of(first, duplicate)).toLowerCase().contains("same charge"));
+        SalesCharge invalid = new SalesCharge(); invalid.setChargeType("Packing"); invalid.setAmount(0);
+        assertTrue(DocumentChargeDialog.validateSales(List.of(invalid)).toLowerCase().contains("greater than zero"));
+    }
+
+    @Test void excelDimensionConversionsRemainBounded() throws Exception {
+        try (XSSFWorkbook book = new XSSFWorkbook()) {
+            var sheet = book.createSheet("Sheet1");
+            sheet.createRow(0).createCell(0).setCellValue("wrapped text");
+            assertTrue(ExcelDimensionPolicy.columnWidthPixels(sheet, 0) >= 24);
+            assertTrue(ExcelDimensionPolicy.pixelsToColumnWidth(120) >= 256);
+            assertTrue(ExcelDimensionPolicy.pixelsToRowPoints(30) > 0);
+            assertTrue(ExcelDimensionPolicy.estimateAutoRowHeightPoints(sheet, 0, cell -> cell.getStringCellValue()) >= 15);
+        }
+    }
+
+    @Test void pdfSelectionPolicyExpandsNestedChildren() {
+        TemplateElement parent = TemplateElement.of(ElementType.BLOCK, 0, 0, 0, 100, 100);
+        TemplateElement child = TemplateElement.of(ElementType.TEXT, 0, 5, 5, 50, 20); child.setParentId(parent.getId());
+        TemplateElement grandchild = TemplateElement.of(ElementType.TEXT, 0, 10, 10, 40, 15); grandchild.setParentId(child.getId());
+        var selected = PdfStudioSelectionPolicy.selectedWithDescendants(List.of(parent.getId()), List.of(parent, child, grandchild));
+        assertEquals(3, selected.size());
+        assertEquals(parent.getId(), PdfStudioSelectionPolicy.single(List.of(parent.getId()), List.of(parent, child)).getId());
+    }
+
+    @Test void importDocumentTaxDescriptionRemainsStable() {
+        assertEquals("IGST 18.00% calculated from line values", ImportDocumentPolicy.taxDescription("IGST", 18));
+        assertEquals("GST 18.00% calculated as CGST 9.00% + SGST 9.00%", ImportDocumentPolicy.taxDescription("GST", 18));
     }
 }

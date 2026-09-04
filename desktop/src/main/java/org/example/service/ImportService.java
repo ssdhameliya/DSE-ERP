@@ -20,6 +20,8 @@ import org.example.shared.ReferenceFormatRules;
 import org.example.shared.DocumentCalculationEngine;
 import org.example.importing.ImportMergePolicy;
 import org.example.importing.ImportValueParser;
+import org.example.importing.ImportDocumentPolicy;
+import org.example.importing.ImportWorkbookValueReader;
 
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -133,28 +135,28 @@ public class ImportService {
                 try {
                     Item item = new Item();
 
-                    String code = required(getCellValue(row, mapping.get("item_code")), "item_code").trim();
-                    requireReference(referenceFormats, "REF_ITEM", code, null, "Item Code");
+                    String code = required(ImportWorkbookValueReader.cellValue(row, mapping.get("item_code")), "item_code").trim();
+                    ImportDocumentPolicy.requireReference(referenceFormats, "REF_ITEM", code, null, "Item Code");
                     item.setItemCode(code);
 
-                    String desc = getCellValue(row, mapping.get("description"));
+                    String desc = ImportWorkbookValueReader.cellValue(row, mapping.get("description"));
                     if (desc == null || desc.isBlank()) {
                         throw new IllegalArgumentException("Missing description");
                     }
                     item.setDescription(desc.trim());
 
-                    item.setCategory(getCellValue(row, mapping.get("category")));
-                    item.setUnit(required(getCellValue(row, mapping.get("unit")), "unit"));
-                    item.setHsn(required(getCellValue(row, mapping.get("hsn")), "hsn"));
+                    item.setCategory(ImportWorkbookValueReader.cellValue(row, mapping.get("category")));
+                    item.setUnit(required(ImportWorkbookValueReader.cellValue(row, mapping.get("unit")), "unit"));
+                    item.setHsn(required(ImportWorkbookValueReader.cellValue(row, mapping.get("hsn")), "hsn"));
                     Set<String> supplied = new HashSet<>();
-                    String gstText=getCellValue(row,mapping.get("gst")); if(!blank(gstText))supplied.add("gst"); item.setGst(parseDouble(gstText));
-                    String discountText=getCellValue(row,mapping.get("discount_percent")); if(!blank(discountText))supplied.add("discount_percent"); item.setDiscountPercent(parseDouble(discountText));
-                    String purchaseText=getCellValue(row,mapping.get("purchase_price")); if(!blank(purchaseText))supplied.add("purchase_price"); item.setPurchasePrice(parseDouble(purchaseText));
-                    String sellingText=getCellValue(row,mapping.get("selling_price")); if(!blank(sellingText))supplied.add("selling_price"); item.setSellingPrice(parseDouble(sellingText));
-                    String openingText=getCellValue(row,mapping.get("opening_stock")); if(!blank(openingText))supplied.add("opening_stock"); item.setOpeningStock(parseDouble(openingText));
-                    String minimumText=getCellValue(row,mapping.get("minimum_stock")); if(!blank(minimumText))supplied.add("minimum_stock"); item.setMinimumStock(parseDouble(minimumText));
-                    item.setLocation(getCellValue(row, mapping.get("location")));
-                    item.setRemarks(required(getCellValue(row, mapping.get("remarks")), "remarks"));
+                    String gstText=ImportWorkbookValueReader.cellValue(row,mapping.get("gst")); if(!blank(gstText))supplied.add("gst"); item.setGst(parseDouble(gstText));
+                    String discountText=ImportWorkbookValueReader.cellValue(row,mapping.get("discount_percent")); if(!blank(discountText))supplied.add("discount_percent"); item.setDiscountPercent(parseDouble(discountText));
+                    String purchaseText=ImportWorkbookValueReader.cellValue(row,mapping.get("purchase_price")); if(!blank(purchaseText))supplied.add("purchase_price"); item.setPurchasePrice(parseDouble(purchaseText));
+                    String sellingText=ImportWorkbookValueReader.cellValue(row,mapping.get("selling_price")); if(!blank(sellingText))supplied.add("selling_price"); item.setSellingPrice(parseDouble(sellingText));
+                    String openingText=ImportWorkbookValueReader.cellValue(row,mapping.get("opening_stock")); if(!blank(openingText))supplied.add("opening_stock"); item.setOpeningStock(parseDouble(openingText));
+                    String minimumText=ImportWorkbookValueReader.cellValue(row,mapping.get("minimum_stock")); if(!blank(minimumText))supplied.add("minimum_stock"); item.setMinimumStock(parseDouble(minimumText));
+                    item.setLocation(ImportWorkbookValueReader.cellValue(row, mapping.get("location")));
+                    item.setRemarks(required(ImportWorkbookValueReader.cellValue(row, mapping.get("remarks")), "remarks"));
                     suppliedItemFields.put(code.toUpperCase(Locale.ROOT), supplied);
                     validateItemForImport(item);
 
@@ -228,7 +230,7 @@ public class ImportService {
                         imported++;
                     }
                 } catch (Exception e) {
-                    String message = rootMessage(e);
+                    String message = ImportDocumentPolicy.rootMessage(e);
                     errors.add("Item " + item.getItemCode() + ": " + message);
                     details.add(new ImportRowResult("", item.getItemCode(), "FAILED", "NONE", message, "", 0));
                     skipped++;
@@ -277,37 +279,37 @@ public class ImportService {
                 if (row == null) continue;
                 int sourceRow = i + 1;
                 try {
-                    String party = required(getCellValue(row, mapping.get("party_code")), "party_code").trim();
-                    String item = required(getCellValue(row, mapping.get("item_code")), "item_code").trim();
-                    String invoice = required(getCellValue(row, mapping.get("invoice_no")), "invoice_no").trim();
-                    LocalDate invoiceDate = getRequiredDateValue(row, mapping.get("invoice_date"), "invoice_date");
-                    if (sales) requireReference(referenceFormats, "REF_SALES", invoice, invoiceDate, "Sales Invoice No.");
-                    requireReference(referenceFormats, sales ? "REF_CUSTOMER" : "REF_SUPPLIER", party, null, sales ? "Customer Code" : "Supplier Code");
-                    requireReference(referenceFormats, "REF_ITEM", item, null, "Item Code");
+                    String party = required(ImportWorkbookValueReader.cellValue(row, mapping.get("party_code")), "party_code").trim();
+                    String item = required(ImportWorkbookValueReader.cellValue(row, mapping.get("item_code")), "item_code").trim();
+                    String invoice = required(ImportWorkbookValueReader.cellValue(row, mapping.get("invoice_no")), "invoice_no").trim();
+                    LocalDate invoiceDate = ImportWorkbookValueReader.requiredDateValue(row, mapping.get("invoice_date"), "invoice_date");
+                    if (sales) ImportDocumentPolicy.requireReference(referenceFormats, "REF_SALES", invoice, invoiceDate, "Sales Invoice No.");
+                    ImportDocumentPolicy.requireReference(referenceFormats, sales ? "REF_CUSTOMER" : "REF_SUPPLIER", party, null, sales ? "Customer Code" : "Supplier Code");
+                    ImportDocumentPolicy.requireReference(referenceFormats, "REF_ITEM", item, null, "Item Code");
                     if (!validPartyCodes.contains(party.toUpperCase(Locale.ROOT))) throw new IllegalArgumentException((sales ? "Customer" : "Supplier") + " not found in master: " + party);
                     if (!validItemCodes.contains(item.toUpperCase(Locale.ROOT))) throw new IllegalArgumentException("Item not found in master: " + item);
-                    String taxType = normalizeTaxType(getCellValue(row, mapping.get("gst_type")), party, sales);
+                    String taxType = ImportDocumentPolicy.normalizeTaxType(ImportWorkbookValueReader.cellValue(row, mapping.get("gst_type")), party, sales);
                     rows.add(new DocumentImportRow(sourceRow, invoice,
                         invoiceDate,
                         party, item,
-                        parsePositive(getCellValue(row, mapping.get("quantity")), "quantity"),
-                        parsePositive(getCellValue(row, mapping.get("rate")), "rate"),
-                        parseDouble(getCellValue(row, mapping.get("gst_percent"))),
+                        parsePositive(ImportWorkbookValueReader.cellValue(row, mapping.get("quantity")), "quantity"),
+                        parsePositive(ImportWorkbookValueReader.cellValue(row, mapping.get("rate")), "rate"),
+                        parseDouble(ImportWorkbookValueReader.cellValue(row, mapping.get("gst_percent"))),
                         taxType,
-                        defaultText(getCellValue(row, mapping.get("payment_terms")), "15 Days"),
-                        parseDouble(getCellValue(row, mapping.get("paid_amount"))),
-                        getCellValue(row, mapping.get("remarks")),
-                        getCellValue(row, mapping.get("charge_1_type")),
-                        getCellValue(row, mapping.get("charge_1_amount")),
-                        getCellValue(row, mapping.get("charge_1_taxable")),
-                        getCellValue(row, mapping.get("charge_1_gst_percent")),
-                        getCellValue(row, mapping.get("charge_2_type")),
-                        getCellValue(row, mapping.get("charge_2_amount")),
-                        getCellValue(row, mapping.get("charge_2_taxable")),
-                        getCellValue(row, mapping.get("charge_2_gst_percent")),
-                        getCellValue(row, mapping.get("additional_charges")),
-                        getCellValue(row, mapping.get("attachment_file")),
-                        getCellValue(row, mapping.get("attachment_files"))));
+                        defaultText(ImportWorkbookValueReader.cellValue(row, mapping.get("payment_terms")), "15 Days"),
+                        parseDouble(ImportWorkbookValueReader.cellValue(row, mapping.get("paid_amount"))),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("remarks")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_1_type")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_1_amount")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_1_taxable")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_1_gst_percent")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_2_type")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_2_amount")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_2_taxable")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("charge_2_gst_percent")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("additional_charges")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("attachment_file")),
+                        ImportWorkbookValueReader.cellValue(row, mapping.get("attachment_files"))));
                 } catch (Exception ex) {
                     String error = "Row " + sourceRow + ": " + ex.getMessage();
                     errors.add(error);
@@ -359,7 +361,7 @@ public class ImportService {
                     }
                     String extrasText=String.format(Locale.ROOT," | %d charge%s | %d attachment%s",chargeCount,chargeCount==1?"":"s",attachmentCount,attachmentCount==1?"":"s");
                     details.add(new ImportRowResult(sourceRows(entry.getValue()), entry.getKey(), "PASSED", "VALIDATED",
-                        taxDescription(first.taxType(), first.gst()) + extrasText, first.taxType(), first.gst()));
+                        ImportDocumentPolicy.taxDescription(first.taxType(), first.gst()) + extrasText, first.taxType(), first.gst()));
                 } catch (Exception ex) {
                     String error = entry.getKey() + ": " + ex.getMessage();
                     errors.add(error);
@@ -395,7 +397,7 @@ public class ImportService {
                 Party party = partyByCode.get(first.party().toUpperCase(Locale.ROOT));
                 if (party == null) throw new IllegalArgumentException("Party not found: " + first.party());
 
-                String taxType = normalizeTaxType(first.taxType(), party.getPartyCode(), sales);
+                String taxType = ImportDocumentPolicy.normalizeTaxType(first.taxType(), party.getPartyCode(), sales);
                 double representativeRate = first.gst();
 
                 if (sales) {
@@ -438,7 +440,7 @@ public class ImportService {
                         lines.add(line);
                     }
                     document.setLines(lines);
-                    applySalesTotals(document);
+                    ImportDocumentPolicy.applySalesTotals(document);
                     service.save(document);
                     existingDocuments.add(entry.getKey().toUpperCase(Locale.ROOT));
                     if (extras.attachmentSource() != null) {
@@ -504,7 +506,7 @@ public class ImportService {
                         lines.add(line);
                     }
                     document.setLines(lines);
-                    applyPurchaseTotals(document);
+                    ImportDocumentPolicy.applyPurchaseTotals(document);
                     service.save(document);
                     existingDocuments.add(entry.getKey().toUpperCase(Locale.ROOT));
                     if(!extras.attachmentSources().isEmpty()){
@@ -523,8 +525,8 @@ public class ImportService {
                 imported++;
                 String action = postSaveWarning.isBlank() ? "CREATED" : "CREATED WITH WARNING";
                 String detailMessage = postSaveWarning.isBlank()
-                    ? taxDescription(taxType, representativeRate)
-                    : taxDescription(taxType, representativeRate) + " | " + postSaveWarning;
+                    ? ImportDocumentPolicy.taxDescription(taxType, representativeRate)
+                    : ImportDocumentPolicy.taxDescription(taxType, representativeRate) + " | " + postSaveWarning;
                 details.add(new ImportRowResult(rowRange, entry.getKey(), "PASSED", action,
                     detailMessage, taxType, representativeRate));
             } catch (Exception ex) {
@@ -567,14 +569,14 @@ public class ImportService {
             for (int i = layout.headerRowIndex() + 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i); if (row == null) continue;
                 try {
-                    String categoryCode = required(getCellValue(row, mapping.get("category_code")), "category_code").trim().toUpperCase(Locale.ROOT);
-                    String categoryName = required(getCellValue(row, mapping.get("category_name")), "category_name").trim();
-                    String categoryDescription = getCellValue(row, mapping.get("category_description"));
-                    String value = required(getCellValue(row, mapping.get("value")), "value").trim();
-                    String code = required(getCellValue(row, mapping.get("value_code")), "value_code").trim();
-                    String valueDescription = getCellValue(row, mapping.get("value_description"));
-                    String displayOrderText = getCellValue(row, mapping.get("display_order"));
-                    String activeText = getCellValue(row, mapping.get("is_active"));
+                    String categoryCode = required(ImportWorkbookValueReader.cellValue(row, mapping.get("category_code")), "category_code").trim().toUpperCase(Locale.ROOT);
+                    String categoryName = required(ImportWorkbookValueReader.cellValue(row, mapping.get("category_name")), "category_name").trim();
+                    String categoryDescription = ImportWorkbookValueReader.cellValue(row, mapping.get("category_description"));
+                    String value = required(ImportWorkbookValueReader.cellValue(row, mapping.get("value")), "value").trim();
+                    String code = required(ImportWorkbookValueReader.cellValue(row, mapping.get("value_code")), "value_code").trim();
+                    String valueDescription = ImportWorkbookValueReader.cellValue(row, mapping.get("value_description"));
+                    String displayOrderText = ImportWorkbookValueReader.cellValue(row, mapping.get("display_order"));
+                    String activeText = ImportWorkbookValueReader.cellValue(row, mapping.get("is_active"));
                     Integer displayOrder = blank(displayOrderText) ? null : (int) parseDouble(displayOrderText);
                     Boolean active = blank(activeText) ? null : !Set.of("false","0","no","inactive","disabled").contains(activeText.trim().toLowerCase(Locale.ROOT));
                     processed++;
@@ -681,28 +683,28 @@ public class ImportService {
                     Party p = new Party();
                     p.setPartyType(partyType);
 
-                    String code = required(getCellValue(row, mapping.get("party_code")), "party_code").trim();
-                    requireReference(referenceFormats, "CUSTOMER".equals(partyType) ? "REF_CUSTOMER" : "REF_SUPPLIER", code, null, "CUSTOMER".equals(partyType) ? "Customer Code" : "Supplier Code");
+                    String code = required(ImportWorkbookValueReader.cellValue(row, mapping.get("party_code")), "party_code").trim();
+                    ImportDocumentPolicy.requireReference(referenceFormats, "CUSTOMER".equals(partyType) ? "REF_CUSTOMER" : "REF_SUPPLIER", code, null, "CUSTOMER".equals(partyType) ? "Customer Code" : "Supplier Code");
                     p.setPartyCode(code);
 
-                    String name = getCellValue(row, mapping.get("name"));
+                    String name = ImportWorkbookValueReader.cellValue(row, mapping.get("name"));
                     if (name == null || name.isBlank()) {
                         throw new IllegalArgumentException("Missing name");
                     }
                     p.setName(name.trim());
 
-                    p.setContactPerson(getCellValue(row, mapping.get("contact_person")));
-                    p.setPhone(getCellValue(row, mapping.get("phone")));
-                    String email = getCellValue(row, mapping.get("email"));
+                    p.setContactPerson(ImportWorkbookValueReader.cellValue(row, mapping.get("contact_person")));
+                    p.setPhone(ImportWorkbookValueReader.cellValue(row, mapping.get("phone")));
+                    String email = ImportWorkbookValueReader.cellValue(row, mapping.get("email"));
                     if ("SUPPLIER".equals(partyType)) email = required(email, "email");
                     if (email != null && !email.isBlank() && !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) throw new IllegalArgumentException("Invalid email");
                     p.setEmail(email);
-                    p.setGstin(getCellValue(row, mapping.get("gstin")));
-                    p.setAddress(getCellValue(row, mapping.get("address")));
+                    p.setGstin(ImportWorkbookValueReader.cellValue(row, mapping.get("gstin")));
+                    p.setAddress(ImportWorkbookValueReader.cellValue(row, mapping.get("address")));
                     Set<String> supplied = new HashSet<>();
-                    String openingBalanceText=getCellValue(row,mapping.get("opening_balance")); if(!blank(openingBalanceText))supplied.add("opening_balance");
+                    String openingBalanceText=ImportWorkbookValueReader.cellValue(row,mapping.get("opening_balance")); if(!blank(openingBalanceText))supplied.add("opening_balance");
                     p.setOpeningBalance(parseDouble(openingBalanceText));
-                    String activeValue = getCellValue(row, mapping.get("is_active")); if(!blank(activeValue))supplied.add("is_active");
+                    String activeValue = ImportWorkbookValueReader.cellValue(row, mapping.get("is_active")); if(!blank(activeValue))supplied.add("is_active");
                     p.setActive(activeValue == null || activeValue.isBlank() || !Set.of("false","0","no","inactive","disabled").contains(activeValue.trim().toLowerCase(Locale.ROOT)));
                     suppliedPartyFields.put(code.toUpperCase(Locale.ROOT), supplied);
 
@@ -775,7 +777,7 @@ public class ImportService {
                         imported++;
                     }
                 } catch (Exception e) {
-                    String message = rootMessage(e);
+                    String message = ImportDocumentPolicy.rootMessage(e);
                     errors.add("Party " + p.getPartyCode() + ": " + message);
                     details.add(new ImportRowResult("", p.getPartyCode(), "FAILED", "NONE", message, "", 0));
                     skipped++;
@@ -790,13 +792,6 @@ public class ImportService {
     private static void addDocumentIdentity(Set<String> identities, String value) {
         if (identities == null || value == null || value.isBlank()) return;
         identities.add(value.trim().toUpperCase(Locale.ROOT));
-    }
-
-    private static String rootMessage(Throwable failure) {
-        Throwable root = failure;
-        while (root != null && root.getCause() != null && root.getCause() != root) root = root.getCause();
-        String message = root == null ? null : root.getMessage();
-        return message == null || message.isBlank() ? (root == null ? "Import save failed" : root.getClass().getSimpleName()) : message.trim();
     }
 
     private static void applyPartyUpdateIdentity(Party incoming, Party existing) {
@@ -827,30 +822,7 @@ public class ImportService {
 
     private static boolean blank(String value) { return value == null || value.isBlank(); }
 
-    private void requireReference(Map<String,String> formats, String key, String value, LocalDate documentDate, String label) {
-        String format = formats == null ? null : formats.get(key);
-        if (format == null || format.isBlank()) throw new IllegalStateException(label + " format is not configured in REFERENCE FORMAT (" + key + ")");
-        if (!ReferenceFormatRules.matches(format, value, documentDate))
-            throw new IllegalArgumentException(label + " '" + value + "' does not match " + key + " format " + format);
-    }
-
     // ---------------- Helpers ----------------
-    private String getCellValue(Row row, String header) {
-        if (header == null) return null;
-        Workbook workbook = row.getSheet().getWorkbook();
-        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-        int colIndex = -1;
-        for (int headerIndex = Math.max(0, row.getSheet().getFirstRowNum());
-             headerIndex < row.getRowNum() && headerIndex < 75; headerIndex++) {
-            colIndex = SpreadsheetLayoutDetector.findHeaderIndex(row.getSheet().getRow(headerIndex), header, evaluator);
-            if (colIndex >= 0) break;
-        }
-        if (colIndex >= 0 && row.getCell(colIndex) != null) {
-            return SpreadsheetLayoutDetector.format(row.getCell(colIndex), evaluator);
-        }
-        return null;
-    }
-
     private double parseDouble(String value) {
         return ImportValueParser.number(value);
     }
@@ -876,25 +848,6 @@ public class ImportService {
     }
 
 
-    private LocalDate getRequiredDateValue(Row row, String header, String field) {
-        if (header == null || header.isBlank()) throw new IllegalArgumentException("Missing " + field + " mapping");
-        Workbook workbook = row.getSheet().getWorkbook();
-        FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-        int colIndex = -1;
-        for (int headerIndex = Math.max(0, row.getSheet().getFirstRowNum());
-             headerIndex < row.getRowNum() && headerIndex < 75; headerIndex++) {
-            colIndex = SpreadsheetLayoutDetector.findHeaderIndex(row.getSheet().getRow(headerIndex), header, evaluator);
-            if (colIndex >= 0) break;
-        }
-        if (colIndex < 0) throw new IllegalArgumentException("Missing " + field + " column");
-        Cell cell = row.getCell(colIndex);
-        LocalDate excelDate = SpreadsheetLayoutDetector.dateValue(cell, evaluator);
-        if (excelDate != null) return excelDate;
-        String text = SpreadsheetLayoutDetector.format(cell, evaluator);
-        if (text == null || text.isBlank()) throw new IllegalArgumentException("Missing " + field);
-        return parseDate(text);
-    }
-
     private int termDays(String term) {
         return ImportValueParser.termDays(term);
     }
@@ -904,29 +857,6 @@ public class ImportService {
         Item item = itemByCode.get(code.toUpperCase(Locale.ROOT));
         if (item == null) throw new IllegalArgumentException("Item not found: " + code);
         return item;
-    }
-
-    private String normalizeTaxType(String value, String partyReference, boolean sales) {
-        String text = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (text.contains("IGST") || text.contains("INTER")) return "IGST";
-        if (text.equals("GST") || text.contains("INTRA") || text.contains("CGST") || text.contains("SGST")) return "GST";
-
-        // When the template leaves gst_type blank, infer it from GSTIN state codes where possible.
-        String companyGstin = ConfigManager.get("company.gstin", "").trim();
-        try {
-            PartyService partyService = new PartyService();
-            String type = sales ? "CUSTOMER" : "SUPPLIER";
-            Party party = partyService.getByType(type).stream()
-                .filter(candidate -> candidate.getPartyCode().equalsIgnoreCase(partyReference))
-                .findFirst().orElse(null);
-            String partyGstin = party == null || party.getGstin() == null ? "" : party.getGstin().trim();
-            if (companyGstin.length() >= 2 && partyGstin.length() >= 2
-                    && companyGstin.substring(0, 2).matches("\\d{2}")
-                    && partyGstin.substring(0, 2).matches("\\d{2}")) {
-                return companyGstin.substring(0, 2).equals(partyGstin.substring(0, 2)) ? "GST" : "IGST";
-            }
-        } catch (Exception ignored) { }
-        return "GST";
     }
 
     private SalesImportExtras salesImportExtras(Path workbookFile, List<DocumentImportRow> rows) {
@@ -960,9 +890,9 @@ public class ImportService {
         for(PurchaseCharge charge:charges){String key=charge.getChargeType().trim().toUpperCase(Locale.ROOT);if(!names.add(key))throw new IllegalArgumentException("Duplicate purchase charge type: "+charge.getChargeType());}
         List<Path> attachments=new ArrayList<>();
         String legacy=consistentText(rows,DocumentImportRow::attachmentFile,"attachment_file",false);
-        Path legacyPath=resolveAttachment(workbookFile,legacy);if(legacyPath!=null)attachments.add(legacyPath);
+        Path legacyPath=ImportDocumentPolicy.resolveAttachment(workbookFile,legacy);if(legacyPath!=null)attachments.add(legacyPath);
         String many=consistentText(rows,DocumentImportRow::attachmentFiles,"attachment_files",false);
-        if(many!=null&&!many.isBlank())for(String value:many.split(";")){Path path=resolveAttachment(workbookFile,value);if(path!=null&&!attachments.contains(path))attachments.add(path);}
+        if(many!=null&&!many.isBlank())for(String value:many.split(";")){Path path=ImportDocumentPolicy.resolveAttachment(workbookFile,value);if(path!=null&&!attachments.contains(path))attachments.add(path);}
         return new PurchaseImportExtras(List.copyOf(charges),List.copyOf(attachments));
     }
 
@@ -996,12 +926,6 @@ public class ImportService {
         java.util.function.Function<DocumentImportRow,String> gstGetter=index==1?DocumentImportRow::charge1GstPercent:DocumentImportRow::charge2GstPercent;
         String prefix="charge_"+index,type=consistentText(rows,typeGetter,prefix+"_type",true);Double amount=consistentNumber(rows,amountGetter,prefix+"_amount",0,Double.MAX_VALUE),gst=consistentNumber(rows,gstGetter,prefix+"_gst_percent",0,100);Boolean taxable=consistentBoolean(rows,taxableGetter,prefix+"_taxable");
         boolean supplied=!blank(type)||amount!=null||taxable!=null||gst!=null;if(!supplied)return null;double amountValue=amount==null?0:amount;if(amountValue<=0)throw new IllegalArgumentException(prefix+"_amount must be greater than zero when a charge is supplied");if(blank(type))throw new IllegalArgumentException(prefix+"_type is required when a charge amount is supplied");boolean taxableValue=Boolean.TRUE.equals(taxable);double gstValue=gst==null?0:gst;if(!taxableValue&&gstValue>0.0001)throw new IllegalArgumentException(prefix+"_gst_percent requires "+prefix+"_taxable=true");return new PurchaseCharge(type.trim(),amountValue,taxableValue,taxableValue?gstValue:0);
-    }
-
-    private Path resolveAttachment(Path workbookFile,String attachment){
-        if(attachment==null||attachment.isBlank())return null;Path source;try{source=Path.of(attachment.trim());}catch(Exception invalid){throw new IllegalArgumentException("attachment_file is not a valid path: "+attachment);}
-        if(!source.isAbsolute()){Path parent=workbookFile.toAbsolutePath().normalize().getParent();source=(parent==null?Path.of(""):parent).resolve(source).normalize();}
-        if(!Files.isRegularFile(source))throw new IllegalArgumentException("attachment_file was not found: "+attachment);return source;
     }
 
     private SalesCharge salesCharge(List<DocumentImportRow> rows, int index) {
@@ -1102,43 +1026,4 @@ public class ImportService {
         return rows.size() == 1 ? String.valueOf(rows.get(0)) : rows.get(0) + "-" + rows.get(rows.size() - 1);
     }
 
-    private String taxDescription(String taxType, double gstPercent) {
-        if ("IGST".equalsIgnoreCase(taxType)) {
-            return String.format(Locale.ROOT, "IGST %.2f%% calculated from line values", gstPercent);
-        }
-        double half = gstPercent / 2.0;
-        return String.format(Locale.ROOT, "GST %.2f%% calculated as CGST %.2f%% + SGST %.2f%%", gstPercent, half, half);
-    }
-
-    private void applySalesTotals(Sales document) {
-        List<DocumentCalculationEngine.LineInput> lines = document.getLines().stream()
-                .map(line -> new DocumentCalculationEngine.LineInput(
-                        line.getQuantity(), line.getRate(), line.getDiscountPercent(), line.getGstPercent()))
-                .toList();
-        List<DocumentCalculationEngine.ChargeInput> charges = document.getCharges().stream()
-                .map(charge -> new DocumentCalculationEngine.ChargeInput(
-                        charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
-                .toList();
-        DocumentCalculationEngine.Totals totals = DocumentCalculationEngine.totals(
-                lines, charges, DocumentCalculationEngine.taxMode(document.getGstType()));
-        document.setSubtotal(totals.itemTaxable());
-        document.setGstAmount(totals.taxAmount());
-        document.setTotalAmount(totals.grandTotal());
-    }
-
-    private void applyPurchaseTotals(Purchase document) {
-        List<DocumentCalculationEngine.LineInput> lines = document.getLines().stream()
-                .map(line -> new DocumentCalculationEngine.LineInput(
-                        line.getQuantity(), line.getRate(), line.getDiscountPercent(), line.getGstPercent()))
-                .toList();
-        List<DocumentCalculationEngine.ChargeInput> charges = document.getCharges().stream()
-                .map(charge -> new DocumentCalculationEngine.ChargeInput(
-                        charge.getAmount(), charge.isTaxable(), charge.getGstPercent()))
-                .toList();
-        DocumentCalculationEngine.Totals totals = DocumentCalculationEngine.totals(
-                lines, charges, DocumentCalculationEngine.taxMode(document.getGstType()));
-        document.setSubtotal(totals.itemTaxable());
-        document.setGstAmount(totals.taxAmount());
-        document.setTotalAmount(totals.grandTotal());
-    }
 }

@@ -25,6 +25,9 @@ import org.example.importing.ImportMappingSupport;
 import org.example.importing.ImportTemplateService;
 import org.example.importing.ImportResultReportService;
 import org.example.importing.ImportResultPolicy;
+import org.example.importing.ImportPreviewService;
+import org.example.importing.PurchaseReconImportCoordinator;
+import org.example.importing.BankStatementImportCoordinator;
 import org.example.shared.RuntimeContract;
 import org.example.api.recon.PurchaseReconApiClient;
 import org.example.util.IconFactory;
@@ -110,7 +113,9 @@ public class ImportController {
 
     private final ImportService importService = new ImportService();
     private final ImportTemplateService importTemplateService = new ImportTemplateService();
-    private final PurchaseReconApiClient purchaseReconApi = new PurchaseReconApiClient();
+    private final ImportPreviewService importPreviewService = new ImportPreviewService();
+    private final PurchaseReconImportCoordinator purchaseReconImportCoordinator = new PurchaseReconImportCoordinator();
+    private final BankStatementImportCoordinator bankStatementImportCoordinator = new BankStatementImportCoordinator();
 
     /*
      * LinkedHashMap is important because it keeps domain fields
@@ -354,36 +359,10 @@ public class ImportController {
        ========================================================= */
 
     private List<String> readHeaders(File file) {
-
-        if ("Bank Statement".equals(cmbImportModule.getValue())) {
-            return List.of("Transaction Date","Value Date","Description","Chq / Ref No.","Amount","Dr / Cr","Balance");
-        }
-
-        try (Workbook workbook = WorkbookFactory.create(file)) {
-
-            selectedLayout =
-                SpreadsheetLayoutDetector.detect(
-                    workbook,
-                    getDomainFieldsForModule()
-                );
-
-            return selectedLayout
-                .headers()
-                .stream()
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(header -> !header.isBlank())
-                .distinct()
-                .toList();
-
-        } catch (Exception exception) {
-
-            throw new IllegalArgumentException(
-                "The workbook could not be inspected: "
-                    + exception.getMessage(),
-                exception
-            );
-        }
+        ImportPreviewService.Inspection inspection = importPreviewService.inspect(
+            file, cmbImportModule.getValue(), getDomainFieldsForModule());
+        selectedLayout = inspection.layout();
+        return inspection.headers();
     }
 
     private Map<String, String> generateAutoMapping(
@@ -918,201 +897,23 @@ public class ImportController {
     }
 
     private void loadPreviewRows() {
-
-        List<Map<String, String>> previewData = new ArrayList<>();
-
-        if ("Bank Statement".equals(cmbImportModule.getValue())) {
-            try {
-                var parsed = new org.example.bank.KotakBankStatementCsvParser().parse(selectedFile.toPath());
-                for (var row : parsed.rows().stream().limit(50).toList()) {
-                    Map<String,String> m = new LinkedHashMap<>();
-                    m.put("transaction_date", row.transactionTimestamp()); m.put("value_date", row.valueDate());
-                    m.put("description", row.description()); m.put("reference", row.reference());
-                    m.put("amount", String.format(Locale.ROOT,"%.2f", row.debit()>0?row.debit():row.credit()));
-                    m.put("direction", row.debit()>0?"DR":"CR"); m.put("balance", String.format(Locale.ROOT,"%.2f",row.balance()));
-                    previewData.add(m);
-                }
-                tblPreview.getItems().setAll(previewData); lblPreviewCount.setText(previewData.size()+" rows shown"); lblPreviewStatus.setText("Kotak bank statement preview loaded successfully");
-                return;
-            } catch(Exception e) { lblPreviewStatus.setText("Bank statement preview failed: "+safeMessage(e)); return; }
-        }
-
-        if ("Purchase Recon".equals(cmbImportModule.getValue())) {
-            loadPurchaseReconPreviewRows(previewData);
-            return;
-        }
-
-        try (
-            Workbook workbook =
-                WorkbookFactory.create(selectedFile)
-        ) {
-
-            SpreadsheetLayoutDetector.Layout layout =
-                SpreadsheetLayoutDetector.detect(
-                    workbook,
-                    mappingControls
-                        .values()
-                        .stream()
-                        .map(ComboBox::getValue)
-                        .filter(Objects::nonNull)
-                        .toList()
-                );
-
-            Sheet sheet =
-                workbook.getSheetAt(
-                    layout.sheetIndex()
-                );
-
-            FormulaEvaluator evaluator =
-                workbook
-                    .getCreationHelper()
-                    .createFormulaEvaluator();
-
-            Row headerRow =
-                sheet.getRow(
-                    layout.headerRowIndex()
-                );
-
-            int lastRow =
-                Math.min(
-                    sheet.getLastRowNum(),
-                    layout.headerRowIndex() + 50
-                );
-
-            List<String> mappedFields =
-                getMappedFieldsInDomainOrder();
-
-            for (
-                int rowIndex =
-                layout.headerRowIndex() + 1;
-                rowIndex <= lastRow;
-                rowIndex++
-            ) {
-
-                Row row = sheet.getRow(rowIndex);
-
-                if (
-                    SpreadsheetLayoutDetector
-                        .isRowBlank(row, evaluator)
-                ) {
-                    continue;
-                }
-
-                Map<String, String> rowMap =
-                    new LinkedHashMap<>();
-
-                for (String domainField : mappedFields) {
-
-                    ComboBox<String> mappingCombo =
-                        mappingControls.get(domainField);
-
-                    String excelHeader =
-                        mappingCombo == null
-                            ? null
-                            : mappingCombo.getValue();
-
-                    if (excelHeader == null) {
-                        continue;
-                    }
-
-                    int columnIndex =
-                        SpreadsheetLayoutDetector
-                            .findHeaderIndex(
-                                headerRow,
-                                excelHeader,
-                                evaluator
-                            );
-
-                    String value = "";
-
-                    if (
-                        columnIndex >= 0
-                            && row.getCell(columnIndex)
-                            != null
-                    ) {
-
-                        Cell previewCell = row.getCell(columnIndex);
-                        boolean dateField = domainField != null && domainField.toLowerCase(Locale.ROOT).contains("date");
-                        value = dateField
-                            ? SpreadsheetLayoutDetector.formatForBusiness(previewCell, evaluator)
-                            : SpreadsheetLayoutDetector.format(previewCell, evaluator);
-                    }
-
-                    rowMap.put(
-                        domainField,
-                        value
-                    );
-                }
-
-                previewData.add(rowMap);
-            }
-
-            tblPreview
-                .getItems()
-                .setAll(previewData);
-
-            lblPreviewCount.setText(
-                previewData.size() + " rows shown"
-            );
-
-            if (previewData.isEmpty()) {
-
-                lblPreviewStatus.setText(
-                    "No usable data rows were found"
-                );
-
-                lblPreviewStatus
-                    .getStyleClass()
-                    .removeAll(
-                        "import-success-text",
-                        "import-warning-text"
-                    );
-
-                lblPreviewStatus
-                    .getStyleClass()
-                    .add("import-warning-text");
-
-            } else {
-
-                lblPreviewStatus.setText(
-                    "Preview loaded successfully"
-                );
-
-                lblPreviewStatus
-                    .getStyleClass()
-                    .removeAll(
-                        "import-success-text",
-                        "import-warning-text"
-                    );
-
-                lblPreviewStatus
-                    .getStyleClass()
-                    .add("import-success-text");
-            }
-
+        try {
+            ImportPreviewService.Preview preview = importPreviewService.preview(
+                selectedFile, cmbImportModule.getValue(), collectCurrentMapping(), getMappedFieldsInDomainOrder());
+            tblPreview.getItems().setAll(preview.rows());
+            String suffix = "Purchase Recon".equals(cmbImportModule.getValue())
+                ? " • " + preview.sheetCount() + " sheet" + (preview.sheetCount() == 1 ? "" : "s")
+                : "";
+            lblPreviewCount.setText(preview.rows().size() + " rows shown" + suffix);
+            lblPreviewStatus.setText(preview.message());
+            lblPreviewStatus.getStyleClass().removeAll("import-success-text", "import-warning-text");
+            lblPreviewStatus.getStyleClass().add(preview.success() ? "import-success-text" : "import-warning-text");
         } catch (Exception exception) {
-
-            tblPreview
-                .getItems()
-                .clear();
-
+            tblPreview.getItems().clear();
             lblPreviewCount.setText("0 rows");
-
-            lblPreviewStatus.setText(
-                "Preview could not be loaded: "
-                    + safeMessage(exception)
-            );
-
-            lblPreviewStatus
-                .getStyleClass()
-                .removeAll(
-                    "import-success-text",
-                    "import-warning-text"
-                );
-
-            lblPreviewStatus
-                .getStyleClass()
-                .add("import-warning-text");
+            lblPreviewStatus.setText("Preview could not be loaded: " + safeMessage(exception));
+            lblPreviewStatus.getStyleClass().removeAll("import-success-text", "import-warning-text");
+            lblPreviewStatus.getStyleClass().add("import-warning-text");
         }
     }
 
@@ -1345,54 +1146,6 @@ public class ImportController {
                 "Workbook cannot be read",
                 safeMessage(exception)
             );
-        }
-    }
-
-    private void loadPurchaseReconPreviewRows(List<Map<String, String>> previewData) {
-        try (Workbook workbook = WorkbookFactory.create(selectedFile)) {
-            List<String> expected = mappingControls.values().stream().map(ComboBox::getValue).filter(Objects::nonNull).toList();
-            List<SpreadsheetLayoutDetector.Layout> layouts = SpreadsheetLayoutDetector.detectAll(workbook, expected);
-            if (layouts.isEmpty()) throw new IllegalArgumentException("No mapped Purchase Recon worksheet was found.");
-            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-            List<String> mappedFields = getMappedFieldsInDomainOrder();
-            int previewLimit = 100;
-            for (SpreadsheetLayoutDetector.Layout layout : layouts) {
-                Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
-                Row headerRow = sheet.getRow(layout.headerRowIndex());
-                for (int rowIndex = layout.headerRowIndex() + 1; rowIndex <= sheet.getLastRowNum() && previewData.size() < previewLimit; rowIndex++) {
-                    Row row = sheet.getRow(rowIndex);
-                    if (SpreadsheetLayoutDetector.isRowBlank(row, evaluator)) continue;
-                    Map<String,String> rowMap = new LinkedHashMap<>();
-                    rowMap.put("_source_sheet", sheet.getSheetName());
-                    rowMap.put("_source_row", String.valueOf(rowIndex + 1));
-                    for (String domainField : mappedFields) {
-                        ComboBox<String> mappingCombo = mappingControls.get(domainField);
-                        String excelHeader = mappingCombo == null ? null : mappingCombo.getValue();
-                        if (excelHeader == null) continue;
-                        int columnIndex = SpreadsheetLayoutDetector.findHeaderIndex(headerRow, excelHeader, evaluator);
-                        String value = "";
-                        if (columnIndex >= 0 && row != null && row.getCell(columnIndex) != null) {
-                            Cell previewCell = row.getCell(columnIndex);
-                            boolean dateField = domainField.toLowerCase(Locale.ROOT).contains("date");
-                            value = dateField ? SpreadsheetLayoutDetector.formatForBusiness(previewCell, evaluator) : SpreadsheetLayoutDetector.format(previewCell, evaluator);
-                        }
-                        rowMap.put(domainField, value);
-                    }
-                    previewData.add(rowMap);
-                }
-                if (previewData.size() >= previewLimit) break;
-            }
-            tblPreview.getItems().setAll(previewData);
-            lblPreviewCount.setText(previewData.size()+" rows shown • "+layouts.size()+" sheet"+(layouts.size()==1?"":"s"));
-            lblPreviewStatus.getStyleClass().removeAll("import-warning-text");
-            lblPreviewStatus.getStyleClass().add("import-success-text");
-            lblPreviewStatus.setText(previewData.isEmpty()?"No usable Purchase Recon rows were found":"Mapped Purchase Recon data preview loaded across all matching sheets");
-        } catch (Exception e) {
-            tblPreview.getItems().clear();
-            lblPreviewCount.setText("0 rows");
-            lblPreviewStatus.setText("Purchase Recon preview failed: "+safeMessage(e));
-            lblPreviewStatus.getStyleClass().removeAll("import-success-text");
-            lblPreviewStatus.getStyleClass().add("import-warning-text");
         }
     }
 
@@ -1702,104 +1455,14 @@ public class ImportController {
     }
 
     private ImportService.ImportResult importPurchaseRecon(boolean dryRun, Map<String,String> mapping) throws Exception {
-        List<PurchaseReconApiClient.ImportRow> rows = new ArrayList<>();
-        try (Workbook workbook = WorkbookFactory.create(selectedFile)) {
-            List<SpreadsheetLayoutDetector.Layout> layouts = SpreadsheetLayoutDetector.detectAll(workbook, mapping.values());
-            if (layouts.isEmpty()) throw new IllegalArgumentException("No Purchase Recon worksheet matches the mapped columns.");
-            FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
-            for (SpreadsheetLayoutDetector.Layout layout : layouts) {
-                Sheet sheet = workbook.getSheetAt(layout.sheetIndex());
-                Row header = sheet.getRow(layout.headerRowIndex());
-                Map<String,Integer> indexes = new HashMap<>();
-                for (Map.Entry<String,String> entry : mapping.entrySet()) {
-                    if (entry.getValue() == null || entry.getValue().isBlank()) continue;
-                    indexes.put(entry.getKey(), SpreadsheetLayoutDetector.findHeaderIndex(header, entry.getValue(), evaluator));
-                }
-                for (int rowIndex = layout.headerRowIndex() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
-                    Row row = sheet.getRow(rowIndex);
-                    if (SpreadsheetLayoutDetector.isRowBlank(row, evaluator)) continue;
-                    String supplierName = mappedText(row, indexes.get("supplier_name"), evaluator);
-                    String gstin = mappedText(row, indexes.get("supplier_gstin"), evaluator);
-                    String invoice = mappedText(row, indexes.get("supplier_invoice_no"), evaluator);
-                    String invoiceDate = mappedDateIso(row, indexes.get("invoice_date"), evaluator);
-                    rows.add(new PurchaseReconApiClient.ImportRow(
-                        sheet.getSheetName(), rowIndex + 1, supplierName, gstin, invoice, invoiceDate,
-                        mappedAmount(row, indexes.get("taxable_value"), evaluator),
-                        mappedAmount(row, indexes.get("cgst"), evaluator),
-                        mappedAmount(row, indexes.get("sgst"), evaluator),
-                        mappedAmount(row, indexes.get("igst"), evaluator),
-                        mappedAmount(row, indexes.get("invoice_value"), evaluator)
-                    ));
-                }
-            }
-        }
-
-        String fingerprint = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(selectedFile.toPath())));
-        PurchaseReconApiClient.ImportResult result = purchaseReconApi.importRows(new PurchaseReconApiClient.ImportRequest(
-            selectedFile.getName(), fingerprint, txtImportNote == null ? "" : txtImportNote.getText(), dryRun, rows
-        ));
-
-        List<ImportService.ImportRowResult> details = new ArrayList<>();
-        List<String> errors = new ArrayList<>();
-        if (result.details() != null) {
-            for (PurchaseReconApiClient.ImportRowResult row : result.details()) {
-                boolean failed = "FAILED".equalsIgnoreCase(row.status());
-                String reference = (row.supplierReference() == null || row.supplierReference().isBlank() ? "" : row.supplierReference() + " • ")
-                    + (row.invoiceNo() == null ? "" : row.invoiceNo());
-                String message = row.message() == null ? "" : row.message();
-                String source = (row.sourceSheet() == null || row.sourceSheet().isBlank() ? "Sheet" : row.sourceSheet())
-                    + " • Row " + (row.sourceRow() == null ? "?" : row.sourceRow());
-                details.add(new ImportService.ImportRowResult(
-                    source, reference, failed ? "FAILED" : "PASSED", row.action(), message, "", 0d
-                ));
-                if (failed) errors.add(source + ": " + message);
-            }
-        }
-        int skipped = result.alreadyCurrentRows() + result.duplicateRows() + result.conflictRows() + result.ignoredRows();
-        return new ImportService.ImportResult(
-            result.totalRows(), dryRun ? 0 : result.importedRows(), 0, skipped, errors, details
-        );
-    }
-
-    private String mappedText(Row row, Integer index, FormulaEvaluator evaluator) {
-        if (row == null || index == null || index < 0) return "";
-        Cell cell = row.getCell(index);
-        return SpreadsheetLayoutDetector.format(cell, evaluator);
-    }
-
-    private String mappedDateIso(Row row, Integer index, FormulaEvaluator evaluator) {
-        if (row == null || index == null || index < 0) return "";
-        Cell cell = row.getCell(index);
-        LocalDate excelDate = SpreadsheetLayoutDetector.dateValue(cell, evaluator);
-        if (excelDate != null) return excelDate.toString();
-        String value = SpreadsheetLayoutDetector.format(cell, evaluator);
-        if (value.isBlank()) return "";
-        try { return BusinessClock.parseDate(value).toString(); }
-        catch (Exception ignored) { return value; }
-    }
-
-    private double mappedAmount(Row row, Integer index, FormulaEvaluator evaluator) {
-        String value = mappedText(row, index, evaluator);
-        if (value.isBlank()) return 0d;
-        String normalized = value.replace(",", "").replace("₹", "").replace("INR", "").trim();
-        boolean negative = normalized.startsWith("(") && normalized.endsWith(")");
-        if (negative) normalized = normalized.substring(1, normalized.length() - 1);
-        try { return (negative ? -1d : 1d) * Double.parseDouble(normalized); }
-        catch (NumberFormatException ignored) { return Double.NaN; }
+        return purchaseReconImportCoordinator.execute(
+            selectedFile.toPath(), mapping, txtImportNote == null ? "" : txtImportNote.getText(), dryRun);
     }
 
     private ImportService.ImportResult importBankStatement(boolean dryRun) throws Exception {
         var parsed = new org.example.bank.KotakBankStatementCsvParser().parse(selectedFile.toPath());
         updateProgress(parsed.rows().size(), parsed.rows().size());
-        var u=org.example.service.SessionService.current(); String user=u==null?"User":u.getFullName();
-        var request = new org.example.api.bank.BankStatementApiClient.ImportRequest(parsed.bankName(),parsed.accountNumber(),parsed.accountHolder(),parsed.statementFrom(),parsed.statementTo(),parsed.currency(),parsed.openingBalance(),parsed.closingBalance(),parsed.sourceFingerprint(),parsed.sourceFileName(),parsed.sourceCsv(),user,dryRun,parsed.rows());
-        var result = new org.example.api.bank.BankStatementApiClient().importStatement(request);
-        boolean allExisting = !result.alreadyImported() && result.importedRows() == 0 && result.duplicateRows() > 0;
-        String action=result.alreadyImported()||allExisting?"ALREADY CURRENT":(dryRun?"VALIDATED":"IMPORTED");
-        String message=result.alreadyImported()?"This exact bank statement was imported previously. Open the existing statement from Bank Statement history.":
-            (allExisting?"All transactions in this statement were already imported. No bank transactions will be overwritten.":(dryRun?"Server validation passed":"Bank statement imported"));
-        var details = List.of(new ImportService.ImportRowResult("1-"+parsed.rows().size(), parsed.sourceFileName(), "PASSED", action, message, "", 0));
-        return new ImportService.ImportResult(parsed.rows().size(),dryRun?0:result.importedRows(),0,result.duplicateRows(),List.of(),details);
+        return bankStatementImportCoordinator.execute(selectedFile.toPath(), dryRun);
     }
 
     private Map<String, String> collectCurrentMapping() {
