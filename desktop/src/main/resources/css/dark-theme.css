@@ -16118,7 +16118,7 @@
 .pdf-mapper-mapped-list .list-cell { -fx-padding: 6 8 6 8; }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — FINAL UI DESIGN SYSTEM (DARK)                            */
+/* DSE ERP 9.0.79 — FINAL UI DESIGN SYSTEM (DARK)                            */
 /* One application: neutral surfaces, semantic actions, single-row KPI bands. */
 /* ========================================================================== */
 .erp-ui-standard {
@@ -16213,7 +16213,7 @@
 .erp-ui-standard .erp-link-standard:hover { -fx-underline:true; }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 1 READABILITY OWNERSHIP LAYER (DARK)               */
+/* DSE ERP 9.0.79 — PHASE 1 READABILITY OWNERSHIP LAYER (DARK)               */
 /* Neutral table data, empty states and unified dialog/input surfaces.        */
 /* ========================================================================== */
 
@@ -16290,7 +16290,7 @@
 }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 2 ACTION CONSISTENCY OWNERSHIP LAYER (DARK)        */
+/* DSE ERP 9.0.79 — PHASE 2 ACTION CONSISTENCY OWNERSHIP LAYER (DARK)        */
 /* Purple primary actions, neutral secondary actions and semantic destructive. */
 /* Covers Reports, Dashboard, Sales, Purchase, Payments and Bank workspaces.   */
 /* ========================================================================== */
@@ -16483,7 +16483,7 @@
 }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 3 READABILITY + RESPONSIVE TABLE OWNERSHIP (DARK) */
+/* DSE ERP 9.0.79 — PHASE 3 READABILITY + RESPONSIVE TABLE OWNERSHIP (DARK) */
 /* Final UI layer: readable two-line headers, stable scrollbars and responsive */
 /* settings asset actions. No per-screen column widths are introduced.         */
 /* ========================================================================== */
@@ -16534,7 +16534,7 @@
 
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 4A THEME CORRECTNESS OWNERSHIP (DARK)              */
+/* DSE ERP 9.0.79 — PHASE 4A THEME CORRECTNESS OWNERSHIP (DARK)              */
 /* Mirrors the light component-state contract with dark-theme surface tokens. */
 /* ========================================================================== */
 
@@ -16704,7 +16704,7 @@
 
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 4A.1 REGRESSION SHIELD (DARK)                     */
+/* DSE ERP 9.0.79 — PHASE 4A.1 REGRESSION SHIELD (DARK)                     */
 /* Mirrors the same ownership contract without nested dark-on-dark controls. */
 /* ========================================================================== */
 

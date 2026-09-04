@@ -16214,7 +16214,7 @@
 .pdf-mapper-mapped-list .list-cell { -fx-padding: 6 8 6 8; }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — FINAL UI DESIGN SYSTEM                                   */
+/* DSE ERP 9.0.79 — FINAL UI DESIGN SYSTEM                                   */
 /* One application: neutral surfaces, semantic actions, single-row KPI bands. */
 /* ========================================================================== */
 .erp-ui-standard {
@@ -16349,7 +16349,7 @@
 .erp-ui-standard .erp-link-standard:hover { -fx-underline: true; }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 1 READABILITY OWNERSHIP LAYER (LIGHT)              */
+/* DSE ERP 9.0.79 — PHASE 1 READABILITY OWNERSHIP LAYER (LIGHT)              */
 /* Contrast, neutral table data, empty states. No layout/behavior changes.    */
 /* ========================================================================== */
 
@@ -16422,7 +16422,7 @@
 }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 2 ACTION CONSISTENCY OWNERSHIP LAYER (LIGHT)       */
+/* DSE ERP 9.0.79 — PHASE 2 ACTION CONSISTENCY OWNERSHIP LAYER (LIGHT)       */
 /* Purple primary actions, neutral secondary actions and semantic destructive. */
 /* Covers Reports, Dashboard, Sales, Purchase, Payments and Bank workspaces.   */
 /* ========================================================================== */
@@ -16626,7 +16626,7 @@
 }
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 3 READABILITY + RESPONSIVE TABLE OWNERSHIP (LIGHT) */
+/* DSE ERP 9.0.79 — PHASE 3 READABILITY + RESPONSIVE TABLE OWNERSHIP (LIGHT) */
 /* Final UI layer: readable two-line headers, stable scrollbars and responsive */
 /* settings asset actions. No per-screen column widths are introduced.         */
 /* ========================================================================== */
@@ -16677,7 +16677,7 @@
 
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 4A THEME CORRECTNESS OWNERSHIP (LIGHT)             */
+/* DSE ERP 9.0.79 — PHASE 4A THEME CORRECTNESS OWNERSHIP (LIGHT)             */
 /* Final owner for splash, table states/headers and composite form controls.  */
 /* Layout remains screen-owned; fundamental colors/states are theme-owned.     */
 /* ========================================================================== */
@@ -16884,7 +16884,7 @@
 
 
 /* ========================================================================== */
-/* DSE ERP 9.0.78 — PHASE 4A.1 REGRESSION SHIELD (LIGHT)                    */
+/* DSE ERP 9.0.79 — PHASE 4A.1 REGRESSION SHIELD (LIGHT)                    */
 /* One owner for auth branding, table chrome/selection and composite inputs.  */
 /* ========================================================================== */
 

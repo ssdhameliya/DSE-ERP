@@ -9,7 +9,7 @@ import javafx.scene.layout.Region;
 import java.util.Locale;
 
 /**
- * DSE ERP 9.0.78 visual design-system classifier.
+ * DSE ERP 9.0.79 visual design-system classifier.
  *
  * <p>This class adds semantic/canonical style classes only. It deliberately
  * leaves FXML structure, controller handlers, calculations and navigation

@@ -1,42 +1,33 @@
-DSE ERP 9.0.78 - PHASE 4B FINAL WORKSPACE STORAGE & RETENTION
+DSE ERP 9.0.79 - FINAL VERSION PROMOTION VERIFICATION
 
-FINAL SCOPE
-- Includes the cumulative Phase 1/2/3 UI work and Phase 4A.1 theme-correctness fixes.
-- Adds centralized workspace destinations for business documents, reports, exports, diagnostics and operational logs.
-- Adds a managed PDF storage facade while keeping the three protected/approved PDF generators byte-identical.
-- Generated business PDFs are relocated after successful generation into module + financial year + document type + reference folders.
-- Reports are organized by category + financial year + month; exports are organized by format.
-- Adds server-owned Workspace & Storage settings, storage-usage summary, Preview Cleanup, Clean Now and Open Folder controls.
-- Adds safe scheduled cleanup and old-log compression for operational files only.
-- Cleanup NEVER targets Documents, Attachments, Backups or Database records/files.
-- Default retention: Logs 30 days; Reports 365; Exports 90; Import Results 90; Diagnostic ZIPs 30; Temp 7.
-- Server persistence remains JPA/Hibernate owned; no Spring JDBC/raw JDBC execution path was added.
-- Runtime CSS remains exactly two files: light-theme.css and dark-theme.css.
+BASELINE
+- Includes cumulative Phase 1, Phase 2, Phase 3, Phase 4A.1 theme fixes, and Phase 4B Workspace Storage & Retention.
+- Version promotion changes release identity to 9.0.79; no business-logic downgrade or Java/JavaFX downgrade.
 
-VERIFIED ENVIRONMENT
-- Linux x64 sandbox
-- JDK/Javac: Temurin 25.0.4.1 LTS
+ENVIRONMENT
+- JDK / javac: 25.0.4.1
+- Maven: 3.9.16
 - JavaFX: 25.0.2
-- Apache Maven: 3.9.16
-- PostgreSQL/psql: 18.6
+- Platform: Linux x64
 
-FINAL VERIFICATION
-- Phase 4A theme-correctness audit: 25/25 PASS
+TARGETED VERSION-PROMOTION VERIFICATION
+- StorageMaintenanceServiceTest: 2/2 PASS
+- WorkspaceStartupPolicyTest + WorkspaceStorageManagerTest: 4/4 PASS
+- Phase 4A theme correctness audit: 25/25 PASS
 - Phase 4B storage/retention audit: 19/19 PASS
-- Final data architecture audit: PASS
-- PDF Studio protected-generator contract: PASS
-- Corrective/UI contract: PASS
-- Register/login/history contract: PASS
-- Quotation register contract: PASS
-- Aggregate release gates: RELEASE_GATES_CURRENT_OK version=9.0.78
-- Phase 4B server storage tests: 2/2 PASS
-- Phase 4B desktop storage tests: 2/2 PASS
-- PostgreSQL-backed server suite previously executed on this Phase 4B tree: 17/17 PASS, 0 skipped
-- Desktop non-PDF suite: 45/45 PASS, 0 skipped
-- SalesPdfStudioFlowTest: all 7 methods verified individually PASS
-- Effective desktop verification: 52/52 PASS
-- Full source compilation with Java release 25: shared 5, server 123, desktop 313 sources
-- Final reactor package build: BUILD SUCCESS
+- Release gates: RELEASE_GATES_CURRENT_OK version=9.0.79
+- Desktop v9.0.79 package: BUILD SUCCESS
+- Runtime CSS files: exactly 2 (light-theme.css, dark-theme.css)
 
-NOTE
-A monolithic clean-verify invocation reached the long SalesPdfStudioFlowTest before the execution wrapper timeout; Maven did not report a test failure. The same desktop coverage was completed as 45 non-PDF tests plus all 7 SalesPdfStudioFlowTest methods individually. Final packaging and all release gates completed successfully after the architecture corrections.
+IDENTITY
+- Maven parent: 9.0.79
+- Shared APP_VERSION / BUILD_REVISION: 9.0.79
+- Server dse.app.version / dse.build.revision: 9.0.79
+- Desktop app-version.properties: 9.0.79
+- Updater / launchers / audit contracts synchronized to 9.0.79
+
+PHASE 4B STORAGE SAFETY
+- Business documents organized by module / financial year.
+- Server-owned retention settings.
+- Safe cleanup excludes Documents, Attachments, Backups, and database records.
+- Operational cleanup covers Logs, Reports, Exports, Import Results, Diagnostics, and Temp according to admin-configured retention.

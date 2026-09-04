@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DSE ERP 9.0.78 UI design-system release contract."""
+"""DSE ERP 9.0.79 UI design-system release contract."""
 from pathlib import Path
 import re, sys
 ROOT=Path(__file__).resolve().parents[1]
@@ -36,7 +36,7 @@ for token in ['erp-unified-surface','erp-control-button','erp-control-input','er
     need(token in ui,f'UI design-system semantic missing: {token}')
 for theme in css:
     s=t('desktop/src/main/resources/css/'+theme)
-    for token in ['DSE ERP 9.0.78 — FINAL UI DESIGN SYSTEM','-dse-surface-1','erp-button-role-primary','erp-realtime-search','erp-table-standard']:
+    for token in ['DSE ERP 9.0.79 — FINAL UI DESIGN SYSTEM','-dse-surface-1','erp-button-role-primary','erp-realtime-search','erp-table-standard']:
         need(token in s,f'{theme} missing final design-system token {token}')
 
 

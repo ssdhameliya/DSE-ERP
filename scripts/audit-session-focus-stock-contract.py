@@ -5,8 +5,8 @@ R=Path(__file__).resolve().parents[1]
 def t(p): return (R/p).read_text(encoding="utf-8",errors="ignore")
 def need(ok,msg):
     if not ok: print("FAIL:",msg);sys.exit(1)
-need("<version>9.0.78</version>" in t("pom.xml") and "<dse.phase>9.0.78</dse.phase>" in t("pom.xml"),"root identity")
-need('APP_VERSION = "9.0.78"' in t("shared/src/main/java/org/example/shared/RuntimeContract.java"),"runtime identity")
+need("<version>9.0.79</version>" in t("pom.xml") and "<dse.phase>9.0.79</dse.phase>" in t("pom.xml"),"root identity")
+need('APP_VERSION = "9.0.79"' in t("shared/src/main/java/org/example/shared/RuntimeContract.java"),"runtime identity")
 sm=t("desktop/src/main/java/org/example/service/SessionActivityManager.java")
 for token in ["10 * 60","2 * 60","Stay Signed In","Log Out Now","MouseEvent.MOUSE_MOVED","logoutIdle","extendSession","Window.getWindows()"]:
     need(token in sm,"session manager missing "+token)

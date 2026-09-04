@@ -159,6 +159,26 @@ public final class WorkspaceManager {
         return Files.isRegularFile(PENDING_MOVE_FILE);
     }
 
+    /**
+     * Test-only transient workspace switch. This deliberately does NOT write the persistent
+     * workspace pointer, so IntelliJ/JUnit evidence runs can never replace the user's real
+     * DSE ERP workspace selection. Package-private: production controllers cannot call it.
+     */
+    static synchronized Path configureTransientForTesting(Path selectedRoot) throws IOException {
+        if (selectedRoot == null) throw new IllegalArgumentException("Workspace folder is required.");
+        Path previous = workspaceRoot;
+        Path normalized = selectedRoot.toAbsolutePath().normalize();
+        ensureStructure(normalized);
+        verifyWritable(normalized);
+        workspaceRoot = normalized;
+        return previous;
+    }
+
+    /** Restores the in-memory workspace after a transient test scope; no pointer file is touched. */
+    static synchronized void restoreTransientForTesting(Path previousRoot) {
+        workspaceRoot = previousRoot;
+    }
+
     public static Path getDatabaseFolder() { return getWorkspaceRoot().resolve("Database"); }
     public static Path getConfigurationFolder() { return getWorkspaceRoot().resolve("Config"); }
     public static Path getBackupFolder() { return getWorkspaceRoot().resolve("Backups"); }

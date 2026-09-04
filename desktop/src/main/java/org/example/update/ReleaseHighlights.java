@@ -8,9 +8,9 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
-        if ("9.0.78".equals(version)) {
+        if ("9.0.79".equals(version)) {
             return """
-                    DSE ERP 9.0.78 — UI Design System & Full Application Visual Standardization
+                    DSE ERP 9.0.79 — UI Design System & Full Application Visual Standardization
 
                     • Finalizes one Light/Dark design system for buttons, labels, inputs, search/filter controls, tables, detail drawers, KPI cards, dialogs, popups and secondary windows across all current FXML screens.
                     • Enforces KPI cards and popup metric strips in one horizontal row only; card density adapts instead of wrapping into a second row.

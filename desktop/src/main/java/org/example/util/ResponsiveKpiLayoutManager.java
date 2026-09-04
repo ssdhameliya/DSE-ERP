@@ -117,7 +117,7 @@ public final class ResponsiveKpiLayoutManager {
         grid.getColumnConstraints().clear();
         if (cards.isEmpty()) return;
 
-        // 9.0.78 UI contract: KPI sections NEVER wrap. One managed card = one column.
+        // 9.0.79 UI contract: KPI sections NEVER wrap. One managed card = one column.
         int columns = cards.size();
         for (int i = 0; i < columns; i++) {
             ColumnConstraints column = new ColumnConstraints();

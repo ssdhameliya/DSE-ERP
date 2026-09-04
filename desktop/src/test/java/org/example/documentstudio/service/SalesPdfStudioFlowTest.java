@@ -9,6 +9,7 @@ import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.ElementType;
 import org.example.documentstudio.model.TemplateData;
 import org.example.config.WorkspaceManager;
+import org.example.config.WorkspaceTestSupport;
 import org.example.config.ConfigManager;
 import org.example.model.Party;
 import org.example.model.Sales;
@@ -17,6 +18,8 @@ import org.example.model.SalesLine;
 import org.example.service.InvoicePdfService;
 import org.example.invoice.mapper.SalesToTaxInvoiceMapper;
 import org.example.invoice.pdf.TaxInvoicePdfGenerator;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -29,6 +32,19 @@ import java.util.Locale;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SalesPdfStudioFlowTest {
+    private static AutoCloseable workspaceScope;
+
+    @BeforeAll
+    static void isolatePdfEvidenceWorkspace() throws Exception {
+        Path evidence = Path.of(System.getProperty("dse.pdf.evidence", "target/pdf-studio-evidence")).toAbsolutePath();
+        Files.createDirectories(evidence);
+        workspaceScope = WorkspaceTestSupport.useTransientWorkspace(evidence.resolve("workspace"));
+    }
+
+    @AfterAll
+    static void restoreWorkspaceAfterPdfEvidence() throws Exception {
+        if (workspaceScope != null) workspaceScope.close();
+    }
 
     @Test
     void liveSalesFieldsMapToStablePdfStudioJsonAliases() {
@@ -236,7 +252,9 @@ class SalesPdfStudioFlowTest {
     }
 
     private static void configureEvidenceWorkspace(Path evidence) throws Exception {
-        if (!WorkspaceManager.isConfigured()) WorkspaceManager.configure(evidence.resolve("workspace"));
+        if (!WorkspaceManager.isConfigured()) {
+            throw new IllegalStateException("PDF evidence workspace was not isolated by the test lifecycle.");
+        }
         ConfigManager.load();
         ConfigManager.setWithoutSaving("company.name", "Jashvi Engineers");
         ConfigManager.setWithoutSaving("company.address", "H 52 Darshan Villa society, Bihand Darthi School, Near Gopal, New naroda, ahmedabad -382346 - Gujarat");
