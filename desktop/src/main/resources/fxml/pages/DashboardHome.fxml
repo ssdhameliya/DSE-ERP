@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <?import javafx.geometry.Insets?><?import javafx.scene.control.*?><?import javafx.scene.layout.*?><!-- v2.1.9 chart-free executive dashboard: lightweight on macOS and consistent on Windows. --><StackPane xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.DashboardHomeController" fx:id="dashboardRoot" styleClass="approved-ui,dashboard-chart-free,approved-screen,approved-screen-dashboard-home,erp-screen-root">
-    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="NEVER" styleClass="approved-page-scroll">
+    <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" styleClass="approved-page-scroll">
         <content>
             <VBox fx:id="dashboardContent" spacing="10" styleClass="approved-page,dashboard-executive">
                 <padding><Insets top="14" right="14" bottom="14" left="14"/></padding>
@@ -13,7 +13,7 @@
                     </VBox>
                     <Region HBox.hgrow="ALWAYS"/>
                     <Button text="This Month" onAction="#cyclePeriod" styleClass="approved-secondary-button,approved-button"/>
-                    <Button fx:id="refreshDashboardButton" text="Refresh" onAction="#refreshDashboard" styleClass="approved-primary-button,approved-button,approved-secondary-button"/>
+                    <Button fx:id="refreshDashboardButton" text="Refresh" onAction="#refreshDashboard" styleClass="approved-button,approved-secondary-button"/>
                 </HBox>
 
                 <GridPane hgap="12" vgap="12" styleClass="approved-kpi-grid,approved-kpi,erp-kpi-section">
@@ -31,13 +31,6 @@
                     <HBox alignment="CENTER_LEFT" spacing="10" HBox.hgrow="ALWAYS" styleClass="dashboard-mini-kpi,dashboard-mini-sales" onMouseClicked="#viewSalesInvoices"><StackPane fx:id="salesMiniIcon" styleClass="dashboard-mini-kpi-icon"/><VBox spacing="3"><Label text="Sales Invoices" styleClass="metric-label"/><Label fx:id="lblOrders" styleClass="metric-value"/><Label text="Sales register" styleClass="metric-note"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="View All" styleClass="approved-link"/></HBox>
                     <HBox alignment="CENTER_LEFT" spacing="10" HBox.hgrow="ALWAYS" styleClass="dashboard-mini-kpi,dashboard-mini-purchases" onMouseClicked="#viewPurchaseInvoices"><StackPane fx:id="purchasesMiniIcon" styleClass="dashboard-mini-kpi-icon"/><VBox spacing="3"><Label text="Purchase Invoices" styleClass="metric-label"/><Label fx:id="lblPurchases" styleClass="metric-value"/><Label text="Purchase register" styleClass="metric-note"/></VBox><Region HBox.hgrow="ALWAYS"/><Label text="View All" styleClass="approved-link"/></HBox>
                 </HBox>
-
-                <GridPane hgap="12" vgap="12">
-                    <columnConstraints><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/></columnConstraints>
-                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="0"><HBox><Label text="Top Customers" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewTopCustomers" styleClass="approved-link"/></HBox><ListView fx:id="topCustomerList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-top-customer-list"/></VBox>
-                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="1"><HBox><Label text="Receivables Ageing" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View Register" onMouseClicked="#viewReceivables" styleClass="approved-link"/></HBox><ListView fx:id="agingList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-aging-list"/></VBox>
-                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="2"><HBox><Label text="Recent Activities" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Live" styleClass="approved-live-badge"/></HBox><ListView fx:id="activityList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-activity-list"/></VBox>
-                </GridPane>
 
                 <HBox spacing="12">
                     <VBox spacing="10" HBox.hgrow="ALWAYS" styleClass="approved-card,approved-surface">
@@ -68,6 +61,14 @@
                         <Label fx:id="lblTrendSales" visible="false" managed="false"/><Label fx:id="lblTrendPeriod" visible="false" managed="false"/><Label fx:id="lblComparisonPeriod" visible="false" managed="false"/><Label fx:id="lblProductsNote" visible="false" managed="false"/>
                     </VBox>
                 </HBox>
+
+                <GridPane hgap="12" vgap="12">
+                    <columnConstraints><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/><ColumnConstraints percentWidth="33.333" hgrow="ALWAYS"/></columnConstraints>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="0"><HBox><Label text="Top Customers" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View All" onMouseClicked="#viewTopCustomers" styleClass="approved-link"/></HBox><ListView fx:id="topCustomerList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-top-customer-list"/></VBox>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="1"><HBox><Label text="Receivables Ageing" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="View Register" onMouseClicked="#viewReceivables" styleClass="approved-link"/></HBox><ListView fx:id="agingList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-aging-list"/></VBox>
+                    <VBox spacing="10" styleClass="approved-card,approved-surface" GridPane.columnIndex="2"><HBox><Label text="Recent Activities" styleClass="approved-card-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Live" styleClass="approved-live-badge"/></HBox><ListView fx:id="activityList" prefHeight="220" VBox.vgrow="ALWAYS" styleClass="approved-list,dashboard-activity-list"/></VBox>
+                </GridPane>
+
 
                 <TableView fx:id="recentTable" visible="false" managed="false" styleClass="approved-table,erp-table-profile-summary"><columns><TableColumn fx:id="colNumber" text="Invoice No." styleClass="approved-table-column"/><TableColumn fx:id="colDate" text="Date" styleClass="approved-table-column"/><TableColumn fx:id="colParty" text="Customer / Supplier" styleClass="approved-table-column"/><TableColumn fx:id="colAmount" text="Amount" styleClass="approved-table-column"/><TableColumn fx:id="colType" text="Type" styleClass="approved-table-column"/></columns></TableView>
             </VBox>

@@ -11,6 +11,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
 import java.util.ArrayList;
@@ -41,12 +42,12 @@ public final class DynamicTableLayoutManager {
     private static final String COLUMN_LISTENER = "erp.table.dynamic-layout.column-listener";
     private static final String COLUMN_BOUND = "erp.table.dynamic-layout.column-bound";
     private static final String NATURAL_FLOOR = "erp.table.dynamic-layout.natural-floor";
-    private static final double ACTION_CONTROL_MIN_WIDTH = 112.0;
+    private static final double ACTION_CONTROL_MIN_WIDTH = 132.0;
     private static final int SAMPLE_LIMIT = 48;
     private static final double TABLE_CHROME_ALLOWANCE = 20.0;
     private static final double CELL_HORIZONTAL_PADDING = 24.0;
     private static final double HEADER_HORIZONTAL_PADDING = 18.0;
-    private static final double MIN_READABLE_COLUMN = 44.0;
+    private static final double MIN_READABLE_COLUMN = 58.0;
 
     private DynamicTableLayoutManager() {}
 
@@ -81,6 +82,11 @@ public final class DynamicTableLayoutManager {
             });
         }
         requestLayout(table);
+        // One extra post-pulse sizing pass measures virtualized row controls at
+        // their real CSS preferred width (especially MenuButton Actions cells).
+        // This prevents the visible action label/graphic/arrow from being
+        // ellipsized by the first pre-cell layout pass.
+        Platform.runLater(() -> Platform.runLater(() -> requestLayout(table)));
     }
 
     /**
@@ -201,9 +207,18 @@ public final class DynamicTableLayoutManager {
                 double shrink = shrinkable <= 0 ? 0 : shrinkNeeded * ownShrinkable / shrinkable;
                 widths[i] = Math.max(measure.minimum(), measure.natural() - shrink);
             }
+        } else if (fitWithVisibleActionColumn(columns, measures, widths, available)) {
+            // Register/detail layouts can make the table narrower than the sum of
+            // every header's ideal width. Row actions are the one control that
+            // must remain directly usable without horizontal scrolling. Preserve
+            // the complete rendered Actions control and compact the data columns
+            // just enough to keep the right-most action column inside the live
+            // viewport. Text/header cells can ellipsize and expose their existing
+            // tooltips; action text/graphic/arrow may never be clipped.
         } else {
-            // The table is narrower than the readable header minima. Keep those
-            // minima and let JavaFX provide horizontal scrolling.
+            // No Actions column (or an exceptionally narrow viewport). Keep the
+            // readable minima and let JavaFX expose horizontal scrolling rather
+            // than crushing every column below a usable size.
             for (int i = 0; i < measures.size(); i++) widths[i] = measures.get(i).minimum();
         }
 
@@ -212,6 +227,76 @@ public final class DynamicTableLayoutManager {
             double width = Math.max(MIN_READABLE_COLUMN, widths[i]);
             if (Math.abs(column.getPrefWidth() - width) > 0.5) column.setPrefWidth(width);
         }
+    }
+
+
+    private static boolean fitWithVisibleActionColumn(List<TableColumn<?, ?>> columns,
+                                                      List<ColumnMeasure> measures,
+                                                      double[] widths,
+                                                      double available) {
+        int actionIndex = -1;
+        for (int i = 0; i < columns.size(); i++) {
+            String heading = headerLabel(columns.get(i));
+            if ("actions".equals(headerSemantic(columns.get(i), heading))) {
+                actionIndex = i;
+                break;
+            }
+        }
+        if (actionIndex < 0) return false;
+
+        ColumnMeasure action = measures.get(actionIndex);
+        double actionWidth = Math.max(ACTION_CONTROL_MIN_WIDTH, action.minimum());
+        double remaining = available - actionWidth;
+        if (remaining <= 0) return false;
+
+        double compactTotal = 0;
+        double naturalDataTotal = 0;
+        double shrinkable = 0;
+        double[] compactMinimums = new double[measures.size()];
+        for (int i = 0; i < measures.size(); i++) {
+            if (i == actionIndex) continue;
+            ColumnMeasure measure = measures.get(i);
+            // Phase 3 readability rule: never squeeze a normal business column
+            // below its semantic readable minimum just to keep Actions visible.
+            // If those minima cannot fit, the table scrolls horizontally rather
+            // than turning headers into 2–4 character fragments.
+            double compact = measure.minimum();
+            compactMinimums[i] = compact;
+            compactTotal += compact;
+            naturalDataTotal += measure.natural();
+            shrinkable += Math.max(0, measure.natural() - compact);
+        }
+        if (compactTotal > remaining) return false;
+
+        widths[actionIndex] = actionWidth;
+        double targetDataWidth = remaining;
+        double shrinkNeeded = Math.max(0, naturalDataTotal - targetDataWidth);
+        for (int i = 0; i < measures.size(); i++) {
+            if (i == actionIndex) continue;
+            ColumnMeasure measure = measures.get(i);
+            double compact = compactMinimums[i];
+            double ownShrinkable = Math.max(0, measure.natural() - compact);
+            double shrink = shrinkable <= 0 ? 0 : shrinkNeeded * ownShrinkable / shrinkable;
+            widths[i] = Math.max(compact, measure.natural() - shrink);
+        }
+
+        // Floating-point rounding can leave a few pixels beyond the viewport.
+        // Remove that residue from non-action columns only so the action control
+        // remains completely visible, including its dropdown arrow/hit area.
+        double used = 0;
+        for (double width : widths) used += width;
+        double excess = used - available;
+        if (excess > 0.5) {
+            for (int i = measures.size() - 1; i >= 0 && excess > 0.5; i--) {
+                if (i == actionIndex) continue;
+                double floor = compactMinimums[i];
+                double reducible = Math.max(0, widths[i] - floor);
+                double reduction = Math.min(excess, reducible);
+                widths[i] -= reduction;
+                excess -= reduction;
+            }
+        }
+        return true;
     }
 
     private static ColumnMeasure measure(TableView<?> table, TableColumn<?, ?> column, double available) {
@@ -234,7 +319,7 @@ public final class DynamicTableLayoutManager {
         double renderedControl = renderedCellControlWidth(table, column);
         if ("actions".equals(semantic)) content = Math.max(content, Math.max(ACTION_CONTROL_MIN_WIDTH, Math.max(renderedControl, header + 38.0)));
 
-        double minimum = Math.max(MIN_READABLE_COLUMN, header);
+        double minimum = readableMinimum(semantic, heading, header);
         if ("actions".equals(semantic)) minimum = Math.max(minimum, Math.max(ACTION_CONTROL_MIN_WIDTH, renderedControl));
         double natural = Math.max(minimum, Math.max(header, content));
 
@@ -273,7 +358,7 @@ public final class DynamicTableLayoutManager {
                     cell.applyCss();
                     width = cell.prefWidth(-1);
                 }
-                if (Double.isFinite(width) && width > 0) max = Math.max(max, width + 8.0);
+                if (Double.isFinite(width) && width > 0) max = Math.max(max, width + 24.0);
             }
         } catch (RuntimeException ignored) { }
         return max;
@@ -351,6 +436,45 @@ public final class DynamicTableLayoutManager {
         if (column.getGraphic() instanceof CheckBox) return true;
         String id = column.getId() == null ? "" : column.getId().toLowerCase(Locale.ROOT);
         return heading.equals("#") || heading.equals("✓") || heading.equalsIgnoreCase("select") || id.contains("select");
+    }
+
+    /**
+     * Readability-first minimum for constrained tables. Long headers may wrap to
+     * two lines, so the minimum is intentionally smaller than their one-line
+     * natural width but never falls back to the former 44px fragments.
+     */
+    private static double readableMinimum(String semantic, String heading, double oneLineHeaderWidth) {
+        String key = (semantic + " " + heading).toLowerCase(Locale.ROOT);
+        double semanticFloor;
+        if (key.contains("actions")) semanticFloor = ACTION_CONTROL_MIN_WIDTH;
+        else if (key.contains("select")) semanticFloor = 48.0;
+        else if (isLongTextSemantic(semantic, heading)) semanticFloor = 86.0;
+        else if (key.contains("invoice") || key.contains("reference") || key.contains("document")
+            || key.contains("account") || key.contains("email") || key.contains("gst")) semanticFloor = 74.0;
+        else if (key.contains("payment") || key.contains("return") || key.contains("status")) semanticFloor = 78.0;
+        else if (key.contains("amount") || key.contains("balance") || key.contains("paid")
+            || key.contains("pending") || key.contains("total") || key.contains("rate")) semanticFloor = 72.0;
+        else if (key.contains("date") || key.contains("due") || key.contains("mobile")
+            || key.contains("quantity") || key.contains("qty")) semanticFloor = 64.0;
+        else semanticFloor = 68.0;
+
+        // JavaFX Label wrapping may split a word character-by-character when the
+        // label becomes narrower than that word. Keep enough room for the longest
+        // header token plus the semantic icon/spacing so headers wrap only between
+        // words. This still lets dense registers fit Actions in the first viewport.
+        double noBreakFloor = longestHeaderTokenWidth(heading) + 44.0;
+        double wrappedFloor = Math.max(noBreakFloor, Math.min(oneLineHeaderWidth, semanticFloor));
+        return Math.max(MIN_READABLE_COLUMN, wrappedFloor);
+    }
+
+    private static double longestHeaderTokenWidth(String heading) {
+        if (heading == null || heading.isBlank()) return 0;
+        Font headerFont = Font.font(Font.getDefault().getFamily(), FontWeight.EXTRA_BOLD, 11.5);
+        double max = 0;
+        for (String token : heading.trim().split("\\s+")) {
+            if (!token.isBlank()) max = Math.max(max, textWidth(token, headerFont));
+        }
+        return max;
     }
 
     private static boolean isLongTextSemantic(String semantic, String heading) {

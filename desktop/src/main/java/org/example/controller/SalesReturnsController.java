@@ -20,7 +20,7 @@ import org.example.navigation.ScreenLifecycle;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.service.ExcelOutputService;
 import org.example.service.EmailService;
-import org.example.service.InvoicePdfService;
+import org.example.service.ManagedInvoicePdfService;
 import org.example.service.NotificationService;
 import org.example.service.PermissionService;
 import org.example.service.ReturnWorkflowService;
@@ -190,7 +190,7 @@ public class SalesReturnsController implements ScreenLifecycle {
         info("Create a sales return from the Sales Register so the original invoice, stock and customer balance stay linked.");
         NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml");
     }
-    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(), true).toFile()); } catch (Exception e) { error(e); } }
+    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(ManagedInvoicePdfService.refund(row.no(), true).toFile()); } catch (Exception e) { error(e); } }
     private void excel(Row row) {
         if (row == null) return;
         try { java.awt.Desktop.getDesktop().open(ExcelOutputService.generate(DocumentType.SALES_RETURN, row.no()).toFile()); }
@@ -258,7 +258,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     private boolean isCancelled(Row row) { return row != null && "CANCELLED".equalsIgnoreCase(safe(row.status()).trim()); }
     private void cancel(Row row) { if (!confirm("Cancel " + row.no() + " and reverse its stock movement?")) return; UiTaskExecutor.submitSerial("sales-return-cancel-"+row.no(),()->{ReturnWorkflowService.cancel(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" cancelled.");org.example.util.ToastManager.success(table,"Return cancelled",row.no()+" was cancelled successfully.");load();},failure->error(asException(failure))); }
     private void delete(Row row) { if (!confirm("Delete " + row.no() + " from the Return Register?\n\nIt will disappear from normal UI, but the backend audit record will be retained as DELETED. Active return stock movement will be reversed safely.")) return; UiTaskExecutor.submitSerial("sales-return-delete-"+row.no(),()->{ReturnWorkflowService.delete(row.no(),true);return true;},ignored->{ScreenRefreshPolicy.invalidate("sales-returns");ScreenRefreshPolicy.invalidate("sales-register");NotificationService.add(row.no()+" deleted from register; audit record retained.");org.example.util.ToastManager.success(table,"Return deleted",row.no()+" was removed from the register; the audit record was retained.");load();},failure->error(asException(failure))); }
-    private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return."); EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",InvoicePdfService.refund(row.no(),true)); info("Sales return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
+    private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Customer email is missing. Update Customer Master before sending this return."); EmailService.send(recipient,"Sales Return "+row.no(),"Please find the sales return note attached.",ManagedInvoicePdfService.refund(row.no(),true)); info("Sales return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
     private Optional<String> input(String initial, String title, String prompt) {
         TextInputDialog dialog = new org.example.util.OwnedTextInputDialog(initial == null ? "" : initial);
         dialog.initOwner(table.getScene() == null ? null : table.getScene().getWindow());

@@ -19,7 +19,7 @@ import org.example.api.support.SupportApiClient;
 import org.example.navigation.NavigationManager;
 import org.example.navigation.ScreenLifecycle;
 import org.example.service.EmailService;
-import org.example.service.InvoicePdfService;
+import org.example.service.ManagedInvoicePdfService;
 import org.example.service.NotificationService;
 import org.example.service.PermissionService;
 import org.example.service.ReturnWorkflowService;
@@ -189,9 +189,9 @@ public class PurchaseReturnsController implements ScreenLifecycle {
     private void original(Row row) { if(row==null)return; LinkedRecordContext.open("PURCHASE",null,row.invoice(),"VIEW","Purchase Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/PurchaseList.fxml"); }
     private void edit(Row row) { input("Update return reason", "Reason:").ifPresent(v -> update(row.no(), "reason", v)); }
     private void notes(Row row) { input("Return notes", "Notes:").ifPresent(v -> update(row.no(), "notes", v)); }
-    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(InvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
+    private void pdf(Row row) { try { java.awt.Desktop.getDesktop().open(ManagedInvoicePdfService.refund(row.no(),false).toFile()); } catch(Exception e) { error(e); } }
     private void excel(Row row) { if(row==null)return; try { java.awt.Desktop.getDesktop().open(org.example.documentstudio.service.ExcelOutputService.generate(org.example.documentstudio.model.DocumentType.PURCHASE_RETURN,row.no()).toFile()); } catch(Exception e) { error(e); } }
-    private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",InvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
+    private void email(Row row) { try { String recipient=partyEmail(row.no()); if(recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master before sending this return."); EmailService.send(recipient,"Purchase Return "+row.no(),"Please find the purchase return note attached.",ManagedInvoicePdfService.refund(row.no(),false)); info("Purchase return emailed to "+recipient+"."); } catch(Exception e) { error(e); } }
     private Optional<String> input(String title, String prompt) {
         return input("", title, prompt);
     }

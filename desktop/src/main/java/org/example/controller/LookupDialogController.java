@@ -26,6 +26,7 @@ public class LookupDialogController {
     private Lookup editingLookup;
     private boolean saved;
     private boolean roleMode;
+    private Lookup savedResult;
 
     @FXML
     public void initialize() {
@@ -104,6 +105,7 @@ public class LookupDialogController {
                 savedLookup -> {
                     btnSave.setDisable(false);
                     saved = true;
+                    savedResult = savedLookup;
                     close();
                     String displayCode = roleMode ? roleDisplayCode(lookup.getLookupValue()) : lookup.getLookupCode();
                     org.example.util.ToastManager.success((javafx.stage.Window) null,
@@ -161,6 +163,7 @@ public class LookupDialogController {
     }
 
     public boolean wasSaved() { return saved; }
+    public Lookup getSavedResult() { return savedResult; }
 
     @FXML private void cancel() { close(); }
     private void close() { ((Stage) txtCode.getScene().getWindow()).close(); }

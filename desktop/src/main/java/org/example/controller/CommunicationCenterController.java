@@ -13,7 +13,7 @@ import javafx.geometry.Pos;
 import javafx.concurrent.Task;
 import org.example.service.EmailService;
 import org.example.service.WhatsappService;
-import org.example.service.InvoicePdfService;
+import org.example.service.ManagedInvoicePdfService;
 import org.example.service.SalesService;
 import org.example.service.PurchaseService;
 import java.nio.file.Path;
@@ -122,13 +122,13 @@ public class CommunicationCenterController implements ScreenLifecycle {
         return switch(type){
             case "SALE" -> {
                 var sale=new SalesService().getByInvoice(number);
-                yield sale==null?null:InvoicePdfService.sales(sale);
+                yield sale==null?null:ManagedInvoicePdfService.sales(sale);
             }
             case "PURCHASE" -> {
                 var purchase=new PurchaseService().getByInvoice(number);
-                yield purchase==null?null:InvoicePdfService.purchase(purchase);
+                yield purchase==null?null:ManagedInvoicePdfService.purchase(purchase);
             }
-            case "QUOTATION" -> InvoicePdfService.quotation(number);
+            case "QUOTATION" -> ManagedInvoicePdfService.quotation(number);
             default -> null;
         };
     }

@@ -100,8 +100,11 @@ public final class ResponsiveKpiLayoutManager {
     }
 
     private static void rebalanceHBox(HBox row) {
-        for (Node card : managedCards(row)) {
+        List<Node> cards = managedCards(row);
+        applyDensity(row, cards.size());
+        for (Node card : cards) {
             HBox.setHgrow(card, Priority.ALWAYS);
+            markCard(card);
             prepareFlexibleCard(card);
         }
     }
@@ -109,13 +112,13 @@ public final class ResponsiveKpiLayoutManager {
     private static void rebalanceGrid(GridPane grid) {
         List<Node> cards = managedCards(grid);
         cards.sort(Comparator.comparingInt(ResponsiveKpiLayoutManager::stableColumnIndex));
+        applyDensity(grid, cards.size());
 
         grid.getColumnConstraints().clear();
         if (cards.isEmpty()) return;
 
-        int columns = grid.getStyleClass().contains("erp-kpi-single-row")
-            ? cards.size()
-            : responsiveColumnCount(cards.size(), grid.getWidth(), grid.getHgap());
+        // 9.0.78 UI contract: KPI sections NEVER wrap. One managed card = one column.
+        int columns = cards.size();
         for (int i = 0; i < columns; i++) {
             ColumnConstraints column = new ColumnConstraints();
             column.setPercentWidth(100.0d / columns);
@@ -126,28 +129,44 @@ public final class ResponsiveKpiLayoutManager {
 
         for (int i = 0; i < cards.size(); i++) {
             Node card = cards.get(i);
-            GridPane.setColumnIndex(card, i % columns);
-            GridPane.setRowIndex(card, i / columns);
+            GridPane.setColumnIndex(card, i);
+            GridPane.setRowIndex(card, 0);
             GridPane.setHgrow(card, Priority.ALWAYS);
+            markCard(card);
             prepareGridCard(card);
         }
     }
 
     private static void rebalanceFlow(FlowPane flow) {
         List<Node> cards = managedCards(flow);
+        applyDensity(flow, cards.size());
         if (cards.isEmpty()) return;
-        int columns = responsiveColumnCount(cards.size(), flow.getWidth(), flow.getHgap());
         double width = flow.getWidth();
         if (!Double.isFinite(width) || width <= 80) return;
+        int columns = cards.size();
         double cardWidth = Math.max(0, (width - Math.max(0, columns - 1) * flow.getHgap()) / columns);
-        flow.setPrefWrapLength(width);
+        // Equal widths guarantee a single horizontal row. FlowPane wrapping is only a
+        // final layout fallback when a caller forces a width below the supported desktop minimum.
+        flow.setPrefWrapLength(Double.MAX_VALUE);
         for (Node card : cards) {
+            markCard(card);
             if (card instanceof Region region) {
                 region.setMinWidth(0);
                 region.setPrefWidth(cardWidth);
                 region.setMaxWidth(cardWidth);
             }
         }
+    }
+
+    private static void applyDensity(Pane pane, int count) {
+        pane.getStyleClass().removeAll("erp-kpi-density-normal", "erp-kpi-density-compact", "erp-kpi-density-dense");
+        String density = count >= 7 ? "erp-kpi-density-dense" : count >= 5 ? "erp-kpi-density-compact" : "erp-kpi-density-normal";
+        pane.getStyleClass().add(density);
+        if (!pane.getStyleClass().contains("erp-kpi-single-row")) pane.getStyleClass().add("erp-kpi-single-row");
+    }
+
+    private static void markCard(Node card) {
+        if (card != null && !card.getStyleClass().contains("erp-kpi-card")) card.getStyleClass().add("erp-kpi-card");
     }
 
     private static int responsiveColumnCount(int cardCount, double width, double gap) {

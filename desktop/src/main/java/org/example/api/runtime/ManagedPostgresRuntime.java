@@ -65,11 +65,12 @@ public final class ManagedPostgresRuntime {
         Path home = locatePostgresHome();
         Path data = WorkspaceManager.getDatabaseFolder().resolve("PostgreSQL").resolve("data");
         Path stateFile = WorkspaceManager.getConfigurationFolder().resolve("runtime-postgres.properties");
-        Path log = WorkspaceManager.getLogsFolder().resolve("postgresql.log");
+        Path log = WorkspaceManager.getPostgresLogsFolder().resolve("postgresql.log");
 
         try {
             Files.createDirectories(data.getParent());
             Files.createDirectories(log.getParent());
+            org.example.util.WorkspaceLogRotation.rotateIfNeeded(log, 10L * 1024L * 1024L, "PostgreSQL");
 
             boolean stateExists = Files.isRegularFile(stateFile);
             boolean clusterExists = Files.isRegularFile(data.resolve("PG_VERSION"));

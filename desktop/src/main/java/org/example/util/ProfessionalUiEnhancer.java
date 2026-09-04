@@ -43,11 +43,13 @@ public final class ProfessionalUiEnhancer {
     public static void enhance(Node root) {
         if (root == null || Boolean.TRUE.equals(root.getProperties().get("erp-ui-enhanced"))) return;
         root.getProperties().put("erp-ui-enhanced", true);
+        UiDesignSystem.markRoot(root);
         walk(root);
         SharedUiFramework.install(root);
     }
 
     private static void walk(Node node) {
+        UiDesignSystem.decorate(node);
         ResponsiveKpiLayoutManager.install(node);
         if (node instanceof TableView<?> table) enhanceTable(table);
         if (node instanceof DialogPane pane) enhanceDialog(pane);

@@ -48,7 +48,7 @@
                             <ComboBox fx:id="cmbCustomer" promptText="Select customer..."
                                       maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
                             <Button fx:id="btnAddCustomer" text="+ New Customer" onAction="#addCustomer"
-                                    styleClass="sales-entry-new-button,approved-button,approved-primary-button"/>
+                                    styleClass="sales-entry-new-button,approved-button,approved-secondary-button"/>
                         </HBox>
                     </VBox>
 
@@ -150,7 +150,7 @@
                     <TextField fx:id="txtLineDiscount" promptText="Discount %" prefWidth="100" minWidth="92" maxWidth="112" styleClass="approved-input"/>
                     <TextField fx:id="txtGST" promptText="GST %" prefWidth="100" minWidth="88" maxWidth="125" styleClass="approved-input"/>
                     <Button fx:id="btnAddLine" text="Add Item" onAction="#addLine"
-                            styleClass="sales-entry-add-button,approved-button,approved-primary-button"/>
+                            styleClass="sales-entry-add-button,approved-button,approved-secondary-button"/>
                     <Button fx:id="btnRemoveLine" text="Remove" onAction="#removeLine"
                             styleClass="sales-entry-remove-button,approved-button,approved-danger-button"/>
                 </HBox>

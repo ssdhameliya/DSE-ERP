@@ -232,6 +232,7 @@ public class DashboardController {
         configureProfileMenuIcons();
         applyNavigationSemanticIcons();
         bindShortcutLabels();
+        org.example.util.RealtimeSearchSupport.installRemote(txtSearch, this::search);
         Platform.runLater(() -> {
             bindShellControls();
             if (contentPane != null && contentPane.getScene() != null)

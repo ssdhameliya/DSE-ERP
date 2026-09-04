@@ -8,6 +8,18 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if ("9.0.78".equals(version)) {
+            return """
+                    DSE ERP 9.0.78 — UI Design System & Full Application Visual Standardization
+
+                    • Finalizes one Light/Dark design system for buttons, labels, inputs, search/filter controls, tables, detail drawers, KPI cards, dialogs, popups and secondary windows across all current FXML screens.
+                    • Enforces KPI cards and popup metric strips in one horizontal row only; card density adapts instead of wrapping into a second row.
+                    • Preserves the existing table row → detail side-panel toggle workflow while standardizing drawer surfaces, actions, icon/value presentation and responsive table reflow.
+                    • Makes every search control real-time: local results filter immediately and server-backed searches use a short debounce without requiring Enter or a Search button.
+                    • Unifies normal panel/card backgrounds into one neutral surface per theme while reserving semantic colour for icons, values, statuses and actions.
+                    • Preserves Java 25, JavaFX 25.0.2, PostgreSQL ownership, business calculations, APIs, database schema, imports, workspace behavior, sidebar structure and document/PDF output.
+                    """;
+        }
         if ("9.0.77".equals(version)) {
             return """
                     DSE ERP 9.0.77 — Architecture Completion & UI Regression Sweep

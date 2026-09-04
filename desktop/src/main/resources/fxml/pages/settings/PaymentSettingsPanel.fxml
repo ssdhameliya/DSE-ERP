@@ -113,13 +113,13 @@
 
                                         <Label fx:id="lblQrFile" text="No image selected" maxWidth="Infinity" textOverrun="CENTER_ELLIPSIS" styleClass="settings-asset-filename"/>
 
-                                        <HBox spacing="8">
+                                        <FlowPane hgap="8" vgap="8" prefWrapLength="420" styleClass="settings-asset-actions">
 
                                             <Button text="Add / Replace" onAction="#uploadPaymentQr" styleClass="settings-secondary-button,approved-button,approved-primary-button"/>
                                             <Button text="Preview" onAction="#previewPaymentQr" styleClass="settings-secondary-button,approved-button,approved-secondary-button"/>
                                             <Button text="Remove" onAction="#removePaymentQr" styleClass="settings-remove-button,approved-button,approved-danger-button"/>
 
-                                        </HBox>
+                                        </FlowPane>
 
                                     </VBox>
 

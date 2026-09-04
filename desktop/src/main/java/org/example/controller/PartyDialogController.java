@@ -29,6 +29,11 @@ public class PartyDialogController {
     private final PartyService service = new PartyService();
     private String type;
     private Party editing;
+    private Party savedResult;
+    private Boolean savedCreated;
+
+    public Party getSavedResult() { return savedResult; }
+    public boolean wasSavedAsCreate() { return Boolean.TRUE.equals(savedCreated); }
 
     @FXML
     private void initialize() {
@@ -112,6 +117,8 @@ public class PartyDialogController {
                 },
                 saved -> {
                     btnSave.setDisable(false);
+                    savedResult = saved;
+                    savedCreated = created;
                     close();
                     org.example.util.ToastManager.success((javafx.stage.Window) null,
                             entityName + (created ? " saved" : " updated"),

@@ -36,7 +36,7 @@ import org.example.service.PartyService;
 import org.example.service.PurchaseService;
 import org.example.service.LookupService;
 import org.example.service.NotificationService;
-import org.example.service.InvoicePdfService;
+import org.example.service.ManagedInvoicePdfService;
 import org.example.service.EmailService;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -643,12 +643,12 @@ public class PurchaseController implements ScreenLifecycle {
         persistAttachmentChanges(full, removals, attachments);
 
         if(!ConfigManager.isApiDataEnabled()) saveMetadata(purchase);
-        if(print) java.awt.Desktop.getDesktop().open(InvoicePdfService.purchase(full).toFile());
+        if(print) java.awt.Desktop.getDesktop().open(ManagedInvoicePdfService.purchase(full).toFile());
         if(email){
             if(full.getSupplier().getEmail()==null||full.getSupplier().getEmail().isBlank())
                 throw new IllegalStateException("Supplier email is missing");
             EmailService.send(full.getSupplier().getEmail(),"Purchase "+full.getInvoiceNo(),
-                    "Please find the purchase document attached.",InvoicePdfService.purchase(full));
+                    "Please find the purchase document attached.",ManagedInvoicePdfService.purchase(full));
             purchaseService.markEmailSent(full.getId());
         }
         return full;

@@ -171,9 +171,10 @@ public class UserAccessController implements ScreenLifecycle {
     private void edit(UserRow row){if(row!=null)openUserDialog(row.id);}
     private void openUserDialog(Integer userId){
         try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/UserDialog.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);UserDialogController controller=loader.getController();if(userId!=null)controller.editUser(userId);
-            Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage, table, userId==null?"Add New User":"Edit User", true);Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.setMinWidth(860);stage.setMinHeight(620);stage.showAndWait();refresh();}
+            Stage stage=new Stage();PlatformUiSupport.configureDialogStage(stage, table, userId==null?"Add New User":"Edit User", true);Scene scene=new Scene(root);ThemeManager.applyTheme(scene);stage.setScene(scene);stage.setMinWidth(860);stage.setMinHeight(620);stage.showAndWait();var saved=controller.getSavedResult();refresh();if(saved!=null)selectSavedUser(saved.id());}
         catch(Exception e){error("User form could not be opened",e);}
     }
+    private void selectSavedUser(int id){UserRow row=users.stream().filter(x->x.id==id).findFirst().orElse(null);if(row!=null){table.getSelectionModel().select(row);table.scrollTo(row);showDetails(row);}}
     @FXML private void resetSelected(){resetPassword(table.getSelectionModel().getSelectedItem());}
     private void resetPassword(UserRow row){
         if(row==null){warning("Select a user first.");return;}TextInputDialog d=new OwnedTextInputDialog();d.setTitle("Reset Password");d.setHeaderText("Set a temporary password for "+row.user.get());d.setContentText("Temporary password:");

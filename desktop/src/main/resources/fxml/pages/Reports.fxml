@@ -22,7 +22,7 @@
                 <MenuItem fx:id="miCsv" text="Export CSV" onAction="#exportCsv"/>
             </items>
         </MenuButton>
-        <Button fx:id="btnContextAction" text="Recent Exports" onAction="#headerContextAction" visible="false" managed="false" styleClass="approved-button,approved-primary-button"/>
+        <Button fx:id="btnContextAction" text="Recent Exports" onAction="#headerContextAction" visible="false" managed="false" styleClass="approved-button,approved-secondary-button"/>
     </HBox>
 
     <TabPane fx:id="reportTabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS" styleClass="reporting-tabs,reports-main-tabs">

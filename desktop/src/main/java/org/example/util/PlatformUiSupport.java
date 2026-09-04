@@ -93,6 +93,9 @@ public final class PlatformUiSupport {
         stage.setOnShown(event -> Platform.runLater(() -> {
             installResponsiveClasses(stage.getScene());
             if (stage.getScene() != null && stage.getScene().getRoot() != null) {
+                if (!stage.getScene().getRoot().getStyleClass().contains("erp-modal-window-root")) {
+                    stage.getScene().getRoot().getStyleClass().add("erp-modal-window-root");
+                }
                 ProfessionalUiEnhancer.enhance(stage.getScene().getRoot());
             }
             WindowUtilsFx.fitDialogToOwnerScreen(stage, owner);

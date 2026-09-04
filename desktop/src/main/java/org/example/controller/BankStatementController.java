@@ -29,6 +29,7 @@ import org.example.util.OwnedDialog;
 import org.example.util.OwnedChoiceDialog;
 import org.example.util.OwnedTextInputDialog;
 import org.example.util.PopupTableWorkspace;
+import org.example.util.RealtimeSearchSupport;
 import org.example.util.SemanticTableCells;
 import org.example.util.UiTaskExecutor;
 
@@ -98,6 +99,8 @@ public class BankStatementController implements ScreenLifecycle {
         cmbDirection.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbPageSize.valueProperty().addListener((o,a,b)->{ if(b!=null&&!suppressFilterReload) resetPageAndLoad(); });
         cmbBatch.valueProperty().addListener((o,a,b)->{ updateDeleteButtons(); if(b!=null){applyBatchPeriod();currentPage=0;loadBatch(b.id());} });
+        RealtimeSearchSupport.installRemote(txtSearch, () -> { if(!suppressFilterReload) resetPageAndLoad(); });
+        RealtimeSearchSupport.installRemote(txtHistorySearch, () -> { historyPage=0; loadStatementHistory(); });
         loadBatches();
     }
 

@@ -110,10 +110,10 @@ require('SemanticTableCells.status("validation")' in import_controller,
 # Exact release identity: desktop and server publish the same application/build value.
 runtime=text('shared/src/main/java/org/example/shared/RuntimeContract.java')
 server_props=text('server/src/main/resources/application.properties')
-require('APP_VERSION = "9.0.77"' in runtime and 'BUILD_REVISION = "9.0.77"' in runtime,
-        '9.0.77 desktop runtime version and build revision must be synchronized')
-require('dse.app.version=9.0.77' in server_props and 'dse.build.revision=9.0.77' in server_props,
-        '9.0.77 server runtime version and build revision must match the desktop contract')
+require('APP_VERSION = "9.0.78"' in runtime and 'BUILD_REVISION = "9.0.78"' in runtime,
+        '9.0.78 desktop runtime version and build revision must be synchronized')
+require('dse.app.version=9.0.78' in server_props and 'dse.build.revision=9.0.78' in server_props,
+        '9.0.78 server runtime version and build revision must match the desktop contract')
 
 if failures:
     print('GLOBAL_UI_CONTRACT_FAIL')

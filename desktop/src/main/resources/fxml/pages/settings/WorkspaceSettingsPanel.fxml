@@ -1,46 +1,129 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.shape.SVGPath?>
-<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:id="panelWorkspace" visible="false" managed="false" maxWidth="Infinity" styleClass="settings-card,workspace-settings-panel">
-                            <VBox spacing="3">
-                                <Label text="Workspace &amp; Storage" styleClass="settings-section-title"/>
-                                <Label text="All business data is kept outside the installed application in one portable workspace." wrapText="true" styleClass="settings-section-description"/>
-                            </VBox>
-                            <VBox spacing="10" styleClass="settings-information-card">
-                                <Label text="Current Workspace" styleClass="settings-subsection-title"/>
-                                <Label fx:id="lblWorkspacePath" text="Workspace path" wrapText="true" styleClass="workspace-path-value"/>
-                                <Label fx:id="lblWorkspaceStatus" wrapText="true" styleClass="workspace-status-ok,approved-status"/>
-                            </VBox>
-                            <VBox fx:id="deploymentSection" spacing="10" styleClass="settings-information-card">
-                                <Label text="Deployment" styleClass="settings-subsection-title"/>
-                                <Label text="Local mode preserves the current single-PC operation. Shared-client mode connects this desktop to one company server after restart." wrapText="true" styleClass="settings-help-text"/>
-                                <ComboBox fx:id="cmbDeploymentMode" maxWidth="Infinity"/>
-                                <HBox spacing="10"><TextField fx:id="txtCompanyServerUrl" promptText="https://erp.company.local" HBox.hgrow="ALWAYS" styleClass="approved-input"/><Button fx:id="btnTestCompanyServer" text="Test Connection" onAction="#testCompanyServer" styleClass="settings-action-button,settings-secondary-button"/></HBox>
-                                <Label fx:id="lblCompanyServerStatus" wrapText="true" styleClass="settings-help-text"/>
-                            </VBox>
-                            <GridPane hgap="14" vgap="14">
-                                <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
-                                <VBox spacing="7" styleClass="workspace-folder-card">
-                                    <Label text="Database &amp; Configuration" styleClass="settings-form-label"/>
-                                    <Label text="Database/PostgreSQL/data  Config/config.properties" wrapText="true" styleClass="settings-help-text"/>
-                                </VBox>
-                                <VBox spacing="7" GridPane.columnIndex="1" styleClass="workspace-folder-card">
-                                    <Label text="Recovery &amp; Documents" styleClass="settings-form-label"/>
-                                    <Label text="Backups • Reports • Attachments • Imports • Exports • Logs" wrapText="true" styleClass="settings-help-text"/>
-                                </VBox>
-                            </GridPane>
-                            <VBox spacing="7" styleClass="settings-security-note">
-                                <Label text="Moving the workspace safely" styleClass="settings-form-label"/>
-                                <Label text="A move is applied on the next start before managed services open. The original folder is retained, so you always have a recovery copy." wrapText="true" styleClass="settings-help-text"/>
-                            </VBox>
-                            <FlowPane hgap="10" vgap="10">
-                                <Button text="Open Workspace" onAction="#openWorkspaceFolder" styleClass="settings-action-button,settings-secondary-button"/>
-                                <Button text="Export Diagnostic Package" onAction="#exportDiagnostics" styleClass="settings-action-button,settings-secondary-button"/>
-                                <Button text="Select Existing Workspace" onAction="#selectExistingWorkspace" styleClass="settings-action-button,settings-secondary-button"/>
-                                <Button text="Move Workspace" onAction="#moveWorkspace" styleClass="settings-action-button,settings-primary-button"/>
-                            </FlowPane>
-                        </VBox>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+      fx:id="panelWorkspace" visible="false" managed="false" maxWidth="Infinity"
+      spacing="14" styleClass="settings-card,workspace-settings-panel">
+    <VBox spacing="3">
+        <Label text="Workspace &amp; Storage" styleClass="settings-section-title"/>
+        <Label text="Business documents are organized permanently; operational logs, exports and temporary files follow administrator-defined retention rules."
+               wrapText="true" styleClass="settings-section-description"/>
+    </VBox>
 
+    <VBox spacing="10" styleClass="settings-information-card">
+        <Label text="Current Workspace" styleClass="settings-subsection-title"/>
+        <Label fx:id="lblWorkspacePath" text="Workspace path" wrapText="true" styleClass="workspace-path-value"/>
+        <Label fx:id="lblWorkspaceStatus" wrapText="true" styleClass="workspace-status-ok,approved-status"/>
+    </VBox>
 
+    <VBox fx:id="deploymentSection" spacing="10" styleClass="settings-information-card">
+        <Label text="Deployment" styleClass="settings-subsection-title"/>
+        <Label text="Local mode preserves the current single-PC operation. Shared-client mode connects this desktop to one company server after restart."
+               wrapText="true" styleClass="settings-help-text"/>
+        <ComboBox fx:id="cmbDeploymentMode" maxWidth="Infinity"/>
+        <HBox spacing="10">
+            <TextField fx:id="txtCompanyServerUrl" promptText="https://erp.company.local" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+            <Button fx:id="btnTestCompanyServer" text="Test Connection" onAction="#testCompanyServer"
+                    styleClass="settings-action-button,settings-secondary-button"/>
+        </HBox>
+        <Label fx:id="lblCompanyServerStatus" wrapText="true" styleClass="settings-help-text"/>
+    </VBox>
+
+    <GridPane hgap="14" vgap="14">
+        <columnConstraints>
+            <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+            <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
+        </columnConstraints>
+        <VBox spacing="7" styleClass="workspace-folder-card">
+            <Label text="Database &amp; Configuration" styleClass="settings-form-label"/>
+            <Label text="Database/PostgreSQL/data  •  Config/config.properties" wrapText="true" styleClass="settings-help-text"/>
+            <Label text="Never automatically deleted by storage cleanup." wrapText="true" styleClass="settings-help-text"/>
+        </VBox>
+        <VBox spacing="7" GridPane.columnIndex="1" styleClass="workspace-folder-card">
+            <Label text="Permanent Business Evidence" styleClass="settings-form-label"/>
+            <Label text="Documents • Attachments • Backups" wrapText="true" styleClass="settings-help-text"/>
+            <Label text="Invoices, proofs and attachments are never auto-deleted." wrapText="true" styleClass="settings-help-text"/>
+        </VBox>
+    </GridPane>
+
+    <VBox spacing="10" styleClass="settings-information-card">
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <VBox spacing="2" HBox.hgrow="ALWAYS">
+                <Label text="Storage Usage" styleClass="settings-subsection-title"/>
+                <Label text="Live sizes are calculated by the company server from the active workspace." wrapText="true" styleClass="settings-help-text"/>
+            </VBox>
+            <Button text="Refresh Usage" onAction="#refreshStorageUsage" styleClass="settings-action-button,settings-secondary-button"/>
+        </HBox>
+        <GridPane hgap="16" vgap="8">
+            <columnConstraints>
+                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+                <ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/>
+            </columnConstraints>
+            <VBox spacing="2"><Label text="Documents" styleClass="settings-help-text"/><Label fx:id="lblStorageDocuments" text="—" styleClass="settings-form-label"/></VBox>
+            <VBox spacing="2" GridPane.columnIndex="1"><Label text="Attachments" styleClass="settings-help-text"/><Label fx:id="lblStorageAttachments" text="—" styleClass="settings-form-label"/></VBox>
+            <VBox spacing="2" GridPane.columnIndex="2"><Label text="Reports / Exports" styleClass="settings-help-text"/><Label fx:id="lblStorageReportsExports" text="—" styleClass="settings-form-label"/></VBox>
+            <VBox spacing="2" GridPane.columnIndex="3"><Label text="Logs / Temp" styleClass="settings-help-text"/><Label fx:id="lblStorageLogsTemp" text="—" styleClass="settings-form-label"/></VBox>
+        </GridPane>
+        <Label fx:id="lblStorageTotal" text="Total managed storage: —" styleClass="settings-form-label"/>
+        <Label fx:id="lblLastCleanup" text="Last cleanup: Never run" wrapText="true" styleClass="settings-help-text"/>
+    </VBox>
+
+    <VBox fx:id="storageRetentionSection" spacing="10" styleClass="settings-information-card">
+        <Label text="Storage Retention" styleClass="settings-subsection-title"/>
+        <Label text="Only operational files are eligible. Business documents, attachments, backups and database records are permanently excluded."
+               wrapText="true" styleClass="settings-help-text"/>
+        <GridPane hgap="14" vgap="10">
+            <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
+            <VBox spacing="5">
+                <Label text="Logs retention (days)" styleClass="settings-form-label"/>
+                <TextField fx:id="txtLogRetentionDays" promptText="30" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="5" GridPane.columnIndex="1">
+                <Label text="Reports retention (days)" styleClass="settings-form-label"/>
+                <TextField fx:id="txtReportRetentionDays" promptText="365" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="5" GridPane.rowIndex="1">
+                <Label text="Exports retention (days)" styleClass="settings-form-label"/>
+                <TextField fx:id="txtExportRetentionDays" promptText="90" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                <Label text="Diagnostic ZIP retention (days)" styleClass="settings-form-label"/>
+                <TextField fx:id="txtDiagnosticRetentionDays" promptText="30" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="5" GridPane.rowIndex="2">
+                <Label text="Import result retention (days)" styleClass="settings-form-label"/>
+                <TextField fx:id="txtImportResultRetentionDays" promptText="90" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="2">
+                <Label text="Temporary files retention (days)" styleClass="settings-form-label"/>
+                <TextField fx:id="txtTempRetentionDays" promptText="7" styleClass="approved-input"/>
+            </VBox>
+            <VBox spacing="5" GridPane.rowIndex="3">
+                <Label text="Old log archives" styleClass="settings-form-label"/>
+                <CheckBox fx:id="chkCompressOldLogs" text="Compress eligible old logs"/>
+            </VBox>
+        </GridPane>
+        <FlowPane hgap="10" vgap="10">
+            <Button text="Preview Cleanup" onAction="#previewStorageCleanup" styleClass="settings-action-button,settings-secondary-button"/>
+            <Button text="Clean Now" onAction="#cleanStorageNow" styleClass="settings-action-button,settings-primary-button"/>
+        </FlowPane>
+        <Label text="Default policy: Logs 30 days • Reports 365 days • Exports 90 days • Import results 90 days • Diagnostics 30 days • Temp 7 days."
+               wrapText="true" styleClass="settings-help-text"/>
+    </VBox>
+
+    <VBox spacing="7" styleClass="settings-security-note">
+        <Label text="Safe cleanup boundary" styleClass="settings-form-label"/>
+        <Label text="Cleanup never targets Documents, Attachments, Backups or Database. It can only remove expired Reports, Exports, Temp files and non-active Log archives."
+               wrapText="true" styleClass="settings-help-text"/>
+    </VBox>
+
+    <FlowPane hgap="10" vgap="10">
+        <Button text="Open Workspace" onAction="#openWorkspaceFolder" styleClass="settings-action-button,settings-secondary-button"/>
+        <Button text="Open Documents" onAction="#openDocumentsFolder" styleClass="settings-action-button,settings-secondary-button"/>
+        <Button text="Open Reports" onAction="#openReportsFolder" styleClass="settings-action-button,settings-secondary-button"/>
+        <Button text="Open Logs" onAction="#openLogsFolder" styleClass="settings-action-button,settings-secondary-button"/>
+        <Button text="Export Diagnostic Package" onAction="#exportDiagnostics" styleClass="settings-action-button,settings-secondary-button"/>
+        <Button text="Select Existing Workspace" onAction="#selectExistingWorkspace" styleClass="settings-action-button,settings-secondary-button"/>
+        <Button text="Move Workspace" onAction="#moveWorkspace" styleClass="settings-action-button,settings-primary-button"/>
+    </FlowPane>
+</VBox>

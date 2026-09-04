@@ -340,6 +340,20 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private TextField txtCompanyServerUrl;
     @FXML private Label lblCompanyServerStatus;
     @FXML private Button btnTestCompanyServer;
+    @FXML private VBox storageRetentionSection;
+    @FXML private TextField txtLogRetentionDays;
+    @FXML private TextField txtReportRetentionDays;
+    @FXML private TextField txtExportRetentionDays;
+    @FXML private TextField txtDiagnosticRetentionDays;
+    @FXML private TextField txtImportResultRetentionDays;
+    @FXML private TextField txtTempRetentionDays;
+    @FXML private CheckBox chkCompressOldLogs;
+    @FXML private Label lblStorageDocuments;
+    @FXML private Label lblStorageAttachments;
+    @FXML private Label lblStorageReportsExports;
+    @FXML private Label lblStorageLogsTemp;
+    @FXML private Label lblStorageTotal;
+    @FXML private Label lblLastCleanup;
     private String validatedCompanyServerUrl;
 
     /* =========================================================
@@ -538,6 +552,9 @@ public class SettingsController implements ScreenLifecycle {
                 refreshWorkspacePanel();
                 boolean admin = SessionService.isAdmin();
                 if (deploymentSection != null) { deploymentSection.setVisible(admin); deploymentSection.setManaged(admin); }
+                if (storageRetentionSection != null) storageRetentionSection.setDisable(!admin);
+                loadStorageRetentionSettings();
+                refreshStorageUsage();
                 if (admin) {
                     cmbDeploymentMode.setItems(FXCollections.observableArrayList("This PC only", "Connect to company server"));
                     cmbDeploymentMode.getSelectionModel().select(ConfigManager.isSharedClient() ? 1 : 0);
@@ -970,6 +987,81 @@ private record AssetPreviewRequest(
     }
 
     @FXML
+    private void openDocumentsFolder() {
+        try { WorkspaceSettingsService.openDocumentsFolder(); }
+        catch (Exception exception) { showError("The Documents folder could not be opened: " + exception.getMessage()); }
+    }
+
+    @FXML
+    private void openReportsFolder() {
+        try { WorkspaceSettingsService.openReportsFolder(); }
+        catch (Exception exception) { showError("The Reports folder could not be opened: " + exception.getMessage()); }
+    }
+
+    @FXML
+    private void openLogsFolder() {
+        try { WorkspaceSettingsService.openLogsFolder(); }
+        catch (Exception exception) { showError("The Logs folder could not be opened: " + exception.getMessage()); }
+    }
+
+    @FXML
+    private void refreshStorageUsage() {
+        if (lblStorageTotal == null) return;
+        lblStorageTotal.setText("Total managed storage: Loading…");
+        UiTaskExecutor.submitLatest("settings-storage-status",
+                WorkspaceSettingsService::storageStatus,
+                this::applyStorageStatus,
+                error -> {
+                    lblStorageTotal.setText("Total managed storage: unavailable");
+                    if (lblLastCleanup != null) lblLastCleanup.setText("Storage status unavailable: " + safeMessage(error));
+                });
+    }
+
+    @FXML
+    private void previewStorageCleanup() {
+        if (!SessionService.isAdmin()) { warn("Storage cleanup can be previewed only by an administrator."); return; }
+        UiTaskExecutor.submitAction("settings-storage-cleanup-preview",
+                WorkspaceSettingsService::previewCleanup,
+                result -> {
+                    OwnedAlert alert = new OwnedAlert(Alert.AlertType.INFORMATION,
+                            "Cleanup preview\n\nFiles eligible for deletion: " + result.filesDeleted()
+                                    + "\nLog files eligible for compression: " + result.filesCompressed()
+                                    + "\nPotential space recovery: " + formatBytes(result.bytesReclaimed())
+                                    + "\n\nDocuments, attachments, backups and database files are excluded.",
+                            ButtonType.OK);
+                    alert.setHeaderText("Safe storage cleanup preview");
+                    alert.showAndWait();
+                },
+                error -> showError("Cleanup preview failed: " + safeMessage(error)));
+    }
+
+    @FXML
+    private void cleanStorageNow() {
+        if (!SessionService.isAdmin()) { warn("Storage cleanup can be run only by an administrator."); return; }
+        UiTaskExecutor.submitAction("settings-storage-cleanup-confirm-preview",
+                WorkspaceSettingsService::previewCleanup,
+                preview -> {
+                    ButtonType clean = new ButtonType("Clean Now", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+                    OwnedAlert confirm = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                            "The current retention policy makes " + preview.filesDeleted() + " files eligible for deletion"
+                                    + (preview.filesCompressed() > 0 ? " and " + preview.filesCompressed() + " old logs eligible for compression" : "")
+                                    + ".\n\nEstimated space recovery: " + formatBytes(preview.bytesReclaimed())
+                                    + "\n\nInvoices, attachments, payment proofs, backups and database records will NOT be touched.",
+                            ButtonType.CANCEL, clean);
+                    confirm.setHeaderText("Run safe workspace cleanup?");
+                    if (confirm.showAndWait().orElse(ButtonType.CANCEL) != clean) return;
+                    UiTaskExecutor.submitAction("settings-storage-cleanup-run",
+                            WorkspaceSettingsService::cleanNow,
+                            result -> {
+                                org.example.util.ToastManager.success(panelWorkspace, "Storage cleanup completed", result.summary());
+                                refreshStorageUsage();
+                            },
+                            error -> showError("Storage cleanup failed: " + safeMessage(error)));
+                },
+                error -> showError("Cleanup preview failed: " + safeMessage(error)));
+    }
+
+    @FXML
     private void exportDiagnostics() {
         try {
             Path bundle = WorkspaceSettingsService.exportDiagnostics();
@@ -1064,6 +1156,72 @@ private record AssetPreviewRequest(
                 : "Workspace is available and writable. Application updates do not replace this folder.");
         lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
         lblWorkspaceStatus.getStyleClass().add(pending ? "workspace-status-warning" : "workspace-status-ok");
+    }
+
+    private void loadStorageRetentionSettings() {
+        if (txtLogRetentionDays == null) return;
+        try {
+            var support = new org.example.api.support.SupportApiClient();
+            txtLogRetentionDays.setText(support.setting("storage.logs.retentionDays", "30"));
+            txtReportRetentionDays.setText(support.setting("storage.reports.retentionDays", "365"));
+            txtExportRetentionDays.setText(support.setting("storage.exports.retentionDays", "90"));
+            txtDiagnosticRetentionDays.setText(support.setting("storage.diagnostics.retentionDays", "30"));
+            txtImportResultRetentionDays.setText(support.setting("storage.importResults.retentionDays", "90"));
+            txtTempRetentionDays.setText(support.setting("storage.temp.retentionDays", "7"));
+            chkCompressOldLogs.setSelected(Boolean.parseBoolean(support.setting("storage.logs.compress", "true")));
+        } catch (Exception error) {
+            if (lblLastCleanup != null) lblLastCleanup.setText("Retention policy could not be loaded: " + safeMessage(error));
+        }
+    }
+
+    private void saveStorageRetentionSettings() {
+        if (txtLogRetentionDays == null || !SessionService.isAdmin()) return;
+        int logs = retentionDays(txtLogRetentionDays, "Logs", 1, 3650);
+        int reports = retentionDays(txtReportRetentionDays, "Reports", 1, 3650);
+        int exports = retentionDays(txtExportRetentionDays, "Exports", 1, 3650);
+        int diagnostics = retentionDays(txtDiagnosticRetentionDays, "Diagnostic ZIPs", 1, 3650);
+        int importResults = retentionDays(txtImportResultRetentionDays, "Import results", 1, 3650);
+        int temp = retentionDays(txtTempRetentionDays, "Temporary files", 1, 365);
+        var support = new org.example.api.support.SupportApiClient();
+        support.setSetting("storage.logs.retentionDays", Integer.toString(logs));
+        support.setSetting("storage.reports.retentionDays", Integer.toString(reports));
+        support.setSetting("storage.exports.retentionDays", Integer.toString(exports));
+        support.setSetting("storage.diagnostics.retentionDays", Integer.toString(diagnostics));
+        support.setSetting("storage.importResults.retentionDays", Integer.toString(importResults));
+        support.setSetting("storage.temp.retentionDays", Integer.toString(temp));
+        support.setSetting("storage.logs.compress", Boolean.toString(chkCompressOldLogs != null && chkCompressOldLogs.isSelected()));
+    }
+
+    private static int retentionDays(TextField field, String label, int min, int max) {
+        try {
+            int value = Integer.parseInt(field.getText().trim());
+            if (value < min || value > max) throw new NumberFormatException();
+            return value;
+        } catch (Exception error) {
+            throw new IllegalArgumentException(label + " retention must be between " + min + " and " + max + " days.");
+        }
+    }
+
+    private void applyStorageStatus(org.example.api.storage.StorageApiClient.Status status) {
+        if (status == null) return;
+        if (lblStorageDocuments != null) lblStorageDocuments.setText(formatBytes(status.documentsBytes()));
+        if (lblStorageAttachments != null) lblStorageAttachments.setText(formatBytes(status.attachmentsBytes()));
+        if (lblStorageReportsExports != null) lblStorageReportsExports.setText(formatBytes(status.reportsBytes() + status.exportsBytes()));
+        if (lblStorageLogsTemp != null) lblStorageLogsTemp.setText(formatBytes(status.logsBytes() + status.tempBytes()));
+        if (lblStorageTotal != null) lblStorageTotal.setText("Total managed storage: " + formatBytes(status.totalManagedBytes()));
+        if (lblLastCleanup != null) {
+            String when = status.lastCleanupAt() == null || status.lastCleanupAt().isBlank() ? "Never run" : status.lastCleanupAt();
+            lblLastCleanup.setText("Last cleanup: " + when + " • " + (status.lastCleanupSummary() == null ? "" : status.lastCleanupSummary()));
+        }
+    }
+
+    private static String formatBytes(long bytes) {
+        double value = Math.max(0, bytes);
+        String[] units = {"B", "KB", "MB", "GB", "TB"};
+        int unit = 0;
+        while (value >= 1024.0 && unit < units.length - 1) { value /= 1024.0; unit++; }
+        return unit == 0 ? String.format(Locale.ROOT, "%.0f %s", value, units[unit])
+                : String.format(Locale.ROOT, "%.1f %s", value, units[unit]);
     }
 
     @FXML
@@ -1601,7 +1759,10 @@ private record AssetPreviewRequest(
             if (loadedPanels.containsKey(Section.EMAIL)) saveEmailSettings();
             if (loadedPanels.containsKey(Section.NOTIFICATIONS)) saveNotificationSettings();
             if (loadedPanels.containsKey(Section.SECURITY)) saveSecuritySettings();
-            if (loadedPanels.containsKey(Section.WORKSPACE)) saveDeploymentSettings();
+            if (loadedPanels.containsKey(Section.WORKSPACE)) {
+                saveDeploymentSettings();
+                saveStorageRetentionSettings();
+            }
             if (loadedPanels.containsKey(Section.SHORTCUTS)) saveShortcutSettings();
             if (loadedPanels.containsKey(Section.UPDATES)) saveUpdateSettings();
             ConfigManager.save();

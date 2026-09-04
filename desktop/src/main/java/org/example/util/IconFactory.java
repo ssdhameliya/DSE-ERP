@@ -17,6 +17,7 @@ import javafx.scene.control.ComboBoxBase;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.GridPane;
@@ -493,9 +494,17 @@ public final class IconFactory {
     public static Node tableHeader(String label, String semantic) {
         Label title = new Label(label == null ? "" : label);
         title.getStyleClass().addAll("erp-table-header-label", "erp-table-header-colour-" + semanticColour(semantic));
+        boolean multiWord = label != null && label.trim().contains(" ");
+        title.getStyleClass().add(multiWord ? "erp-table-header-multi-word" : "erp-table-header-single-word");
         title.getProperties().put("erp.header.semantic", normalize(semantic));
+        title.setWrapText(multiWord);
+        title.setMinWidth(0);
+        title.setMaxWidth(Double.MAX_VALUE);
         HBox header = new HBox(6, compactIcon(semantic, 14), title);
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setMinWidth(0);
+        header.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(title, Priority.ALWAYS);
         header.setMouseTransparent(true);
         header.getStyleClass().add("erp-table-header-content");
         return header;

@@ -17,7 +17,7 @@
             <StackPane.margin><Insets right="8"/></StackPane.margin>
           </StackPane>
         </StackPane>
-        <Button fx:id="btnNewSale" text="New Sale" onAction="#newSale" styleClass="primary-action,sales-new-button"/>
+        <Button fx:id="btnNewSale" text="New Sale" onAction="#newSale" styleClass="primary-action,sales-new-button,approved-button,approved-primary-button"/>
       </HBox>
 
     </VBox>
@@ -115,8 +115,8 @@
               <Button fx:id="btnThirtyDaysRange" text="30 Days" onAction="#showThirtyDays" styleClass="sales-range-button,quick-range-button,quick-range-thirty,approved-button,approved-secondary-button"/>
               <Button fx:id="btnCustomRange" text="Custom Range" onAction="#focusCustomRange" visible="false" managed="false" styleClass="sales-range-button,sales-custom-range-button,approved-button,approved-secondary-button"/>
               <Region HBox.hgrow="ALWAYS"/>
-              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="register-action-button,register-reset-button"/>
-              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refreshWithFeedback" styleClass="register-action-button,register-refresh-button"/>
+              <Button fx:id="btnResetFilters" text="Reset" onAction="#resetFilters" styleClass="register-action-button,register-reset-button,approved-button,approved-secondary-button"/>
+              <Button fx:id="btnRefreshSales" text="Refresh" onAction="#refreshWithFeedback" styleClass="register-action-button,register-refresh-button,approved-button,approved-secondary-button"/>
             </HBox>
 
             <FlowPane fx:id="activeFilterChips" hgap="7" vgap="6" visible="false" managed="false" styleClass="sales-filter-chips,approved-filter-bar"/>
@@ -178,7 +178,7 @@
         </VBox>
 
         <VBox fx:id="detailDrawer" spacing="8" prefWidth="350" minWidth="320" maxWidth="390" minHeight="0" styleClass="detail-drawer,erp-detail-drawer-card,sales-detail-drawer,sales-detail-sheet">
-          <HBox alignment="CENTER_LEFT" spacing="8" styleClass="sales-detail-fixed-header"><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-danger-button"/></HBox>
+          <HBox alignment="CENTER_LEFT" spacing="8" styleClass="sales-detail-fixed-header"><Label text="Invoice Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button fx:id="btnCloseDetails" text="Close" onAction="#closeDetails" styleClass="icon-button,detail-close-button,approved-button,approved-secondary-button"/></HBox>
           <HBox alignment="CENTER_LEFT" spacing="10" styleClass="sales-detail-identity"><VBox spacing="2" HBox.hgrow="ALWAYS"><Label fx:id="lblDetailInvoice" styleClass="drawer-document,sales-detail-invoice"/><Label fx:id="lblDetailCustomer" wrapText="true" styleClass="drawer-customer,sales-detail-customer"/><Label fx:id="lblDetailContact" wrapText="true" styleClass="muted-text,sales-detail-contact"/></VBox><VBox alignment="TOP_RIGHT" spacing="4"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></VBox></HBox>
           <Separator/>
           <ScrollPane fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS" styleClass="sales-detail-scroll,erp-inner-scroll">
@@ -220,7 +220,7 @@
                 </VBox>
                 <Label text="Quick Actions" styleClass="drawer-section"/>
                 <GridPane hgap="8" vgap="8" styleClass="sales-detail-action-grid"><columnConstraints><ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/></columnConstraints>
-                  <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/><Button text="Edit Sale" onAction="#editSelectedSale" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="approved-button,approved-primary-button"/>
+                  <Button text="Send Email" onAction="#emailSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/><Button text="Edit Sale" onAction="#editSelectedSale" maxWidth="Infinity" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
                   <Button text="Record Payment" onAction="#recordSelectedPayment" maxWidth="Infinity" GridPane.rowIndex="1" styleClass="approved-button,approved-primary-button"/><Button text="Excel" onAction="#excelSelected" maxWidth="Infinity" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="approved-button,approved-secondary-button"/>
                 </GridPane>
               </VBox>

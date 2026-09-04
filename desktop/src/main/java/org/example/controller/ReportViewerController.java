@@ -24,6 +24,7 @@ import org.example.service.UnifiedReportExportService;
 import org.example.util.*;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -72,6 +73,7 @@ public class ReportViewerController implements ScreenLifecycle {
         cmbSort.valueProperty().addListener((o,a,b)->{if(!initializing&&!rendering&&current!=null){page=0;requestLoad();}});
         cmbDirection.valueProperty().addListener((o,a,b)->{if(!initializing&&!rendering&&current!=null){page=0;requestLoad();}});
         txtSearch.setOnAction(e->applyFilters());
+        RealtimeSearchSupport.installRemote(txtSearch, () -> { if (!initializing) applyFilters(); });
         RegisterUiSupport.configureHeaderSearch(txtSearch,reportSearchIcon,"Search invoice / party / item / reference...");
         filterGrid.widthProperty().addListener((o,a,b)->reflowFilterGrid());
         tblReport.setPlaceholder(new Label("No transactions found for the selected criteria."));
@@ -231,9 +233,10 @@ public class ReportViewerController implements ScreenLifecycle {
 
     private void export(String title,String ext){
         org.example.service.PermissionService.require("REPORTS.EXPORT", "Export Reports");
-        if(current==null)return;FileChooser chooser=new FileChooser();chooser.setTitle(title);chooser.setInitialFileName(fileBase()+"."+ext);chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*."+ext));File file=chooser.showSaveDialog(tblReport.getScene().getWindow());if(file==null)return;Path target=file.toPath();if(!target.toString().toLowerCase(Locale.ROOT).endsWith("."+ext))target=Path.of(target+"."+ext);Path finalTarget=target;setBusy(true);
+        if(current==null)return;FileChooser chooser=new FileChooser();chooser.setTitle(title);chooser.setInitialFileName(fileBase()+"."+ext);try{Path folder=org.example.config.WorkspaceStorageManager.reportFolder(reportStorageCategory(),BusinessClock.today());if(Files.isDirectory(folder))chooser.setInitialDirectory(folder.toFile());}catch(Exception ignored){}chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(title,"*."+ext));File file=chooser.showSaveDialog(tblReport.getScene().getWindow());if(file==null)return;Path target=file.toPath();if(!target.toString().toLowerCase(Locale.ROOT).endsWith("."+ext))target=Path.of(target+"."+ext);Path finalTarget=target;setBusy(true);
         UiTaskExecutor.submitAction("export-unified-report-"+ext,()->{ReportResult all=loadAllForExport();switch(ext){case "pdf"->UnifiedReportExportService.pdf(finalTarget,all,visibleKeys,true,true);case "xlsx"->UnifiedReportExportService.excel(finalTarget,all,visibleKeys);case "csv"->UnifiedReportExportService.csv(finalTarget,all,visibleKeys);default->throw new IllegalArgumentException("Unsupported export format");}return finalTarget;},p->{setBusy(false);ToastManager.success(tblReport,"Export complete","Created: "+p);},e->{setBusy(false);error("Could not export report: "+root(e));});
     }
+    private String reportStorageCategory(){String id=reportId==null?"":reportId.toUpperCase(Locale.ROOT);if(id.contains("SALE")||id.contains("RECEIV"))return "Sales";if(id.contains("PURCHASE")||id.contains("PAYABLE"))return "Purchase";if(id.contains("INVENT")||id.contains("STOCK"))return "Inventory";if(id.contains("BANK"))return "Bank";if(id.contains("GST")||id.contains("TAX"))return "GST-Tax";return "Financial";}
     private ReportResult loadAllForExport(){ReportRequest first=requestFor(0,250);ReportResult result=api.run(first);if(result.totalPages()<=1)return result;List<ReportRow> all=new ArrayList<>(result.rows());for(int p=1;p<result.totalPages();p++){ReportRequest next=new ReportRequest(first.reportId(),first.from(),first.to(),first.party(),first.item(),first.salesperson(),first.documentStatus(),first.paymentStatus(),first.returnStatus(),first.gstRate(),first.warehouse(),first.bankStatus(),first.search(),first.groupBy(),first.sortKey(),first.sortDirection(),first.minAmount(),first.maxAmount(),p,250,first.visibleColumns());all.addAll(api.run(next).rows());}return new ReportResult(result.reportId(),result.title(),result.description(),result.periodFrom(),result.periodTo(),result.metrics(),result.columns(),all,result.totalRows(),0,all.size(),1,result.groupByOptions(),result.appliedFilters(),result.totals(),result.generatedAt(),result.generatedBy());}
 
     private void applySavedRequestToControls(ReportRequest q,String datePreset){

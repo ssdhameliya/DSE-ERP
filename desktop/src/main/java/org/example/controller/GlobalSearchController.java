@@ -11,6 +11,7 @@ import org.example.navigation.ScreenLifecycle;
 import org.example.service.GlobalSearchService;
 import org.example.service.GlobalSearchService.SearchResult;
 import org.example.util.IconFactory;
+import org.example.util.RealtimeSearchSupport;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -41,6 +42,7 @@ public final class GlobalSearchController implements ScreenLifecycle {
         configureModuleRail(Map.of());
         listModules.getSelectionModel().selectedItemProperty().addListener((o,a,b)->render());
         listModules.setCellFactory(v -> new ModuleCell());
+        RealtimeSearchSupport.installRemote(txtGlobalSearch, this::search);
         String query = GlobalSearchContext.consume();
         if (!query.isBlank()) { txtGlobalSearch.setText(query); Platform.runLater(this::search); }
         else Platform.runLater(txtGlobalSearch::requestFocus);

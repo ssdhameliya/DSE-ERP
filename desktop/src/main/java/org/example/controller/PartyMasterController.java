@@ -279,13 +279,22 @@ public abstract class PartyMasterController {
             ThemeManager.applyTheme(scene);
             stage.setScene(scene);
             stage.showAndWait();
-            load();
+            Party saved = controller.getSavedResult();
+            if (saved == null) {
+                load();
+            } else {
+                load(saved.getPartyCode());
+            }
         } catch (Exception exception) {
             error("Could not open the dialog: " + exception.getMessage());
         }
     }
 
     private void load() {
+        load(null);
+    }
+
+    private void load(String selectPartyCode) {
         org.example.util.OperationalUiSupport.showLoading(tableParties, "Loading " + displayName().toLowerCase(Locale.ROOT) + "s…");
         UiTaskExecutor.submitLatest(
             "party-master-load-" + partyType().toLowerCase(Locale.ROOT),
@@ -299,12 +308,39 @@ public abstract class PartyMasterController {
                 if(lblKpiActive!=null)lblKpiActive.setText(String.valueOf(all.stream().filter(Party::isActive).count()));
                 if(lblKpiGst!=null)lblKpiGst.setText(String.valueOf(all.stream().filter(p->p.getGstin()!=null&&!p.getGstin().isBlank()).count()));
                 if(lblKpiBalance!=null)lblKpiBalance.setText(String.format(Locale.ENGLISH,"₹ %,.2f",all.stream().mapToDouble(Party::getOpeningBalance).sum()));
+                if (selectPartyCode != null && !selectPartyCode.isBlank()) selectSavedParty(selectPartyCode);
             },
             failure -> {
                 org.example.util.OperationalUiSupport.showError(tableParties, displayName() + " master could not load", failure);
                 error("Could not load " + displayName().toLowerCase(Locale.ROOT) + "s: " + message(failure));
             }
         );
+    }
+
+    private void selectSavedParty(String partyCode) {
+        if (partyCode == null || partyCode.isBlank()) return;
+        Party match = tableParties.getItems().stream()
+            .filter(p -> partyCode.equalsIgnoreCase(p.getPartyCode()))
+            .findFirst().orElse(null);
+        if (match == null) {
+            // A newly created record must be visible immediately even when the previous
+            // search text would otherwise hide it. Preserve the query whenever it matches.
+            Party inCache = cachedParties.stream()
+                .filter(p -> partyCode.equalsIgnoreCase(p.getPartyCode()))
+                .findFirst().orElse(null);
+            if (inCache != null) {
+                txtSearch.clear();
+                applyLocalFilter();
+                match = tableParties.getItems().stream()
+                    .filter(p -> partyCode.equalsIgnoreCase(p.getPartyCode()))
+                    .findFirst().orElse(null);
+            }
+        }
+        if (match != null) {
+            tableParties.getSelectionModel().select(match);
+            tableParties.scrollTo(match);
+            showDetails(match);
+        }
     }
 
     /** Filters the cached customer/supplier master without a network request per key press. */

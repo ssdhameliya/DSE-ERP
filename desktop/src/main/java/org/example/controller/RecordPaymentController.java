@@ -23,7 +23,7 @@ import org.example.service.SalesService;
 import org.example.service.LookupService;
 import org.example.navigation.ScreenLifecycle;
 import org.example.service.EmailService;
-import org.example.service.InvoicePdfService;
+import org.example.service.ManagedInvoicePdfService;
 import org.example.service.NotificationService;
 import org.example.service.PaymentMessageService;
 import org.example.service.WhatsappService;
@@ -410,13 +410,13 @@ public class RecordPaymentController implements ScreenLifecycle {
         return AttachmentPreviewSupport.materialize(download,"payment-proof");
     }
 
-    @FXML private void printInvoice(){ try{Desktop.getDesktop().print(InvoicePdfService.sales(sale).toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
+    @FXML private void printInvoice(){ try{Desktop.getDesktop().print(ManagedInvoicePdfService.sales(sale).toFile());}catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}}
     @FXML private void cancel(){ if(sale!=null)LinkedRecordContext.open("SALE",sale.getId(),sale.getInvoiceNo(),"VIEW","Record Payment"); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
 
 
     @FXML private void emailInvoice() {
         try {
-            EmailService.send(sale.getCustomer().getEmail(),"Sales Invoice "+sale.getInvoiceNo(),PaymentMessageService.salesMessage(sale),InvoicePdfService.sales(sale));
+            EmailService.send(sale.getCustomer().getEmail(),"Sales Invoice "+sale.getInvoiceNo(),PaymentMessageService.salesMessage(sale),ManagedInvoicePdfService.sales(sale));
             org.example.util.ToastManager.success(amount,"Email sent","Invoice emailed successfully.");
         }catch(Exception e){new OwnedAlert(Alert.AlertType.ERROR,e.getMessage()).showAndWait();}
     }

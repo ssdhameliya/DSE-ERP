@@ -176,6 +176,7 @@ public class MasterDataController implements ScreenLifecycle {
     private boolean updatingPagination;
     private RegisterDetailDrawer detailDrawer;
     private Lookup detailLookup;
+    private Integer pendingSelectLookupId;
     private final java.util.Map<String, MasterCategoryService.Category> categoryByName = new java.util.LinkedHashMap<>();
 
     /* =========================================================
@@ -676,10 +677,16 @@ public class MasterDataController implements ScreenLifecycle {
 
         int pageCount = Math.max(1, (int) Math.ceil(filteredLookups.size() / (double) PAGE_SIZE));
 
+        int targetPage = 0;
+        if (pendingSelectLookupId != null) {
+            for (int i = 0; i < filteredLookups.size(); i++) {
+                if (filteredLookups.get(i).getId() == pendingSelectLookupId) { targetPage = i / PAGE_SIZE; break; }
+            }
+        }
         updatingPagination = true;
         try {
             pagination.setPageCount(pageCount);
-            pagination.setCurrentPageIndex(0);
+            pagination.setCurrentPageIndex(Math.min(targetPage, pageCount - 1));
             pagination.setDisable(pageCount <= 1);
         } finally {
             updatingPagination = false;
@@ -699,6 +706,16 @@ public class MasterDataController implements ScreenLifecycle {
                 filteredLookups.subList(fromIndex, toIndex)
             )
         );
+
+        if (pendingSelectLookupId != null) {
+            Lookup match = tblLookup.getItems().stream().filter(v -> v.getId() == pendingSelectLookupId).findFirst().orElse(null);
+            if (match != null) {
+                tblLookup.getSelectionModel().select(match);
+                tblLookup.scrollTo(match);
+                showLookupDetails(match);
+                pendingSelectLookupId = null;
+            }
+        }
 
         if (total == 0) {
             setLabelText(lblRecordCount, "0 Records");
@@ -896,6 +913,13 @@ public class MasterDataController implements ScreenLifecycle {
 
             stage.showAndWait();
 
+            Lookup savedLookup = controller.getSavedResult();
+            if (savedLookup != null) {
+                String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
+                if (!matchesSearch(savedLookup, query)) txtSearch.clear();
+                pendingSelectLookupId = savedLookup.getId();
+            }
+
             loadCategories();
 
             lstTypes.getSelectionModel()
@@ -977,6 +1001,13 @@ public class MasterDataController implements ScreenLifecycle {
             );
 
             stage.showAndWait();
+
+            Lookup savedLookup = controller.getSavedResult();
+            if (savedLookup != null) {
+                String query = txtSearch.getText() == null ? "" : txtSearch.getText().trim().toLowerCase(Locale.ROOT);
+                if (!matchesSearch(savedLookup, query)) txtSearch.clear();
+                pendingSelectLookupId = savedLookup.getId();
+            }
 
             loadCategories();
 

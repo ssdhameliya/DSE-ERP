@@ -3,6 +3,7 @@ package org.example.service;
 import org.example.api.runtime.RuntimeBootstrapper;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
+import org.example.config.WorkspaceStorageManager;
 import org.example.shared.RuntimeContract;
 import org.example.model.AppUser;
 import org.example.util.DesktopLog;
@@ -23,8 +24,7 @@ public final class DiagnosticBundleService {
 
     public static Path export() {
         try {
-            Path folder = WorkspaceManager.getExportsFolder().resolve("Diagnostics");
-            Files.createDirectories(folder);
+            Path folder = WorkspaceStorageManager.diagnostics();
             String stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").withZone(java.time.ZoneId.systemDefault()).format(Instant.now());
             Path zip = folder.resolve("DSE-ERP-Diagnostics-" + stamp + ".zip");
             try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(zip, StandardOpenOption.CREATE_NEW))) {
@@ -32,7 +32,7 @@ public final class DiagnosticBundleService {
                 writeText(out, "config-sanitized.properties", sanitizedConfig());
                 addLog(out, DesktopLog.path(), "logs/desktop.log");
                 addLog(out, RuntimeBootstrapper.serverLogPath(), "logs/server.log");
-                if (WorkspaceManager.isConfigured()) addLog(out, WorkspaceManager.getLogsFolder().resolve("postgresql.log"), "logs/postgresql.log");
+                if (WorkspaceManager.isConfigured()) addLog(out, WorkspaceManager.getPostgresLogsFolder().resolve("postgresql.log"), "logs/postgresql.log");
             }
             DesktopLog.info("Diagnostics", "BUNDLE_EXPORTED", zip.toString());
             return zip;

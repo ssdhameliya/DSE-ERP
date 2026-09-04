@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavior-preserving architecture seams introduced in 9.0.77."""
+"""Behavior-preserving architecture seams introduced in 9.0.78."""
 from pathlib import Path
 import sys
 ROOT=Path(__file__).resolve().parents[1]
@@ -51,7 +51,7 @@ need('ProfessionalDocumentFormatSupport.' in renderer and 'ProfessionalDocumentD
 
 import_service=t('desktop/src/main/java/org/example/service/ImportService.java')
 need('ImportWorkbookValueReader.' in import_service and 'ImportDocumentPolicy.' in import_service,'ImportService extracted workbook/document policies not active')
-need('APP_VERSION = "9.0.77"' in t('shared/src/main/java/org/example/shared/RuntimeContract.java'),'runtime version is not 9.0.77')
+need('APP_VERSION = "9.0.78"' in t('shared/src/main/java/org/example/shared/RuntimeContract.java'),'runtime version is not 9.0.78')
 css=sorted(p.name for p in (ROOT/'desktop/src/main/resources/css').glob('*.css'))
 need(css==['dark-theme.css','light-theme.css'],f'CSS contract changed: {css}')
-print(f'ARCHITECTURE_COMPLETION_OK components={len(files)} version=9.0.77 css=2')
+print(f'ARCHITECTURE_COMPLETION_OK components={len(files)} version=9.0.78 css=2')

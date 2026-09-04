@@ -28,6 +28,9 @@ public class UserDialogController {
     private Integer editingUserId;
     private String originalUsername;
     private long editingRowVersion;
+    private AdminApiClient.UserDto savedResult;
+
+    public AdminApiClient.UserDto getSavedResult() { return savedResult; }
     private String mfaPolicy = "REQUIRED";
     private final AdminApiClient api = new AdminApiClient();
     private final Map<String,String> roleDisplay = new LinkedHashMap<>();
@@ -153,7 +156,7 @@ public class UserDialogController {
         clearInvalid();
         if (!validateForm()) return;
         try {
-            api.saveUser(new AdminApiClient.UserSaveRequest(editingUserId, txtUsername.getText().trim(),
+            savedResult = api.saveUser(new AdminApiClient.UserSaveRequest(editingUserId, txtUsername.getText().trim(),
                     blank(txtPassword.getText()) ? null : txtPassword.getText(), txtFullName.getText().trim(),
                     txtEmail.getText().trim(), canonicalRole(cmbRole.getValue()), txtDepartment.getText().trim(),
                     cmbAccess.getValue(), txtBranch.getText().trim(), chkActive.isSelected(), chkLocked.isSelected(),

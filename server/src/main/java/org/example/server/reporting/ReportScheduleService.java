@@ -220,8 +220,11 @@ public class ReportScheduleService {
             boolean archive = schedule.delivery().contains("ARCHIVE");
             if (archive) {
                 if (workspace == null) throw new IllegalStateException("Server workspace is not configured for Scheduled Report archive delivery");
-                outputRoot = workspace.resolve("ScheduledReports").resolve(safeFile(schedule.name()))
-                        .resolve(YearMonth.now(BusinessClock.zone()).toString());
+                LocalDate today = LocalDate.now(BusinessClock.zone());
+                outputRoot = workspace.resolve("Reports").resolve("Scheduled")
+                        .resolve(financialYear(today))
+                        .resolve(String.format(Locale.ROOT, "%02d", today.getMonthValue()))
+                        .resolve(safeFile(schedule.name()));
                 Files.createDirectories(outputRoot);
             } else {
                 outputRoot = Files.createTempDirectory("dse-scheduled-report-");
@@ -513,6 +516,12 @@ public class ReportScheduleService {
         if (name.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         if (name.endsWith(".csv")) return "text/csv; charset=UTF-8";
         return "application/octet-stream";
+    }
+
+    private static String financialYear(LocalDate date) {
+        LocalDate effective = date == null ? LocalDate.now(BusinessClock.zone()) : date;
+        int start = effective.getMonthValue() >= 4 ? effective.getYear() : effective.getYear() - 1;
+        return start + "-" + String.format(Locale.ROOT, "%02d", (start + 1) % 100);
     }
 
     private static String safeFile(String value) {

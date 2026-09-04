@@ -94,13 +94,23 @@ public final class PurchasePaymentController implements ScreenLifecycle {
                         new OwnedAlert(Alert.AlertType.ERROR, "Unable to load the selected purchase invoice: " + selected).showAndWait();
                         return;
                     }
-                    purchase = loaded;
-                    configureInvoice();
-                    resetForm();
-                    loadHistory();
+                    loadPurchase(loaded);
                 },
                 failure -> new OwnedAlert(Alert.AlertType.ERROR, message(failure)).showAndWait()
         );
+    }
+
+    /** Loads a purchase directly when navigation originates from a selected register row.
+     * This keeps the payment workspace deterministic even when the page is freshly loaded
+     * or reused by the navigation cache. */
+    public void loadPurchase(Purchase loaded) {
+        if (loaded == null) return;
+        purchase = loaded;
+        String invoice = safe(loaded.getInvoiceNo());
+        if (!invoice.isBlank()) PurchaseScreenContext.select(invoice);
+        configureInvoice();
+        resetForm();
+        Platform.runLater(this::loadHistory);
     }
 
     private void configureInvoice() {
@@ -589,7 +599,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
     }
 
     @FXML private void printInvoice() {
-        try { Desktop.getDesktop().print(InvoicePdfService.purchase(purchase).toFile()); }
+        try { Desktop.getDesktop().print(ManagedInvoicePdfService.purchase(purchase).toFile()); }
         catch (Exception error) { new OwnedAlert(Alert.AlertType.ERROR, message(error)).showAndWait(); }
     }
 
@@ -601,7 +611,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             if (purchase == null) throw new IllegalStateException("Purchase invoice is not loaded.");
             if (recipient.isBlank()) throw new IllegalStateException("Supplier email is missing. Update Supplier Master and try again.");
             stage = "generating the purchase invoice PDF";
-            Path pdf = InvoicePdfService.purchase(purchase);
+            Path pdf = ManagedInvoicePdfService.purchase(purchase);
             stage = "sending the email";
             EmailService.send(recipient, subject,
                     "Dear " + safe(purchase.getSupplier().getName()) + ",\n\nPlease find the purchase invoice attached.\n\nRegards,\n" +

@@ -56,7 +56,7 @@ public final class PopupTableWorkspace {
 
     public static HBox metricStrip(Node... cards) {
         HBox strip = new HBox(12);
-        strip.getStyleClass().add("erp-popup-metric-strip");
+        strip.getStyleClass().addAll("erp-popup-metric-strip", ResponsiveKpiLayoutManager.KPI_SECTION_STYLE, "erp-kpi-single-row");
         if (cards != null) {
             for (Node card : cards) {
                 if (card == null) continue;
@@ -64,6 +64,7 @@ public final class PopupTableWorkspace {
                 HBox.setHgrow(card, Priority.ALWAYS);
             }
         }
+        ResponsiveKpiLayoutManager.install(strip);
         return strip;
     }
 

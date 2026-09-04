@@ -85,6 +85,7 @@ public class BankExpenseController implements ScreenLifecycle {
     private RegisterDetailDrawer detailDrawer;
     private EntryRow detailRow;
     private boolean explicitRefreshPending;
+    private Integer pendingSelectEntryId;
 
     @FXML public void initialize() {
         entryDate.setValue(BusinessClock.today());
@@ -109,6 +110,7 @@ public class BankExpenseController implements ScreenLifecycle {
         org.example.util.RegisterUiSupport.setCurrentYearRange(filterFrom,filterTo,today);
         if(filterFrom!=null)filterFrom.valueProperty().addListener((o,a,b)->applyFilters());
         if(filterTo!=null)filterTo.valueProperty().addListener((o,a,b)->applyFilters());
+        org.example.util.RealtimeSearchSupport.installRemote(searchField, this::applyFilters);
         Mode initialMode = consumeRequestedMode();
         mode = initialMode == null ? Mode.BANK : initialMode;
         applyMode(mode);
@@ -307,19 +309,24 @@ public class BankExpenseController implements ScreenLifecycle {
             String rawType= mode==Mode.BANK ? (creditRadio.isSelected()?"BANK DEPOSIT":"BANK WITHDRAWAL") : "EXPENSE";
             String category= mode==Mode.EXPENSE ? text(expenseCategory) : (creditRadio.isSelected()?"Deposit":"Withdrawal");
             String account= mode==Mode.BANK ? bankAccount.getValue() : expenseAccount.getValue();
+            Integer savedEntryId = null;
             if (mode==Mode.EXPENSE && reconciliationStatementId!=null && editingId==null) {
-                bankStatementApi.expense(reconciliationStatementId,new BankStatementApiClient.ExpenseRequest(category,account,paymentMode.getValue(),description.getText().trim(),selectedBill==null?null:selectedBill.getAbsolutePath(),currentUser()));
+                var result=bankStatementApi.expense(reconciliationStatementId,new BankStatementApiClient.ExpenseRequest(category,account,paymentMode.getValue(),description.getText().trim(),selectedBill==null?null:selectedBill.getAbsolutePath(),currentUser()));
+                savedEntryId=result.financeEntryId();
                 reconciliationStatementId=null;
             } else if (mode==Mode.BANK && reconciliationStatementId!=null && editingId==null) {
-                bankStatementApi.bankEntry(reconciliationStatementId,new BankStatementApiClient.BankEntryRequest(account,paymentMode.getValue(),description.getText().trim(),currentUser()));
+                var result=bankStatementApi.bankEntry(reconciliationStatementId,new BankStatementApiClient.BankEntryRequest(account,paymentMode.getValue(),description.getText().trim(),currentUser()));
+                savedEntryId=result.financeEntryId();
                 reconciliationStatementId=null;
             } else {
                 OperationsApiClient.FinanceEntry dto = new OperationsApiClient.FinanceEntry(editingId, null, rawType, entryDate.getValue().toString(), category, referenceNo.getText().trim(), value, paymentMode.getValue(), description.getText().trim(), account, selectedBill==null?null:selectedBill.getAbsolutePath(), false, editingId==null?0L:editingVersion);
-                if (editingId == null) financeService.save(dto); else financeService.update(dto);
+                var saved=editingId == null ? financeService.save(dto) : financeService.update(dto);
+                savedEntryId=saved==null?editingId:saved.id();
             }
             boolean wasUpdate = editingId != null;
             String actionLabel = mode == Mode.EXPENSE ? "Expense" : "Bank Entry";
             NotificationService.add((wasUpdate ? actionLabel + " updated" : actionLabel + " created") + ": " + money(value));
+            pendingSelectEntryId=savedEntryId;
             clearForm(); closeEntryDialog(); loadMetrics(); applyFilters();
             success(
                 wasUpdate ? actionLabel + " Updated" : actionLabel + " Saved",
@@ -365,7 +372,7 @@ public class BankExpenseController implements ScreenLifecycle {
         });
     }
     private void applyFinancePage(OperationsApiClient.FinancePage page){
-        filtered.clear();if(page!=null&&page.rows()!=null)for(var e:page.rows())filtered.add(toRow(e));currentPage=page==null?0:page.page();totalPages=page==null?0:page.totalPages();totalRows=page==null?0:page.totalRows();renderPage();if(filtered.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,mode==Mode.EXPENSE?"No expenses found":"No bank entries found","Adjust the filters or add a new entry.");finishExplicitRefresh(true);
+        filtered.clear();if(page!=null&&page.rows()!=null)for(var e:page.rows())filtered.add(toRow(e));currentPage=page==null?0:page.page();totalPages=page==null?0:page.totalPages();totalRows=page==null?0:page.totalRows();renderPage();if(pendingSelectEntryId!=null){EntryRow row=filtered.stream().filter(x->x.id==pendingSelectEntryId).findFirst().orElse(null);if(row!=null){table.getSelectionModel().select(row);table.scrollTo(row);showEntryDetails(row);pendingSelectEntryId=null;}}if(filtered.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,mode==Mode.EXPENSE?"No expenses found":"No bank entries found","Adjust the filters or add a new entry.");finishExplicitRefresh(true);
     }
     private EntryRow toRow(OperationsApiClient.FinanceEntry e){String raw=safe(e.voucherType(),"");String type=raw.toUpperCase(Locale.ROOT).contains("DEPOSIT")?"Deposit":raw.toUpperCase(Locale.ROOT).contains("WITHDRAW")?"Withdrawal":safe(e.category(),"Other");return new EntryRow(e.id()==null?0:e.id(),e.voucherDate(),type,safe(e.notes(),""),safe(e.accountName(),""),safe(e.paymentMode(),""),safe(e.referenceNo(),""),e.amount(),raw,e.statementTransactionId(),safe(e.linkedTargetType(),""),e.linkedTargetId(),safe(e.linkedDocumentNo(),""),e.rowVersion());}
     private void renderPage(){table.getItems().setAll(filtered);long from=totalRows==0?0:(long)currentPage*PAGE_SIZE+1,to=totalRows==0?0:Math.min(totalRows,from+filtered.size()-1);showingLabel.setText(totalRows==0?"Showing 0 to 0 of 0 entries":"Showing "+from+" to "+to+" of "+totalRows+" entries");pageLabel.setText(totalPages<=0?"0 / 0":(currentPage+1)+" / "+totalPages);}

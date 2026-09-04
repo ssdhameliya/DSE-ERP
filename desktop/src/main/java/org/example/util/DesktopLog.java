@@ -24,8 +24,8 @@ public final class DesktopLog {
         synchronized (LOCK) {
             try {
                 Path folder = WorkspaceManager.isConfigured()
-                        ? WorkspaceManager.getLogsFolder()
-                        : Path.of(System.getProperty("user.home", "."), ".dse-erp", "Logs");
+                        ? WorkspaceManager.getDesktopLogsFolder()
+                        : Path.of(System.getProperty("user.home", "."), ".dse-erp", "Logs", "Desktop");
                 Files.createDirectories(folder);
                 file = folder.resolve("desktop.log");
                 rotateIfNeeded();
@@ -60,9 +60,7 @@ public final class DesktopLog {
 
     private static void rotateIfNeeded() throws IOException {
         if (file == null || !Files.exists(file) || Files.size(file) < MAX_BYTES) return;
-        Path previous = file.resolveSibling("desktop.log.1");
-        Files.deleteIfExists(previous);
-        Files.move(file, previous, StandardCopyOption.REPLACE_EXISTING);
+        WorkspaceLogRotation.rotateIfNeeded(file, MAX_BYTES, "Desktop");
     }
 
     private static String rootMessage(Throwable failure) {

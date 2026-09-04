@@ -1,6 +1,6 @@
 package org.example.documentstudio.service;
 
-import org.example.config.WorkspaceManager;
+import org.example.config.WorkspaceStorageManager;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.ExcelTemplate;
 import org.example.model.Purchase;
@@ -10,6 +10,7 @@ import org.example.model.SalesCharge;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,11 +19,13 @@ public final class ExcelOutputService {
     private ExcelOutputService() {}
 
     public static Path sales(Sales sale) throws IOException {
-        return generate(DocumentType.SALES_INVOICE, TemplateDataFactory.fromSales(sale), salesCharges(sale), "Sales-" + safeFile(sale.getInvoiceNo()));
+        return generate(DocumentType.SALES_INVOICE, TemplateDataFactory.fromSales(sale), salesCharges(sale),
+                sale.getInvoiceNo(), sale.getInvoiceDate(), "Sales-" + safeFile(sale.getInvoiceNo()));
     }
 
     public static Path purchase(Purchase purchase) throws IOException {
-        return generate(DocumentType.PURCHASE_INVOICE, TemplateDataFactory.fromPurchase(purchase), purchaseCharges(purchase), "Purchase-" + safeFile(purchase.getInvoiceNo()));
+        return generate(DocumentType.PURCHASE_INVOICE, TemplateDataFactory.fromPurchase(purchase), purchaseCharges(purchase),
+                purchase.getInvoiceNo(), purchase.getInvoiceDate(), "Purchase-" + safeFile(purchase.getInvoiceNo()));
     }
 
     /** Excel equivalent of DocumentOutputService for every currently automatic Document Studio flow. */
@@ -47,14 +50,20 @@ public final class ExcelOutputService {
                 case QUOTATION -> "Quotation-";
                 default -> type.name().replace('_', '-') + "-";
             };
-            return generate(type, DocumentDataService.load(type, documentNo), List.of(), prefix + safeFile(documentNo));
+            return generate(type, DocumentDataService.load(type, documentNo), List.of(), documentNo, null, prefix + safeFile(documentNo));
         } catch (IOException error) { throw error; }
         catch (Exception error) { throw new IOException("Excel output could not be created: " + rootMessage(error), error); }
     }
 
     public static Path generate(DocumentType type, org.example.documentstudio.model.TemplateData data,
                                 List<ExcelTemplateRenderer.ChargeData> charges, String baseName) throws IOException {
-        Path output = WorkspaceManager.getTempFolder().resolve(baseName + ".xlsx");
+        return generate(type, data, charges, baseName, null, baseName);
+    }
+
+    private static Path generate(DocumentType type, org.example.documentstudio.model.TemplateData data,
+                                 List<ExcelTemplateRenderer.ChargeData> charges, String reference,
+                                 LocalDate documentDate, String baseName) throws IOException {
+        Path output = WorkspaceStorageManager.documentFile(type, reference, documentDate, baseName + ".xlsx");
         ExcelTemplate template = ExcelTemplateStorageService.defaultFor(type).orElse(null);
         if (template != null) {
             try { return ExcelTemplateRenderer.render(template, data, charges, output); }

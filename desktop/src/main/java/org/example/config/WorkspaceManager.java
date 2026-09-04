@@ -168,6 +168,11 @@ public final class WorkspaceManager {
     public static Path getAttachmentsFolder() { return getWorkspaceRoot().resolve("Attachments"); }
     public static Path getTemplatesFolder() { return getWorkspaceRoot().resolve("Templates"); }
     public static Path getLogsFolder() { return getWorkspaceRoot().resolve("Logs"); }
+    public static Path getDocumentsFolder() { return getWorkspaceRoot().resolve("Documents"); }
+    public static Path getDesktopLogsFolder() { return getLogsFolder().resolve("Desktop"); }
+    public static Path getServerLogsFolder() { return getLogsFolder().resolve("Server"); }
+    public static Path getPostgresLogsFolder() { return getLogsFolder().resolve("PostgreSQL"); }
+    public static Path getArchivedLogsFolder() { return getLogsFolder().resolve("Archive"); }
     public static Path getTempFolder() { return getWorkspaceRoot().resolve("Temp"); }
     public static Path getUpdatesFolder() { return getWorkspaceRoot().resolve("Updates"); }
 
@@ -178,6 +183,16 @@ public final class WorkspaceManager {
         for (String folder : new String[]{
                 "Database", "Config", "Backups", "Reports", "Imports", "Exports",
                 "Attachments", "Templates", "Logs", "Temp", "Updates", "Documents"
+        }) {
+            Files.createDirectories(root.resolve(folder));
+        }
+        for (String folder : new String[]{
+                "Documents/Sales", "Documents/Purchase", "Documents/Quotations",
+                "Documents/Customers", "Documents/Suppliers", "Documents/Bank", "Documents/General",
+                "Reports/Sales", "Reports/Purchase", "Reports/Inventory", "Reports/Payments",
+                "Reports/Bank", "Reports/GST-Tax", "Reports/Financial", "Reports/Scheduled",
+                "Exports/Excel", "Exports/CSV", "Exports/PDF", "Exports/Diagnostics", "Exports/General",
+                "Imports/Results", "Logs/Desktop", "Logs/Server", "Logs/PostgreSQL", "Logs/Archive"
         }) {
             Files.createDirectories(root.resolve(folder));
         }

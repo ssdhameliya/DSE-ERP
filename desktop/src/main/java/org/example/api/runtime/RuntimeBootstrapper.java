@@ -245,6 +245,7 @@ public final class RuntimeBootstrapper {
 
             Path log = serverLogPath();
             Files.createDirectories(log.getParent());
+            org.example.util.WorkspaceLogRotation.rotateIfNeeded(log, 10L * 1024L * 1024L, "Server");
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.directory(root.toFile());
             builder.redirectErrorStream(true);
@@ -429,6 +430,7 @@ public final class RuntimeBootstrapper {
         Path log = serverLogPath();
         try {
             Files.createDirectories(log.getParent());
+            org.example.util.WorkspaceLogRotation.rotateIfNeeded(log, 10L * 1024L * 1024L, "Server");
             ProcessBuilder builder = new ProcessBuilder(serverCommand(jar));
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
@@ -604,8 +606,8 @@ public final class RuntimeBootstrapper {
 
     public static Path serverLogPath() {
         Path logs = WorkspaceManager.isConfigured()
-                ? WorkspaceManager.getLogsFolder()
-                : Path.of(System.getProperty("user.home"), ".dse-erp", "logs");
+                ? WorkspaceManager.getServerLogsFolder()
+                : Path.of(System.getProperty("user.home"), ".dse-erp", "logs", "Server");
         return logs.resolve("dse-erp-server.log").toAbsolutePath().normalize();
     }
 
