@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import os
+import shutil
 import subprocess
 import sys
 
@@ -45,8 +47,39 @@ need('${ENVIRONMENT}-db-password' in deploy and 'DSE_DB_PASSWORD' not in release
 need('required reviewer' in doc.lower() and 'local fallback is intentionally not automatic' in doc.lower(),
      'deployment documentation is missing production approval/local-fallback safety guidance')
 
-syntax=subprocess.run(['bash','-n',str(ROOT/'scripts/linux/deploy-oracle-release.sh')], cwd=ROOT)
-need(syntax.returncode==0, 'deploy-oracle-release.sh failed bash -n syntax validation')
+def find_bash():
+    # On GitHub Windows runners, plain `bash` can resolve to the WSL launcher
+    # (C:\Windows\System32\bash.exe), which fails when no WSL distro is installed.
+    # Prefer the Git for Windows bash that ships on the runner.
+    if os.name == 'nt':
+        candidates = []
+        git = shutil.which('git')
+        if git:
+            git_path = Path(git)
+            candidates.extend((
+                git_path.with_name('bash.exe'),
+                git_path.parent.parent / 'bin' / 'bash.exe',
+                git_path.parent.parent / 'usr' / 'bin' / 'bash.exe',
+            ))
+        for env_name in ('ProgramFiles', 'ProgramFiles(x86)'):
+            base = os.environ.get(env_name)
+            if base:
+                candidates.extend((
+                    Path(base) / 'Git' / 'bin' / 'bash.exe',
+                    Path(base) / 'Git' / 'usr' / 'bin' / 'bash.exe',
+                ))
+        for candidate in candidates:
+            if candidate.is_file():
+                return str(candidate)
+        return None
+    return shutil.which('bash')
+
+bash = find_bash()
+if bash:
+    syntax=subprocess.run([bash,'-n',str(ROOT/'scripts/linux/deploy-oracle-release.sh')], cwd=ROOT)
+    need(syntax.returncode==0, 'deploy-oracle-release.sh failed bash -n syntax validation')
+else:
+    need(False, 'bash executable not available for deploy-oracle-release.sh syntax validation')
 
 if fail:
     print('GITHUB_DEPLOYMENT_CONTRACT_FAIL')
