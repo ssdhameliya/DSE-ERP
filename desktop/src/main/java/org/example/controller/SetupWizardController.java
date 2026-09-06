@@ -38,12 +38,13 @@ public class SetupWizardController {
     @FXML private RadioButton rbLocal, rbShared;
     @FXML private TextField txtServerUrl;
     @FXML private Label lblServerStatus;
-    @FXML private javafx.scene.layout.VBox sharedServerBox, localWorkspacePreview;
+    @FXML private javafx.scene.layout.VBox sharedServerBox, localWorkspaceBox, localWorkspacePreview;
 
     private final List<StackPane> steps = new java.util.ArrayList<>();
     private int index;
     private Runnable onCompleted;
     private String validatedServerUrl;
+    private String validatedServerEnvironment;
 
     @FXML public void initialize() {
         steps.addAll(List.of(stepWorkspace, stepCompany, stepEmail, stepAdmin, stepFinish));
@@ -167,13 +168,15 @@ public class SetupWizardController {
             steps.get(i).setVisible(active);
             steps.get(i).setManaged(active);
         }
-        String[] titles = {"Choose your workspace", "Company information", "Email delivery", "Administrator account", "Ready to start"};
+        String[] titles = {"Choose how this PC connects", "Company information", "Email delivery", "Administrator account", "Ready to start"};
         String[] descriptions = {
-                "Keep all business data together on a drive or external volume you control.",
+                "Use a local workspace on this PC, or connect directly to an existing DSE ERP company server.",
                 "These details appear on invoices, reports and customer communication.",
                 "Optional: configure Yahoo or another SMTP account now, or do it later in Settings.",
                 "Create the primary administrator who will manage users, roles and permissions.",
-                "Review your setup. DSE ERP will create the workspace and initialize the database."
+                isShared()
+                        ? "Review the company-server connection. No local business workspace or local PostgreSQL database will be created."
+                        : "Review your setup. DSE ERP will create the workspace and initialize the local database."
         };
         lblStep.setText("Step " + (index + 1) + " of " + steps.size());
         lblTitle.setText(titles[index]);
@@ -194,16 +197,18 @@ public class SetupWizardController {
     }
 
     private boolean validateWorkspace() {
+        if (isShared()) {
+            String normalized;
+            try { normalized = DeploymentConnectionService.normalize(txtServerUrl.getText()); }
+            catch (Exception exception) { return fail(exception.getMessage(), txtServerUrl); }
+            if (!normalized.equals(validatedServerUrl) || validatedServerEnvironment == null)
+                return fail("Test the company server connection before continuing.", txtServerUrl);
+            return true;
+        }
         if (txtWorkspace.getText() == null || txtWorkspace.getText().isBlank()) return fail("Choose a workspace folder.", txtWorkspace);
         try {
             Path path = Path.of(txtWorkspace.getText().trim()).toAbsolutePath().normalize();
             if (path.getRoot() != null && path.equals(path.getRoot())) return fail("Choose a folder inside the drive, not the drive root itself.", txtWorkspace);
-            if (isShared()) {
-                String normalized;
-                try { normalized = DeploymentConnectionService.normalize(txtServerUrl.getText()); }
-                catch (Exception exception) { return fail(exception.getMessage(), txtServerUrl); }
-                if (!normalized.equals(validatedServerUrl)) return fail("Test the company server connection before continuing.", txtServerUrl);
-            }
             return true;
         } catch (Exception exception) {
             return fail("The workspace path is not valid.", txtWorkspace);
@@ -237,8 +242,8 @@ public class SetupWizardController {
         if (isShared()) {
             lblSummary.setText("Mode\nConnect to company server"
                     + "\n\nServer\n" + validatedServerUrl
-                    + "\n\nLocal workspace\n" + txtWorkspace.getText().trim()
-                    + "\n\nBusiness data, users and documents remain on the company server. This PC will not start local PostgreSQL or Spring services.");
+                    + "\n\nEnvironment\n" + validatedServerEnvironment
+                    + "\n\nThis PC uses application-managed client storage only. Business data, users, documents and backups remain on the company server; local PostgreSQL and Spring services are not started.");
             return;
         }
         String email = chkConfigureEmail.isSelected() ? txtSmtpEmail.getText().trim() : "Configure later in Settings";
@@ -252,23 +257,30 @@ public class SetupWizardController {
     private void completeSetup() {
         btnNext.setDisable(true);
         btnBack.setDisable(true);
-        lblError.setText("Creating your workspace and database...");
+        lblError.setText(isShared() ? "Connecting this PC to the company server..." : "Creating your workspace and database...");
         lblError.getStyleClass().remove("setup-error");
         lblError.getStyleClass().add("setup-progress");
         Thread worker = new Thread(() -> {
             try {
-                WorkspaceManager.configure(Path.of(txtWorkspace.getText().trim()));
-                ConfigManager.load();
                 if (isShared()) {
+                    WorkspaceManager.configureSharedClient();
+                    ConfigManager.load();
                     String server = DeploymentConnectionService.normalize(validatedServerUrl);
                     ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
+                    ConfigManager.setWithoutSaving("deployment.environment", validatedServerEnvironment);
                     ConfigManager.setWithoutSaving("server.baseUrl", server);
                     ConfigManager.setWithoutSaving("setup.completed", "true");
+                    // A fresh shared-client connection is not an updater event. Record the
+                    // running build before normal startup so UpdateLifecycle cannot report a
+                    // stale/default prior version as "Update completed".
+                    ConfigManager.setWithoutSaving("app.version", org.example.update.BuildInfo.version());
                     ConfigManager.save();
                     RuntimeBootstrapper.ensureServerReady();
                     Platform.runLater(() -> { if (onCompleted != null) onCompleted.run(); else SceneManager.showLogin(); });
                     return;
                 }
+                WorkspaceManager.configure(Path.of(txtWorkspace.getText().trim()));
+                ConfigManager.load();
                 ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.LOCAL.name());
                 ConfigManager.setWithoutSaving("server.baseUrl", "");
                 ConfigManager.setWithoutSaving("setup.completed", "false");
@@ -319,8 +331,10 @@ public class SetupWizardController {
     private void updateDeploymentControls() {
         boolean shared = isShared();
         sharedServerBox.setVisible(shared); sharedServerBox.setManaged(shared);
+        if (localWorkspaceBox != null) { localWorkspaceBox.setVisible(!shared); localWorkspaceBox.setManaged(!shared); }
         localWorkspacePreview.setVisible(!shared); localWorkspacePreview.setManaged(!shared);
         validatedServerUrl = null;
+        validatedServerEnvironment = null;
     }
 
     @FXML private void testServerConnection() {
@@ -334,12 +348,14 @@ public class SetupWizardController {
                 String normalized = DeploymentConnectionService.normalize(candidate);
                 Platform.runLater(() -> {
                     validatedServerUrl = normalized;
-                    lblServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • Database " + status.database());
+                    validatedServerEnvironment = status.environment();
+                    lblServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • " + status.environment() + " • Database " + status.databaseName());
                     btnTestServer.setDisable(false);
                 });
             } catch (Exception exception) {
                 Platform.runLater(() -> {
                     validatedServerUrl = null;
+                    validatedServerEnvironment = null;
                     lblServerStatus.setText("Connection failed: " + exception.getMessage());
                     btnTestServer.setDisable(false);
                 });

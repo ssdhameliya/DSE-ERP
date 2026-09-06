@@ -2,8 +2,8 @@ param(
  [Parameter(Mandatory=$true)][string]$Workspace,
  [Parameter(Mandatory=$true)][string]$ServerUrl,
  [Parameter(Mandatory=$true)][string]$AdminToken,
- [Parameter(Mandatory=$true)][string]$LocalDatabaseUrl,
- [Parameter(Mandatory=$true)][string]$LocalDatabaseUser,
+ [string]$LocalDatabaseUrl='',
+ [string]$LocalDatabaseUser='',
  [ValidateSet('UAT','PROD')][string]$Environment='UAT',
  [string]$ExpectedVersion='', [string]$PostgresHome='', [switch]$Finalize)
 $ErrorActionPreference='Stop'
@@ -22,7 +22,7 @@ if($health.service -ne 'dse-erp-server'){throw "The target is not a DSE ERP serv
 if($health.version -ne $ExpectedVersion -or $health.buildRevision -ne $ExpectedVersion){throw "Company server must be $ExpectedVersion; found version $($health.version) build $($health.buildRevision)"}
 if($health.apiRevision -ne 'spring-security-bearer-v5'){throw "Company server API revision is incompatible: $($health.apiRevision)"}
 if($health.environment -ne $Environment){throw "Target environment mismatch. Expected $Environment; server reports $($health.environment)"}
-$config=Join-Path $Workspace 'Configuration\config.properties';if(!(Test-Path -LiteralPath $config)){throw "Workspace configuration not found: $config"}
+$config=Join-Path $Workspace 'Config\config.properties';if(!(Test-Path -LiteralPath $config)){throw "Workspace configuration not found: $config"}
 $headers=@{Authorization="Bearer $AdminToken"}
 function Put-Setting([string]$Key,[string]$Value){$json=@{value=$Value}|ConvertTo-Json -Compress;Invoke-RestMethod -Uri "$ServerUrl/api/support/settings/$([uri]::EscapeDataString($Key))" -Method Put -Headers $headers -ContentType application/json -Body $json|Out-Null}
 function Put-Resource([string]$Type,[string]$Key,[string]$File){$uri="$ServerUrl/api/authority/resources/$Type/$([uri]::EscapeDataString($Key))?filename=$([uri]::EscapeDataString((Split-Path $File -Leaf)))";Invoke-RestMethod -Uri $uri -Method Put -Headers $headers -ContentType application/octet-stream -InFile $File|Out-Null}
@@ -35,8 +35,9 @@ if($Finalize){
  $lines=Get-Content -LiteralPath $config | Where-Object {$_ -notmatch '^(deployment.mode|deployment.environment|server.baseUrl)='}
  $lines+=@('deployment.mode=SHARED_CLIENT',"deployment.environment=$Environment","server.baseUrl=$ServerUrl")
  $temp="$config.$ExpectedVersion.tmp";Set-Content -LiteralPath $temp -Value $lines -Encoding ISO8859-1;Move-Item -LiteralPath $temp -Destination $config -Force
- Write-Host "Promotion finalized for $Environment. Restart DSE ERP and sign in to the company server.";exit 0
+ Write-Host "Promotion finalized for $Environment. Restart DSE ERP and sign in to the company server.";return
 }
+if([string]::IsNullOrWhiteSpace($LocalDatabaseUrl) -or [string]::IsNullOrWhiteSpace($LocalDatabaseUser)){throw 'LocalDatabaseUrl and LocalDatabaseUser are required during the staging phase; they are not required with -Finalize'}
 $backupFolder=Join-Path $Workspace 'Backups';New-Item -ItemType Directory -Force -Path $backupFolder|Out-Null
 $backup=Join-Path $backupFolder 'promotion-local-safety.pgbackup'
 $pgDump=if($PostgresHome){Join-Path $PostgresHome 'bin\pg_dump.exe'}else{'pg_dump'}

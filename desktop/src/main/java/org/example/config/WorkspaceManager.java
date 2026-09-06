@@ -19,6 +19,7 @@ public final class WorkspaceManager {
     private static final Path POINTER_FOLDER = resolvePointerFolder();
     private static final Path POINTER_FILE = POINTER_FOLDER.resolve("workspace.properties");
     private static final Path PENDING_MOVE_FILE = POINTER_FOLDER.resolve("workspace-move.properties");
+    private static final Path MANAGED_SHARED_ROOT = POINTER_FOLDER.resolve("SharedClient").toAbsolutePath().normalize();
 
     private static Path workspaceRoot;
 
@@ -35,8 +36,18 @@ public final class WorkspaceManager {
                 if (!value.isBlank()) {
                     Path candidate = Path.of(value).toAbsolutePath().normalize();
                     if (Files.isDirectory(candidate)) {
-                        workspaceRoot = candidate;
-                        ensureStructure(candidate);
+                        // A workstation promoted from LOCAL to SHARED_CLIENT must no longer depend on
+                        // the old business workspace being mounted. Preserve that workspace untouched
+                        // and move only the client configuration to DSE ERP managed application data.
+                        if (isSharedClientConfig(candidate) && !candidate.equals(MANAGED_SHARED_ROOT)) {
+                            migrateSharedClientConfiguration(candidate, MANAGED_SHARED_ROOT);
+                            writePointer(MANAGED_SHARED_ROOT);
+                            workspaceRoot = MANAGED_SHARED_ROOT;
+                            ensureStructure(workspaceRoot);
+                        } else {
+                            workspaceRoot = candidate;
+                            ensureStructure(candidate);
+                        }
                         return;
                     }
                 }
@@ -135,6 +146,44 @@ public final class WorkspaceManager {
         verifyWritable(normalized);
         writePointer(normalized);
         workspaceRoot = normalized;
+    }
+
+    /**
+     * Creates the small application-managed storage used by a shared client. Users never choose
+     * this folder and it is not a business workspace: PostgreSQL and authoritative business data
+     * remain on the company server.
+     */
+    public static synchronized void configureSharedClient() throws IOException {
+        ensureStructure(MANAGED_SHARED_ROOT);
+        verifyWritable(MANAGED_SHARED_ROOT);
+        writePointer(MANAGED_SHARED_ROOT);
+        workspaceRoot = MANAGED_SHARED_ROOT;
+    }
+
+    /**
+     * Switches an existing LOCAL installation to an already-existing company server without
+     * modifying the old local workspace. Only a sanitized client profile is written beneath
+     * the application-data folder, then the persistent workspace pointer is moved to that
+     * managed client storage. No database, attachment, document or business-setting upload is
+     * performed here; local-company promotion remains a separate workflow.
+     */
+    public static synchronized void connectToExistingSharedClient(String serverUrl, String environment) throws IOException {
+        Path sourceRoot = getWorkspaceRoot();
+        if (sourceRoot.equals(MANAGED_SHARED_ROOT)) {
+            throw new IllegalStateException("This PC is already using application-managed shared-client storage.");
+        }
+        createSharedClientConfigurationFromLocal(sourceRoot, MANAGED_SHARED_ROOT, serverUrl, environment);
+        verifyWritable(MANAGED_SHARED_ROOT);
+        writePointer(MANAGED_SHARED_ROOT);
+        workspaceRoot = MANAGED_SHARED_ROOT;
+    }
+
+    public static synchronized boolean isManagedSharedClientWorkspace() {
+        return isConfigured() && workspaceRoot.equals(MANAGED_SHARED_ROOT);
+    }
+
+    public static Path getManagedSharedClientRoot() {
+        return MANAGED_SHARED_ROOT;
     }
 
     /**
@@ -260,6 +309,79 @@ public final class WorkspaceManager {
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+
+    private static boolean isSharedClientConfig(Path root) throws IOException {
+        Path config = root.resolve("Config").resolve("config.properties");
+        if (!Files.isRegularFile(config)) return false;
+        Properties properties = readProperties(config);
+        return DeploymentMode.parse(properties.getProperty("deployment.mode", "LOCAL")) == DeploymentMode.SHARED_CLIENT;
+    }
+
+    private static void migrateSharedClientConfiguration(Path sourceRoot, Path targetRoot) throws IOException {
+        Path sourceConfig = sourceRoot.resolve("Config").resolve("config.properties");
+        if (!Files.isRegularFile(sourceConfig)) {
+            throw new IOException("Shared-client configuration is missing: " + sourceConfig);
+        }
+        Properties properties = readProperties(sourceConfig);
+        if (DeploymentMode.parse(properties.getProperty("deployment.mode", "LOCAL")) != DeploymentMode.SHARED_CLIENT) {
+            throw new IOException("The selected workspace is not configured as a shared client.");
+        }
+        writeManagedSharedClientConfiguration(properties, targetRoot,
+                properties.getProperty("server.baseUrl", ""),
+                properties.getProperty("deployment.environment", "UAT"));
+    }
+
+    private static void createSharedClientConfigurationFromLocal(Path sourceRoot, Path targetRoot,
+                                                                  String serverUrl, String environment) throws IOException {
+        Path sourceConfig = sourceRoot.resolve("Config").resolve("config.properties");
+        if (!Files.isRegularFile(sourceConfig)) {
+            throw new IOException("Local workspace configuration is missing: " + sourceConfig);
+        }
+        Properties properties = readProperties(sourceConfig);
+        if (DeploymentMode.parse(properties.getProperty("deployment.mode", "LOCAL")) != DeploymentMode.LOCAL) {
+            throw new IOException("The current workspace is not configured as LOCAL.");
+        }
+        writeManagedSharedClientConfiguration(properties, targetRoot, serverUrl, environment);
+    }
+
+    private static void writeManagedSharedClientConfiguration(Properties source, Path targetRoot,
+                                                               String serverUrl, String environment) throws IOException {
+        String normalizedServer = serverUrl == null ? "" : serverUrl.trim();
+        String normalizedEnvironment = environment == null ? "" : environment.trim().toUpperCase(Locale.ROOT);
+        if (normalizedServer.isBlank()) throw new IOException("Company server URL is required.");
+        if (!"UAT".equals(normalizedEnvironment) && !"PROD".equals(normalizedEnvironment)) {
+            throw new IOException("Shared-client environment must be UAT or PROD.");
+        }
+
+        ensureStructure(targetRoot);
+        Properties properties = new Properties();
+        properties.putAll(source);
+
+        // Shared clients never own a local database or local mail-server secret. Keep the old
+        // LOCAL workspace untouched; remove local-only runtime credentials from the new profile.
+        properties.remove("db.url");
+        properties.remove("db.username");
+        properties.remove("db.password");
+        properties.remove("postgres.binPath");
+        properties.remove("postgres.dataPath");
+        properties.remove("smtp.appPassword");
+
+        properties.setProperty("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
+        properties.setProperty("deployment.environment", normalizedEnvironment);
+        properties.setProperty("server.baseUrl", normalizedServer);
+        properties.setProperty("setup.completed", "true");
+        // Creating/migrating a shared-client profile is a connection-state transition, not an
+        // application update. Stamp the profile with the running build so UpdateLifecycle does
+        // not show a misleading "Update completed" toast on the first shared-client login.
+        properties.setProperty("app.version", org.example.update.BuildInfo.version());
+
+        Path targetConfig = targetRoot.resolve("Config").resolve("config.properties");
+        Files.createDirectories(targetConfig.getParent());
+        try (OutputStream output = Files.newOutputStream(targetConfig, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            properties.store(output, "DSE ERP shared-client configuration");
+        }
     }
 
     private static Properties readProperties(Path file) throws IOException {

@@ -16,10 +16,16 @@ public final class UpdateLifecycle {
             String previous = ConfigManager.get("app.version", "");
             ConfigManager.set("app.version", buildVersion);
             if (!previous.isBlank() && SemanticVersion.parse(buildVersion).compareTo(SemanticVersion.parse(previous)) > 0) {
-                UpdateHistoryStore.append(buildVersion, ConfigManager.get("update.channel", "STABLE"), "SUCCESS", "Upgraded from " + previous + "; database schema " + migration.fromVersion() + " → " + migration.toVersion());
+                boolean sharedClient = ConfigManager.isSharedClient();
+                String detail = sharedClient
+                        ? "Shared client upgraded from " + previous + "; company-server schema remains server-managed"
+                        : "Upgraded from " + previous + "; database schema " + migration.fromVersion() + " → " + migration.toVersion();
+                UpdateHistoryStore.append(buildVersion, ConfigManager.get("update.channel", "STABLE"), "SUCCESS", detail);
                 Platform.runLater(() -> org.example.util.ToastManager.success(owner,
-                    "Update completed",
-                    "DSE ERP " + buildVersion + " is installed. Database schema: " + migration.toVersion()));
+                    sharedClient ? "Client updated" : "Update completed",
+                    sharedClient
+                            ? "DSE ERP " + buildVersion + " client is ready for the company server."
+                            : "DSE ERP " + buildVersion + " is installed. Database schema: " + migration.toVersion()));
             }
         } catch (Exception exception) {
             UpdateHistoryStore.append(BuildInfo.version(), ConfigManager.get("update.channel", "STABLE"), "MIGRATION_FAILED", exception.getMessage());

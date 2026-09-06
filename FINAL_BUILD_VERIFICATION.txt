@@ -1,43 +1,42 @@
-DSE ERP 9.0.82 — FINAL BUILD / CLOUD-UAT READINESS VERIFICATION
-================================================================
+DSE ERP 9.0.83 — FINAL BUILD / SHARED-CLIENT TRANSITION VERIFICATION
+=====================================================================
 
 RELEASE
-- Baseline: verified DSE ERP 9.0.81.
-- Release: 9.0.82.
-- Scope frozen to Cloud / UAT readiness; no new ERP business feature or UI redesign.
+- Baseline: verified DSE ERP 9.0.82 Cloud/UAT readiness source.
+- Release: 9.0.83.
+- Scope: Shared Client first-run/workspace hardening, safe LOCAL -> existing-server transition,
+  promotion-script path/finalize corrections, and staged-restore backup-history exclusion.
+- No ERP business schema change and no sidebar/navigation redesign.
 
-VERSION GOVERNANCE
-- Current release identity has one manual source: .mvn/maven.config -> -Drevision=9.0.82.
-- Maven-filtered server, desktop, shared/runtime metadata inherit the project version.
-- Current-release hard-code audit passes; historical migration/release references remain fixed by design.
+FINAL LOCAL -> EXISTING SERVER SAFETY
+- New PCs retain the choice: Local workspace OR Shared / Company Server.
+- Shared Client uses application-managed client storage; the user does not choose/create a business workspace.
+- Existing LOCAL -> Connect to Existing Server writes a separate managed Shared Client profile.
+- Original LOCAL Config/config.properties is preserved byte-for-byte for rollback.
+- The connect-existing-server Save operation is deployment-only and does not push local company,
+  email, storage or business settings to the already-existing server.
+- DSE ERP closes immediately after the LOCAL -> Shared switch to prevent a mixed-runtime session.
+- Local database, attachments/documents and local company data are not uploaded by this path.
+- Promotion remains a separate Local -> Server promotion workflow.
+- The Local-company confirmation uses clear choices: Connect to Existing Server switches this PC to Shared Client; Cancel keeps the PC local. Legacy “Enable Multi-User” wording was removed from this user-facing warning.
 
-CLOUD / ENVIRONMENT CONTRACT
-- Existing SHARED_CLIENT + server.baseUrl path retained.
-- UAT and PROD environment identity separated from application version.
-- /api/runtime/health reports environment and database name.
-- Shared-client connection validates version, API revision, readiness and environment.
-- Server startup validates DSE_EXPECTED_DATABASE against the actual PostgreSQL database.
-- UAT/PROD Linux environment, systemd, Nginx and deployment/restore templates added.
-
-BACKUP / RELEASE CONTRACT
-- Normal scheduled backup policy: WEEKLY, keep latest 2 ordinary backups.
-- Newly created backups are validated before retention cleanup.
-- Linux deployment creates a validated pre-upgrade pg_dump before switching releases.
-- Versioned release directories + current symlink support binary rollback on failed health check.
-- Database rollback remains backup-based when an incompatible schema migration is involved.
+PROMOTION / BACKUP HARDENING
+- Enable Multi-User.ps1 uses Config/config.properties (not Configuration/config.properties).
+- -Finalize no longer requires LocalDatabaseUrl/LocalDatabaseUser and returns to the caller.
+- restore-pending.pgbackup / validation artifacts are excluded from ordinary backup history/retention.
 
 BUILD ENVIRONMENT ACTUALLY EXECUTED
 - Linux x64 sandbox.
-- JDK / javac: 25.0.4.1 LTS.
-- JavaFX dependency line: 25.0.2; Windows classifier artifacts included in final shaded desktop JAR.
+- OpenJDK / javac: 25.0.4.1 LTS.
 - Apache Maven: 3.9.16.
-- PostgreSQL / psql used for executable verification: 18.6.
+- JavaFX project line: 25.0.2.
+- JavaFX desktop tests executed under Xvfb 1366x768.
+- Windows desktop packaging explicitly used javafx.platform=win and contains JavaFX Windows DLLs.
 
 FINAL RELEASE GATES
-- RELEASE_GATES_CURRENT_OK version=9.0.82.
-- CLOUD_UAT_CONTRACT_OK version=9.0.82 env=UAT/PROD backup=WEEKLY/2 linux=yes.
-- Existing architecture, data-boundary, business-integrity, UI, PDF, reconciliation, registration,
-  customer-360, finance/multi-user and stability gates remained green.
+- RELEASE_GATES_CURRENT_OK version=9.0.83.
+- CLOUD_UAT_CONTRACT_OK version=9.0.83 env=UAT/PROD backup=WEEKLY/2 linux=yes.
+- Runtime CSS contract remains exactly 2 files.
 
 FINAL CLEAN MAVEN VERIFY
 - Result: BUILD SUCCESS.
@@ -45,35 +44,27 @@ FINAL CLEAN MAVEN VERIFY
 - Shared: SUCCESS.
 - Server: SUCCESS.
 - Desktop: SUCCESS.
-- Server tests: 20 run, 0 failures, 0 errors, 2 skipped opt-in integration-environment tests.
-- DeploymentSafetyValidatorTest: 3 run, 0 failures, 0 errors.
-- Desktop tests: 63 run, 0 failures, 0 errors, 0 skipped.
+- Server tests: 21 run, 0 failures, 0 errors, 2 skipped opt-in PostgreSQL integration tests.
+- Desktop tests: 66 run, 0 failures, 0 errors, 0 skipped.
+- SharedClientWorkspaceContractTest: 3 run, 0 failures, 0 errors, including byte-for-byte LOCAL rollback-config preservation.
 - CriticalReleaseRegressionTest: 9 run, 0 failures, 0 errors.
 - SalesPdfStudioFlowTest: 7 run, 0 failures, 0 errors.
 
-LIVE POSTGRESQL 18.6 / SERVER UAT VERIFICATION
-- Freshly built server JAR started against disposable PostgreSQL database dse_erp_uat.
-- /api/runtime/health returned:
-  service=dse-erp-server
-  version=9.0.82
-  buildRevision=9.0.82
-  environment=UAT
-  ready=true
-  database=postgresql
-  databaseName=dse_erp_uat
-  databaseTimeZone=UTC
-  businessZone=Asia/Kolkata
-  dateFormat=dd/MM/yyyy
+WINDOWS JAR VERIFICATION
+- Windows package build: BUILD SUCCESS.
+- JavaFX 25.0.2 win classifiers included.
+- Windows native entries verified in DSE_Final.jar (glass.dll, prism_d3d.dll, javafx_font.dll, etc.).
 
-NEGATIVE SAFETY VERIFICATION
-- The same 9.0.82 server JAR was deliberately started as PROD while connected to dse_erp_uat.
-- Startup correctly failed with:
-  Deployment safety check failed: PROD expected database dse_erp but connected to dse_erp_uat
-- This verifies UAT/PROD database miswiring is blocked at server startup.
+MANUAL ORACLE UAT VALIDATION
+- 9.0.83 server was deployed to Oracle UAT and reported version/buildRevision 9.0.83, environment UAT, ready=true, databaseName=dse_erp_uat.
+- 9.0.83 IntelliJ desktop login and existing business-data access: PASS.
+- Fresh PC / no workspace -> Shared Server -> login: PASS.
+- Existing Shared workspace reconnect -> login: PASS.
+- Existing LOCAL -> Connect to Existing Server: PASS; preserved local Config/config.properties remained deployment.mode=LOCAL, deployment.environment=LOCAL, server.baseUrl=blank.
 
-SOURCE / SECRET CHECK
-- Production DB/SMTP passwords remain environment-sourced; no production secret was inserted for 9.0.82.
-- Source handover excludes Maven target/ directories and generated Python cache files.
+FINAL WARNING-WORDING VERIFICATION
+- SettingsController contains no legacy “Enable Multi-User” wording in the Local -> Existing Server warning/validation path.
+- Connect continues to create a separate Shared Client profile; Cancel continues to leave the PC in LOCAL mode.
 
-STATUS: VERIFIED FOR 9.0.82 UAT HANDOVER
-IMPORTANT: Production data has NOT been migrated. UAT sign-off remains mandatory before PROD cutover.
+STATUS
+- VERIFIED FOR FINAL SOURCE HANDOVER / GITHUB PUSH.

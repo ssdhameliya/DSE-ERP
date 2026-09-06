@@ -69,7 +69,7 @@ public class ServerBackupService {
     public List<BackupFile> list() throws IOException {
         Files.createDirectories(root);
         try (var stream = Files.list(root)) {
-            return stream.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".pgbackup"))
+            return stream.filter(p -> isOrdinaryBackupName(p.getFileName().toString()))
                     .sorted(Comparator.comparingLong(this::modified).reversed())
                     .map(p -> {
                         try {
@@ -219,10 +219,17 @@ public class ServerBackupService {
     private void retain(int count) throws IOException {
         List<Path> files;
         try (var stream = Files.list(root)) {
-            files = stream.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".pgbackup"))
+            files = stream.filter(p -> isOrdinaryBackupName(p.getFileName().toString()))
                     .sorted(Comparator.comparingLong(this::modified).reversed()).toList();
         }
         for (int i = count; i < files.size(); i++) Files.deleteIfExists(files.get(i));
+    }
+
+    static boolean isOrdinaryBackupName(String name) {
+        String normalized = name == null ? "" : name.toLowerCase(Locale.ROOT);
+        return normalized.endsWith(".pgbackup")
+                && !"restore-pending.pgbackup".equals(normalized)
+                && !normalized.startsWith("restore-validation-");
     }
 
     private BackupFile file(Path path, String source) throws IOException {

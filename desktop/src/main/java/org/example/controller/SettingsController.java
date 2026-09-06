@@ -363,6 +363,8 @@ public class SettingsController implements ScreenLifecycle {
     private DeploymentMode loadedDeploymentMode;
     private String loadedCompanyServerUrl = "";
     private String loadedDeploymentEnvironment = "LOCAL";
+    private boolean localToSharedConnectionConfirmed;
+    private boolean deploymentRestartRequired;
 
     /* =========================================================
        KEYBOARD SHORTCUTS
@@ -1164,9 +1166,12 @@ private record AssetPreviewRequest(
     private void refreshWorkspacePanel() {
         if (lblWorkspacePath == null || lblWorkspaceStatus == null) return;
         WorkspaceSettingsService.Status workspace = WorkspaceSettingsService.status();
-        lblWorkspacePath.setText(workspace.root().toString());
+        boolean managedShared = ConfigManager.isSharedClient() && WorkspaceManager.isManagedSharedClientWorkspace();
+        lblWorkspacePath.setText(managedShared ? "Application-managed shared-client storage" : workspace.root().toString());
         boolean pending = workspace.pendingMove();
-        lblWorkspaceStatus.setText(pending
+        lblWorkspaceStatus.setText(managedShared
+                ? "Business data, documents and backups are on the company server. This local folder is only for client configuration, logs, cache and temporary files."
+                : pending
                 ? "A workspace move is pending and will run before the database opens on the next start."
                 : "Workspace is available and writable. Application updates do not replace this folder.");
         lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
@@ -1772,6 +1777,18 @@ private record AssetPreviewRequest(
             return;
         }
 
+        if (deploymentRestartRequired) {
+            OwnedAlert done = new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "This PC is now configured to use the verified company server.\n\n"
+                            + "The previous local workspace was not modified and remains available as a recovery copy. "
+                            + "DSE ERP will close now so no screen or background service continues in the old LOCAL runtime.",
+                    ButtonType.OK);
+            done.setHeaderText("Company-server connection saved");
+            done.showAndWait();
+            Platform.exit();
+            return;
+        }
+
         SharedApplicationFooter.refreshAll();
 
         if (chkNotifications != null && chkNotifications.isSelected()) {
@@ -1787,8 +1804,21 @@ private record AssetPreviewRequest(
             return false;
         }
 
+        boolean connectExistingServerOnly = localToSharedConnectionConfirmed
+                && (loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode) == DeploymentMode.LOCAL
+                && cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
+
         batchingSettingsSave = true;
         try {
+            if (connectExistingServerOnly) {
+                // Connecting a LOCAL workstation to an already-existing company server is a
+                // deployment-only transition. Do not upload or overwrite any local company,
+                // storage, email or business settings as a side effect of pressing Save.
+                saveDeploymentSettings();
+                ConfigManager.save();
+                return true;
+            }
+
             if (loadedPanels.containsKey(Section.COMPANY)) saveCompanyDetails();
             if (loadedPanels.containsKey(Section.PAYMENT)) savePaymentDetails();
             if (loadedPanels.containsKey(Section.INVOICE)) saveInvoiceIdentity();
@@ -1832,8 +1862,8 @@ private record AssetPreviewRequest(
         if (!SessionService.isAdmin() || !deploymentSettingsChanged()) return;
         boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
         DeploymentMode currentMode = loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode;
-        if (currentMode == DeploymentMode.LOCAL && shared) {
-            throw new IllegalArgumentException("Use the verified Enable Multi-User promotion workflow to move an existing local company to a company server.");
+        if (currentMode == DeploymentMode.LOCAL && shared && !localToSharedConnectionConfirmed) {
+            throw new IllegalArgumentException("Confirm whether this PC should connect to the existing company server. If this local company should become the server company instead, cancel and complete the Local to Server promotion process first.");
         }
         if (currentMode == DeploymentMode.SHARED_CLIENT && !shared) {
             throw new IllegalArgumentException("Create and verify a standalone company copy before disconnecting this PC from the company server.");
@@ -1844,12 +1874,25 @@ private record AssetPreviewRequest(
                 throw new IllegalArgumentException("Test the company server connection before saving a changed shared-client deployment.");
             String environment = cmbDeploymentEnvironment == null ? "UAT" : cmbDeploymentEnvironment.getValue();
             if (environment == null || "LOCAL".equals(environment)) throw new IllegalArgumentException("Select UAT or PROD before saving a company-server deployment.");
-            ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
-            ConfigManager.setWithoutSaving("deployment.environment", environment);
-            ConfigManager.setWithoutSaving("server.baseUrl", normalized);
+
+            if (currentMode == DeploymentMode.LOCAL) {
+                try {
+                    WorkspaceManager.connectToExistingSharedClient(normalized, environment);
+                    ConfigManager.load();
+                } catch (java.io.IOException exception) {
+                    throw new IllegalStateException("Could not create the shared-client connection profile: " + exception.getMessage(), exception);
+                }
+                deploymentRestartRequired = true;
+            } else {
+                ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
+                ConfigManager.setWithoutSaving("deployment.environment", environment);
+                ConfigManager.setWithoutSaving("server.baseUrl", normalized);
+            }
+
             loadedDeploymentEnvironment = environment;
             loadedCompanyServerUrl = normalized;
             loadedDeploymentMode = DeploymentMode.SHARED_CLIENT;
+            localToSharedConnectionConfirmed = false;
         } else {
             ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.LOCAL.name());
             ConfigManager.setWithoutSaving("deployment.environment", "LOCAL");
@@ -1857,8 +1900,11 @@ private record AssetPreviewRequest(
             loadedDeploymentEnvironment = "LOCAL";
             loadedCompanyServerUrl = "";
             loadedDeploymentMode = DeploymentMode.LOCAL;
+            localToSharedConnectionConfirmed = false;
         }
-        if (lblCompanyServerStatus != null) lblCompanyServerStatus.setText("Saved. Restart DSE ERP to apply the deployment change.");
+        if (lblCompanyServerStatus != null) lblCompanyServerStatus.setText(deploymentRestartRequired
+                ? "Connection saved. DSE ERP will close so the next start uses the company server."
+                : "Saved. Restart DSE ERP to apply the deployment change.");
     }
 
     private boolean deploymentSettingsChanged() {
@@ -1894,6 +1940,10 @@ private record AssetPreviewRequest(
             try {
                 var status = DeploymentConnectionService.test(candidate);
                 String normalized = DeploymentConnectionService.normalize(candidate);
+                String selectedEnvironment = cmbDeploymentEnvironment == null ? "LOCAL" : String.valueOf(cmbDeploymentEnvironment.getValue());
+                if (!"LOCAL".equals(selectedEnvironment) && !selectedEnvironment.equalsIgnoreCase(status.environment())) {
+                    throw new IllegalStateException("Selected environment is " + selectedEnvironment + " but the company server reports " + status.environment() + ".");
+                }
                 Platform.runLater(() -> {
                     validatedCompanyServerUrl = normalized;
                     lblCompanyServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • " + status.environment() + " • Database " + status.databaseName());
@@ -2062,9 +2112,25 @@ private record AssetPreviewRequest(
             boolean requestedShared = cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
             DeploymentMode currentMode = ConfigManager.getDeploymentMode();
             if (currentMode == DeploymentMode.LOCAL && requestedShared) {
-                warn("This PC already owns a local company database. Use Enable Multi-User so the database, attachments, settings and templates are migrated and verified before switching.");
-                showWorkspace();
-                return false;
+                String normalized;
+                try { normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText()); }
+                catch (IllegalArgumentException exception) { warn(exception.getMessage()); showWorkspace(); return false; }
+                if (!normalized.equals(validatedCompanyServerUrl)) {
+                    warn("Test the company server connection before changing this PC to shared-client mode.");
+                    showWorkspace();
+                    return false;
+                }
+                ButtonType connect = new ButtonType("Connect to Existing Server", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+                ButtonType cancel = new ButtonType("Cancel", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
+                OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                        "This PC already has a local DSE ERP company.\n\n"
+                                + "Connect to Existing Server will NOT upload or overwrite the local company. "
+                                + "The local workspace is preserved as a recovery copy, and after restart this PC will use the verified company server only.\n\n"
+                                + "If this local company should become the server company instead, choose Cancel and complete the Local to Server promotion process first.",
+                        cancel, connect);
+                confirmation.setHeaderText("Local company detected");
+                if (confirmation.showAndWait().orElse(cancel) != connect) { showWorkspace(); return false; }
+                localToSharedConnectionConfirmed = true;
             }
             if (currentMode == DeploymentMode.SHARED_CLIENT && !requestedShared) {
                 warn("A shared company cannot be changed back to local mode with a simple toggle. Create and verify a standalone company copy first.");
