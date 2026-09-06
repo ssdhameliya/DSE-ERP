@@ -123,6 +123,7 @@ public final class IconFactory {
 
         if (node instanceof Label label) {
             decorateFieldLabel(label);
+            decorateOrdinaryValueLabel(label);
         }
 
         if (node instanceof ButtonBase button) {
@@ -204,7 +205,7 @@ public final class IconFactory {
 
 
     private static void decorateFieldLabelsOnly(Node node) {
-        if (node instanceof Label label) decorateFieldLabel(label);
+        if (node instanceof Label label) { decorateFieldLabel(label); decorateOrdinaryValueLabel(label); }
         if (node instanceof Parent parent) {
             for (Node child : parent.getChildrenUnmodifiable()) decorateFieldLabelsOnly(child);
         }
@@ -255,6 +256,78 @@ public final class IconFactory {
         }
         applySemanticLabelColour(label, semantic);
         label.getProperties().put("erp.label.icon.semantic", semantic);
+    }
+
+    /**
+     * Extends the shared semantic contract to ordinary detail/meta/summary values.
+     * The semantic is inherited from a nearby caption when possible and otherwise
+     * inferred from the value style name. This keeps dynamic values coloured and
+     * icon-labelled without hard-coding controller hex colours or individual screens.
+     */
+    private static void decorateOrdinaryValueLabel(Label label) {
+        if (label == null || Boolean.TRUE.equals(label.getProperties().get("erp.value.icon.skip"))) return;
+        String styles = String.join(" ", label.getStyleClass()).toLowerCase(Locale.ROOT);
+        if (styles.contains("metric-value") || styles.contains("kpi-value") || styles.contains("erp-kpi-value")) return;
+        boolean valueStyle = styles.contains("field-value") || styles.contains("meta-value") || styles.contains("detail-value")
+                || styles.contains("summary-value") || styles.contains("total-value") || styles.contains("paid-value")
+                || styles.contains("balance-value") || styles.contains("amount-value") || styles.contains("version-value")
+                || styles.contains("contact-value") || styles.contains("workspace-path-value") || styles.contains("register-total-value")
+                || styles.contains("report-responsive-value") || styles.contains("recovery-value") || styles.contains("stock-value")
+                || styles.contains("charge-value") || styles.contains("taxable-value") || styles.contains("subtotal")
+                || styles.contains("summary-amount") || styles.contains("summary-paid") || styles.contains("summary-balance");
+        if (!valueStyle) return;
+        String semantic = semanticFromSiblingCaption(label);
+        if (semantic == null) semantic = semanticFromValueStyles(styles);
+        if (semantic == null) semantic = "value";
+        String colour = semanticColour(semantic);
+        label.getStyleClass().removeIf(style -> style != null && style.startsWith("erp-value-colour-"));
+        label.getStyleClass().add("erp-value-colour-" + colour);
+        label.getProperties().put("erp.value.semantic", semantic);
+        if (label.getGraphic() == null) {
+            label.setGraphic(compactIcon(semantic, 12));
+            label.setContentDisplay(ContentDisplay.LEFT);
+            label.setGraphicTextGap(5);
+            label.getProperties().put("erp.value.icon.managed", true);
+        }
+    }
+
+    private static String semanticFromSiblingCaption(Label value) {
+        Parent parent = value == null ? null : value.getParent();
+        if (!(parent instanceof Pane pane)) return null;
+        for (Node sibling : pane.getChildren()) {
+            if (!(sibling instanceof Label caption) || sibling == value) continue;
+            String styles = String.join(" ", caption.getStyleClass()).toLowerCase(Locale.ROOT);
+            if (!(styles.contains("label") || styles.contains("caption") || styles.contains("title"))) continue;
+            String semantic = UiSemanticRegistry.fieldSemantic(clean(caption.getText()));
+            if (semantic == null) semantic = semanticForLabel(clean(caption.getText()));
+            if (semantic != null) return semantic;
+        }
+        Parent grand = parent.getParent();
+        if (grand instanceof Pane pane2) {
+            for (Node sibling : pane2.getChildren()) {
+                if (!(sibling instanceof Label caption) || sibling == value) continue;
+                String semantic = UiSemanticRegistry.fieldSemantic(clean(caption.getText()));
+                if (semantic == null) semantic = semanticForLabel(clean(caption.getText()));
+                if (semantic != null) return semantic;
+            }
+        }
+        return null;
+    }
+
+    private static String semanticFromValueStyles(String styles) {
+        if (styles.contains("workspace")) return "workspace";
+        if (styles.contains("backup-location")) return "backup";
+        if (styles.contains("splash-info")) return "info";
+        if (styles.contains("notification") && styles.contains("summary")) return "notification";
+        if (styles.contains("version")) return "version";
+        if (styles.contains("paid")) return "paid";
+        if (styles.contains("balance")) return "balance";
+        if (styles.contains("stock") || styles.contains("quantity")) return "quantity";
+        if (styles.contains("tax")) return "tax";
+        if (styles.contains("charge") || styles.contains("amount") || styles.contains("total") || styles.contains("subtotal")) return "amount";
+        if (styles.contains("contact")) return "contact-person";
+        if (styles.contains("recovery")) return "recovery";
+        return null;
     }
 
     /** Applies the Phase 3 semantic identity to a KPI caption and its existing value/icon shell. */
@@ -629,7 +702,7 @@ public final class IconFactory {
             case "warehouse" -> "inventory";
             case "analytics", "chart" -> "report";
             case "sales" -> "sale";
-            case "export" -> "download";
+            case "export" -> "export";
             case "send" -> "sent";
             default -> value.isBlank() ? "unknown" : value;
         };
@@ -688,7 +761,7 @@ public final class IconFactory {
             case "last" -> "fas-angle-double-right";
             case "reset" -> "fas-undo-alt";
             case "notes" -> "fas-sticky-note";
-            case "import" -> "fas-cloud-upload-alt";
+            case "import" -> "fas-file-import";
             case "save" -> "fas-save";
             case "add" -> "fas-plus";
             case "cancel" -> "fas-times";
@@ -802,36 +875,128 @@ public final class IconFactory {
     private static String semantic(String text) {
         String value = text == null ? "" : text.toLowerCase(Locale.ROOT).trim();
         if (value.isBlank()) return null;
+
+        // Navigation symbols and designer glyph-only actions.
         if (value.equals("×") || value.equals("✕") || value.equals("x")) return "cancel";
         if (value.equals("first") || value.equals("|‹") || value.equals("«")) return "first";
-        if (value.equals("previous") || value.equals("‹")) return "previous";
-        if (value.equals("next") || value.equals("›")) return "next";
+        if (value.equals("previous") || value.equals("‹") || value.contains("previous")) return "previous";
+        if (value.equals("next") || value.equals("›") || value.contains("next")) return "next";
         if (value.equals("last") || value.equals("›|") || value.equals("»")) return "last";
-        if (value.equals("undo")) return "reset";
-        if (value.equals("redo")) return "reopen";
+        if (value.startsWith("←") && value.contains("template")) return "previous";
+        if (value.equals("↶") || value.equals("undo")) return "reset";
+        if (value.equals("↷") || value.equals("redo")) return "reopen";
+        if (value.equals("●")) return "active";
+
+        // Specific actions must win before broad business nouns.
+        if (value.contains("mark all read")) return "mark-all-read";
+        if (value.equals("mark read") || value.contains("mark as read")) return "mark-read";
+        if (value.contains("open record")) return "open-record";
+        if (value.equals("dismiss")) return "dismiss";
+        if (value.equals("reject") || value.contains("reject return") || value.contains("reject sale") || value.contains("reject purchase")) return "reject";
+        if (value.equals("ignore") || value.contains("bulk ignore")) return "ignore";
+        if (value.contains("choose bill")) return "bill";
+        if (value.contains("change file")) return "change-file";
+        if (value.contains("erp template")) return "template";
+        if (value.contains("group selected") && !value.contains("ungroup")) return "group";
+        if (value.contains("ungroup selected")) return "ungroup";
+        if (value.contains("publish") && value.contains("default")) return "set-default";
+        if (value.equals("publish")) return "publish";
+        if (value.contains("auto map")) return "mapping";
+        if (value.contains("apply field properties")) return "field-properties";
+        if (value.contains("paste format")) return "paste-format";
+        if (value.contains("replace / choose image") || value.contains("replace image")) return "replace-image";
+        if (value.equals("+ page") || value.equals("add page")) return "add-page";
+        if (value.equals("front")) return "bring-front";
+        if (value.equals("forward")) return "bring-forward";
+        if (value.contains("show / hide")) return "show-hide";
+        if (value.contains("hide area")) return "hide";
+        if (value.equals("section")) return "section";
+        if (value.contains("charge table")) return "charge";
+        if (value.equals("sheet")) return "worksheet";
+        if (value.contains("merge & center") || value.equals("merge")) return "merge";
+        if (value.equals("paste")) return "paste";
+        if (value.equals("reload")) return "reload";
+        if (value.equals("bold")) return "bold";
+        if (value.equals("italic")) return "italic";
+        if (value.equals("underline")) return "underline";
+        if (value.equals("left")) return "align-left";
+        if (value.equals("center")) return "align-center";
+        if (value.equals("right")) return "align-right";
+        if (value.equals("top")) return "align-top";
+        if (value.equals("middle")) return "align-middle";
+        if (value.equals("bottom")) return "align-bottom";
+        if (value.contains("distribute h")) return "distribute-horizontal";
+        if (value.contains("distribute v")) return "distribute-vertical";
+        if (value.equals("wrap")) return "wrap";
+        if (value.equals("no fill")) return "no-fill";
+        if (value.equals("borders")) return "border";
+        if (value.equals("insert row")) return "insert-row";
+        if (value.equals("insert column")) return "insert-column";
+        if (value.equals("rows")) return "rows";
+        if (value.equals("freeze")) return "freeze";
+        if (value.equals("apply")) return "apply";
+        if (value.contains("insert charge row") || value.contains("apply charges")) return "charge";
+        if (value.contains("application actions")) return "application";
+        if (value.equals("navigation")) return "navigation";
+        if (value.equals("capture")) return "capture";
+        if (value.equals("disable") || value.contains("deactivate")) return "disable";
+        if (value.contains("clean now")) return "clean";
+        if (value.contains("open logs")) return "log";
+        if (value.contains("open package folder")) return "package-folder";
+        if (value.contains("open recovery folder")) return "recovery-folder";
+        if (value.contains("full database recovery")) return "database-recovery";
+        if (value.contains("registration approvals")) return "approve";
+        if (value.contains("company & billing")) return "business";
+        if (value.contains("security & session")) return "security-session";
+        if (value.contains("keyboard shortcuts")) return "shortcut";
+        if (value.equals("administrator")) return "administrator";
+        if (value.equals("communication")) return "communication";
+        if (value.equals("settings")) return "settings";
+        if (value.equals("search")) return "search";
+        if (value.equals("exit")) return "exit";
+        if (value.equals("move")) return "move";
+        if (value.contains("find another")) return "find-another";
+        if (value.contains("confirm partial settlement")) return "partial-settlement";
+        if (value.contains("confirm match")) return "match";
+        if (value.equals("record")) return "record";
+        if (value.contains("stay signed in")) return "stay-signed-in";
+        if (value.contains("log out now")) return "exit";
+        if (value.contains("open github release")) return "github";
+        if (value.equals("later")) return "later";
+        if (value.equals("schedule")) return "schedule";
+        if (value.contains("run now")) return "run";
+        if (value.equals("pause")) return "pause";
+        if (value.equals("archive")) return "archive";
+        if (value.contains("set as default")) return "set-default";
+        if (value.contains("re-send") || value.contains("resend")) return "resend";
+
+        // Import/export precedence is intentionally before port/reference matching.
+        if (value.contains("export pdf")) return "pdf";
+        if (value.contains("import") || value.contains("upload")) return "import";
+        if (value.contains("export")) return "export";
+
+        // General actions.
         if (value.contains("fit page") || value.contains("fit width")) return "view";
         if (value.contains("heading")) return "document";
         if (value.equals("text")) return "notes";
         if (value.equals("image") || value.contains("imported image") || value.contains("company logo") || value.contains("app brand") || value.contains("signature")) return "attachment";
         if (value.contains("payment qr")) return "payment";
         if (value.contains("rectangle")) return "category";
-        if (value.equals("line")) return "link";
+        if (value.equals("line")) return "line";
         if (value.contains("dashboard")) return "dashboard";
-        if (value.equals("today") || value.equals("yesterday") || value.contains("days")
-            || value.contains("month") || value.contains("custom range")) return "calendar";
+        if (value.equals("today") || value.equals("yesterday") || value.contains("days") || value.contains("month") || value.contains("custom range")) return "calendar";
         if (value.contains("dark")) return "moon";
         if (value.contains("light")) return "sun";
-        if (value.contains("logout") || value.contains("sign out")) return "lock";
+        if (value.contains("logout") || value.contains("sign out")) return "exit";
         if (value.contains("login") || value.contains("sign in")) return "login";
         if (value.contains("register") || value.contains("create account")) return "register";
-        if (value.contains("resend otp")) return "refresh";
         if (value.contains("test connection") || value.contains("test email")) return "test";
         if (value.contains("report information")) return "info";
         if (value.equals("report center") || value.contains("open report center")) return "report";
         if (value.contains("saved report")) return "save";
-        if (value.equals("scheduled") || value.contains("scheduled report") || value.contains("schedule report")) return "calendar";
+        if (value.equals("scheduled") || value.contains("scheduled report") || value.contains("schedule report")) return "schedule";
         if (value.contains("recent export")) return "history";
-        if (value.contains("open report")) return "view";
+        if ((value.startsWith("open") && value.contains("report")) || value.contains("open report")) return "view";
         if (value.contains("save report")) return "save";
         if (value.equals("columns") || value.contains("choose columns")) return "columns";
         if (value.contains("apply filter")) return "filter";
@@ -846,7 +1011,7 @@ public final class IconFactory {
         if (value.contains("follow up")) return "reminder";
         if (value.contains("expense")) return "payment";
         if (value.contains("convert to sale")) return "sale";
-        if (value.contains("map column") || value.contains("mapping")) return "settings";
+        if (value.contains("map column") || value.contains("mapping")) return "mapping";
         if (value.contains("system health")) return "validate";
         if (value.contains("offline package") || value.contains("install update")) return "update";
         if (value.equals("menu")) return "menu";
@@ -856,42 +1021,42 @@ public final class IconFactory {
         if (value.contains("recent activity") || value.contains("activity")) return "history";
         if (value.contains("ageing") || value.contains("aging") || value.contains("receivable") || value.contains("payable")) return "balance";
         if (value.contains("performance") || value.contains("summary")) return "report";
-        if (value.contains("financial year") || value.contains("fiscal year")) return "calendar";
-        if (value.contains("branch")) return "business";
-        if (value.contains("smtp host") || value.equals("host")) return "link";
-        if (value.contains("port")) return "reference";
+        if (value.contains("financial year") || value.contains("fiscal year")) return "financial-year";
+        if (value.contains("branch")) return "branch";
+        if (value.contains("smtp host") || value.equals("host")) return "server";
+        if (value.equals("port") || value.endsWith(" port") || value.startsWith("port ")) return "port";
         if (value.contains("repository owner")) return "user";
-        if (value.contains("repository name") || value.contains("repository")) return "link";
+        if (value.contains("repository name") || value.equals("repository")) return "repository";
         if (value.contains("warehouse")) return "inventory";
-        if (value.contains("contact person")) return "user";
-        if (value.contains("vehicle")) return "delivery";
-        if (value.contains("source file")) return "folder";
-        if (value.contains("transporter")) return "delivery";
-        if (value.contains("priority")) return "warning";
+        if (value.contains("contact person")) return "contact-person";
+        if (value.contains("vehicle")) return "vehicle";
+        if (value.contains("source file")) return "source";
+        if (value.contains("transporter")) return "transporter";
+        if (value.contains("priority")) return "priority";
         if (value.contains("title")) return "document";
         if (value.contains("sha-256") || value.contains("sha256") || value.contains("sha-56") || value.contains("checksum")) return "validate";
-        if (value.contains("party code")) return "reference";
-        // Business document identities must win before the generic Number/Reference fallback.
+        if (value.contains("party code")) return "code";
         if (value.equals("number")) return "number";
-        if (value.endsWith(" number") || value.contains("no.")) return "reference";
+        if (value.endsWith(" number") || value.contains("no.")) return "number";
         if (value.contains("category")) return "category";
         if (value.contains("company name") || value.contains("business name")) return "business";
-        if (value.startsWith("pan") || value.contains(" pan")) return "identity";
-        if (value.contains("business type") || value.contains("industry")) return "category";
+        if (value.startsWith("pan") || value.contains(" pan")) return "pan";
+        if (value.contains("business type") || value.contains("industry")) return "industry";
         if (value.contains("application name")) return "application";
-        if (value.contains("tagline")) return "notes";
+        if (value.contains("tagline")) return "tagline";
         if (value.contains("workspace")) return "workspace";
-        if (value.contains("date") || value.contains("time zone") || value.equals("time")) return "calendar";
+        if (value.contains("date")) return "date";
+        if (value.contains("time zone") || value.equals("time")) return "time";
         if (value.contains("reference") || value.contains("cheque") || value.contains("order no")) return "reference";
         if (value.contains("phone") || value.contains("mobile") || value.contains("contact no")) return "phone";
         if (value.contains("address") || value.contains("state") || value.contains("place of supply") || value.contains("location")) return "location";
         if (value.contains("website") || value.contains("url") || value.contains("link")) return "link";
         if (value.contains("currency")) return "currency";
         if (value.contains("account") || value.contains("bank") || value.contains("upi")) return "bank";
-        if (value.contains("mode")) return "payment";
+        if (value.contains("mode")) return "mode";
         if (value.contains("received from")) return "customer";
-        if (value.contains("description") || value.contains("narration")) return "notes";
-        if (value.contains("terms")) return "document";
+        if (value.contains("description") || value.contains("narration")) return "description";
+        if (value.contains("terms")) return "terms";
         if (value.contains("delivery")) return "delivery";
         if (value.contains("application update") || value.contains("check update") || value.equals("update")) return "update";
         if (value.contains("permission")) return "permission";
@@ -907,34 +1072,26 @@ public final class IconFactory {
         if (value.contains("rollback")) return "rollback";
         if (value.contains("restore")) return "restore";
         if (value.contains("backup")) return "backup";
-        if (value.contains("open folder") || value.contains("choose file") || value.contains("choose backup")
-            || value.contains("browse") || value.contains("open location")) return "folder";
+        if (value.contains("open folder") || value.contains("choose file") || value.contains("choose backup") || value.contains("browse") || value.contains("open location")) return "folder";
         if (value.contains("copy") || value.contains("duplicate")) return "copy";
         if (value.contains("lock") || value.contains("password")) return "lock";
-        if (value.equals("...") || value.equals("…") || value.equals("⋮")
-            || value.equals("actions") || value.equals("action")
-            || value.contains("action menu") || value.contains("options")) return "actions";
+        if (value.equals("...") || value.equals("…") || value.equals("⋮") || value.equals("actions") || value.equals("action") || value.contains("action menu") || value.contains("options")) return "actions";
         if (value.contains("more")) return "more";
         if (value.contains("whatsapp")) return "whatsapp";
         if (value.contains("supplier") || value.contains("hrm")) return "supplier";
         if (value.contains("customer") || value.contains("crm")) return "customer";
         if (value.contains("user") || value.contains("profile")) return "user";
-        if (value.contains("import excel") || value.contains("import spreadsheet")) return "import";
-        if (value.contains("export excel") || value.contains("export spreadsheet")) return "export";
-        if (value.contains("export pdf")) return "pdf";
         if (value.contains("quotation")) return "quotation";
         if (value.contains("purchase")) return "purchase";
         if (value.contains("sale")) return "sale";
         if (value.contains("master")) return "master";
         if (value.contains("inventory")) return "inventory";
         if (value.contains("item") || value.contains("product")) return "item";
-        if (value.contains("import") || value.contains("upload")) return "import";
-        if (value.contains("export")) return "export";
         if (value.contains("excel") || value.contains("spreadsheet")) return "excel";
         if (value.contains("pdf")) return "pdf";
         if (value.contains("reset")) return "reset";
         if (value.contains("note") || value.contains("remark")) return "notes";
-        if (value.contains("download") || value.contains("export")) return "download";
+        if (value.contains("download")) return "download";
         if (value.contains("save")) return "save";
         if (value.contains("add") || value.contains("new") || value.contains("create")) return "add";
         if (value.contains("edit") || value.contains("rename")) return "edit";
@@ -949,13 +1106,15 @@ public final class IconFactory {
         if (value.contains("attach")) return "attachment";
         if (value.contains("email")) return "email";
         if (value.contains("payment")) return "payment";
-        if (value.contains("amount") || value.contains("balance") || value.contains("price") || value.contains("rate")) return "currency";
+        if (value.contains("amount") || value.contains("balance") || value.contains("price")) return "amount";
+        if (value.contains("rate")) return "rate";
         if (value.contains("discount")) return "discount";
         if (value.contains("tax") || value.contains("gst")) return "tax";
         if (value.contains("qty") || value.contains("quantity") || value.contains("stock")) return "quantity";
         if (value.contains("status")) return "status";
         if (value.contains("document") || value.contains("invoice")) return "document";
-        if (value.contains("return") || value.contains("refund")) return "return";
+        if (value.contains("refund")) return "refund";
+        if (value.contains("return")) return "return";
         if (value.contains("view") || value.contains("preview") || value.contains("select")) return "view";
         return null;
     }

@@ -44,8 +44,8 @@ public final class DiagnosticBundleService {
     private static String info() {
         Properties p = new Properties();
         p.setProperty("generatedAt", Instant.now().toString());
-        p.setProperty("applicationVersion", RuntimeContract.APP_VERSION);
-        p.setProperty("buildRevision", RuntimeContract.BUILD_REVISION);
+        p.setProperty("applicationVersion", org.example.update.BuildInfo.version());
+        p.setProperty("buildRevision", org.example.update.BuildInfo.buildRevision());
         p.setProperty("apiRevision", RuntimeContract.API_REVISION);
         p.setProperty("javaVersion", System.getProperty("java.version", ""));
         p.setProperty("javaVendor", System.getProperty("java.vendor", ""));

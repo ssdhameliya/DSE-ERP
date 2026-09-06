@@ -26,4 +26,16 @@ class ConfigManagerTest {
             ConfigManager.setWithoutSaving("deployment.mode", null);
         }
     }
+    @Test
+    void deploymentEnvironmentIsConfigurationNotBuildIdentity() {
+        if (System.getenv("DSE_DEPLOYMENT_ENVIRONMENT") != null) return;
+        ConfigManager.setWithoutSaving("deployment.environment", "UAT");
+        try {
+            assertEquals("UAT", ConfigManager.getConfiguredDeploymentEnvironment());
+            assertEquals("UAT", ConfigManager.getDeploymentEnvironment());
+        } finally {
+            ConfigManager.setWithoutSaving("deployment.environment", null);
+        }
+    }
+
 }

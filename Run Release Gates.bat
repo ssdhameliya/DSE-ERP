@@ -1,8 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+for /f "tokens=2 delims==" %%V in ('findstr /b /c:"-Drevision=" ".mvn\maven.config"') do set "DSE_VERSION=%%V"
 echo ======================================================
-echo   DSE ERP 9.0.79 - RELEASE GATE VERIFICATION
+echo   DSE ERP %DSE_VERSION% - RELEASE GATE VERIFICATION
 echo ======================================================
 python scripts\audit-release-gates.py
 if errorlevel 1 goto :fail

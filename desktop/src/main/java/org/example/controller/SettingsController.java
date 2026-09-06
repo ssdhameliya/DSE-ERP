@@ -1,4 +1,6 @@
 package org.example.controller;
+import javafx.scene.control.TextFormatter;
+import javafx.scene.control.Tooltip;
 
 import org.example.config.SettingsFieldSupport;
 import org.example.service.SettingsAssetPreviewLoader;
@@ -325,7 +327,9 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private CheckBox chkUpdateAtStartup;
     @FXML private CheckBox chkDownloadInBackground;
     @FXML private Label lblCurrentVersion;
+    @FXML private Label lblCurrentBuild;
     @FXML private Label lblLatestVersion;
+    @FXML private Label lblUpdateStatus;
     @FXML private Label lblLastChecked;
 
     /* =========================================================
@@ -337,6 +341,7 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private Label lblWorkspaceStatus;
     @FXML private VBox deploymentSection;
     @FXML private ComboBox<String> cmbDeploymentMode;
+    @FXML private ComboBox<String> cmbDeploymentEnvironment;
     @FXML private TextField txtCompanyServerUrl;
     @FXML private Label lblCompanyServerStatus;
     @FXML private Button btnTestCompanyServer;
@@ -355,6 +360,9 @@ public class SettingsController implements ScreenLifecycle {
     @FXML private Label lblStorageTotal;
     @FXML private Label lblLastCleanup;
     private String validatedCompanyServerUrl;
+    private DeploymentMode loadedDeploymentMode;
+    private String loadedCompanyServerUrl = "";
+    private String loadedDeploymentEnvironment = "LOCAL";
 
     /* =========================================================
        KEYBOARD SHORTCUTS
@@ -553,13 +561,22 @@ public class SettingsController implements ScreenLifecycle {
                 boolean admin = SessionService.isAdmin();
                 if (deploymentSection != null) { deploymentSection.setVisible(admin); deploymentSection.setManaged(admin); }
                 if (storageRetentionSection != null) storageRetentionSection.setDisable(!admin);
+                configureRetentionInputs();
                 loadStorageRetentionSettings();
                 refreshStorageUsage();
                 if (admin) {
+                    loadedDeploymentMode = ConfigManager.getDeploymentMode();
+                    loadedDeploymentEnvironment = ConfigManager.getConfiguredDeploymentEnvironment();
+                    loadedCompanyServerUrl = normalizedServerUrl(ConfigManager.getConfiguredServerUrl());
                     cmbDeploymentMode.setItems(FXCollections.observableArrayList("This PC only", "Connect to company server"));
+                    if (cmbDeploymentEnvironment != null) {
+                        cmbDeploymentEnvironment.setItems(FXCollections.observableArrayList("LOCAL", "UAT", "PROD"));
+                        cmbDeploymentEnvironment.getSelectionModel().select(loadedDeploymentEnvironment);
+                        cmbDeploymentEnvironment.valueProperty().addListener((o,a,b)-> { validatedCompanyServerUrl=null; updateDeploymentSettingsControls(); });
+                    }
                     cmbDeploymentMode.getSelectionModel().select(ConfigManager.isSharedClient() ? 1 : 0);
                     txtCompanyServerUrl.setText(ConfigManager.getConfiguredServerUrl());
-                    txtCompanyServerUrl.textProperty().addListener((o,a,b)->validatedCompanyServerUrl=null);
+                    txtCompanyServerUrl.textProperty().addListener((o,a,b)-> { if (!normalizedServerUrl(b).equals(loadedCompanyServerUrl)) validatedCompanyServerUrl=null; });
                     cmbDeploymentMode.valueProperty().addListener((o,a,b)->updateDeploymentSettingsControls());
                     updateDeploymentSettingsControls();
                 }
@@ -572,9 +589,7 @@ public class SettingsController implements ScreenLifecycle {
                 selectComboValue(cmbUpdateChannel, ConfigManager.get("update.channel", "STABLE"));
                 chkUpdateAtStartup.setSelected(Boolean.parseBoolean(ConfigManager.get("update.checkAtStartup", "true")));
                 chkDownloadInBackground.setSelected(Boolean.parseBoolean(ConfigManager.get("update.downloadInBackground", "false")));
-                lblCurrentVersion.setText(BuildInfo.version());
-                lblLatestVersion.setText("Check GitHub Releases");
-                lblLastChecked.setText(formatUpdateTimestamp(ConfigManager.get("update.lastChecked", "")));
+                refreshUpdateSummary();
                 if (btnCheckUpdates != null) { btnCheckUpdates.setGraphic(IconFactory.icon("update", 16)); btnCheckUpdates.getProperties().put("erp-icon-preserve", true); }
             }
         }
@@ -1176,20 +1191,30 @@ private record AssetPreviewRequest(
 
     private void saveStorageRetentionSettings() {
         if (txtLogRetentionDays == null || !SessionService.isAdmin()) return;
-        int logs = retentionDays(txtLogRetentionDays, "Logs", 1, 3650);
-        int reports = retentionDays(txtReportRetentionDays, "Reports", 1, 3650);
-        int exports = retentionDays(txtExportRetentionDays, "Exports", 1, 3650);
-        int diagnostics = retentionDays(txtDiagnosticRetentionDays, "Diagnostic ZIPs", 1, 3650);
-        int importResults = retentionDays(txtImportResultRetentionDays, "Import results", 1, 3650);
-        int temp = retentionDays(txtTempRetentionDays, "Temporary files", 1, 365);
-        var support = new org.example.api.support.SupportApiClient();
-        support.setSetting("storage.logs.retentionDays", Integer.toString(logs));
-        support.setSetting("storage.reports.retentionDays", Integer.toString(reports));
-        support.setSetting("storage.exports.retentionDays", Integer.toString(exports));
-        support.setSetting("storage.diagnostics.retentionDays", Integer.toString(diagnostics));
-        support.setSetting("storage.importResults.retentionDays", Integer.toString(importResults));
-        support.setSetting("storage.temp.retentionDays", Integer.toString(temp));
-        support.setSetting("storage.logs.compress", Boolean.toString(chkCompressOldLogs != null && chkCompressOldLogs.isSelected()));
+        java.util.Map<String,String> values = new java.util.LinkedHashMap<>();
+        values.put("storage.logs.retentionDays", Integer.toString(retentionDays(txtLogRetentionDays, "Logs", 1, 3650)));
+        values.put("storage.reports.retentionDays", Integer.toString(retentionDays(txtReportRetentionDays, "Reports", 1, 3650)));
+        values.put("storage.exports.retentionDays", Integer.toString(retentionDays(txtExportRetentionDays, "Exports", 1, 3650)));
+        values.put("storage.diagnostics.retentionDays", Integer.toString(retentionDays(txtDiagnosticRetentionDays, "Diagnostic ZIPs", 1, 3650)));
+        values.put("storage.importResults.retentionDays", Integer.toString(retentionDays(txtImportResultRetentionDays, "Import results", 1, 3650)));
+        values.put("storage.temp.retentionDays", Integer.toString(retentionDays(txtTempRetentionDays, "Temporary files", 1, 365)));
+        values.put("storage.logs.compress", Boolean.toString(chkCompressOldLogs != null && chkCompressOldLogs.isSelected()));
+        new org.example.api.support.SupportApiClient().setSettings(values);
+    }
+
+    private void configureRetentionInputs() {
+        configureRetentionInput(txtLogRetentionDays, "1–3650 days");
+        configureRetentionInput(txtReportRetentionDays, "1–3650 days");
+        configureRetentionInput(txtExportRetentionDays, "1–3650 days");
+        configureRetentionInput(txtDiagnosticRetentionDays, "1–3650 days");
+        configureRetentionInput(txtImportResultRetentionDays, "1–3650 days");
+        configureRetentionInput(txtTempRetentionDays, "1–365 days");
+    }
+
+    private static void configureRetentionInput(TextField field, String help) {
+        if (field == null || field.getTextFormatter() != null) return;
+        field.setTextFormatter(new TextFormatter<String>(change -> change.getControlNewText().matches("\\d{0,4}") ? change : null));
+        field.setTooltip(new Tooltip(help));
     }
 
     private static int retentionDays(TextField field, String label, int min, int max) {
@@ -1248,15 +1273,26 @@ private record AssetPreviewRequest(
     @FXML
     private void showUpdates() {
         selectSection(navUpdates, ensureSectionLoaded(Section.UPDATES));
-        lblCurrentVersion.setText(BuildInfo.version());
-        lblLastChecked.setText(formatUpdateTimestamp(ConfigManager.get("update.lastChecked", "")));
+        refreshUpdateSummary();
+    }
+
+    private void refreshUpdateSummary() {
+        if (lblCurrentVersion != null) lblCurrentVersion.setText(BuildInfo.version());
+        if (lblCurrentBuild != null) {
+            String revision = BuildInfo.buildRevision();
+            lblCurrentBuild.setText("Build " + (revision.isBlank() ? BuildInfo.version() : revision));
+        }
+        String latest = org.example.update.UpdateState.latestVersion();
+        if (lblLatestVersion != null) lblLatestVersion.setText(latest.isBlank() ? "Not checked yet" : latest);
+        if (lblUpdateStatus != null) lblUpdateStatus.setText(org.example.update.UpdateState.statusText());
+        if (lblLastChecked != null) lblLastChecked.setText(formatUpdateTimestamp(ConfigManager.get("update.lastChecked", "")));
     }
 
     @FXML
     private void checkForUpdates() {
         org.example.service.PermissionService.require("APPLICATION_UPDATES.CHECK", "check for application updates");
         saveUpdateSettings();
-        UpdateDialogs.checkForUpdates(panelUpdates.getScene().getWindow(), false);
+        UpdateDialogs.checkForUpdates(panelUpdates.getScene().getWindow(), false, this::refreshUpdateSummary);
     }
 
     @FXML
@@ -1793,9 +1829,9 @@ private record AssetPreviewRequest(
     }
 
     private void saveDeploymentSettings() {
-        if (!SessionService.isAdmin()) return;
+        if (!SessionService.isAdmin() || !deploymentSettingsChanged()) return;
         boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
-        DeploymentMode currentMode = ConfigManager.getDeploymentMode();
+        DeploymentMode currentMode = loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode;
         if (currentMode == DeploymentMode.LOCAL && shared) {
             throw new IllegalArgumentException("Use the verified Enable Multi-User promotion workflow to move an existing local company to a company server.");
         }
@@ -1805,20 +1841,46 @@ private record AssetPreviewRequest(
         if (shared) {
             String normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText());
             if (!normalized.equals(validatedCompanyServerUrl))
-                throw new IllegalArgumentException("Test the company server connection before saving shared-client mode.");
+                throw new IllegalArgumentException("Test the company server connection before saving a changed shared-client deployment.");
+            String environment = cmbDeploymentEnvironment == null ? "UAT" : cmbDeploymentEnvironment.getValue();
+            if (environment == null || "LOCAL".equals(environment)) throw new IllegalArgumentException("Select UAT or PROD before saving a company-server deployment.");
             ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
+            ConfigManager.setWithoutSaving("deployment.environment", environment);
             ConfigManager.setWithoutSaving("server.baseUrl", normalized);
+            loadedDeploymentEnvironment = environment;
+            loadedCompanyServerUrl = normalized;
+            loadedDeploymentMode = DeploymentMode.SHARED_CLIENT;
         } else {
             ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.LOCAL.name());
+            ConfigManager.setWithoutSaving("deployment.environment", "LOCAL");
             ConfigManager.setWithoutSaving("server.baseUrl", "");
+            loadedDeploymentEnvironment = "LOCAL";
+            loadedCompanyServerUrl = "";
+            loadedDeploymentMode = DeploymentMode.LOCAL;
         }
         if (lblCompanyServerStatus != null) lblCompanyServerStatus.setText("Saved. Restart DSE ERP to apply the deployment change.");
+    }
+
+    private boolean deploymentSettingsChanged() {
+        if (cmbDeploymentMode == null) return false;
+        DeploymentMode selected = cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1 ? DeploymentMode.SHARED_CLIENT : DeploymentMode.LOCAL;
+        DeploymentMode baseline = loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode;
+        String selectedUrl = selected == DeploymentMode.SHARED_CLIENT ? normalizedServerUrl(txtCompanyServerUrl == null ? "" : txtCompanyServerUrl.getText()) : "";
+        String baselineUrl = baseline == DeploymentMode.SHARED_CLIENT ? loadedCompanyServerUrl : "";
+        String selectedEnvironment = selected == DeploymentMode.SHARED_CLIENT && cmbDeploymentEnvironment != null ? String.valueOf(cmbDeploymentEnvironment.getValue()) : "LOCAL";
+        return selected != baseline || !selectedUrl.equals(baselineUrl) || !selectedEnvironment.equals(loadedDeploymentEnvironment);
+    }
+
+    private static String normalizedServerUrl(String value) {
+        try { return value == null || value.isBlank() ? "" : DeploymentConnectionService.normalize(value); }
+        catch (Exception ignored) { return value == null ? "" : value.trim(); }
     }
 
     private void updateDeploymentSettingsControls() {
         boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
         if (txtCompanyServerUrl != null) txtCompanyServerUrl.setDisable(!shared);
         if (btnTestCompanyServer != null) btnTestCompanyServer.setDisable(!shared);
+        if (cmbDeploymentEnvironment != null) { cmbDeploymentEnvironment.setDisable(!shared); if (!shared) cmbDeploymentEnvironment.getSelectionModel().select("LOCAL"); }
         if (!shared && lblCompanyServerStatus != null) lblCompanyServerStatus.setText("Local mode: this PC starts its own database and services.");
     }
 
@@ -1834,7 +1896,7 @@ private record AssetPreviewRequest(
                 String normalized = DeploymentConnectionService.normalize(candidate);
                 Platform.runLater(() -> {
                     validatedCompanyServerUrl = normalized;
-                    lblCompanyServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • Database " + status.database());
+                    lblCompanyServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • " + status.environment() + " • Database " + status.databaseName());
                     btnTestCompanyServer.setDisable(false);
                 });
             } catch (Exception exception) {

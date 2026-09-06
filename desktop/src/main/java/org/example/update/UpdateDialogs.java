@@ -75,6 +75,10 @@ public final class UpdateDialogs {
     }
 
     public static void checkForUpdates(Window owner, boolean quietWhenCurrent) {
+        checkForUpdates(owner, quietWhenCurrent, null);
+    }
+
+    public static void checkForUpdates(Window owner, boolean quietWhenCurrent, Runnable stateChanged) {
         org.example.service.PermissionService.require("APPLICATION_UPDATES.CHECK", "check for application updates");
         UpdateService service = new UpdateService();
         ProgressIndicator indicator = new ProgressIndicator();
@@ -91,12 +95,15 @@ public final class UpdateDialogs {
         task.setOnSucceeded(e -> {
             checking.close();
             UpdateRelease release = task.getValue();
-            ConfigManager.set("update.lastChecked", java.time.Instant.now().toString());
+            UpdateState.recordSuccess(release);
+            if (stateChanged != null) stateChanged.run();
             if (service.isNewer(release)) showRelease(owner, service, release);
             else if (!quietWhenCurrent) info(owner, "You are up to date", "DSE ERP " + service.currentVersion() + " is the latest available version.");
         });
         task.setOnFailed(e -> {
             checking.close();
+            UpdateState.recordFailure(task.getException());
+            if (stateChanged != null) stateChanged.run();
             error(owner, "Update check failed", rootMessage(task.getException()));
         });
         task.setOnCancelled(e -> checking.close());

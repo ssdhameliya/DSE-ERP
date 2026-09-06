@@ -132,7 +132,7 @@ public final class ConfigManager {
     private static String requirePostgresUrl(String url) {
         String value = url == null ? "" : url.trim();
         if (!value.startsWith("jdbc:postgresql:")) {
-            throw new IllegalStateException("DSE ERP 9.0.79 production runtime requires PostgreSQL. Invalid database URL: " + value);
+            throw new IllegalStateException("DSE ERP " + org.example.update.BuildInfo.version() + " production runtime requires PostgreSQL. Invalid database URL: " + value);
         }
         return value;
     }
@@ -266,6 +266,20 @@ public final class ConfigManager {
     }
 
     public static boolean isSharedClient() { return getDeploymentMode() == DeploymentMode.SHARED_CLIENT; }
+
+    /** Deployment identity is configuration, not build version. */
+    public static synchronized String getDeploymentEnvironment() {
+        String override = System.getenv("DSE_DEPLOYMENT_ENVIRONMENT");
+        String value = override == null || override.isBlank() ? properties.getProperty("deployment.environment", "LOCAL") : override;
+        String env = value == null ? "LOCAL" : value.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (env) { case "LOCAL", "UAT", "PROD" -> env; default -> "LOCAL"; };
+    }
+
+    public static synchronized String getConfiguredDeploymentEnvironment() {
+        String value = properties.getProperty("deployment.environment", "LOCAL");
+        String env = value == null ? "LOCAL" : value.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (env) { case "LOCAL", "UAT", "PROD" -> env; default -> "LOCAL"; };
+    }
 
     public static synchronized void applyServerBusinessPolicy(String zone,String dateFormat){
         runtimeBusinessZone=zone==null?null:zone.trim();

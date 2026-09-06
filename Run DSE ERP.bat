@@ -1,12 +1,13 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
+for /f "tokens=2 delims==" %%V in ('findstr /b /c:"-Drevision=" ".mvn\maven.config"') do set "DSE_VERSION=%%V"
 
 echo.
 echo ========================================
 echo   DO NOT USE THIS SCRIPT TO BUILD THE CUSTOMER INSTALLER
 echo ========================================
-echo   DSE ERP 9.0.79 - DEVELOPMENT / INTELLIJ ONLY
+echo   DSE ERP %DSE_VERSION% - DEVELOPMENT / INTELLIJ ONLY
 echo ========================================
 echo.
 

@@ -1,10 +1,11 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
+for /f "tokens=2 delims==" %%V in ('findstr /b /c:"-Drevision=" ".mvn\maven.config"') do set "DSE_VERSION=%%V"
 
 echo.
 echo ==========================================
-echo   DSE ERP 9.0.79 - PRODUCTION WINDOWS BUILD
+echo   DSE ERP %DSE_VERSION% - PRODUCTION WINDOWS BUILD
 echo ==========================================
 echo.
 echo This builds the customer Windows installer.

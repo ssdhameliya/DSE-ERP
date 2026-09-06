@@ -7,7 +7,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    $Version = (mvn help:evaluate -Dexpression=project.version -q -DforceStdout).Trim()
+    $Version = (& (Join-Path $PSScriptRoot 'Get-ReleaseVersion.ps1')).Trim()
 }
 if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
     throw "Invalid application version: $Version"
@@ -52,7 +52,8 @@ foreach ($folder in @('bin','lib','share')) {
     if (-not (Test-Path $source)) { throw "PostgreSQL runtime folder missing: $source" }
     Copy-Item $source (Join-Path $PostgresInput $folder) -Recurse -Force
 }
-Copy-Item (Join-Path $Root 'runtime\runtime-manifest.properties') (Join-Path $Input 'runtime\runtime-manifest.properties') -Force
+$runtimeManifest=(Get-Content -Raw (Join-Path $Root 'runtime\runtime-manifest.properties')).Replace('@project.version@',$Version)
+Set-Content -LiteralPath (Join-Path $Input 'runtime\runtime-manifest.properties') -Value $runtimeManifest -Encoding ASCII
 Write-Host "Bundled PostgreSQL runtime: $PostgresRuntime" -ForegroundColor DarkCyan
 $RequiredBundleFiles = @(
     (Join-Path $Input 'DSE_Final.jar'),

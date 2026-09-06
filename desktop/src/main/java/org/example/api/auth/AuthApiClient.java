@@ -391,11 +391,11 @@ public final class AuthApiClient {
                     ? "The DSE ERP server is not ready" : status.message());
         }
         if (!RuntimeContract.SERVICE_NAME.equals(status.service())
-                || !RuntimeContract.APP_VERSION.equals(status.version())
+                || !org.example.update.BuildInfo.version().equals(status.version())
                 || !RuntimeContract.API_REVISION.equals(status.apiRevision())
-                || !RuntimeContract.BUILD_REVISION.equals(status.buildRevision())) {
+                || !org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())) {
             throw new IllegalStateException("Desktop/server version mismatch. This desktop requires DSE ERP "
-                    + RuntimeContract.APP_VERSION + " build " + RuntimeContract.BUILD_REVISION
+                    + org.example.update.BuildInfo.version() + " build " + org.example.update.BuildInfo.buildRevision()
                     + ", but the running backend reports version " + status.version() + " build " + status.buildRevision()
                     + ". Stop the stale backend and restart DSE ERP.");
         }

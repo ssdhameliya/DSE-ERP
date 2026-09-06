@@ -1705,7 +1705,7 @@ public class ImportController {
         if (target == null) return;
 
         try {
-            importTemplateService.write(target.toPath(), cmbImportModule.getValue(), RuntimeContract.APP_VERSION);
+            importTemplateService.write(target.toPath(), cmbImportModule.getValue(), org.example.update.BuildInfo.version());
             org.example.util.ToastManager.success(btnRunImport, "Template created",
                 "Template saved to: " + target.getAbsolutePath());
         } catch (Exception exception) {

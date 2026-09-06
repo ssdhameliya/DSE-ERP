@@ -43,6 +43,8 @@ public class ServerBackupService {
         Files.createDirectories(root);
         Path target = root.resolve("DSE-ERP-Server-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pgbackup");
         runPgDump(target);
+        Validation validation = validate(target.getFileName().toString());
+        if (!validation.valid()) { Files.deleteIfExists(target); throw new IOException("Backup verification failed: " + validation.message()); }
         retain(retention());
         return file(target, source == null || source.isBlank() ? "SERVER" : source);
     }
@@ -150,7 +152,7 @@ public class ServerBackupService {
     public void scheduled() {
         if (!scheduledEnabled) return;
         try {
-            String schedule = setting("backup.schedule", "DAILY").toUpperCase(Locale.ROOT);
+            String schedule = setting("backup.schedule", "WEEKLY").toUpperCase(Locale.ROOT);
             if ("MANUAL".equals(schedule)) return;
             LocalDate today = LocalDate.now();
             boolean due = !today.equals(lastScheduled) && (!"WEEKLY".equals(schedule) || today.getDayOfWeek() == DayOfWeek.SUNDAY);
@@ -199,9 +201,9 @@ public class ServerBackupService {
 
     private int retention() {
         try {
-            return Math.max(1, Math.min(365, Integer.parseInt(setting("backup.retention", "14"))));
+            return Math.max(1, Math.min(365, Integer.parseInt(setting("backup.retention", "2"))));
         } catch (Exception e) {
-            return 14;
+            return 2;
         }
     }
 

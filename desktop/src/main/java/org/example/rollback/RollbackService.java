@@ -47,131 +47,6 @@ public final class RollbackService {
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
             .withZone(ZoneId.systemDefault());
 
-    /* Versions in the same backward-compatible rollback schema generation used through 9.0.38. */
-    private static final Map<String, Integer> KNOWN_SCHEMA = Map.ofEntries(
-            Map.entry("7.2.2", 1),
-            Map.entry("7.2.4", 1),
-            Map.entry("7.2.5", 1),
-            Map.entry("7.2.6", 1),
-            Map.entry("7.2.7", 1),
-            Map.entry("7.3.0", 1),
-            Map.entry("7.3.1", 1),
-            Map.entry("7.3.2", 1),
-            Map.entry("7.3.3", 1),
-            Map.entry("7.3.4", 1),
-            Map.entry("7.3.5", 1),
-            Map.entry("7.3.6", 1),
-            Map.entry("7.3.7", 1),
-            Map.entry("7.3.8", 1),
-            Map.entry("7.3.9", 1),
-            Map.entry("7.3.10", 1),
-            Map.entry("7.3.11", 1),
-            Map.entry("7.3.12", 1),
-            Map.entry("7.3.13", 1),
-            Map.entry("7.3.14", 1),
-            Map.entry("7.3.15", 1),
-            Map.entry("7.3.16", 1),
-            Map.entry("7.3.17", 1),
-            Map.entry("7.3.18", 1),
-            Map.entry("7.3.19", 1),
-            Map.entry("7.3.20", 1),
-            Map.entry("7.3.21", 1),
-            Map.entry("7.30.23", 1),
-            Map.entry("7.30.24", 1),
-            Map.entry("7.30.25", 1),
-            Map.entry("7.30.26", 1),
-            Map.entry("7.30.27", 1),
-            Map.entry("7.30.28", 1),
-            Map.entry("7.30.29", 1),
-            Map.entry("7.30.30", 1),
-            Map.entry("7.30.31", 1),
-            Map.entry("7.30.32", 1),
-            Map.entry("7.30.33", 1),
-            Map.entry("7.30.34", 1),
-            Map.entry("7.30.35", 1),
-            Map.entry("7.30.36", 1),
-            Map.entry("7.30.40", 1),
-            Map.entry("7.30.42", 1),
-            Map.entry("7.30.44", 1),
-            Map.entry("7.30.45", 1),
-            Map.entry("7.30.46", 1),
-            Map.entry("8.0.0", 1),
-            Map.entry("8.0.1", 1),
-            Map.entry("8.0.2", 1),
-            Map.entry("8.1.0", 1),
-            Map.entry("8.2.0", 1),
-            Map.entry("8.2.1", 1),
-            Map.entry("8.2.2", 1),
-            Map.entry("8.2.3", 1),
-            Map.entry("8.2.4", 1),
-            Map.entry("8.2.5", 1),
-            Map.entry("8.2.6", 1),
-            Map.entry("8.2.7", 1),
-            Map.entry("8.2.8", 1),
-            Map.entry("8.2.9", 1),
-            Map.entry("8.2.10", 1),
-            Map.entry("8.2.11", 1),
-            Map.entry("8.2.12", 1),
-            Map.entry("8.2.13", 1),
-            Map.entry("8.2.15", 1),
-            Map.entry("8.3.0", 1),
-            Map.entry("8.3.1", 1),
-            Map.entry("8.3.2", 1),
-            Map.entry("8.4.0", 1),
-            Map.entry("8.4.1", 1),
-            Map.entry("8.4.2", 1),
-            Map.entry("8.4.4", 1),
-            Map.entry("8.4.5", 1),
-            Map.entry("8.4.6", 1),
-            Map.entry("8.4.7", 1),
-            Map.entry("8.4.8", 1),
-            Map.entry("8.5.0", 1),
-            Map.entry("8.5.1", 1),
-            Map.entry("8.5.2", 1),
-            Map.entry("8.5.3", 1),
-            Map.entry("8.5.4", 1),
-            Map.entry("8.5.5", 1),
-            Map.entry("8.5.6", 1),
-            Map.entry("8.5.7", 1),
-            Map.entry("8.5.8", 1),
-            Map.entry("9.0.0", 1),
-            Map.entry("9.0.1", 1),
-            Map.entry("9.0.2", 1),
-            Map.entry("9.0.3", 1),
-            Map.entry("9.0.4", 1),
-            Map.entry("9.0.5", 1),
-            Map.entry("9.0.6", 1),
-            Map.entry("9.0.7", 1),
-            Map.entry("9.0.8", 1),
-            Map.entry("9.0.9", 1),
-            Map.entry("9.0.10", 1),
-            Map.entry("9.0.11", 1),
-            Map.entry("9.0.12", 1),
-            Map.entry("9.0.13", 1),
-            Map.entry("9.0.14", 1),
-            Map.entry("9.0.15", 1),
-            Map.entry("9.0.16", 1),
-            Map.entry("9.0.17", 1),
-            Map.entry("9.0.18", 1),
-            Map.entry("9.0.19", 1),
-            Map.entry("9.0.20", 1),
-            Map.entry("9.0.21", 1),
-            Map.entry("9.0.25", 1),
-            Map.entry("9.0.26", 1),
-            Map.entry("9.0.28", 1),
-            Map.entry("9.0.30", 1),
-            Map.entry("9.0.31", 1),
-            Map.entry("9.0.33", 1),
-            Map.entry("9.0.34", 1),
-            Map.entry("9.0.38", 1),
-            Map.entry("9.0.40", 1),
-            Map.entry("9.0.41", 1),
-            Map.entry("9.0.42", 1),
-            Map.entry("9.0.44", 1),
-            Map.entry("9.0.45", 1),
-            Map.entry("9.0.49", 1)
-    );
-
     private final UpdateService updateService = new UpdateService();
     private final GitHubReleaseClient releaseClient = new GitHubReleaseClient();
 
@@ -211,7 +86,7 @@ public final class RollbackService {
             SemanticVersion current = SemanticVersion.parse(BuildInfo.version());
             List<Candidate> result = new ArrayList<>();
             for (Path path : unique.values()) {
-                String version = versionFrom(path).orElse("");
+                String version = versionFor(path).orElse("");
                 if (version.isBlank()) continue;
                 if (SemanticVersion.parse(version).compareTo(current) >= 0) continue;
                 int schema = targetSchema(path, version);
@@ -227,6 +102,22 @@ public final class RollbackService {
         }
     }
 
+    public List<PublishedVersion> publishedPreviousVersions() throws Exception {
+        String owner = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
+        String repo = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
+        boolean beta = "BETA".equalsIgnoreCase(ConfigManager.get("update.channel", "STABLE"));
+        SemanticVersion current = SemanticVersion.parse(BuildInfo.version());
+        List<PublishedVersion> result = new ArrayList<>();
+        for (UpdateRelease release : releaseClient.releases(owner, repo, beta, 50)) {
+            String version = release.version().toString();
+            if (release.version().compareTo(current) >= 0) continue;
+            int schema = schemaForVersion(version);
+            result.add(new PublishedVersion(version, schema, compatibilityFor(schema)));
+        }
+        result.sort(Comparator.comparing((PublishedVersion v) -> SemanticVersion.parse(v.version())).reversed());
+        return List.copyOf(result);
+    }
+
     public Candidate importPackage(Path source) throws Exception {
         if (source == null || !Files.isRegularFile(source)) {
             throw new IllegalArgumentException("Select a valid DSE ERP installer package.");
@@ -234,8 +125,8 @@ public final class RollbackService {
         if (!isSupportedInstaller(source)) {
             throw new IllegalArgumentException("Supported rollback packages are EXE/MSI on Windows and DMG/PKG on macOS.");
         }
-        String version = versionFrom(source).orElseThrow(() ->
-                new IllegalArgumentException("The installer filename must contain a version such as 7.2.2."));
+        String version = versionFor(source).orElseThrow(() ->
+                new IllegalArgumentException("The rollback package must identify a version in its metadata or filename."));
         if (SemanticVersion.parse(version).compareTo(SemanticVersion.parse(BuildInfo.version())) >= 0) {
             throw new IllegalArgumentException("Rollback requires an older version than DSE ERP " + BuildInfo.version() + ".");
         }
@@ -244,7 +135,7 @@ public final class RollbackService {
         if (!source.toAbsolutePath().normalize().equals(target.toAbsolutePath().normalize())) {
             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
         }
-        int schema = knownSchema(version);
+        int schema = schemaForVersion(version);
         writePackageManifest(target, version, schema, "IMPORTED");
         appendAudit("PACKAGE_IMPORTED", version, "SUCCESS", target.toString());
         return candidateFor(target, version);
@@ -271,7 +162,7 @@ public final class RollbackService {
         ensureFolders();
         Path retained = packagesFolder().resolve(downloaded.getFileName().toString());
         Files.copy(downloaded, retained, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
-        int schema = knownSchema(version);
+        int schema = schemaForVersion(version);
         writePackageManifest(retained, version, schema, "GITHUB_VERIFIED");
         appendAudit("PACKAGE_DOWNLOADED", version, "SUCCESS", retained.toString());
         return candidateFor(retained, version);
@@ -402,7 +293,8 @@ public final class RollbackService {
         if (!configured.isBlank()) {
             try { return Integer.parseInt(configured); } catch (NumberFormatException ignored) { }
         }
-        if (wasVerifiedByUpdater(installer)) return knownSchema(version);
+        int generationSchema = schemaForVersion(version);
+        if (generationSchema > 0 && wasVerifiedByUpdater(installer)) return generationSchema;
         return -1;
     }
 
@@ -414,8 +306,21 @@ public final class RollbackService {
                         && entry.detail() != null && entry.detail().contains(fileName));
     }
 
-    private int knownSchema(String version) {
-        return KNOWN_SCHEMA.getOrDefault(version, -1);
+    int schemaForVersion(String version) {
+        return isWithinCurrentCompatibilityGeneration(version) ? BuildInfo.databaseMigrationVersion() : -1;
+    }
+
+    boolean isWithinCurrentCompatibilityGeneration(String version) {
+        String normalized = normalizeVersion(version);
+        if (normalized.isBlank()) return false;
+        try {
+            SemanticVersion target = SemanticVersion.parse(normalized);
+            SemanticVersion first = SemanticVersion.parse(BuildInfo.databaseCompatibilitySinceVersion());
+            SemanticVersion current = SemanticVersion.parse(BuildInfo.version());
+            return target.compareTo(first) >= 0 && target.compareTo(current) <= 0;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private void writePackageManifest(Path installer, String version, int schema, String source) throws IOException {
@@ -469,6 +374,13 @@ public final class RollbackService {
         if (path == null) return Optional.empty();
         Matcher matcher = VERSION.matcher(path.getFileName().toString());
         return matcher.find() ? Optional.of(matcher.group(1)) : Optional.empty();
+    }
+
+    private Optional<String> versionFor(Path path) {
+        if (path == null) return Optional.empty();
+        String metadata = readPackageManifest(path).getProperty("version", "").trim();
+        if (!metadata.isBlank()) return Optional.of(normalizeVersion(metadata));
+        return versionFrom(path);
     }
 
     private void snapshotWorkspace(Path target) throws IOException {
@@ -555,6 +467,10 @@ public final class RollbackService {
         try (Stream<Path> stream = Files.walk(root)) {
             for (Path path : stream.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
         } catch (Exception ignored) { }
+    }
+
+    public record PublishedVersion(String version, int databaseSchema, Compatibility compatibility) {
+        @Override public String toString() { return version + "  •  Schema " + (databaseSchema > 0 ? databaseSchema : "Unknown") + "  •  " + compatibility.label(); }
     }
 
     public record Candidate(String version, Path installer, int databaseSchema,

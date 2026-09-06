@@ -20,17 +20,20 @@ class RuntimeControllerTest {
     void exposesTheCompleteDesktopReadinessContract() throws Exception {
         RuntimeService service = mock(RuntimeService.class);
         when(service.databaseReady()).thenReturn(true);
+        when(service.databaseName()).thenReturn("dse_erp_uat");
         when(service.databaseTimeZone()).thenReturn("UTC");
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION, RuntimeContract.BUILD_REVISION)).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "UAT")).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ready").value(true))
                 .andExpect(jsonPath("$.service").value(RuntimeContract.SERVICE_NAME))
-                .andExpect(jsonPath("$.version").value(RuntimeContract.APP_VERSION))
+                .andExpect(jsonPath("$.version").value(RuntimeContract.appVersion()))
                 .andExpect(jsonPath("$.apiRevision").value(RuntimeContract.API_REVISION))
-                .andExpect(jsonPath("$.buildRevision").value(RuntimeContract.BUILD_REVISION))
+                .andExpect(jsonPath("$.buildRevision").value(RuntimeContract.buildRevision()))
+                .andExpect(jsonPath("$.environment").value("UAT"))
                 .andExpect(jsonPath("$.database").value("postgresql"))
+                .andExpect(jsonPath("$.databaseName").value("dse_erp_uat"))
                 .andExpect(jsonPath("$.databaseTimeZone").value("UTC"))
                 .andExpect(jsonPath("$.timePolicy").value("ISO_DATE_UTC_INSTANT"));
     }
@@ -39,7 +42,7 @@ class RuntimeControllerTest {
     void reportsNotReadyWhenTheManagedDatabaseCannotBeReached() throws Exception {
         RuntimeService service = mock(RuntimeService.class);
         when(service.databaseReady()).thenThrow(new IllegalStateException("offline"));
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.APP_VERSION, RuntimeContract.API_REVISION, RuntimeContract.BUILD_REVISION)).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "UAT")).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())

@@ -125,7 +125,7 @@ public class BackupRestoreController {
     private void configureScheduleControls() {
         cmbSchedule.getItems().setAll("MANUAL", "DAILY", "WEEKLY", "MONTHLY");
         spRetention.setValueFactory(
-                new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 365, 30)
+                new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 50, 2)
         );
     }
 
@@ -657,7 +657,7 @@ public class BackupRestoreController {
     private void loadSettings() {
         try {
             cmbSchedule.setValue(supportApi.setting("backup.schedule", "MANUAL"));
-            spRetention.getValueFactory().setValue(Integer.parseInt(supportApi.setting("backup.retention", "30")));
+            spRetention.getValueFactory().setValue(Integer.parseInt(supportApi.setting("backup.retention", "2")));
         } catch (Exception ignored) { cmbSchedule.setValue("MANUAL"); }
         if (cmbSchedule.getValue() == null) cmbSchedule.setValue("MANUAL");
         updateScheduleSummary();
@@ -667,7 +667,7 @@ public class BackupRestoreController {
         String schedule = cmbSchedule.getValue() == null ? "MANUAL" : cmbSchedule.getValue();
         Integer retention = spRetention.getValue();
 
-        lblRetentionSummary.setText((retention == null ? 30 : retention) + " Days");
+        lblRetentionSummary.setText((retention == null ? 2 : retention) + " backups");
         lblScheduleSummary.setText(
                 schedule.equals("MANUAL")
                         ? "Manual backup schedule"

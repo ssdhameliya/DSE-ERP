@@ -44,7 +44,7 @@ public class ItemMasterController implements ScreenLifecycle {
     @FXML private TextField txtSearch;
     @FXML private TableView<Item> tableItems;
     @FXML private Label lblRecordCount,lblKpiTotal,lblKpiCategories,lblKpiLowStock,lblKpiValue,lblSelectedCount;
-    @FXML private Button btnDeleteSelected;
+    @FXML private Button btnDeleteSelected,btnImportExcel,btnExportExcel;
     @FXML private StackPane itemPageIcon,itemTotalIcon,itemCategoryIcon,itemLowIcon,itemValueIcon;
 
 
@@ -76,9 +76,23 @@ public class ItemMasterController implements ScreenLifecycle {
     private RegisterDetailDrawer detailDrawer;
     private Item detailItem;
 
+    private void installToolbarIcons() {
+        if (btnImportExcel != null) {
+            btnImportExcel.setGraphic(IconFactory.compactIcon("import", 15));
+            btnImportExcel.setGraphicTextGap(7);
+            btnImportExcel.getProperties().put("erp-icon-preserve", true);
+        }
+        if (btnExportExcel != null) {
+            btnExportExcel.setGraphic(IconFactory.compactIcon("export", 15));
+            btnExportExcel.setGraphicTextGap(7);
+            btnExportExcel.getProperties().put("erp-icon-preserve", true);
+        }
+    }
+
     @FXML
     public void initialize() {
-        installKpiIcons();// Item Master owns its checkbox model. The global table enhancer must
+        installKpiIcons();
+        installToolbarIcons();// Item Master owns its checkbox model. The global table enhancer must
         // not replace colSelect with a TableView-selection-backed checkbox.
         tableItems.getProperties().put("erp-keep-selection", true);
         configureBulkSelection();

@@ -10,6 +10,7 @@ import org.example.theme.ThemeManager;
 import org.example.service.BrandingService;
 import org.example.service.SessionActivityManager;
 import org.example.service.SessionService;
+import org.example.config.ConfigManager;
 
 import java.io.IOException;
 
@@ -25,7 +26,7 @@ public class SceneManager {
     public static void initialize(Stage stage) {
 
         primaryStage = stage;
-        primaryStage.setTitle(BrandingService.applicationName());
+        primaryStage.setTitle(applicationTitle());
         WindowUtilsFx.applyAdaptiveMinimums(primaryStage, javafx.stage.Screen.getPrimary().getVisualBounds());
 
     }
@@ -45,7 +46,7 @@ public class SceneManager {
             ThemeManager.applyTheme(scene);
             PlatformUiSupport.installResponsiveClasses(scene);
             primaryStage.setScene(scene);
-            primaryStage.setTitle(BrandingService.applicationName());
+            primaryStage.setTitle(applicationTitle());
             if (!primaryStage.isShowing()) primaryStage.centerOnScreen();
             primaryStage.show();
         } catch (Exception exception) {
@@ -61,7 +62,7 @@ public class SceneManager {
             primaryStage.setHeight(usable.getHeight());
             primaryStage.setX(usable.getMinX());
             primaryStage.setY(usable.getMinY());
-            primaryStage.setTitle(BrandingService.applicationName() + " - Starting Up...");
+            primaryStage.setTitle(applicationTitle() + " - Starting Up...");
         }
         load("/fxml/pages/Splash.fxml");
     }
@@ -94,7 +95,7 @@ public class SceneManager {
             Object controller = primaryStage.getScene().getRoot().getProperties().get("dse.splash.controller");
             if (controller instanceof SplashController splash) {
                 splash.refreshBranding();
-                primaryStage.setTitle(BrandingService.applicationName() + " - Starting Up...");
+                primaryStage.setTitle(applicationTitle() + " - Starting Up...");
             }
         });
     }
@@ -157,7 +158,7 @@ public class SceneManager {
             if (SessionService.current() != null && "/fxml/pages/Dashboard.fxml".equals(fxml)) SessionActivityManager.install(scene);
             else if (SessionService.current() == null) SessionActivityManager.stop();
             if (!"/fxml/pages/Splash.fxml".equals(fxml)) {
-                primaryStage.setTitle(BrandingService.applicationName());
+                primaryStage.setTitle(applicationTitle());
             }
             if (!primaryStage.isShowing()) primaryStage.centerOnScreen();
             primaryStage.show();
@@ -166,6 +167,12 @@ public class SceneManager {
             throw new IllegalStateException("Unable to load application screen: " + fxml, e);
         }
 
+    }
+
+    private static String applicationTitle() {
+        String base = BrandingService.applicationName();
+        String env = ConfigManager.getDeploymentEnvironment();
+        return "LOCAL".equals(env) ? base : base + " [" + env + "]";
     }
 
     public static void showPurchaseList() {

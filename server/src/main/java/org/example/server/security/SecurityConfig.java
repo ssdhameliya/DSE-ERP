@@ -107,7 +107,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/support/backup/**").hasAnyAuthority("ROLE_ADMIN", "BACKUP.VIEW")
                         .requestMatchers("/api/support/backup/**").hasAnyAuthority("ROLE_ADMIN", "BACKUP.EDIT")
                         .requestMatchers(HttpMethod.GET, "/api/support/settings/**").hasAnyAuthority("ROLE_ADMIN", "SETTINGS.VIEW")
-                        .requestMatchers(HttpMethod.PUT, "/api/support/settings/**").hasAnyAuthority("ROLE_ADMIN", "SETTINGS.EDIT")
+                        .requestMatchers(HttpMethod.PUT, "/api/support/settings", "/api/support/settings/**").hasAnyAuthority("ROLE_ADMIN", "SETTINGS.EDIT")
                         .requestMatchers("/api/authority/email/settings", "/api/authority/email/test").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/authority/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/authority/**").hasAuthority("ROLE_ADMIN")

@@ -18,8 +18,8 @@ import org.example.model.SalesLine;
 import org.example.service.InvoicePdfService;
 import org.example.invoice.mapper.SalesToTaxInvoiceMapper;
 import org.example.invoice.pdf.TaxInvoicePdfGenerator;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -34,16 +34,25 @@ import static org.junit.jupiter.api.Assertions.*;
 class SalesPdfStudioFlowTest {
     private static AutoCloseable workspaceScope;
 
-    @BeforeAll
-    static void isolatePdfEvidenceWorkspace() throws Exception {
+    @BeforeEach
+    void isolatePdfEvidenceWorkspace() throws Exception {
         Path evidence = Path.of(System.getProperty("dse.pdf.evidence", "target/pdf-studio-evidence")).toAbsolutePath();
         Files.createDirectories(evidence);
+        deleteTree(evidence.resolve("workspace"));
         workspaceScope = WorkspaceTestSupport.useTransientWorkspace(evidence.resolve("workspace"));
     }
 
-    @AfterAll
-    static void restoreWorkspaceAfterPdfEvidence() throws Exception {
+    @AfterEach
+    void restoreWorkspaceAfterPdfEvidence() throws Exception {
         if (workspaceScope != null) workspaceScope.close();
+        workspaceScope = null;
+    }
+
+    private static void deleteTree(Path root) throws Exception {
+        if (!Files.exists(root)) return;
+        try (var stream = Files.walk(root)) {
+            for (Path path : stream.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
+        }
     }
 
     @Test

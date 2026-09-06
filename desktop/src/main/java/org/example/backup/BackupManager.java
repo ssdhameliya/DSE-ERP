@@ -71,7 +71,7 @@ public final class BackupManager {
 
     public static Path createManualBackup() throws Exception {
         Path backup = createBackup("DSE-ERP", "MANUAL");
-        applyRetention(readRetentionDays());
+        applyRetention(readRetentionCount());
         return backup;
     }
 
@@ -212,7 +212,7 @@ public final class BackupManager {
         try {
             Path backup = createBackup("Scheduled", "SCHEDULED");
             ConfigManager.set(LAST_SCHEDULED_DATE_KEY, today.toString());
-            applyRetention(readRetentionDays());
+            applyRetention(readRetentionCount());
             return Optional.of(backup);
         } catch (Exception exception) {
             LOGGER.log(Level.SEVERE, "Scheduled backup failed", exception);
@@ -220,10 +220,9 @@ public final class BackupManager {
         }
     }
 
-    public static int applyRetention(int retentionDays) throws IOException {
+    public static int applyRetention(int retentionCount) throws IOException {
         ensureFolders();
-        int days = Math.max(1, retentionDays);
-        Instant cutoff = Instant.now().minus(Duration.ofDays(days));
+        int keep = Math.max(1, retentionCount);
         List<Path> managed;
         try (Stream<Path> stream = Files.list(backupFolder())) {
             managed = stream.filter(BackupManager::isManagedBackup)
@@ -231,15 +230,13 @@ public final class BackupManager {
                     .toList();
         }
 
-        Set<Path> alwaysKeep = new HashSet<>(managed.stream().limit(3).toList());
+        List<Path> ordinary = managed.stream()
+                .filter(file -> !file.getFileName().toString().startsWith("Before-Restore-"))
+                .toList();
         int moved = 0;
-        for (Path file : managed) {
-            if (alwaysKeep.contains(file)) continue;
-            if (file.getFileName().toString().startsWith("Before-Restore-")) continue;
-            if (Files.getLastModifiedTime(file).toInstant().isBefore(cutoff)) {
-                moveToTrash(file);
-                moved++;
-            }
+        for (int i = keep; i < ordinary.size(); i++) {
+            moveToTrash(ordinary.get(i));
+            moved++;
         }
         purgeTrash(Duration.ofDays(7));
         return moved;
@@ -268,7 +265,7 @@ public final class BackupManager {
     }
 
     public static void ensureApplicationMetadata() {
-        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, "9.0.79"); }
+        try { SUPPORT_API.ensureApplicationMetadata(APPLICATION_ID, CURRENT_SCHEMA_VERSION, org.example.update.BuildInfo.version()); }
         catch (Exception exception) { LOGGER.log(Level.WARNING, "Application metadata could not be initialized", exception); }
     }
 
@@ -295,11 +292,11 @@ public final class BackupManager {
         try { return SUPPORT_API.setting(key, defaultValue); } catch (Exception exception) { return defaultValue; }
     }
 
-    public static int readRetentionDays() {
+    public static int readRetentionCount() {
         try {
-            return Math.max(1, Integer.parseInt(readSetting("backup.retention", "30")));
+            return Math.max(1, Integer.parseInt(readSetting("backup.retention", "2")));
         } catch (NumberFormatException ignored) {
-            return 30;
+            return 2;
         }
     }
 

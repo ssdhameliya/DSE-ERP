@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-VERSION="${1:-$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)}"
+DEFAULT_VERSION="$(sed -n 's/^-Drevision=//p' "$ROOT/.mvn/maven.config" | head -1)"
+VERSION="${1:-$DEFAULT_VERSION}"
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
   echo "Invalid application version: $VERSION" >&2
   exit 1
@@ -186,7 +187,7 @@ bundle_postgres_dylibs() {
 }
 
 bundle_postgres_dylibs "$INPUT/runtime/postgresql"
-cp "$ROOT/runtime/runtime-manifest.properties" "$INPUT/runtime/runtime-manifest.properties"
+sed "s/@project.version@/$VERSION/g" "$ROOT/runtime/runtime-manifest.properties" > "$INPUT/runtime/runtime-manifest.properties"
 echo "Bundled PostgreSQL runtime: $POSTGRES_RUNTIME"
 python3 "$ROOT/scripts/verify-production-bundle.py" "$INPUT"
 

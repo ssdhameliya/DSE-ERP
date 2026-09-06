@@ -118,15 +118,15 @@ public final class RuntimeBootstrapper {
                     + RuntimeContract.API_REVISION + " but server reports " + status.apiRevision()
                     + ". Stop the old backend and restart DSE ERP.");
         }
-        if (!RuntimeContract.BUILD_REVISION.equals(status.buildRevision())) {
+        if (!org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())) {
             throw new IllegalStateException("DSE ERP backend build mismatch. Desktop requires "
-                    + RuntimeContract.BUILD_REVISION + " but server reports "
+                    + org.example.update.BuildInfo.buildRevision() + " but server reports "
                     + (status.buildRevision() == null || status.buildRevision().isBlank() ? "an older build" : status.buildRevision())
-                    + ". The desktop will not reuse a stale " + RuntimeContract.APP_VERSION + " backend.");
+                    + ". The desktop will not reuse a stale " + org.example.update.BuildInfo.version() + " backend.");
         }
-        if (!RuntimeContract.APP_VERSION.equals(status.version())) {
+        if (!org.example.update.BuildInfo.version().equals(status.version())) {
             throw new IllegalStateException("DSE ERP backend version mismatch. Desktop is "
-                    + RuntimeContract.APP_VERSION + " but server is " + status.version()
+                    + org.example.update.BuildInfo.version() + " but server is " + status.version()
                     + ". A stale backend is running and must not be reused.");
         }
         String desktopZone = BusinessClock.zone().getId();
@@ -389,7 +389,7 @@ public final class RuntimeBootstrapper {
             var manifest = file.getManifest();
             if (manifest == null) return false;
             String version = manifest.getMainAttributes().getValue("Implementation-Version");
-            return RuntimeContract.APP_VERSION.equals(version);
+            return org.example.update.BuildInfo.version().equals(version);
         } catch (IOException exception) {
             return false;
         }

@@ -19,6 +19,11 @@ public class RuntimeService {
     }
 
     @Transactional(readOnly = true)
+    public String databaseName() {
+        try { return repository.queryForObject("SELECT current_database()", String.class); }
+        catch (Exception e) { return "unavailable"; }
+    }
+
     public String databaseTimeZone() {
         String zone = repository.queryForObject("SHOW TIME ZONE", String.class);
         return zone == null ? "" : zone;

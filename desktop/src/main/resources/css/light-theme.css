@@ -17035,3 +17035,43 @@
 .erp-ui-standard .erp-control-input.spinner .decrement-arrow {
     -fx-background-color: #475569;
 }
+
+/* 9.0.80 Workspace & Storage refinement and final sidebar selection authority */
+.workspace-settings-panel {
+    -fx-padding: 22px 24px 24px 24px;
+    -fx-spacing: 16px;
+}
+.workspace-page-heading { -fx-padding: 0 0 4px 0; }
+.workspace-section { -fx-padding: 2px 4px 2px 4px; }
+.workspace-separator { -fx-opacity: 0.75; }
+.workspace-metric-grid { -fx-padding: 6px 0 2px 0; }
+.workspace-metric-value { -fx-font-size: 16px; -fx-font-weight: 800; -fx-text-fill: #5b21b6; }
+.workspace-unit-label { -fx-font-weight: 700; -fx-text-fill: #64748b; -fx-min-width: 36px; }
+.workspace-safety-strip { -fx-padding: 12px 14px; -fx-background-color: #f0fdf4; -fx-background-radius: 10px; -fx-border-color: #bbf7d0; -fx-border-radius: 10px; }
+.workspace-actions { -fx-padding: 2px 0 0 0; }
+.erp-ui-standard .erp-sidebar .button.menu-selected,
+.erp-ui-standard .erp-sidebar .button.nav-parent.menu-group-active,
+.erp-ui-standard .erp-sidebar .button.nav-parent.nav-expanded {
+    -fx-background-color: #5b21b6;
+    -fx-border-color: #7c3aed;
+    -fx-text-fill: white;
+}
+.erp-ui-standard .erp-sidebar .button.menu-selected .label,
+.erp-ui-standard .erp-sidebar .button.menu-selected .erp-ikonli-glyph { -fx-text-fill: white; -fx-icon-color: white; }
+
+
+/* 9.0.81 semantic ordinary-value treatment */
+.erp-value-colour-blue { -fx-text-fill: #2563eb; }
+.erp-value-colour-green { -fx-text-fill: #15803d; }
+.erp-value-colour-orange { -fx-text-fill: #b45309; }
+.erp-value-colour-purple { -fx-text-fill: #7c3aed; }
+.erp-value-colour-pink { -fx-text-fill: #db2777; }
+.erp-value-colour-teal { -fx-text-fill: #0f766e; }
+.erp-value-colour-indigo { -fx-text-fill: #4f46e5; }
+.erp-value-colour-blue .erp-action-glyph,
+.erp-value-colour-green .erp-action-glyph,
+.erp-value-colour-orange .erp-action-glyph,
+.erp-value-colour-purple .erp-action-glyph,
+.erp-value-colour-pink .erp-action-glyph,
+.erp-value-colour-teal .erp-action-glyph,
+.erp-value-colour-indigo .erp-action-glyph { -fx-opacity: 0.92; }

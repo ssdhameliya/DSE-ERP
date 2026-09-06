@@ -18,15 +18,18 @@ public class RuntimeController {
     private final String version;
     private final String apiRevision;
     private final String buildRevision;
+    private final String environment;
 
     public RuntimeController(RuntimeService runtimeService,
-                             @Value("${dse.app.version:" + RuntimeContract.APP_VERSION + "}") String version,
+                             @Value("${dse.app.version:DEV}") String version,
                              @Value("${dse.api.revision:" + RuntimeContract.API_REVISION + "}") String apiRevision,
-                             @Value("${dse.build.revision:" + RuntimeContract.BUILD_REVISION + "}") String buildRevision) {
+                             @Value("${dse.build.revision:DEV}") String buildRevision,
+                             @Value("${dse.deployment.environment:LOCAL}") String environment) {
         this.runtimeService = runtimeService;
         this.version = version;
         this.apiRevision = apiRevision;
         this.buildRevision = buildRevision;
+        this.environment = normalizeEnvironment(environment);
     }
 
     @GetMapping("/health")
@@ -37,6 +40,7 @@ public class RuntimeController {
             addContract(result);
             result.put("ready", ready);
             result.put("database", "postgresql");
+            result.put("databaseName", runtimeService.databaseName());
             result.put("databaseTimeZone", runtimeService.databaseTimeZone());
             addBusinessTime(result);
             result.put("message", ready ? "READY" : "Database health check failed");
@@ -44,6 +48,7 @@ public class RuntimeController {
             addContract(result);
             result.put("ready", false);
             result.put("database", "postgresql");
+            result.put("databaseName", "unavailable");
             result.put("databaseTimeZone", "unavailable");
             addBusinessTime(result);
             result.put("message", "Database unavailable");
@@ -56,6 +61,12 @@ public class RuntimeController {
         result.put("version", version);
         result.put("apiRevision", apiRevision);
         result.put("buildRevision", buildRevision);
+        result.put("environment", environment);
+    }
+
+    private static String normalizeEnvironment(String value) {
+        String env = value == null ? "LOCAL" : value.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (env) { case "UAT", "PROD", "LOCAL" -> env; default -> "UNKNOWN"; };
     }
 
     private static void addBusinessTime(Map<String, Object> result) {

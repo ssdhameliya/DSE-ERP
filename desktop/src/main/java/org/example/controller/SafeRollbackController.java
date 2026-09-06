@@ -18,7 +18,6 @@ import org.example.update.BuildInfo;
 import org.example.util.IconFactory;
 import org.example.util.BusinessClock;
 import org.example.util.OwnedAlert;
-import org.example.util.OwnedTextInputDialog;
 
 import java.awt.Desktop;
 import java.nio.file.Files;
@@ -197,18 +196,29 @@ public class SafeRollbackController {
 
     @FXML
     private void downloadPreviousVersion() {
-        OwnedTextInputDialog prompt = new OwnedTextInputDialog("9.0.7");
-        if (owner() != null) prompt.initOwner(owner());
-        prompt.setTitle("Download Previous Release");
-        prompt.setHeaderText("Download a verified DSE ERP release from GitHub");
-        prompt.setContentText("Version:");
-        prompt.showAndWait().map(String::trim).filter(value -> !value.isBlank()).ifPresent(version ->
-                runTask("Downloading and verifying DSE ERP " + version + "...",
-                        () -> service.downloadPublishedVersion(version, ignored -> { }),
+        runTask("Loading published rollback versions...", service::publishedPreviousVersions, versions -> {
+            if (versions.isEmpty()) {
+                info("No previous release", "No previous published release is available for the selected update channel.");
+                return;
+            }
+            ChoiceDialog<RollbackService.PublishedVersion> prompt = new ChoiceDialog<>(versions.getFirst(), versions);
+            if (owner() != null) prompt.initOwner(owner());
+            prompt.setTitle("Download Previous Release");
+            prompt.setHeaderText("Choose a verified DSE ERP release");
+            prompt.setContentText("Version:");
+            prompt.showAndWait().ifPresent(selected -> {
+                if (!selected.compatibility().safe()) {
+                    error("Rollback blocked", selected.compatibility().message());
+                    return;
+                }
+                runTask("Downloading and verifying DSE ERP " + selected.version() + "...",
+                        () -> service.downloadPublishedVersion(selected.version(), ignored -> { }),
                         candidate -> {
                             refresh();
                             info("Rollback package ready", "DSE ERP " + candidate.version() + " was downloaded and SHA-256 verified.\n\n" + candidate.compatibility().message());
-                        }));
+                        });
+            });
+        });
     }
 
     private void confirmAndRollback(RollbackService.Candidate candidate) {

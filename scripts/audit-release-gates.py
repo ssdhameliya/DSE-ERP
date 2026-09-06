@@ -8,6 +8,8 @@ part of the runtime contract.
 from pathlib import Path
 import subprocess
 import sys
+import re
+from release_version import VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = [
@@ -37,6 +39,7 @@ CHECKS = [
     "audit-stability-contract.py",
     "audit-ui-design-system.py",
     "audit-architecture-refactor.py",
+    "audit-cloud-uat-contract.py",
 ]
 
 failed = []
@@ -67,6 +70,49 @@ if "FOR UPDATE" not in pay or "effectivePaid" not in pay:
     extra.append("payment serialization/authoritative paid guard missing")
 if css != ["dark-theme.css", "light-theme.css"]:
     extra.append(f"central two-theme CSS contract changed: {css}")
+
+# Release identity is centralized. Only .mvn/maven.config owns the editable current release number.
+version_cfg = text(".mvn/maven.config").strip()
+if version_cfg != f"-Drevision={VERSION}":
+    extra.append(f"release version source is invalid: {version_cfg!r}")
+root_pom = text("pom.xml")
+if "<version>${revision}</version>" not in root_pom or "<dse.phase>${project.version}</dse.phase>" not in root_pom:
+    extra.append("root Maven identity is not revision-driven")
+for module in ("shared", "server", "desktop"):
+    if "<version>${revision}</version>" not in text(f"{module}/pom.xml"):
+        extra.append(f"{module} parent version is not revision-driven")
+runtime_contract = text("shared/src/main/java/org/example/shared/RuntimeContract.java")
+if 'APP_VERSION = "DEV"' not in runtime_contract or 'BUILD_REVISION = "DEV"' not in runtime_contract:
+    extra.append("shared runtime fallback must remain DEV; filtered metadata owns release identity")
+for path, tokens in {
+    "shared/src/main/resources/runtime-contract.properties": ("app.version=@project.version@", "build.revision=@project.version@"),
+    "server/src/main/resources/application.properties": ("dse.app.version=@project.version@", "dse.build.revision=@project.version@"),
+    "desktop/src/main/resources/app-version.properties": ("version=@project.version@", "buildRevision=@project.version@"),
+    "runtime/runtime-manifest.properties": ("runtime.phase=@project.version@",),
+}.items():
+    content = text(path)
+    for token in tokens:
+        if token not in content:
+            extra.append(f"filtered release metadata missing: {path} -> {token}")
+
+# Current release number must not be reintroduced as a literal elsewhere. Historical versions are valid history.
+allowed_current_literals = {
+    str((ROOT / ".mvn/maven.config").resolve()),
+    str((ROOT / f"CHANGELOG-{VERSION}.md").resolve()),
+}
+for path in ROOT.rglob("*"):
+    if not path.is_file() or "target" in path.parts or ".git" in path.parts or "runtime/postgresql" in path.as_posix():
+        continue
+    if str(path.resolve()) in allowed_current_literals:
+        continue
+    if path.suffix.lower() not in {".java", ".properties", ".xml", ".py", ".ps1", ".bat", ".cmd", ".sh", ".service", ".md", ".fxml"}:
+        continue
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        continue
+    if VERSION in content:
+        extra.append(f"current release version is hard-coded outside the single source: {path.relative_to(ROOT)}")
 
 
 # Current focused production corrections.
@@ -108,4 +154,4 @@ if failed:
         print(" -", item)
     sys.exit(1)
 
-print("\nRELEASE_GATES_CURRENT_OK version=9.0.79")
+print(f"\nRELEASE_GATES_CURRENT_OK version={VERSION}")

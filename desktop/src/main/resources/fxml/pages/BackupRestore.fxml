@@ -66,7 +66,7 @@
                     <HBox alignment="CENTER_LEFT">
                         <VBox spacing="3">
                             <Label text="RETENTION" styleClass="backup-metric-label"/>
-                            <Label fx:id="lblRetentionSummary" text="30 Days" styleClass="backup-metric-value"/>
+                            <Label fx:id="lblRetentionSummary" text="2 backups" styleClass="backup-metric-value"/>
                         </VBox>
                         <Region HBox.hgrow="ALWAYS"/>
                         <StackPane fx:id="retentionIconHolder" styleClass="backup-metric-icon,backup-icon-orange"/>
@@ -98,13 +98,13 @@
                         </columnConstraints>
 
                         <Label text="Frequency" styleClass="backup-field-label" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                        <Label text="Keep backups for" styleClass="backup-field-label" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                        <Label text="Backups to keep" styleClass="backup-field-label" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
 
                         <ComboBox fx:id="cmbSchedule" maxWidth="Infinity" GridPane.columnIndex="0" GridPane.rowIndex="1" styleClass="approved-input"/>
 
                         <HBox alignment="CENTER_LEFT" spacing="8" GridPane.columnIndex="1" GridPane.rowIndex="1">
                             <Spinner fx:id="spRetention" prefWidth="110" styleClass="approved-input"/>
-                            <Label text="days" styleClass="backup-inline-label"/>
+                            <Label text="backups" styleClass="backup-inline-label"/>
                         </HBox>
                     </GridPane>
 

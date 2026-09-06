@@ -55,6 +55,6 @@ public final class RuntimeApiClient {
     }
 
     public record RuntimeStatus(boolean ready, String service, String version, String apiRevision, String buildRevision,
-                                String database, String message, String businessZone, String businessDate, String utcTime,
+                                String environment, String database, String databaseName, String message, String businessZone, String businessDate, String utcTime,
                                 String dateFormat, String timePolicy, String databaseTimeZone) {}
 }

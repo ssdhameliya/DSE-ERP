@@ -41,6 +41,23 @@ public final class GitHubReleaseClient {
     }
 
 
+    /** Loads published releases for the rollback selector. */
+    public List<UpdateRelease> releases(String owner, String repository, boolean includePrerelease, int limit) throws Exception {
+        requirePart(owner, "GitHub owner"); requirePart(repository, "GitHub repository");
+        int bounded = Math.max(1, Math.min(100, limit));
+        HttpResponse<String> response = request("https://api.github.com/repos/%s/%s/releases?per_page=%d".formatted(owner, repository, bounded));
+        if (response.statusCode() == 404) throw new IllegalStateException("No published GitHub Releases were found for " + owner + "/" + repository + ".");
+        if (response.statusCode() < 200 || response.statusCode() >= 300) throw new IllegalStateException("GitHub returned HTTP " + response.statusCode() + ".");
+        Object parsed = MiniJson.parse(response.body());
+        if (!(parsed instanceof List<?> list)) throw new IllegalStateException("GitHub returned an invalid releases response.");
+        List<UpdateRelease> result = new ArrayList<>();
+        for (Object value : list) {
+            if (value instanceof Map<?,?> map && !bool(map, "draft") && (includePrerelease || !bool(map, "prerelease"))) result.add(mapRelease(map));
+        }
+        return List.copyOf(result);
+    }
+
+
     /** Loads one exact published release so Safe Rollback can retrieve a previous installer. */
     public UpdateRelease byVersion(String owner, String repository, String version) throws Exception {
         requirePart(owner, "GitHub owner"); requirePart(repository, "GitHub repository");

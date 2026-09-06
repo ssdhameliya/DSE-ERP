@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.example</groupId>
         <artifactId>dse-erp-parent</artifactId>
-        <version>9.0.79</version>
+        <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 

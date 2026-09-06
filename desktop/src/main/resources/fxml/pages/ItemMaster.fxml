@@ -24,8 +24,8 @@
         <Button text="Delete Item" onAction="#deleteItem" styleClass="danger-button"/>
         <Button text="Refresh" onAction="#refresh" styleClass="approved-button,approved-secondary-button"/>
         <Separator orientation="VERTICAL" prefHeight="28"/>
-        <Button text="Import Excel" onAction="#importItems" styleClass="secondary-button"/>
-        <Button text="Export Excel" onAction="#exportItems" styleClass="secondary-button"/>
+        <Button fx:id="btnImportExcel" text="Import Excel" onAction="#importItems" styleClass="secondary-button"/>
+        <Button fx:id="btnExportExcel" text="Export Excel" onAction="#exportItems" styleClass="secondary-button"/>
     </HBox>
 
     <VBox spacing="0" VBox.vgrow="ALWAYS" styleClass="entity-table-card">

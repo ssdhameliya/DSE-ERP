@@ -1,33 +1,79 @@
-DSE ERP 9.0.79 - FINAL VERSION PROMOTION VERIFICATION
+DSE ERP 9.0.82 — FINAL BUILD / CLOUD-UAT READINESS VERIFICATION
+================================================================
 
-BASELINE
-- Includes cumulative Phase 1, Phase 2, Phase 3, Phase 4A.1 theme fixes, and Phase 4B Workspace Storage & Retention.
-- Version promotion changes release identity to 9.0.79; no business-logic downgrade or Java/JavaFX downgrade.
+RELEASE
+- Baseline: verified DSE ERP 9.0.81.
+- Release: 9.0.82.
+- Scope frozen to Cloud / UAT readiness; no new ERP business feature or UI redesign.
 
-ENVIRONMENT
-- JDK / javac: 25.0.4.1
-- Maven: 3.9.16
-- JavaFX: 25.0.2
-- Platform: Linux x64
+VERSION GOVERNANCE
+- Current release identity has one manual source: .mvn/maven.config -> -Drevision=9.0.82.
+- Maven-filtered server, desktop, shared/runtime metadata inherit the project version.
+- Current-release hard-code audit passes; historical migration/release references remain fixed by design.
 
-TARGETED VERSION-PROMOTION VERIFICATION
-- StorageMaintenanceServiceTest: 2/2 PASS
-- WorkspaceStartupPolicyTest + WorkspaceStorageManagerTest: 4/4 PASS
-- Phase 4A theme correctness audit: 25/25 PASS
-- Phase 4B storage/retention audit: 19/19 PASS
-- Release gates: RELEASE_GATES_CURRENT_OK version=9.0.79
-- Desktop v9.0.79 package: BUILD SUCCESS
-- Runtime CSS files: exactly 2 (light-theme.css, dark-theme.css)
+CLOUD / ENVIRONMENT CONTRACT
+- Existing SHARED_CLIENT + server.baseUrl path retained.
+- UAT and PROD environment identity separated from application version.
+- /api/runtime/health reports environment and database name.
+- Shared-client connection validates version, API revision, readiness and environment.
+- Server startup validates DSE_EXPECTED_DATABASE against the actual PostgreSQL database.
+- UAT/PROD Linux environment, systemd, Nginx and deployment/restore templates added.
 
-IDENTITY
-- Maven parent: 9.0.79
-- Shared APP_VERSION / BUILD_REVISION: 9.0.79
-- Server dse.app.version / dse.build.revision: 9.0.79
-- Desktop app-version.properties: 9.0.79
-- Updater / launchers / audit contracts synchronized to 9.0.79
+BACKUP / RELEASE CONTRACT
+- Normal scheduled backup policy: WEEKLY, keep latest 2 ordinary backups.
+- Newly created backups are validated before retention cleanup.
+- Linux deployment creates a validated pre-upgrade pg_dump before switching releases.
+- Versioned release directories + current symlink support binary rollback on failed health check.
+- Database rollback remains backup-based when an incompatible schema migration is involved.
 
-PHASE 4B STORAGE SAFETY
-- Business documents organized by module / financial year.
-- Server-owned retention settings.
-- Safe cleanup excludes Documents, Attachments, Backups, and database records.
-- Operational cleanup covers Logs, Reports, Exports, Import Results, Diagnostics, and Temp according to admin-configured retention.
+BUILD ENVIRONMENT ACTUALLY EXECUTED
+- Linux x64 sandbox.
+- JDK / javac: 25.0.4.1 LTS.
+- JavaFX dependency line: 25.0.2; Windows classifier artifacts included in final shaded desktop JAR.
+- Apache Maven: 3.9.16.
+- PostgreSQL / psql used for executable verification: 18.6.
+
+FINAL RELEASE GATES
+- RELEASE_GATES_CURRENT_OK version=9.0.82.
+- CLOUD_UAT_CONTRACT_OK version=9.0.82 env=UAT/PROD backup=WEEKLY/2 linux=yes.
+- Existing architecture, data-boundary, business-integrity, UI, PDF, reconciliation, registration,
+  customer-360, finance/multi-user and stability gates remained green.
+
+FINAL CLEAN MAVEN VERIFY
+- Result: BUILD SUCCESS.
+- Parent: SUCCESS.
+- Shared: SUCCESS.
+- Server: SUCCESS.
+- Desktop: SUCCESS.
+- Server tests: 20 run, 0 failures, 0 errors, 2 skipped opt-in integration-environment tests.
+- DeploymentSafetyValidatorTest: 3 run, 0 failures, 0 errors.
+- Desktop tests: 63 run, 0 failures, 0 errors, 0 skipped.
+- CriticalReleaseRegressionTest: 9 run, 0 failures, 0 errors.
+- SalesPdfStudioFlowTest: 7 run, 0 failures, 0 errors.
+
+LIVE POSTGRESQL 18.6 / SERVER UAT VERIFICATION
+- Freshly built server JAR started against disposable PostgreSQL database dse_erp_uat.
+- /api/runtime/health returned:
+  service=dse-erp-server
+  version=9.0.82
+  buildRevision=9.0.82
+  environment=UAT
+  ready=true
+  database=postgresql
+  databaseName=dse_erp_uat
+  databaseTimeZone=UTC
+  businessZone=Asia/Kolkata
+  dateFormat=dd/MM/yyyy
+
+NEGATIVE SAFETY VERIFICATION
+- The same 9.0.82 server JAR was deliberately started as PROD while connected to dse_erp_uat.
+- Startup correctly failed with:
+  Deployment safety check failed: PROD expected database dse_erp but connected to dse_erp_uat
+- This verifies UAT/PROD database miswiring is blocked at server startup.
+
+SOURCE / SECRET CHECK
+- Production DB/SMTP passwords remain environment-sourced; no production secret was inserted for 9.0.82.
+- Source handover excludes Maven target/ directories and generated Python cache files.
+
+STATUS: VERIFIED FOR 9.0.82 UAT HANDOVER
+IMPORTANT: Production data has NOT been migrated. UAT sign-off remains mandatory before PROD cutover.

@@ -1,27 +1,28 @@
 package org.example.update;
 
+import org.example.shared.RuntimeContract;
 import java.io.InputStream;
 import java.util.Properties;
 
 public final class BuildInfo {
     private static final Properties PROPERTIES = load();
     private BuildInfo() {}
-    public static String version() { return PROPERTIES.getProperty("version", UpdateService.DEFAULT_VERSION); }
-    public static int databaseMigrationVersion() {
-        try { return Integer.parseInt(PROPERTIES.getProperty("databaseMigrationVersion", "1")); }
-        catch (NumberFormatException ignored) { return 1; }
+    public static String version() { return resolved("version", RuntimeContract.appVersion()); }
+    public static String buildRevision() { return resolved("buildRevision", RuntimeContract.buildRevision()); }
+    public static String buildTime() { return resolved("buildTime", RuntimeContract.buildTime()); }
+    public static int databaseMigrationVersion() { return intValue("databaseMigrationVersion", 1); }
+    public static int databaseMinCompatibleVersion() { return intValue("databaseMinCompatibleVersion", databaseMigrationVersion()); }
+    public static int databaseMaxCompatibleVersion() { return intValue("databaseMaxCompatibleVersion", databaseMigrationVersion()); }
+    public static String databaseCompatibilitySinceVersion() { return resolved("databaseCompatibilitySinceVersion", version()); }
+    public static int workspaceSchemaVersion() { return intValue("workspaceSchemaVersion", 1); }
+    private static int intValue(String key, int fallback) {
+        try { return Integer.parseInt(PROPERTIES.getProperty(key, Integer.toString(fallback)).trim()); }
+        catch (Exception ignored) { return fallback; }
     }
-    public static int databaseMinCompatibleVersion() {
-        try { return Integer.parseInt(PROPERTIES.getProperty("databaseMinCompatibleVersion", String.valueOf(databaseMigrationVersion()))); }
-        catch (NumberFormatException ignored) { return databaseMigrationVersion(); }
-    }
-    public static int databaseMaxCompatibleVersion() {
-        try { return Integer.parseInt(PROPERTIES.getProperty("databaseMaxCompatibleVersion", String.valueOf(databaseMigrationVersion()))); }
-        catch (NumberFormatException ignored) { return databaseMigrationVersion(); }
-    }
-    public static int workspaceSchemaVersion() {
-        try { return Integer.parseInt(PROPERTIES.getProperty("workspaceSchemaVersion", "1")); }
-        catch (NumberFormatException ignored) { return 1; }
+    private static String resolved(String key, String fallback) {
+        String value=PROPERTIES.getProperty(key, "").trim();
+        if (value.isBlank() || value.contains("${") || value.contains("@")) return fallback;
+        return value;
     }
     private static Properties load() {
         Properties result = new Properties();

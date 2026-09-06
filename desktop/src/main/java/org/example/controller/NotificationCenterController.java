@@ -49,7 +49,7 @@ public final class NotificationCenterController implements ScreenLifecycle {
 
     private void installIcons(){
         if(notificationHeaderIcon!=null)notificationHeaderIcon.getChildren().setAll(IconFactory.compactIcon("notification",22));
-        if(allSummaryIcon!=null)allSummaryIcon.getChildren().setAll(IconFactory.compactIcon("layers",20));
+        if(allSummaryIcon!=null)allSummaryIcon.getChildren().setAll(IconFactory.compactIcon("grouping",20));
         if(unreadSummaryIcon!=null)unreadSummaryIcon.getChildren().setAll(IconFactory.compactIcon("email",19));
         if(actionSummaryIcon!=null)actionSummaryIcon.getChildren().setAll(IconFactory.compactIcon("warning",20));
         if(detailIcon!=null)detailIcon.getChildren().setAll(IconFactory.compactIcon("notification",22));
