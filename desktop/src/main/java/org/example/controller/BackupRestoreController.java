@@ -19,14 +19,18 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
+import javafx.stage.DirectoryChooser;
 import org.example.config.ConfigManager;
 import org.example.api.support.SupportApiClient;
 import org.example.api.authority.ServerBackupClient;
 import org.example.backup.BackupManager;
+import org.example.backup.LocalRecoveryManager;
 import org.example.service.NotificationService;
+import org.example.service.SessionService;
 import org.example.util.IconFactory;
 
 import java.awt.Desktop;
+import java.io.File;
 import java.nio.file.*;
 import java.time.Instant;
 import java.util.Comparator;
@@ -54,6 +58,8 @@ public class BackupRestoreController {
     @FXML private ComboBox<String> cmbSchedule;
     @FXML private Spinner<Integer> spRetention;
     @FXML private Button btnRestoreSelected;
+    @FXML private Button btnLocalRecovery;
+    @FXML private Button btnExportRecovery;
 
     @FXML private TableView<BackupRow> backupTable;
     @FXML private TableColumn<BackupRow, String> colBackupName;
@@ -94,6 +100,19 @@ public class BackupRestoreController {
         backupTable.getSelectionModel().selectedItemProperty().addListener(
                 (observable, previous, selected) -> btnRestoreSelected.setDisable(selected == null)
         );
+        boolean recoveryAvailable = ConfigManager.isSharedClient() && SessionService.isAdmin();
+        if (btnLocalRecovery != null) {
+            btnLocalRecovery.setVisible(recoveryAvailable);
+            btnLocalRecovery.setManaged(recoveryAvailable);
+            btnLocalRecovery.setGraphic(IconFactory.compactIcon("restore", 14));
+            btnLocalRecovery.setTooltip(new Tooltip("Create a fresh company-server recovery package and prepare an explicit LOCAL recovery workspace."));
+        }
+        if (btnExportRecovery != null) {
+            btnExportRecovery.setVisible(recoveryAvailable);
+            btnExportRecovery.setManaged(recoveryAvailable);
+            btnExportRecovery.setGraphic(IconFactory.compactIcon("export", 14));
+            btnExportRecovery.setTooltip(new Tooltip("Save an off-server disaster-recovery package containing a verified database snapshot and business files."));
+        }
 
         loadSettings();
         refresh();
@@ -335,6 +354,98 @@ public class BackupRestoreController {
             lblLastBackupCaption.setText(latest.name());
         }
         updateScheduleSummary();
+    }
+
+
+
+    @FXML
+    private void exportRecoveryPackage() {
+        if (!ConfigManager.isSharedClient() || !SessionService.isAdmin()) {
+            showWarning("Recovery package export is available only to an administrator while this PC is connected to the company server.");
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Save Disaster Recovery Package");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DSE ERP recovery package (*.zip)", "*.zip"));
+        chooser.setInitialFileName("DSE-ERP-Recovery-" + java.time.LocalDate.now() + ".zip");
+        File selected = chooser.showSaveDialog(backupTable.getScene().getWindow());
+        if (selected == null) return;
+        Path target = selected.toPath().toAbsolutePath().normalize();
+        if (!target.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            target = target.resolveSibling(target.getFileName() + ".zip");
+        }
+        Path finalTarget = target;
+        runOperation("Creating and exporting a fresh off-server recovery package...", () ->
+                serverBackups.downloadRecoveryPackage(finalTarget), result -> {
+            NotificationService.add("Disaster recovery package exported: " + result.file());
+            OwnedAlert ready = new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "A fresh verified disaster-recovery package was saved outside the company server.\n\n"
+                            + "File: " + result.file() + "\n"
+                            + "Source: " + result.environment() + " • " + result.applicationVersion() + "\n\n"
+                            + "Keep this file secure. It contains a database snapshot and company business files and can be used for explicit LOCAL recovery if the server is unavailable.");
+            ready.setHeaderText("Recovery package exported");
+            ready.showAndWait();
+        });
+    }
+
+    @FXML
+    private void emergencyLocalRecovery() {
+        if (!ConfigManager.isSharedClient() || !SessionService.isAdmin()) {
+            showWarning("Emergency Local Recovery is available only to an administrator while this PC is connected to the company server.");
+            return;
+        }
+
+        ButtonType continueRecovery = new ButtonType("Prepare LOCAL Recovery", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        OwnedAlert warning = new OwnedAlert(Alert.AlertType.WARNING,
+                "Use this only for a planned server-to-local move or a serious cloud/server incident.\n\n"
+                        + "Before continuing, stop business activity on every other DSE ERP PC. The recovery package is a point-in-time copy; changes made on the company server after this package is created will not be merged automatically.\n\n"
+                        + "DSE ERP will create a fresh verified server database snapshot, include server-owned Attachments, Documents and Templates, stage them into a LOCAL workspace, and then close this Shared Client. No automatic stale-local fallback is used.",
+                cancel, continueRecovery);
+        warning.setHeaderText("Emergency LOCAL disaster recovery");
+        if (warning.showAndWait().orElse(cancel) != continueRecovery) return;
+
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Choose LOCAL Recovery Workspace");
+        File selected = chooser.showDialog(backupTable.getScene().getWindow());
+        if (selected == null) return;
+        Path target = selected.toPath().toAbsolutePath().normalize();
+        var inspection = org.example.config.WorkspaceManager.inspectLocalRecoveryTarget(target);
+        if (!inspection.valid()) {
+            showWarning(inspection.message());
+            return;
+        }
+
+        OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                "Recovery target:\n" + target + "\n\n" + inspection.message() + "\n\n"
+                        + "After preparation, DSE ERP will close. On the next start this PC will open the LOCAL workspace, restore the server snapshot before login, and only then apply the staged business files.\n\n"
+                        + "Continue?",
+                cancel, continueRecovery);
+        confirmation.setHeaderText(inspection.existingLocal() ? "Recover into preserved LOCAL workspace" : "Create new LOCAL recovery workspace");
+        if (confirmation.showAndWait().orElse(cancel) != continueRecovery) return;
+
+        Path download = org.example.config.WorkspaceManager.getTempFolder().resolve(
+                "DSE-ERP-Recovery-download-" + java.time.Instant.now().toEpochMilli() + ".zip");
+        runOperation("Creating and downloading a fresh company-server recovery package...", () -> {
+            try {
+                ServerBackupClient.RecoveryPackage packageInfo = serverBackups.downloadRecoveryPackage(download);
+                return LocalRecoveryManager.stageForLocal(packageInfo.file(), target, ConfigManager.getConfiguredServerUrl());
+            } finally {
+                try { Files.deleteIfExists(download); } catch (Exception ignored) { }
+            }
+        }, staged -> {
+            NotificationService.add("LOCAL disaster recovery prepared from company server " + staged.sourceEnvironment()
+                    + " " + staged.sourceVersion() + ".");
+            OwnedAlert ready = new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "The recovery package was verified and staged successfully.\n\n"
+                            + "Source: " + staged.sourceEnvironment() + " • " + staged.sourceVersion() + " • " + staged.databaseName() + "\n"
+                            + "LOCAL workspace: " + staged.workspace() + "\n"
+                            + "Off-PC/server recovery package retained at: " + staged.retainedPackage() + "\n\n"
+                            + "The current Shared Client session will now close. Start DSE ERP again to perform the LOCAL database restore before login. The existing company-server data is not modified by this recovery preparation.");
+            ready.setHeaderText("LOCAL recovery prepared");
+            ready.showAndWait();
+            Platform.exit();
+        });
     }
 
     @FXML

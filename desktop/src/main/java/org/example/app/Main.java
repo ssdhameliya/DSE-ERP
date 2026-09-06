@@ -8,7 +8,10 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ButtonBar;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.FileChooser;
+import javafx.stage.DirectoryChooser;
 import org.example.backup.BackupManager;
+import org.example.backup.LocalRecoveryManager;
 import org.example.api.runtime.RuntimeBootstrapper;
 import org.example.api.runtime.RuntimeHealthMonitor;
 import org.example.api.runtime.ManagedPostgresRuntime;
@@ -26,6 +29,8 @@ import org.example.util.PerformanceBudgets;
 import org.example.util.FxResponsivenessMonitor;
 import org.example.util.DesktopLog;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -100,6 +105,16 @@ public final class Main {
         if (restoreResult.attempted() && !restoreResult.applied()) {
             if (restoreResult.failure() != null) DesktopLog.error("Main", "RESTORE_FAILED", restoreResult.message(), restoreResult.failure());
         }
+        LocalRecoveryManager.FileApplyResult recoveryFiles = ConfigManager.isSharedClient()
+                ? LocalRecoveryManager.FileApplyResult.none()
+                : LocalRecoveryManager.applyPendingFilesIfReady();
+        if (recoveryFiles.attempted() && !recoveryFiles.applied()) {
+            if (recoveryFiles.failure() != null) DesktopLog.error("Main", "LOCAL_RECOVERY_FILES_FAILED", recoveryFiles.message(), recoveryFiles.failure());
+            Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(stage,
+                    "LOCAL disaster recovery incomplete",
+                    recoveryFiles.message() + "\n\nDSE ERP will not open the recovered LOCAL company until its business files are consistent."));
+            return;
+        }
         try {
             SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
             RuntimeBootstrapper.ensureServerReady();
@@ -138,21 +153,96 @@ public final class Main {
                 String safety = restoreResult.safetyBackup() == null
                         ? "No previous database existed."
                         : "Safety backup: " + restoreResult.safetyBackup();
-                org.example.util.ToastManager.success(stage, "Database restore completed",
-                        "The staged database restore was applied successfully. " + safety);
+                if (recoveryFiles.applied()) {
+                    org.example.util.ToastManager.success(stage, "LOCAL recovery completed",
+                            "The company-server database and business files were restored to this LOCAL workspace. " + safety);
+                } else {
+                    org.example.util.ToastManager.success(stage, "Database restore completed",
+                            "The staged database restore was applied successfully. " + safety);
+                }
+            } else if (recoveryFiles.applied()) {
+                org.example.util.ToastManager.success(stage, "LOCAL recovery files completed",
+                        "The staged company-server business files were applied successfully.");
             }
         });
     }
 
     /** SetupWizardController has created the workspace and bootstrapped company/admin data through the Spring API. */
     private void showStartupFailureWithWorkspaceRecovery(Stage stage, String header, String message) {
-        ButtonType existing = new ButtonType("Select Existing Workspace", ButtonBar.ButtonData.OTHER);
         ButtonType exit = new ButtonType("Exit", ButtonBar.ButtonData.CANCEL_CLOSE);
+        if (ConfigManager.isSharedClient()) {
+            ButtonType retry = new ButtonType("Retry", ButtonBar.ButtonData.OK_DONE);
+            ButtonType recover = new ButtonType("Recover from Package", ButtonBar.ButtonData.OTHER);
+            Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
+                    message + "\n\nThis PC remains in Shared Client mode. DSE ERP will not silently switch to an older LOCAL database.",
+                    retry, recover, exit);
+            alert.setHeaderText(header);
+            ButtonType choice = alert.showAndWait().orElse(exit);
+            if (choice == retry) initializeConfiguredApplication(stage);
+            else if (choice == recover) {
+                if (!prepareOfflineLocalRecovery(stage)) showStartupFailureWithWorkspaceRecovery(stage, header, message);
+            } else Platform.exit();
+            return;
+        }
+
+        ButtonType existing = new ButtonType("Select Existing Workspace", ButtonBar.ButtonData.OTHER);
         Alert alert = new OwnedAlert(Alert.AlertType.ERROR, message, existing, exit);
         alert.setHeaderText(header);
         ButtonType choice = alert.showAndWait().orElse(exit);
         if (choice == existing) SceneManager.showSetupWizard(() -> completeFirstRun(stage));
         else Platform.exit();
+    }
+
+    private boolean prepareOfflineLocalRecovery(Stage stage) {
+        FileChooser packageChooser = new FileChooser();
+        packageChooser.setTitle("Choose DSE ERP Recovery Package");
+        packageChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DSE ERP recovery package (*.zip)", "*.zip"));
+        File packageFile = packageChooser.showOpenDialog(stage);
+        if (packageFile == null) return false;
+
+        DirectoryChooser targetChooser = new DirectoryChooser();
+        targetChooser.setTitle("Choose LOCAL Recovery Workspace");
+        File targetFolder = targetChooser.showDialog(stage);
+        if (targetFolder == null) return false;
+        Path target = targetFolder.toPath().toAbsolutePath().normalize();
+        var inspection = WorkspaceManager.inspectLocalRecoveryTarget(target);
+        if (!inspection.valid()) {
+            OwnedAlert warning = new OwnedAlert(Alert.AlertType.WARNING, inspection.message());
+            warning.setHeaderText("LOCAL recovery target is not safe");
+            warning.showAndWait();
+            return false;
+        }
+
+        ButtonType recover = new ButtonType("Prepare LOCAL Recovery", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.WARNING,
+                "Recovery package: " + packageFile.getAbsolutePath() + "\n\n"
+                        + "LOCAL workspace: " + target + "\n\n"
+                        + "The package checksum and contents will be validated before this PC is switched. The company server will not be modified. After preparation DSE ERP will close; on the next start the database is restored before login and business files are applied only after the database restore succeeds.",
+                cancel, recover);
+        confirmation.setHeaderText("Explicit offline LOCAL disaster recovery");
+        if (confirmation.showAndWait().orElse(cancel) != recover) return false;
+
+        try {
+            LocalRecoveryManager.StageResult staged = LocalRecoveryManager.stageForLocal(
+                    packageFile.toPath(), target, ConfigManager.getConfiguredServerUrl());
+            OwnedAlert ready = new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "The recovery package was verified and staged successfully.\n\n"
+                            + "Source: " + staged.sourceEnvironment() + " • " + staged.sourceVersion() + " • " + staged.databaseName() + "\n"
+                            + "LOCAL workspace: " + staged.workspace() + "\n\n"
+                            + "DSE ERP will now close. Start it again to complete the LOCAL database and business-file recovery before login.");
+            ready.setHeaderText("LOCAL recovery prepared");
+            ready.showAndWait();
+            Platform.exit();
+            return true;
+        } catch (Exception failure) {
+            DesktopLog.error("Main", "OFFLINE_LOCAL_RECOVERY_FAILED", "Offline LOCAL recovery package could not be staged", failure);
+            OwnedAlert error = new OwnedAlert(Alert.AlertType.ERROR,
+                    "The recovery package was not applied.\n\n" + failure.getMessage());
+            error.setHeaderText("LOCAL recovery preparation failed");
+            error.showAndWait();
+            return false;
+        }
     }
 
     private void completeFirstRun(Stage stage) {

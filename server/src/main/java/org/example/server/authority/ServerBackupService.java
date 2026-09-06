@@ -10,15 +10,22 @@ import java.nio.file.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 
 @Service
 public class ServerBackupService {
+    private final Path workspaceRoot;
     private final Path root;
     private final String url;
     private final String user;
     private final String password;
     private final String postgresHome;
     private final boolean scheduledEnabled;
+    private final String deploymentEnvironment;
+    private final String applicationVersion;
     private final JpaNativeRepository db;
     private volatile LocalDate lastScheduled;
 
@@ -28,14 +35,19 @@ public class ServerBackupService {
                                @Value("${spring.datasource.password}") String password,
                                @Value("${dse.postgres.home:}") String postgresHome,
                                @Value("${dse.backup.enabled:false}") boolean scheduledEnabled,
+                               @Value("${dse.deployment.environment:LOCAL}") String deploymentEnvironment,
+                               @Value("${dse.app.version:DEV}") String applicationVersion,
                                JpaNativeRepository db) {
-        this.root = (workspace == null || workspace.isBlank() ? Path.of(System.getProperty("user.dir")) : Path.of(workspace))
-                .toAbsolutePath().normalize().resolve("Backups").resolve("Server");
+        this.workspaceRoot = (workspace == null || workspace.isBlank() ? Path.of(System.getProperty("user.dir")) : Path.of(workspace))
+                .toAbsolutePath().normalize();
+        this.root = workspaceRoot.resolve("Backups").resolve("Server");
         this.url = url;
         this.user = user;
         this.password = password;
         this.postgresHome = postgresHome == null ? "" : postgresHome.trim();
         this.scheduledEnabled = scheduledEnabled;
+        this.deploymentEnvironment = deploymentEnvironment == null ? "LOCAL" : deploymentEnvironment.trim().toUpperCase(Locale.ROOT);
+        this.applicationVersion = applicationVersion == null || applicationVersion.isBlank() ? "DEV" : applicationVersion.trim();
         this.db = db;
     }
 
@@ -91,6 +103,10 @@ public class ServerBackupService {
     public Validation validate(String name) throws IOException {
         Path file = safe(name);
         if (!Files.isRegularFile(file)) throw new FileNotFoundException(name);
+        return validateFile(file);
+    }
+
+    private Validation validateFile(Path file) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(tool("pg_restore"), "--list", file.toString()).redirectErrorStream(true);
         Process process = builder.start();
         String output = new String(process.getInputStream().readAllBytes());
@@ -107,6 +123,90 @@ public class ServerBackupService {
         Validation content=validateArchiveListing(output);
         if(!content.valid())return content;
         return new Validation(true, "DSE ERP PostgreSQL backup structure is valid.");
+    }
+
+
+    /**
+     * Creates a self-contained disaster-recovery package for an administrator.
+     * The package contains a freshly validated PostgreSQL snapshot plus server-owned
+     * business files. It intentionally excludes server configuration, environment files
+     * and database credentials.
+     */
+    public synchronized RecoveryPackage createRecoveryPackage() throws IOException {
+        Path recoveryRoot = workspaceRoot.resolve("Backups").resolve("Recovery");
+        Files.createDirectories(recoveryRoot);
+        String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+        String filename = "DSE-ERP-" + deploymentEnvironment + "-Recovery-" + stamp + ".zip";
+        Path databaseSnapshot = recoveryRoot.resolve("recovery-" + UUID.randomUUID() + ".pgbackup");
+        try {
+            runPgDump(databaseSnapshot);
+            Validation validation = validateFile(databaseSnapshot);
+            if (!validation.valid()) throw new IOException("Recovery database validation failed: " + validation.message());
+
+            String databaseName = metrics().databaseName();
+            String databaseSha = sha256(databaseSnapshot);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (ZipOutputStream zip = new ZipOutputStream(new BufferedOutputStream(bytes))) {
+                Properties manifest = new Properties();
+                manifest.setProperty("format.version", "1");
+                manifest.setProperty("createdAt", Instant.now().toString());
+                manifest.setProperty("application.version", applicationVersion);
+                manifest.setProperty("environment", deploymentEnvironment);
+                manifest.setProperty("database.name", databaseName == null ? "" : databaseName);
+                manifest.setProperty("database.file", "database.pgbackup");
+                manifest.setProperty("database.sha256", databaseSha);
+                manifest.setProperty("files", "Attachments,Documents,Templates");
+                ByteArrayOutputStream manifestBytes = new ByteArrayOutputStream();
+                manifest.store(manifestBytes, "DSE ERP local disaster-recovery package");
+                putZipBytes(zip, "manifest.properties", manifestBytes.toByteArray());
+                putZipFile(zip, databaseSnapshot, "database.pgbackup");
+                addTree(zip, workspaceRoot.resolve("Attachments"), "workspace/Attachments");
+                addTree(zip, workspaceRoot.resolve("Documents"), "workspace/Documents");
+                addTree(zip, workspaceRoot.resolve("Templates"), "workspace/Templates");
+            }
+            return new RecoveryPackage(filename, bytes.toByteArray(), databaseSha, databaseName, deploymentEnvironment, applicationVersion);
+        } finally {
+            Files.deleteIfExists(databaseSnapshot);
+        }
+    }
+
+    private static void putZipBytes(ZipOutputStream zip, String name, byte[] bytes) throws IOException {
+        ZipEntry entry = new ZipEntry(name);
+        zip.putNextEntry(entry);
+        zip.write(bytes);
+        zip.closeEntry();
+    }
+
+    private static void putZipFile(ZipOutputStream zip, Path file, String name) throws IOException {
+        ZipEntry entry = new ZipEntry(name);
+        entry.setTime(Files.getLastModifiedTime(file).toMillis());
+        zip.putNextEntry(entry);
+        Files.copy(file, zip);
+        zip.closeEntry();
+    }
+
+    private static void addTree(ZipOutputStream zip, Path root, String prefix) throws IOException {
+        if (!Files.isDirectory(root)) return;
+        try (var walk = Files.walk(root)) {
+            for (Path file : walk.filter(Files::isRegularFile).toList()) {
+                Path relative = root.relativize(file);
+                String entryName = prefix + "/" + relative.toString().replace('\\', '/');
+                putZipFile(zip, file, entryName);
+            }
+        }
+    }
+
+    private static String sha256(Path file) throws IOException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream input = Files.newInputStream(file)) {
+                byte[] buffer = new byte[64 * 1024];
+                for (int read; (read = input.read(buffer)) >= 0;) if (read > 0) digest.update(buffer, 0, read);
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IOException("SHA-256 is unavailable", e);
+        }
     }
 
     public synchronized String stageRestore(String name, byte[] data) throws IOException {
@@ -266,4 +366,5 @@ public class ServerBackupService {
     public record BackupFile(String name, long size, String createdAt, String source) {}
     public record Validation(boolean valid, String message) {}
     public record DatabaseMetrics(String databaseName, long sizeBytes, boolean ready) {}
+    public record RecoveryPackage(String filename, byte[] bytes, String databaseSha256, String databaseName, String environment, String applicationVersion) {}
 }

@@ -184,10 +184,12 @@ public final class BackupManager {
             Files.deleteIfExists(pending);
             clearPendingRestore();
             ConfigManager.set("backup.restore.last_success", Instant.now().toString());
+            LocalRecoveryManager.markDatabaseRestoreSuccess();
             return RestoreResult.applied(databasePath(), safety);
         } catch (Exception failure) {
             LOGGER.log(Level.SEVERE, "Pending PostgreSQL restore failed", failure);
             quarantinePendingRestore();
+            LocalRecoveryManager.markDatabaseRestoreFailure();
             return RestoreResult.failed(
                     "The PostgreSQL restore could not be applied; the safety backup was preserved.", failure);
         }

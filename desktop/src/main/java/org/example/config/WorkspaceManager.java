@@ -178,6 +178,91 @@ public final class WorkspaceManager {
         workspaceRoot = MANAGED_SHARED_ROOT;
     }
 
+
+    /**
+     * Validates a target for an explicit company-server -> LOCAL disaster recovery.
+     * An empty/new folder is accepted, as is an existing LOCAL workspace. Shared-client
+     * storage or unrelated non-empty folders are rejected to prevent accidental overwrite.
+     */
+    public static synchronized LocalRecoveryTargetInspection inspectLocalRecoveryTarget(Path selectedRoot) {
+        if (selectedRoot == null) return new LocalRecoveryTargetInspection(false, null, false,
+                "Choose a new folder or an existing LOCAL DSE ERP workspace.");
+        Path root = selectedRoot.toAbsolutePath().normalize();
+        if (root.equals(MANAGED_SHARED_ROOT)) return new LocalRecoveryTargetInspection(false, root, false,
+                "The managed Shared Client folder cannot become a LOCAL company workspace.");
+        try {
+            if (Files.exists(root) && !Files.isDirectory(root)) {
+                return new LocalRecoveryTargetInspection(false, root, false, "The selected path is not a folder.");
+            }
+            if (!Files.exists(root)) return new LocalRecoveryTargetInspection(true, root, false,
+                    "A new LOCAL recovery workspace will be created here.");
+            try (var entries = Files.list(root)) {
+                if (entries.findAny().isEmpty()) return new LocalRecoveryTargetInspection(true, root, false,
+                        "The empty folder can be used as a new LOCAL recovery workspace.");
+            }
+            Path config = root.resolve("Config").resolve("config.properties");
+            if (!Files.isRegularFile(config)) return new LocalRecoveryTargetInspection(false, root, false,
+                    "The folder is not empty and is not an existing DSE ERP LOCAL workspace.");
+            Properties properties = readProperties(config);
+            if (DeploymentMode.parse(properties.getProperty("deployment.mode", "LOCAL")) != DeploymentMode.LOCAL) {
+                return new LocalRecoveryTargetInspection(false, root, false,
+                        "Select an existing LOCAL workspace, not another Shared Client workspace.");
+            }
+            return new LocalRecoveryTargetInspection(true, root, true,
+                    "Existing LOCAL workspace detected. Its current database/files will be preserved before recovery is applied.");
+        } catch (IOException exception) {
+            return new LocalRecoveryTargetInspection(false, root, false,
+                    "The selected folder could not be inspected: " + exception.getMessage());
+        }
+    }
+
+    /**
+     * Finalizes a staged disaster-recovery target and moves the workstation pointer only
+     * after the recovery package has already been verified and written to the target.
+     */
+    public static synchronized void activateLocalRecoveryTarget(Path selectedRoot, String sourceServer,
+                                                                 String backupSource, String stagedAt) throws IOException {
+        LocalRecoveryTargetInspection inspection = inspectLocalRecoveryTarget(selectedRoot);
+        if (!inspection.valid()) throw new IllegalArgumentException(inspection.message());
+        Path root = inspection.root();
+        ensureStructure(root);
+        verifyWritable(root);
+
+        Path config = root.resolve("Config").resolve("config.properties");
+        Properties properties = Files.isRegularFile(config) ? readProperties(config) : new Properties();
+        if (Files.isRegularFile(config)) {
+            Path archive = root.resolve("Backups").resolve("LocalRecovery");
+            Files.createDirectories(archive);
+            String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            Files.copy(config, archive.resolve("ConfigBeforeRecovery-" + stamp + ".properties"),
+                    StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+        }
+        properties.remove("db.url");
+        properties.remove("db.username");
+        properties.remove("db.password");
+        properties.remove("postgres.binPath");
+        properties.remove("postgres.dataPath");
+        properties.setProperty("deployment.mode", DeploymentMode.LOCAL.name());
+        properties.setProperty("deployment.environment", "LOCAL");
+        properties.setProperty("server.baseUrl", "");
+        properties.setProperty("setup.completed", "true");
+        properties.setProperty("app.version", org.example.update.BuildInfo.version());
+        properties.setProperty("backup.restore.pending", "true");
+        properties.setProperty("backup.restore.source", backupSource == null ? "Company server recovery package" : backupSource);
+        properties.setProperty("backup.restore.staged_at", stagedAt == null ? java.time.Instant.now().toString() : stagedAt);
+        properties.setProperty("recovery.files.pending", "true");
+        properties.setProperty("recovery.database.applied", "false");
+        properties.setProperty("recovery.source.server", sourceServer == null ? "" : sourceServer);
+        properties.setProperty("recovery.created_at", stagedAt == null ? java.time.Instant.now().toString() : stagedAt);
+        Files.createDirectories(config.getParent());
+        try (OutputStream output = Files.newOutputStream(config, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            properties.store(output, "DSE ERP LOCAL disaster-recovery configuration");
+        }
+        // Persist the next-start pointer but keep this running Shared Client bound to its
+        // current managed storage until Platform.exit() completes. This avoids any mixed runtime.
+        writePointer(root);
+    }
+
     public static synchronized boolean isManagedSharedClientWorkspace() {
         return isConfigured() && workspaceRoot.equals(MANAGED_SHARED_ROOT);
     }
@@ -408,4 +493,5 @@ public final class WorkspaceManager {
     public record ExistingWorkspaceInspection(boolean valid, Path root, String message,
                                               boolean configPresent, boolean databasePresent,
                                               boolean postgresClusterPresent) {}
+    public record LocalRecoveryTargetInspection(boolean valid, Path root, boolean existingLocal, String message) {}
 }

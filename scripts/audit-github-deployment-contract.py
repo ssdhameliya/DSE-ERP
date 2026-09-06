@@ -42,6 +42,10 @@ for token in ('sha256sum', 'pg_dump', 'pg_restore', 'PreUpgrade', 'previous-rele
     need(token in deploy, f'Oracle deployment safety token missing: {token}')
 need('/srv/dse-erp/${ENVIRONMENT}' in deploy and 'dse-erp-${ENVIRONMENT}' in deploy,
      'Oracle deploy script does not match the live DSE ERP release/service layout')
+need('sudo -n test -r "$ENV_FILE"' in deploy and 'ENV_CONTENT=$(sudo -n cat "$ENV_FILE")' in deploy,
+     'Oracle deploy script does not read the root-owned environment through non-interactive sudo')
+need('sudo -n test -r "$PASSWORD_FILE"' in deploy and 'DB_PASSWORD=$(sudo -n cat "$PASSWORD_FILE")' in deploy,
+     'Oracle deploy script does not read the protected DB password through non-interactive sudo')
 need('${ENVIRONMENT}-db-password' in deploy and 'DSE_DB_PASSWORD' not in release and 'DSE_DB_PASSWORD' not in prod,
      'database password is not kept exclusively on the Oracle host')
 need('required reviewer' in doc.lower() and 'local fallback is intentionally not automatic' in doc.lower(),

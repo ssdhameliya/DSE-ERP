@@ -1,63 +1,41 @@
-DSE ERP 9.0.84 — FINAL BUILD / DEPLOYMENT AUTOMATION VERIFICATION
-=================================================================
+DSE ERP 9.0.85 — FINAL BUILD / DEPLOYMENT + DISASTER-RECOVERY VERIFICATION
+============================================================================
 
 RELEASE
-- Baseline: verified DSE ERP 9.0.83 source after UAT Shared Client transition testing.
-- Release: 9.0.84.
-- Scope: GitHub-driven server deployment automation and rollback only.
-- No ERP business workflow, JavaFX screen/FXML, database migration, or schema change was introduced.
+- Baseline: DSE ERP 9.0.84 automated deployment source.
+- Release: 9.0.85.
+- Scope: Oracle deployment protected-file fix + explicit Server -> LOCAL disaster recovery.
+- No business schema, sidebar/navigation, or normal ERP workflow redesign.
 
-VERSION GOVERNANCE
-- .mvn/maven.config -> -Drevision=9.0.84.
-- Server/desktop/shared metadata remains Maven-filtered from the project version.
+DEPLOYMENT FIX
+- scripts/linux/deploy-oracle-release.sh reads /etc/dse-erp/<env>.env through sudo -n.
+- /etc/dse-erp/<env>-db-password remains protected and is read through sudo -n only on Oracle.
+- GitHub never receives the PostgreSQL password.
+- Existing SHA-256, pre-upgrade backup, versioned-release, health and automatic binary-rollback gates remain.
 
-AUTOMATED RELEASE FLOW
-- Release tags build one canonical DSE ERP server artifact.
-- The server artifact is published in the GitHub Release and auto-deployed to the GitHub 'uat' environment.
-- UAT deployment verifies SHA-256, current UAT identity, a validated PostgreSQL pre-upgrade backup, systemd restart, private health, public HTTPS health and exact version/environment/database identity.
-- Failed startup/health automatically restores the previous server binary symlink and verifies rollback health.
-- PROD uses .github/workflows/deploy-prod.yml and is manually started with a UAT-approved tag.
-- PROD downloads the exact already-published server JAR/checksum; it does not rebuild a new production server artifact.
-- PROD validates that the same version is healthy in UAT before deployment.
-- GitHub production environment required-reviewer protection is documented for the Approve-and-deploy gate.
-- Database passwords remain in /etc/dse-erp/<env>-db-password on Oracle and are not GitHub secrets.
-- Shared Client automatic fallback to a stale LOCAL database remains intentionally prohibited.
+DISASTER RECOVERY
+- Fresh administrator-only server recovery package endpoint.
+- Recovery package = validated PostgreSQL snapshot + Attachments + Documents + Templates.
+- Credentials/environment files are excluded.
+- Shared Client never automatically falls back to a stale LOCAL database.
+- Administrator can export an off-server recovery package.
+- Emergency LOCAL Recovery is explicit and validates package paths + database SHA-256.
+- Existing LOCAL target is preserved; business files apply only after database restore succeeds.
+- Shared startup failure supports Retry / Recover from Package / Exit.
 
-LIVE ORACLE LAYOUT COMPATIBILITY
-- CI deployment path: /srv/dse-erp/<env>/releases/<version>.
-- Current release pointer: /srv/dse-erp/<env>/current.
-- Workspace: /srv/dse-erp/<env>/workspace (or DSE_WORKSPACE_PATH).
-- Services: dse-erp-uat / dse-erp-prod.
-- Environment files: /etc/dse-erp/<env>.env.
-- DB password files: /etc/dse-erp/<env>-db-password.
-
-BUILD ENVIRONMENT EXECUTED
-- Linux x64 sandbox.
-- OpenJDK / javac: 25.0.4.1 LTS.
-- Apache Maven: 3.9.16.
-- JavaFX dependency line: 25.0.2.
-
-FINAL CLEAN MAVEN VERIFY
-- Result: BUILD SUCCESS.
-- Parent: SUCCESS.
-- Shared: SUCCESS.
-- Server: SUCCESS.
-- Desktop: SUCCESS.
-- Server tests: 21 run, 0 failures, 0 errors, 2 skipped opt-in PostgreSQL integration-environment tests.
-- Desktop tests: 66 run, 0 failures, 0 errors, 0 skipped.
-
-RELEASE / DEPLOYMENT GATES
-- RELEASE_GATES_CURRENT_OK version=9.0.84.
-- CLOUD_UAT_CONTRACT_OK version=9.0.84 env=UAT/PROD backup=WEEKLY/2 linux=yes.
+BUILD / TEST VERIFICATION
+- Maven clean verify: BUILD SUCCESS.
+- Server tests: 21 run, 0 failures, 0 errors, 2 opt-in integration tests skipped.
+- Desktop tests: 69 run, 0 failures, 0 errors, 0 skipped.
+- RELEASE_GATES_CURRENT_OK version=9.0.85.
+- CLOUD_UAT_CONTRACT_OK version=9.0.85 env=UAT/PROD backup=WEEKLY/2 linux=yes.
 - GITHUB_DEPLOYMENT_CONTRACT_OK uat=automatic prod=manual artifact=same rollback=binary.
-- GitHub workflow YAML parse: PASS for ci.yml, release.yml and deploy-prod.yml.
-- deploy-oracle-release.sh bash syntax validation: PASS.
+- DISASTER_RECOVERY_CONTRACT_OK admin_only=yes fresh_snapshot=yes files=attachments,documents,templates local_switch=explicit.
+- deploy-oracle-release.sh bash syntax: PASS.
 
-BUILT VERIFICATION ARTIFACTS
-- Server JAR SHA-256: 07429bc0084412a4e70732c55ff9c804743055842f0083dd9504af09e9a28439
-- Linux verification desktop JAR SHA-256: 3f94b60939838f1284b3d48759b9c9ab1016edd340cc14040eeb941833d81171
+UAT STATUS
+- Live Oracle UAT remains on 9.0.83 because the first 9.0.84 automated deployment stopped before changing UAT when the protected env-file check failed.
+- 9.0.85 contains the fix; do not tag/deploy until GitHub main is green and UAT environment secrets/variables remain configured.
 
-IMPORTANT HANDOVER NOTE
-- The source is ready to push to GitHub.
-- Do not push the v9.0.84 release tag until the GitHub 'uat' environment secrets/variables are configured; the tag intentionally triggers automatic UAT deployment.
-- PROD remains untouched until the manually started Deploy PROD workflow is approved/run.
+STATUS
+- VERIFIED FOR 9.0.85 SOURCE HANDOFF / GITHUB MAIN PUSH.

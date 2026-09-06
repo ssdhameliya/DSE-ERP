@@ -71,3 +71,7 @@ If startup/health fails, it automatically restores the previous binary symlink, 
 ## Local fallback is intentionally not automatic
 
 A Shared Client must not silently start writing to an old local database when the cloud/server is unavailable. That would create two independent financial histories. Temporary outages should remain Shared Client connection failures/retry states. A future disaster-recovery workflow may restore the latest server backup and server-owned files into a local environment before explicitly switching back to `LOCAL`.
+
+## Protected Oracle runtime files
+
+The GitHub SSH deployment account does not need direct read permission on `/etc/dse-erp/<env>.env` or `/etc/dse-erp/<env>-db-password`. The deployment script verifies and reads those protected Oracle files through `sudo -n`; keep them root/protected rather than loosening filesystem permissions for CI.

@@ -23,13 +23,27 @@ RELEASE="$RELEASES/$VERSION"
 WORKSPACE_DEFAULT="$BASE/workspace"
 SERVICE="dse-erp-${ENVIRONMENT}"
 
-[[ -r "$ENV_FILE" ]] || { echo "Missing environment file: $ENV_FILE" >&2; exit 2; }
-[[ -e "$PASSWORD_FILE" ]] || { echo "Missing database password file: $PASSWORD_FILE" >&2; exit 2; }
+if ! sudo -n test -r "$ENV_FILE"; then
+  echo "Environment file is missing or not readable through deployment sudo: $ENV_FILE" >&2
+  exit 2
+fi
+if ! sudo -n test -r "$PASSWORD_FILE"; then
+  echo "Database password file is missing or not readable through deployment sudo: $PASSWORD_FILE" >&2
+  exit 2
+fi
 
+# Oracle keeps deployment configuration root-owned. GitHub connects as the
+# restricted deployment account, so read the trusted env file through non-interactive
+# sudo -n instead of requiring that account to have direct filesystem read permission.
+ENV_CONTENT=$(sudo -n cat "$ENV_FILE") || {
+  echo "Unable to read deployment environment through sudo: $ENV_FILE" >&2
+  exit 2
+}
 # shellcheck disable=SC1090
 set -a
-source "$ENV_FILE"
+source /dev/stdin <<< "$ENV_CONTENT"
 set +a
+unset ENV_CONTENT
 
 [[ "${DSE_DEPLOYMENT_ENVIRONMENT:-}" == "$EXPECTED_ENV" ]] || {
   echo "Environment safety mismatch: $ENV_FILE must declare DSE_DEPLOYMENT_ENVIRONMENT=$EXPECTED_ENV" >&2
@@ -116,7 +130,7 @@ if [[ -n "$PREVIOUS" ]]; then
   if [[ "$PREVIOUS_VERSION" == "$VERSION" ]]; then
     CURRENT_JAR="$PREVIOUS/server.jar"
     [[ -s "$CURRENT_JAR" ]] || { echo "Current same-version server.jar is missing: $CURRENT_JAR" >&2; exit 1; }
-    CURRENT_SHA=$(sudo sha256sum "$CURRENT_JAR" | awk '{print $1}')
+    CURRENT_SHA=$(sudo -n sha256sum "$CURRENT_JAR" | awk '{print $1}')
     if [[ "$CURRENT_SHA" == "$ACTUAL_SHA" ]]; then
       echo "Release $VERSION is already deployed with the exact requested artifact; no restart required."
       echo "$CURRENT_BODY"
@@ -131,43 +145,43 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 BACKUP_DIR="$WORKSPACE/Backups/PreUpgrade"
 PRE_BACKUP="$BACKUP_DIR/DSE-ERP-${EXPECTED_ENV}-before-${VERSION}-${STAMP}.pgbackup"
 
-sudo install -d -o dseerp -g dseerp "$RELEASES" "$RELEASE" "$BACKUP_DIR"
+sudo -n install -d -o dseerp -g dseerp "$RELEASES" "$RELEASE" "$BACKUP_DIR"
 
-DB_PASSWORD=$(sudo cat "$PASSWORD_FILE")
+DB_PASSWORD=$(sudo -n cat "$PASSWORD_FILE")
 cleanup_password() { DB_PASSWORD=''; unset DB_PASSWORD || true; }
 trap cleanup_password EXIT
 
 echo "Creating validated pre-upgrade backup: $PRE_BACKUP"
-sudo -u dseerp env PGPASSWORD="$DB_PASSWORD" "$PG_DUMP" \
+sudo -n -u dseerp env PGPASSWORD="$DB_PASSWORD" "$PG_DUMP" \
   --format=custom --no-owner --no-privileges \
   --host=127.0.0.1 \
   --username="$DSE_DB_USERNAME" \
   --dbname="$DSE_EXPECTED_DATABASE" \
   --file="$PRE_BACKUP"
-sudo -u dseerp "$PG_RESTORE" --list "$PRE_BACKUP" >/dev/null
+sudo -n -u dseerp "$PG_RESTORE" --list "$PRE_BACKUP" >/dev/null
 [[ -s "$PRE_BACKUP" ]] || { echo 'Pre-upgrade database backup is empty' >&2; exit 1; }
 cleanup_password
 trap - EXIT
 
 echo "Installing $VERSION into $RELEASE"
 DEST_JAR="$RELEASE/DSE-ERP-${VERSION}-SERVER.jar"
-sudo install -o dseerp -g dseerp -m 0640 "$JAR" "$DEST_JAR"
-sudo ln -sfn "DSE-ERP-${VERSION}-SERVER.jar" "$RELEASE/server.jar"
-INSTALLED_SHA=$(sudo sha256sum "$DEST_JAR" | awk '{print $1}')
+sudo -n install -o dseerp -g dseerp -m 0640 "$JAR" "$DEST_JAR"
+sudo -n ln -sfn "DSE-ERP-${VERSION}-SERVER.jar" "$RELEASE/server.jar"
+INSTALLED_SHA=$(sudo -n sha256sum "$DEST_JAR" | awk '{print $1}')
 [[ "$INSTALLED_SHA" == "$ACTUAL_SHA" ]] || { echo 'Installed server JAR checksum mismatch' >&2; exit 1; }
 
 if [[ -n "$PREVIOUS" ]]; then
-  printf '%s\n' "$PREVIOUS" | sudo tee "$BASE/previous-release" >/dev/null
+  printf '%s\n' "$PREVIOUS" | sudo -n tee "$BASE/previous-release" >/dev/null
 fi
 
 rollback_binary() {
   local reason=$1
   echo "Deployment failed: $reason" >&2
   echo 'Rolling server binary back to the previous release.' >&2
-  sudo systemctl stop "$SERVICE" 2>/dev/null || true
+  sudo -n systemctl stop "$SERVICE" 2>/dev/null || true
   if [[ -n "$PREVIOUS" && -d "$PREVIOUS" ]]; then
-    sudo ln -sfn "$PREVIOUS" "$BASE/current"
-    sudo systemctl start "$SERVICE"
+    sudo -n ln -sfn "$PREVIOUS" "$BASE/current"
+    sudo -n systemctl start "$SERVICE"
     if ! ROLLBACK_BODY=$(wait_for_health "$PREVIOUS_VERSION"); then
       echo 'CRITICAL: previous server release did not recover cleanly.' >&2
       echo "Pre-upgrade database backup: $PRE_BACKUP" >&2
@@ -182,21 +196,21 @@ rollback_binary() {
   return 1
 }
 
-sudo systemctl stop "$SERVICE" 2>/dev/null || true
-sudo ln -sfn "$RELEASE" "$BASE/current"
-if ! sudo systemctl start "$SERVICE"; then
+sudo -n systemctl stop "$SERVICE" 2>/dev/null || true
+sudo -n ln -sfn "$RELEASE" "$BASE/current"
+if ! sudo -n systemctl start "$SERVICE"; then
   rollback_binary 'systemd could not start the new release'
   exit 1
 fi
 
 if ! NEW_BODY=$(wait_for_health "$VERSION"); then
   echo 'Recent service log:' >&2
-  sudo journalctl -u "$SERVICE" -n 80 --no-pager >&2 || true
+  sudo -n journalctl -u "$SERVICE" -n 80 --no-pager >&2 || true
   rollback_binary 'health verification failed'
   exit 1
 fi
 
-sudo systemctl is-active --quiet "$SERVICE" || {
+sudo -n systemctl is-active --quiet "$SERVICE" || {
   rollback_binary 'service is not active after a successful health response'
   exit 1
 }

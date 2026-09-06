@@ -98,6 +98,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/authority/resources/EXCEL_TEMPLATE/**").hasAnyAuthority("ROLE_ADMIN", "DOCUMENT_STUDIO.VIEW")
                         .requestMatchers(HttpMethod.PUT, "/api/authority/resources/EXCEL_TEMPLATE/**").hasAnyAuthority("ROLE_ADMIN", "DOCUMENT_STUDIO.EDIT", "DOCUMENT_STUDIO.MANAGE_TEMPLATES")
                         .requestMatchers(HttpMethod.DELETE, "/api/authority/resources/EXCEL_TEMPLATE/**").hasAnyAuthority("ROLE_ADMIN", "DOCUMENT_STUDIO.EDIT", "DOCUMENT_STUDIO.MANAGE_TEMPLATES")
+                        .requestMatchers(HttpMethod.POST, "/api/authority/backups/recovery-package").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/authority/backups/**").hasAnyAuthority("ROLE_ADMIN", "BACKUP.VIEW")
                         .requestMatchers(HttpMethod.POST, "/api/authority/backups").hasAnyAuthority("ROLE_ADMIN", "BACKUP.CREATE")
                         .requestMatchers(HttpMethod.POST, "/api/authority/backups/import").hasAnyAuthority("ROLE_ADMIN", "BACKUP.CREATE")

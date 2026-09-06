@@ -41,6 +41,7 @@ CHECKS = [
     "audit-architecture-refactor.py",
     "audit-cloud-uat-contract.py",
     "audit-github-deployment-contract.py",
+    "audit-disaster-recovery-contract.py",
 ]
 
 failed = []

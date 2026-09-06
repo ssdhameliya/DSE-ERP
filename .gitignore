@@ -36,3 +36,7 @@ Downloads/
 *.dmg
 *.pkg
 *.app/
+
+# Python cache
+__pycache__/
+*.pyc

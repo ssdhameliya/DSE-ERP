@@ -18,6 +18,19 @@ public class ServerBackupController {
     @GetMapping("/metrics") public ServerBackupService.DatabaseMetrics metrics() { return service.metrics(); }
     @PostMapping public ServerBackupService.BackupFile create() throws IOException { return service.create("MANUAL"); }
 
+
+    @PostMapping(value = "/recovery-package", produces = "application/zip")
+    public ResponseEntity<byte[]> recoveryPackage() throws IOException {
+        ServerBackupService.RecoveryPackage recovery = service.createRecoveryPackage();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(recovery.filename(), StandardCharsets.UTF_8))
+                .header("X-DSE-Recovery-Database-SHA256", recovery.databaseSha256())
+                .header("X-DSE-Recovery-Environment", recovery.environment())
+                .header("X-DSE-Recovery-Version", recovery.applicationVersion())
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(recovery.bytes());
+    }
+
     @PostMapping(value = "/import", consumes = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     public ServerBackupService.BackupFile importBackup(@RequestParam String filename, @RequestBody byte[] data) throws IOException {
         return service.importBackup(filename, data);
