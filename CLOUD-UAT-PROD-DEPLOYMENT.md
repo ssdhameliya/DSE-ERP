@@ -29,6 +29,12 @@ Normal application backup policy is **weekly / keep latest 2 ordinary backups**.
 
 `deploy-release.sh` keeps releases in versioned directories and uses a `current` symlink. If startup or health verification fails, it restores the previous binary symlink automatically. If a release applied an incompatible database migration, restore the matching validated pre-upgrade database backup before reopening user access.
 
+## GitHub release automation
+
+For the live Oracle layout (`/srv/dse-erp/<env>` with services `dse-erp-uat` / `dse-erp-prod`), release tags use `.github/workflows/release.yml` and `scripts/linux/deploy-oracle-release.sh`. UAT is deployed automatically only after the release build/package jobs succeed. Production is deployed through the separate manually started `.github/workflows/deploy-prod.yml`, which downloads the exact already-published server artifact and verifies that the same version is healthy in UAT first.
+
+The older `deploy-release.sh` / `dse-erp@.service` pair remains the generic fresh-install template. `deploy-oracle-release.sh` is the CI path for the current Oracle VM layout.
+
 ## Version management
 
 The release version is set once in `.mvn/maven.config` as `-Drevision=<version>`. Maven-filtered desktop/server/shared/runtime metadata inherit it automatically. Historical migration/release references remain fixed by design.

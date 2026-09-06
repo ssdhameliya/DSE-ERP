@@ -1,0 +1,148 @@
+name: Deploy PROD
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'UAT-approved release tag (for example vX.Y.Z)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dse-erp-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy approved release to PROD
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
+      SSH_USER: ${{ secrets.DSE_SSH_USER }}
+      SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      SSH_PORT: ${{ vars.DSE_SSH_PORT }}
+      PROD_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+      PROD_EXPECTED_DATABASE: ${{ vars.DSE_EXPECTED_DATABASE }}
+      UAT_HEALTH_URL: ${{ vars.DSE_UAT_PUBLIC_HEALTH_URL }}
+      UAT_EXPECTED_DATABASE: ${{ vars.DSE_UAT_EXPECTED_DATABASE }}
+    steps:
+      - name: Checkout the approved release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Validate deployment inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='${{ inputs.tag }}'
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Tag must look like vX.Y.Z' >&2; exit 1; }
+          VERSION="${TAG#v}"
+          SOURCE_VERSION="$(sed -n 's/^-Drevision=//p' .mvn/maven.config | head -1)"
+          [[ "$VERSION" == "$SOURCE_VERSION" ]] || { echo "Tag/source version mismatch: $VERSION vs $SOURCE_VERSION" >&2; exit 1; }
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PROD_HEALTH_URL PROD_EXPECTED_DATABASE UAT_HEALTH_URL UAT_EXPECTED_DATABASE; do
+            [[ -n "${!name:-}" ]] || { echo "Missing GitHub production environment secret/variable: $name" >&2; exit 1; }
+          done
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+
+      - name: Verify the same version is currently healthy in UAT
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --max-time 15 "$UAT_HEALTH_URL")"
+          python3 - "$VERSION" "$UAT_EXPECTED_DATABASE" "$BODY" <<'PY'
+          import json,sys
+          version,database,body=sys.argv[1:]
+          r=json.loads(body)
+          ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
+              and r.get('environment')=='UAT' and r.get('databaseName')==database)
+          if not ok:
+              raise SystemExit(f'UAT is not running the requested approved release: {r}')
+          print(f'UAT_GATE_OK version={version} database={database}')
+          PY
+
+      - name: Download exact GitHub release server artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deploy-artifacts
+          gh release download "$TAG" \
+            --repo '${{ github.repository }}' \
+            --pattern "DSE-ERP-${VERSION}-SERVER.jar" \
+            --pattern 'checksums.txt' \
+            --dir deploy-artifacts
+          EXPECTED="$(awk -v f="DSE-ERP-${VERSION}-SERVER.jar" '$2==f {print $1}' deploy-artifacts/checksums.txt)"
+          [[ -n "$EXPECTED" ]] || { echo 'Server checksum is missing from release checksums.txt' >&2; exit 1; }
+          ACTUAL="$(sha256sum "deploy-artifacts/DSE-ERP-${VERSION}-SERVER.jar" | awk '{print $1}')"
+          [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "Release server checksum mismatch: $ACTUAL != $EXPECTED" >&2; exit 1; }
+          echo "SERVER_SHA=$ACTUAL" >> "$GITHUB_ENV"
+          echo "Exact UAT-approved release artifact verified: $ACTUAL"
+
+      - name: Configure strict SSH host verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/dse_deploy_key
+          chmod 600 ~/.ssh/dse_deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload release and deployment script
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'mkdir -p /tmp/dse-erp-ci-deploy'
+          scp -i ~/.ssh/dse_deploy_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            "deploy-artifacts/DSE-ERP-${VERSION}-SERVER.jar" \
+            scripts/linux/deploy-oracle-release.sh \
+            "$SSH_USER@$SSH_HOST:/tmp/dse-erp-ci-deploy/"
+
+      - name: Deploy PROD with automatic binary rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            "bash /tmp/dse-erp-ci-deploy/deploy-oracle-release.sh prod /tmp/dse-erp-ci-deploy/DSE-ERP-${VERSION}-SERVER.jar '${VERSION}' '${SERVER_SHA}'" \
+            | tee DSE-ERP-PROD-deploy.log
+
+      - name: Verify public PROD HTTPS health
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PROD_HEALTH_URL")"
+          python3 - "$VERSION" "$PROD_EXPECTED_DATABASE" "$BODY" <<'PY'
+          import json,sys
+          version,database,body=sys.argv[1:]
+          r=json.loads(body)
+          ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
+              and r.get('environment')=='PROD' and r.get('databaseName')==database)
+          if not ok:
+              raise SystemExit(f'Public PROD health validation failed: {r}')
+          print(f'PROD_DEPLOYMENT_OK version={version} database={database}')
+          PY
+
+      - name: Clean remote upload staging
+        if: always()
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/dse_deploy_key -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            'rm -rf /tmp/dse-erp-ci-deploy' || true
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-deployment-${{ inputs.tag }}
+          path: DSE-ERP-PROD-deploy.log
+          if-no-files-found: ignore
+          retention-days: 30

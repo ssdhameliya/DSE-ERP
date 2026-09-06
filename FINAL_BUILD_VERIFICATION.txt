@@ -1,42 +1,41 @@
-DSE ERP 9.0.83 — FINAL BUILD / SHARED-CLIENT TRANSITION VERIFICATION
-=====================================================================
+DSE ERP 9.0.84 — FINAL BUILD / DEPLOYMENT AUTOMATION VERIFICATION
+=================================================================
 
 RELEASE
-- Baseline: verified DSE ERP 9.0.82 Cloud/UAT readiness source.
-- Release: 9.0.83.
-- Scope: Shared Client first-run/workspace hardening, safe LOCAL -> existing-server transition,
-  promotion-script path/finalize corrections, and staged-restore backup-history exclusion.
-- No ERP business schema change and no sidebar/navigation redesign.
+- Baseline: verified DSE ERP 9.0.83 source after UAT Shared Client transition testing.
+- Release: 9.0.84.
+- Scope: GitHub-driven server deployment automation and rollback only.
+- No ERP business workflow, JavaFX screen/FXML, database migration, or schema change was introduced.
 
-FINAL LOCAL -> EXISTING SERVER SAFETY
-- New PCs retain the choice: Local workspace OR Shared / Company Server.
-- Shared Client uses application-managed client storage; the user does not choose/create a business workspace.
-- Existing LOCAL -> Connect to Existing Server writes a separate managed Shared Client profile.
-- Original LOCAL Config/config.properties is preserved byte-for-byte for rollback.
-- The connect-existing-server Save operation is deployment-only and does not push local company,
-  email, storage or business settings to the already-existing server.
-- DSE ERP closes immediately after the LOCAL -> Shared switch to prevent a mixed-runtime session.
-- Local database, attachments/documents and local company data are not uploaded by this path.
-- Promotion remains a separate Local -> Server promotion workflow.
-- The Local-company confirmation uses clear choices: Connect to Existing Server switches this PC to Shared Client; Cancel keeps the PC local. Legacy “Enable Multi-User” wording was removed from this user-facing warning.
+VERSION GOVERNANCE
+- .mvn/maven.config -> -Drevision=9.0.84.
+- Server/desktop/shared metadata remains Maven-filtered from the project version.
 
-PROMOTION / BACKUP HARDENING
-- Enable Multi-User.ps1 uses Config/config.properties (not Configuration/config.properties).
-- -Finalize no longer requires LocalDatabaseUrl/LocalDatabaseUser and returns to the caller.
-- restore-pending.pgbackup / validation artifacts are excluded from ordinary backup history/retention.
+AUTOMATED RELEASE FLOW
+- Release tags build one canonical DSE ERP server artifact.
+- The server artifact is published in the GitHub Release and auto-deployed to the GitHub 'uat' environment.
+- UAT deployment verifies SHA-256, current UAT identity, a validated PostgreSQL pre-upgrade backup, systemd restart, private health, public HTTPS health and exact version/environment/database identity.
+- Failed startup/health automatically restores the previous server binary symlink and verifies rollback health.
+- PROD uses .github/workflows/deploy-prod.yml and is manually started with a UAT-approved tag.
+- PROD downloads the exact already-published server JAR/checksum; it does not rebuild a new production server artifact.
+- PROD validates that the same version is healthy in UAT before deployment.
+- GitHub production environment required-reviewer protection is documented for the Approve-and-deploy gate.
+- Database passwords remain in /etc/dse-erp/<env>-db-password on Oracle and are not GitHub secrets.
+- Shared Client automatic fallback to a stale LOCAL database remains intentionally prohibited.
 
-BUILD ENVIRONMENT ACTUALLY EXECUTED
+LIVE ORACLE LAYOUT COMPATIBILITY
+- CI deployment path: /srv/dse-erp/<env>/releases/<version>.
+- Current release pointer: /srv/dse-erp/<env>/current.
+- Workspace: /srv/dse-erp/<env>/workspace (or DSE_WORKSPACE_PATH).
+- Services: dse-erp-uat / dse-erp-prod.
+- Environment files: /etc/dse-erp/<env>.env.
+- DB password files: /etc/dse-erp/<env>-db-password.
+
+BUILD ENVIRONMENT EXECUTED
 - Linux x64 sandbox.
 - OpenJDK / javac: 25.0.4.1 LTS.
 - Apache Maven: 3.9.16.
-- JavaFX project line: 25.0.2.
-- JavaFX desktop tests executed under Xvfb 1366x768.
-- Windows desktop packaging explicitly used javafx.platform=win and contains JavaFX Windows DLLs.
-
-FINAL RELEASE GATES
-- RELEASE_GATES_CURRENT_OK version=9.0.83.
-- CLOUD_UAT_CONTRACT_OK version=9.0.83 env=UAT/PROD backup=WEEKLY/2 linux=yes.
-- Runtime CSS contract remains exactly 2 files.
+- JavaFX dependency line: 25.0.2.
 
 FINAL CLEAN MAVEN VERIFY
 - Result: BUILD SUCCESS.
@@ -44,27 +43,21 @@ FINAL CLEAN MAVEN VERIFY
 - Shared: SUCCESS.
 - Server: SUCCESS.
 - Desktop: SUCCESS.
-- Server tests: 21 run, 0 failures, 0 errors, 2 skipped opt-in PostgreSQL integration tests.
+- Server tests: 21 run, 0 failures, 0 errors, 2 skipped opt-in PostgreSQL integration-environment tests.
 - Desktop tests: 66 run, 0 failures, 0 errors, 0 skipped.
-- SharedClientWorkspaceContractTest: 3 run, 0 failures, 0 errors, including byte-for-byte LOCAL rollback-config preservation.
-- CriticalReleaseRegressionTest: 9 run, 0 failures, 0 errors.
-- SalesPdfStudioFlowTest: 7 run, 0 failures, 0 errors.
 
-WINDOWS JAR VERIFICATION
-- Windows package build: BUILD SUCCESS.
-- JavaFX 25.0.2 win classifiers included.
-- Windows native entries verified in DSE_Final.jar (glass.dll, prism_d3d.dll, javafx_font.dll, etc.).
+RELEASE / DEPLOYMENT GATES
+- RELEASE_GATES_CURRENT_OK version=9.0.84.
+- CLOUD_UAT_CONTRACT_OK version=9.0.84 env=UAT/PROD backup=WEEKLY/2 linux=yes.
+- GITHUB_DEPLOYMENT_CONTRACT_OK uat=automatic prod=manual artifact=same rollback=binary.
+- GitHub workflow YAML parse: PASS for ci.yml, release.yml and deploy-prod.yml.
+- deploy-oracle-release.sh bash syntax validation: PASS.
 
-MANUAL ORACLE UAT VALIDATION
-- 9.0.83 server was deployed to Oracle UAT and reported version/buildRevision 9.0.83, environment UAT, ready=true, databaseName=dse_erp_uat.
-- 9.0.83 IntelliJ desktop login and existing business-data access: PASS.
-- Fresh PC / no workspace -> Shared Server -> login: PASS.
-- Existing Shared workspace reconnect -> login: PASS.
-- Existing LOCAL -> Connect to Existing Server: PASS; preserved local Config/config.properties remained deployment.mode=LOCAL, deployment.environment=LOCAL, server.baseUrl=blank.
+BUILT VERIFICATION ARTIFACTS
+- Server JAR SHA-256: 07429bc0084412a4e70732c55ff9c804743055842f0083dd9504af09e9a28439
+- Linux verification desktop JAR SHA-256: 3f94b60939838f1284b3d48759b9c9ab1016edd340cc14040eeb941833d81171
 
-FINAL WARNING-WORDING VERIFICATION
-- SettingsController contains no legacy “Enable Multi-User” wording in the Local -> Existing Server warning/validation path.
-- Connect continues to create a separate Shared Client profile; Cancel continues to leave the PC in LOCAL mode.
-
-STATUS
-- VERIFIED FOR FINAL SOURCE HANDOVER / GITHUB PUSH.
+IMPORTANT HANDOVER NOTE
+- The source is ready to push to GitHub.
+- Do not push the v9.0.84 release tag until the GitHub 'uat' environment secrets/variables are configured; the tag intentionally triggers automatic UAT deployment.
+- PROD remains untouched until the manually started Deploy PROD workflow is approved/run.

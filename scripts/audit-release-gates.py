@@ -40,6 +40,7 @@ CHECKS = [
     "audit-ui-design-system.py",
     "audit-architecture-refactor.py",
     "audit-cloud-uat-contract.py",
+    "audit-github-deployment-contract.py",
 ]
 
 failed = []

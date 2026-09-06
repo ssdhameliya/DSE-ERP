@@ -45,7 +45,7 @@ backup_ui=t('desktop/src/main/resources/fxml/pages/BackupRestore.fxml')
 need('Backups to keep' in backup_ui and 'text="backups"' in backup_ui and '2 backups' in backup_ui,'backup retention UI still describes days instead of backup count')
 manager=t('desktop/src/main/java/org/example/backup/BackupManager.java')
 need('applyRetention(int retentionCount)' in manager and 'readRetentionCount()' in manager,'local backup retention count contract missing')
-for path in ('scripts/linux/uat.env.example','scripts/linux/prod.env.example','scripts/linux/dse-erp@.service','scripts/linux/nginx-dse-erp.conf.example','scripts/linux/install-layout.sh','scripts/linux/deploy-release.sh','scripts/linux/restore-database.sh','scripts/linux/rollback-release.sh'):
+for path in ('scripts/linux/uat.env.example','scripts/linux/prod.env.example','scripts/linux/dse-erp@.service','scripts/linux/nginx-dse-erp.conf.example','scripts/linux/install-layout.sh','scripts/linux/deploy-release.sh','scripts/linux/deploy-oracle-release.sh','scripts/linux/restore-database.sh','scripts/linux/rollback-release.sh','.github/workflows/deploy-prod.yml','GITHUB-DEPLOYMENT-SETUP.md'):
     need((ROOT/path).is_file(),f'Linux deployment artifact missing: {path}')
 need('DSE_EXPECTED_DATABASE=dse_erp_uat' in t('scripts/linux/uat.env.example'),'UAT database isolation template missing')
 need('DSE_EXPECTED_DATABASE=dse_erp' in t('scripts/linux/prod.env.example'),'PROD database isolation template missing')
