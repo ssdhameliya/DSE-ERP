@@ -240,6 +240,7 @@ jobs:
 
   deploy-uat:
     name: Auto-deploy release to UAT
+    if: github.repository == 'ssdhameliya/DSE-ERP'
     needs: [validate, server, release]
     runs-on: ubuntu-latest
     environment: uat

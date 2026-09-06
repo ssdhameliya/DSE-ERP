@@ -159,7 +159,7 @@ sudo -n -u dseerp env PGPASSWORD="$DB_PASSWORD" "$PG_DUMP" \
   --dbname="$DSE_EXPECTED_DATABASE" \
   --file="$PRE_BACKUP"
 sudo -n -u dseerp "$PG_RESTORE" --list "$PRE_BACKUP" >/dev/null
-[[ -s "$PRE_BACKUP" ]] || { echo 'Pre-upgrade database backup is empty' >&2; exit 1; }
+sudo -n -u dseerp test -s "$PRE_BACKUP" || { echo 'Pre-upgrade database backup is empty or inaccessible to dseerp' >&2; exit 1; }
 cleanup_password
 trap - EXIT
 

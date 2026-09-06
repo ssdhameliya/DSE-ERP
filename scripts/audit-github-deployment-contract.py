@@ -23,6 +23,8 @@ need('server-release' in release and 'DSE-ERP-${{ needs.validate.outputs.version
      'release workflow does not build/upload one canonical server artifact')
 need('deploy-uat:' in release and 'environment: uat' in release,
      'release workflow does not automatically deploy the release artifact to the UAT environment')
+need("if: github.repository == 'ssdhameliya/DSE-ERP'" in release,
+     'UAT auto-deploy is not restricted to the canonical DSE-ERP repository')
 need('StrictHostKeyChecking=yes' in release and 'DSE_SSH_KNOWN_HOSTS' in release,
      'UAT workflow does not pin SSH host identity')
 need('deploy-oracle-release.sh uat' in release and 'UAT_DEPLOYMENT_OK' in release and 'PUBLIC_HEALTH_URL' in release,
@@ -46,6 +48,8 @@ need('sudo -n test -r "$ENV_FILE"' in deploy and 'ENV_CONTENT=$(sudo -n cat "$EN
      'Oracle deploy script does not read the root-owned environment through non-interactive sudo')
 need('sudo -n test -r "$PASSWORD_FILE"' in deploy and 'DB_PASSWORD=$(sudo -n cat "$PASSWORD_FILE")' in deploy,
      'Oracle deploy script does not read the protected DB password through non-interactive sudo')
+need('sudo -n -u dseerp test -s "$PRE_BACKUP"' in deploy,
+     'Oracle deploy script does not verify the protected pre-upgrade backup as dseerp')
 need('${ENVIRONMENT}-db-password' in deploy and 'DSE_DB_PASSWORD' not in release and 'DSE_DB_PASSWORD' not in prod,
      'database password is not kept exclusively on the Oracle host')
 need('required reviewer' in doc.lower() and 'local fallback is intentionally not automatic' in doc.lower(),

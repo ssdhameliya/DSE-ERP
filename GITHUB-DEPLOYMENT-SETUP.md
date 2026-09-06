@@ -2,6 +2,10 @@
 
 DSE ERP releases use GitHub Actions as the release control point. UAT deployment is automatic for a version tag after the build/test/package gates pass. Production uses a separate manually started workflow and should also use a protected GitHub `production` environment with required reviewers.
 
+## Canonical deployment repository and mirror
+
+`ssdhameliya/DSE-ERP` is the only repository allowed to auto-deploy UAT or run the controlled PROD promotion. `DSE-ERP-Enterprise` may receive the same `main` commits and version tags as a mirror, but the UAT deployment job is guarded by `github.repository` and is skipped there. This keeps both repositories synchronized without a duplicate cloud deployment.
+
 ## Release flow
 
 1. Push the verified source to `main`.
