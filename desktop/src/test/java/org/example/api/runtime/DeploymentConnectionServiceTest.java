@@ -3,6 +3,8 @@ package org.example.api.runtime;
 import org.example.config.DeploymentMode;
 import org.junit.jupiter.api.Test;
 
+import java.net.ConnectException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DeploymentConnectionServiceTest {
@@ -16,6 +18,22 @@ class DeploymentConnectionServiceTest {
     @Test void normalizesSupportedCompanyServerAddresses() {
         assertEquals("https://erp.company.local", DeploymentConnectionService.normalize(" https://erp.company.local/ "));
         assertEquals("http://192.168.1.50:8080", DeploymentConnectionService.normalize("http://192.168.1.50:8080"));
+    }
+
+    @Test void selectedEnvironmentIsValidatedBeforeSavingAChangedSharedProfile() {
+        assertDoesNotThrow(() -> DeploymentConnectionService.validateEnvironment("PROD", "PROD"));
+        assertDoesNotThrow(() -> DeploymentConnectionService.validateEnvironment("UAT", "LOCAL"));
+        IllegalStateException mismatch = assertThrows(IllegalStateException.class,
+                () -> DeploymentConnectionService.validateEnvironment("UAT", "PROD"));
+        assertTrue(mismatch.getMessage().contains("Selected environment is PROD"));
+    }
+
+    @Test void connectionFailureDiagnosticDoesNotClaimItCanStartARemoteServer() {
+        String message = RuntimeApiClient.connectionFailureMessage(
+                "https://api.example.test", new ConnectException("Connection refused"));
+        assertTrue(message.contains("Connection refused"));
+        assertFalse(message.contains("attempt to start"));
+        assertFalse(message.contains("automatically"));
     }
 
     @Test void rejectsDatabaseUrlsCredentialsAndApiPaths() {
