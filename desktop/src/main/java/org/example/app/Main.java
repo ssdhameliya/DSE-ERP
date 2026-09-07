@@ -141,11 +141,15 @@ public final class Main {
                 return;
             }
             DesktopLog.error("Main", "SERVER_START_FAILED", "Spring services could not start", exception);
+            String startupMessage = ConfigManager.isSharedClient()
+                    ? "Could not connect to the company server.\n\n" + exception.getMessage()
+                            + "\n\nThe Shared Client does not start or replace the remote company server."
+                    : BrandingService.applicationName() + " services could not start automatically.\n\n" + exception.getMessage()
+                            + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath();
             Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(
                     stage,
                     BrandingService.applicationName() + " startup failed",
-                    BrandingService.applicationName() + " services could not start automatically.\n\n" + exception.getMessage()
-                            + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath()));
+                    startupMessage));
             return;
         }
         Platform.runLater(() -> {
@@ -285,10 +289,13 @@ public final class Main {
                     return;
                 }
                 DesktopLog.error("Main", "FIRST_RUN_START_FAILED", "Services could not start after setup", exception);
+                String startupMessage = ConfigManager.isSharedClient()
+                        ? "Could not connect to the company server after setup.\n\n" + exception.getMessage()
+                                + "\n\nThe Shared Client does not start or replace the remote company server."
+                        : BrandingService.applicationName() + " services could not start after setup.\n\n" + exception.getMessage()
+                                + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath();
                 Platform.runLater(() -> {
-                    Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
-                            BrandingService.applicationName() + " services could not start after setup.\n\n" + exception.getMessage()
-                                    + "\n\nServer log: " + RuntimeBootstrapper.serverLogPath());
+                    Alert alert = new OwnedAlert(Alert.AlertType.ERROR, startupMessage);
                     alert.setHeaderText("First-time startup failed");
                     alert.showAndWait();
                 });
