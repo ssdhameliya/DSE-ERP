@@ -31,4 +31,6 @@ import_service = t('desktop/src/main/java/org/example/service/ImportService.java
 need('ImportWorkbookValueReader.' in import_service and 'ImportDocumentPolicy.' in import_service, 'ImportService extracted workbook/document policies not active')
 css = sorted((p.name for p in (ROOT / 'desktop/src/main/resources/css').glob('*.css')))
 need(css == ['dark-theme.css', 'light-theme.css'], f'CSS contract changed: {css}')
-print(f'ARCHITECTURE_COMPLETION_OK components={len(files)} version=9.0.79 css=2')
+version_config = t('.mvn/maven.config')
+version = next((line.split('=', 1)[1].strip() for line in version_config.splitlines() if line.startswith('-Drevision=')), 'UNKNOWN')
+print(f'ARCHITECTURE_COMPLETION_OK components={len(files)} version={version} css=2')
