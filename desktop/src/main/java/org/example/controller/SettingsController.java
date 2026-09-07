@@ -1938,12 +1938,9 @@ private record AssetPreviewRequest(
         String candidate = txtCompanyServerUrl.getText();
         Thread worker = new Thread(() -> {
             try {
-                var status = DeploymentConnectionService.test(candidate);
-                String normalized = DeploymentConnectionService.normalize(candidate);
                 String selectedEnvironment = cmbDeploymentEnvironment == null ? "LOCAL" : String.valueOf(cmbDeploymentEnvironment.getValue());
-                if (!"LOCAL".equals(selectedEnvironment) && !selectedEnvironment.equalsIgnoreCase(status.environment())) {
-                    throw new IllegalStateException("Selected environment is " + selectedEnvironment + " but the company server reports " + status.environment() + ".");
-                }
+                var status = DeploymentConnectionService.test(candidate, selectedEnvironment);
+                String normalized = DeploymentConnectionService.normalize(candidate);
                 Platform.runLater(() -> {
                     validatedCompanyServerUrl = normalized;
                     lblCompanyServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • " + status.environment() + " • Database " + status.databaseName());
