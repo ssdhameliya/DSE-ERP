@@ -67,7 +67,7 @@ public class SalesListController implements ScreenLifecycle {
     private Button btnSaveView; private MenuButton savedViewsMenu;
     @FXML private Button btnAllDatesRange,btnTodayRange,btnYesterdayRange,btnSevenDaysRange,btnThirtyDaysRange,btnCustomRange,btnCloseDetails,btnApproveSale,btnRejectSale;
     @FXML private TextField txtSearch,txtInvoice,txtAmountFrom,txtAmountTo;
-    @FXML private ComboBox<String> cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus;
+    @FXML private ComboBox<String> cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus,cmbReturnStatus;
     @FXML private DatePicker dpFrom,dpTo;
     @FXML private ToggleButton btnAdvanced;
     @FXML private javafx.scene.layout.GridPane advancedFilters;
@@ -85,7 +85,7 @@ public class SalesListController implements ScreenLifecycle {
     @FXML private SplitPane mainSplit;
     @FXML private javafx.scene.layout.VBox detailDrawer,approvalActionBox;
     @FXML private Label lblDetailInvoice,lblDetailDate,lblDetailStatus,lblDetailCustomer,lblDetailContact,lblDetailAmount,lblDetailPaid,lblDetailBalance,lblDetailDue,lblDetailCharges,lblDetailGstAmount,lblDetailTotalCharges,lblDetailChargeTax,lblDetailGstType,lblDetailGstin,lblDetailBillingAddress,lblDetailDeliveryAddress,lblDetailTransporter,lblDetailDoorDelivery,lblDetailVehicle,lblDetailContactPerson,lblDetailContactMobile;
-    @FXML private Label capInvoiceAmount,capPaidAmount,capBalance,capDueDate,capGstAmount,capTotalCharges,capChargeGst,capCharges,capBillingAddress,capDeliveryAddress,capGstType,capGstin,capTransporter,capVehicle,capContactPerson,capContactMobile;
+    @FXML private Label capInvoiceAmount,capPaidAmount,capBalance,capDueDate,capGstAmount,capTotalCharges,capChargeGst,capCharges,capBillingAddress,capDeliveryAddress,capGstType,capGstin,capTransporter,capDoorDelivery,capVehicle,capContactPerson,capContactMobile;
 
     private final SalesService service=new SalesService();
     private final LookupService lookupService=new LookupService();
@@ -139,7 +139,7 @@ public class SalesListController implements ScreenLifecycle {
         detailIcon(capChargeGst,"tax","sales-detail-icon-tax"); detailIcon(capCharges,"document","sales-detail-icon-charge");
         detailIcon(capBillingAddress,"business","sales-detail-icon-address"); detailIcon(capDeliveryAddress,"purchase","sales-detail-icon-delivery");
         detailIcon(capGstType,"tax","sales-detail-icon-tax"); detailIcon(capGstin,"document","sales-detail-icon-tax");
-        detailIcon(capTransporter,"purchase","sales-detail-icon-transport"); detailIcon(capVehicle,"bank","sales-detail-icon-vehicle");
+        detailIcon(capTransporter,"purchase","sales-detail-icon-transport"); detailIcon(capDoorDelivery,"delivery","sales-detail-icon-delivery"); detailIcon(capVehicle,"bank","sales-detail-icon-vehicle");
         detailIcon(capContactPerson,"user","sales-detail-icon-person"); detailIcon(capContactMobile,"phone","sales-detail-icon-phone");
     }
     private void detailIcon(Label label,String semantic,String style){if(label==null)return;label.setGraphic(IconFactory.compactIcon(semantic,14));label.setGraphicTextGap(6);label.getStyleClass().addAll("sales-detail-caption",style);IconFactory.applySemanticLabelColour(label,semantic);}
@@ -202,7 +202,7 @@ public class SalesListController implements ScreenLifecycle {
             case "due date" -> "calendar";
             case "gst amount", "charge gst", "gst type", "gstin", "tax & transport" -> "tax";
             case "billing address", "delivery address" -> "location";
-            case "transporter", "vehicle no." -> "delivery";
+            case "transporter", "door delivery", "vehicle no." -> "delivery";
             case "contact person" -> "user";
             case "contact mobile" -> "phone";
             default -> null;
@@ -283,12 +283,13 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         cmbWhatsappStatus.getItems().setAll("All","Sent","Not Sent");cmbWhatsappStatus.setValue("All");
         cmbInvoiceType.getItems().setAll("All","TAX INVOICE","PROFORMA","CASH MEMO");cmbInvoiceType.setValue("All");
         cmbDocumentStatus.getItems().setAll("All","DRAFT","PENDING APPROVAL","APPROVED","REJECTED","CANCELLED");cmbDocumentStatus.setValue("All");
+        cmbReturnStatus.getItems().setAll("All","N/A","PENDING APPROVAL","PARTIALLY RETURNED","FULLY RETURNED");cmbReturnStatus.setValue("All");
         org.example.util.PartySearchUi.install(cmbCustomer,"CUSTOMER","All customers","sales-register-customer-search");
         dpFrom.setValue(BusinessClock.today().minusMonths(6));
         dpTo.setValue(BusinessClock.today());
         dpFrom.setPromptText("From date");
         dpTo.setPromptText("To date");
-        for (ComboBox<String> box : List.of(cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus))
+        for (ComboBox<String> box : List.of(cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus,cmbReturnStatus))
             box.valueProperty().addListener((o,a,b)->{if(!applyingSavedView && !org.example.util.PartySearchUi.isInternalUpdate(box))applyFilters();});
         dpFrom.valueProperty().addListener((o,a,b)->applyFilters());
         dpTo.valueProperty().addListener((o,a,b)->applyFilters());
@@ -385,11 +386,11 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     private void reloadPage(){
         int requestedPage=pageState.currentPage(),size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";
-        String payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue();
+        String payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue(),returnStatus=cmbReturnStatus.getValue();
         Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
         String selectedCustomer=customer;
         org.example.util.OperationalUiSupport.showLoading(tableSales,"Loading sales invoices…");
-        UiTaskExecutor.submitLatest("sales-register-load",()->service.page(requestedPage,size,txtSearch.getText(),txtInvoice.getText(),selectedCustomer,dpFrom.getValue(),dpTo.getValue(),payment,due,mail,whatsapp,invoiceType,documentStatus,min,max),this::applyPage,failure->{pendingSavedViewName=null;finishExplicitRefresh(false);org.example.util.OperationalUiSupport.showError(tableSales,"Sales register could not load",failure);error(failure);});
+        UiTaskExecutor.submitLatest("sales-register-load",()->service.page(requestedPage,size,txtSearch.getText(),txtInvoice.getText(),selectedCustomer,dpFrom.getValue(),dpTo.getValue(),payment,due,mail,whatsapp,invoiceType,documentStatus,returnStatus,min,max),this::applyPage,failure->{pendingSavedViewName=null;finishExplicitRefresh(false);org.example.util.OperationalUiSupport.showError(tableSales,"Sales register could not load",failure);error(failure);});
     }
     private void applyPage(org.example.api.operations.OperationsApiClient.SalesPage loaded){
         pageState.runApplying(() -> {
@@ -525,14 +526,14 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     private void applyDateRange(LocalDate from,LocalDate to){dpFrom.setValue(from);dpTo.setValue(to);applyFilters();}
 
     @FXML private void toggleAdvanced(){advancedFilters.setManaged(btnAdvanced.isSelected());advancedFilters.setVisible(btnAdvanced.isSelected());}
-    @FXML private void resetFilters(){txtSearch.clear();txtInvoice.clear();txtAmountFrom.clear();txtAmountTo.clear();dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");cmbDocumentStatus.setValue("All");applyFilters();}
-    private void renderChips(){activeFilterChips.getChildren().clear();addChip("From",dpFrom.getValue());addChip("To",dpTo.getValue());addChip("Payment",nonAll(cmbPaymentStatus));addChip("Email",nonAll(cmbMailStatus));addChip("WhatsApp",nonAll(cmbWhatsappStatus));addChip("Document",nonAll(cmbDocumentStatus));}
+    @FXML private void resetFilters(){txtSearch.clear();txtInvoice.clear();txtAmountFrom.clear();txtAmountTo.clear();dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");cmbDocumentStatus.setValue("All");cmbReturnStatus.setValue("All");applyFilters();}
+    private void renderChips(){activeFilterChips.getChildren().clear();addChip("From",dpFrom.getValue());addChip("To",dpTo.getValue());addChip("Payment",nonAll(cmbPaymentStatus));addChip("Return",nonAll(cmbReturnStatus));addChip("Email",nonAll(cmbMailStatus));addChip("WhatsApp",nonAll(cmbWhatsappStatus));addChip("Document",nonAll(cmbDocumentStatus));}
     private Object nonAll(ComboBox<String>b){return b.getValue()==null||b.getValue().equals("All")?null:b.getValue();}private void addChip(String name,Object value){if(value==null)return;Label chip=new Label(name+": "+value);chip.getStyleClass().add("filter-chip");activeFilterChips.getChildren().add(chip);}
 
     @FXML private void saveCurrentView(){
         TextInputDialog d=new OwnedTextInputDialog();d.setTitle("Save Filter View");d.setHeaderText("Save the current sales filters");d.setContentText("View name:");
         d.showAndWait().map(String::trim).filter(x->!x.isBlank()).ifPresent(name->{
-            String data=String.join("|",safe(txtInvoice.getText()),safe(cmbCustomer.getValue()),str(dpFrom.getValue()),str(dpTo.getValue()),safe(cmbPaymentStatus.getValue()),"All",safe(cmbMailStatus.getValue()),safe(cmbWhatsappStatus.getValue()),safe(cmbInvoiceType.getValue()),safe(txtAmountFrom.getText()),safe(txtAmountTo.getText()),safe(cmbDocumentStatus.getValue()),safe(txtSearch.getText()));
+            String data=String.join("|",safe(txtInvoice.getText()),safe(cmbCustomer.getValue()),str(dpFrom.getValue()),str(dpTo.getValue()),safe(cmbPaymentStatus.getValue()),"All",safe(cmbMailStatus.getValue()),safe(cmbWhatsappStatus.getValue()),safe(cmbInvoiceType.getValue()),safe(txtAmountFrom.getText()),safe(txtAmountTo.getText()),safe(cmbDocumentStatus.getValue()),safe(txtSearch.getText()),safe(cmbReturnStatus.getValue()));
             Integer uid=SessionService.current()==null?null:SessionService.current().getId();
             UiTaskExecutor.submitAction("sales-save-view",()->{support.saveView(uid,"SALES_REGISTER",name,data);return true;},ignored->{loadSavedViews();org.example.util.ToastManager.success(tableSales,"Saved view created",name);},failure->error(failure instanceof Exception e?e:new RuntimeException(failure)));
         });
@@ -542,7 +543,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         if(savedViewsMenu==null)return;Integer uid=SessionService.current()==null?null:SessionService.current().getId();
         UiTaskExecutor.submitLatest("sales-saved-views",()->support.savedViews("SALES_REGISTER",uid),views->{savedViewsMenu.getItems().clear();for(SupportApiClient.SavedView v:views){MenuItem i=new MenuItem(v.name());i.getStyleClass().add("register-saved-view-item");i.setOnAction(e->applySaved(v.name(),v.data()));savedViewsMenu.getItems().add(i);}if(savedViewsMenu.getItems().isEmpty())savedViewsMenu.getItems().add(savedViewPlaceholder());},failure->{savedViewsMenu.getItems().setAll(savedViewPlaceholder());PerformanceMonitor.event("sales-saved-views",String.valueOf(failure.getMessage()));});
     }
-    private void applySaved(String name,String data){String[]x=data==null?new String[0]:data.split("\\|",-1);if(x.length==0){warning("The saved view is empty and cannot be applied.");return;}filterDebouncer.cancel();applyingSavedView=true;try{txtInvoice.setText(part(x,0));String customer=part(x,1);org.example.util.PartySearchUi.preserveSelection(cmbCustomer,customer.isBlank()?"All customers":customer,"All customers");dpFrom.setValue(date(part(x,2)));dpTo.setValue(date(part(x,3)));selectSaved(cmbPaymentStatus,part(x,4),"All");selectSaved(cmbMailStatus,part(x,6),"All");selectSaved(cmbWhatsappStatus,part(x,7),"All");selectSaved(cmbInvoiceType,part(x,8),"All");txtAmountFrom.setText(part(x,9));txtAmountTo.setText(part(x,10));selectSaved(cmbDocumentStatus,part(x,11),"All");txtSearch.setText(part(x,12));pageState.reset();pendingSavedViewName=name;}finally{applyingSavedView=false;}filterDebouncer.cancel();renderChips();reloadPage();}
+    private void applySaved(String name,String data){String[]x=data==null?new String[0]:data.split("\\|",-1);if(x.length==0){warning("The saved view is empty and cannot be applied.");return;}filterDebouncer.cancel();applyingSavedView=true;try{txtInvoice.setText(part(x,0));String customer=part(x,1);org.example.util.PartySearchUi.preserveSelection(cmbCustomer,customer.isBlank()?"All customers":customer,"All customers");dpFrom.setValue(date(part(x,2)));dpTo.setValue(date(part(x,3)));selectSaved(cmbPaymentStatus,part(x,4),"All");selectSaved(cmbMailStatus,part(x,6),"All");selectSaved(cmbWhatsappStatus,part(x,7),"All");selectSaved(cmbInvoiceType,part(x,8),"All");txtAmountFrom.setText(part(x,9));txtAmountTo.setText(part(x,10));selectSaved(cmbDocumentStatus,part(x,11),"All");txtSearch.setText(part(x,12));selectSaved(cmbReturnStatus,part(x,13),"All");pageState.reset();pendingSavedViewName=name;}finally{applyingSavedView=false;}filterDebouncer.cancel();renderChips();reloadPage();}
     private void notifyAppliedSavedView(){if(pendingSavedViewName==null)return;String name=pendingSavedViewName;pendingSavedViewName=null;org.example.util.ToastManager.info(tableSales,"Saved view applied",name+" filters are now active.");}
     private static String part(String[] values,int index){return values!=null&&index>=0&&index<values.length&&values[index]!=null?values[index]:"";}
     private static void selectSaved(ComboBox<String> box,String raw,String fallback){if(box==null)return;String value=raw==null||raw.isBlank()?fallback:raw.trim();String match=box.getItems().stream().filter(v->v!=null&&v.equalsIgnoreCase(value)).findFirst().orElse(null);if(match==null&&!value.equalsIgnoreCase(fallback)){box.getItems().add(value);match=value;}box.setValue(match!=null?match:fallback);}
@@ -646,15 +647,15 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         org.example.service.PermissionService.require("SALES.EXPORT", "Export Sales");
         File f=chooseSave("Export Sales Register","Sales_Register.xlsx","Excel","*.xlsx");if(f==null)return;
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";String selectedCustomer=customer;
-        String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
-        UiTaskExecutor.submitAction("sales-register-export-excel",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,min,max);writeSalesExcel(f,rows);return rows.size();},count->info("Sales register exported • "+count+" records."),this::error);
+        String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue(),returnStatus=cmbReturnStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
+        UiTaskExecutor.submitAction("sales-register-export-excel",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,returnStatus,min,max);writeSalesExcel(f,rows);return rows.size();},count->info("Sales register exported • "+count+" records."),this::error);
     }
     @FXML private void exportRegisterPdf(){
         org.example.service.PermissionService.require("SALES.EXPORT", "Export Sales");
         File f=chooseSave("Export Sales Register PDF","Sales_Register.pdf","PDF","*.pdf");if(f==null)return;
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";String selectedCustomer=customer;
-        String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
-        UiTaskExecutor.submitAction("sales-register-export-pdf",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,min,max);org.example.service.BrandedRegisterPdfService.export(f.toPath(),"Sales Register",new String[]{"Invoice","Date","Customer","Amount","Paid","Pending","Document Status","Payment Status"},rows.stream().map(x->new String[]{x.getInvoiceNo(),str(x.getInvoiceDate()),x.getCustomer()==null?"":safe(x.getCustomer().getName()),exportMoney(x.getTotalAmount()),exportMoney(x.getPaidAmount()),exportMoney(x.getBalanceAmount()),documentStatus(x),paymentStatusDisplay(x)}).toList(),new float[]{2,1.3f,2.4f,1.3f,1.3f,1.3f,1.5f,1.6f});return rows.size();},count->info("Sales register PDF exported • "+count+" records."),this::error);
+        String q=txtSearch.getText(),invoice=txtInvoice.getText(),payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue(),returnStatus=cmbReturnStatus.getValue();LocalDate from=dpFrom.getValue(),to=dpTo.getValue();Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
+        UiTaskExecutor.submitAction("sales-register-export-pdf",()->{List<Sales> rows=service.allFiltered(q,invoice,selectedCustomer,from,to,payment,due,mail,whatsapp,invoiceType,documentStatus,returnStatus,min,max);org.example.service.BrandedRegisterPdfService.export(f.toPath(),"Sales Register",new String[]{"Invoice","Date","Customer","Amount","Paid","Pending","Document Status","Payment Status"},rows.stream().map(x->new String[]{x.getInvoiceNo(),str(x.getInvoiceDate()),x.getCustomer()==null?"":safe(x.getCustomer().getName()),exportMoney(x.getTotalAmount()),exportMoney(x.getPaidAmount()),exportMoney(x.getBalanceAmount()),documentStatus(x),paymentStatusDisplay(x)}).toList(),new float[]{2,1.3f,2.4f,1.3f,1.3f,1.3f,1.5f,1.6f});return rows.size();},count->info("Sales register PDF exported • "+count+" records."),this::error);
     }
     private void writeSalesExcel(File f,List<Sales> rows)throws Exception{try(Workbook w=new XSSFWorkbook();FileOutputStream out=new FileOutputStream(f)){Sheet sh=w.createSheet("Sales Register");String[]h={"Invoice No","Date","Customer","Mobile","GSTIN","Amount","Paid","Pending","Due Date","Document Status","Payment Status","Email","WhatsApp"};Row row=sh.createRow(0);for(int i=0;i<h.length;i++)row.createCell(i).setCellValue(h[i]);int n=1;for(Sales x:rows){row=sh.createRow(n++);org.example.model.Party party=x.getCustomer();Object[]v={x.getInvoiceNo(),str(x.getInvoiceDate()),party==null?"":safe(party.getName()),party==null?"":safe(party.getPhone()),party==null?"":safe(party.getGstin()),x.getTotalAmount(),x.getPaidAmount(),x.getBalanceAmount(),dueLabel(x),documentStatus(x),paymentStatusDisplay(x),x.isEmailSent()?"Sent":"Not Sent",x.isWhatsappSent()?"Sent":"Not Sent"};for(int i=0;i<v.length;i++){if(v[i] instanceof Number z)row.createCell(i).setCellValue(z.doubleValue());else row.createCell(i).setCellValue(String.valueOf(v[i]));}}for(int i=0;i<h.length;i++)sh.autoSizeColumn(i);w.write(out);}}
     private String exportMoney(double value){return NumberFormat.getCurrencyInstance(Locale.of("en","IN")).format(value).replace("₹","₹ ");}

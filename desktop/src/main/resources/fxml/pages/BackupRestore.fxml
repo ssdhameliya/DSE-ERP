@@ -22,7 +22,7 @@
 
                 <Button fx:id="btnExportRecovery" text="Export Recovery Package" onAction="#exportRecoveryPackage" visible="false" managed="false" styleClass="backup-secondary-button,approved-button"/>
 
-                <Button fx:id="btnLocalRecovery" text="Emergency Local Recovery" onAction="#emergencyLocalRecovery" visible="false" managed="false" styleClass="backup-warning-button,approved-button"/>
+                <Button fx:id="btnLocalRecovery" text="Recover Server to LOCAL" onAction="#emergencyLocalRecovery" visible="false" managed="false" styleClass="backup-warning-button,approved-button"/>
 
                 <Button text="Create Backup Now" onAction="#createBackup" styleClass="primary-button,backup-primary-button"/>
             </HBox>

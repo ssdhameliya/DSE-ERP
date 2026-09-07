@@ -244,8 +244,8 @@ public class ReportsController implements ScreenLifecycle {
     private void loadReportDefinitions(){
         UiTaskExecutor.submitLatest("report-center-definitions", reportingApi::definitions, defs -> {
             reportDefinitions.clear(); if(defs!=null)reportDefinitions.addAll(defs);
-            LinkedHashSet<String> cats=new LinkedHashSet<>(); cats.add("★ Favorites"); for(ReportDefinition d:reportDefinitions)cats.add(d.category());
-            reportCategories.getItems().setAll(cats); if(reportCategories.getSelectionModel().getSelectedItem()==null){ String first=cats.contains("Sales")?"Sales":cats.stream().findFirst().orElse("★ Favorites"); reportCategories.getSelectionModel().select(first); }
+            LinkedHashSet<String> cats=new LinkedHashSet<>(); cats.add("Favorites"); for(ReportDefinition d:reportDefinitions)cats.add(d.category());
+            reportCategories.getItems().setAll(cats); if(reportCategories.getSelectionModel().getSelectedItem()==null){ String first=cats.contains("Sales")?"Sales":cats.stream().findFirst().orElse("Favorites"); reportCategories.getSelectionModel().select(first); }
             renderReportCards(); loadSavedReports();
         }, e -> error("Could not load Report Center definitions: "+root(e)));
     }
@@ -265,10 +265,10 @@ public class ReportsController implements ScreenLifecycle {
         if(reportCards==null||reportCategories==null)return;
         String category=reportCategories.getSelectionModel().getSelectedItem(); if(category==null)category="Sales";
         String query=txtReportSearch==null||txtReportSearch.getText()==null?"":txtReportSearch.getText().trim().toLowerCase(Locale.ROOT);
-        String heading="★ Favorites".equals(category)?"FAVORITE REPORTS":category.toUpperCase(Locale.ROOT)+" REPORTS"; if(lblReportCenterCategory!=null)lblReportCenterCategory.setText(heading);
+        String heading="Favorites".equals(category)?"FAVORITE REPORTS":category.toUpperCase(Locale.ROOT)+" REPORTS"; if(lblReportCenterCategory!=null)lblReportCenterCategory.setText(heading);
         reportCards.getChildren().clear();
         for(ReportDefinition def:reportDefinitions){
-            boolean categoryMatch="★ Favorites".equals(category)?favoriteReportIds.contains(def.id()):category.equalsIgnoreCase(def.category());
+            boolean categoryMatch="Favorites".equals(category)?favoriteReportIds.contains(def.id()):category.equalsIgnoreCase(def.category());
             boolean searchMatch=query.isBlank()||(def.title()+" "+def.description()+" "+def.category()).toLowerCase(Locale.ROOT).contains(query);
             if(categoryMatch&&searchMatch)reportCards.getChildren().add(createReportCard(def));
         }
@@ -279,7 +279,10 @@ public class ReportsController implements ScreenLifecycle {
         HBox top=new HBox(8); top.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         Label title=new Label(def.title()); title.getStyleClass().add("report-card-title"); title.setGraphic(IconFactory.compactIcon(reportSemantic(def),16));
         Region spacer=new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-        Button star=new Button(favoriteReportIds.contains(def.id())?"★":"☆"); star.getStyleClass().add("report-favorite-button");
+        boolean favorite=favoriteReportIds.contains(def.id());
+        Button star=new Button(); star.getStyleClass().addAll("report-favorite-button", favorite?"report-favorite-active":"report-favorite-inactive");
+        star.setGraphic(IconFactory.compactIcon("favorite",15)); star.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        star.getProperties().put("erp-icon-preserve",true); star.setTooltip(new Tooltip(favorite?"Remove from Favorites":"Add to Favorites"));
         star.setOnAction(e->{ if(favoriteReportIds.contains(def.id()))favoriteReportIds.remove(def.id());else favoriteReportIds.add(def.id()); persistFavorites(); renderReportCards(); });
         top.getChildren().addAll(title,spacer,star);
         Label description=new Label(def.description()); description.setWrapText(true); description.getStyleClass().add("page-subtitle");

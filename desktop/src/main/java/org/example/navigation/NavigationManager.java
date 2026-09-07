@@ -17,6 +17,7 @@ import org.example.util.UiDiagnostics;
 
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.nio.file.Files;
@@ -31,6 +32,8 @@ public class NavigationManager {
 
     private final StackPane contentPane;
     private static final AtomicBoolean NAVIGATION_IN_PROGRESS = new AtomicBoolean(false);
+    private static final AtomicReference<String> PENDING_NAVIGATION = new AtomicReference<>();
+    private static final AtomicBoolean NAVIGATION_DRAIN_SCHEDULED = new AtomicBoolean(false);
     // Shared across all manager objects. Some legacy controllers still construct a
     // NavigationManager directly; static state prevents those objects from creating
     // isolated caches on macOS and other platforms.
@@ -173,8 +176,9 @@ public class NavigationManager {
             return false;
         }
         if (!NAVIGATION_IN_PROGRESS.compareAndSet(false, true)) {
-            logNavigationEvent("DEFERRED", fxml, "Another navigation is in progress");
-            Platform.runLater(() -> loadPage(fxml));
+            logNavigationEvent("DEFERRED", fxml, "Another navigation is in progress; latest destination retained");
+            PENDING_NAVIGATION.set(fxml);
+            schedulePendingNavigationDrain();
             return true;
         }
         logNavigationEvent("START", fxml, "pane=" + Integer.toHexString(System.identityHashCode(contentPane)));
@@ -250,6 +254,17 @@ public class NavigationManager {
                             : PerformanceBudgets.FIRST_REGISTER_MS);
             NAVIGATION_IN_PROGRESS.set(false);
         }
+    }
+
+    private static void schedulePendingNavigationDrain() {
+        if (!NAVIGATION_DRAIN_SCHEDULED.compareAndSet(false, true)) return;
+        Platform.runLater(() -> {
+            NAVIGATION_DRAIN_SCHEDULED.set(false);
+            String latest = PENDING_NAVIGATION.getAndSet(null);
+            if (latest == null || latest.isBlank()) return;
+            NavigationManager manager = getInstance();
+            if (manager != null) manager.loadPage(latest);
+        });
     }
 
     /** Attaches a caller-prepared editor/view through the same active-shell

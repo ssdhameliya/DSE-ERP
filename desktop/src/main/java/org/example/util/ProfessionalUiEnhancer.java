@@ -45,6 +45,10 @@ public final class ProfessionalUiEnhancer {
         root.getProperties().put("erp-ui-enhanced", true);
         UiDesignSystem.markRoot(root);
         walk(root);
+        // Dynamic enhancement is deliberately owned only by the page/dialog root.
+        // Installing listeners on every Parent also observes JavaFX skin/VirtualFlow children,
+        // causing table rows/cells to be re-decorated while scrolling or selecting.
+        if (root instanceof Parent parent) installDynamicChildEnhancement(parent);
         SharedUiFramework.install(root);
     }
 
@@ -55,7 +59,6 @@ public final class ProfessionalUiEnhancer {
         if (node instanceof DialogPane pane) enhanceDialog(pane);
         if (node instanceof PasswordField passwordField) schedulePasswordReveal(passwordField);
         if (node instanceof Parent parent) {
-            installDynamicChildEnhancement(parent);
             for (Node child : parent.getChildrenUnmodifiable()) walk(child);
         }
     }
@@ -178,7 +181,8 @@ public final class ProfessionalUiEnhancer {
     }
 
 
-    /** Enhances controls added after FXML loading, including dynamic dialog tables and action buttons. */
+    /** Enhances direct dynamic content added to a page/dialog root. JavaFX skin and VirtualFlow
+     * internals are intentionally never observed; styling them repeatedly is both expensive and unstable. */
     private static void installDynamicChildEnhancement(Parent parent) {
         if (Boolean.TRUE.equals(parent.getProperties().get("erp-dynamic-child-listener"))) return;
         parent.getProperties().put("erp-dynamic-child-listener", true);
@@ -186,11 +190,11 @@ public final class ProfessionalUiEnhancer {
             while (change.next()) {
                 if (!change.wasAdded()) continue;
                 for (Node added : change.getAddedSubList()) {
-                    // Route dynamic content through the same idempotent entry point.
-                    // Cached/navigation pages are already marked erp-ui-enhanced and
-                    // therefore return immediately instead of being recursively walked
-                    // again each time they are attached to the dashboard content pane.
-                    enhance(added);
+                    // Decorate the newly attached subtree once, but never install another
+                    // child listener below it. This keeps JavaFX skin/VirtualFlow internals
+                    // outside our observation graph and prevents styling feedback loops.
+                    walk(added);
+                    SharedUiFramework.install(added);
                 }
             }
         });

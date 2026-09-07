@@ -107,7 +107,7 @@ public class BackupRestoreController {
             btnLocalRecovery.setVisible(recoveryAvailable);
             btnLocalRecovery.setManaged(recoveryAvailable);
             btnLocalRecovery.setGraphic(IconFactory.compactIcon("restore", 14));
-            btnLocalRecovery.setTooltip(new Tooltip("Create a fresh company-server recovery package and prepare an explicit LOCAL recovery workspace."));
+            btnLocalRecovery.setTooltip(new Tooltip("Create a fresh verified company-server copy, restore it into a LOCAL workspace, verify it, then restart this PC in LOCAL mode."));
         }
         if (btnExportRecovery != null) {
             btnExportRecovery.setVisible(recoveryAvailable);
@@ -425,7 +425,7 @@ public class BackupRestoreController {
                         + "Before continuing, stop business activity on every other DSE ERP PC. The recovery package is a point-in-time copy; changes made on the company server after this package is created will not be merged automatically.\n\n"
                         + "DSE ERP will create a fresh verified server database snapshot, include server-owned Attachments, Documents and Templates, stage them into a LOCAL workspace, and then close this Shared Client. No automatic stale-local fallback is used.",
                 cancel, continueRecovery);
-        warning.setHeaderText("Emergency LOCAL disaster recovery");
+        warning.setHeaderText("Server to LOCAL recovery");
         if (warning.showAndWait().orElse(cancel) != continueRecovery) return;
 
         DirectoryChooser chooser = new DirectoryChooser();

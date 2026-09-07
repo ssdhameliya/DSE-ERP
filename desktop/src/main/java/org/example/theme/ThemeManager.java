@@ -9,6 +9,8 @@ import org.example.config.ConfigManager;
 
 public final class ThemeManager {
 
+    private static final String APPLIED_THEME_KEY = "dse.theme.applied.url";
+
     public enum Theme {
         LIGHT,
         DARK
@@ -34,8 +36,13 @@ public final class ThemeManager {
         String activeTheme = currentTheme == Theme.DARK
                 ? "/css/dark-theme.css"
                 : "/css/light-theme.css";
-        scene.getStylesheets().setAll(
-                org.example.util.ResourceLocator.require(activeTheme).toExternalForm());
+        String themeUrl = org.example.util.ResourceLocator.require(activeTheme).toExternalForm();
+        Object alreadyApplied = scene.getProperties().get(APPLIED_THEME_KEY);
+        if (!themeUrl.equals(alreadyApplied) || scene.getStylesheets().size() != 1
+                || !themeUrl.equals(scene.getStylesheets().getFirst())) {
+            scene.getStylesheets().setAll(themeUrl);
+            scene.getProperties().put(APPLIED_THEME_KEY, themeUrl);
+        }
 
         // Theme switches must not rebuild tables, icons or page structure.
         // Only responsive classes and the active color palette are refreshed.
