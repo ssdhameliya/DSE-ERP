@@ -21,6 +21,9 @@ public final class UpdateLifecycle {
                         ? "Shared client upgraded from " + previous + "; company-server schema remains server-managed"
                         : "Upgraded from " + previous + "; database schema " + migration.fromVersion() + " → " + migration.toVersion();
                 UpdateHistoryStore.append(buildVersion, ConfigManager.get("update.channel", "STABLE"), "SUCCESS", detail);
+                // Guarantee one user-visible What's New dialog after a real application upgrade,
+                // even if an older profile already carried a releaseNotesSeen value.
+                ConfigManager.set("update.releaseNotesPending", buildVersion);
                 Platform.runLater(() -> org.example.util.ToastManager.success(owner,
                     sharedClient ? "Client updated" : "Update completed",
                     sharedClient

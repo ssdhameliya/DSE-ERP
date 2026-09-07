@@ -8,6 +8,28 @@ public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
+        if (BuildInfo.version().equals(version)) {
+            return "DSE ERP " + version + " — Shared Cutover & Update UX Stabilization\n\n" + """
+                    • Makes application-managed Shared Client storage authoritative so stale LOCAL environment variables cannot switch a migrated workstation back to LOCAL.
+                    • Makes LOCAL → Shared connection activation idempotent and verified, preserves the old LOCAL workspace untouched, and surfaces any save failure instead of silently logging a JavaFX exception.
+                    • Requires a clean application restart after both LOCAL → Shared and Shared UAT/PROD endpoint changes.
+                    • Restores a clearly visible close (X) control and Escape-close behavior across the centralized dialog system in both themes.
+                    • Guarantees a user-visible What’s New dialog after a real application update and bundles release highlights for offline use.
+                    • Carries forward the previous table repaint, live-search, semantic-action, clean-control and Settings Workspace rendering improvements with Schema 1 unchanged.
+                    """;
+        }
+        if ("9.0.88".equals(version)) {
+            return """
+                    DSE ERP 9.0.88 — UI Rendering & Table Stability
+
+                    • Removes whole-table refresh work from ordinary row selection and coalesces centralized table layout passes to eliminate the record 1→10 repaint/disappearance effect.
+                    • Keeps List of Actions semantic colours stable after row selection and improves semantic detail/side-panel labels.
+                    • Makes server-backed live search preserve the latest typed value instead of dropping characters while a page response is being applied.
+                    • Cleans TextField, ComboBox, button, Notification, Shortcut and Global Search surfaces in both Light and Dark themes.
+                    • Opens up Settings → Workspace & Storage and reduces expensive focus/shadow rendering while preserving all functionality.
+                    • Keeps PostgreSQL Schema 1, server business logic, shared contracts and the main sidebar unchanged.
+                    """;
+        }
         if ("9.0.79".equals(version)) {
             return """
                     DSE ERP 9.0.79 — UI Design System & Full Application Visual Standardization

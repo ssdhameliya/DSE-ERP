@@ -17254,3 +17254,26 @@
 }
 .shortcut-manager-root .shortcut-option-row { -fx-background-color: transparent; }
 
+/* v9.0.89 — dialog close control must remain visible above generic button styling. */
+.modern-dialog .modern-dialog-close,
+.modern-dialog-close {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cbd5e1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-min-width: 36px;
+    -fx-pref-width: 36px;
+    -fx-max-width: 36px;
+    -fx-min-height: 36px;
+    -fx-pref-height: 36px;
+    -fx-max-height: 36px;
+    -fx-padding: 0;
+    -fx-opacity: 1;
+    -fx-effect: null;
+}
+.modern-dialog .modern-dialog-close .erp-action-glyph,
+.modern-dialog-close .erp-action-glyph { -fx-icon-color: #475569; }
+.modern-dialog .modern-dialog-close:hover,
+.modern-dialog-close:hover { -fx-background-color: #fff1f2; -fx-border-color: #e87987; }
+.modern-dialog .modern-dialog-close:hover .erp-action-glyph,
+.modern-dialog-close:hover .erp-action-glyph { -fx-icon-color: #be123c; }

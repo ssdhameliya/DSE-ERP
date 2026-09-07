@@ -33,7 +33,9 @@ public final class UpdateDialogs {
 
     public static void showWhatsNewOnce(Window owner) {
         String version = BuildInfo.version();
-        if (version.equals(ConfigManager.get("update.releaseNotesSeen", "").trim())) return;
+        String pending = ConfigManager.get("update.releaseNotesPending", "").trim();
+        String seen = ConfigManager.get("update.releaseNotesSeen", "").trim();
+        if (!version.equals(pending) && version.equals(seen)) return;
         showWhatsNew(owner, true);
     }
 
@@ -55,23 +57,42 @@ public final class UpdateDialogs {
             notes.setEditable(false);
             notes.setWrapText(true);
             notes.setPrefRowCount(18);
+            notes.setMinHeight(360);
+            notes.setPrefHeight(430);
+            notes.setMaxHeight(Double.MAX_VALUE);
+            notes.setMaxWidth(Double.MAX_VALUE);
+            VBox.setVgrow(notes, Priority.ALWAYS);
             VBox content = new VBox(10, new Label("What’s New in DSE ERP " + version), notes);
+            content.setFillWidth(true);
+            content.setMinHeight(440);
             content.setPadding(new Insets(8));
             Dialog<Void> dialog = baseDialog(owner, "What’s New", content, 760, 590);
             dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
             dialog.showAndWait();
-            if (markSeen) ConfigManager.set("update.releaseNotesSeen", version);
+            if (markSeen) markReleaseNotesSeen(version);
         });
         task.setOnFailed(event -> {
             String fallback = ReleaseHighlights.forVersion(version);
             TextArea notes = new TextArea(fallback);
-            notes.setEditable(false); notes.setWrapText(true);
+            notes.setEditable(false);
+            notes.setWrapText(true);
+            notes.setMinHeight(400);
+            notes.setPrefHeight(460);
+            notes.setMaxHeight(Double.MAX_VALUE);
+            notes.setMaxWidth(Double.MAX_VALUE);
             Dialog<Void> dialog = baseDialog(owner, "What’s New", notes, 760, 590);
             dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
             dialog.showAndWait();
-            if (markSeen) ConfigManager.set("update.releaseNotesSeen", version);
+            if (markSeen) markReleaseNotesSeen(version);
         });
         Thread.ofVirtual().name("erp-release-notes").start(task);
+    }
+
+    private static void markReleaseNotesSeen(String version) {
+        ConfigManager.set("update.releaseNotesSeen", version);
+        if (version.equals(ConfigManager.get("update.releaseNotesPending", "").trim())) {
+            ConfigManager.set("update.releaseNotesPending", "");
+        }
     }
 
     public static void checkForUpdates(Window owner, boolean quietWhenCurrent) {

@@ -1,20 +1,29 @@
 package org.example.app;
 
 import org.example.util.OwnedAlert;
+import org.example.util.OwnedDialog;
+import org.example.util.DialogPresentation;
 
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ButtonBar;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.FileChooser;
 import javafx.stage.DirectoryChooser;
+import javafx.collections.FXCollections;
+import javafx.scene.layout.VBox;
 import org.example.backup.BackupManager;
 import org.example.backup.LocalRecoveryManager;
 import org.example.api.runtime.RuntimeBootstrapper;
 import org.example.api.runtime.RuntimeHealthMonitor;
 import org.example.api.runtime.ManagedPostgresRuntime;
+import org.example.api.runtime.DeploymentConnectionService;
 import org.example.api.setup.SetupApiClient;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
@@ -34,6 +43,7 @@ import java.nio.file.Path;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class Main {
     private ScheduledExecutorService backupScheduler;
@@ -183,14 +193,18 @@ public final class Main {
         ButtonType exit = new ButtonType("Exit", ButtonBar.ButtonData.CANCEL_CLOSE);
         if (ConfigManager.isSharedClient()) {
             ButtonType retry = new ButtonType("Retry", ButtonBar.ButtonData.OK_DONE);
+            ButtonType configure = new ButtonType("Configure Server", ButtonBar.ButtonData.OTHER);
             ButtonType recover = new ButtonType("Recover from Package", ButtonBar.ButtonData.OTHER);
             Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
                     message + "\n\nThis PC remains in Shared Client mode. DSE ERP will not silently switch to an older LOCAL database.",
-                    retry, recover, exit);
+                    retry, configure, recover, exit);
             alert.setHeaderText(header);
             ButtonType choice = alert.showAndWait().orElse(exit);
             if (choice == retry) initializeConfiguredApplication(stage);
-            else if (choice == recover) {
+            else if (choice == configure) {
+                if (!configureSharedClientConnectionAtStartup(stage))
+                    showStartupFailureWithWorkspaceRecovery(stage, header, message);
+            } else if (choice == recover) {
                 if (!prepareOfflineLocalRecovery(stage)) showStartupFailureWithWorkspaceRecovery(stage, header, message);
             } else Platform.exit();
             return;
@@ -202,6 +216,115 @@ public final class Main {
         ButtonType choice = alert.showAndWait().orElse(exit);
         if (choice == existing) SceneManager.showSetupWizard(() -> completeFirstRun(stage));
         else Platform.exit();
+    }
+
+
+    /** Repairs only the managed Shared Client endpoint when startup cannot reach its company server.
+     * The previous LOCAL workspace and all server data remain untouched. */
+    private boolean configureSharedClientConnectionAtStartup(Stage stage) {
+        OwnedDialog<ButtonType> dialog = new OwnedDialog<>();
+        dialog.setTitle("Company Server Connection");
+        DialogPresentation.configureWorkspace(dialog, "notification");
+
+        ComboBox<String> environment = new ComboBox<>(FXCollections.observableArrayList("UAT", "PROD"));
+        String currentEnvironment = ConfigManager.getConfiguredDeploymentEnvironment();
+        environment.setValue("PROD".equalsIgnoreCase(currentEnvironment) ? "PROD" : "UAT");
+        environment.setMaxWidth(Double.MAX_VALUE);
+
+        TextField serverUrl = new TextField(ConfigManager.getConfiguredServerUrl());
+        serverUrl.setPromptText("https://api-uat.company.example");
+        serverUrl.setMaxWidth(Double.MAX_VALUE);
+
+        Label status = new Label("Enter the company server address, then verify it before saving.");
+        status.setWrapText(true);
+        status.getStyleClass().add("settings-help-text");
+
+        Button test = new Button("Test Connection");
+        test.getStyleClass().addAll("settings-action-button", "settings-secondary-button");
+
+        VBox content = new VBox(8,
+                new Label("Environment"), environment,
+                new Label("Company server URL"), serverUrl,
+                test, status);
+        content.setFillWidth(true);
+        content.setMinWidth(560);
+
+        ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType save = new ButtonType("Save & Restart", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().setAll(cancel, save);
+        dialog.getDialogPane().setContent(content);
+
+        Button saveButton = (Button) dialog.getDialogPane().lookupButton(save);
+        saveButton.setDisable(true);
+        AtomicReference<String> validatedUrl = new AtomicReference<>();
+        AtomicReference<String> validatedEnvironment = new AtomicReference<>();
+
+        Runnable invalidate = () -> {
+            validatedUrl.set(null);
+            validatedEnvironment.set(null);
+            saveButton.setDisable(true);
+        };
+        serverUrl.textProperty().addListener((o, a, b) -> invalidate.run());
+        environment.valueProperty().addListener((o, a, b) -> invalidate.run());
+
+        test.setOnAction(event -> {
+            String candidate = serverUrl.getText();
+            String expectedEnvironment = environment.getValue();
+            test.setDisable(true);
+            saveButton.setDisable(true);
+            status.setText("Testing company server...");
+            Thread worker = new Thread(() -> {
+                try {
+                    var runtime = DeploymentConnectionService.test(candidate, expectedEnvironment);
+                    String normalized = DeploymentConnectionService.normalize(candidate);
+                    Platform.runLater(() -> {
+                        validatedUrl.set(normalized);
+                        validatedEnvironment.set(expectedEnvironment);
+                        status.setText("Connected: " + runtime.service() + " " + runtime.version()
+                                + " • " + runtime.environment() + " • Database " + runtime.databaseName());
+                        test.setDisable(false);
+                        saveButton.setDisable(false);
+                    });
+                } catch (Exception failure) {
+                    Platform.runLater(() -> {
+                        invalidate.run();
+                        status.setText("Connection failed: " + failure.getMessage());
+                        test.setDisable(false);
+                    });
+                }
+            }, "dse-startup-shared-server-test");
+            worker.setDaemon(true);
+            worker.start();
+        });
+
+        ButtonType result = dialog.showAndWait().orElse(cancel);
+        if (result != save) return false;
+        String normalized = validatedUrl.get();
+        String selectedEnvironment = validatedEnvironment.get();
+        if (normalized == null || selectedEnvironment == null) return false;
+
+        try {
+            WorkspaceManager.updateManagedSharedClientConnection(normalized, selectedEnvironment);
+            ConfigManager.load();
+            OwnedAlert saved = new OwnedAlert(Alert.AlertType.INFORMATION,
+                    "The verified company-server connection was saved.\n\n"
+                            + "This PC remains in Shared Client mode and the previous LOCAL workspace was not modified. "
+                            + "DSE ERP will close now; reopen it to connect using the repaired profile.",
+                    ButtonType.OK);
+            saved.setHeaderText("Company server connection repaired");
+            saved.showAndWait();
+            Platform.exit();
+            return true;
+        } catch (Exception failure) {
+            DesktopLog.error("Main", "SHARED_PROFILE_REPAIR_FAILED",
+                    "Managed Shared Client connection could not be repaired", failure);
+            OwnedAlert error = new OwnedAlert(Alert.AlertType.ERROR,
+                    "The Shared Client profile could not be repaired.\n\n" + failure.getMessage(),
+                    ButtonType.OK);
+            error.setHeaderText("Company server connection not saved");
+            error.showAndWait();
+            return false;
+        }
     }
 
     private boolean prepareOfflineLocalRecovery(Stage stage) {

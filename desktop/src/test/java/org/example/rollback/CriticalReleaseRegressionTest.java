@@ -140,4 +140,56 @@ class CriticalReleaseRegressionTest {
         assertTrue(workspace.contains("GridPane.rowIndex=\"1\"><Label text=\"Reports / Exports\""));
     }
 
+    @Test void managedSharedClientCannotBeDowngradedByStaleLocalEnvironmentOverride() throws Exception {
+        String config = Files.readString(Path.of("src/main/java/org/example/config/ConfigManager.java"));
+        assertTrue(config.contains("WorkspaceManager.isManagedSharedClientWorkspace()) return DeploymentMode.SHARED_CLIENT"));
+        assertTrue(config.contains("The verified managed profile owns the company-server endpoint"));
+        String settings = Files.readString(Path.of("src/main/java/org/example/controller/SettingsController.java"));
+        assertTrue(settings.contains("effectiveLoadedDeploymentMode()"));
+        assertTrue(settings.contains("WorkspaceManager.updateManagedSharedClientConnection"));
+        assertTrue(settings.contains("Settings could not be saved:"));
+        assertTrue(settings.contains("deploymentRestartRequired = true"));
+    }
+
+    @Test void sharedClientConnectionActivationIsIdempotentAndRollbackSafe() throws Exception {
+        String workspace = Files.readString(Path.of("src/main/java/org/example/config/WorkspaceManager.java"));
+        assertTrue(workspace.contains("updateManagedSharedClientConnection(serverUrl, environment)"));
+        assertTrue(workspace.contains("restore the persistent pointer to LOCAL"));
+        assertTrue(workspace.contains("The new managed Shared Client profile could not be verified"));
+    }
+
+    @Test void brokenManagedSharedClientCanRepairServerConnectionFromStartupUi() throws Exception {
+        String main = Files.readString(Path.of("src/main/java/org/example/app/Main.java"));
+        assertTrue(main.contains("Configure Server"));
+        assertTrue(main.contains("configureSharedClientConnectionAtStartup"));
+        assertTrue(main.contains("DeploymentConnectionService.test(candidate, expectedEnvironment)"));
+        assertTrue(main.contains("WorkspaceManager.updateManagedSharedClientConnection(normalized, selectedEnvironment)"));
+        assertTrue(main.contains("previous LOCAL workspace was not modified"));
+        assertTrue(main.contains("Save & Restart"));
+    }
+
+    @Test void everyCentralDialogHasVisibleCloseControlAndEscapePath() throws Exception {
+        String presentation = Files.readString(Path.of("src/main/java/org/example/util/DialogPresentation.java"));
+        assertTrue(presentation.contains("IconFactory.compactIcon(\"close\", 14)"));
+        assertTrue(presentation.contains("closeButton.setCancelButton(true)"));
+        for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
+            String css = Files.readString(Path.of("src/main/resources/css", theme));
+            assertTrue(css.contains("dialog close control must remain visible"));
+            assertTrue(css.contains(".modern-dialog-close .erp-action-glyph"));
+        }
+    }
+
+    @Test void realUpgradeQueuesWhatsNewAndCurrentReleaseHasOfflineHighlights() throws Exception {
+        String lifecycle = Files.readString(Path.of("src/main/java/org/example/update/UpdateLifecycle.java"));
+        String dialogs = Files.readString(Path.of("src/main/java/org/example/update/UpdateDialogs.java"));
+        assertTrue(lifecycle.contains("update.releaseNotesPending"));
+        assertTrue(dialogs.contains("update.releaseNotesPending"));
+        assertTrue(dialogs.contains("notes.setMinHeight(360)"));
+        assertTrue(dialogs.contains("VBox.setVgrow(notes, Priority.ALWAYS)"));
+        String presentation = Files.readString(Path.of("src/main/java/org/example/util/DialogPresentation.java"));
+        assertTrue(presentation.contains("VBox.setVgrow(customContent, Priority.ALWAYS)"));
+        assertFalse(org.example.update.ReleaseHighlights.forVersion(org.example.update.BuildInfo.version())
+                .contains("unavailable offline"));
+    }
+
 }

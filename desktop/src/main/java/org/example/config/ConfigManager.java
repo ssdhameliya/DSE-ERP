@@ -260,6 +260,11 @@ public final class ConfigManager {
      * here would recursively re-enter shouldUseServerSetting().
      */
     private static DeploymentMode getConfiguredDeploymentMode() {
+        // Once the workstation pointer is on application-managed SharedClient storage,
+        // that profile is authoritative. A stale machine/run-configuration environment
+        // variable such as DSE_DEPLOYMENT_MODE=LOCAL must never silently downgrade the
+        // client back to LOCAL or cause Settings to offer the one-time migration again.
+        if (WorkspaceManager.isManagedSharedClientWorkspace()) return DeploymentMode.SHARED_CLIENT;
         String environment = System.getenv("DSE_DEPLOYMENT_MODE");
         return DeploymentMode.parse(environment == null || environment.isBlank()
                 ? properties.getProperty("deployment.mode", "LOCAL") : environment);
@@ -269,8 +274,13 @@ public final class ConfigManager {
 
     /** Deployment identity is configuration, not build version. */
     public static synchronized String getDeploymentEnvironment() {
-        String override = System.getenv("DSE_DEPLOYMENT_ENVIRONMENT");
-        String value = override == null || override.isBlank() ? properties.getProperty("deployment.environment", "LOCAL") : override;
+        String value;
+        if (WorkspaceManager.isManagedSharedClientWorkspace()) {
+            value = properties.getProperty("deployment.environment", "UAT");
+        } else {
+            String override = System.getenv("DSE_DEPLOYMENT_ENVIRONMENT");
+            value = override == null || override.isBlank() ? properties.getProperty("deployment.environment", "LOCAL") : override;
+        }
         String env = value == null ? "LOCAL" : value.trim().toUpperCase(java.util.Locale.ROOT);
         return switch (env) { case "LOCAL", "UAT", "PROD" -> env; default -> "LOCAL"; };
     }
@@ -289,9 +299,16 @@ public final class ConfigManager {
     public static String runtimeBusinessDateFormat(){return runtimeBusinessDateFormat;}
 
     public static String getConfiguredServerUrl() {
-        String environment = System.getenv("DSE_SERVER_URL");
-        String value = environment == null || environment.isBlank()
-                ? get("server.baseUrl", "") : environment;
+        String value;
+        if (WorkspaceManager.isManagedSharedClientWorkspace()) {
+            // The verified managed profile owns the company-server endpoint. Do not let
+            // a stale workstation environment redirect a Shared Client after cutover.
+            value = properties.getProperty("server.baseUrl", "");
+        } else {
+            String environment = System.getenv("DSE_SERVER_URL");
+            value = environment == null || environment.isBlank()
+                    ? get("server.baseUrl", "") : environment;
+        }
         return value == null ? "" : value.trim().replaceAll("/+$", "");
     }
 
