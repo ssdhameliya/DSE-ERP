@@ -546,6 +546,8 @@ public class ReportsController implements ScreenLifecycle {
     private void configureReportTables(){
         org.example.util.DynamicTableLayoutManager.install(tblSales);
         org.example.util.DynamicTableLayoutManager.install(tblPurchases);
+        org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblSales);
+        org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblPurchases);
     }
     private void configureIcons(){
         if(reportPageIcon!=null)reportPageIcon.getChildren().setAll(IconFactory.icon("report",24));
