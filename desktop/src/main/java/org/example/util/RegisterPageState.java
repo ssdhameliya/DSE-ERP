@@ -13,6 +13,7 @@ public final class RegisterPageState {
     private int totalPages;
     private long totalRows;
     private boolean applyingServerPage;
+    private Runnable pendingWhenIdle;
 
     public int currentPage() { return currentPage; }
     public int totalPages() { return totalPages; }
@@ -31,7 +32,27 @@ public final class RegisterPageState {
     public void runApplying(Runnable action) {
         applyingServerPage = true;
         try { action.run(); }
-        finally { applyingServerPage = false; }
+        finally {
+            applyingServerPage = false;
+            Runnable pending = pendingWhenIdle;
+            pendingWhenIdle = null;
+            if (pending != null) pending.run();
+        }
+    }
+
+    /**
+     * Runs an interactive filter/search action immediately when idle, or keeps
+     * only the latest requested action until the current server page has fully
+     * applied. This guarantees "latest typed value wins" instead of silently
+     * dropping a debounced keystroke that lands during applyPage().
+     */
+    public void runWhenIdle(Runnable action) {
+        if (action == null) return;
+        if (applyingServerPage) {
+            pendingWhenIdle = action;
+            return;
+        }
+        action.run();
     }
 
     public boolean first() {
