@@ -28,6 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          chmod +x mvnw
           test "$(cat .mvn/maven.config)" = "-Drevision=9.0.87"
           ./mvnw -B -ntp -pl server -am package -DskipTests
       - name: Prepare source and server handoff
