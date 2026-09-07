@@ -177,7 +177,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     }
     private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));month.setText(money(m.monthAmount()));approved.setText(money(m.approvedAmount()));pending.setText(money(Math.max(0,m.total()-m.approvedAmount())));refund.setText(money(m.refundAmount()));}
     private void updatePageInfo(){pageInfo.setText(pageState.rangeWithPageText(PAGE_SIZE,all.size(),"returns"));RegisterUiSupport.updatePageNavigation(pageState,btnPrevPage,btnNextPage);}
-    @FXML private void filter(){if(pageState.isApplyingServerPage())return;pageState.reset();load();}
+    @FXML private void filter(){pageState.runWhenIdle(()->{pageState.reset();load();});}
     @FXML private void previousPage(){if(pageState.previous())load();}
     @FXML private void nextPage(){if(pageState.next())load();}
     @FXML private void reset(){search.clear();customerFilter.setValue("All Customers");statusFilter.setValue("All Status");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());pageState.reset();load();}
