@@ -301,6 +301,7 @@ public final class ProfessionalUiEnhancer {
                 first.setCellFactory(ignored -> new TableCell<Object, Object>() {
                     private final CheckBox box = new CheckBox();
                     {
+                        box.setFocusTraversable(false);
                         box.setOnAction(e -> {
                             int index = getIndex();
                             if (index < 0 || index >= getTableView().getItems().size()) return;
@@ -308,6 +309,17 @@ public final class ProfessionalUiEnhancer {
                             else getTableView().getSelectionModel().clearSelection(index);
                             e.consume();
                         });
+                        // Update only the visible checkbox cell when selection changes.
+                        // A full TableView.refresh() here rebuilt every visible row for
+                        // every ordinary click and was the main cause of the 1–1.6 s
+                        // apparent record-disappearance/repaint lag.
+                        table.getSelectionModel().getSelectedIndices().addListener(
+                            (ListChangeListener<Integer>) change -> updateSelectionVisual());
+                    }
+                    private void updateSelectionVisual() {
+                        int index = getIndex();
+                        box.setSelected(index >= 0 && index < table.getItems().size()
+                                && table.getSelectionModel().isSelected(index));
                     }
                     @Override
                     protected void updateItem(Object item, boolean empty) {
@@ -317,15 +329,14 @@ public final class ProfessionalUiEnhancer {
                             setGraphic(null);
                             return;
                         }
-                        box.setSelected(getTableView().getSelectionModel().isSelected(getIndex()));
+                        updateSelectionVisual();
                         setGraphic(box);
                         setAlignment(Pos.CENTER);
                     }
                 });
-                table.getSelectionModel().getSelectedIndices().addListener((ListChangeListener<Integer>) c -> {
-                    all.setSelected(!table.getItems().isEmpty() && table.getSelectionModel().getSelectedIndices().size() == table.getItems().size());
-                    table.refresh();
-                });
+                table.getSelectionModel().getSelectedIndices().addListener((ListChangeListener<Integer>) c ->
+                    all.setSelected(!table.getItems().isEmpty()
+                            && table.getSelectionModel().getSelectedIndices().size() == table.getItems().size()));
             }
         }
 
