@@ -4,6 +4,8 @@ import org.example.config.DeploymentMode;
 import org.junit.jupiter.api.Test;
 
 import java.net.ConnectException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,6 +36,13 @@ class DeploymentConnectionServiceTest {
         assertTrue(message.contains("Connection refused"));
         assertFalse(message.contains("attempt to start"));
         assertFalse(message.contains("automatically"));
+    }
+
+    @Test void sharedStartupWrapperDoesNotClaimItCanStartTheRemoteServer() throws Exception {
+        String main = Files.readString(Path.of("src/main/java/org/example/app/Main.java"));
+        assertTrue(main.contains("Could not connect to the company server."));
+        assertTrue(main.contains("The Shared Client does not start or replace the remote company server."));
+        assertTrue(main.contains("String startupMessage = ConfigManager.isSharedClient()"));
     }
 
     @Test void rejectsDatabaseUrlsCredentialsAndApiPaths() {
