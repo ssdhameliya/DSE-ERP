@@ -42,6 +42,7 @@ public final class DynamicTableLayoutManager {
     private static final String COLUMN_LISTENER = "erp.table.dynamic-layout.column-listener";
     private static final String COLUMN_BOUND = "erp.table.dynamic-layout.column-bound";
     private static final String NATURAL_FLOOR = "erp.table.dynamic-layout.natural-floor";
+    private static final String RENDERED_ACTION_WIDTH = "erp.table.dynamic-layout.rendered-action-width";
     private static final double ACTION_CONTROL_MIN_WIDTH = 132.0;
     private static final int SAMPLE_LIMIT = 48;
     private static final double TABLE_CHROME_ALLOWANCE = 20.0;
@@ -99,13 +100,11 @@ public final class DynamicTableLayoutManager {
      * layout-ready yet.</p>
      */
     public static void requestLayout(TableView<?> table) {
-        if (table == null) return;
-        if (Platform.isFxApplicationThread() && isLayoutReady(table)) {
-            table.getProperties().remove(PENDING);
-            layoutNow(table);
-            return;
-        }
-        if (Boolean.TRUE.equals(table.getProperties().get(PENDING))) return;
+        if (table == null || Boolean.TRUE.equals(table.getProperties().get(PENDING))) return;
+        // Always coalesce width/item/skin changes into one next-pulse pass. Drawer
+        // animation and SplitPane resizing can emit many width changes in one
+        // interaction; running the expensive measurement synchronously for every
+        // change starved row painting and made records appear to disappear.
         table.getProperties().put(PENDING, true);
         Platform.runLater(() -> {
             table.getProperties().remove(PENDING);
@@ -128,10 +127,6 @@ public final class DynamicTableLayoutManager {
         };
         if (Platform.isFxApplicationThread()) Platform.runLater(pass);
         else Platform.runLater(pass);
-    }
-
-    private static boolean isLayoutReady(TableView<?> table) {
-        return table.getSkin() != null && Double.isFinite(table.getWidth()) && table.getWidth() >= 80;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -341,6 +336,8 @@ public final class DynamicTableLayoutManager {
 
     private static double renderedCellControlWidth(TableView<?> table, TableColumn<?, ?> column) {
         if (table == null || column == null || table.getSkin() == null) return 0;
+        Object cached = column.getProperties().get(RENDERED_ACTION_WIDTH);
+        if (cached instanceof Number n && n.doubleValue() > 0) return n.doubleValue();
         double max = 0;
         try {
             for (Node node : table.lookupAll(".table-cell")) {
@@ -348,19 +345,15 @@ public final class DynamicTableLayoutManager {
                 double width = 0;
                 Node graphic = cell.getGraphic();
                 if (graphic instanceof Region region) {
-                    region.applyCss();
                     width = region.prefWidth(-1);
                     if (!Double.isFinite(width) || width <= 0) width = region.getLayoutBounds().getWidth();
                 } else if (graphic != null) {
                     width = graphic.getLayoutBounds().getWidth();
                 }
-                if (width <= 0) {
-                    cell.applyCss();
-                    width = cell.prefWidth(-1);
-                }
                 if (Double.isFinite(width) && width > 0) max = Math.max(max, width + 24.0);
             }
         } catch (RuntimeException ignored) { }
+        if (max > 0) column.getProperties().put(RENDERED_ACTION_WIDTH, max);
         return max;
     }
 
