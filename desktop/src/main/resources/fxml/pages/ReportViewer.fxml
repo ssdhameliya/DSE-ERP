@@ -42,7 +42,7 @@
             <VBox fx:id="boxMinAmount" GridPane.rowIndex="3" spacing="3"><Label text="Min Amount" styleClass="field-label"/><TextField fx:id="txtMinAmount" promptText="Any" styleClass="approved-input"/></VBox>
             <VBox fx:id="boxMaxAmount" GridPane.rowIndex="3" GridPane.columnIndex="1" spacing="3"><Label text="Max Amount" styleClass="field-label"/><TextField fx:id="txtMaxAmount" promptText="Any" styleClass="approved-input"/></VBox>
         </GridPane>
-        <HBox alignment="CENTER_LEFT" spacing="8"><Label fx:id="lblActiveFilters" text="Active filters: Period" styleClass="approved-page-subtitle,page-subtitle"/><Region HBox.hgrow="ALWAYS"/><Button text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnApply" text="Apply Filters" onAction="#applyFilters" styleClass="approved-button,approved-primary-button"/></HBox>
+        <HBox alignment="CENTER_LEFT" spacing="8" styleClass="report-filter-actions"><Label fx:id="lblActiveFilters" text="Active filters: Period" styleClass="approved-page-subtitle,page-subtitle"/><Region HBox.hgrow="ALWAYS"/><Button text="Reset" onAction="#resetFilters" styleClass="approved-button,approved-secondary-button"/><Button fx:id="btnApply" text="Apply Filters" onAction="#applyFilters" styleClass="approved-button,approved-primary-button"/></HBox>
     </VBox>
 
     <HBox alignment="BOTTOM_LEFT" spacing="8" styleClass="approved-toolbar,report-results-toolbar">

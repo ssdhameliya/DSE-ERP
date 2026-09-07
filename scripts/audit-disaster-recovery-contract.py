@@ -36,7 +36,7 @@ need('ConfigBeforeRecovery-' in workspace and 'deployment.mode", DeploymentMode.
      'LOCAL recovery target/config preservation contract missing')
 need('LOCAL_RECOVERY_FILES_FAILED' in main and 'LOCAL recovery completed' in main,
      'startup does not block/complete LOCAL recovery safely')
-need('Emergency Local Recovery' in fxml,'admin recovery action is missing from Backup & Restore UI')
+need('Recover Server to LOCAL' in fxml,'admin Server -> LOCAL recovery action is missing from Backup & Restore UI')
 need('A shared company cannot be changed back to local mode with a simple toggle.' in settings,
      'simple Shared -> LOCAL toggle protection was removed')
 need('automatically' not in recovery.lower().split('offline fallback')[0] if 'offline fallback' in recovery.lower() else True,

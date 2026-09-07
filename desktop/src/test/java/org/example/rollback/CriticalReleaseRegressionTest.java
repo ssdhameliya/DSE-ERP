@@ -192,4 +192,59 @@ class CriticalReleaseRegressionTest {
                 .contains("unavailable offline"));
     }
 
+
+    @Test void finalRuntimeAuthorityFor990OwnsRowsInputsEmptyStateDrawersAndReports() throws Exception {
+        for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
+            String css = Files.readString(Path.of("src/main/resources/css", theme));
+            assertTrue(css.contains("DSE ERP " + BuildInfo.version() + " — FINAL RUNTIME VISUAL AUTHORITY"));
+            assertTrue(css.contains(".erp-table-standard .table-row-cell .table-cell .label"));
+            assertTrue(css.contains(".erp-table-standard .row-actions"));
+            assertTrue(css.contains(".date-picker.approved-input > .text-field"));
+            assertTrue(css.contains(".erp-table-standard .placeholder"));
+            assertTrue(css.contains(".erp-detail-drawer-card { -fx-padding: 18; }"));
+            assertTrue(css.contains(".report-filter-actions"));
+            assertTrue(css.contains(".security-settings-panel"));
+        }
+    }
+
+    @Test void themeNavigationAndDynamicEnhancementHaveSingleStableRuntimeOwnership() throws Exception {
+        String enhancer = Files.readString(Path.of("src/main/java/org/example/util/ProfessionalUiEnhancer.java"));
+        String theme = Files.readString(Path.of("src/main/java/org/example/theme/ThemeManager.java"));
+        String navigation = Files.readString(Path.of("src/main/java/org/example/navigation/NavigationManager.java"));
+        assertTrue(enhancer.contains("installDynamicChildEnhancement(parent)"));
+        assertTrue(enhancer.contains("walk(added);"));
+        assertFalse(enhancer.contains("enhance(added);"));
+        assertTrue(theme.contains("APPLIED_THEME_KEY"));
+        assertTrue(theme.contains("!themeUrl.equals(alreadyApplied)"));
+        assertTrue(navigation.contains("PENDING_NAVIGATION"));
+        assertTrue(navigation.contains("latest destination retained"));
+    }
+
+    @Test void salesAndPurchaseRegistersExposeReturnStatusWithoutReturnReloadLoops() throws Exception {
+        String salesFxml = Files.readString(Path.of("src/main/resources/fxml/pages/SalesList.fxml"));
+        String purchaseFxml = Files.readString(Path.of("src/main/resources/fxml/pages/PurchaseList.fxml"));
+        String sales = Files.readString(Path.of("src/main/java/org/example/controller/SalesListController.java"));
+        String purchase = Files.readString(Path.of("src/main/java/org/example/controller/PurchaseListController.java"));
+        String salesReturns = Files.readString(Path.of("src/main/java/org/example/controller/SalesReturnsController.java"));
+        String purchaseReturns = Files.readString(Path.of("src/main/java/org/example/controller/PurchaseReturnsController.java"));
+        assertTrue(salesFxml.contains("fx:id=\"cmbReturnStatus\""));
+        assertTrue(purchaseFxml.contains("fx:id=\"cmbReturnStatus\""));
+        assertTrue(sales.contains("cmbReturnStatus"));
+        assertTrue(purchase.contains("cmbReturnStatus"));
+        assertFalse(salesReturns.contains("loadedOnce"));
+        assertFalse(purchaseReturns.contains("loadedOnce"));
+        assertTrue(purchaseReturns.contains("focusWorkArea(table);load();"));
+    }
+
+    @Test void reportsAndRecoveryUseExplicitSemanticsFor990() throws Exception {
+        String icons = Files.readString(Path.of("src/main/java/org/example/util/IconFactory.java"));
+        String reports = Files.readString(Path.of("src/main/java/org/example/controller/ReportsController.java"));
+        String recovery = Files.readString(Path.of("src/main/resources/fxml/pages/BackupRestore.fxml"));
+        assertTrue(icons.contains("case \"favorite\" -> \"fas-star\""));
+        assertTrue(icons.contains("case \"invoice\" -> \"fas-file-invoice-dollar\""));
+        assertTrue(reports.contains("IconFactory.compactIcon(\"favorite\",15)"));
+        assertFalse(reports.contains("★ Favorites"));
+        assertTrue(recovery.contains("Recover Server to LOCAL"));
+    }
+
 }

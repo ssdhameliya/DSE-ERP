@@ -60,6 +60,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     private final List<Row> all = new ArrayList<>();
     private Row selected;
     private boolean explicitRefreshPending;
+    private boolean suppressAutoFilter;
     private final RegisterPageState pageState=new RegisterPageState(); private static final int PAGE_SIZE=25;
 
     @FXML public void initialize() {
@@ -84,10 +85,11 @@ public class SalesReturnsController implements ScreenLifecycle {
         dpFrom.setValue(BusinessClock.today().minusMonths(6));
         dpTo.setValue(BusinessClock.today());
         org.example.util.PartySearchUi.install(customerFilter,"CUSTOMER","All Customers","sales-returns-customer-search");
+        statusFilter.getItems().setAll("All Status", "PENDING APPROVAL", "APPROVED", "REJECTED", "CANCELLED");
+        statusFilter.setValue("All Status");
         search.textProperty().addListener((o, a, b) -> filter());
-        customerFilter.valueProperty().addListener((o, a, b) -> filter());
+        customerFilter.valueProperty().addListener((o, a, b) -> { if (!org.example.util.PartySearchUi.isInternalUpdate(customerFilter)) filter(); });
         statusFilter.valueProperty().addListener((o, a, b) -> filter());
-        load();
     }
 
     @SuppressWarnings("unchecked")
@@ -173,14 +175,14 @@ public class SalesReturnsController implements ScreenLifecycle {
     private void applyPage(ReturnApiClient.Page page){
         pageState.runApplying(()->{all.clear();if(page!=null&&page.rows()!=null)for(ReturnApiClient.Summary r:page.rows())all.add(new Row(r.no(),r.date(),r.invoice(),r.party(),r.total(),r.refund(),safe(r.reason()),safe(r.status()),safe(r.refundStatus())));pageState.apply(page==null?0:page.page(),page==null?0:page.totalPages(),page==null?0:page.totalRows());
         String selectedParty=customerFilter.getValue();org.example.util.PartySearchUi.preserveSelection(customerFilter,selectedParty,"All Customers");
-        statusFilter.setItems(FXCollections.observableArrayList("All Status", "PENDING APPROVAL", "APPROVED", "REJECTED", "CANCELLED"));if(statusFilter.getValue()==null)statusFilter.setValue("All Status");table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No sales returns found","Adjust the filters or create a return from Sales Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();ScreenRefreshPolicy.markRefreshed("sales-returns");finishExplicitRefresh(true);});
+        table.getItems().setAll(all);if(all.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No sales returns found","Adjust the filters or create a return from Sales Register.");applyKpis(page==null?null:page.metrics());updatePageInfo();ScreenRefreshPolicy.markRefreshed("sales-returns");finishExplicitRefresh(true);});
     }
     private void applyKpis(ReturnApiClient.Metrics m){if(m==null)return;total.setText(money(m.total()));month.setText(money(m.monthAmount()));approved.setText(money(m.approvedAmount()));pending.setText(money(Math.max(0,m.total()-m.approvedAmount())));refund.setText(money(m.refundAmount()));}
     private void updatePageInfo(){pageInfo.setText(pageState.rangeWithPageText(PAGE_SIZE,all.size(),"returns"));RegisterUiSupport.updatePageNavigation(pageState,btnPrevPage,btnNextPage);}
-    @FXML private void filter(){pageState.runWhenIdle(()->{pageState.reset();load();});}
+    @FXML private void filter(){if(suppressAutoFilter)return;pageState.runWhenIdle(()->{if(suppressAutoFilter)return;pageState.reset();load();});}
     @FXML private void previousPage(){if(pageState.previous())load();}
     @FXML private void nextPage(){if(pageState.next())load();}
-    @FXML private void reset(){search.clear();customerFilter.setValue("All Customers");statusFilter.setValue("All Status");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());pageState.reset();load();}
+    @FXML private void reset(){suppressAutoFilter=true;try{search.clear();customerFilter.setValue("All Customers");statusFilter.setValue("All Status");dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());}finally{suppressAutoFilter=false;}pageState.reset();load();}
     @FXML private void refreshWithFeedback(){explicitRefreshPending=true;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(true);btnRefreshReturns.setText("Refreshing...");}load();}
     private void finishExplicitRefresh(boolean success){if(!explicitRefreshPending)return;explicitRefreshPending=false;if(btnRefreshReturns!=null){btnRefreshReturns.setDisable(false);btnRefreshReturns.setText("Refresh");}if(success)org.example.util.ToastManager.info(table,"Refreshed","Sales Returns is up to date.");}
     @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);if(reusedFromCache||all.isEmpty()||ScreenRefreshPolicy.shouldRefresh("sales-returns",ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(30)))load();}

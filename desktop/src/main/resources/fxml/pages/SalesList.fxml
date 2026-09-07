@@ -84,17 +84,19 @@
           <VBox spacing="10" styleClass="filter-surface,sales-filter-surface,approved-filter-bar,erp-filter-section">
             <GridPane hgap="10" vgap="7" styleClass="register-visible-filter-grid,sales-visible-filter-grid">
               <columnConstraints>
-                <ColumnConstraints percentWidth="22"/>
-                <ColumnConstraints percentWidth="16"/>
-                <ColumnConstraints percentWidth="16"/>
-                <ColumnConstraints percentWidth="22"/>
-                <ColumnConstraints percentWidth="24"/>
+                <ColumnConstraints percentWidth="18"/>
+                <ColumnConstraints percentWidth="13"/>
+                <ColumnConstraints percentWidth="13"/>
+                <ColumnConstraints percentWidth="18"/>
+                <ColumnConstraints percentWidth="19"/>
+                <ColumnConstraints percentWidth="19"/>
               </columnConstraints>
               <VBox spacing="4"><Label text="Customer" styleClass="filter-label,filter-label-customer"/><ComboBox fx:id="cmbCustomer" promptText="All customers" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.columnIndex="1"><Label text="From Date" styleClass="filter-label,filter-label-date"/><DatePicker fx:id="dpFrom" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.columnIndex="2"><Label text="To Date" styleClass="filter-label,filter-label-date"/><DatePicker fx:id="dpTo" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.columnIndex="3"><Label text="Document Status" styleClass="filter-label,filter-label-document"/><ComboBox fx:id="cmbDocumentStatus" promptText="Document Status" maxWidth="Infinity" styleClass="approved-input"/></VBox>
               <VBox spacing="4" GridPane.columnIndex="4"><Label text="Payment Status" styleClass="filter-label,filter-label-payment"/><ComboBox fx:id="cmbPaymentStatus" promptText="Payment Status" maxWidth="Infinity" styleClass="approved-input"/></VBox>
+              <VBox spacing="4" GridPane.columnIndex="5"><Label text="Return Status" styleClass="filter-label,filter-label-return"/><ComboBox fx:id="cmbReturnStatus" promptText="Return Status" maxWidth="Infinity" styleClass="approved-input"/></VBox>
             </GridPane>
 
             <GridPane fx:id="advancedFilters" hgap="12" vgap="9" visible="false" managed="false" styleClass="sales-filter-grid,approved-filter-bar">
@@ -207,7 +209,7 @@
                   <Label fx:id="capGstType" text="GST Type"/><Label fx:id="lblDetailGstType" GridPane.columnIndex="1" wrapText="true"/>
                   <Label fx:id="capGstin" text="GSTIN" GridPane.rowIndex="1"/><Label fx:id="lblDetailGstin" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true"/>
                   <Label fx:id="capTransporter" text="Transporter" GridPane.rowIndex="2"/><Label fx:id="lblDetailTransporter" GridPane.rowIndex="2" GridPane.columnIndex="1" wrapText="true"/>
-                  <Label text="Door Delivery" GridPane.rowIndex="3"/><Label fx:id="lblDetailDoorDelivery" GridPane.rowIndex="3" GridPane.columnIndex="1" wrapText="true"/>
+                  <Label fx:id="capDoorDelivery" text="Door Delivery" GridPane.rowIndex="3"/><Label fx:id="lblDetailDoorDelivery" GridPane.rowIndex="3" GridPane.columnIndex="1" wrapText="true"/>
                   <Label fx:id="capVehicle" text="Vehicle No." GridPane.rowIndex="4"/><Label fx:id="lblDetailVehicle" GridPane.rowIndex="4" GridPane.columnIndex="1" wrapText="true"/>
                   <Label fx:id="capContactPerson" text="Contact Person" GridPane.rowIndex="5"/><Label fx:id="lblDetailContactPerson" GridPane.rowIndex="5" GridPane.columnIndex="1" wrapText="true"/>
                   <Label fx:id="capContactMobile" text="Contact Mobile" GridPane.rowIndex="6"/><Label fx:id="lblDetailContactMobile" GridPane.rowIndex="6" GridPane.columnIndex="1" wrapText="true"/>

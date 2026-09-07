@@ -721,6 +721,7 @@ public final class IconFactory {
             case "sales-order" -> "fas-clipboard-list";
             case "purchase" -> "fas-briefcase";
             case "purchase-order" -> "fas-file-invoice-dollar";
+            case "invoice" -> "fas-file-invoice-dollar";
             case "project" -> "fas-project-diagram";
             case "goods-receipt" -> "fas-dolly-flatbed";
             case "dispatch" -> "fas-shipping-fast";
@@ -737,6 +738,7 @@ public final class IconFactory {
             case "inventory" -> "fas-boxes";
             case "master" -> "fas-address-card";
             case "report" -> "fas-chart-bar";
+            case "favorite" -> "fas-star";
             case "email" -> "fas-envelope";
             case "notification" -> "fas-bell";
             case "menu" -> "fas-bars";

@@ -9,13 +9,13 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return "DSE ERP " + version + " — Shared Cutover & Update UX Stabilization\n\n" + """
-                    • Makes application-managed Shared Client storage authoritative so stale LOCAL environment variables cannot switch a migrated workstation back to LOCAL.
-                    • Makes LOCAL → Shared connection activation idempotent and verified, preserves the old LOCAL workspace untouched, and surfaces any save failure instead of silently logging a JavaFX exception.
-                    • Requires a clean application restart after both LOCAL → Shared and Shared UAT/PROD endpoint changes.
-                    • Restores a clearly visible close (X) control and Escape-close behavior across the centralized dialog system in both themes.
-                    • Guarantees a user-visible What’s New dialog after a real application update and bundles release highlights for offline use.
-                    • Carries forward the previous table repaint, live-search, semantic-action, clean-control and Settings Workspace rendering improvements with Schema 1 unchanged.
+            return "DSE ERP " + version + " — Final UI Runtime Stabilization\n\n" + """
+                    • Removes competing JavaFX styling/render ownership by limiting dynamic UI decoration to the screen root, making theme application idempotent and coalescing queued navigation to the latest requested screen.
+                    • Stabilizes Sales/Purchase and Return register rows/actions so selection, refresh, drawer open/close and VirtualFlow recycling cannot make previous records unreadable or repeatedly change action availability.
+                    • Adds Return Status to Sales and Purchase Register filters, keeping Customer/Supplier, From, To, Document Status, Payment Status and Return Status on one governed filter row.
+                    • Unifies Light/Dark input, search, empty-table, drawer, report and Settings surfaces, including semantic Door Delivery and reporting/favorite icons.
+                    • Clarifies the administrator-only Recover Server to LOCAL workflow while preserving verified backup/restore gating and never falling back silently to stale LOCAL data.
+                    • Preserves the 9.0.89 Shared Client startup repair, dialog X/Escape behavior, strict desktop/server version matching and PostgreSQL Schema 1.
                     """;
         }
         if ("9.0.88".equals(version)) {

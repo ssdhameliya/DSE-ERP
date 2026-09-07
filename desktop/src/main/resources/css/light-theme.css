@@ -17277,3 +17277,168 @@
 .modern-dialog-close:hover { -fx-background-color: #fff1f2; -fx-border-color: #e87987; }
 .modern-dialog .modern-dialog-close:hover .erp-action-glyph,
 .modern-dialog-close:hover .erp-action-glyph { -fx-icon-color: #be123c; }
+
+
+/* ========================================================================== */
+/* DSE ERP 9.0.90 — FINAL RUNTIME VISUAL AUTHORITY (LIGHT)                    */
+/* Runtime ownership: stable rows/actions, single-surface controls and panels. */
+/* ========================================================================== */
+
+/* Table body owns one stable background/text state even after VirtualFlow recycles rows. */
+.erp-ui-standard .erp-table-standard,
+.erp-ui-standard .erp-table-standard > .virtual-flow,
+.erp-ui-standard .erp-table-standard > .virtual-flow > .clipped-container,
+.erp-ui-standard .erp-table-standard > .virtual-flow > .clipped-container > .sheet {
+    -fx-background-color: #ffffff;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell,
+.erp-ui-standard .erp-table-standard .table-row-cell:even,
+.erp-ui-standard .erp-table-standard .table-row-cell:filled {
+    -fx-background-color: #ffffff;
+    -fx-border-color: transparent transparent #e2e8f0 transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-opacity: 1;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell:odd,
+.erp-ui-standard .erp-table-standard .table-row-cell:filled:odd { -fx-background-color: #f8fafc; }
+.erp-ui-standard .erp-table-standard .table-row-cell:filled:hover { -fx-background-color: #f1f5f9; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell .label {
+    -fx-background-color: transparent;
+    -fx-text-fill: #172033;
+    -fx-text-background-color: #172033;
+    -fx-opacity: 1;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell .text { -fx-fill: #172033; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected:focused,
+.erp-ui-standard .erp-table-standard .table-row-cell:filled:selected {
+    -fx-background-color: #ede9fe;
+    -fx-border-color: transparent transparent #c4b5fd #7c3aed;
+    -fx-border-width: 0 0 1 4;
+    -fx-opacity: 1;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell:selected:hover,
+.erp-ui-standard .erp-table-standard .table-row-cell:filled:selected:hover { -fx-background-color: #e4ddfb; }
+
+/* Semantic status colour remains meaningful on both normal and selected rows. */
+.erp-ui-standard .erp-table-standard .table-cell.status-positive,
+.erp-ui-standard .erp-table-standard .table-cell.status-positive .label { -fx-text-fill: #15803d; }
+.erp-ui-standard .erp-table-standard .table-cell.status-warning,
+.erp-ui-standard .erp-table-standard .table-cell.status-warning .label { -fx-text-fill: #b45309; }
+.erp-ui-standard .erp-table-standard .table-cell.status-negative,
+.erp-ui-standard .erp-table-standard .table-cell.status-negative .label { -fx-text-fill: #b42336; }
+.erp-ui-standard .erp-table-standard .table-cell.status-neutral,
+.erp-ui-standard .erp-table-standard .table-cell.status-neutral .label { -fx-text-fill: #1d4ed8; }
+
+/* Row actions do not become a blank/dark control when selection changes. */
+.erp-ui-standard .erp-table-standard .row-actions,
+.erp-ui-standard .erp-table-standard .table-action-menu,
+.erp-ui-standard .erp-table-standard .menu-button.row-actions {
+    -fx-background-color: #6d28d9;
+    -fx-border-color: #7c3aed;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-text-fill: #ffffff;
+    -fx-opacity: 1;
+}
+.erp-ui-standard .erp-table-standard .row-actions > .label,
+.erp-ui-standard .erp-table-standard .table-action-menu > .label,
+.erp-ui-standard .erp-table-standard .menu-button.row-actions > .label { -fx-text-fill: #ffffff; -fx-background-color: transparent; }
+.erp-ui-standard .erp-table-standard .row-actions > .arrow-button,
+.erp-ui-standard .erp-table-standard .table-action-menu > .arrow-button { -fx-background-color: transparent; }
+.erp-ui-standard .erp-table-standard .row-actions > .arrow-button > .arrow,
+.erp-ui-standard .erp-table-standard .table-action-menu > .arrow-button > .arrow { -fx-background-color: #ffffff; }
+.erp-ui-standard .erp-table-standard .row-actions:hover,
+.erp-ui-standard .erp-table-standard .row-actions:showing,
+.erp-ui-standard .erp-table-standard .table-action-menu:hover,
+.erp-ui-standard .erp-table-standard .table-action-menu:showing { -fx-background-color: #7c3aed; }
+
+/* One surface for every field/search shell and every JavaFX skin editor. */
+.erp-ui-standard .erp-control-input,
+.erp-ui-standard .approved-input,
+.erp-ui-standard .erp-global-search,
+.erp-ui-standard .dse-global-search-v3-input,
+.erp-ui-standard .register-header-search-input {
+    -fx-background-color: #ffffff;
+    -fx-background-insets: 0;
+    -fx-background-radius: 7;
+    -fx-border-color: #cbd5e1;
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-text-fill: #172033;
+    -fx-prompt-text-fill: #7c8798;
+    -fx-effect: null;
+    -fx-opacity: 1;
+}
+.erp-ui-standard .date-picker.erp-control-input > .text-field,
+.erp-ui-standard .date-picker.approved-input > .text-field,
+.erp-ui-standard .combo-box-base.erp-control-input > .list-cell,
+.erp-ui-standard .combo-box-base.approved-input > .list-cell,
+.erp-ui-standard .spinner.erp-control-input > .text-field,
+.erp-ui-standard .spinner.approved-input > .text-field,
+.erp-ui-standard .choice-box.erp-control-input > .label,
+.erp-ui-standard .choice-box.approved-input > .label,
+.erp-ui-standard .text-area.erp-control-input .content,
+.erp-ui-standard .text-area.approved-input .content,
+.erp-ui-standard .text-area.erp-control-input .scroll-pane,
+.erp-ui-standard .text-area.approved-input .scroll-pane,
+.erp-ui-standard .text-area.erp-control-input .scroll-pane > .viewport,
+.erp-ui-standard .text-area.approved-input .scroll-pane > .viewport {
+    -fx-background-color: #ffffff;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-text-fill: #172033;
+    -fx-effect: null;
+}
+.erp-ui-standard .combo-box-base.erp-control-input > .arrow-button,
+.erp-ui-standard .combo-box-base.approved-input > .arrow-button,
+.erp-ui-standard .date-picker.erp-control-input > .arrow-button,
+.erp-ui-standard .date-picker.approved-input > .arrow-button,
+.erp-ui-standard .choice-box.erp-control-input > .open-button,
+.erp-ui-standard .choice-box.approved-input > .open-button,
+.erp-ui-standard .spinner.erp-control-input > .increment-arrow-button,
+.erp-ui-standard .spinner.approved-input > .increment-arrow-button,
+.erp-ui-standard .spinner.erp-control-input > .decrement-arrow-button,
+.erp-ui-standard .spinner.approved-input > .decrement-arrow-button {
+    -fx-background-color: #ffffff;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+.erp-ui-standard .erp-control-input:focused,
+.erp-ui-standard .approved-input:focused,
+.erp-ui-standard .erp-global-search:focused,
+.erp-ui-standard .dse-global-search-v3-input:focused,
+.erp-ui-standard .register-header-search-input:focused { -fx-border-color: #7c3aed; -fx-border-width: 1.5; }
+
+/* Empty tables are one body surface, not nested dark rectangles. */
+.erp-ui-standard .erp-table-standard .placeholder,
+.erp-ui-standard .erp-table-standard .placeholder .label,
+.erp-ui-standard .erp-table-standard .table-row-cell:empty {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: #64748b;
+    -fx-text-background-color: #64748b;
+    -fx-border-color: transparent;
+}
+
+/* All register drawers use the same four-side inset; scroll content does not add a second edge. */
+.erp-ui-standard .erp-detail-drawer-card { -fx-padding: 18; }
+.erp-ui-standard .erp-detail-drawer-card .erp-detail-scroll,
+.erp-ui-standard .erp-detail-drawer-card .erp-detail-scroll > .viewport,
+.erp-ui-standard .erp-detail-drawer-card .erp-inner-scroll,
+.erp-ui-standard .erp-detail-drawer-card .erp-inner-scroll > .viewport { -fx-background-color: transparent; -fx-padding: 0; }
+.erp-ui-standard .erp-detail-drawer-card .return-detail-actions,
+.erp-ui-standard .erp-detail-drawer-card .sales-detail-action-grid { -fx-padding: 8 0 0 0; }
+
+/* Report Center / report viewer spacing and icon controls remain distinct from filter panels. */
+.erp-ui-standard .report-filter-actions { -fx-padding: 10 0 0 0; }
+.erp-ui-standard .report-results-toolbar { -fx-padding: 9 0 7 0; }
+.erp-ui-standard .report-viewer-filter-panel { -fx-padding: 14; }
+.erp-ui-standard .report-favorite-button { -fx-background-color: transparent; -fx-border-color: #cbd5e1; -fx-background-radius: 7; -fx-border-radius: 7; -fx-min-width: 34; -fx-min-height: 34; }
+.erp-ui-standard .report-favorite-button.report-favorite-active { -fx-background-color: #fff7df; -fx-border-color: #d97706; }
+
+/* Security & Session follows the same Settings card/form rhythm as every other Settings page. */
+.erp-ui-standard .security-settings-panel { -fx-padding: 18; -fx-spacing: 16; }
+.erp-ui-standard .security-settings-panel .security-settings-subsection { -fx-padding: 4 0; -fx-background-color: transparent; -fx-border-color: transparent; -fx-effect: null; }
+.erp-ui-standard .security-settings-panel .settings-info-strip { -fx-padding: 10 12; -fx-background-color: #f8fafc; -fx-border-color: #dbe3ec; -fx-border-radius: 7; -fx-background-radius: 7; }
