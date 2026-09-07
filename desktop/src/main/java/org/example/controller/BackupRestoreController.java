@@ -768,7 +768,9 @@ public class BackupRestoreController {
                 ? ConfigManager.getConfiguredServerUrl() + " • Company server PostgreSQL database"
                 : database.toString());
         Clipboard.getSystemClipboard().setContent(content);
-        setStatus("Database path copied to clipboard.");
+        setStatus(ConfigManager.isSharedClient()
+                ? "Company server address copied to clipboard."
+                : "Database path copied to clipboard.");
     }
 
     @FXML
