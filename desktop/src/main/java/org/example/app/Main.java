@@ -133,6 +133,13 @@ public final class Main {
             SceneManager.updateSplashStage(5, "Finalizing " + BrandingService.applicationName() + "...");
             SceneManager.markSplashReady("Services ready. Opening " + BrandingService.applicationName() + "...");
         } catch (Exception exception) {
+            if (exception instanceof org.example.api.runtime.DeploymentConnectionService.ClientUpdateRequiredException updateRequired) {
+                DesktopLog.info("Main", "CLIENT_UPDATE_REQUIRED",
+                        "Company server requires desktop " + updateRequired.requiredVersion());
+                Platform.runLater(() -> org.example.update.UpdateDialogs.offerRequiredClientUpdate(
+                        stage, updateRequired.requiredVersion()));
+                return;
+            }
             DesktopLog.error("Main", "SERVER_START_FAILED", "Spring services could not start", exception);
             Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(
                     stage,
@@ -270,6 +277,13 @@ public final class Main {
                     if (SessionService.current() == null) SceneManager.showLogin();
                 });
             } catch (Exception exception) {
+                if (exception instanceof org.example.api.runtime.DeploymentConnectionService.ClientUpdateRequiredException updateRequired) {
+                    DesktopLog.info("Main", "FIRST_RUN_CLIENT_UPDATE_REQUIRED",
+                            "Company server requires desktop " + updateRequired.requiredVersion());
+                    Platform.runLater(() -> org.example.update.UpdateDialogs.offerRequiredClientUpdate(
+                            stage, updateRequired.requiredVersion()));
+                    return;
+                }
                 DesktopLog.error("Main", "FIRST_RUN_START_FAILED", "Services could not start after setup", exception);
                 Platform.runLater(() -> {
                     Alert alert = new OwnedAlert(Alert.AlertType.ERROR,

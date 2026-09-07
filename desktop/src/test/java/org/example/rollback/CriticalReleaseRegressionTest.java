@@ -25,6 +25,12 @@ class CriticalReleaseRegressionTest {
         assertEquals("Safe", compatibility.label());
     }
 
+    @Test void retainedRollbackPackagesCanResolveCurrentCompatibilityGeneration() throws Exception {
+        String service = Files.readString(Path.of("src/main/java/org/example/rollback/RollbackService.java"));
+        assertTrue(service.contains("isManagedRollbackPackage(installer)"));
+        assertTrue(service.contains("generationSchema > 0"));
+    }
+
     @Test void unknownOrFutureSchemaGenerationStaysBlocked() {
         RollbackService service = new RollbackService();
         assertEquals(-1, service.schemaForVersion("7.2.1"));

@@ -170,8 +170,8 @@
                 <HBox alignment="CENTER_LEFT" spacing="10" styleClass="backup-location-bar">
                     <Label text="Database Location" styleClass="backup-location-label"/>
                     <Label fx:id="lblDatabase" maxWidth="Infinity" wrapText="false" styleClass="backup-location-value" HBox.hgrow="ALWAYS"/>
-                    <Button text="Open Folder" onAction="#openDatabaseFolder" styleClass="backup-secondary-button"/>
-                    <Button text="Copy Path" onAction="#copyDatabasePath" styleClass="backup-secondary-button"/>
+                    <Button fx:id="btnOpenDatabaseFolder" text="Open Folder" onAction="#openDatabaseFolder" styleClass="backup-secondary-button"/>
+                    <Button fx:id="btnCopyDatabasePath" text="Copy Path" onAction="#copyDatabasePath" styleClass="backup-secondary-button"/>
                 </HBox>
             </VBox>
         </VBox>

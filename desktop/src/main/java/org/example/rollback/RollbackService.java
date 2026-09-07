@@ -294,8 +294,21 @@ public final class RollbackService {
             try { return Integer.parseInt(configured); } catch (NumberFormatException ignored) { }
         }
         int generationSchema = schemaForVersion(version);
-        if (generationSchema > 0 && wasVerifiedByUpdater(installer)) return generationSchema;
+        if (generationSchema > 0 && (wasVerifiedByUpdater(installer) || isManagedRollbackPackage(installer))) {
+            return generationSchema;
+        }
         return -1;
+    }
+
+    private boolean isManagedRollbackPackage(Path installer) {
+        if (installer == null) return false;
+        try {
+            Path managed = packagesFolder().toAbsolutePath().normalize();
+            Path candidate = installer.toAbsolutePath().normalize();
+            return candidate.startsWith(managed) && Files.isRegularFile(candidate);
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private boolean wasVerifiedByUpdater(Path installer) {

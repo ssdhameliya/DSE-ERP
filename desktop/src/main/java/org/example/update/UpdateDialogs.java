@@ -134,6 +134,124 @@ public final class UpdateDialogs {
         });
     }
 
+    /**
+     * Pre-login Shared Client update path. This intentionally does not require an authenticated
+     * application permission and does not create a local database backup because a Shared Client
+     * owns no authoritative business database.
+     */
+    public static void offerRequiredClientUpdate(Window owner, String requiredVersion) {
+        String version = requiredVersion == null ? "" : requiredVersion.trim();
+        if (version.isBlank()) {
+            error(owner, "Update required", "The company server requires a newer DSE ERP desktop, but its version could not be determined.");
+            return;
+        }
+
+        ButtonType later = new ButtonType("Not Now", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType update = new ButtonType("Download & Install " + version, ButtonBar.ButtonData.OK_DONE);
+        Alert required = new OwnedAlert(Alert.AlertType.WARNING,
+                "The company server is running DSE ERP " + version + ", but this desktop is "
+                        + BuildInfo.version() + ".\n\n"
+                        + "For data safety, different client/server builds cannot connect. "
+                        + "DSE ERP can download the official installer, verify its SHA-256 checksum, and start the update before login.",
+                later, update);
+        if (owner != null) required.initOwner(owner);
+        required.setHeaderText("Desktop update required");
+        if (required.showAndWait().orElse(later) != update) return;
+
+        ProgressIndicator indicator = new ProgressIndicator();
+        Label message = new Label("Loading the official DSE ERP " + version + " release...");
+        VBox content = new VBox(18, indicator, message);
+        content.setAlignment(javafx.geometry.Pos.CENTER);
+        content.setPadding(new Insets(28));
+        Dialog<Void> loading = baseDialog(owner, "Required Update", content, 500, 240);
+        loading.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+
+        Task<UpdateRelease> task = new Task<>() {
+            @Override protected UpdateRelease call() throws Exception {
+                String ownerName = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
+                String repository = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
+                return new GitHubReleaseClient().byVersion(ownerName, repository, version);
+            }
+        };
+        task.setOnSucceeded(event -> {
+            loading.close();
+            UpdateRelease release = task.getValue();
+            if (!release.version().toString().equals(version)) {
+                error(owner, "Required update unavailable",
+                        "The published release does not match the company server requirement. Required: " + version
+                                + "; published: " + release.version() + ".");
+                return;
+            }
+            downloadRequiredClientUpdate(owner, new UpdateService(), release);
+        });
+        task.setOnFailed(event -> {
+            loading.close();
+            error(owner, "Required update unavailable", rootMessage(task.getException()));
+        });
+        task.setOnCancelled(event -> loading.close());
+        loading.setOnShown(event -> Thread.ofVirtual().name("erp-required-update-check").start(task));
+        loading.show();
+    }
+
+    private static void downloadRequiredClientUpdate(Window owner, UpdateService service, UpdateRelease release) {
+        UpdateRelease.Asset asset;
+        try { asset = service.assetFor(release); }
+        catch (Exception exception) { error(owner, "Installer unavailable", rootMessage(exception)); return; }
+
+        ProgressBar bar = new ProgressBar(0);
+        bar.setMaxWidth(Double.MAX_VALUE);
+        Label status = new Label("Downloading " + asset.name());
+        Label detail = new Label("Preparing download...");
+        VBox content = new VBox(14, status, bar, detail);
+        content.setPadding(new Insets(18));
+        Dialog<Void> dialog = baseDialog(owner, "Downloading Required Update", content, 580, 270);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+
+        Task<Path> task = new Task<>() {
+            @Override protected Path call() throws Exception {
+                updateMessage("Downloading official installer...");
+                Path file = service.download(asset, progress -> updateProgress(progress, 1));
+                updateMessage("Verifying SHA-256 checksum...");
+                String checksum = service.expectedChecksum(release, asset.name());
+                if (checksum.isBlank()) {
+                    throw new SecurityException("The GitHub Release must include checksums.txt with a SHA-256 entry for " + asset.name() + ".");
+                }
+                ChecksumVerifier.verify(file, checksum);
+                updateMessage("Installer verified.");
+                return file;
+            }
+        };
+        bar.progressProperty().bind(task.progressProperty());
+        detail.textProperty().bind(task.messageProperty());
+        task.setOnSucceeded(event -> {
+            dialog.close();
+            Path installer = task.getValue();
+            ButtonType cancel = ButtonType.CANCEL;
+            ButtonType install = new ButtonType("Install & Restart", ButtonBar.ButtonData.OK_DONE);
+            Alert ready = new OwnedAlert(Alert.AlertType.CONFIRMATION,
+                    "The official DSE ERP " + release.version() + " installer was downloaded and SHA-256 verified.\n\n"
+                            + "DSE ERP will close and start the installer. Reopen DSE ERP after installation to reconnect to the company server.",
+                    cancel, install);
+            if (owner != null) ready.initOwner(owner);
+            ready.setHeaderText("Required update verified");
+            if (ready.showAndWait().orElse(cancel) != install) return;
+            try {
+                service.launchInstaller(installer, release.version().toString());
+                Platform.exit();
+            } catch (Exception exception) {
+                error(owner, "Unable to start installer", rootMessage(exception));
+            }
+        });
+        task.setOnFailed(event -> {
+            dialog.close();
+            error(owner, "Update preparation failed", rootMessage(task.getException()));
+        });
+        task.setOnCancelled(event -> dialog.close());
+        dialog.setOnCloseRequest(event -> task.cancel());
+        dialog.setOnShown(event -> Thread.ofVirtual().name("erp-required-update-download").start(task));
+        dialog.show();
+    }
+
     private static void downloadAndPrepare(Window owner, UpdateService service, UpdateRelease release) {
         UpdateRelease.Asset asset;
         try { asset = service.assetFor(release); }

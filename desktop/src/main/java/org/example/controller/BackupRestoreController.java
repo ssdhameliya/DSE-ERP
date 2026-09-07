@@ -60,6 +60,8 @@ public class BackupRestoreController {
     @FXML private Button btnRestoreSelected;
     @FXML private Button btnLocalRecovery;
     @FXML private Button btnExportRecovery;
+    @FXML private Button btnOpenDatabaseFolder;
+    @FXML private Button btnCopyDatabasePath;
 
     @FXML private TableView<BackupRow> backupTable;
     @FXML private TableColumn<BackupRow, String> colBackupName;
@@ -112,6 +114,27 @@ public class BackupRestoreController {
             btnExportRecovery.setManaged(recoveryAvailable);
             btnExportRecovery.setGraphic(IconFactory.compactIcon("export", 14));
             btnExportRecovery.setTooltip(new Tooltip("Save an off-server disaster-recovery package containing a verified database snapshot and business files."));
+        }
+        if (ConfigManager.isSharedClient()) {
+            if (btnOpenDatabaseFolder != null) {
+                btnOpenDatabaseFolder.setText("Server Managed");
+                btnOpenDatabaseFolder.setDisable(true);
+                btnOpenDatabaseFolder.setTooltip(new Tooltip(
+                        "The active PostgreSQL database and server backups are stored on the company server, not on this workstation."));
+            }
+            if (btnCopyDatabasePath != null) {
+                btnCopyDatabasePath.setText("Copy Server Address");
+                btnCopyDatabasePath.setTooltip(new Tooltip("Copy the configured company-server address."));
+            }
+        } else {
+            if (btnOpenDatabaseFolder != null) {
+                btnOpenDatabaseFolder.setText("Open Folder");
+                btnOpenDatabaseFolder.setTooltip(new Tooltip("Open the local database folder."));
+            }
+            if (btnCopyDatabasePath != null) {
+                btnCopyDatabasePath.setText("Copy Path");
+                btnCopyDatabasePath.setTooltip(new Tooltip("Copy the local database path."));
+            }
         }
 
         loadSettings();

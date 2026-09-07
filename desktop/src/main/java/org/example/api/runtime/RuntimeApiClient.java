@@ -6,6 +6,10 @@ import org.example.config.ConfigManager;
 import org.example.shared.RuntimeContract;
 
 import java.net.URI;
+import java.net.ConnectException;
+import java.net.UnknownHostException;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -39,11 +43,33 @@ public final class RuntimeApiClient {
             }
             return json.readValue(response.body(), RuntimeStatus.class);
         } catch (Exception exception) {
-            String action = ConfigManager.isSharedClient()
-                    ? " Check the network and company server address."
-                    : " The desktop runtime will attempt to start it automatically.";
-            throw new IllegalStateException("Cannot reach DSE ERP backend at " + base + "." + action, exception);
+            if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+            throw new IllegalStateException(connectionFailureMessage(base, exception), exception);
         }
+    }
+
+    static String connectionFailureMessage(String base, Throwable failure) {
+        Throwable root = failure;
+        while (root != null && root.getCause() != null) root = root.getCause();
+        String reason;
+        if (root instanceof java.net.http.HttpTimeoutException) {
+            reason = "Connection timed out.";
+        } else if (root instanceof UnknownHostException) {
+            reason = "DNS could not resolve the company server.";
+        } else if (root instanceof SSLHandshakeException || root instanceof SSLException) {
+            reason = "TLS/HTTPS certificate negotiation failed: " + safeMessage(root);
+        } else if (root instanceof ConnectException) {
+            reason = "The server refused the connection or the route is unavailable: " + safeMessage(root);
+        } else {
+            reason = safeMessage(root);
+        }
+        return "Cannot reach DSE ERP backend at " + base + ". " + reason;
+    }
+
+    private static String safeMessage(Throwable failure) {
+        if (failure == null) return "Unknown connection failure.";
+        String message = failure.getMessage();
+        return message == null || message.isBlank() ? failure.getClass().getSimpleName() : message;
     }
 
     public void requireReady() {
