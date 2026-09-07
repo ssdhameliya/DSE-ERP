@@ -63,18 +63,46 @@ public class SmtpMailService {
     public Settings saveSettings(String email, String password, String host, Integer port) {
         String cleanedEmail = email == null ? "" : email.trim();
         String requestedPassword = password == null ? "" : password.replaceAll("\\s+", "");
-        Settings existing = settings();
-        String cleanedPassword = requestedPassword.isBlank() ? existing.password() : requestedPassword;
         String cleanedHost = host == null ? "" : host.trim();
         int cleanedPort = port == null ? 587 : port;
         if (cleanedEmail.isBlank()) throw new IllegalArgumentException("Sending email address is required.");
-        if (cleanedPassword.isBlank()) throw new IllegalArgumentException("Email app password is required the first time email is configured.");
         if (cleanedPort < 1 || cleanedPort > 65535) throw new IllegalArgumentException("SMTP port must be between 1 and 65535.");
+
+        /*
+         * A newly entered App Password is authoritative. Do not decrypt or migrate
+         * the previously stored secret first: after a server move/restore the old
+         * value may have been protected by a different installation key, and that
+         * must not block an Administrator from replacing it with a fresh secret.
+         */
+        String cleanedPassword;
+        if (!requestedPassword.isBlank()) {
+            cleanedPassword = requestedPassword;
+        } else {
+            try {
+                cleanedPassword = settings().password();
+            } catch (IllegalStateException failure) {
+                throw new IllegalStateException(
+                        "The existing email App Password cannot be read. Enter the App Password again and save the settings.",
+                        failure);
+            }
+        }
+        if (cleanedPassword.isBlank()) throw new IllegalArgumentException("Email app password is required the first time email is configured.");
+
+        String encryptedPassword;
+        try {
+            encryptedPassword = SecretValueCodec.encrypt(cleanedPassword);
+        } catch (IllegalStateException failure) {
+            LOG.error("SMTP App Password encryption failed. Verify the server DSE_SECRET_KEY configuration.", failure);
+            throw failure;
+        }
+
         put("smtp.email", cleanedEmail);
-        put("smtp.appPassword", SecretValueCodec.encrypt(cleanedPassword));
+        put("smtp.appPassword", encryptedPassword);
         put("smtp.host", cleanedHost);
         put("smtp.port", Integer.toString(cleanedPort));
-        return settingsFromDatabase(new Settings(cleanedHost, cleanedPort, cleanedEmail, cleanedPassword));
+
+        String effectiveHost = cleanedHost.isBlank() ? inferHost(cleanedEmail) : cleanedHost;
+        return new Settings(effectiveHost, cleanedPort, cleanedEmail, cleanedPassword);
     }
 
     public void sendOtp(String recipient, String purpose, String code) {
