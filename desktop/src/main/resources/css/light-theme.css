@@ -16407,6 +16407,15 @@
 .erp-ui-standard .erp-table-standard .table-cell.status-neutral,
 .erp-ui-standard .erp-table-standard .table-cell.status-neutral .label { -fx-text-fill: #1d4ed8; }
 
+/* Ordinary table values follow the same semantic colour family as their headers. */
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-blue { -fx-text-fill: #1d4ed8; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-green { -fx-text-fill: #15803d; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-orange { -fx-text-fill: #b45309; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-purple { -fx-text-fill: #6d28d9; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-pink { -fx-text-fill: #be185d; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-teal { -fx-text-fill: #0f766e; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-indigo { -fx-text-fill: #4338ca; }
+
 /* Consistent ERP empty-table state instead of the default JavaFX placeholder look. */
 .erp-ui-standard .table-view .placeholder,
 .erp-ui-standard .erp-table-standard .placeholder {
@@ -17280,7 +17289,7 @@
 
 
 /* ========================================================================== */
-/* DSE ERP 9.0.90 — FINAL RUNTIME VISUAL AUTHORITY (LIGHT)                    */
+/* DSE ERP 9.0.91 — FINAL RUNTIME VISUAL AUTHORITY (LIGHT)                    */
 /* Runtime ownership: stable rows/actions, single-surface controls and panels. */
 /* ========================================================================== */
 
@@ -17432,7 +17441,7 @@
 .erp-ui-standard .erp-detail-drawer-card .sales-detail-action-grid { -fx-padding: 8 0 0 0; }
 
 /* Report Center / report viewer spacing and icon controls remain distinct from filter panels. */
-.erp-ui-standard .report-filter-actions { -fx-padding: 10 0 0 0; }
+.erp-ui-standard .report-filter-actions { -fx-padding: 10 0 4 0; }
 .erp-ui-standard .report-results-toolbar { -fx-padding: 9 0 7 0; }
 .erp-ui-standard .report-viewer-filter-panel { -fx-padding: 14; }
 .erp-ui-standard .report-favorite-button { -fx-background-color: transparent; -fx-border-color: #cbd5e1; -fx-background-radius: 7; -fx-border-radius: 7; -fx-min-width: 34; -fx-min-height: 34; }
