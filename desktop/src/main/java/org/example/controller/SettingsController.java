@@ -1772,30 +1772,33 @@ private record AssetPreviewRequest(
 
     @FXML
     private void save() {
+        try {
+            if (!saveValues()) return;
 
-        if (!saveValues()) {
-            return;
+            if (deploymentRestartRequired) {
+                OwnedAlert done = new OwnedAlert(Alert.AlertType.INFORMATION,
+                        "This PC is now configured to use the verified company server.\n\n"
+                                + "The previous local workspace was not modified and remains available as a recovery copy. "
+                                + "DSE ERP will close now so the next start uses only the saved company-server profile.",
+                        ButtonType.OK);
+                done.setHeaderText("Company-server connection saved");
+                done.showAndWait();
+                Platform.exit();
+                return;
+            }
+
+            SharedApplicationFooter.refreshAll();
+
+            if (chkNotifications != null && chkNotifications.isSelected()) {
+                NotificationService.add("Application settings were updated.");
+            }
+
+            org.example.util.ToastManager.success(panelHost, "Settings saved", "Settings saved successfully.");
+        } catch (Exception exception) {
+            deploymentRestartRequired = false;
+            localToSharedConnectionConfirmed = false;
+            showError("Settings could not be saved: " + safeMessage(exception));
         }
-
-        if (deploymentRestartRequired) {
-            OwnedAlert done = new OwnedAlert(Alert.AlertType.INFORMATION,
-                    "This PC is now configured to use the verified company server.\n\n"
-                            + "The previous local workspace was not modified and remains available as a recovery copy. "
-                            + "DSE ERP will close now so no screen or background service continues in the old LOCAL runtime.",
-                    ButtonType.OK);
-            done.setHeaderText("Company-server connection saved");
-            done.showAndWait();
-            Platform.exit();
-            return;
-        }
-
-        SharedApplicationFooter.refreshAll();
-
-        if (chkNotifications != null && chkNotifications.isSelected()) {
-            NotificationService.add("Application settings were updated.");
-        }
-
-        org.example.util.ToastManager.success(panelHost, "Settings saved", "Settings saved successfully.");
     }
 
     private boolean saveValues() {
@@ -1805,7 +1808,7 @@ private record AssetPreviewRequest(
         }
 
         boolean connectExistingServerOnly = localToSharedConnectionConfirmed
-                && (loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode) == DeploymentMode.LOCAL
+                && effectiveLoadedDeploymentMode() == DeploymentMode.LOCAL
                 && cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
 
         batchingSettingsSave = true;
@@ -1861,7 +1864,7 @@ private record AssetPreviewRequest(
     private void saveDeploymentSettings() {
         if (!SessionService.isAdmin() || !deploymentSettingsChanged()) return;
         boolean shared = cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
-        DeploymentMode currentMode = loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode;
+        DeploymentMode currentMode = effectiveLoadedDeploymentMode();
         if (currentMode == DeploymentMode.LOCAL && shared && !localToSharedConnectionConfirmed) {
             throw new IllegalArgumentException("Confirm whether this PC should connect to the existing company server. If this local company should become the server company instead, cancel and complete the Local to Server promotion process first.");
         }
@@ -1875,19 +1878,26 @@ private record AssetPreviewRequest(
             String environment = cmbDeploymentEnvironment == null ? "UAT" : cmbDeploymentEnvironment.getValue();
             if (environment == null || "LOCAL".equals(environment)) throw new IllegalArgumentException("Select UAT or PROD before saving a company-server deployment.");
 
-            if (currentMode == DeploymentMode.LOCAL) {
-                try {
+            try {
+                if (currentMode == DeploymentMode.LOCAL) {
                     WorkspaceManager.connectToExistingSharedClient(normalized, environment);
-                    ConfigManager.load();
-                } catch (java.io.IOException exception) {
-                    throw new IllegalStateException("Could not create the shared-client connection profile: " + exception.getMessage(), exception);
+                } else {
+                    WorkspaceManager.updateManagedSharedClientConnection(normalized, environment);
                 }
-                deploymentRestartRequired = true;
-            } else {
-                ConfigManager.setWithoutSaving("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
-                ConfigManager.setWithoutSaving("deployment.environment", environment);
-                ConfigManager.setWithoutSaving("server.baseUrl", normalized);
+                ConfigManager.load();
+            } catch (java.io.IOException exception) {
+                throw new IllegalStateException("Could not save the shared-client connection profile: " + exception.getMessage(), exception);
             }
+
+            if (!WorkspaceManager.isManagedSharedClientWorkspace() || !ConfigManager.isSharedClient()) {
+                throw new IllegalStateException("The company-server profile was written but could not be activated safely.");
+            }
+            if (!environment.equals(ConfigManager.getConfiguredDeploymentEnvironment())
+                    || !normalized.equals(normalizedServerUrl(ConfigManager.getConfiguredServerUrl()))) {
+                throw new IllegalStateException("The saved company-server profile does not match the verified endpoint. No restart was performed.");
+            }
+            // LOCAL→Shared and Shared UAT↔PROD/URL changes both require a clean restart.
+            deploymentRestartRequired = true;
 
             loadedDeploymentEnvironment = environment;
             loadedCompanyServerUrl = normalized;
@@ -1907,10 +1917,21 @@ private record AssetPreviewRequest(
                 : "Saved. Restart DSE ERP to apply the deployment change.");
     }
 
+    private DeploymentMode effectiveDeploymentMode() {
+        return WorkspaceManager.isManagedSharedClientWorkspace()
+                ? DeploymentMode.SHARED_CLIENT
+                : ConfigManager.getDeploymentMode();
+    }
+
+    private DeploymentMode effectiveLoadedDeploymentMode() {
+        if (WorkspaceManager.isManagedSharedClientWorkspace()) return DeploymentMode.SHARED_CLIENT;
+        return loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode;
+    }
+
     private boolean deploymentSettingsChanged() {
         if (cmbDeploymentMode == null) return false;
         DeploymentMode selected = cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1 ? DeploymentMode.SHARED_CLIENT : DeploymentMode.LOCAL;
-        DeploymentMode baseline = loadedDeploymentMode == null ? ConfigManager.getDeploymentMode() : loadedDeploymentMode;
+        DeploymentMode baseline = effectiveLoadedDeploymentMode();
         String selectedUrl = selected == DeploymentMode.SHARED_CLIENT ? normalizedServerUrl(txtCompanyServerUrl == null ? "" : txtCompanyServerUrl.getText()) : "";
         String baselineUrl = baseline == DeploymentMode.SHARED_CLIENT ? loadedCompanyServerUrl : "";
         String selectedEnvironment = selected == DeploymentMode.SHARED_CLIENT && cmbDeploymentEnvironment != null ? String.valueOf(cmbDeploymentEnvironment.getValue()) : "LOCAL";
@@ -2107,7 +2128,7 @@ private record AssetPreviewRequest(
     private boolean validateSettings() {
         if (SessionService.isAdmin() && loadedPanels.containsKey(Section.WORKSPACE) && cmbDeploymentMode != null) {
             boolean requestedShared = cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
-            DeploymentMode currentMode = ConfigManager.getDeploymentMode();
+            DeploymentMode currentMode = effectiveDeploymentMode();
             if (currentMode == DeploymentMode.LOCAL && requestedShared) {
                 String normalized;
                 try { normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText()); }

@@ -116,6 +116,41 @@ class SharedClientWorkspaceContractTest {
         }
     }
 
+    @Test
+    void managedSharedClientConnectionCanBeUpdatedInPlaceWithoutRestoringLocalSecrets() throws Exception {
+        Path target = Files.createTempDirectory("dse-shared-update-");
+        try {
+            Properties source = new Properties();
+            source.setProperty("deployment.mode", "SHARED_CLIENT");
+            source.setProperty("deployment.environment", "UAT");
+            source.setProperty("server.baseUrl", "https://api-uat.example.test");
+            source.setProperty("db.url", "jdbc:postgresql://localhost:5432/should-not-survive");
+            source.setProperty("db.username", "local_user");
+            source.setProperty("db.password", "secret");
+            source.setProperty("smtp.appPassword", "mail-secret");
+            source.setProperty("setup.completed", "true");
+
+            Method writer = WorkspaceManager.class.getDeclaredMethod(
+                    "writeManagedSharedClientConfiguration", Properties.class, Path.class, String.class, String.class);
+            writer.setAccessible(true);
+            writer.invoke(null, source, target, "https://api.example.test", "PROD");
+
+            Properties updated = new Properties();
+            try (var in = Files.newInputStream(target.resolve("Config/config.properties"))) {
+                updated.load(in);
+            }
+            assertEquals("SHARED_CLIENT", updated.getProperty("deployment.mode"));
+            assertEquals("PROD", updated.getProperty("deployment.environment"));
+            assertEquals("https://api.example.test", updated.getProperty("server.baseUrl"));
+            assertNull(updated.getProperty("db.url"));
+            assertNull(updated.getProperty("db.username"));
+            assertNull(updated.getProperty("db.password"));
+            assertNull(updated.getProperty("smtp.appPassword"));
+        } finally {
+            deleteTree(target);
+        }
+    }
+
     private static void deleteTree(Path root) throws Exception {
         if (!Files.exists(root)) return;
         try (var walk = Files.walk(root)) {

@@ -170,10 +170,45 @@ public final class WorkspaceManager {
     public static synchronized void connectToExistingSharedClient(String serverUrl, String environment) throws IOException {
         Path sourceRoot = getWorkspaceRoot();
         if (sourceRoot.equals(MANAGED_SHARED_ROOT)) {
-            throw new IllegalStateException("This PC is already using application-managed shared-client storage.");
+            // Idempotent safety: a managed Shared Client may arrive here when an old
+            // environment override reported LOCAL. Update the verified connection in
+            // place instead of throwing and leaving the user with a silent JavaFX error.
+            updateManagedSharedClientConnection(serverUrl, environment);
+            return;
         }
-        createSharedClientConfigurationFromLocal(sourceRoot, MANAGED_SHARED_ROOT, serverUrl, environment);
+
+        try {
+            createSharedClientConfigurationFromLocal(sourceRoot, MANAGED_SHARED_ROOT, serverUrl, environment);
+            verifyWritable(MANAGED_SHARED_ROOT);
+            if (!isSharedClientConfig(MANAGED_SHARED_ROOT)) {
+                throw new IOException("The new managed Shared Client profile could not be verified.");
+            }
+            writePointer(MANAGED_SHARED_ROOT);
+            workspaceRoot = MANAGED_SHARED_ROOT;
+        } catch (IOException | RuntimeException failure) {
+            // The LOCAL workspace itself is never modified. If activation failed after
+            // staging the managed profile, restore the persistent pointer to LOCAL so
+            // the workstation cannot start in a half-switched state.
+            try { writePointer(sourceRoot); }
+            catch (IOException rollbackFailure) { failure.addSuppressed(rollbackFailure); }
+            workspaceRoot = sourceRoot;
+            throw failure;
+        }
+    }
+
+    /** Updates only the verified company-server identity of an existing managed Shared Client. */
+    public static synchronized void updateManagedSharedClientConnection(String serverUrl, String environment) throws IOException {
+        if (!isConfigured() || !workspaceRoot.equals(MANAGED_SHARED_ROOT)) {
+            throw new IllegalStateException("This PC is not using application-managed shared-client storage.");
+        }
+        Path config = MANAGED_SHARED_ROOT.resolve("Config").resolve("config.properties");
+        if (!Files.isRegularFile(config)) throw new IOException("Managed Shared Client configuration is missing: " + config);
+        Properties properties = readProperties(config);
+        writeManagedSharedClientConfiguration(properties, MANAGED_SHARED_ROOT, serverUrl, environment);
         verifyWritable(MANAGED_SHARED_ROOT);
+        if (!isSharedClientConfig(MANAGED_SHARED_ROOT)) {
+            throw new IOException("The managed Shared Client connection could not be verified after saving.");
+        }
         writePointer(MANAGED_SHARED_ROOT);
         workspaceRoot = MANAGED_SHARED_ROOT;
     }

@@ -156,9 +156,14 @@ public final class DialogPresentation {
         titleLabel.getStyleClass().add("modern-dialog-title");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        Button closeButton = new Button("\u00D7");
+        Button closeButton = new Button();
+        closeButton.setGraphic(IconFactory.compactIcon("close", 14));
         closeButton.getStyleClass().add("modern-dialog-close");
+        closeButton.getProperties().put("erp-icon-preserve", true);
         closeButton.setAccessibleText("Close dialog");
+        closeButton.setTooltip(new javafx.scene.control.Tooltip("Close"));
+        closeButton.setFocusTraversable(false);
+        closeButton.setCancelButton(true);
         closeButton.setOnAction(event -> dialog.close());
         HBox titleBar = new HBox(12, iconWrap, titleLabel, spacer, closeButton);
         titleBar.setAlignment(Pos.CENTER_LEFT);
@@ -185,8 +190,14 @@ public final class DialogPresentation {
             }
             if (customContent != null) {
                 if (textInput) customContent.getStyleClass().add("modern-dialog-input");
+                if (workspace && customContent instanceof Region region) {
+                    region.setMaxWidth(Double.MAX_VALUE);
+                    region.setMaxHeight(Double.MAX_VALUE);
+                    VBox.setVgrow(customContent, Priority.ALWAYS);
+                }
                 body.getChildren().add(customContent);
             }
+            if (workspace) VBox.setVgrow(body, Priority.ALWAYS);
             shell.getChildren().add(body);
             return shell;
         }
