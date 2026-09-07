@@ -32,7 +32,11 @@ public final class UpdateService {
     public UpdateRelease.Asset assetFor(UpdateRelease release){return PlatformPackage.select(release).orElseThrow(()->new IllegalStateException("This release does not contain an installer for "+PlatformPackage.current()+"."));}
 
     public Path download(UpdateRelease.Asset asset, DoubleConsumer progress) throws Exception {
-        Path folder = WorkspaceManager.isConfigured()\n                ? WorkspaceManager.getUpdatesFolder()\n                : Path.of(System.getProperty("user.home"), ".dse-erp", "Updates").toAbsolutePath().normalize();\n        Files.createDirectories(folder);\n        Path target=folder.resolve(asset.name()); Path partial=folder.resolve(asset.name()+".part");
+        Path folder = WorkspaceManager.isConfigured()
+                ? WorkspaceManager.getUpdatesFolder()
+                : Path.of(System.getProperty("user.home"), ".dse-erp", "Updates").toAbsolutePath().normalize();
+        Files.createDirectories(folder);
+        Path target=folder.resolve(asset.name()); Path partial=folder.resolve(asset.name()+".part");
         if(Files.isRegularFile(target) && (asset.size()<=0 || Files.size(target)==asset.size())){progress.accept(1d);return target;}
         Files.deleteIfExists(target);
         Exception last=null;
