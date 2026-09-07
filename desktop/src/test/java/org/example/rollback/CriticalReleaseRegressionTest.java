@@ -10,7 +10,7 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CriticalReleaseRegressionTest {
-    @Test void buildIdentityIsGeneratedFor981() {
+    @Test void buildIdentityIsGeneratedFor988() {
         assertEquals(org.example.shared.RuntimeContract.appVersion(), BuildInfo.version());
         assertEquals(org.example.shared.RuntimeContract.buildRevision(), BuildInfo.buildRevision());
         assertEquals(1, BuildInfo.databaseMigrationVersion());
@@ -69,7 +69,7 @@ class CriticalReleaseRegressionTest {
             assertTrue(css.contains("-fx-background-color: #5b21b6"));
         }
     }
-    @Test void semanticAuditRegressionFor981() throws Exception {
+    @Test void semanticAuditRegressionFor988() throws Exception {
         var semantic = org.example.util.IconFactory.class.getDeclaredMethod("semantic", String.class);
         semantic.setAccessible(true);
         assertEquals("import", semantic.invoke(null, "Import Excel"));
@@ -95,6 +95,49 @@ class CriticalReleaseRegressionTest {
             assertTrue(css.contains(".erp-value-colour-blue"));
             assertTrue(css.contains(".erp-value-colour-green"));
         }
+    }
+
+    @Test void latestLiveFilterIsReplayedAfterServerPageApply() {
+        org.example.util.RegisterPageState state = new org.example.util.RegisterPageState();
+        java.util.concurrent.atomic.AtomicInteger value = new java.util.concurrent.atomic.AtomicInteger();
+        state.runApplying(() -> {
+            state.runWhenIdle(() -> value.set(1));
+            state.runWhenIdle(() -> value.set(2));
+            assertEquals(0, value.get());
+        });
+        assertEquals(2, value.get());
+    }
+
+    @Test void tableSelectionNoLongerRefreshesWholeTableAndLayoutIsCoalesced() throws Exception {
+        String enhancer = Files.readString(Path.of("src/main/java/org/example/util/ProfessionalUiEnhancer.java"));
+        String layout = Files.readString(Path.of("src/main/java/org/example/util/DynamicTableLayoutManager.java"));
+        assertFalse(enhancer.contains("table.refresh();"));
+        assertTrue(enhancer.contains("updateSelectionVisual()"));
+        assertTrue(layout.contains("Always coalesce width/item/skin changes into one next-pulse pass"));
+        assertTrue(layout.contains("RENDERED_ACTION_WIDTH"));
+        assertFalse(layout.contains("region.applyCss();"));
+    }
+
+    @Test void genericSectionsAreNotAutomaticallyPromotedToShadowedSurfaces() throws Exception {
+        String designSystem = Files.readString(Path.of("src/main/java/org/example/util/UiDesignSystem.java"));
+        assertTrue(designSystem.contains("a generic word such as section/panel/workspace/detail must not"));
+        assertFalse(designSystem.contains("return containsAny(s, \"card\", \"panel\", \"drawer\", \"workspace\", \"section\""));
+    }
+
+    @Test void finalThemeAuthorityOwnsCleanControlsSearchRailAndSettingsWorkspace() throws Exception {
+        for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
+            String css = Files.readString(Path.of("src/main/resources/css", theme));
+            assertTrue(css.contains("DSE ERP — FINAL UI STABILITY AUTHORITY"));
+            assertTrue(css.contains(".workspace-deployment-grid"));
+            assertTrue(css.contains(".dse-global-search-v3-module-list .scroll-bar:horizontal"));
+            assertTrue(css.contains("-fx-max-height: 0"));
+            assertTrue(css.contains(".erp-control-input:focus-within"));
+            assertTrue(css.contains("-fx-effect: null"));
+        }
+        String workspace = Files.readString(Path.of("src/main/resources/fxml/pages/settings/WorkspaceSettingsPanel.fxml"));
+        assertTrue(workspace.contains("Connection mode"));
+        assertTrue(workspace.contains("Company server URL"));
+        assertTrue(workspace.contains("GridPane.rowIndex=\"1\"><Label text=\"Reports / Exports\""));
     }
 
 }

@@ -9,7 +9,7 @@ import javafx.scene.layout.Region;
 import java.util.Locale;
 
 /**
- * DSE ERP 9.0.79 visual design-system classifier.
+ * DSE ERP visual design-system classifier.
  *
  * <p>This class adds semantic/canonical style classes only. It deliberately
  * leaves FXML structure, controller handlers, calculations and navigation
@@ -131,13 +131,16 @@ public final class UiDesignSystem {
         if (s.isBlank()) return false;
         if (containsAny(s, "sidebar", "titlebar", "toolbar", "header", "footer", "canvas", "viewport",
                 "scroll", "split-pane", "root", "overlay", "menu", "breadcrumb",
-                // Authentication and startup shells already own their complete
-                // colour treatment. Marking brand/splash panels as generic ERP
-                // surfaces replaces their intended gradient with the theme card
-                // colour and is what made the light splash/login left panel unreadable.
-                "auth-", "splash-", "login-", "brand-panel")) return false;
-        return containsAny(s, "card", "panel", "drawer", "workspace", "section", "metric", "kpi",
-                "filter", "summary", "detail", "inspector", "profile", "form");
+                "auth-", "splash-", "login-", "brand-panel", "row", "cell", "actions")) return false;
+
+        // a generic word such as section/panel/workspace/detail must not
+        // automatically become another shadowed card. That old broad classifier
+        // created nested surfaces throughout Settings, Notifications, Shortcuts
+        // and Global Search and made every focus/selection pulse much more costly.
+        if (Boolean.TRUE.equals(pane.getProperties().get("erp.surface"))) return true;
+        if (containsAny(s, "detail-drawer", "erp-detail-drawer-card", "inspector-card", "profile-card",
+                "summary-card", "metric-card", "shortcut-list-card", "shortcut-editor-card")) return true;
+        return s.contains("card") && !containsAny(s, "icon", "header", "action", "row", "cell");
     }
 
     private static boolean isSidebarControl(Node node) {

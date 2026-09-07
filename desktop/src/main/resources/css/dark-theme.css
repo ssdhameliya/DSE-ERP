@@ -16880,3 +16880,168 @@
 .erp-value-colour-pink .erp-action-glyph,
 .erp-value-colour-teal .erp-action-glyph,
 .erp-value-colour-indigo .erp-action-glyph { -fx-opacity: 0.92; }
+
+/* ========================================================================== */
+/* DSE ERP — FINAL UI STABILITY AUTHORITY (DARK)                     */
+/* One owner for row selection, canonical controls and high-frequency UI.     */
+/* ========================================================================== */
+
+.erp-ui-standard .erp-unified-surface { -fx-effect: null; }
+.erp-ui-standard .erp-unified-surface:hover { -fx-border-color: -dse-border; }
+
+.erp-ui-standard .erp-table-standard .table-row-cell:selected,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected:focused,
+.erp-ui-standard .erp-table-standard .table-row-cell:filled:selected {
+    -fx-background-color: #31265c;
+    -fx-border-color: transparent transparent #6657a8 #a78bfa;
+    -fx-border-width: 0 0 1 4;
+    -fx-opacity: 1;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell:selected:hover,
+.erp-ui-standard .erp-table-standard .table-row-cell:filled:selected:hover { -fx-background-color: #3a2e6f; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell .label {
+    -fx-background-color: transparent;
+    -fx-text-fill: #edf4fb;
+    -fx-text-background-color: #edf4fb;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-positive,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-positive .label { -fx-text-fill: #62e3ad; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-warning,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-warning .label { -fx-text-fill: #ffc66b; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-negative,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-negative .label { -fx-text-fill: #ff8b9a; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-neutral,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-neutral .label { -fx-text-fill: #86b8ff; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .erp-action-glyph-blue { -fx-icon-color: #60a5fa; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .erp-action-glyph-green { -fx-icon-color: #4ade80; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .erp-action-glyph-orange { -fx-icon-color: #fb923c; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .erp-action-glyph-purple { -fx-icon-color: #c084fc; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .erp-action-glyph-pink { -fx-icon-color: #fb7185; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .erp-action-glyph-teal { -fx-icon-color: #2dd4bf; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .erp-action-glyph-indigo { -fx-icon-color: #a5b4fc; }
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .row-actions,
+.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-action-menu {
+    -fx-background-color: #17283a;
+    -fx-border-color: #6f65c6;
+    -fx-text-fill: #edf4fb;
+}
+
+.context-menu .menu-item.erp-menu-semantic-blue .label { -fx-text-fill: #60a5fa; }
+.context-menu .menu-item.erp-menu-semantic-green .label { -fx-text-fill: #4ade80; }
+.context-menu .menu-item.erp-menu-semantic-orange .label { -fx-text-fill: #fb923c; }
+.context-menu .menu-item.erp-menu-semantic-purple .label { -fx-text-fill: #c084fc; }
+.context-menu .menu-item.erp-menu-semantic-pink .label { -fx-text-fill: #fb7185; }
+.context-menu .menu-item.erp-menu-semantic-teal .label { -fx-text-fill: #2dd4bf; }
+.context-menu .menu-item.erp-menu-semantic-indigo .label { -fx-text-fill: #a5b4fc; }
+.context-menu .erp-action-glyph-blue { -fx-icon-color: #60a5fa; }
+.context-menu .erp-action-glyph-green { -fx-icon-color: #4ade80; }
+.context-menu .erp-action-glyph-orange { -fx-icon-color: #fb923c; }
+.context-menu .erp-action-glyph-purple { -fx-icon-color: #c084fc; }
+.context-menu .erp-action-glyph-pink { -fx-icon-color: #fb7185; }
+.context-menu .erp-action-glyph-teal { -fx-icon-color: #2dd4bf; }
+.context-menu .erp-action-glyph-indigo { -fx-icon-color: #a5b4fc; }
+
+.erp-ui-standard .erp-control-input,
+.erp-ui-standard .erp-control-input.text-field,
+.erp-ui-standard .erp-control-input.password-field,
+.erp-ui-standard .erp-control-input.text-area,
+.erp-ui-standard .erp-control-input.combo-box-base,
+.erp-ui-standard .erp-control-input.date-picker,
+.erp-ui-standard .erp-control-input.choice-box,
+.erp-ui-standard .erp-control-input.spinner,
+.erp-ui-standard .erp-control-input.color-picker {
+    -fx-background-color: #17283a;
+    -fx-background-insets: 0;
+    -fx-background-radius: 7;
+    -fx-border-color: #45627d;
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+    -fx-text-fill: #edf4fb;
+    -fx-prompt-text-fill: #93a4b8;
+    -fx-effect: null;
+    -fx-opacity: 1;
+}
+.erp-ui-standard .erp-control-input.text-area .scroll-pane,
+.erp-ui-standard .erp-control-input.text-area .scroll-pane > .viewport,
+.erp-ui-standard .erp-control-input.text-area .content,
+.erp-ui-standard .erp-control-input.date-picker > .text-field,
+.erp-ui-standard .erp-control-input.combo-box-base > .list-cell,
+.erp-ui-standard .erp-control-input.choice-box > .label,
+.erp-ui-standard .erp-control-input.spinner > .text-field,
+.erp-ui-standard .erp-control-input.combo-box-base > .arrow-button,
+.erp-ui-standard .erp-control-input.date-picker > .arrow-button,
+.erp-ui-standard .erp-control-input.choice-box > .open-button,
+.erp-ui-standard .erp-control-input.spinner > .increment-arrow-button,
+.erp-ui-standard .erp-control-input.spinner > .decrement-arrow-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+.erp-ui-standard .erp-control-input:focused,
+.erp-ui-standard .erp-control-input:focus-within {
+    -fx-border-color: #a78bfa;
+    -fx-border-width: 1.5;
+    -fx-effect: null;
+}
+
+.erp-ui-standard .erp-control-button,
+.erp-ui-standard .approved-button {
+    -fx-background-insets: 0;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-effect: null;
+}
+.erp-ui-standard .erp-control-button.erp-button-role-secondary,
+.erp-ui-standard .approved-button.approved-secondary-button,
+.erp-ui-standard .secondary-button,
+.erp-ui-standard .register-action-button {
+    -fx-background-color: #17283a;
+    -fx-border-color: #45627d;
+    -fx-text-fill: #edf4fb;
+}
+.erp-ui-standard .erp-control-button.erp-button-role-primary,
+.erp-ui-standard .approved-button.approved-primary-button,
+.erp-ui-standard .primary-button {
+    -fx-background-color: #7c3aed;
+    -fx-border-color: #8b5cf6;
+    -fx-text-fill: #ffffff;
+}
+.erp-ui-standard .menu-button > .label,
+.erp-ui-standard .menu-button > .arrow-button {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+}
+
+.workspace-settings-panel { -fx-padding: 24px 28px 30px 28px; -fx-spacing: 18px; }
+.workspace-settings-panel .workspace-section {
+    -fx-padding: 8px 2px 10px 2px;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-effect: null;
+}
+.workspace-deployment-grid { -fx-padding: 4px 0 2px 0; }
+.workspace-metric-grid { -fx-padding: 8px 0 4px 0; }
+.settings-panel-host { -fx-padding: 6px 10px 18px 10px; }
+.settings-panel-scroll, .settings-panel-scroll > .viewport { -fx-background-color: transparent; }
+
+.dse-global-search-v3-root .dse-global-search-v3-module-list .scroll-bar:horizontal {
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
+    -fx-opacity: 0;
+}
+.dse-global-search-v3-root .dse-global-search-v3-module-list .list-cell { -fx-padding: 7px 8px; }
+
+.dse-notification-v3-root .dse-notification-v3-row,
+.dse-notification-v3-root .dse-notification-v3-category-cell {
+    -fx-background-color: transparent;
+    -fx-effect: null;
+}
+.dse-notification-v3-root .dse-notification-v3-detail-card {
+    -fx-background-color: transparent;
+    -fx-effect: null;
+}
+.shortcut-manager-root .shortcut-option-row { -fx-background-color: transparent; }
+

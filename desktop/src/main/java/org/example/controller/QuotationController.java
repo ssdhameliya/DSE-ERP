@@ -57,7 +57,7 @@ public class QuotationController implements org.example.navigation.ScreenLifecyc
  private void refreshShortcutLabel(){org.example.shortcut.ShortcutRegistry.bindLabel(btnNewQuotation,org.example.shortcut.ShortcutRegistry.Action.NEW_QUOTATION,"New Quotation");}
  @Override public void onScreenHidden(){org.example.util.UiTaskExecutor.cancelPrefix("quotation-");}
  // Filters may fire while dropdowns are still being populated; null means "All".
- @FXML public void applyFilters(){if(pageState.isApplyingServerPage()||applyingSavedView)return;pageState.reset();loadPage();}
+ @FXML public void applyFilters(){if(applyingSavedView)return;pageState.runWhenIdle(()->{if(applyingSavedView)return;pageState.reset();loadPage();});}
  @FXML private void previousPage(){if(pageState.previous())loadPage();}
  @FXML private void nextPage(){if(pageState.next())loadPage();}
  private boolean all(ComboBox<String> box){String value=box.getValue();return value==null||value.startsWith("All");}
