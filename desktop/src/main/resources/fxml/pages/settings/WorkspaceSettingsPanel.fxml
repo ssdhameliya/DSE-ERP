@@ -21,17 +21,26 @@
         <Label text="Deployment" styleClass="settings-subsection-title"/>
         <Label text="Local mode preserves this PC. Shared-client mode connects this desktop to one verified company server after restart."
                wrapText="true" styleClass="settings-help-text"/>
-        <ComboBox fx:id="cmbDeploymentMode" maxWidth="Infinity"/>
+        <GridPane hgap="18" vgap="8" styleClass="workspace-deployment-grid">
+            <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
+            <VBox spacing="5">
+                <Label text="Connection mode" styleClass="settings-form-label"/>
+                <ComboBox fx:id="cmbDeploymentMode" maxWidth="Infinity"/>
+            </VBox>
+            <VBox spacing="5" GridPane.columnIndex="1">
+                <Label text="Environment" styleClass="settings-form-label"/>
+                <ComboBox fx:id="cmbDeploymentEnvironment" maxWidth="Infinity"/>
+            </VBox>
+        </GridPane>
+        <Label text="Use UAT while testing cloud deployment. Change to PROD only for the approved production endpoint." wrapText="true" styleClass="settings-help-text"/>
         <VBox spacing="5">
-            <Label text="Environment" styleClass="settings-form-label"/>
-            <ComboBox fx:id="cmbDeploymentEnvironment" maxWidth="Infinity"/>
-            <Label text="Use UAT while testing cloud deployment. Change to PROD only for the approved production endpoint." wrapText="true" styleClass="settings-help-text"/>
+            <Label text="Company server URL" styleClass="settings-form-label"/>
+            <HBox spacing="10">
+                <TextField fx:id="txtCompanyServerUrl" promptText="https://erp.company.local" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
+                <Button fx:id="btnTestCompanyServer" text="Test Connection" onAction="#testCompanyServer"
+                        minWidth="150" styleClass="settings-action-button,settings-secondary-button"/>
+            </HBox>
         </VBox>
-        <HBox spacing="10">
-            <TextField fx:id="txtCompanyServerUrl" promptText="https://erp.company.local" HBox.hgrow="ALWAYS" styleClass="approved-input"/>
-            <Button fx:id="btnTestCompanyServer" text="Test Connection" onAction="#testCompanyServer"
-                    styleClass="settings-action-button,settings-secondary-button"/>
-        </HBox>
         <Label fx:id="lblCompanyServerStatus" wrapText="true" styleClass="settings-help-text"/>
     </VBox>
     <Separator styleClass="workspace-separator"/>
@@ -54,12 +63,12 @@
             </VBox>
             <Button text="Refresh Usage" onAction="#refreshStorageUsage" styleClass="settings-action-button,settings-secondary-button"/>
         </HBox>
-        <GridPane hgap="18" vgap="8" styleClass="workspace-metric-grid">
-            <columnConstraints><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/><ColumnConstraints percentWidth="25" hgrow="ALWAYS"/></columnConstraints>
+        <GridPane hgap="24" vgap="12" styleClass="workspace-metric-grid">
+            <columnConstraints><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/><ColumnConstraints percentWidth="50" hgrow="ALWAYS"/></columnConstraints>
             <VBox spacing="3"><Label text="Documents" styleClass="settings-form-label"/><Label fx:id="lblStorageDocuments" text="—" styleClass="workspace-metric-value"/></VBox>
             <VBox spacing="3" GridPane.columnIndex="1"><Label text="Attachments" styleClass="settings-form-label"/><Label fx:id="lblStorageAttachments" text="—" styleClass="workspace-metric-value"/></VBox>
-            <VBox spacing="3" GridPane.columnIndex="2"><Label text="Reports / Exports" styleClass="settings-form-label"/><Label fx:id="lblStorageReportsExports" text="—" styleClass="workspace-metric-value"/></VBox>
-            <VBox spacing="3" GridPane.columnIndex="3"><Label text="Logs / Temp" styleClass="settings-form-label"/><Label fx:id="lblStorageLogsTemp" text="—" styleClass="workspace-metric-value"/></VBox>
+            <VBox spacing="3" GridPane.rowIndex="1"><Label text="Reports / Exports" styleClass="settings-form-label"/><Label fx:id="lblStorageReportsExports" text="—" styleClass="workspace-metric-value"/></VBox>
+            <VBox spacing="3" GridPane.columnIndex="1" GridPane.rowIndex="1"><Label text="Logs / Temp" styleClass="settings-form-label"/><Label fx:id="lblStorageLogsTemp" text="—" styleClass="workspace-metric-value"/></VBox>
         </GridPane>
         <Label fx:id="lblStorageTotal" text="Total managed storage: —" styleClass="settings-form-label"/>
         <Label fx:id="lblLastCleanup" text="Last cleanup: Never run" wrapText="true" styleClass="settings-help-text"/>
