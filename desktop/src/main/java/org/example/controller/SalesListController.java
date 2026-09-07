@@ -142,7 +142,7 @@ public class SalesListController implements ScreenLifecycle {
         detailIcon(capTransporter,"purchase","sales-detail-icon-transport"); detailIcon(capVehicle,"bank","sales-detail-icon-vehicle");
         detailIcon(capContactPerson,"user","sales-detail-icon-person"); detailIcon(capContactMobile,"phone","sales-detail-icon-phone");
     }
-    private void detailIcon(Label label,String semantic,String style){if(label==null)return;label.setGraphic(IconFactory.compactIcon(semantic,14));label.setGraphicTextGap(6);label.getStyleClass().addAll("sales-detail-caption",style);}
+    private void detailIcon(Label label,String semantic,String style){if(label==null)return;label.setGraphic(IconFactory.compactIcon(semantic,14));label.setGraphicTextGap(6);label.getStyleClass().addAll("sales-detail-caption",style);IconFactory.applySemanticLabelColour(label,semantic);}
 
     private void configureVisualIcons(){
         setIcon(salesTitleIcon,"sale",22);
@@ -185,6 +185,7 @@ public class SalesListController implements ScreenLifecycle {
                 label.setGraphic(IconFactory.compactIcon(semantic,14));
                 label.setGraphicTextGap(6);
                 label.getStyleClass().add("erp-drawer-caption");
+                IconFactory.applySemanticLabelColour(label, semantic);
                 label.getProperties().put("erp-icon-preserve",true);
             }
         }
@@ -419,7 +420,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
             pageState.reset();reloadPage();
         },failure->{linkedRecordReloadInProgress=false;LinkedRecordContext.consume("SALE");error(failure);});
     }
-    @FXML public void applyFilters(){if(pageState.isApplyingServerPage()||applyingSavedView)return;pageState.reset();renderChips();reloadPage();}
+    @FXML public void applyFilters(){if(applyingSavedView)return;pageState.runWhenIdle(()->{if(applyingSavedView)return;pageState.reset();renderChips();reloadPage();});}
     private void renderPage(){tableSales.setItems(FXCollections.observableArrayList(allSales));int size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();RegisterUiSupport.updatePageLabels(pageState,lblPageInfo,lblPageNumber,size,allSales.size(),"entries");if(pageState.totalRows()==0)lblPageInfo.setText("No entries");}
     @FXML private void firstPage(){if(pageState.first())reloadPage();}@FXML private void previousPage(){if(pageState.previous())reloadPage();}@FXML private void nextPage(){if(pageState.next())reloadPage();}@FXML private void lastPage(){if(pageState.last())reloadPage();}
     private void applyMetrics(org.example.api.operations.OperationsApiClient.SalesMetrics m){if(m==null)return;lblTotalSales.setText(money(m.totalSales()));lblInvoiceCount.setText(m.invoiceCount()+" invoices");lblTodaySales.setText(money(m.todaySales()));lblTodayCount.setText(m.todayCount()+" invoices");lblPending.setText(money(m.pendingBalance()));lblPendingCount.setText(m.pendingCount()+" invoices");lblOverdue.setText(money(m.overdueBalance()));lblOverdueCount.setText(m.overdueCount()+" invoices");lblDueSoon.setText(money(m.dueSoonBalance()));lblDueSoonCount.setText(m.dueSoonCount()+" invoices");lblEmailRate.setText(Math.round(m.emailRate())+"%");}
