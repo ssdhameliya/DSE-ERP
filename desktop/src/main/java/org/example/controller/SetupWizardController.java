@@ -344,13 +344,24 @@ public class SetupWizardController {
         String candidate = txtServerUrl.getText();
         Thread worker = new Thread(() -> {
             try {
-                var status = DeploymentConnectionService.test(candidate);
+                var status = DeploymentConnectionService.inspect(candidate);
                 String normalized = DeploymentConnectionService.normalize(candidate);
                 Platform.runLater(() -> {
                     validatedServerUrl = normalized;
                     validatedServerEnvironment = status.environment();
                     lblServerStatus.setText("Connected: " + status.service() + " " + status.version() + " • " + status.environment() + " • Database " + status.databaseName());
                     btnTestServer.setDisable(false);
+                });
+            } catch (DeploymentConnectionService.ClientUpdateRequiredException updateRequired) {
+                Platform.runLater(() -> {
+                    validatedServerUrl = null;
+                    validatedServerEnvironment = null;
+                    lblServerStatus.setText("Update required: company server " + updateRequired.requiredVersion()
+                            + " • desktop " + updateRequired.desktopVersion());
+                    btnTestServer.setDisable(false);
+                    org.example.update.UpdateDialogs.offerRequiredClientUpdate(
+                            btnTestServer.getScene() == null ? null : btnTestServer.getScene().getWindow(),
+                            updateRequired.requiredVersion());
                 });
             } catch (Exception exception) {
                 Platform.runLater(() -> {
