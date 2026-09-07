@@ -140,5 +140,4 @@ class CriticalReleaseRegressionTest {
         assertTrue(workspace.contains("GridPane.rowIndex=\"1\"><Label text=\"Reports / Exports\""));
     }
 
-
 }
