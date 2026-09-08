@@ -8,6 +8,12 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.Accordion;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
@@ -30,6 +36,7 @@ import javafx.scene.text.Text;
 import javafx.collections.ListChangeListener;
 
 import java.util.Locale;
+import java.util.IdentityHashMap;
 
 /**
  * Applies the ERP-wide table and date conventions after an FXML page is loaded.
@@ -41,15 +48,22 @@ public final class ProfessionalUiEnhancer {
 
     /** Enhances every supported control below the supplied page root. */
     public static void enhance(Node root) {
-        if (root == null || Boolean.TRUE.equals(root.getProperties().get("erp-ui-enhanced"))) return;
+        if (root == null) return;
+        if (Boolean.TRUE.equals(root.getProperties().get("erp-ui-enhanced"))) {
+            // Cached pages do not need another full decoration walk, but their
+            // real viewport can change after navigation/tab/sidebar activity.
+            UiViewportLayoutCoordinator.request(root);
+            return;
+        }
         root.getProperties().put("erp-ui-enhanced", true);
         UiDesignSystem.markRoot(root);
         walk(root);
         // Dynamic enhancement is deliberately owned only by the page/dialog root.
-        // Installing listeners on every Parent also observes JavaFX skin/VirtualFlow children,
-        // causing table rows/cells to be re-decorated while scrolling or selecting.
+        // Installing listeners on every Parent would observe JavaFX skin/VirtualFlow
+        // children and re-decorate rows/cells while scrolling.
         if (root instanceof Parent parent) installDynamicChildEnhancement(parent);
         SharedUiFramework.install(root);
+        UiViewportLayoutCoordinator.request(root);
     }
 
     /**
@@ -65,14 +79,113 @@ public final class ProfessionalUiEnhancer {
     }
 
     private static void walk(Node node) {
+        walk(node, new IdentityHashMap<>());
+    }
+
+    /**
+     * Walks both physical Parent children and logical content owned by JavaFX
+     * controls. TabPane/ScrollPane/TitledPane/Accordion content is not reliably
+     * present in a control's pre-skin child list, which previously left hidden
+     * report tabs and scroll-hosted KPI/table content outside the global contract.
+     */
+    private static void walk(Node node, IdentityHashMap<Node, Boolean> visited) {
+        if (node == null || visited.put(node, Boolean.TRUE) != null) return;
         UiDesignSystem.decorate(node);
         ResponsiveKpiLayoutManager.install(node);
         if (node instanceof TableView<?> table) enhanceTable(table);
         if (node instanceof DialogPane pane) enhanceDialog(pane);
         if (node instanceof PasswordField passwordField) schedulePasswordReveal(passwordField);
-        if (node instanceof Parent parent) {
-            for (Node child : parent.getChildrenUnmodifiable()) walk(child);
+
+        installLogicalContentEnhancement(node);
+
+        if (node instanceof ScrollPane scroll) {
+            walk(scroll.getContent(), visited);
+        } else if (node instanceof TabPane tabs) {
+            for (Tab tab : tabs.getTabs()) walk(tab.getContent(), visited);
+        } else if (node instanceof TitledPane titled) {
+            walk(titled.getContent(), visited);
+        } else if (node instanceof Accordion accordion) {
+            for (TitledPane pane : accordion.getPanes()) walk(pane, visited);
+        } else if (node instanceof SplitPane split) {
+            for (Node item : split.getItems()) walk(item, visited);
         }
+
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) walk(child, visited);
+        }
+    }
+
+    private static void installLogicalContentEnhancement(Node node) {
+        if (node instanceof ScrollPane scroll) installScrollContentEnhancement(scroll);
+        if (node instanceof TabPane tabs) installTabContentEnhancement(tabs);
+        if (node instanceof TitledPane titled) installTitledPaneEnhancement(titled);
+        if (node instanceof Accordion accordion) installAccordionEnhancement(accordion);
+    }
+
+    private static void installScrollContentEnhancement(ScrollPane scroll) {
+        if (Boolean.TRUE.equals(scroll.getProperties().get("erp-logical-scroll-listener"))) return;
+        scroll.getProperties().put("erp-logical-scroll-listener", true);
+        scroll.contentProperty().addListener((obs, oldContent, newContent) -> enhanceLogicalContent(newContent));
+        scroll.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) ->
+                UiViewportLayoutCoordinator.request(scroll.getContent()));
+    }
+
+    private static void installTabContentEnhancement(TabPane tabs) {
+        if (Boolean.TRUE.equals(tabs.getProperties().get("erp-logical-tab-listener"))) return;
+        tabs.getProperties().put("erp-logical-tab-listener", true);
+        for (Tab tab : tabs.getTabs()) installTabEnhancement(tab);
+        tabs.getTabs().addListener((ListChangeListener<Tab>) change -> {
+            while (change.next()) {
+                if (!change.wasAdded()) continue;
+                for (Tab tab : change.getAddedSubList()) {
+                    installTabEnhancement(tab);
+                    enhanceLogicalContent(tab.getContent());
+                }
+            }
+        });
+        tabs.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab != null) Platform.runLater(() -> enhanceLogicalContent(newTab.getContent()));
+        });
+    }
+
+    private static void installTabEnhancement(Tab tab) {
+        if (tab == null || Boolean.TRUE.equals(tab.getProperties().get("erp-logical-tab-content-listener"))) return;
+        tab.getProperties().put("erp-logical-tab-content-listener", true);
+        tab.contentProperty().addListener((obs, oldContent, newContent) -> enhanceLogicalContent(newContent));
+    }
+
+    private static void installTitledPaneEnhancement(TitledPane titled) {
+        if (Boolean.TRUE.equals(titled.getProperties().get("erp-logical-titled-listener"))) return;
+        titled.getProperties().put("erp-logical-titled-listener", true);
+        titled.contentProperty().addListener((obs, oldContent, newContent) -> enhanceLogicalContent(newContent));
+        titled.expandedProperty().addListener((obs, wasExpanded, expanded) -> {
+            if (expanded) Platform.runLater(() -> enhanceLogicalContent(titled.getContent()));
+        });
+    }
+
+    private static void installAccordionEnhancement(Accordion accordion) {
+        if (Boolean.TRUE.equals(accordion.getProperties().get("erp-logical-accordion-listener"))) return;
+        accordion.getProperties().put("erp-logical-accordion-listener", true);
+        accordion.getPanes().addListener((ListChangeListener<TitledPane>) change -> {
+            while (change.next()) {
+                if (!change.wasAdded()) continue;
+                for (TitledPane pane : change.getAddedSubList()) enhanceLogicalContent(pane);
+            }
+        });
+        accordion.expandedPaneProperty().addListener((obs, oldPane, newPane) -> {
+            if (newPane != null) Platform.runLater(() -> enhanceLogicalContent(newPane));
+        });
+    }
+
+    private static void enhanceLogicalContent(Node content) {
+        if (content == null) return;
+        if (!Boolean.TRUE.equals(content.getProperties().get("erp-logical-content-enhanced"))) {
+            content.getProperties().put("erp-logical-content-enhanced", true);
+            walk(content);
+            if (content instanceof Parent parent) installDynamicChildEnhancement(parent);
+            SharedUiFramework.install(content);
+        }
+        UiViewportLayoutCoordinator.request(content);
     }
 
 

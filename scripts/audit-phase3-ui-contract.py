@@ -45,6 +45,23 @@ for p in FXML.rglob('*.fxml'):
     for m in re.finditer('<TableColumn\\b[^>]*\\b(?:prefWidth|minWidth|maxWidth)\\s*=', p.read_text(), re.I):
         viol.append(str(p.relative_to(ROOT)))
 check('FXML TableColumns remain free of fixed width ownership', not viol, ', '.join(viol[:5]))
+
+# Central viewport lifecycle: tables/KPIs must be discovered and reflowed
+# from shared infrastructure rather than screen-specific pulse workarounds.
+enhancer = (JAVA / 'org/example/util/ProfessionalUiEnhancer.java').read_text()
+check('logical control content is globally enhanced', all(token in enhancer for token in ('ScrollPane', 'TabPane', 'enhanceLogicalContent(', 'installTabContentEnhancement(', 'viewportBoundsProperty()')))
+check('cached roots request central viewport reflow', 'UiViewportLayoutCoordinator.request(root);' in enhancer)
+check('table layout rejects stale generations', all(token in mgr for token in ('erp.table.dynamic-layout.generation', 'bindViewportNodes(', 'VIEWPORT_STABILITY_TOLERANCE', 'MAX_EXPECTED_SKIN_CHROME')))
+check('nested double-runLater table workaround removed', 'Platform.runLater(() -> Platform.runLater(() -> requestLayout(table)))' not in mgr)
+kpi = (JAVA / 'org/example/util/ResponsiveKpiLayoutManager.java').read_text()
+check('KPI density uses actual usable width', all(token in kpi for token in ('usableWidth(', 'DENSE_CARD_THRESHOLD', 'COMPACT_CARD_THRESHOLD', 'requestLayoutIn(Node root)')))
+coordinator = (JAVA / 'org/example/util/UiViewportLayoutCoordinator.java').read_text()
+register = (JAVA / 'org/example/util/RegisterUiSupport.java').read_text()
+check('one viewport coordinator owns geometry notifications', 'DynamicTableLayoutManager.requestLayoutIn(root);' in coordinator and 'ResponsiveKpiLayoutManager.requestLayoutIn(root);' in coordinator)
+check('register shell/drawer helper no longer forces CSS/layout pulses', 'UiViewportLayoutCoordinator.request' in register and 'applyCss()' not in register and 'autosize()' not in register and 'Platform.runLater(() -> { pass.run(); Platform.runLater(pass); })' not in register)
+for theme in css_files:
+    theme_text = theme.read_text()
+    check(f'{theme.name}: Reports KPI width is not CSS-owned', '.reports-workspace .erp-kpi-section .report-kpi-card {\n-fx-min-width: 0;' not in theme_text and '-fx-pref-width: 0;' not in theme_text[theme_text.find('.reports-workspace .erp-kpi-section .report-kpi-card'):theme_text.find('.reports-workspace .report-kpi-card .metric-value')])
 fxml_count = len(list(FXML.rglob('*.fxml')))
 table_count = 0
 column_count = 0
