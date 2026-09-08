@@ -196,7 +196,7 @@ class CriticalReleaseRegressionTest {
     @Test void finalRuntimeAuthorityFor990OwnsRowsInputsEmptyStateDrawersAndReports() throws Exception {
         for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
             String css = Files.readString(Path.of("src/main/resources/css", theme));
-            assertTrue(css.contains("DSE ERP " + BuildInfo.version() + " — FINAL RUNTIME VISUAL AUTHORITY"));
+            assertTrue(css.contains("DSE ERP — FINAL RUNTIME VISUAL AUTHORITY"));
             assertTrue(css.contains(".erp-table-standard .table-row-cell .table-cell .label"));
             assertTrue(css.contains(".erp-table-standard .row-actions"));
             assertTrue(css.contains(".date-picker.approved-input > .text-field"));

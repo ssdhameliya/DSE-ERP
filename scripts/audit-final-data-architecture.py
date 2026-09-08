@@ -8,23 +8,23 @@ errors = []
 for p in [desktop / 'pom.xml', *(desktop / 'src/main').rglob('*')]:
     if not p.is_file() or p.suffix.lower() not in {'.java', '.xml', '.properties', '.fxml'}:
         continue
-    text = p.read_text(errors='ignore').lower()
+    text = p.read_text(encoding='utf-8', errors='ignore').lower()
     for token in ('org.postgresql.', 'drivermanager.getconnection', 'hikaridatasource', 'hikariconfig', 'java.sql.'):
         if token in text:
             errors.append(f'{p.relative_to(root)} contains forbidden desktop DB token {token}')
-cm = (desktop / 'src/main/java/org/example/config/ConfigManager.java').read_text(errors='ignore')
+cm = (desktop / 'src/main/java/org/example/config/ConfigManager.java').read_text(encoding='utf-8', errors='ignore')
 if 'public static boolean isApiAuthenticationEnabled() { return true; }' not in cm:
     errors.append('authentication is not locked to Spring API')
 if 'public static boolean isApiDataEnabled() { return true; }' not in cm:
     errors.append('business data is not locked to Spring API')
 for p in (server / 'src/main/java').rglob('*.java'):
-    text = p.read_text(errors='ignore')
+    text = p.read_text(encoding='utf-8', errors='ignore')
     rel = p.relative_to(root)
     for token in ('JdbcTemplate', 'NamedParameterJdbcTemplate', 'org.springframework.jdbc', 'java.sql.', 'DriverManager.getConnection', 'PreparedStatement', 'ResultSet'):
         if token in text:
             errors.append(f'{rel} contains forbidden server persistence token {token}')
 for p in (server / 'src/main/java').rglob('*Controller.java'):
-    text = p.read_text(errors='ignore')
+    text = p.read_text(encoding='utf-8', errors='ignore')
     if 'JpaNativeRepository' in text or 'EntityManager' in text:
         errors.append(f'{p.relative_to(root)} accesses persistence directly; use a service')
 import re
@@ -32,7 +32,7 @@ from collections import defaultdict
 component_annotations = ('Component', 'Service', 'Repository', 'Controller', 'RestController', 'Configuration', 'ControllerAdvice', 'RestControllerAdvice')
 bean_names = defaultdict(list)
 for p in (server / 'src/main/java').rglob('*.java'):
-    text = p.read_text(errors='ignore')
+    text = p.read_text(encoding='utf-8', errors='ignore')
     if not any((re.search('@' + name + '\\b', text) for name in component_annotations)):
         continue
     m = re.search('\\b(?:public\\s+)?(?:final\\s+)?(?:class|record|interface|enum)\\s+(\\w+)', text)
@@ -48,7 +48,7 @@ for bean, paths in bean_names.items():
 migration_dir = server / 'src/main/resources/db/migration'
 runner_path = server / 'src/main/java/org/example/server/runtime/SecurityFinancialMigrationRunner.java'
 if runner_path.exists():
-    runner_text = runner_path.read_text(errors='ignore')
+    runner_text = runner_path.read_text(encoding='utf-8', errors='ignore')
     migration_stems = [p.stem for p in sorted(migration_dir.glob('*.sql')) if p.stem != 'V5_1_2__server_owned_schema']
     for migration in migration_stems:
         if migration not in runner_text:
@@ -61,7 +61,7 @@ else:
     errors.append('SecurityFinancialMigrationRunner is missing')
 token_service = server / 'src/main/java/org/example/server/security/TokenService.java'
 if token_service.exists():
-    token_text = token_service.read_text(errors='ignore')
+    token_text = token_service.read_text(encoding='utf-8', errors='ignore')
     if 'auth_session' not in token_text or 'token_hash' not in token_text:
         errors.append('TokenService does not retain the hashed PostgreSQL auth_session registry')
     if 'SignedTokenCodec' not in token_text or 'auth_version' not in token_text or 'auth_token_revocation' not in token_text:
@@ -78,7 +78,7 @@ repo = server / 'src/main/java/org/example/server/persistence/JpaNativeRepositor
 if not repo.exists():
     errors.append('JpaNativeRepository is missing')
 else:
-    text = repo.read_text(errors='ignore')
+    text = repo.read_text(encoding='utf-8', errors='ignore')
     if 'EntityManager' not in text or '@Repository' not in text:
         errors.append('JpaNativeRepository is not EntityManager/@Repository backed')
 if errors:

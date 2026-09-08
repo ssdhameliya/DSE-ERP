@@ -10996,23 +10996,14 @@
 .context-menu .erp-action-glyph-blue {
 -fx-icon-color: #73a9ff;
 }
-.context-menu .erp-action-glyph-green {
--fx-icon-color: #4ade80;
-}
 .context-menu .erp-action-glyph-orange {
 -fx-icon-color: #fbbf24;
 }
 .context-menu .erp-action-glyph-purple {
 -fx-icon-color: #c4b5fd;
 }
-.context-menu .erp-action-glyph-pink {
--fx-icon-color: #fb7185;
-}
 .context-menu .erp-action-glyph-teal {
 -fx-icon-color: #5eead4;
-}
-.context-menu .erp-action-glyph-indigo {
--fx-icon-color: #a5b4fc;
 }
 .quotation-register-page {
 -fx-background-color: #0d1829;
@@ -14785,10 +14776,6 @@
     -fx-border-color: #7253a8;
     -fx-text-fill: #f1eaff;
 }
-.register-action-button:hover {
--fx-background-color: #4d3678;
-    -fx-border-color: #8d6ac8;
-}
 .register-action-button:disabled {
 -fx-opacity: 0.65;
 }
@@ -15777,9 +15764,6 @@
 }
 
 .reports-workspace .erp-kpi-section .report-kpi-card {
--fx-min-width: 0;
-    -fx-pref-width: 0;
-    -fx-max-width: 1000000px;
     -fx-min-height: 76;
     -fx-pref-height: 76;
     -fx-padding: 10 12;
@@ -16224,12 +16208,6 @@
 }
 .erp-ui-standard .erp-table-standard .table-cell.status-positive,
 .erp-ui-standard .erp-table-standard .table-cell.status-positive .label { -fx-text-fill: #62e3ad; }
-.erp-ui-standard .erp-table-standard .table-cell.status-warning,
-.erp-ui-standard .erp-table-standard .table-cell.status-warning .label { -fx-text-fill: #ffc66b; }
-.erp-ui-standard .erp-table-standard .table-cell.status-negative,
-.erp-ui-standard .erp-table-standard .table-cell.status-negative .label { -fx-text-fill: #ff8b9a; }
-.erp-ui-standard .erp-table-standard .table-cell.status-neutral,
-.erp-ui-standard .erp-table-standard .table-cell.status-neutral .label { -fx-text-fill: #86b8ff; }
 
 /* Ordinary table values follow the same semantic colour family as their headers. */
 .erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-blue { -fx-text-fill: #86b8ff; }
@@ -16615,7 +16593,6 @@
     -fx-border-width: 0 0 1 0;
     -fx-opacity: 1;
 }
-.erp-ui-standard .erp-table-standard .table-row-cell:odd { -fx-background-color: #102030; }
 .erp-ui-standard .erp-table-standard .table-row-cell:hover { -fx-background-color: #1b3046; }
 .erp-ui-standard .erp-table-standard .table-row-cell:selected,
 .erp-ui-standard .erp-table-standard .table-row-cell:selected:focused {
@@ -16630,14 +16607,6 @@
     -fx-text-fill: #edf4fb;
     -fx-text-background-color: #edf4fb;
 }
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-positive,
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-positive .label { -fx-text-fill: #62e3ad; }
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-warning,
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-warning .label { -fx-text-fill: #ffc66b; }
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-negative,
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-negative .label { -fx-text-fill: #ff8b9a; }
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-neutral,
-.erp-ui-standard .erp-table-standard .table-row-cell:selected .table-cell.status-neutral .label { -fx-text-fill: #86b8ff; }
 
 /* One coherent dark input surface for all canonical fields and their internals. */
 .erp-ui-standard .erp-control-input,
@@ -17080,7 +17049,7 @@
 
 
 /* ========================================================================== */
-/* DSE ERP 9.0.92 — FINAL RUNTIME VISUAL AUTHORITY (DARK)                    */
+/* DSE ERP — FINAL RUNTIME VISUAL AUTHORITY (DARK)                    */
 /* Runtime ownership: stable rows/actions, single-surface controls and panels. */
 /* ========================================================================== */
 

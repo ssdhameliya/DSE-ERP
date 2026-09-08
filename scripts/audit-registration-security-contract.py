@@ -3,7 +3,7 @@ from pathlib import Path
 r = Path(__file__).resolve().parents[1]
 
 def read(p):
-    return (r / p).read_text()
+    return (r / p).read_text(encoding='utf-8')
 
 def need(c, m):
     if not c:

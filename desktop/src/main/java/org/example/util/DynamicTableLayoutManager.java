@@ -4,9 +4,10 @@ import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
-import javafx.scene.Parent;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -19,7 +20,6 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * Phase 5 single authority for ERP TableView column widths.
@@ -39,6 +39,8 @@ import java.util.Map;
 public final class DynamicTableLayoutManager {
     private static final String INSTALLED = "erp.table.dynamic-layout.installed";
     private static final String PENDING = "erp.table.dynamic-layout.pending";
+    private static final String GENERATION = "erp.table.dynamic-layout.generation";
+    private static final String VIEWPORT_NODES = "erp.table.dynamic-layout.viewport-nodes";
     private static final String ITEM_LISTENER = "erp.table.dynamic-layout.item-listener";
     private static final String COLUMN_LISTENER = "erp.table.dynamic-layout.column-listener";
     private static final String COLUMN_BOUND = "erp.table.dynamic-layout.column-bound";
@@ -52,6 +54,8 @@ public final class DynamicTableLayoutManager {
     private static final double HEADER_HORIZONTAL_PADDING = 18.0;
     private static final double MIN_READABLE_COLUMN = 58.0;
     private static final double DENSE_MIN_READABLE_COLUMN = 44.0;
+    private static final double MAX_EXPECTED_SKIN_CHROME = 36.0;
+    private static final double VIEWPORT_STABILITY_TOLERANCE = 1.0;
 
     private DynamicTableLayoutManager() {}
 
@@ -75,11 +79,17 @@ public final class DynamicTableLayoutManager {
 
         table.widthProperty().addListener((obs, oldValue, newValue) -> requestLayout(table));
         table.itemsProperty().addListener((obs, oldItems, newItems) -> bindItems(table, oldItems, newItems));
-        table.sceneProperty().addListener((obs, oldScene, newScene) -> requestLayout(table));
-        table.skinProperty().addListener((obs, oldSkin, newSkin) -> requestLayout(table));
-        // TabPane and cached-screen content may receive their real width only after
-        // becoming visible/managed. Reflow on that transition rather than relying
-        // on an operating-system-specific scrollbar/chrome allowance.
+        table.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            bindViewportNodes(table);
+            requestLayout(table);
+        });
+        table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+            bindViewportNodes(table);
+            requestLayout(table);
+        });
+        // TabPane/cached content often receives its usable width only when it is
+        // activated. The generation scheduler below makes these transitions safe
+        // even when several JavaFX layout pulses are emitted in quick succession.
         table.visibleProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestLayout(table); });
         table.managedProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestLayout(table); });
 
@@ -90,51 +100,90 @@ public final class DynamicTableLayoutManager {
                 requestLayout(table);
             });
         }
+        bindViewportNodes(table);
         requestLayout(table);
-        // One extra post-pulse sizing pass measures virtualized row controls at
-        // their real CSS preferred width (especially MenuButton Actions cells).
-        // This prevents the visible action label/graphic/arrow from being
-        // ellipsized by the first pre-cell layout pass.
-        Platform.runLater(() -> Platform.runLater(() -> requestLayout(table)));
     }
 
     /**
-     * Public hook for drawers/saved views that deliberately change available width/visibility.
-     *
-     * <p>When the TableView already has a skin and a usable width, perform the
-     * sizing pass immediately on the JavaFX thread. This prevents a default
-     * JavaFX column layout from being painted for one pulse before the ERP
-     * widths are applied. A deferred pass is used only while the control is not
-     * layout-ready yet.</p>
+     * Public hook for drawers, tabs, navigation and data changes. Every request
+     * advances a generation. A pass can therefore never commit measurements
+     * taken from an older intermediate geometry after a newer width has arrived.
      */
     public static void requestLayout(TableView<?> table) {
-        if (table == null || Boolean.TRUE.equals(table.getProperties().get(PENDING))) return;
-        // Always coalesce width/item/skin changes into one next-pulse pass. Drawer
-        // animation and SplitPane resizing can emit many width changes in one
-        // interaction; running the expensive measurement synchronously for every
-        // change starved row painting and made records appear to disappear.
+        if (table == null) return;
+        // Always coalesce width/item/skin changes into one next-pulse pass; the
+        // generation counter additionally prevents a stale intermediate pass
+        // from winning after a newer viewport change.
+        long generation = generation(table) + 1L;
+        table.getProperties().put(GENERATION, generation);
+        if (Boolean.TRUE.equals(table.getProperties().get(PENDING))) return;
         table.getProperties().put(PENDING, true);
-        Platform.runLater(() -> {
-            table.getProperties().remove(PENDING);
-            layoutNow(table);
-        });
+        Platform.runLater(() -> runScheduledLayout(table));
     }
 
-    /** Reflows every TableView below a container after a drawer/split layout change. */
+    private static void runScheduledLayout(TableView<?> table) {
+        if (table == null) return;
+        long observed = generation(table);
+        bindViewportNodes(table);
+        layoutNow(table);
+        if (generation(table) != observed) {
+            Platform.runLater(() -> runScheduledLayout(table));
+            return;
+        }
+        table.getProperties().remove(PENDING);
+    }
+
+    /** Reflows every TableView below a container after a viewport geometry change. */
     public static void requestLayoutIn(Node root) {
         if (root == null) return;
         Runnable pass = () -> {
             try {
-                // Do not force applyCss()/layout() here. Drawer, tab and shell
-                // interactions already schedule a normal JavaFX layout pulse; doing
-                // another full CSS/layout pass caused avoidable click-time jank.
                 if (root instanceof TableView<?> table) requestLayout(table);
                 for (Node node : root.lookupAll(".table-view")) {
                     if (node instanceof TableView<?> table) requestLayout(table);
                 }
             } catch (RuntimeException ignored) { }
         };
-        Platform.runLater(pass);
+        if (Platform.isFxApplicationThread()) pass.run();
+        else Platform.runLater(pass);
+    }
+
+    private static long generation(TableView<?> table) {
+        Object value = table.getProperties().get(GENERATION);
+        return value instanceof Number number ? number.longValue() : 0L;
+    }
+
+    /**
+     * Observe the live VirtualFlow/clipped viewport once a skin exists. This is
+     * the missing lifecycle link for cached tabs and drawer close/open cycles:
+     * when JavaFX updates its internal viewport one pulse after the outer
+     * TableView, a fresh generation is now scheduled automatically.
+     */
+    @SuppressWarnings("unchecked")
+    private static void bindViewportNodes(TableView<?> table) {
+        if (table == null || table.getSkin() == null) return;
+        IdentityHashMap<Node, Boolean> bound;
+        Object existing = table.getProperties().get(VIEWPORT_NODES);
+        if (existing instanceof IdentityHashMap<?, ?> map) {
+            bound = (IdentityHashMap<Node, Boolean>) map;
+        } else {
+            bound = new IdentityHashMap<>();
+            table.getProperties().put(VIEWPORT_NODES, bound);
+        }
+        try {
+            bindViewportNode(table, table.lookup(".virtual-flow"), bound);
+            bindViewportNode(table, table.lookup(".clipped-container"), bound);
+            for (Node node : table.lookupAll(".scroll-bar")) bindViewportNode(table, node, bound);
+        } catch (RuntimeException ignored) { }
+    }
+
+    private static void bindViewportNode(TableView<?> table, Node node, IdentityHashMap<Node, Boolean> bound) {
+        if (node == null || bound.put(node, Boolean.TRUE) != null) return;
+        node.layoutBoundsProperty().addListener(obs -> requestLayout(table));
+        node.visibleProperty().addListener(obs -> requestLayout(table));
+        if (node instanceof Region region) {
+            region.widthProperty().addListener(obs -> requestLayout(table));
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -231,6 +280,13 @@ public final class DynamicTableLayoutManager {
             for (int i = 0; i < measures.size(); i++) widths[i] = Math.max(DENSE_MIN_READABLE_COLUMN, measures.get(i).minimum());
         }
 
+        double verifiedAvailable = contentViewportWidth(table);
+        if (!Double.isFinite(verifiedAvailable)
+                || Math.abs(verifiedAvailable - available) > VIEWPORT_STABILITY_TOLERANCE) {
+            requestLayout(table);
+            return;
+        }
+
         closeResidual(columns, widths, available);
         for (int i = 0; i < columns.size(); i++) {
             TableColumn<?, ?> column = columns.get(i);
@@ -241,30 +297,52 @@ public final class DynamicTableLayoutManager {
     }
 
 
-    /** Returns the actual live table viewport width instead of assuming fixed OS chrome. */
+    /**
+     * Returns the current usable viewport without trusting a stale internal
+     * VirtualFlow width. The outer TableView width is authoritative during large
+     * drawer/sidebar transitions; skin measurements are accepted only when they
+     * differ by normal control chrome (scrollbar/border) amounts.
+     */
     private static double contentViewportWidth(TableView<?> table) {
         double tableWidth = table.getWidth();
         if (!Double.isFinite(tableWidth) || tableWidth < 1) return tableWidth;
         Insets insets = table.getInsets();
-        double available = Math.max(1, tableWidth - insets.getLeft() - insets.getRight());
+        double outer = Math.max(1, tableWidth - insets.getLeft() - insets.getRight());
 
-        // JavaFX exposes the VirtualFlow after the skin is created. Its width is
-        // the best cross-platform measurement of what the table can actually use.
-        // On macOS this avoids reserving a Windows-style permanent scrollbar gap.
+        double verticalScrollbar = 0;
         try {
-            Node flow = table.lookup(".virtual-flow");
-            if (flow != null) {
-                double flowWidth = flow.getLayoutBounds().getWidth();
-                if (Double.isFinite(flowWidth) && flowWidth > 1) available = Math.min(available, flowWidth);
-                if (flow instanceof Parent parent) {
-                    Node clipped = parent.lookup(".clipped-container");
-                    if (clipped != null) {
-                        double clippedWidth = clipped.getLayoutBounds().getWidth();
-                        if (Double.isFinite(clippedWidth) && clippedWidth > 1) available = Math.min(available, clippedWidth);
-                    }
+            for (Node node : table.lookupAll(".scroll-bar")) {
+                if (node instanceof ScrollBar bar
+                        && bar.getOrientation() == Orientation.VERTICAL
+                        && bar.isVisible() && bar.isManaged()) {
+                    double width = bar.getWidth();
+                    if (Double.isFinite(width) && width > 1) verticalScrollbar = Math.max(verticalScrollbar, width);
                 }
             }
         } catch (RuntimeException ignored) { }
+        double available = Math.max(1, outer - verticalScrollbar);
+
+        double internal = -1;
+        try {
+            Node clipped = table.lookup(".clipped-container");
+            if (clipped != null) {
+                double width = clipped.getLayoutBounds().getWidth();
+                if (Double.isFinite(width) && width > 1) internal = width;
+            }
+            if (internal < 1) {
+                Node flow = table.lookup(".virtual-flow");
+                if (flow != null) {
+                    double width = flow.getLayoutBounds().getWidth();
+                    if (Double.isFinite(width) && width > 1) internal = width;
+                }
+            }
+        } catch (RuntimeException ignored) { }
+
+        // A hundreds-of-pixels disagreement is a known one-pulse stale-skin
+        // state during drawer close/open. Do not let that older width win.
+        if (internal > 1 && Math.abs(available - internal) <= MAX_EXPECTED_SKIN_CHROME) {
+            available = Math.min(available, internal);
+        }
         return Math.max(1, available);
     }
 
