@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.util.ScreenRefreshPolicy;
 import org.example.navigation.ScreenLifecycle;
 import org.example.util.BusinessClock;
 
@@ -233,6 +234,7 @@ public class ReminderCenterController implements ScreenLifecycle {
 
     private void applyReminderRows(List<InsightsApiClient.ReminderDto> rows, long selectedId, boolean restoreDetails) {
         source.setAll(rows == null ? List.of() : rows.stream().map(ReminderRow::new).toList());
+        ScreenRefreshPolicy.markRefreshed("reminder-center");
         updateMetrics();
         applyFilters();
         if(filtered.isEmpty())org.example.util.OperationalUiSupport.showEmpty(table,"No reminders found","Create a reminder or change the filters to see matching records.");
@@ -746,7 +748,7 @@ public class ReminderCenterController implements ScreenLifecycle {
         }
     }
 
-    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);if(reusedFromCache)refresh();}
+    @Override public void onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);if(reusedFromCache&&ScreenRefreshPolicy.shouldRefresh("reminder-center",ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(30)))refresh();}
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("reminder-");}
 
     private static Exception asException(Throwable failure) {

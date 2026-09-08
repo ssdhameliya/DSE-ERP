@@ -294,6 +294,10 @@ public class NavigationManager {
         }
         try {
             logNavigationEvent("START", fxml, "prepared-page");
+            // Prepared/editor pages must never bypass the global semantic/table/KPI
+            // contract. ProfessionalUiEnhancer is idempotent, so callers that
+            // already enhanced the page do not pay for a second scene walk.
+            ProfessionalUiEnhancer.enhance(page);
             if (currentCachedPage != null) notifyHidden(currentCachedPage.controller());
             CachedPage prepared = new CachedPage(page, controller);
             contentPane.getChildren().setAll(page);

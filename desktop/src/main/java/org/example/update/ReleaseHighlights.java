@@ -9,13 +9,14 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return "DSE ERP " + version + " — PROD Cutover & Reporting Stabilization\n\n" + """
-                    • Fixes company-server Email & App Preferences so a newly entered SMTP App Password can replace an unreadable or migrated older secret without first decrypting that old value.
-                    • Keeps SMTP secrets server-owned, AES-GCM encrypted at rest and safely logged only at the configuration/error level without exposing the secret itself.
-                    • Repairs the Reports Dashboard KPI strip by assigning stable equal-width KPI columns and separates Reset / Apply Filters from the content below.
-                    • Restores the shared semantic table contract: colourful icon headers and semantic value colours now apply consistently to normal default table cells while controller-owned status/action cells remain untouched.
-                    • Forces the Reports Dashboard summary tables back through the same central table decoration path used by the rest of the ERP.
-                    • Preserves Shared Client PROD/UAT connection behavior, Java 25, JavaFX 25.0.2, PostgreSQL Schema 1 and the exact two-theme runtime CSS architecture.
+            return "DSE ERP " + version + " — Performance, KPI/Reporting & Semantic UI Stabilization\n\n" + """
+                    • Makes cached operational screens reuse already-loaded data and refresh only when stale or explicitly requested, reducing repeat API/database work during normal navigation.
+                    • Reduces Sales/Purchase register page cost by skipping KPI/chart summaries on pure pagination, avoiding Mac-only chart queries, batching programmatic filter changes and loading charge rows only for the visible page IDs.
+                    • Reworks the central dynamic table layout to use the live JavaFX viewport instead of a fixed scrollbar allowance, with a dense-table fallback for Reporting/Scheduled Reports and no OS-specific hard-coded widths.
+                    • Keeps KPI cards under one runtime width authority and removes competing preferred card widths that could leave right-side slack on macOS/Retina layout pulses.
+                    • Reasserts colourful semantic table header icons/labels when cached/tabbed TableView skins become visible, without adding per-screen CSS or column-width overrides.
+                    • Reduces drawer/table click-time reflow by avoiding forced full applyCss/layout traversals and guarantees prepared navigation pages pass through the same shared UI enhancer.
+                    • Preserves the v9.0.91 SMTP secret replacement fix, Shared Client PROD/UAT behavior, Java 25, JavaFX 25.0.2, PostgreSQL Schema 1 and exactly two runtime theme files.
                     """;
         }
         if ("9.0.88".equals(version)) {

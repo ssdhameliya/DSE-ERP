@@ -33,7 +33,7 @@ require('openBankStatementLink' in recon and 'LinkedRecordContext.open("BANK_STA
 require('Apply Filters' not in returns_fxml, 'Purchase Return must not retain the redundant Apply Filters button')
 require('dpFrom.setValue(null)' in returns and 'dpTo.setValue(null)' in returns, 'Purchase Return must default to all dates')
 require('dpFrom.valueProperty().addListener' in returns and 'dpTo.valueProperty().addListener' in returns, 'Purchase Return date changes must auto-apply')
-require('onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);load();}' in returns, 'Purchase Return must reload whenever the screen is shown without auto-focusing Search')
+require('onScreenShown(boolean reusedFromCache){org.example.util.OperationalUiSupport.focusWorkArea(table);if(all.isEmpty()||(reusedFromCache&&ScreenRefreshPolicy.shouldRefresh("purchase-returns"' in returns, 'Purchase Return must keep cached data and reload only when empty/stale without auto-focusing Search')
 require('<StackPane fx:id="statementWorkspace"' in bank_fxml and 'fx:id="statementHistoryDrawer"' in bank_fxml and ('bank-statement-history-popup-content' in bank_fxml) and ('StackPane.alignment="CENTER_RIGHT"' not in bank_fxml), 'Bank Statement History must use the wide independent popup workspace')
 require('statementHistoryDialog=new OwnedDialog<>(statementWorkspace)' in bank and 'erp-table-profile-responsive' in bank_fxml and ('DynamicTableLayoutManager.install(table);' in enhancer), 'Bank Statement History must use an owned popup and the global readable dynamic-table policy')
 require('fx:id="cmbHistoryAccount" editable="true"' in bank_fxml, 'Bank Statement History account filter must be a searchable ComboBox')

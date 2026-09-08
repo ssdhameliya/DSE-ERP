@@ -265,6 +265,20 @@ public final class ProfessionalUiEnhancer {
         TablePerformanceOptimizer.optimize(table);
         DynamicTableLayoutManager.install(table);
 
+        // A cached page or a TabPane can recreate/show its header skin after the
+        // original decoration pass. Re-assert the semantic header graphic when
+        // the table becomes visible or receives a fresh skin; the operation is
+        // table-local and does not walk the whole page.
+        if (!Boolean.TRUE.equals(table.getProperties().get("erp-semantic-header-guard"))) {
+            table.getProperties().put("erp-semantic-header-guard", true);
+            table.visibleProperty().addListener((obs, oldValue, newValue) -> {
+                if (newValue) Platform.runLater(() -> refreshTableDecorations(table));
+            });
+            table.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+                if (newSkin != null) Platform.runLater(() -> refreshTableDecorations(table));
+            });
+        }
+
         // Controllers add a number of business columns after FXML loading.
         // Keep header decoration live so those columns receive the exact same
         // icon-and-label treatment without requiring screen-specific code.

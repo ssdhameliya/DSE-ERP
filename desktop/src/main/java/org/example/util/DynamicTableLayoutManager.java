@@ -5,6 +5,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
@@ -43,12 +44,14 @@ public final class DynamicTableLayoutManager {
     private static final String COLUMN_BOUND = "erp.table.dynamic-layout.column-bound";
     private static final String NATURAL_FLOOR = "erp.table.dynamic-layout.natural-floor";
     private static final String RENDERED_ACTION_WIDTH = "erp.table.dynamic-layout.rendered-action-width";
+    private static final String SAMPLED_CONTENT_WIDTH = "erp.table.dynamic-layout.sampled-content-width";
     private static final double ACTION_CONTROL_MIN_WIDTH = 132.0;
+    private static final double DENSE_ACTION_MIN_WIDTH = 118.0;
     private static final int SAMPLE_LIMIT = 48;
-    private static final double TABLE_CHROME_ALLOWANCE = 20.0;
     private static final double CELL_HORIZONTAL_PADDING = 24.0;
     private static final double HEADER_HORIZONTAL_PADDING = 18.0;
     private static final double MIN_READABLE_COLUMN = 58.0;
+    private static final double DENSE_MIN_READABLE_COLUMN = 44.0;
 
     private DynamicTableLayoutManager() {}
 
@@ -74,6 +77,11 @@ public final class DynamicTableLayoutManager {
         table.itemsProperty().addListener((obs, oldItems, newItems) -> bindItems(table, oldItems, newItems));
         table.sceneProperty().addListener((obs, oldScene, newScene) -> requestLayout(table));
         table.skinProperty().addListener((obs, oldSkin, newSkin) -> requestLayout(table));
+        // TabPane and cached-screen content may receive their real width only after
+        // becoming visible/managed. Reflow on that transition rather than relying
+        // on an operating-system-specific scrollbar/chrome allowance.
+        table.visibleProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestLayout(table); });
+        table.managedProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestLayout(table); });
 
         if (!Boolean.TRUE.equals(table.getProperties().get(COLUMN_LISTENER))) {
             table.getProperties().put(COLUMN_LISTENER, true);
@@ -117,16 +125,16 @@ public final class DynamicTableLayoutManager {
         if (root == null) return;
         Runnable pass = () -> {
             try {
-                root.applyCss();
-                if (root instanceof Region region) region.layout();
+                // Do not force applyCss()/layout() here. Drawer, tab and shell
+                // interactions already schedule a normal JavaFX layout pulse; doing
+                // another full CSS/layout pass caused avoidable click-time jank.
                 if (root instanceof TableView<?> table) requestLayout(table);
                 for (Node node : root.lookupAll(".table-view")) {
                     if (node instanceof TableView<?> table) requestLayout(table);
                 }
             } catch (RuntimeException ignored) { }
         };
-        if (Platform.isFxApplicationThread()) Platform.runLater(pass);
-        else Platform.runLater(pass);
+        Platform.runLater(pass);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -147,10 +155,14 @@ public final class DynamicTableLayoutManager {
         Object existing = table.getProperties().remove(ITEM_LISTENER);
         if (oldItems != null && existing instanceof ListChangeListener listener) oldItems.removeListener(listener);
         if (newItems != null) {
-            ListChangeListener listener = change -> requestLayout(table);
+            ListChangeListener listener = change -> {
+                invalidateContentMeasures(table);
+                requestLayout(table);
+            };
             newItems.addListener(listener);
             table.getProperties().put(ITEM_LISTENER, listener);
         }
+        invalidateContentMeasures(table);
         requestLayout(table);
     }
 
@@ -167,11 +179,8 @@ public final class DynamicTableLayoutManager {
         List<TableColumn<?, ?>> columns = new ArrayList<>(table.getVisibleLeafColumns());
         if (columns.isEmpty()) return;
 
-        double tableWidth = table.getWidth();
-        if (!Double.isFinite(tableWidth) || tableWidth < 80) return;
-        Insets insets = table.getInsets();
-        double available = Math.max(1,
-            tableWidth - TABLE_CHROME_ALLOWANCE - insets.getLeft() - insets.getRight());
+        double available = contentViewportWidth(table);
+        if (!Double.isFinite(available) || available < 80) return;
 
         List<ColumnMeasure> measures = new ArrayList<>(columns.size());
         double naturalTotal = 0;
@@ -185,6 +194,7 @@ public final class DynamicTableLayoutManager {
         }
 
         double[] widths = new double[measures.size()];
+        boolean denseFit = false;
         if (naturalTotal <= available) {
             double extra = available - naturalTotal;
             double weightTotal = measures.stream().mapToDouble(ColumnMeasure::flexWeight).sum();
@@ -210,17 +220,123 @@ public final class DynamicTableLayoutManager {
             // just enough to keep the right-most action column inside the live
             // viewport. Text/header cells can ellipsize and expose their existing
             // tooltips; action text/graphic/arrow may never be clipped.
+        } else if (fitDenseViewport(columns, measures, widths, available)) {
+            denseFit = true;
+            // Reporting/Schedule tables can have many columns. The application
+            // contract is viewport fit first: compact below the normal readable
+            // minima only when necessary, while preserving a usable Actions cell.
         } else {
-            // No Actions column (or an exceptionally narrow viewport). Keep the
-            // readable minima and let JavaFX expose horizontal scrolling rather
-            // than crushing every column below a usable size.
-            for (int i = 0; i < measures.size(); i++) widths[i] = measures.get(i).minimum();
+            // Truly tiny windows remain horizontally scrollable instead of forcing
+            // columns below the absolute dense floor.
+            for (int i = 0; i < measures.size(); i++) widths[i] = Math.max(DENSE_MIN_READABLE_COLUMN, measures.get(i).minimum());
         }
 
+        closeResidual(columns, widths, available);
         for (int i = 0; i < columns.size(); i++) {
             TableColumn<?, ?> column = columns.get(i);
-            double width = Math.max(MIN_READABLE_COLUMN, widths[i]);
+            double floor = denseFit ? DENSE_MIN_READABLE_COLUMN : MIN_READABLE_COLUMN;
+            double width = Math.max(floor, widths[i]);
             if (Math.abs(column.getPrefWidth() - width) > 0.5) column.setPrefWidth(width);
+        }
+    }
+
+
+    /** Returns the actual live table viewport width instead of assuming fixed OS chrome. */
+    private static double contentViewportWidth(TableView<?> table) {
+        double tableWidth = table.getWidth();
+        if (!Double.isFinite(tableWidth) || tableWidth < 1) return tableWidth;
+        Insets insets = table.getInsets();
+        double available = Math.max(1, tableWidth - insets.getLeft() - insets.getRight());
+
+        // JavaFX exposes the VirtualFlow after the skin is created. Its width is
+        // the best cross-platform measurement of what the table can actually use.
+        // On macOS this avoids reserving a Windows-style permanent scrollbar gap.
+        try {
+            Node flow = table.lookup(".virtual-flow");
+            if (flow != null) {
+                double flowWidth = flow.getLayoutBounds().getWidth();
+                if (Double.isFinite(flowWidth) && flowWidth > 1) available = Math.min(available, flowWidth);
+                if (flow instanceof Parent parent) {
+                    Node clipped = parent.lookup(".clipped-container");
+                    if (clipped != null) {
+                        double clippedWidth = clipped.getLayoutBounds().getWidth();
+                        if (Double.isFinite(clippedWidth) && clippedWidth > 1) available = Math.min(available, clippedWidth);
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) { }
+        return Math.max(1, available);
+    }
+
+    private static void invalidateContentMeasures(TableView<?> table) {
+        if (table == null) return;
+        for (TableColumn<?, ?> column : leafColumns(table.getColumns())) {
+            column.getProperties().remove(SAMPLED_CONTENT_WIDTH);
+            column.getProperties().remove(RENDERED_ACTION_WIDTH);
+        }
+    }
+
+    /**
+     * Final dense-table fallback used by Reporting/Schedule-style grids. Normal
+     * readable minima remain preferred; this only activates when those minima do
+     * not fit the real viewport.
+     */
+    private static boolean fitDenseViewport(List<TableColumn<?, ?>> columns,
+                                            List<ColumnMeasure> measures,
+                                            double[] widths,
+                                            double available) {
+        int actionIndex = -1;
+        for (int i = 0; i < columns.size(); i++) {
+            String heading = headerLabel(columns.get(i));
+            if ("actions".equals(headerSemantic(columns.get(i), heading))) { actionIndex = i; break; }
+        }
+        double[] floors = new double[measures.size()];
+        double floorTotal = 0;
+        for (int i = 0; i < measures.size(); i++) {
+            double floor = i == actionIndex
+                    ? Math.min(Math.max(DENSE_ACTION_MIN_WIDTH, measures.get(i).minimum()), ACTION_CONTROL_MIN_WIDTH)
+                    : Math.min(measures.get(i).minimum(), denseFloor(columns.get(i)));
+            floors[i] = Math.max(DENSE_MIN_READABLE_COLUMN, floor);
+            floorTotal += floors[i];
+        }
+        if (floorTotal > available) return false;
+
+        double extra = available - floorTotal;
+        double weight = 0;
+        for (int i = 0; i < measures.size(); i++) if (i != actionIndex) weight += measures.get(i).flexWeight();
+        for (int i = 0; i < measures.size(); i++) {
+            if (i == actionIndex) widths[i] = floors[i];
+            else widths[i] = floors[i] + (weight <= 0 ? 0 : extra * measures.get(i).flexWeight() / weight);
+        }
+        return true;
+    }
+
+    private static double denseFloor(TableColumn<?, ?> column) {
+        String heading = headerLabel(column);
+        String semantic = headerSemantic(column, heading);
+        String key = (semantic + " " + heading).toLowerCase(Locale.ROOT);
+        if (isLongTextSemantic(semantic, heading)) return 70.0;
+        if (key.contains("status") || key.contains("payment") || key.contains("return")) return 62.0;
+        if (key.contains("invoice") || key.contains("document") || key.contains("reference")) return 60.0;
+        if (key.contains("amount") || key.contains("total") || key.contains("balance") || key.contains("paid")) return 58.0;
+        return DENSE_MIN_READABLE_COLUMN;
+    }
+
+    /** Closes fractional/right-edge residue so fitted tables finish at the viewport edge. */
+    private static void closeResidual(List<TableColumn<?, ?>> columns, double[] widths, double available) {
+        double used = 0;
+        for (double width : widths) used += width;
+        double residual = available - used;
+        if (Math.abs(residual) <= 0.25 || widths.length == 0) return;
+        int target = widths.length - 1;
+        for (int i = widths.length - 1; i >= 0; i--) {
+            String heading = headerLabel(columns.get(i));
+            if (!"actions".equals(headerSemantic(columns.get(i), heading))) { target = i; break; }
+        }
+        if (residual > 0) widths[target] += residual;
+        else {
+            double reducible = Math.max(0, widths[target] - DENSE_MIN_READABLE_COLUMN);
+            widths[target] -= Math.min(-residual, reducible);
         }
     }
 
@@ -372,8 +488,13 @@ public final class DynamicTableLayoutManager {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static double sampledContentWidth(TableView<?> table, TableColumn<?, ?> column) {
+        Object cached = column.getProperties().get(SAMPLED_CONTENT_WIDTH);
+        if (cached instanceof Number n) return n.doubleValue();
         ObservableList<?> items = table.getItems();
-        if (items == null || items.isEmpty()) return 0;
+        if (items == null || items.isEmpty()) {
+            column.getProperties().put(SAMPLED_CONTENT_WIDTH, 0.0);
+            return 0;
+        }
         int count = items.size();
         int samples = Math.min(SAMPLE_LIMIT, count);
         double max = 0;
@@ -389,6 +510,7 @@ public final class DynamicTableLayoutManager {
             if (display.isBlank()) continue;
             max = Math.max(max, textWidth(display, Font.getDefault()) + CELL_HORIZONTAL_PADDING);
         }
+        column.getProperties().put(SAMPLED_CONTENT_WIDTH, max);
         return max;
     }
 

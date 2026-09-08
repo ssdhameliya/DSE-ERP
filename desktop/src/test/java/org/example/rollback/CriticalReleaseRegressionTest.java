@@ -233,7 +233,10 @@ class CriticalReleaseRegressionTest {
         assertTrue(purchase.contains("cmbReturnStatus"));
         assertFalse(salesReturns.contains("loadedOnce"));
         assertFalse(purchaseReturns.contains("loadedOnce"));
-        assertTrue(purchaseReturns.contains("focusWorkArea(table);load();"));
+        assertTrue(salesReturns.contains("all.isEmpty()||(reusedFromCache&&ScreenRefreshPolicy.shouldRefresh"));
+        assertTrue(purchaseReturns.contains("all.isEmpty()||(reusedFromCache&&ScreenRefreshPolicy.shouldRefresh"));
+        assertFalse(salesReturns.contains("reusedFromCache||all.isEmpty()"));
+        assertFalse(purchaseReturns.contains("reusedFromCache||all.isEmpty()"));
     }
 
     @Test void reportsAndRecoveryUseExplicitSemanticsFor990() throws Exception {
@@ -278,6 +281,67 @@ class CriticalReleaseRegressionTest {
             assertTrue(css.contains("table-cell.erp-table-value-colour-teal"));
             assertTrue(css.contains("table-cell.erp-table-value-colour-indigo"));
         }
+    }
+
+    @Test void performanceAndResponsiveAuthoritiesAreCentralizedFor992() throws Exception {
+        String sales = Files.readString(Path.of("src/main/java/org/example/controller/SalesListController.java"));
+        String purchase = Files.readString(Path.of("src/main/java/org/example/controller/PurchaseListController.java"));
+        String salesService = Files.readString(Path.of("src/main/java/org/example/service/SalesService.java"));
+        String purchaseService = Files.readString(Path.of("src/main/java/org/example/service/PurchaseService.java"));
+        String tableLayout = Files.readString(Path.of("src/main/java/org/example/util/DynamicTableLayoutManager.java"));
+        String kpiLayout = Files.readString(Path.of("src/main/java/org/example/util/ResponsiveKpiLayoutManager.java"));
+        String navigation = Files.readString(Path.of("src/main/java/org/example/navigation/NavigationManager.java"));
+        String enhancer = Files.readString(Path.of("src/main/java/org/example/util/ProfessionalUiEnhancer.java"));
+
+        assertTrue(sales.contains("reloadPage(false)"), "Sales pagination must be able to skip summary work.");
+        assertTrue(purchase.contains("reloadPage(false)"), "Purchase pagination must be able to skip summary work.");
+        assertTrue(sales.contains("service.page(requestedPage,size") && sales.contains("includeSummary"));
+        assertTrue(purchase.contains("service.page(requested,size") && purchase.contains("includeSummary"));
+        assertTrue(salesService.contains("includeSummary&&!PlatformUiSupport.isMac()"), "macOS must not request Sales chart aggregates that it does not render.");
+        assertTrue(purchaseService.contains("includeSummary,false"));
+
+        assertFalse(tableLayout.contains("TABLE_CHROME_ALLOWANCE"), "Dynamic table width must use live JavaFX viewport geometry, not fixed OS chrome.");
+        assertTrue(tableLayout.contains("contentViewportWidth(table)"));
+        assertTrue(tableLayout.contains("fitDenseViewport"));
+        assertTrue(tableLayout.contains("closeResidual"));
+        assertTrue(tableLayout.contains("SAMPLED_CONTENT_WIDTH"));
+
+        assertTrue(kpiLayout.contains("region.setPrefWidth(0)"), "Grid KPI cards must not keep a competing preferred width.");
+        assertTrue(kpiLayout.contains("column.setPercentWidth(100.0d / columns)"));
+        assertTrue(navigation.contains("ProfessionalUiEnhancer.enhance(page)"), "Prepared pages must not bypass shared UI governance.");
+        assertTrue(enhancer.contains("erp-semantic-header-guard"), "Semantic table headers must be reasserted for recreated/tabbed skins.");
+    }
+
+    @Test void backendRegisterPagingAvoidsWholeChargeTableScansFor992() throws Exception {
+        String operations = Files.readString(Path.of("../server/src/main/java/org/example/server/operations/BusinessOperationsService.java"));
+        String salesCharges = Files.readString(Path.of("../server/src/main/java/org/example/server/persistence/repository/SalesChargeRepository.java"));
+        String purchaseCharges = Files.readString(Path.of("../server/src/main/java/org/example/server/persistence/repository/PurchaseChargeRepository.java"));
+        String controller = Files.readString(Path.of("../server/src/main/java/org/example/server/operations/BusinessOperationsController.java"));
+
+        assertTrue(salesCharges.contains("findBySalesIdInOrderBySalesIdAscSequenceNoAscIdAsc"));
+        assertTrue(purchaseCharges.contains("findByPurchaseIdInOrderByPurchaseIdAscSequenceNoAscIdAsc"));
+        assertTrue(operations.contains("salesCharges.findBySalesIdInOrderBySalesIdAscSequenceNoAscIdAsc(ids)"));
+        assertTrue(operations.contains("purchaseCharges.findByPurchaseIdInOrderByPurchaseIdAscSequenceNoAscIdAsc(ids)"));
+        assertFalse(operations.contains("for(var e:salesCharges.findAll())"));
+        assertFalse(operations.contains("for(var e:purchaseCharges.findAll())"));
+        assertTrue(controller.contains("includeSummary"));
+        assertTrue(controller.contains("includeCharts"));
+        assertTrue(controller.contains("includeOptions"));
+    }
+
+    @Test void cachedScreensDoNotBlindlyReloadFor992() throws Exception {
+        String sales = Files.readString(Path.of("src/main/java/org/example/controller/SalesListController.java"));
+        String dashboard = Files.readString(Path.of("src/main/java/org/example/controller/DashboardHomeController.java"));
+        String notifications = Files.readString(Path.of("src/main/java/org/example/controller/NotificationCenterController.java"));
+        String reports = Files.readString(Path.of("src/main/java/org/example/controller/ReportsController.java"));
+
+        assertFalse(sales.contains("if(reusedFromCache || allSales.isEmpty()"));
+        assertTrue(sales.contains("allSales.isEmpty() || (reusedFromCache && ScreenRefreshPolicy.shouldRefresh"));
+        assertTrue(dashboard.contains("reusedFromCache && ScreenRefreshPolicy.shouldRefresh"));
+        assertTrue(notifications.contains("reused&&ScreenRefreshPolicy.shouldRefresh"));
+        assertTrue(reports.contains("if(!filtersLoaded)loadFiltersAsync()"));
+        assertTrue(reports.contains("if(index == 2 && !savedReportsLoaded) loadSavedReports()"));
+        assertTrue(reports.contains("if(index == 3 && !schedulesLoaded) loadSchedules()"));
     }
 
     private static int count(String value, String needle) {

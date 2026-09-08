@@ -33,7 +33,6 @@ public final class ResponsiveKpiLayoutManager {
     private static final String INSTALLED = "erp.kpi.layout.installed";
     private static final String PENDING = "erp.kpi.layout.pending";
     private static final String ORIGINAL_COLUMN = "erp.kpi.original.column";
-    private static final double MIN_COMFORTABLE_CARD = 170.0;
 
     private ResponsiveKpiLayoutManager() {}
 
@@ -57,6 +56,8 @@ public final class ResponsiveKpiLayoutManager {
             requestRebalance(pane);
         });
         pane.widthProperty().addListener((obs, oldValue, newValue) -> requestRebalance(pane));
+        pane.visibleProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestRebalance(pane); });
+        pane.managedProperty().addListener((obs, oldValue, newValue) -> { if (newValue) requestRebalance(pane); });
 
         rebalance(pane);
     }
@@ -169,24 +170,6 @@ public final class ResponsiveKpiLayoutManager {
         if (card != null && !card.getStyleClass().contains("erp-kpi-card")) card.getStyleClass().add("erp-kpi-card");
     }
 
-    private static int responsiveColumnCount(int cardCount, double width, double gap) {
-        if (cardCount <= 1) return Math.max(1, cardCount);
-        int fit = cardCount;
-        if (Double.isFinite(width) && width > 80) {
-            fit = Math.max(1, Math.min(cardCount, (int) Math.floor((width + gap) / (MIN_COMFORTABLE_CARD + gap))));
-        }
-        if (fit <= 1 || fit == cardCount) return fit;
-        // Prefer a full final row when a near-by column count divides evenly.
-        for (int columns = fit; columns >= 2; columns--) {
-            if (cardCount % columns == 0) return columns;
-        }
-        // Otherwise avoid a visually orphaned single card on the last row.
-        for (int columns = fit; columns >= 2; columns--) {
-            int remainder = cardCount % columns;
-            if (remainder == 0 || remainder >= (int) Math.ceil(columns / 2.0)) return columns;
-        }
-        return Math.min(fit, 2);
-    }
 
     private static List<Node> managedCards(Pane pane) {
         List<Node> cards = new ArrayList<>();
@@ -198,9 +181,11 @@ public final class ResponsiveKpiLayoutManager {
 
     private static void prepareGridCard(Node card) {
         if (card instanceof Region region) {
-            // Percentage columns own width. Preserve the card's computed preferred width so
-            // the first layout pulse cannot collapse the grid and temporarily create extra rows.
+            // Percentage columns are the only width authority. A non-zero card
+            // preferred width can make GridPane retain right-side slack on some
+            // JavaFX/macOS layout pulses, so every managed card is fully flexible.
             region.setMinWidth(0);
+            region.setPrefWidth(0);
             region.setMaxWidth(Double.MAX_VALUE);
         }
     }
