@@ -483,7 +483,7 @@ public final class ProfessionalUiEnhancer {
 
     /** Recursively applies one shared renderer to leaf and grouped headers. */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void decorateColumns(java.util.List<TableColumn> columns) {
+    private static void decorateColumns(java.util.List<? extends TableColumn> columns) {
         for (TableColumn column : columns) {
             if (!column.getColumns().isEmpty()) decorateColumns(column.getColumns());
 
