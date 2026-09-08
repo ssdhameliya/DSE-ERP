@@ -52,6 +52,18 @@ public final class ProfessionalUiEnhancer {
         SharedUiFramework.install(root);
     }
 
+    /**
+     * Re-applies the canonical semantic table contract after a controller has
+     * installed/replaced columns or cell factories. This does not re-walk the
+     * whole scene graph and is safe for cached/reused screens.
+     */
+    public static void refreshTableDecorations(TableView<?> table) {
+        if (table == null) return;
+        applyTableProfile(table);
+        decorateColumns(table.getColumns());
+        DynamicTableLayoutManager.requestLayout(table);
+    }
+
     private static void walk(Node node) {
         UiDesignSystem.decorate(node);
         ResponsiveKpiLayoutManager.install(node);
@@ -471,7 +483,7 @@ public final class ProfessionalUiEnhancer {
 
     /** Recursively applies one shared renderer to leaf and grouped headers. */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void decorateColumns(java.util.List<TableColumn> columns) {
+    private static void decorateColumns(java.util.List<? extends TableColumn> columns) {
         for (TableColumn column : columns) {
             if (!column.getColumns().isEmpty()) decorateColumns(column.getColumns());
 
@@ -509,12 +521,17 @@ public final class ProfessionalUiEnhancer {
                 }
             }
 
-            // Do not replace factories installed by business controllers. This
-            // renderer is only for ordinary string status columns.
+            // Do not replace factories installed by business controllers.
+            // Default status cells get icon + state colour; other ordinary
+            // default cells inherit the semantic colour of their column.
             if (isStatusHeading(heading)
                 && column.getCellFactory() == TableColumn.DEFAULT_CELL_FACTORY) {
                 final String statusSemantic = semantic;
                 column.setCellFactory(ignored -> new SemanticStatusCell(statusSemantic));
+            } else if (semantic != null
+                && column.getCellFactory() == TableColumn.DEFAULT_CELL_FACTORY) {
+                final String valueSemantic = semantic;
+                column.setCellFactory(ignored -> new SemanticValueCell(valueSemantic));
             }
         }
     }
@@ -674,6 +691,27 @@ public final class ProfessionalUiEnhancer {
         if (key.contains("target")) return "reference";
         if (key.contains("name") || key.contains("title")) return "master";
         return null;
+    }
+
+    /** Colours ordinary default table values using the same semantic family as the header. */
+    private static final class SemanticValueCell extends TableCell<Object, Object> {
+        private final String semantic;
+
+        private SemanticValueCell(String semantic) {
+            this.semantic = semantic;
+        }
+
+        @Override protected void updateItem(Object item, boolean empty) {
+            super.updateItem(item, empty);
+            getStyleClass().removeIf(style -> style != null && style.startsWith("erp-table-value-colour-"));
+            setGraphic(null);
+            if (empty || item == null) {
+                setText(null);
+                return;
+            }
+            setText(String.valueOf(item));
+            getStyleClass().add("erp-table-value-colour-" + IconFactory.semanticColour(semantic));
+        }
     }
 
     /** Default icon-plus-label renderer for status columns without custom logic. */

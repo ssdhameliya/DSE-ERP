@@ -54,6 +54,7 @@ public class ReportsController implements ScreenLifecycle {
     @FXML private TabPane reportTabs;
     @FXML private TextField txtReportSearch,txtSavedSearch,txtScheduleSearch;
     @FXML private TilePane reportCards;
+    @FXML private GridPane reportDashboardKpiGrid;
 
     @FXML private TableView<SavedReportRow> tblSavedReports;
     @FXML private TableColumn<SavedReportRow,String> colSavedName,colSavedBase,colSavedPreset,colSavedGrouping,colSavedSorting,colSavedColumns,colSavedStatus;
@@ -76,6 +77,7 @@ public class ReportsController implements ScreenLifecycle {
 
     @FXML public void initialize() {
         configureIcons();
+        ResponsiveKpiLayoutManager.install(reportDashboardKpiGrid);
         RegisterUiSupport.configureHeaderSearch(txtReportSearch,reportCenterSearchIcon,"Search reports, e.g. GST...");
         RegisterUiSupport.configureHeaderSearch(txtSavedSearch,savedReportSearchIcon,"Search saved reports...");
         RegisterUiSupport.configureHeaderSearch(txtScheduleSearch,scheduleSearchIcon,"Search schedules...");
@@ -546,6 +548,8 @@ public class ReportsController implements ScreenLifecycle {
     private void configureReportTables(){
         org.example.util.DynamicTableLayoutManager.install(tblSales);
         org.example.util.DynamicTableLayoutManager.install(tblPurchases);
+        org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblSales);
+        org.example.util.ProfessionalUiEnhancer.refreshTableDecorations(tblPurchases);
     }
     private void configureIcons(){
         if(reportPageIcon!=null)reportPageIcon.getChildren().setAll(IconFactory.icon("report",24));

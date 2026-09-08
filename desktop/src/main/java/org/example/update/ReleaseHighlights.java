@@ -9,13 +9,13 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return "DSE ERP " + version + " — Final UI Runtime Stabilization\n\n" + """
-                    • Removes competing JavaFX styling/render ownership by limiting dynamic UI decoration to the screen root, making theme application idempotent and coalescing queued navigation to the latest requested screen.
-                    • Stabilizes Sales/Purchase and Return register rows/actions so selection, refresh, drawer open/close and VirtualFlow recycling cannot make previous records unreadable or repeatedly change action availability.
-                    • Adds Return Status to Sales and Purchase Register filters, keeping Customer/Supplier, From, To, Document Status, Payment Status and Return Status on one governed filter row.
-                    • Unifies Light/Dark input, search, empty-table, drawer, report and Settings surfaces, including semantic Door Delivery and reporting/favorite icons.
-                    • Clarifies the administrator-only Recover Server to LOCAL workflow while preserving verified backup/restore gating and never falling back silently to stale LOCAL data.
-                    • Preserves the 9.0.89 Shared Client startup repair, dialog X/Escape behavior, strict desktop/server version matching and PostgreSQL Schema 1.
+            return "DSE ERP " + version + " — PROD Cutover & Reporting Stabilization\n\n" + """
+                    • Fixes company-server Email & App Preferences so a newly entered SMTP App Password can replace an unreadable or migrated older secret without first decrypting that old value.
+                    • Keeps SMTP secrets server-owned, AES-GCM encrypted at rest and safely logged only at the configuration/error level without exposing the secret itself.
+                    • Repairs the Reports Dashboard KPI strip by assigning stable equal-width KPI columns and separates Reset / Apply Filters from the content below.
+                    • Restores the shared semantic table contract: colourful icon headers and semantic value colours now apply consistently to normal default table cells while controller-owned status/action cells remain untouched.
+                    • Forces the Reports Dashboard summary tables back through the same central table decoration path used by the rest of the ERP.
+                    • Preserves Shared Client PROD/UAT connection behavior, Java 25, JavaFX 25.0.2, PostgreSQL Schema 1 and the exact two-theme runtime CSS architecture.
                     """;
         }
         if ("9.0.88".equals(version)) {

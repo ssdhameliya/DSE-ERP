@@ -247,4 +247,46 @@ class CriticalReleaseRegressionTest {
         assertTrue(recovery.contains("Recover Server to LOCAL"));
     }
 
+    @Test void reportingDashboardKpisAndFilterActionsStaySeparatedFor991() throws Exception {
+        String reportsFxml = Files.readString(Path.of("src/main/resources/fxml/pages/Reports.fxml"));
+        String reportsController = Files.readString(Path.of("src/main/java/org/example/controller/ReportsController.java"));
+        assertTrue(reportsFxml.contains("styleClass=\"report-filter-actions\""));
+        assertTrue(reportsFxml.contains("fx:id=\"reportDashboardKpiGrid\""));
+        assertEquals(6, count(reportsFxml, "percentWidth=\"16.666\""),
+                "Only the Dashboard filter grid should keep six static columns; KPI widths are runtime-owned.");
+        assertTrue(reportsController.contains("ResponsiveKpiLayoutManager.install(reportDashboardKpiGrid)"));
+        assertTrue(reportsController.contains("ProfessionalUiEnhancer.refreshTableDecorations(tblSales)"));
+        assertTrue(reportsController.contains("ProfessionalUiEnhancer.refreshTableDecorations(tblPurchases)"));
+        for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
+            String css = Files.readString(Path.of("src/main/resources/css", theme));
+            assertTrue(css.contains(".report-filter-actions { -fx-padding: 10 0 4 0; }"));
+        }
+    }
+
+    @Test void semanticTableValuesFollowHeaderColourFamilyFor991() throws Exception {
+        String enhancer = Files.readString(Path.of("src/main/java/org/example/util/ProfessionalUiEnhancer.java"));
+        assertTrue(enhancer.contains("new SemanticValueCell(valueSemantic)"));
+        assertTrue(enhancer.contains("erp-table-value-colour-"));
+        assertTrue(enhancer.contains("refreshTableDecorations(TableView<?> table)"));
+        for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
+            String css = Files.readString(Path.of("src/main/resources/css", theme));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-blue"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-green"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-orange"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-purple"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-pink"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-teal"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-indigo"));
+        }
+    }
+
+    private static int count(String value, String needle) {
+        int count = 0, start = 0;
+        while ((start = value.indexOf(needle, start)) >= 0) {
+            count++;
+            start += needle.length();
+        }
+        return count;
+    }
+
 }
