@@ -251,8 +251,10 @@ class CriticalReleaseRegressionTest {
         String reportsFxml = Files.readString(Path.of("src/main/resources/fxml/pages/Reports.fxml"));
         String reportsController = Files.readString(Path.of("src/main/java/org/example/controller/ReportsController.java"));
         assertTrue(reportsFxml.contains("styleClass=\"report-filter-actions\""));
-        assertEquals(12, count(reportsFxml, "percentWidth=\"16.666\""),
-                "Dashboard filter and KPI grids should each retain six equal columns.");
+        assertTrue(reportsFxml.contains("fx:id=\"reportDashboardKpiGrid\""));
+        assertEquals(6, count(reportsFxml, "percentWidth=\"16.666\""),
+                "Only the Dashboard filter grid should keep six static columns; KPI widths are runtime-owned.");
+        assertTrue(reportsController.contains("ResponsiveKpiLayoutManager.install(reportDashboardKpiGrid)"));
         assertTrue(reportsController.contains("ProfessionalUiEnhancer.refreshTableDecorations(tblSales)"));
         assertTrue(reportsController.contains("ProfessionalUiEnhancer.refreshTableDecorations(tblPurchases)"));
         for (String theme : new String[]{"light-theme.css", "dark-theme.css"}) {
