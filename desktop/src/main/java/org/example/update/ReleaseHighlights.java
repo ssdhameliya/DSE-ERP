@@ -9,14 +9,13 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return "DSE ERP " + version + " — Performance, KPI/Reporting & Semantic UI Stabilization\n\n" + """
-                    • Makes cached operational screens reuse already-loaded data and refresh only when stale or explicitly requested, reducing repeat API/database work during normal navigation.
-                    • Reduces Sales/Purchase register page cost by skipping KPI/chart summaries on pure pagination, avoiding Mac-only chart queries, batching programmatic filter changes and loading charge rows only for the visible page IDs.
-                    • Reworks the central dynamic table layout to use the live JavaFX viewport instead of a fixed scrollbar allowance, with a dense-table fallback for Reporting/Scheduled Reports and no OS-specific hard-coded widths.
-                    • Keeps KPI cards under one runtime width authority and removes competing preferred card widths that could leave right-side slack on macOS/Retina layout pulses.
-                    • Reasserts colourful semantic table header icons/labels when cached/tabbed TableView skins become visible, without adding per-screen CSS or column-width overrides.
-                    • Reduces drawer/table click-time reflow by avoiding forced full applyCss/layout traversals and guarantees prepared navigation pages pass through the same shared UI enhancer.
-                    • Preserves the v9.0.91 SMTP secret replacement fix, Shared Client PROD/UAT behavior, Java 25, JavaFX 25.0.2, PostgreSQL Schema 1 and exactly two runtime theme files.
+            return "DSE ERP " + version + " — Central Table/KPI Runtime Stabilization\n\n" + """
+                    • Moves table and KPI geometry notifications behind one pulse-coalesced viewport coordinator instead of screen-specific forced CSS/layout passes.
+                    • Makes the global UI enhancer traverse logical JavaFX content inside TabPane, ScrollPane, TitledPane and Accordion so hidden Reports tabs, Dashboard and Safe Rollback receive the same table/KPI contract as normal pages.
+                    • Hardens DynamicTableLayoutManager with generation-based stale-layout rejection and live VirtualFlow/scrollbar observation so drawer/sidebar close restores the final table viewport instead of an intermediate width.
+                    • Makes KPI density depend on real available pixels per card, preserves one-row equal distribution and removes Reports-only CSS width ownership that could collapse Scheduled Report cards.
+                    • Adds the strict Phase 3 UI contract to the authoritative release gate and removes exact duplicate theme blocks while keeping exactly two runtime theme files.
+                    • Preserves business calculations, PostgreSQL Schema 1, server APIs, document output, navigation structure, semantic table icons/values and existing working Master-screen behavior.
                     """;
         }
         if ("9.0.88".equals(version)) {

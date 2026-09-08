@@ -4,12 +4,12 @@ import sys
 root = Path(__file__).resolve().parents[1]
 desktop = root / 'desktop'
 errors = []
-pom = (desktop / 'pom.xml').read_text(errors='ignore')
+pom = (desktop / 'pom.xml').read_text(encoding='utf-8', errors='ignore')
 for token in ('<artifactId>postgresql</artifactId>', 'spring-boot-starter-data-jpa', 'HikariCP'):
     if token in pom:
         errors.append('desktop pom still contains database dependency: ' + token)
 for p in (desktop / 'src/main/java').rglob('*.java'):
-    text = p.read_text(errors='ignore')
+    text = p.read_text(encoding='utf-8', errors='ignore')
     rel = p.relative_to(root)
     for token in ('org.postgresql.', 'DriverManager.getConnection', 'HikariDataSource', 'HikariConfig', 'javax.sql.DataSource', 'java.sql.'):
         if token in text:

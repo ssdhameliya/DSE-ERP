@@ -27,14 +27,14 @@ check('workspace-structure-folders', all((x in ws for x in ['Documents/Sales', '
 check('protected-pdf-generators-unchanged', all((sha(Path(p)) == h for p, h in protected.items())))
 check('managed-pdf-storage-facade', 'class ManagedInvoicePdfService' in managed and 'WorkspaceStorageManager.documentFile' in managed and ('InvoicePdfService.' in managed))
 callers = list((root / 'desktop/src/main/java/org/example/controller').rglob('*.java'))
-check('business-ui-uses-managed-pdf-facade', any(('ManagedInvoicePdfService.' in p.read_text(errors='ignore') for p in callers)))
+check('business-ui-uses-managed-pdf-facade', any(('ManagedInvoicePdfService.' in p.read_text(encoding='utf-8', errors='ignore') for p in callers)))
 legacy_allowed = set(protected)
 legacy_violations = []
 for p in (root / 'desktop/src/main/java').rglob('*.java'):
     rel = str(p.relative_to(root)).replace('\\', '/')
     if rel in legacy_allowed:
         continue
-    if 'getConfigFolder().resolve("Documents")' in p.read_text(errors='ignore'):
+    if 'getConfigFolder().resolve("Documents")' in p.read_text(encoding='utf-8', errors='ignore'):
         legacy_violations.append(rel)
 check('no-new-generic-config-documents', not legacy_violations, ','.join(legacy_violations))
 check('scheduled-reports-organized', 'resolve("Reports").resolve("Scheduled")' in report and 'financialYear(today)' in report)

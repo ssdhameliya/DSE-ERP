@@ -5,7 +5,7 @@ root = Path(__file__).resolve().parents[1] / 'desktop/src/main/java'
 old = []
 bridge = []
 for p in root.rglob('*.java'):
-    t = p.read_text(errors='ignore')
+    t = p.read_text(encoding='utf-8', errors='ignore')
     if 'DatabaseManager.getConnection' in t or 'org.example.database.DatabaseManager' in t:
         old.append(str(p.relative_to(root)))
     n = t.count('SpringDataAccess.openConnection')

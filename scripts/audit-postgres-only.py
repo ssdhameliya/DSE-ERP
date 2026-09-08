@@ -12,7 +12,7 @@ for base in [root / 'desktop' / 'src' / 'main', root / 'desktop' / 'pom.xml']:
         if p.suffix.lower() not in {'.java', '.xml', '.fxml', '.properties', '.css'}:
             continue
         try:
-            text = p.read_text(errors='ignore').lower()
+            text = p.read_text(encoding='utf-8', errors='ignore').lower()
         except Exception:
             continue
         if needle in text:

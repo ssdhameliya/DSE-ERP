@@ -38,6 +38,7 @@ CHECKS = [
     "audit-session-focus-stock-contract.py",
     "audit-stability-contract.py",
     "audit-ui-design-system.py",
+    "audit-phase3-ui-contract.py",
     "audit-architecture-refactor.py",
     "audit-cloud-uat-contract.py",
     "audit-github-deployment-contract.py",
