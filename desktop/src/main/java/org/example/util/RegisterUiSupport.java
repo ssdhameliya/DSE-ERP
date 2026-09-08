@@ -121,8 +121,9 @@ public final class RegisterUiSupport {
     private static void reflowDrawerTables(SplitPane splitPane) {
         Platform.runLater(() -> {
             try {
-                splitPane.applyCss();
-                splitPane.layout();
+                // Divider changes already trigger a JavaFX layout pulse. Avoid a
+                // second synchronous CSS/layout traversal on every row/drawer click.
+                splitPane.requestLayout();
                 DynamicTableLayoutManager.requestLayoutIn(splitPane);
             } catch (RuntimeException ignored) { }
         });

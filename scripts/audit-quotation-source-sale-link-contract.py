@@ -34,7 +34,7 @@ req('LinkedRecordContext.peek()' in sales and 'linkedRecordReloadInProgress' in 
 req('private boolean linkedRecordReloadInProgress;' in sales, 'Sales deep-link reload guard must be declared as a controller field')
 req('asException(' not in sales, 'Sales deep-link async failure path must use the existing Throwable error handler directly')
 req('DeepLinkSupport.highlight(tableSales,sale)' in sales, 'linked Sale row must receive exact row highlight')
-req('txtInvoice.setText(found.getInvoiceNo())' in sales and 'reloadPage();' in sales, 'off-page linked Sale must reload the register around the exact invoice')
+req('txtInvoice.setText(found.getInvoiceNo())' in sales and 'reloadPage(true);' in sales and 'batchFilterUpdate' in sales, 'off-page linked Sale must batch filter changes and reload the register once around the exact invoice')
 req('LinkedRecordContext.open("SALE",null,q.converted.get()' in qctl, 'Quotation must publish converted Sale reference into linked-record context')
 req("req(runtime_manifest_path.exists(), 'runtime identity manifest must be tracked in every release source handoff')" in pdf_audit, 'PDF Studio CI contract must require the tracked runtime identity manifest')
 req('".dse-erp", "dev-server-cache"' in bootstrap and 'Files.copy(built, staging, StandardCopyOption.REPLACE_EXISTING)' in bootstrap, 'IntelliJ backend must execute from an external project-specific cache, never directly from Maven target')

@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.util.ScreenRefreshPolicy;
 import org.example.util.BusinessClock;
 
 import javafx.beans.property.SimpleStringProperty;
@@ -174,7 +175,7 @@ public class DashboardHomeController implements ScreenLifecycle {
 
     @Override public void onScreenShown(boolean reusedFromCache) {
         bindShortcutLabels();
-        if (reusedFromCache) reload();
+        if (reusedFromCache && ScreenRefreshPolicy.shouldRefresh("dashboard-home", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) reload();
     }
 
     @FXML
@@ -206,7 +207,7 @@ public class DashboardHomeController implements ScreenLifecycle {
             @Override protected DashboardData call() { return queryDashboard(period); }
         };
         task.setOnSucceeded(event -> {
-            try { applyDashboard(task.getValue()); }
+            try { applyDashboard(task.getValue()); ScreenRefreshPolicy.markRefreshed("dashboard-home"); }
             finally { dashboardLoadRunning.set(false); hideLoading(); }
         });
         task.setOnFailed(event -> {

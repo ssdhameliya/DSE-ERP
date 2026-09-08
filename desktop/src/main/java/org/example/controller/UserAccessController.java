@@ -1,4 +1,5 @@
 package org.example.controller;
+import org.example.util.ScreenRefreshPolicy;
 import org.example.service.PermissionService;
 import org.example.navigation.ScreenLifecycle;
 
@@ -90,7 +91,7 @@ public class UserAccessController implements ScreenLifecycle {
 
     @Override
     public void onScreenShown(boolean reusedFromCache) {
-        if (reusedFromCache) refresh();
+        if (reusedFromCache && ScreenRefreshPolicy.shouldRefresh("user-access", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) refresh();
     }
 
     private void configureUserTable(){
@@ -125,7 +126,7 @@ public class UserAccessController implements ScreenLifecycle {
         colPermissionAllowed.setCellFactory(CheckBoxTableCell.forTableColumn(colPermissionAllowed)); colPermissionAllowed.setEditable(true); permissionTable.setEditable(true);
     }
 
-    @FXML private void refresh(){ loadRoles(); loadUsers(); refreshFilters(); updateMetrics(); filter(); }
+    @FXML private void refresh(){ loadRoles(); loadUsers(); refreshFilters(); updateMetrics(); filter(); ScreenRefreshPolicy.markRefreshed("user-access"); }
     private void loadUsers(){
         closeDetails();
         users.clear();

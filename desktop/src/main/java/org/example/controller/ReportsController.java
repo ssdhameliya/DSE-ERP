@@ -71,6 +71,9 @@ public class ReportsController implements ScreenLifecycle {
     private final List<ScheduleRow> allSchedules = new ArrayList<>();
     private volatile boolean loaded;
     private volatile boolean loadRequested;
+    private volatile boolean filtersLoaded;
+    private volatile boolean savedReportsLoaded;
+    private volatile boolean schedulesLoaded;
     private boolean initializingPeriod = true;
 
     public static void requestTab(int index) { pendingTab = Math.max(0, Math.min(3, index)); }
@@ -109,7 +112,6 @@ public class ReportsController implements ScreenLifecycle {
         loadFiltersAsync();
         loadReportDefinitions();
         loadFavorites();
-        loadSavedReports();
 
         initializingPeriod = false;
         applyPendingTab();
@@ -154,8 +156,8 @@ public class ReportsController implements ScreenLifecycle {
         if(index == 1) btnContextAction.setText("Recent Exports");
         else if(index == 2) btnContextAction.setText("New Saved Report");
         else if(index == 3) btnContextAction.setText("+ New Schedule");
-        if(index == 2) loadSavedReports();
-        if(index == 3) loadSchedules();
+        if(index == 2 && !savedReportsLoaded) loadSavedReports();
+        if(index == 3 && !schedulesLoaded) loadSchedules();
     }
     @FXML private void headerContextAction(){
         int index = reportTabs == null ? 0 : reportTabs.getSelectionModel().getSelectedIndex();
@@ -187,7 +189,7 @@ public class ReportsController implements ScreenLifecycle {
         UiTaskExecutor.submitLatest("reports-filters", this::readFilters, this::applyFilters, error -> PerformanceMonitor.event("reports-filters-error", String.valueOf(error.getMessage())));
     }
     private FilterData readFilters(){ var f=insightsApi.reportFilters(); return new FilterData(f.parties(), f.items(), f.salespeople()); }
-    private void applyFilters(FilterData data){ setOptions(cmbParty,"All Customers / Suppliers",data.parties()); setOptions(cmbItem,"All Items",data.items()); setOptions(cmbSalesPerson,"All Sales Persons",data.salespeople()); }
+    private void applyFilters(FilterData data){ filtersLoaded=true; setOptions(cmbParty,"All Customers / Suppliers",data.parties()); setOptions(cmbItem,"All Items",data.items()); setOptions(cmbSalesPerson,"All Sales Persons",data.salespeople()); }
     private void setOptions(ComboBox<String> box,String all,List<String> values){ String selected=box.getValue(); box.getItems().setAll(all); if(values!=null)box.getItems().addAll(values); if(selected!=null&&box.getItems().contains(selected))box.setValue(selected); else box.getSelectionModel().selectFirst(); }
 
     @FXML private void resetFilters(){
@@ -349,8 +351,8 @@ public class ReportsController implements ScreenLifecycle {
     @FXML public void loadSavedReports(){
         if(tblSavedReports==null)return; Integer uid=currentUserId();
         UiTaskExecutor.submitLatest("reports-saved",()->supportApi.savedViews("REPORT_CENTER",uid),views->{
-            allSavedReports.clear(); if(views!=null)for(SupportApiClient.SavedView v:views){SavedReportRow row=toSavedReportRow(v);if(row!=null)allSavedReports.add(row);} filterSavedReports();
-        },e->{tblSavedReports.getItems().clear();PerformanceMonitor.event("reports-saved-error",root(e));});
+            allSavedReports.clear(); if(views!=null)for(SupportApiClient.SavedView v:views){SavedReportRow row=toSavedReportRow(v);if(row!=null)allSavedReports.add(row);} savedReportsLoaded=true; filterSavedReports();
+        },e->{savedReportsLoaded=false;tblSavedReports.getItems().clear();PerformanceMonitor.event("reports-saved-error",root(e));});
     }
     private SavedReportRow toSavedReportRow(SupportApiClient.SavedView view){
         if(view==null||view.name()==null)return null; ReportingSavedConfig saved=ReportingSavedConfig.decode(view.data());
@@ -421,6 +423,7 @@ public class ReportsController implements ScreenLifecycle {
     }
 
     private void applySchedulePage(ReportScheduleApiClient.SchedulePage page){
+        schedulesLoaded=true;
         allSchedules.clear();if(page!=null&&page.schedules()!=null)allSchedules.addAll(page.schedules());filterSchedules();
         ReportScheduleApiClient.ScheduleSummary m=page==null?null:page.summary();
         lblActiveSchedules.setText(String.valueOf(m==null?0:m.activeSchedules()));
@@ -559,7 +562,12 @@ public class ReportsController implements ScreenLifecycle {
     }
     private void configureStatusCells(){statusCell(colSaleStatus);statusCell(colPurchaseStatus);}
     private void statusCell(TableColumn<String[],String> column){column.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);getStyleClass().removeAll("report-status-paid","report-status-pending","report-status-other");if(empty||value==null){setText(null);return;}setText(value);String v=value.toUpperCase(Locale.ROOT);getStyleClass().add(v.contains("PAID")||v.contains("COMPLETED")?"report-status-paid":v.contains("PENDING")?"report-status-pending":"report-status-other");}});}
-    @Override public void onScreenShown(boolean reusedFromCache){ applyPendingTab(); loadFiltersAsync(); loadSavedReports(); if(!loadRequested&&(!loaded||ScreenRefreshPolicy.shouldRefresh("reports", ScreenRefreshPolicy.Mode.WHEN_STALE)))requestRefresh(); }
+    @Override public void onScreenShown(boolean reusedFromCache){
+        applyPendingTab();
+        if(!filtersLoaded)loadFiltersAsync();
+        if(reportTabs!=null)applyTabHeader(reportTabs.getSelectionModel().getSelectedIndex());
+        if(!loadRequested&&(!loaded||ScreenRefreshPolicy.shouldRefresh("reports", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))))requestRefresh();
+    }
     @Override public void onScreenHidden(){ loadRequested=false; UiTaskExecutor.cancelPrefix("reports-"); }
 
     private record FilterData(List<String> parties,List<String> items,List<String> salespeople){}

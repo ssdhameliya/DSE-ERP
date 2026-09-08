@@ -60,6 +60,8 @@ public class ReportViewerController implements ScreenLifecycle {
     private boolean rendering;
     private boolean initializing=true;
     private ReportDefinition definition;
+    private volatile boolean filterOptionsLoaded;
+    private volatile boolean definitionLoaded;
 
     @FXML public void initialize(){
         cmbDatePreset.getItems().setAll("Today","Yesterday","This Week","Last Week","This Month","Last Month","This Quarter","Last Quarter","This Financial Year","Last Financial Year","Last 7 Days","Last 30 Days","Custom");
@@ -101,8 +103,8 @@ public class ReportViewerController implements ScreenLifecycle {
         };viewerPageIcon.getChildren().setAll(IconFactory.icon(semantic,24));
     }
 
-    private void consumeContext(){
-        ReportViewContext.Selection s=ReportViewContext.consume();if(s==null)return;
+    private boolean consumeContext(){
+        ReportViewContext.Selection s=ReportViewContext.consume();if(s==null)return false;
         String nextReport=(s.reportId()==null||s.reportId().isBlank())?reportId:s.reportId();
         if(!nextReport.equalsIgnoreCase(reportId)){
             reportId=nextReport; current=null; visibleKeys.clear(); sortLabelToKey.clear(); page=0;
@@ -114,13 +116,14 @@ public class ReportViewerController implements ScreenLifecycle {
             if(s.to()!=null&&!s.to().isBlank())try{dpTo.setValue(LocalDate.parse(s.to()));}catch(Exception ignored){}
             if(s.groupBy()!=null&&!s.groupBy().isBlank())cmbGroup.setValue(titleCase(s.groupBy()));
         }
+        return true;
     }
 
 
     private void loadDefinition(){
         UiTaskExecutor.submitLatest("report-viewer-definition",api::definitions,defs->{
             definition=defs==null?null:defs.stream().filter(d->d.id()!=null&&d.id().equalsIgnoreCase(reportId)).findFirst().orElse(null);
-            updateReportIdentityIcon();configureFilterVisibility();
+            definitionLoaded=true;updateReportIdentityIcon();configureFilterVisibility();
         },e->PerformanceMonitor.event("report-viewer-definition",String.valueOf(e.getMessage())));
     }
 
@@ -160,6 +163,7 @@ public class ReportViewerController implements ScreenLifecycle {
         UiTaskExecutor.submitLatest("report-viewer-filters",api::filters,this::applyFilterOptions,e->PerformanceMonitor.event("report-viewer-filters",String.valueOf(e.getMessage())));
     }
     private void applyFilterOptions(ReportFilters f){
+        filterOptionsLoaded=true;
         setOptions(cmbParty,"All Parties",f.parties());setOptions(cmbItem,"All Items",f.items());setOptions(cmbSalesperson,"All Salespersons",f.salespeople());
         setOptions(cmbDocumentStatus,"All Document Statuses",f.documentStatuses());setOptions(cmbPaymentStatus,"All Payment Statuses",f.paymentStatuses());setOptions(cmbReturnStatus,"All Return Statuses",f.returnStatuses());setOptions(cmbGstRate,"All GST Rates",f.gstRates());setOptions(cmbWarehouse,"All Warehouses",f.warehouses());setOptions(cmbBankStatus,"All Bank Statuses",f.bankStatuses());
         if(pendingSavedRequest!=null)applySavedRequestToControls(pendingSavedRequest,pendingDatePreset);
@@ -191,6 +195,7 @@ public class ReportViewerController implements ScreenLifecycle {
         configureColumns(result);configureGroups(result);configureSort(result);renderFilters(result);tblReport.getItems().setAll(result.rows());
         lblRecords.setText("Showing "+(result.rows().isEmpty()?0:(page*result.size()+1))+" to "+Math.min(result.totalRows(),(long)(page*result.size()+result.rows().size()))+" of "+result.totalRows()+" entries");
         lblPage.setText((result.page()+1)+" / "+Math.max(1,result.totalPages()));boolean first=result.page()<=0,last=result.page()>=result.totalPages()-1;btnFirst.setDisable(first);btnPrev.setDisable(first);btnNext.setDisable(last);btnLast.setDisable(last);setBusy(false);rendering=false;pendingSavedRequest=null;
+        ScreenRefreshPolicy.markRefreshed("report-viewer:"+reportId);
     }
 
     private void configureColumns(ReportResult result){
@@ -284,6 +289,13 @@ public class ReportViewerController implements ScreenLifecycle {
     private String fileBase(){return (current==null?reportId:current.title()).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+","-").replaceAll("^-|-$","")+"-"+dpFrom.getValue()+"-to-"+dpTo.getValue();}
     private void error(String message){Alert a=new OwnedAlert(Alert.AlertType.ERROR,message);a.setHeaderText("Reporting error");a.showAndWait();}
 
-    @Override public void onScreenShown(boolean reusedFromCache){if(reusedFromCache){consumeContext();loadDefinition();loadFilterOptions();requestLoad();}}
+    @Override public void onScreenShown(boolean reusedFromCache){
+        if(!reusedFromCache)return;
+        boolean contextChanged=consumeContext();
+        if(contextChanged){definitionLoaded=false;filterOptionsLoaded=false;loadDefinition();loadFilterOptions();requestLoad();return;}
+        if(!definitionLoaded)loadDefinition();
+        if(!filterOptionsLoaded)loadFilterOptions();
+        if(current==null||ScreenRefreshPolicy.shouldRefresh("report-viewer:"+reportId, ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60)))requestLoad();
+    }
     @Override public void onScreenHidden(){UiTaskExecutor.cancelPrefix("report-viewer-");}
 }

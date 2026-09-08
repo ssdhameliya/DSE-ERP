@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import org.example.util.ScreenRefreshPolicy;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
@@ -57,7 +58,7 @@ public final class NotificationCenterController implements ScreenLifecycle {
     }
     private void graphic(Button button,String semantic){if(button==null)return;button.setGraphic(IconFactory.compactIcon(semantic,14));button.getProperties().put("erp-icon-preserve",true);}
 
-    @Override public void onScreenShown(boolean reused){ refresh(); }
+    @Override public void onScreenShown(boolean reused){ if(reused&&ScreenRefreshPolicy.shouldRefresh("notification-center",ScreenRefreshPolicy.Mode.WHEN_STALE,java.time.Duration.ofSeconds(30)))refresh(); }
 
     @FXML private void refresh() {
         long serial=++refreshSerial;
@@ -67,6 +68,7 @@ public final class NotificationCenterController implements ScreenLifecycle {
             if(serial!=refreshSerial)return;
             if(btnRefresh!=null)btnRefresh.setDisable(false);
             all = error==null && items!=null ? List.copyOf(items) : List.of();
+            if(error==null)ScreenRefreshPolicy.markRefreshed("notification-center");
             updateSummary(); applyFilter();
         }));
     }

@@ -98,6 +98,7 @@ public class SalesListController implements ScreenLifecycle {
     private Sales selected;
     private boolean linkedRecordReloadInProgress;
     private boolean applyingSavedView;
+    private boolean suppressFilterEvents;
     private String pendingSavedViewName;
 
     @FXML public void initialize(){
@@ -119,7 +120,7 @@ public class SalesListController implements ScreenLifecycle {
             });
             return row;
         });
-        txtSearch.textProperty().addListener((o,a,b)->{if(!applyingSavedView)filterDebouncer.submit(this::applyFilters);});
+        txtSearch.textProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filterDebouncer.submit(this::applyFilters);});
     }
 
 
@@ -290,15 +291,15 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         dpFrom.setPromptText("From date");
         dpTo.setPromptText("To date");
         for (ComboBox<String> box : List.of(cmbCustomer,cmbPaymentStatus,cmbMailStatus,cmbWhatsappStatus,cmbInvoiceType,cmbDocumentStatus,cmbReturnStatus))
-            box.valueProperty().addListener((o,a,b)->{if(!applyingSavedView && !org.example.util.PartySearchUi.isInternalUpdate(box))applyFilters();});
-        dpFrom.valueProperty().addListener((o,a,b)->applyFilters());
-        dpTo.valueProperty().addListener((o,a,b)->applyFilters());
-        txtInvoice.textProperty().addListener((o,a,b)->{if(!applyingSavedView)filterDebouncer.submit(this::applyFilters);});
-        txtAmountFrom.textProperty().addListener((o,a,b)->{if(!applyingSavedView)filterDebouncer.submit(this::applyFilters);});
-        txtAmountTo.textProperty().addListener((o,a,b)->{if(!applyingSavedView)filterDebouncer.submit(this::applyFilters);});
+            box.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed() && !org.example.util.PartySearchUi.isInternalUpdate(box))applyFilters();});
+        dpFrom.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())applyFilters();});
+        dpTo.valueProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())applyFilters();});
+        txtInvoice.textProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filterDebouncer.submit(this::applyFilters);});
+        txtAmountFrom.textProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filterDebouncer.submit(this::applyFilters);});
+        txtAmountTo.textProperty().addListener((o,a,b)->{if(!filterEventsSuppressed())filterDebouncer.submit(this::applyFilters);});
     }
 
-    private void configurePaging(){cmbPageSize.getItems().setAll(10,25,50,100);cmbPageSize.setValue(25);cmbPageSize.valueProperty().addListener((o,a,b)->{pageState.reset();reloadPage();});}
+    private void configurePaging(){cmbPageSize.getItems().setAll(10,25,50,100);cmbPageSize.setValue(25);cmbPageSize.valueProperty().addListener((o,a,b)->{pageState.reset();reloadPage(false);});}
     private void configureActions(){
         colAction.setCellFactory(c -> new TableCell<>() {
             final MenuButton menu = new MenuButton();
@@ -371,11 +372,11 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         });
     }
 
-    @FXML public void refresh(){reloadPage();}
+    @FXML public void refresh(){reloadPage(true);}
     @FXML private void refreshWithFeedback(){
         explicitRefreshPending=true;
         if(btnRefreshSales!=null){btnRefreshSales.setDisable(true);btnRefreshSales.setText("Refreshing...");}
-        reloadPage();
+        reloadPage(true);
     }
     private void finishExplicitRefresh(boolean success){
         if(!explicitRefreshPending)return;
@@ -383,14 +384,14 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         if(btnRefreshSales!=null){btnRefreshSales.setDisable(false);btnRefreshSales.setText("Refresh");}
         if(success)org.example.util.ToastManager.info(tableSales,"Refreshed","Sales Register is up to date.");
     }
-    private void reloadPage(){
+    private void reloadPage(boolean includeSummary){
         int requestedPage=pageState.currentPage(),size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();
         String customer=cmbCustomer.getValue();if(customer!=null&&customer.startsWith("All"))customer="";
         String payment=cmbPaymentStatus.getValue(),due="All",mail=cmbMailStatus.getValue(),whatsapp=cmbWhatsappStatus.getValue(),invoiceType=cmbInvoiceType.getValue(),documentStatus=cmbDocumentStatus.getValue(),returnStatus=cmbReturnStatus.getValue();
         Double min=parseOptionalAmount(txtAmountFrom.getText()),max=parseOptionalAmount(txtAmountTo.getText());
         String selectedCustomer=customer;
         org.example.util.OperationalUiSupport.showLoading(tableSales,"Loading sales invoices…");
-        UiTaskExecutor.submitLatest("sales-register-load",()->service.page(requestedPage,size,txtSearch.getText(),txtInvoice.getText(),selectedCustomer,dpFrom.getValue(),dpTo.getValue(),payment,due,mail,whatsapp,invoiceType,documentStatus,returnStatus,min,max),this::applyPage,failure->{pendingSavedViewName=null;finishExplicitRefresh(false);org.example.util.OperationalUiSupport.showError(tableSales,"Sales register could not load",failure);error(failure);});
+        UiTaskExecutor.submitLatest("sales-register-load",()->service.page(requestedPage,size,txtSearch.getText(),txtInvoice.getText(),selectedCustomer,dpFrom.getValue(),dpTo.getValue(),payment,due,mail,whatsapp,invoiceType,documentStatus,returnStatus,min,max,includeSummary),this::applyPage,failure->{pendingSavedViewName=null;finishExplicitRefresh(false);org.example.util.OperationalUiSupport.showError(tableSales,"Sales register could not load",failure);error(failure);});
     }
     private void applyPage(org.example.api.operations.OperationsApiClient.SalesPage loaded){
         pageState.runApplying(() -> {
@@ -416,14 +417,16 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         UiTaskExecutor.submitLatest("sales-linked-record",()->service.getByInvoice(target.documentNo()),found->{
             if(found==null){linkedRecordReloadInProgress=false;LinkedRecordContext.consume("SALE");warning("The linked Sale is no longer available: "+target.documentNo());return;}
             // Deep links temporarily narrow the register to the exact invoice so the row can be selected and highlighted.
-            txtSearch.clear();txtInvoice.setText(found.getInvoiceNo());txtAmountFrom.clear();txtAmountTo.clear();cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");cmbDocumentStatus.setValue("All");
-            LocalDate invoiceDate=found.getInvoiceDate();if(invoiceDate!=null){dpFrom.setValue(invoiceDate);dpTo.setValue(invoiceDate);}
-            pageState.reset();reloadPage();
+            batchFilterUpdate(() -> {
+                txtSearch.clear();txtInvoice.setText(found.getInvoiceNo());txtAmountFrom.clear();txtAmountTo.clear();cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");cmbDocumentStatus.setValue("All");
+                LocalDate invoiceDate=found.getInvoiceDate();if(invoiceDate!=null){dpFrom.setValue(invoiceDate);dpTo.setValue(invoiceDate);}
+            });
+            pageState.reset();renderChips();reloadPage(true);
         },failure->{linkedRecordReloadInProgress=false;LinkedRecordContext.consume("SALE");error(failure);});
     }
-    @FXML public void applyFilters(){if(applyingSavedView)return;pageState.runWhenIdle(()->{if(applyingSavedView)return;pageState.reset();renderChips();reloadPage();});}
+    @FXML public void applyFilters(){if(filterEventsSuppressed())return;pageState.runWhenIdle(()->{if(filterEventsSuppressed())return;pageState.reset();renderChips();reloadPage(true);});}
     private void renderPage(){tableSales.setItems(FXCollections.observableArrayList(allSales));int size=cmbPageSize.getValue()==null?25:cmbPageSize.getValue();RegisterUiSupport.updatePageLabels(pageState,lblPageInfo,lblPageNumber,size,allSales.size(),"entries");if(pageState.totalRows()==0)lblPageInfo.setText("No entries");}
-    @FXML private void firstPage(){if(pageState.first())reloadPage();}@FXML private void previousPage(){if(pageState.previous())reloadPage();}@FXML private void nextPage(){if(pageState.next())reloadPage();}@FXML private void lastPage(){if(pageState.last())reloadPage();}
+    @FXML private void firstPage(){if(pageState.first())reloadPage(false);}@FXML private void previousPage(){if(pageState.previous())reloadPage(false);}@FXML private void nextPage(){if(pageState.next())reloadPage(false);}@FXML private void lastPage(){if(pageState.last())reloadPage(false);}
     private void applyMetrics(org.example.api.operations.OperationsApiClient.SalesMetrics m){if(m==null)return;lblTotalSales.setText(money(m.totalSales()));lblInvoiceCount.setText(m.invoiceCount()+" invoices");lblTodaySales.setText(money(m.todaySales()));lblTodayCount.setText(m.todayCount()+" invoices");lblPending.setText(money(m.pendingBalance()));lblPendingCount.setText(m.pendingCount()+" invoices");lblOverdue.setText(money(m.overdueBalance()));lblOverdueCount.setText(m.overdueCount()+" invoices");lblDueSoon.setText(money(m.dueSoonBalance()));lblDueSoonCount.setText(m.dueSoonCount()+" invoices");lblEmailRate.setText(Math.round(m.emailRate())+"%");}
     private boolean isActiveFinancialDocument(Sales sale){String s=safe(sale.getDocumentStatus()).toUpperCase(java.util.Locale.ROOT);return !"CANCELLED".equals(s)&&!"DELETED".equals(s);}
     private double sum(List<Sales> list,java.util.function.ToDoubleFunction<Sales> f){return list.stream().mapToDouble(f).sum();}
@@ -435,13 +438,16 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         refreshShortcutLabels();
         org.example.util.OperationalUiSupport.focusWorkArea(tableSales);
         if (ImportViewContext.consume("Sales")) {
-            dpFrom.setValue(BusinessClock.today().minusYears(20));
-            dpTo.setValue(BusinessClock.today());
+            batchFilterUpdate(() -> {
+                dpFrom.setValue(BusinessClock.today().minusYears(20));
+                dpTo.setValue(BusinessClock.today());
+            });
             pageState.reset();
-            reloadPage();
+            renderChips();
+            reloadPage(true);
             return;
         }
-        if(reusedFromCache || allSales.isEmpty() || ScreenRefreshPolicy.shouldRefresh("sales-register", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60))) refresh();
+        if(allSales.isEmpty() || (reusedFromCache && ScreenRefreshPolicy.shouldRefresh("sales-register", ScreenRefreshPolicy.Mode.WHEN_STALE, java.time.Duration.ofSeconds(60)))) refresh();
     }
 
     private void refreshShortcutLabels(){
@@ -517,16 +523,16 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         }
     }
 
-    @FXML private void showAllDates(){dpFrom.setValue(null);dpTo.setValue(null);applyFilters();}
+    @FXML private void showAllDates(){batchFilterUpdate(()->{dpFrom.setValue(null);dpTo.setValue(null);});applyFilters();}
     @FXML private void showToday(){applyDateRange(BusinessClock.today(),BusinessClock.today());}
     @FXML private void showYesterday(){LocalDate day=BusinessClock.today().minusDays(1);applyDateRange(day,day);}
     @FXML private void showSevenDays(){applyDateRange(BusinessClock.today().minusDays(6),BusinessClock.today());}
     @FXML private void showThirtyDays(){applyDateRange(BusinessClock.today().minusDays(29),BusinessClock.today());}
     @FXML private void focusCustomRange(){dpFrom.requestFocus();}
-    private void applyDateRange(LocalDate from,LocalDate to){dpFrom.setValue(from);dpTo.setValue(to);applyFilters();}
+    private void applyDateRange(LocalDate from,LocalDate to){batchFilterUpdate(()->{dpFrom.setValue(from);dpTo.setValue(to);});applyFilters();}
 
     @FXML private void toggleAdvanced(){advancedFilters.setManaged(btnAdvanced.isSelected());advancedFilters.setVisible(btnAdvanced.isSelected());}
-    @FXML private void resetFilters(){txtSearch.clear();txtInvoice.clear();txtAmountFrom.clear();txtAmountTo.clear();dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");cmbDocumentStatus.setValue("All");cmbReturnStatus.setValue("All");applyFilters();}
+    @FXML private void resetFilters(){batchFilterUpdate(()->{txtSearch.clear();txtInvoice.clear();txtAmountFrom.clear();txtAmountTo.clear();dpFrom.setValue(BusinessClock.today().minusMonths(6));dpTo.setValue(BusinessClock.today());cmbCustomer.setValue("All customers");cmbPaymentStatus.setValue("All");cmbMailStatus.setValue("All");cmbWhatsappStatus.setValue("All");cmbInvoiceType.setValue("All");cmbDocumentStatus.setValue("All");cmbReturnStatus.setValue("All");});filterDebouncer.cancel();applyFilters();}
     private void renderChips(){activeFilterChips.getChildren().clear();addChip("From",dpFrom.getValue());addChip("To",dpTo.getValue());addChip("Payment",nonAll(cmbPaymentStatus));addChip("Return",nonAll(cmbReturnStatus));addChip("Email",nonAll(cmbMailStatus));addChip("WhatsApp",nonAll(cmbWhatsappStatus));addChip("Document",nonAll(cmbDocumentStatus));}
     private Object nonAll(ComboBox<String>b){return b.getValue()==null||b.getValue().equals("All")?null:b.getValue();}private void addChip(String name,Object value){if(value==null)return;Label chip=new Label(name+": "+value);chip.getStyleClass().add("filter-chip");activeFilterChips.getChildren().add(chip);}
 
@@ -543,7 +549,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         if(savedViewsMenu==null)return;Integer uid=SessionService.current()==null?null:SessionService.current().getId();
         UiTaskExecutor.submitLatest("sales-saved-views",()->support.savedViews("SALES_REGISTER",uid),views->{savedViewsMenu.getItems().clear();for(SupportApiClient.SavedView v:views){MenuItem i=new MenuItem(v.name());i.getStyleClass().add("register-saved-view-item");i.setOnAction(e->applySaved(v.name(),v.data()));savedViewsMenu.getItems().add(i);}if(savedViewsMenu.getItems().isEmpty())savedViewsMenu.getItems().add(savedViewPlaceholder());},failure->{savedViewsMenu.getItems().setAll(savedViewPlaceholder());PerformanceMonitor.event("sales-saved-views",String.valueOf(failure.getMessage()));});
     }
-    private void applySaved(String name,String data){String[]x=data==null?new String[0]:data.split("\\|",-1);if(x.length==0){warning("The saved view is empty and cannot be applied.");return;}filterDebouncer.cancel();applyingSavedView=true;try{txtInvoice.setText(part(x,0));String customer=part(x,1);org.example.util.PartySearchUi.preserveSelection(cmbCustomer,customer.isBlank()?"All customers":customer,"All customers");dpFrom.setValue(date(part(x,2)));dpTo.setValue(date(part(x,3)));selectSaved(cmbPaymentStatus,part(x,4),"All");selectSaved(cmbMailStatus,part(x,6),"All");selectSaved(cmbWhatsappStatus,part(x,7),"All");selectSaved(cmbInvoiceType,part(x,8),"All");txtAmountFrom.setText(part(x,9));txtAmountTo.setText(part(x,10));selectSaved(cmbDocumentStatus,part(x,11),"All");txtSearch.setText(part(x,12));selectSaved(cmbReturnStatus,part(x,13),"All");pageState.reset();pendingSavedViewName=name;}finally{applyingSavedView=false;}filterDebouncer.cancel();renderChips();reloadPage();}
+    private void applySaved(String name,String data){String[]x=data==null?new String[0]:data.split("\\|",-1);if(x.length==0){warning("The saved view is empty and cannot be applied.");return;}filterDebouncer.cancel();applyingSavedView=true;try{txtInvoice.setText(part(x,0));String customer=part(x,1);org.example.util.PartySearchUi.preserveSelection(cmbCustomer,customer.isBlank()?"All customers":customer,"All customers");dpFrom.setValue(date(part(x,2)));dpTo.setValue(date(part(x,3)));selectSaved(cmbPaymentStatus,part(x,4),"All");selectSaved(cmbMailStatus,part(x,6),"All");selectSaved(cmbWhatsappStatus,part(x,7),"All");selectSaved(cmbInvoiceType,part(x,8),"All");txtAmountFrom.setText(part(x,9));txtAmountTo.setText(part(x,10));selectSaved(cmbDocumentStatus,part(x,11),"All");txtSearch.setText(part(x,12));selectSaved(cmbReturnStatus,part(x,13),"All");pageState.reset();pendingSavedViewName=name;}finally{applyingSavedView=false;}filterDebouncer.cancel();renderChips();reloadPage(true);}
     private void notifyAppliedSavedView(){if(pendingSavedViewName==null)return;String name=pendingSavedViewName;pendingSavedViewName=null;org.example.util.ToastManager.info(tableSales,"Saved view applied",name+" filters are now active.");}
     private static String part(String[] values,int index){return values!=null&&index>=0&&index<values.length&&values[index]!=null?values[index]:"";}
     private static void selectSaved(ComboBox<String> box,String raw,String fallback){if(box==null)return;String value=raw==null||raw.isBlank()?fallback:raw.trim();String match=box.getItems().stream().filter(v->v!=null&&v.equalsIgnoreCase(value)).findFirst().orElse(null);if(match==null&&!value.equalsIgnoreCase(fallback)){box.getItems().add(value);match=value;}box.setValue(match!=null?match:fallback);}
@@ -682,6 +688,9 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         long d=java.time.temporal.ChronoUnit.DAYS.between(BusinessClock.today(),s.getDueDate());
         return d<0?"Overdue by "+Math.abs(d)+" days":d==0?"Due today":"Due in "+d+" days";
     }
+    private boolean filterEventsSuppressed(){return applyingSavedView||suppressFilterEvents;}
+    private void batchFilterUpdate(Runnable update){boolean previous=suppressFilterEvents;suppressFilterEvents=true;try{update.run();}finally{suppressFilterEvents=previous;}}
+
     private String money(double v){return currency.format(v).replace("₹","₹ ");}
     private String safe(String v){return v==null?"":v;}
     private String lower(String v){return safe(v).toLowerCase(Locale.ROOT);}
