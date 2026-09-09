@@ -1,0 +1,200 @@
++import org.dse.mobile.core.model.ActivityRow
+ import org.dse.mobile.core.model.MasterItem
+ import org.dse.mobile.core.model.MasterParty
+ import org.dse.mobile.core.offline.platformOfflineNowMillis
+@@ -646,6 +647,7 @@
+     onSelect:(()->Unit)?=null,
+     swipeStartActions:List<SwipeAction> = emptyList(),
+     swipeEndActions:List<SwipeAction> = emptyList(),
++    onActions:(()->Unit)?=null,
+     onClick:()->Unit,
+ ){
+     val effectiveStartActions=if(swipeStartActions.isEmpty()) listOf(SwipeAction("Open",Icons.Rounded.ChevronRight,onClick=onClick)) else swipeStartActions
+@@ -671,7 +673,11 @@
+                 if(meta.isNotBlank())Text(meta,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                 FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){statuses.filter{it.second.isNotBlank()}.forEach{DseStatus(it.first,it.second)}}
+             }
+-            Icon(Icons.Rounded.ChevronRight,"Open",tint=MaterialTheme.colorScheme.primary)
++            if(onActions!=null){
++                IconButton(onClick=onActions){Icon(Icons.Rounded.MoreVert,"Actions",tint=MaterialTheme.colorScheme.primary)}
++            }else{
++                Icon(Icons.Rounded.ChevronRight,"Open",tint=MaterialTheme.colorScheme.primary)
++            }
+         }
+     }
+     }
+@@ -831,6 +837,7 @@
+     val destructive:Boolean=false,
+     val enabled:Boolean=true,
+     val icon:ImageVector=semanticActionIcon(label),
++    val disabledReason:String?=null,
+ )
+ 
+ @Composable
+@@ -849,6 +856,115 @@
+                 }
+             }
+         }
++    }
++}
++
++
++@Composable
++internal fun DseRecordActionSheet(
++    title:String,
++    subtitle:String="Record actions",
++    actions:List<PremiumActionSpec>,
++    onDismiss:()->Unit,
++){
++    val sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)
++    ModalBottomSheet(
++        onDismissRequest=onDismiss,
++        sheetState=sheetState,
++        shape=RoundedCornerShape(topStart=30.dp,topEnd=30.dp),
++        containerColor=MaterialTheme.colorScheme.surface,
++        dragHandle={BottomSheetDefaults.DragHandle(color=MaterialTheme.colorScheme.outline)},
++    ){
++        Column(
++            Modifier.fillMaxWidth().heightIn(max=760.dp).verticalScroll(rememberScrollState()).padding(start=18.dp,end=18.dp,bottom=28.dp),
++            verticalArrangement=Arrangement.spacedBy(8.dp),
++        ){
++            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
++                PremiumIconTile(Icons.Rounded.TouchApp,MaterialTheme.colorScheme.primary,size=44.dp)
++                Column(Modifier.weight(1f)){
++                    Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.ExtraBold)
++                    Text(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++                }
++                IconButton(onClick=onDismiss){Icon(Icons.Rounded.Close,"Close")}
++            }
++            HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
++            actions.forEach{action->
++                val accent=when{
++                    !action.enabled->MaterialTheme.colorScheme.onSurfaceVariant
++                    action.destructive->DseDanger
++                    else->MaterialTheme.colorScheme.primary
++                }
++                Surface(
++                    shape=RoundedCornerShape(17.dp),
++                    color=if(action.enabled)accent.copy(.055f) else MaterialTheme.colorScheme.surfaceVariant.copy(.45f),
++                    border=BorderStroke(1.dp,accent.copy(if(action.enabled) 0.18f else 0.12f)),
++                    modifier=Modifier.fillMaxWidth().clickable(enabled=action.enabled){onDismiss();action.onClick()},
++                ){
++                    Row(Modifier.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
++                        PremiumIconTile(action.icon,accent,size=36.dp)
++                        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
++                            Text(action.label,fontWeight=FontWeight.Bold,color=accent)
++                            if(!action.enabled&&!action.disabledReason.isNullOrBlank())Text(action.disabledReason,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++                        }
++                        Icon(if(action.enabled)Icons.Rounded.ChevronRight else Icons.Rounded.Lock,if(action.enabled)"Open" else "Unavailable",tint=accent)
++                    }
++                }
++            }
++        }
++    }
++}
++
++@Composable
++internal fun ActivityTimelineSheet(
++    api:DseErpHttpClient,
++    entityType:String,
++    entityId:Int,
++    reference:String,
++    onDismiss:()->Unit,
++){
++    var rows by remember(entityType,entityId){mutableStateOf<List<ActivityRow>?>(null)}
++    var message by remember(entityType,entityId){mutableStateOf("")}
++    val sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)
++    LaunchedEffect(entityType,entityId){
++        when(val r=api.activity(entityType,entityId)){
++            is ApiResult.Success->rows=r.value
++            else->{rows=emptyList();message=r.readableMessage()}
++        }
++    }
++    ModalBottomSheet(
++        onDismissRequest=onDismiss,
++        sheetState=sheetState,
++        shape=RoundedCornerShape(topStart=30.dp,topEnd=30.dp),
++        containerColor=MaterialTheme.colorScheme.surface,
++        dragHandle={BottomSheetDefaults.DragHandle(color=MaterialTheme.colorScheme.outline)},
++    ){
++        Column(Modifier.fillMaxWidth().heightIn(max=760.dp).verticalScroll(rememberScrollState()).padding(start=18.dp,end=18.dp,bottom=28.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
++            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
++                PremiumIconTile(Icons.Rounded.Timeline,DseInfo,size=44.dp)
++                Column(Modifier.weight(1f)){Text("Activity Timeline",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.ExtraBold);Text(reference,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
++                IconButton(onClick=onDismiss){Icon(Icons.Rounded.Close,"Close")}
++            }
++            when{
++                rows==null->LinearProgressIndicator(Modifier.fillMaxWidth())
++                !message.isBlank()->Text(message,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
++                rows!!.isEmpty()->DseEmptyRegisterState("No activity recorded yet","Server audit history for this record is currently empty.",Icons.Rounded.History)
++                else->rows!!.forEachIndexed{i,row->
++                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
++                        Column(horizontalAlignment=Alignment.CenterHorizontally){
++                            PremiumIconTile(semanticActionIcon(row.action),if(i==0)MaterialTheme.colorScheme.primary else DseInfo,size=34.dp)
++                            if(i<rows!!.lastIndex)Box(Modifier.width(2.dp).height(30.dp).background(MaterialTheme.colorScheme.outlineVariant))
++                        }
++                        Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(.36f),modifier=Modifier.weight(1f)){
++                            Column(Modifier.padding(11.dp),verticalArrangement=Arrangement.spacedBy(3.dp)){
++                                Text(row.action.replace('_',' ').lowercase().replaceFirstChar{it.uppercase()},fontWeight=FontWeight.Bold)
++                                if(row.detail.isNotBlank())Text(row.detail,style=MaterialTheme.typography.bodySmall)
++                                Text(listOf(row.createdAt,row.createdBy).filter{it.isNotBlank()}.joinToString(" • "),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++                            }
++                        }
++                    }
++                }
++            }
++        }
+     }
+ }
+ 
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/QuotationScreens.kt /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/QuotationScreens.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/QuotationScreens.kt	2026-09-09 04:30:14.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/QuotationScreens.kt	2026-09-09 08:04:36.660235520 +0000
+@@ -26,6 +26,7 @@
+     var selected by remember{mutableStateOf<QuotationRecord?>(null)};var editor by remember{mutableStateOf<QuotationRecord?>(null)};var creating by remember{mutableStateOf(false)}
+     var confirm by remember{mutableStateOf<QuotationRecord?>(null)};var filterOpen by remember{mutableStateOf(false)};var email by remember{mutableStateOf<QuotationRecord?>(null)}
+     var followUp by remember{mutableStateOf<QuotationRecord?>(null)};var notes by remember{mutableStateOf<QuotationRecord?>(null)}
++    var actionTarget by remember{mutableStateOf<QuotationRecord?>(null)};var timelineTarget by remember{mutableStateOf<QuotationRecord?>(null)}
+     var savedViews by remember{mutableStateOf<List<SavedView>>(emptyList())};var savedChoice by remember{mutableStateOf("")};var saveViewPrompt by remember{mutableStateOf(false)}
+     val scope=rememberCoroutineScope()
+     fun loadFull(row:QuotationRecord,after:(QuotationRecord)->Unit){scope.launch{when(val x=api.quotationById(row.id)){is ApiResult.Success->after(x.value);else->msg=x.readableMessage()}}}
+@@ -59,8 +60,35 @@
+                 add(SwipeAction("PDF",Icons.Rounded.PictureAsPdf){loadFull(r){full->scope.launch{when(val lines=api.quotationLines(full.id)){is ApiResult.Success->msg=if(shareBusinessPdf(quotationBusinessDocument(full,lines.value)))"Quotation PDF opened" else "Unable to open quotation PDF";else->msg=lines.readableMessage()}}}})
+                 if(p.can("QUOTATION","DELETE"))add(SwipeAction("Delete",Icons.Rounded.Delete,true){loadFull(r){confirm=it}})
+             },
++            onActions={actionTarget=r},
+         ){loadFull(r){selected=it}}}
+     }
++    actionTarget?.let{r->
++        val status=r.status.orEmpty().uppercase()
++        val converted=!r.converted.isNullOrBlank()||status.contains("CONVERT")
++        val terminal=status in setOf("REJECTED","EXPIRED","DELETED")
++        val mutable=!converted&&!terminal
++        val canEdit=mutable&&p.can("QUOTATION","EDIT")
++        val canConvert=mutable&&p.can("QUOTATION","EDIT")&&p.can("SALES","CREATE")
++        DseRecordActionSheet("Quotation ${r.no}","Desktop-style Quotation actions",buildList{
++            add(PremiumActionSpec("View Quotation",{loadFull(r){selected=it}}))
++            add(PremiumActionSpec("Activity Timeline",{timelineTarget=r},enabled=r.id>0,disabledReason="Activity history requires a saved Quotation."))
++            if(p.can("QUOTATION","EDIT"))add(PremiumActionSpec("Edit Quotation",{loadFull(r){editor=it}},enabled=canEdit,disabledReason=if(converted)"Converted Quotations cannot be edited." else if(terminal)"Rejected, expired or deleted Quotations cannot be edited." else null))
++            if(p.can("QUOTATION","EDIT")&&p.can("SALES","CREATE"))add(PremiumActionSpec("Convert to Sale",{scope.launch{when(val x=api.quotationAction(r.id,"convert",username)){is ApiResult.Success->{msg=x.value.value.ifBlank{"Quotation converted"};refresh++};else->msg=x.readableMessage()}}},enabled=canConvert,disabledReason=if(converted)"This Quotation is already converted." else if(terminal)"This Quotation is no longer convertible." else null))
++            if(converted)add(PremiumActionSpec("Open Converted Sale",{r.converted?.takeIf{it.isNotBlank()}?.let{onDeepLink("dseerp://sales/${urlEncode(it)}")}},enabled=!r.converted.isNullOrBlank(),disabledReason="Converted Sale reference is not available."))
++            add(PremiumActionSpec("PDF / Print",{loadFull(r){full->scope.launch{when(val lines=api.quotationLines(full.id)){is ApiResult.Success->msg=if(shareBusinessPdf(quotationBusinessDocument(full,lines.value)))"Quotation PDF opened" else "Unable to open quotation PDF";else->msg=lines.readableMessage()}}}}))
++            add(PremiumActionSpec("Excel",{loadFull(r){full->scope.launch{when(val lines=api.quotationLines(full.id)){is ApiResult.Success->msg=if(shareBusinessXlsx(quotationBusinessDocument(full,lines.value)))"Quotation Excel opened" else "Unable to open quotation Excel";else->msg=lines.readableMessage()}}}}))
++            add(PremiumActionSpec("Send Email",{loadFull(r){email=it}},enabled=!r.email.isNullOrBlank(),disabledReason="Customer email is not configured."))
++            add(PremiumActionSpec("WhatsApp",{loadFull(r){full->val digits=full.phone.orEmpty().filter{it.isDigit()};if(digits.isBlank())msg="Customer phone is not configured" else if(platformOpenExternalUrl("https://wa.me/$digits?text=${urlEncode(quoteShareText(full))}")){scope.launch{when(val x=api.quotationSent(full.id,"WHATSAPP")){is ApiResult.Success->{msg="WhatsApp opened and quotation delivery status recorded";refresh++};else->msg=x.readableMessage()}}}else msg="WhatsApp could not be opened"}},enabled=!r.phone.isNullOrBlank(),disabledReason="Customer phone is not configured."))
++            add(PremiumActionSpec("Duplicate Quotation",{scope.launch{when(val x=api.quotationAction(r.id,"duplicate",username)){is ApiResult.Success->{msg="Duplicated as ${x.value.value}";refresh++};else->msg=x.readableMessage()}}},enabled=mutable,disabledReason="Converted, rejected, expired or deleted Quotations cannot be duplicated."))
++            if(p.can("QUOTATION","EDIT")){
++                add(PremiumActionSpec("Follow-up",{loadFull(r){followUp=it}},enabled=mutable,disabledReason="Follow-up is unavailable for converted or terminal Quotations."))
++                add(PremiumActionSpec("Notes",{loadFull(r){notes=it}},enabled=mutable,disabledReason="Notes cannot be changed on converted or terminal Quotations."))
++            }
++            if(p.can("QUOTATION","DELETE"))add(PremiumActionSpec("Delete Quotation",{loadFull(r){confirm=it}},destructive=true,enabled=mutable,disabledReason="Converted or terminal Quotations cannot be deleted."))
++        },{actionTarget=null})
++    }
++    timelineTarget?.let{r->ActivityTimelineSheet(api,"QUOTATION",r.id,r.no){timelineTarget=null}}
+     if(filterOpen)QuotationFilterDialog(filter,data,{filterOpen=false}){filter=it;page=0;filterOpen=false}
+     if(saveViewPrompt)TextPromptDialog("Save Quotation Filter View","View name",onDismiss={saveViewPrompt=false}){name->scope.launch{when(val r=api.saveView(SavedViewSave(p.user?.id,"QUOTATION_REGISTER",name,encodeQuoteView(filter)))){is ApiResult.Success->{msg="Saved view created";saveViewPrompt=false;refresh++};else->msg=r.readableMessage()}}}
+     selected?.let{r->QuotationDetailDialog(api,r,p,
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt	2026-09-09 04:28:32.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt	2026-09-09 08:05:25.316568428 +0000
+@@ -45,6 +45,8 @@
