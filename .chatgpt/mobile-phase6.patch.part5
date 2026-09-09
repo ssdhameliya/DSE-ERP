@@ -1,1 +1,50 @@
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
++ if(notice!=null&&msg!=dismissedMessage)DseNoticeDialog(msg,notice){dismissedMessage=msg}
++ if(confirmImport)ConfirmDialog(
++  "Import to ERP",
++  "Import ${sheet?.rows?.size?:0} row(s) for ${module.label}? Validation runs first, and only valid rows are submitted to the existing ERP APIs.",
++  "Import",
++  false,
++  {confirmImport=false},
++ ){confirmImport=false;executeSelected()}
+ }
+ 
+ private fun requiredImportFields(m:ImportModule):Set<String> = when(m){
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt
+--- a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt	2026-09-09 04:30:14.000000000 +0000
++++ b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt	2026-09-09 08:52:47.691469168 +0000
+@@ -21,6 +21,7 @@
+ import org.dse.mobile.core.model.*
+ 
+ private fun PermissionContext.canOpen(d:MoreDestination):Boolean=when(d){
++    MoreDestination.PURCHASE->can("PURCHASE")
+     MoreDestination.QUOTATIONS->can("QUOTATION")
+     MoreDestination.SALES_RETURNS->can("SALES")
+     MoreDestination.PURCHASE_RETURNS->can("PURCHASE")
+@@ -80,6 +81,7 @@
+             Text(destination.label,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.ExtraBold)
+         }
+         Box(Modifier.weight(1f)){when(destination){
++            MoreDestination.PURCHASE->PurchaseWorkspace(api,p,username,openTarget,onTargetConsumed)
+             MoreDestination.QUOTATIONS->QuotationsWorkspace(api,p,username,openTarget,onTargetConsumed,onDeepLink)
+             MoreDestination.SALES_RETURNS->ReturnsWorkspace(api,p,true,username,openTarget,onTargetConsumed,onDeepLink)
+             MoreDestination.PURCHASE_RETURNS->ReturnsWorkspace(api,p,false,username,openTarget,onTargetConsumed,onDeepLink)
+@@ -100,6 +102,7 @@
+ }
+ 
+ private fun moreAccent(d:MoreDestination)=when(d){
++    MoreDestination.PURCHASE->DseWarning
+     MoreDestination.QUOTATIONS,MoreDestination.REPORTS->DsePurple
+     MoreDestination.SALES_RETURNS,MoreDestination.PURCHASE_RETURNS->DseWarning
+     MoreDestination.MASTERS,MoreDestination.INVENTORY->DseInfo
+@@ -111,6 +114,7 @@
+ }
+ 
+ private fun moreSubtitle(d:MoreDestination)=when(d){
++    MoreDestination.PURCHASE->"Bills, suppliers, payments and Purchase actions"
+     MoreDestination.QUOTATIONS->"Quotes, follow-ups and conversion"
+     MoreDestination.SALES_RETURNS->"Customer returns and refunds"
+     MoreDestination.PURCHASE_RETURNS->"Supplier returns and adjustments"
+@@ -130,6 +134,7 @@
+ 
+ @Composable private fun PermissionDeniedCard(name:String,onBack:()->Unit){Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Card{Column(Modifier.padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(8.dp)){Icon(Icons.Rounded.Lock,null);Text("No permission for $name");TextButton(onClick=onBack){Text("Back")}}}}}
+ private fun moreIcon(d:MoreDestination)=when(d){
