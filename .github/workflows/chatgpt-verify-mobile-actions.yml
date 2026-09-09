@@ -1,0 +1,34 @@
+name: ChatGPT Mobile Actions Verification
+
+on:
+  push:
+    branches:
+      - chatgpt-verify-mobile-actions3-20260909
+
+jobs:
+  mobile-compile:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract verified FIX4 and apply Actions patch
+        shell: bash
+        run: |
+          mkdir -p /tmp/dse-mobile
+          unzip -oq .chatgpt/mobile-canonical.zip -d /tmp/dse-mobile
+          cat .chatgpt/mobile-actions-fix5.patch.part* > /tmp/mobile-actions-fix5.patch
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          patch -p4 < /tmp/mobile-actions-fix5.patch
+      - name: Verify toolchain
+        run: |
+          xcodebuild -version
+          java -version
+          echo "JAVA_HOME_25_arm64=$JAVA_HOME_25_arm64"
+      - name: Compile mobile JVM and iOS targets
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_25_arm64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          chmod +x gradlew
+          ./gradlew --stop || true
+          ./gradlew :shared:jvmTest :shared:compileKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinJvm :composeApp:compileKotlinIosArm64 :composeApp:compileKotlinIosSimulatorArm64
