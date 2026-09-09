@@ -1,0 +1,70 @@
+name: ChatGPT Mobile Phase 7 Verification
+
+on:
+  push:
+    branches:
+      - chatgpt-verify-mobile-phase7-20260909
+
+jobs:
+  mobile-compile:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rebuild verified Phase 6 baseline and apply Phase 7
+        shell: bash
+        run: |
+          rm -rf /tmp/dse-mobile
+          mkdir -p /tmp/dse-mobile
+          unzip -oq .chatgpt/mobile-canonical.zip -d /tmp/dse-mobile
+
+          cat .chatgpt/mobile-actions-fix5.patch.part* > /tmp/mobile-actions-fix5.patch
+          perl -pe 's#^(---|\+\+\+) /mnt/data/action-build-base/Jasvi-Industries-Mobile/#$1 a/#; s#^(---|\+\+\+) /mnt/data/action-build/Jasvi-Industries-Mobile/#$1 b/#' /tmp/mobile-actions-fix5.patch > /tmp/mobile-actions-relative.patch
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          patch --batch -p1 < /tmp/mobile-actions-relative.patch
+
+          cd "$GITHUB_WORKSPACE"
+          cat .chatgpt/mobile-phase6.patch.part* > /tmp/mobile-phase6.patch
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          patch --batch -p1 < /tmp/mobile-phase6.patch
+
+          cd "$GITHUB_WORKSPACE"
+          cat .chatgpt/mobile-phase7.patch.part* > /tmp/mobile-phase7.patch
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          patch --batch -p1 < /tmp/mobile-phase7.patch
+
+      - name: Verify toolchain
+        run: |
+          xcodebuild -version
+          java -version
+          echo "JAVA_HOME_25_arm64=$JAVA_HOME_25_arm64"
+
+      - name: Verify Phase 7 remains mobile-only
+        shell: bash
+        run: |
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          grep -q 'platformLoadQuickUnlockEnabled' composeApp/src/commonMain/kotlin/org/dse/mobile/app/PlatformNativeServices.kt
+          grep -q 'PullToRefreshBox' composeApp/src/commonMain/kotlin/org/dse/mobile/app/DseComponents.kt
+          grep -q 'NativeAttachmentPicker' iosApp/iosApp/iOSApp.swift
+          grep -q 'VNDocumentCameraViewController' iosApp/iosApp/iOSApp.swift
+          grep -q 'NativeLocalNotificationService' iosApp/iosApp/iOSApp.swift
+          grep -q 'platformScheduleLocalNotification' composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt
+          test ! -d server
+
+      - name: Compile Kotlin JVM and iOS targets
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_25_arm64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          chmod +x gradlew
+          ./gradlew --stop || true
+          ./gradlew :shared:jvmTest :shared:compileKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinJvm :composeApp:compileKotlinIosArm64 :composeApp:compileKotlinIosSimulatorArm64
+
+      - name: Compile native iOS app and widget in Xcode
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_25_arm64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dse-phase7-derived CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
