@@ -1,6 +1,9 @@
 package org.example.documentstudio.service;
 
 import org.example.config.WorkspaceStorageManager;
+import org.example.config.ConfigManager;
+import org.example.api.authority.CanonicalDocumentClient;
+import java.nio.file.Files;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.ExcelTemplate;
 import org.example.model.Purchase;
@@ -19,11 +22,13 @@ public final class ExcelOutputService {
     private ExcelOutputService() {}
 
     public static Path sales(Sales sale) throws IOException {
+        if (ConfigManager.isSharedClient()) return canonical(DocumentType.SALES_INVOICE, sale.getInvoiceNo(), sale.getInvoiceDate(), "Sales-" + safeFile(sale.getInvoiceNo()));
         return generate(DocumentType.SALES_INVOICE, TemplateDataFactory.fromSales(sale), salesCharges(sale),
                 sale.getInvoiceNo(), sale.getInvoiceDate(), "Sales-" + safeFile(sale.getInvoiceNo()));
     }
 
     public static Path purchase(Purchase purchase) throws IOException {
+        if (ConfigManager.isSharedClient()) return canonical(DocumentType.PURCHASE_INVOICE, purchase.getInvoiceNo(), purchase.getInvoiceDate(), "Purchase-" + safeFile(purchase.getInvoiceNo()));
         return generate(DocumentType.PURCHASE_INVOICE, TemplateDataFactory.fromPurchase(purchase), purchaseCharges(purchase),
                 purchase.getInvoiceNo(), purchase.getInvoiceDate(), "Purchase-" + safeFile(purchase.getInvoiceNo()));
     }
@@ -83,6 +88,16 @@ public final class ExcelOutputService {
         List<ExcelTemplateRenderer.ChargeData> out=new ArrayList<>();
         if(purchase!=null)for(PurchaseCharge c:purchase.getCharges())out.add(new ExcelTemplateRenderer.ChargeData(c.getChargeType(),c.getAmount(),c.isTaxable(),c.getGstPercent(),c.getTaxAmount(),c.getTotalAmount()));
         return out;
+    }
+
+    private static Path canonical(DocumentType type, String reference, LocalDate documentDate, String baseName) throws IOException {
+        try {
+            Path output = WorkspaceStorageManager.documentFile(type, reference, documentDate, baseName + ".xlsx");
+            Files.write(output, new CanonicalDocumentClient().render(type, reference, "XLSX"));
+            if (!Files.isRegularFile(output) || Files.size(output) < 100) throw new IOException("Canonical Excel output is empty.");
+            return output;
+        } catch (IOException error) { throw error; }
+        catch (Exception error) { throw new IOException("Canonical Excel output could not be downloaded: " + rootMessage(error), error); }
     }
     private static String safeFile(String v){return v==null?"Document":v.replaceAll("[^A-Za-z0-9._-]","-");}
     private static String rootMessage(Throwable error){Throwable root=error;while(root.getCause()!=null&&root.getCause()!=root)root=root.getCause();return root.getMessage()==null?root.getClass().getSimpleName():root.getMessage();}

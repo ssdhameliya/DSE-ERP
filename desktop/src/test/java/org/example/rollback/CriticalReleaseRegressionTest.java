@@ -1,11 +1,24 @@
 package org.example.rollback;
 
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.example.api.runtime.ManagedPostgresRuntime;
+import org.example.config.ConfigManager;
+import org.example.config.WorkspaceTestSupport;
+import org.example.documentstudio.model.TemplateData;
+import org.example.documentstudio.service.ExcelTemplateRenderer;
+import org.example.invoice.model.TaxInvoiceItem;
 import org.example.update.BuildInfo;
 import org.example.util.UiSemanticRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -351,6 +364,133 @@ class CriticalReleaseRegressionTest {
             start += needle.length();
         }
         return count;
+    }
+
+    @Test void sharedClientUpdateNeverRequiresOrTouchesLocalManagedPostgresIdentityFor995() throws Exception {
+        if (System.getenv("DSE_DEPLOYMENT_MODE") != null) return;
+        Files.createDirectories(Path.of("target"));
+        Path root = Files.createTempDirectory(Path.of("target"), "shared-client-update-").toAbsolutePath();
+        try (AutoCloseable ignored = WorkspaceTestSupport.useTransientWorkspace(root)) {
+            ConfigManager.setWithoutSaving("deployment.mode", "SHARED_CLIENT");
+            ConfigManager.setWithoutSaving("runtime.postgres.mode", "managed");
+            ConfigManager.setWithoutSaving("db.url", null);
+            assertTrue(ConfigManager.isSharedClient());
+
+            // Exact failed-updater condition: a Shared Client intentionally has no local database identity/data.
+            assertDoesNotThrow(ManagedPostgresRuntime::shutdownForUpdate);
+
+            // A migrated workstation may retain stale LOCAL artifacts. They remain evidence only and must be ignored.
+            Path state = root.resolve("Config/runtime-postgres.properties");
+            Path pgVersion = root.resolve("Database/PostgreSQL/data/PG_VERSION");
+            Files.createDirectories(state.getParent());
+            Files.createDirectories(pgVersion.getParent());
+            Files.writeString(state, "this-is-stale-local-evidence", java.nio.charset.StandardCharsets.UTF_8);
+            Files.writeString(pgVersion, "18", java.nio.charset.StandardCharsets.UTF_8);
+            assertDoesNotThrow(ManagedPostgresRuntime::shutdownForUpdate);
+        } finally {
+            ConfigManager.setWithoutSaving("deployment.mode", null);
+            ConfigManager.setWithoutSaving("runtime.postgres.mode", null);
+            ConfigManager.setWithoutSaving("db.url", null);
+        }
+    }
+
+    @Test void localManagedUpdateStillBlocksWhenDatabaseIdentityIsMissingFor995() throws Exception {
+        if (System.getenv("DSE_DEPLOYMENT_MODE") != null || System.getenv("DSE_POSTGRES_MODE") != null) return;
+        Files.createDirectories(Path.of("target"));
+        Path root = Files.createTempDirectory(Path.of("target"), "local-update-safety-").toAbsolutePath();
+        Path fakePostgres = root.resolve("fake-postgres");
+        Files.createDirectories(fakePostgres.resolve("bin"));
+        for (String command : new String[]{"initdb", "pg_ctl", "psql"}) {
+            Files.writeString(fakePostgres.resolve("bin").resolve(command), "", java.nio.charset.StandardCharsets.UTF_8);
+        }
+        String previousHome = System.getProperty("dse.erp.postgres.home");
+        try (AutoCloseable ignored = WorkspaceTestSupport.useTransientWorkspace(root)) {
+            System.setProperty("dse.erp.postgres.home", fakePostgres.toString());
+            ConfigManager.setWithoutSaving("deployment.mode", "LOCAL");
+            ConfigManager.setWithoutSaving("runtime.postgres.mode", "managed");
+            ConfigManager.setWithoutSaving("db.url", null);
+            IllegalStateException failure = assertThrows(IllegalStateException.class, ManagedPostgresRuntime::shutdownForUpdate);
+            assertTrue(failure.getMessage().contains("Managed PostgreSQL identity/data could not be verified before update"));
+        } finally {
+            if (previousHome == null) System.clearProperty("dse.erp.postgres.home");
+            else System.setProperty("dse.erp.postgres.home", previousHome);
+            ConfigManager.setWithoutSaving("deployment.mode", null);
+            ConfigManager.setWithoutSaving("runtime.postgres.mode", null);
+            ConfigManager.setWithoutSaving("db.url", null);
+        }
+    }
+
+    @Test void explicitExternalPostgresUpdateNeverEntersManagedShutdownFor995() throws Exception {
+        if (System.getenv("DSE_DEPLOYMENT_MODE") != null || System.getenv("DSE_POSTGRES_MODE") != null) return;
+        Files.createDirectories(Path.of("target"));
+        Path root = Files.createTempDirectory(Path.of("target"), "external-update-").toAbsolutePath();
+        try (AutoCloseable ignored = WorkspaceTestSupport.useTransientWorkspace(root)) {
+            ConfigManager.setWithoutSaving("deployment.mode", "LOCAL");
+            ConfigManager.setWithoutSaving("runtime.postgres.mode", "external");
+            ConfigManager.setWithoutSaving("db.url", "jdbc:postgresql://db.example.invalid:5432/dse_erp");
+            assertDoesNotThrow(ManagedPostgresRuntime::shutdownForUpdate);
+        } finally {
+            ConfigManager.setWithoutSaving("deployment.mode", null);
+            ConfigManager.setWithoutSaving("runtime.postgres.mode", null);
+            ConfigManager.setWithoutSaving("db.url", null);
+        }
+    }
+
+    @Test void excelStudioMultiRowItemBlockIsValidAndRepeatsAsOneUnitFor995() throws Exception {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Invoice");
+            Row description = sheet.createRow(0);
+            description.createCell(0).setCellValue("{{item.descriptionWithRemarks}}");
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 2));
+
+            Row values = sheet.createRow(1);
+            values.createCell(0).setCellValue("{{item.quantity}}");
+            values.createCell(1).setCellValue("{{item.rate}}");
+            values.createCell(2).setCellFormula("A2*B2");
+            sheet.createRow(3).createCell(0).setCellValue("Grand Total");
+
+            assertTrue(ExcelTemplateRenderer.hasCompleteItemRepeatingBlock(workbook),
+                    "Excel Studio must accept a contiguous multi-row item block");
+
+            List<TaxInvoiceItem> items = List.of(
+                    new TaxInvoiceItem(1, "1111", "First product", "First remark", 2, "NOS", 10, 0, 18),
+                    new TaxInvoiceItem(2, "2222", "Second product", "Second remark", 3, "NOS", 20, 0, 18));
+            ExcelTemplateRenderer.fillWorkbook(workbook, new TemplateData(Map.of(), Map.of(), items, List.of(), "GST"), List.of());
+
+            assertEquals("First product\nFirst remark", sheet.getRow(0).getCell(0).getStringCellValue());
+            assertEquals(2d, sheet.getRow(1).getCell(0).getNumericCellValue());
+            assertEquals("Second product\nSecond remark", sheet.getRow(2).getCell(0).getStringCellValue());
+            assertEquals(3d, sheet.getRow(3).getCell(0).getNumericCellValue());
+            assertEquals("A4*B4", sheet.getRow(3).getCell(2).getCellFormula());
+            assertEquals("Grand Total", sheet.getRow(5).getCell(0).getStringCellValue());
+
+            boolean repeatedMerge = false;
+            for (int i = 0; i < sheet.getNumMergedRegions(); i++) {
+                CellRangeAddress region = sheet.getMergedRegion(i);
+                if (region.getFirstRow() == 2 && region.getLastRow() == 2
+                        && region.getFirstColumn() == 0 && region.getLastColumn() == 2) repeatedMerge = true;
+            }
+            assertTrue(repeatedMerge, "Merged formatting must be copied with the repeated item block");
+        }
+
+        // Backward compatibility: the existing one-row item template remains valid and repeats exactly as before.
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("Invoice");
+            Row item = sheet.createRow(0);
+            item.createCell(0).setCellValue("{{item.description}}");
+            item.createCell(1).setCellValue("{{item.quantity}}");
+            item.createCell(2).setCellValue("{{item.rate}}");
+            item.createCell(3).setCellValue("{{item.total}}");
+            assertTrue(ExcelTemplateRenderer.hasCompleteItemRepeatingBlock(workbook));
+
+            List<TaxInvoiceItem> items = List.of(
+                    new TaxInvoiceItem(1, "1111", "First", "", 2, "NOS", 10, 0, 18),
+                    new TaxInvoiceItem(2, "2222", "Second", "", 3, "NOS", 20, 0, 18));
+            ExcelTemplateRenderer.fillWorkbook(workbook, new TemplateData(Map.of(), Map.of(), items, List.of(), "GST"), List.of());
+            assertEquals("First", sheet.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("Second", sheet.getRow(1).getCell(0).getStringCellValue());
+            assertEquals(3d, sheet.getRow(1).getCell(1).getNumericCellValue());
+        }
     }
 
 }

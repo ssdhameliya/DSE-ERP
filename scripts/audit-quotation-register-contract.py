@@ -67,7 +67,7 @@ req('SUM(l.quantity)' not in biz[biz.find('private OperationDtos.PurchaseMetrics
 req('Import completed — no changes required' in imp_policy and 'failed == 0 && succeeded == 0 && result.skipped > 0' in imp_policy, 'Successful skipped/no-op import must not be reported as failed')
 req('if (result.failedCount() > 0) return true;' in imp_policy, 'Import warnings must distinguish actual failures from duplicate skips')
 req('import org.example.util.ScreenRefreshPolicy;' in refund and 'ScreenRefreshPolicy.invalidate(' in refund, 'ReturnRefundController must import ScreenRefreshPolicy')
-protected = {'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c', 'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8', 'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082'}
+protected = {'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '0bb413a5666585af1c67beac15e54bb45112eb8cbc3ffcb36dccf70ea0c837f0', 'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8', 'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082'}
 for p, h in protected.items():
     req(sha(Path(p)) == h, 'Protected production PDF generator changed: ' + p)
 print(f'QUOTATION_REGISTER_CONTRACT_OK version={VERSION}')

@@ -70,8 +70,6 @@ public class ExcelDesignerController {
     private static final int HISTORY_LIMIT = 60;
     private static final Pattern ERP_TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
     private boolean dirty;
-    private static final Pattern FORMULA_CELL_REF = Pattern.compile("(?i)(?:'[^']+'!|[A-Za-z_][A-Za-z0-9_.]*!)?\\$?([A-Z]{1,3})\\$?([0-9]+)(?![A-Za-z0-9_])");
-    private static final Pattern FORMULA_STRING_LITERAL = Pattern.compile("\"(?:[^\"]|\"\")*\"");
     private static final Pattern GRAND_TOTAL_LABEL = Pattern.compile("(?i).*\\b(grand\\s*total|net\\s*total|invoice\\s*total|total\\s*amount|amount\\s*payable)\\b.*");
     private static final List<String> FONT_NAMES = List.of("Aptos", "Calibri", "Arial", "Segoe UI", "Times New Roman", "Courier New");
     private static final List<Integer> FONT_SIZES = List.of(8,9,10,11,12,14,16,18,20,22,24,28,32,36,48,60,72);
@@ -1395,8 +1393,8 @@ public class ExcelDesignerController {
                 .map(key->requiredMappingLabel(type,key)).toList());
         if(requiresGrandTotalMapping(type)&&!hasUsableGrandTotalMapping())
             missing.add("Grand Total using totals.grandTotal, totals.roundedGrandTotal, or a valid Excel formula on a Grand/Net Total row");
-        if(TemplateFieldCatalog.requiresItemRowForDefault(type)&&!hasCompleteItemRepeatingRow())
-            missing.add("one repeating item row with Description, Item Remarks, or Description + Remarks + Quantity + Rate + Line Amount (use Insert Full Item Row)");
+        if(TemplateFieldCatalog.requiresItemRowForDefault(type)&&!ExcelTemplateRenderer.hasCompleteItemRepeatingBlock(workbook))
+            missing.add("one repeating item block with Description, Item Remarks, or Description + Remarks + Quantity + Rate + Line Amount across contiguous mapped row(s) (or use Insert Full Item Row)");
         if(!missing.isEmpty())throw new IOException(type.label()+" Excel mapping is incomplete. Add these mappings before making it default: "+String.join("; ",missing)+". Select a cell, choose the field in the ERP Field Palette, and click Insert Selected Field.");
 
         if(TemplateFieldCatalog.requiresItemRowForDefault(type)&&data.items().isEmpty())
@@ -1456,27 +1454,6 @@ public class ExcelDesignerController {
         return values;
     }
 
-    private boolean hasCompleteItemRepeatingRow(){
-        for(int si=0;si<workbook.getNumberOfSheets();si++){
-            for(Row row:workbook.getSheetAt(si)){
-                Set<String> rowKeys=new HashSet<>();
-                Map<String,Integer> tokenColumns=new HashMap<>();
-                for(Cell cell:row){
-                    if(cell.getCellType()!=CellType.STRING)continue;
-                    Matcher matcher=ERP_TOKEN.matcher(cell.getStringCellValue());
-                    while(matcher.find())if(matcher.group(1).startsWith("item.")){rowKeys.add(matcher.group(1));tokenColumns.putIfAbsent(matcher.group(1),cell.getColumnIndex());}
-                }
-                boolean hasDescription=rowKeys.contains("item.description")
-                        ||rowKeys.contains("item.remarks")
-                        ||rowKeys.contains("item.descriptionWithRemarks");
-                boolean hasCore=hasDescription&&rowKeys.contains("item.quantity")&&rowKeys.contains("item.rate");
-                boolean hasLineAmount=rowKeys.contains("item.taxable")||rowKeys.contains("item.total")||hasValidSameRowLineFormula(row,tokenColumns);
-                if(hasCore&&hasLineAmount)return true;
-            }
-        }
-        return false;
-    }
-
     private boolean requiresGrandTotalMapping(DocumentType type){
         if(type==null)return false;
         return TemplateFieldCatalog.excelFieldsFor(type).stream().anyMatch(field->field.key().equals("totals.grandTotal")||field.key().equals("totals.roundedGrandTotal"));
@@ -1504,28 +1481,6 @@ public class ExcelDesignerController {
         return normalized.contains("GRANDTOTAL")||normalized.contains("NETTOTAL")||normalized.contains("INVOICETOTAL")||normalized.contains("TOTALAMOUNT")||normalized.contains("AMOUNTPAYABLE");
     }
 
-    /** Accept an Excel-computed row total when the formula is genuinely tied to cells on the repeating item row. */
-    private boolean hasValidSameRowLineFormula(Row row,Map<String,Integer> tokenColumns){
-        if(row==null||tokenColumns==null||tokenColumns.isEmpty())return false;
-        int excelRow=row.getRowNum()+1;
-        Set<Integer> mappedColumns=new HashSet<>(tokenColumns.values());
-        for(Cell cell:row){
-            if(cell.getCellType()!=CellType.FORMULA)continue;
-            String formulaCode=FORMULA_STRING_LITERAL.matcher(cell.getCellFormula()).replaceAll("");
-            Matcher refs=FORMULA_CELL_REF.matcher(formulaCode);
-            int sameRowRefs=0;boolean touchesMappedItem=false;
-            while(refs.find()){
-                int refRow;try{refRow=Integer.parseInt(refs.group(2));}catch(Exception ignored){continue;}
-                if(refRow!=excelRow)continue;
-                sameRowRefs++;
-                int refCol;try{refCol=CellReference.convertColStringToIndex(refs.group(1));}catch(Exception ignored){continue;}
-                if(mappedColumns.contains(refCol))touchesMappedItem=true;
-            }
-            if(sameRowRefs>=2&&touchesMappedItem)return true;
-        }
-        return false;
-    }
-
     private void refreshMappingUi(){
         if(workbook==null||template==null)return;
         mappedFieldAddresses.clear();unknownWorkbookTokens.clear();
@@ -1546,7 +1501,10 @@ public class ExcelDesignerController {
         int mapped=(int)supported.stream().filter(k->!mappedFieldAddresses.getOrDefault(k,List.of()).isEmpty()).count();
         if(lblMappingSummary!=null){
             String preview=selectedPreviewData==null?"":" • Preview: "+selectedPreviewData.items().size()+" item(s), "+selectedPreviewData.charges().size()+" charge(s)";
-            lblMappingSummary.setText(mapped+" / "+supported.size()+" ERP fields mapped"+(unknownWorkbookTokens.isEmpty()?"":" • "+unknownWorkbookTokens.size()+" unknown")+preview);
+            String itemBlock=TemplateFieldCatalog.requiresItemRowForDefault(template.getDocumentType())
+                    ?" • Item block: "+(ExcelTemplateRenderer.hasCompleteItemRepeatingBlock(workbook)?"OK":"incomplete")
+                    :"";
+            lblMappingSummary.setText(mapped+" / "+supported.size()+" ERP fields mapped"+(unknownWorkbookTokens.isEmpty()?"":" • "+unknownWorkbookTokens.size()+" unknown")+itemBlock+preview);
         }
         if(fieldList!=null)fieldList.refresh();
     }

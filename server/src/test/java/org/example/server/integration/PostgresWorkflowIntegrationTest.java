@@ -5,6 +5,7 @@ import org.example.server.returns.ReturnService;
 import org.example.server.reconciliation.BankReconciliationDtos;
 import org.example.server.reconciliation.BankReconciliationService;
 import org.example.server.security.AuthenticatedUser;
+import org.example.server.documents.CanonicalDocumentService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ class PostgresWorkflowIntegrationTest {
     private static final String PARTY = "IT-CUST-9034";
     private static final String BANK_SOURCE = "IT-BANK-SOURCE-9034";
     private static final String BANK_TX = "IT-BANK-TX-9034";
+    private static final String PURCHASE = "IT-PURCHASE-9034";
+    private static final String SUPPLIER = "IT-SUPP-9034";
 
     @DynamicPropertySource
     static void postgres(DynamicPropertyRegistry registry) {
@@ -49,6 +52,7 @@ class PostgresWorkflowIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired ReturnService returns;
     @Autowired BankReconciliationService bankReconciliation;
+    @Autowired CanonicalDocumentService canonicalDocuments;
 
     @BeforeEach
     void setUp() {
@@ -110,6 +114,55 @@ class PostgresWorkflowIntegrationTest {
                 "A financially settled Return must not be cancellable");
     }
 
+
+    @Test
+    void canonicalServerRendersSalesAndPurchasePdfAndExcelFromRealPostgresRecords() throws Exception {
+        Integer customerId = jdbc.queryForObject(
+                "INSERT INTO party_master(party_type,party_code,name,address,gstin,is_active) VALUES('CUSTOMER',?,?,?,?,1) RETURNING id",
+                Integer.class, PARTY, "Canonical Customer", "Customer Address", "24AAAAA0000A1Z5");
+        Integer supplierId = jdbc.queryForObject(
+                "INSERT INTO party_master(party_type,party_code,name,address,gstin,is_active) VALUES('SUPPLIER',?,?,?,?,1) RETURNING id",
+                Integer.class, SUPPLIER, "Canonical Supplier", "Supplier Address", "24BBBBB0000B1Z5");
+        assertNotNull(customerId);
+        assertNotNull(supplierId);
+
+        jdbc.update("INSERT INTO item_master(item_code,description,unit,hsn,gst,purchase_price,selling_price,opening_stock,minimum_stock,is_active) VALUES(?,?,?,?,?,?,?,?,?,1)",
+                ITEM, "Canonical Item", "Nos", "8471", 18d, 50d, 100d, 10d, 1d);
+
+        Integer saleId = jdbc.queryForObject(
+                "INSERT INTO sales_header(invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,paid_amount,payment_status,document_status,approval_status,inventory_posted,created_at,email_sent,whatsapp_sent,row_version,gst_type,billing_address,billing_gstin) " +
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+                Integer.class, INVOICE, LocalDate.now().toString(), customerId, 100d, 18d, 118d, 0d,
+                "UNPAID", "APPROVED", "APPROVED", true, java.time.Instant.now().toString(), 0, 0, 0, "GST",
+                "Customer Address", "24AAAAA0000A1Z5");
+        assertNotNull(saleId);
+        jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,hsn_snapshot,unit_snapshot,item_remarks_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                saleId, ITEM, 1d, 100d, 18d, 0d, 0d, 118d, 50d, "Canonical Item", "8471", "Nos", "Sales remark");
+
+        Integer purchaseId = jdbc.queryForObject(
+                "INSERT INTO purchase_header(invoice_no,invoice_date,supplier_id,subtotal,gst_amount,total_amount,paid_amount,payment_status,document_status,approval_status,inventory_posted,created_at,email_sent,row_version,gst_type,billing_address,billing_gstin) " +
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+                Integer.class, PURCHASE, LocalDate.now().toString(), supplierId, 100d, 18d, 118d, 0d,
+                "UNPAID", "APPROVED", "APPROVED", true, java.time.Instant.now().toString(), 0, 0, "GST",
+                "Supplier Address", "24BBBBB0000B1Z5");
+        assertNotNull(purchaseId);
+        jdbc.update("INSERT INTO purchase_line(purchase_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,hsn_snapshot,unit_snapshot,item_remarks_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                purchaseId, ITEM, 1d, 100d, 18d, 0d, 0d, 118d, 50d, "Canonical Item", "8471", "Nos", "Purchase remark");
+
+        for (String type : List.of("SALES_INVOICE", "PURCHASE_INVOICE")) {
+            String number = "SALES_INVOICE".equals(type) ? INVOICE : PURCHASE;
+            CanonicalDocumentService.Rendered pdf = canonicalDocuments.render(type, number, "PDF");
+            assertEquals("application/pdf", pdf.contentType());
+            assertTrue(pdf.bytes().length > 500);
+            assertArrayEquals(new byte[]{'%', 'P', 'D', 'F'}, java.util.Arrays.copyOf(pdf.bytes(), 4));
+
+            CanonicalDocumentService.Rendered xlsx = canonicalDocuments.render(type, number, "XLSX");
+            assertEquals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsx.contentType());
+            assertTrue(xlsx.bytes().length > 500);
+            assertArrayEquals(new byte[]{'P', 'K'}, java.util.Arrays.copyOf(xlsx.bytes(), 2));
+        }
+    }
+
     @Test
     void freshBankStatementImportCommitsOnceAndSameSourceIsIdempotent() {
         BankReconciliationDtos.ImportRequest request = new BankReconciliationDtos.ImportRequest(
@@ -160,10 +213,12 @@ class PostgresWorkflowIntegrationTest {
         jdbc.update("DELETE FROM return_register WHERE invoice_no=?", INVOICE);
         jdbc.update("DELETE FROM inventory_cost_ledger WHERE item_code=?", ITEM);
         jdbc.update("DELETE FROM inventory_cost_state WHERE item_code=?", ITEM);
+        jdbc.update("DELETE FROM purchase_line WHERE purchase_id IN (SELECT id FROM purchase_header WHERE invoice_no=?)", PURCHASE);
+        jdbc.update("DELETE FROM purchase_header WHERE invoice_no=?", PURCHASE);
         jdbc.update("DELETE FROM sales_line WHERE sales_id IN (SELECT id FROM sales_header WHERE invoice_no=?)", INVOICE);
         jdbc.update("DELETE FROM sales_header WHERE invoice_no=?", INVOICE);
         jdbc.update("DELETE FROM item_master WHERE item_code=?", ITEM);
-        jdbc.update("DELETE FROM party_master WHERE party_code=?", PARTY);
+        jdbc.update("DELETE FROM party_master WHERE party_code IN (?,?)", PARTY, SUPPLIER);
     }
 
     private static String required(String key) {

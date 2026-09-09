@@ -732,7 +732,16 @@ public final class ManagedPostgresRuntime {
      * accepting PostgreSQL connections.
      */
     public static synchronized void shutdownForUpdate() {
-        if (!WorkspaceManager.isConfigured() || !ConfigManager.isPostgreSql() || !shouldManage()) return;
+        if (!WorkspaceManager.isConfigured()) return;
+
+        /*
+         * A Shared Client never owns the company PostgreSQL runtime. Its update boundary
+         * is the verified Spring server connection, so stale LOCAL workspace markers or
+         * an old bundled PostgreSQL runtime must never block a client installer. Genuine
+         * LOCAL managed workspaces continue through the identity/data safety checks below.
+         */
+        if (ConfigManager.isSharedClient()) return;
+        if (!ConfigManager.isPostgreSql() || !shouldManage()) return;
 
         Path home = activeHome != null ? activeHome : locatePostgresHome();
         Path data = activeData != null ? activeData

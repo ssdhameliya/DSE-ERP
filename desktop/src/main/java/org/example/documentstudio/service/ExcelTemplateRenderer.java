@@ -2,6 +2,7 @@ package org.example.documentstudio.service;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.CellReference;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.ExcelTemplate;
 import org.example.documentstudio.model.TemplateData;
@@ -23,6 +24,7 @@ public final class ExcelTemplateRenderer {
     private static final Pattern TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
     private static final Pattern WHOLE_TOKEN = Pattern.compile("^\\s*\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}\\s*$");
     private static final Pattern A1_REFERENCE = Pattern.compile("(?<![A-Za-z0-9_])(?:(?:'[^']+'|[A-Za-z_][A-Za-z0-9_.]*)!)?(\\$?)([A-Za-z]{1,3})(\\$?)([0-9]+)(?![A-Za-z0-9_])");
+    private static final Pattern FORMULA_STRING_LITERAL = Pattern.compile("\"(?:[^\"]|\"\")*\"");
 
     public record ChargeData(String type,double amount,boolean taxable,double gstPercent,double taxAmount,double total) {}
 
@@ -226,40 +228,91 @@ public final class ExcelTemplateRenderer {
         return -1;
     }
 
-    private record RepeatSection(int row, boolean item) { }
+    private record RepeatBlock(int startRow, int endRow, boolean item) {
+        int height() { return endRow - startRow + 1; }
+    }
+
+    /**
+     * Excel Studio allows a repeating item template to span more than one contiguous row. This
+     * validator is intentionally shared by the designer and renderer so "mapped" and
+     * "renderable" can no longer disagree simply because Description is on one row while
+     * Quantity/Rate/Amount are on the next row.
+     */
+    public static boolean hasCompleteItemRepeatingBlock(Workbook workbook) {
+        if (workbook == null) return false;
+        for (int si = 0; si < workbook.getNumberOfSheets(); si++) {
+            Sheet sheet = workbook.getSheetAt(si);
+            for (RepeatBlock block : findRepeatingBlocks(sheet, "{{item.", true)) {
+                Set<String> keys = new LinkedHashSet<>();
+                Set<Long> mappedCells = new LinkedHashSet<>();
+                for (int r = block.startRow(); r <= block.endRow(); r++) {
+                    Row row = sheet.getRow(r);
+                    if (row == null) continue;
+                    for (Cell cell : row) {
+                        if (cell.getCellType() != CellType.STRING) continue;
+                        Matcher matcher = TOKEN.matcher(cell.getStringCellValue());
+                        while (matcher.find()) {
+                            String key = matcher.group(1);
+                            if (!key.startsWith("item.")) continue;
+                            keys.add(key);
+                            mappedCells.add(cellKey(r, cell.getColumnIndex()));
+                        }
+                    }
+                }
+                boolean hasDescription = keys.contains("item.description")
+                        || keys.contains("item.remarks")
+                        || keys.contains("item.descriptionWithRemarks");
+                boolean hasCore = hasDescription && keys.contains("item.quantity") && keys.contains("item.rate");
+                boolean hasLineAmount = keys.contains("item.taxable") || keys.contains("item.total")
+                        || hasValidBlockLineFormula(sheet, block, mappedCells);
+                if (hasCore && hasLineAmount) return true;
+            }
+        }
+        return false;
+    }
 
     private static void expandRepeatingRows(Sheet sheet, List<TaxInvoiceItem> items, List<ChargeData> charges, String gstType) {
-        List<RepeatSection> sections = new ArrayList<>();
-        for (int row : findRows(sheet, "{{item.")) sections.add(new RepeatSection(row, true));
-        for (int row : findRows(sheet, "{{charge.")) sections.add(new RepeatSection(row, false));
-        sections.sort(Comparator.comparingInt(RepeatSection::row).reversed());
-        for (RepeatSection section : sections) {
-            if (section.item()) {
-                clearStaleRepeatingValues(sheet, section.row(), "{{item.");
-                expandItems(sheet, section.row(), items == null ? List.of() : items, gstType);
+        List<RepeatBlock> blocks = new ArrayList<>();
+        blocks.addAll(findRepeatingBlocks(sheet, "{{item.", true));
+        blocks.addAll(findRepeatingBlocks(sheet, "{{charge.", false));
+        blocks.sort(Comparator.comparingInt(RepeatBlock::startRow).reversed());
+        for (RepeatBlock block : blocks) {
+            if (block.item()) {
+                clearStaleRepeatingValues(sheet, block, "{{item.");
+                expandItems(sheet, block, items == null ? List.of() : items, gstType);
             } else {
-                clearStaleRepeatingValues(sheet, section.row(), "{{charge.");
-                expandCharges(sheet, section.row(), charges == null ? List.of() : charges, gstType);
+                clearStaleRepeatingValues(sheet, block, "{{charge.");
+                expandCharges(sheet, block, charges == null ? List.of() : charges, gstType);
             }
         }
     }
 
-    /** Clears literal sample values only in columns owned by a repeating ERP row. */
-    private static void clearStaleRepeatingValues(Sheet sheet, int templateRowIndex, String marker) {
-        Row template = sheet.getRow(templateRowIndex);
-        if (template == null) return;
-        Set<Integer> mappedColumns = new LinkedHashSet<>();
-        for (Cell cell : template) if (cell.getCellType() == CellType.STRING && cell.getStringCellValue().contains(marker)) mappedColumns.add(cell.getColumnIndex());
-        if (mappedColumns.isEmpty()) return;
-        for (int r = templateRowIndex + 1; r <= sheet.getLastRowNum(); r++) {
+    /** Clears literal sample values only in columns owned by the repeating ERP block. */
+    private static void clearStaleRepeatingValues(Sheet sheet, RepeatBlock block, String marker) {
+        int firstCandidate = block.endRow() + 1;
+        for (int r = firstCandidate; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null || rowIsBlank(row) || rowContainsToken(row) || looksLikeSummaryRow(row)) break;
+            int offset = (r - firstCandidate) % block.height();
+            Row template = sheet.getRow(block.startRow() + offset);
+            if (template == null) break;
+            Set<Integer> mappedColumns = mappedColumns(template, marker);
+            if (mappedColumns.isEmpty()) break;
             if (!looksLikeRepeatingDataRow(template, row, mappedColumns)) break;
             for (int c : mappedColumns) {
                 Cell cell = row.getCell(c);
                 if (cell != null) cell.setBlank();
             }
         }
+    }
+
+    private static Set<Integer> mappedColumns(Row row, String marker) {
+        Set<Integer> mappedColumns = new LinkedHashSet<>();
+        if (row == null) return mappedColumns;
+        for (Cell cell : row)
+            if (cell.getCellType() == CellType.STRING && cell.getStringCellValue().contains(marker))
+                mappedColumns.add(cell.getColumnIndex());
+        return mappedColumns;
     }
 
     private static boolean looksLikeRepeatingDataRow(Row template, Row candidate, Set<Integer> mappedColumns) {
@@ -302,42 +355,83 @@ public final class ExcelTemplateRenderer {
         return true;
     }
 
-    private static List<Integer> findRows(Sheet sheet, String marker) {
-        List<Integer> rows = new ArrayList<>();
+    private static List<RepeatBlock> findRepeatingBlocks(Sheet sheet, String marker, boolean item) {
+        List<RepeatBlock> blocks = new ArrayList<>();
+        int start = -1, previous = -2;
         for (int r=sheet.getFirstRowNum();r<=sheet.getLastRowNum();r++) {
             Row row=sheet.getRow(r); if(row==null)continue;
-            for(Cell cell:row) if(cell.getCellType()==CellType.STRING && cell.getStringCellValue().contains(marker)) { rows.add(r); break; }
+            boolean contains = false;
+            for(Cell cell:row) if(cell.getCellType()==CellType.STRING && cell.getStringCellValue().contains(marker)) { contains = true; break; }
+            if (!contains) continue;
+            if (start < 0 || r != previous + 1) {
+                if (start >= 0) blocks.add(new RepeatBlock(start, previous, item));
+                start = r;
+            }
+            previous = r;
         }
-        return rows;
+        if (start >= 0) blocks.add(new RepeatBlock(start, previous, item));
+        return blocks;
     }
 
-    private static void expandItems(Sheet sheet, int templateRowIndex, List<TaxInvoiceItem> items, String gstType) {
-        Row template = sheet.getRow(templateRowIndex); if(template==null)return;
+    private static void expandItems(Sheet sheet, RepeatBlock block, List<TaxInvoiceItem> items, String gstType) {
         int count = Math.max(1, items.size());
-        if (count > 1 && sheet.getLastRowNum() >= templateRowIndex+1)
-            sheet.shiftRows(templateRowIndex+1, sheet.getLastRowNum(), count-1, true, false);
-        // Clone every destination while the source still contains ERP tokens. Filling the first
-        // row before cloning would copy the first item's resolved values into every later row.
-        for (int i=1;i<count;i++) copyRow(sheet, template, templateRowIndex+i);
+        List<CellRangeAddress> blockMerges = mergedRegionsInside(sheet, block);
+        int extraRows = block.height() * (count - 1);
+        if (extraRows > 0 && sheet.getLastRowNum() >= block.endRow()+1)
+            sheet.shiftRows(block.endRow()+1, sheet.getLastRowNum(), extraRows, true, false);
+        // Clone every destination while all source rows still contain ERP tokens. Filling the first
+        // block before cloning would copy the first item's resolved values into every later block.
+        for (int i=1;i<count;i++) copyBlock(sheet, block, i, blockMerges);
         for (int i=0;i<count;i++) {
-            Row row = sheet.getRow(templateRowIndex+i);
             TaxInvoiceItem item = items.isEmpty() ? null : items.get(i);
             Map<String,String> values = itemValues(item, i+1, gstType);
-            fillRow(row, values);
+            int destinationStart = block.startRow() + i * block.height();
+            for (int offset = 0; offset < block.height(); offset++)
+                fillRow(sheet.getRow(destinationStart + offset), values);
         }
     }
 
-    private static void expandCharges(Sheet sheet, int templateRowIndex, List<ChargeData> charges, String gstType) {
-        Row template = sheet.getRow(templateRowIndex); if(template==null)return;
-        if (charges.isEmpty()) { clearRepeatingRow(template, "{{charge."); return; }
-        int count=charges.size();
-        if(count>1&&sheet.getLastRowNum()>=templateRowIndex+1)
-            sheet.shiftRows(templateRowIndex+1,sheet.getLastRowNum(),count-1,true,false);
-        for(int i=1;i<count;i++)copyRow(sheet,template,templateRowIndex+i);
-        for(int i=0;i<count;i++){
-            Row row=sheet.getRow(templateRowIndex+i);
-            fillRow(row, chargeValues(charges.get(i), i+1, gstType));
+    private static void expandCharges(Sheet sheet, RepeatBlock block, List<ChargeData> charges, String gstType) {
+        if (charges.isEmpty()) {
+            for (int r = block.startRow(); r <= block.endRow(); r++) clearRepeatingRow(sheet.getRow(r), "{{charge.");
+            return;
         }
+        int count=charges.size();
+        List<CellRangeAddress> blockMerges = mergedRegionsInside(sheet, block);
+        int extraRows = block.height() * (count - 1);
+        if(extraRows>0&&sheet.getLastRowNum()>=block.endRow()+1)
+            sheet.shiftRows(block.endRow()+1,sheet.getLastRowNum(),extraRows,true,false);
+        for(int i=1;i<count;i++)copyBlock(sheet,block,i,blockMerges);
+        for(int i=0;i<count;i++){
+            int destinationStart = block.startRow() + i * block.height();
+            Map<String,String> values = chargeValues(charges.get(i), i+1, gstType);
+            for (int offset = 0; offset < block.height(); offset++)
+                fillRow(sheet.getRow(destinationStart + offset), values);
+        }
+    }
+
+    private static void copyBlock(Sheet sheet, RepeatBlock block, int copyIndex, List<CellRangeAddress> blockMerges) {
+        int delta = copyIndex * block.height();
+        for (int offset = 0; offset < block.height(); offset++) {
+            Row source = sheet.getRow(block.startRow() + offset);
+            if (source != null) copyRow(sheet, source, source.getRowNum() + delta);
+        }
+        for (CellRangeAddress source : blockMerges) {
+            CellRangeAddress copy = new CellRangeAddress(
+                    source.getFirstRow() + delta, source.getLastRow() + delta,
+                    source.getFirstColumn(), source.getLastColumn());
+            sheet.addMergedRegion(copy);
+        }
+    }
+
+    private static List<CellRangeAddress> mergedRegionsInside(Sheet sheet, RepeatBlock block) {
+        List<CellRangeAddress> regions = new ArrayList<>();
+        for (int i = 0; i < sheet.getNumMergedRegions(); i++) {
+            CellRangeAddress region = sheet.getMergedRegion(i);
+            if (region.getFirstRow() >= block.startRow() && region.getLastRow() <= block.endRow())
+                regions.add(new CellRangeAddress(region.getFirstRow(), region.getLastRow(), region.getFirstColumn(), region.getLastColumn()));
+        }
+        return regions;
     }
 
     private static Row copyRow(Sheet sheet, Row source, int targetIndex) {
@@ -359,6 +453,7 @@ public final class ExcelTemplateRenderer {
     }
 
     private static void fillRow(Row row, Map<String,String> values) {
+        if (row == null) return;
         for(Cell cell:row){
             if(cell.getCellType()!=CellType.STRING)continue;
             String text=cell.getStringCellValue(); if(text==null)continue;
@@ -374,7 +469,40 @@ public final class ExcelTemplateRenderer {
     }
 
     private static void clearRepeatingRow(Row row, String marker) {
+        if (row == null) return;
         for(Cell cell:row)if(cell.getCellType()==CellType.STRING&&cell.getStringCellValue().contains(marker))cell.setBlank();
+    }
+
+    private static boolean hasValidBlockLineFormula(Sheet sheet, RepeatBlock block, Set<Long> mappedCells) {
+        if (sheet == null || mappedCells == null || mappedCells.isEmpty()) return false;
+        for (int r = block.startRow(); r <= block.endRow(); r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) continue;
+            for (Cell cell : row) {
+                if (cell.getCellType() != CellType.FORMULA) continue;
+                String formulaCode = FORMULA_STRING_LITERAL.matcher(cell.getCellFormula()).replaceAll("");
+                Matcher refs = A1_REFERENCE.matcher(formulaCode);
+                int blockRefs = 0;
+                boolean touchesMappedItem = false;
+                while (refs.find()) {
+                    int refRow;
+                    int refCol;
+                    try {
+                        refRow = Integer.parseInt(refs.group(4)) - 1;
+                        refCol = CellReference.convertColStringToIndex(refs.group(2));
+                    } catch (Exception ignored) { continue; }
+                    if (refRow < block.startRow() || refRow > block.endRow()) continue;
+                    blockRefs++;
+                    if (mappedCells.contains(cellKey(refRow, refCol))) touchesMappedItem = true;
+                }
+                if (blockRefs >= 2 && touchesMappedItem) return true;
+            }
+        }
+        return false;
+    }
+
+    private static long cellKey(int row, int col) {
+        return (((long) row) << 32) ^ (col & 0xffffffffL);
     }
 
     private static Map<String,String> itemValues(TaxInvoiceItem item,int serial,String gstType) {
