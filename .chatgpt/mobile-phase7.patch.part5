@@ -1,0 +1,51 @@
+     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { finish(nil,nil,nil) }
++
++    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
++        picker.dismiss(animated: true)
++        guard let provider = results.first?.itemProvider else { finish(nil,nil,nil); return }
++        let imageType = UTType.image.identifier
++        guard provider.hasItemConformingToTypeIdentifier(imageType) else {
++            finish(nil,nil,"Selected photo is not a supported image.")
++            return
++        }
++        provider.loadDataRepresentation(forTypeIdentifier: imageType) { data, error in
++            DispatchQueue.main.async {
++                if let error { self.finish(nil,nil,error.localizedDescription); return }
++                guard let data else { self.finish(nil,nil,"Unable to read the selected photo."); return }
++                guard data.count <= 20 * 1024 * 1024 else { self.finish(nil,nil,"Attachment exceeds the 20 MB mobile limit."); return }
++                self.finish("Photo_\(Int(Date().timeIntervalSince1970)).jpg", data.base64EncodedString(), nil)
++            }
++        }
++    }
++
++    func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
++        controller.dismiss(animated: true)
++        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842))
++        let data = renderer.pdfData { context in
++            for index in 0..<scan.pageCount {
++                let image = scan.imageOfPage(at: index)
++                context.beginPage()
++                let bounds = context.pdfContextBounds.insetBy(dx: 18, dy: 18)
++                let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
++                let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
++                let rect = CGRect(x: bounds.midX - size.width/2, y: bounds.midY - size.height/2, width: size.width, height: size.height)
++                image.draw(in: rect)
++            }
++        }
++        guard data.count <= 20 * 1024 * 1024 else { finish(nil,nil,"Scanned document exceeds the 20 MB mobile limit."); return }
++        finish("Scan_\(Int(Date().timeIntervalSince1970)).pdf", data.base64EncodedString(), nil)
++    }
++
++    func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
++        controller.dismiss(animated: true)
++        finish(nil,nil,nil)
++    }
++
++    func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
++        controller.dismiss(animated: true)
++        finish(nil,nil,error.localizedDescription)
++    }
++
+     private func finish(_ name:String?,_ base64:String?,_ error:String?){let cb=completion;completion=nil;cb?(name,base64,error)}
+ }
+ 
