@@ -33,9 +33,14 @@ public final class ExcelTemplateStorageService {
     }
 
     public static List<ExcelTemplate> listAll() {
-        List<ExcelTemplate> result = new ArrayList<>();
         try { RemoteTemplateMirror.refresh("EXCEL_TEMPLATE", root()); }
         catch (Exception error) { log("server-refresh", null, error); }
+        return listAllLocal();
+    }
+
+    /** Reads the current local cache without triggering a server refresh mid-transaction. */
+    private static List<ExcelTemplate> listAllLocal() {
+        List<ExcelTemplate> result = new ArrayList<>();
         try (Stream<Path> folders = Files.list(root())) {
             folders.filter(Files::isDirectory).forEach(folder -> {
                 try { load(folder).ifPresent(result::add); }
@@ -133,6 +138,8 @@ public final class ExcelTemplateStorageService {
         Path folder = folder(template);
         Files.createDirectories(folder.resolve("history"));
         Path source = folder.resolve(SOURCE);
+        Path metadata = folder.resolve(META);
+        byte[] metadataBefore = Files.isRegularFile(metadata) ? Files.readAllBytes(metadata) : null;
         Path temp = Files.createTempFile(folder, "source-save-", ".xlsx");
         Path history = null;
         int priorVersion = template.getVersion();
@@ -152,8 +159,8 @@ public final class ExcelTemplateStorageService {
             }
             moveReplace(temp, source);
             if (sourceExisted) template.setVersion(priorVersion + 1);
+            // saveMetadata() performs the one authoritative server publish for this save.
             saveMetadata(template);
-            RemoteTemplateMirror.publish("EXCEL_TEMPLATE", template.getId(), folder);
         } catch (Exception error) {
             template.setVersion(priorVersion);
             template.setUpdatedAt(priorUpdatedAt);
@@ -163,6 +170,13 @@ public final class ExcelTemplateStorageService {
             } catch (Exception rollbackError) {
                 error.addSuppressed(rollbackError);
             }
+            try {
+                if (metadataBefore == null) Files.deleteIfExists(metadata);
+                else Files.write(metadata, metadataBefore, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            } catch (Exception rollbackError) {
+                error.addSuppressed(rollbackError);
+            }
+            try { if (history != null) Files.deleteIfExists(history); } catch (Exception ignored) { }
             try { Files.deleteIfExists(temp); } catch (Exception ignored) { }
             if (error instanceof IOException io) throw io;
             throw new IOException("Excel workbook could not be saved: " + rootMessage(error), error);
@@ -200,12 +214,28 @@ public final class ExcelTemplateStorageService {
         if (template == null) throw new IOException("Excel template is required.");
         Path folder = folder(template);
         Files.createDirectories(folder.resolve("history"));
+        Path metadata = folder.resolve(META);
+        byte[] metadataBefore = Files.isRegularFile(metadata) ? Files.readAllBytes(metadata) : null;
+        String updatedAtBefore = template.getUpdatedAt();
         template.touch();
         Path temp = folder.resolve(META + ".tmp");
-        JSON.writeValue(temp.toFile(), template);
-        try { Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
-        catch (AtomicMoveNotSupportedException ignored) { Files.move(temp, folder.resolve(META), StandardCopyOption.REPLACE_EXISTING); }
-        RemoteTemplateMirror.publish("EXCEL_TEMPLATE", template.getId(), folder);
+        try {
+            JSON.writeValue(temp.toFile(), template);
+            try { Files.move(temp, metadata, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
+            catch (AtomicMoveNotSupportedException ignored) { Files.move(temp, metadata, StandardCopyOption.REPLACE_EXISTING); }
+            RemoteTemplateMirror.publish("EXCEL_TEMPLATE", template.getId(), folder);
+        } catch (Exception error) {
+            template.setUpdatedAt(updatedAtBefore);
+            try {
+                if (metadataBefore == null) Files.deleteIfExists(metadata);
+                else Files.write(metadata, metadataBefore, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            } catch (Exception rollbackError) { error.addSuppressed(rollbackError); }
+            try { Files.deleteIfExists(temp); } catch (Exception ignored) { }
+            if (error instanceof IOException io) throw io;
+            throw new IOException("Excel template metadata could not be saved: " + rootMessage(error), error);
+        } finally {
+            try { Files.deleteIfExists(temp); } catch (Exception ignored) { }
+        }
     }
 
     public static synchronized void activateAndSetDefault(ExcelTemplate template) throws IOException {
@@ -241,15 +271,30 @@ public final class ExcelTemplateStorageService {
         }
         if (validationFailure != null)
             throw new IOException("Excel template validation failed. The built-in Excel output remains active. " + rootMessage(validationFailure), validationFailure);
-        for (ExcelTemplate other : listAll()) {
-            if (other.getDocumentType() == template.getDocumentType() && other.isDefaultTemplate() && !other.getId().equals(template.getId())) {
-                other.setDefaultTemplate(false);
-                saveMetadata(other);
-            }
-        }
+        // Publish the selected default first. A stale/conflicting previous default must never
+        // leave the document type with no active default after this operation.
+        List<ExcelTemplate> existing = listAllLocal();
+        TemplateStatus previousStatus = template.getStatus();
+        boolean previousDefault = template.isDefaultTemplate();
         template.setStatus(TemplateStatus.ACTIVE);
         template.setDefaultTemplate(true);
-        saveMetadata(template);
+        try { saveMetadata(template); }
+        catch (IOException error) {
+            template.setStatus(previousStatus);
+            template.setDefaultTemplate(previousDefault);
+            throw error;
+        }
+
+        // Cleanup of older defaults is best-effort. If another workstation changed an older
+        // template concurrently, the newly selected default remains valid and defaultFor()
+        // will reconcile duplicates on the next normal refresh.
+        for (ExcelTemplate other : existing) {
+            if (other.getDocumentType() == template.getDocumentType() && other.isDefaultTemplate() && !other.getId().equals(template.getId())) {
+                other.setDefaultTemplate(false);
+                try { saveMetadata(other); }
+                catch (Exception error) { log("default-cleanup", null, error); }
+            }
+        }
     }
 
     public static synchronized ExcelTemplate duplicate(ExcelTemplate source) throws IOException {

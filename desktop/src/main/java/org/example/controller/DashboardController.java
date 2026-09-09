@@ -132,6 +132,7 @@ public class DashboardController {
     @FXML private Button btnBankExpense;
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
+    @FXML private Button btnCommunication;
     @FXML private Button btnDocumentStudio;
     @FXML private Button btnPdfStudio;
     @FXML private Button btnExcelStudio;
@@ -230,6 +231,7 @@ public class DashboardController {
             if (lblSidebarUser != null) lblSidebarUser.setText(SessionService.current().getFullName());
         }
         configureProfileMenuIcons();
+        markNavigationControls();
         applyNavigationSemanticIcons();
         bindShortcutLabels();
         org.example.util.RealtimeSearchSupport.installRemote(txtSearch, this::search);
@@ -247,6 +249,11 @@ public class DashboardController {
     }
 
 
+
+    /** Explicitly identifies navigation before generic button-role classification runs. */
+    private void markNavigationControls() {
+        for (Button button : navigationButtons()) IconFactory.markNavigationControl(button);
+    }
 
     /** Explicit business semantics prevent parent/submenu and import/export actions from sharing generic glyphs. */
     private void applyNavigationSemanticIcons() {
@@ -270,6 +277,7 @@ public class DashboardController {
         UiActionIcons.apply(btnReports,"report","Reports");
         UiActionIcons.apply(btnReminders,"reminder","Reminder Center");
         UiActionIcons.apply(btnUserAccess,"permission","User Access");
+        UiActionIcons.apply(btnCommunication,"communication","Communication");
         UiActionIcons.apply(btnDocumentStudio,"document","Document Studio");
         UiActionIcons.apply(btnSettings,"settings","Settings");
         UiActionIcons.apply(btnSettingsSecurity,"security","Security & Session");
@@ -864,7 +872,7 @@ public class DashboardController {
                 btnSales, btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
                 btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn,
                 btnItem, btnMasters, btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
-                btnImport, btnInventory, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess,
+                btnImport, btnInventory, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnCommunication,
                 btnDocumentStudio, btnPdfStudio, btnExcelStudio, btnSettings, btnSettingsCompany, btnSettingsPayment,
                 btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace,
                 btnSettingsShortcuts, btnSettingsUpdates, btnSafeRollback, btnBackup)
@@ -1110,7 +1118,7 @@ public class DashboardController {
     @FXML private void openUserAccess() { openPage(btnUserAccess, "User Access & Permissions", "/fxml/pages/UserAccess.fxml"); }
     @FXML private void openCommunication() {
         CommunicationScreenContext.select(null);
-        openPage(null, "Communication Center", "/fxml/pages/CommunicationCenter.fxml");
+        openPage(btnCommunication, "Communication Center", "/fxml/pages/CommunicationCenter.fxml");
     }
     @FXML private void openDocumentStudio() { openPdfStudio(); }
     @FXML private void openPdfStudio() {

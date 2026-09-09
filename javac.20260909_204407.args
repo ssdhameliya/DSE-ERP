@@ -1,0 +1,12 @@
+-proc:none
+-Xmaxerrs
+1000
+desktop/src/main/java/org/example/api/authority/ServerResourceClient.java
+desktop/src/main/java/org/example/controller/DashboardController.java
+desktop/src/main/java/org/example/controller/SalesListController.java
+desktop/src/main/java/org/example/controller/PurchaseListController.java
+desktop/src/main/java/org/example/documentstudio/service/ExcelTemplateStorageService.java
+desktop/src/main/java/org/example/documentstudio/service/RemoteTemplateMirror.java
+desktop/src/main/java/org/example/util/IconFactory.java
+desktop/src/main/java/org/example/util/UiDesignSystem.java
+server/src/main/java/org/example/server/authority/ServerResourceController.java

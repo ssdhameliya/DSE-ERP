@@ -38,6 +38,8 @@ import java.util.Locale;
  * does not change navigation or action handlers.</p>
  */
 public final class IconFactory {
+    /** Explicit identity for shell/sidebar navigation controls. */
+    public static final String NAVIGATION_CONTROL_PROPERTY = "erp.navigation.control";
     private static final String[] BUTTON_VARIANTS = {
         "erp-button-primary", "erp-button-secondary", "erp-button-success",
         "erp-button-warning", "erp-button-danger", "erp-button-icon"
@@ -143,7 +145,7 @@ public final class IconFactory {
             }
             if (semantic != null) {
                 button.setText(clean(button.getText()));
-                boolean sidebar = isInside(button, "erp-sidebar");
+                boolean sidebar = isNavigationControl(button);
                 double size = button.getStyleClass().contains("top-icon") ? 22 : sidebar ? 18 : 17;
                 String presentation = sidebar ? "tile" : "glyph";
                 String explicitSemantic = (String) button.getProperties().get("erp.icon.semantic");
@@ -636,7 +638,7 @@ public final class IconFactory {
 
     /** Assigns one shared visual role without changing the button action. */
     private static void applyButtonVariant(ButtonBase button, String semantic) {
-        if (isInside(button, "erp-sidebar")) {
+        if (isNavigationControl(button)) {
             // Navigation has its own state machine (normal/hover/group-active/selected).
             // Action semantics such as import/backup must never paint a sidebar item as selected.
             button.getStyleClass().removeAll(BUTTON_VARIANTS);
@@ -671,6 +673,22 @@ public final class IconFactory {
             variant = "erp-button-secondary";
         }
         button.getStyleClass().add(variant);
+    }
+
+    /** Marks a control as shell/sidebar navigation before generic action decoration runs. */
+    public static void markNavigationControl(Node node) {
+        if (node != null) node.getProperties().put(NAVIGATION_CONTROL_PROPERTY, true);
+    }
+
+    /**
+     * Navigation identity is explicit first and ancestry-based only as a compatibility fallback.
+     * ScrollPane logical content is not guaranteed to expose the sidebar through getParent()
+     * while FXML/controller decoration is running, so ancestry alone is not authoritative.
+     */
+    public static boolean isNavigationControl(Node node) {
+        if (node == null) return false;
+        if (Boolean.TRUE.equals(node.getProperties().get(NAVIGATION_CONTROL_PROPERTY))) return true;
+        return isInside(node, "erp-sidebar");
     }
 
     /** Returns true when a control belongs to a separately styled shell area. */
