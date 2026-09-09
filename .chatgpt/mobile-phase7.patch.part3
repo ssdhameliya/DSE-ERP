@@ -1,0 +1,200 @@
++expect fun platformLoadQuickUnlockEnabled(): Boolean
++expect fun platformSaveQuickUnlockEnabled(enabled: Boolean)
++expect fun platformLoadHapticsEnabled(): Boolean
++expect fun platformSaveHapticsEnabled(enabled: Boolean)
++expect fun platformPreviewFile(title:String,fileName:String,data:ByteArray): Boolean
++expect fun platformScheduleLocalNotification(identifier:String,title:String,body:String,dateIso:String,deepLink:String="")
++expect fun platformCancelLocalNotification(identifier:String)
++
++
++internal fun platformOpenFile(title:String,fileName:String,data:ByteArray):Boolean =
++    platformPreviewFile(title,fileName,data) || platformShareFile(title,fileName,data)
++
++
+ data class PushPermissionResult(
+     val granted: Boolean,
+     val message: String = "",
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt
+--- src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt	2026-09-09 08:05:25.000000000 +0000
++++ work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ReturnScreens.kt	2026-09-09 09:31:03.174468610 +0000
+@@ -127,7 +127,7 @@
+             detailReturnRows(d)
+             settlement?.let{s->DseSection("Original Document Settlement",Icons.Rounded.AccountBalanceWallet){detailReturnRows(listOf("Status" to s.status,"Original pending" to money(s.pendingAmount),"Approved returns" to money(s.approvedReturnAmount),"Settled returns" to money(s.settledAmount),"Settlement due" to s.dueDate))}}
+             if(d.lines.isNotEmpty())DseSection("Returned Items",Icons.Rounded.Inventory2){d.lines.forEach{l->ListItem(headlineContent={Text("${l.code} • ${l.name}")},supportingContent={Text("Qty ${l.quantity} ${l.unit} • ${l.reason}")},trailingContent={Text(money(l.amount))})}}
+-            if(d.attachment.isNotBlank())OutlinedButton(onClick={scope.launch{when(val a=api.returnAttachmentFile(d.no)){is ApiResult.Success->{val name=returnFileName(d.attachment,"return-${d.no}.bin");if(!platformShareFile("Return ${d.no} attachment",name,a.value))msg="Unable to open return attachment"};else->msg=a.readableMessage()}}}){Icon(Icons.Rounded.OpenInNew,null);Text("Open Return Attachment")}
++            if(d.attachment.isNotBlank())OutlinedButton(onClick={scope.launch{when(val a=api.returnAttachmentFile(d.no)){is ApiResult.Success->{val name=returnFileName(d.attachment,"return-${d.no}.bin");if(!platformOpenFile("Return ${d.no} attachment",name,a.value))msg="Unable to open return attachment"};else->msg=a.readableMessage()}}}){Icon(Icons.Rounded.OpenInNew,null);Text("Open Return Attachment")}
+             Text("Actions",fontWeight=FontWeight.SemiBold)
+             PremiumActionGrid(buildList{
+                 add(PremiumActionSpec("PDF / Print",{msg=if(shareBusinessPdf(returnBusinessDocument(d)))"Return PDF opened" else "Unable to open return PDF"}))
+@@ -194,7 +194,7 @@
+         detailReturnRows(d);Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=MaterialTheme.shapes.medium,modifier=Modifier.fillMaxWidth()){Column(Modifier.padding(12.dp)){Text("Refundable Balance",style=MaterialTheme.typography.labelMedium);Text(money(remaining),style=MaterialTheme.typography.headlineSmall,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)}}
+         DseDateField("Refund Date",date,required=true,onValue={date=it});Row(verticalAlignment=Alignment.CenterVertically){RadioButton(full,{full=true;amount=remaining.toString()});PremiumOptionLabel("Full Refund",accent=DseSuccess);RadioButton(!full,{full=false});PremiumOptionLabel("Partial Refund",accent=DseWarning)};DseNumberField("Refund Amount",amount,enabled=!full,min=0.01,max=remaining,required=true,onValue={amount=it});DseSelect("Payment Mode",mode,modes,required=true,onValue={mode=it});val bankRequired=mode.contains("bank",true)||mode.equals("NEFT",true)||mode.equals("RTGS",true);DseSelect("Bank Account",bank,banks,enabled=bankRequired,required=bankRequired,onValue={bank=it});DseField("Reference No",reference,singleLine=true,onValue={reference=it});DseField("Notes",notes,onValue={notes=it})
+         PremiumSecondaryButton(proofName?:"Select Refund Proof",onClick={platformPickAttachment { picked->if(!picked.fileName.isNullOrBlank()&&!picked.base64.isNullOrBlank()){proofName=picked.fileName;proofBase64=picked.base64;msg="Proof selected: ${picked.fileName}"}else msg=picked.error?:"No proof selected" }},icon=Icons.Rounded.AttachFile)
+-        if(history.isNotEmpty())DseSection("Refund History",Icons.Rounded.History){history.forEach{h->ListItem(headlineContent={Text("${h.date} • ${money(h.amount)}")},supportingContent={Text(listOf(h.mode,h.reference,h.bankAccount,h.status).filter{it.isNotBlank()}.joinToString(" • "))},trailingContent={if(h.attachment.isNotBlank())Row{IconButton(onClick={scope.launch{when(val f=api.refundAttachmentFile(h.id)){is ApiResult.Success->{if(!platformShareFile("Refund proof ${d.no}",returnFileName(h.attachment,"refund-${h.id}.bin"),f.value))msg="Unable to open refund proof"};else->msg=f.readableMessage()}}}){Icon(Icons.Rounded.OpenInNew,"Open refund proof")};IconButton(onClick={scope.launch{when(val x=api.deleteRefundAttachment(h.id)){is ApiResult.Success->{msg="Refund proof removed";history=(api.returnRefunds(d.no) as? ApiResult.Success)?.value.orEmpty()};else->msg=x.readableMessage()}}}){Icon(Icons.Rounded.Delete,"Delete refund proof")}}})}}
++        if(history.isNotEmpty())DseSection("Refund History",Icons.Rounded.History){history.forEach{h->ListItem(headlineContent={Text("${h.date} • ${money(h.amount)}")},supportingContent={Text(listOf(h.mode,h.reference,h.bankAccount,h.status).filter{it.isNotBlank()}.joinToString(" • "))},trailingContent={if(h.attachment.isNotBlank())Row{IconButton(onClick={scope.launch{when(val f=api.refundAttachmentFile(h.id)){is ApiResult.Success->{if(!platformOpenFile("Refund proof ${d.no}",returnFileName(h.attachment,"refund-${h.id}.bin"),f.value))msg="Unable to open refund proof"};else->msg=f.readableMessage()}}}){Icon(Icons.Rounded.OpenInNew,"Open refund proof")};IconButton(onClick={scope.launch{when(val x=api.deleteRefundAttachment(h.id)){is ApiResult.Success->{msg="Refund proof removed";history=(api.returnRefunds(d.no) as? ApiResult.Success)?.value.orEmpty()};else->msg=x.readableMessage()}}}){Icon(Icons.Rounded.Delete,"Delete refund proof")}}})}}
+         if(msg.isNotBlank())Text(msg,color=MaterialTheme.colorScheme.error)
+     }},confirmButton={val bankRequired=mode.contains("bank",true)||mode.equals("NEFT",true)||mode.equals("RTGS",true);Button(enabled=(amount.toDoubleOrNull()?:0.0)>0&&mode.isNotBlank()&&(!bankRequired||bank.isNotBlank()),onClick={scope.launch{val a=amount.toDoubleOrNull()?:0.0;if(a>remaining+0.005){msg="Refund cannot exceed ${money(remaining)}";return@launch};when(val r=api.recordReturnRefund(d.no,ReturnRefundCreateRequest(date,a,mode,reference,bank,d.party,notes,if(full)"FULL" else "PARTIAL",username))){is ApiResult.Success->{if(proofName!=null&&proofBase64!=null){when(val up=api.uploadRefundAttachment(r.value.id,proofName!!,decodeBase64Portable(proofBase64!!))){is ApiResult.Success->{};else->{msg="Refund saved, but proof upload failed: ${up.readableMessage()}";return@launch}}};onDone("Refund recorded in audit ledger • ${money(a)}")};else->msg=r.readableMessage()}}}){Text("Record Refund")}},dismissButton={TextButton(onClick=onClose){Text("Cancel")}})
+ }
+@@ -202,7 +202,7 @@
+ @Composable
+ private fun ReturnAttachmentDialog(api:DseErpHttpClient,d:ReturnDetails,onClose:()->Unit,onDone:(String)->Unit){
+     var msg by remember{mutableStateOf("")};val scope=rememberCoroutineScope()
+-    PremiumAlertDialog(onDismissRequest=onClose,title={Text("Return Attachment • ${d.no}")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){if(d.attachment.isNotBlank()){Text("Current attachment: ${returnFileName(d.attachment,"attachment")}");Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedButton(onClick={scope.launch{when(val f=api.returnAttachmentFile(d.no)){is ApiResult.Success->{if(!platformShareFile("Return ${d.no} attachment",returnFileName(d.attachment,"return-${d.no}.bin"),f.value))msg="Unable to open attachment"};else->msg=f.readableMessage()}}}){Icon(Icons.Rounded.OpenInNew,null);Text("Open")};OutlinedButton(onClick={scope.launch{when(val x=api.deleteReturnAttachment(d.no)){is ApiResult.Success->onDone("Return attachment removed");else->msg=x.readableMessage()}}}){Icon(Icons.Rounded.Delete,null);Text("Remove")}}};Text("Attach supporting return proof/document.");if(msg.isNotBlank())Text(msg,color=MaterialTheme.colorScheme.error)}},confirmButton={PremiumPrimaryButton("Choose & Upload",{platformPickAttachment { picked->if(picked.fileName.isNullOrBlank()||picked.base64.isNullOrBlank()){msg=picked.error?:"No attachment selected";return@platformPickAttachment};scope.launch{try{when(val r=api.uploadReturnAttachment(d.no,picked.fileName!!,decodeBase64Portable(picked.base64!!))){is ApiResult.Success->onDone("Return attachment saved");else->msg=r.readableMessage()}}catch(t:Throwable){msg=t.message?:"Attachment upload failed"}} }},leadingIcon=Icons.Rounded.AttachFile)},dismissButton={PremiumSecondaryButton("Close",onClose)})
++    PremiumAlertDialog(onDismissRequest=onClose,title={Text("Return Attachment • ${d.no}")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){if(d.attachment.isNotBlank()){Text("Current attachment: ${returnFileName(d.attachment,"attachment")}");Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedButton(onClick={scope.launch{when(val f=api.returnAttachmentFile(d.no)){is ApiResult.Success->{if(!platformOpenFile("Return ${d.no} attachment",returnFileName(d.attachment,"return-${d.no}.bin"),f.value))msg="Unable to open attachment"};else->msg=f.readableMessage()}}}){Icon(Icons.Rounded.OpenInNew,null);Text("Open")};OutlinedButton(onClick={scope.launch{when(val x=api.deleteReturnAttachment(d.no)){is ApiResult.Success->onDone("Return attachment removed");else->msg=x.readableMessage()}}}){Icon(Icons.Rounded.Delete,null);Text("Remove")}}};Text("Attach supporting return proof/document.");if(msg.isNotBlank())Text(msg,color=MaterialTheme.colorScheme.error)}},confirmButton={PremiumPrimaryButton("Choose & Upload",{platformPickAttachment { picked->if(picked.fileName.isNullOrBlank()||picked.base64.isNullOrBlank()){msg=picked.error?:"No attachment selected";return@platformPickAttachment};scope.launch{try{when(val r=api.uploadReturnAttachment(d.no,picked.fileName!!,decodeBase64Portable(picked.base64!!))){is ApiResult.Success->onDone("Return attachment saved");else->msg=r.readableMessage()}}catch(t:Throwable){msg=t.message?:"Attachment upload failed"}} }},leadingIcon=Icons.Rounded.AttachFile)},dismissButton={PremiumSecondaryButton("Close",onClose)})
+ }
+ 
+ @Composable
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/composeApp/src/iosMain/kotlin/org/dse/mobile/app/IosNativeBridge.kt work/composeApp/src/iosMain/kotlin/org/dse/mobile/app/IosNativeBridge.kt
+--- src/Jasvi-Industries-Mobile/composeApp/src/iosMain/kotlin/org/dse/mobile/app/IosNativeBridge.kt	2026-09-09 04:38:52.000000000 +0000
++++ work/composeApp/src/iosMain/kotlin/org/dse/mobile/app/IosNativeBridge.kt	2026-09-09 09:30:02.167418885 +0000
+@@ -18,6 +18,14 @@
+     var saveServerUrl: (String) -> Unit = {}
+     var biometricState: () -> String = { "UNAVAILABLE" }
+     var authenticateBiometric: (String, (String, String?) -> Unit) -> Unit = { _, done -> done("ERROR", "Native biometric service is not configured") }
++    var haptic: (String) -> Unit = {}
++    var loadQuickUnlock: () -> Boolean = { true }
++    var saveQuickUnlock: (Boolean) -> Unit = {}
++    var loadHaptics: () -> Boolean = { true }
++    var saveHaptics: (Boolean) -> Unit = {}
++    var previewFile: (String, String, String) -> Boolean = { _, _, _ -> false }
++    var scheduleLocalNotification: (String, String, String, String, String) -> Unit = { _, _, _, _, _ -> }
++    var cancelLocalNotification: (String) -> Unit = {}
+     var pickImportFile: ((String?, String?, String?) -> Unit) -> Unit = { done -> done(null, null, "Native document picker is not configured") }
+     var requestPush: ((String, String?) -> Unit) -> Unit = { done -> done("ERROR", "Native push service is not configured") }
+     var pickAttachment: ((String?, String?, String?) -> Unit) -> Unit = { done -> done(null, null, "Native attachment picker is not configured") }
+@@ -43,6 +51,14 @@
+     saveServerUrl: (String) -> Unit,
+     biometricState: () -> String,
+     authenticateBiometric: (String, (String, String?) -> Unit) -> Unit,
++    haptic: (String) -> Unit,
++    loadQuickUnlock: () -> Boolean,
++    saveQuickUnlock: (Boolean) -> Unit,
++    loadHaptics: () -> Boolean,
++    saveHaptics: (Boolean) -> Unit,
++    previewFile: (String, String, String) -> Boolean,
++    scheduleLocalNotification: (String, String, String, String, String) -> Unit,
++    cancelLocalNotification: (String) -> Unit,
+     pickImportFile: ((String?, String?, String?) -> Unit) -> Unit,
+     requestPush: ((String, String?) -> Unit) -> Unit,
+     pickAttachment: ((String?, String?, String?) -> Unit) -> Unit,
+@@ -62,6 +78,14 @@
+     IosNativeHandlers.saveServerUrl = saveServerUrl
+     IosNativeHandlers.biometricState = biometricState
+     IosNativeHandlers.authenticateBiometric = authenticateBiometric
++    IosNativeHandlers.haptic = haptic
++    IosNativeHandlers.loadQuickUnlock = loadQuickUnlock
++    IosNativeHandlers.saveQuickUnlock = saveQuickUnlock
++    IosNativeHandlers.loadHaptics = loadHaptics
++    IosNativeHandlers.saveHaptics = saveHaptics
++    IosNativeHandlers.previewFile = previewFile
++    IosNativeHandlers.scheduleLocalNotification = scheduleLocalNotification
++    IosNativeHandlers.cancelLocalNotification = cancelLocalNotification
+     IosNativeHandlers.pickImportFile = pickImportFile
+     IosNativeHandlers.requestPush = requestPush
+     IosNativeHandlers.pickAttachment = pickAttachment
+@@ -94,13 +118,29 @@
+         )
+     }
+ }
+-actual fun platformSecurityLabel(): String = "Protected by iOS Keychain • Face ID / Touch ID ready"
+-actual fun platformImportCapability(): String = "iPhone/iPad: native Files picker • CSV import enabled"
++actual fun platformSecurityLabel(): String = "Protected by iOS Keychain • automatic Face ID / Touch ID quick unlock"
++actual fun platformImportCapability(): String = "iPhone/iPad: native Scan Document • Photos • Files attachment flow"
+ actual fun platformLocalDateIso(): String {
+     val formatter=NSDateFormatter().apply { dateFormat="yyyy-MM-dd"; locale=NSLocale.currentLocale; timeZone=NSTimeZone.localTimeZone }
+     return formatter.stringFromDate(NSDate())
+ }
+ 
++actual fun platformHaptic(kind: NativeHapticKind) {
++    if (IosNativeHandlers.loadHaptics()) IosNativeHandlers.haptic(kind.name)
++}
++actual fun platformLoadQuickUnlockEnabled(): Boolean = IosNativeHandlers.loadQuickUnlock()
++actual fun platformSaveQuickUnlockEnabled(enabled: Boolean) = IosNativeHandlers.saveQuickUnlock(enabled)
++actual fun platformLoadHapticsEnabled(): Boolean = IosNativeHandlers.loadHaptics()
++actual fun platformSaveHapticsEnabled(enabled: Boolean) = IosNativeHandlers.saveHaptics(enabled)
++actual fun platformPreviewFile(title:String,fileName:String,data:ByteArray): Boolean =
++    IosNativeHandlers.previewFile(title,fileName,encodeBase64Portable(data))
++actual fun platformScheduleLocalNotification(identifier:String,title:String,body:String,dateIso:String,deepLink:String) {
++    IosNativeHandlers.scheduleLocalNotification(identifier,title,body,dateIso,deepLink)
++}
++actual fun platformCancelLocalNotification(identifier:String) {
++    IosNativeHandlers.cancelLocalNotification(identifier)
++}
++
+ internal suspend fun nativePickImportTextFile(): Triple<String?, String?, String?> = suspendCancellableCoroutine { continuation ->
+     IosNativeHandlers.pickImportFile { fileName, text, error ->
+         if (continuation.isActive) continuation.resume(Triple(fileName, text, error))
+@@ -123,7 +163,7 @@
+     }
+ }
+ actual fun platformPushCapability(): String =
+-    "iOS notification permission and APNs token capture are available. Jasvi Industries v9.0.92 has no device-token registration endpoint, so remote ERP push delivery is not enabled in this build."
++    "iOS local reminder notifications can fire after the app closes. APNs token capture is ready, but live ERP event push still requires a server device-token/push endpoint."
+ actual fun platformPickAttachment(onResult:(PickedAttachment)->Unit) {
+     IosNativeHandlers.pickAttachment { name,base64,error -> onResult(PickedAttachment(name,base64,error)) }
+ }
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/composeApp/src/jvmMain/kotlin/org/dse/mobile/app/PlatformNativeServices.jvm.kt work/composeApp/src/jvmMain/kotlin/org/dse/mobile/app/PlatformNativeServices.jvm.kt
+--- src/Jasvi-Industries-Mobile/composeApp/src/jvmMain/kotlin/org/dse/mobile/app/PlatformNativeServices.jvm.kt	2026-09-09 03:00:46.000000000 +0000
++++ work/composeApp/src/jvmMain/kotlin/org/dse/mobile/app/PlatformNativeServices.jvm.kt	2026-09-09 09:30:02.167871728 +0000
+@@ -21,13 +21,27 @@
+ actual fun platformBiometricAvailable(): Boolean = false
+ actual suspend fun platformAuthenticateBiometric(reason: String): BiometricAuthResult =
+     BiometricAuthResult(false, "Biometric unlock is available in the native iOS build.")
+-actual fun platformSecurityLabel(): String = "Secure UAT session • iPhone/iPad uses protected Keychain storage"
+-actual fun platformImportCapability(): String = "IntelliJ: Excel (.xlsx/.xls) and CSV file picker enabled"
++actual fun platformSecurityLabel(): String = "Secure UAT session • iPhone/iPad adds automatic Face ID quick unlock"
++actual fun platformImportCapability(): String = "IntelliJ file picker • iPhone adds Scan Document, Photos and Files"
+ actual fun platformLocalDateIso(): String = LocalDate.now().toString()
++actual fun platformHaptic(kind: NativeHapticKind) = Unit
++actual fun platformLoadQuickUnlockEnabled(): Boolean = jvmPrefs.getBoolean("quickUnlock", true)
++actual fun platformSaveQuickUnlockEnabled(enabled: Boolean) { jvmPrefs.putBoolean("quickUnlock", enabled) }
++actual fun platformLoadHapticsEnabled(): Boolean = jvmPrefs.getBoolean("haptics", true)
++actual fun platformSaveHapticsEnabled(enabled: Boolean) { jvmPrefs.putBoolean("haptics", enabled) }
++actual fun platformPreviewFile(title:String,fileName:String,data:ByteArray):Boolean=runCatching{
++    val safe=fileName.replace(Regex("[^A-Za-z0-9._() -]"),"_").ifBlank{"preview.bin"}
++    val dir=java.nio.file.Files.createTempDirectory("dse-erp-mobile-preview-")
++    val file=dir.resolve(safe)
++    java.nio.file.Files.write(file,data)
++    if(Desktop.isDesktopSupported()){Desktop.getDesktop().open(file.toFile());true}else false
++}.getOrDefault(false)
++actual fun platformScheduleLocalNotification(identifier:String,title:String,body:String,dateIso:String,deepLink:String) = Unit
++actual fun platformCancelLocalNotification(identifier:String) = Unit
+ actual suspend fun platformRequestPushNotifications(): PushPermissionResult =
+     PushPermissionResult(false, "Push notifications activate in the native iOS build.")
+ actual fun platformPushCapability(): String =
+-    "IntelliJ: push/deep-link architecture visible; APNs activates on iPhone/iPad"
++    "IntelliJ: local reminder/push architecture visible; APNs activates on signed iPhone/iPad builds"
+ actual fun platformPickAttachment(onResult:(PickedAttachment)->Unit) {
+     val result = try {
+         val chooser = JFileChooser()
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/iosApp/Configuration/Config.xcconfig work/iosApp/Configuration/Config.xcconfig
+--- src/Jasvi-Industries-Mobile/iosApp/Configuration/Config.xcconfig	2026-09-08 19:39:59.000000000 +0000
++++ work/iosApp/Configuration/Config.xcconfig	2026-09-09 09:30:16.586866832 +0000
+@@ -6,3 +6,5 @@
+ SWIFT_VERSION=5.0
+ 
+ INFOPLIST_KEY_NSFaceIDUsageDescription=Use Face ID to securely unlock Jasvi Industries.
++
++INFOPLIST_KEY_NSCameraUsageDescription=Use the camera to scan ERP attachments and business documents.
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/iosApp/iosApp/Info.plist work/iosApp/iosApp/Info.plist
+--- src/Jasvi-Industries-Mobile/iosApp/iosApp/Info.plist	2026-09-08 19:39:50.000000000 +0000
++++ work/iosApp/iosApp/Info.plist	2026-09-09 09:30:16.586047192 +0000
+@@ -22,6 +22,8 @@
+ 	<string>$(CURRENT_PROJECT_VERSION)</string>
+ 	<key>NSFaceIDUsageDescription</key>
+ 	<string>Use Face ID to securely unlock Jasvi Industries Mobile.</string>
++	<key>NSCameraUsageDescription</key>
++	<string>Use the camera to scan invoices, payment proofs, return documents and other ERP attachments.</string>
+ 	<key>CFBundleURLTypes</key>
+ 	<array>
+ 		<dict>
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/iosApp/iosApp/iOSApp.swift work/iosApp/iosApp/iOSApp.swift
+--- src/Jasvi-Industries-Mobile/iosApp/iosApp/iOSApp.swift	2026-08-28 17:44:58.000000000 +0000
++++ work/iosApp/iosApp/iOSApp.swift	2026-09-09 09:29:05.899106119 +0000
+@@ -5,6 +5,9 @@
+ import UniformTypeIdentifiers
+ import UIKit
+ import UserNotifications
++import QuickLook
++import PhotosUI
++import VisionKit
