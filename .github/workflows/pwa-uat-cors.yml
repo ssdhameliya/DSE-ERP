@@ -1,4 +1,4 @@
-name: Inspect UAT PWA CORS
+name: Apply UAT PWA CORS
 
 on:
   workflow_dispatch:
@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  inspect:
-    name: Inspect UAT Caddy only
+  apply:
+    name: Apply safe UAT Caddy CORS
     runs-on: ubuntu-latest
     environment: uat
     timeout-minutes: 10
@@ -26,6 +26,7 @@ jobs:
       SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
       SSH_PORT: ${{ vars.DSE_SSH_PORT }}
       PUBLIC_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+      PWA_ORIGIN: https://mobile-uat.jasviindustries.in
     steps:
       - name: Validate UAT connection configuration
         shell: bash
@@ -46,34 +47,145 @@ jobs:
           printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Verify UAT ERP health before inspection
+      - name: Verify UAT ERP is healthy before change
         shell: bash
-        run: curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL"
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL" > before-health.json
+          python3 - before-health.json <<'PY'
+          import json,sys
+          r=json.load(open(sys.argv[1],encoding='utf-8'))
+          if r.get('ready') is not True or r.get('environment') != 'UAT':
+              raise SystemExit(f'UAT health gate failed before CORS change: {r}')
+          print(f"UAT_PRECHANGE_OK version={r.get('version')} database={r.get('databaseName')}")
+          PY
 
-      - name: Read current Caddy configuration
+      - name: Apply Caddy CORS with backup and automatic remote rollback
         shell: bash
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/dse_pwa_cors_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          echo "=== CADDY VERSION ==="
-          caddy version || sudo caddy version
-          echo "=== CADDY VALIDATE ==="
-          sudo caddy validate --config /etc/caddy/Caddyfile
-          echo "=== CADDYFILE BEGIN ==="
-          sudo sed -n '1,260p' /etc/caddy/Caddyfile
-          echo "=== CADDYFILE END ==="
-          echo "=== CADDY SERVICE ==="
-          sudo systemctl is-active caddy
+          CONFIG=/etc/caddy/Caddyfile
+          BACKUP=/etc/caddy/Caddyfile.pre-pwa-cors
+          TMP=/tmp/Caddyfile.pwa-cors
+
+          if sudo grep -q 'JASVI_PWA_UAT_CORS' "$CONFIG"; then
+            echo "PWA_CORS_ALREADY_APPLIED"
+            sudo caddy validate --config "$CONFIG"
+            sudo systemctl is-active --quiet caddy
+            exit 0
+          fi
+
+          cat > "$TMP" <<'CADDY'
+          # JASVI_PWA_UAT_CORS
+          api-uat.jasviindustries.in {
+              @pwa_origin header Origin https://mobile-uat.jasviindustries.in
+              header @pwa_origin {
+                  Access-Control-Allow-Origin "https://mobile-uat.jasviindustries.in"
+                  Access-Control-Allow-Methods "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS"
+                  Access-Control-Allow-Headers "Authorization, Content-Type, Accept"
+                  Access-Control-Expose-Headers "Content-Disposition"
+                  Access-Control-Max-Age "600"
+                  Vary "Origin"
+              }
+
+              @pwa_preflight {
+                  method OPTIONS
+                  header Origin https://mobile-uat.jasviindustries.in
+              }
+              respond @pwa_preflight 204
+
+              reverse_proxy 127.0.0.1:8081
+          }
+          CADDY
+
+          echo "Validating candidate Caddy configuration..."
+          sudo caddy validate --config "$TMP"
+
+          if [[ ! -e "$BACKUP" ]]; then
+            sudo cp -a "$CONFIG" "$BACKUP"
+          fi
+
+          rollback() {
+            echo "ROLLBACK: restoring original Caddy configuration" >&2
+            sudo cp -a "$BACKUP" "$CONFIG"
+            sudo caddy validate --config "$CONFIG"
+            sudo systemctl reload caddy
+          }
+
+          trap 'rc=$?; if [[ $rc -ne 0 ]]; then rollback; fi; exit $rc' EXIT
+          sudo install -o root -g root -m 644 "$TMP" "$CONFIG"
+          sudo caddy validate --config "$CONFIG"
+          sudo systemctl reload caddy
+          sleep 2
+          sudo systemctl is-active --quiet caddy
+          curl --fail --silent --show-error --max-time 10 http://127.0.0.1:8081/api/runtime/health >/dev/null
+          trap - EXIT
+          rm -f "$TMP"
+          echo "PWA_CORS_APPLIED_OK"
           REMOTE
 
-      - name: Test current browser preflight
+      - name: Verify UAT health and allowed preflight publicly
         shell: bash
         run: |
           set -euo pipefail
           API_BASE="${PUBLIC_HEALTH_URL%/api/runtime/health}"
-          curl --silent --show-error --max-time 20 -D - -o /dev/null \
+
+          curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL" > after-health.json
+          python3 - before-health.json after-health.json <<'PY'
+          import json,sys
+          before=json.load(open(sys.argv[1],encoding='utf-8'))
+          after=json.load(open(sys.argv[2],encoding='utf-8'))
+          keys=('version','buildRevision','environment','databaseName')
+          if after.get('ready') is not True:
+              raise SystemExit(f'UAT not ready after CORS reload: {after}')
+          if any(before.get(k)!=after.get(k) for k in keys):
+              raise SystemExit(f'UAT identity changed unexpectedly: before={before} after={after}')
+          print(f"UAT_POSTCHANGE_OK version={after.get('version')} database={after.get('databaseName')}")
+          PY
+
+          curl --fail --silent --show-error --max-time 20 -D allowed.headers -o /dev/null \
             -X OPTIONS "$API_BASE/api/auth/login" \
-            -H 'Origin: https://mobile-uat.jasviindustries.in' \
+            -H "Origin: $PWA_ORIGIN" \
             -H 'Access-Control-Request-Method: POST' \
             -H 'Access-Control-Request-Headers: content-type,authorization'
+
+          grep -Eiq '^access-control-allow-origin:[[:space:]]*https://mobile-uat\.jasviindustries\.in[[:space:]]*$' allowed.headers
+          grep -Eiq '^access-control-allow-methods:.*POST' allowed.headers
+          grep -Eiq '^access-control-allow-headers:.*Authorization' allowed.headers
+          echo "PWA_ALLOWED_PREFLIGHT_OK"
+
+      - name: Verify an unapproved origin is not granted CORS
+        shell: bash
+        run: |
+          set -euo pipefail
+          API_BASE="${PUBLIC_HEALTH_URL%/api/runtime/health}"
+          curl --silent --show-error --max-time 20 -D denied.headers -o /dev/null \
+            -X OPTIONS "$API_BASE/api/auth/login" \
+            -H 'Origin: https://example.invalid' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type,authorization'
+          if grep -Eiq '^access-control-allow-origin:' denied.headers; then
+            echo "Unexpected CORS grant to unapproved origin" >&2
+            cat denied.headers >&2
+            exit 1
+          fi
+          echo "UNAPPROVED_ORIGIN_BLOCKED_OK"
+
+      - name: Roll back Caddy if public verification fails
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_pwa_cors_key -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          CONFIG=/etc/caddy/Caddyfile
+          BACKUP=/etc/caddy/Caddyfile.pre-pwa-cors
+          if [[ -f "$BACKUP" ]]; then
+            sudo cp -a "$BACKUP" "$CONFIG"
+            sudo caddy validate --config "$CONFIG"
+            sudo systemctl reload caddy
+            echo "PUBLIC_CHECK_FAILED_ROLLBACK_OK"
+          fi
+          REMOTE
