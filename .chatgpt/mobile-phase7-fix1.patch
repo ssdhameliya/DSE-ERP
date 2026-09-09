@@ -1,0 +1,10 @@
+--- a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/App.kt
++++ b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/App.kt
+@@ -4,6 +4,7 @@
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.rounded.*
