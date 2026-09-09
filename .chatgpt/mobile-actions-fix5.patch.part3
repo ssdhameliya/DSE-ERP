@@ -1,0 +1,87 @@
+     var edit by remember{mutableStateOf<ReturnDetails?>(null)}
+     var attach by remember{mutableStateOf<ReturnDetails?>(null)}
+     var confirm by remember{mutableStateOf<Pair<String,ReturnSummary>?>(null)}
++    var actionTarget by remember{mutableStateOf<ReturnSummary?>(null)}
++    var actionDetails by remember{mutableStateOf<ReturnDetails?>(null)}
+     var filterOpen by remember{mutableStateOf(false)}
+     val scope=rememberCoroutineScope()
+ 
+@@ -84,9 +86,34 @@
+                     SwipeAction("Original",Icons.Rounded.OpenInNew){onDeepLink("dseerp://${if(sales)"sales" else "purchase"}/${urlEncodeReturn(r.invoice)}")},
+                     SwipeAction("PDF",Icons.Rounded.PictureAsPdf){scope.launch{when(val d=api.returnDetails(r.no)){is ApiResult.Success->msg=if(shareBusinessPdf(returnBusinessDocument(d.value)))"Return PDF opened" else "Unable to open return PDF";else->msg=d.readableMessage()}}},
+                 ),
++                onActions={actionTarget=r;actionDetails=null;scope.launch{when(val d=api.returnDetails(r.no)){is ApiResult.Success->actionDetails=d.value;else->{msg=d.readableMessage();actionTarget=null}}}},
+             ){openReturn()}
+         }
+     }
++    if(actionTarget!=null&&actionDetails!=null){
++        val r=actionTarget!!;val d=actionDetails!!
++        val pending=d.status.contains("PENDING",true)
++        val approved=d.status.equals("APPROVED",true)
++        val terminal=d.status.uppercase().let{it.contains("CANCEL")||it.contains("DELETE")||it.contains("REJECT")}
++        val remaining=(d.total-d.refund).coerceAtLeast(0.0)
++        DseRecordActionSheet("${if(sales)"Sales" else "Purchase"} Return ${d.no}","Return lifecycle actions",buildList{
++            add(PremiumActionSpec("View Return",{selected=r;details=d}))
++            add(PremiumActionSpec("PDF / Print",{msg=if(shareBusinessPdf(returnBusinessDocument(d)))"Return PDF opened" else "Unable to open return PDF"}))
++            add(PremiumActionSpec("Excel",{msg=if(shareBusinessXlsx(returnBusinessDocument(d)))"Return Excel opened" else "Unable to open return Excel"}))
++            add(PremiumActionSpec("Open Original",{onDeepLink("dseerp://${if(sales)"sales" else "purchase"}/${urlEncodeReturn(d.invoice)}")}))
++            if(p.can(module,"APPROVE")){
++                add(PremiumActionSpec("Approve Return",{scope.launch{when(val x=api.approveReturn(d.no)){is ApiResult.Success->{msg=x.value.message;refresh++};else->msg=x.readableMessage()}}},enabled=pending,disabledReason="Only returns pending approval can be approved."))
++                add(PremiumActionSpec("Reject Return",{reject=r},destructive=true,enabled=pending,disabledReason="Only returns pending approval can be rejected."))
++            }
++            if(p.can(module,"EDIT")){
++                add(PremiumActionSpec("Record Refund",{refund=d},enabled=approved&&remaining>0.005,disabledReason=when{!approved->"Refund is available after the Return is approved.";remaining<=0.005->"This Return is already fully refunded.";else->null}))
++                add(PremiumActionSpec("Edit Notes / Reason",{edit=d},enabled=!terminal,disabledReason="Terminal Returns cannot be edited."))
++                add(PremiumActionSpec("Attachment",{attach=d},enabled=!terminal,disabledReason="Terminal Returns cannot be changed."))
++                add(PremiumActionSpec("Cancel Return",{confirm="cancel" to r},destructive=true,enabled=!terminal&&d.refund<=0.005,disabledReason=when{terminal->"This Return is already terminal.";d.refund>0.005->"A refunded Return cannot be cancelled.";else->null}))
++            }
++            if(p.can(module,"DELETE"))add(PremiumActionSpec("Delete Return",{confirm="delete" to r},destructive=true,enabled=!terminal&&d.refund<=0.005,disabledReason=when{terminal->"This Return is already terminal.";d.refund>0.005->"A refunded Return cannot be deleted.";else->null}))
++        },{actionTarget=null;actionDetails=null})
++    }
+     if(filterOpen)ReturnFilterDialog(filter,{filterOpen=false}){filter=it;page=0;filterOpen=false}
+ 
+     if(selected!=null&&details!=null){
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/ApiRoutes.kt /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/ApiRoutes.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/ApiRoutes.kt	2026-09-09 06:10:52.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/ApiRoutes.kt	2026-09-09 08:01:09.873431321 +0000
+@@ -75,6 +75,7 @@
+     const val RESOLVE_RECORD="$SUPPORT/resolve-record"
+     const val SAVED_VIEWS="$SUPPORT/saved-views"
+     const val COMMUNICATIONS="$SUPPORT/communications"
++    const val ACTIVITY="$SUPPORT/activity"
+     const val BUSINESS_EMAIL="/api/authority/email"
+     const val CANONICAL_DOCUMENT="/api/documents/render"
+ 
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpApi.kt /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpApi.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpApi.kt	2026-09-09 06:10:52.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpApi.kt	2026-09-09 08:01:09.873855651 +0000
+@@ -169,6 +169,7 @@
+     suspend fun savedViews(screen:String,userId:Int?=null): ApiResult<List<SavedView>>
+     suspend fun saveView(request:SavedViewSave): ApiResult<OperationResponse>
+     suspend fun communications(): ApiResult<List<CommunicationRow>>
++    suspend fun activity(type:String,id:Int): ApiResult<List<ActivityRow>>
+     suspend fun logCommunication(request:CommunicationRequest): ApiResult<OperationResponse>
+     suspend fun documentAttachments(type:String,id:Int): ApiResult<List<AttachmentMeta>>
+     suspend fun addDocumentAttachment(type:String,id:Int,filename:String,data:ByteArray): ApiResult<AttachmentMeta>
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpHttpClient.kt /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpHttpClient.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpHttpClient.kt	2026-09-09 06:10:52.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/api/DseErpHttpClient.kt	2026-09-09 08:01:09.874813135 +0000
+@@ -265,6 +265,7 @@
+     override suspend fun savedViews(screen:String,userId:Int?)=cachedGet<List<SavedView>>("cache.savedviews.${safeKey("$screen|$userId")}",ExistingErpRoutes.SAVED_VIEWS){parameter("screen",screen);userId?.let{parameter("userId",it)}}
+     override suspend fun saveView(request:SavedViewSave)=post<OperationResponse,SavedViewSave>(ExistingErpRoutes.SAVED_VIEWS,request)
+     override suspend fun communications()=cachedGet<List<CommunicationRow>>("cache.communications",ExistingErpRoutes.COMMUNICATIONS)
++    override suspend fun activity(type:String,id:Int)=get<List<ActivityRow>>(ExistingErpRoutes.ACTIVITY){parameter("type",type.uppercase());parameter("id",id)}
+     override suspend fun logCommunication(request:CommunicationRequest)=post<OperationResponse,CommunicationRequest>(ExistingErpRoutes.COMMUNICATIONS,request)
+     override suspend fun documentAttachments(type:String,id:Int)=get<List<AttachmentMeta>>("${ExistingErpRoutes.SUPPORT}/documents/${type.uppercase()}/$id/attachments")
+     override suspend fun addDocumentAttachment(type:String,id:Int,filename:String,data:ByteArray)=postBytes<AttachmentMeta>("${ExistingErpRoutes.SUPPORT}/documents/${type.uppercase()}/$id/attachments",data){parameter("filename",filename)}
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/model/ExtendedModels.kt /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/model/ExtendedModels.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/model/ExtendedModels.kt	2026-09-08 19:41:19.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/shared/src/commonMain/kotlin/org/dse/mobile/core/model/ExtendedModels.kt	2026-09-09 08:01:09.873104103 +0000
+@@ -35,6 +35,7 @@
+ @Serializable data class BusinessEmailRequest(val recipient:String="",val subject:String="",val body:String="",val attachmentName:String?=null,val attachmentBase64:String?=null)
+ @Serializable data class BusinessEmailResult(val success:Boolean=false,val message:String="")
+ @Serializable data class CommunicationRow(val id:Int=0,val entityType:String="",val entityId:Int=0,val documentLabel:String="",val channel:String="",val recipient:String="",val subject:String="",val status:String="",val errorMessage:String="",val createdBy:String="",val createdAt:String="")
++@Serializable data class ActivityRow(val id:Long=0,val entityType:String="",val entityId:Int=0,val action:String="",val detail:String="",val createdBy:String="",val createdAt:String="")
+ @Serializable data class CommunicationRequest(val entityType:String="",val entityId:Int=0,val channel:String="",val recipient:String="",val subject:String="",val status:String="SENT",val errorMessage:String="",val createdBy:String="Mobile")
+ @Serializable data class TextResponse(val value:String="")
+ @Serializable data class SavedView(val name:String="",val data:String="")
