@@ -1,0 +1,200 @@
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt	2026-09-09 05:39:19.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt	2026-09-09 08:06:19.739373978 +0000
+@@ -35,7 +35,7 @@
+ 
+ @Composable
+ private fun FinanceRegister(api:DseErpHttpClient,p:PermissionContext,openTarget:RecordTarget?=null,onTargetConsumed:()->Unit={}){
+-    var page by remember{mutableIntStateOf(0)};var filter by remember{mutableStateOf(FinanceFilter())};var data by remember{mutableStateOf<FinancePage?>(null)};var metrics by remember{mutableStateOf<FinanceMetrics?>(null)};var msg by remember{mutableStateOf("")};var refresh by remember{mutableIntStateOf(0)};var selected by remember{mutableStateOf<FinanceRecord?>(null)};var editor by remember{mutableStateOf<FinanceRecord?>(null)};var creating by remember{mutableStateOf(false)};var confirm by remember{mutableStateOf<FinanceRecord?>(null)};var filterOpen by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
++    var page by remember{mutableIntStateOf(0)};var filter by remember{mutableStateOf(FinanceFilter())};var data by remember{mutableStateOf<FinancePage?>(null)};var metrics by remember{mutableStateOf<FinanceMetrics?>(null)};var msg by remember{mutableStateOf("")};var refresh by remember{mutableIntStateOf(0)};var selected by remember{mutableStateOf<FinanceRecord?>(null)};var editor by remember{mutableStateOf<FinanceRecord?>(null)};var creating by remember{mutableStateOf(false)};var confirm by remember{mutableStateOf<FinanceRecord?>(null)};var actionTarget by remember{mutableStateOf<FinanceRecord?>(null)};var filterOpen by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
+     fun loadFull(row:FinanceRecord,after:(FinanceRecord)->Unit){scope.launch{val id=row.id?:return@launch;when(val r=api.financeById(id)){is ApiResult.Success->after(r.value);else->msg=r.readableMessage()}}}
+     suspend fun save(rec:FinanceRecord,create:Boolean){
+         when(val h=api.health()){
+@@ -64,8 +64,17 @@
+             swipeEndActions=buildList{
+                 if(!r.reconciled&&p.can("BANK_EXPENSE","DELETE"))add(SwipeAction("Delete",Icons.Rounded.Delete,true){loadFull(r){confirm=it}})
+             },
++            onActions={actionTarget=r},
+         ){loadFull(r){selected=it}}}
+     }
++    actionTarget?.let{r->
++        DseRecordActionSheet("Finance ${r.voucherNo}","Bank & Expense actions",buildList{
++            add(PremiumActionSpec("View Finance Entry",{loadFull(r){selected=it}}))
++            if(p.can("BANK_EXPENSE","EDIT"))add(PremiumActionSpec("Edit Finance Entry",{loadFull(r){editor=it}},enabled=!r.reconciled,disabledReason="Reconciled entries are locked to protect the bank audit trail."))
++            if(r.linkedDocumentNo?.isNotBlank()==true)add(PremiumActionSpec("Open Linked ERP",{platformOpenExternalUrl("dseerp://${linkedRoute(r.linkedTargetType)}/${encodeBank(r.linkedDocumentNo.orEmpty())}")}))
++            if(p.can("BANK_EXPENSE","DELETE"))add(PremiumActionSpec("Delete Finance Entry",{loadFull(r){confirm=it}},destructive=true,enabled=!r.reconciled,disabledReason="Reconciled entries cannot be deleted."))
++        },{actionTarget=null})
++    }
+     if(filterOpen)FinanceFilterDialog(filter,{filterOpen=false}){filter=it;page=0;filterOpen=false}
+     selected?.let{r->DetailDialog("Finance ${r.voucherNo}",{selected=null},{Column(verticalArrangement=Arrangement.spacedBy(8.dp)){detailFinanceRows(r);if(!r.billPath.isNullOrBlank())Text("Bill / Proof: ${r.billPath}",style=MaterialTheme.typography.bodySmall);Text("Actions",fontWeight=FontWeight.SemiBold);PremiumActionGrid(buildList{if(!r.reconciled&&p.can("BANK_EXPENSE","EDIT"))add(PremiumActionSpec("Edit",{editor=r;selected=null}));if(!r.reconciled&&p.can("BANK_EXPENSE","DELETE"))add(PremiumActionSpec("Delete",{confirm=r;selected=null},true));if(r.linkedDocumentNo?.isNotBlank()==true)add(PremiumActionSpec("Open Linked ERP",{platformOpenExternalUrl("dseerp://${linkedRoute(r.linkedTargetType)}/${encodeBank(r.linkedDocumentNo.orEmpty())}")}))})}})}
+     if(creating)FinanceEditorDialog(api,null,{creating=false}){rec->scope.launch{save(rec,true)}}
+@@ -87,7 +96,7 @@
+ private fun BankStatementWorkspace(api:DseErpHttpClient,p:PermissionContext,username:String){
+     val canRecon=p.can("BANK_EXPENSE","RECONCILE");val canDelete=p.can("BANK_EXPENSE","DELETE")
+     var batchPage by remember{mutableIntStateOf(0)};var batchFilter by remember{mutableStateOf(BankBatchFilter())};var batches by remember{mutableStateOf<BankBatchPage?>(null)};var batch by remember{mutableStateOf<BankBatch?>(null)};var batchFilterOpen by remember{mutableStateOf(false)}
+-    var txPage by remember{mutableIntStateOf(0)};var txFilter by remember{mutableStateOf(BankTransactionFilter())};var txs by remember{mutableStateOf<BankTransactionPage?>(null)};var txFilterOpen by remember{mutableStateOf(false)};var msg by remember{mutableStateOf("")};var refresh by remember{mutableIntStateOf(0)};var selected by remember{mutableStateOf<BankTransaction?>(null)};val selectedIds=remember{mutableStateListOf<Long>()};var bulk by remember{mutableStateOf<String?>(null)};var deleteBatch by remember{mutableStateOf<BankBatch?>(null)};var source by remember{mutableStateOf<BankSource?>(null)};val scope=rememberCoroutineScope()
++    var txPage by remember{mutableIntStateOf(0)};var txFilter by remember{mutableStateOf(BankTransactionFilter())};var txs by remember{mutableStateOf<BankTransactionPage?>(null)};var txFilterOpen by remember{mutableStateOf(false)};var msg by remember{mutableStateOf("")};var refresh by remember{mutableIntStateOf(0)};var selected by remember{mutableStateOf<BankTransaction?>(null)};var actionTarget by remember{mutableStateOf<BankTransaction?>(null)};val selectedIds=remember{mutableStateListOf<Long>()};var bulk by remember{mutableStateOf<String?>(null)};var deleteBatch by remember{mutableStateOf<BankBatch?>(null)};var source by remember{mutableStateOf<BankSource?>(null)};val scope=rememberCoroutineScope()
+     LaunchedEffect(api,batchPage,batchFilter,refresh){when(val r=api.bankBatches(batchPage,25,batchFilter)){is ApiResult.Success->{batches=r.value;if(batch==null||r.value.rows.none{it.id==batch?.id})batch=r.value.rows.firstOrNull()};else->msg=r.readableMessage()}}
+     LaunchedEffect(batch?.id,txPage,txFilter,refresh){val id=batch?.id?:return@LaunchedEffect;when(val r=api.bankTransactions(id,txPage,50,txFilter)){is ApiResult.Success->{txs=r.value;msg="${r.value.totalRows} transaction(s) • ${r.value.metrics?.reconciledPercent?:0.0}% reconciled${if(r.source==ApiDataSource.CACHE)" • cached" else ""}";selectedIds.retainAll(r.value.rows.map{it.id}.toSet())};else->msg=r.readableMessage()}}
+     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+@@ -111,12 +120,21 @@
+                         }
+                     }
+                 }else{
+-                    txs?.rows?.forEach{t->DseRecordCard(if(t.credit>0)"Credit ${money(t.credit,batch?.currency?:"INR")}" else "Debit ${money(t.debit,batch?.currency?:"INR")}",t.description,if(t.credit>0)money(t.credit,batch?.currency?:"INR") else money(t.debit,batch?.currency?:"INR"),listOf("Status" to t.status),meta="${t.transactionDate} • ${t.reference}",selected=t.id in selectedIds,onSelect={if(t.id in selectedIds)selectedIds.remove(t.id)else selectedIds.add(t.id)}){selected=t}}
++                    txs?.rows?.forEach{t->DseRecordCard(if(t.credit>0)"Credit ${money(t.credit,batch?.currency?:"INR")}" else "Debit ${money(t.debit,batch?.currency?:"INR")}",t.description,if(t.credit>0)money(t.credit,batch?.currency?:"INR") else money(t.debit,batch?.currency?:"INR"),listOf("Status" to t.status),meta="${t.transactionDate} • ${t.reference}",selected=t.id in selectedIds,onSelect={if(t.id in selectedIds)selectedIds.remove(t.id)else selectedIds.add(t.id)},onActions={actionTarget=t}){selected=t}}
+                 }
+             }
+             PagingControls(txPage,txs?.totalPages?:1,txs?.totalRows?:0){txPage=it};Text(msg,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+         }
+     }
++    actionTarget?.let{t->
++        val canRecon=p.can("BANK_EXPENSE","RECONCILE")
++        DseRecordActionSheet("Bank Transaction • ${t.transactionDate}","Statement transaction actions",buildList{
++            add(PremiumActionSpec(if(canRecon)"View / Reconcile" else "View Transaction",{selected=t}))
++            add(PremiumActionSpec(if(t.id in selectedIds)"Remove from Bulk Selection" else "Add to Bulk Selection",{if(t.id in selectedIds)selectedIds.remove(t.id)else selectedIds.add(t.id)}))
++            if(!t.linkedDocumentNo.isNullOrBlank())add(PremiumActionSpec("Open Linked ERP",{platformOpenExternalUrl("dseerp://${linkedRoute(t.linkedTargetType)}/${encodeBank(t.linkedDocumentNo.orEmpty())}")}))
++            add(PremiumActionSpec("Bank Audit Trail",{selected=t},icon=Icons.Rounded.Timeline))
++        },{actionTarget=null})
++    }
+     if(batchFilterOpen)BankBatchFilterDialog(batchFilter,{batchFilterOpen=false}){batchFilter=it;batchPage=0;batch=null;batchFilterOpen=false}
+     if(txFilterOpen)BankTransactionFilterDialog(txFilter,{txFilterOpen=false}){txFilter=it;txPage=0;selectedIds.clear();txFilterOpen=false}
+     selected?.let{t->BankTransactionDialog(api,t,p,username,{selected=null}){msg=it;selected=null;refresh++}}
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DocumentScreens.kt /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DocumentScreens.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DocumentScreens.kt	2026-09-09 06:11:30.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DocumentScreens.kt	2026-09-09 08:06:41.090576277 +0000
+@@ -24,7 +24,7 @@
+ private data class LineDraft(val item:MasterItem?=null,val code:String="",val description:String="",val unit:String="",val hsn:String="",val qty:String="1",val rate:String="0",val discount:String="0",val gst:String="0",val remarks:String="")
+ 
+ @Composable
+-private fun SalesDocumentCard(record:SaleRecord,onClick:()->Unit){
++private fun SalesDocumentCard(record:SaleRecord,onActions:()->Unit,onClick:()->Unit){
+     val outstanding=(record.totalAmount-record.paidAmount).coerceAtLeast(0.0)
+     val payment=record.paymentStatus.orEmpty().ifBlank{if(outstanding<=0)"PAID" else "PENDING"}
+     val accent=when{
+@@ -51,7 +51,7 @@
+                     }
+                     Text(record.customer?.name.orEmpty().ifBlank{"Customer not available"},style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
+                 }
+-                Icon(Icons.Rounded.MoreVert,"More",tint=MaterialTheme.colorScheme.onSurfaceVariant)
++                IconButton(onClick=onActions){Icon(Icons.Rounded.MoreVert,"Actions",tint=MaterialTheme.colorScheme.primary)}
+             }
+             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Bottom){
+                 Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
+@@ -82,6 +82,8 @@
+     var confirm by remember{mutableStateOf<Pair<String,SaleRecord>?>(null)}
+     var filterOpen by remember{mutableStateOf(false)}
+     var email by remember{mutableStateOf<SaleRecord?>(null)}
++    var actionTarget by remember{mutableStateOf<SaleRecord?>(null)}
++    var timelineTarget by remember{mutableStateOf<SaleRecord?>(null)}
+     var savedViews by remember{mutableStateOf<List<SavedView>>(emptyList())}
+     var savedChoice by remember{mutableStateOf("")}
+     var saveViewPrompt by remember{mutableStateOf(false)}
+@@ -176,9 +178,45 @@
+                     if(outstanding>0.005&&p.can("SALES","EDIT"))add(SwipeAction("Pay",Icons.Rounded.Payments){loadFull(r){payment=it}})
+                     add(SwipeAction("PDF",Icons.Rounded.PictureAsPdf){scope.launch{msg=shareCanonicalDocument(api,"SALES_INVOICE",r.invoiceNo,"PDF")}})
+                 },
+-            ){SalesDocumentCard(r){loadFull(r){selected=it}}}
++            ){SalesDocumentCard(r,{actionTarget=r}){loadFull(r){selected=it}}}
+         }
+     }
++    actionTarget?.let{r->
++        val state=r.documentStatus.orEmpty().trim().uppercase()
++        val active=state !in setOf("CANCELLED","DELETED")
++        val approvalLocked=state in setOf("PENDING APPROVAL","REJECTED")
++        val outstanding=(r.totalAmount-r.paidAmount).coerceAtLeast(0.0)
++        val paymentState=r.paymentStatus.orEmpty().trim().uppercase()
++        val fullyPaid=paymentState in setOf("PAID","SETTLED")||r.paidAmount+0.009>=r.totalAmount
++        val financiallyLocked=r.paidAmount>0.009||paymentState.contains("PAID")||paymentState.contains("SETTLED")||paymentState.contains("PARTIAL")
++        val canEdit=active&&p.can("SALES","EDIT")
++        val canPay=active&&!approvalLocked&&outstanding>0.005&&p.can("SALES","EDIT")
++        val canReturn=state=="APPROVED"&&fullyPaid&&paymentState !in setOf("RETURN PENDING","RETURN PARTIAL")&&p.can("SALES","EDIT")
++        DseRecordActionSheet("Sale ${r.invoiceNo}","Desktop-style Sales actions",buildList{
++            add(PremiumActionSpec("View Sale",{loadFull(r){selected=it}}))
++            add(PremiumActionSpec("Activity Timeline",{timelineTarget=r},enabled=r.id!=null,disabledReason="Activity history requires a saved ERP record."))
++            if(p.can("SALES","EDIT"))add(PremiumActionSpec("Edit Sale",{loadFull(r){editor=it}},enabled=canEdit,disabledReason=if(!active)"Cancelled or deleted Sales cannot be edited." else null))
++            if(p.can("SALES","EDIT"))add(PremiumActionSpec("View / Record Payments",{loadFull(r){payment=it}},enabled=canPay,disabledReason=when{approvalLocked->"Approval must be completed before payment.";outstanding<=0.005->"This Sale is already fully paid.";!active->"Cancelled or deleted Sales cannot receive payment.";else->null}))
++            if(p.can("SALES","EDIT"))add(PremiumActionSpec("Create Sales Return",{loadFull(r){returning=it}},enabled=canReturn,disabledReason=when{state!="APPROVED"->"Only approved Sales can be returned.";!fullyPaid->"The Sale must be fully paid before creating a return.";else->"A return is already pending or partial."}))
++            if(p.can("SALES","VIEW")){
++                add(PremiumActionSpec("PDF / Print",{scope.launch{msg=shareCanonicalDocument(api,"SALES_INVOICE",r.invoiceNo,"PDF")}},enabled=active&&!approvalLocked,disabledReason="Document output is available after approval."))
++                add(PremiumActionSpec("Excel",{scope.launch{msg=shareCanonicalDocument(api,"SALES_INVOICE",r.invoiceNo,"XLSX")}},enabled=active&&!approvalLocked,disabledReason="Document output is available after approval."))
++                add(PremiumActionSpec("Send Email",{loadFull(r){email=it}},enabled=active&&!approvalLocked,disabledReason="Email is available after approval."))
++                val hasPhone=!r.customer?.phone.isNullOrBlank()
++                add(PremiumActionSpec("WhatsApp",{
++                    loadFull(r){full->val phone=full.customer?.phone.orEmpty().filter{it.isDigit()||it=='+'};if(phone.isBlank())msg="Customer phone is not configured" else {platformOpenExternalUrl("https://wa.me/${phone.filter{it.isDigit()}}?text=${urlEncode("Jasvi Industries Sale ${full.invoiceNo} • ${money(full.totalAmount)}")}");scope.launch{full.id?.let{api.markDocumentWhatsapp("SALE",it)}}}}
++                },enabled=active&&!approvalLocked&&hasPhone,disabledReason=if(!hasPhone)"Customer phone is not configured." else "WhatsApp is available after approval."))
++            }
++            if(p.can("SALES","CREATE"))add(PremiumActionSpec("Duplicate Sale",{scope.launch{val id=r.id?:return@launch;when(val x=api.duplicateSale(id,username)){is ApiResult.Success->{msg="Duplicated as ${x.value.value}";refresh++};else->msg=x.readableMessage()}}},enabled=r.id!=null,disabledReason="Only saved Sales can be duplicated."))
++            if(p.isAdmin()){
++                add(PremiumActionSpec("Approve",{scope.launch{when(val x=api.saleAction(r.invoiceNo,"approve")){is ApiResult.Success->{msg=x.value.message;refresh++};else->msg=x.readableMessage()}}},enabled=state=="PENDING APPROVAL",disabledReason="Only Sales pending approval can be approved."))
++                add(PremiumActionSpec("Reject",{reject=r},destructive=true,enabled=state=="PENDING APPROVAL",disabledReason="Only Sales pending approval can be rejected."))
++            }
++            if(p.can("SALES","EDIT"))add(PremiumActionSpec("Cancel Sale",{confirm="cancel" to r},destructive=true,enabled=active&&!financiallyLocked,disabledReason=when{!active->"This Sale is already cancelled or deleted.";financiallyLocked->"Paid or partially paid Sales cannot be cancelled. Create a return instead.";else->null}))
++            if(p.can("SALES","DELETE"))add(PremiumActionSpec("Delete Sale",{confirm="delete" to r},destructive=true,enabled=active&&!financiallyLocked,disabledReason=when{!active->"This Sale is already cancelled or deleted.";financiallyLocked->"Paid or partially paid Sales cannot be deleted. Create a return instead.";else->null}))
++        },{actionTarget=null})
++    }
++    timelineTarget?.let{r->r.id?.let{id->ActivityTimelineSheet(api,"SALE",id,r.invoiceNo){timelineTarget=null}}?:run{timelineTarget=null}}
+     if(filterOpen) SalesFilterDialog(filter,{filterOpen=false}){filter=it;page=0;filterOpen=false}
+     if(saveViewPrompt)TextPromptDialog("Save Sales Filter View","View name",onDismiss={saveViewPrompt=false}){name->scope.launch{when(val r=api.saveView(SavedViewSave(p.user?.id,"SALES_REGISTER",name,encodeSalesView(filter)))){is ApiResult.Success->{msg="Saved view created";saveViewPrompt=false;refresh++};else->msg=r.readableMessage()}}}
+     selected?.let{r->SaleDetailDialog(api,r,p,{selected=null},{editor=r;selected=null},{payment=r;selected=null},{returning=r;selected=null},{email=r},{
+@@ -215,6 +253,8 @@
+     var confirm by remember{mutableStateOf<Pair<String,PurchaseRecord>?>(null)}
+     var filterOpen by remember{mutableStateOf(false)}
+     var email by remember{mutableStateOf<PurchaseRecord?>(null)}
++    var actionTarget by remember{mutableStateOf<PurchaseRecord?>(null)}
++    var timelineTarget by remember{mutableStateOf<PurchaseRecord?>(null)}
+     val scope=rememberCoroutineScope()
+     fun loadFull(row:PurchaseRecord,after:(PurchaseRecord)->Unit){scope.launch{when(val x=api.purchaseByInvoice(row.invoiceNo)){is ApiResult.Success->after(x.value);else->msg=x.readableMessage()}}}
+     suspend fun save(record:PurchaseRecord,create:Boolean){
+@@ -254,9 +294,44 @@
+                     if(outstanding>0.005&&p.can("PURCHASE","EDIT"))add(SwipeAction("Pay",Icons.Rounded.Payments){loadFull(r){payment=it}})
+                     add(SwipeAction("PDF",Icons.Rounded.PictureAsPdf){scope.launch{msg=shareCanonicalDocument(api,"PURCHASE_INVOICE",r.invoiceNo,"PDF")}})
+                 },
++                onActions={actionTarget=r},
+             ){loadFull(r){selected=it}}
+         }
+     }
++    actionTarget?.let{r->
++        val state=r.documentStatus.orEmpty().trim().uppercase()
++        val active=state !in setOf("CANCELLED","DELETED")
++        val approvalLocked=state in setOf("PENDING APPROVAL","REJECTED")
++        val outstanding=(r.totalAmount-r.paidAmount).coerceAtLeast(0.0)
++        val paymentState=r.paymentStatus.orEmpty().trim().uppercase()
++        val fullyPaid=paymentState in setOf("PAID","SETTLED")||r.paidAmount+0.009>=r.totalAmount
++        val financiallyLocked=r.paidAmount>0.009||paymentState.contains("PAID")||paymentState.contains("SETTLED")||paymentState.contains("PARTIAL")
++        val canEdit=active&&p.can("PURCHASE","EDIT")
++        val canPay=active&&state!="DRAFT"&&!approvalLocked&&outstanding>0.005&&p.can("PURCHASE","EDIT")
++        val canReturn=state=="APPROVED"&&fullyPaid&&paymentState !in setOf("RETURN PENDING","RETURN PARTIAL")&&p.can("PURCHASE","EDIT")
++        DseRecordActionSheet("Purchase ${r.invoiceNo}","Desktop-style Purchase actions",buildList{
++            add(PremiumActionSpec("View Purchase",{loadFull(r){selected=it}}))
++            add(PremiumActionSpec("Activity Timeline",{timelineTarget=r},enabled=r.id!=null,disabledReason="Activity history requires a saved ERP record."))
++            if(p.can("PURCHASE","EDIT"))add(PremiumActionSpec("Edit Purchase",{loadFull(r){editor=it}},enabled=canEdit,disabledReason=if(!active)"Cancelled or deleted Purchases cannot be edited." else null))
++            if(p.can("PURCHASE","EDIT"))add(PremiumActionSpec("View / Record Payments",{loadFull(r){payment=it}},enabled=canPay,disabledReason=when{state=="DRAFT"->"Draft Purchases cannot receive payment.";approvalLocked->"Approval must be completed before payment.";outstanding<=0.005->"This Purchase is already fully paid.";!active->"Cancelled or deleted Purchases cannot receive payment.";else->null}))
++            if(p.can("PURCHASE","EDIT"))add(PremiumActionSpec("Create Purchase Return",{loadFull(r){returning=it}},enabled=canReturn,disabledReason=when{state!="APPROVED"->"Only approved Purchases can be returned.";!fullyPaid->"The Purchase must be fully paid before creating a return.";else->"A return is already pending or partial."}))
++            if(p.can("PURCHASE","VIEW")){
++                add(PremiumActionSpec("PDF / Print",{scope.launch{msg=shareCanonicalDocument(api,"PURCHASE_INVOICE",r.invoiceNo,"PDF")}},enabled=active&&!approvalLocked,disabledReason="Document output is available after approval."))
++                add(PremiumActionSpec("Excel",{scope.launch{msg=shareCanonicalDocument(api,"PURCHASE_INVOICE",r.invoiceNo,"XLSX")}},enabled=active&&!approvalLocked,disabledReason="Document output is available after approval."))
++                add(PremiumActionSpec("Send Email",{loadFull(r){email=it}},enabled=active&&!approvalLocked,disabledReason="Email is available after approval."))
++                val hasPhone=!r.supplier?.phone.isNullOrBlank()
++                add(PremiumActionSpec("WhatsApp",{loadFull(r){full->val phone=full.supplier?.phone.orEmpty().filter{it.isDigit()||it=='+'};if(phone.isBlank())msg="Supplier phone is not configured" else platformOpenExternalUrl("https://wa.me/${phone.filter{it.isDigit()}}?text=${urlEncode("Jasvi Industries Purchase ${full.invoiceNo} • ${money(full.totalAmount,full.currency?.substringBefore(' ')?:"INR")}")}")}},enabled=active&&!approvalLocked&&hasPhone,disabledReason=if(!hasPhone)"Supplier phone is not configured." else "WhatsApp is available after approval."))
++            }
++            if(p.can("PURCHASE","CREATE"))add(PremiumActionSpec("Duplicate Purchase",{loadFull(r){duplicate=it}},enabled=r.id!=null,disabledReason="Only saved Purchases can be duplicated."))
++            if(p.isAdmin()){
++                add(PremiumActionSpec("Approve",{scope.launch{when(val x=api.purchaseAction(r.invoiceNo,"approve")){is ApiResult.Success->{msg=x.value.message;refresh++};else->msg=x.readableMessage()}}},enabled=state=="PENDING APPROVAL",disabledReason="Only Purchases pending approval can be approved."))
++                add(PremiumActionSpec("Reject",{reject=r},destructive=true,enabled=state=="PENDING APPROVAL",disabledReason="Only Purchases pending approval can be rejected."))
++            }
++            if(p.can("PURCHASE","EDIT"))add(PremiumActionSpec("Cancel Purchase",{confirm="cancel" to r},destructive=true,enabled=active&&!financiallyLocked,disabledReason=when{!active->"This Purchase is already cancelled or deleted.";financiallyLocked->"Paid or partially paid Purchases cannot be cancelled. Create a return instead.";else->null}))
++            if(p.can("PURCHASE","DELETE"))add(PremiumActionSpec("Delete Purchase",{confirm="delete" to r},destructive=true,enabled=active&&!financiallyLocked,disabledReason=when{!active->"This Purchase is already cancelled or deleted.";financiallyLocked->"Paid or partially paid Purchases cannot be deleted. Create a return instead.";else->null}))
++        },{actionTarget=null})
++    }
++    timelineTarget?.let{r->r.id?.let{id->ActivityTimelineSheet(api,"PURCHASE",id,r.invoiceNo){timelineTarget=null}}?:run{timelineTarget=null}}
+     if(filterOpen)PurchaseFilterDialog(filter,{filterOpen=false}){filter=it;page=0;filterOpen=false}
+     selected?.let{r->PurchaseDetailDialog(api,r,p,{selected=null},{editor=r;selected=null},{payment=r;selected=null},{returning=r;selected=null},{email=r},{scope.launch{msg=shareCanonicalDocument(api,"PURCHASE_INVOICE",r.invoiceNo,"PDF")}},{scope.launch{msg=shareCanonicalDocument(api,"PURCHASE_INVOICE",r.invoiceNo,"XLSX")}},{val phone=r.supplier?.phone.orEmpty().filter{it.isDigit()||it=='+'};if(phone.isBlank())msg="Supplier phone is not configured" else platformOpenExternalUrl("https://wa.me/${phone.filter{it.isDigit()}}?text=${urlEncode("Jasvi Industries Purchase ${r.invoiceNo} • ${money(r.totalAmount,r.currency?.substringBefore(' ')?:"INR")}")}")},{duplicate=r;selected=null},{confirm="cancel" to r},{confirm="delete" to r},{scope.launch{when(val x=api.purchaseAction(r.invoiceNo,"approve")){is ApiResult.Success->{msg=x.value.message;selected=null;refresh++};else->msg=x.readableMessage()}}},{reject=r;selected=null})}
+     if(creating)PurchaseEditorDialog(api,null,{creating=false}){draft->scope.launch{save(draft,true)}}
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DseComponents.kt /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DseComponents.kt
+--- /mnt/data/action-build-base/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DseComponents.kt	2026-09-09 05:37:04.000000000 +0000
++++ /mnt/data/action-build/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DseComponents.kt	2026-09-09 08:07:07.988825222 +0000
+@@ -38,6 +38,7 @@
+ import kotlinx.coroutines.launch
+ import org.dse.mobile.core.api.ApiResult
+ import org.dse.mobile.core.api.DseErpHttpClient
