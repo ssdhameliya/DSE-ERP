@@ -1,0 +1,200 @@
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/App.kt b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/App.kt
+--- a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/App.kt	2026-09-09 04:18:07.000000000 +0000
++++ b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/App.kt	2026-09-09 08:52:47.688830493 +0000
+@@ -25,8 +25,8 @@
+ import org.dse.mobile.core.offline.OfflineRepository
+ import org.dse.mobile.core.offline.platformOfflineNowMillis
+ 
+-enum class MainTab(val label:String){DASHBOARD("Home"),SALES("Sales"),PURCHASE("Purchase"),BANK("Finance"),MORE("More")}
+-enum class MoreDestination(val label:String){QUOTATIONS("Quotations"),SALES_RETURNS("Sales Returns"),PURCHASE_RETURNS("Purchase Returns"),MASTERS("Master Data"),INVENTORY("Inventory"),PURCHASE_RECON("Purchase Reconciliation"),COMMUNICATIONS("Communication Center"),REMINDERS("Reminders"),NOTIFICATIONS("Notifications"),REPORTS("Reports"),PROFILE("Profile & Password"),ADMIN("User Access & Roles"),IMPORT("Data Import"),SYNC("Sync Center"),ABOUT("About")}
++enum class MainTab(val label:String){DASHBOARD("Dashboard"),SALES("Sales"),PURCHASE("Purchase"),BANK("Bank Statement"),IMPORT("Import"),MORE("More")}
++enum class MoreDestination(val label:String){PURCHASE("Purchase"),QUOTATIONS("Quotations"),SALES_RETURNS("Sales Returns"),PURCHASE_RETURNS("Purchase Returns"),MASTERS("Master Data"),INVENTORY("Inventory"),PURCHASE_RECON("Purchase Reconciliation"),COMMUNICATIONS("Communication Center"),REMINDERS("Reminders"),NOTIFICATIONS("Notifications"),REPORTS("Reports"),PROFILE("Profile & Password"),ADMIN("User Access & Roles"),IMPORT("Data Import"),SYNC("Sync Center"),ABOUT("About")}
+ private enum class RootPage { STARTUP,LOGIN,MFA,APP }
+ 
+ data class RecordTarget(val moduleKey:String,val reference:String="",val recordId:Long?=null)
+@@ -410,12 +410,13 @@
+   MainTab.SALES->permission.can("SALES")
+   MainTab.PURCHASE->permission.can("PURCHASE")
+   MainTab.BANK->permission.can("BANK_EXPENSE")||permission.can("FINANCE")||permission.isAdmin()
++  MainTab.IMPORT->permission.can("INVENTORY","CREATE")||permission.can("CUSTOMERS","CREATE")||permission.can("SUPPLIERS","CREATE")||permission.can("PURCHASE_RECON","IMPORT")||permission.isAdmin()
+   MainTab.MORE->true
+  }
+  fun routeModule(moduleKey:String){
+   when(moduleKey.uppercase()){
+    "SALE","SALES"->{if(permission.can("SALES")){tab=MainTab.SALES;more=null}}
+-   "PURCHASE","PURCHASES"->{if(permission.can("PURCHASE")){tab=MainTab.PURCHASE;more=null}}
++   "PURCHASE","PURCHASES"->{if(permission.can("PURCHASE")){tab=MainTab.MORE;more=MoreDestination.PURCHASE}}
+    "SALES_RETURN","SALE_RETURN"->{tab=MainTab.MORE;more=MoreDestination.SALES_RETURNS}
+    "PURCHASE_RETURN"->{tab=MainTab.MORE;more=MoreDestination.PURCHASE_RETURNS}
+    "QUOTATION","QUOTATIONS"->{tab=MainTab.MORE;more=MoreDestination.QUOTATIONS}
+@@ -453,7 +454,7 @@
+   }
+   when(moduleKey){
+    "PROFILE"->{tab=MainTab.MORE;more=MoreDestination.PROFILE;recordTarget=null}
+-   "IMPORT"->{tab=MainTab.MORE;more=MoreDestination.IMPORT;recordTarget=null}
++   "IMPORT"->{if(allowed(MainTab.IMPORT)){tab=MainTab.IMPORT;more=null};recordTarget=null}
+    "DASHBOARD"->{tab=MainTab.DASHBOARD;more=null;recordTarget=null}
+    else->{routeModule(moduleKey);if(reference.isNotBlank()){
+     recordTarget=RecordTarget(moduleKey,reference,null)
+@@ -485,7 +486,7 @@
+   },
+   bottomBar={
+    NavigationBar(containerColor=MaterialTheme.colorScheme.surface,tonalElevation=0.dp){
+-    MainTab.entries.filter(::allowed).forEach{t->
++    listOf(MainTab.DASHBOARD,MainTab.SALES,MainTab.BANK,MainTab.IMPORT,MainTab.MORE).filter(::allowed).forEach{t->
+      NavigationBarItem(
+       selected=tab==t,
+       onClick={tab=t;if(t!=MainTab.MORE)more=null},
+@@ -513,6 +514,7 @@
+     MainTab.SALES->if(permission.can("SALES"))SalesWorkspace(api,permission,permission.user?.username.orEmpty(),recordTarget,{recordTarget=null}) else PermissionDenied("Sales")
+     MainTab.PURCHASE->if(permission.can("PURCHASE"))PurchaseWorkspace(api,permission,permission.user?.username.orEmpty(),recordTarget,{recordTarget=null}) else PermissionDenied("Purchase")
+     MainTab.BANK->if(allowed(MainTab.BANK))BankFinanceWorkspace(api,permission,permission.user?.username.orEmpty(),recordTarget,{recordTarget=null}) else PermissionDenied("Bank & Finance")
++    MainTab.IMPORT->if(allowed(MainTab.IMPORT))DataImportWorkspace(api,permission.user?.username.orEmpty()) else PermissionDenied("Data Import")
+     MainTab.MORE->MoreWorkspace(api,permission,permission.user?.username.orEmpty(),more,{more=it},{routeDeepLink(it)},recordTarget,{recordTarget=null})
+    }
+   }
+@@ -523,7 +525,7 @@
+ @Composable private fun PermissionDenied(module:String){Box(Modifier.fillMaxSize(),contentAlignment=Alignment.Center){Text("You do not have permission to view $module.")}}
+ 
+ @Composable private fun ConnectionChip(online:Boolean?){val icon=when(online){true->Icons.Rounded.CloudDone;false->Icons.Rounded.CloudOff;null->Icons.Rounded.Sync};Icon(icon,when(online){true->"Online";false->"Offline";null->"Checking"},tint=if(online==false)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)}
+-private fun tabIcon(t:MainTab)=when(t){MainTab.DASHBOARD->Icons.Rounded.Home;MainTab.SALES->Icons.Rounded.ReceiptLong;MainTab.PURCHASE->Icons.Rounded.ShoppingCart;MainTab.BANK->Icons.Rounded.AccountBalance;MainTab.MORE->Icons.Rounded.MoreHoriz}
++private fun tabIcon(t:MainTab)=when(t){MainTab.DASHBOARD->Icons.Rounded.Dashboard;MainTab.SALES->Icons.Rounded.ReceiptLong;MainTab.PURCHASE->Icons.Rounded.ShoppingCart;MainTab.BANK->Icons.Rounded.AccountBalance;MainTab.IMPORT->Icons.Rounded.UploadFile;MainTab.MORE->Icons.Rounded.MoreHoriz}
+ private fun displayName(u:UserPayload?)=u?.fullName?.takeIf{it.isNotBlank()}?:u?.username.orEmpty()
+ private fun UserProfile.toUserPayload()=UserPayload(id=id,username=username,fullName=fullName,role=role,email=email,active=active,department=department,branch=branch,accessLevel=accessLevel,locked=locked,mfaEnabled=mfaEnabled)
+ private fun cacheAgeLabel(last:Long):String{val min=((platformOfflineNowMillis()-last).coerceAtLeast(0)/60_000);return when{min<1->"just now";min<60->"$min min ago";min<1440->"${min/60} hr ago";else->"${min/1440} day(s) ago"}}
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt
+--- a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt	2026-09-09 08:06:19.000000000 +0000
++++ b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/BankFinanceScreens.kt	2026-09-09 08:55:56.533504883 +0000
+@@ -23,7 +23,7 @@
+ 
+ @Composable
+ internal fun BankFinanceWorkspace(api:DseErpHttpClient,p:PermissionContext,username:String,openTarget:RecordTarget?=null,onTargetConsumed:()->Unit={}){
+-    var mode by remember{mutableStateOf(BankMode.FINANCE)}
++    var mode by remember{mutableStateOf(BankMode.STATEMENT)}
+     Column(Modifier.fillMaxSize()){
+         SingleChoiceSegmentedButtonRow(Modifier.padding(horizontal=12.dp,vertical=6.dp)){BankMode.entries.forEachIndexed{i,m->SegmentedButton(selected=mode==m,onClick={mode=m},shape=SegmentedButtonDefaults.itemShape(i,BankMode.entries.size)){Text(m.label)}}}
+         LaunchedEffect(openTarget?.moduleKey){if(openTarget?.moduleKey?.uppercase()=="BANK_STATEMENT")mode=BankMode.STATEMENT else if(openTarget?.moduleKey?.uppercase() in setOf("FINANCE","BANK","EXPENSE"))mode=BankMode.FINANCE}
+@@ -96,11 +96,11 @@
+ private fun BankStatementWorkspace(api:DseErpHttpClient,p:PermissionContext,username:String){
+     val canRecon=p.can("BANK_EXPENSE","RECONCILE");val canDelete=p.can("BANK_EXPENSE","DELETE")
+     var batchPage by remember{mutableIntStateOf(0)};var batchFilter by remember{mutableStateOf(BankBatchFilter())};var batches by remember{mutableStateOf<BankBatchPage?>(null)};var batch by remember{mutableStateOf<BankBatch?>(null)};var batchFilterOpen by remember{mutableStateOf(false)}
+-    var txPage by remember{mutableIntStateOf(0)};var txFilter by remember{mutableStateOf(BankTransactionFilter())};var txs by remember{mutableStateOf<BankTransactionPage?>(null)};var txFilterOpen by remember{mutableStateOf(false)};var msg by remember{mutableStateOf("")};var refresh by remember{mutableIntStateOf(0)};var selected by remember{mutableStateOf<BankTransaction?>(null)};var actionTarget by remember{mutableStateOf<BankTransaction?>(null)};val selectedIds=remember{mutableStateListOf<Long>()};var bulk by remember{mutableStateOf<String?>(null)};var deleteBatch by remember{mutableStateOf<BankBatch?>(null)};var source by remember{mutableStateOf<BankSource?>(null)};val scope=rememberCoroutineScope()
++    var txPage by remember{mutableIntStateOf(0)};var txFilter by remember{mutableStateOf(BankTransactionFilter())};var txs by remember{mutableStateOf<BankTransactionPage?>(null)};var txFilterOpen by remember{mutableStateOf(false)};var msg by remember{mutableStateOf("")};var dismissedMessage by remember{mutableStateOf("")};var refresh by remember{mutableIntStateOf(0)};var selected by remember{mutableStateOf<BankTransaction?>(null)};var actionTarget by remember{mutableStateOf<BankTransaction?>(null)};val selectedIds=remember{mutableStateListOf<Long>()};var bulk by remember{mutableStateOf<String?>(null)};var deleteBatch by remember{mutableStateOf<BankBatch?>(null)};var source by remember{mutableStateOf<BankSource?>(null)};val scope=rememberCoroutineScope()
+     LaunchedEffect(api,batchPage,batchFilter,refresh){when(val r=api.bankBatches(batchPage,25,batchFilter)){is ApiResult.Success->{batches=r.value;if(batch==null||r.value.rows.none{it.id==batch?.id})batch=r.value.rows.firstOrNull()};else->msg=r.readableMessage()}}
+     LaunchedEffect(batch?.id,txPage,txFilter,refresh){val id=batch?.id?:return@LaunchedEffect;when(val r=api.bankTransactions(id,txPage,50,txFilter)){is ApiResult.Success->{txs=r.value;msg="${r.value.totalRows} transaction(s) • ${r.value.metrics?.reconciledPercent?:0.0}% reconciled${if(r.source==ApiDataSource.CACHE)" • cached" else ""}";selectedIds.retainAll(r.value.rows.map{it.id}.toSet())};else->msg=r.readableMessage()}}
+-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Column{Text("Bank Statement",style=MaterialTheme.typography.headlineSmall);Text("Candidate matching, allocations, bulk actions and audit",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)};IconButton(onClick={refresh++}){Icon(Icons.Rounded.Refresh,"Refresh")}}
++    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=10.dp,vertical=7.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
++        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){PremiumIconTile(Icons.Rounded.AccountBalance,DseInfo,size=34.dp);Column{Text("Bank Statement",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.ExtraBold);Text("Transactions, matching and audit",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}};FilledTonalIconButton(onClick={refresh++},modifier=Modifier.size(38.dp)){Icon(Icons.Rounded.Refresh,"Refresh",Modifier.size(19.dp))}}
+         if(batches?.rows.orEmpty().isEmpty())Text("No imported bank statements found.") else {
+             DseSelect("Statement Batch",batch?.let{bankBatchLabel(it)}.orEmpty(),batches?.rows.orEmpty().map(::bankBatchLabel),onValue={label->batch=batches?.rows.orEmpty().firstOrNull{bankBatchLabel(it)==label};txPage=0;selectedIds.clear()})
+             Row(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){OutlinedButton(onClick={batchFilterOpen=true}){Icon(Icons.Rounded.FilterAlt,null);Text("Statement Filters")};OutlinedButton(enabled=batch!=null,onClick={scope.launch{val id=batch?.id?:return@launch;when(val r=api.bankSource(id)){is ApiResult.Success->source=r.value;else->msg=r.readableMessage()}}}){Text("Source")};if(canDelete&&batch!=null)OutlinedButton(onClick={deleteBatch=batch}){Text("Delete Statement")}}
+@@ -110,8 +110,7 @@
+             if(canRecon&&selectedIds.isNotEmpty())FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){OutlinedButton(onClick={bulk="review"}){Text("Reviewed")};OutlinedButton(onClick={bulk="ignore"}){Text("Ignore")};Button(onClick={bulk="expense"}){Text("Move to Expense")};Button(onClick={bulk="entry"}){Text("Move to Bank Entry")}}
+             Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(7.dp)){
+                 if(txs==null){
+-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+-                    Text("Loading bank transactions…",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++                    DseLoadingState("Loading bank transactions…")
+                 }else if(txs?.rows.orEmpty().isEmpty()){
+                     Surface(shape=androidx.compose.foundation.shape.RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(.35f),modifier=Modifier.fillMaxWidth()){
+                         Row(Modifier.padding(14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+@@ -123,9 +122,10 @@
+                     txs?.rows?.forEach{t->DseRecordCard(if(t.credit>0)"Credit ${money(t.credit,batch?.currency?:"INR")}" else "Debit ${money(t.debit,batch?.currency?:"INR")}",t.description,if(t.credit>0)money(t.credit,batch?.currency?:"INR") else money(t.debit,batch?.currency?:"INR"),listOf("Status" to t.status),meta="${t.transactionDate} • ${t.reference}",selected=t.id in selectedIds,onSelect={if(t.id in selectedIds)selectedIds.remove(t.id)else selectedIds.add(t.id)},onActions={actionTarget=t}){selected=t}}
+                 }
+             }
+-            PagingControls(txPage,txs?.totalPages?:1,txs?.totalRows?:0){txPage=it};Text(msg,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++            PagingControls(txPage,txs?.totalPages?:1,txs?.totalRows?:0){txPage=it};if(msg.isNotBlank()&&noticeKindFor(msg)==null)Text(msg,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2)
+         }
+     }
++    noticeKindFor(msg)?.let{kind->if(msg!=dismissedMessage)DseNoticeDialog(msg,kind){dismissedMessage=msg}}
+     actionTarget?.let{t->
+         val canRecon=p.can("BANK_EXPENSE","RECONCILE")
+         DseRecordActionSheet("Bank Transaction • ${t.transactionDate}","Statement transaction actions",buildList{
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DashboardScreens.kt b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DashboardScreens.kt
+--- a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DashboardScreens.kt	2026-09-09 05:30:24.000000000 +0000
++++ b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DashboardScreens.kt	2026-09-09 08:54:07.913716851 +0000
+@@ -35,6 +35,7 @@
+ ){
+     var data by remember{mutableStateOf<InsightDashboardBundle?>(null)}
+     var msg by remember{mutableStateOf("Loading live workspace…")}
++    var dismissedMessage by remember{mutableStateOf("")}
+     var key by remember{mutableIntStateOf(0)}
+     LaunchedEffect(api,key){
+         when(val r=api.insightDashboard("This Month")){
+@@ -61,102 +62,91 @@
+     val s=data?.snapshot
+     val name=p.user?.fullName?.takeIf{!it.isNullOrBlank()}?:p.user?.username.orEmpty()
+     val firstName=name.substringBefore(' ').ifBlank{"there"}
++    val notice=noticeKindFor(msg)
+ 
+     Column(
+-        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).padding(horizontal=14.dp,vertical=10.dp),
+-        verticalArrangement=Arrangement.spacedBy(13.dp),
++        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).padding(horizontal=10.dp,vertical=7.dp),
++        verticalArrangement=Arrangement.spacedBy(7.dp),
+     ){
+-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
++        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)){
+             Column(Modifier.weight(1f)){
+-                Text("Welcome back,",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+-                Text("$firstName!",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.ExtraBold)
++                Text("Welcome back, $firstName",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.ExtraBold)
++                Text(if(msg.startsWith("Live",true)||msg.startsWith("Offline",true))msg else "Business overview",style=MaterialTheme.typography.labelSmall,color=if(msg.startsWith("Offline",true))DseWarning else MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
+             }
+-            UatStatusPill(true)
+-            Spacer(Modifier.width(7.dp))
+-            FilledTonalIconButton(onClick={key++},shape=androidx.compose.foundation.shape.RoundedCornerShape(15.dp)){Icon(Icons.Rounded.Refresh,"Refresh")}
++            FilledTonalIconButton(onClick={key++},shape=androidx.compose.foundation.shape.RoundedCornerShape(13.dp),modifier=Modifier.size(38.dp)){Icon(Icons.Rounded.Refresh,"Refresh",Modifier.size(19.dp))}
+         }
+ 
+         Surface(
+             modifier=Modifier.fillMaxWidth().clickable(onClick=onSearch),
+-            shape=androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
++            shape=androidx.compose.foundation.shape.RoundedCornerShape(15.dp),
+             color=MaterialTheme.colorScheme.surface,
+-            border=androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.primary.copy(.12f)),
+-            shadowElevation=4.dp,
++            border=androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.outline.copy(.35f)),
+         ){
+-            Row(Modifier.padding(horizontal=14.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+-                Icon(Icons.Rounded.Search,null,tint=MaterialTheme.colorScheme.primary)
+-                Text("Search invoices, customers, items…",Modifier.weight(1f),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+-                PremiumIconTile(Icons.Rounded.QrCodeScanner,MaterialTheme.colorScheme.primary,size=34.dp)
++            Row(Modifier.padding(horizontal=11.dp,vertical=9.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
++                Icon(Icons.Rounded.Search,null,Modifier.size(19.dp),tint=MaterialTheme.colorScheme.primary)
++                Text("Search ERP records…",Modifier.weight(1f),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++                Icon(Icons.Rounded.Tune,null,Modifier.size(18.dp),tint=MaterialTheme.colorScheme.primary)
+             }
+         }
+ 
+-        DseHeroKpi(
+-            label="Active Sales",
+-            value=money(s?.salesValue),
+-            supporting="${s?.invoices?:0} sales document(s) • This Month",
+-            icon=Icons.Rounded.BarChart,
+-        )
+-
+-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(9.dp)){
+-            DseMetricTile("Purchases",compactMoney(s?.purchaseValue),Icons.Rounded.ShoppingBag,Modifier.weight(1f),DseWarning)
+-            DseMetricTile("Receivables",compactMoney(s?.receivables),Icons.Rounded.CreditCard,Modifier.weight(1f),DseInfo)
+-            DseMetricTile("Payables",compactMoney(s?.payables),Icons.Rounded.Receipt,Modifier.weight(1f),DsePurple)
++        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
++            DseMetricTile("Sales",compactMoney(s?.salesValue),Icons.Rounded.BarChart,Modifier.weight(1f),DseSuccess)
++            DseMetricTile("Receivable",compactMoney(s?.receivables),Icons.Rounded.CreditCard,Modifier.weight(1f),DseInfo)
+         }
+-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(9.dp)){
+-            DseMetricTile("Cash",compactMoney(s?.cash),Icons.Rounded.AccountBalanceWallet,Modifier.weight(1f),DseSuccess)
+-            DseMetricTile("Low Stock",(s?.lowStock?:0).toString(),Icons.Rounded.Inventory2,Modifier.weight(1f),if((s?.lowStock?:0)>0)DseWarning else DseSuccess)
+-            DseMetricTile("Customers",(s?.customers?:0).toString(),Icons.Rounded.Groups,Modifier.weight(1f),DseInfo)
++        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
++            DseMetricTile("Payable",compactMoney(s?.payables),Icons.Rounded.Receipt,Modifier.weight(1f),DseWarning)
++            DseMetricTile("Bank",compactMoney(s?.cash),Icons.Rounded.AccountBalance,Modifier.weight(1f),DsePurple)
+         }
+ 
+-        PremiumSectionHeader("Quick Actions","View more"){onMore(MoreDestination.MASTERS)}
+-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(9.dp)){
+-            if(p.can("SALES","CREATE"))QuickActionTile("New Sale",Icons.Rounded.AddShoppingCart,DsePurple,Modifier.weight(1f)){onTarget(RecordTarget("SALES","__CREATE__"))}
+-            if(p.can("PURCHASE","CREATE"))QuickActionTile("Purchase",Icons.Rounded.ShoppingBag,DseWarning,Modifier.weight(1f)){onTarget(RecordTarget("PURCHASE","__CREATE__"))}
+-            if(p.can("QUOTATION","CREATE"))QuickActionTile("Quotation",Icons.Rounded.RequestQuote,DseInfo,Modifier.weight(1f)){onTarget(RecordTarget("QUOTATION","__CREATE__"))}
+-            if(p.can("CUSTOMERS","CREATE"))QuickActionTile("Customer",Icons.Rounded.PersonAdd,DseSuccess,Modifier.weight(1f)){onTarget(RecordTarget("CUSTOMER","__CREATE__"))}
