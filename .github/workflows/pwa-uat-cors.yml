@@ -2,9 +2,6 @@ name: Apply UAT PWA CORS
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/pwa-uat-cors.yml'
 
 permissions:
   contents: read
