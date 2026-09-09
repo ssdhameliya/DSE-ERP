@@ -25,7 +25,7 @@ public final class UpdateService {
     public String currentVersion(){return BuildInfo.version();}
     public UpdateRelease check() throws Exception {
         String owner=ConfigManager.get("update.github.owner",DEFAULT_GITHUB_OWNER).trim(); String repo=ConfigManager.get("update.github.repository",DEFAULT_GITHUB_REPOSITORY).trim();
-        boolean beta="BETA".equalsIgnoreCase(ConfigManager.get("update.channel","STABLE"));
+        boolean beta="BETA".equalsIgnoreCase(ConfigManager.getEffectiveUpdateChannel());
         return releases.latest(owner,repo,beta);
     }
     public boolean isNewer(UpdateRelease release){return release.version().compareTo(SemanticVersion.parse(currentVersion()))>0;}

@@ -105,7 +105,7 @@ public final class RollbackService {
     public List<PublishedVersion> publishedPreviousVersions() throws Exception {
         String owner = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
         String repo = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
-        boolean beta = "BETA".equalsIgnoreCase(ConfigManager.get("update.channel", "STABLE"));
+        boolean beta = "BETA".equalsIgnoreCase(ConfigManager.getEffectiveUpdateChannel());
         SemanticVersion current = SemanticVersion.parse(BuildInfo.version());
         List<PublishedVersion> result = new ArrayList<>();
         for (UpdateRelease release : releaseClient.releases(owner, repo, beta, 50)) {

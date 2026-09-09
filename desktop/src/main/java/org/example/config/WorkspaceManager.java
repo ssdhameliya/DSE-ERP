@@ -491,6 +491,8 @@ public final class WorkspaceManager {
         properties.setProperty("deployment.mode", DeploymentMode.SHARED_CLIENT.name());
         properties.setProperty("deployment.environment", normalizedEnvironment);
         properties.setProperty("server.baseUrl", normalizedServer);
+        properties.setProperty("runtime.postgres.mode", "external");
+        properties.setProperty("update.channel", "UAT".equals(normalizedEnvironment) ? "BETA" : "STABLE");
         properties.setProperty("setup.completed", "true");
         // Creating/migrating a shared-client profile is a connection-state transition, not an
         // application update. Stamp the profile with the running build so UpdateLifecycle does

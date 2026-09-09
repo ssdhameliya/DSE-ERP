@@ -74,6 +74,20 @@ if "FOR UPDATE" not in pay or "effectivePaid" not in pay:
 if css != ["dark-theme.css", "light-theme.css"]:
     extra.append(f"central two-theme CSS contract changed: {css}")
 
+config_manager = text("desktop/src/main/java/org/example/config/ConfigManager.java")
+if 'getEffectiveUpdateChannel()' not in config_manager or 'managedSharedClientUpdateChannel()' not in config_manager:
+    extra.append("central UAT/PROD update-channel policy is missing")
+for path in (
+    "desktop/src/main/java/org/example/update/UpdateService.java",
+    "desktop/src/main/java/org/example/update/UpdateState.java",
+    "desktop/src/main/java/org/example/update/UpdateLifecycle.java",
+    "desktop/src/main/java/org/example/update/UpdateDialogs.java",
+    "desktop/src/main/java/org/example/rollback/RollbackService.java",
+):
+    content = text(path)
+    if 'ConfigManager.get("update.channel"' in content:
+        extra.append(f"raw update.channel bypasses the central environment policy: {path}")
+
 # Release identity is centralized. Only .mvn/maven.config owns the editable current release number.
 version_cfg = text(".mvn/maven.config").strip()
 if version_cfg != f"-Drevision={VERSION}":
@@ -103,19 +117,25 @@ allowed_current_literals = {
     str((ROOT / ".mvn/maven.config").resolve()),
     str((ROOT / f"CHANGELOG-{VERSION}.md").resolve()),
 }
-for path in ROOT.rglob("*"):
-    if not path.is_file() or "target" in path.parts or ".git" in path.parts or "runtime/postgresql" in path.as_posix():
-        continue
-    if str(path.resolve()) in allowed_current_literals:
-        continue
-    if path.suffix.lower() not in {".java", ".properties", ".xml", ".py", ".ps1", ".bat", ".cmd", ".sh", ".service", ".md", ".fxml"}:
-        continue
-    try:
-        content = path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
-        continue
-    if VERSION in content:
-        extra.append(f"current release version is hard-coded outside the single source: {path.relative_to(ROOT)}")
+# Prune generated/build/runtime trees before traversal rather than discovering every file and
+# filtering afterwards. This keeps the aggregate release gate fast after Maven/JavaFX evidence runs.
+for dirpath, dirnames, filenames in __import__("os").walk(ROOT):
+    base = Path(dirpath)
+    dirnames[:] = [name for name in dirnames
+                   if name not in {"target", ".git", "__pycache__"}
+                   and not (base == ROOT / "runtime" and name == "postgresql")]
+    for filename in filenames:
+        path = base / filename
+        if str(path.resolve()) in allowed_current_literals:
+            continue
+        if path.suffix.lower() not in {".java", ".properties", ".xml", ".py", ".ps1", ".bat", ".cmd", ".sh", ".service", ".md", ".fxml"}:
+            continue
+        try:
+            content = path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        if VERSION in content:
+            extra.append(f"current release version is hard-coded outside the single source: {path.relative_to(ROOT)}")
 
 
 # Current focused production corrections.

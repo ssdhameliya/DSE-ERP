@@ -39,6 +39,13 @@ need('UAT_GATE_OK' in prod and "r.get('environment')=='UAT'" in prod,
 need('deploy-oracle-release.sh prod' in prod and 'PROD_DEPLOYMENT_OK' in prod,
      'PROD workflow does not run the guarded deploy/public health verification')
 
+need('--prerelease' in release,
+     'GitHub release is not published as a prerelease for UAT validation')
+need('gh release edit "$TAG"' in prod and '--prerelease=false' in prod and 'RELEASE_PROMOTED_TO_STABLE' in prod,
+     'PROD workflow does not promote the exact approved release from prerelease to stable')
+need(prod.find('PROD_DEPLOYMENT_OK') < prod.find('RELEASE_PROMOTED_TO_STABLE'),
+     'release promotion can occur before PROD public health verification')
+
 for token in ('sha256sum', 'pg_dump', 'pg_restore', 'PreUpgrade', 'previous-release',
               'ln -sfn', 'systemctl', '/api/runtime/health', 'rollback_binary', 'wait_for_health'):
     need(token in deploy, f'Oracle deployment safety token missing: {token}')

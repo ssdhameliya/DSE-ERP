@@ -9,7 +9,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: dse-erp-production
@@ -130,6 +130,15 @@ jobs:
               raise SystemExit(f'Public PROD health validation failed: {r}')
           print(f'PROD_DEPLOYMENT_OK version={version} database={database}')
           PY
+
+      - name: Promote approved GitHub release to STABLE
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --repo '${{ github.repository }}' --prerelease=false
+          PRERELEASE="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.prerelease')"
+          [[ "$PRERELEASE" == "false" ]] || { echo "GitHub release $TAG was not promoted to STABLE" >&2; exit 1; }
+          echo "RELEASE_PROMOTED_TO_STABLE tag=$TAG"
 
       - name: Clean remote upload staging
         if: always()

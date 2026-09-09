@@ -588,7 +588,14 @@ public class SettingsController implements ScreenLifecycle {
                 cmbUpdateChannel.setItems(FXCollections.observableArrayList("STABLE", "BETA"));
                 txtGitHubOwner.setText(ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER));
                 txtGitHubRepository.setText(ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY));
-                selectComboValue(cmbUpdateChannel, ConfigManager.get("update.channel", "STABLE"));
+                selectComboValue(cmbUpdateChannel, ConfigManager.getEffectiveUpdateChannel());
+                boolean managedUpdateChannel = ConfigManager.isUpdateChannelManagedByEnvironment();
+                cmbUpdateChannel.setDisable(managedUpdateChannel);
+                cmbUpdateChannel.setTooltip(new Tooltip(managedUpdateChannel
+                        ? ("UAT".equals(ConfigManager.getDeploymentEnvironment())
+                            ? "Managed automatically by UAT environment: BETA receives prereleases."
+                            : "Managed automatically by PROD environment: STABLE receives approved releases only.")
+                        : "LOCAL installations may choose STABLE or BETA manually."));
                 chkUpdateAtStartup.setSelected(Boolean.parseBoolean(ConfigManager.get("update.checkAtStartup", "true")));
                 chkDownloadInBackground.setSelected(Boolean.parseBoolean(ConfigManager.get("update.downloadInBackground", "false")));
                 refreshUpdateSummary();
@@ -2242,7 +2249,9 @@ private record AssetPreviewRequest(
         if (txtGitHubOwner == null) return;
         putSetting("update.github.owner", txtGitHubOwner.getText().trim());
         putSetting("update.github.repository", txtGitHubRepository.getText().trim());
-        putSetting("update.channel", cmbUpdateChannel.getValue() == null ? "STABLE" : cmbUpdateChannel.getValue());
+        putSetting("update.channel", ConfigManager.isUpdateChannelManagedByEnvironment()
+                ? ConfigManager.getEffectiveUpdateChannel()
+                : (cmbUpdateChannel.getValue() == null ? "STABLE" : cmbUpdateChannel.getValue()));
         putSetting("update.checkAtStartup", String.valueOf(chkUpdateAtStartup.isSelected()));
         putSetting("update.downloadInBackground", String.valueOf(chkDownloadInBackground.isSelected()));
     }
