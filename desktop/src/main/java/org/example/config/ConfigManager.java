@@ -44,6 +44,12 @@ public final class ConfigManager {
             }
             String smtpSecret=properties.getProperty("smtp.appPassword");
             if(smtpSecret!=null&&!smtpSecret.isBlank()&&!SecretValueCodec.isEncrypted(smtpSecret)){properties.setProperty("smtp.appPassword",SecretValueCodec.encrypt(smtpSecret.replaceAll("\\s+","")));save();}
+            // Shared clients never own or manage a workstation PostgreSQL cluster. Persist this
+            // ownership boundary so later updates cannot regress into the LOCAL managed-DB path.
+            if (isSharedClient() && !"external".equalsIgnoreCase(properties.getProperty("runtime.postgres.mode", ""))) {
+                properties.setProperty("runtime.postgres.mode", "external");
+                save();
+            }
             System.out.println("Workspace   : " + WorkspaceManager.getWorkspaceRoot());
             System.out.println("Config File : " + configFile);
         } catch (IOException exception) {

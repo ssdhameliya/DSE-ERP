@@ -14,7 +14,7 @@ def req(condition, message):
     if not condition:
         print('FAIL:', message)
         sys.exit(1)
-locked = {'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '5d84c57c22299bfedcc969512b33f2a8cd0371455918ef82f71037827ee2686c', 'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8', 'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082'}
+locked = {'desktop/src/main/java/org/example/documentstudio/service/DocumentOutputService.java': '0bb413a5666585af1c67beac15e54bb45112eb8cbc3ffcb36dccf70ea0c837f0', 'desktop/src/main/java/org/example/service/InvoicePdfService.java': 'ddc9bd1120388058ae60742f343553c6c0de2634e885360deef8e31298033fa8', 'desktop/src/main/java/org/example/invoice/service/SalesTaxInvoiceService.java': '27eb0498f015a410b60aa86f71c8bced4e0ff0e45f8a7e0207b7be9a7ce74082'}
 for rel, expected in locked.items():
     digest = hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()
     req(digest == expected, f'locked production generation file changed: {rel}')

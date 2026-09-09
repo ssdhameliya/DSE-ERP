@@ -1,6 +1,7 @@
 package org.example.documentstudio.service;
 
 import org.example.config.ConfigManager;
+import org.example.api.authority.CanonicalDocumentClient;
 import org.example.documentstudio.model.DocumentType;
 import org.example.util.ProfessionalDocumentRenderer;
 import org.example.util.ResourceLocator;
@@ -17,6 +18,12 @@ public final class DocumentOutputService {
 
     public static Path generate(DocumentType type, String documentNo) throws Exception {
         if (documentNo == null || documentNo.isBlank()) throw new IllegalArgumentException("A valid document number is required.");
+        if (ConfigManager.isSharedClient() && (type == DocumentType.SALES_INVOICE || type == DocumentType.PURCHASE_INVOICE)) {
+            Path output = ensureOutputDirectory().resolve((type == DocumentType.SALES_INVOICE ? "Sales-Tax-Invoice-" : "Purchase-Invoice-") + safeFileName(documentNo) + ".pdf");
+            Files.write(output, new CanonicalDocumentClient().render(type, documentNo, "PDF"));
+            validatePdf(output, documentNo);
+            return output;
+        }
         if (type == DocumentType.SALES_INVOICE) {
             Sales sale = new SalesService().getByInvoice(documentNo);
             if (sale == null) throw new IllegalArgumentException("Sales invoice " + documentNo + " was not found.");
@@ -51,6 +58,12 @@ public final class DocumentOutputService {
     public static Path generateSales(Sales invoice) throws Exception {
         if (invoice == null || invoice.getInvoiceNo() == null || invoice.getInvoiceNo().isBlank())
             throw new IllegalArgumentException("A valid sales record is required to create the PDF.");
+        if (ConfigManager.isSharedClient()) {
+            Path output = ensureOutputDirectory().resolve("Sales-Tax-Invoice-" + safeFileName(invoice.getInvoiceNo()) + ".pdf");
+            Files.write(output, new CanonicalDocumentClient().render(DocumentType.SALES_INVOICE, invoice.getInvoiceNo(), "PDF"));
+            validatePdf(output, invoice.getInvoiceNo());
+            return output;
+        }
         var custom = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE);
         if (custom.isPresent()) {
             Path output = ensureOutputDirectory().resolve("Sales-Tax-Invoice-" + safeFileName(invoice.getInvoiceNo()) + ".pdf");
