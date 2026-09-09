@@ -1,0 +1,50 @@
+name: ChatGPT Canonical Document Verification
+
+on:
+  push:
+    branches:
+      - chatgpt-verify-canonical-20260909
+
+jobs:
+  server-compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply canonical server overlay
+        run: |
+          unzip -q .chatgpt/server-overlay.zip -d .
+          mkdir -p server/src/main/resources
+          cp desktop/src/main/resources/logo.png server/src/main/resources/logo.png
+          rm -rf server/src/main/resources/pdf
+          cp -R desktop/src/main/resources/pdf server/src/main/resources/pdf
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Compile ERP server and desktop
+        run: |
+          chmod +x mvnw
+          ./mvnw -Drevision=9.0.94 -DskipTests package
+
+  mobile-compile:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract mobile project
+        run: |
+          mkdir -p /tmp/dse-mobile
+          unzip -q .chatgpt/mobile-canonical.zip -d /tmp/dse-mobile
+      - name: Verify toolchain
+        run: |
+          xcodebuild -version
+          java -version
+          echo "JAVA_HOME_25_arm64=$JAVA_HOME_25_arm64"
+      - name: Compile mobile JVM and iOS targets
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_25_arm64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          chmod +x gradlew
+          ./gradlew --stop || true
+          ./gradlew :shared:jvmTest :shared:compileKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinJvm :composeApp:compileKotlinIosArm64 :composeApp:compileKotlinIosSimulatorArm64
