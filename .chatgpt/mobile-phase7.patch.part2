@@ -1,0 +1,200 @@
+             Box(Modifier.width(3.dp).height(38.dp).clip(RoundedCornerShape(99.dp)).background(DseBrandGradient))
+@@ -673,7 +689,7 @@
+                 FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){statuses.filter{it.second.isNotBlank()}.forEach{DseStatus(it.first,it.second)}}
+             }
+             if(onActions!=null){
+-                IconButton(onClick=onActions){Icon(Icons.Rounded.MoreVert,"Actions",tint=MaterialTheme.colorScheme.primary)}
++                IconButton(onClick={platformHaptic(NativeHapticKind.SELECTION);onActions()}){Icon(Icons.Rounded.MoreVert,"Actions",tint=MaterialTheme.colorScheme.primary)}
+             }else{
+                 Icon(Icons.Rounded.ChevronRight,"Open",tint=MaterialTheme.colorScheme.primary)
+             }
+@@ -696,13 +712,24 @@
+     content:@Composable ColumnScope.()->Unit,
+ ){
+     val pageScroll=rememberScrollState()
++    val scope=rememberCoroutineScope()
++    var pullRefreshing by remember{mutableStateOf(false)}
+     var dismissedMessage by remember{mutableStateOf("")}
+     val dialogKind=remember(message){noticeKindFor(message)}
+     val showDialog=message.isNotBlank()&&dialogKind!=null&&message!=dismissedMessage
++    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
++        isRefreshing=pullRefreshing,
++        onRefresh={
++            platformHaptic(NativeHapticKind.SELECTION)
++            pullRefreshing=true
++            onRefresh()
++            scope.launch{delay(650);pullRefreshing=false}
++        },
++        modifier=Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
++    ){
+     Column(
+         Modifier
+             .fillMaxSize()
+-            .background(MaterialTheme.colorScheme.background)
+             .verticalScroll(pageScroll)
+             .padding(horizontal=10.dp,vertical=7.dp),
+         verticalArrangement=Arrangement.spacedBy(7.dp),
+@@ -735,6 +762,7 @@
+         footer?.invoke()
+         Spacer(Modifier.height(4.dp))
+     }
++    }
+     if(showDialog)DseNoticeDialog(message,dialogKind!!){dismissedMessage=message}
+ }
+ 
+@@ -784,6 +812,14 @@
+ 
+ @Composable
+ internal fun DseNoticeDialog(message:String,kind:DseNoticeKind,onDismiss:()->Unit){
++    LaunchedEffect(kind,message){
++        platformHaptic(when(kind){
++            DseNoticeKind.SUCCESS->NativeHapticKind.SUCCESS
++            DseNoticeKind.WARNING->NativeHapticKind.WARNING
++            DseNoticeKind.ERROR->NativeHapticKind.ERROR
++            DseNoticeKind.INFO->NativeHapticKind.LIGHT
++        })
++    }
+     val accent=when(kind){DseNoticeKind.SUCCESS->DseSuccess;DseNoticeKind.WARNING->DseWarning;DseNoticeKind.ERROR->DseDanger;DseNoticeKind.INFO->DseInfo}
+     val icon=when(kind){DseNoticeKind.SUCCESS->Icons.Rounded.CheckCircle;DseNoticeKind.WARNING->Icons.Rounded.WarningAmber;DseNoticeKind.ERROR->Icons.Rounded.ErrorOutline;DseNoticeKind.INFO->Icons.Rounded.Info}
+     val title=when(kind){DseNoticeKind.SUCCESS->"Completed";DseNoticeKind.WARNING->"Attention Required";DseNoticeKind.ERROR->"Unable to Complete Action";DseNoticeKind.INFO->"Information"}
+@@ -814,7 +850,7 @@
+         onDismissRequest=onDismissRequest,
+         properties=DialogProperties(usePlatformDefaultWidth=false),
+     ){
+-        BoxWithConstraints(Modifier.fillMaxSize()){
++        BoxWithConstraints(Modifier.fillMaxSize().imePadding()){
+             val compact=maxWidth<700.dp
+             val panelShape=if(compact) RoundedCornerShape(topStart=30.dp,topEnd=30.dp,bottomStart=18.dp,bottomEnd=18.dp) else RoundedCornerShape(30.dp)
+             val alignment=if(compact)Alignment.BottomCenter else Alignment.Center
+@@ -903,6 +939,7 @@
+     onDismiss:()->Unit,
+ ){
+     val sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true)
++    LaunchedEffect(title){platformHaptic(NativeHapticKind.SELECTION)}
+     ModalBottomSheet(
+         onDismissRequest=onDismiss,
+         sheetState=sheetState,
+@@ -933,7 +970,7 @@
+                     shape=RoundedCornerShape(17.dp),
+                     color=if(action.enabled)accent.copy(.055f) else MaterialTheme.colorScheme.surfaceVariant.copy(.45f),
+                     border=BorderStroke(1.dp,accent.copy(if(action.enabled) 0.18f else 0.12f)),
+-                    modifier=Modifier.fillMaxWidth().clickable(enabled=action.enabled){onDismiss();action.onClick()},
++                    modifier=Modifier.fillMaxWidth().clickable(enabled=action.enabled){platformHaptic(if(action.destructive)NativeHapticKind.WARNING else NativeHapticKind.SELECTION);onDismiss();action.onClick()},
+                 ){
+                     Row(Modifier.padding(horizontal=12.dp,vertical=11.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                         PremiumIconTile(action.icon,accent,size=36.dp)
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt
+--- src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt	2026-09-09 08:57:08.000000000 +0000
++++ work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt	2026-09-09 09:25:13.889260253 +0000
+@@ -290,7 +290,7 @@
+             .clip(RoundedCornerShape(18.dp))
+             .background(if(enabled)DseBrandGradient else Brush.linearGradient(listOf(Color(0xFFD7D3DF),Color(0xFFC7C1CE))))
+             .alpha(if(enabled)1f else .72f)
+-            .clickable(enabled=enabled,onClick=onClick),
++            .clickable(enabled=enabled){platformHaptic(NativeHapticKind.LIGHT);onClick()},
+         contentAlignment=Alignment.Center,
+     ){
+         Row((if(trailingIcon!=null)Modifier.fillMaxWidth() else Modifier).padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center){
+@@ -340,7 +340,7 @@
+         modifier = modifier
+             .heightIn(min = 46.dp)
+             .shadow(if (enabled) 6.dp else 0.dp, RoundedCornerShape(18.dp), ambientColor = DseViolet.copy(.07f), spotColor = DseViolet.copy(.10f))
+-            .clickable(enabled = enabled, onClick = onClick),
++            .clickable(enabled = enabled){platformHaptic(NativeHapticKind.SELECTION);onClick()},
+         shape = RoundedCornerShape(18.dp),
+         color = MaterialTheme.colorScheme.surface,
+         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(if (enabled) .26f else .10f)),
+@@ -382,7 +382,7 @@
+                 if (enabled) Brush.linearGradient(listOf(Color(0xFFEF4444), Color(0xFFDC2626)))
+                 else Brush.linearGradient(listOf(Color(0xFFE5E7EB), Color(0xFFD1D5DB)))
+             )
+-            .clickable(enabled = enabled, onClick = onClick),
++            .clickable(enabled = enabled){platformHaptic(NativeHapticKind.WARNING);onClick()},
+         contentAlignment = Alignment.Center,
+     ) {
+         Row(Modifier.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+@@ -405,7 +405,7 @@
+         modifier = modifier
+             .fillMaxWidth()
+             .shadow(8.dp, shape, ambientColor = DseViolet.copy(.07f), spotColor = DseViolet.copy(.10f))
+-            .clickable(enabled = enabled, onClick = onClick),
++            .clickable(enabled = enabled){platformHaptic(NativeHapticKind.SELECTION);onClick()},
+         shape = shape,
+         color = MaterialTheme.colorScheme.surface,
+         border = BorderStroke(1.dp, DseViolet.copy(.18f)),
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt
+--- src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt	2026-09-09 08:52:47.000000000 +0000
++++ work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/MoreScreens.kt	2026-09-09 09:29:26.726912990 +0000
+@@ -455,7 +455,24 @@
+     var creating by remember{mutableStateOf(false)}
+     var q by remember{mutableStateOf("")}
+     val scope=rememberCoroutineScope()
+-    LaunchedEffect(refresh){when(val r=api.reminders()){is ApiResult.Success->{rows=r.value;msg="${rows.size} reminder(s)"};else->msg=r.readableMessage()}}
++    LaunchedEffect(refresh){when(val r=api.reminders()){is ApiResult.Success->{
++        rows=r.value
++        rows.forEach{reminder->
++            val id=reminder.id?.let{"erp-reminder-$it"} ?: return@forEach
++            val active=reminder.status.equals("OPEN",true)||reminder.status.equals("SNOOZED",true)
++            val date=if(reminder.status.equals("SNOOZED",true))reminder.snoozedUntil.orEmpty() else reminder.dueDate
++            if(active&&date.isNotBlank()){
++                platformScheduleLocalNotification(
++                    id,
++                    reminder.title.ifBlank{"Jasvi Industries Reminder"},
++                    listOf(reminder.referenceNo,reminder.notes).filter{it.isNotBlank()}.joinToString(" • ").ifBlank{"ERP follow-up is due."},
++                    date,
++                    "dseerp://reminder/${urlEncode(reminder.referenceNo.ifBlank{reminder.id.toString()})}",
++                )
++            }else platformCancelLocalNotification(id)
++        }
++        msg="${rows.size} reminder(s) • iPhone due reminders scheduled locally"
++    };else->msg=r.readableMessage()}}
+     LaunchedEffect(openTarget?.moduleKey,openTarget?.recordId,openTarget?.reference){val t=openTarget;if(t!=null&&t.moduleKey.uppercase()=="REMINDER"){edit=rows.firstOrNull{it.id==t.recordId||it.referenceNo.equals(t.reference,true)};if(edit==null&&t.reference.isNotBlank())msg="Reminder ${t.reference} was not found in the current list";onTargetConsumed()}}
+     val shown=rows.filter{q.isBlank()||listOf(it.title,it.referenceNo,it.notes,it.status,it.priority).any{x->x.contains(q,true)}}
+     DseRegisterShell(
+@@ -478,7 +495,7 @@
+         }
+     }
+     if(creating)ReminderDialog(null,username,{creating=false}){value->scope.launch{when(val r=api.createReminder(value)){is ApiResult.Success->{creating=false;refresh++};else->msg=r.readableMessage()}}}
+-    edit?.let{r->ReminderActions(r,p,{edit=null},{scope.launch{when(val x=api.setReminderStatus(r.id?:0,it.first,it.second)){is ApiResult.Success->{edit=null;refresh++};else->msg=x.readableMessage()}}},{value->scope.launch{when(val x=api.updateReminder(r.id?:0,value)){is ApiResult.Success->{edit=null;refresh++};else->msg=x.readableMessage()}}},{scope.launch{when(val x=api.deleteReminder(r.id?:0)){is ApiResult.Success->{edit=null;refresh++};else->msg=x.readableMessage()}}})}
++    edit?.let{r->ReminderActions(r,p,{edit=null},{scope.launch{when(val x=api.setReminderStatus(r.id?:0,it.first,it.second)){is ApiResult.Success->{edit=null;refresh++};else->msg=x.readableMessage()}}},{value->scope.launch{when(val x=api.updateReminder(r.id?:0,value)){is ApiResult.Success->{edit=null;refresh++};else->msg=x.readableMessage()}}},{scope.launch{when(val x=api.deleteReminder(r.id?:0)){is ApiResult.Success->{r.id?.let{platformCancelLocalNotification("erp-reminder-$it")};edit=null;refresh++};else->msg=x.readableMessage()}}})}
+ }
+ @Composable private fun ReminderDialog(current:ReminderRecord?,username:String,onClose:()->Unit,onSave:(ReminderRecord)->Unit){var title by remember{mutableStateOf(current?.title.orEmpty())};var ref by remember{mutableStateOf(current?.referenceNo.orEmpty())};var due by remember{mutableStateOf(current?.dueDate?.ifBlank{todayIso()}?:todayIso())};var priority by remember{mutableStateOf(current?.priority?.ifBlank{"MEDIUM"}?:"MEDIUM")};var notes by remember{mutableStateOf(current?.notes.orEmpty())};PremiumAlertDialog(onDismissRequest=onClose,title={Text(if(current==null)"New Reminder" else "Edit Reminder")},text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){DseField("Title",title,required=true,onValue={title=it});DseField("Reference",ref,singleLine=true,onValue={ref=it});DseDateField("Due Date",due,required=true,onValue={due=it});DseSelect("Priority",priority,listOf("LOW","MEDIUM","HIGH","URGENT"),onValue={priority=it});DseField("Notes",notes,onValue={notes=it})}},confirmButton={Button(enabled=title.isNotBlank(),onClick={onSave((current?:ReminderRecord()).copy(title=title,referenceNo=ref,dueDate=due,priority=priority,notes=notes,createdBy=current?.createdBy?.ifBlank{username}?:username))}){Text("Save")}},dismissButton={TextButton(onClick=onClose){Text("Cancel")}})}
+ @Composable private fun ReminderActions(r:ReminderRecord,p:PermissionContext,onClose:()->Unit,onStatus:(Pair<String,String?>)->Unit,onUpdate:(ReminderRecord)->Unit,onDelete:()->Unit){var editing by remember{mutableStateOf(false)};var snooze by remember{mutableStateOf(false)};if(editing){ReminderDialog(r,r.createdBy,{editing=false},onUpdate);return};if(snooze){var date by remember{mutableStateOf(addDaysIso(todayIso(),1))};PremiumAlertDialog(onDismissRequest={snooze=false},title={Text("Snooze Reminder")},text={DseDateField("Snoozed Until",date,onValue={date=it})},confirmButton={Button(onClick={onStatus("SNOOZED" to date)}){Text("Snooze")}},dismissButton={TextButton(onClick={snooze=false}){Text("Cancel")}});return};DetailDialog(r.title,listOf("Reference" to r.referenceNo,"Due" to r.dueDate,"Priority" to r.priority,"Status" to r.status,"Notes" to r.notes),buildList{if(p.can("REMINDERS","EDIT"))add("Edit" to {editing=true});if(p.can("REMINDERS","COMPLETE")){add("Complete" to {onStatus("COMPLETED" to null)});add("Reopen" to {onStatus("OPEN" to null)})};if(p.can("REMINDERS","SNOOZE"))add("Snooze" to {snooze=true});if(p.can("REMINDERS","DELETE"))add("Delete" to onDelete)},onClose)}
+@@ -583,6 +600,8 @@
+     var edit by remember{mutableStateOf(false)}
+     var password by remember{mutableStateOf(false)}
+     var refresh by remember{mutableIntStateOf(0)}
++    var quickUnlock by remember{mutableStateOf(platformLoadQuickUnlockEnabled())}
++    var haptics by remember{mutableStateOf(platformLoadHapticsEnabled())}
+     val scope=rememberCoroutineScope()
+     LaunchedEffect(refresh){when(val r=api.currentProfile()){is ApiResult.Success->{profile=r.value;msg=""};else->msg=r.readableMessage()}}
+     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+@@ -604,7 +623,17 @@
+                 PremiumSecondaryButton("Password",{password=true},Modifier.weight(1f),icon=Icons.Rounded.Lock)
+             }
+             PremiumCard(Modifier.fillMaxWidth(),padding=13.dp){
+-                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){PremiumIconTile(Icons.Rounded.Fingerprint,DseSuccess,size=42.dp);Column(Modifier.weight(1f)){Text("Face ID / Touch ID",fontWeight=FontWeight.Bold);Text("Native iPhone/iPad biometric unlock is supported after secure sign-in.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
++                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
++                    PremiumIconTile(Icons.Rounded.Fingerprint,DseSuccess,size=42.dp)
++                    Column(Modifier.weight(1f)){Text("Face ID / Touch ID",fontWeight=FontWeight.Bold);Text("Automatically unlock this signed-in device when Face ID / Touch ID is available.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
++                    Switch(checked=quickUnlock,onCheckedChange={enabled->quickUnlock=enabled;platformSaveQuickUnlockEnabled(enabled);platformHaptic(NativeHapticKind.SELECTION)})
++                }
++                HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
++                Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
++                    PremiumIconTile(Icons.Rounded.Vibration,DseInfo,size=42.dp)
++                    Column(Modifier.weight(1f)){Text("iPhone Haptics",fontWeight=FontWeight.Bold);Text("Tactile feedback for actions, confirmations, warnings and successful ERP operations.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
++                    Switch(checked=haptics,onCheckedChange={enabled->haptics=enabled;platformSaveHapticsEnabled(enabled);if(enabled)platformHaptic(NativeHapticKind.SUCCESS)})
++                }
+             }
+         }
+         if(msg.isNotBlank())Text(msg,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/PlatformNativeServices.kt work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/PlatformNativeServices.kt
+--- src/Jasvi-Industries-Mobile/composeApp/src/commonMain/kotlin/org/dse/mobile/app/PlatformNativeServices.kt	2026-09-09 03:00:46.000000000 +0000
++++ work/composeApp/src/commonMain/kotlin/org/dse/mobile/app/PlatformNativeServices.kt	2026-09-09 09:30:38.440568019 +0000
+@@ -17,6 +17,22 @@
+ expect fun platformLocalDateIso(): String
+ 
+ 
++enum class NativeHapticKind { LIGHT, SELECTION, SUCCESS, WARNING, ERROR }
++
++expect fun platformHaptic(kind: NativeHapticKind)
