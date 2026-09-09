@@ -1,0 +1,200 @@
+-            PremiumIconTile(icon,accent,size=38.dp)
++    PremiumCard(modifier=Modifier.fillMaxWidth(),padding=10.dp){
++        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)){
++            PremiumIconTile(icon,accent,size=32.dp)
+             Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,color=accent)
+         }
+         content()
+@@ -653,18 +652,18 @@
+     val effectiveStartActions=if(swipeStartActions.isEmpty()) listOf(SwipeAction("Open",Icons.Rounded.ChevronRight,onClick=onClick)) else swipeStartActions
+     SwipeActionContainer(effectiveStartActions,swipeEndActions){
+     Surface(
+-        shape=RoundedCornerShape(22.dp),
++        shape=RoundedCornerShape(18.dp),
+         color=MaterialTheme.colorScheme.surface,
+         border=BorderStroke(1.dp,MaterialTheme.colorScheme.primary.copy(.10f)),
+         tonalElevation=0.dp,
+         shadowElevation=6.dp,
+         modifier=Modifier.fillMaxWidth().clickable(onClick=onClick)
+     ){
+-        Row(Modifier.padding(14.dp),horizontalArrangement=Arrangement.spacedBy(11.dp),verticalAlignment=Alignment.CenterVertically){
+-            Box(Modifier.width(4.dp).height(44.dp).clip(RoundedCornerShape(99.dp)).background(DseBrandGradient))
++        Row(Modifier.padding(horizontal=10.dp,vertical=9.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
++            Box(Modifier.width(3.dp).height(38.dp).clip(RoundedCornerShape(99.dp)).background(DseBrandGradient))
+             if(onSelect!=null)Checkbox(checked=selected,onCheckedChange={onSelect()})
+-            PremiumIconTile(Icons.Rounded.Description,MaterialTheme.colorScheme.primary,size=42.dp)
+-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(6.dp)){
++            PremiumIconTile(Icons.Rounded.Description,MaterialTheme.colorScheme.primary,size=36.dp)
++            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
+                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+                     Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+                     Text(amount,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.onSurface,fontWeight=FontWeight.ExtraBold)
+@@ -697,44 +696,46 @@
+     content:@Composable ColumnScope.()->Unit,
+ ){
+     val pageScroll=rememberScrollState()
++    var dismissedMessage by remember{mutableStateOf("")}
++    val dialogKind=remember(message){noticeKindFor(message)}
++    val showDialog=message.isNotBlank()&&dialogKind!=null&&message!=dismissedMessage
+     Column(
+         Modifier
+             .fillMaxSize()
+             .background(MaterialTheme.colorScheme.background)
+             .verticalScroll(pageScroll)
+-            .padding(horizontal=14.dp,vertical=10.dp),
+-        verticalArrangement=Arrangement.spacedBy(11.dp),
++            .padding(horizontal=10.dp,vertical=7.dp),
++        verticalArrangement=Arrangement.spacedBy(7.dp),
+     ){
+-        PremiumCard(modifier=Modifier.fillMaxWidth(),padding=14.dp){
+-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){
+-                PremiumIconTile(Icons.Rounded.AutoAwesome,MaterialTheme.colorScheme.primary,size=44.dp)
+-                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
+-                    Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.ExtraBold)
+-                    Text(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+-                }
+-                FilledTonalIconButton(onClick=onRefresh,shape=RoundedCornerShape(16.dp)){Icon(Icons.Rounded.Refresh,"Refresh")}
+-                if(onAdd!=null)PremiumPrimaryButton("New",onAdd,modifier=Modifier.width(90.dp),leadingIcon=Icons.Rounded.Add)
++        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
++            PremiumIconTile(semanticFieldIcon(title),semanticFieldAccent(title),size=34.dp)
++            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(0.dp)){
++                Text(title,style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.ExtraBold,maxLines=1)
++                Text(subtitle,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
+             }
++            FilledTonalIconButton(onClick=onRefresh,shape=RoundedCornerShape(13.dp),modifier=Modifier.size(38.dp)){Icon(Icons.Rounded.Refresh,"Refresh",Modifier.size(19.dp))}
++            if(onAdd!=null)FilledIconButton(onClick=onAdd,shape=RoundedCornerShape(13.dp),modifier=Modifier.size(38.dp)){Icon(Icons.Rounded.Add,"New",Modifier.size(20.dp))}
+         }
+         kpis?.invoke()
+         OutlinedTextField(
+-            value=query,onValueChange=onQuery,placeholder={Text("Search $title")},leadingIcon={Icon(Icons.Rounded.Search,null)},
+-            trailingIcon=if(query.isNotBlank()){{IconButton(onClick={onQuery("")}){Icon(Icons.Rounded.Clear,"Clear")}}}else {{Icon(Icons.Rounded.QrCodeScanner,null,tint=MaterialTheme.colorScheme.primary)}},
+-            modifier=Modifier.fillMaxWidth(),singleLine=true,shape=RoundedCornerShape(18.dp),
++            value=query,onValueChange=onQuery,placeholder={Text("Search $title",style=MaterialTheme.typography.bodySmall)},leadingIcon={Icon(Icons.Rounded.Search,null,Modifier.size(19.dp))},
++            trailingIcon=if(query.isNotBlank()){{IconButton(onClick={onQuery("")}){Icon(Icons.Rounded.Clear,"Clear",Modifier.size(18.dp))}}}else null,
++            modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),singleLine=true,shape=RoundedCornerShape(15.dp),
+             keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),
+             keyboardActions=KeyboardActions(onSearch={onRefresh()}),
+-            colors=OutlinedTextFieldDefaults.colors(focusedBorderColor=MaterialTheme.colorScheme.primary.copy(.55f),unfocusedBorderColor=MaterialTheme.colorScheme.outline.copy(.55f),focusedContainerColor=MaterialTheme.colorScheme.surface,unfocusedContainerColor=MaterialTheme.colorScheme.surface)
++            colors=OutlinedTextFieldDefaults.colors(focusedBorderColor=MaterialTheme.colorScheme.primary.copy(.55f),unfocusedBorderColor=MaterialTheme.colorScheme.outline.copy(.45f),focusedContainerColor=MaterialTheme.colorScheme.surface,unfocusedContainerColor=MaterialTheme.colorScheme.surface)
+         )
+-        if(message.isNotBlank())Surface(color=MaterialTheme.colorScheme.primaryContainer.copy(alpha=.48f),shape=RoundedCornerShape(16.dp),modifier=Modifier.fillMaxWidth()){
+-            Row(Modifier.padding(horizontal=11.dp,vertical=8.dp),horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.CenterVertically){
+-                Icon(Icons.Rounded.AutoAwesome,null,Modifier.size(16.dp),tint=MaterialTheme.colorScheme.primary)
+-                Text(message,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++        if(message.isNotBlank()&&dialogKind==null){
++            Row(Modifier.fillMaxWidth().padding(horizontal=2.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){
++                Icon(if(message.contains("offline",true))Icons.Rounded.CloudOff else Icons.Rounded.Info,null,Modifier.size(14.dp),tint=if(message.contains("offline",true))DseWarning else MaterialTheme.colorScheme.primary)
++                Text(message,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2)
+             }
+         }
+-        Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(9.dp),content=content)
++        Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(6.dp),content=content)
+         footer?.invoke()
+-        Spacer(Modifier.height(10.dp))
++        Spacer(Modifier.height(4.dp))
+     }
++    if(showDialog)DseNoticeDialog(message,dialogKind!!){dismissedMessage=message}
+ }
+ 
+ @Composable
+@@ -767,6 +768,40 @@
+     }
+ }
+ 
++internal enum class DseNoticeKind { SUCCESS, WARNING, ERROR, INFO }
++
++internal fun noticeKindFor(message:String):DseNoticeKind?{
++    val m=message.trim()
++    if(m.isBlank())return null
++    val lower=m.lowercase()
++    return when{
++        lower.startsWith("authentication failed")||lower.startsWith("permission denied")||lower.startsWith("conflict:")||lower.startsWith("not found:")||lower.startsWith("server error")||lower.startsWith("network error")||lower.startsWith("erp response")||lower.contains("unable to")||lower.contains("could not")||lower.contains(" failed")||lower.startsWith("failed") -> DseNoticeKind.ERROR
++        lower.contains("connection interrupted")||lower.contains("offline")&&lower.contains("not sent")||lower.contains("required")||lower.contains("cannot")||lower.contains("refuse") -> DseNoticeKind.WARNING
++        lower.startsWith("created ")||lower.startsWith("updated ")||lower.startsWith("saved ")||lower.startsWith("deleted")||lower.startsWith("cancelled")||lower.startsWith("approved")||lower.startsWith("rejected")||lower.startsWith("recorded")||lower.startsWith("sent")||lower.startsWith("attached")||lower.startsWith("duplicated")||lower.contains(" ready to share")||lower.contains(" successfully") -> DseNoticeKind.SUCCESS
++        else -> null
++    }
++}
++
++@Composable
++internal fun DseNoticeDialog(message:String,kind:DseNoticeKind,onDismiss:()->Unit){
++    val accent=when(kind){DseNoticeKind.SUCCESS->DseSuccess;DseNoticeKind.WARNING->DseWarning;DseNoticeKind.ERROR->DseDanger;DseNoticeKind.INFO->DseInfo}
++    val icon=when(kind){DseNoticeKind.SUCCESS->Icons.Rounded.CheckCircle;DseNoticeKind.WARNING->Icons.Rounded.WarningAmber;DseNoticeKind.ERROR->Icons.Rounded.ErrorOutline;DseNoticeKind.INFO->Icons.Rounded.Info}
++    val title=when(kind){DseNoticeKind.SUCCESS->"Completed";DseNoticeKind.WARNING->"Attention Required";DseNoticeKind.ERROR->"Unable to Complete Action";DseNoticeKind.INFO->"Information"}
++    PremiumAlertDialog(
++        onDismissRequest=onDismiss,
++        title={Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){Icon(icon,null,tint=accent);Text(title,fontWeight=FontWeight.ExtraBold,color=accent)}},
++        text={Text(message,style=MaterialTheme.typography.bodyMedium)},
++        confirmButton={PremiumPrimaryButton("Close",onDismiss,modifier=Modifier.widthIn(min=150.dp),leadingIcon=Icons.Rounded.Check)}
++    )
++}
++
++@Composable
++internal fun DseLoadingState(label:String="Loading ERP data…"){
++    Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(.30f),modifier=Modifier.fillMaxWidth()){
++        Row(Modifier.padding(horizontal=12.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){CircularProgressIndicator(Modifier.size(20.dp),strokeWidth=2.dp);Text(label,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
++    }
++}
++
+ @Composable
+ internal fun PremiumAlertDialog(
+     onDismissRequest:()->Unit,
+@@ -1011,7 +1046,15 @@
+ 
+ @Composable
+ internal fun ConfirmDialog(title:String,message:String,confirmLabel:String="Confirm",danger:Boolean=false,onDismiss:()->Unit,onConfirm:()->Unit){
+-    PremiumAlertDialog(onDismissRequest=onDismiss,title={Text(title)},text={Text(message)},confirmButton={if(danger)PremiumDangerButton(confirmLabel,onConfirm,icon=Icons.Rounded.Delete)else PremiumPrimaryButton(confirmLabel,onConfirm,leadingIcon=Icons.Rounded.Check)},dismissButton={TextButton(onClick=onDismiss){Text("Cancel")}})
++    val accent=if(danger)DseDanger else DseWarning
++    val icon=if(danger)Icons.Rounded.WarningAmber else Icons.Rounded.HelpOutline
++    PremiumAlertDialog(
++        onDismissRequest=onDismiss,
++        title={Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){Icon(icon,null,tint=accent);Text(title,fontWeight=FontWeight.ExtraBold,color=accent)}},
++        text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){Text(message);if(danger)Text("This action may change or remove ERP data.",style=MaterialTheme.typography.labelSmall,color=DseDanger,fontWeight=FontWeight.SemiBold)}},
++        confirmButton={if(danger)PremiumDangerButton(confirmLabel,onConfirm,icon=Icons.Rounded.Delete)else PremiumPrimaryButton(confirmLabel,onConfirm,leadingIcon=Icons.Rounded.Check)},
++        dismissButton={PremiumSecondaryButton("Cancel",onDismiss,icon=Icons.Rounded.Close)}
++    )
+ }
+ 
+ 
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt
+--- a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt	2026-09-09 04:28:32.000000000 +0000
++++ b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/DsePremium.kt	2026-09-09 08:57:08.541780449 +0000
+@@ -285,7 +285,7 @@
+ ){
+     Box(
+         modifier
+-            .heightIn(min=54.dp)
++            .heightIn(min=46.dp)
+             .shadow(if(enabled)12.dp else 0.dp,RoundedCornerShape(18.dp),ambientColor=DseViolet.copy(.18f),spotColor=DseViolet.copy(.24f))
+             .clip(RoundedCornerShape(18.dp))
+             .background(if(enabled)DseBrandGradient else Brush.linearGradient(listOf(Color(0xFFD7D3DF),Color(0xFFC7C1CE))))
+@@ -293,7 +293,7 @@
+             .clickable(enabled=enabled,onClick=onClick),
+         contentAlignment=Alignment.Center,
+     ){
+-        Row((if(trailingIcon!=null)Modifier.fillMaxWidth() else Modifier).padding(horizontal=18.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center){
++        Row((if(trailingIcon!=null)Modifier.fillMaxWidth() else Modifier).padding(horizontal=14.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center){
+             val resolvedLeading=leadingIcon ?: semanticActionIcon(text)
+             Icon(resolvedLeading,null,tint=Color.White,modifier=Modifier.size(19.dp));Spacer(Modifier.width(8.dp))
+             Text(text,color=Color.White,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.Bold)
+@@ -338,7 +338,7 @@
+ ) {
+     Surface(
+         modifier = modifier
+-            .heightIn(min = 52.dp)
++            .heightIn(min = 46.dp)
+             .shadow(if (enabled) 6.dp else 0.dp, RoundedCornerShape(18.dp), ambientColor = DseViolet.copy(.07f), spotColor = DseViolet.copy(.10f))
+             .clickable(enabled = enabled, onClick = onClick),
+         shape = RoundedCornerShape(18.dp),
+@@ -347,7 +347,7 @@
+         tonalElevation = 0.dp,
+     ) {
+         Row(
+-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
++            Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+             horizontalArrangement = Arrangement.Center,
+             verticalAlignment = Alignment.CenterVertically,
+         ) {
+@@ -375,7 +375,7 @@
+     val shape = RoundedCornerShape(18.dp)
+     Box(
+         modifier
