@@ -1,0 +1,200 @@
+ 
+ @main
+ struct DSEERPMobileApp: App {
+@@ -47,6 +50,20 @@
+                     completion(success ? "OK" : "ERROR", message)
+                 }
+             },
++            haptic: { kind in NativeHaptics.trigger(kind) },
++            loadQuickUnlock: { NativePreferences.quickUnlockEnabled },
++            saveQuickUnlock: { enabled in NativePreferences.quickUnlockEnabled = enabled },
++            loadHaptics: { NativePreferences.hapticsEnabled },
++            saveHaptics: { enabled in NativePreferences.hapticsEnabled = enabled },
++            previewFile: { title, fileName, base64 in
++                NativeFilePreviewService.shared.preview(title: title, fileName: fileName, base64: base64)
++            },
++            scheduleLocalNotification: { identifier, title, body, dateIso, deepLink in
++                NativeLocalNotificationService.schedule(identifier: identifier, title: title, body: body, dateIso: dateIso, deepLink: deepLink)
++            },
++            cancelLocalNotification: { identifier in
++                NativeLocalNotificationService.cancel(identifier: identifier)
++            },
+             pickImportFile: { completion in
+                 NativeImportPicker.shared.pick { fileName, rawText, error in
+                     completion(fileName, rawText, error)
+@@ -165,6 +182,110 @@
+     }
+ }
+ 
++private enum NativePreferences {
++    private static let quickUnlockKey = "dse.erp.quickUnlock"
++    private static let hapticsKey = "dse.erp.haptics"
++
++    static var quickUnlockEnabled: Bool {
++        get {
++            if UserDefaults.standard.object(forKey: quickUnlockKey) == nil { return true }
++            return UserDefaults.standard.bool(forKey: quickUnlockKey)
++        }
++        set { UserDefaults.standard.set(newValue, forKey: quickUnlockKey) }
++    }
++
++    static var hapticsEnabled: Bool {
++        get {
++            if UserDefaults.standard.object(forKey: hapticsKey) == nil { return true }
++            return UserDefaults.standard.bool(forKey: hapticsKey)
++        }
++        set { UserDefaults.standard.set(newValue, forKey: hapticsKey) }
++    }
++}
++
++private enum NativeHaptics {
++    static func trigger(_ kind: String) {
++        guard NativePreferences.hapticsEnabled else { return }
++        DispatchQueue.main.async {
++            switch kind.uppercased() {
++            case "SUCCESS":
++                UINotificationFeedbackGenerator().notificationOccurred(.success)
++            case "WARNING":
++                UINotificationFeedbackGenerator().notificationOccurred(.warning)
++            case "ERROR":
++                UINotificationFeedbackGenerator().notificationOccurred(.error)
++            case "SELECTION":
++                UISelectionFeedbackGenerator().selectionChanged()
++            default:
++                UIImpactFeedbackGenerator(style: .light).impactOccurred()
++            }
++        }
++    }
++}
++
++private enum NativeLocalNotificationService {
++    static func schedule(identifier: String, title: String, body: String, dateIso: String, deepLink: String) {
++        let formatter = DateFormatter()
++        formatter.locale = Locale(identifier: "en_US_POSIX")
++        formatter.calendar = Calendar(identifier: .gregorian)
++        formatter.dateFormat = "yyyy-MM-dd"
++        guard let day = formatter.date(from: dateIso) else { return }
++
++        var components = Calendar.current.dateComponents([.year, .month, .day], from: day)
++        components.hour = 9
++        components.minute = 0
++        var fireDate = Calendar.current.date(from: components) ?? day
++        if fireDate <= Date() {
++            fireDate = Date().addingTimeInterval(60)
++            components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fireDate)
++        }
++
++        let content = UNMutableNotificationContent()
++        content.title = title
++        content.body = body
++        content.sound = .default
++        content.userInfo = deepLink.isEmpty ? [:] : ["deepLink": deepLink]
++        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
++        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
++        UNUserNotificationCenter.current().add(request)
++    }
++
++    static func cancel(identifier: String) {
++        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
++        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
++    }
++}
++
++private final class NativeFilePreviewService: NSObject, QLPreviewControllerDataSource {
++    static let shared = NativeFilePreviewService()
++    private var url: URL?
++    private var displayTitle: String = ""
++
++    @discardableResult
++    func preview(title: String, fileName: String, base64: String) -> Bool {
++        guard let data = Data(base64Encoded: base64), let presenter = NativeViewControllerLocator.top else { return false }
++        let safe = fileName
++            .replacingOccurrences(of: "/", with: "_")
++            .replacingOccurrences(of: "\\", with: "_")
++        let target = FileManager.default.temporaryDirectory.appendingPathComponent(safe.isEmpty ? "preview.bin" : safe)
++        do { try data.write(to: target, options: .atomic) } catch { return false }
++        self.url = target
++        self.displayTitle = title
++        DispatchQueue.main.async {
++            let controller = QLPreviewController()
++            controller.dataSource = self
++            controller.title = title
++            presenter.present(controller, animated: true)
++        }
++        return true
++    }
++
++    func numberOfPreviewItems(in controller: QLPreviewController) -> Int { url == nil ? 0 : 1 }
++    func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
++        (url ?? FileManager.default.temporaryDirectory) as NSURL
++    }
++}
++
+ private enum NativeBiometrics {
+     static var isAvailable: Bool {
+         let context = LAContext()
+@@ -260,23 +381,54 @@
+ }
+ 
+ 
+-private final class NativeAttachmentPicker: NSObject, UIDocumentPickerDelegate {
++private final class NativeAttachmentPicker: NSObject, UIDocumentPickerDelegate, PHPickerViewControllerDelegate, VNDocumentCameraViewControllerDelegate {
+     static let shared = NativeAttachmentPicker()
+     private var completion: ((String?, String?, String?) -> Void)?
+ 
+     func pick(completion: @escaping (String?, String?, String?) -> Void) {
+         self.completion = completion
+         DispatchQueue.main.async {
+-            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data, .image, .pdf, .plainText], asCopy: true)
+-            picker.delegate = self
+-            picker.allowsMultipleSelection = false
+             guard let presenter = NativeViewControllerLocator.top else {
+                 self.finish(nil, nil, "Unable to present the attachment picker.")
+                 return
+             }
+-            presenter.present(picker, animated: true)
++            let sheet = UIAlertController(title: "Add Attachment", message: "Choose the most convenient iPhone source.", preferredStyle: .actionSheet)
++            if VNDocumentCameraViewController.isSupported {
++                sheet.addAction(UIAlertAction(title: "Scan Document", style: .default) { _ in self.openScanner(from: presenter) })
++            }
++            sheet.addAction(UIAlertAction(title: "Photo Library", style: .default) { _ in self.openPhotos(from: presenter) })
++            sheet.addAction(UIAlertAction(title: "Files", style: .default) { _ in self.openFiles(from: presenter) })
++            sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in self.finish(nil, nil, nil) })
++            if let pop = sheet.popoverPresentationController {
++                pop.sourceView = presenter.view
++                pop.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY - 20, width: 1, height: 1)
++            }
++            presenter.present(sheet, animated: true)
+         }
+     }
++
++    private func openFiles(from presenter: UIViewController) {
++        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.data, .image, .pdf, .plainText], asCopy: true)
++        picker.delegate = self
++        picker.allowsMultipleSelection = false
++        presenter.present(picker, animated: true)
++    }
++
++    private func openPhotos(from presenter: UIViewController) {
++        var config = PHPickerConfiguration(photoLibrary: .shared())
++        config.selectionLimit = 1
++        config.filter = .images
++        let picker = PHPickerViewController(configuration: config)
++        picker.delegate = self
++        presenter.present(picker, animated: true)
++    }
++
++    private func openScanner(from presenter: UIViewController) {
++        let scanner = VNDocumentCameraViewController()
++        scanner.delegate = self
++        presenter.present(scanner, animated: true)
++    }
++
+     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+         guard let url=urls.first else { finish(nil,nil,"No file selected."); return }
+         let scoped=url.startAccessingSecurityScopedResource(); defer{if scoped{url.stopAccessingSecurityScopedResource()}}
+@@ -286,7 +438,55 @@
+             finish(url.lastPathComponent,data.base64EncodedString(),nil)
+         } catch { finish(url.lastPathComponent,nil,error.localizedDescription) }
+     }
++
