@@ -58,7 +58,7 @@
             <Button fx:id="btnReports" text="Reports" onAction="#openReports" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnReminders" text="Reminders" onAction="#openReminderCenter" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <Button fx:id="btnUserAccess" text="User Access" onAction="#openUserAccess" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <Button text="Communication" onAction="#openCommunication" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Button fx:id="btnCommunication" text="Communication" onAction="#openCommunication" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
             <VBox styleClass="nav-group">
                 <StackPane maxWidth="Infinity" styleClass="nav-parent-row">
                     <Button fx:id="btnDocumentStudio" text="Document Studio" onAction="#toggleDocumentStudioMenu" maxWidth="Infinity" styleClass="nav-parent,approved-button,approved-secondary-button">

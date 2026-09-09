@@ -144,10 +144,7 @@ public final class UiDesignSystem {
     }
 
     private static boolean isSidebarControl(Node node) {
-        for (Node n = node; n != null; n = n.getParent()) {
-            if (n.getStyleClass().contains("erp-sidebar")) return true;
-        }
-        return false;
+        return IconFactory.isNavigationControl(node);
     }
 
     private static String styles(Node node) {

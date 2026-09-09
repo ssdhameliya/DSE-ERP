@@ -53,10 +53,10 @@ public class PurchaseListController implements ScreenLifecycle{
  private void setKpiIcon(StackPane pane,String semantic){if(pane!=null)pane.getChildren().setAll(IconFactory.compactIcon(semantic,22));}
 
  private TableCell<Purchase,Double> moneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);}};}
- private TableCell<Purchase,Double> totalMoneyCell(){return coloredMoneyCell("register-amount-total","register-amount-total");}
- private TableCell<Purchase,Double> balanceMoneyCell(){return coloredMoneyCell("register-balance-open","register-balance-settled");}
- private TableCell<Purchase,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-amount-total","register-balance-open","register-balance-settled");if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
- private TableCell<Purchase,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeAll("register-paid-positive","register-paid-zero");if(!e&&v!=null)getStyleClass().add(v>.009?"register-paid-positive":"register-paid-zero");}};}
+ private TableCell<Purchase,Double> totalMoneyCell(){return coloredMoneyCell("erp-table-value-colour-pink","erp-table-value-colour-pink");}
+ private TableCell<Purchase,Double> balanceMoneyCell(){return coloredMoneyCell("erp-table-value-colour-blue","erp-table-value-colour-green");}
+ private TableCell<Purchase,Double> coloredMoneyCell(String positiveClass,String zeroClass){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeIf(style->style!=null&&style.startsWith("erp-table-value-colour-"));if(!e&&v!=null){String style=v>.009?positiveClass:zeroClass;if(style!=null)getStyleClass().add(style);}}};}
+ private TableCell<Purchase,Double> paidMoneyCell(){return new TableCell<>(){protected void updateItem(Double v,boolean e){super.updateItem(v,e);setText(e||v==null?null:fmt(v));setAlignment(Pos.CENTER_RIGHT);getStyleClass().removeIf(style->style!=null&&style.startsWith("erp-table-value-colour-"));if(!e&&v!=null)getStyleClass().add(v>.009?"erp-table-value-colour-green":"erp-table-value-colour-pink");}};}
  private void configureExplicitButtonIcons(){
   setButtonIcon(btnNewPurchase,"purchase");setButtonIcon(btnReset,"reset");setButtonIcon(btnRefresh,"refresh");
   setButtonIcon(btnFirstPage,"first");setButtonIcon(btnPreviousPage,"previous");setButtonIcon(btnNextPage,"next");setButtonIcon(btnLastPage,"last");
