@@ -68,4 +68,4 @@ jobs:
           export JAVA_HOME="$JAVA_HOME_25_arm64"
           export PATH="$JAVA_HOME/bin:$PATH"
           cd /tmp/dse-mobile/Jasvi-Industries-Mobile
-          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dse-phase7-derived CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dse-phase7-derived ARCHS=arm64 EXCLUDED_ARCHS=x86_64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
