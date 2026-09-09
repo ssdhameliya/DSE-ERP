@@ -1,0 +1,48 @@
+name: ChatGPT Mobile Phase 6 Verification
+
+on:
+  push:
+    branches:
+      - chatgpt-verify-mobile-phase6-20260909
+
+jobs:
+  mobile-compile:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild verified FIX5 baseline and apply Phase 6
+        shell: bash
+        run: |
+          rm -rf /tmp/dse-mobile
+          mkdir -p /tmp/dse-mobile
+          unzip -oq .chatgpt/mobile-canonical.zip -d /tmp/dse-mobile
+          cat .chatgpt/mobile-actions-fix5.patch.part* > /tmp/mobile-actions-fix5.patch
+          perl -pe 's#^(---|\+\+\+) /mnt/data/action-build-base/Jasvi-Industries-Mobile/#$1 a/#; s#^(---|\+\+\+) /mnt/data/action-build/Jasvi-Industries-Mobile/#$1 b/#' /tmp/mobile-actions-fix5.patch > /tmp/mobile-actions-relative.patch
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          patch --batch -p1 < /tmp/mobile-actions-relative.patch
+          cd "$GITHUB_WORKSPACE"
+          cat .chatgpt/mobile-phase6.patch.part* > /tmp/mobile-phase6.patch
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          patch --batch -p1 < /tmp/mobile-phase6.patch
+      - name: Verify toolchain
+        run: |
+          xcodebuild -version
+          java -version
+          echo "JAVA_HOME_25_arm64=$JAVA_HOME_25_arm64"
+      - name: Verify Phase 6 is mobile-only
+        shell: bash
+        run: |
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          test -d composeApp
+          grep -q 'listOf(MainTab.DASHBOARD,MainTab.SALES,MainTab.BANK,MainTab.IMPORT,MainTab.MORE)' composeApp/src/commonMain/kotlin/org/dse/mobile/app/App.kt
+          grep -q 'DseNoticeDialog' composeApp/src/commonMain/kotlin/org/dse/mobile/app/DseComponents.kt
+          grep -q 'Import to ERP' composeApp/src/commonMain/kotlin/org/dse/mobile/app/ImportSyncScreens.kt
+      - name: Compile JVM and iOS targets
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_25_arm64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd /tmp/dse-mobile/Jasvi-Industries-Mobile
+          chmod +x gradlew
+          ./gradlew --stop || true
+          ./gradlew :shared:jvmTest :shared:compileKotlinIosArm64 :shared:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinJvm :composeApp:compileKotlinIosArm64 :composeApp:compileKotlinIosSimulatorArm64
