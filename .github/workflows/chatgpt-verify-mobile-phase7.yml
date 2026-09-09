@@ -33,6 +33,7 @@ jobs:
           cd /tmp/dse-mobile/Jasvi-Industries-Mobile
           patch --batch -p1 < /tmp/mobile-phase7.patch
           patch --batch -p1 < "$GITHUB_WORKSPACE/.chatgpt/mobile-phase7-fix1.patch"
+          patch --batch -p1 < "$GITHUB_WORKSPACE/.chatgpt/mobile-phase7-fix2.patch"
 
       - name: Verify toolchain
         run: |
