@@ -1,1 +1,100 @@
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
+-            .heightIn(min = 52.dp)
++            .heightIn(min = 46.dp)
+             .shadow(if (enabled) 8.dp else 0.dp, shape, ambientColor = DseDanger.copy(.10f), spotColor = DseDanger.copy(.16f))
+             .clip(shape)
+             .background(
+@@ -385,7 +385,7 @@
+             .clickable(enabled = enabled, onClick = onClick),
+         contentAlignment = Alignment.Center,
+     ) {
+-        Row(Modifier.padding(horizontal = 16.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
++        Row(Modifier.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+             val resolvedIcon = icon ?: semanticActionIcon(text)
+             Icon(resolvedIcon, null, tint = Color.White, modifier = Modifier.size(19.dp))
+             Spacer(Modifier.width(8.dp))
+diff -ruN '--exclude=build' '--exclude=.gradle' '--exclude=.idea' a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ImportSyncScreens.kt b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ImportSyncScreens.kt
+--- a/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ImportSyncScreens.kt	2026-09-09 04:30:14.000000000 +0000
++++ b/composeApp/src/commonMain/kotlin/org/dse/mobile/app/ImportSyncScreens.kt	2026-09-09 08:55:10.880629386 +0000
+@@ -75,40 +75,78 @@
+  var dry by remember{mutableStateOf(true)}
+  var busy by remember{mutableStateOf(false)}
+  var msg by remember{mutableStateOf("Choose a module and select an Excel/CSV file. iOS accepts CSV; IntelliJ accepts Excel and CSV.")}
++ var dismissedMessage by remember{mutableStateOf("")}
++ var confirmImport by remember{mutableStateOf(false)}
+  var summary by remember{mutableStateOf<ImportExecutionSummary?>(null)}
+  var bankName by remember{mutableStateOf("")};var bankAccount by remember{mutableStateOf("")};var accountHolder by remember{mutableStateOf("")};var bankCurrency by remember{mutableStateOf("INR")};var from by remember{mutableStateOf("")};var to by remember{mutableStateOf("")}
+  val scope=rememberCoroutineScope()
+  fun mappedSheet():ImportSheet?=sheet?.let{applyImportMapping(it,module,mapping)}
+- Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+-  PremiumCard(Modifier.fillMaxWidth(),padding=15.dp){
+-   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(11.dp)){PremiumIconTile(Icons.Rounded.UploadFile,DseWarning,size=48.dp);Column(Modifier.weight(1f)){Text("Data Import",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.ExtraBold);Text("Guided Excel / CSV import with dry-run validation",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
+-   DseSelect("Module",module.label,ImportModule.entries.map{it.label},required=true,onValue={v->module=ImportModule.entries.first{it.label==v};sheet=null;mapping=emptyMap();summary=null;strategy=ImportStrategy.CREATE_ONLY})
+-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+-    PremiumPrimaryButton("Select File",{scope.launch{sheet=pickImportSpreadsheet();mapping=sheet?.let{autoMapImport(it,module)}?:emptyMap();summary=null;msg=sheet?.let{"${it.fileName} • ${it.rows.size} row(s)${it.platformNotice.takeIf(String::isNotBlank)?.let{n->" • $n"}.orEmpty()}"}?:"No file selected"}},Modifier.weight(1f),enabled=!busy,leadingIcon=Icons.Rounded.UploadFile)
+-    PremiumSecondaryButton("Template",{shareImportTemplate(module)},Modifier.weight(1f),icon=Icons.Rounded.Download)
++ fun executeSelected(){
++  val current=mappedSheet()?:return
++  scope.launch{
++   busy=true
++   val validation=validateImport(current,module)
++   if(validation.isNotEmpty()){
++    summary=ImportExecutionSummary(current.rows.size,0,current.rows.size,validation.take(100))
++    msg="Validation failed — no server writes performed"
++   }else{
++    summary=executeImport(api,module,current,username,dry,BankMeta(bankName,bankAccount,accountHolder,bankCurrency,from,to),strategy)
++    msg=if(dry)"Dry run complete" else "Import complete successfully"
++   }
++   busy=false
++  }
++ }
++ val notice=noticeKindFor(msg)
++ Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).verticalScroll(rememberScrollState()).padding(horizontal=10.dp,vertical=7.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
++  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
++   PremiumIconTile(Icons.Rounded.UploadFile,DseWarning,size=34.dp)
++   Column(Modifier.weight(1f)){Text("Data Import",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.ExtraBold);Text("Validate first, then import safely",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
++   DseStatus("",if(dry)"DRY RUN" else "WRITE")
++  }
++  DseSelect("Module",module.label,ImportModule.entries.map{it.label},required=true,onValue={v->module=ImportModule.entries.first{it.label==v};sheet=null;mapping=emptyMap();summary=null;strategy=ImportStrategy.CREATE_ONLY})
++  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){
++   PremiumPrimaryButton("Select File",{scope.launch{sheet=pickImportSpreadsheet();mapping=sheet?.let{autoMapImport(it,module)}?:emptyMap();summary=null;msg=sheet?.let{"${it.fileName} • ${it.rows.size} row(s)${it.platformNotice.takeIf(String::isNotBlank)?.let{n->" • $n"}.orEmpty()}"}?:"No file selected"}},Modifier.weight(1f),enabled=!busy,leadingIcon=Icons.Rounded.UploadFile)
++   PremiumSecondaryButton("Template",{shareImportTemplate(module)},Modifier.weight(1f),icon=Icons.Rounded.Download)
++  }
++  Surface(shape=MaterialTheme.shapes.medium,color=MaterialTheme.colorScheme.surface,border=androidx.compose.foundation.BorderStroke(1.dp,MaterialTheme.colorScheme.outline.copy(.30f)),modifier=Modifier.fillMaxWidth()){
++   Row(Modifier.padding(horizontal=10.dp,vertical=7.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
++    Switch(!dry,{dry=!it})
++    Column(Modifier.weight(1f)){Text(if(dry)"Dry Run" else "Write Enabled",fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.bodyMedium);Text(if(dry)"Validate only — no ERP writes" else "Confirmation required before ERP writes",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+    }
+-   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){Switch(!dry,{dry=!it});Column{Text(if(dry)"Dry Run" else "Write Enabled",fontWeight=FontWeight.SemiBold);Text(if(dry)"Validate only — no server writes" else "Validated rows can be written to UAT",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
+   }
+   if(module.supportsStrategy())DseSelect("Existing Record Strategy",strategy.label,ImportStrategy.entries.map{it.label},onValue={v->strategy=ImportStrategy.entries.first{it.label==v}})
+   sheet?.let{sht->
+-   PremiumCard(Modifier.fillMaxWidth(),padding=12.dp){Text(sht.fileName,fontWeight=FontWeight.Bold);Text("${sht.rows.size} rows • ${sht.headers.size} columns",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
+-   DseSection("Column Mapping",Icons.Rounded.AccountTree){Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){PremiumSecondaryButton("Auto Map",{mapping=autoMapImport(sht,module)},Modifier.weight(1f),icon=Icons.Rounded.AutoAwesome);PremiumSecondaryButton("Reset",{mapping=emptyMap()},Modifier.weight(1f),icon=Icons.Rounded.Refresh)};importFields(module).forEach{field->DseSelect(field.replace('_',' ').replaceFirstChar{it.uppercase()},mapping[field].orEmpty(),listOf("")+sht.headers,required=field in requiredImportFields(module),onValue={source->mapping=mapping.toMutableMap().also{if(source.isBlank())it.remove(field)else it[field]=source}})}}
++   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
++    PremiumIconTile(Icons.Rounded.Description,DseInfo,size=34.dp)
++    Column(Modifier.weight(1f)){Text(sht.fileName,fontWeight=FontWeight.Bold,maxLines=1);Text("${sht.rows.size} rows • ${sht.headers.size} columns",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)}
++    TextButton(onClick={mapping=autoMapImport(sht,module)}){Text("Auto Map")}
++   }
++   DseSection("Column Mapping",Icons.Rounded.AccountTree){importFields(module).forEach{field->DseSelect(field.replace('_',' ').replaceFirstChar{it.uppercase()},mapping[field].orEmpty(),listOf("")+sht.headers,required=field in requiredImportFields(module),onValue={source->mapping=mapping.toMutableMap().also{if(source.isBlank())it.remove(field)else it[field]=source}})}}
+    val preview=mappedSheet();if(preview!=null)DseSection("Preview",Icons.Rounded.Preview){preview.rows.take(5).forEachIndexed{i,row->Text("${i+1}. "+importFields(module).take(6).joinToString(" • "){f->"$f=${row[f].orEmpty()}"},style=MaterialTheme.typography.bodySmall)} }
+   }
+   if(module==ImportModule.BANK){DseSection("Bank Statement Metadata",Icons.Rounded.AccountBalance){DseField("Bank Name",bankName,singleLine=true,required=true,onValue={bankName=it});DseField("Bank Account",bankAccount,singleLine=true,required=true,onValue={bankAccount=it});DseField("Account Holder",accountHolder,singleLine=true,onValue={accountHolder=it});DseSelect("Currency",bankCurrency,listOf("INR","USD","EUR","GBP","JPY","AED","SAR"),required=true,onValue={bankCurrency=it});DseDateField("Statement From",from,onValue={from=it});DseDateField("Statement To",to,onValue={to=it})}}
+   PremiumPrimaryButton(
+-   text=if(busy)"Processing…" else if(dry)"Validate / Dry Run" else "Import to UAT",
++   text=if(busy)"Processing…" else if(dry)"Validate / Dry Run" else "Import to ERP",
+    enabled=!busy&&sheet?.rows?.isNotEmpty()==true,
+-   onClick={scope.launch{busy=true;val current=mappedSheet()!!;val validation=validateImport(current,module);if(validation.isNotEmpty()){summary=ImportExecutionSummary(current.rows.size,0,current.rows.size,validation.take(100));msg="Validation failed — no server writes performed"}else{summary=executeImport(api,module,current,username,dry,BankMeta(bankName,bankAccount,accountHolder,bankCurrency,from,to),strategy);msg=if(dry)"Dry run complete" else "Import complete"};busy=false}},
++   onClick={if(dry)executeSelected() else confirmImport=true},
+    modifier=Modifier.fillMaxWidth(),leadingIcon=if(dry)Icons.Rounded.FactCheck else Icons.Rounded.UploadFile,trailingIcon=Icons.Rounded.ArrowForward,
+   )
+-  if(msg.isNotBlank())Text(msg,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
++  if(busy)DseLoadingState(if(dry)"Validating import data…" else "Importing validated ERP records…")
++  if(msg.isNotBlank()&&notice==null)Text(msg,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2)
+   summary?.let{x->
+-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){DseMetricTile("Processed",x.processed.toString(),Icons.Rounded.Dataset,Modifier.weight(1f),DseInfo);DseMetricTile("Succeeded",x.succeeded.toString(),Icons.Rounded.CheckCircle,Modifier.weight(1f),DseSuccess);DseMetricTile("Failed",x.failed.toString(),Icons.Rounded.ErrorOutline,Modifier.weight(1f),if(x.failed>0)DseDanger else DseSuccess)}
++   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){DseMetricTile("Processed",x.processed.toString(),Icons.Rounded.Dataset,Modifier.weight(1f),DseInfo);DseMetricTile("Succeeded",x.succeeded.toString(),Icons.Rounded.CheckCircle,Modifier.weight(1f),DseSuccess);DseMetricTile("Failed",x.failed.toString(),Icons.Rounded.ErrorOutline,Modifier.weight(1f),if(x.failed>0)DseDanger else DseSuccess)}
+    DseSection("Import Results",Icons.Rounded.FactCheck){x.messages.take(100).forEach{Text(it,style=MaterialTheme.typography.bodySmall)}}
+   }
+-  Spacer(Modifier.height(12.dp))
++  Spacer(Modifier.height(4.dp))
+  }
