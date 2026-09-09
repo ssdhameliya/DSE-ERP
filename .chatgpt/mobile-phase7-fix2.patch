@@ -1,0 +1,126 @@
+--- a/composeApp/src/iosMain/kotlin/org/dse/mobile/app/IosNativeBridge.kt
++++ b/composeApp/src/iosMain/kotlin/org/dse/mobile/app/IosNativeBridge.kt
+@@ -52,21 +52,21 @@
+     biometricState: () -> String,
+     authenticateBiometric: (String, (String, String?) -> Unit) -> Unit,
+     haptic: (String) -> Unit,
+-    loadQuickUnlock: () -> Boolean,
+-    saveQuickUnlock: (Boolean) -> Unit,
+-    loadHaptics: () -> Boolean,
+-    saveHaptics: (Boolean) -> Unit,
+-    previewFile: (String, String, String) -> Boolean,
++    loadQuickUnlock: () -> String,
++    saveQuickUnlock: (String) -> Unit,
++    loadHaptics: () -> String,
++    saveHaptics: (String) -> Unit,
++    previewFile: (String, String, String) -> String,
+     scheduleLocalNotification: (String, String, String, String, String) -> Unit,
+     cancelLocalNotification: (String) -> Unit,
+     pickImportFile: ((String?, String?, String?) -> Unit) -> Unit,
+     requestPush: ((String, String?) -> Unit) -> Unit,
+     pickAttachment: ((String?, String?, String?) -> Unit) -> Unit,
+-    shareText: (String, String) -> Boolean,
+-    shareFile: (String, String, String) -> Boolean,
+-    openExternalUrl: (String) -> Boolean,
++    shareText: (String, String) -> String,
++    shareFile: (String, String, String) -> String,
++    openExternalUrl: (String) -> String,
+     consumeDeepLink: () -> String?,
+-    publishWidgetSnapshot: (Double, Double, Double, Double, Double, Double, Long) -> Unit,
++    publishWidgetSnapshot: (String, String, String, String, String, String, String) -> Unit,
+     startShippingActivity: (String, String, String, String, (String, String?) -> Unit) -> Unit,
+     updateShippingActivity: (String, String, (String, String?) -> Unit) -> Unit,
+     endShippingActivity: (String, (String, String?) -> Unit) -> Unit,
+@@ -79,21 +79,31 @@
+     IosNativeHandlers.biometricState = biometricState
+     IosNativeHandlers.authenticateBiometric = authenticateBiometric
+     IosNativeHandlers.haptic = haptic
+-    IosNativeHandlers.loadQuickUnlock = loadQuickUnlock
+-    IosNativeHandlers.saveQuickUnlock = saveQuickUnlock
+-    IosNativeHandlers.loadHaptics = loadHaptics
+-    IosNativeHandlers.saveHaptics = saveHaptics
+-    IosNativeHandlers.previewFile = previewFile
++    IosNativeHandlers.loadQuickUnlock = { loadQuickUnlock().equals("true", ignoreCase = true) }
++    IosNativeHandlers.saveQuickUnlock = { enabled -> saveQuickUnlock(enabled.toString()) }
++    IosNativeHandlers.loadHaptics = { loadHaptics().equals("true", ignoreCase = true) }
++    IosNativeHandlers.saveHaptics = { enabled -> saveHaptics(enabled.toString()) }
++    IosNativeHandlers.previewFile = { title, fileName, base64 -> previewFile(title, fileName, base64).equals("OK", ignoreCase = true) }
+     IosNativeHandlers.scheduleLocalNotification = scheduleLocalNotification
+     IosNativeHandlers.cancelLocalNotification = cancelLocalNotification
+     IosNativeHandlers.pickImportFile = pickImportFile
+     IosNativeHandlers.requestPush = requestPush
+     IosNativeHandlers.pickAttachment = pickAttachment
+-    IosNativeHandlers.shareText = shareText
+-    IosNativeHandlers.shareFile = shareFile
+-    IosNativeHandlers.openExternalUrl = openExternalUrl
++    IosNativeHandlers.shareText = { title, text -> shareText(title, text).equals("OK", ignoreCase = true) }
++    IosNativeHandlers.shareFile = { title, fileName, base64 -> shareFile(title, fileName, base64).equals("OK", ignoreCase = true) }
++    IosNativeHandlers.openExternalUrl = { value -> openExternalUrl(value).equals("OK", ignoreCase = true) }
+     IosNativeHandlers.consumeDeepLink = consumeDeepLink
+-    IosNativeHandlers.publishWidgetSnapshot = publishWidgetSnapshot
++    IosNativeHandlers.publishWidgetSnapshot = { salesToday, receivables, purchases, payables, bankBalance, expenseMonth, updatedAtMillis ->
++        publishWidgetSnapshot(
++            salesToday.toString(),
++            receivables.toString(),
++            purchases.toString(),
++            payables.toString(),
++            bankBalance.toString(),
++            expenseMonth.toString(),
++            updatedAtMillis.toString(),
++        )
++    }
+     IosNativeHandlers.startShippingActivity = startShippingActivity
+     IosNativeHandlers.updateShippingActivity = updateShippingActivity
+     IosNativeHandlers.endShippingActivity = endShippingActivity
+--- a/iosApp/iosApp/iOSApp.swift
++++ b/iosApp/iosApp/iOSApp.swift
+@@ -51,12 +51,12 @@
+                 }
+             },
+             haptic: { kind in NativeHaptics.trigger(kind) },
+-            loadQuickUnlock: { NativePreferences.quickUnlockEnabled },
+-            saveQuickUnlock: { enabled in NativePreferences.quickUnlockEnabled = enabled },
+-            loadHaptics: { NativePreferences.hapticsEnabled },
+-            saveHaptics: { enabled in NativePreferences.hapticsEnabled = enabled },
++            loadQuickUnlock: { NativePreferences.quickUnlockEnabled ? "true" : "false" },
++            saveQuickUnlock: { enabled in NativePreferences.quickUnlockEnabled = enabled.lowercased() == "true" },
++            loadHaptics: { NativePreferences.hapticsEnabled ? "true" : "false" },
++            saveHaptics: { enabled in NativePreferences.hapticsEnabled = enabled.lowercased() == "true" },
+             previewFile: { title, fileName, base64 in
+-                NativeFilePreviewService.shared.preview(title: title, fileName: fileName, base64: base64)
++                NativeFilePreviewService.shared.preview(title: title, fileName: fileName, base64: base64) ? "OK" : "ERROR"
+             },
+             scheduleLocalNotification: { identifier, title, body, dateIso, deepLink in
+                 NativeLocalNotificationService.schedule(identifier: identifier, title: title, body: body, dateIso: dateIso, deepLink: deepLink)
+@@ -77,21 +77,21 @@
+             pickAttachment: { completion in
+                 NativeAttachmentPicker.shared.pick { fileName, base64, error in completion(fileName, base64, error) }
+             },
+-            shareText: { title, text in NativeShareService.share(title: title, text: text) },
+-            shareFile: { title, fileName, base64 in NativeShareService.shareFile(title: title, fileName: fileName, base64: base64) },
+-            openExternalUrl: { value in NativeShareService.open(value) },
++            shareText: { title, text in NativeShareService.share(title: title, text: text) ? "OK" : "ERROR" },
++            shareFile: { title, fileName, base64 in NativeShareService.shareFile(title: title, fileName: fileName, base64: base64) ? "OK" : "ERROR" },
++            openExternalUrl: { value in NativeShareService.open(value) ? "OK" : "ERROR" },
+             consumeDeepLink: {
+                 NativeDeepLinkStore.consume()
+             },
+             publishWidgetSnapshot: { salesToday, receivables, purchases, payables, bankBalance, expenseMonth, updatedAtMillis in
+                 DashboardWidgetPublisher.publish(
+-                    salesToday: salesToday,
+-                    receivables: receivables,
+-                    purchases: purchases,
+-                    payables: payables,
+-                    bankBalance: bankBalance,
+-                    expenseMonth: expenseMonth,
+-                    updatedAtMillis: updatedAtMillis
++                    salesToday: Double(salesToday) ?? 0,
++                    receivables: Double(receivables) ?? 0,
++                    purchases: Double(purchases) ?? 0,
++                    payables: Double(payables) ?? 0,
++                    bankBalance: Double(bankBalance) ?? 0,
++                    expenseMonth: Double(expenseMonth) ?? 0,
++                    updatedAtMillis: Int64(updatedAtMillis) ?? 0
+                 )
+             },
+             startShippingActivity: { invoiceNo, customer, transporter, vehicle, completion in
