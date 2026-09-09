@@ -1,0 +1,4 @@
++    MoreDestination.PURCHASE->Icons.Rounded.ShoppingCart
+     MoreDestination.QUOTATIONS->Icons.Rounded.RequestQuote
+     MoreDestination.SALES_RETURNS,MoreDestination.PURCHASE_RETURNS->Icons.Rounded.AssignmentReturn
+     MoreDestination.MASTERS->Icons.Rounded.Dataset
