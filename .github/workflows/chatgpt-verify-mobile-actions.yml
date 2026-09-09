@@ -16,8 +16,9 @@ jobs:
           mkdir -p /tmp/dse-mobile
           unzip -oq .chatgpt/mobile-canonical.zip -d /tmp/dse-mobile
           cat .chatgpt/mobile-actions-fix5.patch.part* > /tmp/mobile-actions-fix5.patch
+          perl -pe 's#^(---|\+\+\+) /mnt/data/action-build-base/Jasvi-Industries-Mobile/#$1 a/#; s#^(---|\+\+\+) /mnt/data/action-build/Jasvi-Industries-Mobile/#$1 b/#' /tmp/mobile-actions-fix5.patch > /tmp/mobile-actions-relative.patch
           cd /tmp/dse-mobile/Jasvi-Industries-Mobile
-          patch -p4 < /tmp/mobile-actions-fix5.patch
+          patch --batch -p1 < /tmp/mobile-actions-relative.patch
       - name: Verify toolchain
         run: |
           xcodebuild -version
