@@ -1,0 +1,79 @@
+name: Inspect UAT PWA CORS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/pwa-uat-cors.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dse-erp-uat-pwa-cors
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    name: Inspect UAT Caddy only
+    runs-on: ubuntu-latest
+    environment: uat
+    timeout-minutes: 10
+    env:
+      SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
+      SSH_USER: ${{ secrets.DSE_SSH_USER }}
+      SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      SSH_PORT: ${{ vars.DSE_SSH_PORT }}
+      PUBLIC_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+    steps:
+      - name: Validate UAT connection configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PUBLIC_HEALTH_URL; do
+            [[ -n "${!name:-}" ]] || { echo "Missing GitHub uat environment value: $name" >&2; exit 1; }
+          done
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+
+      - name: Configure strict SSH host verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/dse_pwa_cors_key
+          chmod 600 ~/.ssh/dse_pwa_cors_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Verify UAT ERP health before inspection
+        shell: bash
+        run: curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL"
+
+      - name: Read current Caddy configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_pwa_cors_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          echo "=== CADDY VERSION ==="
+          caddy version || sudo caddy version
+          echo "=== CADDY VALIDATE ==="
+          sudo caddy validate --config /etc/caddy/Caddyfile
+          echo "=== CADDYFILE BEGIN ==="
+          sudo sed -n '1,260p' /etc/caddy/Caddyfile
+          echo "=== CADDYFILE END ==="
+          echo "=== CADDY SERVICE ==="
+          sudo systemctl is-active caddy
+          REMOTE
+
+      - name: Test current browser preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          API_BASE="${PUBLIC_HEALTH_URL%/api/runtime/health}"
+          curl --silent --show-error --max-time 20 -D - -o /dev/null \
+            -X OPTIONS "$API_BASE/api/auth/login" \
+            -H 'Origin: https://mobile-uat.jasviindustries.in' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type,authorization'
