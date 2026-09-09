@@ -400,8 +400,11 @@ class CriticalReleaseRegressionTest {
         Path root = Files.createTempDirectory(Path.of("target"), "local-update-safety-").toAbsolutePath();
         Path fakePostgres = root.resolve("fake-postgres");
         Files.createDirectories(fakePostgres.resolve("bin"));
+        boolean windows = System.getProperty("os.name", "")
+                .toLowerCase(java.util.Locale.ROOT).contains("win");
         for (String command : new String[]{"initdb", "pg_ctl", "psql"}) {
-            Files.writeString(fakePostgres.resolve("bin").resolve(command), "", java.nio.charset.StandardCharsets.UTF_8);
+            String executable = windows ? command + ".exe" : command;
+            Files.writeString(fakePostgres.resolve("bin").resolve(executable), "", java.nio.charset.StandardCharsets.UTF_8);
         }
         String previousHome = System.getProperty("dse.erp.postgres.home");
         try (AutoCloseable ignored = WorkspaceTestSupport.useTransientWorkspace(root)) {
