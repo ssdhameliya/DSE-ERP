@@ -48,7 +48,7 @@ class SharedClientWorkspaceContractTest {
             assertEquals("SHARED_CLIENT", detached.getProperty("deployment.mode"));
             assertEquals("UAT", detached.getProperty("deployment.environment"));
             assertEquals("https://api-uat.example.test", detached.getProperty("server.baseUrl"));
-            assertEquals("STABLE", detached.getProperty("update.channel"));
+            assertEquals("BETA", detached.getProperty("update.channel"));
             assertEquals(org.example.update.BuildInfo.version(), detached.getProperty("app.version"),
                     "Creating managed shared-client storage must stamp the running build and avoid a false first-login update toast");
             assertNull(detached.getProperty("db.url"));
@@ -98,6 +98,8 @@ class SharedClientWorkspaceContractTest {
             assertEquals("SHARED_CLIENT", shared.getProperty("deployment.mode"));
             assertEquals("UAT", shared.getProperty("deployment.environment"));
             assertEquals("https://api-uat.example.test", shared.getProperty("server.baseUrl"));
+            assertEquals("BETA", shared.getProperty("update.channel"));
+            assertEquals("external", shared.getProperty("runtime.postgres.mode"));
             assertEquals("DARK", shared.getProperty("theme"));
             assertEquals("true", shared.getProperty("setup.completed"));
             assertEquals(org.example.update.BuildInfo.version(), shared.getProperty("app.version"),
@@ -142,6 +144,8 @@ class SharedClientWorkspaceContractTest {
             assertEquals("SHARED_CLIENT", updated.getProperty("deployment.mode"));
             assertEquals("PROD", updated.getProperty("deployment.environment"));
             assertEquals("https://api.example.test", updated.getProperty("server.baseUrl"));
+            assertEquals("STABLE", updated.getProperty("update.channel"));
+            assertEquals("external", updated.getProperty("runtime.postgres.mode"));
             assertNull(updated.getProperty("db.url"));
             assertNull(updated.getProperty("db.username"));
             assertNull(updated.getProperty("db.password"));

@@ -20,7 +20,7 @@ public final class UpdateLifecycle {
                 String detail = sharedClient
                         ? "Shared client upgraded from " + previous + "; company-server schema remains server-managed"
                         : "Upgraded from " + previous + "; database schema " + migration.fromVersion() + " → " + migration.toVersion();
-                UpdateHistoryStore.append(buildVersion, ConfigManager.get("update.channel", "STABLE"), "SUCCESS", detail);
+                UpdateHistoryStore.append(buildVersion, ConfigManager.getEffectiveUpdateChannel(), "SUCCESS", detail);
                 // Guarantee one user-visible What's New dialog after a real application upgrade,
                 // even if an older profile already carried a releaseNotesSeen value.
                 ConfigManager.set("update.releaseNotesPending", buildVersion);
@@ -31,7 +31,7 @@ public final class UpdateLifecycle {
                             : "DSE ERP " + buildVersion + " is installed. Database schema: " + migration.toVersion()));
             }
         } catch (Exception exception) {
-            UpdateHistoryStore.append(BuildInfo.version(), ConfigManager.get("update.channel", "STABLE"), "MIGRATION_FAILED", exception.getMessage());
+            UpdateHistoryStore.append(BuildInfo.version(), ConfigManager.getEffectiveUpdateChannel(), "MIGRATION_FAILED", exception.getMessage());
             throw new IllegalStateException("Application database migration failed", exception);
         }
     }

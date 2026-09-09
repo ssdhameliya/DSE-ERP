@@ -295,7 +295,7 @@ public final class UpdateDialogs {
                 ChecksumVerifier.verify(file, checksum);
                 updateMessage("Creating pre-update database backup...");
                 Path backup = service.createPreUpdateBackup();
-                UpdateHistoryStore.append(release.version().toString(), ConfigManager.get("update.channel", "STABLE"), "READY", "Installer=" + file.getFileName() + "; Backup=" + backup.getFileName());
+                UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(), "READY", "Installer=" + file.getFileName() + "; Backup=" + backup.getFileName());
                 return file;
             }
         };
@@ -312,12 +312,12 @@ public final class UpdateDialogs {
                 if (b == install) try {
                     org.example.service.PermissionService.require("APPLICATION_UPDATES.INSTALL", "install an application update");
                     service.launchInstaller(installer, release.version().toString());
-                    UpdateHistoryStore.append(release.version().toString(), ConfigManager.get("update.channel", "STABLE"), "INSTALLER_STARTED", installer.toString());
+                    UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(), "INSTALLER_STARTED", installer.toString());
                     Platform.exit();
                 } catch (Exception ex) { error(owner, "Unable to start installer", rootMessage(ex)); }
             });
         });
-        task.setOnFailed(e -> { dialog.close(); UpdateHistoryStore.append(release.version().toString(), ConfigManager.get("update.channel", "STABLE"), "FAILED", rootMessage(task.getException())); error(owner, "Update preparation failed", rootMessage(task.getException())); });
+        task.setOnFailed(e -> { dialog.close(); UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(), "FAILED", rootMessage(task.getException())); error(owner, "Update preparation failed", rootMessage(task.getException())); });
         dialog.setOnCloseRequest(e -> task.cancel());
         dialog.setOnShown(e -> Thread.ofVirtual().name("erp-update-download").start(task));
         dialog.show();
@@ -344,7 +344,7 @@ public final class UpdateDialogs {
         HBox metrics = PopupTableWorkspace.metricStrip(
             PopupTableWorkspace.metricCard("Current Version", BuildInfo.version(), "version"),
             PopupTableWorkspace.metricCard("Last Updated", lastUpdated, "calendar"),
-            PopupTableWorkspace.metricCard("Channel", ConfigManager.get("update.channel", "STABLE"), "communication")
+            PopupTableWorkspace.metricCard("Channel", ConfigManager.getEffectiveUpdateChannel(), "communication")
         );
         Label footer = PopupTableWorkspace.footerText(history.size()+" update histor"+(history.size()==1?"y record":"y records"));
         VBox content = PopupTableWorkspace.content(metrics, table, footer);

@@ -46,10 +46,19 @@ public final class ConfigManager {
             if(smtpSecret!=null&&!smtpSecret.isBlank()&&!SecretValueCodec.isEncrypted(smtpSecret)){properties.setProperty("smtp.appPassword",SecretValueCodec.encrypt(smtpSecret.replaceAll("\\s+","")));save();}
             // Shared clients never own or manage a workstation PostgreSQL cluster. Persist this
             // ownership boundary so later updates cannot regress into the LOCAL managed-DB path.
+            boolean configurationChanged = false;
             if (isSharedClient() && !"external".equalsIgnoreCase(properties.getProperty("runtime.postgres.mode", ""))) {
                 properties.setProperty("runtime.postgres.mode", "external");
-                save();
+                configurationChanged = true;
             }
+            if (isSharedClient()) {
+                String managedChannel = managedSharedClientUpdateChannel();
+                if (!managedChannel.equalsIgnoreCase(properties.getProperty("update.channel", ""))) {
+                    properties.setProperty("update.channel", managedChannel);
+                    configurationChanged = true;
+                }
+            }
+            if (configurationChanged) save();
             System.out.println("Workspace   : " + WorkspaceManager.getWorkspaceRoot());
             System.out.println("Config File : " + configFile);
         } catch (IOException exception) {
@@ -295,6 +304,30 @@ public final class ConfigManager {
         String value = properties.getProperty("deployment.environment", "LOCAL");
         String env = value == null ? "LOCAL" : value.trim().toUpperCase(java.util.Locale.ROOT);
         return switch (env) { case "LOCAL", "UAT", "PROD" -> env; default -> "LOCAL"; };
+    }
+
+
+    /**
+     * Resolves the only update channel that runtime update consumers should use.
+     * Shared Clients are environment-managed: UAT receives prereleases through BETA,
+     * while PROD receives only stable releases. LOCAL installations retain the configured
+     * manual STABLE/BETA choice.
+     */
+    public static synchronized String getEffectiveUpdateChannel() {
+        if (isSharedClient()) return managedSharedClientUpdateChannel();
+        return normalizeUpdateChannel(properties.getProperty("update.channel", "STABLE"));
+    }
+
+    public static synchronized boolean isUpdateChannelManagedByEnvironment() {
+        return isSharedClient();
+    }
+
+    private static String managedSharedClientUpdateChannel() {
+        return "UAT".equalsIgnoreCase(getDeploymentEnvironment()) ? "BETA" : "STABLE";
+    }
+
+    private static String normalizeUpdateChannel(String value) {
+        return "BETA".equalsIgnoreCase(value == null ? "" : value.trim()) ? "BETA" : "STABLE";
     }
 
     public static synchronized void applyServerBusinessPolicy(String zone,String dateFormat){

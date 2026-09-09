@@ -12,7 +12,7 @@ public final class UpdateState {
         ConfigManager.setWithoutSaving("update.latestVersion", release.version().toString());
         ConfigManager.setWithoutSaving("update.latestReleaseUrl", release.htmlUrl() == null ? "" : release.htmlUrl().toString());
         ConfigManager.setWithoutSaving("update.latestPublishedAt", release.publishedAt() == null ? "" : release.publishedAt().toString());
-        ConfigManager.setWithoutSaving("update.latestChannel", ConfigManager.get("update.channel", "STABLE"));
+        ConfigManager.setWithoutSaving("update.latestChannel", ConfigManager.getEffectiveUpdateChannel());
         ConfigManager.setWithoutSaving("update.lastChecked", Instant.now().toString());
         ConfigManager.setWithoutSaving("update.lastCheckError", "");
         ConfigManager.save();

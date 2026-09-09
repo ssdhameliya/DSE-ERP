@@ -128,7 +128,6 @@ jobs:
         run: |
           set -euo pipefail
           API_BASE="${PUBLIC_HEALTH_URL%/api/runtime/health}"
-
           curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL" > after-health.json
           python3 - before-health.json after-health.json <<'PY'
           import json,sys
