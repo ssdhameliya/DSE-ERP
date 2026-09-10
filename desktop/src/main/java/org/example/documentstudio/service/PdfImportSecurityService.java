@@ -3,6 +3,9 @@ package org.example.documentstudio.service;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
+import org.apache.pdfbox.pdmodel.interactive.form.PDAcroForm;
+import org.apache.pdfbox.pdmodel.interactive.form.PDField;
+import org.apache.pdfbox.cos.COSName;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,6 +33,28 @@ public final class PdfImportSecurityService {
         }
     }
 
+    /**
+     * Imported AcroForms often contain sample customer/invoice values.  Keep the protected
+     * original untouched, but clear those values from the private Studio working copy so
+     * preview/final output can never reveal stale sample data underneath ERP overlays.
+     * Field names and widgets remain intact for auto-mapping.
+     */
+    private static void clearAcroFormSampleValues(PDDocument document) {
+        try {
+            PDAcroForm form = document.getDocumentCatalog().getAcroForm();
+            if (form == null) return;
+            for (PDField field : form.getFieldTree()) {
+                try { field.setValue(""); }
+                catch (Exception ignored) { /* signature/button fields may not accept text values */ }
+                field.getCOSObject().removeItem(COSName.V);
+                field.getCOSObject().removeItem(COSName.DV);
+                for (var widget : field.getWidgets()) widget.getCOSObject().removeItem(COSName.AP);
+            }
+        } catch (Exception ignored) {
+            // Form cleanup is defensive; a non-AcroForm PDF remains importable.
+        }
+    }
+
     public static Inspection normalizeForEditing(Path source, Path target, String password) throws IOException {
         Inspection inspection = inspect(source, password);
         if (!inspection.editable()) {
@@ -40,6 +65,7 @@ public final class PdfImportSecurityService {
         Files.deleteIfExists(temp);
         try (PDDocument document = Loader.loadPDF(source.toFile(), password == null ? "" : password)) {
             document.setAllSecurityToBeRemoved(true);
+            clearAcroFormSampleValues(document);
             document.save(temp.toFile());
         }
         try {

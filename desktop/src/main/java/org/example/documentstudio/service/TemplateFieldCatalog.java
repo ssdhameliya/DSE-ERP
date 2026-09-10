@@ -380,47 +380,29 @@ public final class TemplateFieldCatalog {
         return List.copyOf(result);
     }
 
-    /** Preferred V2 JSON requirements. Legacy keys satisfy the same requirement through isPdfRequirementMapped. */
+    /**
+     * Compatibility view of the centralized PDF requirement catalogue.
+     * New UI/validation code must use TemplateRequirementCatalog directly so the checklist,
+     * search ranking and publish/default gate share one source of truth.
+     */
+    @Deprecated
     public static List<String> requiredPdfFieldsFor(DocumentType type) {
-        if (type == null || type == DocumentType.GENERAL_PDF || type == DocumentType.CUSTOM_ERP) return List.of();
-        return switch (type) {
-            case PAYMENT_RECEIPT -> List.of("document.number", "document.date", "party.name", "totals.grandTotal");
-            default -> List.of("document.number", "document.date", "party.name");
-        };
+        if (type == null) return List.of();
+        return TemplateRequirementCatalog.requirementsFor(type).stream()
+                .filter(requirement -> requirement.level() == org.example.documentstudio.model.TemplateMappingRequirement.Level.REQUIRED)
+                .filter(requirement -> !requirement.acceptedFields().isEmpty())
+                .map(requirement -> requirement.acceptedFields().get(0))
+                .toList();
     }
 
-    /** Backward-compatible requirement matching so 9.0.60 templates do not need to be remapped. */
+    /** Backward-compatible requirement matching delegated to the centralized requirement catalogue. */
+    @Deprecated
     public static boolean isPdfRequirementMapped(DocumentType type, String required, Set<String> mapped) {
-        if (mapped == null || required == null || mapped.contains(required)) return mapped != null && mapped.contains(required);
-        return switch (required) {
-            case "document.number" -> mapped.contains(switch (type) {
-                case SALES_INVOICE -> "sales.number";
-                case PURCHASE_INVOICE, PURCHASE_ORDER -> "purchase.number";
-                case PURCHASE_RETURN, SALES_RETURN, CREDIT_NOTE, DEBIT_NOTE -> "return.number";
-                case QUOTATION -> "quotation.number";
-                case DELIVERY_CHALLAN -> "delivery.number";
-                case PAYMENT_RECEIPT -> "receipt.number";
-                default -> "document.number";
-            });
-            case "document.date" -> mapped.contains(switch (type) {
-                case SALES_INVOICE -> "sales.date";
-                case PURCHASE_INVOICE, PURCHASE_ORDER -> "purchase.date";
-                case PURCHASE_RETURN, SALES_RETURN, CREDIT_NOTE, DEBIT_NOTE -> "return.date";
-                case QUOTATION -> "quotation.date";
-                case DELIVERY_CHALLAN -> "delivery.date";
-                case PAYMENT_RECEIPT -> "receipt.date";
-                default -> "document.date";
-            });
-            case "party.name" -> mapped.contains(switch (type) {
-                case SALES_INVOICE, QUOTATION, DELIVERY_CHALLAN -> "customer.name";
-                case PURCHASE_INVOICE, PURCHASE_ORDER -> "supplier.name";
-                case PURCHASE_RETURN, SALES_RETURN, CREDIT_NOTE, DEBIT_NOTE -> "party.name";
-                case PAYMENT_RECEIPT -> "receipt.partyName";
-                default -> "party.name";
-            });
-            case "totals.grandTotal" -> type == DocumentType.PAYMENT_RECEIPT && mapped.contains("receipt.amount");
-            default -> false;
-        };
+        if (mapped == null || required == null) return false;
+        if (mapped.contains(required)) return true;
+        return TemplateRequirementCatalog.requirementsFor(type).stream()
+                .filter(requirement -> requirement.acceptedFields().contains(required))
+                .anyMatch(requirement -> requirement.acceptedFields().stream().anyMatch(mapped::contains));
     }
 
     public static TemplateFieldDefinition findPdf(DocumentType type, String key) {

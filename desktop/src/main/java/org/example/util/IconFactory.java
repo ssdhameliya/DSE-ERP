@@ -1,5 +1,6 @@
 package org.example.util;
 
+import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.ButtonBase;
@@ -129,10 +130,13 @@ public final class IconFactory {
         }
 
         if (node instanceof ButtonBase button) {
+            installButtonSemanticGuard(button);
             // Explicit controller-owned graphics (password reveal, resend, etc.)
             // must never be replaced by semantic inference from CSS/text.
-            if ((Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))
-                    || Boolean.TRUE.equals(button.getProperties().get("erp-icon-preserve")))
+            if (Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))) {
+                return;
+            }
+            if (Boolean.TRUE.equals(button.getProperties().get("erp-icon-preserve"))
                     && button.getGraphic() != null) {
                 return;
             }
@@ -880,6 +884,34 @@ public final class IconFactory {
 
     /** Maps user-facing labels to semantic icons without touching their actions. */
 
+    /**
+     * Keeps the shared action icon contract authoritative after controller changes.
+     * Controllers may change text or clear a graphic after the initial FXML enhancement;
+     * this lightweight per-button guard reconciles only that button on the next pulse.
+     */
+    private static void installButtonSemanticGuard(ButtonBase button) {
+        if (button == null || Boolean.TRUE.equals(button.getProperties().get("erp.icon.guard.installed"))) return;
+        button.getProperties().put("erp.icon.guard.installed", true);
+        button.textProperty().addListener((obs, oldText, newText) -> scheduleButtonSemanticReconcile(button));
+        button.graphicProperty().addListener((obs, oldGraphic, newGraphic) -> {
+            if (newGraphic == null && !Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))) {
+                scheduleButtonSemanticReconcile(button);
+            }
+        });
+        button.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) scheduleButtonSemanticReconcile(button);
+        });
+    }
+
+    private static void scheduleButtonSemanticReconcile(ButtonBase button) {
+        if (button == null || Boolean.TRUE.equals(button.getProperties().get("erp.icon.guard.pending"))) return;
+        button.getProperties().put("erp.icon.guard.pending", true);
+        Platform.runLater(() -> {
+            button.getProperties().remove("erp.icon.guard.pending");
+            if (button.getScene() != null || button.getParent() != null) decorate(button);
+        });
+    }
+
     /** Resolves action semantics from label, fx:id and style classes. */
     private static String semantic(ButtonBase button) {
         String byText = semantic(button.getText());
@@ -994,6 +1026,19 @@ public final class IconFactory {
         if (value.contains("export pdf")) return "pdf";
         if (value.contains("import") || value.contains("upload")) return "import";
         if (value.contains("export")) return "export";
+
+        // Action verbs must win over broad business nouns. This prevents labels such
+        // as "Edit Sale" from degrading to a generic Sale icon and keeps controller
+        // wording changes deterministic across cached screens.
+        if (value.contains("edit") || value.contains("rename")) return "edit";
+        if (value.contains("delete") || value.contains("remove")) return "delete";
+        if (value.contains("record payment") || value.contains("save payment")) return "payment";
+        if (value.startsWith("send email")) return "email";
+        if (value.equals("+ text")) return "add";
+        if (value.equals("required") || value.equals("mapped") || value.equals("all")) return "filter";
+        if (value.contains("apply template")) return "apply";
+        if (value.contains("recover server")) return "recovery";
+        if (value.equals("reports")) return "report";
 
         // General actions.
         if (value.contains("fit page") || value.contains("fit width")) return "view";

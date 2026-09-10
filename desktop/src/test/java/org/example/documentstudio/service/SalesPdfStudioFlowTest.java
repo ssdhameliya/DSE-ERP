@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.example.documentstudio.model.DocumentTemplate;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.ElementType;
@@ -77,14 +78,49 @@ class SalesPdfStudioFlowTest {
     }
 
     @Test
-    void builtInTemplateRendersSingleAndMultiplePageSalesWithoutChangingSourcePageGeometry() throws Exception {
+    void importedSalesBlankOverridesFallBackToCustomerSnapshotForStudioAliases() {
+        Sales sale = sale("PDF-SNAPSHOT-FALLBACK-001", 2, false);
+        sale.setBillingAddress("");
+        sale.setDeliveryAddress("");
+        sale.setBillingGstin("");
+        sale.setDeliveryGstin("");
+        sale.setGstin("");
+        sale.getCustomer().setAddress("RESTORED CUSTOMER SNAPSHOT ADDRESS");
+        sale.getCustomer().setGstin("24RESTORED1234Z9");
+
+        ObjectNode json = ErpDocumentJsonService.toJson(DocumentType.SALES_INVOICE, TemplateDataFactory.fromSales(sale));
+        assertEquals("RESTORED CUSTOMER SNAPSHOT ADDRESS", json.path("party").path("billingAddress").asText());
+        assertEquals("RESTORED CUSTOMER SNAPSHOT ADDRESS", json.path("party").path("deliveryAddress").asText());
+        assertEquals("24RESTORED1234Z9", json.path("party").path("billingGstin").asText());
+        assertEquals("24RESTORED1234Z9", json.path("party").path("deliveryGstin").asText());
+    }
+
+    @Test
+    void builtInProtectedSourceContainsNoRecoverableSampleBusinessData() throws Exception {
         Path evidence = Path.of(System.getProperty("dse.pdf.evidence", "target/pdf-studio-evidence")).toAbsolutePath();
         Files.createDirectories(evidence);
         configureEvidenceWorkspace(evidence);
         Path root = TemplateStorageService.root();
         BuiltInPdfTemplateInstaller.ensureInstalled(root);
-        DocumentTemplate template = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE)
-                .orElseThrow(() -> new AssertionError("Built-in Sales Invoice PDF Studio template is not active"));
+        DocumentTemplate working = TemplateStorageService.find(BuiltInPdfTemplateInstaller.SALES_TEMPLATE_ID).orElseThrow();
+        try (PDDocument source = Loader.loadPDF(TemplateStorageService.sourcePdf(working).toFile())) {
+            String text = new PDFTextStripper().getText(source);
+            assertTrue(text.contains("GST-IN"), "Fixed GST-IN labels must remain in the protected artwork");
+            assertTrue(text.contains("ORIGINAL FOR BUYER"), "Fixed buyer-copy heading must remain in the protected artwork");
+            for (String stale : List.of("IN/16-08-2026/0003", "Shailesh Dhameliya", "BEEPD4909N12345",
+                    "fhgjkilgfhjkl", "Jashvi Engineers", "20104492473")) {
+                assertFalse(text.contains(stale), "Built-in source must not retain recoverable sample data: " + stale);
+            }
+        }
+    }
+
+    @Test
+    void builtInTemplateRendersSingleAndMultiplePageSalesWithoutChangingSourcePageGeometry() throws Exception {
+        Path evidence = Path.of(System.getProperty("dse.pdf.evidence", "target/pdf-studio-evidence")).toAbsolutePath();
+        Files.createDirectories(evidence);
+        configureEvidenceWorkspace(evidence);
+        Path root = TemplateStorageService.root();
+        DocumentTemplate template = activateBuiltIn(root);
         assertEquals("STRICT_FIXED", template.getLayoutMode());
         assertEquals(2, template.getDataContractVersion(), "9.0.61 built-in template must use universal JSON contract v2");
         var billingGstin = template.getElements().stream()
@@ -97,6 +133,16 @@ class SalesPdfStudioFlowTest {
         assertEquals(337.6388, deliveryGstin.getX(), 0.0001);
         assertEquals(224.05, billingGstin.getY(), 0.0001, "Billing GSTIN baseline must match the original PDF row");
         assertEquals(224.05, deliveryGstin.getY(), 0.0001, "Delivery GSTIN baseline must match the original PDF row");
+        var billingAddress = template.getElements().stream()
+                .filter(e -> e.getType() == ElementType.FIELD && "party.billingAddress".equals(e.getFieldKey()))
+                .findFirst().orElseThrow();
+        var deliveryAddress = template.getElements().stream()
+                .filter(e -> e.getType() == ElementType.FIELD && "party.deliveryAddress".equals(e.getFieldKey()))
+                .findFirst().orElseThrow();
+        assertEquals("WRAP", billingAddress.getTextFit(), "Long billing addresses must wrap inside their column");
+        assertEquals("WRAP", deliveryAddress.getTextFit(), "Long delivery addresses must wrap inside their column");
+        assertTrue(billingAddress.getFontSize() >= 6.0, "Address wrapping must preserve readable text size");
+        assertTrue(deliveryAddress.getFontSize() >= 6.0, "Address wrapping must preserve readable text size");
 
         Path single = evidence.resolve("sales-pdf-studio-single.pdf");
         Path multi = evidence.resolve("sales-pdf-studio-multi.pdf");
@@ -132,8 +178,7 @@ class SalesPdfStudioFlowTest {
         configureEvidenceWorkspace(evidence);
         Path root = TemplateStorageService.root();
         Files.deleteIfExists(root.resolve(".builtin-sales-invoice-deleted"));
-        BuiltInPdfTemplateInstaller.ensureInstalled(root);
-        DocumentTemplate template = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).orElseThrow();
+        DocumentTemplate template = activateBuiltIn(root);
 
         int rendered = 0;
         for (String taxMode : List.of("GST", "IGST")) {
@@ -193,8 +238,7 @@ class SalesPdfStudioFlowTest {
         configureEvidenceWorkspace(evidence);
         Path root = TemplateStorageService.root();
         Files.deleteIfExists(root.resolve(".builtin-sales-invoice-deleted"));
-        BuiltInPdfTemplateInstaller.ensureInstalled(root);
-        DocumentTemplate builtIn = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).orElseThrow();
+        DocumentTemplate builtIn = activateBuiltIn(root);
 
         // PRE/REFERENCE side: remove Studio intentionally and generate through the same
         // InvoicePdfService.sales(...) entry point used by normal Sales workflows.
@@ -230,8 +274,7 @@ class SalesPdfStudioFlowTest {
 
         // POST side: restore the built-in Studio template and render the exact same sales data.
         Files.deleteIfExists(root.resolve(".builtin-sales-invoice-deleted"));
-        BuiltInPdfTemplateInstaller.ensureInstalled(root);
-        DocumentTemplate studioTemplate = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).orElseThrow();
+        DocumentTemplate studioTemplate = activateBuiltIn(root);
         int studios = 0;
         for (String taxMode : List.of("GST", "IGST")) {
             for (int lineCount : List.of(5, 25)) {
@@ -321,8 +364,7 @@ class SalesPdfStudioFlowTest {
         configureEvidenceWorkspace(evidence);
         Path root = TemplateStorageService.root();
         Files.deleteIfExists(root.resolve(".builtin-sales-invoice-deleted"));
-        BuiltInPdfTemplateInstaller.ensureInstalled(root);
-        DocumentTemplate builtIn = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).orElseThrow();
+        DocumentTemplate builtIn = activateBuiltIn(root);
 
         try {
             TemplateStorageService.delete(builtIn);
@@ -348,16 +390,31 @@ class SalesPdfStudioFlowTest {
 
 
     @Test
+    void unsafeMappedStarterCannotBecomeSalesDefault() throws Exception {
+        Path evidence = Path.of(System.getProperty("dse.pdf.evidence", "target/pdf-studio-evidence")).toAbsolutePath();
+        Files.createDirectories(evidence);
+        configureEvidenceWorkspace(evidence);
+        Path root = TemplateStorageService.root();
+        BuiltInModernSalesTemplateInstaller.ensureInstalled(root);
+        DocumentTemplate modern = TemplateStorageService.find(BuiltInModernSalesTemplateInstaller.TEMPLATE_ID).orElseThrow();
+        TemplateStorageService.publish(modern);
+
+        Exception blocked = assertThrows(Exception.class,
+                () -> TemplateStorageService.activateAndSetDefault(modern));
+        assertTrue(blocked.getMessage().contains("certification") || blocked.getMessage().contains("page"),
+                "Unsafe mapped pagination must be rejected with a certification reason: " + blocked.getMessage());
+        assertTrue(TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).isEmpty());
+    }
+
+    @Test
     void modernMappedStarterIsSecondaryAndTemplatePackageRoundTripsMappings() throws Exception {
         Path evidence = Path.of(System.getProperty("dse.pdf.evidence", "target/pdf-studio-evidence")).toAbsolutePath();
         Files.createDirectories(evidence);
         configureEvidenceWorkspace(evidence);
         Path root = TemplateStorageService.root();
         Files.deleteIfExists(root.resolve(".builtin-sales-invoice-deleted"));
-        BuiltInPdfTemplateInstaller.ensureInstalled(root);
+        DocumentTemplate defaultTemplate = activateBuiltIn(root);
         BuiltInModernSalesTemplateInstaller.ensureInstalled(root);
-
-        DocumentTemplate defaultTemplate = TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).orElseThrow();
         assertEquals(BuiltInPdfTemplateInstaller.SALES_TEMPLATE_ID, defaultTemplate.getId(),
                 "The extensively verified Jasvi Sales template must remain the default");
         DocumentTemplate modern = TemplateStorageService.find(BuiltInModernSalesTemplateInstaller.TEMPLATE_ID).orElseThrow();
@@ -380,6 +437,16 @@ class SalesPdfStudioFlowTest {
         assertEquals(modern.getElements().size(), imported.getElements().size(), "Every mapping element must survive export/import");
         assertFalse(imported.isDefaultTemplate(), "Imported templates must never auto-activate");
         assertFalse(imported.isRuntimeEnabled());
+    }
+
+    private static DocumentTemplate activateBuiltIn(Path root) throws Exception {
+        BuiltInPdfTemplateInstaller.ensureInstalled(root);
+        assertTrue(TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).isEmpty(),
+                "Installing the built-in Sales template must not change runtime output.");
+        DocumentTemplate working = TemplateStorageService.find(BuiltInPdfTemplateInstaller.SALES_TEMPLATE_ID).orElseThrow();
+        if (working.getPublishedVersion() <= 0) TemplateStorageService.publish(working);
+        TemplateStorageService.activateAndSetDefault(working);
+        return TemplateStorageService.defaultFor(DocumentType.SALES_INVOICE).orElseThrow();
     }
 
     private static List<SalesCharge> testCharges(int count) {

@@ -8,6 +8,7 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.example.config.WorkspaceManager;
+import org.example.config.ConfigManager;
 import org.example.documentstudio.model.DocumentTemplate;
 import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.TemplateCategory;
@@ -63,10 +64,19 @@ public final class PdfStudioTemplateRepository {
     public static List<DocumentTemplate> listAll() {
         List<DocumentTemplate> result = new ArrayList<>();
         Path templateRoot;
-        try { templateRoot = root(); PdfStudioRemoteStore.refresh(templateRoot); BuiltInPdfTemplateInstaller.enforceIntentionalDeletion(templateRoot); BuiltInModernSalesTemplateInstaller.enforceIntentionalDeletion(templateRoot); }
+        try {
+            templateRoot = root();
+            PdfStudioRemoteStore.refresh(templateRoot);
+            if (!ConfigManager.isSharedClient()) {
+                // Shared Client is server-authoritative: merely opening PDF Studio must never
+                // recreate a deleted server template or publish a new runtime choice from one PC.
+                BuiltInPdfTemplateInstaller.enforceIntentionalDeletion(templateRoot);
+                BuiltInModernSalesTemplateInstaller.enforceIntentionalDeletion(templateRoot);
+                BuiltInPdfTemplateInstaller.ensureInstalled(templateRoot);
+                BuiltInModernSalesTemplateInstaller.ensureInstalled(templateRoot);
+            }
+        }
         catch (Exception error) { logFailure("server-refresh", null, error); try { templateRoot = root(); } catch (Exception fatal) { return result; } }
-        BuiltInPdfTemplateInstaller.ensureInstalled(templateRoot);
-        BuiltInModernSalesTemplateInstaller.ensureInstalled(templateRoot);
         try (Stream<Path> folders = Files.list(templateRoot)) {
             folders.filter(Files::isDirectory).forEach(folder -> {
                 try { loadWorking(folder).ifPresent(result::add); }
@@ -97,13 +107,15 @@ public final class PdfStudioTemplateRepository {
         if (defaults.isEmpty()) return Optional.empty();
 
         DocumentTemplate keeper = defaults.getFirst();
-        for (int i = 1; i < defaults.size(); i++) {
-            DocumentTemplate duplicate = defaults.get(i);
-            duplicate.setDefaultTemplate(false);
-            duplicate.setRuntimeEnabled(false);
-            if (duplicate.getPublishedVersion() > 0) duplicate.setStatus(TemplateStatus.PUBLISHED);
-            try { writeWorkingAndMirror(duplicate); }
-            catch (Exception error) { logFailure("repair-runtime-default:" + type, folderQuiet(duplicate), error); }
+        if (!ConfigManager.isSharedClient()) {
+            for (int i = 1; i < defaults.size(); i++) {
+                DocumentTemplate duplicate = defaults.get(i);
+                duplicate.setDefaultTemplate(false);
+                duplicate.setRuntimeEnabled(false);
+                if (duplicate.getPublishedVersion() > 0) duplicate.setStatus(TemplateStatus.PUBLISHED);
+                try { writeWorkingAndMirror(duplicate); }
+                catch (Exception error) { logFailure("repair-runtime-default:" + type, folderQuiet(duplicate), error); }
+            }
         }
 
         try {
@@ -130,7 +142,7 @@ public final class PdfStudioTemplateRepository {
         if (sourcePdf == null || !Files.isRegularFile(sourcePdf)) throw new IOException("The selected PDF does not exist.");
         if (!sourcePdf.getFileName().toString().toLowerCase().endsWith(".pdf")) throw new IOException("Only PDF templates are supported.");
         DocumentTemplate template = fresh(name, type);
-        template.setLayoutMode("STRICT_FIXED");
+        template.setLayoutMode(template.getDocumentType().isErpConnected() ? "FLOW_FIXED" : "STRICT_FIXED");
         Path folder = folder(template);
         try {
             Files.createDirectories(folder.resolve(ASSETS));
@@ -253,6 +265,7 @@ public final class PdfStudioTemplateRepository {
                 .orElseThrow(() -> new IOException("Published snapshot could not be loaded."));
         published.setStorageVariant(PUBLISHED);
         validateRenderable(published, "activation-validation");
+        PdfDefaultCertification.validate(published);
 
         for (DocumentTemplate other : listAll()) {
             if (other.getDocumentType() == template.getDocumentType() && !other.getId().equals(template.getId())

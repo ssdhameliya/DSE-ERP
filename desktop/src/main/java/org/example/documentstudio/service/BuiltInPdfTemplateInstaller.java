@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 /** Installs the approved fixed Jasvi Sales Invoice template once for a fresh workspace. */
 final class BuiltInPdfTemplateInstaller {
     static final String SALES_TEMPLATE_ID = "builtin-sales-invoice-jasvi-9-0-60";
-    private static final String RESOURCE = "/documentstudio/defaults/sales-invoice-jasvi.pdf";
-    private static final int RELEASE_VERSION = 5;
+    private static final String RESOURCE = "/documentstudio/defaults/sales-invoice-jasvi-runtime.pdf";
+    private static final int RELEASE_VERSION = 7;
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(SerializationFeature.INDENT_OUTPUT)
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -44,15 +44,13 @@ final class BuiltInPdfTemplateInstaller {
                 upgradeBuiltInIfNeeded(folder);
                 return; // Never reactivate/demote user choices after first install.
             }
-            demoteExistingSalesDefaults(root);
-
-            DocumentTemplate working = template(TemplateStatus.ACTIVE);
+            // Starter installation is never an activation decision. Runtime changes require
+            // the explicit PDF Studio Mark Default action.
+            DocumentTemplate working = template(TemplateStatus.PUBLISHED);
             Path published = folder.resolve("published");
-            Path active = folder.resolve("active");
             Files.createDirectories(folder.resolve("assets"));
             Files.createDirectories(folder.resolve("history"));
             Files.createDirectories(published.resolve("assets"));
-            Files.createDirectories(active.resolve("assets"));
 
             try (InputStream in = BuiltInPdfTemplateInstaller.class.getResourceAsStream(RESOURCE)) {
                 if (in == null) throw new IOException("Built-in Sales Invoice PDF resource is missing.");
@@ -61,14 +59,10 @@ final class BuiltInPdfTemplateInstaller {
             Files.copy(folder.resolve("source.pdf"), folder.resolve("original.pdf"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(folder.resolve("source.pdf"), published.resolve("source.pdf"), StandardCopyOption.REPLACE_EXISTING);
             Files.copy(folder.resolve("original.pdf"), published.resolve("original.pdf"), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(folder.resolve("source.pdf"), active.resolve("source.pdf"), StandardCopyOption.REPLACE_EXISTING);
-            Files.copy(folder.resolve("original.pdf"), active.resolve("original.pdf"), StandardCopyOption.REPLACE_EXISTING);
-
             JSON.writeValue(folder.resolve("template.json").toFile(), working);
             DocumentTemplate pub = template(TemplateStatus.PUBLISHED);
             pub.setDefaultTemplate(false); pub.setRuntimeEnabled(false);
             JSON.writeValue(published.resolve("template.json").toFile(), pub);
-            JSON.writeValue(active.resolve("template.json").toFile(), working);
             // In shared-client mode publish the same approved built-in template to company storage.
             PdfStudioRemoteStore.publish(SALES_TEMPLATE_ID, folder);
         } catch (Exception error) {
@@ -115,10 +109,31 @@ final class BuiltInPdfTemplateInstaller {
         if (!SALES_TEMPLATE_ID.equals(current.getId()) || current.getVersion() >= RELEASE_VERSION) return;
 
         applyReleaseMapping(current);
+        refreshBuiltInSource(folder);
         JSON.writeValue(meta.toFile(), current);
         upgradeSnapshot(folder.resolve("published").resolve("template.json"));
         upgradeSnapshot(folder.resolve("active").resolve("template.json"));
         PdfStudioRemoteStore.publish(SALES_TEMPLATE_ID, folder);
+    }
+
+    /**
+     * Refresh the protected built-in artwork when its release mapping changes.
+     * Version 6 removes all embedded sample customer/invoice/financial text from
+     * the source PDF, so masked values are not recoverable through copy/extract.
+     * User-created templates are never touched by this built-in-only upgrade.
+     */
+    private static void refreshBuiltInSource(Path folder) throws IOException {
+        try (InputStream in = BuiltInPdfTemplateInstaller.class.getResourceAsStream(RESOURCE)) {
+            if (in == null) throw new IOException("Built-in Sales Invoice PDF resource is missing.");
+            Files.copy(in, folder.resolve("source.pdf"), StandardCopyOption.REPLACE_EXISTING);
+        }
+        Files.copy(folder.resolve("source.pdf"), folder.resolve("original.pdf"), StandardCopyOption.REPLACE_EXISTING);
+        for (String snapshot : List.of("published", "active")) {
+            Path target = folder.resolve(snapshot);
+            if (!Files.isDirectory(target)) continue;
+            Files.copy(folder.resolve("source.pdf"), target.resolve("source.pdf"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(folder.resolve("original.pdf"), target.resolve("original.pdf"), StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private static void upgradeSnapshot(Path meta) throws IOException {
@@ -200,11 +215,11 @@ final class BuiltInPdfTemplateInstaller {
 
         // Billing and delivery blocks.
         pair(e, "party.name", 28.5, 190.6, 245, 11, 8, true, "LEFT", pale, "EVERY");
-        pair(e, "party.billingAddress", 28.5, 204.2, 248, 20, 6.8, false, "LEFT", pale, "EVERY");
+        pairWrap(e, "party.billingAddress", 28.5, 204.2, 248, 20, 6.4, false, "LEFT", pale, 1.10, "EVERY");
         // 9.0.61: align mapped GSTIN baseline exactly with the source PDF's GST-IN label/value row.
         pair(e, "party.billingGstin", 58.6688, 224.05, 173.3, 10, 6.8, true, "LEFT", pale, "EVERY");
         pair(e, "party.name", 307.5, 190.6, 245, 11, 8, true, "LEFT", pale, "EVERY");
-        pair(e, "party.deliveryAddress", 307.5, 204.2, 248, 20, 6.8, false, "LEFT", pale, "EVERY");
+        pairWrap(e, "party.deliveryAddress", 307.5, 204.2, 248, 20, 6.4, false, "LEFT", pale, 1.10, "EVERY");
         pair(e, "party.deliveryGstin", 337.6388, 224.05, 173.4, 10, 6.8, true, "LEFT", pale, "EVERY");
         // Reassert the lower structural rule after all address text replacement. PDF source
         // strokes are antialiased, so even an inset whiteout can nick the visible edge.
@@ -298,6 +313,11 @@ final class BuiltInPdfTemplateInstaller {
         imageField(e, "company.signature", 405.0, 741.0, 152.0, 46.0, "LAST");
         literal(e, "AUTHORIZED SIGNATORY", 420.0, 793.0, 130.0, 7.0, 5.3, true, "CENTER", "LAST");
 
+        // The protected source artwork intentionally contains no company/customer sample text.
+        // Rebuild the footer from the live canonical company snapshot so historical sample
+        // addresses can never leak through extraction or appear after a company update.
+        literal(e, "Address : {{company.address}}", 104.0, 814.2, 386.0, 8.0, 4.8, false, "CENTER", "EVERY");
+
         // Page numbering is needed only for a true multi-page invoice, matching Standard Sales.
         literal(e, "Page {{document.pageNumber}} of {{document.totalPages}}", 515.0, 824.0, 50.0, 7.0, 4.8, false, "RIGHT", "MULTI");
         return e;
@@ -312,6 +332,17 @@ final class BuiltInPdfTemplateInstaller {
         TemplateElement f = TemplateElement.of(ElementType.FIELD, 0, x, y, w, h);
         f.setFieldKey(key); f.setText(""); f.setFontSize(font); f.setBold(bold); f.setTextAlignment(align);
         f.setTextColor("#000000"); f.setFillEnabled(false); f.setStrokeEnabled(false); f.setTextFit("SHRINK"); f.setPageRule(pageRule);
+        list.add(f);
+    }
+
+    private static void pairWrap(List<TemplateElement> list, String key, double x, double y, double w, double h,
+                                 double font, boolean bold, String align, String background, double spacing, String pageRule) {
+        double inset = 0.65;
+        list.add(mask(x + inset, y + inset, Math.max(1, w - inset * 2), Math.max(1, h - inset * 2), background, pageRule));
+        TemplateElement f = TemplateElement.of(ElementType.FIELD, 0, x, y, w, h);
+        f.setFieldKey(key); f.setText(""); f.setFontSize(font); f.setBold(bold); f.setTextAlignment(align);
+        f.setTextColor("#000000"); f.setFillEnabled(false); f.setStrokeEnabled(false); f.setTextFit("WRAP");
+        f.setLineSpacing(spacing); f.setPageRule(pageRule);
         list.add(f);
     }
 

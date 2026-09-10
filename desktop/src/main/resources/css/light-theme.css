@@ -17465,3 +17465,91 @@
 .erp-ui-standard .security-settings-panel { -fx-padding: 18; -fx-spacing: 16; }
 .erp-ui-standard .security-settings-panel .security-settings-subsection { -fx-padding: 4 0; -fx-background-color: transparent; -fx-border-color: transparent; -fx-effect: null; }
 .erp-ui-standard .security-settings-panel .settings-info-strip { -fx-padding: 10 12; -fx-background-color: #f8fafc; -fx-border-color: #dbe3ec; -fx-border-radius: 7; -fx-background-radius: 7; }
+
+/* ======================================================================
+   CENTRAL TEMPLATE-MAPPING COMPONENTS
+   Shared by Document Studio mapping experiences. Controllers set only
+   semantic state classes; visual authority remains in the global theme.
+   ====================================================================== */
+.erp-template-readiness {
+    -fx-background-color: #f8fafc;
+    -fx-border-color: #d8e1ea;
+    -fx-border-width: 0 0 1 0;
+}
+.erp-readiness-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #17324d;
+}
+.erp-status-chip {
+    -fx-padding: 4 8 4 8;
+    -fx-background-radius: 999;
+    -fx-border-radius: 999;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+.erp-status-neutral { -fx-background-color: #e9eff6; -fx-text-fill: #35506b; }
+.erp-status-success { -fx-background-color: #e5f6eb; -fx-text-fill: #17633a; }
+.erp-status-warning { -fx-background-color: #fff4d6; -fx-text-fill: #7a5200; }
+.erp-status-error { -fx-background-color: #fde8e8; -fx-text-fill: #9b1c1c; }
+.erp-filter-toggle {
+    -fx-background-color: #f5f7fa;
+    -fx-border-color: #d8e1ea;
+    -fx-text-fill: #35506b;
+    -fx-font-weight: 700;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+}
+.erp-filter-toggle:selected {
+    -fx-background-color: #e5eefc;
+    -fx-border-color: #8fb4de;
+    -fx-text-fill: #17324d;
+}
+.erp-search-field {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #cfd9e4;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+}
+.erp-requirement-list, .erp-field-search-list {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #d8e1ea;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+}
+.erp-requirement-list .list-cell,
+.erp-field-search-list .list-cell {
+    -fx-padding: 8 9 8 9;
+    -fx-background-color: transparent;
+    -fx-text-fill: #24384c;
+}
+.erp-requirement-list .list-cell:filled:hover,
+.erp-field-search-list .list-cell:filled:hover { -fx-background-color: #f2f7fc; }
+.erp-requirement-list .list-cell:filled:selected,
+.erp-field-search-list .list-cell:filled:selected {
+    -fx-background-color: #e5eefc;
+    -fx-text-fill: #17324d;
+}
+.erp-requirement-list .erp-requirement-mapped { -fx-text-fill: #17633a; }
+.erp-requirement-list .erp-requirement-missing { -fx-text-fill: #9b1c1c; -fx-font-weight: 700; }
+.erp-requirement-list .erp-requirement-optional { -fx-text-fill: #5b7084; }
+.erp-field-search-list .erp-field-search-recommended { -fx-font-weight: 800; }
+.erp-field-search-list .erp-field-search-mapped { -fx-opacity: 0.78; }
+.erp-mapping-context {
+    -fx-padding: 7 8 7 8;
+    -fx-background-color: #f4f8fc;
+    -fx-border-color: #d8e1ea;
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-text-fill: #35506b;
+}
+.erp-issue-bar-text { -fx-font-weight: 700; -fx-text-fill: #486176; }
+
+/* DSE ERP 9.0.100 — corrective responsive content authority */
+.pdf-json-viewer {
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 12px;
+}
+.sales-detail-identity-main { -fx-min-width: 0; }
+.sales-detail-identity-meta { -fx-min-width: 132px; -fx-pref-width: 142px; }
+.sales-detail-identity-meta > .label { -fx-max-width: Infinity; }

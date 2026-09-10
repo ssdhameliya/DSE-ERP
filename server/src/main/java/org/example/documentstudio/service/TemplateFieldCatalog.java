@@ -384,6 +384,7 @@ public final class TemplateFieldCatalog {
     public static List<String> requiredPdfFieldsFor(DocumentType type) {
         if (type == null || type == DocumentType.GENERAL_PDF || type == DocumentType.CUSTOM_ERP) return List.of();
         return switch (type) {
+            case SALES_INVOICE -> List.of("document.number", "document.date", "party.name", "party.billingAddress", "party.billingGstin", "totals.grandTotal");
             case PAYMENT_RECEIPT -> List.of("document.number", "document.date", "party.name", "totals.grandTotal");
             default -> List.of("document.number", "document.date", "party.name");
         };
@@ -418,6 +419,8 @@ public final class TemplateFieldCatalog {
                 case PAYMENT_RECEIPT -> "receipt.partyName";
                 default -> "party.name";
             });
+            case "party.billingAddress" -> type == DocumentType.SALES_INVOICE && (mapped.contains("sales.billingAddress") || mapped.contains("customer.address"));
+            case "party.billingGstin" -> type == DocumentType.SALES_INVOICE && (mapped.contains("sales.billingGstin") || mapped.contains("sales.gstin") || mapped.contains("customer.gstin"));
             case "totals.grandTotal" -> type == DocumentType.PAYMENT_RECEIPT && mapped.contains("receipt.amount");
             default -> false;
         };

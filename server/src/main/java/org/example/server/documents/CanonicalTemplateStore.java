@@ -7,6 +7,7 @@ import org.example.documentstudio.model.DocumentType;
 import org.example.documentstudio.model.ExcelTemplate;
 import org.example.documentstudio.model.TemplateStatus;
 import org.example.server.authority.ServerResourceService;
+import org.example.server.authority.PdfStudioDefaultAuthorityService;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -22,11 +23,20 @@ public class CanonicalTemplateStore {
     private static final String PDF_TYPE = "PDF_STUDIO_V3_TEMPLATE";
     private static final String EXCEL_TYPE = "EXCEL_TEMPLATE";
     private final ServerResourceService resources;
+    private final PdfStudioDefaultAuthorityService defaults;
     private final ObjectMapper json = new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
-    public CanonicalTemplateStore(ServerResourceService resources) { this.resources = resources; }
+    public CanonicalTemplateStore(ServerResourceService resources, PdfStudioDefaultAuthorityService defaults) {
+        this.resources = resources;
+        this.defaults = defaults;
+    }
 
     public Optional<PdfSelection> pdf(DocumentType type) throws IOException {
+        Optional<String> authoritative = defaults.activeTemplateKey(type);
+        if (authoritative.isPresent()) return loadPdf(authoritative.get(), type);
+
+        // Legacy recovery only: older releases did not persist the server pointer.
+        // Once an active package is explicitly PUT, the pointer above becomes authoritative.
         List<PdfSelection> matches = new ArrayList<>();
         for (var meta : resources.list(PDF_TYPE)) {
             Path root = null;
@@ -58,6 +68,33 @@ public class CanonicalTemplateStore {
         PdfSelection selected = matches.getFirst();
         for (int i=1;i<matches.size();i++) matches.get(i).close();
         return Optional.of(selected);
+    }
+
+    private Optional<PdfSelection> loadPdf(String key, DocumentType type) {
+        Path root = null;
+        try {
+            root = extract(resources.get(PDF_TYPE, key).content(), "pdf-template-");
+            Path workingMeta = root.resolve("template.json");
+            if (!Files.isRegularFile(workingMeta)) { deleteTree(root); return Optional.empty(); }
+            DocumentTemplate working = json.readValue(workingMeta.toFile(), DocumentTemplate.class);
+            if (working.getDocumentType() != type || working.getStatus() != TemplateStatus.ACTIVE
+                    || !working.isDefaultTemplate() || !working.isRuntimeEnabled() || working.getActiveVersion() <= 0) {
+                deleteTree(root); return Optional.empty();
+            }
+            Path activeRoot = root.resolve("active");
+            Path activeMeta = activeRoot.resolve("template.json");
+            if (!Files.isRegularFile(activeMeta)) { deleteTree(root); return Optional.empty(); }
+            DocumentTemplate active = json.readValue(activeMeta.toFile(), DocumentTemplate.class);
+            active.setStatus(TemplateStatus.ACTIVE);
+            active.setDefaultTemplate(true);
+            active.setRuntimeEnabled(true);
+            active.setActiveVersion(working.getActiveVersion());
+            active.setPublishedVersion(working.getPublishedVersion());
+            return Optional.of(new PdfSelection(root, activeRoot, active, safe(working.getUpdatedAt())));
+        } catch (Exception error) {
+            if (root != null) deleteTree(root);
+            return Optional.empty();
+        }
     }
 
     public Optional<ExcelSelection> excel(DocumentType type) throws IOException {

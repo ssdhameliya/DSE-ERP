@@ -50,8 +50,10 @@ public final class ProfessionalUiEnhancer {
     public static void enhance(Node root) {
         if (root == null) return;
         if (Boolean.TRUE.equals(root.getProperties().get("erp-ui-enhanced"))) {
-            // Cached pages do not need another full decoration walk, but their
-            // real viewport can change after navigation/tab/sidebar activity.
+            // Cached pages may have had button text/graphics changed by their controller
+            // after the original walk. Reconcile only interactive action controls here;
+            // do not re-run the expensive table/KPI discovery pass.
+            refreshInteractivePresentation(root);
             UiViewportLayoutCoordinator.request(root);
             return;
         }
@@ -64,6 +66,33 @@ public final class ProfessionalUiEnhancer {
         if (root instanceof Parent parent) installDynamicChildEnhancement(parent);
         SharedUiFramework.install(root);
         UiViewportLayoutCoordinator.request(root);
+    }
+
+    /** Reconciles button/icon presentation on a cached page without touching tables/KPIs. */
+    private static void refreshInteractivePresentation(Node node) {
+        refreshInteractivePresentation(node, new IdentityHashMap<>());
+    }
+
+    private static void refreshInteractivePresentation(Node node, IdentityHashMap<Node, Boolean> visited) {
+        if (node == null || visited.put(node, Boolean.TRUE) != null) return;
+        if (node instanceof ButtonBase button) {
+            UiDesignSystem.decorate(button);
+            IconFactory.decorate(button);
+        }
+        if (node instanceof ScrollPane scroll) {
+            refreshInteractivePresentation(scroll.getContent(), visited);
+        } else if (node instanceof TabPane tabs) {
+            for (Tab tab : tabs.getTabs()) refreshInteractivePresentation(tab.getContent(), visited);
+        } else if (node instanceof TitledPane titled) {
+            refreshInteractivePresentation(titled.getContent(), visited);
+        } else if (node instanceof Accordion accordion) {
+            for (TitledPane pane : accordion.getPanes()) refreshInteractivePresentation(pane, visited);
+        } else if (node instanceof SplitPane split) {
+            for (Node item : split.getItems()) refreshInteractivePresentation(item, visited);
+        }
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) refreshInteractivePresentation(child, visited);
+        }
     }
 
     /**

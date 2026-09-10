@@ -16,7 +16,21 @@
                 <Button text="View JSON Data" onAction="#viewJsonData" styleClass="approved-button,approved-secondary-button"/>
                 <Button text="Save" onAction="#saveDraft" styleClass="approved-button,approved-secondary-button"/>
                 <Button fx:id="btnPublish" text="Publish" onAction="#publishTemplate" styleClass="approved-button,approved-secondary-button"/>
-                <Button text="Publish &amp; Set as Default" onAction="#publishAndSetDefault" styleClass="approved-button,approved-primary-button"/>
+                <Button fx:id="btnPublishDefault" text="Publish &amp; Set as Default" onAction="#publishAndSetDefault" styleClass="approved-button,approved-primary-button"/>
+            </HBox>
+
+            <HBox spacing="10" alignment="CENTER_LEFT" styleClass="erp-template-readiness">
+                <padding><Insets top="7" right="12" bottom="7" left="12"/></padding>
+                <Label text="Template Readiness" styleClass="erp-readiness-title"/>
+                <Label fx:id="lblRequiredSummary" text="0 / 0 required mapped" styleClass="erp-status-chip,erp-status-neutral"/>
+                <Label fx:id="lblIssueSummary" text="0 errors • 0 warnings" styleClass="erp-status-chip,erp-status-neutral"/>
+                <Label text="Mapping" styleClass="field-caption"/>
+                <ProgressBar fx:id="mappingProgress" prefWidth="90" progress="0"/>
+                <Label fx:id="lblMappingPercent" text="0%" styleClass="pdf-v2-map-percent"/>
+                <Label fx:id="lblMappingSummary" text="Not analyzed" styleClass="muted-label"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnFixNext" text="Fix Next Required" onAction="#fixNextIssue" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="Review Issues" onAction="#reviewIssues" styleClass="approved-button,approved-secondary-button"/>
             </HBox>
 
             <FlowPane hgap="8" vgap="6" alignment="CENTER_LEFT" styleClass="pdf-mapper-toolbar">
@@ -35,24 +49,29 @@
                 <Button text="Fit Page" onAction="#fitPage" styleClass="approved-button,approved-secondary-button"/>
                 <Slider fx:id="zoomSlider" min="35" max="220" value="100" prefWidth="120"/>
                 <Label fx:id="lblZoom" text="100%"/>
-                <Label text="Mapping" styleClass="field-caption"/>
-                <ProgressBar fx:id="mappingProgress" prefWidth="100" progress="0"/>
-                <Label fx:id="lblMappingPercent" text="0%" styleClass="pdf-v2-map-percent"/>
-                <Label fx:id="lblMappingSummary" text="Not analyzed" styleClass="muted-label"/>
             </FlowPane>
         </VBox>
     </top>
 
     <left>
-        <VBox prefWidth="300" spacing="8" styleClass="pdf-mapper-side,pdf-mapper-fields">
-            <padding><Insets top="12" right="10" bottom="12" left="10"/></padding>
-            <Label text="Available ERP / JSON Fields" styleClass="pdf-mapper-panel-title"/>
-            <Label text="Browse / Drag ERP Fields onto the exact rectangle in the PDF. The user never writes JSON manually." wrapText="true" styleClass="pdf-designer-help"/>
-            <TextField fx:id="txtFieldSearch" promptText="Search fields..."/>
-            <ListView fx:id="lstFields" VBox.vgrow="ALWAYS" styleClass="pdf-mapper-field-list"/>
+        <VBox prefWidth="350" spacing="8" styleClass="pdf-mapper-side,pdf-mapper-fields">
+            <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+            <Label text="Mapping Checklist" styleClass="pdf-mapper-panel-title"/>
+            <Label text="Required business fields are shown first. Double-click a requirement to jump directly to its best ERP-field matches." wrapText="true" styleClass="pdf-designer-help"/>
+            <HBox spacing="6">
+                <ToggleButton fx:id="tglRequired" text="Required" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="erp-filter-toggle"/>
+                <ToggleButton fx:id="tglAll" text="All" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="erp-filter-toggle"/>
+                <ToggleButton fx:id="tglMapped" text="Mapped" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="erp-filter-toggle"/>
+            </HBox>
+            <ListView fx:id="lstRequirements" prefHeight="235" styleClass="erp-requirement-list"/>
             <Separator/>
-            <Button text="Auto Map Detected Values" onAction="#autoMapNow" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
-            <Button text="+ Add Text" onAction="#addText" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+            <Label text="ERP Field Search" styleClass="pdf-mapper-panel-title"/>
+            <TextField fx:id="txtFieldSearch" promptText="Search HSN, qty, remark, GST, invoice no..." styleClass="erp-search-field"/>
+            <ListView fx:id="lstFields" VBox.vgrow="ALWAYS" styleClass="pdf-mapper-field-list,erp-field-search-list"/>
+            <HBox spacing="6">
+                <Button text="Auto Map" onAction="#autoMapNow" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
+                <Button text="+ Text" onAction="#addText" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-secondary-button"/>
+            </HBox>
             <TitledPane text="Advanced Create Tools" expanded="false">
                 <content>
                     <TilePane hgap="6" vgap="6" prefColumns="2" styleClass="pdf-v2-palette">
@@ -89,24 +108,29 @@
             <HBox spacing="8" alignment="CENTER_LEFT" styleClass="pdf-v2-status">
                 <padding><Insets top="7" right="10" bottom="7" left="10"/></padding>
                 <Label fx:id="lblSaveState" text="Ready"/>
+                <Separator orientation="VERTICAL"/>
+                <Label fx:id="lblIssueBar" text="Template mapping is being analyzed" styleClass="erp-issue-bar-text"/>
                 <Region HBox.hgrow="ALWAYS"/>
-                <Label text="Fixed PDF artwork • JSON changes values only • no page reflow" styleClass="muted-label"/>
+                <Label text="Required mappings and page-flow safety are checked before final activation" styleClass="muted-label"/>
             </HBox>
         </VBox>
     </center>
 
     <right>
-        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefWidth="365" styleClass="pdf-v2-inspector-scroll,pdf-mapper-side">
+        <ScrollPane fitToWidth="true" hbarPolicy="NEVER" prefWidth="355" styleClass="pdf-v2-inspector-scroll,pdf-mapper-side">
             <content>
                 <VBox spacing="10" styleClass="pdf-v2-inspector,pdf-mapper-inspector">
-                    <padding><Insets top="12" right="12" bottom="20" left="12"/></padding>
-                    <Label text="Field Properties" styleClass="pdf-mapper-panel-title"/>
+                    <padding><Insets top="10" right="10" bottom="20" left="10"/></padding>
+                    <Label text="Selected Field" styleClass="pdf-mapper-panel-title"/>
                     <Label fx:id="lblInspectorType" text="Select a mapped field" wrapText="true" styleClass="pdf-v2-inspector-title"/>
-                    <Label fx:id="lblInspectorHint" text="Drag a JSON field onto the PDF, then fine-tune it here." wrapText="true" styleClass="pdf-designer-help"/>
+                    <Label fx:id="lblInspectorHint" text="Click PDF text, choose the ERP field below, then Map. The readiness counters update immediately." wrapText="true" styleClass="pdf-designer-help"/>
 
                     <VBox fx:id="textSection" spacing="7">
-                        <Label text="ERP / JSON Field" styleClass="field-caption"/>
-                        <ComboBox fx:id="cmbFieldBinding" maxWidth="Infinity" promptText="Choose a field"/>
+                        <Label text="ERP Field" styleClass="field-caption"/>
+                        <Label fx:id="lblBindingContext" text="Select a checklist requirement to see the recommended ERP fields first." wrapText="true" styleClass="erp-mapping-context"/>
+                        <TextField fx:id="txtInspectorFieldSearch" promptText="Search ERP field..." styleClass="erp-search-field"/>
+                        <ListView fx:id="lstInspectorFieldSuggestions" prefHeight="135" styleClass="erp-field-search-list"/>
+                        <Button fx:id="btnMapSelectedField" text="Select ERP Field to Map" onAction="#applySuggestedBinding" maxWidth="Infinity" disable="true" styleClass="approved-button,approved-primary-button"/>
                         <TextArea fx:id="txtContent" prefRowCount="2" wrapText="true" promptText="Optional literal text / expression"/>
                         <GridPane hgap="7" vgap="7">
                             <Label text="Font" GridPane.columnIndex="0" GridPane.rowIndex="0"/><ComboBox fx:id="cmbFontFamily" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
@@ -128,12 +152,11 @@
                         <Label text="Height" GridPane.columnIndex="2" GridPane.rowIndex="1"/><TextField fx:id="txtHeight" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
                         <columnConstraints><ColumnConstraints minWidth="48"/><ColumnConstraints hgrow="ALWAYS"/><ColumnConstraints minWidth="52"/><ColumnConstraints hgrow="ALWAYS"/></columnConstraints>
                     </GridPane>
-                    <Button text="Apply Field Properties" onAction="#applyInspector" maxWidth="Infinity" styleClass="approved-button,approved-primary-button"/>
+                    <Button text="Apply Field Properties" onAction="#applyInspector" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
 
-                    <Separator/>
-                    <HBox alignment="CENTER_LEFT"><Label text="Mapped Fields" styleClass="pdf-mapper-panel-title"/><Region HBox.hgrow="ALWAYS"/><Label text="Page objects" styleClass="muted-label"/></HBox>
-                    <ListView fx:id="lstLayers" prefHeight="210" VBox.vgrow="ALWAYS" styleClass="pdf-mapper-mapped-list"/>
-                    <Button text="Validate Mapping" onAction="#validateMapping" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/>
+                    <TitledPane text="Mapped Fields / Page Objects" expanded="false">
+                        <content><VBox spacing="7"><ListView fx:id="lstLayers" prefHeight="200" styleClass="pdf-mapper-mapped-list"/><Button text="Validate Mapping" onAction="#validateMapping" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox></content>
+                    </TitledPane>
 
                     <TitledPane text="Preview Record" expanded="true">
                         <content><VBox spacing="7"><ComboBox fx:id="cmbSampleDocument" maxWidth="Infinity" onAction="#sampleChanged"/><Button text="Preview with Selected Record" onAction="#showDataPreviewMode" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button"/></VBox></content>
