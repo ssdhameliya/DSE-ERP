@@ -111,10 +111,13 @@ public final class ErpDocumentJsonService {
         alias(root, data, "document.remarks", "sales.remarks");
 
         aliasParty(root, data, "customer");
-        alias(root, data, "party.billingAddress", "sales.billingAddress");
-        alias(root, data, "party.billingGstin", "sales.billingGstin");
-        alias(root, data, "party.deliveryAddress", "sales.deliveryAddress");
-        alias(root, data, "party.deliveryGstin", "sales.deliveryGstin");
+        // Canonical Sales party fields must have the same snapshot fallback semantics as
+        // the Standard Tax Invoice renderer. Imported/migrated Sales can legitimately have
+        // blank per-document override fields while retaining the immutable customer snapshot.
+        aliasFirst(root, data, "party.billingAddress", "sales.billingAddress", "customer.address");
+        aliasFirst(root, data, "party.billingGstin", "sales.billingGstin", "sales.gstin", "customer.gstin");
+        aliasFirst(root, data, "party.deliveryAddress", "sales.deliveryAddress", "sales.billingAddress", "customer.address");
+        aliasFirst(root, data, "party.deliveryGstin", "sales.deliveryGstin", "sales.billingGstin", "sales.gstin", "customer.gstin");
 
         alias(root, data, "transport.name", "sales.transporter");
         alias(root, data, "transport.gstin", "sales.transporterGstin");

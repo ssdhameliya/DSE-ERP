@@ -96,15 +96,21 @@ public class LoginController {
             }
         };
         roleButtonCell.getStyleClass().add("auth-role-selected-cell");
+        roleButtonCell.setMinWidth(0);
+        roleButtonCell.setMaxWidth(Double.MAX_VALUE);
+        // Reserve the ComboBox arrow/padding instead of letting the custom button cell
+        // keep its computed width. This keeps long role values inside the visible field.
+        roleButtonCell.prefWidthProperty().bind(cmbRole.widthProperty().subtract(48));
+        roleButtonCell.setTextOverrun(OverrunStyle.ELLIPSIS);
         roleButtonCell.setText("Select your role");
         cmbRole.setButtonCell(roleButtonCell);
 
         // Keep the visible button-cell text synchronized with the selected
         // value rather than relying on the skin to copy the popup item text.
         cmbRole.valueProperty().addListener((obs, oldRole, newRole) -> {
-            roleButtonCell.setText(
-                    newRole == null || newRole.isBlank() ? "Select your role" : newRole
-            );
+            String visibleRole = newRole == null || newRole.isBlank() ? "Select your role" : newRole;
+            roleButtonCell.setText(visibleRole);
+            roleButtonCell.setTooltip(newRole == null || newRole.isBlank() ? null : new Tooltip(newRole));
             roleButtonCell.requestLayout();
         });
 

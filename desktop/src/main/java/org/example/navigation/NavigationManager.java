@@ -214,10 +214,18 @@ public class NavigationManager {
             contentPane.getChildren().setAll(cached.node());
             logPhase(fxml, "scene-attach", attachStarted);
             Node auditedPage = cached.node();
-            Platform.runLater(() -> UiDiagnostics.audit(auditedPage, fxml));
+            // Reconcile interactive presentation again after the node is attached to the
+            // live scene. The pre-attach pass establishes semantics, while this lightweight
+            // idempotent pass closes the lifecycle gap where controller/skin/CSS work during
+            // scene attachment can clear or replace a button graphic. This is intentionally
+            // app-wide so cached and newly loaded screens follow the same icon contract.
+            Platform.runLater(() -> {
+                ProfessionalUiEnhancer.enhance(auditedPage);
+                UiDiagnostics.audit(auditedPage, fxml);
+            });
             // New pages are enhanced once before attachment. Cached pages are reused
-            // without another full CSS/layout/enhancement traversal. This is critical
-            // for macOS Retina responsiveness and also benefits Windows.
+            // without another expensive table/KPI traversal; the post-attach call above
+            // only reconciles interactive presentation on already-enhanced roots.
             long lifecycleStarted=System.nanoTime();
             notifyShown(cached.controller(), reused);
             DeepLinkSupport.schedule(cached.node());
@@ -301,6 +309,7 @@ public class NavigationManager {
             if (currentCachedPage != null) notifyHidden(currentCachedPage.controller());
             CachedPage prepared = new CachedPage(page, controller);
             contentPane.getChildren().setAll(page);
+            Platform.runLater(() -> ProfessionalUiEnhancer.enhance(page));
             notifyShown(controller, false);
             currentCachedPage = prepared;
             currentPage = fxml;

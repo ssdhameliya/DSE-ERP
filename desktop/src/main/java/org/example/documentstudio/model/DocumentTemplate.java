@@ -16,7 +16,11 @@ public class DocumentTemplate {
     private int studioSchemaVersion = 4;
     /** Stable ERP-to-template data contract version used by JSON mappings. */
     private int dataContractVersion = 2;
-    /** STRICT_FIXED keeps the imported PDF artwork/page geometry immutable while allowing overlays. */
+    /**
+     * FREEFORM is a blank/fully editable Studio page.
+     * STRICT_FIXED preserves the protected fixed artwork and uses the legacy certified layout adapter.
+     * FLOW_FIXED preserves fixed artwork but lets the generic repeater engine own continuation-page flow.
+     */
     private String layoutMode = "FREEFORM";
     private TemplateStatus status = TemplateStatus.DRAFT;
     private boolean defaultTemplate;
@@ -59,6 +63,7 @@ public class DocumentTemplate {
     public String getLayoutMode() { return layoutMode == null || layoutMode.isBlank() ? "FREEFORM" : layoutMode; }
     public void setLayoutMode(String layoutMode) { this.layoutMode = layoutMode == null || layoutMode.isBlank() ? "FREEFORM" : layoutMode.trim().toUpperCase(); }
     @JsonIgnore public boolean isStrictFixedLayout() { return "STRICT_FIXED".equals(getLayoutMode()); }
+    @JsonIgnore public boolean isFlowFixedLayout() { return "FLOW_FIXED".equals(getLayoutMode()); }
     public TemplateStatus getStatus() { return status; }
     public void setStatus(TemplateStatus status) { this.status = status == null ? TemplateStatus.DRAFT : status; }
     public boolean isDefaultTemplate() { return defaultTemplate; }

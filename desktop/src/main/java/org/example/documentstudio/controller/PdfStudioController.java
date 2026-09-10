@@ -55,12 +55,15 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private BorderPane root;
     @FXML private Label lblTemplateName, lblTemplateMeta, lblSaveState, lblZoom, lblPageSize, lblSelection, lblPageWarning;
     @FXML private Label lblMappingPercent, lblMappingSummary, lblInspectorType, lblInspectorHint;
+    @FXML private Label lblRequiredSummary, lblIssueSummary, lblIssueBar, lblBindingContext;
     @FXML private ProgressBar mappingProgress;
-    @FXML private Button btnDesignMode, btnDataPreviewMode, btnFinalMode, btnPublish, btnSaveDefault;
+    @FXML private Button btnDesignMode, btnDataPreviewMode, btnFinalMode, btnPublish, btnSaveDefault, btnPublishDefault, btnFixNext, btnMapSelectedField;
+    @FXML private ToggleButton tglRequired, tglAll, tglMapped;
     @FXML private ComboBox<DocumentSample> cmbSampleDocument;
-    @FXML private ComboBox<String> cmbFieldBinding, cmbFontFamily, cmbTextFit, cmbTextAlignment, cmbImageFit, cmbPageRule;
-    @FXML private TextField txtFieldSearch;
-    @FXML private ListView<TemplateFieldDefinition> lstFields;
+    @FXML private ComboBox<String> cmbFontFamily, cmbTextFit, cmbTextAlignment, cmbImageFit, cmbPageRule;
+    @FXML private TextField txtFieldSearch, txtInspectorFieldSearch;
+    @FXML private ListView<TemplateFieldDefinition> lstFields, lstInspectorFieldSuggestions;
+    @FXML private ListView<TemplateRequirementState> lstRequirements;
     @FXML private ListView<String> lstPages;
     @FXML private ListView<TemplateElement> lstLayers;
     @FXML private ScrollPane canvasScroll;
@@ -105,6 +108,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private TemplateData currentPreviewData;
     private PdfAutoMappingService.Analysis currentMappingAnalysis = new PdfAutoMappingService.Analysis(List.of(),0,0,0,0);
     private boolean inspectorSync;
+    private String selectedBindingKey = "";
     private boolean dragging;
     private double dragSceneX, dragSceneY;
     private final Map<String,double[]> dragOrigins = new HashMap<>();
@@ -137,6 +141,8 @@ public class PdfStudioController implements ScreenLifecycle {
 
         configureInspectorControls();
         configureFields();
+        configureRequirementUi();
+        configureInspectorFieldSearch();
         configurePages(sourcePageCount);
         configureLayers();
         configureSamples();
@@ -175,6 +181,7 @@ public class PdfStudioController implements ScreenLifecycle {
     @Override public void onScreenShown(boolean reused) {
         if (template != null) {
             refreshMeta();
+            refreshRequirementUi();
             renderCanvas();
             ensurePageObjects(pageIndex);
         }
@@ -202,11 +209,18 @@ public class PdfStudioController implements ScreenLifecycle {
     }
 
     private void configureFields() {
-        refreshFieldList("");
         lstFields.setCellFactory(list -> new ListCell<>() {
             @Override protected void updateItem(TemplateFieldDefinition item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.category() + "  •  " + item.label());
+                getStyleClass().removeAll("erp-field-search-mapped", "erp-field-search-recommended");
+                if (empty || item == null) { setText(null); return; }
+                TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
+                boolean mapped = readiness.mappedFields().contains(item.key()) || readiness.itemColumns().contains(item.key());
+                TemplateMappingRequirement context = selectedRequirement();
+                boolean recommended = context != null && context.acceptedFields().contains(item.key());
+                setText(item.label() + "\n" + item.category() + "  •  " + item.key());
+                if (mapped) getStyleClass().add("erp-field-search-mapped");
+                if (recommended) getStyleClass().add("erp-field-search-recommended");
             }
         });
         lstFields.setOnMouseClicked(event -> {
@@ -222,32 +236,233 @@ public class PdfStudioController implements ScreenLifecycle {
             board.setContent(content);
             event.consume();
         });
+        refreshFieldList("");
+    }
+
+    private void configureRequirementUi() {
+        if (lstRequirements == null) return;
+        ToggleGroup group = new ToggleGroup();
+        if (tglRequired != null) { tglRequired.setToggleGroup(group); tglRequired.setSelected(true); }
+        if (tglAll != null) tglAll.setToggleGroup(group);
+        if (tglMapped != null) tglMapped.setToggleGroup(group);
+        group.selectedToggleProperty().addListener((obs, old, value) -> {
+            if (value == null && old != null) old.setSelected(true);
+            refreshRequirementUi();
+        });
+        lstRequirements.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(TemplateRequirementState state, boolean empty) {
+                super.updateItem(state, empty);
+                getStyleClass().removeAll("erp-requirement-mapped", "erp-requirement-missing", "erp-requirement-optional");
+                if (empty || state == null || state.requirement() == null) { setText(null); return; }
+                TemplateMappingRequirement r = state.requirement();
+                String badge = state.satisfied() ? "✓ MAPPED" : r.level().name();
+                String via = state.satisfied() && !state.satisfiedBy().isEmpty()
+                        ? "\n→ " + friendlyFieldName(state.satisfiedBy().getFirst()) : "";
+                setText(r.label() + "    " + badge + via);
+                if (state.satisfied()) getStyleClass().add("erp-requirement-mapped");
+                else if (r.level() == TemplateMappingRequirement.Level.REQUIRED) getStyleClass().add("erp-requirement-missing");
+                else getStyleClass().add("erp-requirement-optional");
+            }
+        });
+        lstRequirements.getSelectionModel().selectedItemProperty().addListener((obs, old, state) -> {
+            if (state == null || state.requirement() == null) return;
+            TemplateMappingRequirement r = state.requirement();
+            if (lblBindingContext != null) {
+                lblBindingContext.setText(r.label() + " • " + r.level().name() + "\n" + r.explanation());
+            }
+            refreshFieldList(txtFieldSearch == null ? "" : txtFieldSearch.getText());
+            refreshInspectorSuggestions(txtInspectorFieldSearch == null ? "" : txtInspectorFieldSearch.getText());
+        });
+        lstRequirements.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) focusSelectedRequirement();
+        });
+        refreshRequirementUi();
+    }
+
+    private void configureInspectorFieldSearch() {
+        if (txtInspectorFieldSearch == null || lstInspectorFieldSuggestions == null) return;
+        lstInspectorFieldSuggestions.setCellFactory(list -> new ListCell<>() {
+            @Override protected void updateItem(TemplateFieldDefinition item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); return; }
+                setText(item.label() + "\n" + item.category() + "  •  " + item.key());
+            }
+        });
+        txtInspectorFieldSearch.textProperty().addListener((obs, old, value) -> {
+            if (!inspectorSync) refreshInspectorSuggestions(value);
+        });
+        lstInspectorFieldSuggestions.getSelectionModel().selectedItemProperty().addListener((obs, old, field) -> {
+            if (inspectorSync || field == null) return;
+            selectedBindingKey = field.key();
+            inspectorSync = true;
+            try { txtInspectorFieldSearch.setText(field.label()); }
+            finally { inspectorSync = false; }
+        });
+        lstInspectorFieldSuggestions.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> updateManualMappingState());
+        lstInspectorFieldSuggestions.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) applySuggestedBinding();
+        });
+        refreshInspectorSuggestions("");
+        updateManualMappingState();
+    }
+
+    private void updateManualMappingState() {
+        if (btnMapSelectedField == null) return;
+        TemplateFieldDefinition field = lstInspectorFieldSuggestions == null ? null : lstInspectorFieldSuggestions.getSelectionModel().getSelectedItem();
+        boolean textTarget = selectedSourceText != null || (selectedElement() != null && isTextLike(selectedElement()));
+        boolean enabled = !previewMode && field != null && textTarget;
+        btnMapSelectedField.setDisable(!enabled);
+        if (field == null) {
+            btnMapSelectedField.setText("Select ERP Field to Map");
+        } else if (!textTarget) {
+            btnMapSelectedField.setText("Select PDF Text to Map");
+        } else {
+            btnMapSelectedField.setText("Map " + field.label());
+        }
     }
 
     private void refreshFieldList(String query) {
         if (template == null || lstFields == null) return;
-        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
-        List<TemplateFieldDefinition> fields = TemplateFieldCatalog.pdfFieldsFor(template.getDocumentType()).stream()
-                .filter(f -> q.isBlank() || f.label().toLowerCase(Locale.ROOT).contains(q)
-                        || f.category().toLowerCase(Locale.ROOT).contains(q)
-                        || f.key().toLowerCase(Locale.ROOT).contains(q))
-                .toList();
+        TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
+        List<TemplateFieldDefinition> fields = TemplateFieldSearchService.search(template.getDocumentType(), query,
+                selectedRequirement(), union(readiness.mappedFields(), readiness.itemColumns()));
         lstFields.setItems(FXCollections.observableArrayList(fields));
-        refreshFieldBindingChoices(fields);
+        lstFields.refresh();
     }
 
-    private void refreshFieldBindingChoices(List<TemplateFieldDefinition> fields) {
-        if (cmbFieldBinding == null) return;
-        String previous = cmbFieldBinding.getValue();
-        List<String> values = new ArrayList<>();
-        values.add("— No single binding —");
-        for (TemplateFieldDefinition f : fields) values.add(f.key() + "  •  " + f.label());
-        inspectorSync = true;
-        try {
-            cmbFieldBinding.setItems(FXCollections.observableArrayList(values));
-            if (previous != null && values.contains(previous)) cmbFieldBinding.setValue(previous);
-            else cmbFieldBinding.getSelectionModel().selectFirst();
-        } finally { inspectorSync = false; }
+    private void refreshInspectorSuggestions(String query) {
+        if (template == null || lstInspectorFieldSuggestions == null) return;
+        TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
+        List<TemplateFieldDefinition> fields = TemplateFieldSearchService.search(template.getDocumentType(), query,
+                selectedRequirement(), union(readiness.mappedFields(), readiness.itemColumns()));
+        lstInspectorFieldSuggestions.setItems(FXCollections.observableArrayList(fields.stream().limit(12).toList()));
+        if (!selectedBindingKey.isBlank()) {
+            fields.stream().filter(f -> f.key().equals(selectedBindingKey)).findFirst()
+                    .ifPresent(f -> lstInspectorFieldSuggestions.getSelectionModel().select(f));
+        }
+    }
+
+    private void refreshRequirementUi() {
+        if (template == null || lstRequirements == null) return;
+        TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
+        List<TemplateRequirementState> states = result.requirements();
+        if (tglRequired != null && tglRequired.isSelected())
+            states = states.stream().filter(s -> s.requirement().level() == TemplateMappingRequirement.Level.REQUIRED).toList();
+        else if (tglMapped != null && tglMapped.isSelected())
+            states = states.stream().filter(TemplateRequirementState::satisfied).toList();
+        lstRequirements.setItems(FXCollections.observableArrayList(states));
+        lstRequirements.refresh();
+        if (lblRequiredSummary != null) {
+            lblRequiredSummary.setText(result.requiredMapped() + " / " + result.requiredCount() + " required mapped");
+            setSemanticStatus(lblRequiredSummary, result.readyForDefault() ? "success" : "error");
+        }
+        if (lblIssueSummary != null) {
+            lblIssueSummary.setText(result.errorCount() + " errors • " + result.warningCount() + " warnings");
+            setSemanticStatus(lblIssueSummary, result.errorCount() > 0 ? "error" : result.warningCount() > 0 ? "warning" : "success");
+        }
+        if (lblIssueBar != null) lblIssueBar.setText(result.readyForDefault()
+                ? (result.warningCount() == 0 ? "Template mapping is ready" : result.warningCount() + " warning(s) to review")
+                : result.errorCount() + " required issue(s) must be fixed before Publish / Default");
+        if (btnFixNext != null) btnFixNext.setDisable(result.readyForDefault());
+        refreshFieldList(txtFieldSearch == null ? "" : txtFieldSearch.getText());
+    }
+
+    private void setSemanticStatus(Node node, String state) {
+        if (node == null) return;
+        node.getStyleClass().removeAll("erp-status-neutral", "erp-status-success", "erp-status-warning", "erp-status-error");
+        node.getStyleClass().add("erp-status-" + (state == null || state.isBlank() ? "neutral" : state));
+    }
+
+    private TemplateMappingRequirement selectedRequirement() {
+        TemplateRequirementState state = lstRequirements == null ? null : lstRequirements.getSelectionModel().getSelectedItem();
+        return state == null ? null : state.requirement();
+    }
+
+    private Set<String> union(Set<String> a, Set<String> b) {
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        if (a != null) out.addAll(a); if (b != null) out.addAll(b); return out;
+    }
+
+    private String friendlyFieldName(String key) {
+        TemplateFieldDefinition field = TemplateFieldCatalog.findPdf(template.getDocumentType(), key);
+        if (field != null) return field.label();
+        if (key != null && key.startsWith("item.")) {
+            field = TemplateFieldCatalog.findPdf(template.getDocumentType(), key);
+            if (field != null) return field.label();
+        }
+        return key == null ? "" : key;
+    }
+
+    @FXML private void fixNextIssue() {
+        if (template == null || lstRequirements == null) return;
+        TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
+        Optional<TemplateRequirementState> missing = result.requirements().stream()
+                .filter(s -> s.requirement().level() == TemplateMappingRequirement.Level.REQUIRED && !s.satisfied()).findFirst();
+        if (missing.isEmpty()) { reviewIssues(); return; }
+        if (tglRequired != null) tglRequired.setSelected(true);
+        refreshRequirementUi();
+        lstRequirements.getItems().stream().filter(s -> s.requirement().id().equals(missing.get().requirement().id()))
+                .findFirst().ifPresent(s -> lstRequirements.getSelectionModel().select(s));
+        focusSelectedRequirement();
+    }
+
+    private void focusSelectedRequirement() {
+        TemplateMappingRequirement requirement = selectedRequirement();
+        if (requirement == null) return;
+        if (txtFieldSearch != null) { txtFieldSearch.clear(); txtFieldSearch.requestFocus(); }
+        refreshFieldList("");
+        if (!lstFields.getItems().isEmpty()) lstFields.getSelectionModel().selectFirst();
+    }
+
+    @FXML private void reviewIssues() {
+        TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
+        if (result.issues().isEmpty()) {
+            ModernDialog.success(root, "Template mapping is ready", "All required mappings are complete. You can preview, publish and make this template Default.");
+            return;
+        }
+        String body = result.issues().stream().map(issue ->
+                (issue.error() ? "ERROR — " : "WARNING — ") + issue.userMessage()).collect(Collectors.joining("\n\n"));
+        ModernDialog.info(root, "Template issues", "PDF Studio", body);
+    }
+
+    @FXML private void applySuggestedBinding() {
+        TemplateFieldDefinition field = lstInspectorFieldSuggestions == null ? null : lstInspectorFieldSuggestions.getSelectionModel().getSelectedItem();
+        if (field == null || previewMode) {
+            updateManualMappingState();
+            return;
+        }
+        selectedBindingKey = field.key();
+        TemplateMappingValidationService.Result before = TemplateMappingValidationService.evaluate(template);
+        TemplateElement e = editableSelectionFromSource();
+        if (e == null || !isTextLike(e)) {
+            if (lblInspectorHint != null) lblInspectorHint.setText("Click the PDF text you want to replace, then choose an ERP field. The Map button will enable when both are selected.");
+            updateManualMappingState();
+            return;
+        }
+        checkpoint();
+        e.setFieldKey(selectedBindingKey);
+        if (e.getType() == ElementType.TEXT) e.setType(ElementType.FIELD);
+        e.setText("{{" + selectedBindingKey + "}}");
+        autosave();
+        TemplateMappingValidationService.Result after = TemplateMappingValidationService.evaluate(template);
+        populateInspector(e);
+        renderCanvas();
+        updateManualMappingState();
+
+        String fieldName = field.label();
+        long mappedDelta = after.requiredMapped() - before.requiredMapped();
+        long errorDelta = before.errorCount() - after.errorCount();
+        String change = mappedDelta > 0 || errorDelta > 0
+                ? " • readiness updated"
+                : " • mapping saved";
+        if (lblSaveState != null) {
+            lblSaveState.setText("Mapped " + fieldName + " ✓" + change + " • "
+                    + after.requiredMapped() + " / " + after.requiredCount() + " required • "
+                    + after.errorCount() + " errors");
+        }
+        if (lblInspectorHint != null) {
+            lblInspectorHint.setText("Mapped to " + fieldName + ". The readiness counters above were recalculated immediately.");
+        }
     }
 
     private void configurePages(int count) {
@@ -373,7 +588,6 @@ public class PdfStudioController implements ScreenLifecycle {
         cmbTextAlignment.setOnAction(e -> applyInspectorSilently());
         cmbImageFit.setOnAction(e -> applyInspectorSilently());
         cmbPageRule.setOnAction(e -> applyInspectorSilently());
-        cmbFieldBinding.setOnAction(e -> bindingChanged());
         colorText.setOnAction(e -> applyInspectorSilently());
         colorFill.setOnAction(e -> applyInspectorSilently());
         colorStroke.setOnAction(e -> applyInspectorSilently());
@@ -928,7 +1142,7 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private void selectOnly(TemplateElement e) {
         selectedIds.clear(); selectedIds.add(e.getId()); clearSourceSelection();
-        populateInspector(e); refreshLayers(); renderCanvas();
+        populateInspector(e); refreshLayers(); renderCanvas(); updateManualMappingState();
     }
 
     private void toggleSelection(TemplateElement e) {
@@ -939,7 +1153,7 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private void selectSourceText(PdfTextRegion region) {
         selectedIds.clear(); selectedSourceText=region; selectedSourceImage=null; selectedSourceVector=null;
-        populateInspector(region); renderCanvas();
+        populateInspector(region); renderCanvas(); updateManualMappingState();
     }
     private void selectSourceImage(PdfImageRegion region) {
         selectedIds.clear(); selectedSourceText=null; selectedSourceImage=region; selectedSourceVector=null;
@@ -1000,7 +1214,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private void populateInspector(PdfTextRegion r) {
         clearInspectorFieldsOnly(); inspectorSync=true;
         try {
-            lblInspectorType.setText("Detected PDF Text"); lblInspectorHint.setText("Click Apply or change any property to convert this source text into an editable object automatically.");
+            lblInspectorType.setText("Detected PDF Text"); lblInspectorHint.setText("PDF text selected. Search for the ERP field below, then click Map. No double-click is required.");
             txtContent.setText(r.text()); txtX.setText(fmt(r.x())); txtY.setText(fmt(r.y())); txtWidth.setText(fmt(r.width())); txtHeight.setText(fmt(r.height()));
             txtFontSize.setText(fmt(r.fontSize())); cmbFontFamily.setValue(fontHint(r.fontName())); chkBold.setSelected(r.bold()); chkItalic.setSelected(r.italic()); colorText.setValue(color(r.textColor(),Color.web("#172033"))); txtRotation.setText(fmt(r.rotation())); txtOpacity.setText("100");
             txtLineSpacing.setText("1.22"); txtStrokeWidth.setText("0"); txtRadius.setText("0"); txtPadTop.setText("0"); txtPadRight.setText("0"); txtPadBottom.setText("0"); txtPadLeft.setText("0");
@@ -1044,12 +1258,12 @@ public class PdfStudioController implements ScreenLifecycle {
         } finally { inspectorSync=false; }
     }
 
-    private void clearInspector() { clearInspectorFieldsOnly(); lblInspectorType.setText("Select any text, image, block or table"); lblInspectorHint.setText("Properties appear automatically."); lblSelection.setText("Nothing selected"); }
+    private void clearInspector() { clearInspectorFieldsOnly(); lblInspectorType.setText("Select any text, image, block or table"); lblInspectorHint.setText("Properties appear automatically."); lblSelection.setText("Nothing selected"); updateManualMappingState(); }
     private void clearInspectorFieldsOnly() {
         inspectorSync=true;
         try {
             for (TextField f : List.of(txtFontSize,txtLineSpacing,txtX,txtY,txtWidth,txtHeight,txtRotation,txtOpacity,txtStrokeWidth,txtRadius,txtPadTop,txtPadRight,txtPadBottom,txtPadLeft,txtTableColumns,txtRowHeight,txtHeaderHeight)) f.clear();
-            txtContent.clear(); chkBold.setSelected(false);chkItalic.setSelected(false);chkInheritParent.setSelected(false);chkFillEnabled.setSelected(false);chkStrokeEnabled.setSelected(false);chkLocked.setSelected(false);chkVisible.setSelected(true);
+            txtContent.clear(); selectedBindingKey=""; if(txtInspectorFieldSearch!=null)txtInspectorFieldSearch.clear(); if(lstInspectorFieldSuggestions!=null)lstInspectorFieldSuggestions.getSelectionModel().clearSelection(); chkBold.setSelected(false);chkItalic.setSelected(false);chkInheritParent.setSelected(false);chkFillEnabled.setSelected(false);chkStrokeEnabled.setSelected(false);chkLocked.setSelected(false);chkVisible.setSelected(true);
             chkPaddingLinked.setSelected(true);chkPreserveRatio.setSelected(true);chkUseSourceTableDesign.setSelected(false);
             colorText.setValue(Color.web("#172033"));colorFill.setValue(Color.WHITE);colorStroke.setValue(Color.web("#94A3B8"));
             cmbFontFamily.setValue("HELVETICA");cmbTextFit.setValue("SHRINK");cmbTextAlignment.setValue("LEFT");cmbImageFit.setValue("FIT");cmbPageRule.setValue("AUTO");
@@ -1058,22 +1272,14 @@ public class PdfStudioController implements ScreenLifecycle {
     }
 
     private void selectBinding(String key) {
-        if (key==null || key.isBlank()) { cmbFieldBinding.getSelectionModel().selectFirst(); return; }
-        cmbFieldBinding.getItems().stream().filter(v->v.startsWith(key+"  •")).findFirst().ifPresentOrElse(cmbFieldBinding::setValue,()->cmbFieldBinding.getSelectionModel().selectFirst());
-    }
-
-    private void bindingChanged() {
-        if (inspectorSync || previewMode) return;
-        TemplateElement e = editableSelectionFromSource();
-        if (e == null || !isTextLike(e)) return;
-        String item = cmbFieldBinding.getValue();
-        String key = bindingKey(item);
-        checkpoint();
-        e.setFieldKey(key);
-        if (!key.isBlank()) {
-            if (e.getText().isBlank() || !e.getText().contains("{{")) e.setText("{{"+key+"}}");
-        }
-        autosave(); populateInspector(e); renderCanvas();
+        selectedBindingKey = key == null ? "" : key.trim();
+        if (txtInspectorFieldSearch == null) return;
+        inspectorSync = true;
+        try {
+            TemplateFieldDefinition field = selectedBindingKey.isBlank() ? null : TemplateFieldCatalog.findPdf(template.getDocumentType(), selectedBindingKey);
+            txtInspectorFieldSearch.setText(field == null ? "" : field.label());
+        } finally { inspectorSync = false; }
+        refreshInspectorSuggestions(txtInspectorFieldSearch.getText());
     }
 
     @FXML private void showErpFields() {
@@ -1090,7 +1296,7 @@ public class PdfStudioController implements ScreenLifecycle {
         try {
             checkpoint();
             e.setText(txtContent.getText());
-            e.setFieldKey(bindingKey(cmbFieldBinding.getValue()));
+            e.setFieldKey(selectedBindingKey);
             e.setFontFamily(cmbFontFamily.getValue()); e.setTextFit(cmbTextFit.getValue()); e.setTextAlignment(cmbTextAlignment.getValue());
             e.setFontSize(parse(txtFontSize,e.getFontSize())); e.setLineSpacing(parse(txtLineSpacing,e.getLineSpacing())); e.setBold(chkBold.isSelected()); e.setItalic(chkItalic.isSelected());
             e.setTextColor(hex(colorText.getValue())); e.setFillColor(hex(colorFill.getValue())); e.setStrokeColor(hex(colorStroke.getValue()));
@@ -1433,51 +1639,64 @@ public class PdfStudioController implements ScreenLifecycle {
         json.setWrapText(false);
         json.setPrefColumnCount(90);
         json.setPrefRowCount(32);
-        json.setStyle("-fx-font-family: 'Consolas', 'Courier New', monospace; -fx-font-size: 12px;");
+        json.setMinHeight(320);
+        json.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        json.getStyleClass().add("pdf-json-viewer");
         Label help = new Label("Read-only ERP JSON used by this template. Drag fields from the mapper; JSON is generated by the application and is never edited manually.");
         help.setWrapText(true);
         VBox content = new VBox(9, help, json);
-        content.setPrefWidth(820);
-        content.setPrefHeight(620);
+        content.setMinSize(640, 420);
+        content.setPrefSize(860, 650);
+        content.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        VBox.setVgrow(json, Priority.ALWAYS);
         org.example.util.OwnedDialog<Void> dialog = new org.example.util.OwnedDialog<>();
         dialog.setTitle("PDF Studio JSON Data");
         dialog.setHeaderText(template.getDocumentType().label() + " • JSON contract v" + ErpDocumentJsonService.SCHEMA_VERSION);
+        org.example.util.DialogPresentation.configureWorkspace(dialog, "document");
         dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefSize(900, 700);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
         dialog.showAndWait();
     }
 
     @FXML private void validateMapping() {
         if (template == null) return;
-        List<String> issues = mappingValidationIssues();
-        if (issues.isEmpty()) {
-            long mapped = template.getElements().stream().filter(e -> e.getType() == ElementType.FIELD || e.getType() == ElementType.IMAGE_FIELD).count();
-            ModernDialog.success(root, "Mapping is valid", mapped + " mapped field(s) are ready. The original PDF artwork remains protected" + (template.isStrictFixedLayout() ? " in STRICT FIXED mode." : "."));
-        } else {
-            ModernDialog.error(root, "Mapping needs attention", "PDF Studio", String.join("\n• ", java.util.stream.Stream.concat(java.util.stream.Stream.of("Please correct:"), issues.stream()).toList()));
+        TemplateMappingValidationService.Result result = TemplateMappingValidationService.evaluate(template);
+        refreshRequirementUi();
+        if (result.issues().isEmpty()) {
+            ModernDialog.success(root, "Template mapping is ready",
+                    result.requiredMapped() + " / " + result.requiredCount() + " required fields are mapped. " +
+                            "The template can be previewed and published.");
+            return;
         }
+        if (result.errorCount() == 0) {
+            String body = result.issues().stream().map(TemplateValidationIssue::userMessage).collect(Collectors.joining("\n\n"));
+            ModernDialog.info(root, "Template mapping is ready with warnings", "PDF Studio",
+                    "All required mappings are complete. Review these optional items before production use:\n\n" + body);
+            return;
+        }
+        showValidationIssues("Mapping needs attention", result);
     }
 
+    /** Backward-compatible text view used by older controller tests. */
     private List<String> mappingValidationIssues() {
-        if (template == null || !template.getDocumentType().isErpConnected()) return List.of();
-        Set<String> mapped = new LinkedHashSet<>();
-        for (TemplateElement element : template.getElements()) {
-            if (element == null || !element.isVisible()) continue;
-            if (!element.getFieldKey().isBlank()) mapped.add(element.getFieldKey());
-            String text = element.getText();
-            if (text != null) {
-                java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.]+)\\s*}}") .matcher(text);
-                while (matcher.find()) mapped.add(matcher.group(1));
-            }
-        }
-        List<String> issues = new ArrayList<>();
-        for (String required : TemplateFieldCatalog.requiredPdfFieldsFor(template.getDocumentType()))
-            if (!TemplateFieldCatalog.isPdfRequirementMapped(template.getDocumentType(), required, mapped))
-                issues.add("Missing required field: " + required);
-        if (TemplateFieldCatalog.requiresItemRowForDefault(template.getDocumentType())
-                && template.getElements().stream().noneMatch(e -> e.getType() == ElementType.ITEM_TABLE && e.isVisible()))
-            issues.add("A repeating item table is required for " + template.getDocumentType().label());
-        return issues;
+        return TemplateMappingValidationService.evaluate(template).issues().stream()
+                .filter(TemplateValidationIssue::error).map(TemplateValidationIssue::userMessage).toList();
+    }
+
+    private void showValidationIssues(String title, TemplateMappingValidationService.Result result) {
+        String body = result.issues().stream().map(issue ->
+                (issue.error() ? "ERROR — " : "WARNING — ") + issue.userMessage()).collect(Collectors.joining("\n\n"));
+        ModernDialog.error(root, title, "PDF Studio", body);
+    }
+
+    private boolean allowWarnings(String action, TemplateMappingValidationService.Result result) {
+        List<TemplateValidationIssue> warnings = result.issues().stream().filter(issue -> !issue.error()).toList();
+        if (warnings.isEmpty()) return true;
+        String body = warnings.stream().map(TemplateValidationIssue::userMessage).collect(Collectors.joining("\n\n"));
+        return ModernDialog.confirm(root, action + " with warnings?",
+                warnings.size() + " optional warning" + (warnings.size() == 1 ? "" : "s") + " remain.",
+                body + "\n\nThese warnings do not block the document, but review them before using this template in production.");
     }
 
     @FXML private void publishAndSetDefault() {
@@ -1487,23 +1706,26 @@ public class PdfStudioController implements ScreenLifecycle {
             ModernDialog.info(root, "Design-only template", "PDF Studio", "Choose an automatic ERP document type before setting a system default.");
             return;
         }
-        List<String> issues = mappingValidationIssues();
-        if (!issues.isEmpty()) {
-            ModernDialog.error(root, "Cannot publish default", "PDF Studio", String.join("\n• ", java.util.stream.Stream.concat(java.util.stream.Stream.of("Fix these mappings first:"), issues.stream()).toList()));
+        TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
+        if (!readiness.readyForDefault()) {
+            showValidationIssues("Cannot publish this template as Default", readiness);
+            fixNextIssue();
             return;
         }
+        if (!allowWarnings("Publish & Set as Default", readiness)) return;
         if (!ModernDialog.confirm(root, "Publish & Set as Default",
                 "Publish " + template.getName() + " and activate it for " + template.getDocumentType().label() + "?",
-                "The imported PDF remains immutable. Only the validated published snapshot becomes the runtime default; the built-in renderer remains the safety fallback.")) return;
+                "All required mappings are complete. The published snapshot will be certified for multi-page flow before activation. Standard document generation remains the safety fallback.")) return;
         try {
             TemplateStorageService.saveDraft(template);
             TemplateStorageService.publish(template);
             TemplateStorageService.activateAndSetDefault(template);
-            refreshMeta(); updateDefaultButton();
+            refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("ACTIVE runtime v" + template.getActiveVersion());
-            ModernDialog.success(root, "Template is now the default", template.getName() + " is active for " + template.getDocumentType().label() + ". Future PDF triggers use this fixed PDF plus record-specific ERP JSON data.");
+            ModernDialog.success(root, "Template is now the default",
+                    template.getName() + " passed mapping and document-flow validation and is active for " + template.getDocumentType().label() + ".");
         } catch (Exception error) {
-            ModernDialog.error(root, "Could not activate template", "PDF Studio", rootMessage(error));
+            ModernDialog.error(root, "Template could not become Default", "PDF Studio", activationFriendlyMessage(error));
         }
     }
 
@@ -1511,7 +1733,7 @@ public class PdfStudioController implements ScreenLifecycle {
         if(template==null)return;
         try{
             TemplateStorageService.saveDraft(template);
-            refreshMeta(); updateDefaultButton();
+            refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("Draft saved • production unchanged");
             ModernDialog.success(root,"Draft saved",template.getName()+" was saved as a working draft. Current PDF/Print/Preview/Email generation is unchanged.");
         }catch(Exception e){ModernDialog.error(root,"Save failed","PDF Studio",rootMessage(e));}
@@ -1519,11 +1741,18 @@ public class PdfStudioController implements ScreenLifecycle {
 
     @FXML private void publishTemplate(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EDIT", "publish a PDF template");
         if(template==null)return;
+        TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
+        if (!readiness.readyForDefault()) {
+            showValidationIssues("Cannot publish this template", readiness);
+            fixNextIssue();
+            return;
+        }
+        if (!allowWarnings("Publish", readiness)) return;
         try{
             TemplateStorageService.publish(template);
-            refreshMeta(); updateDefaultButton();
+            refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("Published candidate v"+template.getPublishedVersion()+" • production unchanged");
-            ModernDialog.success(root,"Template published",template.getName()+" passed PDF validation and is ready for testing. Publishing does not change any current document-generation flow.");
+            ModernDialog.success(root,"Template published",template.getName()+" passed required mapping validation and is ready for preview/default certification. Publishing does not change current document generation.");
         }catch(Exception e){ModernDialog.error(root,"Publish failed","PDF Studio",rootMessage(e));}
     }
 
@@ -1537,15 +1766,33 @@ public class PdfStudioController implements ScreenLifecycle {
             ModernDialog.info(root,"Publish required","PDF Studio","Publish the current design first. Draft and preview changes never affect production.");
             return;
         }
+        TemplateMappingValidationService.Result readiness = TemplateMappingValidationService.evaluate(template);
+        if (!readiness.readyForDefault()) {
+            showValidationIssues("Cannot make this template Default", readiness);
+            fixNextIssue();
+            return;
+        }
+        if (!allowWarnings("Mark as Default", readiness)) return;
         if(!ModernDialog.confirm(root,"Mark as System Default",
                 "Activate "+template.getName()+" for "+template.getDocumentType().label()+"?",
-                "This is the ONLY action in PDF Studio that can change runtime document generation. The validated published snapshot will be copied to an isolated active snapshot; later draft edits or publishing will not change that active version until you mark default again."))return;
+                "The published snapshot will be certified for required mappings and multi-page behavior. Later draft edits remain isolated until you explicitly publish and activate again."))return;
         try{
             TemplateStorageService.activateAndSetDefault(template);
-            refreshMeta(); updateDefaultButton();
+            refreshMeta(); refreshRequirementUi(); updateDefaultButton();
             lblSaveState.setText("ACTIVE runtime v"+template.getActiveVersion());
-            ModernDialog.success(root,"System default activated",template.getName()+" v"+template.getActiveVersion()+" is now the active "+template.getDocumentType().label()+" template. Built-in generation remains the safety fallback if rendering fails.");
-        }catch(Exception e){ModernDialog.error(root,"Default could not be activated","PDF Studio",rootMessage(e));}
+            ModernDialog.success(root,"System default activated",template.getName()+" v"+template.getActiveVersion()+" is now active for "+template.getDocumentType().label()+". Standard generation remains the automatic fallback if Studio rendering fails.");
+        }catch(Exception e){ModernDialog.error(root,"Default could not be activated","PDF Studio",activationFriendlyMessage(e));}
+    }
+
+    private String activationFriendlyMessage(Throwable error) {
+        String message = rootMessage(error);
+        if (message.contains("generated") && message.contains("pages"))
+            return "Multi-page layout is not safe yet. " + message + "\nFix: Open Item Table and increase the dynamic table area or reduce the row height, then preview a 25-item document.";
+        if (message.toLowerCase(Locale.ROOT).contains("source") && message.toLowerCase(Locale.ROOT).contains("missing"))
+            return "The template source PDF is missing.\nFix: Re-import the source PDF for this template before publishing it as Default.";
+        if (message.toLowerCase(Locale.ROOT).contains("mapping"))
+            return message + "\nFix the exact field shown in the Mapping Checklist, then try again.";
+        return message;
     }
 
     @FXML private void showDesignMode(){
@@ -1610,7 +1857,7 @@ public class PdfStudioController implements ScreenLifecycle {
     }
     private void checkpoint(){history.checkpoint(template.getElements());}
     private List<TemplateElement> snapshot(List<TemplateElement> source){return PdfStudioHistory.snapshot(source);}
-    private void autosave(){try{TemplateStorageService.saveDraft(template);lblSaveState.setText("Draft saved • production unchanged");}catch(Exception e){lblSaveState.setText("Save failed");}refreshMeta();updateDefaultButton();}
+    private void autosave(){try{TemplateStorageService.saveDraft(template);lblSaveState.setText("Draft saved • production unchanged");}catch(Exception e){lblSaveState.setText("Save failed");}refreshMeta();refreshRequirementUi();if(currentMappingAnalysis!=null)updateMappingUi(currentMappingAnalysis);updateDefaultButton();}
 
     // ---------------------------------------------------------------------
     // Utility
@@ -1633,6 +1880,7 @@ public class PdfStudioController implements ScreenLifecycle {
             btnSaveDefault.setDisable(!automatic||template.getPublishedVersion()<=0||template.isUnpublishedChanges());
         }
         if(btnPublish!=null)btnPublish.setDisable(template.getStatus()==TemplateStatus.ARCHIVED);
+        if(btnPublishDefault!=null)btnPublishDefault.setDisable(template.getStatus()==TemplateStatus.ARCHIVED||!automatic);
     }
     private void updatePageWarning(){if(template==null)return;long outside=template.getElements().stream().filter(e->e.getPageIndex()==pageIndex&&PdfStyleResolver.effectivelyVisible(template,e)).filter(e->e.getX()<0||e.getY()<0||e.getX()+e.getWidth()>pageWidth||e.getY()+e.getHeight()>pageHeight).count();lblPageWarning.setText(outside==0?"":outside+" object(s) extend outside page • export will clip");}
     private void clearObjectCaches(){textCache.clear();imageCache.clear();vectorCache.clear();sourcePageImages.clear();loadingPages.clear();}

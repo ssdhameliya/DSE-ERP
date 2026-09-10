@@ -10,6 +10,7 @@ import java.util.*;
 public interface ItemRepository extends JpaRepository<ItemEntity,Integer> {
     List<ItemEntity> findAllByOrderByItemCodeAsc();
     Optional<ItemEntity> findByItemCode(String itemCode);
+    List<ItemEntity> findByItemCodeIn(Collection<String> itemCodes);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select item from ItemEntity item where item.itemCode = :itemCode")
     Optional<ItemEntity> findByItemCodeForUpdate(@Param("itemCode") String itemCode);

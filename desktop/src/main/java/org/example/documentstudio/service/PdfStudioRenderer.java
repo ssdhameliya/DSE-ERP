@@ -88,7 +88,7 @@ public final class PdfStudioRenderer {
             for (int sourceIndex = 0; sourceIndex < sourceDoc.getNumberOfPages(); sourceIndex++) {
                 final int page = sourceIndex;
                 List<TemplateElement> pageElements = elements.stream().filter(e -> PdfStyleResolver.effectivelyVisible(template,e)).filter(e -> e.getPageIndex() == page).toList();
-                plans.put(sourceIndex, FlowPlan.forPage(pageElements, data, salesLayout));
+                plans.put(sourceIndex, FlowPlan.forPage(pageElements, data, salesLayout, sourceDoc.getPage(sourceIndex).getMediaBox().getHeight(), template.isFlowFixedLayout()));
             }
 
             Map<Integer, List<Integer>> sourceToOutputPages = new HashMap<>();
@@ -119,6 +119,7 @@ public final class PdfStudioRenderer {
             for (int sourceIndex = 0; sourceIndex < sourceDoc.getNumberOfPages(); sourceIndex++) {
                 final int page = sourceIndex;
                 List<TemplateElement> pageElements = elements.stream().filter(e -> PdfStyleResolver.effectivelyVisible(template,e)).filter(e -> e.getPageIndex() == page).toList();
+                List<TemplateElement> renderElements = adjustedPartyFlowElements(pageElements, data);
                 List<Integer> outputPages = sourceToOutputPages.getOrDefault(sourceIndex, List.of());
                 FlowPlan plan = plans.get(sourceIndex);
                 for (int part = 0; part < outputPages.size(); part++) {
@@ -135,14 +136,31 @@ public final class PdfStudioRenderer {
                     try (PDPageContentStream cs = new PDPageContentStream(targetDoc, outputPage,
                             PDPageContentStream.AppendMode.APPEND, true, true)) {
                         boolean sharedSalesLayout = template.getDocumentType() == DocumentType.SALES_INVOICE && salesLayout != null;
-                        if (sharedSalesLayout) {
+                        boolean replaceFlowClosing = sharedSalesLayout && plan.flowFixed() != null && plan.totalCopies() > 1;
+                        boolean dynamicSalesClosing = sharedSalesLayout && (plan.flowFixed() == null || replaceFlowClosing);
+                        if (replaceFlowClosing) {
+                            prepareDynamicSalesPage(outputPage, cs, plan, part, salesLayout);
+                        } else if (plan.flowFixed() != null) {
+                            prepareFlowFixedPage(outputPage, cs, plan, part);
+                        } else if (sharedSalesLayout) {
                             prepareDynamicSalesPage(outputPage, cs, plan, part, salesLayout);
                         }
-                        for (TemplateElement e : pageElements) {
-                            if (sharedSalesLayout && isLegacyFixedSalesClosingElement(e)) continue;
+                        // Replacement masks always render before live fields/tables. This prevents a later
+                        // continuation-page WHITEOUT from erasing item rows that were already drawn.
+                        for (TemplateElement e : renderElements) {
+                            if (e.getType() == ElementType.WHITEOUT && shouldDraw(e, plan, part)
+                                    && !(dynamicSalesClosing && isLegacyFixedSalesClosingElement(e))) {
+                                drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages, salesLayout);
+                            }
+                        }
+                        for (TemplateElement e : renderElements) {
+                            if (e.getType() == ElementType.WHITEOUT) continue;
+                            if (dynamicSalesClosing && isLegacyFixedSalesClosingElement(e)) continue;
                             if (e.getType() == ElementType.ITEM_TABLE) {
                                 if (plan.drawItemTable(part)) {
-                                    TemplateElement liveTable = sharedSalesLayout ? sharedSalesTableElement(e, plan, part, salesLayout) : e;
+                                    TemplateElement liveTable = (replaceFlowClosing || (sharedSalesLayout && plan.flowFixed() == null))
+                                            ? sharedSalesTableElement(e, plan, part, salesLayout)
+                                            : (plan.flowFixed() != null ? plan.flowFixed().tableForPart(e, part, plan.totalCopies()) : e);
                                     drawElement(targetDoc, outputPage, cs, template, data, liveTable, itemChunk, chargeChunk, outputIndex + 1, totalPages, salesLayout);
                                 }
                                 continue;
@@ -155,7 +173,7 @@ public final class PdfStudioRenderer {
                                 drawElement(targetDoc, outputPage, cs, template, data, e, itemChunk, chargeChunk, outputIndex + 1, totalPages, salesLayout);
                             }
                         }
-                        if (sharedSalesLayout && part == plan.totalCopies() - 1) {
+                        if (dynamicSalesClosing && part == plan.totalCopies() - 1) {
                             drawDynamicSalesClosing(targetDoc, outputPage, cs, data, salesLayout, plan);
                         }
                     }
@@ -168,6 +186,10 @@ public final class PdfStudioRenderer {
     }
 
     private static boolean shouldDraw(TemplateElement e, FlowPlan plan, int part) {
+        if (plan.flowFixed() != null && plan.itemTable() != null && part < plan.totalCopies() - 1) {
+            double sourceTableBottom = plan.itemTable().getY() + plan.itemTable().getHeight() - 2.0;
+            if (e.getY() >= sourceTableBottom && e.getY() < plan.flowFixed().intermediateBottom() && !"INTERMEDIATE".equals(e.getPageRule())) return false;
+        }
         // Explicit page rules must also be honored for a one-page document.
         // In particular, INTERMEDIATE means "all pages except the last"; for a
         // single-page invoice there is no intermediate page.  The old early return
@@ -201,6 +223,61 @@ public final class PdfStudioRenderer {
     private static int requiredPages(TemplateElement table, int count) {
         if (table == null || count <= 0) return 1;
         return Math.max(1, (int) Math.ceil(count / (double) rowsPerPage(table)));
+    }
+
+    /**
+     * Generic same-block text flow for party addresses. A wrapped address is allowed to consume
+     * the vertical space it actually needs; Phone/Email/GSTIN fields in the same visual column
+     * are then pushed below that rendered address with a small safety gap. No template id/name
+     * checks are used, so imported Sales/Purchase/Quotation/Return templates share the rule.
+     */
+    private static List<TemplateElement> adjustedPartyFlowElements(List<TemplateElement> source, TemplateData data) throws IOException {
+        if (source == null || source.isEmpty()) return List.of();
+        List<TemplateElement> out = source.stream().map(TemplateElement::snapshotCopy).collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        for (TemplateElement address : new ArrayList<>(out)) {
+            String key = address.getFieldKey();
+            if (address.getType() != ElementType.FIELD || key == null || !key.toLowerCase(Locale.ROOT).endsWith("address")
+                    || !"WRAP".equals(address.getTextFit())) continue;
+            String value = data.value(key);
+            if (value == null || value.isBlank()) continue;
+            PDFont f = fontFor(address);
+            float size = (float)address.getFontSize();
+            float width = (float)Math.max(1, address.getWidth() - address.getPaddingLeft() - address.getPaddingRight());
+            List<String> lines = wrap(safePdfText(value), f, size, width);
+            double needed = wrappedHeight(size, (float)address.getLineSpacing(), lines.size())
+                    + address.getPaddingTop() + address.getPaddingBottom();
+            double actualHeight = Math.max(address.getHeight(), needed);
+            address.setHeight(actualHeight);
+
+            double originalBottom = address.getY() + Math.max(0.5, source.stream()
+                    .filter(e -> Objects.equals(e.getId(), address.getId())).findFirst().map(TemplateElement::getHeight).orElse(address.getHeight()));
+            double desiredFollowerY = address.getY() + actualHeight + 2.0;
+            List<TemplateElement> followers = out.stream()
+                    .filter(e -> e != address && e.getType() == ElementType.FIELD && e.getY() >= originalBottom - 2.0
+                            && sameColumn(address, e) && isPartyFollower(e.getFieldKey()))
+                    .sorted(Comparator.comparingDouble(TemplateElement::getY)).toList();
+            if (followers.isEmpty()) continue;
+            double shift = Math.max(0.0, desiredFollowerY - followers.getFirst().getY());
+            if (shift < 0.01) continue;
+            for (TemplateElement e : out) {
+                if (e == address || e.getY() < followers.getFirst().getY() - 7.0 || !sameColumn(address, e)) continue;
+                if (e.getY() >= 255.0) continue; // item/tax/table areas are separate layout regions
+                e.setY(e.getY() + shift);
+            }
+        }
+        return out;
+    }
+
+    private static boolean isPartyFollower(String key) {
+        if (key == null) return false;
+        String k = key.toLowerCase(Locale.ROOT);
+        return k.endsWith("phone") || k.endsWith("email") || k.endsWith("gstin");
+    }
+
+    private static boolean sameColumn(TemplateElement a, TemplateElement b) {
+        double left = Math.max(a.getX(), b.getX());
+        double right = Math.min(a.getX() + a.getWidth(), b.getX() + b.getWidth());
+        return right - left >= Math.min(a.getWidth(), b.getWidth()) * 0.35;
     }
 
     private static void drawElement(PDDocument doc, PDPage page, PDPageContentStream cs,
@@ -351,17 +428,58 @@ public final class PdfStudioRenderer {
             return;
         }
 
-        float lineHeight = configuredSize * (float)Math.max(.5, e.getLineSpacing());
-        List<String> lines = wrap(text, font, configuredSize, width);
+        // WRAP is flow-aware rather than a silent clip. Imported ERP PDFs often expose
+        // compact AcroForm rectangles that fit sample addresses but not real customer or
+        // supplier data. Keep the field geometry/template artwork unchanged, first tighten
+        // line leading, then reduce the font only as much as required to show every wrapped
+        // line. This is generic for every template/document type; no template id/name checks.
+        WrappedTextFit fitted = fitWrappedText(text, font, configuredSize, width, height, e.getLineSpacing());
+        float textSize = fitted.fontSize();
+        float lineHeight = fitted.lineHeight();
+        List<String> lines = fitted.lines();
         setNonStroke(cs, e.getTextColor());
-        float y = top - configuredSize;
+        float y = top - textSize;
         float bottom = top - height;
         for (String line : lines) {
-            if (y < bottom) break;
-            float drawX = alignedX(font, configuredSize, line, x, width, e.getTextAlignment());
-            cs.beginText(); cs.setFont(font, configuredSize); cs.newLineAtOffset(drawX, y); cs.showText(line); cs.endText();
+            if (y < bottom - 0.01f) break;
+            float drawX = alignedX(font, textSize, line, x, width, e.getTextAlignment());
+            cs.beginText(); cs.setFont(font, textSize); cs.newLineAtOffset(drawX, y); cs.showText(line); cs.endText();
             y -= lineHeight;
         }
+    }
+
+    private record WrappedTextFit(float fontSize, float lineHeight, List<String> lines) { }
+
+    private static WrappedTextFit fitWrappedText(String text, PDFont font, float configured,
+                                                  float width, float height, double configuredSpacing) throws IOException {
+        float originalSize = Math.max(1f, configured);
+        float originalSpacing = (float)Math.max(.5, configuredSpacing);
+        List<String> originalLines = wrap(text, font, originalSize, width);
+        if (wrappedHeight(originalSize, originalSpacing, originalLines.size()) <= height + .01f)
+            return new WrappedTextFit(originalSize, originalSize * originalSpacing, originalLines);
+
+        // Compact leading before sacrificing readable font size. 0.92 still keeps separate
+        // baselines for small invoice metadata while recovering space from imported form boxes.
+        float compactSpacing = Math.min(originalSpacing, .92f);
+        if (wrappedHeight(originalSize, compactSpacing, originalLines.size()) <= height + .01f)
+            return new WrappedTextFit(originalSize, originalSize * compactSpacing, originalLines);
+
+        // Never collapse text to an unreadable speck. Imported templates may already use a
+        // small font, so preserve at least 4pt when possible, or 82% of an already-smaller size.
+        float minimumSize = originalSize >= 4f ? 4f : Math.max(3.4f, originalSize * .82f);
+        for (float size = originalSize - .1f; size >= minimumSize - .001f; size -= .1f) {
+            List<String> lines = wrap(text, font, size, width);
+            float spacing = compactSpacing;
+            if (wrappedHeight(size, spacing, lines.size()) <= height + .01f)
+                return new WrappedTextFit(size, size * spacing, lines);
+        }
+        List<String> minimumLines = wrap(text, font, minimumSize, width);
+        return new WrappedTextFit(minimumSize, minimumSize * compactSpacing, minimumLines);
+    }
+
+    private static float wrappedHeight(float size, float spacing, int lineCount) {
+        if (lineCount <= 0) return 0f;
+        return size + Math.max(0, lineCount - 1) * size * spacing;
     }
 
     private static float shrinkToFit(String text, PDFont font, float configured, float width, float height) throws IOException {
@@ -560,12 +678,10 @@ public final class PdfStudioRenderer {
             cursorY += e.getRowHeight();
             lines.add(cursorY);
         }
-        if (finalPage) {
-            double targetBottom = e.getY() + e.getHeight();
-            while (cursorY + fillerRowHeight <= targetBottom + 0.6) {
-                cursorY += fillerRowHeight;
-                lines.add(cursorY);
-            }
+        double targetBottom = e.getY() + e.getHeight();
+        while (cursorY + fillerRowHeight <= targetBottom + 0.6) {
+            cursorY += fillerRowHeight;
+            lines.add(cursorY);
         }
         float pdfTop = toPdfY(page, bodyTop);
         float pdfBottom = toPdfY(page, cursorY);
@@ -964,17 +1080,41 @@ public final class PdfStudioRenderer {
         return table;
     }
 
+    /**
+     * Generic fixed-artwork continuation flow.  The source header/footer remain the template's
+     * artwork; only the mapped item body is cleared and rebuilt.  Intermediate pages reuse the
+     * closing area for item rows, while the last page preserves the template's own totals/terms/
+     * bank/signature artwork.  No template id/name checks are permitted here.
+     */
+    private static void prepareFlowFixedPage(PDPage page, PDPageContentStream cs, FlowPlan flow, int part) throws IOException {
+        FlowFixedGeometry g = flow.flowFixed();
+        if (g == null || flow.itemTable() == null) return;
+        boolean last = part == flow.totalCopies() - 1;
+        double bodyTop = g.bodyTop();
+        double bodyBottom = last ? g.finalBottom() : g.intermediateBottom();
+        float x = (float) flow.itemTable().getX();
+        float w = (float) flow.itemTable().getWidth();
+        float pdfBottom = toPdfY(page, bodyBottom);
+        float pdfTop = toPdfY(page, bodyTop);
+        setNonStroke(cs, "#FFFFFF");
+        cs.addRect(x, pdfBottom, w, Math.max(1f, pdfTop - pdfBottom));
+        cs.fill();
+    }
+
     private static void prepareDynamicSalesPage(PDPage page, PDPageContentStream cs, FlowPlan flow, int part,
                                                 TaxInvoicePdfGenerator.SalesLayoutPlan layout) throws IOException {
         // Clear the fixed source closing artwork. The actual closing stack is rebuilt from
         // measured Standard-Sales geometry on the final page; intermediate pages reuse this
         // region for real item rows.
-        float top = 270.15f;
-        float bottom = 808.0f;
+        float top = flow != null && flow.itemTable() != null
+                ? (float)(flow.itemTable().getY() + flow.itemTable().getHeaderHeight()) : 270.15f;
+        float bottom = Math.min((float)page.getMediaBox().getHeight() - 30f, 808.0f);
+        float x = flow != null && flow.itemTable() != null ? (float)flow.itemTable().getX() : 23.8f;
+        float width = flow != null && flow.itemTable() != null ? (float)flow.itemTable().getWidth() : 547.4f;
         setNonStroke(cs, "#FFFFFF");
         float pyBottom = toPdfY(page, bottom);
         float pyTop = toPdfY(page, top);
-        cs.addRect(23.8f, pyBottom, 547.4f, Math.max(1f, pyTop - pyBottom));
+        cs.addRect(x, pyBottom, width, Math.max(1f, pyTop - pyBottom));
         cs.fill();
     }
 
@@ -1120,31 +1260,90 @@ public final class PdfStudioRenderer {
 
     private record Column(String key, String label, double weight) {}
 
+    private record FlowFixedGeometry(double rowHeight, double bodyTop, double finalBottom,
+                                             double intermediateBottom, int finalRows, int intermediateRows) {
+        static FlowFixedGeometry forPage(List<TemplateElement> elements, double pageHeight) {
+            TemplateElement item = elements.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElse(null);
+            if (item == null) return null;
+            double bodyTop = item.getY() + Math.max(0, item.getHeaderHeight());
+            double originalBottom = item.getY() + item.getHeight();
+            double closingTop = elements.stream()
+                    .filter(e -> e != item && e.isVisible() && "LAST".equals(e.getPageRule()) && e.getY() > bodyTop + 1)
+                    .mapToDouble(TemplateElement::getY).min().orElse(originalBottom + 4.0);
+            double finalBottom = Math.max(originalBottom, closingTop - 4.0);
+            double finalBody = Math.max(8.0, finalBottom - bodyTop);
+
+            // A normal short document should remain on one page when the template has enough
+            // physical room.  Never shrink below a readable baseline.
+            double readableMin = Math.max(8.0, item.getFontSize() * 1.35);
+            double shortFit = finalBody / 5.0;
+            double rowHeight = Math.max(readableMin, Math.min(Math.max(readableMin, shortFit), item.getRowHeight()));
+            int finalRows = Math.max(1, (int)Math.floor(finalBody / rowHeight));
+
+            double footerTop = elements.stream()
+                    .filter(e -> e != item && e.isVisible() && "LAST".equals(e.getPageRule()) && e.getY() > pageHeight * .88)
+                    .mapToDouble(TemplateElement::getY).min().orElse(pageHeight - 36.0);
+            double intermediateBottom = Math.max(finalBottom, footerTop - 4.0);
+            int intermediateRows = Math.max(finalRows, (int)Math.floor(Math.max(rowHeight, intermediateBottom - bodyTop) / rowHeight));
+            return new FlowFixedGeometry(rowHeight, bodyTop, finalBottom, intermediateBottom, finalRows, intermediateRows);
+        }
+
+        int pagesFor(int itemCount) {
+            if (itemCount <= 0 || itemCount <= finalRows) return 1;
+            int beforeFinal = itemCount - finalRows;
+            return 1 + (int)Math.ceil(beforeFinal / (double)Math.max(1, intermediateRows));
+        }
+
+        int[] rangeFor(int itemCount, int part, int pages) {
+            if (itemCount <= 0) return new int[]{0,0};
+            if (pages <= 1) return new int[]{0,itemCount};
+            int finalStart = Math.max(0, itemCount - finalRows);
+            if (part >= pages - 1) return new int[]{finalStart,itemCount};
+            int from = Math.min(finalStart, part * intermediateRows);
+            int to = Math.min(finalStart, from + intermediateRows);
+            return new int[]{from,to};
+        }
+
+        TemplateElement tableForPart(TemplateElement source, int part, int pages) {
+            TemplateElement table = source.copy();
+            table.setRowHeight(rowHeight);
+            double bottom = part == pages - 1 ? finalBottom : intermediateBottom;
+            table.setHeight(Math.max(table.getHeaderHeight() + rowHeight, bottom - table.getY()));
+            return table;
+        }
+    }
+
     private record FlowPlan(TemplateElement itemTable, TemplateElement chargeTable,
                             int itemPages, int chargePages, int totalCopies, int chargeStartPart,
-                            TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout) {
+                            TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout, FlowFixedGeometry flowFixed) {
         static FlowPlan forPage(List<TemplateElement> elements, TemplateData data,
-                                TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout) {
+                                TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout,
+                                double pageHeight, boolean useFlowFixed) {
             TemplateElement item = elements.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElse(null);
             TemplateElement charge = elements.stream().filter(e -> e.getType() == ElementType.CHARGE_TABLE).findFirst().orElse(null);
+            FlowFixedGeometry fixed = useFlowFixed ? FlowFixedGeometry.forPage(elements, pageHeight) : null;
             if (item != null && salesLayout != null && salesLayout.totalPages() > 0) {
                 return new FlowPlan(item, charge, salesLayout.totalPages(), 0,
-                        salesLayout.totalPages(), 0, salesLayout);
+                        salesLayout.totalPages(), 0, salesLayout, fixed);
+            }
+            if (item != null && fixed != null) {
+                int pages = fixed.pagesFor(data.items() == null ? 0 : data.items().size());
+                return new FlowPlan(item, charge, pages, 0, pages, 0, null, fixed);
             }
             int ip = item == null ? 0 : requiredPages(item, data.items().size());
             int cp = charge == null ? 0 : requiredPages(charge, data.charges().size());
-            if (item == null && charge == null) return new FlowPlan(null, null, 0, 0, 1, 0, null);
-            if (item != null && charge == null) return new FlowPlan(item, null, ip, 0, Math.max(1, ip), 0, null);
-            if (item == null) return new FlowPlan(null, charge, 0, cp, Math.max(1, cp), 0, null);
+            if (item == null && charge == null) return new FlowPlan(null, null, 0, 0, 1, 0, null, null);
+            if (item != null && charge == null) return new FlowPlan(item, null, ip, 0, Math.max(1, ip), 0, null, null);
+            if (item == null) return new FlowPlan(null, charge, 0, cp, Math.max(1, cp), 0, null, null);
             int start = Math.max(0, ip - 1);
             int total = Math.max(1, ip + Math.max(0, cp - 1));
-            return new FlowPlan(item, charge, ip, cp, total, start, null);
+            return new FlowPlan(item, charge, ip, cp, total, start, null, null);
         }
 
         TemplateElement primaryTable() { return itemTable != null ? itemTable : chargeTable; }
         boolean drawItemTable(int part) { return itemTable != null && part < Math.max(1, itemPages); }
         boolean drawChargeTable(int part) {
-            if (salesLayout != null) return false;
+            if (salesLayout != null || flowFixed != null) return false;
             if (chargeTable == null) return false;
             int chargePart = part - chargeStartPart;
             return chargePart >= 0 && chargePart < Math.max(1, chargePages);
@@ -1157,6 +1356,10 @@ public final class PdfStudioRenderer {
                 int to = Math.min(items.size(), page.toIndex());
                 return items.subList(from, to);
             }
+            if (flowFixed != null) {
+                int[] range = flowFixed.rangeFor(items.size(), part, totalCopies);
+                return items.subList(range[0], range[1]);
+            }
             int rows = rowsPerPage(itemTable), from = Math.min(items.size(), part * rows), to = Math.min(items.size(), from + rows);
             return items.subList(from, to);
         }
@@ -1166,5 +1369,4 @@ public final class PdfStudioRenderer {
             int from = Math.min(charges.size(), chargePart * rows), to = Math.min(charges.size(), from + rows);
             return charges.subList(from, to);
         }
-    }
-}
+    }}

@@ -23,9 +23,11 @@ import java.util.List;
 public class PdfStudioTemplateController {
     private static final String RESOURCE_TYPE = "PDF_STUDIO_V3_TEMPLATE";
     private final ServerResourceService resources;
+    private final PdfStudioDefaultAuthorityService defaults;
 
-    public PdfStudioTemplateController(ServerResourceService resources) {
+    public PdfStudioTemplateController(ServerResourceService resources, PdfStudioDefaultAuthorityService defaults) {
         this.resources = resources;
+        this.defaults = defaults;
     }
 
     @GetMapping
@@ -48,13 +50,20 @@ public class PdfStudioTemplateController {
                                                    @RequestParam(defaultValue = "pdf-studio-template.zip") String filename,
                                                    @RequestParam(defaultValue = "") String expectedChecksum,
                                                    @RequestBody byte[] content) {
-        CurrentUser.requirePermission("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "Manage PDF Studio templates");
-        return resources.put(RESOURCE_TYPE, key, filename, "application/zip", content, expectedChecksum);
+        requireTemplateEdit();
+        var result = resources.put(RESOURCE_TYPE, key, filename, "application/zip", content, expectedChecksum);
+        defaults.reconcilePut(key, content);
+        return result;
     }
 
     @DeleteMapping("/{key}")
     public void delete(@PathVariable String key) {
-        CurrentUser.requirePermission("DOCUMENT_STUDIO.MANAGE_TEMPLATES", "Manage PDF Studio templates");
+        requireTemplateEdit();
         resources.delete(RESOURCE_TYPE, key);
+        defaults.reconcileDelete(key);
+    }
+    private static void requireTemplateEdit() {
+        if (!(CurrentUser.hasPermission("DOCUMENT_STUDIO.EDIT") || CurrentUser.hasPermission("DOCUMENT_STUDIO.MANAGE_TEMPLATES")))
+            throw new SecurityException("Manage PDF Studio templates requires DOCUMENT_STUDIO.EDIT or DOCUMENT_STUDIO.MANAGE_TEMPLATES permission");
     }
 }

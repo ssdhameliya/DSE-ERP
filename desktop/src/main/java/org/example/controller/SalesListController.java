@@ -311,12 +311,11 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
             {
                 menu.getProperties().put("erp.icon.semantic", "actions");
                 menu.setGraphic(IconFactory.compactIcon("actions", 15));
-                add("Sale Invoice", "pdf", e -> openSaleInvoicePdf(row()));
                 add("View Sale", "view", e -> viewSale(row()));
                 add("Activity Timeline", "history", e -> org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",row().getId(),row().getInvoiceNo()));
                 edit = add("Edit Sale", "edit", e -> edit(row()));
                 add("Duplicate Sale", "copy", e -> duplicate(row()));
-                add("Print / Download PDF", "print", e -> openPdf(row()));
+                add("View / Print Tax Invoice", "print", e -> openPdf(row()));
                 add("View / Download Excel", "excel", e -> openExcel(row()));
                 add("Send Email", "email", e -> sendEmail(row()));
                 add("Send WhatsApp", "whatsapp", e -> sendWhatsapp(row()));
@@ -557,8 +556,17 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
     @FXML private void newSale(){NavigationManager.navigateOrReport("/fxml/pages/Sale.fxml");}
     private void edit(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}}
     private void viewSale(Sales sale){try{FXMLLoader loader=new FXMLLoader(org.example.util.ResourceLocator.require("/fxml/pages/Sale.fxml"));Parent root=loader.load();org.example.util.ProfessionalUiEnhancer.enhance(root);SalesController controller=loader.getController();controller.loadSale(service.getByInvoice(sale.getInvoiceNo()));controller.setViewMode(true);NavigationManager.getInstance().showPreparedPage("/fxml/pages/Sale.fxml",root,controller);}catch(Exception e){error(e);}}
-    private void openSaleInvoicePdf(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice not found. Refresh and try again.");Path pdf=ManagedInvoicePdfService.salesBodyOnly(full);java.awt.Desktop.getDesktop().open(pdf.toFile());log("SALE",sale.getId(),"PDF_OPENED_BODY_ONLY",sale.getInvoiceNo());}catch(Exception e){error(e);}}
-    private void openPdf(Sales sale){try{Path p=ManagedInvoicePdfService.sales(service.getByInvoice(sale.getInvoiceNo()));java.awt.Desktop.getDesktop().open(p.toFile());log("SALE",sale.getId(),"PDF_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
+    private void openPdf(Sales sale){
+        if(sale==null)return;
+        UiTaskExecutor.submitAction("sales-tax-invoice-pdf-"+sale.getId(),()->{
+            Sales full=service.getByInvoice(sale.getInvoiceNo());
+            if(full==null)throw new IllegalStateException("Sales invoice not found. Refresh and try again.");
+            return ManagedInvoicePdfService.sales(full);
+        },p->{
+            try{java.awt.Desktop.getDesktop().open(p.toFile());log("SALE",sale.getId(),"PDF_OPENED",sale.getInvoiceNo());}
+            catch(Exception failure){error(failure);}
+        },this::error);
+    }
     private void openExcel(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");Path excel=ExcelOutputService.sales(full);if(java.awt.Desktop.isDesktopSupported())java.awt.Desktop.getDesktop().open(excel.toFile());else info("Excel file created: "+excel);log("SALE",sale.getId(),"EXCEL_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
     private void sendEmail(Sales sale){if(isApprovalLocked(sale)){warning("Admin approval is required before sending this Sale document.");return;}String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=ManagedInvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.config.ConfigManager.get("company.name","DSE ERP"),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}
     private void sendWhatsapp(Sales sale){if(isApprovalLocked(sale)){warning("Admin approval is required before sharing this Sale document.");return;}try{Sales full=service.getByInvoice(sale.getInvoiceNo());String phone=digits(full.getCustomer().getPhone());if(phone.length()==10)phone="91"+phone;if(phone.isBlank()){warning("Customer mobile number is not available. Update it in Customer Master.");return;}String missing=PaymentMessageService.missingPaymentConfiguration();if(missing!=null)warning(missing+" The invoice can still be shared without a payment link.");Path pdf=ManagedInvoicePdfService.sales(full);WhatsappService.openWhatsappWithMessage(phone,PaymentMessageService.salesMessage(full),pdf,PaymentMessageService.configuredQrPath());info("WhatsApp is ready. The invoice and configured UPI QR are on the clipboard for attachment.");support.markWhatsapp("SALE",full.getId());communication("SALE",full.getId(),"WHATSAPP",phone,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();}catch(Exception e){error(e);}}

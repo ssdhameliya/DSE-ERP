@@ -35,7 +35,17 @@ final class PdfStudioServerClient {
     void put(String key, String fileName, byte[] content, String expectedChecksum) {
         try {
             String path = path(key) + "?filename=" + enc(fileName) + "&expectedChecksum=" + enc(expectedChecksum);
-            sendBytes("PUT", path, content);
+            // PUT returns ResourceMeta JSON. Asking for application/octet-stream made Spring
+            // reject an otherwise valid Shared Client save with HTTP 406 before the template
+            // could be mirrored. Keep the binary request body, but negotiate the JSON response.
+            HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + path))
+                    .timeout(Duration.ofSeconds(90))
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/octet-stream");
+            ApiSession.authorize(builder);
+            var response = http.send(builder.PUT(HttpRequest.BodyPublishers.ofByteArray(content)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            requireOk(response.statusCode(), response.body());
         } catch (Exception error) { throw failure(error); }
     }
 
