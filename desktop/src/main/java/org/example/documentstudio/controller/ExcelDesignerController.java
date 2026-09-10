@@ -1414,10 +1414,12 @@ public class ExcelDesignerController {
     private void validateRenderedOutput(Path rendered,TemplateData data) throws IOException{
         DocumentType type=template.getDocumentType();
         Map<String,String> identities=validationIdentityValues(type,data);
-        String firstItem=data.items().isEmpty()?"":data.items().get(0).getDescription();
-        if(firstItem.isBlank()&&!data.items().isEmpty())firstItem=data.items().get(0).getItemCode();
-        if(TemplateFieldCatalog.requiresItemRowForDefault(type)&&firstItem.isBlank())
-            throw new IOException("The selected "+type.label()+" record has no usable first-item identity for validation.");
+        boolean requiresItem=TemplateFieldCatalog.requiresItemRowForDefault(type);
+        Map<String,String> firstItemIdentities=requiresItem
+                ?firstItemIdentityCandidates(mappedFieldAddresses.keySet(),data.items().isEmpty()?null:data.items().get(0))
+                :Map.of();
+        if(requiresItem&&firstItemIdentities.isEmpty())
+            throw new IOException("The selected "+type.label()+" record has no nonblank first-item value for the item identity field mapped by this workbook. Select a preview record containing the mapped Item Description, Item Remarks, Description + Remarks, or Item Code value.");
         for(Map.Entry<String,String> identity:identities.entrySet())if(identity.getValue()==null||identity.getValue().isBlank())
             throw new IOException("The selected "+type.label()+" record is missing "+identity.getKey()+" and cannot validate a default template.");
 
@@ -1425,19 +1427,34 @@ public class ExcelDesignerController {
             List<String> unresolved=new ArrayList<>();
             Map<String,Boolean> found=new LinkedHashMap<>();
             identities.forEach((label,value)->found.put(label,false));
-            boolean itemFound=!TemplateFieldCatalog.requiresItemRowForDefault(type);
+            boolean itemFound=!requiresItem;
             for(int si=0;si<check.getNumberOfSheets();si++)for(Row row:check.getSheetAt(si))for(Cell cell:row){
                 if(cell.getCellType()!=CellType.STRING)continue;
                 String value=cell.getStringCellValue();
                 Matcher matcher=ERP_TOKEN.matcher(value);
                 while(matcher.find())unresolved.add(matcher.group(1)+" @ "+check.getSheetName(si)+"!"+cell.getAddress().formatAsString());
                 for(Map.Entry<String,String> identity:identities.entrySet())if(!identity.getValue().isBlank()&&value.contains(identity.getValue()))found.put(identity.getKey(),true);
-                if(!firstItem.isBlank()&&value.contains(firstItem))itemFound=true;
+                if(!itemFound)for(String expected:firstItemIdentities.values())if(!expected.isBlank()&&value.contains(expected)){itemFound=true;break;}
             }
             if(!unresolved.isEmpty())throw new IOException("Rendered workbook still contains unresolved ERP fields: "+String.join(", ",unresolved));
             List<String> missing=found.entrySet().stream().filter(entry->!entry.getValue()).map(Map.Entry::getKey).toList();
-            if(!missing.isEmpty()||!itemFound)throw new IOException(type.label()+" validation failed: rendered workbook did not contain "+String.join(", ",missing)+(missing.isEmpty()?"":itemFound?"":" and ")+(itemFound?"":"the first item value")+".");
+            if(!missing.isEmpty()||!itemFound)throw new IOException(type.label()+" validation failed: rendered workbook did not contain "+String.join(", ",missing)+(missing.isEmpty()?"":itemFound?"":" and ")+(itemFound?"":"the first mapped item value")+".");
         }catch(IOException e){throw e;}catch(Exception e){throw new IOException("Rendered workbook validation failed: "+rootMessage(e),e);}
+    }
+
+    static Map<String,String> firstItemIdentityCandidates(Collection<String> mappedKeys,org.example.invoice.model.TaxInvoiceItem item){
+        Map<String,String> values=new LinkedHashMap<>();
+        if(mappedKeys==null||item==null)return values;
+        Set<String> mapped=new LinkedHashSet<>(mappedKeys);
+        addFirstItemIdentity(values,mapped,"Description + Remarks","item.descriptionWithRemarks",descriptionWithRemarks(item.getDescription(),item.getRemarks()));
+        addFirstItemIdentity(values,mapped,"Item Description","item.description",descriptionWithRemarks(item.getDescription(),item.getRemarks()));
+        addFirstItemIdentity(values,mapped,"Item Remarks","item.remarks",item.getRemarks());
+        addFirstItemIdentity(values,mapped,"Item Code","item.code",item.getItemCode());
+        return values;
+    }
+
+    private static void addFirstItemIdentity(Map<String,String> values,Set<String> mapped,String label,String key,String value){
+        if(mapped.contains(key)&&value!=null&&!value.isBlank())values.put(label,value);
     }
 
     private Map<String,String> validationIdentityValues(DocumentType type,TemplateData data){

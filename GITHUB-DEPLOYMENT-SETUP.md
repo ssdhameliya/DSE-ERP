@@ -53,6 +53,8 @@ Each environment must already have the DSE ERP runtime installed:
 - `/srv/dse-erp/<env>/releases`
 - `/srv/dse-erp/<env>/current`
 - `/srv/dse-erp/<env>/workspace`
+
+The server environment file may optionally set `DSE_MINIMUM_SUPPORTED_DESKTOP_VERSION`. When omitted, the server uses its own application version as the strict minimum. Set it only to the oldest desktop release certified as API-compatible with that environment, then restart the server service so the policy is republished by `/api/runtime/health`.
 - systemd service `dse-erp-<env>`
 
 The deployment script never sends a database password through GitHub. It reads the environment's existing protected password file on the Oracle host.

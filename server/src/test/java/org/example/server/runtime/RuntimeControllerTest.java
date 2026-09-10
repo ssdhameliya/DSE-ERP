@@ -22,7 +22,7 @@ class RuntimeControllerTest {
         when(service.databaseReady()).thenReturn(true);
         when(service.databaseName()).thenReturn("dse_erp_uat");
         when(service.databaseTimeZone()).thenReturn("UTC");
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "UAT")).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "UAT")).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())
@@ -31,6 +31,7 @@ class RuntimeControllerTest {
                 .andExpect(jsonPath("$.version").value(RuntimeContract.appVersion()))
                 .andExpect(jsonPath("$.apiRevision").value(RuntimeContract.API_REVISION))
                 .andExpect(jsonPath("$.buildRevision").value(RuntimeContract.buildRevision()))
+                .andExpect(jsonPath("$.minimumSupportedDesktopVersion").value("9.0.95"))
                 .andExpect(jsonPath("$.environment").value("UAT"))
                 .andExpect(jsonPath("$.database").value("postgresql"))
                 .andExpect(jsonPath("$.databaseName").value("dse_erp_uat"))
@@ -42,7 +43,7 @@ class RuntimeControllerTest {
     void reportsNotReadyWhenTheManagedDatabaseCannotBeReached() throws Exception {
         RuntimeService service = mock(RuntimeService.class);
         when(service.databaseReady()).thenThrow(new IllegalStateException("offline"));
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "UAT")).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "UAT")).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())
