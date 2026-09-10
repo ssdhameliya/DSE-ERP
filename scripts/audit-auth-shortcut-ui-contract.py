@@ -39,7 +39,8 @@ require('APP_VERSION = "DEV"' in runtime_contract and 'BUILD_REVISION = "DEV"' i
         and 'version=@project.version@' in desktop_version and 'buildRevision=@project.version@' in desktop_version,
         'Current release must publish one filtered desktop/server version/build contract so stale backends are rejected')
 require('buildRevision' in runtime_controller, 'Runtime health must expose the backend build revision')
-require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "UAT")') == 2, 'RuntimeController tests must instantiate the five-argument runtime/environment contract constructor')
+require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "UAT")') == 2, 'RuntimeController tests must instantiate the runtime/environment/desktop-compatibility contract constructor')
+require('jsonPath("$.minimumSupportedDesktopVersion").value("9.0.95")' in runtime_controller_test, 'RuntimeController tests must assert the server-owned minimum supported desktop version')
 require('jsonPath("$.buildRevision").value(RuntimeContract.buildRevision())' in runtime_controller_test, 'RuntimeController tests must assert the current build revision exposed by health')
 require('BuildInfo.buildRevision().equals(status.buildRevision())' in runtime_bootstrap or 'org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())' in runtime_bootstrap, 'Runtime bootstrap must reject a stale same-version backend build')
 require('private static volatile String apiBaseUrl' in api_session and 'boundApiBaseUrl()' in api_session, 'Bearer session must remember the exact Spring server that issued it')

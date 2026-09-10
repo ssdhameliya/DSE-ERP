@@ -17079,6 +17079,57 @@
     -fx-opacity: 1;
 }
 .erp-ui-standard .erp-table-standard .table-row-cell .table-cell .text { -fx-fill: #edf4fb; }
+
+/* Semantic cell values must own both TableCell text-fill and the skinned child Text/Label fill.
+   This sits after the generic runtime table text authority so semantic values survive normal, hover and selected rows. */
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-blue,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-blue .label {
+    -fx-text-fill: #86b8ff;
+    -fx-text-background-color: #86b8ff;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-blue .text { -fx-fill: #86b8ff; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-green,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-green .label {
+    -fx-text-fill: #62e3ad;
+    -fx-text-background-color: #62e3ad;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-green .text { -fx-fill: #62e3ad; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-orange,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-orange .label {
+    -fx-text-fill: #ffc66b;
+    -fx-text-background-color: #ffc66b;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-orange .text { -fx-fill: #ffc66b; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-purple,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-purple .label {
+    -fx-text-fill: #c4b5fd;
+    -fx-text-background-color: #c4b5fd;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-purple .text { -fx-fill: #c4b5fd; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-pink,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-pink .label {
+    -fx-text-fill: #f9a8d4;
+    -fx-text-background-color: #f9a8d4;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-pink .text { -fx-fill: #f9a8d4; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-teal,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-teal .label {
+    -fx-text-fill: #5eead4;
+    -fx-text-background-color: #5eead4;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-teal .text { -fx-fill: #5eead4; }
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-indigo,
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-indigo .label {
+    -fx-text-fill: #a5b4fc;
+    -fx-text-background-color: #a5b4fc;
+}
+.erp-ui-standard .erp-table-standard .table-row-cell .table-cell.erp-table-value-colour-indigo .text { -fx-fill: #a5b4fc; }
+
+.erp-ui-standard .erp-table-standard .table-cell.status-positive .text { -fx-fill: #62e3ad; }
+.erp-ui-standard .erp-table-standard .table-cell.status-warning .text { -fx-fill: #ffc66b; }
+.erp-ui-standard .erp-table-standard .table-cell.status-negative .text { -fx-fill: #ff8b9a; }
+.erp-ui-standard .erp-table-standard .table-cell.status-neutral .text { -fx-fill: #86b8ff; }
+
 .erp-ui-standard .erp-table-standard .table-row-cell:selected,
 .erp-ui-standard .erp-table-standard .table-row-cell:selected:focused,
 .erp-ui-standard .erp-table-standard .table-row-cell:filled:selected {

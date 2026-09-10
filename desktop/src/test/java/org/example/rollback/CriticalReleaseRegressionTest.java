@@ -293,6 +293,12 @@ class CriticalReleaseRegressionTest {
             assertTrue(css.contains("table-cell.erp-table-value-colour-pink"));
             assertTrue(css.contains("table-cell.erp-table-value-colour-teal"));
             assertTrue(css.contains("table-cell.erp-table-value-colour-indigo"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-green .text"),
+                    "Final runtime table text authority must not erase semantic value colours.");
+            assertTrue(css.contains("table-cell.erp-table-value-colour-blue .text"));
+            assertTrue(css.contains("table-cell.erp-table-value-colour-pink .text"));
+            assertTrue(css.contains("table-cell.status-positive .text"),
+                    "Status semantics must also survive the final child-Text fill rule.");
         }
     }
 

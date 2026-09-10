@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class UpdateDialogs {
     private UpdateDialogs() {}
@@ -155,36 +156,99 @@ public final class UpdateDialogs {
         });
     }
 
+    private static volatile String deferredCompatibleUpdateVersion = "";
+
+    public static boolean isCompatibleUpdateDeferredForSession() {
+        return deferredCompatibleUpdateVersion != null && !deferredCompatibleUpdateVersion.isBlank();
+    }
+
     /**
-     * Pre-login Shared Client update path. This intentionally does not require an authenticated
-     * application permission and does not create a local database backup because a Shared Client
-     * owns no authoritative business database.
+     * Pre-login Shared Client update path for a newer server that still supports this desktop.
+     * Choosing Not Now resumes the normal startup/login transition. The deferral is intentionally
+     * process-local so the user is offered the update again on the next application launch.
+     */
+    public static void offerCompatibleClientUpdate(Window owner, String availableVersion,
+                                                   String minimumSupportedDesktopVersion,
+                                                   Runnable continueStartup) {
+        String version = availableVersion == null ? "" : availableVersion.trim();
+        Runnable resume = () -> {
+            if (!version.isBlank()) deferredCompatibleUpdateVersion = version;
+            if (continueStartup != null) continueStartup.run();
+        };
+        if (version.isBlank() || version.equals(BuildInfo.version()) || version.equals(deferredCompatibleUpdateVersion)) {
+            if (continueStartup != null) continueStartup.run();
+            return;
+        }
+        offerPreLoginClientUpdate(owner, version, minimumSupportedDesktopVersion, false, resume);
+    }
+
+    /** Mandatory pre-login update used during normal application startup. */
+    public static void offerRequiredClientUpdateAtStartup(Window owner, String requiredVersion) {
+        offerPreLoginClientUpdate(owner, requiredVersion, requiredVersion, true, Platform::exit);
+    }
+
+    /**
+     * Required-update dialog retained for Setup/Settings connection testing. Declining it keeps
+     * the current setup screen open instead of exiting the application.
      */
     public static void offerRequiredClientUpdate(Window owner, String requiredVersion) {
-        String version = requiredVersion == null ? "" : requiredVersion.trim();
+        offerPreLoginClientUpdate(owner, requiredVersion, requiredVersion, true, null);
+    }
+
+    private static void offerPreLoginClientUpdate(Window owner, String targetVersion,
+                                                  String minimumSupportedDesktopVersion,
+                                                  boolean required, Runnable onNoUpdate) {
+        Runnable fallback = once(onNoUpdate);
+        String version = targetVersion == null ? "" : targetVersion.trim();
         if (version.isBlank()) {
-            error(owner, "Update required", "The company server requires a newer DSE ERP desktop, but its version could not be determined.");
+            error(owner, required ? "Update required" : "Update available",
+                    required
+                            ? "The company server requires a newer DSE ERP desktop, but its version could not be determined."
+                            : "The company server has a newer compatible DSE ERP desktop, but its version could not be determined.");
+            runIfPresent(fallback);
             return;
         }
 
-        ButtonType later = new ButtonType("Not Now", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType secondary = new ButtonType(required && onNoUpdate != null ? "Exit" : "Not Now",
+                ButtonBar.ButtonData.CANCEL_CLOSE);
         ButtonType update = new ButtonType("Download & Install " + version, ButtonBar.ButtonData.OK_DONE);
-        Alert required = new OwnedAlert(Alert.AlertType.WARNING,
-                "The company server is running DSE ERP " + version + ", but this desktop is "
-                        + BuildInfo.version() + ".\n\n"
-                        + "For data safety, different client/server builds cannot connect. "
-                        + "DSE ERP can download the official installer, verify its SHA-256 checksum, and start the update before login.",
-                later, update);
-        if (owner != null) required.initOwner(owner);
-        required.setHeaderText("Desktop update required");
-        if (required.showAndWait().orElse(later) != update) return;
+        String minimum = minimumSupportedDesktopVersion == null ? "" : minimumSupportedDesktopVersion.trim();
+        String message;
+        String header;
+        if (required) {
+            header = "Desktop update required";
+            message = "The company server is running DSE ERP " + version + ", but this desktop is "
+                    + BuildInfo.version() + ".\n\n"
+                    + "This desktop is below the server's supported compatibility range. "
+                    + "DSE ERP must be updated before login.";
+        } else {
+            header = "Desktop update available";
+            message = "The company server is running DSE ERP " + version + ", while this desktop is "
+                    + BuildInfo.version() + ".\n\n"
+                    + (minimum.isBlank() ? "The server confirms this desktop is still compatible."
+                    : "The server currently supports desktop " + minimum + " or newer.")
+                    + " You can update now or choose Not Now and continue to login with this compatible version.";
+        }
 
+        Alert alert = new OwnedAlert(required ? Alert.AlertType.WARNING : Alert.AlertType.INFORMATION,
+                message, secondary, update);
+        if (owner != null) alert.initOwner(owner);
+        alert.setHeaderText(header);
+        if (alert.showAndWait().orElse(secondary) != update) {
+            runIfPresent(fallback);
+            return;
+        }
+
+        loadPreLoginRelease(owner, version, required, fallback);
+    }
+
+    private static void loadPreLoginRelease(Window owner, String version, boolean required, Runnable onNoUpdate) {
         ProgressIndicator indicator = new ProgressIndicator();
         Label message = new Label("Loading the official DSE ERP " + version + " release...");
         VBox content = new VBox(18, indicator, message);
         content.setAlignment(javafx.geometry.Pos.CENTER);
         content.setPadding(new Insets(28));
-        Dialog<Void> loading = baseDialog(owner, "Required Update", content, 500, 240);
+        Dialog<Void> loading = baseDialog(owner, required ? "Required Update" : "Available Update", content, 500, 240);
         loading.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 
         Task<UpdateRelease> task = new Task<>() {
@@ -198,26 +262,37 @@ public final class UpdateDialogs {
             loading.close();
             UpdateRelease release = task.getValue();
             if (!release.version().toString().equals(version)) {
-                error(owner, "Required update unavailable",
-                        "The published release does not match the company server requirement. Required: " + version
+                error(owner, required ? "Required update unavailable" : "Update unavailable",
+                        "The published release does not match the company server version. Expected: " + version
                                 + "; published: " + release.version() + ".");
+                runIfPresent(onNoUpdate);
                 return;
             }
-            downloadRequiredClientUpdate(owner, new UpdateService(), release);
+            downloadPreLoginClientUpdate(owner, new UpdateService(), release, required, onNoUpdate);
         });
         task.setOnFailed(event -> {
             loading.close();
-            error(owner, "Required update unavailable", rootMessage(task.getException()));
+            error(owner, required ? "Required update unavailable" : "Update unavailable", rootMessage(task.getException()));
+            runIfPresent(onNoUpdate);
         });
-        task.setOnCancelled(event -> loading.close());
-        loading.setOnShown(event -> Thread.ofVirtual().name("erp-required-update-check").start(task));
+        task.setOnCancelled(event -> {
+            loading.close();
+            runIfPresent(onNoUpdate);
+        });
+        loading.setOnCloseRequest(event -> { if (!task.isDone()) task.cancel(); });
+        loading.setOnShown(event -> Thread.ofVirtual().name("erp-prelogin-update-check").start(task));
         loading.show();
     }
 
-    private static void downloadRequiredClientUpdate(Window owner, UpdateService service, UpdateRelease release) {
+    private static void downloadPreLoginClientUpdate(Window owner, UpdateService service, UpdateRelease release,
+                                                     boolean required, Runnable onNoUpdate) {
         UpdateRelease.Asset asset;
         try { asset = service.assetFor(release); }
-        catch (Exception exception) { error(owner, "Installer unavailable", rootMessage(exception)); return; }
+        catch (Exception exception) {
+            error(owner, "Installer unavailable", rootMessage(exception));
+            runIfPresent(onNoUpdate);
+            return;
+        }
 
         ProgressBar bar = new ProgressBar(0);
         bar.setMaxWidth(Double.MAX_VALUE);
@@ -225,7 +300,7 @@ public final class UpdateDialogs {
         Label detail = new Label("Preparing download...");
         VBox content = new VBox(14, status, bar, detail);
         content.setPadding(new Insets(18));
-        Dialog<Void> dialog = baseDialog(owner, "Downloading Required Update", content, 580, 270);
+        Dialog<Void> dialog = baseDialog(owner, required ? "Downloading Required Update" : "Downloading Update", content, 580, 270);
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 
         Task<Path> task = new Task<>() {
@@ -247,30 +322,52 @@ public final class UpdateDialogs {
         task.setOnSucceeded(event -> {
             dialog.close();
             Path installer = task.getValue();
-            ButtonType cancel = ButtonType.CANCEL;
+            ButtonType cancel = new ButtonType(required ? "Exit" : "Not Now", ButtonBar.ButtonData.CANCEL_CLOSE);
             ButtonType install = new ButtonType("Install & Restart", ButtonBar.ButtonData.OK_DONE);
             Alert ready = new OwnedAlert(Alert.AlertType.CONFIRMATION,
                     "The official DSE ERP " + release.version() + " installer was downloaded and SHA-256 verified.\n\n"
-                            + "DSE ERP will close and start the installer. Reopen DSE ERP after installation to reconnect to the company server.",
+                            + (required
+                            ? "DSE ERP must close and install this version before login."
+                            : "Install now, or choose Not Now to continue to login with the currently supported desktop."),
                     cancel, install);
             if (owner != null) ready.initOwner(owner);
-            ready.setHeaderText("Required update verified");
-            if (ready.showAndWait().orElse(cancel) != install) return;
+            ready.setHeaderText(required ? "Required update verified" : "Update verified");
+            if (ready.showAndWait().orElse(cancel) != install) {
+                runIfPresent(onNoUpdate);
+                return;
+            }
             try {
                 service.launchInstaller(installer, release.version().toString());
                 Platform.exit();
             } catch (Exception exception) {
                 error(owner, "Unable to start installer", rootMessage(exception));
+                runIfPresent(onNoUpdate);
             }
         });
         task.setOnFailed(event -> {
             dialog.close();
             error(owner, "Update preparation failed", rootMessage(task.getException()));
+            runIfPresent(onNoUpdate);
         });
-        task.setOnCancelled(event -> dialog.close());
-        dialog.setOnCloseRequest(event -> task.cancel());
-        dialog.setOnShown(event -> Thread.ofVirtual().name("erp-required-update-download").start(task));
+        task.setOnCancelled(event -> {
+            dialog.close();
+            runIfPresent(onNoUpdate);
+        });
+        dialog.setOnCloseRequest(event -> { if (!task.isDone()) task.cancel(); });
+        dialog.setOnShown(event -> Thread.ofVirtual().name("erp-prelogin-update-download").start(task));
         dialog.show();
+    }
+
+    private static Runnable once(Runnable action) {
+        if (action == null) return null;
+        AtomicBoolean invoked = new AtomicBoolean(false);
+        return () -> {
+            if (invoked.compareAndSet(false, true)) action.run();
+        };
+    }
+
+    private static void runIfPresent(Runnable action) {
+        if (action != null) action.run();
     }
 
     private static void downloadAndPrepare(Window owner, UpdateService service, UpdateRelease release) {

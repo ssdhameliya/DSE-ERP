@@ -21,6 +21,7 @@ import javafx.scene.layout.VBox;
 import org.example.backup.BackupManager;
 import org.example.backup.LocalRecoveryManager;
 import org.example.api.runtime.RuntimeBootstrapper;
+import org.example.api.runtime.RuntimeApiClient;
 import org.example.api.runtime.RuntimeHealthMonitor;
 import org.example.api.runtime.ManagedPostgresRuntime;
 import org.example.api.runtime.DeploymentConnectionService;
@@ -125,9 +126,10 @@ public final class Main {
                     recoveryFiles.message() + "\n\nDSE ERP will not open the recovered LOCAL company until its business files are consistent."));
             return;
         }
+        RuntimeApiClient.RuntimeStatus startupRuntime;
         try {
             SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
-            RuntimeBootstrapper.ensureServerReady();
+            startupRuntime = RuntimeBootstrapper.ensureServerReady();
             SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
             new org.example.api.runtime.RuntimeApiClient().status();
             if (new SetupApiClient().requiresSetup()) {
@@ -146,7 +148,7 @@ public final class Main {
             if (exception instanceof org.example.api.runtime.DeploymentConnectionService.ClientUpdateRequiredException updateRequired) {
                 DesktopLog.info("Main", "CLIENT_UPDATE_REQUIRED",
                         "Company server requires desktop " + updateRequired.requiredVersion());
-                Platform.runLater(() -> org.example.update.UpdateDialogs.offerRequiredClientUpdate(
+                Platform.runLater(() -> org.example.update.UpdateDialogs.offerRequiredClientUpdateAtStartup(
                         stage, updateRequired.requiredVersion()));
                 return;
             }
@@ -162,30 +164,46 @@ public final class Main {
                     startupMessage));
             return;
         }
+        RuntimeApiClient.RuntimeStatus verifiedRuntime = startupRuntime;
         Platform.runLater(() -> {
-            // Splash is non-interactive. Still guard the transition so a late startup
-            // callback can never replace an already authenticated application shell.
-            if (SessionService.current() == null) SceneManager.showLogin();
-            finishStartup(stage);
-            if (restoreResult.attempted() && !restoreResult.applied()) {
-                new OwnedAlert(Alert.AlertType.ERROR,
-                        restoreResult.message() + "\n\nThe ERP will continue using the preserved database.").show();
-            } else if (restoreResult.applied()) {
-                String safety = restoreResult.safetyBackup() == null
-                        ? "No previous database existed."
-                        : "Safety backup: " + restoreResult.safetyBackup();
-                if (recoveryFiles.applied()) {
-                    org.example.util.ToastManager.success(stage, "LOCAL recovery completed",
-                            "The company-server database and business files were restored to this LOCAL workspace. " + safety);
-                } else {
-                    org.example.util.ToastManager.success(stage, "Database restore completed",
-                            "The staged database restore was applied successfully. " + safety);
-                }
-            } else if (recoveryFiles.applied()) {
-                org.example.util.ToastManager.success(stage, "LOCAL recovery files completed",
-                        "The staged company-server business files were applied successfully.");
+            Runnable continueStartup = () -> completeStartupTransition(stage, restoreResult, recoveryFiles);
+            if (ConfigManager.isSharedClient()
+                    && DeploymentConnectionService.isCompatibleClientUpdateAvailable(verifiedRuntime)) {
+                org.example.update.UpdateDialogs.offerCompatibleClientUpdate(
+                        stage,
+                        verifiedRuntime.version(),
+                        DeploymentConnectionService.effectiveMinimumSupportedDesktopVersion(verifiedRuntime),
+                        continueStartup);
+            } else {
+                continueStartup.run();
             }
         });
+    }
+
+    private void completeStartupTransition(Stage stage, BackupManager.RestoreResult restoreResult,
+                                           LocalRecoveryManager.FileApplyResult recoveryFiles) {
+        // Splash is non-interactive. Still guard the transition so a late startup callback
+        // can never replace an already authenticated application shell.
+        if (SessionService.current() == null) SceneManager.showLogin();
+        finishStartup(stage);
+        if (restoreResult.attempted() && !restoreResult.applied()) {
+            new OwnedAlert(Alert.AlertType.ERROR,
+                    restoreResult.message() + "\n\nThe ERP will continue using the preserved database.").show();
+        } else if (restoreResult.applied()) {
+            String safety = restoreResult.safetyBackup() == null
+                    ? "No previous database existed."
+                    : "Safety backup: " + restoreResult.safetyBackup();
+            if (recoveryFiles.applied()) {
+                org.example.util.ToastManager.success(stage, "LOCAL recovery completed",
+                        "The company-server database and business files were restored to this LOCAL workspace. " + safety);
+            } else {
+                org.example.util.ToastManager.success(stage, "Database restore completed",
+                        "The staged database restore was applied successfully. " + safety);
+            }
+        } else if (recoveryFiles.applied()) {
+            org.example.util.ToastManager.success(stage, "LOCAL recovery files completed",
+                    "The staged company-server business files were applied successfully.");
+        }
     }
 
     /** SetupWizardController has created the workspace and bootstrapped company/admin data through the Spring API. */
@@ -394,20 +412,33 @@ public final class Main {
                     ManagedPostgresRuntime.ensureReady();
                 } else SceneManager.updateSplashStage(2, "Connecting to company server...");
                 SceneManager.updateSplashStage(3, "Starting Spring Boot services...");
-                RuntimeBootstrapper.ensureServerReady();
+                RuntimeApiClient.RuntimeStatus startupRuntime = RuntimeBootstrapper.ensureServerReady();
                 SceneManager.updateSplashStage(4, "Verifying database, schema and migrations...");
                 new org.example.api.runtime.RuntimeApiClient().status();
                 SceneManager.updateSplashStage(5, "Finalizing " + BrandingService.applicationName() + "...");
                 SceneManager.markSplashReady("Services ready. Opening " + BrandingService.applicationName() + "...");
+                RuntimeApiClient.RuntimeStatus verifiedRuntime = startupRuntime;
                 Platform.runLater(() -> {
-                    finishStartup(stage);
-                    if (SessionService.current() == null) SceneManager.showLogin();
+                    Runnable continueStartup = () -> {
+                        if (SessionService.current() == null) SceneManager.showLogin();
+                        finishStartup(stage);
+                    };
+                    if (ConfigManager.isSharedClient()
+                            && DeploymentConnectionService.isCompatibleClientUpdateAvailable(verifiedRuntime)) {
+                        org.example.update.UpdateDialogs.offerCompatibleClientUpdate(
+                                stage,
+                                verifiedRuntime.version(),
+                                DeploymentConnectionService.effectiveMinimumSupportedDesktopVersion(verifiedRuntime),
+                                continueStartup);
+                    } else {
+                        continueStartup.run();
+                    }
                 });
             } catch (Exception exception) {
                 if (exception instanceof org.example.api.runtime.DeploymentConnectionService.ClientUpdateRequiredException updateRequired) {
                     DesktopLog.info("Main", "FIRST_RUN_CLIENT_UPDATE_REQUIRED",
                             "Company server requires desktop " + updateRequired.requiredVersion());
-                    Platform.runLater(() -> org.example.update.UpdateDialogs.offerRequiredClientUpdate(
+                    Platform.runLater(() -> org.example.update.UpdateDialogs.offerRequiredClientUpdateAtStartup(
                             stage, updateRequired.requiredVersion()));
                     return;
                 }

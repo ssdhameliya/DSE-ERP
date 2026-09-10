@@ -38,6 +38,12 @@ for theme in css:
     s=t('desktop/src/main/resources/css/'+theme)
     for token in ['DSE ERP 9.0.79 — FINAL UI DESIGN SYSTEM','-dse-surface-1','erp-button-role-primary','erp-realtime-search','erp-table-standard']:
         need(token in s,f'{theme} missing final design-system token {token}')
+    for semantic in ['blue','green','orange','purple','pink','teal','indigo']:
+        need(f'table-cell.erp-table-value-colour-{semantic} .text' in s,
+             f'{theme} final runtime text authority overrides semantic table value colour {semantic}')
+    for status in ['positive','warning','negative','neutral']:
+        need(f'table-cell.status-{status} .text' in s,
+             f'{theme} final runtime text authority overrides semantic status colour {status}')
 
 
 # Action controls must remain completely visible even when a detail drawer
