@@ -18,6 +18,7 @@ public final class RuntimeContract {
     public static String appVersion() { return resolved("app.version", APP_VERSION); }
     public static String buildRevision() { return resolved("build.revision", BUILD_REVISION); }
     public static String buildTime() { return resolved("build.time", BUILD_TIME); }
+    public static String desktopCompatibilityBaseline() { return resolved("desktop.compatibility.baseline", "10.0.1"); }
     private static String resolved(String key, String fallback) {
         String value = BUILD.getProperty(key, "").trim();
         if (value.isBlank() || value.contains("${") || value.contains("@")) return fallback;

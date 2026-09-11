@@ -29,5 +29,6 @@
     <app.vendor>DS Engineers</app.vendor>
     <app.identifier>com.dsengineers.dseerp</app.identifier>
     <app.main.class>org.example.app.Launcher</app.main.class>
+    <desktop.compatibility.baseline>10.0.1</desktop.compatibility.baseline>
   </properties>
 </project>

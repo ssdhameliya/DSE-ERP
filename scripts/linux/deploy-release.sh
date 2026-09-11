@@ -4,6 +4,7 @@ set -euo pipefail
 ENVIRONMENT=${1:?usage: deploy-release.sh <uat|prod> <tested-server.jar> <release-version>}
 JAR=${2:?path to tested dse-erp-server.jar}
 VERSION=${3:?release version}
+EXPECTED_MINIMUM_DESKTOP=${4:-10.0.1}
 case "$ENVIRONMENT" in uat|prod) ;; *) echo 'environment must be uat or prod' >&2; exit 2;; esac
 [[ -s "$JAR" ]] || { echo "Server JAR missing/empty: $JAR" >&2; exit 2; }
 
@@ -62,12 +63,13 @@ HEALTH="http://127.0.0.1:${PORT}/api/runtime/health"
 ready=''
 for _ in $(seq 1 30); do
   if body=$(curl --fail --silent --show-error --max-time 3 "$HEALTH" 2>/dev/null); then
-    if python3 - "$VERSION" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$body" <<'PY'
+    if python3 - "$VERSION" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$EXPECTED_MINIMUM_DESKTOP" "$body" <<'PY'
 import json,sys
-version,environment,database,body=sys.argv[1:]
+version,environment,database,minimum,body=sys.argv[1:]
 r=json.loads(body)
 ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
-    and r.get('environment')==environment and r.get('databaseName')==database)
+    and r.get('environment')==environment and r.get('databaseName')==database
+    and r.get('minimumSupportedDesktopVersion')==minimum)
 raise SystemExit(0 if ok else 1)
 PY
     then ready=1; break; fi
@@ -77,5 +79,5 @@ done
 [[ "$ready" == 1 ]] || { echo "Health verification failed: $HEALTH" >&2; false; }
 
 trap - ERR
-echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE"
+echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE / minimum desktop $EXPECTED_MINIMUM_DESKTOP"
 echo "Pre-upgrade backup: $PRE_BACKUP"

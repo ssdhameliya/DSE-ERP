@@ -54,7 +54,7 @@ Each environment must already have the DSE ERP runtime installed:
 - `/srv/dse-erp/<env>/current`
 - `/srv/dse-erp/<env>/workspace`
 
-The server environment file may optionally set `DSE_MINIMUM_SUPPORTED_DESKTOP_VERSION`. When omitted, the server uses its own application version as the strict minimum. Set it only to the oldest desktop release certified as API-compatible with that environment, then restart the server service so the policy is republished by `/api/runtime/health`.
+The release source owns a long-lived desktop compatibility baseline through `desktop.compatibility.baseline` in the root `pom.xml`. For the 10.x line it starts at `10.0.1`. When `DSE_MINIMUM_SUPPORTED_DESKTOP_VERSION` is omitted, the server publishes that release baseline rather than forcing desktop/server version equality. Keep the environment value equal to the release policy. Raise the baseline only for a reviewed breaking API, security, or business-integrity change. UAT/PROD deployment now fails if `/api/runtime/health` publishes a different minimum. This allows, for example, a 10.0.1 desktop to choose **Not Now** and continue against a compatible 10.0.10 server while clients below the certified floor are still blocked.
 - systemd service `dse-erp-<env>`
 
 The deployment script never sends a database password through GitHub. It reads the environment's existing protected password file on the Oracle host.
@@ -70,7 +70,7 @@ Before switching binaries, `deploy-oracle-release.sh`:
 - installs the release into a versioned release directory;
 - switches the `current` symlink;
 - restarts the systemd service;
-- verifies version, build revision, environment, database name, and `ready=true`.
+- verifies version, build revision, environment, database name, the release-owned minimum supported desktop version, and `ready=true`.
 
 If startup/health fails, it automatically restores the previous binary symlink, restarts the old release, and verifies the rollback health. The pre-upgrade database backup is retained. Database rollback remains a controlled operation if an incompatible schema migration was applied.
 

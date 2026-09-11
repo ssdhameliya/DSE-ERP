@@ -38,6 +38,14 @@ class DeploymentConnectionServiceTest {
         assertEquals("9.0.95", DeploymentConnectionService.effectiveMinimumSupportedDesktopVersion(status));
     }
 
+
+    @Test void tenZeroOneMayRemainCompatibleWithTenZeroTenServer() {
+        RuntimeApiClient.RuntimeStatus status = status("10.0.10", "10.0.10", "10.0.1", RuntimeContract.API_REVISION);
+        assertDoesNotThrow(() -> DeploymentConnectionService.validateCompatibility(status, "10.0.1", "10.0.1"));
+        assertTrue(DeploymentConnectionService.isCompatibleClientUpdateAvailable(status, "10.0.1"));
+        assertEquals("10.0.1", DeploymentConnectionService.effectiveMinimumSupportedDesktopVersion(status));
+    }
+
     @Test void desktopBelowServerMinimumRequiresUpdate() {
         RuntimeApiClient.RuntimeStatus status = status("9.1.2", "build-912", "9.0.95", RuntimeContract.API_REVISION);
         DeploymentConnectionService.ClientUpdateRequiredException failure = assertThrows(

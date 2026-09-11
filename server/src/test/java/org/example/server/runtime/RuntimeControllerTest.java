@@ -51,6 +51,21 @@ class RuntimeControllerTest {
                 .andExpect(jsonPath("$.message").value("Database unavailable"));
     }
 
+
+    @Test
+    void blankEnvironmentOverrideUsesTheReleaseCompatibilityBaseline() throws Exception {
+        RuntimeService service = mock(RuntimeService.class);
+        when(service.databaseReady()).thenReturn(true);
+        when(service.databaseName()).thenReturn("dse_erp");
+        when(service.databaseTimeZone()).thenReturn("UTC");
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "", "PROD")).build();
+
+        mvc.perform(get(RuntimeContract.HEALTH_PATH))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.minimumSupportedDesktopVersion").value(RuntimeContract.desktopCompatibilityBaseline()))
+                .andExpect(jsonPath("$.environment").value("PROD"));
+    }
+
     @Test
     void sourceContainsExactlyOneRuntimeHealthMapping() throws Exception {
         Path runtimeSource = Path.of("src", "main", "java", "org", "example", "server", "runtime");

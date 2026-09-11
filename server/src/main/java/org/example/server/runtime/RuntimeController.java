@@ -25,14 +25,14 @@ public class RuntimeController {
                              @Value("${dse.app.version:DEV}") String version,
                              @Value("${dse.api.revision:" + RuntimeContract.API_REVISION + "}") String apiRevision,
                              @Value("${dse.build.revision:DEV}") String buildRevision,
-                             @Value("${dse.minimum-supported-desktop-version:${dse.app.version:DEV}}") String minimumSupportedDesktopVersion,
+                             @Value("${dse.minimum-supported-desktop-version:}") String minimumSupportedDesktopVersion,
                              @Value("${dse.deployment.environment:LOCAL}") String environment) {
         this.runtimeService = runtimeService;
         this.version = version;
         this.apiRevision = apiRevision;
         this.buildRevision = buildRevision;
         this.minimumSupportedDesktopVersion = minimumSupportedDesktopVersion == null || minimumSupportedDesktopVersion.isBlank()
-                ? version : minimumSupportedDesktopVersion.trim();
+                ? RuntimeContract.desktopCompatibilityBaseline() : minimumSupportedDesktopVersion.trim();
         this.environment = normalizeEnvironment(environment);
     }
 
