@@ -22,7 +22,7 @@ class RuntimeControllerTest {
         when(service.databaseReady()).thenReturn(true);
         when(service.databaseName()).thenReturn("dse_erp_uat");
         when(service.databaseTimeZone()).thenReturn("UTC");
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "UAT")).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "1.2.0", "1.2.3", "1.1.0", "1.2.2", "UAT")).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())
@@ -32,6 +32,11 @@ class RuntimeControllerTest {
                 .andExpect(jsonPath("$.apiRevision").value(RuntimeContract.API_REVISION))
                 .andExpect(jsonPath("$.buildRevision").value(RuntimeContract.buildRevision()))
                 .andExpect(jsonPath("$.minimumSupportedDesktopVersion").value("9.0.95"))
+                .andExpect(jsonPath("$.latestDesktopVersion").value(RuntimeContract.appVersion()))
+                .andExpect(jsonPath("$.minimumSupportedAndroidVersion").value("1.2.0"))
+                .andExpect(jsonPath("$.latestAndroidVersion").value("1.2.3"))
+                .andExpect(jsonPath("$.minimumSupportedIosVersion").value("1.1.0"))
+                .andExpect(jsonPath("$.latestIosVersion").value("1.2.2"))
                 .andExpect(jsonPath("$.environment").value("UAT"))
                 .andExpect(jsonPath("$.database").value("postgresql"))
                 .andExpect(jsonPath("$.databaseName").value("dse_erp_uat"))
@@ -43,7 +48,7 @@ class RuntimeControllerTest {
     void reportsNotReadyWhenTheManagedDatabaseCannotBeReached() throws Exception {
         RuntimeService service = mock(RuntimeService.class);
         when(service.databaseReady()).thenThrow(new IllegalStateException("offline"));
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "UAT")).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "1.2.0", "1.2.3", "1.1.0", "1.2.2", "UAT")).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())
@@ -58,11 +63,15 @@ class RuntimeControllerTest {
         when(service.databaseReady()).thenReturn(true);
         when(service.databaseName()).thenReturn("dse_erp");
         when(service.databaseTimeZone()).thenReturn("UTC");
-        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "", "PROD")).build();
+        MockMvc mvc = standaloneSetup(new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "", "", "", "", "", "PROD")).build();
 
         mvc.perform(get(RuntimeContract.HEALTH_PATH))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.minimumSupportedDesktopVersion").value(RuntimeContract.desktopCompatibilityBaseline()))
+                .andExpect(jsonPath("$.minimumSupportedAndroidVersion").value(RuntimeContract.androidCompatibilityBaseline()))
+                .andExpect(jsonPath("$.latestAndroidVersion").value(RuntimeContract.androidLatestVersion()))
+                .andExpect(jsonPath("$.minimumSupportedIosVersion").value(RuntimeContract.iosCompatibilityBaseline()))
+                .andExpect(jsonPath("$.latestIosVersion").value(RuntimeContract.iosLatestVersion()))
                 .andExpect(jsonPath("$.environment").value("PROD"));
     }
 

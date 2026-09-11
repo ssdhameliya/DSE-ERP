@@ -30,5 +30,9 @@
     <app.identifier>com.dsengineers.dseerp</app.identifier>
     <app.main.class>org.example.app.Launcher</app.main.class>
     <desktop.compatibility.baseline>10.0.1</desktop.compatibility.baseline>
+    <android.compatibility.baseline>1.2.3</android.compatibility.baseline>
+    <android.latest.version>1.2.3</android.latest.version>
+    <ios.compatibility.baseline>1.2.3</ios.compatibility.baseline>
+    <ios.latest.version>1.2.3</ios.latest.version>
   </properties>
 </project>

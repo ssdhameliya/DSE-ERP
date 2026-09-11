@@ -19,6 +19,10 @@ public class RuntimeController {
     private final String apiRevision;
     private final String buildRevision;
     private final String minimumSupportedDesktopVersion;
+    private final String minimumSupportedAndroidVersion;
+    private final String latestAndroidVersion;
+    private final String minimumSupportedIosVersion;
+    private final String latestIosVersion;
     private final String environment;
 
     public RuntimeController(RuntimeService runtimeService,
@@ -26,13 +30,20 @@ public class RuntimeController {
                              @Value("${dse.api.revision:" + RuntimeContract.API_REVISION + "}") String apiRevision,
                              @Value("${dse.build.revision:DEV}") String buildRevision,
                              @Value("${dse.minimum-supported-desktop-version:}") String minimumSupportedDesktopVersion,
+                             @Value("${dse.minimum-supported-android-version:}") String minimumSupportedAndroidVersion,
+                             @Value("${dse.latest-android-version:}") String latestAndroidVersion,
+                             @Value("${dse.minimum-supported-ios-version:}") String minimumSupportedIosVersion,
+                             @Value("${dse.latest-ios-version:}") String latestIosVersion,
                              @Value("${dse.deployment.environment:LOCAL}") String environment) {
         this.runtimeService = runtimeService;
         this.version = version;
         this.apiRevision = apiRevision;
         this.buildRevision = buildRevision;
-        this.minimumSupportedDesktopVersion = minimumSupportedDesktopVersion == null || minimumSupportedDesktopVersion.isBlank()
-                ? RuntimeContract.desktopCompatibilityBaseline() : minimumSupportedDesktopVersion.trim();
+        this.minimumSupportedDesktopVersion = configuredOrDefault(minimumSupportedDesktopVersion, RuntimeContract.desktopCompatibilityBaseline());
+        this.minimumSupportedAndroidVersion = configuredOrDefault(minimumSupportedAndroidVersion, RuntimeContract.androidCompatibilityBaseline());
+        this.latestAndroidVersion = configuredOrDefault(latestAndroidVersion, RuntimeContract.androidLatestVersion());
+        this.minimumSupportedIosVersion = configuredOrDefault(minimumSupportedIosVersion, RuntimeContract.iosCompatibilityBaseline());
+        this.latestIosVersion = configuredOrDefault(latestIosVersion, RuntimeContract.iosLatestVersion());
         this.environment = normalizeEnvironment(environment);
     }
 
@@ -66,7 +77,16 @@ public class RuntimeController {
         result.put("apiRevision", apiRevision);
         result.put("buildRevision", buildRevision);
         result.put("minimumSupportedDesktopVersion", minimumSupportedDesktopVersion);
+        result.put("latestDesktopVersion", version);
+        result.put("minimumSupportedAndroidVersion", minimumSupportedAndroidVersion);
+        result.put("latestAndroidVersion", latestAndroidVersion);
+        result.put("minimumSupportedIosVersion", minimumSupportedIosVersion);
+        result.put("latestIosVersion", latestIosVersion);
         result.put("environment", environment);
+    }
+
+    private static String configuredOrDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private static String normalizeEnvironment(String value) {

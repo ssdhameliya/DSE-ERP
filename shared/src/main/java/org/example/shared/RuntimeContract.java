@@ -19,6 +19,10 @@ public final class RuntimeContract {
     public static String buildRevision() { return resolved("build.revision", BUILD_REVISION); }
     public static String buildTime() { return resolved("build.time", BUILD_TIME); }
     public static String desktopCompatibilityBaseline() { return resolved("desktop.compatibility.baseline", "10.0.1"); }
+    public static String androidCompatibilityBaseline() { return resolved("android.compatibility.baseline", "1.2.3"); }
+    public static String androidLatestVersion() { return resolved("android.latest.version", "1.2.3"); }
+    public static String iosCompatibilityBaseline() { return resolved("ios.compatibility.baseline", "1.2.3"); }
+    public static String iosLatestVersion() { return resolved("ios.latest.version", "1.2.3"); }
     private static String resolved(String key, String fallback) {
         String value = BUILD.getProperty(key, "").trim();
         if (value.isBlank() || value.contains("${") || value.contains("@")) return fallback;

@@ -50,18 +50,31 @@ jobs:
           for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PROD_HEALTH_URL PROD_EXPECTED_DATABASE UAT_HEALTH_URL UAT_EXPECTED_DATABASE; do
             [[ -n "${!name:-}" ]] || { echo "Missing GitHub production environment secret/variable: $name" >&2; exit 1; }
           done
-          COMPATIBILITY_BASELINE="$(python3 - <<'PY'
-          import xml.etree.ElementTree as ET
+          policy() {
+            python3 - "$1" <<'PY'
+          import sys,xml.etree.ElementTree as ET
+          key=sys.argv[1]
           root=ET.parse('pom.xml').getroot()
           ns={'m':'http://maven.apache.org/POM/4.0.0'}
-          node=root.find('m:properties/m:desktop.compatibility.baseline',ns)
+          node=root.find(f'm:properties/m:{key}',ns)
           print('' if node is None or node.text is None else node.text.strip())
           PY
-          )"
-          [[ "$COMPATIBILITY_BASELINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid desktop compatibility baseline: $COMPATIBILITY_BASELINE" >&2; exit 1; }
+          }
+          COMPATIBILITY_BASELINE="$(policy desktop.compatibility.baseline)"
+          ANDROID_MINIMUM="$(policy android.compatibility.baseline)"
+          ANDROID_LATEST="$(policy android.latest.version)"
+          IOS_MINIMUM="$(policy ios.compatibility.baseline)"
+          IOS_LATEST="$(policy ios.latest.version)"
+          for policy_version in "$COMPATIBILITY_BASELINE" "$ANDROID_MINIMUM" "$ANDROID_LATEST" "$IOS_MINIMUM" "$IOS_LATEST"; do
+            [[ "$policy_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid compatibility version: $policy_version" >&2; exit 1; }
+          done
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "TAG=$TAG" >> "$GITHUB_ENV"
           echo "COMPATIBILITY_BASELINE=$COMPATIBILITY_BASELINE" >> "$GITHUB_ENV"
+          echo "ANDROID_MINIMUM=$ANDROID_MINIMUM" >> "$GITHUB_ENV"
+          echo "ANDROID_LATEST=$ANDROID_LATEST" >> "$GITHUB_ENV"
+          echo "IOS_MINIMUM=$IOS_MINIMUM" >> "$GITHUB_ENV"
+          echo "IOS_LATEST=$IOS_LATEST" >> "$GITHUB_ENV"
           echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
 
       - name: Verify the same version is currently healthy in UAT
@@ -69,16 +82,21 @@ jobs:
         run: |
           set -euo pipefail
           BODY="$(curl --fail --silent --show-error --max-time 15 "$UAT_HEALTH_URL")"
-          python3 - "$VERSION" "$UAT_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$BODY" <<'PY'
+          python3 - "$VERSION" "$UAT_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$ANDROID_MINIMUM" "$ANDROID_LATEST" "$IOS_MINIMUM" "$IOS_LATEST" "$BODY" <<'PY'
           import json,sys
-          version,database,minimum,body=sys.argv[1:]
+          version,database,min_desktop,min_android,latest_android,min_ios,latest_ios,body=sys.argv[1:]
           r=json.loads(body)
           ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
               and r.get('environment')=='UAT' and r.get('databaseName')==database
-              and r.get('minimumSupportedDesktopVersion')==minimum)
+              and r.get('minimumSupportedDesktopVersion')==min_desktop
+              and r.get('latestDesktopVersion')==version
+              and r.get('minimumSupportedAndroidVersion')==min_android
+              and r.get('latestAndroidVersion')==latest_android
+              and r.get('minimumSupportedIosVersion')==min_ios
+              and r.get('latestIosVersion')==latest_ios)
           if not ok:
               raise SystemExit(f'UAT is not running the requested approved release: {r}')
-          print(f'UAT_GATE_OK version={version} database={database} minimumDesktop={minimum}')
+          print(f'UAT_GATE_OK version={version} database={database} desktopMin={min_desktop} android={min_android}..{latest_android} ios={min_ios}..{latest_ios}')
           PY
 
       - name: Download exact GitHub release server artifact
@@ -123,7 +141,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
-            "bash /tmp/dse-erp-ci-deploy/deploy-oracle-release.sh prod /tmp/dse-erp-ci-deploy/DSE-ERP-${VERSION}-SERVER.jar '${VERSION}' '${SERVER_SHA}' '${COMPATIBILITY_BASELINE}'" \
+            "bash /tmp/dse-erp-ci-deploy/deploy-oracle-release.sh prod /tmp/dse-erp-ci-deploy/DSE-ERP-${VERSION}-SERVER.jar '${VERSION}' '${SERVER_SHA}' '${COMPATIBILITY_BASELINE}' '${ANDROID_MINIMUM}' '${ANDROID_LATEST}' '${IOS_MINIMUM}' '${IOS_LATEST}'" \
             | tee DSE-ERP-PROD-deploy.log
 
       - name: Verify public PROD HTTPS health
@@ -131,16 +149,21 @@ jobs:
         run: |
           set -euo pipefail
           BODY="$(curl --fail --silent --show-error --max-time 20 "$PROD_HEALTH_URL")"
-          python3 - "$VERSION" "$PROD_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$BODY" <<'PY'
+          python3 - "$VERSION" "$PROD_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$ANDROID_MINIMUM" "$ANDROID_LATEST" "$IOS_MINIMUM" "$IOS_LATEST" "$BODY" <<'PY'
           import json,sys
-          version,database,minimum,body=sys.argv[1:]
+          version,database,min_desktop,min_android,latest_android,min_ios,latest_ios,body=sys.argv[1:]
           r=json.loads(body)
           ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
               and r.get('environment')=='PROD' and r.get('databaseName')==database
-              and r.get('minimumSupportedDesktopVersion')==minimum)
+              and r.get('minimumSupportedDesktopVersion')==min_desktop
+              and r.get('latestDesktopVersion')==version
+              and r.get('minimumSupportedAndroidVersion')==min_android
+              and r.get('latestAndroidVersion')==latest_android
+              and r.get('minimumSupportedIosVersion')==min_ios
+              and r.get('latestIosVersion')==latest_ios)
           if not ok:
               raise SystemExit(f'Public PROD health validation failed: {r}')
-          print(f'PROD_DEPLOYMENT_OK version={version} database={database} minimumDesktop={minimum}')
+          print(f'PROD_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={min_android}..{latest_android} ios={min_ios}..{latest_ios}')
           PY
 
       - name: Promote approved GitHub release to STABLE

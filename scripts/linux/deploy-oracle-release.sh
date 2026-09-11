@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENVIRONMENT=${1:?usage: deploy-oracle-release.sh <uat|prod> <tested-server.jar> <release-version> [expected-sha256] [expected-minimum-desktop]}
+ENVIRONMENT=${1:?usage: deploy-oracle-release.sh <uat|prod> <tested-server.jar> <release-version> [expected-sha256] [expected-minimum-desktop] [expected-minimum-android] [expected-latest-android] [expected-minimum-ios] [expected-latest-ios]}
 JAR=${2:?path to tested DSE ERP server JAR}
 VERSION=${3:?release version}
 EXPECTED_SHA=${4:-}
 EXPECTED_MINIMUM_DESKTOP=${5:-10.0.1}
+EXPECTED_MINIMUM_ANDROID=${6:-1.2.3}
+EXPECTED_LATEST_ANDROID=${7:-1.2.3}
+EXPECTED_MINIMUM_IOS=${8:-1.2.3}
+EXPECTED_LATEST_IOS=${9:-1.2.3}
 
 case "$ENVIRONMENT" in
   uat|prod) ;;
@@ -15,6 +19,9 @@ esac
 [[ -s "$JAR" ]] || { echo "Server JAR missing/empty: $JAR" >&2; exit 2; }
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release version: $VERSION" >&2; exit 2; }
 [[ "$EXPECTED_MINIMUM_DESKTOP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid minimum supported desktop version: $EXPECTED_MINIMUM_DESKTOP" >&2; exit 2; }
+for mobile_version in "$EXPECTED_MINIMUM_ANDROID" "$EXPECTED_LATEST_ANDROID" "$EXPECTED_MINIMUM_IOS" "$EXPECTED_LATEST_IOS"; do
+  [[ "$mobile_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid mobile compatibility version: $mobile_version" >&2; exit 2; }
+done
 
 EXPECTED_ENV=$(printf '%s' "$ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
 ENV_FILE="/etc/dse-erp/${ENVIRONMENT}.env"
@@ -89,9 +96,9 @@ validate_health() {
   local expected_version=$1
   local body=$2
   local enforce_floor=${3:-false}
-  python3 - "$expected_version" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$EXPECTED_MINIMUM_DESKTOP" "$enforce_floor" "$body" <<'PY'
+  python3 - "$expected_version" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$EXPECTED_MINIMUM_DESKTOP" "$EXPECTED_MINIMUM_ANDROID" "$EXPECTED_LATEST_ANDROID" "$EXPECTED_MINIMUM_IOS" "$EXPECTED_LATEST_IOS" "$enforce_floor" "$body" <<'PY'
 import json,sys
-version,environment,database,minimum,enforce_floor,body=sys.argv[1:]
+version,environment,database,min_desktop,min_android,latest_android,min_ios,latest_ios,enforce_floor,body=sys.argv[1:]
 r=json.loads(body)
 ok=(r.get('ready') is True
     and r.get('version')==version
@@ -99,9 +106,18 @@ ok=(r.get('ready') is True
     and r.get('environment')==environment
     and r.get('databaseName')==database)
 if enforce_floor.lower() == 'true':
-    ok = ok and r.get('minimumSupportedDesktopVersion') == minimum
+    ok = (ok
+          and r.get('minimumSupportedDesktopVersion') == min_desktop
+          and r.get('latestDesktopVersion') == version
+          and r.get('minimumSupportedAndroidVersion') == min_android
+          and r.get('latestAndroidVersion') == latest_android
+          and r.get('minimumSupportedIosVersion') == min_ios
+          and r.get('latestIosVersion') == latest_ios)
     try:
-        ok = ok and tuple(map(int, minimum.split('.'))) <= tuple(map(int, version.split('.')))
+        parse=lambda x: tuple(map(int,x.split('.')))
+        ok = ok and parse(min_desktop) <= parse(version)
+        ok = ok and parse(min_android) <= parse(latest_android)
+        ok = ok and parse(min_ios) <= parse(latest_ios)
     except Exception:
         ok = False
 raise SystemExit(0 if ok else 1)
@@ -226,7 +242,7 @@ sudo -n systemctl is-active --quiet "$SERVICE" || {
 }
 
 echo "$NEW_BODY"
-echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE / minimum desktop $EXPECTED_MINIMUM_DESKTOP"
+echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE / desktop >= $EXPECTED_MINIMUM_DESKTOP / Android $EXPECTED_MINIMUM_ANDROID..$EXPECTED_LATEST_ANDROID / iOS $EXPECTED_MINIMUM_IOS..$EXPECTED_LATEST_IOS"
 echo "Current release: $(readlink -f "$BASE/current")"
 echo "Previous release: ${PREVIOUS:-none}"
 echo "Pre-upgrade backup: $PRE_BACKUP"
