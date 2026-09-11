@@ -676,6 +676,9 @@ public class PurchaseController implements ScreenLifecycle {
         // Preserve lifecycle/payment state while editing. Purchase entry owns header, lines, charges and attachments only.
         if(editingPurchase!=null){
             purchase.setId(editingPurchase.getId());
+            // Keep the latest optimistic-lock revision across Edit -> Save. Rebuilding the
+            // Purchase object without this token makes the second edit look stale to the server.
+            purchase.setRowVersion(editingPurchase.getRowVersion());
             purchase.setCreatedAt(editingPurchase.getCreatedAt());
             purchase.setPaidAmount(editingPurchase.getPaidAmount());
             purchase.setPaymentStatus(editingPurchase.getPaymentStatus());

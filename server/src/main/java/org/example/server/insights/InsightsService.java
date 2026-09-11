@@ -84,16 +84,16 @@ public class InsightsService {
 
 
  @Transactional(readOnly=true) public InsightDtos.ShellCounts shellCounts(){
-   // One PostgreSQL round-trip replaces the four independent COUNT queries used
-   // by earlier releases. This endpoint is intentionally cheap because the shell
-   // refreshes it frequently for near-real-time badges.
-   return jdbc.query("""
+   // Notification unread state is user-specific. Communication/reminder counters
+   // retain their existing company scope until those registers gain recipient state.
+   long personalUnread=unreadCount();
+   int[] other=jdbc.query("""
      SELECT
-       (SELECT COUNT(*) FROM notifications WHERE COALESCE(is_read::text,'0') IN ('0','false','f')),
        (SELECT COUNT(*) FROM communication_log WHERE channel='EMAIL' AND COALESCE(is_read::text,'0') IN ('0','false','f')),
        (SELECT COUNT(*) FROM communication_log WHERE channel='WHATSAPP' AND COALESCE(is_read::text,'0') IN ('0','false','f')),
        (SELECT COUNT(*) FROM reminder_register WHERE UPPER(COALESCE(NULLIF(TRIM(status),''),'OPEN')) IN ('OPEN','SNOOZED'))
-     """,(r,i)->new InsightDtos.ShellCounts(r.getInt(1),r.getInt(2),r.getInt(3),r.getInt(4))).getFirst();
+     """,(r,i)->new int[]{r.getInt(1),r.getInt(2),r.getInt(3)}).getFirst();
+   return new InsightDtos.ShellCounts((int)Math.min(Integer.MAX_VALUE,personalUnread),other[0],other[1],other[2]);
  }
  @Transactional public void markCommunicationRead(String channel){
    jdbc.update("UPDATE communication_log SET is_read=1 WHERE channel=?",channel==null?"":channel.trim().toUpperCase(Locale.ROOT));
@@ -269,10 +269,154 @@ public class InsightsService {
 
  private record ReminderInput(String title,String reference,String dueDate,String priority,String notes){}
 
- @Transactional(readOnly=true) public List<InsightDtos.NotificationDto> notifications(int limit){return jdbc.query("SELECT id,title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at FROM notifications ORDER BY created_at DESC LIMIT ?",(r,i)->new InsightDtos.NotificationDto(r.getLong(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),readFlag(r.getObject(6)),r.getString(7),r.getString(8),r.getString(9),r.getObject(10)==null?null:r.getLong(10),r.getString(11),r.getLong(12)),Math.max(1,limit));}
- @Transactional(readOnly=true) public long unreadCount(){return l("SELECT COUNT(*) FROM notifications WHERE COALESCE(is_read::text,'0') IN ('0','false','f')");}
- @Transactional public InsightDtos.NotificationDto createNotification(InsightDtos.NotificationCreate d){long now=System.currentTimeMillis();jdbc.update("INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at) VALUES(?,?,?,?,0,?,?,?,?,?,?)",d.title(),d.message(),d.severity()==null?"INFO":d.severity(),d.category()==null?"GENERAL":d.category(),d.targetFxml(),d.referenceNo(),d.moduleKey(),d.recordId(),d.actionCode(),now);return notifications(1).getFirst();}
- @Transactional public void markRead(long id){jdbc.update("UPDATE notifications SET is_read=1 WHERE id=?",id);}@Transactional public void markUnread(long id){jdbc.update("UPDATE notifications SET is_read=0 WHERE id=?",id);}@Transactional public void markAllRead(){jdbc.update("UPDATE notifications SET is_read=1");}@Transactional public void deleteNotification(long id){jdbc.update("DELETE FROM notifications WHERE id=?",id);}@Transactional public void clearNotifications(){jdbc.update("DELETE FROM notifications");}
+ private static final List<String> NOTIFICATION_CATEGORY_KEYS = List.of(
+   "sales","purchases","quotations","returns","payments","inventory","banking","reports",
+   "reminders","communication","approval","imports","backup","update","security","system"
+ );
+ private static final String NOTIFICATION_CATEGORY_KEY_SQL = """
+   CASE UPPER(COALESCE(NULLIF(TRIM(n.category),''),'SYSTEM'))
+     WHEN 'SALES' THEN 'sales' WHEN 'PURCHASES' THEN 'purchases' WHEN 'QUOTATIONS' THEN 'quotations'
+     WHEN 'RETURNS' THEN 'returns' WHEN 'PAYMENTS' THEN 'payments' WHEN 'INVENTORY' THEN 'inventory'
+     WHEN 'BANKING' THEN 'banking' WHEN 'REPORTS' THEN 'reports' WHEN 'REMINDERS' THEN 'reminders'
+     WHEN 'COMMUNICATION' THEN 'communication' WHEN 'APPROVAL' THEN 'approval' WHEN 'IMPORTS' THEN 'imports'
+     WHEN 'BACKUP' THEN 'backup' WHEN 'UPDATE' THEN 'update' WHEN 'SECURITY' THEN 'security'
+     ELSE 'system'
+   END
+   """;
+ private static final String NOTIFICATION_VISIBLE_PREDICATE = """
+   (n.recipient_user_id IS NULL OR n.recipient_user_id=?)
+   AND COALESCE(s.is_dismissed,0)=0
+   AND (
+     UPPER(COALESCE(n.severity,'INFO')) IN ('ERROR','CRITICAL','FATAL')
+     OR UPPER(COALESCE(n.category,'SYSTEM'))='SECURITY'
+     OR (
+       COALESCE((SELECT p.enabled FROM notification_preference p WHERE p.user_id=? AND p.preference_key='enabled'),1)=1
+       AND COALESCE((SELECT p.enabled FROM notification_preference p WHERE p.user_id=? AND p.preference_key='category.' || (%s)),1)=1
+     )
+   )
+   """.formatted(NOTIFICATION_CATEGORY_KEY_SQL);
+
+
+ @Transactional(readOnly=true)
+ public List<InsightDtos.NotificationDto> notifications(int limit){
+   int userId=CurrentUser.require().id();
+   String sql="SELECT n.id,n.title,n.message,n.severity,n.category,COALESCE(s.is_read,0),n.target_fxml,n.reference_no,n.module_key,n.record_id,n.action_code,n.created_at "
+     +"FROM notifications n LEFT JOIN notification_user_state s ON s.notification_id=n.id AND s.user_id=? WHERE "
+     +NOTIFICATION_VISIBLE_PREDICATE+" ORDER BY n.created_at DESC LIMIT ?";
+   return jdbc.query(sql,this::toNotification,userId,userId,userId,userId,Math.max(1,limit));
+ }
+
+ @Transactional(readOnly=true)
+ public long unreadCount(){
+   int userId=CurrentUser.require().id();
+   String sql="SELECT COUNT(*) FROM notifications n LEFT JOIN notification_user_state s ON s.notification_id=n.id AND s.user_id=? WHERE "
+     +NOTIFICATION_VISIBLE_PREDICATE+" AND COALESCE(s.is_read,0)=0";
+   Long count=jdbc.queryForObject(sql,Long.class,userId,userId,userId,userId);
+   return count==null?0:count;
+ }
+
+ @Transactional
+ public InsightDtos.NotificationDto createNotification(InsightDtos.NotificationCreate d){
+   if(d==null) throw new IllegalArgumentException("Notification details are required");
+   long now=System.currentTimeMillis();
+   String title=Objects.toString(d.title(),"").trim();
+   String message=Objects.toString(d.message(),"").trim();
+   String severity=Objects.toString(d.severity(),"INFO").trim().toUpperCase(Locale.ROOT); if(severity.isBlank())severity="INFO";
+   String category=Objects.toString(d.category(),"SYSTEM").trim().toUpperCase(Locale.ROOT); if(category.isBlank())category="SYSTEM";
+   Integer recipient=d.personal()?CurrentUser.require().id():null;
+   Long id=jdbc.queryForObject("""
+     INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at,recipient_user_id)
+     VALUES(?,?,?,?,0,?,?,?,?,?,?,?) RETURNING id
+     """,Long.class,title,message,severity,category,d.targetFxml(),d.referenceNo(),d.moduleKey(),d.recordId(),d.actionCode(),now,recipient);
+   return new InsightDtos.NotificationDto(id==null?0:id,title,message,severity,category,false,d.targetFxml(),d.referenceNo(),d.moduleKey(),d.recordId(),d.actionCode(),now);
+ }
+
+ @Transactional(readOnly=true)
+ public InsightDtos.NotificationPreferences notificationPreferences(){
+   int userId=CurrentUser.require().id();
+   LinkedHashMap<String,Boolean> categories=new LinkedHashMap<>();
+   for(String key:NOTIFICATION_CATEGORY_KEYS) categories.put(key,true);
+   final boolean[] enabled={true},toasts={true};
+   jdbc.query("SELECT preference_key,enabled FROM notification_preference WHERE user_id=?",row->{
+     String key=Objects.toString(row.getString(1),"").trim().toLowerCase(Locale.ROOT);
+     boolean value=readFlag(row.getObject(2));
+     if("enabled".equals(key)) enabled[0]=value;
+     else if("toasts".equals(key)) toasts[0]=value;
+     else if(key.startsWith("category.")) {
+       String category=key.substring("category.".length());
+       if(categories.containsKey(category)) categories.put(category,value);
+     }
+   },userId);
+   categories.put("security",true); // security/user-access alerts are mandatory
+   return new InsightDtos.NotificationPreferences(enabled[0],toasts[0],Collections.unmodifiableMap(categories));
+ }
+
+ @Transactional
+ public InsightDtos.NotificationPreferences saveNotificationPreferences(InsightDtos.NotificationPreferences input){
+   int userId=CurrentUser.require().id(); long now=System.currentTimeMillis();
+   boolean enabled=input==null||input.enabled(); boolean toasts=input==null||input.toasts();
+   upsertNotificationPreference(userId,"enabled",enabled,now);
+   upsertNotificationPreference(userId,"toasts",toasts,now);
+   Map<String,Boolean> requested=input==null||input.categories()==null?Map.of():input.categories();
+   for(String key:NOTIFICATION_CATEGORY_KEYS){
+     boolean value="security".equals(key)||requested.getOrDefault(key,true);
+     upsertNotificationPreference(userId,"category."+key,value,now);
+   }
+   return notificationPreferences();
+ }
+
+ private void upsertNotificationPreference(int userId,String key,boolean enabled,long now){
+   jdbc.update("""
+     INSERT INTO notification_preference(user_id,preference_key,enabled,updated_at) VALUES(?,?,?,?)
+     ON CONFLICT(user_id,preference_key) DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=EXCLUDED.updated_at
+     """,userId,key,enabled?1:0,now);
+ }
+
+ @Transactional public void markRead(long id){setNotificationRead(id,true);}
+ @Transactional public void markUnread(long id){setNotificationRead(id,false);}
+ private void setNotificationRead(long id,boolean read){
+   int userId=CurrentUser.require().id(); long now=System.currentTimeMillis();
+   jdbc.update("""
+     INSERT INTO notification_user_state(notification_id,user_id,is_read,is_dismissed,updated_at)
+     SELECT id,?, ?,0,? FROM notifications WHERE id=? AND (recipient_user_id IS NULL OR recipient_user_id=?)
+     ON CONFLICT(notification_id,user_id) DO UPDATE SET is_read=EXCLUDED.is_read,updated_at=EXCLUDED.updated_at
+     """,userId,read?1:0,now,id,userId);
+ }
+
+ @Transactional public void markAllRead(){
+   int userId=CurrentUser.require().id(); long now=System.currentTimeMillis();
+   jdbc.update("""
+     INSERT INTO notification_user_state(notification_id,user_id,is_read,is_dismissed,updated_at)
+     SELECT id,?,1,0,? FROM notifications WHERE recipient_user_id IS NULL OR recipient_user_id=?
+     ON CONFLICT(notification_id,user_id) DO UPDATE SET is_read=1,updated_at=EXCLUDED.updated_at
+     """,userId,now,userId);
+ }
+
+ @Transactional public void deleteNotification(long id){
+   int userId=CurrentUser.require().id(); long now=System.currentTimeMillis();
+   jdbc.update("""
+     INSERT INTO notification_user_state(notification_id,user_id,is_read,is_dismissed,updated_at)
+     SELECT id,?,1,1,? FROM notifications WHERE id=? AND (recipient_user_id IS NULL OR recipient_user_id=?)
+     ON CONFLICT(notification_id,user_id) DO UPDATE SET is_read=1,is_dismissed=1,updated_at=EXCLUDED.updated_at
+     """,userId,now,id,userId);
+ }
+
+ @Transactional public void clearNotifications(){
+   int userId=CurrentUser.require().id(); long now=System.currentTimeMillis();
+   jdbc.update("""
+     INSERT INTO notification_user_state(notification_id,user_id,is_read,is_dismissed,updated_at)
+     SELECT id,?,1,1,? FROM notifications WHERE recipient_user_id IS NULL OR recipient_user_id=?
+     ON CONFLICT(notification_id,user_id) DO UPDATE SET is_read=1,is_dismissed=1,updated_at=EXCLUDED.updated_at
+     """,userId,now,userId);
+ }
+
+ @Transactional public void deleteNotificationEvent(long id){
+   jdbc.update("DELETE FROM notifications WHERE id=?",id);
+ }
+
+ private InsightDtos.NotificationDto toNotification(JpaNativeRepository.NativeRow r,int ignored){
+   return new InsightDtos.NotificationDto(r.getLong(1),r.getString(2),r.getString(3),r.getString(4),r.getString(5),readFlag(r.getObject(6)),r.getString(7),r.getString(8),r.getString(9),r.getObject(10)==null?null:r.getLong(10),r.getString(11),r.getLong(12));
+ }
 
  private boolean readFlag(Object v){if(v==null)return false;if(v instanceof Boolean b)return b;String s=String.valueOf(v).trim();return s.equals("1")||s.equalsIgnoreCase("true")||s.equalsIgnoreCase("t");}
  private List<String> strings(String q){return jdbc.query(q,(r,i)->r.getString(1));}

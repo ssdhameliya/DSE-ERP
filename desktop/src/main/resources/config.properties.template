@@ -28,6 +28,7 @@ smtp.appPassword=
 # Payment / Bank details
 payment.bankName=
 payment.accountNumber=
+payment.accountType=
 payment.ifsc=
 payment.upi=
 

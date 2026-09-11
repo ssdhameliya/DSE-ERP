@@ -533,6 +533,11 @@ public final class TemplateDataFactory {
         if (logo != null) images.put("company.logo", logo);
         Path signature = resolveConfiguredAsset("company.signaturePath", null);
         if (signature != null) images.put("company.signature", signature);
+        Path paymentQr = resolveConfiguredAsset("payment.qrImagePath", null);
+        if (paymentQr != null) {
+            images.put("payment.qr", paymentQr);
+            images.put("payment.qrImage", paymentQr); // compatibility with pre-10.0 server/image aliases
+        }
     }
 
     private static void party(Map<String, String> v, Party p, String prefix) {

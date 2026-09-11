@@ -38,6 +38,8 @@ public final class InsightsApiClient {
     public void markAllRead(){postNoBody("/api/insights/notifications/read-all");org.example.util.ShellIndicatorBus.publish();}
     public void deleteNotification(long id){delete("/api/insights/notifications/"+id);org.example.util.ShellIndicatorBus.publish();}
     public void clearNotifications(){delete("/api/insights/notifications");org.example.util.ShellIndicatorBus.publish();}
+    public NotificationPreferences notificationPreferences(){return get("/api/insights/notification-preferences",NotificationPreferences.class);}
+    public NotificationPreferences saveNotificationPreferences(NotificationPreferences preferences){return put("/api/insights/notification-preferences",preferences,NotificationPreferences.class);}
 
     private <T>T get(String p,Class<T> c){return request("GET",p,null,c,null);} private <T>T get(String p,TypeReference<T> t){return request("GET",p,null,null,t);}
     private <T>T post(String p,Object b,Class<T> c){return request("POST",p,b,c,null);} private <T>T put(String p,Object b,Class<T> c){return request("PUT",p,b,c,null);}
@@ -63,8 +65,10 @@ public final class InsightsApiClient {
     public record ReportBundle(double sales,double purchase,double profit,double receivables,double stock,long low,long customers,List<PointDto> customerPoints,List<PointDto> itemPoints,List<ReportRow> salesRows,List<ReportRow> purchaseRows,double salesPaid,double payables,double purchasesPaid,long items,long out,long salesCount,long purchaseCount,double averageSale){}
     public record ReminderDto(Long id,String title,String referenceNo,String dueDate,String priority,String notes,String status,String createdBy,String snoozedUntil){}
     public record NotificationDto(long id,String title,String message,String severity,String category,boolean read,String targetFxml,String referenceNo,String moduleKey,Long recordId,String actionCode,long createdAt){}
-    public record NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo,String moduleKey,Long recordId,String actionCode){
-        public NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo){this(title,message,severity,category,targetFxml,referenceNo,null,null,null);}
+    public record NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo,String moduleKey,Long recordId,String actionCode,boolean personal){
+        public NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo,String moduleKey,Long recordId,String actionCode){this(title,message,severity,category,targetFxml,referenceNo,moduleKey,recordId,actionCode,false);}
+        public NotificationCreate(String title,String message,String severity,String category,String targetFxml,String referenceNo){this(title,message,severity,category,targetFxml,referenceNo,null,null,null,false);}
     }
+    public record NotificationPreferences(boolean enabled,boolean toasts,Map<String,Boolean> categories){}
     public record CountDto(long count){} public record ShellCounts(int notifications,int email,int whatsapp,int reminders){} public record Ok(boolean success,String message){}
 }

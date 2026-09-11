@@ -51,7 +51,11 @@ public class MasterDataService {
         ensureCategory("PAYMENT_MODE","PAYMENT MODE","Payment methods used by Bank, Expense and Invoice Payment",130);
         ensureCategory("EXPENSE_CATEGORY","EXPENSE CATEGORY","Expense classifications used by Expense Entry",140);
         ensureCategory("BANK_ACCOUNT","BANK ACCOUNT","Bank account master: lookup value = account number, description = bank name",150);
+        ensureCategory("ACCOUNT_TYPE","ACCOUNT TYPE","Bank account types used by Settings, Excel Studio and PDF Studio",155);
         ensureCategory("REFERENCE_FORMAT","REFERENCE FORMAT","Auto-generated reference patterns. YYYY / YY represent year; XX... defines minimum zero-padding and expands automatically as the sequence grows.",160);
+        ensureLookupValueByCategoryCode("ACCOUNT_TYPE","ACT001","Savings","Savings bank account",10);
+        ensureLookupValueByCategoryCode("ACCOUNT_TYPE","ACT002","Current","Current bank account",20);
+        ensureLookupValueByCategoryCode("ACCOUNT_TYPE","ACT003","Personal","Personal bank account",30);
         ensureReferenceFormat("REF_SALES","IN/DD-MM-YYYY/XXXX","Sales invoice reference",10);
         ensureReferenceFormat("REF_PURCHASE","PUR/DD-MM-YYYY/XXXX","Purchase invoice reference",20);
         ensureReferenceFormat("REF_QUOTATION","QT-YYYY-XXXX","Quotation reference",30);
@@ -77,6 +81,7 @@ public class MasterDataService {
         ensureReferenceFormat("REF_LOOKUP_PAYMENT_MODE","PMDXXX","Payment Mode Master code reference",320);
         ensureReferenceFormat("REF_LOOKUP_EXPENSE_CATEGORY","EXPXXX","Expense Category Master code reference",330);
         ensureReferenceFormat("REF_LOOKUP_BANK_ACCOUNT","BNKXXX","Bank Account Master code reference",340);
+        ensureReferenceFormat("REF_LOOKUP_ACCOUNT_TYPE","ACTXXX","Account Type Master code reference",345);
         ensureReferenceFormat("REF_LOOKUP_QUOTATION_SOURCE","QTSXXX","Quotation Source Master code reference",350);
         ensureReferenceFormat("REF_LOOKUP_REFERENCE_FORMAT","RFMXXX","Reference Format Master code reference",360);
     }
@@ -95,6 +100,18 @@ public class MasterDataService {
             .anyMatch(row->row.getLookupCode()!=null&&row.getLookupCode().equalsIgnoreCase(lookupCode));
         if(exists) return;
         LookupEntity row=new LookupEntity();row.setLookupType(category.getCategoryName());row.setLookupCode(lookupCode);row.setLookupValue(value);
+        row.setDescription(description);row.setDisplayOrder(order);row.setActive(1);lookups.save(row);
+    }
+
+    private void ensureLookupValueByCategoryCode(String categoryCode,String lookupCode,String lookupValue,String description,int order){
+        MasterCategoryEntity category=resolveCanonicalCategoryByCode(categoryCode);
+        if(category==null||category.getCategoryName()==null||category.getCategoryName().isBlank()) return;
+        String lookupType=category.getCategoryName();
+        boolean exists=lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(lookupType).stream()
+            .anyMatch(row->(row.getLookupCode()!=null&&row.getLookupCode().equalsIgnoreCase(lookupCode))
+                ||(row.getLookupValue()!=null&&row.getLookupValue().equalsIgnoreCase(lookupValue)));
+        if(exists) return;
+        LookupEntity row=new LookupEntity();row.setLookupType(lookupType);row.setLookupCode(lookupCode);row.setLookupValue(lookupValue);
         row.setDescription(description);row.setDisplayOrder(order);row.setActive(1);lookups.save(row);
     }
     @Transactional(readOnly = true)
@@ -541,6 +558,7 @@ public class MasterDataService {
             case "PAYMENT_MODE" -> "PMD";
             case "EXPENSE_CATEGORY" -> "EXP";
             case "BANK_ACCOUNT" -> "BNK";
+            case "ACCOUNT_TYPE" -> "ACT";
             case "QUOTATION_SOURCE" -> "QTS";
             case "REFERENCE_FORMAT" -> "RFM";
             default -> derivedMasterPrefix(categoryCode);

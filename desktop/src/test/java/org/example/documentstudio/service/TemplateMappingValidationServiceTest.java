@@ -75,6 +75,42 @@ class TemplateMappingValidationServiceTest {
     }
 
     @Test
+    void typedFieldSearchStrictlyFiltersBeforeContextRanking() {
+        var documentNumber = TemplateRequirementCatalog.requirementsFor(DocumentType.SALES_INVOICE).stream()
+                .filter(r -> "DOCUMENT_NUMBER".equals(r.id())).findFirst().orElseThrow();
+
+        var signature = TemplateFieldSearchService.search(DocumentType.SALES_INVOICE, "signature", documentNumber, Set.of());
+        assertFalse(signature.isEmpty());
+        assertTrue(signature.stream().allMatch(f -> f.key().contains("signature")),
+                "A selected Document Number requirement must not keep unrelated fields in a typed signature search");
+        assertEquals("company.signature", signature.getFirst().key());
+
+        var qr = TemplateFieldSearchService.search(DocumentType.SALES_INVOICE, "barcode", documentNumber, Set.of());
+        assertFalse(qr.isEmpty());
+        assertEquals("payment.qr", qr.getFirst().key());
+
+        var invoice = TemplateFieldSearchService.search(DocumentType.SALES_INVOICE, "invoice no", null, Set.of());
+        assertTrue(invoice.stream().anyMatch(f -> "sales.number".equals(f.key()) || "document.number".equals(f.key())));
+        assertFalse(invoice.stream().anyMatch(f -> "company.signature".equals(f.key())));
+    }
+
+    @Test
+    void salesAssetCatalogueExposesConfiguredSignatureAndPaymentQrAsImages() {
+        var signature = TemplateFieldCatalog.findPdf(DocumentType.SALES_INVOICE, "company.signature");
+        var paymentQr = TemplateFieldCatalog.findPdf(DocumentType.SALES_INVOICE, "payment.qr");
+        assertNotNull(signature);
+        assertNotNull(paymentQr);
+        assertTrue(signature.image());
+        assertTrue(paymentQr.image());
+
+        var requirements = TemplateRequirementCatalog.requirementsFor(DocumentType.SALES_INVOICE);
+        assertTrue(requirements.stream().anyMatch(r -> "AUTHORIZED_SIGNATURE".equals(r.id())
+                && r.level() == TemplateMappingRequirement.Level.RECOMMENDED));
+        assertTrue(requirements.stream().anyMatch(r -> "PAYMENT_QR".equals(r.id())
+                && r.level() == TemplateMappingRequirement.Level.RECOMMENDED));
+    }
+
+    @Test
     void currentCompatibilityRequirementMethodsDelegateToCentralCatalogue() {
         assertTrue(TemplateFieldCatalog.requiredPdfFieldsFor(DocumentType.SALES_INVOICE).contains("document.number"));
         assertTrue(TemplateFieldCatalog.isPdfRequirementMapped(DocumentType.SALES_INVOICE,

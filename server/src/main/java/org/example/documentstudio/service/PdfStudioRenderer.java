@@ -68,7 +68,9 @@ public final class PdfStudioRenderer {
             if (sourceDoc.getNumberOfPages() == 0) throw new IOException("Template PDF has no pages.");
 
             TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout = null;
-            if (template.getDocumentType() == DocumentType.SALES_INVOICE && !"MAPPED_FIXED".equals(template.getLayoutMode())) {
+            if (template.getDocumentType() == DocumentType.SALES_INVOICE
+                    && !template.isFlowFixedLayout()
+                    && !"MAPPED_FIXED".equals(template.getLayoutMode())) {
                 try {
                     salesLayout = TaxInvoicePdfGenerator.layoutPlan(toSalesLayoutDocument(data));
                 } catch (Exception ex) {

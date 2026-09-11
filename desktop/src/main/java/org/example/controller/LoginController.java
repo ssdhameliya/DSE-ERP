@@ -9,6 +9,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyEvent;
 import org.example.model.AppUser;
 import org.example.service.NotificationService;
+import org.example.service.NotificationPreferenceService;
 import org.example.service.SessionService;
 import org.example.service.UserService;
 import org.example.service.BrandingService;
@@ -401,14 +402,12 @@ public class LoginController {
 
     private void completeLogin(AppUser user) {
         setLoginBusy(true, "OPENING ERP...");
-        UiTaskExecutor.submitAction("login-complete", () -> {
-            NotificationService.add("Signed in successfully.");
-            return user;
-        }, authenticated -> {
+        UiTaskExecutor.submitAction("login-complete", () -> user, authenticated -> {
             saveRememberedLogin();
             SessionService.signIn(authenticated);
             try {
                 PermissionService.refreshStrict();
+                NotificationPreferenceService.refreshStrict();
             } catch (org.example.api.ApiSession.AuthenticationRequiredException authenticationFailure) {
                 SessionService.clear();
                 setLoginBusy(false, null);

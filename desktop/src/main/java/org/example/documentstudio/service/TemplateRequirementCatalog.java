@@ -56,6 +56,7 @@ public final class TemplateRequirementCatalog {
                 List.of("party.deliveryAddress", "sales.deliveryAddress", "sales.shippingAddress", "customer.address"),
                 aliases("ship to", "shipping", "delivery address"), "Shows the delivery destination when it differs from billing.",
                 "Map Party → Delivery Address or Shipping Address."));
+        documentAssets(out, true);
     }
 
     private static void purchase(List<TemplateMappingRequirement> out) {
@@ -76,6 +77,7 @@ public final class TemplateRequirementCatalog {
                 List.of("document.referenceNumber", "document.orderNumber", "purchase.orderNo", "purchase.referenceNo"),
                 aliases("supplier invoice", "supplier reference", "vendor invoice", "reference"),
                 "Shows the supplier's own invoice or reference number.", "Map Document → Reference Number or Purchase → Supplier Reference."));
+        documentAssets(out, false);
     }
 
     private static void quotation(List<TemplateMappingRequirement> out) {
@@ -94,6 +96,7 @@ public final class TemplateRequirementCatalog {
                 List.of("totals.breakdownAmounts", "totals.gstAmount", "totals.cgstAmount", "totals.sgstAmount", "totals.igstAmount", "tax.primaryAmount"),
                 aliases("gst", "igst", "tax"), "Required when quotation prices include GST/IGST.",
                 "Map Tax Summary fields when this quotation format displays tax."));
+        documentAssets(out, true);
     }
 
     private static void salesReturn(List<TemplateMappingRequirement> out) {
@@ -124,6 +127,7 @@ public final class TemplateRequirementCatalog {
                 aliases("gst reversal", "igst reversal", "tax refund", "tax"),
                 "Return documents must show the GST/IGST value being reversed.",
                 "Map the GST/IGST tax summary fields."));
+        documentAssets(out, true);
     }
 
     private static void delivery(List<TemplateMappingRequirement> out) {
@@ -141,6 +145,21 @@ public final class TemplateRequirementCatalog {
         out.add(field("GRAND_TOTAL", "Receipt Amount", "Totals", Level.REQUIRED,
                 List.of("totals.grandTotal", "receipt.amount"), aliases("amount", "receipt total"),
                 "Shows the payment amount.", "Map Receipt → Amount."));
+        documentAssets(out, true);
+    }
+
+
+    private static void documentAssets(List<TemplateMappingRequirement> out, boolean includePaymentQr) {
+        out.add(field("AUTHORIZED_SIGNATURE", "Authorized Signature", "Company", Level.RECOMMENDED,
+                List.of("company.signature"), aliases("signature", "signatory", "authorized sign"),
+                "Uses the authorized-signature image configured in Settings → Invoice.",
+                "Select the signature image in the PDF and map Company → Authorized Signature."));
+        if (includePaymentQr) {
+            out.add(field("PAYMENT_QR", "UPI Payment QR / Barcode", "Payment", Level.RECOMMENDED,
+                    List.of("payment.qr"), aliases("qr", "barcode", "upi", "payment code"),
+                    "Uses the payment QR image configured in Settings → Payment & Bank Details.",
+                    "Select the QR / barcode image in the PDF and map Payment → UPI Payment QR / Barcode."));
+        }
     }
 
     private static void document(List<TemplateMappingRequirement> out, String documentLabel,

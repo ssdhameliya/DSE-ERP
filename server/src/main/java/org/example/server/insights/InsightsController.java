@@ -97,6 +97,18 @@ public class InsightsController {
         return s.createNotification(d);
     }
 
+    @GetMapping("/notification-preferences")
+    public InsightDtos.NotificationPreferences notificationPreferences() {
+        CurrentUser.require();
+        return s.notificationPreferences();
+    }
+
+    @PutMapping("/notification-preferences")
+    public InsightDtos.NotificationPreferences saveNotificationPreferences(@RequestBody InsightDtos.NotificationPreferences preferences) {
+        CurrentUser.require();
+        return s.saveNotificationPreferences(preferences);
+    }
+
     @PostMapping("/notifications/{id}/read")
     public InsightDtos.Ok read(@PathVariable long id) {
         CurrentUser.requirePermission("COMMUNICATION.EDIT", "Update notification");
@@ -120,14 +132,21 @@ public class InsightsController {
 
     @DeleteMapping("/notifications/{id}")
     public InsightDtos.Ok deleteNotification(@PathVariable long id) {
-        CurrentUser.requirePermission("COMMUNICATION.DELETE", "Delete notification");
+        CurrentUser.requirePermission("COMMUNICATION.EDIT", "Dismiss notification");
         s.deleteNotification(id);
+        return ok("Deleted");
+    }
+
+    @DeleteMapping("/notifications/{id}/event")
+    public InsightDtos.Ok deleteNotificationEvent(@PathVariable long id) {
+        CurrentUser.requirePermission("COMMUNICATION.DELETE", "Permanently delete notification event");
+        s.deleteNotificationEvent(id);
         return ok("Deleted");
     }
 
     @DeleteMapping("/notifications")
     public InsightDtos.Ok clear() {
-        CurrentUser.requirePermission("COMMUNICATION.DELETE", "Clear notifications");
+        CurrentUser.requirePermission("COMMUNICATION.EDIT", "Clear personal notification history");
         s.clearNotifications();
         return ok("Cleared");
     }

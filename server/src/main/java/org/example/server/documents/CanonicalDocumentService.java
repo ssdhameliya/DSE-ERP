@@ -173,7 +173,7 @@ public class CanonicalDocumentService {
     private static final class Assets implements AutoCloseable{
         final Path work,logo,signature,qr; Assets(Path w,Path l,Path s,Path q){work=w;logo=l;signature=s;qr=q;}
         void applyTo(Map<String,String> c){if(logo!=null)c.put("company.logoPath",logo.toString());if(signature!=null)c.put("company.signaturePath",signature.toString());if(qr!=null)c.put("payment.qrImagePath",qr.toString());}
-        Map<String,Path> templateImages(){Map<String,Path> m=new HashMap<>();if(logo!=null)m.put("company.logo",logo);if(signature!=null)m.put("company.signature",signature);if(qr!=null)m.put("payment.qrImage",qr);return m;}
+        Map<String,Path> templateImages(){Map<String,Path> m=new HashMap<>();if(logo!=null)m.put("company.logo",logo);if(signature!=null)m.put("company.signature",signature);if(qr!=null){m.put("payment.qr",qr);m.put("payment.qrImage",qr);}return m;}
         public void close(){}
     }
 }

@@ -28,6 +28,7 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Central scalable icon provider for the complete ERP application.
@@ -39,6 +40,9 @@ import java.util.Locale;
  * does not change navigation or action handlers.</p>
  */
 public final class IconFactory {
+    private static final String PAGER_SEMANTIC_PROPERTY = "erp.pager.semantic";
+    private static final Set<String> PAGER_SEMANTICS = Set.of("first", "previous", "next", "last");
+
     /** Explicit identity for shell/sidebar navigation controls. */
     public static final String NAVIGATION_CONTROL_PROPERTY = "erp.navigation.control";
     private static final String[] BUTTON_VARIANTS = {
@@ -131,6 +135,7 @@ public final class IconFactory {
 
         if (node instanceof ButtonBase button) {
             installButtonSemanticGuard(button);
+            capturePagerSemantic(button);
             // Explicit controller-owned graphics (password reveal, resend, etc.)
             // must never be replaced by semantic inference from CSS/text.
             if (Boolean.TRUE.equals(button.getProperties().get("erp.icon.skip"))) {
@@ -162,7 +167,8 @@ public final class IconFactory {
                 boolean decoratorOwnsGraphic = button.getProperties().containsKey("erp.icon.key");
                 boolean factoryOwnsGraphic = button.getGraphic() != null
                     && Boolean.TRUE.equals(button.getGraphic().getProperties().get("erp.icon.factory"));
-                if (button.getGraphic() == null || decoratorOwnsGraphic || factoryOwnsGraphic) {
+                boolean pinnedPager = PAGER_SEMANTICS.contains(String.valueOf(button.getProperties().get(PAGER_SEMANTIC_PROPERTY)));
+                if (pinnedPager || button.getGraphic() == null || decoratorOwnsGraphic || factoryOwnsGraphic) {
                     if (!iconKey.equals(button.getProperties().get("erp.icon.key"))) {
                         button.setGraphic(sidebar ? icon(resolvedSemantic, size) : actionIcon(resolvedSemantic, size));
                         button.getProperties().put("erp.icon.key", iconKey);
@@ -912,8 +918,16 @@ public final class IconFactory {
         });
     }
 
+    private static void capturePagerSemantic(ButtonBase button) {
+        if (button == null || button.getProperties().containsKey(PAGER_SEMANTIC_PROPERTY)) return;
+        String byText = semantic(button.getText());
+        if (byText != null && PAGER_SEMANTICS.contains(byText)) button.getProperties().put(PAGER_SEMANTIC_PROPERTY, byText);
+    }
+
     /** Resolves action semantics from label, fx:id and style classes. */
     private static String semantic(ButtonBase button) {
+        Object pinned = button.getProperties().get(PAGER_SEMANTIC_PROPERTY);
+        if (pinned instanceof String value && PAGER_SEMANTICS.contains(value)) return value;
         String byText = semantic(button.getText());
         if (byText != null) return byText;
         String id = button.getId() == null ? "" : button.getId();

@@ -256,9 +256,9 @@ public class ReportScheduleService {
             }
 
             String artifacts = String.join("; ", files.stream().map(Path::toString).toList());
-            finishRun(schedule.id(), runId, true, result.title(), result.totalRows(), artifacts, "");
+            finishRun(schedule, runId, true, result.title(), result.totalRows(), artifacts, "");
         } catch (Exception failure) {
-            finishRun(schedule.id(), runId, false, "", 0, "", root(failure));
+            finishRun(schedule, runId, false, "", 0, "", root(failure));
             throw failure instanceof RuntimeException r ? r : new IllegalStateException(failure);
         } finally {
             if (deleteAfter && outputRoot != null) deleteTreeQuietly(outputRoot);
@@ -285,15 +285,25 @@ public class ReportScheduleService {
                 """, Long.class, scheduleId, BusinessClock.nowUtcText(), triggeredBy));
     }
 
-    private void finishRun(long scheduleId, long runId, boolean success, String reportTitle, long rows, String artifacts, String error) {
+    private void finishRun(ScheduleDefinition schedule, long runId, boolean success, String reportTitle, long rows, String artifacts, String error) {
         tx.executeWithoutResult(status -> {
             String now = BusinessClock.nowUtcText(); String state = success ? "SUCCESS" : "FAILED";
             db.update("""
                     UPDATE report_schedule_run SET finished_at=?,status=?,report_title=?,output_format=(SELECT output_format FROM report_schedule WHERE id=?),
                         delivery_mode=(SELECT delivery_mode FROM report_schedule WHERE id=?),row_count=?,artifacts=?,error_message=? WHERE id=?
-                    """, now, state, reportTitle, scheduleId, scheduleId, rows, artifacts, trim(error, 2000), runId);
+                    """, now, state, reportTitle, schedule.id(), schedule.id(), rows, artifacts, trim(error, 2000), runId);
             db.update("UPDATE report_schedule SET last_run_at=?,last_status=?,last_error=?,updated_at=? WHERE id=?",
-                    now, state, trim(error, 2000), now, scheduleId);
+                    now, state, trim(error, 2000), now, schedule.id());
+
+            String title = success ? "Scheduled Report completed" : "Scheduled Report failed";
+            String message = success
+                    ? schedule.name() + " completed" + (reportTitle == null || reportTitle.isBlank() ? "" : " - " + reportTitle) + " (" + rows + " rows)."
+                    : schedule.name() + " failed: " + trim(error, 500);
+            db.update("""
+                    INSERT INTO notifications(title,message,severity,category,is_read,target_fxml,reference_no,module_key,record_id,action_code,created_at,recipient_user_id)
+                    VALUES(?,?,?,?,0,?,?,?,?,?,?,?)
+                    """, title, message, success ? "INFO" : "ERROR", "REPORTS", "/fxml/pages/Reports.fxml",
+                    schedule.name(), "REPORT_SCHEDULE", schedule.id(), "VIEW", System.currentTimeMillis(), schedule.userId());
         });
     }
 

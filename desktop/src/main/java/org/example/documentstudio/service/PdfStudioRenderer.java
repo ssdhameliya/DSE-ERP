@@ -76,7 +76,13 @@ public final class PdfStudioRenderer {
             if (sourceDoc.getNumberOfPages() == 0) throw new IOException("Template PDF has no pages.");
 
             TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout = null;
-            if (template.getDocumentType() == DocumentType.SALES_INVOICE && !"MAPPED_FIXED".equals(template.getLayoutMode())) {
+            // Imported ERP PDFs use FLOW_FIXED and must keep their own geometry on every page.
+            // The shared Standard Sales closing stack is only appropriate for the built-in/strict
+            // renderer. Applying it to FLOW_FIXED caused Template B to inherit Template A's bank,
+            // totals, terms and signature layout on continuation/final pages.
+            if (template.getDocumentType() == DocumentType.SALES_INVOICE
+                    && !template.isFlowFixedLayout()
+                    && !"MAPPED_FIXED".equals(template.getLayoutMode())) {
                 try {
                     salesLayout = TaxInvoicePdfGenerator.layoutPlan(toSalesLayoutDocument(data));
                 } catch (Exception ex) {

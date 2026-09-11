@@ -94,6 +94,7 @@ public final class PdfAutoMappingService {
             Map.entry("payment.bankName", List.of("bank name")),
             Map.entry("payment.branch", List.of("branch")),
             Map.entry("payment.accountNumber", List.of("a/c no", "account no", "account number")),
+            Map.entry("payment.accountType", List.of("account type", "a/c type", "account category")),
             Map.entry("payment.ifsc", List.of("ifsc", "ifsc code")),
             Map.entry("company.gstin", List.of("supplier gst", "company gst", "our gstin")),
             Map.entry("company.name", List.of("for,"))

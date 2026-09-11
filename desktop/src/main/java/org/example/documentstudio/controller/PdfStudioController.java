@@ -309,13 +309,16 @@ public class PdfStudioController implements ScreenLifecycle {
     private void updateManualMappingState() {
         if (btnMapSelectedField == null) return;
         TemplateFieldDefinition field = lstInspectorFieldSuggestions == null ? null : lstInspectorFieldSuggestions.getSelectionModel().getSelectedItem();
-        boolean textTarget = selectedSourceText != null || (selectedElement() != null && isTextLike(selectedElement()));
-        boolean enabled = !previewMode && field != null && textTarget;
+        TemplateElement selected = selectedElement();
+        boolean textTarget = selectedSourceText != null || (selected != null && isTextLike(selected));
+        boolean imageTarget = selectedSourceImage != null || (selected != null && isImageLike(selected));
+        boolean compatibleTarget = field != null && (field.image() ? imageTarget : textTarget);
+        boolean enabled = !previewMode && compatibleTarget;
         btnMapSelectedField.setDisable(!enabled);
         if (field == null) {
             btnMapSelectedField.setText("Select ERP Field to Map");
-        } else if (!textTarget) {
-            btnMapSelectedField.setText("Select PDF Text to Map");
+        } else if (!compatibleTarget) {
+            btnMapSelectedField.setText(field.image() ? "Select PDF Image to Map" : "Select PDF Text to Map");
         } else {
             btnMapSelectedField.setText("Map " + field.label());
         }
@@ -434,15 +437,27 @@ public class PdfStudioController implements ScreenLifecycle {
         selectedBindingKey = field.key();
         TemplateMappingValidationService.Result before = TemplateMappingValidationService.evaluate(template);
         TemplateElement e = editableSelectionFromSource();
-        if (e == null || !isTextLike(e)) {
-            if (lblInspectorHint != null) lblInspectorHint.setText("Click the PDF text you want to replace, then choose an ERP field. The Map button will enable when both are selected.");
+        boolean compatible = e != null && (field.image() ? isImageLike(e) : isTextLike(e));
+        if (!compatible) {
+            if (lblInspectorHint != null) {
+                lblInspectorHint.setText(field.image()
+                        ? "Click the PDF image you want to replace, then choose an ERP image field such as Authorized Signature or UPI Payment QR."
+                        : "Click the PDF text you want to replace, then choose an ERP field. The Map button will enable when both are selected.");
+            }
             updateManualMappingState();
             return;
         }
         checkpoint();
         e.setFieldKey(selectedBindingKey);
-        if (e.getType() == ElementType.TEXT) e.setType(ElementType.FIELD);
-        e.setText("{{" + selectedBindingKey + "}}");
+        if (field.image()) {
+            e.setType(ElementType.IMAGE_FIELD);
+            e.setText(field.label());
+            e.setFillEnabled(false);
+            e.setStrokeEnabled(false);
+        } else {
+            if (e.getType() == ElementType.TEXT) e.setType(ElementType.FIELD);
+            e.setText("{{" + selectedBindingKey + "}}");
+        }
         autosave();
         TemplateMappingValidationService.Result after = TemplateMappingValidationService.evaluate(template);
         populateInspector(e);
@@ -1455,8 +1470,27 @@ public class PdfStudioController implements ScreenLifecycle {
         if (repeater == null && selectedIds.size() == 1 && isRepeater(selectedElement())) repeater = selectedElement();
         if (repeater != null && addFieldToRepeater(repeater, field)) return;
 
+        if (field.image()) {
+            PdfImageRegion sourceImage = findSourceImageAt(x, y);
+            if (sourceImage != null) {
+                TemplateElement e = materializeSourceImage(sourceImage);
+                if (e != null) {
+                    checkpoint();
+                    e.setType(ElementType.IMAGE_FIELD);
+                    e.setFieldKey(field.key());
+                    e.setText(field.label());
+                    e.setFillEnabled(false);
+                    e.setStrokeEnabled(false);
+                    autosave();
+                    selectOnlyWithoutRender(e);
+                    populateInspector(e);
+                    renderCanvas();
+                    return;
+                }
+            }
+        }
         PdfTextRegion source=findSourceTextAt(x,y);
-        if(source!=null){checkpoint();List<TemplateElement> list=new ArrayList<>(template.getElements());String expr=source.text();if(!expr.contains("{{"))expr=expr+" {{"+field.key()+"}}";TemplateElement e=addSourceTextReplacement(list,source,expr,field.key());template.setElements(list);autosave();selectOnlyWithoutRender(e);populateInspector(e);renderCanvas();return;}
+        if(source!=null && !field.image()){checkpoint();List<TemplateElement> list=new ArrayList<>(template.getElements());String expr=source.text();if(!expr.contains("{{"))expr=expr+" {{"+field.key()+"}}";TemplateElement e=addSourceTextReplacement(list,source,expr,field.key());template.setElements(list);autosave();selectOnlyWithoutRender(e);populateInspector(e);renderCanvas();return;}
         TemplateElement e=elementAt(field.image()?ElementType.IMAGE_FIELD:ElementType.TEXT,x-60,y-12,field.image()?150:140,field.image()?80:28);e.setFieldKey(field.key());e.setText(field.image()?field.label():"{{"+field.key()+"}}");e.setFillEnabled(false);e.setStrokeEnabled(false);addElement(e,null);
     }
 
@@ -1484,6 +1518,7 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void addSelectedField(){TemplateFieldDefinition f=lstFields.getSelectionModel().getSelectedItem();if(f!=null)dropField(f,pageWidth/2,pageHeight/2);}
 
     private PdfTextRegion findSourceTextAt(double x,double y){return textCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
+    private PdfImageRegion findSourceImageAt(double x,double y){return imageCache.getOrDefault(pageIndex,List.of()).stream().filter(r->x>=r.x()&&x<=r.x()+r.width()&&y>=r.y()&&y<=r.y()+r.height()).findFirst().orElse(null);}
 
     private void chooseImageForNewObject(){
         FileChooser chooser=imageChooser("Add Image");var file=chooser.showOpenDialog(root.getScene().getWindow());if(file==null)return;
