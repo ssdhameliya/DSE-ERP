@@ -40,7 +40,7 @@ require('APP_VERSION = "DEV"' in runtime_contract and 'BUILD_REVISION = "DEV"' i
         and 'version=@project.version@' in desktop_version and 'buildRevision=@project.version@' in desktop_version,
         'Current release must publish one filtered desktop/server version/build contract so stale backends are rejected')
 require('buildRevision' in runtime_controller, 'Runtime health must expose the backend build revision')
-require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "UAT")') == 2, 'RuntimeController tests must instantiate the runtime/environment/desktop-compatibility contract constructor')
+require(runtime_controller_test.count('new RuntimeController(service, RuntimeContract.appVersion(), RuntimeContract.API_REVISION, RuntimeContract.buildRevision(), "9.0.95", "1.2.0", "1.2.3", "1.1.0", "1.2.2", "UAT")') == 2, 'RuntimeController tests must instantiate the runtime/environment/desktop/mobile-compatibility contract constructor')
 require('jsonPath("$.minimumSupportedDesktopVersion").value("9.0.95")' in runtime_controller_test, 'RuntimeController tests must assert the server-owned minimum supported desktop version')
 require('RuntimeContract.desktopCompatibilityBaseline()' in runtime_controller_test, 'RuntimeController tests must assert blank environment configuration falls back to the release compatibility baseline')
 require('jsonPath("$.buildRevision").value(RuntimeContract.buildRevision())' in runtime_controller_test, 'RuntimeController tests must assert the current build revision exposed by health')
