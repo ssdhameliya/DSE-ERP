@@ -62,6 +62,7 @@ public final class ToastManager {
     }
 
     private static void showForWindow(Window window, Type type, String title, String message) {
+        if (type != Type.ERROR && !org.example.service.NotificationPreferenceService.toastsEnabled()) return;
         Scene sourceScene = window.getScene();
         if (sourceScene == null) return;
         Host host = HOSTS.computeIfAbsent(window, ignored -> new Host(window, sourceScene));

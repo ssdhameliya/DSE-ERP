@@ -33,7 +33,8 @@ public final class TemplateFieldCatalog {
             text("payment.accountNumber", "Account Number", "Payment"),
             text("payment.ifsc", "IFSC", "Payment"),
             text("payment.accountType", "Account Type", "Payment"),
-            text("payment.mode", "Payment Mode", "Payment")
+            text("payment.mode", "Payment Mode", "Payment"),
+            image("payment.qr", "UPI Payment QR / Barcode", "Payment")
     );
 
     private static final List<TemplateFieldDefinition> TOTALS = List.of(

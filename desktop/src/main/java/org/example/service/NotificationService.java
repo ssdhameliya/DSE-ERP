@@ -1,7 +1,6 @@
 package org.example.service;
 
 import org.example.api.insights.InsightsApiClient;
-import org.example.config.ConfigManager;
 import org.example.api.support.SupportApiClient;
 
 import java.util.ArrayList;
@@ -15,8 +14,8 @@ import java.util.regex.Pattern;
 /** Notification helper backed exclusively by the typed Spring insights API. */
 public final class NotificationService {
     public enum Category {
-        SALES, PURCHASES, QUOTATIONS, RETURNS, PAYMENTS, INVENTORY,
-        REMINDERS, COMMUNICATION, APPROVAL, BACKUP, UPDATE, SECURITY, SYSTEM
+        SALES, PURCHASES, QUOTATIONS, RETURNS, PAYMENTS, INVENTORY, BANKING, REPORTS,
+        REMINDERS, COMMUNICATION, APPROVAL, IMPORTS, BACKUP, UPDATE, SECURITY, SYSTEM
     }
 
     public record NotificationItem(long id, String title, String message, String severity, String category,
@@ -41,28 +40,22 @@ public final class NotificationService {
     }
     public static void createNotification(Category category, String title, String message, String severity,
                                           String targetFxml, String referenceNo) {
+        createNotificationInternal(category, title, message, severity, targetFxml, referenceNo, false);
+    }
+    public static void createPersonalNotification(Category category, String title, String message, String severity,
+                                                  String targetFxml, String referenceNo) {
+        createNotificationInternal(category, title, message, severity, targetFxml, referenceNo, true);
+    }
+    private static void createNotificationInternal(Category category, String title, String message, String severity,
+                                                   String targetFxml, String referenceNo, boolean personal) {
         Category resolvedCategory = category == null ? Category.SYSTEM : category;
-        if (!isAllowed(resolvedCategory, severity)) return;
         Link link = resolveLink(resolvedCategory, message, targetFxml, referenceNo);
         try {
             API.createNotification(new InsightsApiClient.NotificationCreate(
                     title, message, severity == null ? "INFO" : severity,
                     resolvedCategory.name(), link.targetFxml(), link.referenceNo(),
-                    moduleKey(resolvedCategory, link.targetFxml()), null, "VIEW"));
+                    moduleKey(resolvedCategory, link.targetFxml()), null, "VIEW", personal));
         } catch (Exception ex) { ex.printStackTrace(); }
-    }
-
-    private static boolean isAllowed(Category category, String severity) {
-        String normalizedSeverity = severity == null ? "INFO" : severity.trim().toUpperCase();
-        if (normalizedSeverity.equals("ERROR") || normalizedSeverity.equals("CRITICAL") || normalizedSeverity.equals("FATAL")) return true;
-        if (!Boolean.parseBoolean(ConfigManager.get("notifications.enabled", "true"))) return false;
-        String key = switch (category == null ? Category.SYSTEM : category) {
-            case SALES -> "sales"; case PURCHASES -> "purchases"; case QUOTATIONS -> "quotations";
-            case RETURNS -> "returns"; case PAYMENTS -> "payments"; case INVENTORY -> "inventory";
-            case REMINDERS -> "reminders"; case COMMUNICATION -> "communication";
-            case APPROVAL -> "system"; case BACKUP, UPDATE, SECURITY, SYSTEM -> "system";
-        };
-        return Boolean.parseBoolean(ConfigManager.get("notifications.category." + key, "true"));
     }
 
     private static Category inferCategory(String title, String message, String targetFxml) {
@@ -71,14 +64,18 @@ public final class NotificationService {
         if (text.contains("return") || text.contains("refund")) return Category.RETURNS;
         if (text.contains("payment") || text.contains("paid") || text.contains("receipt")) return Category.PAYMENTS;
         if (text.contains("stock") || text.contains("inventory") || text.contains("item")) return Category.INVENTORY;
+        if (text.contains("bank") || text.contains("expense") || text.contains("reconcil")) return Category.BANKING;
+        if (text.contains("scheduled report") || text.contains("report schedule") || text.contains("report export") || text.contains("reports.fxml")) return Category.REPORTS;
         if (text.contains("reminder") || text.contains("follow-up") || text.contains("follow up")) return Category.REMINDERS;
         if (text.contains("email") || text.contains("whatsapp") || text.contains("communication")) return Category.COMMUNICATION;
         if (text.contains("approval") || text.contains("approve")) return Category.APPROVAL;
-        if (text.contains("backup") || text.contains("restore")) return Category.BACKUP;
-        if (text.contains("update")) return Category.UPDATE;
-        if (text.contains("security") || text.contains("login") || text.contains("password")) return Category.SECURITY;
+        if (text.contains("import")) return Category.IMPORTS;
+        if (text.contains("backup") || text.contains("restore") || text.contains("rollback") || text.contains("recovery")) return Category.BACKUP;
+        if (text.contains("security") || text.contains("login") || text.contains("password") || text.contains("user access")) return Category.SECURITY;
         if (text.contains("purchase") || text.contains("supplier")) return Category.PURCHASES;
         if (text.contains("sale") || text.contains("sales") || text.contains("invoice") || text.contains("customer")) return Category.SALES;
+        if (text.contains("application update") || text.contains("software update") || text.contains("update available")
+                || text.contains("new version") || text.contains("updatessettingspanel")) return Category.UPDATE;
         return Category.SYSTEM;
     }
 
@@ -106,10 +103,13 @@ public final class NotificationService {
                 case PAYMENTS -> lower.contains("supplier") || lower.contains("purchase")
                         ? "/fxml/pages/PurchasePayment.fxml" : "/fxml/pages/RecordPayment.fxml";
                 case INVENTORY -> lower.contains("stock") ? "/fxml/pages/Inventory.fxml" : "/fxml/pages/ItemMaster.fxml";
+                case BANKING -> "/fxml/pages/BankExpense.fxml";
+                case REPORTS -> "/fxml/pages/Reports.fxml";
                 case REMINDERS -> "/fxml/pages/ReminderCenter.fxml";
                 case COMMUNICATION -> "/fxml/pages/CommunicationCenter.fxml";
                 case APPROVAL -> lower.contains("purchase") ? "/fxml/pages/PurchaseList.fxml" : "/fxml/pages/SalesList.fxml";
-                case BACKUP -> "/fxml/pages/BackupRestore.fxml";
+                case IMPORTS -> "/fxml/pages/Import.fxml";
+                case BACKUP -> lower.contains("rollback") ? "/fxml/pages/SafeRollback.fxml" : "/fxml/pages/BackupRestore.fxml";
                 case UPDATE -> "/fxml/pages/Settings.fxml";
                 case SECURITY -> lower.contains("profile") || lower.contains("your account")
                         ? "/fxml/pages/Profile.fxml" : "/fxml/pages/UserAccess.fxml";
@@ -130,6 +130,10 @@ public final class NotificationService {
         if(target.contains("purchasereturn")) return "PURCHASE_RETURNS";
         if(target.contains("itemmaster")||target.contains("inventory")) return "ITEMS";
         if(target.contains("payment")) return "PAYMENTS";
+        if(target.contains("bank")||target.contains("expense")||target.contains("recon")) return "BANKING";
+        if(target.contains("report")) return "REPORTS";
+        if(target.contains("import")) return "IMPORTS";
+        if(target.contains("backup")||target.contains("rollback")) return "BACKUP";
         if(target.contains("reminder")) return "REMINDERS";
         if(target.contains("communication")) return "COMMUNICATION";
         return category==null?"SYSTEM":category.name();

@@ -141,7 +141,11 @@ public final class SecurityFinancialMigrationRunner implements ApplicationRunner
             new Migration("V9_0_62__remove_project_execution",
                     "db/migration/V9_0_62__remove_project_execution.sql"),
             new Migration("V9_0_63__workspace_master_email_stability",
-                    "db/migration/V9_0_63__workspace_master_email_stability.sql")
+                    "db/migration/V9_0_63__workspace_master_email_stability.sql"),
+            new Migration("V10_0_0__account_type_master",
+                    "db/migration/V10_0_0__account_type_master.sql"),
+            new Migration("V10_0_1__per_user_notifications",
+                    "db/migration/V10_0_1__per_user_notifications.sql")
     );
     private static final long MIGRATION_LOCK = 51018001L;
     private final JpaNativeRepository database;

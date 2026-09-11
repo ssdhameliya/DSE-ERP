@@ -12,6 +12,7 @@ public final class SessionService {
 
     public static void signIn(AppUser user) {
         ReferenceDataCache.invalidateAll();
+        NotificationPreferenceService.reset();
         current = user;
     }
 
@@ -36,6 +37,7 @@ public final class SessionService {
 
     public static void clear() {
         ReferenceDataCache.invalidateAll();
+        NotificationPreferenceService.reset();
         current = null;
         org.example.api.ApiSession.clear();
     }

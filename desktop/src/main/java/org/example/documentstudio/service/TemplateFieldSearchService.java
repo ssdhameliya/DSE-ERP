@@ -22,7 +22,13 @@ public final class TemplateFieldSearchService {
             Map.entry("price", List.of("rate", "amount")),
             Map.entry("total", List.of("grand total", "amount", "rounded")),
             Map.entry("round", List.of("round off", "rounded grand total")),
-            Map.entry("po", List.of("purchase order", "reference", "order number"))
+            Map.entry("po", List.of("purchase order", "reference", "order number")),
+            Map.entry("no", List.of("number")),
+            Map.entry("number", List.of("no")),
+            Map.entry("qr", List.of("barcode", "payment", "upi")),
+            Map.entry("barcode", List.of("qr", "payment", "upi")),
+            Map.entry("sign", List.of("signature", "authorized signature")),
+            Map.entry("signature", List.of("sign", "authorized signature"))
     );
 
     private TemplateFieldSearchService() {}
@@ -36,13 +42,37 @@ public final class TemplateFieldSearchService {
         Set<String> contextKeys = context == null ? Set.of() : Set.copyOf(context.acceptedFields());
         Set<String> mapped = alreadyMapped == null ? Set.of() : alreadyMapped;
         return fields.stream()
+                // Query text is a strict filter. Context/recommendation scores only rank fields
+                // that actually match what the user typed; they must never keep unrelated
+                // requirement fields visible in the right-side inspector search.
+                .filter(field -> normalized.isBlank() || matchesQuery(field, normalized))
                 .map(field -> Map.entry(field, score(field, normalized, context, contextKeys, mapped)))
-                .filter(entry -> normalized.isBlank() || entry.getValue() > 0)
                 .sorted(Comparator.<Map.Entry<TemplateFieldDefinition,Integer>>comparingInt(Map.Entry::getValue).reversed()
                         .thenComparing(e -> e.getKey().category())
                         .thenComparing(e -> e.getKey().label()))
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
+    }
+
+    private static boolean matchesQuery(TemplateFieldDefinition field, String query) {
+        if (query == null || query.isBlank()) return true;
+        String haystack = normalize(field.label() + " " + field.key() + " " + field.category());
+        if (haystack.contains(query)) return true;
+
+        // Every meaningful token typed by the user must match either directly or through a
+        // documented synonym. This keeps multi-word searches predictable while still allowing
+        // familiar ERP shorthand such as "invoice no", "qty", "remark", "qr" and "gst".
+        for (String token : query.split("\\s+")) {
+            if (token.length() <= 1) continue;
+            if (haystack.contains(token)) continue;
+            boolean synonymMatched = SYNONYMS.getOrDefault(token, List.of()).stream()
+                    .map(TemplateFieldSearchService::normalize)
+                    .filter(value -> !value.isBlank())
+                    .anyMatch(value -> haystack.contains(value)
+                            || Arrays.stream(value.split("\\s+")).anyMatch(part -> part.length() > 1 && haystack.contains(part)));
+            if (!synonymMatched) return false;
+        }
+        return true;
     }
 
     private static int score(TemplateFieldDefinition field, String query, TemplateMappingRequirement context,

@@ -51,6 +51,7 @@ import org.example.service.BrandAssetPolicy;
 import org.example.service.BrandImagePresenter;
 import org.example.service.SettingsAssetService;
 import org.example.service.NotificationService;
+import org.example.service.NotificationPreferenceService;
 import org.example.service.SessionService;
 import org.example.ui.SharedApplicationFooter;
 import org.example.update.UpdateDialogs;
@@ -74,6 +75,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -171,6 +173,9 @@ public class SettingsController implements ScreenLifecycle {
     private TextField txtBranch;
 
     @FXML
+    private ComboBox<String> cmbAccountType;
+
+    @FXML
     private TextField txtBankMatchRoundingTolerance;
 
     /* =========================================================
@@ -224,16 +229,23 @@ public class SettingsController implements ScreenLifecycle {
        NOTIFICATIONS
        ========================================================= */
 
-    @FXML
-    private CheckBox chkNotifications;
+    @FXML private CheckBox chkNotifications;
+    @FXML private CheckBox chkNotificationToasts;
     @FXML private CheckBox chkNotifySales;
     @FXML private CheckBox chkNotifyPurchases;
     @FXML private CheckBox chkNotifyQuotations;
     @FXML private CheckBox chkNotifyReturns;
     @FXML private CheckBox chkNotifyPayments;
     @FXML private CheckBox chkNotifyInventory;
+    @FXML private CheckBox chkNotifyBanking;
+    @FXML private CheckBox chkNotifyReports;
     @FXML private CheckBox chkNotifyReminders;
     @FXML private CheckBox chkNotifyCommunication;
+    @FXML private CheckBox chkNotifyApproval;
+    @FXML private CheckBox chkNotifyImports;
+    @FXML private CheckBox chkNotifyBackup;
+    @FXML private CheckBox chkNotifyUpdate;
+    @FXML private CheckBox chkNotifySecurity;
     @FXML private CheckBox chkNotifySystem;
 
     /* =========================================================
@@ -491,6 +503,7 @@ public class SettingsController implements ScreenLifecycle {
                 txtAccountNumber.setText(ConfigManager.get("payment.accountNumber", ""));
                 txtIfsc.setText(ConfigManager.get("payment.ifsc", ""));
                 txtBranch.setText(ConfigManager.get("payment.branch", ""));
+                loadPaymentAccountTypes();
                 txtBankMatchRoundingTolerance.setText(ConfigManager.get("payment.bankMatchRoundingTolerance", "1.00"));
                 BrandImagePresenter.contain(imgPaymentQr, paymentQrPreview);
                 refreshAllAssetPreviewsAsync();
@@ -515,14 +528,13 @@ public class SettingsController implements ScreenLifecycle {
                 refreshAllAssetPreviewsAsync();
             }
             case NOTIFICATIONS -> {
-                chkNotifications.setSelected(Boolean.parseBoolean(ConfigManager.get("notifications.enabled", "true")));
-                loadNotificationCategory(chkNotifySales, "sales"); loadNotificationCategory(chkNotifyPurchases, "purchases");
-                loadNotificationCategory(chkNotifyQuotations, "quotations"); loadNotificationCategory(chkNotifyReturns, "returns");
-                loadNotificationCategory(chkNotifyPayments, "payments"); loadNotificationCategory(chkNotifyInventory, "inventory");
-                loadNotificationCategory(chkNotifyReminders, "reminders"); loadNotificationCategory(chkNotifyCommunication, "communication");
-                loadNotificationCategory(chkNotifySystem, "system");
+                applyNotificationPreferences(NotificationPreferenceService.current());
                 chkNotifications.selectedProperty().addListener((obs, oldValue, enabled) -> setNotificationCategoriesDisabled(!enabled));
                 setNotificationCategoriesDisabled(!chkNotifications.isSelected());
+                UiTaskExecutor.submitLatest("notification-preferences-load",
+                        NotificationPreferenceService::refreshStrict,
+                        this::applyNotificationPreferences,
+                        failure -> System.err.println("[Settings] Notification preferences unavailable: " + failure.getMessage()));
             }
             case EMAIL -> {
                 if (ConfigManager.isSharedClient()) {
@@ -2004,7 +2016,29 @@ private record AssetPreviewRequest(
         putSetting("payment.accountNumber", text(txtAccountNumber));
         putSetting("payment.ifsc", upper(txtIfsc));
         putSetting("payment.branch", text(txtBranch));
+        putSetting("payment.accountType", valueOrEmpty(cmbAccountType));
         putSetting("payment.bankMatchRoundingTolerance", text(txtBankMatchRoundingTolerance));
+    }
+
+    /**
+     * Account Type is company master data, not a hard-coded Settings list.  The selected value
+     * remains a server-authoritative payment.* setting so shared clients, Excel Studio and PDF
+     * Studio all resolve the same company value.  A legacy configured value is preserved in the
+     * combo even when it predates the ACCOUNT_TYPE master category.
+     */
+    private void loadPaymentAccountTypes() {
+        if (cmbAccountType == null) return;
+        String configured = ConfigManager.get("payment.accountType", "").trim();
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        try {
+            values.addAll(new org.example.api.master.MasterApiClient().lookupValuesByCategoryCode("ACCOUNT_TYPE"));
+        } catch (RuntimeException ignored) {
+            // Settings must remain usable during a temporary master-data/API outage.  Do not
+            // invent master values here; preserve only the already configured company value.
+        }
+        if (!configured.isBlank()) values.add(configured);
+        cmbAccountType.setItems(FXCollections.observableArrayList(values));
+        selectComboValue(cmbAccountType, configured);
     }
     private void saveInvoiceIdentity() {
         putSetting("company.address", text(txtCompanyAddress));
@@ -2038,33 +2072,62 @@ private record AssetPreviewRequest(
     }
 
     private void saveNotificationSettings() {
-
-        putSetting(
-            "notifications.enabled",
-            Boolean.toString(chkNotifications.isSelected())
-        );
-        saveNotificationCategory(chkNotifySales, "sales");
-        saveNotificationCategory(chkNotifyPurchases, "purchases");
-        saveNotificationCategory(chkNotifyQuotations, "quotations");
-        saveNotificationCategory(chkNotifyReturns, "returns");
-        saveNotificationCategory(chkNotifyPayments, "payments");
-        saveNotificationCategory(chkNotifyInventory, "inventory");
-        saveNotificationCategory(chkNotifyReminders, "reminders");
-        saveNotificationCategory(chkNotifyCommunication, "communication");
-        saveNotificationCategory(chkNotifySystem, "system");
+        LinkedHashMap<String, Boolean> categories = new LinkedHashMap<>();
+        categories.put("sales", selected(chkNotifySales));
+        categories.put("purchases", selected(chkNotifyPurchases));
+        categories.put("quotations", selected(chkNotifyQuotations));
+        categories.put("returns", selected(chkNotifyReturns));
+        categories.put("payments", selected(chkNotifyPayments));
+        categories.put("inventory", selected(chkNotifyInventory));
+        categories.put("banking", selected(chkNotifyBanking));
+        categories.put("reports", selected(chkNotifyReports));
+        categories.put("reminders", selected(chkNotifyReminders));
+        categories.put("communication", selected(chkNotifyCommunication));
+        categories.put("approval", selected(chkNotifyApproval));
+        categories.put("imports", selected(chkNotifyImports));
+        categories.put("backup", selected(chkNotifyBackup));
+        categories.put("update", selected(chkNotifyUpdate));
+        categories.put("security", true);
+        categories.put("system", selected(chkNotifySystem));
+        NotificationPreferenceService.save(new NotificationPreferenceService.Preferences(
+                selected(chkNotifications), selected(chkNotificationToasts), categories));
     }
 
-    private void loadNotificationCategory(CheckBox box, String category) {
-        if (box != null) box.setSelected(Boolean.parseBoolean(ConfigManager.get("notifications.category." + category, "true")));
+    private void applyNotificationPreferences(NotificationPreferenceService.Preferences preferences) {
+        if (preferences == null) return;
+        if (chkNotifications != null) chkNotifications.setSelected(preferences.enabled());
+        if (chkNotificationToasts != null) chkNotificationToasts.setSelected(preferences.toasts());
+        setNotificationCategory(chkNotifySales, preferences, "sales");
+        setNotificationCategory(chkNotifyPurchases, preferences, "purchases");
+        setNotificationCategory(chkNotifyQuotations, preferences, "quotations");
+        setNotificationCategory(chkNotifyReturns, preferences, "returns");
+        setNotificationCategory(chkNotifyPayments, preferences, "payments");
+        setNotificationCategory(chkNotifyInventory, preferences, "inventory");
+        setNotificationCategory(chkNotifyBanking, preferences, "banking");
+        setNotificationCategory(chkNotifyReports, preferences, "reports");
+        setNotificationCategory(chkNotifyReminders, preferences, "reminders");
+        setNotificationCategory(chkNotifyCommunication, preferences, "communication");
+        setNotificationCategory(chkNotifyApproval, preferences, "approval");
+        setNotificationCategory(chkNotifyImports, preferences, "imports");
+        setNotificationCategory(chkNotifyBackup, preferences, "backup");
+        setNotificationCategory(chkNotifyUpdate, preferences, "update");
+        setNotificationCategory(chkNotifySystem, preferences, "system");
+        if (chkNotifySecurity != null) { chkNotifySecurity.setSelected(true); chkNotifySecurity.setDisable(true); }
+        setNotificationCategoriesDisabled(!preferences.enabled());
     }
 
-    private void saveNotificationCategory(CheckBox box, String category) {
-        if (box != null) putSetting("notifications.category." + category, Boolean.toString(box.isSelected()));
+    private void setNotificationCategory(CheckBox box, NotificationPreferenceService.Preferences preferences, String category) {
+        if (box != null) box.setSelected(preferences.categoryEnabled(category));
     }
+
+    private boolean selected(CheckBox box) { return box != null && box.isSelected(); }
 
     private void setNotificationCategoriesDisabled(boolean disabled) {
-        CheckBox[] boxes = {chkNotifySales, chkNotifyPurchases, chkNotifyQuotations, chkNotifyReturns, chkNotifyPayments, chkNotifyInventory, chkNotifyReminders, chkNotifyCommunication, chkNotifySystem};
+        CheckBox[] boxes = {chkNotifySales, chkNotifyPurchases, chkNotifyQuotations, chkNotifyReturns, chkNotifyPayments,
+                chkNotifyInventory, chkNotifyBanking, chkNotifyReports, chkNotifyReminders, chkNotifyCommunication,
+                chkNotifyApproval, chkNotifyImports, chkNotifyBackup, chkNotifyUpdate, chkNotifySystem};
         for (CheckBox box : boxes) if (box != null) box.setDisable(disabled);
+        if (chkNotifySecurity != null) chkNotifySecurity.setDisable(true);
     }
 
     private String text(TextInputControl control) {

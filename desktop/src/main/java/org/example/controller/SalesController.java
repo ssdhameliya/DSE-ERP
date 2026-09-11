@@ -1192,6 +1192,10 @@ public class SalesController {
         // payment/communication/status fields that are managed elsewhere.
         if (editingSale != null) {
             sale.setId(editingSale.getId());
+            // Preserve the optimistic-lock token returned by the server. Without this, the first
+            // edit (rowVersion 0) succeeds, but every later edit is sent back as version 0 and
+            // is correctly rejected by the server as a concurrent/stale update.
+            sale.setRowVersion(editingSale.getRowVersion());
             sale.setCreatedAt(editingSale.getCreatedAt());
             sale.setPaidAmount(editingSale.getPaidAmount());
             sale.setPaymentStatus(editingSale.getPaymentStatus());

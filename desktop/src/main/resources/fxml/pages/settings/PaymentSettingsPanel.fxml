@@ -69,6 +69,16 @@
 
                                 </VBox>
 
+                                <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="2">
+
+                                    <Label text="Account Type" styleClass="settings-form-label"/>
+
+                                    <ComboBox fx:id="cmbAccountType" promptText="Select account type" maxWidth="Infinity" styleClass="approved-input"/>
+
+                                    <Label text="Values come from Master Data → Account Type" wrapText="true" styleClass="settings-help-text"/>
+
+                                </VBox>
+
                             </GridPane>
 
                             <Separator/>
