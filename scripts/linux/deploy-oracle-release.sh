@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENVIRONMENT=${1:?usage: deploy-oracle-release.sh <uat|prod> <tested-server.jar> <release-version> [expected-sha256]}
+ENVIRONMENT=${1:?usage: deploy-oracle-release.sh <uat|prod> <tested-server.jar> <release-version> [expected-sha256] [expected-minimum-desktop]}
 JAR=${2:?path to tested DSE ERP server JAR}
 VERSION=${3:?release version}
 EXPECTED_SHA=${4:-}
+EXPECTED_MINIMUM_DESKTOP=${5:-10.0.1}
 
 case "$ENVIRONMENT" in
   uat|prod) ;;
@@ -13,6 +14,7 @@ esac
 
 [[ -s "$JAR" ]] || { echo "Server JAR missing/empty: $JAR" >&2; exit 2; }
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid release version: $VERSION" >&2; exit 2; }
+[[ "$EXPECTED_MINIMUM_DESKTOP" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid minimum supported desktop version: $EXPECTED_MINIMUM_DESKTOP" >&2; exit 2; }
 
 EXPECTED_ENV=$(printf '%s' "$ENVIRONMENT" | tr '[:lower:]' '[:upper:]')
 ENV_FILE="/etc/dse-erp/${ENVIRONMENT}.env"
@@ -86,27 +88,35 @@ health_url() {
 validate_health() {
   local expected_version=$1
   local body=$2
-  python3 - "$expected_version" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$body" <<'PY'
+  local enforce_floor=${3:-false}
+  python3 - "$expected_version" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$EXPECTED_MINIMUM_DESKTOP" "$enforce_floor" "$body" <<'PY'
 import json,sys
-version,environment,database,body=sys.argv[1:]
+version,environment,database,minimum,enforce_floor,body=sys.argv[1:]
 r=json.loads(body)
 ok=(r.get('ready') is True
     and r.get('version')==version
     and r.get('buildRevision')==version
     and r.get('environment')==environment
     and r.get('databaseName')==database)
+if enforce_floor.lower() == 'true':
+    ok = ok and r.get('minimumSupportedDesktopVersion') == minimum
+    try:
+        ok = ok and tuple(map(int, minimum.split('.'))) <= tuple(map(int, version.split('.')))
+    except Exception:
+        ok = False
 raise SystemExit(0 if ok else 1)
 PY
 }
 
 wait_for_health() {
   local expected_version=$1
+  local enforce_floor=${2:-true}
   local url
   url=$(health_url)
   local body=''
   for attempt in $(seq 1 45); do
     if body=$(curl --fail --silent --show-error --max-time 3 "$url" 2>/dev/null); then
-      if validate_health "$expected_version" "$body"; then
+      if validate_health "$expected_version" "$body" "$enforce_floor"; then
         printf '%s' "$body"
         return 0
       fi
@@ -122,7 +132,7 @@ if [[ -n "$PREVIOUS" ]]; then
     echo 'Current server is not healthy; refusing to deploy on top of an unhealthy environment.' >&2
     exit 1
   }
-  if ! validate_health "$PREVIOUS_VERSION" "$CURRENT_BODY"; then
+  if ! validate_health "$PREVIOUS_VERSION" "$CURRENT_BODY" false; then
     echo "Current release/environment/database health does not match $PREVIOUS_VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE." >&2
     exit 1
   fi
@@ -182,7 +192,7 @@ rollback_binary() {
   if [[ -n "$PREVIOUS" && -d "$PREVIOUS" ]]; then
     sudo -n ln -sfn "$PREVIOUS" "$BASE/current"
     sudo -n systemctl start "$SERVICE"
-    if ! ROLLBACK_BODY=$(wait_for_health "$PREVIOUS_VERSION"); then
+    if ! ROLLBACK_BODY=$(wait_for_health "$PREVIOUS_VERSION" false); then
       echo 'CRITICAL: previous server release did not recover cleanly.' >&2
       echo "Pre-upgrade database backup: $PRE_BACKUP" >&2
       exit 1
@@ -216,7 +226,7 @@ sudo -n systemctl is-active --quiet "$SERVICE" || {
 }
 
 echo "$NEW_BODY"
-echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE"
+echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE / minimum desktop $EXPECTED_MINIMUM_DESKTOP"
 echo "Current release: $(readlink -f "$BASE/current")"
 echo "Previous release: ${PREVIOUS:-none}"
 echo "Pre-upgrade backup: $PRE_BACKUP"

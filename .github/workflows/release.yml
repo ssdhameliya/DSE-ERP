@@ -19,6 +19,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      compatibility_baseline: ${{ steps.version.outputs.compatibility_baseline }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -48,8 +49,11 @@ jobs:
             echo "Tag version $VERSION does not match pom.xml version $POM_VERSION" >&2
             exit 1
           fi
+          COMPATIBILITY_BASELINE="$(./mvnw help:evaluate -Dexpression=desktop.compatibility.baseline -q -DforceStdout | tail -1)"
+          [[ "$COMPATIBILITY_BASELINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid desktop compatibility baseline: $COMPATIBILITY_BASELINE" >&2; exit 1; }
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "compatibility_baseline=$COMPATIBILITY_BASELINE" >> "$GITHUB_OUTPUT"
       - name: Enforce current release contracts
         run: python3 scripts/audit-release-gates.py
       - name: Run tests
@@ -304,22 +308,23 @@ jobs:
         run: |
           set -euo pipefail
           ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
-            "bash /tmp/dse-erp-ci-deploy/deploy-oracle-release.sh uat /tmp/dse-erp-ci-deploy/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar '${{ needs.validate.outputs.version }}' '${{ steps.artifact.outputs.sha }}'" \
+            "bash /tmp/dse-erp-ci-deploy/deploy-oracle-release.sh uat /tmp/dse-erp-ci-deploy/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar '${{ needs.validate.outputs.version }}' '${{ steps.artifact.outputs.sha }}' '${{ needs.validate.outputs.compatibility_baseline }}'" \
             | tee DSE-ERP-UAT-deploy.log
       - name: Verify public UAT HTTPS health
         shell: bash
         run: |
           set -euo pipefail
           BODY="$(curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL")"
-          python3 - '${{ needs.validate.outputs.version }}' "$EXPECTED_DATABASE" "$BODY" <<'PY'
+          python3 - '${{ needs.validate.outputs.version }}' "$EXPECTED_DATABASE" '${{ needs.validate.outputs.compatibility_baseline }}' "$BODY" <<'PY'
           import json,sys
-          version,database,body=sys.argv[1:]
+          version,database,minimum,body=sys.argv[1:]
           r=json.loads(body)
           ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
-              and r.get('environment')=='UAT' and r.get('databaseName')==database)
+              and r.get('environment')=='UAT' and r.get('databaseName')==database
+              and r.get('minimumSupportedDesktopVersion')==minimum)
           if not ok:
               raise SystemExit(f'Public UAT health validation failed: {r}')
-          print(f'UAT_DEPLOYMENT_OK version={version} database={database}')
+          print(f'UAT_DEPLOYMENT_OK version={version} database={database} minimumDesktop={minimum}')
           PY
       - name: Clean remote upload staging
         if: always()
