@@ -105,7 +105,7 @@ public class SafeRollbackController {
         colPackage.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().installer().getFileName().toString()));
         colSchema.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().databaseSchema() > 0 ? "Schema " + v.getValue().databaseSchema() : "Unknown"));
         colCompatibility.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().compatibility().label()));
-        colStatus.setCellValueFactory(v -> new SimpleStringProperty(v.getValue().compatibility().safe() ? "Ready" : "Blocked"));
+        colStatus.setCellValueFactory(v -> new SimpleStringProperty(statusFor(v.getValue())));
         colCompatibility.setCellFactory(column -> new TableCell<>() {
             @Override protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
@@ -130,7 +130,7 @@ public class SafeRollbackController {
                 rollback.setDisable(!candidate.compatibility().safe());
                 rollback.setOnAction(event -> confirmAndRollback(candidate));
                 MenuItem compatibility = new MenuItem("View Compatibility", IconFactory.compactIcon("compatibility", 15));
-                compatibility.setOnAction(event -> info("Compatibility", candidate.compatibility().message()));
+                compatibility.setOnAction(event -> info("Compatibility", candidateMessage(candidate)));
                 MenuItem folder = new MenuItem("Open Package Folder", IconFactory.compactIcon("folder", 15));
                 folder.setOnAction(event -> openPackageFolder());
                 actions.getItems().setAll(rollback, compatibility, new SeparatorMenuItem(), folder);
@@ -145,7 +145,7 @@ public class SafeRollbackController {
                     setGraphic(null);
                 } else {
                     rebuildMenu();
-                    actions.setTooltip(new Tooltip(candidate.compatibility().message()));
+                    actions.setTooltip(new Tooltip(candidateMessage(candidate)));
                     setGraphic(actions);
                     setAlignment(Pos.CENTER);
                 }
@@ -190,7 +190,7 @@ public class SafeRollbackController {
         if (selected == null) return;
         runTask("Importing rollback package...", () -> service.importPackage(selected.toPath()), candidate -> {
             refresh();
-            info("Previous version retained", "DSE ERP " + candidate.version() + " is now available in Safe Rollback.\n\n" + candidate.compatibility().message());
+            info("Previous version retained", "DSE ERP " + candidate.version() + " is now available in Safe Rollback.\n\n" + candidateMessage(candidate));
         });
     }
 
@@ -215,10 +215,20 @@ public class SafeRollbackController {
                         () -> service.downloadPublishedVersion(selected.version(), ignored -> { }),
                         candidate -> {
                             refresh();
-                            info("Rollback package ready", "DSE ERP " + candidate.version() + " was downloaded and SHA-256 verified.\n\n" + candidate.compatibility().message());
+                            info("Rollback package ready", "DSE ERP " + candidate.version() + " was downloaded and SHA-256 verified.\n\n" + candidateMessage(candidate));
                         });
             });
         });
+    }
+
+    private static String statusFor(RollbackService.Candidate candidate) {
+        if (candidate == null || !candidate.compatibility().safe()) return "Blocked";
+        return candidate.packageVerification().verified() ? "Ready" : candidate.packageVerification().label();
+    }
+
+    private static String candidateMessage(RollbackService.Candidate candidate) {
+        if (candidate == null) return "Rollback package is unavailable.";
+        return candidate.compatibility().message() + "\n\nPackage: " + candidate.packageVerification().message();
     }
 
     private void confirmAndRollback(RollbackService.Candidate candidate) {
