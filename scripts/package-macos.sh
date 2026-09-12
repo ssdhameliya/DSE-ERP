@@ -5,6 +5,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 DEFAULT_VERSION="$(sed -n 's/^-Drevision=//p' "$ROOT/.mvn/maven.config" | head -1)"
 VERSION="${1:-$DEFAULT_VERSION}"
+PREVERIFIED="${2:-}"
+if [[ -n "$PREVERIFIED" && "$PREVERIFIED" != "--preverified" ]]; then
+  echo "Unknown packaging option: $PREVERIFIED" >&2
+  exit 1
+fi
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
   echo "Invalid application version: $VERSION" >&2
   exit 1
@@ -18,7 +23,11 @@ case "$ARCH" in
 esac
 
 echo "Building DSE ERP $VERSION for macOS $ARCH_LABEL..."
-mvn -B -ntp clean verify
+if [[ "$PREVERIFIED" == "--preverified" ]]; then
+  echo "Using Maven artifacts verified by the current CI job."
+else
+  mvn -B -ntp clean verify
+fi
 
 JAR="$ROOT/desktop/target/DSE_Final.jar"
 SERVER_JAR="$ROOT/server/target/dse-erp-server.jar"
