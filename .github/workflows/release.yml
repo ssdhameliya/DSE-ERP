@@ -70,6 +70,22 @@ jobs:
           echo "ios_latest=$IOS_LATEST" >> "$GITHUB_OUTPUT"
       - name: Enforce current release contracts
         run: python3 scripts/audit-release-gates.py
+
+  tests:
+    name: Validate release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Ensure Maven wrapper is executable
+        shell: bash
+        run: chmod +x mvnw
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
       - name: Run tests
         run: ./mvnw -B -ntp clean verify
 
@@ -131,16 +147,39 @@ jobs:
             $wix = Get-ChildItem 'C:\Program Files (x86)' -Directory -Filter 'WiX Toolset v3*' | Sort-Object Name -Descending | Select-Object -First 1
             if ($wix) { $wixBin = Join-Path $wix.FullName 'bin'; $wixBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
           }
+      - name: Restore PostgreSQL 18 runtime cache
+        id: postgres-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}\dse-postgresql-18-runtime
+          key: dse-postgresql-windows-${{ runner.arch }}-18-runtime-v1
       - name: Prepare PostgreSQL 18 runtime
         shell: pwsh
         run: |
-          choco install postgresql18 --yes --no-progress --params '/NoPath /Password:DseReleaseBuildOnly!'
-          $pg = 'C:\Program Files\PostgreSQL\18'
-          if (-not (Test-Path (Join-Path $pg 'bin\initdb.exe'))) { throw "PostgreSQL 18 runtime not found at $pg" }
-          "DSE_POSTGRES_RUNTIME_DIR=$pg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $pgRuntime = Join-Path $env:RUNNER_TEMP 'dse-postgresql-18-runtime'
+          $initdb = Join-Path $pgRuntime 'bin\initdb.exe'
+          if (-not (Test-Path -LiteralPath $initdb -PathType Leaf)) {
+            Write-Host 'PostgreSQL runtime cache miss; installing PostgreSQL 18 once to seed the portable cache.' -ForegroundColor Cyan
+            choco install postgresql18 --yes --no-progress --params '/NoPath /Password:DseReleaseBuildOnly!'
+            $installedPg = 'C:\Program Files\PostgreSQL\18'
+            if (-not (Test-Path (Join-Path $installedPg 'bin\initdb.exe'))) { throw "PostgreSQL 18 runtime not found at $installedPg" }
+            Remove-Item -LiteralPath $pgRuntime -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path $pgRuntime -Force | Out-Null
+            foreach ($folder in @('bin','lib','share')) {
+              $source = Join-Path $installedPg $folder
+              if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw "PostgreSQL runtime folder missing: $source" }
+              Copy-Item -LiteralPath $source -Destination (Join-Path $pgRuntime $folder) -Recurse -Force
+            }
+          } else {
+            Write-Host "Using cached PostgreSQL 18 runtime: $pgRuntime" -ForegroundColor DarkCyan
+          }
+          $required = @('initdb.exe','pg_ctl.exe','pg_isready.exe','psql.exe','createdb.exe','pg_dump.exe','pg_restore.exe')
+          $missing = $required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $pgRuntime "bin\$_") -PathType Leaf) }
+          if ($missing) { throw "Cached PostgreSQL runtime is incomplete. Missing: $($missing -join ', ')" }
+          "DSE_POSTGRES_RUNTIME_DIR=$pgRuntime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Build Windows EXE
         shell: pwsh
-        run: ./scripts/package-windows.ps1 -Version '${{ needs.validate.outputs.version }}'
+        run: ./scripts/package-windows.ps1 -Version '${{ needs.validate.outputs.version }}' -Preverified
       - name: Upload Windows package
         uses: actions/upload-artifact@v7
         with:
@@ -165,21 +204,32 @@ jobs:
           java-version: '25'
           architecture: aarch64
           cache: maven
+      - name: Verify project on macOS
+        shell: zsh {0}
+        run: ./mvnw -B -ntp clean verify
+      - name: Restore PostgreSQL 18 runtime cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/dse-postgresql-18.4
+          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh') }}
       - name: Prepare PostgreSQL 18 runtime
         shell: zsh {0}
         run: |
           PG_RUNTIME="$RUNNER_TEMP/dse-postgresql-18.4"
-          zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
+          if [[ ! -x "$PG_RUNTIME/bin/initdb" ]]; then
+            echo "PostgreSQL runtime cache miss; building the relocatable PostgreSQL 18.4 runtime once."
+            zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
+          else
+            echo "Using cached PostgreSQL 18.4 runtime: $PG_RUNTIME"
+          fi
+          [[ -x "$PG_RUNTIME/bin/initdb" ]] || { echo "Cached PostgreSQL runtime is missing initdb" >&2; exit 1; }
           echo "DSE_POSTGRES_RUNTIME_DIR=$PG_RUNTIME" >> "$GITHUB_ENV"
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
-      - name: Verify project on macOS
-        shell: zsh {0}
-        run: ./mvnw -B -ntp clean verify
       - name: Build macOS Apple Silicon DMG
         shell: zsh {0}
-        run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
+        run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}' --preverified
       - name: Upload macOS Apple Silicon package
         uses: actions/upload-artifact@v7
         with:
@@ -204,21 +254,32 @@ jobs:
           java-version: '25'
           architecture: x64
           cache: maven
+      - name: Verify project on macOS
+        shell: zsh {0}
+        run: ./mvnw -B -ntp clean verify
+      - name: Restore PostgreSQL 18 runtime cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/dse-postgresql-18.4
+          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh') }}
       - name: Prepare PostgreSQL 18 runtime
         shell: zsh {0}
         run: |
           PG_RUNTIME="$RUNNER_TEMP/dse-postgresql-18.4"
-          zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
+          if [[ ! -x "$PG_RUNTIME/bin/initdb" ]]; then
+            echo "PostgreSQL runtime cache miss; building the relocatable PostgreSQL 18.4 runtime once."
+            zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
+          else
+            echo "Using cached PostgreSQL 18.4 runtime: $PG_RUNTIME"
+          fi
+          [[ -x "$PG_RUNTIME/bin/initdb" ]] || { echo "Cached PostgreSQL runtime is missing initdb" >&2; exit 1; }
           echo "DSE_POSTGRES_RUNTIME_DIR=$PG_RUNTIME" >> "$GITHUB_ENV"
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
-      - name: Verify project on macOS
-        shell: zsh {0}
-        run: ./mvnw -B -ntp clean verify
       - name: Build macOS Intel DMG
         shell: zsh {0}
-        run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}'
+        run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}' --preverified
       - name: Upload macOS Intel package
         uses: actions/upload-artifact@v7
         with:
@@ -228,7 +289,7 @@ jobs:
           retention-days: 7
 
   release:
-    needs: [validate, server, windows, macos-arm64, macos-intel]
+    needs: [validate, tests, server, windows, macos-arm64, macos-intel]
     runs-on: ubuntu-latest
     steps:
       - name: Download built installers

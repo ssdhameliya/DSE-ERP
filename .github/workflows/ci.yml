@@ -8,17 +8,127 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
-  verify:
+  cross-platform-policy:
+    name: Cross-platform rerun policy
+    runs-on: ubuntu-latest
+    outputs:
+      run_cross_platform: ${{ steps.decide.outputs.run_cross_platform }}
+    steps:
+      - name: Decide whether cross-platform checks must rerun
+        id: decide
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          RUN_CROSS_PLATFORM=true
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            # A merge-to-main push has already passed the PR cross-platform matrix.
+            # Direct pushes (or any API uncertainty) fail safe by rerunning the matrix.
+            if MERGED_PR_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+                --jq '[.[] | select(.merged_at != null and .base.ref == "main")] | length' 2>/dev/null)"; then
+              if [[ "$MERGED_PR_COUNT" =~ ^[0-9]+$ ]] && (( MERGED_PR_COUNT > 0 )); then
+                RUN_CROSS_PLATFORM=false
+                echo "Main commit is associated with a merged PR; reusing the PR Windows/macOS gates."
+              else
+                echo "No merged PR association found; running the full Windows/macOS matrix."
+              fi
+            else
+              echo "Could not verify PR association; running the full Windows/macOS matrix for safety."
+            fi
+          fi
+          echo "run_cross_platform=$RUN_CROSS_PLATFORM" >> "$GITHUB_OUTPUT"
+
+  verify-linux:
+    name: Verify (Linux x64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Ensure Maven wrapper is executable
+        shell: bash
+        run: chmod +x mvnw
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+          cache: maven
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Enforce current release contracts
+        run: python scripts/audit-release-gates.py
+      - name: Verify final UI source contract
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          import xml.etree.ElementTree as ET
+
+          root = Path('desktop/src/main/resources')
+          fxml = sorted((root / 'fxml').rglob('*.fxml'))
+          minimum_fxml = 50
+          if len(fxml) < minimum_fxml:
+              raise SystemExit(f'Expected at least {minimum_fxml} FXML files, found {len(fxml)}')
+          for path in fxml:
+              ET.parse(path)
+
+          css_files = sorted(path.name for path in (root / 'css').glob('*.css'))
+          if css_files != ['dark-theme.css', 'light-theme.css']:
+              raise SystemExit(f'Exactly two canonical CSS files required, found {css_files}')
+          for css_name in css_files:
+              text = (root / 'css' / css_name).read_text(encoding='utf-8')
+              if text.count('{') != text.count('}'):
+                  raise SystemExit(f'Unbalanced CSS braces in {css_name}')
+              if '-fx-font-weight: 850' in text:
+                  raise SystemExit(f'Invalid JavaFX font weight remains in {css_name}')
+          for path in fxml:
+              if 'stylesheets=' in path.read_text(encoding='utf-8'):
+                  raise SystemExit(f'FXML-local stylesheet is not allowed after Phase 2: {path}')
+
+          platform_support = Path('desktop/src/main/java/org/example/util/PlatformUiSupport.java').read_text(encoding='utf-8')
+          for contract in ('width < 1250', '"narrow-shell"', 'width < 1050', '"small-display"'):
+              if contract not in platform_support:
+                  raise SystemExit(f'Missing responsive contract: {contract}')
+          dashboard = Path('desktop/src/main/java/org/example/controller/DashboardController.java').read_text(encoding='utf-8')
+          if 'installResponsiveShellSizing' in dashboard:
+              raise SystemExit('Dashboard still owns responsive shell sizing')
+
+          light_css = (root / 'css' / 'light-theme.css').read_text(encoding='utf-8')
+          dark_css = (root / 'css' / 'dark-theme.css').read_text(encoding='utf-8')
+          for selector in ('.platform-macos .erp-sidebar', '.narrow-shell .erp-sidebar', '.small-display .erp-sidebar', '.platform-macos .erp-global-search', '.compact-shell .erp-global-search'):
+              if selector not in light_css or selector not in dark_css:
+                  raise SystemExit(f'Missing canonical responsive CSS selector: {selector}')
+
+          profiles = ((1024, 768), (1280, 720), (1366, 768), (1440, 900), (1512, 982), (1600, 900), (1920, 1080), (2560, 1440))
+          for width, height in profiles:
+              classes = {
+                  'compact-shell': width < 1500 or height < 850,
+                  'narrow-shell': width < 1250,
+                  'ultra-compact-shell': width < 1220 or height < 720,
+                  'small-display': width < 1050 or height < 650,
+              }
+              active = ','.join(name for name, enabled in classes.items() if enabled) or 'full-size'
+              print(f'RESPONSIVE_PROFILE {width}x{height} -> {active}')
+          print(f'UI_SOURCE_CONTRACT_OK fxml={len(fxml)} profiles={len(profiles)}')
+      - name: Verify project
+        run: ./mvnw -B -ntp clean verify
+
+  verify-cross-platform:
+    needs: cross-platform-policy
+    if: needs.cross-platform-policy.outputs.run_cross_platform == 'true'
     name: Verify (${{ matrix.name }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Linux x64
-            os: ubuntu-latest
-            arch: x64
           - name: Windows x64
             os: windows-latest
             arch: x64
