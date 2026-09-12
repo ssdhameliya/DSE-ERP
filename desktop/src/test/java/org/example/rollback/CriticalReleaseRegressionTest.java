@@ -38,10 +38,24 @@ class CriticalReleaseRegressionTest {
         assertEquals("Safe", compatibility.label());
     }
 
-    @Test void retainedRollbackPackagesCanResolveCurrentCompatibilityGeneration() throws Exception {
+    @Test void retainedLegacyUpdaterPackageResolvesSchemaWithoutSidecarMetadata() throws Exception {
+        RollbackService service = new RollbackService();
+        Path folder = Files.createTempDirectory("dse-rollback-legacy-");
+        Path installer = folder.resolve("DSE-ERP-10.0.4-Windows-x64.exe");
+        Files.writeString(installer, "legacy-retained-installer");
+        var targetSchema = RollbackService.class.getDeclaredMethod("targetSchema", Path.class, String.class);
+        targetSchema.setAccessible(true);
+        assertEquals(1, targetSchema.invoke(service, installer, "10.0.4"));
+        assertTrue(service.compatibilityFor(1).safe());
+    }
+
+    @Test void rollbackSeparatesSchemaCompatibilityFromInstallerTrust() throws Exception {
         String service = Files.readString(Path.of("src/main/java/org/example/rollback/RollbackService.java"));
-        assertTrue(service.contains("isManagedRollbackPackage(installer)"));
-        assertTrue(service.contains("generationSchema > 0"));
+        assertTrue(service.contains("Database compatibility and installer authenticity are deliberately separate"));
+        assertTrue(service.contains("verifyOfficialPackage(refreshed.installer(), refreshed.version())"));
+        assertTrue(service.contains("ChecksumVerifier.verify(installer, expected)"));
+        assertTrue(service.contains("GITHUB_VERIFIED"));
+        assertFalse(service.contains("isManagedRollbackPackage(installer)"));
     }
 
     @Test void unknownOrFutureSchemaGenerationStaysBlocked() {

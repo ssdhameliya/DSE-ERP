@@ -91,7 +91,8 @@ public final class RollbackService {
                 if (SemanticVersion.parse(version).compareTo(current) >= 0) continue;
                 int schema = targetSchema(path, version);
                 Compatibility compatibility = compatibilityFor(schema);
-                result.add(new Candidate(version, path, schema, compatibility,
+                PackageVerification verification = packageVerification(path, version);
+                result.add(new Candidate(version, path, schema, compatibility, verification,
                         Files.isRegularFile(path) ? safeSize(path) : 0L,
                         readPackageManifest(path).getProperty("sha256", "")));
             }
@@ -136,7 +137,7 @@ public final class RollbackService {
             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
         }
         int schema = schemaForVersion(version);
-        writePackageManifest(target, version, schema, "IMPORTED");
+        writePackageManifest(target, version, schema, "IMPORTED_UNVERIFIED");
         appendAudit("PACKAGE_IMPORTED", version, "SUCCESS", target.toString());
         return candidateFor(target, version);
     }
@@ -176,6 +177,16 @@ public final class RollbackService {
         Candidate refreshed = candidateFor(candidate.installer(), candidate.version());
         if (!refreshed.compatibility().safe()) {
             throw new IllegalStateException(refreshed.compatibility().message());
+        }
+        // Database compatibility and installer authenticity are deliberately separate.
+        // Legacy installers retained in Updates can have a safely inferred schema even when
+        // they pre-date rollback sidecar metadata. Before any backup/launch activity, require
+        // the package itself to be cryptographically tied to the official GitHub release.
+        if (!refreshed.packageVerification().verified()) {
+            refreshed = verifyOfficialPackage(refreshed.installer(), refreshed.version());
+        }
+        if (!refreshed.packageVerification().verified()) {
+            throw new SecurityException(refreshed.packageVerification().message());
         }
 
         ensureFolders();
@@ -283,40 +294,102 @@ public final class RollbackService {
 
     private Candidate candidateFor(Path path, String version) {
         int schema = targetSchema(path, version);
-        return new Candidate(version, path, schema, compatibilityFor(schema), safeSize(path),
-                readPackageManifest(path).getProperty("sha256", ""));
+        return new Candidate(version, path, schema, compatibilityFor(schema), packageVerification(path, version),
+                safeSize(path), readPackageManifest(path).getProperty("sha256", ""));
     }
 
+    /**
+     * Resolves database compatibility independently from package provenance.
+     *
+     * <p>Installers retained by older updater releases often have no rollback sidecar and
+     * no update-history row (notably when an optional pre-login update was downloaded and
+     * the user chose Not Now). The application version still deterministically identifies
+     * the database compatibility generation. Provenance is checked separately before the
+     * installer can execute.</p>
+     */
     private int targetSchema(Path installer, String version) {
+        int generationSchema = schemaForVersion(version);
+        if (generationSchema <= 0) return -1;
+
         Properties manifest = readPackageManifest(installer);
         String configured = manifest.getProperty("databaseSchema", "").trim();
         if (!configured.isBlank()) {
-            try { return Integer.parseInt(configured); } catch (NumberFormatException ignored) { }
+            try {
+                int manifestSchema = Integer.parseInt(configured);
+                // A sidecar that contradicts the version-generation contract is suspicious.
+                // Fail closed instead of silently trusting either value.
+                if (manifestSchema != generationSchema) return -1;
+            } catch (NumberFormatException ignored) {
+                return -1;
+            }
         }
-        int generationSchema = schemaForVersion(version);
-        if (generationSchema > 0 && (wasVerifiedByUpdater(installer) || isManagedRollbackPackage(installer))) {
-            return generationSchema;
-        }
-        return -1;
+        return generationSchema;
     }
 
-    private boolean isManagedRollbackPackage(Path installer) {
-        if (installer == null) return false;
-        try {
-            Path managed = packagesFolder().toAbsolutePath().normalize();
-            Path candidate = installer.toAbsolutePath().normalize();
-            return candidate.startsWith(managed) && Files.isRegularFile(candidate);
-        } catch (Exception ignored) {
-            return false;
+    private PackageVerification packageVerification(Path installer, String version) {
+        if (installer == null || !Files.isRegularFile(installer)) {
+            return new PackageVerification(false, "Missing", "The rollback installer is no longer available.");
         }
+        Properties manifest = readPackageManifest(installer);
+        String source = manifest.getProperty("source", "").trim();
+        String expected = manifest.getProperty("sha256", "").trim();
+        if (("GITHUB_VERIFIED".equalsIgnoreCase(source) || "UPDATER_VERIFIED".equalsIgnoreCase(source))
+                && !expected.isBlank()) {
+            String actual = checksumQuietly(installer);
+            if (!actual.isBlank() && actual.equalsIgnoreCase(expected)) {
+                return new PackageVerification(true, "Verified",
+                        "Installer SHA-256 matches the previously verified package metadata.");
+            }
+            return new PackageVerification(false, "Changed",
+                    "The rollback installer changed after it was verified. It must be verified again before rollback.");
+        }
+        if (wasVerifiedByUpdater(installer)) {
+            return new PackageVerification(true, "Verified",
+                    "Installer was SHA-256 verified by the DSE ERP updater.");
+        }
+        return new PackageVerification(false, "Verify on Rollback",
+                "Database compatibility is known. This retained installer predates trusted rollback metadata and will be SHA-256 verified against the official GitHub release before rollback starts.");
     }
 
     private boolean wasVerifiedByUpdater(Path installer) {
         String fileName = installer == null ? "" : installer.getFileName().toString();
-        if (fileName.isBlank()) return false;
-        return UpdateHistoryStore.read().stream().anyMatch(entry ->
-                ("READY".equalsIgnoreCase(entry.result()) || "INSTALLER_STARTED".equalsIgnoreCase(entry.result()))
-                        && entry.detail() != null && entry.detail().contains(fileName));
+        if (fileName.isBlank() || !Files.isRegularFile(installer)) return false;
+        String actual = checksumQuietly(installer);
+        if (actual.isBlank()) return false;
+        return UpdateHistoryStore.read().stream().anyMatch(entry -> {
+            if (!("VERIFIED".equalsIgnoreCase(entry.result())
+                    || "READY".equalsIgnoreCase(entry.result())
+                    || "INSTALLER_STARTED".equalsIgnoreCase(entry.result()))) return false;
+            String detail = Objects.requireNonNullElse(entry.detail(), "");
+            if (!detail.contains(fileName)) return false;
+            Matcher sha = Pattern.compile("(?i)(?:SHA256|SHA-256)=([0-9a-f]{64})").matcher(detail);
+            return sha.find() && actual.equalsIgnoreCase(sha.group(1));
+        });
+    }
+
+    /** Verifies any legacy/imported package against the canonical GitHub release checksum. */
+    private Candidate verifyOfficialPackage(Path installer, String version) throws Exception {
+        String owner = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
+        String repo = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
+        try {
+            UpdateRelease release = releaseClient.byVersion(owner, repo, version);
+            UpdateRelease.Asset asset = PlatformPackage.select(release).orElseThrow(() ->
+                    new SecurityException("Official DSE ERP " + version + " does not contain an installer for " + PlatformPackage.current() + "."));
+            String expected = updateService.expectedChecksum(release, asset.name());
+            if (expected.isBlank()) {
+                throw new SecurityException("Official DSE ERP " + version + " has no SHA-256 checksum for " + asset.name() + ".");
+            }
+            ChecksumVerifier.verify(installer, expected);
+            int schema = targetSchema(installer, version);
+            if (schema <= 0) throw new IllegalStateException("Database compatibility could not be proven for DSE ERP " + version + ".");
+            writePackageManifest(installer, version, schema, "GITHUB_VERIFIED");
+            appendAudit("PACKAGE_VERIFIED", version, "SUCCESS", installer.toString());
+            return candidateFor(installer, version);
+        } catch (Exception failure) {
+            appendAudit("PACKAGE_VERIFIED", version, "FAILED", rootMessage(failure));
+            throw new SecurityException("The installer is database-compatible, but DSE ERP could not verify it against the official GitHub release. "
+                    + "Rollback was not started. " + rootMessage(failure), failure);
+        }
     }
 
     int schemaForVersion(String version) {
@@ -487,9 +560,12 @@ public final class RollbackService {
     }
 
     public record Candidate(String version, Path installer, int databaseSchema,
-                            Compatibility compatibility, long sizeBytes, String sha256) { }
+                            Compatibility compatibility, PackageVerification packageVerification,
+                            long sizeBytes, String sha256) { }
 
     public record Compatibility(boolean safe, String label, String message) { }
+
+    public record PackageVerification(boolean verified, String label, String message) { }
 
     public record Preparation(String id, String targetVersion, Path installer,
                               Path databaseBackup, Path workspaceSnapshot, Path recoveryPoint) { }

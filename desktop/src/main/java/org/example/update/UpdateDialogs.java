@@ -313,6 +313,8 @@ public final class UpdateDialogs {
                     throw new SecurityException("The GitHub Release must include checksums.txt with a SHA-256 entry for " + asset.name() + ".");
                 }
                 ChecksumVerifier.verify(file, checksum);
+                UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(),
+                        "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + checksum);
                 updateMessage("Installer verified.");
                 return file;
             }
@@ -390,6 +392,8 @@ public final class UpdateDialogs {
                 String checksum = service.expectedChecksum(release, asset.name());
                 if (checksum.isBlank()) throw new SecurityException("The GitHub Release must include checksums.txt with a SHA-256 entry for " + asset.name() + ".");
                 ChecksumVerifier.verify(file, checksum);
+                UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(),
+                        "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + checksum);
                 updateMessage("Creating pre-update database backup...");
                 Path backup = service.createPreUpdateBackup();
                 UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(), "READY", "Installer=" + file.getFileName() + "; Backup=" + backup.getFileName());

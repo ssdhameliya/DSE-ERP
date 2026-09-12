@@ -47,7 +47,7 @@ class DeploymentConnectionServiceTest {
     }
 
     @Test void tenZeroThreeIsBelowTheCorrectedCompatibilityBoundary() {
-        RuntimeApiClient.RuntimeStatus status = status("10.0.6", "10.0.6", "10.0.4", RuntimeContract.API_REVISION);
+        RuntimeApiClient.RuntimeStatus status = status("10.0.10", "10.0.10", "10.0.4", RuntimeContract.API_REVISION);
         DeploymentConnectionService.ClientUpdateRequiredException failure = assertThrows(
                 DeploymentConnectionService.ClientUpdateRequiredException.class,
                 () -> DeploymentConnectionService.validateCompatibility(status, "10.0.3", "10.0.3"));
