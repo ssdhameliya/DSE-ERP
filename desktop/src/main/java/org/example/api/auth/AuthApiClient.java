@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.config.ConfigManager;
 import org.example.api.ApiSession;
-import org.example.api.runtime.RuntimeApiClient;
-import org.example.shared.RuntimeContract;
+import org.example.api.runtime.DeploymentConnectionService;
 import org.example.model.AppUser;
 
 import java.io.IOException;
@@ -385,20 +384,10 @@ public final class AuthApiClient {
     }
 
     private void requireCompatibleRuntime(String serverBaseUrl) {
-        RuntimeApiClient.RuntimeStatus status = new RuntimeApiClient(normalizeBaseUrl(serverBaseUrl)).status();
-        if (!status.ready()) {
-            throw new IllegalStateException(status.message() == null || status.message().isBlank()
-                    ? "The DSE ERP server is not ready" : status.message());
-        }
-        if (!RuntimeContract.SERVICE_NAME.equals(status.service())
-                || !org.example.update.BuildInfo.version().equals(status.version())
-                || !RuntimeContract.API_REVISION.equals(status.apiRevision())
-                || !org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())) {
-            throw new IllegalStateException("Desktop/server version mismatch. This desktop requires DSE ERP "
-                    + org.example.update.BuildInfo.version() + " build " + org.example.update.BuildInfo.buildRevision()
-                    + ", but the running backend reports version " + status.version() + " build " + status.buildRevision()
-                    + ". Stop the stale backend and restart DSE ERP.");
-        }
+        // Login, MFA and session establishment must use the same Shared Client compatibility
+        // authority as startup. Compatible older desktops are allowed when they remain at or
+        // above the server-owned minimum; same-version stale builds and API mismatches still fail.
+        DeploymentConnectionService.inspect(normalizeBaseUrl(serverBaseUrl));
     }
 
     private String baseUrl() {
