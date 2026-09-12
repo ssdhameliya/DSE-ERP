@@ -4,7 +4,7 @@ set -euo pipefail
 ENVIRONMENT=${1:?usage: deploy-release.sh <uat|prod> <tested-server.jar> <release-version>}
 JAR=${2:?path to tested dse-erp-server.jar}
 VERSION=${3:?release version}
-EXPECTED_MINIMUM_DESKTOP=${4:-10.0.1}
+EXPECTED_MINIMUM_DESKTOP=${4:-10.0.4}
 case "$ENVIRONMENT" in uat|prod) ;; *) echo 'environment must be uat or prod' >&2; exit 2;; esac
 [[ -s "$JAR" ]] || { echo "Server JAR missing/empty: $JAR" >&2; exit 2; }
 

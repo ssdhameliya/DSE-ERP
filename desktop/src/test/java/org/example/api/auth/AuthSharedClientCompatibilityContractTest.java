@@ -19,8 +19,11 @@ class AuthSharedClientCompatibilityContractTest {
         assertFalse(auth.contains("org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())"));
     }
 
-    @Test void localManagedBackendStillRequiresExactVersionAndBuild() throws Exception {
+    @Test void bootstrapCannotReintroduceExactSharedClientVersionEquality() throws Exception {
         String bootstrap = Files.readString(Path.of("src/main/java/org/example/api/runtime/RuntimeBootstrapper.java"));
+        assertTrue(bootstrap.contains("if (ConfigManager.isSharedClient())"));
+        assertTrue(bootstrap.contains("DeploymentConnectionService.validateCompatibility(status);"));
+        assertTrue(bootstrap.contains("} else {"));
         assertTrue(bootstrap.contains("BuildInfo.version().equals(status.version())")
                 || bootstrap.contains("org.example.update.BuildInfo.version().equals(status.version())"));
         assertTrue(bootstrap.contains("BuildInfo.buildRevision().equals(status.buildRevision())")

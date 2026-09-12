@@ -39,11 +39,19 @@ class DeploymentConnectionServiceTest {
     }
 
 
-    @Test void tenZeroOneMayRemainCompatibleWithTenZeroTenServer() {
-        RuntimeApiClient.RuntimeStatus status = status("10.0.10", "10.0.10", "10.0.1", RuntimeContract.API_REVISION);
-        assertDoesNotThrow(() -> DeploymentConnectionService.validateCompatibility(status, "10.0.1", "10.0.1"));
-        assertTrue(DeploymentConnectionService.isCompatibleClientUpdateAvailable(status, "10.0.1"));
-        assertEquals("10.0.1", DeploymentConnectionService.effectiveMinimumSupportedDesktopVersion(status));
+    @Test void tenZeroFourMayRemainCompatibleWithTenZeroTenServer() {
+        RuntimeApiClient.RuntimeStatus status = status("10.0.10", "10.0.10", "10.0.4", RuntimeContract.API_REVISION);
+        assertDoesNotThrow(() -> DeploymentConnectionService.validateCompatibility(status, "10.0.4", "10.0.4"));
+        assertTrue(DeploymentConnectionService.isCompatibleClientUpdateAvailable(status, "10.0.4"));
+        assertEquals("10.0.4", DeploymentConnectionService.effectiveMinimumSupportedDesktopVersion(status));
+    }
+
+    @Test void tenZeroThreeIsBelowTheCorrectedCompatibilityBoundary() {
+        RuntimeApiClient.RuntimeStatus status = status("10.0.6", "10.0.6", "10.0.4", RuntimeContract.API_REVISION);
+        DeploymentConnectionService.ClientUpdateRequiredException failure = assertThrows(
+                DeploymentConnectionService.ClientUpdateRequiredException.class,
+                () -> DeploymentConnectionService.validateCompatibility(status, "10.0.3", "10.0.3"));
+        assertEquals("10.0.4", failure.minimumSupportedDesktopVersion());
     }
 
     @Test void desktopBelowServerMinimumRequiresUpdate() {
