@@ -108,26 +108,32 @@ public final class RuntimeBootstrapper {
 
     private static void requireCompatible(RuntimeApiClient.RuntimeStatus status) {
         if (ConfigManager.isSharedClient()) {
+            // Defense in depth: if a future startup path ever reaches this helper for a Shared Client,
+            // use the same server-owned compatibility window as startup/login instead of exact version equality.
+            DeploymentConnectionService.validateCompatibility(status);
             ConfigManager.applyServerBusinessPolicy(status.businessZone(), status.dateFormat());
-        }
-        if (!RuntimeContract.SERVICE_NAME.equals(status.service())) {
-            throw new IllegalStateException("The configured DSE ERP backend port is serving a different application: " + status.service());
-        }
-        if (!RuntimeContract.API_REVISION.equals(status.apiRevision())) {
-            throw new IllegalStateException("DSE ERP backend API mismatch. Desktop requires "
-                    + RuntimeContract.API_REVISION + " but server reports " + status.apiRevision()
-                    + ". Stop the old backend and restart DSE ERP.");
-        }
-        if (!org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())) {
-            throw new IllegalStateException("DSE ERP backend build mismatch. Desktop requires "
-                    + org.example.update.BuildInfo.buildRevision() + " but server reports "
-                    + (status.buildRevision() == null || status.buildRevision().isBlank() ? "an older build" : status.buildRevision())
-                    + ". The desktop will not reuse a stale " + org.example.update.BuildInfo.version() + " backend.");
-        }
-        if (!org.example.update.BuildInfo.version().equals(status.version())) {
-            throw new IllegalStateException("DSE ERP backend version mismatch. Desktop is "
-                    + org.example.update.BuildInfo.version() + " but server is " + status.version()
-                    + ". A stale backend is running and must not be reused.");
+        } else {
+            // LOCAL owns its packaged Spring backend, so exact version/build identity remains mandatory
+            // to prevent reuse of a stale localhost process from another desktop build.
+            if (!RuntimeContract.SERVICE_NAME.equals(status.service())) {
+                throw new IllegalStateException("The configured DSE ERP backend port is serving a different application: " + status.service());
+            }
+            if (!RuntimeContract.API_REVISION.equals(status.apiRevision())) {
+                throw new IllegalStateException("DSE ERP backend API mismatch. Desktop requires "
+                        + RuntimeContract.API_REVISION + " but server reports " + status.apiRevision()
+                        + ". Stop the old backend and restart DSE ERP.");
+            }
+            if (!org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())) {
+                throw new IllegalStateException("DSE ERP backend build mismatch. Desktop requires "
+                        + org.example.update.BuildInfo.buildRevision() + " but server reports "
+                        + (status.buildRevision() == null || status.buildRevision().isBlank() ? "an older build" : status.buildRevision())
+                        + ". The desktop will not reuse a stale " + org.example.update.BuildInfo.version() + " backend.");
+            }
+            if (!org.example.update.BuildInfo.version().equals(status.version())) {
+                throw new IllegalStateException("DSE ERP backend version mismatch. Desktop is "
+                        + org.example.update.BuildInfo.version() + " but server is " + status.version()
+                        + ". A stale backend is running and must not be reused.");
+            }
         }
         String desktopZone = BusinessClock.zone().getId();
         if (!ConfigManager.isSharedClient() && status.businessZone() != null && !status.businessZone().isBlank() && !desktopZone.equals(status.businessZone())) {

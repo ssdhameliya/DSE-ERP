@@ -32,7 +32,7 @@ purchase_recon_service = text('server/src/main/java/org/example/server/recon/Pur
 purchase_recon_batch = text('server/src/main/java/org/example/server/persistence/entity/PurchaseReconImportBatchEntity.java')
 insights_service = text('server/src/main/java/org/example/server/insights/InsightsService.java')
 require('spring-security-bearer-v5' in runtime_contract, 'R12 must use the signed bearer-v5 API contract')
-require('desktopCompatibilityBaseline()' in runtime_contract and '10.0.1' in runtime_contract, '10.x runtime contract must expose the long-lived 10.0.1 desktop compatibility baseline')
+require('desktopCompatibilityBaseline()' in runtime_contract and '10.0.4' in runtime_contract, '10.x runtime contract must expose 10.0.4 as the first fully compatibility-aware desktop baseline')
 import re
 server_props = text('server/src/main/resources/application.properties')
 desktop_version = text('desktop/src/main/resources/app-version.properties')
@@ -45,7 +45,7 @@ require(runtime_controller_test.count('new RuntimeController(service, RuntimeCon
 require('jsonPath("$.minimumSupportedDesktopVersion").value("9.0.95")' in runtime_controller_test, 'RuntimeController tests must assert the server-owned minimum supported desktop version')
 require('RuntimeContract.desktopCompatibilityBaseline()' in runtime_controller_test, 'RuntimeController tests must assert blank environment configuration falls back to the release compatibility baseline')
 require('jsonPath("$.buildRevision").value(RuntimeContract.buildRevision())' in runtime_controller_test, 'RuntimeController tests must assert the current build revision exposed by health')
-require('BuildInfo.buildRevision().equals(status.buildRevision())' in runtime_bootstrap or 'org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())' in runtime_bootstrap, 'Runtime bootstrap must reject a stale same-version backend build')
+require('DeploymentConnectionService.validateCompatibility(status);' in runtime_bootstrap and ('BuildInfo.buildRevision().equals(status.buildRevision())' in runtime_bootstrap or 'org.example.update.BuildInfo.buildRevision().equals(status.buildRevision())' in runtime_bootstrap), 'Runtime bootstrap must delegate Shared Client compatibility centrally while retaining exact LOCAL stale-backend protection')
 require('private static volatile String apiBaseUrl' in api_session and 'boundApiBaseUrl()' in api_session, 'Bearer session must remember the exact Spring server that issued it')
 require('ApiSession.establish(response.accessToken(), response.expiresAt(), issuingBaseUrl)' in auth, 'Login must bind the bearer token to the issuing Spring endpoint')
 require('String loginBase = preLoginBaseUrl();' in auth and 'requireCompatibleRuntime(loginBase);' in auth, 'Login must verify the exact runtime contract before credentials/session are accepted')
