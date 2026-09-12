@@ -19,9 +19,21 @@ if([string]::IsNullOrWhiteSpace($ExpectedVersion)){throw 'Expected release versi
 $health=Invoke-RestMethod -Uri "$ServerUrl/api/runtime/health" -Method Get
 if(!$health.ready){throw 'Company server is not READY'}
 if($health.service -ne 'dse-erp-server'){throw "The target is not a DSE ERP server: $($health.service)"}
-if($health.version -ne $ExpectedVersion -or $health.buildRevision -ne $ExpectedVersion){throw "Company server must be $ExpectedVersion; found version $($health.version) build $($health.buildRevision)"}
 if($health.apiRevision -ne 'spring-security-bearer-v5'){throw "Company server API revision is incompatible: $($health.apiRevision)"}
 if($health.environment -ne $Environment){throw "Target environment mismatch. Expected $Environment; server reports $($health.environment)"}
+function Convert-DseVersion([string]$Value,[string]$Label){
+ if([string]::IsNullOrWhiteSpace($Value)){throw "$Label was not reported by the company server."}
+ try{return [version]($Value.Trim())}catch{throw "$Label is not a valid DSE ERP semantic version: $Value"}
+}
+$desktopVersion=Convert-DseVersion $ExpectedVersion 'Desktop version'
+$serverVersion=Convert-DseVersion ([string]$health.version) 'Server version'
+$minimumText=([string]$health.minimumSupportedDesktopVersion).Trim()
+if([string]::IsNullOrWhiteSpace($minimumText)){$minimumText=[string]$health.version}
+$minimumVersion=Convert-DseVersion $minimumText 'Minimum supported desktop version'
+if($minimumVersion -gt $serverVersion){throw "Company server compatibility policy is invalid. Minimum desktop $minimumText is newer than server $($health.version)."}
+if($desktopVersion -lt $minimumVersion){throw "This desktop $ExpectedVersion is below the company server minimum $minimumText. Update the desktop before enabling Shared Client mode."}
+if($desktopVersion -gt $serverVersion){throw "Company server $($health.version) is older than this desktop $ExpectedVersion. Update the company server first."}
+if($desktopVersion -eq $serverVersion -and ([string]$health.buildRevision).Trim() -ne $ExpectedVersion){throw "Company server build is stale for DSE ERP $ExpectedVersion; found build $($health.buildRevision)."}
 $config=Join-Path $Workspace 'Config\config.properties';if(!(Test-Path -LiteralPath $config)){throw "Workspace configuration not found: $config"}
 $headers=@{Authorization="Bearer $AdminToken"}
 function Put-Setting([string]$Key,[string]$Value){$json=@{value=$Value}|ConvertTo-Json -Compress;Invoke-RestMethod -Uri "$ServerUrl/api/support/settings/$([uri]::EscapeDataString($Key))" -Method Put -Headers $headers -ContentType application/json -Body $json|Out-Null}

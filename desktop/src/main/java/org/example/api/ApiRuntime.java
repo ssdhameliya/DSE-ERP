@@ -35,7 +35,7 @@ public final class ApiRuntime {
 
         if (status == 401) return "Your session has expired. Please sign in again.";
         if (status == 403) return serverMessage.isBlank() ? "You do not have permission to perform this action." : serverMessage;
-        if (status == 404) return serverMessage.isBlank() ? "The requested ERP endpoint or record could not be found. Confirm that the desktop and server are the same DSE ERP version." : serverMessage;
+        if (status == 404) return serverMessage.isBlank() ? "The requested ERP endpoint or record could not be found. Confirm that this desktop is supported by the company server and that both use the same API revision." : serverMessage;
         if (status == 409) return serverMessage.isBlank() ? "This operation conflicts with the latest ERP data. Reload and try again." : serverMessage;
         if (status >= 400 && status < 500) return serverMessage.isBlank() ? "Please review the entered information and try again." : serverMessage;
         String operation = area == null || area.isBlank() ? "this request" : area.trim();
@@ -51,7 +51,7 @@ public final class ApiRuntime {
             return "Cannot connect to the ERP server at " + baseUrl + ". Check that the current DSE ERP backend is running.";
         if (hasType(failure, "JsonProcessingException") || hasType(failure, "JsonMappingException")
                 || hasType(failure, "MismatchedInputException") || hasType(failure, "InvalidDefinitionException"))
-            return "The ERP request/response could not be converted safely. Confirm that desktop and server are the same application/build version and check desktop.log.";
+            return "The ERP request/response could not be converted safely. Confirm that this desktop is within the server compatibility window and uses the same API revision, then check desktop.log.";
         return operation + " failed while communicating with the ERP server at " + baseUrl + ".";
     }
 
