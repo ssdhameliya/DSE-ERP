@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -27,37 +28,68 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Ensure Maven wrapper is executable
-        shell: bash
-        run: chmod +x mvnw
-      - name: Set up Java 25
-        uses: actions/setup-java@v5
         with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-      - name: Resolve release version
+          fetch-depth: 0
+      - name: Require the tag to point at the current green main commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          TAG_COMMIT="$(git rev-parse HEAD)"
+          MAIN_COMMIT="$(git rev-parse origin/main)"
+          [[ "$TAG_COMMIT" == "$MAIN_COMMIT" ]] || {
+            echo "Release tag must point at current origin/main: tag=$TAG_COMMIT main=$MAIN_COMMIT" >&2
+            exit 1
+          }
+
+          for attempt in $(seq 1 30); do
+            RESULT="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TAG_COMMIT}&event=push&per_page=100" \
+              --jq '[.workflow_runs[] | select(.name == "Build and Test")] | sort_by(.created_at) | last | if . == null then "" else [.status,.conclusion] | @tsv end' 2>/dev/null || true)"
+            STATUS="${RESULT%%$'\t'*}"
+            CONCLUSION=""
+            if [[ "$RESULT" == *$'\t'* ]]; then CONCLUSION="${RESULT#*$'\t'}"; fi
+            if [[ "$STATUS" == "completed" && "$CONCLUSION" == "success" ]]; then
+              echo "MAIN_CI_REUSED_OK commit=$TAG_COMMIT"
+              break
+            fi
+            if [[ "$STATUS" == "completed" && -n "$CONCLUSION" && "$CONCLUSION" != "success" ]]; then
+              echo "Build and Test for $TAG_COMMIT completed with conclusion=$CONCLUSION" >&2
+              exit 1
+            fi
+            if (( attempt == 30 )); then
+              echo "Timed out waiting for successful Build and Test on current main commit $TAG_COMMIT" >&2
+              exit 1
+            fi
+            echo "Waiting for current-main Build and Test result (attempt ${attempt}/30)..."
+            sleep 10
+          done
+      - name: Resolve release version and compatibility policy without Maven startup
         id: version
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          else
-            VERSION="$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
-            TAG="v${VERSION}"
-          fi
+          TAG="${GITHUB_REF_NAME}"
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Release tag must look like vX.Y.Z: $TAG" >&2; exit 1; }
           VERSION="${TAG#v}"
-          POM_VERSION="$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout | tail -1)"
-          if [[ "$VERSION" != "$POM_VERSION" ]]; then
-            echo "Tag version $VERSION does not match pom.xml version $POM_VERSION" >&2
-            exit 1
-          fi
-          COMPATIBILITY_BASELINE="$(./mvnw help:evaluate -Dexpression=desktop.compatibility.baseline -q -DforceStdout | tail -1)"
-          ANDROID_MINIMUM="$(./mvnw help:evaluate -Dexpression=android.compatibility.baseline -q -DforceStdout | tail -1)"
-          ANDROID_LATEST="$(./mvnw help:evaluate -Dexpression=android.latest.version -q -DforceStdout | tail -1)"
-          IOS_MINIMUM="$(./mvnw help:evaluate -Dexpression=ios.compatibility.baseline -q -DforceStdout | tail -1)"
-          IOS_LATEST="$(./mvnw help:evaluate -Dexpression=ios.latest.version -q -DforceStdout | tail -1)"
+          SOURCE_VERSION="$(sed -n 's/^-Drevision=//p' .mvn/maven.config | head -1)"
+          [[ "$VERSION" == "$SOURCE_VERSION" ]] || { echo "Tag/source version mismatch: $VERSION vs $SOURCE_VERSION" >&2; exit 1; }
+          policy() {
+            python3 - "$1" <<'PY'
+          import sys,xml.etree.ElementTree as ET
+          key=sys.argv[1]
+          root=ET.parse('pom.xml').getroot()
+          ns={'m':'http://maven.apache.org/POM/4.0.0'}
+          node=root.find(f'm:properties/m:{key}',ns)
+          print('' if node is None or node.text is None else node.text.strip())
+          PY
+          }
+          COMPATIBILITY_BASELINE="$(policy desktop.compatibility.baseline)"
+          ANDROID_MINIMUM="$(policy android.compatibility.baseline)"
+          ANDROID_LATEST="$(policy android.latest.version)"
+          IOS_MINIMUM="$(policy ios.compatibility.baseline)"
+          IOS_LATEST="$(policy ios.latest.version)"
           for policy_version in "$COMPATIBILITY_BASELINE" "$ANDROID_MINIMUM" "$ANDROID_LATEST" "$IOS_MINIMUM" "$IOS_LATEST"; do
             [[ "$policy_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid compatibility version: $policy_version" >&2; exit 1; }
           done
@@ -72,7 +104,8 @@ jobs:
         run: python3 scripts/audit-release-gates.py
 
   tests:
-    name: Validate release
+    name: Validate tagged source (Linux)
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -91,7 +124,7 @@ jobs:
 
 
   server:
-    needs: validate
+    needs: [validate, tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -122,7 +155,7 @@ jobs:
           retention-days: 7
 
   windows:
-    needs: validate
+    needs: [validate, tests, server]
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -136,9 +169,19 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      - name: Verify project on Windows
+      - name: Build platform-specific desktop artifacts without rerunning tests
         shell: pwsh
-        run: ./mvnw -B -ntp clean verify
+        run: ./mvnw -B -ntp -pl desktop -am package -DskipTests
+      - name: Download canonical server artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: server-release
+          path: native-server
+      - name: Use canonical server artifact in the Windows installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path 'server/target' -Force | Out-Null
+          Copy-Item -LiteralPath 'native-server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' -Destination 'server/target/dse-erp-server.jar' -Force
       - name: Ensure WiX Toolset is available
         shell: pwsh
         run: |
@@ -149,34 +192,13 @@ jobs:
           }
       - name: Restore PostgreSQL 18 runtime cache
         id: postgres-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}\dse-postgresql-18-runtime
-          key: dse-postgresql-windows-${{ runner.arch }}-18-runtime-v1
+          key: dse-postgresql-windows-${{ runner.arch }}-18-${{ hashFiles('scripts/ci/prepare-postgresql-windows.ps1') }}
       - name: Prepare PostgreSQL 18 runtime
         shell: pwsh
-        run: |
-          $pgRuntime = Join-Path $env:RUNNER_TEMP 'dse-postgresql-18-runtime'
-          $initdb = Join-Path $pgRuntime 'bin\initdb.exe'
-          if (-not (Test-Path -LiteralPath $initdb -PathType Leaf)) {
-            Write-Host 'PostgreSQL runtime cache miss; installing PostgreSQL 18 once to seed the portable cache.' -ForegroundColor Cyan
-            choco install postgresql18 --yes --no-progress --params '/NoPath /Password:DseReleaseBuildOnly!'
-            $installedPg = 'C:\Program Files\PostgreSQL\18'
-            if (-not (Test-Path (Join-Path $installedPg 'bin\initdb.exe'))) { throw "PostgreSQL 18 runtime not found at $installedPg" }
-            Remove-Item -LiteralPath $pgRuntime -Recurse -Force -ErrorAction SilentlyContinue
-            New-Item -ItemType Directory -Path $pgRuntime -Force | Out-Null
-            foreach ($folder in @('bin','lib','share')) {
-              $source = Join-Path $installedPg $folder
-              if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw "PostgreSQL runtime folder missing: $source" }
-              Copy-Item -LiteralPath $source -Destination (Join-Path $pgRuntime $folder) -Recurse -Force
-            }
-          } else {
-            Write-Host "Using cached PostgreSQL 18 runtime: $pgRuntime" -ForegroundColor DarkCyan
-          }
-          $required = @('initdb.exe','pg_ctl.exe','pg_isready.exe','psql.exe','createdb.exe','pg_dump.exe','pg_restore.exe')
-          $missing = $required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $pgRuntime "bin\$_") -PathType Leaf) }
-          if ($missing) { throw "Cached PostgreSQL runtime is incomplete. Missing: $($missing -join ', ')" }
-          "DSE_POSTGRES_RUNTIME_DIR=$pgRuntime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        run: ./scripts/ci/prepare-postgresql-windows.ps1
       - name: Build Windows EXE
         shell: pwsh
         run: ./scripts/package-windows.ps1 -Version '${{ needs.validate.outputs.version }}' -Preverified
@@ -189,7 +211,7 @@ jobs:
           retention-days: 7
 
   macos-arm64:
-    needs: validate
+    needs: [validate, tests, server]
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -204,26 +226,27 @@ jobs:
           java-version: '25'
           architecture: aarch64
           cache: maven
-      - name: Verify project on macOS
+      - name: Build platform-specific desktop artifacts without rerunning tests
         shell: zsh {0}
-        run: ./mvnw -B -ntp clean verify
-      - name: Restore PostgreSQL 18 runtime cache
-        uses: actions/cache@v4
+        run: ./mvnw -B -ntp -pl desktop -am package -DskipTests
+      - name: Download canonical server artifact
+        uses: actions/download-artifact@v5
         with:
-          path: ${{ runner.temp }}/dse-postgresql-18.4
-          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh') }}
-      - name: Prepare PostgreSQL 18 runtime
+          name: server-release
+          path: native-server
+      - name: Use canonical server artifact in the macOS installer
         shell: zsh {0}
         run: |
-          PG_RUNTIME="$RUNNER_TEMP/dse-postgresql-18.4"
-          if [[ ! -x "$PG_RUNTIME/bin/initdb" ]]; then
-            echo "PostgreSQL runtime cache miss; building the relocatable PostgreSQL 18.4 runtime once."
-            zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
-          else
-            echo "Using cached PostgreSQL 18.4 runtime: $PG_RUNTIME"
-          fi
-          [[ -x "$PG_RUNTIME/bin/initdb" ]] || { echo "Cached PostgreSQL runtime is missing initdb" >&2; exit 1; }
-          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_RUNTIME" >> "$GITHUB_ENV"
+          mkdir -p server/target
+          cp 'native-server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' server/target/dse-erp-server.jar
+      - name: Restore PostgreSQL 18 runtime cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/dse-postgresql-18.4
+          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh', 'scripts/ci/prepare-postgresql-macos.sh') }}
+      - name: Prepare PostgreSQL 18 runtime
+        shell: zsh {0}
+        run: zsh ./scripts/ci/prepare-postgresql-macos.sh
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
@@ -239,7 +262,7 @@ jobs:
           retention-days: 7
 
   macos-intel:
-    needs: validate
+    needs: [validate, tests, server]
     runs-on: macos-15-intel
     steps:
       - name: Checkout
@@ -254,26 +277,27 @@ jobs:
           java-version: '25'
           architecture: x64
           cache: maven
-      - name: Verify project on macOS
+      - name: Build platform-specific desktop artifacts without rerunning tests
         shell: zsh {0}
-        run: ./mvnw -B -ntp clean verify
-      - name: Restore PostgreSQL 18 runtime cache
-        uses: actions/cache@v4
+        run: ./mvnw -B -ntp -pl desktop -am package -DskipTests
+      - name: Download canonical server artifact
+        uses: actions/download-artifact@v5
         with:
-          path: ${{ runner.temp }}/dse-postgresql-18.4
-          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh') }}
-      - name: Prepare PostgreSQL 18 runtime
+          name: server-release
+          path: native-server
+      - name: Use canonical server artifact in the macOS installer
         shell: zsh {0}
         run: |
-          PG_RUNTIME="$RUNNER_TEMP/dse-postgresql-18.4"
-          if [[ ! -x "$PG_RUNTIME/bin/initdb" ]]; then
-            echo "PostgreSQL runtime cache miss; building the relocatable PostgreSQL 18.4 runtime once."
-            zsh ./scripts/build-postgresql-macos.sh "$PG_RUNTIME"
-          else
-            echo "Using cached PostgreSQL 18.4 runtime: $PG_RUNTIME"
-          fi
-          [[ -x "$PG_RUNTIME/bin/initdb" ]] || { echo "Cached PostgreSQL runtime is missing initdb" >&2; exit 1; }
-          echo "DSE_POSTGRES_RUNTIME_DIR=$PG_RUNTIME" >> "$GITHUB_ENV"
+          mkdir -p server/target
+          cp 'native-server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' server/target/dse-erp-server.jar
+      - name: Restore PostgreSQL 18 runtime cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/dse-postgresql-18.4
+          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh', 'scripts/ci/prepare-postgresql-macos.sh') }}
+      - name: Prepare PostgreSQL 18 runtime
+        shell: zsh {0}
+        run: zsh ./scripts/ci/prepare-postgresql-macos.sh
       - name: Validate macOS packaging script
         shell: zsh {0}
         run: zsh -n ./scripts/package-macos.sh
