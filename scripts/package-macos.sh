@@ -24,7 +24,7 @@ esac
 
 echo "Building DSE ERP $VERSION for macOS $ARCH_LABEL..."
 if [[ "$PREVERIFIED" == "--preverified" ]]; then
-  echo "Using Maven artifacts verified by the current CI job."
+  echo "Using platform-specific Maven artifacts built after the required workflow verification gate."
 else
   mvn -B -ntp clean verify
 fi

@@ -33,17 +33,28 @@ jobs:
       UAT_HEALTH_URL: ${{ vars.DSE_UAT_PUBLIC_HEALTH_URL }}
       UAT_EXPECTED_DATABASE: ${{ vars.DSE_UAT_EXPECTED_DATABASE }}
     steps:
+      - name: Normalize release tag input
+        id: normalize
+        shell: bash
+        run: |
+          set -euo pipefail
+          RAW='${{ inputs.tag }}'
+          [[ "$RAW" =~ ^[vV][0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Tag must look like vX.Y.Z (uppercase V is accepted)' >&2; exit 1; }
+          TAG="v${RAW:1}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Normalized PROD release tag: $RAW -> $TAG"
+
       - name: Checkout the approved release tag
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ steps.normalize.outputs.tag }}
 
       - name: Validate deployment inputs
         shell: bash
         run: |
           set -euo pipefail
-          TAG='${{ inputs.tag }}'
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Tag must look like vX.Y.Z' >&2; exit 1; }
+          TAG='${{ steps.normalize.outputs.tag }}'
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Normalized tag must look like vX.Y.Z' >&2; exit 1; }
           VERSION="${TAG#v}"
           SOURCE_VERSION="$(sed -n 's/^-Drevision=//p' .mvn/maven.config | head -1)"
           [[ "$VERSION" == "$SOURCE_VERSION" ]] || { echo "Tag/source version mismatch: $VERSION vs $SOURCE_VERSION" >&2; exit 1; }
@@ -117,6 +128,7 @@ jobs:
           echo "Exact UAT-approved release artifact verified: $ACTUAL"
 
       - name: Configure strict SSH host verification
+        id: ssh
         shell: bash
         run: |
           set -euo pipefail
@@ -176,7 +188,7 @@ jobs:
           echo "RELEASE_PROMOTED_TO_STABLE tag=$TAG"
 
       - name: Clean remote upload staging
-        if: always()
+        if: always() && steps.ssh.outcome == 'success'
         shell: bash
         run: |
           ssh -i ~/.ssh/dse_deploy_key -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
@@ -186,7 +198,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: prod-deployment-${{ inputs.tag }}
+          name: prod-deployment-${{ steps.normalize.outputs.tag }}
           path: DSE-ERP-PROD-deploy.log
           if-no-files-found: ignore
           retention-days: 30

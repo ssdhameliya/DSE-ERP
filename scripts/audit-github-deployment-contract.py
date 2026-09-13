@@ -15,6 +15,7 @@ def need(ok,msg):
     if not ok: fail.append(msg)
 
 release=text('.github/workflows/release.yml')
+ci=text('.github/workflows/ci.yml')
 prod=text('.github/workflows/deploy-prod.yml')
 deploy=text('scripts/linux/deploy-oracle-release.sh')
 doc=text('GITHUB-DEPLOYMENT-SETUP.md')
@@ -32,8 +33,37 @@ need('deploy-oracle-release.sh uat' in release and 'UAT_DEPLOYMENT_OK' in releas
 need('android_minimum' in release and 'android_latest' in release and 'ios_minimum' in release and 'ios_latest' in release and 'minimumSupportedAndroidVersion' in release and 'latestIosVersion' in release,
      'UAT workflow does not verify the Android/iOS compatibility policy')
 
+# Packaging/CI performance must preserve safety while avoiding duplicate native test work.
+need('for attempt in 1 2 3 4 5 6' in ci and 'sleep 2' in ci and 'No verified merged PR association found after bounded retry' in ci,
+     'main CI merged-PR detection does not protect against GitHub indexing delay')
+need('warm-windows-packaging-runtime:' in ci and 'warm-macos-packaging-runtime:' in ci
+     and 'prepare-postgresql-windows.ps1' in ci and 'prepare-postgresql-macos.sh' in ci
+     and ci.count("if: github.event_name == 'push'") >= 2,
+     'default-branch native PostgreSQL runtime cache warmup is missing or can run in PR-only cache scope')
+need(ci.count('lookup-only: true') >= 2 and ci.count('actions/cache/save@v4') >= 2,
+     'main cache warmup downloads large cache payloads even when the reusable cache already exists')
+need(release.count('actions/cache/restore@v4') >= 3 and 'actions/cache/save@v4' not in release,
+     'tag release should restore default-branch runtimes without writing useless tag-scoped caches')
+need('MAIN_CI_REUSED_OK' in release and 'actions: read' in release and 'Require the tag to point at the current green main commit' in release,
+     'tag release does not require the exact current main commit to have a successful Build and Test run')
+need('Verify project on Windows' not in release and 'Verify project on macOS' not in release,
+     'native packaging still duplicates the full Maven verification after the tagged Linux gate')
+need(release.count('./mvnw -B -ntp clean verify') == 1,
+     'tag release must run exactly one full Maven verification before native packaging')
+need('needs: [validate, tests]' in release and release.count('needs: [validate, tests, server]') >= 3 and 'Validate tagged source (Linux)' in release,
+     'Windows/macOS packaging does not wait for the single tagged-source verification gate and canonical server build')
+need(release.count('-pl desktop -am package -DskipTests') >= 3 and release.count('name: Download canonical server artifact') >= 3,
+     'native packaging does not rebuild platform-specific desktop artifacts and reuse the canonical server artifact')
+need("hashFiles('scripts/ci/prepare-postgresql-windows.ps1')" in release
+     and "hashFiles('scripts/build-postgresql-macos.sh', 'scripts/ci/prepare-postgresql-macos.sh')" in release,
+     'release cache keys do not match the default-branch runtime seed contract')
+
 need('workflow_dispatch:' in prod and 'environment: production' in prod,
      'PROD deployment is not manual/protected by the production environment')
+need('Normalize release tag input' in prod and '^[vV]' in prod and 'ref: ${{ steps.normalize.outputs.tag }}' in prod,
+     'PROD tag input is not normalized before checkout; uppercase V would fail as a Git ref')
+need("steps.ssh.outcome == 'success'" in prod,
+     'PROD cleanup can still attempt SSH before SSH configuration succeeds')
 need('gh release download' in prod and 'checksums.txt' in prod,
      'PROD does not download/verify the exact published release artifact')
 need('UAT_GATE_OK' in prod and "r.get('environment')=='UAT'" in prod,
@@ -109,4 +139,4 @@ if fail:
     print('GITHUB_DEPLOYMENT_CONTRACT_FAIL')
     for item in fail: print(' -',item)
     sys.exit(1)
-print('GITHUB_DEPLOYMENT_CONTRACT_OK uat=automatic prod=manual artifact=same rollback=binary')
+print('GITHUB_DEPLOYMENT_CONTRACT_OK uat=automatic prod=manual artifact=same rollback=binary ci=deduplicated cache=default-branch prod_tag=normalized')

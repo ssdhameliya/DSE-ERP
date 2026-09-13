@@ -26,18 +26,25 @@ jobs:
           set -euo pipefail
           RUN_CROSS_PLATFORM=true
           if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            # A merge-to-main push has already passed the PR cross-platform matrix.
-            # Direct pushes (or any API uncertainty) fail safe by rerunning the matrix.
-            if MERGED_PR_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
-                --jq '[.[] | select(.merged_at != null and .base.ref == "main")] | length' 2>/dev/null)"; then
-              if [[ "$MERGED_PR_COUNT" =~ ^[0-9]+$ ]] && (( MERGED_PR_COUNT > 0 )); then
-                RUN_CROSS_PLATFORM=false
-                echo "Main commit is associated with a merged PR; reusing the PR Windows/macOS gates."
-              else
-                echo "No merged PR association found; running the full Windows/macOS matrix."
+            # GitHub can take a few seconds after merge before the commit -> PR
+            # association API is indexed. Retry that read before falling back to
+            # the full native matrix. Direct pushes still fail safe and rerun it.
+            for attempt in 1 2 3 4 5 6; do
+              if MERGED_PR_COUNT="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+                  --jq '[.[] | select(.merged_at != null and .base.ref == "main")] | length' 2>/dev/null)"; then
+                if [[ "$MERGED_PR_COUNT" =~ ^[0-9]+$ ]] && (( MERGED_PR_COUNT > 0 )); then
+                  RUN_CROSS_PLATFORM=false
+                  echo "Main commit is associated with a merged PR; reusing the PR Windows/macOS gates."
+                  break
+                fi
               fi
-            else
-              echo "Could not verify PR association; running the full Windows/macOS matrix for safety."
+              if (( attempt < 6 )); then
+                echo "Merged PR association is not indexed yet (attempt ${attempt}/6); retrying in 2 seconds."
+                sleep 2
+              fi
+            done
+            if [[ "$RUN_CROSS_PLATFORM" == "true" ]]; then
+              echo "No verified merged PR association found after bounded retry; running the full Windows/macOS matrix."
             fi
           fi
           echo "run_cross_platform=$RUN_CROSS_PLATFORM" >> "$GITHUB_OUTPUT"
@@ -214,6 +221,76 @@ jobs:
           print(f'UI_SOURCE_CONTRACT_OK fxml={len(fxml)} profiles={len(profiles)}')
       - name: Verify project
         run: ./mvnw -B -ntp clean verify
+
+  warm-windows-packaging-runtime:
+    name: Warm packaging runtime (Windows x64)
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check default-branch PostgreSQL 18 runtime cache
+        id: postgres-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}\dse-postgresql-18-runtime
+          key: dse-postgresql-windows-${{ runner.arch }}-18-${{ hashFiles('scripts/ci/prepare-postgresql-windows.ps1') }}
+          lookup-only: true
+      - name: Prepare verified PostgreSQL 18 runtime on cache miss
+        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./scripts/ci/prepare-postgresql-windows.ps1
+      - name: Save default-branch PostgreSQL 18 runtime cache
+        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}\dse-postgresql-18-runtime
+          key: dse-postgresql-windows-${{ runner.arch }}-18-${{ hashFiles('scripts/ci/prepare-postgresql-windows.ps1') }}
+      - name: Confirm existing default-branch PostgreSQL runtime cache
+        if: steps.postgres-cache.outputs.cache-hit == 'true'
+        shell: pwsh
+        run: Write-Host 'Default-branch PostgreSQL 18 runtime cache already exists; no large cache download is needed on main.'
+
+  warm-macos-packaging-runtime:
+    name: Warm packaging runtime (${{ matrix.name }})
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            os: macos-15
+            arch: aarch64
+          - name: macOS Intel
+            os: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Check default-branch PostgreSQL 18 runtime cache
+        id: postgres-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/dse-postgresql-18.4
+          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh', 'scripts/ci/prepare-postgresql-macos.sh') }}
+          lookup-only: true
+      - name: Prepare verified PostgreSQL 18 runtime on cache miss
+        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        shell: zsh {0}
+        run: zsh ./scripts/ci/prepare-postgresql-macos.sh
+      - name: Save default-branch PostgreSQL 18 runtime cache
+        if: steps.postgres-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/dse-postgresql-18.4
+          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh', 'scripts/ci/prepare-postgresql-macos.sh') }}
+      - name: Confirm existing default-branch PostgreSQL runtime cache
+        if: steps.postgres-cache.outputs.cache-hit == 'true'
+        shell: zsh {0}
+        run: echo 'Default-branch PostgreSQL 18 runtime cache already exists; no large cache download is needed on main.'
 
   postgres-integration:
     name: PostgreSQL workflow integration

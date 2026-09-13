@@ -16,7 +16,7 @@ if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
 
 Write-Host "Building DSE ERP $Version for Windows..." -ForegroundColor Cyan
 if ($Preverified) {
-    Write-Host "Using Maven artifacts verified by the current CI job." -ForegroundColor DarkCyan
+    Write-Host "Using platform-specific Maven artifacts built after the required workflow verification gate." -ForegroundColor DarkCyan
 } else {
     mvn -B -ntp clean verify
     if ($LASTEXITCODE -ne 0) {
