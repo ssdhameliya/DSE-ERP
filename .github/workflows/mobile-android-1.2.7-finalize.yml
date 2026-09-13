@@ -1,0 +1,417 @@
+name: Finalize Mobile Android 1.2.7 Servers
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/mobile-android-1.2.7-finalize.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-android-1-2-7-server-finalize
+  cancel-in-progress: false
+
+env:
+  MOBILE_REPO: ssdhameliya/DES_Mobile
+  MOBILE_VERSION: '1.2.7'
+
+jobs:
+  uat:
+    name: Finalize Android 1.2.7 on UAT
+    if: contains(github.event.head_commit.message, '[mobile-server-finalize-1.2.7]')
+    runs-on: ubuntu-latest
+    environment: uat
+    timeout-minutes: 15
+    env:
+      CHANNEL: UAT
+      SERVER_ENV: uat
+      EXPECTED_ENV: UAT
+      EXPECTED_HOST: api-uat.jasviindustries.in
+      SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
+      SSH_USER: ${{ secrets.DSE_SSH_USER }}
+      SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      SSH_PORT: ${{ vars.DSE_SSH_PORT }}
+      PUBLIC_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+      EXPECTED_DATABASE: ${{ vars.DSE_EXPECTED_DATABASE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Validate UAT configuration and current health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PUBLIC_HEALTH_URL EXPECTED_DATABASE; do
+            [[ -n "${!name:-}" ]] || { echo "Missing UAT environment secret/variable: $name" >&2; exit 1; }
+          done
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL")"
+          python3 - "$EXPECTED_ENV" "$EXPECTED_DATABASE" "$MOBILE_VERSION" "$BODY" <<'PY'
+          import json,sys
+          env,db,target,body=sys.argv[1:]
+          r=json.loads(body)
+          if r.get('ready') is not True or r.get('environment') != env or r.get('databaseName') != db:
+              raise SystemExit(f'Unexpected preflight health: {r}')
+          if r.get('latestAndroidVersion') not in ('1.2.6', target):
+              raise SystemExit(f'Unexpected current latestAndroidVersion: {r.get("latestAndroidVersion")}')
+          print('UAT_PREFLIGHT_OK', r.get('version'), r.get('latestDesktopVersion'), r.get('latestAndroidVersion'))
+          PY
+      - name: Download and verify exact UAT APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deploy-artifacts
+          gh release download "v${MOBILE_VERSION}" --repo "$MOBILE_REPO" --dir deploy-artifacts \
+            --pattern "Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk" \
+            --pattern "Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk.sha256"
+          APK="deploy-artifacts/Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk"
+          SHA_FILE="$APK.sha256"
+          EXPECTED_SHA="$(awk 'NR==1 {print tolower($1)}' "$SHA_FILE")"
+          ACTUAL_SHA="$(sha256sum "$APK" | awk '{print tolower($1)}')"
+          [[ "$EXPECTED_SHA" == "$ACTUAL_SHA" ]] || { echo 'UAT APK checksum mismatch' >&2; exit 1; }
+          echo "APK_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/dse_mobile_key
+          chmod 600 ~/.ssh/dse_mobile_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Prepare guarded remote finalizer
+        shell: bash
+        run: |
+          cat > finalize-mobile.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          ENVIRONMENT=${1:?uat|prod}
+          VERSION=${2:?version}
+          CHANNEL=${3:?UAT|PROD}
+          HOST=${4:?host}
+          EXPECTED_SHA=${5:?sha256}
+          EXPECTED_ENV=${6:?UAT|PROD}
+          EXPECTED_DATABASE=${7:?database}
+          case "$ENVIRONMENT" in uat|prod) ;; *) exit 2;; esac
+          case "$CHANNEL" in UAT|PROD) ;; *) exit 2;; esac
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 2
+          ENV_FILE="/etc/dse-erp/${ENVIRONMENT}.env"
+          SERVICE="dse-erp-${ENVIRONMENT}"
+          BASE="/srv/dse-erp/${ENVIRONMENT}"
+          STATIC_DIR="$BASE/mobile/android/${ENVIRONMENT}"
+          APK_SRC="/tmp/dse-mobile-finalize/Jasvi-Mobile-${VERSION}-${CHANNEL}.apk"
+          SHA_SRC="$APK_SRC.sha256"
+          DEST_APK="$STATIC_DIR/Jasvi-Mobile-${VERSION}-${CHANNEL}.apk"
+          DEST_SHA="$DEST_APK.sha256"
+          CONFIG_FILE=/etc/caddy/Caddyfile
+          ROUTE="/mobile/android/${ENVIRONMENT}/*"
+          MARKER="# DSE_MOBILE_${CHANNEL}_STATIC_BEGIN"
+          SELINUX_PATTERN="${STATIC_DIR}(/.*)?"
+          [[ -s "$APK_SRC" && -s "$SHA_SRC" ]] || { echo 'staged APK/checksum missing' >&2; exit 1; }
+          ACTUAL_SHA=$(sha256sum "$APK_SRC" | awk '{print tolower($1)}')
+          FILE_SHA=$(awk 'NR==1 {print tolower($1)}' "$SHA_SRC")
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" && "$FILE_SHA" == "$EXPECTED_SHA" ]] || { echo 'staged checksum mismatch' >&2; exit 1; }
+          sudo -n test -r "$ENV_FILE" || { echo "Cannot read $ENV_FILE" >&2; exit 1; }
+          sudo -n systemctl is-active --quiet "$SERVICE" || { echo "$SERVICE is not active" >&2; exit 1; }
+          ENV_CONTENT=$(sudo -n cat "$ENV_FILE")
+          set -a; source /dev/stdin <<< "$ENV_CONTENT"; set +a; unset ENV_CONTENT
+          PORT=${DSE_SERVER_PORT:-8081}
+          HEALTH="http://127.0.0.1:${PORT}/api/runtime/health"
+          BEFORE=$(curl --fail --silent --show-error --max-time 10 "$HEALTH")
+          python3 - "$EXPECTED_ENV" "$EXPECTED_DATABASE" "$BEFORE" <<'PY'
+          import json,sys
+          env,db,body=sys.argv[1:]
+          r=json.loads(body)
+          if r.get('ready') is not True or r.get('environment') != env or r.get('databaseName') != db:
+              raise SystemExit(f'Unexpected local preflight health: {r}')
+          PY
+
+          # Configure a narrowly scoped static Caddy route, preserving a rollback copy.
+          sudo -n install -d -o dseerp -g dseerp -m 0755 "$STATIC_DIR"
+          SELINUX_ADDED=false
+          if [[ "$(getenforce 2>/dev/null || echo Disabled)" != "Disabled" ]]; then
+            EXISTING=$(sudo -n semanage fcontext -l | grep -F "$SELINUX_PATTERN" || true)
+            if [[ -n "$EXISTING" ]]; then
+              grep -q 'httpd_sys_content_t' <<<"$EXISTING" || { echo "Conflicting SELinux rule: $EXISTING" >&2; exit 1; }
+            else
+              sudo -n semanage fcontext -a -t httpd_sys_content_t "$SELINUX_PATTERN"
+              SELINUX_ADDED=true
+            fi
+            sudo -n restorecon -RF "$STATIC_DIR"
+          fi
+          CADDY_BACKUP=''
+          CADDY_CHANGED=false
+          if ! sudo -n grep -Fq "$MARKER" "$CONFIG_FILE"; then
+            CURRENT=$(mktemp); UPDATED=$(mktemp)
+            sudo -n cat "$CONFIG_FILE" > "$CURRENT"
+            python3 - "$HOST" "$PORT" "$ENVIRONMENT" "$CHANNEL" "$STATIC_DIR" "$CURRENT" "$UPDATED" <<'PY'
+          import re,sys
+          host,port,env,channel,static_dir,src,dst=sys.argv[1:]
+          lines=open(src,encoding='utf-8').read().splitlines(True)
+          start=None; depth=0; site=None
+          for i,line in enumerate(lines):
+              if start is None:
+                  if re.match(r'^\s*'+re.escape(host)+r'\s*\{\s*$', line):
+                      start=i; depth=line.count('{')-line.count('}')
+              else:
+                  depth += line.count('{')-line.count('}')
+                  if depth == 0:
+                      site=(start,i); break
+          if site is None: raise SystemExit(f'Unable to isolate Caddy site block for {host}')
+          start,end=site
+          pattern=r'^\s*reverse_proxy\s+127\.0\.0\.1:'+re.escape(port)+r'\s*$'
+          proxies=[i for i in range(start+1,end) if re.match(pattern,lines[i])]
+          if len(proxies)!=1: raise SystemExit(f'Expected one reverse_proxy for {host}:{port}, found {len(proxies)}')
+          pi=proxies[0]; indent=re.match(r'^(\s*)',lines[pi]).group(1); inner=indent+'    '
+          block=(f"{indent}# DSE_MOBILE_{channel}_STATIC_BEGIN\n"
+                 f"{indent}handle_path /mobile/android/{env}/* {{\n"
+                 f"{inner}root * {static_dir}\n"
+                 f"{inner}header Cache-Control \"no-store\"\n"
+                 f"{inner}header X-Content-Type-Options \"nosniff\"\n"
+                 f"{inner}file_server\n"
+                 f"{indent}}}\n"
+                 f"{indent}# DSE_MOBILE_{channel}_STATIC_END\n\n")
+          lines.insert(pi,block)
+          open(dst,'w',encoding='utf-8',newline='').writelines(lines)
+          PY
+            CADDY_BACKUP="${CONFIG_FILE}.pre-mobile-${ENVIRONMENT}-${VERSION}-$(date -u +%Y%m%dT%H%M%SZ)"
+            sudo -n cp -a "$CONFIG_FILE" "$CADDY_BACKUP"
+            sudo -n cp "$UPDATED" "$CONFIG_FILE"
+            rm -f "$CURRENT" "$UPDATED"
+            if ! sudo -n caddy validate --config "$CONFIG_FILE" --adapter caddyfile || ! sudo -n systemctl reload caddy; then
+              sudo -n cp -a "$CADDY_BACKUP" "$CONFIG_FILE"
+              sudo -n systemctl reload caddy || true
+              if [[ "$SELINUX_ADDED" == true ]]; then sudo -n semanage fcontext -d "$SELINUX_PATTERN" || true; fi
+              echo 'Caddy route update failed and was rolled back' >&2
+              exit 1
+            fi
+            CADDY_CHANGED=true
+          fi
+
+          # Install the immutable release assets.
+          TMP_SHA=$(mktemp)
+          printf '%s  %s\n' "$EXPECTED_SHA" "$(basename "$DEST_APK")" > "$TMP_SHA"
+          sudo -n install -o dseerp -g dseerp -m 0644 "$APK_SRC" "$DEST_APK"
+          sudo -n install -o dseerp -g dseerp -m 0644 "$TMP_SHA" "$DEST_SHA"
+          rm -f "$TMP_SHA"
+          if [[ "$(getenforce 2>/dev/null || echo Disabled)" != "Disabled" ]]; then sudo -n restorecon -RF "$STATIC_DIR"; fi
+          INSTALLED_SHA=$(sudo -n sha256sum "$DEST_APK" | awk '{print tolower($1)}')
+          [[ "$INSTALLED_SHA" == "$EXPECTED_SHA" ]] || { echo 'Installed APK checksum mismatch' >&2; exit 1; }
+
+          # Change only the Android latest-version override, with automatic rollback.
+          ENV_BACKUP="${ENV_FILE}.pre-mobile-${VERSION}-$(date -u +%Y%m%dT%H%M%SZ)"
+          sudo -n cp -a "$ENV_FILE" "$ENV_BACKUP"
+          if sudo -n grep -q '^DSE_LATEST_ANDROID_VERSION=' "$ENV_FILE"; then
+            sudo -n sed -i "s/^DSE_LATEST_ANDROID_VERSION=.*/DSE_LATEST_ANDROID_VERSION=${VERSION}/" "$ENV_FILE"
+          else
+            printf 'DSE_LATEST_ANDROID_VERSION=%s\n' "$VERSION" | sudo -n tee -a "$ENV_FILE" >/dev/null
+          fi
+          rollback_env() {
+            echo 'Health verification failed; restoring previous environment file.' >&2
+            sudo -n cp -a "$ENV_BACKUP" "$ENV_FILE"
+            sudo -n systemctl restart "$SERVICE" || true
+          }
+          sudo -n systemctl restart "$SERVICE"
+          AFTER=''
+          for n in $(seq 1 45); do
+            if AFTER=$(curl --fail --silent --show-error --max-time 3 "$HEALTH" 2>/dev/null); then
+              if python3 - "$VERSION" "$BEFORE" "$AFTER" <<'PY'
+          import json,sys
+          target,before,after=sys.argv[1:]
+          b=json.loads(before); a=json.loads(after)
+          protected=['version','buildRevision','environment','databaseName','minimumSupportedDesktopVersion','latestDesktopVersion','minimumSupportedAndroidVersion','minimumSupportedIosVersion','latestIosVersion']
+          ok=a.get('ready') is True and a.get('latestAndroidVersion')==target and all(a.get(k)==b.get(k) for k in protected)
+          raise SystemExit(0 if ok else 1)
+          PY
+              then break; fi
+            fi
+            AFTER=''; sleep 2
+          done
+          if [[ -z "$AFTER" ]]; then rollback_env; exit 1; fi
+          sudo -n systemctl is-active --quiet "$SERVICE" || { rollback_env; exit 1; }
+          echo "$AFTER"
+          echo "MOBILE_SERVER_FINALIZED environment=$ENVIRONMENT version=$VERSION sha256=$EXPECTED_SHA caddy_changed=$CADDY_CHANGED"
+          SH
+          chmod +x finalize-mobile.sh
+      - name: Upload and finalize UAT server
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="deploy-artifacts/Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk"
+          ssh -i ~/.ssh/dse_mobile_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'rm -rf /tmp/dse-mobile-finalize && mkdir -p /tmp/dse-mobile-finalize'
+          scp -i ~/.ssh/dse_mobile_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes "$APK" "$APK.sha256" finalize-mobile.sh "$SSH_USER@$SSH_HOST:/tmp/dse-mobile-finalize/"
+          ssh -i ~/.ssh/dse_mobile_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            "bash /tmp/dse-mobile-finalize/finalize-mobile.sh '$SERVER_ENV' '$MOBILE_VERSION' '$CHANNEL' '$EXPECTED_HOST' '$APK_SHA' '$EXPECTED_ENV' '$EXPECTED_DATABASE'" | tee mobile-uat-finalize.log
+      - name: Verify public UAT health and APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL")"
+          python3 - "$EXPECTED_ENV" "$EXPECTED_DATABASE" "$MOBILE_VERSION" "$BODY" <<'PY'
+          import json,sys
+          env,db,target,body=sys.argv[1:]
+          r=json.loads(body)
+          ok=r.get('ready') is True and r.get('environment')==env and r.get('databaseName')==db and r.get('latestAndroidVersion')==target
+          raise SystemExit(0 if ok else 1)
+          PY
+          curl --fail --location --silent --show-error --max-time 120 "https://${EXPECTED_HOST}/mobile/android/${SERVER_ENV}/Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk" -o public.apk
+          [[ "$(sha256sum public.apk | awk '{print tolower($1)}')" == "$APK_SHA" ]] || exit 1
+          echo "UAT_MOBILE_1_2_7_FINALIZED_OK"
+      - name: Clean UAT staging
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f ~/.ssh/dse_mobile_key ]]; then ssh -i ~/.ssh/dse_mobile_key -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'rm -rf /tmp/dse-mobile-finalize' || true; fi
+
+  prod:
+    name: Finalize Android 1.2.7 on PROD
+    needs: uat
+    if: needs.uat.result == 'success' && contains(github.event.head_commit.message, '[mobile-server-finalize-1.2.7]')
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      CHANNEL: PROD
+      SERVER_ENV: prod
+      EXPECTED_ENV: PROD
+      EXPECTED_HOST: api.jasviindustries.in
+      SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
+      SSH_USER: ${{ secrets.DSE_SSH_USER }}
+      SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      SSH_PORT: ${{ vars.DSE_SSH_PORT }}
+      PUBLIC_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+      EXPECTED_DATABASE: ${{ vars.DSE_EXPECTED_DATABASE }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Validate PROD configuration and current health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PUBLIC_HEALTH_URL EXPECTED_DATABASE; do
+            [[ -n "${!name:-}" ]] || { echo "Missing production environment secret/variable: $name" >&2; exit 1; }
+          done
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL")"
+          python3 - "$EXPECTED_ENV" "$EXPECTED_DATABASE" "$MOBILE_VERSION" "$BODY" <<'PY'
+          import json,sys
+          env,db,target,body=sys.argv[1:]
+          r=json.loads(body)
+          if r.get('ready') is not True or r.get('environment') != env or r.get('databaseName') != db:
+              raise SystemExit(f'Unexpected preflight health: {r}')
+          if r.get('latestAndroidVersion') not in ('1.2.6', target):
+              raise SystemExit(f'Unexpected current latestAndroidVersion: {r.get("latestAndroidVersion")}')
+          print('PROD_PREFLIGHT_OK', r.get('version'), r.get('latestDesktopVersion'), r.get('latestAndroidVersion'))
+          PY
+      - name: Download and verify exact PROD APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deploy-artifacts
+          gh release download "v${MOBILE_VERSION}" --repo "$MOBILE_REPO" --dir deploy-artifacts \
+            --pattern "Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk" \
+            --pattern "Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk.sha256"
+          APK="deploy-artifacts/Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk"
+          SHA_FILE="$APK.sha256"
+          EXPECTED_SHA="$(awk 'NR==1 {print tolower($1)}' "$SHA_FILE")"
+          ACTUAL_SHA="$(sha256sum "$APK" | awk '{print tolower($1)}')"
+          [[ "$EXPECTED_SHA" == "$ACTUAL_SHA" ]] || { echo 'PROD APK checksum mismatch' >&2; exit 1; }
+          echo "APK_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/dse_mobile_key
+          chmod 600 ~/.ssh/dse_mobile_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Prepare guarded remote finalizer
+        shell: bash
+        run: |
+          cat > finalize-mobile.sh <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          ENVIRONMENT=${1:?uat|prod}; VERSION=${2:?version}; CHANNEL=${3:?UAT|PROD}; HOST=${4:?host}; EXPECTED_SHA=${5:?sha256}; EXPECTED_ENV=${6:?UAT|PROD}; EXPECTED_DATABASE=${7:?database}
+          ENV_FILE="/etc/dse-erp/${ENVIRONMENT}.env"; SERVICE="dse-erp-${ENVIRONMENT}"; BASE="/srv/dse-erp/${ENVIRONMENT}"; STATIC_DIR="$BASE/mobile/android/${ENVIRONMENT}"
+          APK_SRC="/tmp/dse-mobile-finalize/Jasvi-Mobile-${VERSION}-${CHANNEL}.apk"; SHA_SRC="$APK_SRC.sha256"; DEST_APK="$STATIC_DIR/Jasvi-Mobile-${VERSION}-${CHANNEL}.apk"; DEST_SHA="$DEST_APK.sha256"
+          CONFIG_FILE=/etc/caddy/Caddyfile; MARKER="# DSE_MOBILE_${CHANNEL}_STATIC_BEGIN"; SELINUX_PATTERN="${STATIC_DIR}(/.*)?"
+          [[ -s "$APK_SRC" && -s "$SHA_SRC" ]] || exit 1
+          ACTUAL_SHA=$(sha256sum "$APK_SRC"|awk '{print tolower($1)}'); FILE_SHA=$(awk 'NR==1 {print tolower($1)}' "$SHA_SRC"); [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" && "$FILE_SHA" == "$EXPECTED_SHA" ]] || exit 1
+          sudo -n test -r "$ENV_FILE"; sudo -n systemctl is-active --quiet "$SERVICE"
+          ENV_CONTENT=$(sudo -n cat "$ENV_FILE"); set -a; source /dev/stdin <<< "$ENV_CONTENT"; set +a; unset ENV_CONTENT; PORT=${DSE_SERVER_PORT:-8081}; HEALTH="http://127.0.0.1:${PORT}/api/runtime/health"
+          BEFORE=$(curl --fail --silent --show-error --max-time 10 "$HEALTH")
+          python3 - "$EXPECTED_ENV" "$EXPECTED_DATABASE" "$BEFORE" <<'PY'
+          import json,sys
+          env,db,body=sys.argv[1:]; r=json.loads(body)
+          if r.get('ready') is not True or r.get('environment')!=env or r.get('databaseName')!=db: raise SystemExit(f'Unexpected local preflight: {r}')
+          PY
+          sudo -n install -d -o dseerp -g dseerp -m 0755 "$STATIC_DIR"
+          if [[ "$(getenforce 2>/dev/null || echo Disabled)" != "Disabled" ]]; then
+            EXISTING=$(sudo -n semanage fcontext -l | grep -F "$SELINUX_PATTERN" || true)
+            if [[ -n "$EXISTING" ]]; then grep -q 'httpd_sys_content_t' <<<"$EXISTING" || { echo "Conflicting SELinux rule: $EXISTING" >&2; exit 1; }; else sudo -n semanage fcontext -a -t httpd_sys_content_t "$SELINUX_PATTERN"; fi
+            sudo -n restorecon -RF "$STATIC_DIR"
+          fi
+          if ! sudo -n grep -Fq "$MARKER" "$CONFIG_FILE"; then
+            CURRENT=$(mktemp); UPDATED=$(mktemp); sudo -n cat "$CONFIG_FILE" > "$CURRENT"
+            python3 - "$HOST" "$PORT" "$ENVIRONMENT" "$CHANNEL" "$STATIC_DIR" "$CURRENT" "$UPDATED" <<'PY'
+          import re,sys
+          host,port,env,channel,static_dir,src,dst=sys.argv[1:]; lines=open(src,encoding='utf-8').read().splitlines(True); start=None; depth=0; site=None
+          for i,line in enumerate(lines):
+              if start is None:
+                  if re.match(r'^\s*'+re.escape(host)+r'\s*\{\s*$',line): start=i; depth=line.count('{')-line.count('}')
+              else:
+                  depth += line.count('{')-line.count('}')
+                  if depth==0: site=(start,i); break
+          if site is None: raise SystemExit(f'Unable to isolate Caddy site for {host}')
+          start,end=site; pattern=r'^\s*reverse_proxy\s+127\.0\.0\.1:'+re.escape(port)+r'\s*$'; proxies=[i for i in range(start+1,end) if re.match(pattern,lines[i])]
+          if len(proxies)!=1: raise SystemExit(f'Expected one reverse_proxy, found {len(proxies)}')
+          pi=proxies[0]; indent=re.match(r'^(\s*)',lines[pi]).group(1); inner=indent+'    '
+          block=(f"{indent}# DSE_MOBILE_{channel}_STATIC_BEGIN\n{indent}handle_path /mobile/android/{env}/* {{\n{inner}root * {static_dir}\n{inner}header Cache-Control \"no-store\"\n{inner}header X-Content-Type-Options \"nosniff\"\n{inner}file_server\n{indent}}}\n{indent}# DSE_MOBILE_{channel}_STATIC_END\n\n")
+          lines.insert(pi,block); open(dst,'w',encoding='utf-8',newline='').writelines(lines)
+          PY
+            BACKUP="${CONFIG_FILE}.pre-mobile-${ENVIRONMENT}-${VERSION}-$(date -u +%Y%m%dT%H%M%SZ)"; sudo -n cp -a "$CONFIG_FILE" "$BACKUP"; sudo -n cp "$UPDATED" "$CONFIG_FILE"; rm -f "$CURRENT" "$UPDATED"
+            if ! sudo -n caddy validate --config "$CONFIG_FILE" --adapter caddyfile || ! sudo -n systemctl reload caddy; then sudo -n cp -a "$BACKUP" "$CONFIG_FILE"; sudo -n systemctl reload caddy || true; exit 1; fi
+          fi
+          TMP_SHA=$(mktemp); printf '%s  %s\n' "$EXPECTED_SHA" "$(basename "$DEST_APK")" > "$TMP_SHA"; sudo -n install -o dseerp -g dseerp -m 0644 "$APK_SRC" "$DEST_APK"; sudo -n install -o dseerp -g dseerp -m 0644 "$TMP_SHA" "$DEST_SHA"; rm -f "$TMP_SHA"
+          if [[ "$(getenforce 2>/dev/null || echo Disabled)" != "Disabled" ]]; then sudo -n restorecon -RF "$STATIC_DIR"; fi
+          [[ "$(sudo -n sha256sum "$DEST_APK"|awk '{print tolower($1)}')" == "$EXPECTED_SHA" ]] || exit 1
+          ENV_BACKUP="${ENV_FILE}.pre-mobile-${VERSION}-$(date -u +%Y%m%dT%H%M%SZ)"; sudo -n cp -a "$ENV_FILE" "$ENV_BACKUP"
+          if sudo -n grep -q '^DSE_LATEST_ANDROID_VERSION=' "$ENV_FILE"; then sudo -n sed -i "s/^DSE_LATEST_ANDROID_VERSION=.*/DSE_LATEST_ANDROID_VERSION=${VERSION}/" "$ENV_FILE"; else printf 'DSE_LATEST_ANDROID_VERSION=%s\n' "$VERSION" | sudo -n tee -a "$ENV_FILE" >/dev/null; fi
+          rollback_env(){ sudo -n cp -a "$ENV_BACKUP" "$ENV_FILE"; sudo -n systemctl restart "$SERVICE" || true; }
+          sudo -n systemctl restart "$SERVICE"
+          AFTER=''; for n in $(seq 1 45); do if AFTER=$(curl --fail --silent --show-error --max-time 3 "$HEALTH" 2>/dev/null); then if python3 - "$VERSION" "$BEFORE" "$AFTER" <<'PY'
+          import json,sys
+          target,before,after=sys.argv[1:]; b=json.loads(before); a=json.loads(after); protected=['version','buildRevision','environment','databaseName','minimumSupportedDesktopVersion','latestDesktopVersion','minimumSupportedAndroidVersion','minimumSupportedIosVersion','latestIosVersion']; ok=a.get('ready') is True and a.get('latestAndroidVersion')==target and all(a.get(k)==b.get(k) for k in protected); raise SystemExit(0 if ok else 1)
+          PY
+          then break; fi; fi; AFTER=''; sleep 2; done
+          [[ -n "$AFTER" ]] || { rollback_env; exit 1; }; sudo -n systemctl is-active --quiet "$SERVICE" || { rollback_env; exit 1; }; echo "$AFTER"; echo "MOBILE_SERVER_FINALIZED environment=$ENVIRONMENT version=$VERSION sha256=$EXPECTED_SHA"
+          SH
+          chmod +x finalize-mobile.sh
+      - name: Upload and finalize PROD server
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="deploy-artifacts/Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk"
+          ssh -i ~/.ssh/dse_mobile_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'rm -rf /tmp/dse-mobile-finalize && mkdir -p /tmp/dse-mobile-finalize'
+          scp -i ~/.ssh/dse_mobile_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes "$APK" "$APK.sha256" finalize-mobile.sh "$SSH_USER@$SSH_HOST:/tmp/dse-mobile-finalize/"
+          ssh -i ~/.ssh/dse_mobile_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            "bash /tmp/dse-mobile-finalize/finalize-mobile.sh '$SERVER_ENV' '$MOBILE_VERSION' '$CHANNEL' '$EXPECTED_HOST' '$APK_SHA' '$EXPECTED_ENV' '$EXPECTED_DATABASE'" | tee mobile-prod-finalize.log
+      - name: Verify public PROD health and APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL")"
+          python3 - "$EXPECTED_ENV" "$EXPECTED_DATABASE" "$MOBILE_VERSION" "$BODY" <<'PY'
+          import json,sys
+          env,db,target,body=sys.argv[1:]; r=json.loads(body); ok=r.get('ready') is True and r.get('environment')==env and r.get('databaseName')==db and r.get('latestAndroidVersion')==target; raise SystemExit(0 if ok else 1)
+          PY
+          curl --fail --location --silent --show-error --max-time 120 "https://${EXPECTED_HOST}/mobile/android/${SERVER_ENV}/Jasvi-Mobile-${MOBILE_VERSION}-${CHANNEL}.apk" -o public.apk
+          [[ "$(sha256sum public.apk | awk '{print tolower($1)}')" == "$APK_SHA" ]] || exit 1
+          echo "PROD_MOBILE_1_2_7_FINALIZED_OK"
+      - name: Clean PROD staging
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f ~/.ssh/dse_mobile_key ]]; then ssh -i ~/.ssh/dse_mobile_key -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'rm -rf /tmp/dse-mobile-finalize' || true; fi
