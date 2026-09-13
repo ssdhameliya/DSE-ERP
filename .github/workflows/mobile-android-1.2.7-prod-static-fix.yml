@@ -1,0 +1,110 @@
+name: Fix Mobile Android 1.2.7 PROD Static Delivery
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/mobile-android-1.2.7-prod-static-fix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fix-prod-static:
+    name: Diagnose and fix PROD APK 403
+    if: contains(github.event.head_commit.message, '[mobile-prod-static-fix-1.2.7]')
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
+      SSH_USER: ${{ secrets.DSE_SSH_USER }}
+      SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      SSH_PORT: ${{ vars.DSE_SSH_PORT }}
+      PUBLIC_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+      EXPECTED_DATABASE: ${{ vars.DSE_EXPECTED_DATABASE }}
+      HOST: api.jasviindustries.in
+      VERSION: '1.2.7'
+      EXPECTED_SHA: 2f33127919d10dd5ef91bc5f643b006814523ac525dc56aab0a5e60336c15f96
+    steps:
+      - name: Validate PROD health before static fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PUBLIC_HEALTH_URL EXPECTED_DATABASE; do [[ -n "${!name:-}" ]] || exit 1; done
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL")"
+          python3 - "$EXPECTED_DATABASE" "$VERSION" "$BODY" <<'PY'
+          import json,sys
+          db,target,body=sys.argv[1:]; r=json.loads(body)
+          ok=r.get('ready') is True and r.get('environment')=='PROD' and r.get('databaseName')==db and r.get('latestAndroidVersion')==target and r.get('latestDesktopVersion')=='10.0.8'
+          raise SystemExit(0 if ok else 1)
+          PY
+      - name: Configure SSH
+        shell: bash
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/dse_mobile_key
+          chmod 600 ~/.ssh/dse_mobile_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Diagnose and apply least-privilege Caddy filesystem access
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_mobile_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            "HOST='$HOST' VERSION='$VERSION' EXPECTED_SHA='$EXPECTED_SHA' bash -s" <<'REMOTE'
+          set -euo pipefail
+          TARGET="/srv/dse-erp/prod/mobile/android/prod/Jasvi-Mobile-${VERSION}-PROD.apk"
+          URL="https://${HOST}/mobile/android/prod/Jasvi-Mobile-${VERSION}-PROD.apk"
+          sudo -n test -s "$TARGET"
+          [[ "$(sudo -n sha256sum "$TARGET" | awk '{print tolower($1)}')" == "$EXPECTED_SHA" ]]
+          echo '--- PROD mobile path diagnostics before fix ---'
+          sudo -n namei -l "$TARGET" || true
+          for p in /srv /srv/dse-erp /srv/dse-erp/prod /srv/dse-erp/prod/mobile /srv/dse-erp/prod/mobile/android /srv/dse-erp/prod/mobile/android/prod "$TARGET"; do sudo -n ls -ldZ "$p" || true; done
+          command -v setfacl >/dev/null 2>&1 || { echo 'setfacl is required for least-privilege Caddy access' >&2; exit 1; }
+          # Grant only the Caddy service account directory-search permission on protected ancestors.
+          for p in /srv /srv/dse-erp /srv/dse-erp/prod /srv/dse-erp/prod/mobile /srv/dse-erp/prod/mobile/android; do
+            if ! sudo -n -u caddy test -x "$p"; then
+              echo "Granting caddy traverse ACL on $p"
+              sudo -n setfacl -m u:caddy:--x "$p"
+            fi
+          done
+          if ! sudo -n -u caddy test -x /srv/dse-erp/prod/mobile/android/prod; then
+            sudo -n setfacl -m u:caddy:r-x /srv/dse-erp/prod/mobile/android/prod
+          fi
+          if ! sudo -n -u caddy test -r "$TARGET"; then
+            sudo -n setfacl -m u:caddy:r-- "$TARGET"
+          fi
+          sudo -n -u caddy test -x /srv/dse-erp/prod/mobile/android/prod
+          sudo -n -u caddy test -r "$TARGET"
+          echo '--- Caddy local HTTPS probe ---'
+          CODE=$(curl --silent --show-error --output /tmp/prod-mobile.apk --write-out '%{http_code}' --resolve "${HOST}:443:127.0.0.1" "$URL" || true)
+          echo "HTTP_CODE=$CODE"
+          if [[ "$CODE" == '200' ]]; then
+            [[ "$(sha256sum /tmp/prod-mobile.apk | awk '{print tolower($1)}')" == "$EXPECTED_SHA" ]]
+            echo 'PROD_LOCAL_STATIC_OK'
+            exit 0
+          fi
+          echo '--- SELinux/Caddy diagnostics after failed probe ---' >&2
+          getenforce || true
+          sudo -n journalctl -u caddy -n 80 --no-pager || true
+          sudo -n ausearch -m AVC -ts recent 2>/dev/null | tail -n 120 || true
+          exit 1
+          REMOTE
+      - name: Verify public PROD APK and health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --max-time 120 "https://${HOST}/mobile/android/prod/Jasvi-Mobile-${VERSION}-PROD.apk" -o public.apk
+          [[ "$(sha256sum public.apk | awk '{print tolower($1)}')" == "$EXPECTED_SHA" ]]
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PUBLIC_HEALTH_URL")"
+          python3 - "$EXPECTED_DATABASE" "$VERSION" "$BODY" <<'PY'
+          import json,sys
+          db,target,body=sys.argv[1:]; r=json.loads(body)
+          protected=(r.get('version')=='10.0.8' and r.get('latestDesktopVersion')=='10.0.8' and r.get('minimumSupportedDesktopVersion')=='10.0.4')
+          ok=r.get('ready') is True and r.get('environment')=='PROD' and r.get('databaseName')==db and r.get('latestAndroidVersion')==target and protected
+          raise SystemExit(0 if ok else 1)
+          PY
+          echo 'PROD_MOBILE_PUBLIC_STATIC_OK'
