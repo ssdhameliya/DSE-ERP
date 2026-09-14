@@ -39,7 +39,10 @@ class CanonicalDocumentControllerTest {
         assertTrue(source.contains("CurrentUser.requirePermission(\"SALES.VIEW\""));
         assertTrue(source.contains("CurrentUser.requirePermission(\"PURCHASE.VIEW\""));
         assertTrue(source.contains("templates.pdf(DocumentType.SALES_INVOICE)"));
+        assertTrue(source.contains("TaxInvoicePdfGenerator.generate"), "Sales PDF must keep the standard BAU fallback");
+        assertFalse(source.contains("PdfLifecycleWatermark"), "Canonical Sales PDF must never add a lifecycle watermark");
         assertTrue(source.contains("templates.excel(type)"));
-        assertTrue(source.contains("ExcelTemplateRenderer.render"));
+        assertTrue(source.contains("ExcelTemplateRenderer.render(selected.template()"), "Active Excel Studio default must remain authoritative");
+        assertTrue(source.contains("ExcelTemplateRenderer.renderBuiltIn"), "Excel Studio failure/no default must fall back to the built-in workbook");
     }
 }
