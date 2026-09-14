@@ -2,22 +2,12 @@ package org.example.server.documents;
 
 import java.util.Locale;
 
-/** Server-authoritative lifecycle rules for Sales PDF output. */
+/** Server-authoritative issuance policy for Sales PDF snapshots. Document status never blocks rendering. */
 final class SalesPdfLifecycle {
     private SalesPdfLifecycle() {}
 
-    static State state(String value) {
+    static boolean official(String value) {
         String status = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        return switch (status) {
-            case "APPROVED", "COMPLETED" -> new State(true, "");
-            case "DRAFT" -> new State(false, "DRAFT");
-            case "PENDING", "PENDING APPROVAL" -> new State(false, "PENDING APPROVAL");
-            case "REJECTED" -> new State(false, "REJECTED");
-            case "CANCELLED" -> new State(false, "CANCELLED");
-            case "DELETED" -> throw new IllegalStateException("Deleted Sales cannot be rendered as an invoice.");
-            default -> new State(false, "NOT APPROVED");
-        };
+        return "APPROVED".equals(status) || "COMPLETED".equals(status);
     }
-
-    record State(boolean official, String watermark) {}
 }

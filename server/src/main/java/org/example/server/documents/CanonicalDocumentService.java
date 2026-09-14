@@ -56,9 +56,9 @@ public class CanonicalDocumentService {
             if(type==DocumentType.SALES_INVOICE){
                 var sale=operations.sale(documentNo);
                 if(format==Format.PDF) {
-                    SalesPdfLifecycle.State lifecycle=SalesPdfLifecycle.state(sale.documentStatus());
+                    boolean official=SalesPdfLifecycle.official(sale.documentStatus());
                     String finalName=fileName(type,documentNo,format);
-                    if(lifecycle.official()) {
+                    if(official) {
                         var issued=issuedSalesPdf.find(sale);
                         if(issued.isPresent()) {
                             safeAudit(sale.id(),"PDF_ACCESSED",documentNo+" • ISSUED_SNAPSHOT • rowVersion="+sale.rowVersion());
@@ -66,12 +66,10 @@ public class CanonicalDocumentService {
                         }
                     }
                     String authority=renderSalesPdf(sale,config,assets,output);
-                    PdfLifecycleWatermark.apply(output,lifecycle.watermark());
                     validate(output,format,documentNo);
                     byte[] bytes=Files.readAllBytes(output);
-                    if(lifecycle.official()) issuedSalesPdf.save(sale,finalName,bytes);
-                    safeAudit(sale.id(),"DOCUMENT_RENDERED",documentNo+" • PDF • "+authority+" • rowVersion="+sale.rowVersion()
-                            +(lifecycle.watermark().isBlank()?"":" • watermark="+lifecycle.watermark()));
+                    if(official) issuedSalesPdf.save(sale,finalName,bytes);
+                    safeAudit(sale.id(),"DOCUMENT_RENDERED",documentNo+" • PDF • "+authority+" • rowVersion="+sale.rowVersion());
                     return new Rendered(finalName,format.contentType,bytes);
                 }
                 renderExcel(type,dataFactory.sales(sale,config,assets.templateImages()),output);
@@ -124,9 +122,15 @@ public class CanonicalDocumentService {
     private void renderExcel(DocumentType type,org.example.documentstudio.model.TemplateData data,Path output) throws Exception {
         try(var selected=templates.excel(type).orElse(null)){
             if(selected!=null){
-                ExcelTemplateStorageService.withRoot(selected.root(),()->ExcelTemplateRenderer.render(selected.template(),data,List.of(),output));
-                return;
+                try {
+                    ExcelTemplateStorageService.withRoot(selected.root(),()->ExcelTemplateRenderer.render(selected.template(),data,List.of(),output));
+                    return;
+                } catch (Exception failure) {
+                    Files.deleteIfExists(output);
+                }
             }
+        } catch (Exception failure) {
+            Files.deleteIfExists(output);
         }
         ExcelTemplateRenderer.renderBuiltIn(type,data,List.of(),output);
     }

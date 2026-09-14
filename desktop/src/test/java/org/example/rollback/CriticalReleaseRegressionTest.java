@@ -377,6 +377,20 @@ class CriticalReleaseRegressionTest {
         assertTrue(reports.contains("if(index == 3 && !schedulesLoaded) loadSchedules()"));
     }
 
+    @Test void salesDocumentActionsIgnoreStatusWithoutChangingPaymentOrWhatsappLocksFor1009() throws Exception {
+        String sales = Files.readString(Path.of("src/main/java/org/example/controller/SalesListController.java"));
+        int emailStart = sales.indexOf("private void sendEmail(Sales sale)");
+        int whatsappStart = sales.indexOf("private void sendWhatsapp(Sales sale)");
+        assertTrue(emailStart >= 0 && whatsappStart > emailStart);
+        String email = sales.substring(emailStart, whatsappStart);
+        assertFalse(email.contains("isApprovalLocked"), "Sales Email must be available regardless of document status.");
+        assertTrue(email.contains("ManagedInvoicePdfService.sales(full)"));
+
+        String whatsapp = sales.substring(whatsappStart, sales.indexOf("private void recordPayment", whatsappStart));
+        assertTrue(whatsapp.contains("isApprovalLocked"), "WhatsApp approval policy must remain unchanged.");
+        assertTrue(sales.contains("payment.setDisable(inactive||isApprovalLocked(current))"), "Payment approval policy must remain unchanged.");
+    }
+
     private static int count(String value, String needle) {
         int count = 0, start = 0;
         while ((start = value.indexOf(needle, start)) >= 0) {

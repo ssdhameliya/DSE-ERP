@@ -133,7 +133,7 @@ class PostgresWorkflowIntegrationTest {
                 "INSERT INTO sales_header(invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,paid_amount,payment_status,document_status,approval_status,inventory_posted,created_at,email_sent,whatsapp_sent,row_version,gst_type,billing_address,billing_gstin) " +
                         "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
                 Integer.class, INVOICE, LocalDate.now().toString(), customerId, 100d, 18d, 118d, 0d,
-                "UNPAID", "APPROVED", "APPROVED", true, java.time.Instant.now().toString(), 0, 0, 0, "GST",
+                "PENDING", "APPROVED", "APPROVED", true, java.time.Instant.now().toString(), 0, 0, 0, "GST",
                 "Customer Address", "24AAAAA0000A1Z5");
         assertNotNull(saleId);
         jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,hsn_snapshot,unit_snapshot,item_remarks_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -160,6 +160,41 @@ class PostgresWorkflowIntegrationTest {
             assertEquals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsx.contentType());
             assertTrue(xlsx.bytes().length > 500);
             assertArrayEquals(new byte[]{'P', 'K'}, java.util.Arrays.copyOf(xlsx.bytes(), 2));
+        }
+    }
+
+    @Test
+    void canonicalSalesPdfAndExcelRenderForEveryDocumentStatusWithPendingPayment() throws Exception {
+        Integer customerId = jdbc.queryForObject(
+                "INSERT INTO party_master(party_type,party_code,name,address,gstin,is_active) VALUES('CUSTOMER',?,?,?,?,1) RETURNING id",
+                Integer.class, PARTY, "Status Matrix Customer", "Customer Address", "24AAAAA0000A1Z5");
+        assertNotNull(customerId);
+        jdbc.update("INSERT INTO item_master(item_code,description,unit,hsn,gst,purchase_price,selling_price,opening_stock,minimum_stock,is_active,remarks) VALUES(?,?,?,?,?,?,?,?,?,1,?)",
+                ITEM, "Status Matrix Item", "Nos", "8471", 18d, 50d, 100d, 10d, 1d, "Standard customer-facing item remark");
+
+        List<String> statuses = List.of("APPROVED", "COMPLETED", "PENDING", "PENDING APPROVAL", "DRAFT", "REJECTED", "CANCELLED", "DELETED");
+        int sequence = 0;
+        for (String status : statuses) {
+            String invoice = "IT-STATUS-9034-" + (++sequence);
+            Integer saleId = jdbc.queryForObject(
+                    "INSERT INTO sales_header(invoice_no,invoice_date,customer_id,subtotal,gst_amount,total_amount,paid_amount,payment_status,document_status,approval_status,inventory_posted,created_at,email_sent,whatsapp_sent,row_version,gst_type,billing_address,billing_gstin) " +
+                            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+                    Integer.class, invoice, LocalDate.now().toString(), customerId, 100d, 18d, 118d, 0d,
+                    "PENDING", status, "APPROVED".equals(status) ? "APPROVED" : "PENDING", "APPROVED".equals(status),
+                    java.time.Instant.now().toString(), 0, 0, 0, "GST", "Customer Address", "24AAAAA0000A1Z5");
+            assertNotNull(saleId);
+            jdbc.update("INSERT INTO sales_line(sales_id,item_code,quantity,rate,gst_percent,discount_percent,discount_amount,line_total,unit_cost_snapshot,item_description_snapshot,hsn_snapshot,unit_snapshot,item_remarks_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    saleId, ITEM, 1d, 100d, 18d, 0d, 0d, 118d, 50d, "Status Matrix Item", "8471", "Nos", "Standard customer-facing item remark");
+
+            CanonicalDocumentService.Rendered pdf = assertDoesNotThrow(() -> canonicalDocuments.render("SALES_INVOICE", invoice, "PDF"), status);
+            assertEquals("application/pdf", pdf.contentType(), status);
+            assertTrue(pdf.bytes().length > 500, status);
+            assertArrayEquals(new byte[]{'%', 'P', 'D', 'F'}, java.util.Arrays.copyOf(pdf.bytes(), 4), status);
+
+            CanonicalDocumentService.Rendered xlsx = assertDoesNotThrow(() -> canonicalDocuments.render("SALES_INVOICE", invoice, "XLSX"), status);
+            assertEquals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xlsx.contentType(), status);
+            assertTrue(xlsx.bytes().length > 500, status);
+            assertArrayEquals(new byte[]{'P', 'K'}, java.util.Arrays.copyOf(xlsx.bytes(), 2), status);
         }
     }
 
@@ -215,6 +250,9 @@ class PostgresWorkflowIntegrationTest {
         jdbc.update("DELETE FROM inventory_cost_state WHERE item_code=?", ITEM);
         jdbc.update("DELETE FROM purchase_line WHERE purchase_id IN (SELECT id FROM purchase_header WHERE invoice_no=?)", PURCHASE);
         jdbc.update("DELETE FROM purchase_header WHERE invoice_no=?", PURCHASE);
+        jdbc.update("DELETE FROM server_resource WHERE resource_type='ISSUED_SALES_PDF' AND resource_key IN (SELECT 'sale-' || id || '-r' || GREATEST(row_version,0) FROM sales_header WHERE invoice_no LIKE 'IT-STATUS-9034-%')");
+        jdbc.update("DELETE FROM sales_line WHERE sales_id IN (SELECT id FROM sales_header WHERE invoice_no LIKE 'IT-STATUS-9034-%')");
+        jdbc.update("DELETE FROM sales_header WHERE invoice_no LIKE 'IT-STATUS-9034-%'");
         jdbc.update("DELETE FROM sales_line WHERE sales_id IN (SELECT id FROM sales_header WHERE invoice_no=?)", INVOICE);
         jdbc.update("DELETE FROM sales_header WHERE invoice_no=?", INVOICE);
         jdbc.update("DELETE FROM item_master WHERE item_code=?", ITEM);
