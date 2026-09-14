@@ -305,16 +305,12 @@ public final class UpdateDialogs {
 
         Task<Path> task = new Task<>() {
             @Override protected Path call() throws Exception {
-                updateMessage("Downloading official installer...");
-                Path file = service.download(asset, progress -> updateProgress(progress, 1));
-                updateMessage("Verifying SHA-256 checksum...");
-                String checksum = service.expectedChecksum(release, asset.name());
-                if (checksum.isBlank()) {
-                    throw new SecurityException("The GitHub Release must include checksums.txt with a SHA-256 entry for " + asset.name() + ".");
-                }
-                ChecksumVerifier.verify(file, checksum);
+                updateMessage("Checking cache and downloading official installer if required...");
+                UpdateService.VerifiedDownload verified = service.downloadVerified(release, asset, progress -> updateProgress(progress, 1));
+                Path file = verified.file();
                 UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(),
-                        "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + checksum);
+                        "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + verified.checksum()
+                                + "; Cache=" + (verified.reusedCache() ? "verified-reuse" : "fresh-download"));
                 updateMessage("Installer verified.");
                 return file;
             }
@@ -386,14 +382,12 @@ public final class UpdateDialogs {
 
         Task<Path> task = new Task<>() {
             @Override protected Path call() throws Exception {
-                updateMessage("Downloading installer...");
-                Path file = service.download(asset, p -> updateProgress(p, 1));
-                updateMessage("Verifying SHA-256 checksum...");
-                String checksum = service.expectedChecksum(release, asset.name());
-                if (checksum.isBlank()) throw new SecurityException("The GitHub Release must include checksums.txt with a SHA-256 entry for " + asset.name() + ".");
-                ChecksumVerifier.verify(file, checksum);
+                updateMessage("Checking cache and downloading installer if required...");
+                UpdateService.VerifiedDownload verified = service.downloadVerified(release, asset, p -> updateProgress(p, 1));
+                Path file = verified.file();
                 UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(),
-                        "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + checksum);
+                        "VERIFIED", "Installer=" + file.getFileName() + "; SHA256=" + verified.checksum()
+                                + "; Cache=" + (verified.reusedCache() ? "verified-reuse" : "fresh-download"));
                 updateMessage("Creating pre-update database backup...");
                 Path backup = service.createPreUpdateBackup();
                 UpdateHistoryStore.append(release.version().toString(), ConfigManager.getEffectiveUpdateChannel(), "READY", "Installer=" + file.getFileName() + "; Backup=" + backup.getFileName());

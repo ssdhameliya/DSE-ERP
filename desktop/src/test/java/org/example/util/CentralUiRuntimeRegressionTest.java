@@ -236,6 +236,42 @@ class CentralUiRuntimeRegressionTest {
                 "table headers in hidden tabs must receive semantic graphics");
     }
 
+
+    @Test
+    void semanticDecorationReachesScrollPaneAndHiddenTabLogicalContent() throws Exception {
+        AtomicReference<Label> scrollLabelRef = new AtomicReference<>();
+        AtomicReference<Label> tabLabelRef = new AtomicReference<>();
+
+        fx(() -> {
+            Label scrollLabel = new Label("Item Code *");
+            scrollLabel.getStyleClass().add("field-label");
+            ScrollPane scroll = new ScrollPane(new VBox(scrollLabel));
+
+            Label tabLabel = new Label("Selling Price");
+            tabLabel.getStyleClass().add("field-label");
+            TabPane tabs = new TabPane(new Tab("Visible", new VBox(new Label("Visible"))),
+                    new Tab("Hidden", new VBox(tabLabel)));
+            tabs.getSelectionModel().select(0);
+
+            VBox root = new VBox(scroll, tabs);
+            ProfessionalUiEnhancer.enhance(root);
+            stage = new Stage();
+            stage.setScene(new Scene(root, 900, 600));
+            stage.show();
+            scrollLabelRef.set(scrollLabel);
+            tabLabelRef.set(tabLabel);
+            return null;
+        });
+        settle(5);
+
+        for (Label label : List.of(scrollLabelRef.get(), tabLabelRef.get())) {
+            assertNotNull(fx(label::getGraphic),
+                    "semantic field icon must reach JavaFX logical content before/after skin attachment");
+            assertTrue(fx(() -> label.getStyleClass().stream().anyMatch(x -> x.startsWith("erp-field-label-colour-"))),
+                    "semantic field colour class must reach JavaFX logical content");
+        }
+    }
+
     private static TableView<String> sampleTable() {
         TableView<String> table = new TableView<>();
         String[] headings = {"Invoice No.", "Date", "Customer", "Mobile", "GSTIN", "Amount",

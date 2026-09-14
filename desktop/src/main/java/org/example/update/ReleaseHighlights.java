@@ -9,13 +9,12 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return "DSE ERP " + version + " — Central Table/KPI Runtime Stabilization\n\n" + """
-                    • Moves table and KPI geometry notifications behind one pulse-coalesced viewport coordinator instead of screen-specific forced CSS/layout passes.
-                    • Makes the global UI enhancer traverse logical JavaFX content inside TabPane, ScrollPane, TitledPane and Accordion so hidden Reports tabs, Dashboard and Safe Rollback receive the same table/KPI contract as normal pages.
-                    • Hardens DynamicTableLayoutManager with generation-based stale-layout rejection and live VirtualFlow/scrollbar observation so drawer/sidebar close restores the final table viewport instead of an intermediate width.
-                    • Makes KPI density depend on real available pixels per card, preserves one-row equal distribution and removes Reports-only CSS width ownership that could collapse Scheduled Report cards.
-                    • Adds the strict Phase 3 UI contract to the authoritative release gate and removes exact duplicate theme blocks while keeping exactly two runtime theme files.
-                    • Preserves business calculations, PostgreSQL Schema 1, server APIs, document output, navigation structure, semantic table icons/values and existing working Master-screen behavior.
+            return "DSE ERP " + version + " — Verified Updates & Central Semantic UI Coverage\n\n" + """
+                    • Verifies any cached Windows/macOS installer by SHA-256 before reuse; filename and byte size alone are no longer trusted.
+                    • Automatically removes a stale installer and .part file, performs a clean redownload, verifies again and blocks installation if the second checksum still fails.
+                    • Extends the centralized semantic icon/colour traversal through ScrollPane, TabPane, TitledPane, Accordion and SplitPane logical content so Add Item and comparable nested forms receive the same field-label treatment as normal pages.
+                    • Adds regression coverage for the same-size stale-installer case and for semantic labels inside ScrollPane and hidden TabPane content.
+                    • Preserves Sales/Purchase/PDF/Excel/email business behavior, PostgreSQL schema, server APIs, shared-client connection logic and the two runtime Light/Dark theme files.
                     """;
         }
         if ("9.0.88".equals(version)) {
