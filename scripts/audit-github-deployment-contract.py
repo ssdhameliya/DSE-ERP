@@ -30,8 +30,8 @@ need('StrictHostKeyChecking=yes' in release and 'DSE_SSH_KNOWN_HOSTS' in release
      'UAT workflow does not pin SSH host identity')
 need('deploy-oracle-release.sh uat' in release and 'UAT_DEPLOYMENT_OK' in release and 'PUBLIC_HEALTH_URL' in release and 'compatibility_baseline' in release and 'minimumSupportedDesktopVersion' in release,
      'UAT workflow does not invoke guarded deploy + desktop compatibility-aware public health verification')
-need('android_minimum' in release and 'android_latest' in release and 'ios_minimum' in release and 'ios_latest' in release and 'minimumSupportedAndroidVersion' in release and 'latestIosVersion' in release,
-     'UAT workflow does not verify the Android/iOS compatibility policy')
+need('valid_mobile_policy' in release and 'mobilePolicy=preserved' in release and 'minimumSupportedAndroidVersion' in release and 'latestIosVersion' in release,
+     'UAT workflow does not validate the preserved environment-owned Android/iOS compatibility policy')
 
 # Packaging/CI performance must preserve safety while avoiding duplicate native test work.
 need('for attempt in 1 2 3 4 5 6' in ci and 'sleep 2' in ci and 'No verified merged PR association found after bounded retry' in ci,
@@ -70,8 +70,8 @@ need('UAT_GATE_OK' in prod and "r.get('environment')=='UAT'" in prod,
      'PROD workflow does not require the same release to be healthy in UAT')
 need('deploy-oracle-release.sh prod' in prod and 'PROD_DEPLOYMENT_OK' in prod and 'COMPATIBILITY_BASELINE' in prod and 'minimumSupportedDesktopVersion' in prod,
      'PROD workflow does not run the guarded desktop compatibility-aware deploy/public health verification')
-need('ANDROID_MINIMUM' in prod and 'ANDROID_LATEST' in prod and 'IOS_MINIMUM' in prod and 'IOS_LATEST' in prod and 'minimumSupportedAndroidVersion' in prod and 'latestIosVersion' in prod,
-     'PROD workflow does not verify the Android/iOS compatibility policy')
+need(prod.count('valid_mobile_policy') >= 2 and 'mobilePolicy=environment-owned' in prod and 'mobilePolicy=preserved' in prod and 'minimumSupportedAndroidVersion' in prod and 'latestIosVersion' in prod,
+     'PROD workflow does not validate independent environment-owned Android/iOS compatibility policy')
 
 need('--prerelease' in release,
      'GitHub release is not published as a prerelease for UAT validation')
@@ -85,9 +85,10 @@ for token in ('sha256sum', 'pg_dump', 'pg_restore', 'PreUpgrade', 'previous-rele
     need(token in deploy, f'Oracle deployment safety token missing: {token}')
 need('EXPECTED_MINIMUM_DESKTOP' in deploy and "r.get('minimumSupportedDesktopVersion') == min_desktop" in deploy,
      'Oracle deployment safety does not verify the release-owned minimum desktop version')
-need('EXPECTED_MINIMUM_ANDROID' in deploy and 'EXPECTED_LATEST_ANDROID' in deploy and 'EXPECTED_MINIMUM_IOS' in deploy and 'EXPECTED_LATEST_IOS' in deploy
+need('capture_live_mobile_policy' in deploy and 'EFFECTIVE_MINIMUM_ANDROID' in deploy and 'EFFECTIVE_LATEST_ANDROID' in deploy
+     and 'EFFECTIVE_MINIMUM_IOS' in deploy and 'EFFECTIVE_LATEST_IOS' in deploy and 'MOBILE_POLICY_PRESERVED source=live' in deploy
      and "r.get('minimumSupportedAndroidVersion') == min_android" in deploy and "r.get('latestIosVersion') == latest_ios" in deploy,
-     'Oracle deployment safety does not verify the release-owned Android/iOS compatibility policy')
+     'Oracle deployment safety does not preserve and verify the live environment-owned Android/iOS compatibility policy')
 need('/srv/dse-erp/${ENVIRONMENT}' in deploy and 'dse-erp-${ENVIRONMENT}' in deploy,
      'Oracle deploy script does not match the live DSE ERP release/service layout')
 need('sudo -n test -r "$ENV_FILE"' in deploy and 'ENV_CONTENT=$(sudo -n cat "$ENV_FILE")' in deploy,

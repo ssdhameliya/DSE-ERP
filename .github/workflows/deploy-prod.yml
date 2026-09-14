@@ -93,21 +93,26 @@ jobs:
         run: |
           set -euo pipefail
           BODY="$(curl --fail --silent --show-error --max-time 15 "$UAT_HEALTH_URL")"
-          python3 - "$VERSION" "$UAT_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$ANDROID_MINIMUM" "$ANDROID_LATEST" "$IOS_MINIMUM" "$IOS_LATEST" "$BODY" <<'PY'
-          import json,sys
-          version,database,min_desktop,min_android,latest_android,min_ios,latest_ios,body=sys.argv[1:]
+          python3 - "$VERSION" "$UAT_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$BODY" <<'PY'
+          import json,re,sys
+          version,database,min_desktop,body=sys.argv[1:]
           r=json.loads(body)
+          semver=re.compile(r'^\d+\.\d+\.\d+$')
+          def valid_mobile_policy(min_key, latest_key):
+              minimum=r.get(min_key); latest=r.get(latest_key)
+              if not isinstance(minimum,str) or not isinstance(latest,str): return False
+              if not semver.fullmatch(minimum) or not semver.fullmatch(latest): return False
+              parse=lambda x: tuple(map(int,x.split('.')))
+              return parse(minimum) <= parse(latest)
           ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
               and r.get('environment')=='UAT' and r.get('databaseName')==database
               and r.get('minimumSupportedDesktopVersion')==min_desktop
               and r.get('latestDesktopVersion')==version
-              and r.get('minimumSupportedAndroidVersion')==min_android
-              and r.get('latestAndroidVersion')==latest_android
-              and r.get('minimumSupportedIosVersion')==min_ios
-              and r.get('latestIosVersion')==latest_ios)
+              and valid_mobile_policy('minimumSupportedAndroidVersion','latestAndroidVersion')
+              and valid_mobile_policy('minimumSupportedIosVersion','latestIosVersion'))
           if not ok:
               raise SystemExit(f'UAT is not running the requested approved release: {r}')
-          print(f'UAT_GATE_OK version={version} database={database} desktopMin={min_desktop} android={min_android}..{latest_android} ios={min_ios}..{latest_ios}')
+          print(f"UAT_GATE_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=environment-owned")
           PY
 
       - name: Download exact GitHub release server artifact
@@ -161,21 +166,26 @@ jobs:
         run: |
           set -euo pipefail
           BODY="$(curl --fail --silent --show-error --max-time 20 "$PROD_HEALTH_URL")"
-          python3 - "$VERSION" "$PROD_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$ANDROID_MINIMUM" "$ANDROID_LATEST" "$IOS_MINIMUM" "$IOS_LATEST" "$BODY" <<'PY'
-          import json,sys
-          version,database,min_desktop,min_android,latest_android,min_ios,latest_ios,body=sys.argv[1:]
+          python3 - "$VERSION" "$PROD_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$BODY" <<'PY'
+          import json,re,sys
+          version,database,min_desktop,body=sys.argv[1:]
           r=json.loads(body)
+          semver=re.compile(r'^\d+\.\d+\.\d+$')
+          def valid_mobile_policy(min_key, latest_key):
+              minimum=r.get(min_key); latest=r.get(latest_key)
+              if not isinstance(minimum,str) or not isinstance(latest,str): return False
+              if not semver.fullmatch(minimum) or not semver.fullmatch(latest): return False
+              parse=lambda x: tuple(map(int,x.split('.')))
+              return parse(minimum) <= parse(latest)
           ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
               and r.get('environment')=='PROD' and r.get('databaseName')==database
               and r.get('minimumSupportedDesktopVersion')==min_desktop
               and r.get('latestDesktopVersion')==version
-              and r.get('minimumSupportedAndroidVersion')==min_android
-              and r.get('latestAndroidVersion')==latest_android
-              and r.get('minimumSupportedIosVersion')==min_ios
-              and r.get('latestIosVersion')==latest_ios)
+              and valid_mobile_policy('minimumSupportedAndroidVersion','latestAndroidVersion')
+              and valid_mobile_policy('minimumSupportedIosVersion','latestIosVersion'))
           if not ok:
               raise SystemExit(f'Public PROD health validation failed: {r}')
-          print(f'PROD_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={min_android}..{latest_android} ios={min_ios}..{latest_ios}')
+          print(f"PROD_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=preserved")
           PY
 
       - name: Promote approved GitHub release to STABLE

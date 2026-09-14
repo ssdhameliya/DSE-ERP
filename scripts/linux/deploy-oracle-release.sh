@@ -6,6 +6,9 @@ JAR=${2:?path to tested DSE ERP server JAR}
 VERSION=${3:?release version}
 EXPECTED_SHA=${4:-}
 EXPECTED_MINIMUM_DESKTOP=${5:-10.0.4}
+# Mobile versions supplied by the ERP release are bootstrap fallbacks only.
+# Once an environment is live, Android/iOS compatibility policy is owned by
+# the independent mobile release workflows and must survive ERP upgrades.
 EXPECTED_MINIMUM_ANDROID=${6:-1.2.3}
 EXPECTED_LATEST_ANDROID=${7:-1.2.3}
 EXPECTED_MINIMUM_IOS=${8:-1.2.3}
@@ -87,6 +90,14 @@ if [[ -n "$PREVIOUS" ]]; then
   PREVIOUS_VERSION=$(basename "$PREVIOUS")
 fi
 
+# Bootstrap values are used only when there is no healthy release to inherit
+# policy from. A normal ERP upgrade preserves the mobile policy already
+# advertised by the live environment.
+EFFECTIVE_MINIMUM_ANDROID="$EXPECTED_MINIMUM_ANDROID"
+EFFECTIVE_LATEST_ANDROID="$EXPECTED_LATEST_ANDROID"
+EFFECTIVE_MINIMUM_IOS="$EXPECTED_MINIMUM_IOS"
+EFFECTIVE_LATEST_IOS="$EXPECTED_LATEST_IOS"
+
 health_url() {
   local port=${DSE_SERVER_PORT:-8081}
   printf 'http://127.0.0.1:%s/api/runtime/health' "$port"
@@ -96,10 +107,15 @@ validate_health() {
   local expected_version=$1
   local body=$2
   local enforce_floor=${3:-false}
-  python3 - "$expected_version" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$EXPECTED_MINIMUM_DESKTOP" "$EXPECTED_MINIMUM_ANDROID" "$EXPECTED_LATEST_ANDROID" "$EXPECTED_MINIMUM_IOS" "$EXPECTED_LATEST_IOS" "$enforce_floor" "$body" <<'PY'
-import json,sys
+  python3 - "$expected_version" "$EXPECTED_ENV" "$DSE_EXPECTED_DATABASE" "$EXPECTED_MINIMUM_DESKTOP" "$EFFECTIVE_MINIMUM_ANDROID" "$EFFECTIVE_LATEST_ANDROID" "$EFFECTIVE_MINIMUM_IOS" "$EFFECTIVE_LATEST_IOS" "$enforce_floor" "$body" <<'PY'
+import json,re,sys
 version,environment,database,min_desktop,min_android,latest_android,min_ios,latest_ios,enforce_floor,body=sys.argv[1:]
 r=json.loads(body)
+semver=re.compile(r'^\d+\.\d+\.\d+$')
+def parsed(value):
+    if not isinstance(value,str) or not semver.fullmatch(value):
+        raise ValueError(value)
+    return tuple(map(int,value.split('.')))
 ok=(r.get('ready') is True
     and r.get('version')==version
     and r.get('buildRevision')==version
@@ -114,13 +130,34 @@ if enforce_floor.lower() == 'true':
           and r.get('minimumSupportedIosVersion') == min_ios
           and r.get('latestIosVersion') == latest_ios)
     try:
-        parse=lambda x: tuple(map(int,x.split('.')))
-        ok = ok and parse(min_desktop) <= parse(version)
-        ok = ok and parse(min_android) <= parse(latest_android)
-        ok = ok and parse(min_ios) <= parse(latest_ios)
+        ok = ok and parsed(min_desktop) <= parsed(version)
+        ok = ok and parsed(min_android) <= parsed(latest_android)
+        ok = ok and parsed(min_ios) <= parsed(latest_ios)
     except Exception:
         ok = False
 raise SystemExit(0 if ok else 1)
+PY
+}
+
+capture_live_mobile_policy() {
+  local body=$1
+  python3 - "$body" <<'PY'
+import json,re,sys
+r=json.loads(sys.argv[1])
+keys=('minimumSupportedAndroidVersion','latestAndroidVersion','minimumSupportedIosVersion','latestIosVersion')
+semver=re.compile(r'^\d+\.\d+\.\d+$')
+values=[]
+for key in keys:
+    value=r.get(key)
+    if not isinstance(value,str) or not semver.fullmatch(value):
+        raise SystemExit(f'Invalid live mobile compatibility value {key}={value!r}')
+    values.append(value)
+parse=lambda x: tuple(map(int,x.split('.')))
+if parse(values[0]) > parse(values[1]):
+    raise SystemExit(f'Invalid live Android compatibility range: {values[0]}..{values[1]}')
+if parse(values[2]) > parse(values[3]):
+    raise SystemExit(f'Invalid live iOS compatibility range: {values[2]}..{values[3]}')
+print('|'.join(values))
 PY
 }
 
@@ -152,7 +189,13 @@ if [[ -n "$PREVIOUS" ]]; then
     echo "Current release/environment/database health does not match $PREVIOUS_VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE." >&2
     exit 1
   fi
+  LIVE_MOBILE_POLICY=$(capture_live_mobile_policy "$CURRENT_BODY") || {
+    echo 'Current live mobile compatibility policy is invalid; refusing to deploy.' >&2
+    exit 1
+  }
+  IFS='|' read -r EFFECTIVE_MINIMUM_ANDROID EFFECTIVE_LATEST_ANDROID EFFECTIVE_MINIMUM_IOS EFFECTIVE_LATEST_IOS <<< "$LIVE_MOBILE_POLICY"
   echo "Current release verified before deployment: $PREVIOUS_VERSION"
+  echo "MOBILE_POLICY_PRESERVED source=live Android=$EFFECTIVE_MINIMUM_ANDROID..$EFFECTIVE_LATEST_ANDROID iOS=$EFFECTIVE_MINIMUM_IOS..$EFFECTIVE_LATEST_IOS"
   if [[ "$PREVIOUS_VERSION" == "$VERSION" ]]; then
     CURRENT_JAR="$PREVIOUS/server.jar"
     [[ -s "$CURRENT_JAR" ]] || { echo "Current same-version server.jar is missing: $CURRENT_JAR" >&2; exit 1; }
@@ -242,7 +285,7 @@ sudo -n systemctl is-active --quiet "$SERVICE" || {
 }
 
 echo "$NEW_BODY"
-echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE / desktop >= $EXPECTED_MINIMUM_DESKTOP / Android $EXPECTED_MINIMUM_ANDROID..$EXPECTED_LATEST_ANDROID / iOS $EXPECTED_MINIMUM_IOS..$EXPECTED_LATEST_IOS"
+echo "Deployment verified: $VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE / desktop >= $EXPECTED_MINIMUM_DESKTOP / Android $EFFECTIVE_MINIMUM_ANDROID..$EFFECTIVE_LATEST_ANDROID / iOS $EFFECTIVE_MINIMUM_IOS..$EFFECTIVE_LATEST_IOS"
 echo "Current release: $(readlink -f "$BASE/current")"
 echo "Previous release: ${PREVIOUS:-none}"
 echo "Pre-upgrade backup: $PRE_BACKUP"
