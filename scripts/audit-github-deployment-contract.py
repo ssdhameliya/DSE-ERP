@@ -86,9 +86,11 @@ for token in ('sha256sum', 'pg_dump', 'pg_restore', 'PreUpgrade', 'previous-rele
 need('EXPECTED_MINIMUM_DESKTOP' in deploy and "r.get('minimumSupportedDesktopVersion') == min_desktop" in deploy,
      'Oracle deployment safety does not verify the release-owned minimum desktop version')
 need('capture_live_mobile_policy' in deploy and 'EFFECTIVE_MINIMUM_ANDROID' in deploy and 'EFFECTIVE_LATEST_ANDROID' in deploy
-     and 'EFFECTIVE_MINIMUM_IOS' in deploy and 'EFFECTIVE_LATEST_IOS' in deploy and 'MOBILE_POLICY_PRESERVED source=live' in deploy
+     and 'EFFECTIVE_MINIMUM_IOS' in deploy and 'EFFECTIVE_LATEST_IOS' in deploy and 'MOBILE_POLICY_PRESERVED source=environment-file' in deploy
+     and 'DSE_LATEST_ANDROID_VERSION' in deploy and 'DSE_LATEST_IOS_VERSION' in deploy
+     and 'attempting safe service recovery before deployment' in deploy
      and "r.get('minimumSupportedAndroidVersion') == min_android" in deploy and "r.get('latestIosVersion') == latest_ios" in deploy,
-     'Oracle deployment safety does not preserve and verify the live environment-owned Android/iOS compatibility policy')
+     'Oracle deployment safety does not preserve environment-owned mobile policy across first-managed/recovery deployments')
 need('/srv/dse-erp/${ENVIRONMENT}' in deploy and 'dse-erp-${ENVIRONMENT}' in deploy,
      'Oracle deploy script does not match the live DSE ERP release/service layout')
 need('sudo -n test -r "$ENV_FILE"' in deploy and 'ENV_CONTENT=$(sudo -n cat "$ENV_FILE")' in deploy,
