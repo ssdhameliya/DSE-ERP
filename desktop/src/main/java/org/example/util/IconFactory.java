@@ -5,6 +5,12 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.DialogPane;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.Accordion;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.MenuButton;
@@ -28,6 +34,7 @@ import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import java.util.Locale;
+import java.util.IdentityHashMap;
 import java.util.Set;
 
 /**
@@ -104,6 +111,16 @@ public final class IconFactory {
     }
 /** Adds the shared icon vocabulary to every newly loaded page and dialog. */
     public static void decorate(Node node) {
+        decorate(node, new IdentityHashMap<>());
+    }
+
+    /**
+     * Semantic decoration must follow JavaFX logical content as well as physical Parent children.
+     * ScrollPane/TabPane/TitledPane content is not reliably exposed through getChildrenUnmodifiable()
+     * before skins are attached; missing that path left isolated dialogs such as Add Item undecorated.
+     */
+    private static void decorate(Node node, IdentityHashMap<Node, Boolean> visited) {
+        if (node == null || visited.put(node, Boolean.TRUE) != null) return;
         // A custom dialog supplies its own title icon and action presentation.
         // Do not infer icons from button text inside that shell, otherwise
         // labels such as "Mark all read" can become generic ellipsis icons.
@@ -210,16 +227,46 @@ public final class IconFactory {
                 });
             }
         }
+        decorateLogicalContent(node, visited);
         if (node instanceof Parent parent) {
-            for (Node child : parent.getChildrenUnmodifiable()) decorate(child);
+            for (Node child : parent.getChildrenUnmodifiable()) decorate(child, visited);
         }
     }
 
+    private static void decorateLogicalContent(Node node, IdentityHashMap<Node, Boolean> visited) {
+        if (node instanceof ScrollPane scroll) {
+            decorate(scroll.getContent(), visited);
+        } else if (node instanceof TabPane tabs) {
+            for (Tab tab : tabs.getTabs()) decorate(tab.getContent(), visited);
+        } else if (node instanceof TitledPane titled) {
+            decorate(titled.getContent(), visited);
+        } else if (node instanceof Accordion accordion) {
+            for (TitledPane pane : accordion.getPanes()) decorate(pane.getContent(), visited);
+        } else if (node instanceof SplitPane split) {
+            for (Node item : split.getItems()) decorate(item, visited);
+        }
+    }
 
     private static void decorateFieldLabelsOnly(Node node) {
+        decorateFieldLabelsOnly(node, new IdentityHashMap<>());
+    }
+
+    private static void decorateFieldLabelsOnly(Node node, IdentityHashMap<Node, Boolean> visited) {
+        if (node == null || visited.put(node, Boolean.TRUE) != null) return;
         if (node instanceof Label label) { decorateFieldLabel(label); decorateOrdinaryValueLabel(label); }
+        if (node instanceof ScrollPane scroll) {
+            decorateFieldLabelsOnly(scroll.getContent(), visited);
+        } else if (node instanceof TabPane tabs) {
+            for (Tab tab : tabs.getTabs()) decorateFieldLabelsOnly(tab.getContent(), visited);
+        } else if (node instanceof TitledPane titled) {
+            decorateFieldLabelsOnly(titled.getContent(), visited);
+        } else if (node instanceof Accordion accordion) {
+            for (TitledPane pane : accordion.getPanes()) decorateFieldLabelsOnly(pane.getContent(), visited);
+        } else if (node instanceof SplitPane split) {
+            for (Node item : split.getItems()) decorateFieldLabelsOnly(item, visited);
+        }
         if (node instanceof Parent parent) {
-            for (Node child : parent.getChildrenUnmodifiable()) decorateFieldLabelsOnly(child);
+            for (Node child : parent.getChildrenUnmodifiable()) decorateFieldLabelsOnly(child, visited);
         }
     }
 
