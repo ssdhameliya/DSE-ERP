@@ -90,13 +90,30 @@ if [[ -n "$PREVIOUS" ]]; then
   PREVIOUS_VERSION=$(basename "$PREVIOUS")
 fi
 
-# Bootstrap values are used only when there is no healthy release to inherit
-# policy from. A normal ERP upgrade preserves the mobile policy already
-# advertised by the live environment.
-EFFECTIVE_MINIMUM_ANDROID="$EXPECTED_MINIMUM_ANDROID"
-EFFECTIVE_LATEST_ANDROID="$EXPECTED_LATEST_ANDROID"
-EFFECTIVE_MINIMUM_IOS="$EXPECTED_MINIMUM_IOS"
-EFFECTIVE_LATEST_IOS="$EXPECTED_LATEST_IOS"
+# Android/iOS policy is environment-owned. The mobile deployment workflow
+# updates these values in /etc/dse-erp/<env>.env, so ERP deployment must use
+# the protected environment file as the source of truth even on the first
+# managed PROD deploy (when /srv/dse-erp/<env>/current may not exist yet).
+# Release/POM values remain bootstrap fallbacks only when an environment value
+# has not been configured.
+EFFECTIVE_MINIMUM_ANDROID="${DSE_MINIMUM_SUPPORTED_ANDROID_VERSION:-$EXPECTED_MINIMUM_ANDROID}"
+EFFECTIVE_LATEST_ANDROID="${DSE_LATEST_ANDROID_VERSION:-$EXPECTED_LATEST_ANDROID}"
+EFFECTIVE_MINIMUM_IOS="${DSE_MINIMUM_SUPPORTED_IOS_VERSION:-$EXPECTED_MINIMUM_IOS}"
+EFFECTIVE_LATEST_IOS="${DSE_LATEST_IOS_VERSION:-$EXPECTED_LATEST_IOS}"
+
+for mobile_version in "$EFFECTIVE_MINIMUM_ANDROID" "$EFFECTIVE_LATEST_ANDROID" "$EFFECTIVE_MINIMUM_IOS" "$EFFECTIVE_LATEST_IOS"; do
+  [[ "$mobile_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid environment-owned mobile compatibility version: $mobile_version" >&2; exit 2; }
+done
+python3 - "$EFFECTIVE_MINIMUM_ANDROID" "$EFFECTIVE_LATEST_ANDROID" "$EFFECTIVE_MINIMUM_IOS" "$EFFECTIVE_LATEST_IOS" <<'PY_MOBILE_POLICY'
+import sys
+min_android,latest_android,min_ios,latest_ios=sys.argv[1:]
+parse=lambda x: tuple(map(int,x.split('.')))
+if parse(min_android) > parse(latest_android):
+    raise SystemExit(f'Invalid environment-owned Android compatibility range: {min_android}..{latest_android}')
+if parse(min_ios) > parse(latest_ios):
+    raise SystemExit(f'Invalid environment-owned iOS compatibility range: {min_ios}..{latest_ios}')
+PY_MOBILE_POLICY
+echo "MOBILE_POLICY_PRESERVED source=environment-file Android=$EFFECTIVE_MINIMUM_ANDROID..$EFFECTIVE_LATEST_ANDROID iOS=$EFFECTIVE_MINIMUM_IOS..$EFFECTIVE_LATEST_IOS"
 
 health_url() {
   local port=${DSE_SERVER_PORT:-8081}
@@ -181,21 +198,31 @@ wait_for_health() {
 }
 
 if [[ -n "$PREVIOUS" ]]; then
-  CURRENT_BODY=$(curl --fail --silent --show-error --max-time 5 "$(health_url)") || {
-    echo 'Current server is not healthy; refusing to deploy on top of an unhealthy environment.' >&2
-    exit 1
-  }
-  if ! validate_health "$PREVIOUS_VERSION" "$CURRENT_BODY" false; then
-    echo "Current release/environment/database health does not match $PREVIOUS_VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE." >&2
+  # A failed first managed deployment can leave `current` pointing at a valid
+  # release while the service is stopped. Recover that current release first
+  # so it becomes a verified rollback target before attempting the next deploy.
+  CURRENT_BODY=$(curl --fail --silent --show-error --max-time 5 "$(health_url)" 2>/dev/null || true)
+  if [[ -z "$CURRENT_BODY" ]]; then
+    echo "Current managed release $PREVIOUS_VERSION is not responding; attempting safe service recovery before deployment." >&2
+    sudo -n systemctl start "$SERVICE" >/dev/null 2>&1 || true
+    CURRENT_BODY=$(wait_for_health "$PREVIOUS_VERSION" true || true)
+  fi
+  if [[ -z "$CURRENT_BODY" ]] || ! validate_health "$PREVIOUS_VERSION" "$CURRENT_BODY" true; then
+    echo "Current managed release could not be verified as a rollback target: $PREVIOUS_VERSION / $EXPECTED_ENV / $DSE_EXPECTED_DATABASE." >&2
+    echo 'Refusing to replace it until the current release or environment configuration is healthy.' >&2
     exit 1
   fi
   LIVE_MOBILE_POLICY=$(capture_live_mobile_policy "$CURRENT_BODY") || {
     echo 'Current live mobile compatibility policy is invalid; refusing to deploy.' >&2
     exit 1
   }
-  IFS='|' read -r EFFECTIVE_MINIMUM_ANDROID EFFECTIVE_LATEST_ANDROID EFFECTIVE_MINIMUM_IOS EFFECTIVE_LATEST_IOS <<< "$LIVE_MOBILE_POLICY"
+  EXPECTED_ENV_MOBILE_POLICY="$EFFECTIVE_MINIMUM_ANDROID|$EFFECTIVE_LATEST_ANDROID|$EFFECTIVE_MINIMUM_IOS|$EFFECTIVE_LATEST_IOS"
+  if [[ "$LIVE_MOBILE_POLICY" != "$EXPECTED_ENV_MOBILE_POLICY" ]]; then
+    echo "Current live mobile policy does not match $ENV_FILE; refusing to let ERP deployment overwrite mobile-owned policy." >&2
+    echo "environment=$EXPECTED_ENV_MOBILE_POLICY live=$LIVE_MOBILE_POLICY" >&2
+    exit 1
+  fi
   echo "Current release verified before deployment: $PREVIOUS_VERSION"
-  echo "MOBILE_POLICY_PRESERVED source=live Android=$EFFECTIVE_MINIMUM_ANDROID..$EFFECTIVE_LATEST_ANDROID iOS=$EFFECTIVE_MINIMUM_IOS..$EFFECTIVE_LATEST_IOS"
   if [[ "$PREVIOUS_VERSION" == "$VERSION" ]]; then
     CURRENT_JAR="$PREVIOUS/server.jar"
     [[ -s "$CURRENT_JAR" ]] || { echo "Current same-version server.jar is missing: $CURRENT_JAR" >&2; exit 1; }
@@ -207,6 +234,25 @@ if [[ -n "$PREVIOUS" ]]; then
     fi
     echo "Refusing to replace a running $VERSION release with different JAR bytes. Create a new release version instead." >&2
     exit 1
+  fi
+else
+  # First managed deploy: there is no versioned rollback symlink yet. Mobile
+  # policy still comes from the protected environment file, not stale POM data.
+  # If a legacy service is currently healthy, verify that it advertises the
+  # same environment-owned mobile policy before replacing it.
+  CURRENT_BODY=$(curl --fail --silent --show-error --max-time 5 "$(health_url)" 2>/dev/null || true)
+  if [[ -n "$CURRENT_BODY" ]]; then
+    LIVE_MOBILE_POLICY=$(capture_live_mobile_policy "$CURRENT_BODY") || {
+      echo 'Current live mobile compatibility policy is invalid; refusing first managed deployment.' >&2
+      exit 1
+    }
+    EXPECTED_ENV_MOBILE_POLICY="$EFFECTIVE_MINIMUM_ANDROID|$EFFECTIVE_LATEST_ANDROID|$EFFECTIVE_MINIMUM_IOS|$EFFECTIVE_LATEST_IOS"
+    if [[ "$LIVE_MOBILE_POLICY" != "$EXPECTED_ENV_MOBILE_POLICY" ]]; then
+      echo "Legacy live mobile policy does not match $ENV_FILE; refusing first managed deployment." >&2
+      echo "environment=$EXPECTED_ENV_MOBILE_POLICY live=$LIVE_MOBILE_POLICY" >&2
+      exit 1
+    fi
+    echo "First managed deployment verified environment-owned mobile policy from the running server."
   fi
 fi
 

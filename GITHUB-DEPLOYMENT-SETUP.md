@@ -51,7 +51,7 @@ Each environment must already have the DSE ERP runtime installed:
 - `/etc/dse-erp/<env>.env`
 - `/etc/dse-erp/<env>-db-password`
 - `/srv/dse-erp/<env>/releases`
-- `/srv/dse-erp/<env>/current`
+- `/srv/dse-erp/<env>/current` — created/maintained by the managed release flow; it may be absent before the first managed deployment.
 - `/srv/dse-erp/<env>/workspace`
 
 The release source owns a long-lived desktop compatibility baseline through `desktop.compatibility.baseline` in the root `pom.xml`. For the corrected 10.x compatibility line it starts at `10.0.4`. When `DSE_MINIMUM_SUPPORTED_DESKTOP_VERSION` is omitted, the server publishes that release baseline rather than forcing desktop/server version equality. Keep the environment value equal to the release policy. Raise the baseline only for a reviewed breaking API, security, or business-integrity change. UAT/PROD deployment now fails if `/api/runtime/health` publishes a different minimum. This allows, for example, a 10.0.4 desktop to choose **Not Now** and continue against a compatible newer 10.x server while 10.0.1-10.0.3 and any other clients below the certified floor are blocked for the one-time transition.
@@ -62,6 +62,9 @@ The deployment script never sends a database password through GitHub. It reads t
 ## Automatic rollback behavior
 
 Before switching binaries, `deploy-oracle-release.sh`:
+
+- reads Android/iOS compatibility policy from the protected `/etc/dse-erp/<env>.env` file (release POM values are bootstrap fallbacks only), so independent Mobile releases are preserved even when `current` did not exist before the first managed PROD deployment;
+- if a prior managed `current` release exists but its service was left stopped by an earlier failed deployment, safely starts and re-verifies that current release before using it as the rollback target;
 
 - verifies the uploaded server JAR SHA-256;
 - verifies the currently running environment/database identity;
