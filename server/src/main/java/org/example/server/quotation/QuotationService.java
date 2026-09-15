@@ -267,7 +267,11 @@ public class QuotationService {
                 "Converted from " + q.get("quotation_no"), now, today.plusDays(30),
                 "30 Days", q.get("salesperson"), q.get("source"), q.get("remarks"), documentStatus, "PENDING", approvalStatus,
                 admin ? null : actor, admin ? null : now, admin ? actor : null, admin ? now : null, admin);
-        jdbc.update("UPDATE sales_header h SET customer_name_snapshot=p.name,customer_email_snapshot=p.email,customer_phone_snapshot=p.phone,customer_gstin_snapshot=p.gstin,customer_address_snapshot=p.address FROM party_master p WHERE h.id=? AND p.id=h.customer_id",sid);
+        jdbc.update("UPDATE sales_header h SET customer_name_snapshot=p.name,customer_email_snapshot=p.email,customer_phone_snapshot=p.phone,customer_gstin_snapshot=p.gstin,customer_address_snapshot=p.address," +
+                "billing_address=COALESCE(NULLIF(h.billing_address,''),p.address,''),delivery_address=COALESCE(NULLIF(h.delivery_address,''),p.address,'')," +
+                "billing_gstin=COALESCE(NULLIF(h.billing_gstin,''),p.gstin,''),delivery_gstin=COALESCE(NULLIF(h.delivery_gstin,''),p.gstin,''),gstin=COALESCE(NULLIF(h.gstin,''),p.gstin,''),same_as_billing=true," +
+                "reference_no=COALESCE(NULLIF(h.reference_no,''),?),gst_type=CASE WHEN LENGTH(COALESCE((SELECT setting_value FROM application_setting WHERE setting_key='company.gstin'),''))>=2 AND LENGTH(COALESCE(p.gstin,''))>=2 AND LEFT((SELECT setting_value FROM application_setting WHERE setting_key='company.gstin'),2)<>LEFT(p.gstin,2) THEN 'IGST' ELSE 'GST' END " +
+                "FROM party_master p WHERE h.id=? AND p.id=h.customer_id",q.get("quotation_no"),sid);
         for (var l : conversionLines) {
             if (!Double.isFinite(l.quantity()) || l.quantity() <= 0) {
                 throw new IllegalArgumentException("Quotation quantity must be a finite number greater than zero.");
@@ -286,7 +290,10 @@ public class QuotationService {
         // Record the Sale activity as well as the existing quotation conversion activity.
         // This makes the converted document visible in the same Activity Summary/history
         // used by normally-created Sales documents.
-        audit.log("SALE", sid, "CREATED", invoice + " • Converted from " + q.get("quotation_no"));
+        audit.logChanges("SALE", sid, "CREATED", invoice + " • Converted from " + q.get("quotation_no"), java.util.List.of(
+                new AuditService.Change("Source Reference", String.valueOf(q.get("quotation_no")), invoice),
+                new AuditService.Change("Document Type", "Quotation", "Sale"),
+                new AuditService.Change("GST Type", null, jdbc.queryForObject("SELECT gst_type FROM sales_header WHERE id=?",String.class,sid))));
         jdbc.update("UPDATE quotation_header SET status='ACCEPTED',converted_invoice_no=?,row_version=row_version+1 WHERE id=?", invoice, id);
         activity(id, "CONVERTED", invoice, ignoredUser);
         return invoice;
@@ -342,8 +349,7 @@ public class QuotationService {
     }
 
     private void activity(int id, String action, String detail, String ignoredUser) {
-        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES('QUOTATION',?,?,?,?,?)",
-                id, action, detail, CurrentUser.require().username(), BusinessClock.nowUtcText());
+        audit.log("QUOTATION", id, action, detail);
     }
 
     private QuoteCalculation calculate(List<QuotationDtos.LineDto> requested){

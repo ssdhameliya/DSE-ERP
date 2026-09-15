@@ -40,6 +40,7 @@ CHECKS = [
     "audit-ui-design-system.py",
     "audit-phase3-ui-contract.py",
     "audit-update-semantic-logical-contract.py",
+    "audit-private-update-distribution-contract.py",
     "audit-architecture-refactor.py",
     "audit-cloud-uat-contract.py",
     "audit-github-deployment-contract.py",

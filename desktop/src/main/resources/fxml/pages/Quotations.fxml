@@ -117,7 +117,7 @@
                 </VBox>
 
                 <VBox fx:id="detailDrawer" spacing="11" prefWidth="410" minWidth="390" maxWidth="440" styleClass="detail-drawer,erp-detail-drawer-card,quotation-detail-drawer" minHeight="0">
-                    <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Quotation Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Close" onAction="#closeDetails" styleClass="quotation-detail-close-button,approved-button,approved-danger-button"/></HBox>
+                    <HBox alignment="CENTER_LEFT" spacing="8"><Label text="Quotation Details" styleClass="drawer-title"/><Region HBox.hgrow="ALWAYS"/><Button text="Audit Trail" onAction="#auditSelected" styleClass="approved-button,approved-secondary-button"/><Button text="Close" onAction="#closeDetails" styleClass="quotation-detail-close-button,approved-button,approved-danger-button"/></HBox>
                     <Label fx:id="lblDetailNo" styleClass="drawer-document"/>
                     <HBox spacing="8"><Label fx:id="lblDetailDate"/><Label fx:id="lblDetailStatus" styleClass="status-pill,approved-status"/></HBox>
                     <Separator/><Label fx:id="lblDetailCustomer" styleClass="drawer-customer"/><Label fx:id="lblDetailContact" wrapText="true" styleClass="quotation-detail-contact"/><Separator/>

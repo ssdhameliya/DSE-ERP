@@ -333,8 +333,6 @@ public class SettingsController implements ScreenLifecycle {
 
     @FXML private HBox navUpdates;
     @FXML private VBox panelUpdates;
-    @FXML private TextField txtGitHubOwner;
-    @FXML private TextField txtGitHubRepository;
     @FXML private ComboBox<String> cmbUpdateChannel;
     @FXML private CheckBox chkUpdateAtStartup;
     @FXML private CheckBox chkDownloadInBackground;
@@ -598,8 +596,6 @@ public class SettingsController implements ScreenLifecycle {
             case SHORTCUTS -> initializeShortcutSettings();
             case UPDATES -> {
                 cmbUpdateChannel.setItems(FXCollections.observableArrayList("STABLE", "BETA"));
-                txtGitHubOwner.setText(ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER));
-                txtGitHubRepository.setText(ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY));
                 selectComboValue(cmbUpdateChannel, ConfigManager.getEffectiveUpdateChannel());
                 boolean managedUpdateChannel = ConfigManager.isUpdateChannelManagedByEnvironment();
                 cmbUpdateChannel.setDisable(managedUpdateChannel);
@@ -1306,10 +1302,14 @@ private record AssetPreviewRequest(
             String revision = BuildInfo.buildRevision();
             lblCurrentBuild.setText("Build " + (revision.isBlank() ? BuildInfo.version() : revision));
         }
-        String latest = org.example.update.UpdateState.latestVersion();
-        if (lblLatestVersion != null) lblLatestVersion.setText(latest.isBlank() ? "Not checked yet" : latest);
+        if (lblLatestVersion != null) lblLatestVersion.setText(org.example.update.UpdateState.latestVersionDisplay());
         if (lblUpdateStatus != null) lblUpdateStatus.setText(org.example.update.UpdateState.statusText());
-        if (lblLastChecked != null) lblLastChecked.setText(formatUpdateTimestamp(ConfigManager.get("update.lastChecked", "")));
+        if (lblLastChecked != null) {
+            String stamp = org.example.update.UpdateState.lastRefreshFailed()
+                    ? org.example.update.UpdateState.lastCheckAttempt()
+                    : ConfigManager.get("update.lastChecked", "");
+            lblLastChecked.setText(formatUpdateTimestamp(stamp));
+        }
     }
 
     @FXML
@@ -2309,9 +2309,6 @@ private record AssetPreviewRequest(
     }
 
     private void saveUpdateSettings() {
-        if (txtGitHubOwner == null) return;
-        putSetting("update.github.owner", txtGitHubOwner.getText().trim());
-        putSetting("update.github.repository", txtGitHubRepository.getText().trim());
         putSetting("update.channel", ConfigManager.isUpdateChannelManagedByEnvironment()
                 ? ConfigManager.getEffectiveUpdateChannel()
                 : (cmbUpdateChannel.getValue() == null ? "STABLE" : cmbUpdateChannel.getValue()));

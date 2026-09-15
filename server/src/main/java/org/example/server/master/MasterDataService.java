@@ -135,7 +135,15 @@ public class MasterDataService {
         copy(d, e, true);
         if (e.getPartyCode() == null || e.getPartyCode().isBlank()) e.setPartyCode(allocatePartyCode(e.getPartyType()));
         e = parties.saveAndFlush(e);
-        audit.log("PARTY", e.getId(), "CREATED", e.getPartyType() + " " + e.getPartyCode());
+        audit.logChanges("PARTY", e.getId(), "CREATED", e.getPartyType() + " " + e.getPartyCode(), List.of(
+            new AuditService.Change("Party Type", null, e.getPartyType()),
+            new AuditService.Change("Party Code", null, e.getPartyCode()),
+            new AuditService.Change("Name", null, e.getName()),
+            new AuditService.Change("Phone", null, e.getPhone()),
+            new AuditService.Change("Email", null, e.getEmail()),
+            new AuditService.Change("GSTIN", null, e.getGstin()),
+            new AuditService.Change("Address", null, e.getAddress()),
+            new AuditService.Change("Active", null, (e.getActive()==null||e.getActive()!=0)?"Yes":"No")));
         return partyDto(e);
     }
 
@@ -145,9 +153,18 @@ public class MasterDataService {
         requirePartyPermission(e.getPartyType(), "EDIT");
         requirePartyPermission(d.partyType(), "EDIT");
         assertVersion(d.rowVersion(), e.getRowVersion(), "Party " + e.getPartyCode());
+        List<AuditService.Change> changes = List.of(
+            new AuditService.Change("Name", e.getName(), d.name()),
+            new AuditService.Change("Contact Person", e.getContactPerson(), d.contactPerson()),
+            new AuditService.Change("Phone", e.getPhone(), d.phone()),
+            new AuditService.Change("Email", e.getEmail(), d.email()),
+            new AuditService.Change("GSTIN", e.getGstin(), d.gstin()),
+            new AuditService.Change("Address", e.getAddress(), d.address()),
+            new AuditService.Change("Opening Balance", String.valueOf(n(e.getOpeningBalance())), String.valueOf(d.openingBalance())),
+            new AuditService.Change("Active", (e.getActive()==null||e.getActive()!=0)?"Yes":"No", d.active()?"Yes":"No"));
         copy(d, e, false);
         e = parties.saveAndFlush(e);
-        audit.log("PARTY", e.getId(), "UPDATED", e.getPartyType() + " " + e.getPartyCode());
+        audit.logChanges("PARTY", e.getId(), "UPDATED", e.getPartyType() + " " + e.getPartyCode(), changes);
         return partyDto(e);
     }
 
@@ -264,7 +281,15 @@ public class MasterDataService {
             e.setItemCode(referenceNumbers.nextConfiguredReference("REF_ITEM", "ITMXXX", existing));
         }
         e = items.saveAndFlush(e);
-        audit.log("ITEM", e.getId(), "CREATED", e.getItemCode());
+        audit.logChanges("ITEM", e.getId(), "CREATED", e.getItemCode(), List.of(
+            new AuditService.Change("Item Code", null, e.getItemCode()),
+            new AuditService.Change("Description", null, e.getDescription()),
+            new AuditService.Change("Category", null, e.getCategory()),
+            new AuditService.Change("Unit", null, e.getUnit()),
+            new AuditService.Change("HSN", null, e.getHsn()),
+            new AuditService.Change("GST %", null, String.valueOf(n(e.getGst()))),
+            new AuditService.Change("Selling Price", null, String.valueOf(n(e.getSellingPrice()))),
+            new AuditService.Change("Opening Stock", null, String.valueOf(n(e.getOpeningStock())))));
         return itemDto(e);
     }
 
@@ -275,9 +300,24 @@ public class MasterDataService {
         assertVersion(d.rowVersion(), e.getRowVersion(), "Item " + e.getItemCode());
         if (Math.abs(d.openingStock() - n(e.getOpeningStock())) > 0.0001)
             throw new IllegalArgumentException("Opening Stock is fixed after item creation. Use Stock Adjustment to change inventory quantity.");
+        List<AuditService.Change> changes = List.of(
+            new AuditService.Change("Description", e.getDescription(), d.description()),
+            new AuditService.Change("Category", e.getCategory(), d.category()),
+            new AuditService.Change("Brand", e.getBrand(), d.brand()),
+            new AuditService.Change("Material", e.getMaterial(), d.material()),
+            new AuditService.Change("Size", e.getSize(), d.size()),
+            new AuditService.Change("Unit", e.getUnit(), d.unit()),
+            new AuditService.Change("HSN", e.getHsn(), d.hsn()),
+            new AuditService.Change("GST %", String.valueOf(n(e.getGst())), String.valueOf(d.gst())),
+            new AuditService.Change("Discount %", String.valueOf(n(e.getDiscountPercent())), String.valueOf(d.discountPercent())),
+            new AuditService.Change("Purchase Price", String.valueOf(n(e.getPurchasePrice())), String.valueOf(d.purchasePrice())),
+            new AuditService.Change("Selling Price", String.valueOf(n(e.getSellingPrice())), String.valueOf(d.sellingPrice())),
+            new AuditService.Change("Minimum Stock", String.valueOf(n(e.getMinimumStock())), String.valueOf(d.minimumStock())),
+            new AuditService.Change("Location", e.getLocation(), d.location()),
+            new AuditService.Change("Remarks", e.getRemarks(), d.remarks()));
         copy(d, e, false);
         e = items.saveAndFlush(e);
-        audit.log("ITEM", e.getId(), "UPDATED", e.getItemCode());
+        audit.logChanges("ITEM", e.getId(), "UPDATED", e.getItemCode(), changes);
         return itemDto(e);
     }
 

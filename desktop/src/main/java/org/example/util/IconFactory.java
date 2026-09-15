@@ -886,6 +886,7 @@ public final class IconFactory {
             case "warning" -> "fas-exclamation-circle";
             case "confirmation" -> "fas-question-circle";
             case "sent" -> "fas-paper-plane";
+            case "audit" -> "fas-history";
             case "history" -> "fas-history";
             case "link" -> "fas-link";
             case "info" -> "fas-info-circle";
@@ -921,7 +922,7 @@ public final class IconFactory {
             case "sale", "sales-order", "complete", "add", "import", "whatsapp", "save", "validate" -> "green";
             case "export", "excel" -> "blue";
             case "purchase", "purchase-order", "goods-receipt", "item", "filter", "reminder", "warning", "snooze", "quantity", "tax", "discount", "category", "minimum", "source", "reference", "rollback", "package" -> "orange";
-            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application", "calendar" -> "purple";
+            case "quotation", "document", "master", "return", "settings", "more", "actions", "status", "reopen", "role", "security", "reset", "notes", "print", "application", "calendar", "audit" -> "purple";
             case "report", "delete", "error", "cancel", "pdf", "debit" -> "pink";
             case "inventory", "supplier", "attachment", "phone", "location", "communication", "unit", "email" -> "teal";
             case "payment", "customer", "user", "dashboard", "view", "hide", "download", "identity", "sent", "currency", "confirmation", "refresh", "restore", "folder", "copy", "backup", "database", "first", "previous", "next", "last", "history", "workspace", "select", "balance", "business", "chevron" -> "blue";
@@ -1001,6 +1002,7 @@ public final class IconFactory {
         if (value.equals("●")) return "active";
 
         // Specific actions must win before broad business nouns.
+        if (value.contains("audit trail")) return "audit";
         if (value.contains("mark all read")) return "mark-all-read";
         if (value.equals("mark read") || value.contains("mark as read")) return "mark-read";
         if (value.contains("open record")) return "open-record";

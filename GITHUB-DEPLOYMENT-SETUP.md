@@ -84,3 +84,13 @@ A Shared Client must not silently start writing to an old local database when th
 ## Protected Oracle runtime files
 
 The GitHub SSH deployment account does not need direct read permission on `/etc/dse-erp/<env>.env` or `/etc/dse-erp/<env>-db-password`. The deployment script verifies and reads those protected Oracle files through `sudo -n`; keep them root/protected rather than loosening filesystem permissions for CI.
+
+## Private release repository desktop updates
+
+Desktop clients do not require direct access to the GitHub repository. The Spring server exposes the pre-login `/api/updates/**` gateway and performs private GitHub release access on the server side.
+
+Before making `ssdhameliya/DSE-ERP` private, add `DSE_GITHUB_UPDATE_TOKEN` to both protected Oracle environment files (`/etc/dse-erp/uat.env` and `/etc/dse-erp/prod.env`). Use a fine-grained GitHub token restricted to this repository with read-only **Contents** permission. Keep the file root-owned/protected. Never place this token in desktop `config.properties`, source code, workflow output, logs, or release assets.
+
+The gateway intentionally permits update metadata and installer/checksum downloads before login so a desktop below the server compatibility floor can still update. It exposes release binaries only; source code and the GitHub credential remain private. The desktop continues to require the published SHA-256 checksum before an installer can run.
+
+Transition order: deploy the server/desktop release while the repository is still public, verify update checks through `/api/updates`, configure the protected server token, then make the GitHub repository private and repeat an update/release lookup test. Future desktop releases can remain fully private at the repository level.

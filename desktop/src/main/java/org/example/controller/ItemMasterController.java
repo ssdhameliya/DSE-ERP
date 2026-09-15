@@ -186,9 +186,11 @@ public class ItemMasterController implements ScreenLifecycle {
                 view.setOnAction(e -> showDetails(currentItem()));
                 MenuItem edit = new MenuItem("Edit Item", IconFactory.compactIcon("edit", 16));
                 edit.setOnAction(e -> openItemDialog(currentItem()));
+                MenuItem audit = new MenuItem("Audit Trail", IconFactory.compactIcon("history", 16));
+                audit.setOnAction(e -> { Item item=currentItem(); if(item!=null) org.example.util.ActivityTimelineDialog.show(tableItems,"ITEM",item.getId(),item.getItemCode()); });
                 MenuItem delete = new MenuItem("Delete Item", IconFactory.compactIcon("delete", 16));
                 delete.setOnAction(e -> deleteItem(currentItem()));
-                actions.getItems().addAll(create, view, edit, new SeparatorMenuItem(), delete);
+                actions.getItems().addAll(create, view, edit, audit, new SeparatorMenuItem(), delete);
                 IconFactory.decorateActionMenu(actions);
             }
 
@@ -274,7 +276,11 @@ public class ItemMasterController implements ScreenLifecycle {
         edit.getStyleClass().addAll("approved-button", "approved-primary-button");
         edit.setGraphic(IconFactory.compactIcon("edit", 14));
         edit.setOnAction(event -> openItemDialog(item));
-        detailDrawer.setActions(edit);
+        Button audit = new Button("Audit Trail");
+        audit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        audit.setGraphic(IconFactory.compactIcon("history", 14));
+        audit.setOnAction(event -> org.example.util.ActivityTimelineDialog.show(tableItems,"ITEM",item.getId(),item.getItemCode()));
+        detailDrawer.setActions(audit, edit);
     }
 
     private void closeDetails() {

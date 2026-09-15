@@ -35,9 +35,7 @@ payment.upi=
 # WhatsApp sender phone (international format without +)
 whatsapp.senderPhone=
 
-# Application updates (GitHub Releases)
-update.github.owner=ssdhameliya
-update.github.repository=DSE-ERP
+# Application updates (served through the configured DSE ERP server)
 update.channel=STABLE
 update.checkAtStartup=true
 update.downloadInBackground=false

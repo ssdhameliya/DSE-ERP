@@ -29,7 +29,7 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/error", "/api/runtime/health", "/api/auth/health", "/api/auth/login", "/api/auth/login/mfa/complete", "/api/auth/login/mfa/resend", "/api/setup/bootstrap", "/api/setup/status",
+                        .requestMatchers("/error", "/api/runtime/health", "/api/updates/**", "/api/auth/health", "/api/auth/login", "/api/auth/login/mfa/complete", "/api/auth/login/mfa/resend", "/api/setup/bootstrap", "/api/setup/status",
                                 "/api/auth/login-roles", "/api/auth/registration-roles", "/api/auth/registration/captcha", "/api/auth/registration/request", "/api/auth/registration/email/verify", "/api/auth/registration/mfa/complete",
                                 "/api/auth/password-reset/request", "/api/auth/password-reset/complete").permitAll()
                         .requestMatchers("/api/auth/effective-permissions", "/api/auth/session").authenticated()

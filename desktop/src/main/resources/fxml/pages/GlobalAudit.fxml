@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.controller.GlobalAuditController" spacing="12" styleClass="approved-ui,approved-screen,erp-screen-root,audit-page">
+    <padding><Insets top="14" right="16" bottom="16" left="16"/></padding>
+    <HBox alignment="CENTER_LEFT" spacing="12" styleClass="erp-page-identity-header">
+        <StackPane styleClass="erp-page-header-icon"><Label text="◷" styleClass="erp-page-header-symbol"/></StackPane>
+        <VBox spacing="2"><Label text="Global Audit Trail" styleClass="screen-title"/><Label text="Central business-change history across all ERP modules" styleClass="screen-subtitle"/></VBox>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label text="Append-only" styleClass="audit-badge,audit-green"/>
+        <Button text="Refresh" onAction="#refresh" styleClass="secondary-button"/>
+    </HBox>
+    <GridPane fx:id="auditKpiGrid" hgap="10" vgap="10" styleClass="erp-kpi-section,audit-kpi-section">
+        <VBox GridPane.columnIndex="0" styleClass="audit-kpi-card,audit-summary-purple"><Label text="Business Events" styleClass="audit-kpi-title"/><Label fx:id="lblTotal" text="0" styleClass="audit-kpi-value,audit-color-purple"/><Label text="All normalized events" styleClass="audit-kpi-subtitle"/></VBox>
+        <VBox GridPane.columnIndex="1" styleClass="audit-kpi-card,audit-summary-green"><Label text="Record Changes" styleClass="audit-kpi-title"/><Label fx:id="lblChanges" text="0" styleClass="audit-kpi-value,audit-color-green"/><Label text="Create / update / lifecycle" styleClass="audit-kpi-subtitle"/></VBox>
+        <VBox GridPane.columnIndex="2" styleClass="audit-kpi-card,audit-summary-orange"><Label text="Financial Events" styleClass="audit-kpi-title"/><Label fx:id="lblFinancial" text="0" styleClass="audit-kpi-value,audit-color-orange"/><Label text="Payments / refunds / recon" styleClass="audit-kpi-subtitle"/></VBox>
+        <VBox GridPane.columnIndex="3" styleClass="audit-kpi-card,audit-summary-blue"><Label text="Document Events" styleClass="audit-kpi-title"/><Label fx:id="lblDocuments" text="0" styleClass="audit-kpi-value,audit-color-blue"/><Label text="PDF / Excel / attachments" styleClass="audit-kpi-subtitle"/></VBox>
+        <VBox GridPane.columnIndex="4" styleClass="audit-kpi-card,audit-summary-teal"><Label text="Communications" styleClass="audit-kpi-title"/><Label fx:id="lblCommunications" text="0" styleClass="audit-kpi-value,audit-color-teal"/><Label text="Email / WhatsApp" styleClass="audit-kpi-subtitle"/></VBox>
+    </GridPane>
+    <HBox spacing="8" alignment="CENTER_LEFT" styleClass="audit-filter-bar">
+        <ComboBox fx:id="cmbModule" promptText="All Modules"/>
+        <ComboBox fx:id="cmbAction" promptText="All Actions"/>
+        <TextField fx:id="txtUser" promptText="User"/>
+        <TextField fx:id="txtReference" promptText="Reference"/>
+        <TextField fx:id="txtSearch" promptText="Search field, detail or user" HBox.hgrow="ALWAYS"/>
+        <Button text="Clear" onAction="#clearFilters" styleClass="secondary-button"/>
+        <Button text="Apply" onAction="#refresh" styleClass="primary-button"/>
+    </HBox>
+    <TableView fx:id="table" VBox.vgrow="ALWAYS" styleClass="approved-table,audit-table,erp-table-profile-administration">
+        <columns>
+            <TableColumn fx:id="colDate" text="Date / Time"/>
+            <TableColumn fx:id="colModule" text="Module"/>
+            <TableColumn fx:id="colRecordType" text="Record Type"/>
+            <TableColumn fx:id="colReference" text="Reference"/>
+            <TableColumn fx:id="colAction" text="Action"/>
+            <TableColumn fx:id="colCategory" text="Category"/>
+            <TableColumn fx:id="colField" text="Changed Field"/>
+            <TableColumn fx:id="colOld" text="Old Value"/>
+            <TableColumn fx:id="colNew" text="New Value"/>
+            <TableColumn fx:id="colUser" text="User"/>
+            <TableColumn fx:id="colSource" text="Source"/>
+            <TableColumn fx:id="colView" text="View" sortable="false"/>
+        </columns>
+    </TableView>
+    <HBox alignment="CENTER_RIGHT" spacing="8"><Label fx:id="lblPage" text="0 events" styleClass="muted-label"/><Button text="Previous" onAction="#previousPage" styleClass="secondary-button"/><Button text="Next" onAction="#nextPage" styleClass="secondary-button"/></HBox>
+</VBox>

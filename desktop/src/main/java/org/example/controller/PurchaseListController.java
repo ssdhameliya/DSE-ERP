@@ -87,7 +87,7 @@ public class PurchaseListController implements ScreenLifecycle{
    {
     m.getProperties().put("erp.icon.semantic","actions");m.setGraphic(IconFactory.compactIcon("actions",15));
     item("View Purchase","view",e->view(row()));
-    item("Activity Timeline","history",e->org.example.util.ActivityTimelineDialog.show(tablePurchase,"PURCHASE",row().getId(),row().getInvoiceNo()));
+    item("Audit Trail","history",e->org.example.util.ActivityTimelineDialog.show(tablePurchase,"PURCHASE",row().getId(),row().getInvoiceNo()));
     edit=item("Edit Purchase","edit",e->edit(row()));
     item("Duplicate Purchase","copy",e->duplicate(row()));
     item("Preview / Download PDF","print",e->pdf(row()));
@@ -180,6 +180,7 @@ private void configureDetailsCloseButton(){
      btnCloseDetails.getProperties().put("erp-icon-preserve", true);
      btnCloseDetails.setAccessibleText("Close purchase details");
  }
+ @FXML private void auditSelected(){if(selected!=null)org.example.util.ActivityTimelineDialog.show(tablePurchase,"PURCHASE",selected.getId(),selected.getInvoiceNo());}
  @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tablePurchase);}
  @FXML private void approveSelectedPurchase(){Purchase p=selected;if(p==null)return;try{service.approve(p.getInvoiceNo());NotificationService.add("Purchase "+p.getInvoiceNo()+" approved.");refresh();}catch(Exception e){error(e);}}
  @FXML private void rejectSelectedPurchase(){Purchase p=selected;if(p==null)return;OwnedTextInputDialog dialog=new OwnedTextInputDialog();dialog.setTitle("Reject Purchase");dialog.setHeaderText("Reject "+p.getInvoiceNo());dialog.setContentText("Reason:");dialog.showAndWait().map(String::trim).filter(v->!v.isBlank()).ifPresent(reason->{try{service.reject(p.getInvoiceNo(),reason);NotificationService.add("Purchase "+p.getInvoiceNo()+" rejected.");refresh();}catch(Exception e){error(e);}});}

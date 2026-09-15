@@ -95,6 +95,7 @@ public abstract class PartyMasterController {
             private final MenuButton actions = new MenuButton("Actions");
             private final MenuItem view = new MenuItem("View " + displayName(), IconFactory.compactIcon("view", 16));
             private final MenuItem edit = new MenuItem("Edit " + displayName(), IconFactory.compactIcon("edit", 16));
+            private final MenuItem audit = new MenuItem("Audit Trail", IconFactory.compactIcon("history", 16));
             private final MenuItem delete = new MenuItem("Delete " + displayName(), IconFactory.compactIcon("delete", 16));
             {
                 actions.getStyleClass().addAll("row-actions", "table-action-menu");
@@ -106,9 +107,10 @@ public abstract class PartyMasterController {
                 actions.setTooltip(new Tooltip("Actions"));
                 view.setOnAction(event -> viewForRow(this));
                 edit.setOnAction(event -> runForRow(this, false));
+                audit.setOnAction(event -> { int index=getIndex(); if(index>=0&&index<tableParties.getItems().size()){ Party party=tableParties.getItems().get(index); org.example.util.ActivityTimelineDialog.show(tableParties,partyType(),party.getId(),party.getPartyCode()); }});
                 delete.getStyleClass().add("danger-menu-item");
                 delete.setOnAction(event -> runForRow(this, true));
-                actions.getItems().addAll(view, edit, new SeparatorMenuItem(), delete);
+                actions.getItems().addAll(view, edit, audit, new SeparatorMenuItem(), delete);
                 IconFactory.decorateActionMenu(actions);
                 setAlignment(javafx.geometry.Pos.CENTER);
             }
@@ -196,7 +198,11 @@ public abstract class PartyMasterController {
         edit.getStyleClass().addAll("approved-button", "approved-primary-button");
         edit.setGraphic(IconFactory.compactIcon("edit", 14));
         edit.setOnAction(event -> { tableParties.getSelectionModel().select(party); editParty(); });
-        detailDrawer.setActions(edit);
+        Button audit = new Button("Audit Trail");
+        audit.getStyleClass().addAll("approved-button", "approved-secondary-button");
+        audit.setGraphic(IconFactory.compactIcon("history", 14));
+        audit.setOnAction(event -> org.example.util.ActivityTimelineDialog.show(tableParties,partyType(),party.getId(),party.getPartyCode()));
+        detailDrawer.setActions(audit, edit);
     }
 
     private void closeDetails() {

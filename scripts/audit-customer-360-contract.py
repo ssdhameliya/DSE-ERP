@@ -26,6 +26,6 @@ for authority in ('quotation_header', 'sales_header', 'payment_record', 'party_c
 for removed in ('workflow_document', 'PROJECT_EXECUTION', 'sales_order_no', 'project_no'):
     need(removed not in server, 'Project Execution dependency remains in Customer 360 service: ' + removed)
 need('CUSTOMERS.EDIT' in server and 'row_version' in server, 'multi-user contact/note protection')
-need(len(list((R / 'desktop/src/main/resources/fxml').rglob('*.fxml'))) == 59, 'expected 59 FXML after Project Execution removal')
+need(len(list((R / 'desktop/src/main/resources/fxml').rglob('*.fxml'))) == 60, 'expected 60 FXML after Global Audit addition')
 need(sorted((p.name for p in (R / 'desktop/src/main/resources/css').glob('*.css'))) == ['dark-theme.css', 'light-theme.css'], 'exactly two themes')
-print('CUSTOMER_360_CONTRACT_OK fxml=59 tabs=7 project_execution=removed')
+print('CUSTOMER_360_CONTRACT_OK fxml=60 tabs=7 project_execution=removed')

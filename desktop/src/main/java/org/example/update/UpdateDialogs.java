@@ -45,9 +45,7 @@ public final class UpdateDialogs {
         Task<String> task = new Task<>() {
             @Override protected String call() {
                 try {
-                    String ownerName = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
-                    String repository = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
-                    UpdateRelease release = new GitHubReleaseClient().byVersion(ownerName, repository, version);
+                    UpdateRelease release = new UpdateService().byVersion(version);
                     return ReleaseHighlights.resolve(version, release.notes());
                 } catch (Exception ignored) { }
                 return ReleaseHighlights.forVersion(version);
@@ -104,7 +102,7 @@ public final class UpdateDialogs {
         org.example.service.PermissionService.require("APPLICATION_UPDATES.CHECK", "check for application updates");
         UpdateService service = new UpdateService();
         ProgressIndicator indicator = new ProgressIndicator();
-        Label message = new Label("Checking GitHub Releases for the latest DSE ERP version...");
+        Label message = new Label("Checking the company update service for the latest DSE ERP version...");
         VBox content = new VBox(18, indicator, message);
         content.setAlignment(javafx.geometry.Pos.CENTER);
         content.setPadding(new Insets(28));
@@ -143,16 +141,12 @@ public final class UpdateDialogs {
         facts.addRow(0, new Label("Current Version"), new Label(service.currentVersion()), new Label("Latest Version"), new Label(release.version().toString()), new Label("Release Size"), new Label(size));
         VBox content = new VBox(12, badge, title, notes, facts); content.setPadding(new Insets(8));
         Dialog<ButtonType> dialog = baseDialog(owner, "New Version Available", content, 720, 560);
-        ButtonType releaseNotes = new ButtonType("Open GitHub Release", ButtonBar.ButtonData.LEFT);
         ButtonType later = new ButtonType("Later", ButtonBar.ButtonData.CANCEL_CLOSE);
         ButtonType update = new ButtonType("Update Now", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(releaseNotes, later, update);
+        dialog.getDialogPane().getButtonTypes().addAll(later, update);
         dialog.setResultConverter(b -> b);
         dialog.showAndWait().ifPresent(result -> {
             if (result == update) downloadAndPrepare(owner, service, release);
-            else if (result == releaseNotes) {
-                try { service.openRelease(release); } catch (Exception ex) { error(owner, "Unable to open release", rootMessage(ex)); }
-            }
         });
     }
 
@@ -253,9 +247,7 @@ public final class UpdateDialogs {
 
         Task<UpdateRelease> task = new Task<>() {
             @Override protected UpdateRelease call() throws Exception {
-                String ownerName = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
-                String repository = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
-                return new GitHubReleaseClient().byVersion(ownerName, repository, version);
+                return new UpdateService().byVersion(version);
             }
         };
         task.setOnSucceeded(event -> {
@@ -480,7 +472,7 @@ public final class UpdateDialogs {
                 {"Java Runtime", System.getProperty("java.version")},
                 {"Operating System", System.getProperty("os.name") + " " + System.getProperty("os.version") + " (" + System.getProperty("os.arch") + ")"},
                 {"Update Platform", PlatformPackage.current().name()},
-                {"Update Repository", ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER) + "/" + ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY)}
+                {"Update Service", ConfigManager.getDataApiBaseUrlUnbound().replaceAll("/+$", "") + "/api/updates"}
         };
         for (int i=0;i<rows.length;i++) { Label key=new Label(rows[i][0]); key.getStyleClass().add("settings-form-label"); grid.add(key,0,i); Label value=new Label(rows[i][1]); value.setWrapText(true); grid.add(value,1,i); }
         Dialog<Void> dialog = baseDialog(owner, "System Health", grid, 760, 470); dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE); dialog.showAndWait();

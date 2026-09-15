@@ -7,7 +7,7 @@
 
                             <VBox spacing="3">
                                 <Label text="Application Updates" styleClass="settings-section-title"/>
-                                <Label text="Check GitHub Releases, prepare verified installers and protect the database before updating" wrapText="true" styleClass="settings-section-description"/>
+                                <Label text="Check the company update service, prepare verified installers and protect the database before updating" wrapText="true" styleClass="settings-section-description"/>
                             </VBox>
 
                             <HBox spacing="14">
@@ -29,25 +29,18 @@
                             </HBox>
 
                             <VBox spacing="14" styleClass="settings-information-card">
-                                <Label text="GitHub Release Source" styleClass="settings-subsection-title"/>
+                                <Label text="Company Update Service" styleClass="settings-subsection-title"/>
+                                <Label text="Release metadata and installers are delivered through the configured DSE ERP server. Private GitHub credentials remain on the server and are never stored in the desktop client." wrapText="true" styleClass="settings-help-text"/>
                                 <GridPane hgap="18" vgap="14">
                                     <columnConstraints>
                                         <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                         <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>
                                     </columnConstraints>
                                     <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="0">
-                                        <Label text="Repository Owner" styleClass="settings-form-label"/>
-                                        <TextField fx:id="txtGitHubOwner" promptText="GitHub account or organisation" styleClass="approved-input"/>
-                                    </VBox>
-                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
-                                        <Label text="Repository Name" styleClass="settings-form-label"/>
-                                        <TextField fx:id="txtGitHubRepository" promptText="Example: dse-erp" styleClass="approved-input"/>
-                                    </VBox>
-                                    <VBox spacing="7" GridPane.columnIndex="0" GridPane.rowIndex="1">
                                         <Label text="Update Channel" styleClass="settings-form-label"/>
                                         <ComboBox fx:id="cmbUpdateChannel" maxWidth="Infinity" styleClass="approved-input"/>
                                     </VBox>
-                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                                    <VBox spacing="7" GridPane.columnIndex="1" GridPane.rowIndex="0">
                                         <Label text="Platform" styleClass="settings-form-label"/>
                                         <Label text="Windows EXE/MSI or macOS DMG/PKG is selected automatically" wrapText="true" styleClass="settings-help-text"/>
                                     </VBox>

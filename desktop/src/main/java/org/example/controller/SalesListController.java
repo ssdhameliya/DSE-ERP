@@ -312,7 +312,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
                 menu.getProperties().put("erp.icon.semantic", "actions");
                 menu.setGraphic(IconFactory.compactIcon("actions", 15));
                 add("View Sale", "view", e -> viewSale(row()));
-                add("Activity Timeline", "history", e -> org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",row().getId(),row().getInvoiceNo()));
+                add("Audit Trail", "history", e -> org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",row().getId(),row().getInvoiceNo()));
                 edit = add("Edit Sale", "edit", e -> edit(row()));
                 add("Duplicate Sale", "copy", e -> duplicate(row()));
                 add("View / Print Tax Invoice", "print", e -> openPdf(row()));
@@ -502,6 +502,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         if(btnApproveSale!=null)btnApproveSale.setDisable(!pendingApproval||!admin);
         if(btnRejectSale!=null)btnRejectSale.setDisable(!pendingApproval||!admin);
     }
+    @FXML private void auditSelected(){if(selected!=null)org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",selected.getId(),selected.getInvoiceNo());}
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,tableSales);}
     private Sales requireSelected(){if(selected==null){warning("Select an invoice first.");return null;}return selected;}
     @FXML private void emailSelected(){Sales s=requireSelected();if(s!=null)sendEmail(s);}@FXML private void whatsappSelected(){Sales s=requireSelected();if(s!=null)sendWhatsapp(s);}@FXML private void editSelectedSale(){Sales s=requireSelected();if(s!=null)edit(s);}@FXML private void recordSelectedPayment(){Sales s=requireSelected();if(s!=null)openPayment(s);}@FXML private void excelSelected(){Sales s=requireSelected();if(s!=null)openExcel(s);}
