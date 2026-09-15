@@ -7,7 +7,6 @@ import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
 import org.example.update.BuildInfo;
 import org.example.update.ChecksumVerifier;
-import org.example.update.GitHubReleaseClient;
 import org.example.update.PlatformPackage;
 import org.example.update.SemanticVersion;
 import org.example.update.UpdateHistoryStore;
@@ -48,7 +47,6 @@ public final class RollbackService {
             .withZone(ZoneId.systemDefault());
 
     private final UpdateService updateService = new UpdateService();
-    private final GitHubReleaseClient releaseClient = new GitHubReleaseClient();
 
     public Path rootFolder() {
         return WorkspaceManager.getUpdatesFolder().resolve("Rollback");
@@ -104,12 +102,10 @@ public final class RollbackService {
     }
 
     public List<PublishedVersion> publishedPreviousVersions() throws Exception {
-        String owner = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
-        String repo = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
         boolean beta = "BETA".equalsIgnoreCase(ConfigManager.getEffectiveUpdateChannel());
         SemanticVersion current = SemanticVersion.parse(BuildInfo.version());
         List<PublishedVersion> result = new ArrayList<>();
-        for (UpdateRelease release : releaseClient.releases(owner, repo, beta, 50)) {
+        for (UpdateRelease release : updateService.releases(beta, 50)) {
             String version = release.version().toString();
             if (release.version().compareTo(current) >= 0) continue;
             int schema = schemaForVersion(version);
@@ -142,16 +138,14 @@ public final class RollbackService {
         return candidateFor(target, version);
     }
 
-    /** Downloads and verifies a specific published GitHub release for the current platform. */
+    /** Downloads and verifies a specific published release through the company update service for the current platform. */
     public Candidate downloadPublishedVersion(String requestedVersion, DoubleConsumer progress) throws Exception {
         String version = normalizeVersion(requestedVersion);
         if (version.isBlank()) throw new IllegalArgumentException("Enter a version such as 7.2.2.");
         if (SemanticVersion.parse(version).compareTo(SemanticVersion.parse(BuildInfo.version())) >= 0) {
             throw new IllegalArgumentException("Choose a version older than " + BuildInfo.version() + ".");
         }
-        String owner = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
-        String repo = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
-        UpdateRelease release = releaseClient.byVersion(owner, repo, version);
+        UpdateRelease release = updateService.byVersion(version);
         UpdateRelease.Asset asset = PlatformPackage.select(release).orElseThrow(() ->
                 new IllegalStateException("DSE ERP " + version + " does not contain an installer for " + PlatformPackage.current() + "."));
         Path downloaded = updateService.download(asset, progress == null ? ignored -> { } : progress);
@@ -164,7 +158,7 @@ public final class RollbackService {
         Path retained = packagesFolder().resolve(downloaded.getFileName().toString());
         Files.copy(downloaded, retained, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
         int schema = schemaForVersion(version);
-        writePackageManifest(retained, version, schema, "GITHUB_VERIFIED");
+        writePackageManifest(retained, version, schema, "SERVER_VERIFIED");
         appendAudit("PACKAGE_DOWNLOADED", version, "SUCCESS", retained.toString());
         return candidateFor(retained, version);
     }
@@ -181,7 +175,7 @@ public final class RollbackService {
         // Database compatibility and installer authenticity are deliberately separate.
         // Legacy installers retained in Updates can have a safely inferred schema even when
         // they pre-date rollback sidecar metadata. Before any backup/launch activity, require
-        // the package itself to be cryptographically tied to the official GitHub release.
+        // the package itself to be cryptographically tied to the official release checksum delivered by the company update service.
         if (!refreshed.packageVerification().verified()) {
             refreshed = verifyOfficialPackage(refreshed.installer(), refreshed.version());
         }
@@ -333,7 +327,7 @@ public final class RollbackService {
         Properties manifest = readPackageManifest(installer);
         String source = manifest.getProperty("source", "").trim();
         String expected = manifest.getProperty("sha256", "").trim();
-        if (("GITHUB_VERIFIED".equalsIgnoreCase(source) || "UPDATER_VERIFIED".equalsIgnoreCase(source))
+        if (("SERVER_VERIFIED".equalsIgnoreCase(source) || "GITHUB_VERIFIED".equalsIgnoreCase(source) || "UPDATER_VERIFIED".equalsIgnoreCase(source))
                 && !expected.isBlank()) {
             String actual = checksumQuietly(installer);
             if (!actual.isBlank() && actual.equalsIgnoreCase(expected)) {
@@ -348,7 +342,7 @@ public final class RollbackService {
                     "Installer was SHA-256 verified by the DSE ERP updater.");
         }
         return new PackageVerification(false, "Verify on Rollback",
-                "Database compatibility is known. This retained installer predates trusted rollback metadata and will be SHA-256 verified against the official GitHub release before rollback starts.");
+                "Database compatibility is known. This retained installer predates trusted rollback metadata and will be SHA-256 verified against the official release through the company update service before rollback starts.");
     }
 
     private boolean wasVerifiedByUpdater(Path installer) {
@@ -367,12 +361,10 @@ public final class RollbackService {
         });
     }
 
-    /** Verifies any legacy/imported package against the canonical GitHub release checksum. */
+    /** Verifies any legacy/imported package against the canonical release checksum through the company update service. */
     private Candidate verifyOfficialPackage(Path installer, String version) throws Exception {
-        String owner = ConfigManager.get("update.github.owner", UpdateService.DEFAULT_GITHUB_OWNER).trim();
-        String repo = ConfigManager.get("update.github.repository", UpdateService.DEFAULT_GITHUB_REPOSITORY).trim();
         try {
-            UpdateRelease release = releaseClient.byVersion(owner, repo, version);
+            UpdateRelease release = updateService.byVersion(version);
             UpdateRelease.Asset asset = PlatformPackage.select(release).orElseThrow(() ->
                     new SecurityException("Official DSE ERP " + version + " does not contain an installer for " + PlatformPackage.current() + "."));
             String expected = updateService.expectedChecksum(release, asset.name());
@@ -382,12 +374,12 @@ public final class RollbackService {
             ChecksumVerifier.verify(installer, expected);
             int schema = targetSchema(installer, version);
             if (schema <= 0) throw new IllegalStateException("Database compatibility could not be proven for DSE ERP " + version + ".");
-            writePackageManifest(installer, version, schema, "GITHUB_VERIFIED");
+            writePackageManifest(installer, version, schema, "SERVER_VERIFIED");
             appendAudit("PACKAGE_VERIFIED", version, "SUCCESS", installer.toString());
             return candidateFor(installer, version);
         } catch (Exception failure) {
             appendAudit("PACKAGE_VERIFIED", version, "FAILED", rootMessage(failure));
-            throw new SecurityException("The installer is database-compatible, but DSE ERP could not verify it against the official GitHub release. "
+            throw new SecurityException("The installer is database-compatible, but DSE ERP could not verify it against the official release through the company update service. "
                     + "Rollback was not started. " + rootMessage(failure), failure);
         }
     }

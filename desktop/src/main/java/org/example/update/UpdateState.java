@@ -26,6 +26,13 @@ public final class UpdateState {
 
     public static String latestVersion() { return ConfigManager.get("update.latestVersion", "").trim(); }
     public static String lastError() { return ConfigManager.get("update.lastCheckError", "").trim(); }
+    public static String lastCheckAttempt() { return ConfigManager.get("update.lastCheckAttempt", "").trim(); }
+    public static boolean lastRefreshFailed() { return !lastError().isBlank(); }
+    public static String latestVersionDisplay() {
+        String latest = latestVersion();
+        if (latest.isBlank()) return lastRefreshFailed() ? "Unavailable" : "Not checked yet";
+        return lastRefreshFailed() ? latest + " • last known" : latest;
+    }
 
     public static String statusText() {
         String latest = latestVersion();
@@ -36,7 +43,7 @@ public final class UpdateState {
     }
 
     private static String rootMessage(Throwable t) {
-        if (t == null) return "Unable to refresh GitHub Releases";
+        if (t == null) return "Unable to refresh the company update service";
         while (t.getCause() != null) t = t.getCause();
         return t.getMessage() == null || t.getMessage().isBlank() ? t.getClass().getSimpleName() : t.getMessage();
     }

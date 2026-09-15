@@ -1,6 +1,7 @@
 package org.example.server.support;
 
 import org.example.server.persistence.JpaNativeRepository;
+import org.example.server.audit.AuditService;
 import org.example.server.security.CurrentUser;
 import org.example.server.util.BusinessClock;
 import org.springframework.stereotype.Service;
@@ -17,9 +18,11 @@ import java.util.Locale;
 public class PaymentIntegrityService {
     private static final BigDecimal ZERO = new BigDecimal("0.00");
     private final JpaNativeRepository jdbc;
+    private final AuditService audit;
 
-    public PaymentIntegrityService(JpaNativeRepository jdbc) {
+    public PaymentIntegrityService(JpaNativeRepository jdbc, AuditService audit) {
         this.jdbc = jdbc;
+        this.audit = audit;
     }
 
     @Transactional
@@ -60,6 +63,12 @@ public class PaymentIntegrityService {
         if (jdbc.update("UPDATE " + type.table + " SET paid_amount=?,payment_status=?,updated_at=?,row_version=row_version+1 WHERE id=?",
                 paid, status, BusinessClock.nowUtcText(), request.documentId()) != 1) throw new IllegalStateException("Payment target changed while saving");
         if (paymentId == null || paymentId <= 0) throw new IllegalStateException("Payment id was not returned after saving");
+        audit.logChanges(type.name(), request.documentId(), "PAYMENT_RECORDED",
+                "Payment #"+paymentId+" • "+mode+" • "+amount.toPlainString(),
+                List.of(new AuditService.Change("Payment Status", target.paid.compareTo(ZERO)<=0?"PENDING":"PARTIAL", status),
+                        new AuditService.Change("Payment Amount", "0.00", amount.toPlainString()),
+                        new AuditService.Change("Payment Mode", null, mode),
+                        new AuditService.Change("Payment Reference", null, clean(request.reference()))));
         return paymentId;
     }
 
@@ -128,8 +137,10 @@ public class PaymentIntegrityService {
         BigDecimal difference = newAmount.subtract(existing.amount).setScale(2, RoundingMode.HALF_UP);
         String detail = "Payment #" + paymentId + " edited; old amount=" + existing.amount.toPlainString()
                 + "; new amount=" + newAmount.toPlainString() + "; difference=" + difference.toPlainString();
-        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES(?,?,?,?,?,?)",
-                existing.type.name(), existing.documentId, "PAYMENT_EDITED", detail, CurrentUser.require().username(), BusinessClock.nowUtcText());
+        audit.logChanges(existing.type.name(), existing.documentId, "PAYMENT_EDITED", detail,
+                List.of(new AuditService.Change("Payment Amount", existing.amount.toPlainString(), newAmount.toPlainString()),
+                        new AuditService.Change("Payment Status", target.paid.compareTo(ZERO)<=0?"PENDING":"PARTIAL", status),
+                        new AuditService.Change("Payment Mode", null, paymentMode)));
     }
 
     @Transactional
@@ -147,8 +158,8 @@ public class PaymentIntegrityService {
         if (jdbc.update("UPDATE payment_record SET attachment_path=?,row_version=row_version+1 WHERE id=?", clean(path), paymentId) != 1)
             throw new IllegalStateException("Payment record changed while saving proof");
         String detail = clean(path) == null ? "Payment #" + paymentId + " proof removed" : "Payment #" + paymentId + " proof updated";
-        jdbc.update("INSERT INTO activity_log(entity_type,entity_id,action,detail,created_by,created_at) VALUES(?,?,?,?,?,?)",
-                existing.type.name(), existing.documentId, "PAYMENT_PROOF_UPDATED", detail, CurrentUser.require().username(), BusinessClock.nowUtcText());
+        audit.logChange(existing.type.name(), existing.documentId, "PAYMENT_PROOF_UPDATED", detail,
+                "Payment Proof", existing.attachmentPath, clean(path));
     }
 
 

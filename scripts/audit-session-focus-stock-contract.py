@@ -27,7 +27,7 @@ need('DocumentLookupPolicy.itemSuggestionDisplay' in sales, 'Sale item search mu
 for token in ['Category: ', 'HSN: ', 'Unit: ', 'GST: ']:
     need(token in lookup, 'Sale item search metadata missing ' + token)
 fxml = list((R / 'desktop/src/main/resources/fxml').rglob('*.fxml'))
-need(len(fxml) == 59, f'expected 59 FXML, got {len(fxml)}')
+need(len(fxml) == 60, f'expected 60 FXML, got {len(fxml)}')
 for f in fxml:
     ET.parse(f)
 need(sorted((x.name for x in (R / 'desktop/src/main/resources/css').glob('*.css'))) == ['dark-theme.css', 'light-theme.css'], 'exactly two runtime CSS files')

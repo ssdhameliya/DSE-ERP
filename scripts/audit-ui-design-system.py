@@ -10,7 +10,7 @@ def need(cond,msg):
         print('FAIL -',msg); raise SystemExit(1)
 
 fxml=list((ROOT/'desktop/src/main/resources/fxml').rglob('*.fxml'))
-need(len(fxml)==59,f'FXML count changed: {len(fxml)}')
+need(len(fxml)==60,f'FXML count changed: {len(fxml)}')
 css=sorted(p.name for p in (ROOT/'desktop/src/main/resources/css').glob('*.css'))
 need(css==['dark-theme.css','light-theme.css'],f'CSS contract changed: {css}')
 

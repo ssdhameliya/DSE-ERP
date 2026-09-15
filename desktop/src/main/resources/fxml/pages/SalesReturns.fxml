@@ -35,6 +35,7 @@
     <Region minHeight="8" prefHeight="18" VBox.vgrow="ALWAYS"/>
     <Separator/>
     <VBox spacing="9" styleClass="return-detail-actions"><Label text="Quick Actions" styleClass="drawer-section"/>
+      <Button text="Audit Trail" onAction="#auditSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
       <Button fx:id="btnEditReasonSelected" text="Edit Reason" onAction="#editReasonSelected" maxWidth="Infinity" styleClass="approved-button,approved-secondary-button,return-drawer-action"/>
       <HBox spacing="8">
         <Button fx:id="btnApproveSelected" text="Approve Return" onAction="#approveSelected" maxWidth="Infinity" HBox.hgrow="ALWAYS" styleClass="approved-button,approved-primary-button,return-drawer-action"/>

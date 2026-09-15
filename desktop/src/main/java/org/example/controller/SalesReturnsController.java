@@ -103,6 +103,7 @@ public class SalesReturnsController implements ScreenLifecycle {
             final MenuButton menu = new MenuButton();
             {
                 add("View Details", "view", e -> showDetails(row()));
+                add("Audit Trail", "history", e -> audit(row()));
                 add("Edit Reason", "edit", e -> edit(row()));
                 add("Print / PDF", "print", e -> pdf(row()));
                 add("View / Download Excel", "document", e -> excel(row()));
@@ -215,6 +216,7 @@ public class SalesReturnsController implements ScreenLifecycle {
     private String returnSemantic(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"cancel";if(v.contains("COMPLETE")||v.contains("APPROV"))return"complete";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"refresh";return"reminder";}
     private String returnState(String value){String v=safe(value).toUpperCase(Locale.ROOT);if(v.contains("CANCEL")||v.contains("REJECT")||v.contains("FAIL"))return"danger";if(v.contains("COMPLETE")||v.contains("APPROV")||v.contains("REFUND"))return"success";if(v.contains("PARTIAL")||v.contains("PROGRESS"))return"info";return"warning";}
     private void showDetails(Row row) { if(row==null)return; selected=row; RegisterUiSupport.showDrawer(detailDrawer,mainSplit,.8);lblDetailNo.setText(row.no());lblDetailCustomer.setText(row.customer());lblDetailDate.setText(BusinessClock.formatDate(row.date()));lblDetailInvoice.setText(row.invoice());lblDetailAmount.setText(money(row.amount()));lblDetailRefund.setText(money(row.refund()));lblDetailReason.setText(safe(row.reason()).isBlank()?"Not set":row.reason());lblDetailStatus.setText(row.status());lblDetailStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.status()),returnState(row.status())));lblDetailRefundStatus.setText(row.refundStatus());lblDetailRefundStatus.setGraphic(IconFactory.statusIcon(returnSemantic(row.refundStatus()),returnState(row.refundStatus())));if(btnRefundSelected!=null){btnRefundSelected.setDisable(!isApproved(row));btnRefundSelected.setTooltip(!isApproved(row)?new Tooltip("Refund/settlement can be recorded only after Admin approves the Return."):null);}updateSelectedActions(row);}
+    @FXML private void auditSelected(){if(selected!=null)audit(selected);}
     @FXML private void closeDetails(){selected=null;RegisterUiSupport.hideDrawer(detailDrawer,mainSplit,table);}
     @FXML private void pdfSelected(){if(selected!=null)pdf(selected);}
     @FXML private void emailSelected(){if(selected!=null)email(selected);}
@@ -234,6 +236,10 @@ public class SalesReturnsController implements ScreenLifecycle {
 
     private void edit(Row row) { input(row.reason(), "Edit return reason - " + row.no(), "Reason:").ifPresent(value -> update(row.no(), "reason", value)); }
     private void notes(Row row) { input("", "Return notes - " + row.no(), "Notes:").ifPresent(value -> update(row.no(), "notes", value)); }
+    private void audit(Row row) {
+        if(row==null)return;
+        try{var resolved=supportApi.resolveRecord("SALES_RETURN",row.no());if(!resolved.found()||resolved.recordId()==null)throw new IllegalStateException("Audit record could not be resolved for "+row.no());org.example.util.ActivityTimelineDialog.show(table,"SALES_RETURN",resolved.recordId().intValue(),row.no());}catch(Exception e){error(e);}
+    }
     private void original(Row row) { if(row==null)return; LinkedRecordContext.open("SALE",null,row.invoice(),"VIEW","Sales Return "+row.no()); NavigationManager.getInstance().loadPage("/fxml/pages/SalesList.fxml"); }
     private void recordRefund(Row row) {
         if(row==null)return;

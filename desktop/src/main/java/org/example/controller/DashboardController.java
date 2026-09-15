@@ -132,6 +132,7 @@ public class DashboardController {
     @FXML private Button btnBankExpense;
     @FXML private Button btnReminders;
     @FXML private Button btnUserAccess;
+    @FXML private Button btnAuditTrail;
     @FXML private Button btnCommunication;
     @FXML private Button btnDocumentStudio;
     @FXML private Button btnPdfStudio;
@@ -277,6 +278,7 @@ public class DashboardController {
         UiActionIcons.apply(btnReports,"report","Reports");
         UiActionIcons.apply(btnReminders,"reminder","Reminder Center");
         UiActionIcons.apply(btnUserAccess,"permission","User Access");
+        UiActionIcons.apply(btnAuditTrail,"history","Audit Trail");
         UiActionIcons.apply(btnCommunication,"communication","Communication");
         UiActionIcons.apply(btnDocumentStudio,"document","Document Studio");
         UiActionIcons.apply(btnSettings,"settings","Settings");
@@ -382,7 +384,7 @@ public class DashboardController {
         protect(btnInventory, "INVENTORY.VIEW"); protect(btnCustomer, "CUSTOMERS.VIEW");
         protect(btnSupplier, "SUPPLIERS.VIEW"); protect(btnMasters, "MASTERS.VIEW");
         protect(btnReports, "REPORTS.VIEW"); protect(btnReminders, "REMINDERS.VIEW");
-        protect(btnUserAccess, "USERS.VIEW"); protect(btnBackup, "BACKUP.VIEW");
+        protect(btnUserAccess, "USERS.VIEW"); protect(btnAuditTrail, "AUDIT.GLOBAL"); protect(btnBackup, "BACKUP.VIEW");
         protect(btnSettings, "SETTINGS.VIEW"); protect(btnSafeRollback, "SAFE_ROLLBACK.VIEW"); protect(btnDocumentStudio, "DOCUMENT_STUDIO.VIEW"); protect(btnImport, "IMPORT.VIEW");
 
         // Quotations have their own permission but live inside the Sales accordion.
@@ -872,7 +874,7 @@ public class DashboardController {
                 btnSales, btnSalesRegister, btnCreateSale, btnSalesReturn, btnQuotation,
                 btnPurchase, btnPurchaseRegister, btnCreatePurchase, btnPurchaseReturn,
                 btnItem, btnMasters, btnBankExpense, btnBankEntry, btnExpenseEntry, btnBankStatement, btnPurchaseRecon, btnReconSupplier,
-                btnImport, btnInventory, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnCommunication,
+                btnImport, btnInventory, btnCustomer, btnSupplier, btnReports, btnReminders, btnUserAccess, btnAuditTrail, btnCommunication,
                 btnDocumentStudio, btnPdfStudio, btnExcelStudio, btnSettings, btnSettingsCompany, btnSettingsPayment,
                 btnSettingsInvoice, btnSettingsNotifications, btnSettingsEmail, btnSettingsSecurity, btnSettingsWorkspace,
                 btnSettingsShortcuts, btnSettingsUpdates, btnSafeRollback, btnBackup)
@@ -1116,6 +1118,7 @@ public class DashboardController {
         refreshReminderBadge();
     }
     @FXML private void openUserAccess() { openPage(btnUserAccess, "User Access & Permissions", "/fxml/pages/UserAccess.fxml"); }
+    @FXML private void openAuditTrail() { openPage(btnAuditTrail, "Global Audit Trail", "/fxml/pages/GlobalAudit.fxml"); }
     @FXML private void openCommunication() {
         CommunicationScreenContext.select(null);
         openPage(btnCommunication, "Communication Center", "/fxml/pages/CommunicationCenter.fxml");

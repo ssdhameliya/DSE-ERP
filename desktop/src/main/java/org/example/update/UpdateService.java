@@ -5,8 +5,6 @@ import org.example.api.runtime.ManagedPostgresRuntime;
 import org.example.api.runtime.RuntimeBootstrapper;
 import org.example.config.ConfigManager;
 import org.example.config.WorkspaceManager;
-import java.awt.Desktop;
-import java.net.URI;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -18,20 +16,19 @@ import java.util.logging.Logger;
 
 public final class UpdateService {
     public static final String DEFAULT_VERSION="DEV";
-    public static final String DEFAULT_GITHUB_OWNER="ssdhameliya";
-    public static final String DEFAULT_GITHUB_REPOSITORY="DSE-ERP";
     private static final Logger LOG=Logger.getLogger(UpdateService.class.getName());
-    private final GitHubReleaseClient releases=new GitHubReleaseClient();
+    private final ServerReleaseClient releases=new ServerReleaseClient();
     private final HttpClient http=HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(60)).build();
 
     public record VerifiedDownload(Path file,String checksum,boolean reusedCache) { }
 
     public String currentVersion(){return BuildInfo.version();}
     public UpdateRelease check() throws Exception {
-        String owner=ConfigManager.get("update.github.owner",DEFAULT_GITHUB_OWNER).trim(); String repo=ConfigManager.get("update.github.repository",DEFAULT_GITHUB_REPOSITORY).trim();
         boolean beta="BETA".equalsIgnoreCase(ConfigManager.getEffectiveUpdateChannel());
-        return releases.latest(owner,repo,beta);
+        return releases.latest(beta);
     }
+    public UpdateRelease byVersion(String version) throws Exception { return releases.byVersion(version); }
+    public List<UpdateRelease> releases(boolean includePrerelease,int limit) throws Exception { return releases.releases(includePrerelease,limit); }
     public boolean isNewer(UpdateRelease release){return release.version().compareTo(SemanticVersion.parse(currentVersion()))>0;}
     public UpdateRelease.Asset assetFor(UpdateRelease release){return PlatformPackage.select(release).orElseThrow(()->new IllegalStateException("This release does not contain an installer for "+PlatformPackage.current()+"."));}
 
@@ -44,7 +41,7 @@ public final class UpdateService {
     public VerifiedDownload downloadVerified(UpdateRelease release, UpdateRelease.Asset asset, DoubleConsumer progress) throws Exception {
         Objects.requireNonNull(release,"release"); Objects.requireNonNull(asset,"asset"); Objects.requireNonNull(progress,"progress");
         String checksum=expectedChecksum(release,asset.name());
-        if(checksum.isBlank())throw new SecurityException("The GitHub Release must include checksums.txt with a SHA-256 entry for "+asset.name()+".");
+        if(checksum.isBlank())throw new SecurityException("The published DSE ERP release must include checksums.txt with a SHA-256 entry for "+asset.name()+".");
 
         Path target=downloadTarget(asset);
         if(Files.isRegularFile(target)){
@@ -164,7 +161,6 @@ public final class UpdateService {
         return launchInstaller(installer, "offline");
     }
 
-    public void openRelease(UpdateRelease release) throws Exception {if(Desktop.isDesktopSupported())Desktop.getDesktop().browse(release.htmlUrl());}
     public Path verifyOfflinePackage(Path packageFile,String checksum) throws Exception {if(packageFile==null||!Files.isRegularFile(packageFile))throw new IllegalArgumentException("Select a valid update package.");if(checksum!=null&&!checksum.isBlank())ChecksumVerifier.verify(packageFile,checksum);return packageFile;}
     private static void pause(int attempt) throws InterruptedException {Thread.sleep(attempt*1500L);}
     private static String message(Throwable failure){return failure==null?"Unknown network failure":(failure.getMessage()==null?failure.getClass().getSimpleName():failure.getMessage());}
