@@ -19,6 +19,9 @@ server=text('server/src/main/java/org/example/server/update/UpdateDistributionSe
 controller=text('server/src/main/java/org/example/server/update/UpdateDistributionController.java')
 security=text('server/src/main/java/org/example/server/security/SecurityConfig.java')
 props=text('server/src/main/resources/application.properties')
+release=text('.github/workflows/release.yml')
+prod=text('.github/workflows/deploy-prod.yml')
+token_setup=text('scripts/linux/configure-github-update-token.sh')
 
 req('api.github.com' not in desktop,'desktop contains no direct GitHub API endpoint')
 req('GitHubReleaseClient' not in desktop,'desktop contains no direct GitHub release client')
@@ -40,6 +43,19 @@ req('node.path("html_url")' not in server and 'Open Release Page' not in desktop
 req('downloadVerified(UpdateRelease release' in update and 'ChecksumVerifier.verify(file,checksum)' in update,'private-repo path preserves SHA-256 verified installer flow')
 for env in ('scripts/linux/uat.env.example','scripts/linux/prod.env.example'):
     req('DSE_GITHUB_UPDATE_TOKEN=CHANGE_ME' in text(env),f'{env} documents protected server token')
+req(release.count('DSE_GITHUB_UPDATE_TOKEN: ${{ secrets.DSE_GITHUB_UPDATE_TOKEN }}') >= 2
+    and 'configure-github-update-token.sh uat' in release
+    and 'configure-github-update-token.sh prod' in release,
+    'UAT and PROD tokens are supplied from their protected GitHub Environments rather than source')
+req('PROD_PRIVATE_UPDATE_GATEWAY_OK' in release and 'UAT_PRIVATE_UPDATE_GATEWAY_OK' in release,
+    'single-run UAT and PROD jobs both verify private GitHub release lookup through the server gateway')
+req('DSE_GITHUB_UPDATE_TOKEN: ${{ secrets.DSE_GITHUB_UPDATE_TOKEN }}' in prod
+    and 'configure-github-update-token.sh prod' in prod
+    and 'PROD_PRIVATE_UPDATE_GATEWAY_OK' in prod,
+    'manual PROD fallback uses the same protected GitHub Environment token model')
+req('read -r TOKEN' in token_setup and 'DSE_GITHUB_UPDATE_TOKEN=%s' in token_setup
+    and 'GITHUB_UPDATE_TOKEN_CONFIGURED' in token_setup,
+    'server token setup consumes the secret on stdin and persists it without logging the credential')
 
 if failures:
     print('PRIVATE_UPDATE_DISTRIBUTION_CONTRACT_FAIL')

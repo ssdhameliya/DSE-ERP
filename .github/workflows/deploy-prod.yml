@@ -27,6 +27,7 @@ jobs:
       SSH_USER: ${{ secrets.DSE_SSH_USER }}
       SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      DSE_GITHUB_UPDATE_TOKEN: ${{ secrets.DSE_GITHUB_UPDATE_TOKEN }}
       SSH_PORT: ${{ vars.DSE_SSH_PORT }}
       PROD_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
       PROD_EXPECTED_DATABASE: ${{ vars.DSE_EXPECTED_DATABASE }}
@@ -58,7 +59,7 @@ jobs:
           VERSION="${TAG#v}"
           SOURCE_VERSION="$(sed -n 's/^-Drevision=//p' .mvn/maven.config | head -1)"
           [[ "$VERSION" == "$SOURCE_VERSION" ]] || { echo "Tag/source version mismatch: $VERSION vs $SOURCE_VERSION" >&2; exit 1; }
-          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PROD_HEALTH_URL PROD_EXPECTED_DATABASE UAT_HEALTH_URL UAT_EXPECTED_DATABASE; do
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS DSE_GITHUB_UPDATE_TOKEN PROD_HEALTH_URL PROD_EXPECTED_DATABASE UAT_HEALTH_URL UAT_EXPECTED_DATABASE; do
             [[ -n "${!name:-}" ]] || { echo "Missing GitHub production environment secret/variable: $name" >&2; exit 1; }
           done
           policy() {
@@ -151,7 +152,18 @@ jobs:
           scp -i ~/.ssh/dse_deploy_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
             "deploy-artifacts/DSE-ERP-${VERSION}-SERVER.jar" \
             scripts/linux/deploy-oracle-release.sh \
+            scripts/linux/configure-github-update-token.sh \
             "$SSH_USER@$SSH_HOST:/tmp/dse-erp-ci-deploy/"
+
+      - name: Configure PROD private GitHub update token
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Stream the protected production GitHub Environment secret over SSH stdin.
+          # It never appears in command arguments, repository files or logs.
+          printf '%s\n' "$DSE_GITHUB_UPDATE_TOKEN" | \
+            ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+              'bash /tmp/dse-erp-ci-deploy/configure-github-update-token.sh prod'
 
       - name: Deploy PROD with automatic binary rollback
         shell: bash
@@ -186,6 +198,30 @@ jobs:
           if not ok:
               raise SystemExit(f'Public PROD health validation failed: {r}')
           print(f"PROD_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=preserved")
+          PY
+
+      - name: Verify PROD private GitHub update gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPDATE_BASE="${PROD_HEALTH_URL%/api/runtime/health}"
+          UPDATE_URL="${UPDATE_BASE}/api/updates/releases/latest?includePrerelease=true"
+          BODY="$(curl --fail --silent --show-error --max-time 30 "$UPDATE_URL")"
+          python3 - "$VERSION" "$BODY" <<'PY'
+          import json,sys
+          version,body=sys.argv[1:]
+          r=json.loads(body)
+          tag=str(r.get('tagName','')).lstrip('vV')
+          assets=r.get('assets')
+          if tag != version:
+              raise SystemExit(f'Private PROD update gateway returned unexpected release: {r}')
+          if not isinstance(assets,list) or not assets:
+              raise SystemExit(f'Private PROD update gateway returned no release assets: {r}')
+          for asset in assets:
+              url=str(asset.get('url',''))
+              if not url.startswith('/api/updates/assets/'):
+                  raise SystemExit(f'Private PROD update gateway exposed an unexpected asset URL: {asset}')
+          print(f'PROD_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')
           PY
 
       - name: Promote approved GitHub release to STABLE

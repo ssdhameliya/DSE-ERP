@@ -9,12 +9,12 @@ public final class ReleaseHighlights {
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return "DSE ERP " + version + " — Verified Updates & Central Semantic UI Coverage\n\n" + """
-                    • Verifies any cached Windows/macOS installer by SHA-256 before reuse; filename and byte size alone are no longer trusted.
-                    • Automatically removes a stale installer and .part file, performs a clean redownload, verifies again and blocks installation if the second checksum still fails.
-                    • Extends the centralized semantic icon/colour traversal through ScrollPane, TabPane, TitledPane, Accordion and SplitPane logical content so Add Item and comparable nested forms receive the same field-label treatment as normal pages.
-                    • Adds regression coverage for the same-size stale-installer case and for semantic labels inside ScrollPane and hidden TabPane content.
-                    • Preserves Sales/Purchase/PDF/Excel/email business behavior, PostgreSQL schema, server APIs, shared-client connection logic and the two runtime Light/Dark theme files.
+            return "DSE ERP " + version + " — Single-Run UAT/PROD Release & Private Update Delivery\n\n" + """
+                    • Runs one tagged GitHub release pipeline through build/test/package, UAT deployment, protected PROD deployment and final stable promotion.
+                    • Requires UAT health and private-update gateway verification before the production job can begin; the production environment can still require an explicit GitHub approval in the same workflow run.
+                    • Streams separate UAT and PROD DSE_GITHUB_UPDATE_TOKEN secrets from protected GitHub Environments to the matching Oracle environment file without exposing the credential in source, desktop configuration, command arguments or logs.
+                    • Deploys the same canonical server JAR to UAT and PROD and verifies the PROD copy against the published GitHub Release checksum before deployment.
+                    • Retains the separate Deploy PROD workflow only as a manual recovery/fallback path and preserves existing business logic, database behavior, mobile compatibility policy and rollback protections.
                     """;
         }
         if ("9.0.88".equals(version)) {

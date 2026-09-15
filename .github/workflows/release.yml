@@ -355,6 +355,7 @@ jobs:
       SSH_USER: ${{ secrets.DSE_SSH_USER }}
       SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
       SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      DSE_GITHUB_UPDATE_TOKEN: ${{ secrets.DSE_GITHUB_UPDATE_TOKEN }}
       SSH_PORT: ${{ vars.DSE_SSH_PORT }}
       PUBLIC_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
       EXPECTED_DATABASE: ${{ vars.DSE_EXPECTED_DATABASE }}
@@ -365,7 +366,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS PUBLIC_HEALTH_URL EXPECTED_DATABASE; do
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS DSE_GITHUB_UPDATE_TOKEN PUBLIC_HEALTH_URL EXPECTED_DATABASE; do
             [[ -n "${!name:-}" ]] || { echo "Missing GitHub uat environment secret/variable: $name" >&2; exit 1; }
           done
           echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
@@ -401,7 +402,17 @@ jobs:
           scp -i ~/.ssh/dse_deploy_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
             "deploy-artifacts/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar" \
             scripts/linux/deploy-oracle-release.sh \
+            scripts/linux/configure-github-update-token.sh \
             "$SSH_USER@$SSH_HOST:/tmp/dse-erp-ci-deploy/"
+      - name: Configure UAT private GitHub update token
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Stream the protected GitHub Environment secret over SSH stdin.
+          # It never appears in command arguments, repository files or logs.
+          printf '%s\n' "$DSE_GITHUB_UPDATE_TOKEN" | \
+            ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+              'bash /tmp/dse-erp-ci-deploy/configure-github-update-token.sh uat'
       - name: Deploy UAT with automatic binary rollback
         shell: bash
         run: |
@@ -435,6 +446,29 @@ jobs:
               raise SystemExit(f'Public UAT health validation failed: {r}')
           print(f"UAT_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=preserved")
           PY
+      - name: Verify UAT private GitHub update gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPDATE_BASE="${PUBLIC_HEALTH_URL%/api/runtime/health}"
+          UPDATE_URL="${UPDATE_BASE}/api/updates/releases/latest?includePrerelease=true"
+          BODY="$(curl --fail --silent --show-error --max-time 30 "$UPDATE_URL")"
+          python3 - '${{ needs.validate.outputs.version }}' "$BODY" <<'PY'
+          import json,sys
+          version,body=sys.argv[1:]
+          r=json.loads(body)
+          tag=str(r.get('tagName','')).lstrip('vV')
+          assets=r.get('assets')
+          if tag != version:
+              raise SystemExit(f'Private update gateway returned unexpected release: {r}')
+          if not isinstance(assets,list) or not assets:
+              raise SystemExit(f'Private update gateway returned no release assets: {r}')
+          for asset in assets:
+              url=str(asset.get('url',''))
+              if not url.startswith('/api/updates/assets/'):
+                  raise SystemExit(f'Private update gateway exposed an unexpected asset URL: {asset}')
+          print(f'UAT_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')
+          PY
       - name: Clean remote upload staging
         if: always()
         shell: bash
@@ -449,3 +483,210 @@ jobs:
           path: DSE-ERP-UAT-deploy.log
           if-no-files-found: ignore
           retention-days: 30
+
+  deploy-prod:
+    name: Deploy same release to PROD
+    if: github.repository == 'ssdhameliya/DSE-ERP'
+    needs: [validate, server, release, deploy-uat]
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    concurrency:
+      group: dse-erp-production
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
+      SSH_USER: ${{ secrets.DSE_SSH_USER }}
+      SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DSE_SSH_KNOWN_HOSTS }}
+      DSE_GITHUB_UPDATE_TOKEN: ${{ secrets.DSE_GITHUB_UPDATE_TOKEN }}
+      SSH_PORT: ${{ vars.DSE_SSH_PORT }}
+      PROD_HEALTH_URL: ${{ vars.DSE_PUBLIC_HEALTH_URL }}
+      PROD_EXPECTED_DATABASE: ${{ vars.DSE_EXPECTED_DATABASE }}
+      UAT_HEALTH_URL: ${{ vars.DSE_UAT_PUBLIC_HEALTH_URL }}
+      UAT_EXPECTED_DATABASE: ${{ vars.DSE_UAT_EXPECTED_DATABASE }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate PROD deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SSH_HOST SSH_USER SSH_KEY SSH_KNOWN_HOSTS DSE_GITHUB_UPDATE_TOKEN PROD_HEALTH_URL PROD_EXPECTED_DATABASE UAT_HEALTH_URL UAT_EXPECTED_DATABASE; do
+            [[ -n "${!name:-}" ]] || { echo "Missing GitHub production environment secret/variable: $name" >&2; exit 1; }
+          done
+          echo "VERSION=${{ needs.validate.outputs.version }}" >> "$GITHUB_ENV"
+          echo "TAG=${{ needs.validate.outputs.tag }}" >> "$GITHUB_ENV"
+          echo "COMPATIBILITY_BASELINE=${{ needs.validate.outputs.compatibility_baseline }}" >> "$GITHUB_ENV"
+          echo "ANDROID_MINIMUM=${{ needs.validate.outputs.android_minimum }}" >> "$GITHUB_ENV"
+          echo "ANDROID_LATEST=${{ needs.validate.outputs.android_latest }}" >> "$GITHUB_ENV"
+          echo "IOS_MINIMUM=${{ needs.validate.outputs.ios_minimum }}" >> "$GITHUB_ENV"
+          echo "IOS_LATEST=${{ needs.validate.outputs.ios_latest }}" >> "$GITHUB_ENV"
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+
+      - name: Verify the same version is currently healthy in UAT
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$UAT_HEALTH_URL")"
+          python3 - "$VERSION" "$UAT_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$BODY" <<'PY'
+          import json,re,sys
+          version,database,min_desktop,body=sys.argv[1:]
+          r=json.loads(body)
+          semver=re.compile(r'^\d+\.\d+\.\d+$')
+          def valid_mobile_policy(min_key, latest_key):
+              minimum=r.get(min_key); latest=r.get(latest_key)
+              if not isinstance(minimum,str) or not isinstance(latest,str): return False
+              if not semver.fullmatch(minimum) or not semver.fullmatch(latest): return False
+              parse=lambda x: tuple(map(int,x.split('.')))
+              return parse(minimum) <= parse(latest)
+          ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
+              and r.get('environment')=='UAT' and r.get('databaseName')==database
+              and r.get('minimumSupportedDesktopVersion')==min_desktop
+              and r.get('latestDesktopVersion')==version
+              and valid_mobile_policy('minimumSupportedAndroidVersion','latestAndroidVersion')
+              and valid_mobile_policy('minimumSupportedIosVersion','latestIosVersion'))
+          if not ok:
+              raise SystemExit(f'UAT is not running the requested release: {r}')
+          print(f"UAT_GATE_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=environment-owned")
+          PY
+
+      - name: Download canonical server artifact from this release run
+        uses: actions/download-artifact@v5
+        with:
+          name: server-release
+          path: deploy-artifacts
+
+      - name: Verify canonical artifact matches published release
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="deploy-artifacts/DSE-ERP-${VERSION}-SERVER.jar"
+          [[ -s "$JAR" ]] || { echo "Missing canonical server artifact: $JAR" >&2; exit 1; }
+          gh release download "$TAG" --repo '${{ github.repository }}' --pattern 'checksums.txt' --dir deploy-artifacts
+          EXPECTED="$(awk -v f="DSE-ERP-${VERSION}-SERVER.jar" '$2==f {print $1}' deploy-artifacts/checksums.txt)"
+          [[ -n "$EXPECTED" ]] || { echo 'Server checksum is missing from release checksums.txt' >&2; exit 1; }
+          ACTUAL="$(sha256sum "$JAR" | awk '{print $1}')"
+          [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "Release server checksum mismatch: $ACTUAL != $EXPECTED" >&2; exit 1; }
+          echo "sha=$ACTUAL" >> "$GITHUB_OUTPUT"
+          echo "PROD_ARTIFACT_MATCH_OK sha=$ACTUAL"
+
+      - name: Configure strict SSH host verification
+        id: ssh
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/dse_deploy_key
+          chmod 600 ~/.ssh/dse_deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload release and deployment scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" 'mkdir -p /tmp/dse-erp-ci-deploy'
+          scp -i ~/.ssh/dse_deploy_key -P "$SSH_PORT" -o StrictHostKeyChecking=yes \
+            "deploy-artifacts/DSE-ERP-${VERSION}-SERVER.jar" \
+            scripts/linux/deploy-oracle-release.sh \
+            scripts/linux/configure-github-update-token.sh \
+            "$SSH_USER@$SSH_HOST:/tmp/dse-erp-ci-deploy/"
+
+      - name: Configure PROD private GitHub update token
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Stream the production GitHub Environment secret over SSH stdin.
+          # It never appears in command arguments, repository files or logs.
+          printf '%s\n' "$DSE_GITHUB_UPDATE_TOKEN" | \
+            ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+              'bash /tmp/dse-erp-ci-deploy/configure-github-update-token.sh prod'
+
+      - name: Deploy PROD with automatic binary rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/dse_deploy_key -p "$SSH_PORT" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            "bash /tmp/dse-erp-ci-deploy/deploy-oracle-release.sh prod /tmp/dse-erp-ci-deploy/DSE-ERP-${VERSION}-SERVER.jar '${VERSION}' '${{ steps.artifact.outputs.sha }}' '${COMPATIBILITY_BASELINE}' '${ANDROID_MINIMUM}' '${ANDROID_LATEST}' '${IOS_MINIMUM}' '${IOS_LATEST}'" \
+            | tee DSE-ERP-PROD-deploy.log
+
+      - name: Verify public PROD HTTPS health
+        shell: bash
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$PROD_HEALTH_URL")"
+          python3 - "$VERSION" "$PROD_EXPECTED_DATABASE" "$COMPATIBILITY_BASELINE" "$BODY" <<'PY'
+          import json,re,sys
+          version,database,min_desktop,body=sys.argv[1:]
+          r=json.loads(body)
+          semver=re.compile(r'^\d+\.\d+\.\d+$')
+          def valid_mobile_policy(min_key, latest_key):
+              minimum=r.get(min_key); latest=r.get(latest_key)
+              if not isinstance(minimum,str) or not isinstance(latest,str): return False
+              if not semver.fullmatch(minimum) or not semver.fullmatch(latest): return False
+              parse=lambda x: tuple(map(int,x.split('.')))
+              return parse(minimum) <= parse(latest)
+          ok=(r.get('ready') is True and r.get('version')==version and r.get('buildRevision')==version
+              and r.get('environment')=='PROD' and r.get('databaseName')==database
+              and r.get('minimumSupportedDesktopVersion')==min_desktop
+              and r.get('latestDesktopVersion')==version
+              and valid_mobile_policy('minimumSupportedAndroidVersion','latestAndroidVersion')
+              and valid_mobile_policy('minimumSupportedIosVersion','latestIosVersion'))
+          if not ok:
+              raise SystemExit(f'Public PROD health validation failed: {r}')
+          print(f"PROD_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=preserved")
+          PY
+
+      - name: Verify PROD private GitHub update gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          UPDATE_BASE="${PROD_HEALTH_URL%/api/runtime/health}"
+          UPDATE_URL="${UPDATE_BASE}/api/updates/releases/latest?includePrerelease=true"
+          BODY="$(curl --fail --silent --show-error --max-time 30 "$UPDATE_URL")"
+          python3 - "$VERSION" "$BODY" <<'PY'
+          import json,sys
+          version,body=sys.argv[1:]
+          r=json.loads(body)
+          tag=str(r.get('tagName','')).lstrip('vV')
+          assets=r.get('assets')
+          if tag != version:
+              raise SystemExit(f'Private PROD update gateway returned unexpected release: {r}')
+          if not isinstance(assets,list) or not assets:
+              raise SystemExit(f'Private PROD update gateway returned no release assets: {r}')
+          for asset in assets:
+              url=str(asset.get('url',''))
+              if not url.startswith('/api/updates/assets/'):
+                  raise SystemExit(f'Private PROD update gateway exposed an unexpected asset URL: {asset}')
+          print(f'PROD_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')
+          PY
+
+      - name: Promote verified GitHub release to STABLE
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --repo '${{ github.repository }}' --prerelease=false
+          PRERELEASE="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.prerelease')"
+          [[ "$PRERELEASE" == "false" ]] || { echo "GitHub release $TAG was not promoted to STABLE" >&2; exit 1; }
+          echo "RELEASE_PROMOTED_TO_STABLE tag=$TAG"
+
+      - name: Clean remote upload staging
+        if: always() && steps.ssh.outcome == 'success'
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/dse_deploy_key -p "${SSH_PORT:-22}" -o StrictHostKeyChecking=yes "$SSH_USER@$SSH_HOST" \
+            'rm -rf /tmp/dse-erp-ci-deploy' || true
+
+      - name: Upload PROD deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-deployment-${{ needs.validate.outputs.tag }}
+          path: DSE-ERP-PROD-deploy.log
+          if-no-files-found: ignore
+          retention-days: 30
+

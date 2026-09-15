@@ -1,19 +1,20 @@
 # DSE ERP GitHub Deployment Setup
 
-DSE ERP releases use GitHub Actions as the release control point. UAT deployment is automatic for a version tag after the build/test/package gates pass. Production uses a separate manually started workflow and should also use a protected GitHub `production` environment with required reviewers.
+DSE ERP releases use GitHub Actions as the release control point. The current release flow uses one version-tag workflow builds/tests/packages once, publishes a prerelease, deploys and verifies UAT, then continues to the protected `production` environment and deploys the exact same server artifact to PROD. A production required-reviewer gate may pause the same workflow run for approval. The separate **Deploy PROD** workflow remains only as a recovery/manual fallback.
 
 ## Canonical deployment repository and mirror
 
-`ssdhameliya/DSE-ERP` is the only repository allowed to auto-deploy UAT or run the controlled PROD promotion. `DSE-ERP-Enterprise` may receive the same `main` commits and version tags as a mirror, but the UAT deployment job is guarded by `github.repository` and is skipped there. This keeps both repositories synchronized without a duplicate cloud deployment.
+`ssdhameliya/DSE-ERP` is the only repository allowed to auto-deploy UAT or run the controlled PROD promotion. `DSE-ERP-Enterprise` may receive the same `main` commits and version tags as a mirror, but both deployment jobs are guarded by `github.repository` and are skipped there. This keeps both repositories synchronized without a duplicate cloud deployment.
 
 ## Release flow
 
 1. Push the verified source to `main`.
 2. Create and push the matching version tag (`vX.Y.Z`).
-3. `Build Native Release` runs the release gates and platform packages, builds one server JAR, publishes the GitHub Release, and automatically deploys that exact server artifact to the `uat` GitHub environment.
-4. Test the release in UAT with the normal desktop/client workflow.
-5. When UAT is approved, open **Actions → Deploy PROD → Run workflow**, enter the exact UAT-approved tag, and approve the protected `production` environment when GitHub requests it.
-6. PROD downloads the exact server JAR and checksum from the existing GitHub Release. It does not rebuild the server.
+3. `Build Native Release` runs the release gates and platform packages once, builds one canonical server JAR, and publishes the GitHub Release as a prerelease.
+4. The same workflow automatically configures the UAT private-update token, deploys the canonical server artifact to `uat`, verifies runtime health and verifies the private `/api/updates` gateway.
+5. Only after the UAT job succeeds does the same workflow enter the protected `production` environment. If required reviewers are configured, approve that pending production job in the same workflow run.
+6. The production job re-checks that the same version is healthy in UAT, configures the PROD private-update token, verifies the canonical artifact against the published release checksum, deploys it to PROD, verifies PROD health and the private update gateway, then promotes the same GitHub Release from prerelease to stable. No server rebuild occurs between UAT and PROD.
+7. **Actions → Deploy PROD** remains available only as a manual recovery/fallback for an already UAT-approved tag.
 
 ## GitHub environments
 
@@ -30,6 +31,7 @@ Use the same secret/variable names in both environments.
 - `DSE_SSH_USER` — dedicated deployment SSH user (recommended) or the approved Oracle admin account.
 - `DSE_SSH_PRIVATE_KEY` — dedicated CI deployment private key. Do not reuse a developer's everyday SSH private key.
 - `DSE_SSH_KNOWN_HOSTS` — pinned OpenSSH known-host entry for the target VM. The workflow uses `StrictHostKeyChecking=yes` and never silently trusts a new host key.
+- `DSE_GITHUB_UPDATE_TOKEN` — fine-grained token restricted to `ssdhameliya/DSE-ERP` with read-only Contents access. Store it separately in both the `uat` and `production` GitHub Environments. It is streamed to the target server over SSH stdin and never written to source, desktop configuration, release assets, command arguments or logs.
 
 ### Environment variables
 
@@ -89,8 +91,45 @@ The GitHub SSH deployment account does not need direct read permission on `/etc/
 
 Desktop clients do not require direct access to the GitHub repository. The Spring server exposes the pre-login `/api/updates/**` gateway and performs private GitHub release access on the server side.
 
-Before making `ssdhameliya/DSE-ERP` private, add `DSE_GITHUB_UPDATE_TOKEN` to both protected Oracle environment files (`/etc/dse-erp/uat.env` and `/etc/dse-erp/prod.env`). Use a fine-grained GitHub token restricted to this repository with read-only **Contents** permission. Keep the file root-owned/protected. Never place this token in desktop `config.properties`, source code, workflow output, logs, or release assets.
+Create the fine-grained read-only `DSE_GITHUB_UPDATE_TOKEN` secret in **both** GitHub Environments: `uat` and `production`. Each deployment job receives only the secret for its own environment and streams it over the pinned SSH connection to `scripts/linux/configure-github-update-token.sh`. That helper updates only `/etc/dse-erp/<env>.env` while preserving owner/mode and validating that the file declares the expected environment. The credential never appears in desktop `config.properties`, source code, command arguments, workflow output, logs, or release assets. UAT must pass `/api/updates/releases/latest?includePrerelease=true` before the production job can start; PROD must pass the same gateway test before the release is promoted to stable.
 
 The gateway intentionally permits update metadata and installer/checksum downloads before login so a desktop below the server compatibility floor can still update. It exposes release binaries only; source code and the GitHub credential remain private. The desktop continues to require the published SHA-256 checksum before an installer can run.
 
-Transition order: deploy the server/desktop release while the repository is still public, verify update checks through `/api/updates`, configure the protected server token, then make the GitHub repository private and repeat an update/release lookup test. Future desktop releases can remain fully private at the repository level.
+For the current release flow, the protected GitHub Environment secrets are the deployment authority for both UAT and PROD. Once both environment secrets are configured, one tag run can complete build → prerelease → UAT → protected PROD → stable promotion without putting the private-repository credential on a developer workstation.
+
+## GitHub Actions workflow-run cleanup
+
+`scripts/github/cleanup-workflow-runs.ps1` (Windows PowerShell) and `scripts/github/cleanup-workflow-runs.sh` (bash) clean old **GitHub Actions workflow-run history only** for these three repositories:
+
+- `ssdhameliya/DSE-ERP`
+- `ssdhameliya/DSE-ERP-Enterprise`
+- `ssdhameliya/DES_Mobile`
+
+The default policy keeps the newest **6 completed workflow runs per repository**. Queued, waiting and in-progress runs are never deleted. Releases, tags, repository files and branches are never touched. Both scripts run in preview mode first so the deletion list can be reviewed.
+
+Windows preview:
+
+```powershell
+.\scripts\github\cleanup-workflow-runs.ps1
+```
+
+Windows apply after reviewing the preview:
+
+```powershell
+.\scripts\github\cleanup-workflow-runs.ps1 -Apply
+```
+
+Optional different retention count:
+
+```powershell
+.\scripts\github\cleanup-workflow-runs.ps1 -Keep 6 -Apply
+```
+
+Bash preview / apply:
+
+```bash
+./scripts/github/cleanup-workflow-runs.sh
+./scripts/github/cleanup-workflow-runs.sh --apply
+```
+
+The machine running cleanup needs GitHub CLI (`gh`) authenticated with Actions write permission for all three repositories. Run preview first; only `-Apply` / `--apply` performs deletion.
