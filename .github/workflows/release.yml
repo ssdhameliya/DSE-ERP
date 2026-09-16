@@ -152,7 +152,7 @@ jobs:
           name: server-release
           path: release-artifacts/server/*
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   windows:
     needs: [validate, tests, server]
@@ -208,7 +208,7 @@ jobs:
           name: windows-x64
           path: release-artifacts/windows/*
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   macos-arm64:
     needs: [validate, tests, server]
@@ -259,7 +259,7 @@ jobs:
           name: macos-arm64
           path: target/macos-installer/*
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   macos-intel:
     needs: [validate, tests, server]
@@ -310,7 +310,7 @@ jobs:
           name: macos-intel
           path: target/macos-installer/*
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   release:
     needs: [validate, tests, server, windows, macos-arm64, macos-intel]
@@ -464,7 +464,7 @@ jobs:
           if not isinstance(assets,list) or not assets:
               raise SystemExit(f'Private update gateway returned no release assets: {r}')
           for asset in assets:
-              url=str(asset.get('url',''))
+              url=str(asset.get('downloadUrl',''))
               if not url.startswith('/api/updates/assets/'):
                   raise SystemExit(f'Private update gateway exposed an unexpected asset URL: {asset}')
           print(f'UAT_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')
@@ -659,7 +659,7 @@ jobs:
           if not isinstance(assets,list) or not assets:
               raise SystemExit(f'Private PROD update gateway returned no release assets: {r}')
           for asset in assets:
-              url=str(asset.get('url',''))
+              url=str(asset.get('downloadUrl',''))
               if not url.startswith('/api/updates/assets/'):
                   raise SystemExit(f'Private PROD update gateway exposed an unexpected asset URL: {asset}')
           print(f'PROD_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')

@@ -218,7 +218,7 @@ jobs:
           if not isinstance(assets,list) or not assets:
               raise SystemExit(f'Private PROD update gateway returned no release assets: {r}')
           for asset in assets:
-              url=str(asset.get('url',''))
+              url=str(asset.get('downloadUrl',''))
               if not url.startswith('/api/updates/assets/'):
                   raise SystemExit(f'Private PROD update gateway exposed an unexpected asset URL: {asset}')
           print(f'PROD_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')
