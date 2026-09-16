@@ -6,6 +6,7 @@ on:
       - release-10.0.15
     paths:
       - '.github/workflows/apply-release-10.0.15-staging.yml'
+      - '.release-staging/**'
 
 permissions:
   contents: write
