@@ -23,7 +23,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Repair the one staging transport character that changed during connector transfer.
+          sed -i 's/Xcok6a/Xcok6i/' .release-staging/patch.part03
           cat .release-staging/patch.part* | base64 -d > /tmp/release.patch.xz
+          echo 'd62245c0d8747ab7d63583bcc00b4afc78c58213912f016be7a46a513a32f037  /tmp/release.patch.xz' | sha256sum -c -
+          xz -t /tmp/release.patch.xz
           xz -dc /tmp/release.patch.xz > /tmp/release.patch
           git apply --binary --index /tmp/release.patch
           rm -rf .release-staging
