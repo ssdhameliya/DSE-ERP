@@ -142,9 +142,6 @@ jobs:
           - name: macOS Apple Silicon
             os: macos-15
             arch: aarch64
-          - name: macOS Intel
-            os: macos-15-intel
-            arch: x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     steps:
@@ -262,9 +259,6 @@ jobs:
           - name: macOS Apple Silicon
             os: macos-15
             arch: aarch64
-          - name: macOS Intel
-            os: macos-15-intel
-            arch: x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:

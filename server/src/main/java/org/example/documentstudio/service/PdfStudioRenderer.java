@@ -38,6 +38,7 @@ import java.util.*;
  * explicit repeated-page rules and dynamic unlimited charge tables.
  */
 public final class PdfStudioRenderer {
+    private static final String DYNAMIC_FINANCIAL_SUMMARY_MARKER = "DYNAMIC_FINANCIAL_SUMMARY";
     /*
      * A PDFont owns COS objects that are adopted by the first PDDocument using it.
      * Reusing static PDFont instances across invoice files can leave the next PDF
@@ -58,7 +59,7 @@ public final class PdfStudioRenderer {
         Objects.requireNonNull(data, "data");
         Objects.requireNonNull(output, "output");
         RENDER_FONTS.get().clear();
-        data = ErpDocumentJsonService.normalize(template.getDocumentType(), enrichPdfData(data));
+        data = enrichPartyLocationData(ErpDocumentJsonService.normalize(template.getDocumentType(), enrichPdfData(data)));
         Path source = TemplateStorageService.sourcePdf(template);
         Path parent = output.toAbsolutePath().normalize().getParent();
         if (parent != null) Files.createDirectories(parent);
@@ -113,7 +114,9 @@ public final class PdfStudioRenderer {
             for (int sourceIndex = 0; sourceIndex < sourceDoc.getNumberOfPages(); sourceIndex++) {
                 final int page = sourceIndex;
                 List<TemplateElement> pageElements = elements.stream().filter(e -> PdfStyleResolver.effectivelyVisible(template,e)).filter(e -> e.getPageIndex() == page).toList();
-                List<TemplateElement> renderElements = adjustedPartyFlowElements(pageElements, data);
+                List<TemplateElement> renderElements = template.isStrictFixedLayout()
+                        ? pageElements.stream().map(TemplateElement::snapshotCopy).toList()
+                        : adjustedPartyFlowElements(pageElements, data);
                 List<Integer> outputPages = sourceToOutputPages.getOrDefault(sourceIndex, List.of());
                 FlowPlan plan = plans.get(sourceIndex);
                 for (int part = 0; part < outputPages.size(); part++) {
@@ -303,7 +306,12 @@ public final class PdfStudioRenderer {
                 case FIELD -> drawText(page, cs, draw, fieldValue(data, draw.getFieldKey(), pageNumber, totalPages));
                 case IMAGE -> drawImage(doc, page, cs, draw, TemplateStorageService.resolveAsset(template, draw.getImagePath()));
                 case IMAGE_FIELD -> drawImage(doc, page, cs, draw, data.image(draw.getFieldKey()));
-                case RECTANGLE, BLOCK -> drawRectangle(page, cs, draw, false);
+                case RECTANGLE -> drawRectangle(page, cs, draw, false);
+                case BLOCK -> {
+                    if (DYNAMIC_FINANCIAL_SUMMARY_MARKER.equals(draw.getReplacementGroupId()))
+                        drawMappedFinancialSummary(page, cs, draw, data);
+                    else drawRectangle(page, cs, draw, false);
+                }
                 case WHITEOUT -> drawRectangle(page, cs, draw, true);
                 case LINE -> drawLine(page, cs, draw);
                 case PATH -> drawPath(page, cs, draw);
@@ -373,6 +381,51 @@ public final class PdfStudioRenderer {
             }
         }
         return new TemplateData(values, data.images(), data.items(), data.charges(), data.gstType());
+    }
+
+
+    /** Derived canonical party location fields used by imported invoice artwork. */
+    private static TemplateData enrichPartyLocationData(TemplateData data) {
+        if (data == null) return new TemplateData(Map.of(), Map.of(), List.of(), List.of(), "");
+        Map<String,String> values = new LinkedHashMap<>(data.values());
+        String gstin = firstNonBlank(values.get("party.billingGstin"), values.get("party.gstin"),
+                values.get("sales.billingGstin"), values.get("sales.gstin"));
+        if (blank(values.get("party.stateCode")) && gstin != null) {
+            String compact = gstin.replaceAll("\\s+", "");
+            if (compact.length() >= 2 && Character.isDigit(compact.charAt(0)) && Character.isDigit(compact.charAt(1)))
+                values.put("party.stateCode", compact.substring(0, 2));
+        }
+        if (blank(values.get("party.placeOfSupply"))) {
+            String address = firstNonBlank(values.get("party.billingAddress"), values.get("party.deliveryAddress"),
+                    values.get("sales.billingAddress"), values.get("sales.deliveryAddress"));
+            String state = stateFromAddress(address);
+            if (!blank(state)) values.put("party.placeOfSupply", state);
+        }
+        return new TemplateData(values, data.images(), data.items(), data.charges(), data.gstType());
+    }
+
+    private static boolean blank(String value) { return value == null || value.isBlank(); }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) return "";
+        for (String value : values) if (value != null && !value.isBlank()) return value.trim();
+        return "";
+    }
+
+    private static String stateFromAddress(String address) {
+        if (address == null || address.isBlank()) return "";
+        String text = address.replace('\n',' ').replaceAll("\\s+", " ").trim();
+        String[] hyphen = text.split("\\s+-\\s+");
+        if (hyphen.length > 1) {
+            String last = hyphen[hyphen.length - 1].replaceAll("^[0-9\\s-]+", "").trim();
+            if (!last.isBlank() && last.length() <= 40) return last;
+        }
+        String[] comma = text.split(",");
+        if (comma.length > 1) {
+            String last = comma[comma.length - 1].replaceAll("[0-9-]", "").trim();
+            if (!last.isBlank() && last.length() <= 40) return last;
+        }
+        return "";
     }
 
     /** Resolve literal text mixed with {{erp.field}} expressions. */
@@ -673,9 +726,14 @@ public final class PdfStudioRenderer {
             lines.add(cursorY);
         }
         double targetBottom = e.getY() + e.getHeight();
-        while (cursorY + fillerRowHeight <= targetBottom + 0.6) {
-            cursorY += fillerRowHeight;
-            lines.add(cursorY);
+        // Fixed-zone contract: blank rows belong only to the final (or only) page.
+        // Intermediate pages must never draw empty grid rows while real item rows remain
+        // for a later page. The source closing artwork is already cleared separately.
+        if (finalPage) {
+            while (cursorY + fillerRowHeight <= targetBottom + 0.6) {
+                cursorY += fillerRowHeight;
+                lines.add(cursorY);
+            }
         }
         float pdfTop = toPdfY(page, bodyTop);
         float pdfBottom = toPdfY(page, cursorY);
@@ -1220,6 +1278,88 @@ public final class PdfStudioRenderer {
         roundedRect(cs, x, y, w, h, radius); cs.fillAndStroke();
     }
 
+
+    /**
+     * Generic dynamic financial block for imported FLOW_FIXED artwork.  The template owns
+     * geometry/colors; the renderer owns only ERP row composition so charges, GST/IGST/no-GST,
+     * discount and round-off never depend on hard-coded sample labels from the uploaded PDF.
+     */
+    private static void drawMappedFinancialSummary(PDPage page, PDPageContentStream cs,
+                                                    TemplateElement box, TemplateData data) throws IOException {
+        List<String[]> rows = mappedFinancialRows(data);
+        String grand = blankAs(data.value("totals.roundedGrandTotal"), data.value("totals.grandTotal"));
+        float x = (float) box.getX();
+        float top = (float) box.getY();
+        float width = (float) box.getWidth();
+        float maxH = (float) box.getHeight();
+        int normalCount = rows.size();
+        float preferred = 20.5f;
+        float rowH = Math.min(preferred, maxH / Math.max(1f, normalCount + 1f));
+        rowH = Math.max(12.5f, rowH);
+        float totalH = rowH * (normalCount + 1);
+        if (totalH > maxH) { rowH = maxH / Math.max(1f, normalCount + 1f); totalH = maxH; }
+        final String grid = "#AFC2D8";
+        final String navy = "#0E3F79";
+
+        // Keep the block compact at the source top; unused lower space stays blank until BANK DETAILS.
+        setNonStroke(cs, "#FFFFFF");
+        setStroke(cs, grid);
+        cs.setLineWidth(.45f);
+        float pdfBottom = toPdfY(page, top + totalH);
+        cs.addRect(x, pdfBottom, width, totalH);
+        cs.fillAndStroke();
+        float split = x + width * .66f;
+        cs.moveTo(split, toPdfY(page, top)); cs.lineTo(split, pdfBottom); cs.stroke();
+
+        for (int i = 0; i < normalCount; i++) {
+            float rowTop = top + i * rowH;
+            if (i > 0) {
+                float lineY = toPdfY(page, rowTop);
+                cs.moveTo(x, lineY); cs.lineTo(x + width, lineY); cs.stroke();
+            }
+            String[] row = rows.get(i);
+            float bottom = toPdfY(page, rowTop + rowH);
+            PDFont labelFont = (i == 0 || row[0].startsWith("TAXABLE"))
+                    ? font(Standard14Fonts.FontName.HELVETICA_BOLD)
+                    : font(Standard14Fonts.FontName.HELVETICA);
+            drawSingleLineCentered(cs, labelFont, 6.1f, row[0], x + 6f, bottom, split - x - 10f, rowH, "#000000", "LEFT");
+            drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.1f,
+                    row[1], split + 4f, bottom, x + width - split - 9f, rowH, "#000000", "RIGHT");
+        }
+
+        float grandTop = top + normalCount * rowH;
+        float grandBottom = toPdfY(page, grandTop + rowH);
+        setNonStroke(cs, navy);
+        cs.addRect(x, grandBottom, width, rowH);
+        cs.fill();
+        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.6f,
+                "GRAND TOTAL", x + 6f, grandBottom, split - x - 10f, rowH, "#FFFFFF", "LEFT");
+        drawSingleLineCentered(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 7.0f,
+                grand, split + 4f, grandBottom, x + width - split - 9f, rowH, "#FFFFFF", "RIGHT");
+    }
+
+    private static List<String[]> mappedFinancialRows(TemplateData data) {
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{"SUB TOTAL", blankAs(data.value("totals.basicAmount"), "0.00")});
+        if (!isZeroMoney(data.value("totals.discountAmount")))
+            rows.add(new String[]{"DISCOUNT", data.value("totals.discountAmount")});
+        for (TemplateCharge charge : data.charges()) {
+            String label = charge.type() == null || charge.type().isBlank() ? "CHARGE" : charge.type().trim().toUpperCase(Locale.ROOT);
+            rows.add(new String[]{label, money(charge.total())});
+        }
+        rows.add(new String[]{"TAXABLE AMOUNT", blankAs(data.value("totals.taxableAmount"), "0.00")});
+        String mode = data.gstType() == null ? "" : data.gstType().trim().toUpperCase(Locale.ROOT);
+        if (mode.contains("IGST") || mode.contains("INTER")) {
+            rows.add(new String[]{blankAs(data.value("tax.primaryLabel"), "IGST"), blankAs(data.value("totals.igstAmount"), "0.00")});
+        } else if (!(mode.contains("NO_GST") || mode.contains("NO GST") || mode.contains("NONE") || mode.contains("EXEMPT"))) {
+            rows.add(new String[]{blankAs(data.value("tax.primaryLabel"), "CGST"), blankAs(data.value("totals.cgstAmount"), "0.00")});
+            rows.add(new String[]{blankAs(data.value("tax.secondaryLabel"), "SGST"), blankAs(data.value("totals.sgstAmount"), "0.00")});
+        }
+        if (!isZeroMoney(data.value("totals.roundOff")))
+            rows.add(new String[]{"ROUND OFF", data.value("totals.roundOff")});
+        return rows;
+    }
+
     private static void addIfValue(List<String[]> rows, String label, String value) {
         if (value != null && !value.isBlank()) rows.add(new String[]{label, value.trim()});
     }
@@ -1254,9 +1394,18 @@ public final class PdfStudioRenderer {
 
     private record Column(String key, String label, double weight) {}
 
+    /**
+     * Generic Fixed-Top / Flow-Table / Fixed-Bottom paginator for imported Studio PDFs.
+     *
+     * <p>The template contributes geometry only: item-table start/header/row height, LAST
+     * elements that mark the fixed closing area, and the final footer guard. Pagination is
+     * deliberately template-id agnostic. Intermediate pages consume as many real rows as
+     * possible and never manufacture blank rows. The final (or only) page keeps the fixed
+     * closing area untouched and pads only the unused item-table slots with empty rows.</p>
+     */
     private record FlowFixedGeometry(double rowHeight, double bodyTop, double finalBottom,
                                              double intermediateBottom, int finalRows, int intermediateRows) {
-        static FlowFixedGeometry forPage(List<TemplateElement> elements, double pageHeight) {
+        static FlowFixedGeometry forPage(List<TemplateElement> elements, double pageHeight, int itemCount) {
             TemplateElement item = elements.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElse(null);
             if (item == null) return null;
             double bodyTop = item.getY() + Math.max(0, item.getHeaderHeight());
@@ -1265,37 +1414,60 @@ public final class PdfStudioRenderer {
                     .filter(e -> e != item && e.isVisible() && "LAST".equals(e.getPageRule()) && e.getY() > bodyTop + 1)
                     .mapToDouble(TemplateElement::getY).min().orElse(originalBottom + 4.0);
             double finalBottom = Math.max(originalBottom, closingTop - 4.0);
-            double finalBody = Math.max(8.0, finalBottom - bodyTop);
-
-            // A normal short document should remain on one page when the template has enough
-            // physical room.  Never shrink below a readable baseline.
-            double readableMin = Math.max(8.0, item.getFontSize() * 1.35);
-            double shortFit = finalBody / 5.0;
-            double rowHeight = Math.max(readableMin, Math.min(Math.max(readableMin, shortFit), item.getRowHeight()));
-            int finalRows = Math.max(1, (int)Math.floor(finalBody / rowHeight));
+            double finalBody = Math.max(1.0, finalBottom - bodyTop);
 
             double footerTop = elements.stream()
                     .filter(e -> e != item && e.isVisible() && "LAST".equals(e.getPageRule()) && e.getY() > pageHeight * .88)
                     .mapToDouble(TemplateElement::getY).min().orElse(pageHeight - 36.0);
             double intermediateBottom = Math.max(finalBottom, footerTop - 4.0);
-            int intermediateRows = Math.max(finalRows, (int)Math.floor(Math.max(rowHeight, intermediateBottom - bodyTop) / rowHeight));
+            double intermediateBody = Math.max(1.0, intermediateBottom - bodyTop);
+
+            // Template geometry supplies the natural/minimum row rhythm. A single-page
+            // document keeps that rhythm and fills unused slots with blank rows. For a
+            // multi-page document, page 1 establishes one expanded real-row height from
+            // the available continuation region; the SAME height is reused on every later
+            // page, exactly like the established Standard Sales paginator.
+            double readableMin = Math.max(6.0, item.getFontSize() * 1.18);
+            double baseRowHeight = Math.max(readableMin, item.getRowHeight() > 0 ? item.getRowHeight() : readableMin);
+            int baseFinalRows = Math.max(1, (int)Math.floor(finalBody / baseRowHeight));
+            double rowHeight = baseRowHeight;
+            if (itemCount > baseFinalRows) {
+                int naturalIntermediateRows = Math.max(1, (int)Math.floor(intermediateBody / baseRowHeight));
+                int firstRealRows = Math.max(1, Math.min(naturalIntermediateRows, Math.max(1, itemCount - 1)));
+                double expanded = intermediateBody / firstRealRows;
+                rowHeight = Math.max(baseRowHeight, Math.min(48.0, expanded));
+            }
+
+            int finalRows = Math.max(1, (int)Math.floor(finalBody / rowHeight));
+            int intermediateRows = Math.max(1, (int)Math.floor(intermediateBody / rowHeight));
             return new FlowFixedGeometry(rowHeight, bodyTop, finalBottom, intermediateBottom, finalRows, intermediateRows);
         }
 
         int pagesFor(int itemCount) {
             if (itemCount <= 0 || itemCount <= finalRows) return 1;
-            int beforeFinal = itemCount - finalRows;
-            return 1 + (int)Math.ceil(beforeFinal / (double)Math.max(1, intermediateRows));
+            // Keep one final page for the mapped fixed-bottom region. Earlier pages use the
+            // full continuation capacity; the final page receives the remaining real rows.
+            int beforeFinalCapacityNeeded = Math.max(0, itemCount - finalRows);
+            return 1 + (int)Math.ceil(beforeFinalCapacityNeeded / (double)Math.max(1, intermediateRows));
         }
 
         int[] rangeFor(int itemCount, int part, int pages) {
             if (itemCount <= 0) return new int[]{0,0};
             if (pages <= 1) return new int[]{0,itemCount};
-            int finalStart = Math.max(0, itemCount - finalRows);
-            if (part >= pages - 1) return new int[]{finalStart,itemCount};
-            int from = Math.min(finalStart, part * intermediateRows);
-            int to = Math.min(finalStart, from + intermediateRows);
-            return new int[]{from,to};
+
+            // Greedy continuation flow: every intermediate page takes the maximum real rows
+            // available while leaving at least one real row for the final fixed-bottom page.
+            // This eliminates the old "reserve N rows, then draw blank rows on page 1" defect.
+            int from = 0;
+            for (int p = 0; p < part && p < pages - 1; p++) {
+                int remaining = itemCount - from;
+                int take = Math.min(intermediateRows, Math.max(0, remaining - 1));
+                from += take;
+            }
+            if (part >= pages - 1) return new int[]{Math.min(from, itemCount), itemCount};
+            int remaining = itemCount - from;
+            int take = Math.min(intermediateRows, Math.max(0, remaining - 1));
+            return new int[]{from, Math.min(itemCount, from + take)};
         }
 
         TemplateElement tableForPart(TemplateElement source, int part, int pages) {
@@ -1315,7 +1487,7 @@ public final class PdfStudioRenderer {
                                 double pageHeight, boolean useFlowFixed) {
             TemplateElement item = elements.stream().filter(e -> e.getType() == ElementType.ITEM_TABLE).findFirst().orElse(null);
             TemplateElement charge = elements.stream().filter(e -> e.getType() == ElementType.CHARGE_TABLE).findFirst().orElse(null);
-            FlowFixedGeometry fixed = useFlowFixed ? FlowFixedGeometry.forPage(elements, pageHeight) : null;
+            FlowFixedGeometry fixed = useFlowFixed ? FlowFixedGeometry.forPage(elements, pageHeight, data.items() == null ? 0 : data.items().size()) : null;
             if (item != null && salesLayout != null && salesLayout.totalPages() > 0) {
                 return new FlowPlan(item, charge, salesLayout.totalPages(), 0,
                         salesLayout.totalPages(), 0, salesLayout, fixed);

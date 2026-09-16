@@ -188,9 +188,13 @@ public class ItemMasterController implements ScreenLifecycle {
                 edit.setOnAction(e -> openItemDialog(currentItem()));
                 MenuItem audit = new MenuItem("Audit Trail", IconFactory.compactIcon("history", 16));
                 audit.setOnAction(e -> { Item item=currentItem(); if(item!=null) org.example.util.ActivityTimelineDialog.show(tableItems,"ITEM",item.getId(),item.getItemCode()); });
+                MenuItem sale = new MenuItem("Create Sale", IconFactory.compactIcon("sale", 16));
+                sale.setOnAction(e -> openTransaction(currentItem(), true));
+                MenuItem purchase = new MenuItem("Create Purchase", IconFactory.compactIcon("purchase", 16));
+                purchase.setOnAction(e -> openTransaction(currentItem(), false));
                 MenuItem delete = new MenuItem("Delete Item", IconFactory.compactIcon("delete", 16));
                 delete.setOnAction(e -> deleteItem(currentItem()));
-                actions.getItems().addAll(create, view, edit, audit, new SeparatorMenuItem(), delete);
+                actions.getItems().addAll(create, view, edit, audit, new SeparatorMenuItem(), sale, purchase, new SeparatorMenuItem(), delete);
                 IconFactory.decorateActionMenu(actions);
             }
 
@@ -243,6 +247,13 @@ public class ItemMasterController implements ScreenLifecycle {
         // initial load
         org.example.util.OperationalUiSupport.focusWorkArea(tableItems);
         loadItems();
+    }
+
+
+    private void openTransaction(Item item, boolean sale) {
+        if (item == null || item.getItemCode() == null || item.getItemCode().isBlank()) return;
+        if (sale) { ItemTransactionContext.sale(item.getItemCode()); NavigationManager.navigateOrReport("/fxml/pages/Sale.fxml"); }
+        else { ItemTransactionContext.purchase(item.getItemCode()); NavigationManager.navigateOrReport("/fxml/pages/Purchase.fxml"); }
     }
 
     private void installDetailDrawer() {

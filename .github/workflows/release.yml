@@ -123,8 +123,34 @@ jobs:
         run: ./mvnw -B -ntp clean verify
 
 
-  server:
+  prepare-release:
+    name: Create GitHub prerelease
     needs: [validate, tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create empty prerelease for direct binary uploads
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG='${{ needs.validate.outputs.tag }}'
+          if gh release view "$TAG" --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            echo "Release $TAG already exists; keeping it as the upload target."
+          else
+            gh release create "$TAG" \
+              --repo '${{ github.repository }}' \
+              --title 'DSE ERP ${{ needs.validate.outputs.version }}' \
+              --generate-notes \
+              --prerelease \
+              --verify-tag
+          fi
+          PRERELEASE="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.prerelease')"
+          [[ "$PRERELEASE" == "true" ]] || { echo "Release $TAG must remain prerelease until PROD verification" >&2; exit 1; }
+          echo "PRERELEASE_READY tag=$TAG"
+
+  server:
+    needs: [validate, tests, prepare-release]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -146,16 +172,19 @@ jobs:
           mkdir -p release-artifacts/server
           cp server/target/dse-erp-server.jar "release-artifacts/server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar"
           sha256sum "release-artifacts/server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar"
-      - name: Upload canonical server artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: server-release
-          path: release-artifacts/server/*
-          if-no-files-found: error
-          retention-days: 1
+      - name: Upload canonical server directly to GitHub prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          JAR="release-artifacts/server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar"
+          gh release upload '${{ needs.validate.outputs.tag }}' "$JAR" \
+            --repo '${{ github.repository }}' --clobber
+          echo "SERVER_RELEASE_UPLOAD_OK file=$(basename "$JAR")"
 
   windows:
-    needs: [validate, tests, server]
+    needs: [validate, tests, prepare-release, server]
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -172,11 +201,14 @@ jobs:
       - name: Build platform-specific desktop artifacts without rerunning tests
         shell: pwsh
         run: ./mvnw -B -ntp -pl desktop -am package -DskipTests
-      - name: Download canonical server artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: server-release
-          path: native-server
+      - name: Download canonical server from GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          New-Item -ItemType Directory -Path 'native-server' -Force | Out-Null
+          gh release download '${{ needs.validate.outputs.tag }}' --repo '${{ github.repository }}' --pattern 'DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' --dir native-server
+          if (-not (Test-Path 'native-server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar')) { throw 'Canonical server release asset was not downloaded' }
       - name: Use canonical server artifact in the Windows installer
         shell: pwsh
         run: |
@@ -202,16 +234,18 @@ jobs:
       - name: Build Windows EXE
         shell: pwsh
         run: ./scripts/package-windows.ps1 -Version '${{ needs.validate.outputs.version }}' -Preverified
-      - name: Upload Windows package
-        uses: actions/upload-artifact@v7
-        with:
-          name: windows-x64
-          path: release-artifacts/windows/*
-          if-no-files-found: error
-          retention-days: 1
+      - name: Upload Windows package directly to GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $Asset = Get-Item 'release-artifacts/windows/DSE-ERP-${{ needs.validate.outputs.version }}-Windows-x64.exe'
+          gh release upload '${{ needs.validate.outputs.tag }}' $Asset.FullName --repo '${{ github.repository }}' --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Windows release upload failed' }
+          Write-Host "WINDOWS_RELEASE_UPLOAD_OK file=$($Asset.Name)"
 
   macos-arm64:
-    needs: [validate, tests, server]
+    needs: [validate, tests, prepare-release, server]
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -229,11 +263,18 @@ jobs:
       - name: Build platform-specific desktop artifacts without rerunning tests
         shell: zsh {0}
         run: ./mvnw -B -ntp -pl desktop -am package -DskipTests
-      - name: Download canonical server artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: server-release
-          path: native-server
+      - name: Download canonical server from GitHub prerelease
+        shell: zsh {0}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p native-server
+          gh release download '${{ needs.validate.outputs.tag }}' \
+            --repo '${{ github.repository }}' \
+            --pattern 'DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' \
+            --dir native-server
+          test -s 'native-server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar'
       - name: Use canonical server artifact in the macOS installer
         shell: zsh {0}
         run: |
@@ -253,94 +294,74 @@ jobs:
       - name: Build macOS Apple Silicon DMG
         shell: zsh {0}
         run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}' --preverified
-      - name: Upload macOS Apple Silicon package
-        uses: actions/upload-artifact@v7
-        with:
-          name: macos-arm64
-          path: target/macos-installer/*
-          if-no-files-found: error
-          retention-days: 1
-
-  macos-intel:
-    needs: [validate, tests, server]
-    runs-on: macos-15-intel
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Ensure Maven wrapper is executable
-        shell: bash
-        run: chmod +x mvnw
-      - name: Set up Java 25
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '25'
-          architecture: x64
-          cache: maven
-      - name: Build platform-specific desktop artifacts without rerunning tests
+      - name: Upload macOS Apple Silicon package directly to GitHub prerelease
         shell: zsh {0}
-        run: ./mvnw -B -ntp -pl desktop -am package -DskipTests
-      - name: Download canonical server artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: server-release
-          path: native-server
-      - name: Use canonical server artifact in the macOS installer
-        shell: zsh {0}
-        run: |
-          mkdir -p server/target
-          cp 'native-server/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' server/target/dse-erp-server.jar
-      - name: Restore PostgreSQL 18 runtime cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/dse-postgresql-18.4
-          key: dse-postgresql-macos-${{ runner.arch }}-18.4-${{ hashFiles('scripts/build-postgresql-macos.sh', 'scripts/ci/prepare-postgresql-macos.sh') }}
-      - name: Prepare PostgreSQL 18 runtime
-        shell: zsh {0}
-        run: zsh ./scripts/ci/prepare-postgresql-macos.sh
-      - name: Validate macOS packaging script
-        shell: zsh {0}
-        run: zsh -n ./scripts/package-macos.sh
-      - name: Build macOS Intel DMG
-        shell: zsh {0}
-        run: zsh ./scripts/package-macos.sh '${{ needs.validate.outputs.version }}' --preverified
-      - name: Upload macOS Intel package
-        uses: actions/upload-artifact@v7
-        with:
-          name: macos-intel
-          path: target/macos-installer/*
-          if-no-files-found: error
-          retention-days: 1
-
-  release:
-    needs: [validate, tests, server, windows, macos-arm64, macos-intel]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download built installers
-        uses: actions/download-artifact@v5
-        with:
-          path: artifacts
-          merge-multiple: true
-      - name: Create combined checksums
-        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          cd artifacts
-          rm -f checksums*.txt
-          sha256sum DSE-ERP-* > checksums.txt
-          ls -lah
-      - name: Publish GitHub Release
+          DMG='target/macos-installer/DSE-ERP-${{ needs.validate.outputs.version }}-macOS-arm64.dmg'
+          test -s "$DMG"
+          gh release upload '${{ needs.validate.outputs.tag }}' "$DMG" \
+            --repo '${{ github.repository }}' --clobber
+          echo "MACOS_ARM64_RELEASE_UPLOAD_OK file=$(basename "$DMG")"
+
+  release:
+    name: Finalize prerelease checksums
+    needs: [validate, tests, prepare-release, server, windows, macos-arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact release binaries
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          gh release create '${{ needs.validate.outputs.tag }}' artifacts/* \
-            --repo '${{ github.repository }}' \
-            --title 'DSE ERP ${{ needs.validate.outputs.version }}' \
-            --generate-notes \
-            --prerelease \
-            --verify-tag
+          mkdir -p release-assets
+          TAG='${{ needs.validate.outputs.tag }}'
+          VERSION='${{ needs.validate.outputs.version }}'
+          for asset in \
+            "DSE-ERP-${VERSION}-SERVER.jar" \
+            "DSE-ERP-${VERSION}-Windows-x64.exe" \
+            "DSE-ERP-${VERSION}-macOS-arm64.dmg"; do
+            gh release download "$TAG" --repo '${{ github.repository }}' --pattern "$asset" --dir release-assets
+            test -s "release-assets/$asset" || { echo "Missing release asset: $asset" >&2; exit 1; }
+          done
+          [[ "$(find release-assets -maxdepth 1 -type f -name 'DSE-ERP-*' | wc -l | tr -d ' ')" == "3" ]] || { echo 'Expected exactly three binary release assets' >&2; exit 1; }
+      - name: Create and publish combined checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd release-assets
+          sha256sum DSE-ERP-* | sort -k2 > checksums.txt
+          cat checksums.txt
+          gh release upload '${{ needs.validate.outputs.tag }}' checksums.txt \
+            --repo '${{ github.repository }}' --clobber
+          echo 'RELEASE_CHECKSUMS_OK assets=3'
+      - name: Verify prerelease asset contract
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG='${{ needs.validate.outputs.tag }}'
+          VERSION='${{ needs.validate.outputs.version }}'
+          mapfile -t NAMES < <(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.assets[].name' | sort)
+          printf '%s\n' "${NAMES[@]}"
+          for expected in \
+            "DSE-ERP-${VERSION}-SERVER.jar" \
+            "DSE-ERP-${VERSION}-Windows-x64.exe" \
+            "DSE-ERP-${VERSION}-macOS-arm64.dmg" \
+            "checksums.txt"; do
+            printf '%s\n' "${NAMES[@]}" | grep -Fxq "$expected" || { echo "Missing published asset: $expected" >&2; exit 1; }
+          done
+          if printf '%s\n' "${NAMES[@]}" | grep -Eqi 'x86_64|intel|macos-intel'; then
+            echo 'Intel macOS asset must not be published' >&2
+            exit 1
+          fi
+          echo "RELEASE_ASSET_CONTRACT_OK version=$VERSION"
 
 
   deploy-uat:
@@ -351,6 +372,7 @@ jobs:
     environment: uat
     timeout-minutes: 25
     env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SSH_HOST: ${{ secrets.DSE_SSH_HOST }}
       SSH_USER: ${{ secrets.DSE_SSH_USER }}
       SSH_KEY: ${{ secrets.DSE_SSH_PRIVATE_KEY }}
@@ -370,21 +392,25 @@ jobs:
             [[ -n "${!name:-}" ]] || { echo "Missing GitHub uat environment secret/variable: $name" >&2; exit 1; }
           done
           echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
-      - name: Download canonical server artifact
-        uses: actions/download-artifact@v5
-        with:
-          name: server-release
-          path: deploy-artifacts
-      - name: Verify server artifact
+      - name: Download and verify exact GitHub release server artifact
         id: artifact
         shell: bash
         run: |
           set -euo pipefail
-          JAR="deploy-artifacts/DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar"
-          [[ -s "$JAR" ]] || { echo "Missing server artifact: $JAR" >&2; exit 1; }
-          SHA="$(sha256sum "$JAR" | awk '{print $1}')"
-          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-          echo "UAT server artifact SHA-256: $SHA"
+          mkdir -p deploy-artifacts
+          VERSION='${{ needs.validate.outputs.version }}'
+          TAG='${{ needs.validate.outputs.tag }}'
+          gh release download "$TAG" --repo '${{ github.repository }}' \
+            --pattern "DSE-ERP-${VERSION}-SERVER.jar" \
+            --pattern 'checksums.txt' \
+            --dir deploy-artifacts
+          JAR="deploy-artifacts/DSE-ERP-${VERSION}-SERVER.jar"
+          EXPECTED="$(awk -v f="DSE-ERP-${VERSION}-SERVER.jar" '$2==f {print $1}' deploy-artifacts/checksums.txt)"
+          [[ -n "$EXPECTED" ]] || { echo 'Server checksum is missing from release checksums.txt' >&2; exit 1; }
+          ACTUAL="$(sha256sum "$JAR" | awk '{print $1}')"
+          [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "Release server checksum mismatch: $ACTUAL != $EXPECTED" >&2; exit 1; }
+          echo "sha=$ACTUAL" >> "$GITHUB_OUTPUT"
+          echo "UAT_RELEASE_ARTIFACT_MATCH_OK sha=$ACTUAL"
       - name: Configure strict SSH host verification
         shell: bash
         run: |
@@ -553,20 +579,17 @@ jobs:
           print(f"UAT_GATE_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=environment-owned")
           PY
 
-      - name: Download canonical server artifact from this release run
-        uses: actions/download-artifact@v5
-        with:
-          name: server-release
-          path: deploy-artifacts
-
-      - name: Verify canonical artifact matches published release
+      - name: Download and verify exact GitHub release server artifact
         id: artifact
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p deploy-artifacts
+          gh release download "$TAG" --repo '${{ github.repository }}' \
+            --pattern "DSE-ERP-${VERSION}-SERVER.jar" \
+            --pattern 'checksums.txt' \
+            --dir deploy-artifacts
           JAR="deploy-artifacts/DSE-ERP-${VERSION}-SERVER.jar"
-          [[ -s "$JAR" ]] || { echo "Missing canonical server artifact: $JAR" >&2; exit 1; }
-          gh release download "$TAG" --repo '${{ github.repository }}' --pattern 'checksums.txt' --dir deploy-artifacts
           EXPECTED="$(awk -v f="DSE-ERP-${VERSION}-SERVER.jar" '$2==f {print $1}' deploy-artifacts/checksums.txt)"
           [[ -n "$EXPECTED" ]] || { echo 'Server checksum is missing from release checksums.txt' >&2; exit 1; }
           ACTUAL="$(sha256sum "$JAR" | awk '{print $1}')"

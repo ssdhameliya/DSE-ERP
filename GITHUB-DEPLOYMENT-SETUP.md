@@ -1,6 +1,6 @@
 # DSE ERP GitHub Deployment Setup
 
-DSE ERP releases use GitHub Actions as the release control point. The current release flow uses one version-tag workflow builds/tests/packages once, publishes a prerelease, deploys and verifies UAT, then continues to the protected `production` environment and deploys the exact same server artifact to PROD. A production required-reviewer gate may pause the same workflow run for approval. The separate **Deploy PROD** workflow remains only as a recovery/manual fallback.
+DSE ERP releases use GitHub Actions as the release control point. The current release flow uses one version-tag workflow, validates once, creates a GitHub prerelease, and uploads the canonical server JAR, Windows x64 installer and macOS Apple Silicon DMG directly to that Release. Large release binaries are not transported through GitHub Actions artifact storage. The same workflow deploys and verifies UAT, then continues to the protected `production` environment and deploys the exact same checksum-verified server Release asset to PROD. A production required-reviewer gate may pause the same workflow run for approval. The separate **Deploy PROD** workflow remains only as a recovery/manual fallback.
 
 ## Canonical deployment repository and mirror
 
@@ -10,8 +10,8 @@ DSE ERP releases use GitHub Actions as the release control point. The current re
 
 1. Push the verified source to `main`.
 2. Create and push the matching version tag (`vX.Y.Z`).
-3. `Build Native Release` runs the release gates and platform packages once, builds one canonical server JAR, and publishes the GitHub Release as a prerelease.
-4. The same workflow automatically configures the UAT private-update token, deploys the canonical server artifact to `uat`, verifies runtime health and verifies the private `/api/updates` gateway.
+3. `Build Native Release` runs the release gates once, creates the GitHub prerelease, builds one canonical server JAR plus Windows x64 and macOS Apple Silicon packages, uploads those binaries directly to the prerelease, and publishes one combined checksum file. Intel macOS is not part of CI or release packaging.
+4. The same workflow downloads the exact server JAR and checksum from the prerelease, configures the UAT private-update token, deploys that verified artifact to `uat`, verifies runtime health and verifies the private `/api/updates` gateway.
 5. Only after the UAT job succeeds does the same workflow enter the protected `production` environment. If required reviewers are configured, approve that pending production job in the same workflow run.
 6. The production job re-checks that the same version is healthy in UAT, configures the PROD private-update token, verifies the canonical artifact against the published release checksum, deploys it to PROD, verifies PROD health and the private update gateway, then promotes the same GitHub Release from prerelease to stable. No server rebuild occurs between UAT and PROD.
 7. **Actions → Deploy PROD** remains available only as a manual recovery/fallback for an already UAT-approved tag.

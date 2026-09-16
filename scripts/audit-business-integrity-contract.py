@@ -51,9 +51,9 @@ req('salesReturns' in ins and 'purchaseReturns' in ins and ('returnCogs' in ins)
 req('due+"=CURRENT_DATE"' in ops or 'due+"=CURRENT_DATE' in ops, 'Due Today must exclude overdue balances')
 req(('BusinessKpiPolicy.effectiveOutstanding' in ins or 'BusinessKpiPolicy.outstanding' in ins) and 'effectivePaid' in t('server/src/main/java/org/example/server/insights/BusinessKpiPolicy.java'), 'AR/AP must use canonical invoice/Return-aware outstanding/payment authority')
 req('inventory_cost_state' in ins and 'unit_cost_snapshot' in ins, 'inventory valuation/gross profit must use historical cost state')
-req('getReservedStock' in ops and 'Insufficient available stock' in ops, 'Sales stock posting must enforce reserved stock')
+req('getReservedStock' not in ops and 'Insufficient available stock' not in ops and 'if(enforce&&next<-.0001)' in ops, 'Sales stock posting must enforce on-hand stock without removed reservation semantics')
 req('header' in imp.lower() and 'inconsistent' in imp.lower(), 'import must reject inconsistent invoice headers')
-for f in ('purchase price', 'selling price', 'minimum stock', 'reserved stock'):
+for f in ('purchase price', 'selling price', 'minimum stock'):
     req(f in master.lower(), f'Item validation missing: {f}')
 req('customer_name_snapshot' in mig and 'item_description_snapshot' in mig and ('item_remarks_snapshot' in mig), 'historical invoice snapshots must be persisted')
 req('getItemRemarks()' in mapper, 'tax invoice mapper must consume immutable item remarks snapshot')

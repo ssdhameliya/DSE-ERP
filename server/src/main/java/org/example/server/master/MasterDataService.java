@@ -328,8 +328,7 @@ public class MasterDataService {
         assertVersion(rowVersion, e.getRowVersion(), "Item " + e.getItemCode());
         List<String> usages = new ArrayList<>(itemDeleteUsages(code));
         double stock = e.getOpeningStock() == null ? 0.0 : e.getOpeningStock();
-        double reserved = e.getReservedStock() == null ? 0.0 : e.getReservedStock();
-        if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) usages.add("Current inventory balance");
+        if (Math.abs(stock) > 0.0001) usages.add("Current inventory balance");
         if (!usages.isEmpty()) throw new IllegalStateException("Item cannot be deleted while it has stock or is referenced by ERP transactions.");
         items.delete(e);
         items.flush();
@@ -355,9 +354,8 @@ public class MasterDataService {
             }
             List<String> usages = new ArrayList<>(itemDeleteUsages(code));
             double stock = item.getOpeningStock() == null ? 0.0 : item.getOpeningStock();
-            double reserved = item.getReservedStock() == null ? 0.0 : item.getReservedStock();
-            if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) {
-                usages.add("Current inventory balance (stock " + stock + ", reserved " + reserved + ")");
+            if (Math.abs(stock) > 0.0001) {
+                usages.add("Current inventory balance (stock " + stock + ")");
             }
             if (!usages.isEmpty()) {
                 issues.add(new MasterDtos.ItemDeleteIssue(code, Objects.toString(item.getDescription(), code), List.copyOf(usages)));
@@ -379,8 +377,7 @@ public class MasterDataService {
             ItemEntity item = items.findByItemCodeForUpdate(code).orElseThrow(() -> new IllegalStateException("Item changed during bulk delete: " + code));
             List<String> usages = new ArrayList<>(itemDeleteUsages(code));
             double stock = item.getOpeningStock() == null ? 0.0 : item.getOpeningStock();
-            double reserved = item.getReservedStock() == null ? 0.0 : item.getReservedStock();
-            if (Math.abs(stock) > 0.0001 || Math.abs(reserved) > 0.0001) usages.add("Current inventory balance");
+            if (Math.abs(stock) > 0.0001) usages.add("Current inventory balance");
             if (!usages.isEmpty()) throw new IllegalStateException("Bulk delete stopped because item " + code + " changed or became referenced. Nothing was deleted.");
             Integer deletedId = item.getId();
             items.delete(item);
@@ -507,11 +504,18 @@ public class MasterDataService {
         assertVersion(d.rowVersion(), e.getRowVersion(), "Master value " + e.getLookupValue());
         validateRoleLookup(d, e);
         requireActiveCategoryForActiveLookup(d.lookupType(), d.active());
+        List<AuditService.Change> auditChanges = new ArrayList<>();
+        auditChanges.add(new AuditService.Change("Type", e.getLookupType(), normal(d.lookupType())));
+        auditChanges.add(new AuditService.Change("Code", e.getLookupCode(), normal(d.lookupCode())));
+        auditChanges.add(new AuditService.Change("Value", e.getLookupValue(), d.lookupValue()));
+        auditChanges.add(new AuditService.Change("Description", e.getDescription(), d.description()));
+        auditChanges.add(new AuditService.Change("Display Order", String.valueOf(e.getDisplayOrder() == null ? 0 : e.getDisplayOrder()), String.valueOf(d.displayOrder())));
+        auditChanges.add(new AuditService.Change("Active", String.valueOf(e.getActive() == null || e.getActive() != 0), String.valueOf(d.active())));
         cascadeRoleValueRenameIfNeeded(e, d);
         copy(d, e);
         e = lookups.saveAndFlush(e);
         syncLookupAliases(e);
-        audit.log("MASTER_LOOKUP", e.getId(), "UPDATED", e.getLookupType() + " / " + e.getLookupValue());
+        audit.logChanges("MASTER_LOOKUP", e.getId(), "UPDATED", e.getLookupType() + " / " + e.getLookupValue(), auditChanges);
         return lookupDto(e);
     }
 
@@ -709,9 +713,11 @@ public class MasterDataService {
             ItemEntity e = items.findByItemCode(d.itemCode()).orElseGet(ItemEntity::new);
             boolean creating = e.getId() == null;
             CurrentUser.requirePermission(creating ? "INVENTORY.CREATE" : "INVENTORY.EDIT", creating ? "Import new item" : "Update item from import");
+            List<AuditService.Change> auditChanges = creating ? List.of() : itemAuditChanges(e, d);
             copy(d, e, creating);
             e = items.saveAndFlush(e);
-            audit.log("ITEM", e.getId(), creating ? "CREATED" : "UPDATED", e.getItemCode() + " • bulk import");
+            if (creating) audit.log("ITEM", e.getId(), "CREATED", e.getItemCode() + " • bulk import");
+            else audit.logChanges("ITEM", e.getId(), "UPDATED", e.getItemCode() + " • bulk import", auditChanges);
         }
     }
 
@@ -724,7 +730,12 @@ public class MasterDataService {
         if (code.isBlank()) throw new IllegalArgumentException("Category code is required");
         if (nextName.isBlank()) throw new IllegalArgumentException("Category name is required");
         MasterCategoryEntity e = categories.findByCategoryCode(code).orElseGet(MasterCategoryEntity::new);
-        String previousName = e.getId() == null ? null : e.getCategoryName();
+        boolean creatingCategory = e.getId() == null;
+        String previousName = creatingCategory ? null : e.getCategoryName();
+        List<AuditService.Change> categoryChanges = creatingCategory ? List.of() : List.of(
+                new AuditService.Change("Code", e.getCategoryCode(), code),
+                new AuditService.Change("Name", e.getCategoryName(), nextName),
+                new AuditService.Change("Description", e.getDescription(), d.description()));
         e.setCategoryCode(code); e.setCategoryName(nextName); e.setDescription(d.description());
         if (e.getActive() == null) e.setActive(1); if (e.getDisplayOrder() == null) e.setDisplayOrder(0);
         e = categories.saveAndFlush(e);
@@ -736,7 +747,8 @@ public class MasterDataService {
                 migrated.forEach(this::syncLookupAliases);
             }
         }
-        audit.log("MASTER_CATEGORY", e.getId(), "UPSERTED", e.getCategoryName());
+        if (creatingCategory) audit.log("MASTER_CATEGORY", e.getId(), "CREATED", e.getCategoryName());
+        else audit.logChanges("MASTER_CATEGORY", e.getId(), "UPDATED", e.getCategoryName(), categoryChanges);
         List<LookupEntity> values = lookups.findByLookupTypeOrderByDisplayOrderAscLookupValueAsc(e.getCategoryName());
         return categoryDto(e, values.size(), values.stream().filter(v -> v.getActive() == null || v.getActive() != 0).count());
     }
@@ -816,6 +828,26 @@ public class MasterDataService {
         return new MasterDtos.PartyDto(e.getId(), e.getPartyType(), e.getPartyCode(), e.getName(), e.getContactPerson(), e.getPhone(), e.getEmail(), e.getGstin(), e.getAddress(), n(e.getOpeningBalance()), e.getActive() == null || e.getActive() != 0, nv(e.getRowVersion()));
     }
 
+    private List<AuditService.Change> itemAuditChanges(ItemEntity e, MasterDtos.ItemDto d) {
+        List<AuditService.Change> c = new ArrayList<>();
+        c.add(new AuditService.Change("Description", e.getDescription(), d.description()));
+        c.add(new AuditService.Change("Category", e.getCategory(), d.category()));
+        c.add(new AuditService.Change("Brand", e.getBrand(), d.brand()));
+        c.add(new AuditService.Change("Material", e.getMaterial(), d.material()));
+        c.add(new AuditService.Change("Size", e.getSize(), d.size()));
+        c.add(new AuditService.Change("Unit", e.getUnit(), d.unit()));
+        c.add(new AuditService.Change("HSN", e.getHsn(), d.hsn()));
+        c.add(new AuditService.Change("GST %", String.valueOf(n(e.getGst())), String.valueOf(d.gst())));
+        c.add(new AuditService.Change("Discount %", String.valueOf(n(e.getDiscountPercent())), String.valueOf(d.discountPercent())));
+        c.add(new AuditService.Change("Purchase Price", String.valueOf(n(e.getPurchasePrice())), String.valueOf(d.purchasePrice())));
+        c.add(new AuditService.Change("Selling Price", String.valueOf(n(e.getSellingPrice())), String.valueOf(d.sellingPrice())));
+        c.add(new AuditService.Change("Minimum Stock", String.valueOf(n(e.getMinimumStock())), String.valueOf(d.minimumStock())));
+        c.add(new AuditService.Change("Location", e.getLocation(), d.location()));
+        c.add(new AuditService.Change("Remarks", e.getRemarks(), d.remarks()));
+        c.add(new AuditService.Change("Active", String.valueOf(e.getActive() == null || e.getActive() != 0), String.valueOf(d.active())));
+        return c;
+    }
+
     private void copy(MasterDtos.ItemDto d, ItemEntity e, boolean includeCode) {
         if(d.hsn()==null||d.hsn().isBlank()) throw new IllegalArgumentException("HSN Code is required");
         if(d.remarks()==null||d.remarks().isBlank()) throw new IllegalArgumentException("Remarks are required");
@@ -832,7 +864,7 @@ public class MasterDataService {
         if(!Double.isFinite(d.purchasePrice())||d.purchasePrice()<0) throw new IllegalArgumentException("Purchase price must be a finite non-negative number");
         if(!Double.isFinite(d.sellingPrice())||d.sellingPrice()<0) throw new IllegalArgumentException("Selling price must be a finite non-negative number");
         if(!Double.isFinite(d.minimumStock())||d.minimumStock()<0) throw new IllegalArgumentException("Minimum stock must be a finite non-negative number");
-        if(!Double.isFinite(d.reservedStock())||d.reservedStock()<0) throw new IllegalArgumentException("Reserved stock must be a finite non-negative number");
+        // Reserved stock lifecycle was removed with Sales Orders; retain the compatibility field but never apply it.
         e.setGst(d.gst());
         e.setDiscountPercent(d.discountPercent());
         e.setPurchasePrice(d.purchasePrice());
@@ -844,12 +876,12 @@ public class MasterDataService {
         e.setMinimumStock(d.minimumStock());
         e.setLocation(d.location());
         e.setRemarks(d.remarks());
-        if (e.getReservedStock() == null) e.setReservedStock(d.reservedStock());
+        e.setReservedStock(0.0);
         if (e.getActive() == null) e.setActive(d.active() ? 1 : 0);
     }
 
     private MasterDtos.ItemDto itemDto(ItemEntity e) {
-        return new MasterDtos.ItemDto(e.getId(), e.getItemCode(), e.getDescription(), e.getCategory(), e.getBrand(), e.getMaterial(), e.getSize(), e.getUnit(), e.getHsn(), n(e.getGst()), n(e.getDiscountPercent()), n(e.getPurchasePrice()), n(e.getSellingPrice()), n(e.getOpeningStock()), n(e.getMinimumStock()), n(e.getReservedStock()), e.getLocation(), e.getRemarks(), e.getActive() == null || e.getActive() != 0, nv(e.getRowVersion()));
+        return new MasterDtos.ItemDto(e.getId(), e.getItemCode(), e.getDescription(), e.getCategory(), e.getBrand(), e.getMaterial(), e.getSize(), e.getUnit(), e.getHsn(), n(e.getGst()), n(e.getDiscountPercent()), n(e.getPurchasePrice()), n(e.getSellingPrice()), n(e.getOpeningStock()), n(e.getMinimumStock()), 0.0, e.getLocation(), e.getRemarks(), e.getActive() == null || e.getActive() != 0, nv(e.getRowVersion()));
     }
 
     private void validateRoleLookup(MasterDtos.LookupDto d, LookupEntity existing) {

@@ -951,6 +951,12 @@ public class PurchaseController implements ScreenLifecycle {
         cmbSupplier.getItems().setAll(data.suppliers());
         allItems.setAll(data.items());
         applyLookupDefaults(data.paymentTerms(), data.transporters(), data.gstTypes(), data.charges());
+        if (editingPurchase == null) {
+            Party requestedSupplier = SupplierPurchaseContext.consume();
+            if (requestedSupplier != null) selectPurchaseSupplier(requestedSupplier);
+            String requestedItemCode=ItemTransactionContext.consumePurchase();
+            if(requestedItemCode!=null&&!requestedItemCode.isBlank()) allItems.stream().filter(i->requestedItemCode.equalsIgnoreCase(i.getItemCode())).findFirst().ifPresent(this::selectItem);
+        }
 
         if (editingPurchase != null) {
             selectPurchaseSupplier(editingPurchase.getSupplier());

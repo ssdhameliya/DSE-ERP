@@ -29,6 +29,40 @@ public class AuditService {
                 List.of(new Change(fieldName, text(oldValue), text(newValue))));
     }
 
+    /**
+     * Builds a complete, deterministic field-by-field diff. Callers should snapshot all
+     * user-editable persisted business fields before mutation, then provide the persisted
+     * after-values. This keeps multi-field audit behavior centralized and prevents the
+     * first changed field from hiding sibling changes from the same Save operation.
+     */
+    public List<Change> diff(Map<String, ?> before, Map<String, ?> after) {
+        LinkedHashSet<String> fields = new LinkedHashSet<>();
+        if (before != null) fields.addAll(before.keySet());
+        if (after != null) fields.addAll(after.keySet());
+        List<Change> out = new ArrayList<>(fields.size());
+        for (String field : fields) {
+            if (field == null || field.isBlank()) continue;
+            String oldValue = text(before == null ? null : before.get(field));
+            String newValue = text(after == null ? null : after.get(field));
+            if (!Objects.equals(safe(oldValue), safe(newValue))) out.add(new Change(field, oldValue, newValue));
+        }
+        return List.copyOf(out);
+    }
+
+    /** Merge change groups while retaining every distinct field occurrence in call order. */
+    @SuppressWarnings({"unchecked", "varargs"})
+    public List<Change> merge(List<Change>... groups) {
+        List<Change> out = new ArrayList<>();
+        if (groups != null) for (List<Change> group : groups) if (group != null) {
+            for (Change change : group) {
+                if (change == null || safe(change.fieldName()).isBlank()) continue;
+                if (Objects.equals(safe(change.oldValue()), safe(change.newValue()))) continue;
+                out.add(change);
+            }
+        }
+        return List.copyOf(out);
+    }
+
     public void logChanges(String entityType, Number entityId, String action, String detail, List<Change> changes) {
         String type = normalize(entityType), act = normalize(action), actor = CurrentUser.require().username();
         Long activityId = entityId == null ? null : entityId.longValue();
@@ -104,7 +138,7 @@ public class AuditService {
             default->null;
         };}catch(Exception ignored){return null;}
     }
-    private static String category(String a){String x=normalize(a);if(x.contains("PAYMENT")||x.contains("REFUND")||x.contains("RECON"))return "FINANCIAL";if(x.contains("EMAIL")||x.contains("WHATSAPP")||x.contains("COMMUNICATION"))return "COMMUNICATION";if(x.contains("PDF")||x.contains("EXCEL")||x.contains("ATTACH")||x.contains("DOCUMENT"))return "DOCUMENT";if(Set.of("APPROVED","REJECTED","CANCELLED","DELETED","PENDING_APPROVAL","CONVERTED","DUPLICATED").contains(x))return "LIFECYCLE";return "BUSINESS_CHANGE";}
+    private static String category(String a){String x=normalize(a);if(x.contains("PAYMENT")||x.contains("REFUND")||x.contains("RECON"))return "FINANCIAL";if(x.contains("EMAIL")||x.contains("WHATSAPP")||x.contains("COMMUNICATION")||x.contains("CONTACT")||x.contains("NOTE"))return "COMMUNICATION";if(x.contains("PDF")||x.contains("EXCEL")||x.contains("ATTACH")||x.contains("DOCUMENT"))return "DOCUMENT";if(Set.of("APPROVED","REJECTED","CANCELLED","DELETED","PENDING_APPROVAL","CONVERTED","DUPLICATED").contains(x))return "LIFECYCLE";return "BUSINESS_CHANGE";}
     private static void add(StringBuilder w,List<Object>a,String clause,String value){if(value!=null){w.append(clause);a.add(value);}}
     private static String normalizeOptional(String v){return blank(v)||"ALL".equalsIgnoreCase(v.trim())?null:normalize(v);}
     private static String normalize(String value){return value==null?"":value.trim().toUpperCase(Locale.ROOT).replace(' ','_');}

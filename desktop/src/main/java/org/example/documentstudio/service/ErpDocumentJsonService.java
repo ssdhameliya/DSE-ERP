@@ -52,6 +52,10 @@ public final class ErpDocumentJsonService {
             case CUSTOM_ERP, GENERAL_PDF -> { }
         }
         addCommonFinancialAliases(root, source);
+        if (resolved == DocumentType.SALES_INVOICE || resolved == DocumentType.PURCHASE_INVOICE || resolved == DocumentType.PURCHASE_ORDER) {
+            defaultText(root, "document.poNumber", "N/A");
+            defaultText(root, "document.poDate", "N/A");
+        }
 
         ArrayNode items = root.putArray("items");
         for (TaxInvoiceItem item : source.items()) {
@@ -101,7 +105,7 @@ public final class ErpDocumentJsonService {
         alias(root, data, "document.date", "sales.date");
         alias(root, data, "document.dueDate", "sales.dueDate");
         alias(root, data, "document.referenceNumber", "sales.referenceNo");
-        alias(root, data, "document.poNumber", "sales.referenceNo");
+        alias(root, data, "document.poNumber", "sales.orderNo");
         alias(root, data, "document.orderNumber", "sales.orderNo");
         alias(root, data, "document.poDate", "sales.poDate");
         alias(root, data, "document.paymentTerms", "sales.paymentTerms");
@@ -341,6 +345,17 @@ public final class ErpDocumentJsonService {
                 return;
             }
         }
+    }
+
+    private static void defaultText(ObjectNode root, String path, String fallback) {
+        if (path == null || path.isBlank()) return;
+        String[] parts = path.split("\\.");
+        JsonNode cursor = root;
+        for (String part : parts) {
+            if (cursor == null || !cursor.isObject()) { cursor = null; break; }
+            cursor = cursor.get(part);
+        }
+        if (cursor == null || cursor.asText("").isBlank()) putPath(root, path, fallback);
     }
 
     private static void putPath(ObjectNode root, String path, String value) {

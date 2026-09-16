@@ -58,6 +58,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * invoice panels from leaking into the approved JASVI design.</p>
  */
 public final class TaxInvoicePdfGenerator {
+    static { org.example.util.ITextRuntimeSupport.configure(); }
     private static final DeviceRgb NAVY = new DeviceRgb(30, 67, 123);
     private static final DeviceRgb BLUE = new DeviceRgb(55, 117, 188);
     private static final DeviceRgb PALE_BLUE = new DeviceRgb(238, 244, 251);
@@ -361,11 +362,11 @@ public final class TaxInvoicePdfGenerator {
                 .useAllAvailableWidth().setMarginTop(STANDARD_SECTION_GAP).setMarginBottom(STANDARD_SECTION_GAP);
         metaCards.addCell(metaCard(
                 "INVOICE NO", invoice.invoiceNo(),
-                "PO NO", invoice.orderNo().isBlank() ? "NA" : invoice.orderNo()));
+                "PO NO", invoice.orderNo() == null || invoice.orderNo().isBlank() ? "N/A" : invoice.orderNo()));
         metaCards.addCell(noBorder());
         metaCards.addCell(metaCard(
                 "INVOICE DATE", formatDate(invoice.invoiceDate()),
-                invoice.poDate() == null ? "" : "PO DATE", invoice.poDate() == null ? "" : formatDate(invoice.poDate())));
+                "PO DATE", invoice.poDate() == null ? "N/A" : formatDate(invoice.poDate())));
         doc.add(metaCards);
     }
 
@@ -458,7 +459,13 @@ public final class TaxInvoicePdfGenerator {
                 .add(content);
 
         Table strip = new Table(1).useAllAvailableWidth().setMarginTop(0).setMarginBottom(STANDARD_SECTION_GAP);
-        strip.addCell(roundedFilled(new Cell().setPadding(0).setBorder(Border.NO_BORDER).add(contentCard), PALE_BLUE));
+        // Preserve the transport strip as a complete bordered section. Release changes must not
+        // wipe the upper border to disguise the normal gap between independent PDF blocks.
+        // This keeps the default renderer consistent with the protected Studio artwork.
+        Cell transportCard = new Cell().setPadding(0).setBackgroundColor(PALE_BLUE)
+                .setBorder(new SolidBorder(GRID, .65f))
+                .add(contentCard);
+        strip.addCell(transportCard);
         doc.add(strip);
     }
 

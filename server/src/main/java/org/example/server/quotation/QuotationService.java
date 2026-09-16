@@ -153,6 +153,7 @@ public class QuotationService {
         if(validUntil.isBefore(quotationDate))throw new IllegalArgumentException("Quotation valid-until date cannot be before quotation date.");
         String source=requireQuotationSource(d.source());
         int id;
+        Map<String,Object> auditBefore = new LinkedHashMap<>();
         if(create){requireCustomerReference(d.customerId(),true);requireActiveQuotationItems(d.lines(),Set.of());}
         if (create) {
             String no = nextNo();
@@ -166,6 +167,7 @@ public class QuotationService {
             id = x == null ? 0 : x;
         } else {
             id = d.id();
+            auditBefore = quotationAuditSnapshot(id);
             Map<String, Object> existing = jdbc.queryForMap(
                     "SELECT COALESCE(converted_invoice_no,'') converted,COALESCE(status,'DRAFT') status,customer_id FROM quotation_header WHERE id=? FOR UPDATE",
                     id);
@@ -189,7 +191,19 @@ public class QuotationService {
                             "SELECT ?,?,?,?,?,?,?,COALESCE(description,''),COALESCE(category,''),COALESCE(hsn,''),COALESCE(unit,'') FROM item_master WHERE item_code=?",
                     id,l.code(),l.quantity(),l.rate(),l.gst(),l.discount(),l.total(),l.code());
         }
+        Map<String,Object> auditAfter = quotationAuditSnapshot(id);
+        if(create) audit.log("QUOTATION",id,"CREATED",Objects.toString(auditAfter.get("Quotation No"),""));
+        else audit.logChanges("QUOTATION",id,"UPDATED",Objects.toString(auditAfter.get("Quotation No"),""),audit.diff(auditBefore,auditAfter));
         return quote(id);
+    }
+
+    private Map<String,Object> quotationAuditSnapshot(int id){
+        Map<String,Object> row=jdbc.queryForMap("SELECT quotation_no,CAST(quotation_date AS text) quotation_date,CAST(valid_until AS text) valid_until,customer_id,COALESCE(subtotal,0) subtotal,COALESCE(discount_amount,0) discount_amount,COALESCE(gst_amount,0) gst_amount,COALESCE(total_amount,0) total_amount,COALESCE(status,'DRAFT') status,COALESCE(remarks,'') remarks,COALESCE(CAST(follow_up_date AS text),'') follow_up_date,COALESCE(salesperson,'') salesperson,COALESCE(source,'') source FROM quotation_header WHERE id=?",id);
+        LinkedHashMap<String,Object> out=new LinkedHashMap<>();
+        out.put("Quotation No",row.get("quotation_no"));out.put("Quotation Date",row.get("quotation_date"));out.put("Valid Until",row.get("valid_until"));out.put("Customer",row.get("customer_id"));out.put("Subtotal",row.get("subtotal"));out.put("Discount Amount",row.get("discount_amount"));out.put("GST Amount",row.get("gst_amount"));out.put("Total Amount",row.get("total_amount"));out.put("Status",row.get("status"));out.put("Remarks",row.get("remarks"));out.put("Follow-up Date",row.get("follow_up_date"));out.put("Salesperson",row.get("salesperson"));out.put("Source",row.get("source"));
+        List<QuotationDtos.LineDto> lines=loadLines(id);out.put("Line Count",lines.size());
+        for(int i=0;i<lines.size();i++){QuotationDtos.LineDto l=lines.get(i);String p="Line "+(i+1)+" ";out.put(p+"Item",l.code());out.put(p+"Description",l.description());out.put(p+"Category",l.category());out.put(p+"HSN",l.hsn());out.put(p+"Unit",l.unit());out.put(p+"Quantity",l.quantity());out.put(p+"Rate",l.rate());out.put(p+"Discount %",l.discount());out.put(p+"GST %",l.gst());out.put(p+"Total",l.total());}
+        return out;
     }
 
     private void requireCustomerReference(int customerId,boolean requireActive){
@@ -208,24 +222,33 @@ public class QuotationService {
     @Transactional
     public void notes(int id, String v) {
         CurrentUser.requirePermission("QUOTATION.EDIT","Edit quotation notes");requireEditable(id);
+        String old = jdbc.queryForObject("SELECT COALESCE(remarks,'') FROM quotation_header WHERE id=?",String.class,id);
         jdbc.update("UPDATE quotation_header SET remarks=?,row_version=row_version+1 WHERE id=?", v, id);
+        audit.logChange("QUOTATION",id,"UPDATED","Quotation notes updated","Remarks",old,v);
     }
 
     @Transactional
     public void markSent(int id, String ch) {
         CurrentUser.requirePermission("QUOTATION.EDIT","Update quotation delivery status");requireEditable(id);
         String col = "WHATSAPP".equalsIgnoreCase(ch) ? "whatsapp_sent" : "email_sent";
+        String label = "WHATSAPP".equalsIgnoreCase(ch) ? "WhatsApp Sent" : "Email Sent";
+        Map<String,Object> old = jdbc.queryForMap("SELECT COALESCE("+col+",0) channel,COALESCE(status,'DRAFT') status FROM quotation_header WHERE id=?",id);
         jdbc.update("UPDATE quotation_header SET " + col + "=1,status=CASE WHEN status='DRAFT' THEN 'SENT' ELSE status END,row_version=row_version+1 WHERE id=?", id);
+        Map<String,Object> after = jdbc.queryForMap("SELECT COALESCE("+col+",0) channel,COALESCE(status,'DRAFT') status FROM quotation_header WHERE id=?",id);
+        audit.logChanges("QUOTATION",id,"UPDATED","Quotation delivery status",List.of(
+                new AuditService.Change(label,Objects.toString(old.get("channel"),"0"),Objects.toString(after.get("channel"),"1")),
+                new AuditService.Change("Status",Objects.toString(old.get("status"),"DRAFT"),Objects.toString(after.get("status"),"SENT"))));
     }
 
     @Transactional
     public void followUp(int id, QuotationDtos.FollowUp d) {
         CurrentUser.requirePermission("QUOTATION.EDIT","Update quotation follow-up");requireEditable(id);
-        var q = jdbc.queryForMap("SELECT quotation_no,customer_id FROM quotation_header WHERE id=?", id);
+        var q = jdbc.queryForMap("SELECT quotation_no,customer_id,COALESCE(CAST(follow_up_date AS text),'') follow_up_date FROM quotation_header WHERE id=?", id);
         String customer = jdbc.queryForObject("SELECT name FROM party_master WHERE id=?", String.class, q.get("customer_id"));
         String followUp = date(d.date()) == null ? null : date(d.date()).toString();
         jdbc.update("UPDATE quotation_header SET follow_up_date=?,row_version=row_version+1 WHERE id=?", followUp, id);
         String quotationNo=Objects.toString(q.get("quotation_no"),"");
+        audit.logChange("QUOTATION",id,"UPDATED",quotationNo+" • follow-up","Follow-up Date",Objects.toString(q.get("follow_up_date"),""),followUp);
         jdbc.update("UPDATE reminder_register SET status='CANCELLED',updated_at=? WHERE reference_no=? AND title LIKE 'Quotation follow-up:%' AND UPPER(COALESCE(status,'')) IN ('OPEN','SNOOZED')",
                 BusinessClock.nowUtcText(), quotationNo);
         if (followUp != null) {

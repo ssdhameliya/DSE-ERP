@@ -66,9 +66,9 @@ public class Item {
 
     public double getMinimumStock() { return minimumStock; }
     public void setMinimumStock(double minimumStock) { this.minimumStock = minimumStock; }
-    public double getReservedStock() { return reservedStock; }
-    public void setReservedStock(double reservedStock) { this.reservedStock = reservedStock; }
-    public double getAvailableStock() { return Math.max(0, openingStock - reservedStock); }
+    public double getReservedStock() { return 0.0; }
+    public void setReservedStock(double reservedStock) { this.reservedStock = 0.0; }
+    public double getAvailableStock() { return Math.max(0, openingStock); }
 
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }

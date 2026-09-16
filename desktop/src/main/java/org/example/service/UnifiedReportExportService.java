@@ -42,6 +42,8 @@ import java.util.StringJoiner;
  * cannot silently recalculate finance or Return values differently from the UI.
  */
 public final class UnifiedReportExportService {
+    static { org.example.util.ITextRuntimeSupport.configure(); }
+
     private static final DeviceRgb NAVY = new DeviceRgb(15,45,77);
     private static final DeviceRgb BLUE = new DeviceRgb(32,105,210);
     private static final DeviceRgb PALE = new DeviceRgb(239,245,252);

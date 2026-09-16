@@ -173,7 +173,7 @@ public final class ReleaseHighlights {
                     • Extends the authenticated server token only when the user explicitly stays signed in; automatic logout clears the desktop session and returns to Login.
                     • Adds centralized business-order focus handling for keyboard-first transaction entry, including context-aware Customer 360° → New Sale focus and Ctrl+S Save.
                     • Improves Sales Order entry with live Item Master stock visibility: on-hand, reserved, free-to-promise, requested quantity and post-order balance.
-                    • Makes Sales Orders reserve/release Item Master reserved stock transactionally so multiple users see meaningful free-to-promise quantities.
+                    • Inventory availability is based on current on-hand stock; the removed Sales Order reservation lifecycle no longer affects Sale or Purchase behavior.
                     • Warns, but does not silently block, when a Sales Order exceeds free-to-promise stock; the server re-reads and updates reservations under row locks.
                     • Removes decorative per-item icons from order-entry item search results while preserving the existing semantic icon system everywhere else.
                     • Preserves Customer 360°, existing Sale/Purchase/Payment calculations, PostgreSQL ownership, row-version protection and the two-theme UI architecture.

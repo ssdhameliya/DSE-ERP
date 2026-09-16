@@ -45,6 +45,8 @@ public class PurchaseReconService {
         CurrentUser.requirePermission(creating?"RECON_SUPPLIER.CREATE":"RECON_SUPPLIER.EDIT", creating?"Create Recon Supplier":"Edit Recon Supplier");
         ReconSupplierEntity entity=creating?new ReconSupplierEntity():suppliers.findById(request.id()).orElseThrow(()->new IllegalArgumentException("Recon Supplier not found."));
         if(!creating)assertVersion(request.rowVersion(),entity.getRowVersion(),"Recon Supplier "+entity.getReconSupplierRef());
+        Map<String,Object> auditBefore=new LinkedHashMap<>();
+        if(!creating){auditBefore.put("Legal Name",entity.getLegalName());auditBefore.put("GSTIN",entity.getGstin());auditBefore.put("PAN",entity.getPan());auditBefore.put("Contact Person",entity.getContactPerson());auditBefore.put("Phone",entity.getPhone());auditBefore.put("Email",entity.getEmail());auditBefore.put("Notes",entity.getNotes());auditBefore.put("Status",entity.getStatus());}
         Integer entityId=entity.getId();
         String gstin=safe(request.gstin()).trim().toUpperCase(Locale.ROOT);
         if(!gstin.isBlank()){
@@ -55,7 +57,10 @@ public class PurchaseReconService {
         if(entity.getId()==null){entity.setReconSupplierRef(nextReconSupplierReference());entity.setCreatedBy(CurrentUser.require().username());entity.setSource("MANUAL");}
         String status=blank(request.status())?"ACTIVE":request.status().trim().toUpperCase(Locale.ROOT);if(!Set.of("ACTIVE","INACTIVE").contains(status))throw new IllegalArgumentException("Recon Supplier status must be ACTIVE or INACTIVE.");
         entity.setLegalName(request.legalName().trim());entity.setGstin(gstin);entity.setPan(safe(request.pan()).trim().toUpperCase(Locale.ROOT));entity.setContactPerson(trim(request.contactPerson()));entity.setPhone(trim(request.phone()));entity.setEmail(trim(request.email()));entity.setNotes(trim(request.notes()));entity.setStatus(status);entity.setUpdatedBy(CurrentUser.require().username());
-        ReconSupplierEntity saved=suppliers.saveAndFlush(entity);audit.log("RECON_SUPPLIER",saved.getId(),creating?"CREATED":"UPDATED",saved.getReconSupplierRef()+" • "+saved.getLegalName());return supplierDto(saved);
+        ReconSupplierEntity saved=suppliers.saveAndFlush(entity);
+        if(creating)audit.log("RECON_SUPPLIER",saved.getId(),"CREATED",saved.getReconSupplierRef()+" • "+saved.getLegalName());
+        else{Map<String,Object> after=new LinkedHashMap<>();after.put("Legal Name",saved.getLegalName());after.put("GSTIN",saved.getGstin());after.put("PAN",saved.getPan());after.put("Contact Person",saved.getContactPerson());after.put("Phone",saved.getPhone());after.put("Email",saved.getEmail());after.put("Notes",saved.getNotes());after.put("Status",saved.getStatus());audit.logChanges("RECON_SUPPLIER",saved.getId(),"UPDATED",saved.getReconSupplierRef()+" • "+saved.getLegalName(),audit.diff(auditBefore,after));}
+        return supplierDto(saved);
     }
 
     @Transactional(readOnly=true)
@@ -76,6 +81,7 @@ public class PurchaseReconService {
         if(!Double.isFinite(request.invoiceValue())||request.invoiceValue()<=0)throw new IllegalArgumentException("Invoice Value must be greater than zero.");
         ReconSupplierEntity supplier=suppliers.findById(request.supplierId()).orElseThrow(()->new IllegalArgumentException("Recon Supplier not found."));
         Integer id=request.id();PurchaseReconEntity entity=id==null?new PurchaseReconEntity():recons.findByIdForUpdate(id).orElseThrow(()->new IllegalArgumentException("Purchase Recon record not found."));if(id!=null)assertVersion(request.rowVersion(),entity.getRowVersion(),"Purchase Recon "+entity.getReconRef());
+        Map<String,Object> reconBefore=new LinkedHashMap<>();if(!creating){reconBefore.put("Supplier",entity.getReconSupplier()==null?null:entity.getReconSupplier().getId());reconBefore.put("Supplier Invoice No",entity.getSupplierInvoiceNo());reconBefore.put("Invoice Date",entity.getInvoiceDate());reconBefore.put("Taxable Value",entity.getTaxableValue());reconBefore.put("CGST",entity.getCgst());reconBefore.put("SGST",entity.getSgst());reconBefore.put("IGST",entity.getIgst());reconBefore.put("Other Adjustment",entity.getOtherAdjustment());reconBefore.put("Invoice Value",entity.getInvoiceValue());reconBefore.put("Notes",entity.getNotes());reconBefore.put("Status",entity.getStatus());reconBefore.put("Tax Difference",entity.getTaxDifference());reconBefore.put("Tax Review Required",entity.getTaxReviewRequired());}
         double linked=n(entity.getLinkedAmount());
         if(linked>.009&&materialReconChange(entity,supplier,request,date))throw new IllegalStateException("This Purchase Recon is linked to Bank Statement. Reverse / Unmatch the bank reconciliation before changing supplier, invoice date, invoice number or financial amounts.");
         String fy=financialYear(date);if(recons.duplicateBusinessKey(supplier.getId(),request.supplierInvoiceNo().trim(),fy,id))throw new IllegalStateException("A Purchase Recon already exists for this Recon Supplier, Supplier Invoice No. and financial year.");
@@ -83,7 +89,10 @@ public class PurchaseReconService {
         if(entity.getId()==null){entity.setReconRef(nextPurchaseReconReference());entity.setCreatedBy(CurrentUser.require().username());entity.setSource("MANUAL");entity.setLinkedAmount(0d);}
         applyReconValues(entity,supplier,request.supplierInvoiceNo(),date,request.taxableValue(),request.cgst(),request.sgst(),request.igst(),request.otherAdjustment(),request.invoiceValue(),request.notes());
         entity.setUpdatedBy(CurrentUser.require().username());syncStatus(entity);
-        entity=recons.saveAndFlush(entity);audit.log("PURCHASE_RECON",entity.getId(),creating?"CREATED":"UPDATED",entity.getReconRef()+" • "+entity.getSupplierInvoiceNo());return reconDto(entity);
+        entity=recons.saveAndFlush(entity);
+        if(creating)audit.log("PURCHASE_RECON",entity.getId(),"CREATED",entity.getReconRef()+" • "+entity.getSupplierInvoiceNo());
+        else{Map<String,Object> after=new LinkedHashMap<>();after.put("Supplier",entity.getReconSupplier()==null?null:entity.getReconSupplier().getId());after.put("Supplier Invoice No",entity.getSupplierInvoiceNo());after.put("Invoice Date",entity.getInvoiceDate());after.put("Taxable Value",entity.getTaxableValue());after.put("CGST",entity.getCgst());after.put("SGST",entity.getSgst());after.put("IGST",entity.getIgst());after.put("Other Adjustment",entity.getOtherAdjustment());after.put("Invoice Value",entity.getInvoiceValue());after.put("Notes",entity.getNotes());after.put("Status",entity.getStatus());after.put("Tax Difference",entity.getTaxDifference());after.put("Tax Review Required",entity.getTaxReviewRequired());audit.logChanges("PURCHASE_RECON",entity.getId(),"UPDATED",entity.getReconRef()+" • "+entity.getSupplierInvoiceNo(),audit.diff(reconBefore,after));}
+        return reconDto(entity);
     }
 
     @Transactional

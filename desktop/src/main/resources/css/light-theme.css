@@ -17555,7 +17555,7 @@
 .sales-detail-identity-meta > .label { -fx-max-width: Infinity; }
 
 /* 10.0.13 centralized Audit Trail ------------------------------------------------ */
-.audit-page { -fx-background-color: -erp-page-bg; }
+.audit-page { -fx-background-color: #F5F7FA; }
 .audit-dialog > .dialog-pane { -fx-pref-width: 980px; }
 .audit-title-icon { -fx-background-color: rgba(109,40,217,0.12); -fx-text-fill: #6d28d9; -fx-font-size: 24px; -fx-font-weight: 800; -fx-padding: 8 13; -fx-background-radius: 14; }
 .audit-title { -fx-font-size: 20px; -fx-font-weight: 800; }

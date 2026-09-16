@@ -23,8 +23,9 @@ doc=text('GITHUB-DEPLOYMENT-SETUP.md')
 cleanup_ps=text('scripts/github/cleanup-workflow-runs.ps1')
 cleanup_sh=text('scripts/github/cleanup-workflow-runs.sh')
 
-need('server-release' in release and 'DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' in release,
-     'release workflow does not build/upload one canonical server artifact')
+need('Upload canonical server directly to GitHub prerelease' in release and 'DSE-ERP-${{ needs.validate.outputs.version }}-SERVER.jar' in release
+     and 'gh release upload' in release,
+     'release workflow does not build/upload one canonical server artifact directly to GitHub Release')
 need('deploy-uat:' in release and 'environment: uat' in release,
      'release workflow does not automatically deploy the release artifact to the UAT environment')
 need("if: github.repository == 'ssdhameliya/DSE-ERP'" in release,
@@ -72,21 +73,38 @@ need('warm-windows-packaging-runtime:' in ci and 'warm-macos-packaging-runtime:'
      'default-branch native PostgreSQL runtime cache warmup is missing or can run in PR-only cache scope')
 need(ci.count('lookup-only: true') >= 2 and ci.count('actions/cache/save@v4') >= 2,
      'main cache warmup downloads large cache payloads even when the reusable cache already exists')
-need(release.count('actions/cache/restore@v4') >= 3 and 'actions/cache/save@v4' not in release,
-     'tag release should restore default-branch runtimes without writing useless tag-scoped caches')
+need(release.count('actions/cache/restore@v4') >= 2 and 'actions/cache/save@v4' not in release,
+     'tag release should restore supported default-branch runtimes without writing useless tag-scoped caches')
 need('MAIN_CI_REUSED_OK' in release and 'actions: read' in release and 'Require the tag to point at the current green main commit' in release,
      'tag release does not require the exact current main commit to have a successful Build and Test run')
 need('Verify project on Windows' not in release and 'Verify project on macOS' not in release,
      'native packaging still duplicates the full Maven verification after the tagged Linux gate')
 need(release.count('./mvnw -B -ntp clean verify') == 1,
      'tag release must run exactly one full Maven verification before native packaging')
-need('needs: [validate, tests]' in release and release.count('needs: [validate, tests, server]') >= 3 and 'Validate tagged source (Linux)' in release,
-     'Windows/macOS packaging does not wait for the single tagged-source verification gate and canonical server build')
-need(release.count('-pl desktop -am package -DskipTests') >= 3 and release.count('name: Download canonical server artifact') >= 3,
-     'native packaging does not rebuild platform-specific desktop artifacts and reuse the canonical server artifact')
+need('prepare-release:' in release and 'needs: [validate, tests]' in release
+     and release.count('needs: [validate, tests, prepare-release, server]') >= 2
+     and 'Validate tagged source (Linux)' in release,
+     'supported native packaging does not wait for tagged-source verification, prerelease creation and canonical server upload')
+need(release.count('-pl desktop -am package -DskipTests') >= 2
+     and release.count('Download canonical server from GitHub prerelease') >= 2,
+     'supported native packaging does not rebuild platform-specific desktop artifacts and reuse the canonical server release asset')
 need("hashFiles('scripts/ci/prepare-postgresql-windows.ps1')" in release
      and "hashFiles('scripts/build-postgresql-macos.sh', 'scripts/ci/prepare-postgresql-macos.sh')" in release,
      'release cache keys do not match the default-branch runtime seed contract')
+need('macos-intel:' not in release and 'macos-15-intel' not in release and 'macOS Intel' not in release,
+     'Intel macOS packaging still exists in the tagged release workflow')
+need('macos-15-intel' not in ci and 'macOS Intel' not in ci,
+     'Intel macOS runner/cache work still exists in normal CI')
+need('actions/download-artifact@' not in release
+     and release.count('actions/upload-artifact@v7') == 2
+     and 'uat-deployment-' in release and 'prod-deployment-' in release,
+     'tag release still uses Actions artifact storage for large release binaries instead of only small deployment evidence')
+need('Create GitHub prerelease' in release and release.count('gh release upload') >= 4
+     and 'RELEASE_ASSET_CONTRACT_OK' in release and 'Expected exactly three binary release assets' in release,
+     'direct-to-GitHub-Release binary publishing contract is incomplete')
+need("asset.get('downloadUrl','')" in release and "asset.get('url','')" not in release
+     and "asset.get('downloadUrl','')" in prod and "asset.get('url','')" not in prod,
+     'private update gateway validation is not using the server downloadUrl field')
 
 # One tagged workflow must now carry the exact release through UAT and then PROD.
 need('deploy-prod:' in release and 'needs: [validate, server, release, deploy-uat]' in release
@@ -97,9 +115,9 @@ need(release.count("if: github.repository == 'ssdhameliya/DSE-ERP'") >= 2,
 need('Verify the same version is currently healthy in UAT' in release and 'UAT_GATE_OK' in release
      and "r.get('environment')=='UAT'" in release,
      'same-run PROD job does not re-verify the exact version is healthy in UAT')
-need('Verify canonical artifact matches published release' in release and 'PROD_ARTIFACT_MATCH_OK' in release
-     and 'checksums.txt' in release,
-     'same-run PROD job does not prove the canonical workflow artifact matches the published release checksum')
+need('Download and verify exact GitHub release server artifact' in release and 'PROD_ARTIFACT_MATCH_OK' in release
+     and 'UAT_RELEASE_ARTIFACT_MATCH_OK' in release and 'checksums.txt' in release,
+     'UAT/PROD jobs do not prove the exact published server release asset matches the published checksum')
 need('Configure PROD private GitHub update token' in release
      and 'configure-github-update-token.sh prod' in release
      and release.count('DSE_GITHUB_UPDATE_TOKEN: ${{ secrets.DSE_GITHUB_UPDATE_TOKEN }}') >= 2,

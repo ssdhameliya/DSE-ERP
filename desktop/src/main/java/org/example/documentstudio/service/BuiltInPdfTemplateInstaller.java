@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 final class BuiltInPdfTemplateInstaller {
     static final String SALES_TEMPLATE_ID = "builtin-sales-invoice-jasvi-9-0-60";
     private static final String RESOURCE = "/documentstudio/defaults/sales-invoice-jasvi-runtime.pdf";
-    private static final int RELEASE_VERSION = 7;
+    private static final int RELEASE_VERSION = 11;
     private static final ObjectMapper JSON = new ObjectMapper()
             .enable(SerializationFeature.INDENT_OUTPUT)
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -207,42 +207,43 @@ final class BuiltInPdfTemplateInstaller {
         String white = "#FFFFFF";
         String green = "#DFF4E3";
 
-        // Header / reference values - labels and artwork remain in the original PDF.
-        pair(e, "document.number", 123.5, 142.8, 120, 10, 7, false, "LEFT", pale, "EVERY");
-        pair(e, "document.poNumber", 123.5, 155.4, 145, 10, 7, false, "LEFT", pale, "EVERY");
-        pair(e, "document.date", 402.5, 142.8, 125, 10, 7, false, "LEFT", pale, "EVERY");
-        pair(e, "document.poDate", 402.5, 155.4, 125, 10, 7, false, "LEFT", pale, "EVERY");
+        // Header / reference values - labels/artwork remain in the protected sanitized PDF.
+        // The source contains no sample business values, so map fields directly without whiteout.
+        field(e, "document.number", 123.5, 142.8, 120, 10, 7, false, "LEFT", "SHRINK", 1.0, "EVERY");
+        field(e, "document.poNumber", 123.5, 155.4, 145, 10, 7, false, "LEFT", "SHRINK", 1.0, "EVERY");
+        field(e, "document.date", 402.5, 142.8, 125, 10, 7, false, "LEFT", "SHRINK", 1.0, "EVERY");
+        field(e, "document.poDate", 402.5, 155.4, 125, 10, 7, false, "LEFT", "SHRINK", 1.0, "EVERY");
 
-        // Billing and delivery blocks.
-        pair(e, "party.name", 28.5, 190.6, 245, 11, 8, true, "LEFT", pale, "EVERY");
-        pairWrap(e, "party.billingAddress", 28.5, 204.2, 248, 20, 6.4, false, "LEFT", pale, 1.10, "EVERY");
+        // Billing and delivery blocks. The protected source contains labels/artwork only;
+        // direct field mapping preserves the original rounded borders pixel-for-pixel.
+        field(e, "party.name", 28.5, 190.6, 245, 11, 8, true, "LEFT", "SHRINK", 1.0, "EVERY");
+        multiField(e, "party.billingAddress", 28.5, 204.2, 248, 20, 6.4, false, "LEFT", 1.10, "EVERY");
         // 9.0.61: align mapped GSTIN baseline exactly with the source PDF's GST-IN label/value row.
-        pair(e, "party.billingGstin", 58.6688, 224.05, 173.3, 10, 6.8, true, "LEFT", pale, "EVERY");
-        pair(e, "party.name", 307.5, 190.6, 245, 11, 8, true, "LEFT", pale, "EVERY");
-        pairWrap(e, "party.deliveryAddress", 307.5, 204.2, 248, 20, 6.4, false, "LEFT", pale, 1.10, "EVERY");
-        pair(e, "party.deliveryGstin", 337.6388, 224.05, 173.4, 10, 6.8, true, "LEFT", pale, "EVERY");
-        // Reassert the lower structural rule after all address text replacement. PDF source
-        // strokes are antialiased, so even an inset whiteout can nick the visible edge.
-        // Drawing the rule last makes the template robust to future field-size changes.
-        gridLine(e, 24.4, 234.1, 287.0, 234.1, "EVERY");
-        gridLine(e, 302.4, 234.1, 568.6, 234.1, "EVERY");
-
-        // Transport strip: rebuild all four Standard Sales segments so the added Vehicle
-        // field does not obscure the Contact Details label in the source artwork.
-        // Inset transport replacement so its top/bottom blue rules survive.
-        e.add(mask(25.8, 237.5, 542.4, 9.4, pale, "EVERY"));
-        literal(e, "TRANSPORTER :", 39.0, 238.8, 74.0, 8.0, 5.5, true, "RIGHT", "EVERY");
-        field(e, "transport.name", 115.0, 238.8, 78.0, 8.0, 5.5, false, "LEFT", "SHRINK", 1.0, "EVERY");
-        literal(e, "GSTIN :", 197.0, 238.8, 43.0, 8.0, 5.5, true, "RIGHT", "EVERY");
-        field(e, "transport.gstin", 242.0, 238.8, 96.0, 8.0, 5.5, false, "LEFT", "SHRINK", 1.0, "EVERY");
-        literal(e, "VEHICLE :", 341.0, 238.8, 47.0, 8.0, 5.5, true, "RIGHT", "EVERY");
-        field(e, "transport.vehicleNumber", 390.0, 238.8, 66.0, 8.0, 5.3, false, "LEFT", "SHRINK", 1.0, "EVERY");
-        literal(e, "CONTACT DETAILS :", 458.0, 238.8, 70.0, 8.0, 5.2, true, "RIGHT", "EVERY");
-        field(e, "transport.contact", 530.0, 238.8, 37.0, 8.0, 4.9, false, "RIGHT", "SHRINK", 1.0, "EVERY");
-        // Repaint the transport strip rules after the content masks. This is intentionally
-        // last so no whiteout can cut the blue rules, regardless of source-PDF antialiasing.
-        gridLine(e, 24.4, 237.2, 568.6, 237.2, "EVERY");
-        gridLine(e, 24.4, 247.1, 568.6, 247.1, "EVERY");
+        field(e, "party.billingGstin", 58.6688, 224.05, 173.3, 10, 6.8, true, "LEFT", "SHRINK", 1.0, "EVERY");
+        field(e, "party.name", 307.5, 190.6, 245, 11, 8, true, "LEFT", "SHRINK", 1.0, "EVERY");
+        multiField(e, "party.deliveryAddress", 307.5, 204.2, 248, 20, 6.4, false, "LEFT", 1.10, "EVERY");
+        field(e, "party.deliveryGstin", 337.6388, 224.05, 173.4, 10, 6.8, true, "LEFT", "SHRINK", 1.0, "EVERY");
+        // Version 11 structural-artwork rule: Studio maps values only. Do not repaint the
+        // address-card divider and do not erase the protected transport-strip top border.
+        // Both strokes belong to the original PDF artwork; redrawing/whiteout caused the
+        // extra blue rule and missing dark upper border seen in real UAT output.
+        // Transport strip: preserve the source PDF labels and place only live ERP values in
+        // the blank value areas. Earlier releases masked the whole row and then repainted
+        // TRANSPORTER/GSTIN/CONTACT DETAILS, which left duplicated/overlapping label glyphs
+        // in some PDF viewers. Vehicle is the only label not present in the protected source.
+        // Keep every live value inside its own source-space segment: this is true replacement
+        // mapping rather than painting a second copy of the row over the artwork.
+        // Match the protected source row exactly: ArialMT in the source is 6.45 pt with a
+        // top-down text origin/baseline at y=245.28. PdfStudioRenderer places a fixed-line
+        // baseline at elementY + fontSize, so y=238.83 with 6.45 pt keeps the live value on
+        // the same baseline and visual scale as TRANSPORTER/GSTIN/CONTACT DETAILS. Earlier
+        // v10 used 5.0-5.5 pt values, which made values such as VRL look detached/misaligned.
+        double transportY = 238.83, transportFont = 6.45;
+        field(e, "transport.name", 115.0, transportY, 96.0, 8.0, transportFont, false, "LEFT", "SHRINK", 1.0, "EVERY");
+        field(e, "transport.gstin", 244.0, transportY, 62.0, 8.0, transportFont, false, "LEFT", "SHRINK", 1.0, "EVERY");
+        literal(e, "VEHICLE :", 309.0, transportY, 43.0, 8.0, transportFont, false, "RIGHT", "EVERY");
+        field(e, "transport.vehicleNumber", 354.0, transportY, 38.0, 8.0, transportFont, false, "LEFT", "SHRINK", 1.0, "EVERY");
+        field(e, "transport.contact", 460.0, transportY, 107.0, 8.0, transportFont, false, "LEFT", "SHRINK", 1.0, "EVERY");
 
         // Remove the sample row while leaving the original blue grid untouched.
         double[] xs = {24.23, 58.20, 106.18, 401.85, 431.84, 479.82, 510.81, 570.77};

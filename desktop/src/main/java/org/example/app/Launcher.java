@@ -14,6 +14,13 @@ public class Launcher {
     private static final String NATIVE_ACCESS_RELAUNCH = "dse.erp.nativeAccessRelaunch";
 
     static {
+        // The desktop intentionally uses SLF4J's no-op fallback; suppress the provider
+        // discovery warning while preserving that behavior. This must be set before
+        // any third-party library initializes SLF4J.
+        System.setProperty("slf4j.internal.verbosity",
+                System.getProperty("slf4j.internal.verbosity", "ERROR"));
+        org.example.util.ITextRuntimeSupport.configure();
+
         /*
          * Windows keeps the stable software-pipeline workaround for the
          * historical Direct3D -1 x -1 presentable-surface issue.  Do NOT

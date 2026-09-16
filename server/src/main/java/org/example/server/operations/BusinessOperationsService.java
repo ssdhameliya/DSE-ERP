@@ -130,13 +130,35 @@ public class BusinessOperationsService {
   auditChanges.add(new AuditService.Change("GST Type",h.getGstType(),blank(d.gstType())?"GST":d.gstType()));
   auditChanges.add(new AuditService.Change("Billing GSTIN",h.getBillingGstin(),d.billingGstin()));
   auditChanges.add(new AuditService.Change("Delivery GSTIN",h.getDeliveryGstin(),d.deliveryGstin()));
+  auditChanges.add(new AuditService.Change("Subtotal",String.valueOf(n(h.getSubtotal())),String.valueOf(requestedTotals.itemTaxable())));
+  auditChanges.add(new AuditService.Change("Discount Amount",String.valueOf(n(h.getDiscountAmount())),String.valueOf(requestedTotals.discountAmount())));
+  auditChanges.add(new AuditService.Change("GST Amount",String.valueOf(n(h.getGstAmount())),String.valueOf(requestedTotals.taxAmount())));
   auditChanges.add(new AuditService.Change("Total Amount",String.valueOf(n(h.getTotalAmount())),String.valueOf(requestedTotals.grandTotal())));
   auditChanges.add(new AuditService.Change("Payment Terms",h.getPaymentTerms(),d.paymentTerms()));
   auditChanges.add(new AuditService.Change("Reference No",h.getReferenceNo(),d.referenceNo()));
   auditChanges.add(new AuditService.Change("Remarks",h.getRemarks(),d.remarks()));
   auditChanges.add(new AuditService.Change("Notes",h.getNotes(),d.notes()));
-  if(linesChanged)auditChanges.add(new AuditService.Change("Line Items",String.valueOf(salesLines.findBySalesIdOrderByIdAsc(h.getId()).size()),String.valueOf(d.lines()==null?0:d.lines().size())));
-  if(chargesChanged)auditChanges.add(new AuditService.Change("Charges","Changed","Changed"));
+  auditChanges.add(new AuditService.Change("Due Date",h.getDueDate(),d.dueDate()));
+  auditChanges.add(new AuditService.Change("Salesperson",h.getSalesperson(),d.salesperson()));
+  auditChanges.add(new AuditService.Change("Transporter",h.getTransporter(),d.transporter()));
+  auditChanges.add(new AuditService.Change("PO Date",h.getPoDate(),d.poDate()));
+  auditChanges.add(new AuditService.Change("Door Delivery",h.getDoorDelivery(),d.doorDelivery()));
+  auditChanges.add(new AuditService.Change("Vehicle Number",h.getVehicleNumber(),d.vehicleNumber()));
+  auditChanges.add(new AuditService.Change("Contact Person",h.getContactPerson(),d.contactPerson()));
+  auditChanges.add(new AuditService.Change("Contact Mobile",h.getContactPersonMobile(),d.contactPersonMobile()));
+  auditChanges.add(new AuditService.Change("Transport Note",h.getTransportNote(),d.transportNote()));
+  auditChanges.add(new AuditService.Change("PO No",h.getOrderNo(),d.orderNo()));
+  auditChanges.add(new AuditService.Change("GSTIN",h.getGstin(),d.gstin()));
+  auditChanges.add(new AuditService.Change("Same As Billing",String.valueOf(h.getSameAsBilling()),String.valueOf(d.sameAsBilling())));
+  auditChanges.add(new AuditService.Change("Transporter GSTIN",h.getTransporterGstin(),d.transporterGstin()));
+  if(linesChanged){
+   auditChanges.add(new AuditService.Change("Line Count",String.valueOf(salesLines.findBySalesIdOrderByIdAsc(h.getId()).size()),String.valueOf(d.lines()==null?0:d.lines().size())));
+   auditChanges.addAll(saleLineAuditChanges(h.getId(),d.lines()));
+  }
+  if(chargesChanged){
+   auditChanges.add(new AuditService.Change("Charge Summary",saleChargeSummary(h.getId()),chargeSummary(newCharges)));
+   auditChanges.addAll(saleChargeAuditChanges(h.getId(),newCharges));
+  }
 
   Double paidAmount=h.getPaidAmount(); String paymentStatus=h.getPaymentStatus(); Integer emailSent=h.getEmailSent(); Integer whatsappSent=h.getWhatsappSent();
   String documentStatus=h.getDocumentStatus(),createdAt=h.getCreatedAt(),source=h.getSource(),invoiceType=h.getInvoiceType();
@@ -273,13 +295,38 @@ public class BusinessOperationsService {
   auditChanges.add(new AuditService.Change("GST Type",h.getGstType(),d.gstType()));
   auditChanges.add(new AuditService.Change("Billing GSTIN",h.getBillingGstin(),d.billingGstin()));
   auditChanges.add(new AuditService.Change("Delivery GSTIN",h.getDeliveryGstin(),d.deliveryGstin()));
+  auditChanges.add(new AuditService.Change("Subtotal",String.valueOf(n(h.getSubtotal())),String.valueOf(requestedTotals.itemTaxable())));
+  auditChanges.add(new AuditService.Change("Discount Amount",String.valueOf(n(h.getDiscountAmount())),String.valueOf(requestedTotals.discountAmount())));
+  auditChanges.add(new AuditService.Change("GST Amount",String.valueOf(n(h.getGstAmount())),String.valueOf(requestedTotals.taxAmount())));
   auditChanges.add(new AuditService.Change("Total Amount",String.valueOf(n(h.getTotalAmount())),String.valueOf(requestedTotals.grandTotal())));
   auditChanges.add(new AuditService.Change("Payment Terms",h.getPaymentTerms(),d.paymentTerms()));
   auditChanges.add(new AuditService.Change("Reference No",h.getReferenceNo(),d.referenceNo()));
   auditChanges.add(new AuditService.Change("Remarks",h.getRemarks(),d.remarks()));
   auditChanges.add(new AuditService.Change("Notes",h.getNotes(),d.notes()));
+  auditChanges.add(new AuditService.Change("Due Date",h.getDueDate(),d.dueDate()));
+  auditChanges.add(new AuditService.Change("Warehouse",h.getWarehouse(),d.warehouse()));
+  auditChanges.add(new AuditService.Change("Currency",h.getCurrency(),d.currency()));
+  auditChanges.add(new AuditService.Change("GST Treatment",h.getGstTreatment(),d.gstTreatment()));
+  auditChanges.add(new AuditService.Change("Transporter",h.getTransporter(),d.transporter()));
+  auditChanges.add(new AuditService.Change("LR/AWB No",h.getLrAwbNo(),d.lrAwbNo()));
+  auditChanges.add(new AuditService.Change("Discount Type",h.getDiscountType(),d.discountType()));
+  auditChanges.add(new AuditService.Change("Delivery Date",h.getDeliveryDate(),d.deliveryDate()));
+  auditChanges.add(new AuditService.Change("Transporter GSTIN",h.getTransporterGstin(),d.transporterGstin()));
+  auditChanges.add(new AuditService.Change("Vehicle Number",h.getVehicleNumber(),d.vehicleNumber()));
+  auditChanges.add(new AuditService.Change("Contact Person",h.getContactPerson(),d.contactPerson()));
+  auditChanges.add(new AuditService.Change("Contact Mobile",h.getContactPersonMobile(),d.contactPersonMobile()));
+  auditChanges.add(new AuditService.Change("PO No",h.getOrderNo(),d.orderNo()));
+  auditChanges.add(new AuditService.Change("PO Date",h.getPoDate(),d.poDate()));
+  auditChanges.add(new AuditService.Change("Same As Billing",String.valueOf(h.getSameAsBilling()),String.valueOf(d.sameAsBilling())));
   auditChanges.add(new AuditService.Change("Document Status",h.getDocumentStatus(),"DRAFT".equals(existingStatus)?nextStatus:h.getDocumentStatus()));
-  if(linesChanged)auditChanges.add(new AuditService.Change("Line Items",String.valueOf(purchaseLines.findByPurchaseIdOrderByIdAsc(h.getId()).size()),String.valueOf(d.lines()==null?0:d.lines().size())));
+  if(linesChanged){
+   auditChanges.add(new AuditService.Change("Line Count",String.valueOf(purchaseLines.findByPurchaseIdOrderByIdAsc(h.getId()).size()),String.valueOf(d.lines()==null?0:d.lines().size())));
+   auditChanges.addAll(purchaseLineAuditChanges(h.getId(),d.lines()));
+  }
+  if(chargesChanged){
+   auditChanges.add(new AuditService.Change("Charge Summary",purchaseChargeSummary(h.getId()),chargeSummary(newCharges)));
+   auditChanges.addAll(purchaseChargeAuditChanges(h.getId(),newCharges));
+  }
 
   Double paidAmount=h.getPaidAmount(); String paymentStatus=h.getPaymentStatus(); Integer emailSent=h.getEmailSent();
   String createdAt=h.getCreatedAt(),createdBy=h.getCreatedBy(); String existingDocumentStatus=h.getDocumentStatus();
@@ -351,8 +398,20 @@ public class BusinessOperationsService {
   FinanceRegisterEntity e=finance.findById(req(d.id())).orElseThrow(()->new IllegalArgumentException("Finance entry not found"));
   assertVersion(d.rowVersion(),e.getRowVersion(),"Finance entry "+e.getVoucherNo());
   if(!reconciliationAllocations.findByFinanceEntryIdAndReversedAtIsNull(e.getId()).isEmpty())throw new IllegalStateException("Reconciled finance entries must be reversed from Bank Statement before editing.");
+  List<AuditService.Change> auditChanges=new ArrayList<>();
+  auditChanges.add(new AuditService.Change("Voucher No",e.getVoucherNo(),d.voucherNo()));
+  auditChanges.add(new AuditService.Change("Voucher Type",e.getVoucherType(),d.voucherType()));
+  auditChanges.add(new AuditService.Change("Voucher Date",e.getVoucherDate(),d.voucherDate()));
+  auditChanges.add(new AuditService.Change("Party",e.getPartyId()==null?null:String.valueOf(e.getPartyId()),d.partyId()==null?null:String.valueOf(d.partyId())));
+  auditChanges.add(new AuditService.Change("Category",e.getCategory(),d.category()));
+  auditChanges.add(new AuditService.Change("Reference No",e.getReferenceNo(),d.referenceNo()));
+  auditChanges.add(new AuditService.Change("Amount",String.valueOf(n(e.getAmount())),String.valueOf(d.amount())));
+  auditChanges.add(new AuditService.Change("Payment Mode",e.getPaymentMode(),d.paymentMode()));
+  auditChanges.add(new AuditService.Change("Notes",e.getNotes(),d.notes()));
+  auditChanges.add(new AuditService.Change("Account Name",e.getAccountName(),d.accountName()));
+  auditChanges.add(new AuditService.Change("Bill Attachment",e.getBillPath(),d.billPath()==null?e.getBillPath():d.billPath()));
   Integer reconciled=e.getReconciled();copyFinance(d,e);e.setReconciled(reconciled);
-  finance.flush();audit.log("FINANCE",e.getId(),"UPDATED",e.getVoucherNo());return financeDto(e);
+  finance.flush();audit.logChanges("FINANCE",e.getId(),"UPDATED",e.getVoucherNo(),auditChanges);return financeDto(e);
  }
  @Transactional public void deleteFinance(int id,long rowVersion){
   CurrentUser.requirePermission("BANK_EXPENSE.DELETE","Delete finance entry");FinanceRegisterEntity e=finance.findById(id).orElseThrow(()->new IllegalArgumentException("Finance entry not found"));
@@ -393,6 +452,45 @@ public class BusinessOperationsService {
  }
  @Transactional(readOnly=true) public OperationDtos.FinanceMetrics financeMetrics(){double cr=0,db=0,expenseTotal=0,em=0,ey=0;long bc=0,dc=0,wc=0,ec=0;Map<String,Double> cat=new HashMap<>();YearMonth ym=BusinessClock.currentMonth();int y=BusinessClock.today().getYear();for(var e:finance.findAll()){String t=up(e.getVoucherType());LocalDate d=date(e.getVoucherDate());double a=n(e.getAmount());if(t.equals("BANK DEPOSIT")){cr+=a;dc++;if(d!=null&&YearMonth.from(d).equals(ym))bc++;}else if(t.equals("BANK WITHDRAWAL")){db+=a;wc++;if(d!=null&&YearMonth.from(d).equals(ym))bc++;}else if(t.equals("EXPENSE")){expenseTotal+=a;if(d!=null&&YearMonth.from(d).equals(ym)){em+=a;ec++;}if(d!=null&&d.getYear()==y)ey+=a;String c=blank(e.getCategory())?"Other":e.getCategory();cat.merge(c,a,Double::sum);}}double[] pending=jdbc.query("SELECT COUNT(*),COALESCE(SUM(CASE WHEN credit_amount>0 THEN credit_amount ELSE debit_amount END),0) FROM bank_statement_transaction WHERE UPPER(COALESCE(status,'UNMATCHED')) IN ('UNMATCHED','SUGGESTED','REVIEW')",(r,i)->new double[]{r.getDouble(1),r.getDouble(2)}).getFirst();var top=cat.entrySet().stream().max(Map.Entry.comparingByValue()).orElse(null);return new OperationDtos.FinanceMetrics(cashPosition.cashPosition(),cr,db,bc,dc,wc,em,ey,ec,top==null?"No expenses":top.getKey(),top==null?0:top.getValue(),(long)pending[0],pending[1]);}
 
+ private List<AuditService.Change> saleLineAuditChanges(int salesId,List<OperationDtos.LineDto> incoming){
+  List<SalesLineEntity> old=salesLines.findBySalesIdOrderByIdAsc(salesId);List<OperationDtos.LineDto> next=incoming==null?List.of():incoming;
+  List<AuditService.Change> out=new ArrayList<>();int max=Math.max(old.size(),next.size());
+  for(int i=0;i<max;i++){String p="Line "+(i+1)+" ";SalesLineEntity a=i<old.size()?old.get(i):null;OperationDtos.LineDto b=i<next.size()?next.get(i):null;
+   if(a==null){out.add(new AuditService.Change(p+"Added",null,lineSummary(b)));continue;}if(b==null){out.add(new AuditService.Change(p+"Removed",saleLineSummary(a),null));continue;}
+   addLineChanges(out,p,a.getItemCode(),b.itemCode(),a.getItemDescriptionSnapshot(),b.itemDescription(),a.getCategorySnapshot(),b.itemCategory(),a.getHsnSnapshot(),b.itemHsn(),a.getUnitSnapshot(),b.itemUnit(),a.getItemRemarksSnapshot(),b.itemRemarks(),a.getQuantity(),b.quantity(),a.getRate(),b.rate(),a.getDiscountPercent(),b.discountPercent(),a.getDiscountAmount(),b.discountAmount(),a.getGstPercent(),b.gstPercent(),a.getLineTotal(),b.totalAmount());
+  }return out;
+ }
+ private List<AuditService.Change> purchaseLineAuditChanges(int purchaseId,List<OperationDtos.LineDto> incoming){
+  List<PurchaseLineEntity> old=purchaseLines.findByPurchaseIdOrderByIdAsc(purchaseId);List<OperationDtos.LineDto> next=incoming==null?List.of():incoming;
+  List<AuditService.Change> out=new ArrayList<>();int max=Math.max(old.size(),next.size());
+  for(int i=0;i<max;i++){String p="Line "+(i+1)+" ";PurchaseLineEntity a=i<old.size()?old.get(i):null;OperationDtos.LineDto b=i<next.size()?next.get(i):null;
+   if(a==null){out.add(new AuditService.Change(p+"Added",null,lineSummary(b)));continue;}if(b==null){out.add(new AuditService.Change(p+"Removed",purchaseLineSummary(a),null));continue;}
+   addLineChanges(out,p,a.getItemCode(),b.itemCode(),a.getItemDescriptionSnapshot(),b.itemDescription(),a.getCategorySnapshot(),b.itemCategory(),a.getHsnSnapshot(),b.itemHsn(),a.getUnitSnapshot(),b.itemUnit(),a.getItemRemarksSnapshot(),b.itemRemarks(),a.getQuantity(),b.quantity(),a.getRate(),b.rate(),a.getDiscountPercent(),b.discountPercent(),a.getDiscountAmount(),b.discountAmount(),a.getGstPercent(),b.gstPercent(),a.getLineTotal(),b.totalAmount());
+  }return out;
+ }
+ private static void addLineChanges(List<AuditService.Change> out,String p,String oldCode,String newCode,String oldDescription,String newDescription,String oldCategory,String newCategory,String oldHsn,String newHsn,String oldUnit,String newUnit,String oldRemarks,String newRemarks,Number oldQty,double newQty,Number oldRate,double newRate,Number oldDiscountPercent,double newDiscountPercent,Number oldDiscountAmount,double newDiscountAmount,Number oldGst,double newGst,Number oldTotal,double newTotal){
+  out.add(new AuditService.Change(p+"Item",oldCode,newCode));out.add(new AuditService.Change(p+"Description",oldDescription,newDescription));out.add(new AuditService.Change(p+"Category",oldCategory,newCategory));out.add(new AuditService.Change(p+"HSN",oldHsn,newHsn));out.add(new AuditService.Change(p+"Unit",oldUnit,newUnit));out.add(new AuditService.Change(p+"Remarks",oldRemarks,newRemarks));out.add(new AuditService.Change(p+"Quantity",String.valueOf(n(oldQty)),String.valueOf(newQty)));out.add(new AuditService.Change(p+"Rate",String.valueOf(n(oldRate)),String.valueOf(newRate)));out.add(new AuditService.Change(p+"Discount %",String.valueOf(n(oldDiscountPercent)),String.valueOf(newDiscountPercent)));out.add(new AuditService.Change(p+"Discount Amount",String.valueOf(n(oldDiscountAmount)),String.valueOf(newDiscountAmount)));out.add(new AuditService.Change(p+"GST %",String.valueOf(n(oldGst)),String.valueOf(newGst)));out.add(new AuditService.Change(p+"Total",String.valueOf(n(oldTotal)),String.valueOf(newTotal)));
+ }
+ private List<AuditService.Change> saleChargeAuditChanges(int salesId,List<OperationDtos.ChargeDto> incoming){
+  List<SalesChargeEntity> old=salesCharges.findBySalesIdOrderBySequenceNoAscIdAsc(salesId);return chargeAuditChanges(old.stream().map(c->new ChargeState(c.getChargeName(),n(c.getAmount()),Boolean.TRUE.equals(c.getTaxable()),n(c.getGstPercent()))).toList(),incoming);
+ }
+ private List<AuditService.Change> purchaseChargeAuditChanges(int purchaseId,List<OperationDtos.ChargeDto> incoming){
+  List<PurchaseChargeEntity> old=purchaseCharges.findByPurchaseIdOrderBySequenceNoAscIdAsc(purchaseId);return chargeAuditChanges(old.stream().map(c->new ChargeState(c.getChargeName(),n(c.getAmount()),Boolean.TRUE.equals(c.getTaxable()),n(c.getGstPercent()))).toList(),incoming);
+ }
+ private static List<AuditService.Change> chargeAuditChanges(List<ChargeState> old,List<OperationDtos.ChargeDto> incoming){
+  List<OperationDtos.ChargeDto> next=incoming==null?List.of():incoming;List<AuditService.Change> out=new ArrayList<>();int max=Math.max(old.size(),next.size());
+  for(int i=0;i<max;i++){String p="Charge "+(i+1)+" ";ChargeState a=i<old.size()?old.get(i):null;OperationDtos.ChargeDto b=i<next.size()?next.get(i):null;
+   if(a==null){out.add(new AuditService.Change(p+"Added",null,chargeLineSummary(b)));continue;}if(b==null){out.add(new AuditService.Change(p+"Removed",chargeLineSummary(a),null));continue;}
+   out.add(new AuditService.Change(p+"Type",a.type(),b.chargeType()));out.add(new AuditService.Change(p+"Amount",String.valueOf(a.amount()),String.valueOf(b.amount())));out.add(new AuditService.Change(p+"Taxable",String.valueOf(a.taxable()),String.valueOf(b.taxable())));out.add(new AuditService.Change(p+"GST %",String.valueOf(a.gst()),String.valueOf(b.taxable()?b.gstPercent():0d)));
+  }return out;
+ }
+ private static String saleLineSummary(SalesLineEntity a){return a==null?null:a.getItemCode()+" x "+n(a.getQuantity())+" @ "+n(a.getRate())+" GST "+n(a.getGstPercent())+"% = "+n(a.getLineTotal());}
+ private static String purchaseLineSummary(PurchaseLineEntity a){return a==null?null:a.getItemCode()+" x "+n(a.getQuantity())+" @ "+n(a.getRate())+" GST "+n(a.getGstPercent())+"% = "+n(a.getLineTotal());}
+ private static String lineSummary(OperationDtos.LineDto a){return a==null?null:a.itemCode()+" x "+a.quantity()+" @ "+a.rate()+" GST "+a.gstPercent()+"% = "+a.totalAmount();}
+ private static String chargeLineSummary(OperationDtos.ChargeDto c){return c==null?null:c.chargeType()+"="+c.amount()+(c.taxable()?" @ GST "+c.gstPercent()+"%":"");}
+ private static String chargeLineSummary(ChargeState c){return c==null?null:c.type()+"="+c.amount()+(c.taxable()?" @ GST "+c.gst()+"%":"");}
+ private record ChargeState(String type,double amount,boolean taxable,double gst){}
+
  private boolean sameSaleLines(int salesId,List<OperationDtos.LineDto> incoming){
   List<SalesLineEntity> existing=salesLines.findBySalesIdOrderByIdAsc(salesId);
   List<OperationDtos.LineDto> requested=incoming==null?List.of():incoming;
@@ -413,6 +511,9 @@ public class BusinessOperationsService {
   }
   return true;
  }
+ private String saleChargeSummary(int salesId){return salesCharges.findBySalesIdOrderBySequenceNoAscIdAsc(salesId).stream().map(c->up(c.getChargeName())+"="+money(n(c.getAmount()))+(Boolean.TRUE.equals(c.getTaxable())?" @ GST "+money(n(c.getGstPercent()))+"%":"")).collect(java.util.stream.Collectors.joining("; "));}
+ private String purchaseChargeSummary(int purchaseId){return purchaseCharges.findByPurchaseIdOrderBySequenceNoAscIdAsc(purchaseId).stream().map(c->up(c.getChargeName())+"="+money(n(c.getAmount()))+(Boolean.TRUE.equals(c.getTaxable())?" @ GST "+money(n(c.getGstPercent()))+"%":"")).collect(java.util.stream.Collectors.joining("; "));}
+ private static String chargeSummary(List<OperationDtos.ChargeDto> charges){return (charges==null?List.<OperationDtos.ChargeDto>of():charges).stream().filter(Objects::nonNull).map(c->up(c.chargeType())+"="+money(c.amount())+(c.taxable()?" @ GST "+money(c.gstPercent())+"%":"")).collect(java.util.stream.Collectors.joining("; "));}
  private boolean samePurchaseCharges(int purchaseId,List<OperationDtos.ChargeDto> incoming){
   List<PurchaseChargeEntity> existing=purchaseCharges.findByPurchaseIdOrderBySequenceNoAscIdAsc(purchaseId);
   if(existing.size()!=incoming.size())return false;
@@ -472,7 +573,7 @@ public class BusinessOperationsService {
  private void validateFinance(OperationDtos.FinanceDto d){if(d==null)throw new IllegalArgumentException("Finance entry is required");if(!Double.isFinite(d.amount())||d.amount()<=0)throw new IllegalArgumentException("Finance amount must be a finite number greater than zero");validateDocumentDate(d.voucherDate(),"Voucher date");}
  private void changeStock(String code,double delta,boolean enforce){changeStockCost(code,delta,enforce,currentAverageCost(code,0),"ADJUSTMENT",null);}
  private void changeStockCost(String code,double delta,boolean enforce,double unitCost,String movementType,Integer referenceId){
-  if(code==null||code.isBlank())throw new IllegalArgumentException("Item code is required");if(!Double.isFinite(delta))throw new IllegalArgumentException("Stock quantity must be finite");delta=DocumentCalculationEngine.quantity(Math.abs(delta))*Math.signum(delta);unitCost=DocumentCalculationEngine.unitCost(Math.max(0,unitCost));ItemEntity i=items.findByItemCodeForUpdate(code).orElseThrow(()->new IllegalArgumentException("Item not found: "+code));double now=n(i.getOpeningStock()),reserved=Math.max(0,n(i.getReservedStock()));double next=now+delta;if(enforce&&delta<0&&next+0.0001<reserved)throw new IllegalStateException("Insufficient available stock for item "+code+". On hand: "+DocumentCalculationEngine.money(now)+", reserved: "+DocumentCalculationEngine.money(reserved));if(enforce&&next<-.0001)throw new IllegalStateException("Insufficient stock for item "+code);next=Math.max(0,next);double cost=Math.max(0,Double.isFinite(unitCost)?unitCost:0);jdbc.update("INSERT INTO inventory_cost_state(item_code,quantity,average_unit_cost,updated_at) VALUES(?,?,?,?) ON CONFLICT (item_code) DO NOTHING",code,now,cost>0?cost:n(i.getPurchasePrice()),BusinessClock.nowUtcText());List<double[]> state=jdbc.query("SELECT quantity,average_unit_cost FROM inventory_cost_state WHERE item_code=? FOR UPDATE",(r,x)->new double[]{r.getDouble(1),r.getDouble(2)},code);double oldQty=state.isEmpty()?now:state.getFirst()[0],oldAvg=state.isEmpty()?cost:state.getFirst()[1];if(Math.abs(oldQty-now)>.01)oldQty=now;double effectiveCost=cost>0?cost:oldAvg,newAvg=oldAvg;if(delta>0&&next>.000001)newAvg=((oldQty*oldAvg)+(delta*effectiveCost))/next;else if(next<=.000001)newAvg=oldAvg;jdbc.update("UPDATE inventory_cost_state SET quantity=?,average_unit_cost=?,updated_at=? WHERE item_code=?",next,cost(newAvg),BusinessClock.nowUtcText(),code);jdbc.update("INSERT INTO inventory_cost_ledger(item_code,movement_type,reference_id,quantity_change,unit_cost,value_change,created_at) VALUES(?,?,?,?,?,?,?)",code,movementType,referenceId,DocumentCalculationEngine.quantity(Math.abs(delta))*Math.signum(delta),cost(effectiveCost),money(delta*effectiveCost),BusinessClock.nowUtcText());i.setOpeningStock(next);
+  if(code==null||code.isBlank())throw new IllegalArgumentException("Item code is required");if(!Double.isFinite(delta))throw new IllegalArgumentException("Stock quantity must be finite");delta=DocumentCalculationEngine.quantity(Math.abs(delta))*Math.signum(delta);unitCost=DocumentCalculationEngine.unitCost(Math.max(0,unitCost));ItemEntity i=items.findByItemCodeForUpdate(code).orElseThrow(()->new IllegalArgumentException("Item not found: "+code));double now=n(i.getOpeningStock());double next=now+delta;if(enforce&&next<-.0001)throw new IllegalStateException("Insufficient stock for item "+code);next=Math.max(0,next);double cost=Math.max(0,Double.isFinite(unitCost)?unitCost:0);jdbc.update("INSERT INTO inventory_cost_state(item_code,quantity,average_unit_cost,updated_at) VALUES(?,?,?,?) ON CONFLICT (item_code) DO NOTHING",code,now,cost>0?cost:n(i.getPurchasePrice()),BusinessClock.nowUtcText());List<double[]> state=jdbc.query("SELECT quantity,average_unit_cost FROM inventory_cost_state WHERE item_code=? FOR UPDATE",(r,x)->new double[]{r.getDouble(1),r.getDouble(2)},code);double oldQty=state.isEmpty()?now:state.getFirst()[0],oldAvg=state.isEmpty()?cost:state.getFirst()[1];if(Math.abs(oldQty-now)>.01)oldQty=now;double effectiveCost=cost>0?cost:oldAvg,newAvg=oldAvg;if(delta>0&&next>.000001)newAvg=((oldQty*oldAvg)+(delta*effectiveCost))/next;else if(next<=.000001)newAvg=oldAvg;jdbc.update("UPDATE inventory_cost_state SET quantity=?,average_unit_cost=?,updated_at=? WHERE item_code=?",next,cost(newAvg),BusinessClock.nowUtcText(),code);jdbc.update("INSERT INTO inventory_cost_ledger(item_code,movement_type,reference_id,quantity_change,unit_cost,value_change,created_at) VALUES(?,?,?,?,?,?,?)",code,movementType,referenceId,DocumentCalculationEngine.quantity(Math.abs(delta))*Math.signum(delta),cost(effectiveCost),money(delta*effectiveCost),BusinessClock.nowUtcText());i.setOpeningStock(next);
  }
  private double currentAverageCost(String code,double fallback){try{Double v=jdbc.queryForObject("SELECT average_unit_cost FROM inventory_cost_state WHERE item_code=?",Double.class,code);if(v!=null&&v>=0)return v;}catch(Exception ignored){}return Math.max(0,fallback);}
  private static double purchaseUnitCost(PurchaseLineEntity l){double q=n(l.getQuantity());if(q<=0)return 0;double gross=n(l.getRate())*q,discount=n(l.getDiscountAmount());return DocumentCalculationEngine.unitCost(Math.max(0,gross-discount)/q);}
