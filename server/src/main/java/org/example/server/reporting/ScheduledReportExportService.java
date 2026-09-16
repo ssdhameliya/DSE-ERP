@@ -49,6 +49,7 @@ import static org.example.server.reporting.ReportingDtos.*;
  */
 @Service
 public final class ScheduledReportExportService {
+    static { org.example.util.ITextRuntimeSupport.configure(); }
     private static final DeviceRgb NAVY = new DeviceRgb(15,45,77);
     private static final DeviceRgb BLUE = new DeviceRgb(32,105,210);
     private static final DeviceRgb PALE = new DeviceRgb(239,245,252);

@@ -62,6 +62,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * selected a different action.</p>
  */
 public final class ProfessionalDocumentRenderer {
+    static { org.example.util.ITextRuntimeSupport.configure(); }
+
     public enum Kind {
         SALES_INVOICE,
         PURCHASE_INVOICE,
@@ -267,6 +269,9 @@ public final class ProfessionalDocumentRenderer {
                 .add(new Text(label + ": ").setBold().setFontColor(JASVI_NAVY))
                 .add(new Text(pdfValue(value))).setFontSize(6.4f).setMargin(0))
             .setPadding(5)
+            // Preserve the transport strip exactly as a bordered ERP section.
+            // Do not erase/repaint structural borders merely to hide visual spacing:
+            // the Studio/default paths must keep the authoritative artwork intact.
             .setBorder(new SolidBorder(JASVI_BLUE, .5f)));
     }
 

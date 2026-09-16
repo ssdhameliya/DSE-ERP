@@ -56,7 +56,7 @@ class ArchitectureRefactorPolicyTest {
         Item incoming = new Item(); incoming.setOpeningStock(999); incoming.setDescription("");
         ImportMergePolicy.mergeItemNonBlank(incoming, existing);
         assertEquals(7, incoming.getId()); assertEquals(4, incoming.getRowVersion());
-        assertEquals(55, incoming.getOpeningStock(), 0.001); assertEquals(8, incoming.getReservedStock(), 0.001);
+        assertEquals(55, incoming.getOpeningStock(), 0.001); assertEquals(0, incoming.getReservedStock(), 0.001);
         assertEquals("Existing", incoming.getDescription());
     }
 

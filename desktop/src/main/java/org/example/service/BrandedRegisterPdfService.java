@@ -21,6 +21,8 @@ import java.util.List;
 
 /** Creates consistent company-branded PDF register exports. */
 public final class BrandedRegisterPdfService {
+    static { org.example.util.ITextRuntimeSupport.configure(); }
+
     private static final DeviceRgb BLUE = new DeviceRgb(5, 79, 180);
     private static final DeviceRgb PALE_BLUE = new DeviceRgb(235, 244, 255);
 

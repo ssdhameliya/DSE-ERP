@@ -44,13 +44,34 @@ public final class ActivityTimelineDialog {
 
         root.getChildren().add(summary(rows));
         HBox tabs=new HBox(7);tabs.setAlignment(Pos.CENTER_LEFT);
-        for(String t:List.of("All","Changes","Financial","Documents","Communication")){Label l=new Label(t);l.getStyleClass().addAll("audit-filter-chip",t.equals("All")?"audit-filter-chip-active":"audit-filter-chip-idle");tabs.getChildren().add(l);}Region grow=new Region();HBox.setHgrow(grow,Priority.ALWAYS);Label scope=new Label("Screen scope • this record only");scope.getStyleClass().add("audit-subtitle");tabs.getChildren().addAll(grow,scope);root.getChildren().add(tabs);
-
         VBox events=new VBox(8);
-        if(rows==null||rows.isEmpty()){Label empty=new Label("No audit event has been recorded for this record yet.");empty.getStyleClass().add("muted-label");events.getChildren().add(empty);}else for(var row:rows)events.getChildren().add(eventCard(row));
+        List<AuditApiClient.EventRow> sourceRows=rows==null?List.of():List.copyOf(rows);
+        for(String t:List.of("All","Changes","Financial","Documents","Communication")){
+            Label l=new Label(t); l.getStyleClass().addAll("audit-filter-chip",t.equals("All")?"audit-filter-chip-active":"audit-filter-chip-idle");
+            l.setOnMouseClicked(event->{
+                for(Node n:tabs.getChildren()) if(n instanceof Label chip && chip.getStyleClass().contains("audit-filter-chip")){chip.getStyleClass().removeAll("audit-filter-chip-active","audit-filter-chip-idle");chip.getStyleClass().add(chip==l?"audit-filter-chip-active":"audit-filter-chip-idle");}
+                renderEvents(events,sourceRows,t);
+            });
+            tabs.getChildren().add(l);
+        }
+        Region grow=new Region();HBox.setHgrow(grow,Priority.ALWAYS);Label scope=new Label("Screen scope • this record only");scope.getStyleClass().add("audit-subtitle");tabs.getChildren().addAll(grow,scope);root.getChildren().add(tabs);
+        renderEvents(events,sourceRows,"All");
         ScrollPane scroll=new ScrollPane(events);scroll.setFitToWidth(true);scroll.setPrefViewportHeight(500);scroll.getStyleClass().add("audit-scroll");root.getChildren().add(scroll);
         Label note=new Label("Historical events show only values captured by the version that created them. New Audit Trail events store field-level old → new values.");note.setWrapText(true);note.getStyleClass().add("audit-legacy-note");root.getChildren().add(note);
         dialog.getDialogPane().setContent(root);dialog.showAndWait();
+    }
+
+
+    private static void renderEvents(VBox events,List<AuditApiClient.EventRow> rows,String filter){
+        events.getChildren().clear();
+        List<AuditApiClient.EventRow> filtered=rows.stream().filter(r->matchesFilter(r,filter)).toList();
+        if(filtered.isEmpty()){Label empty=new Label("No audit events match this filter.");empty.getStyleClass().add("muted-label");events.getChildren().add(empty);return;}
+        for(var row:filtered)events.getChildren().add(eventCard(row));
+    }
+    private static boolean matchesFilter(AuditApiClient.EventRow row,String filter){
+        if(filter==null||"All".equals(filter))return true;
+        String category=safe(row.category()).toUpperCase(Locale.ROOT);
+        return switch(filter){case "Changes"->"BUSINESS_CHANGE".equals(category)||"LIFECYCLE".equals(category);case "Financial"->"FINANCIAL".equals(category);case "Documents"->"DOCUMENT".equals(category);case "Communication"->"COMMUNICATION".equals(category);default->true;};
     }
 
     private static Node summary(List<AuditApiClient.EventRow> rows){

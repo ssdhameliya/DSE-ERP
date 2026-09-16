@@ -548,6 +548,9 @@ public class SalesController {
         itemSearchIndex.clear();
         allItems.forEach(item -> itemSearchIndex.put(item, buildItemSearchHaystack(item)));
 
+        String requestedItemCode = editingSale == null && duplicateSource == null ? ItemTransactionContext.consumeSale() : null;
+        if (requestedItemCode != null && !requestedItemCode.isBlank()) allItems.stream().filter(i -> requestedItemCode.equalsIgnoreCase(i.getItemCode())).findFirst().ifPresent(this::selectItem);
+
         Sales source = editingSale != null ? editingSale : duplicateSource;
         Integer requestedCustomerId = source == null ? CustomerSaleContext.consume() : null;
         if (source == null) {
@@ -805,7 +808,7 @@ public class SalesController {
         boolean show = item != null;
         stockPositionBar.setVisible(show); stockPositionBar.setManaged(show);
         if (!show) return;
-        double onHand=Math.max(0,item.getOpeningStock()), reserved=Math.max(0,item.getReservedStock()), available=Math.max(0,onHand-reserved), requested=0;
+        double onHand=Math.max(0,item.getOpeningStock()), reserved=0, available=onHand, requested=0;
         try { requested=Double.parseDouble(txtQuantity==null?"0":txtQuantity.getText().trim()); } catch(Exception ignored) { }
         double after=available-Math.max(0,requested);
         lblStockOnHand.setText(qtyText(onHand)); lblStockReserved.setText(qtyText(reserved)); lblStockAvailable.setText(qtyText(available)); lblStockAfterSale.setText(qtyText(after));
@@ -1795,9 +1798,9 @@ public class SalesController {
             double alreadyOnInvoice = tableLines.getItems().stream()
                 .filter(line -> line != editingLine && item.getItemCode().equals(line.getItemCode()))
                 .mapToDouble(SalesLine::getQuantity).sum();
-            double freeToPromise=Math.max(0,item.getOpeningStock()-item.getReservedStock());
+            double freeToPromise=Math.max(0,item.getOpeningStock());
             if (qty + alreadyOnInvoice > freeToPromise + 0.0001) {
-                throw new IllegalArgumentException("Only " + qtyText(freeToPromise) + " free-to-promise units of " + item.getDescription() + " are currently available (On hand " + qtyText(item.getOpeningStock()) + ", Reserved " + qtyText(item.getReservedStock()) + ")");
+                throw new IllegalArgumentException("Only " + qtyText(freeToPromise) + " units of " + item.getDescription() + " are currently available (On hand " + qtyText(item.getOpeningStock()) + ")");
             }
 
 

@@ -1,0 +1,1 @@
+package org.example.controller;import org.example.model.Party;public final class Supplier360Context{private static Party selected;private Supplier360Context(){}public static synchronized void select(Party p){selected=p;}public static synchronized Party consume(){Party p=selected;selected=null;return p;}}

@@ -80,6 +80,14 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- iText/PDFBox transitively use SLF4J. Bind it explicitly so JDK 25 runs do not
+             fall back to the warning-emitting NOP discovery path. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- PDFBox reporting -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>

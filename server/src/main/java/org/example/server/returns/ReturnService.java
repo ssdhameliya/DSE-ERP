@@ -269,8 +269,10 @@ public class ReturnService {
         }
         if (!Set.of("reason", "notes").contains(requestedField)) throw new IllegalArgumentException("Return status is lifecycle-managed and cannot be edited directly.");
         if (RETURN_DOCUMENT_TERMINAL.contains(currentStateForUpdate(no))) throw new IllegalStateException("Rejected, cancelled or deleted Returns cannot be edited.");
+        String oldValue = jdbc.queryForObject("SELECT COALESCE(MAX(" + requestedField + "),'') FROM return_register WHERE return_no=?", String.class, no);
         jdbc.update("UPDATE return_register SET " + requestedField + "=?,updated_at=? WHERE return_no=?", value, BusinessClock.nowUtcText(), no);
-        audit.log(returnEntityType(no), returnAuditId(no), "UPDATED", no + " • " + requestedField);
+        audit.logChange(returnEntityType(no), returnAuditId(no), "UPDATED", no + " • " + requestedField,
+                "reason".equals(requestedField) ? "Reason" : "Notes", oldValue, value);
     }
 
     @Transactional

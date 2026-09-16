@@ -448,16 +448,7 @@ public class PdfStudioController implements ScreenLifecycle {
             return;
         }
         checkpoint();
-        e.setFieldKey(selectedBindingKey);
-        if (field.image()) {
-            e.setType(ElementType.IMAGE_FIELD);
-            e.setText(field.label());
-            e.setFillEnabled(false);
-            e.setStrokeEnabled(false);
-        } else {
-            if (e.getType() == ElementType.TEXT) e.setType(ElementType.FIELD);
-            e.setText("{{" + selectedBindingKey + "}}");
-        }
+        ManualTemplateMappingService.mapField(e, field);
         autosave();
         TemplateMappingValidationService.Result after = TemplateMappingValidationService.evaluate(template);
         populateInspector(e);

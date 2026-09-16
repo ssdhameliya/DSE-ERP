@@ -24,7 +24,7 @@ public class InsightsService {
    long[] master=dashboardSection("master totals",()->jdbc.query("""
      SELECT
        (SELECT COUNT(*) FROM item_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t')),
-       (SELECT COUNT(*) FROM item_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') AND COALESCE(opening_stock,0)-COALESCE(reserved_stock,0)<=COALESCE(minimum_stock,0)),
+       (SELECT COUNT(*) FROM item_master WHERE COALESCE(is_active::text,'1') IN ('1','true','t') AND COALESCE(opening_stock,0)<=COALESCE(minimum_stock,0)),
        (SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t'))
      """,(r,i)->new long[]{r.getLong(1),r.getLong(2),r.getLong(3)}).getFirst(),new long[]{0,0,0});
 
@@ -129,8 +129,8 @@ public class InsightsService {
 
    String stockExtra=itemFilter.isBlank()?"":" AND (COALESCE(i.description,i.item_code)=? OR i.item_code=?)";Object[] stockArgs=itemFilter.isBlank()?new Object[]{}:new Object[]{itemFilter,itemFilter};
    double stock=inventorySection?n("SELECT COALESCE(SUM(COALESCE(s.quantity,i.opening_stock,0)*COALESCE(s.average_unit_cost,i.purchase_price,0)),0) FROM item_master i LEFT JOIN inventory_cost_state s ON s.item_code=i.item_code WHERE COALESCE(i.is_active::text,'1') IN ('1','true','t')"+stockExtra,stockArgs):0;
-   long low=inventorySection?l("SELECT COUNT(*) FROM item_master i WHERE COALESCE(i.is_active::text,'1') IN ('1','true','t') AND COALESCE(i.opening_stock,0)-COALESCE(i.reserved_stock,0)<=COALESCE(i.minimum_stock,0)"+stockExtra,stockArgs):0;
-   long out=inventorySection?l("SELECT COUNT(*) FROM item_master i WHERE COALESCE(i.is_active::text,'1') IN ('1','true','t') AND COALESCE(i.opening_stock,0)-COALESCE(i.reserved_stock,0)<=0"+stockExtra,stockArgs):0;
+   long low=inventorySection?l("SELECT COUNT(*) FROM item_master i WHERE COALESCE(i.is_active::text,'1') IN ('1','true','t') AND COALESCE(i.opening_stock,0)<=COALESCE(i.minimum_stock,0)"+stockExtra,stockArgs):0;
+   long out=inventorySection?l("SELECT COUNT(*) FROM item_master i WHERE COALESCE(i.is_active::text,'1') IN ('1','true','t') AND COALESCE(i.opening_stock,0)<=0"+stockExtra,stockArgs):0;
    long itemCount=inventorySection?l("SELECT COUNT(*) FROM item_master i WHERE COALESCE(i.is_active::text,'1') IN ('1','true','t')"+stockExtra,stockArgs):0;
    long customers=l("SELECT COUNT(*) FROM party_master WHERE party_type='CUSTOMER' AND COALESCE(is_active::text,'1') IN ('1','true','t')"+(partyFilter.isBlank()?"":" AND name=?"),partyFilter.isBlank()?new Object[]{}:new Object[]{partyFilter});
 

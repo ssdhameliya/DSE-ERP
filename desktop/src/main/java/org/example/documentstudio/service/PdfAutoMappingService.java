@@ -35,8 +35,8 @@ public final class PdfAutoMappingService {
             // Sales
             Map.entry("sales.number", List.of("invoice no", "invoice number", "sales invoice no")),
             Map.entry("sales.date", List.of("invoice date", "sales date")),
-            Map.entry("sales.referenceNo", List.of("po no", "purchase order no", "customer po", "reference no")),
-            Map.entry("sales.orderNo", List.of("order no", "sales order no")),
+            Map.entry("sales.referenceNo", List.of("reference no", "reference number")),
+            Map.entry("sales.orderNo", List.of("po no", "purchase order no", "customer po", "customer po no", "order no")),
             Map.entry("sales.poDate", List.of("po date", "purchase order date")),
             Map.entry("sales.billingAddress", List.of("billing address", "bill to")),
             Map.entry("sales.deliveryAddress", List.of("delivery address", "ship to", "shipping address")),
