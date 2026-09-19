@@ -1,5 +1,5 @@
 package org.example.server.support;
-import org.example.server.persistence.JpaNativeRepository;import org.example.server.audit.AuditService;import org.example.server.insights.BusinessKpiPolicy;import org.example.server.operations.BusinessOperationsService;import org.example.server.security.CurrentUser;import org.example.server.util.BusinessClock;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;import org.springframework.beans.factory.annotation.Value;import java.time.LocalDate;import java.util.*;import java.nio.file.*;import java.io.IOException;
+import org.example.server.persistence.JpaNativeRepository;import org.example.server.web.AttachmentUnavailableException;import org.example.server.audit.AuditService;import org.example.server.insights.BusinessKpiPolicy;import org.example.server.operations.BusinessOperationsService;import org.example.server.security.CurrentUser;import org.example.server.util.BusinessClock;import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;import org.springframework.beans.factory.annotation.Value;import java.time.LocalDate;import java.util.*;import java.nio.file.*;import java.io.IOException;
 @Service public class SupportService {
  @Value("${dse.workspace.path:}") private String workspacePath;
  private final JpaNativeRepository jdbc; private final PaymentIntegrityService paymentIntegrity; private final BusinessOperationsService operations; private final AuditService audit; public SupportService(JpaNativeRepository jdbc,PaymentIntegrityService paymentIntegrity,BusinessOperationsService operations,AuditService audit){this.jdbc=jdbc;this.paymentIntegrity=paymentIntegrity;this.operations=operations;this.audit=audit;}
@@ -81,10 +81,34 @@ import org.example.server.persistence.JpaNativeRepository;import org.example.ser
  private void requireReturnRefundAccess(int id,boolean write){List<String>x=jdbc.query("SELECT COALESCE(MAX(r.return_type),'') FROM return_refund rr JOIN return_register r ON r.return_no=rr.return_no WHERE rr.id=?",(rs,i)->rs.getString(1),id);if(x.isEmpty()||x.getFirst()==null||x.getFirst().isBlank())throw new IllegalArgumentException("Return refund not found");boolean purchase=x.getFirst().toUpperCase(Locale.ROOT).startsWith("PURCHASE");CurrentUser.requirePermission(purchase?(write?"PURCHASE.EDIT":"PURCHASE.VIEW"):(write?"SALES.EDIT":"SALES.VIEW"),write?"Modify return refund proof":"View return refund proof");}
  private String returnFolder(String no){String type=jdbc.queryForObject("SELECT MAX(return_type) FROM return_register WHERE return_no=?",String.class,no);return type!=null&&type.toUpperCase(Locale.ROOT).startsWith("PURCHASE")?"PurchaseReturns":"SalesReturns";}
  private String storeManagedAttachment(String module,String key,String fileName,byte[] data){if(data==null||data.length==0)throw new IllegalArgumentException("Attachment file is empty");if(data.length>25*1024*1024)throw new IllegalArgumentException("Attachment is larger than 25 MB");try{Path root=attachmentRoot();Path folder=root.resolve(safeSegment(module)).resolve(safeSegment(key)).normalize();if(!folder.startsWith(root))throw new IllegalArgumentException("Invalid attachment folder");Files.createDirectories(folder);String safe=safeFileName(fileName);Path target=folder.resolve(System.currentTimeMillis()+"-"+safe).normalize();if(!target.startsWith(folder))throw new IllegalArgumentException("Invalid attachment filename");Files.write(target,data,StandardOpenOption.CREATE_NEW);return workspaceRoot().relativize(target).toString();}catch(IOException ex){throw new IllegalStateException("Unable to store attachment",ex);}}
- private SupportDtos.AttachmentFile readAttachment(String reference){if(reference==null||reference.isBlank())throw new IllegalArgumentException("No attachment is available");try{Path path=resolveAttachmentReference(reference);if(path==null||!Files.isRegularFile(path))throw new IllegalArgumentException("Attachment file is not available");return new SupportDtos.AttachmentFile(path.getFileName().toString(),Files.readAllBytes(path));}catch(IOException ex){throw new IllegalArgumentException("Attachment exists but could not be read from managed storage. Check the server Attachments workspace permissions.",ex);}}
+ private SupportDtos.AttachmentFile readAttachment(String reference){if(reference==null||reference.isBlank())throw new AttachmentUnavailableException("No proof is attached to this payment.");try{Path path=resolveAttachmentReference(reference);if(path==null||!Files.isRegularFile(path))throw new AttachmentUnavailableException("The payment proof is no longer available in the server Attachments workspace.");return new SupportDtos.AttachmentFile(path.getFileName().toString(),Files.readAllBytes(path));}catch(IOException ex){throw new AttachmentUnavailableException("The payment proof exists but could not be read from managed storage. Check the server Attachments workspace permissions.");}}
  private Path workspaceRoot(){if(workspacePath==null||workspacePath.isBlank())throw new IllegalStateException("Server workspace path is not configured");return Path.of(workspacePath).toAbsolutePath().normalize();}
  private Path attachmentRoot(){return workspaceRoot().resolve("Attachments").normalize();}
- private Path resolveAttachmentReference(String reference){try{Path p=Path.of(reference);Path resolved=p.isAbsolute()?p.toAbsolutePath().normalize():workspaceRoot().resolve(p).normalize();Path root=attachmentRoot().toAbsolutePath().normalize();return resolved.startsWith(root)?resolved:null;}catch(Exception ex){return null;}}
+ private Path resolveAttachmentReference(String reference){
+  if(reference==null||reference.isBlank())return null;
+  try{
+   Path root=attachmentRoot().toAbsolutePath().normalize();
+   String portable=reference.trim().replace('\\','/');
+   String lower=portable.toLowerCase(Locale.ROOT);
+   int marker=lower.indexOf("attachments/");
+   // Historical Windows/other-workstation absolute references are safely rebound only
+   // from their managed attachment suffix into this server's Attachments root.
+   if(marker>=0){
+    String suffix=portable.substring(marker+"attachments/".length());
+    Path rebound=root.resolve(suffix).normalize();
+    return rebound.startsWith(root)?rebound:null;
+   }
+   int paymentMarker=lower.indexOf("paymentproofs/");
+   if(paymentMarker>=0){
+    String suffix=portable.substring(paymentMarker+"paymentproofs/".length());
+    Path rebound=root.resolve("PaymentProofs").resolve(suffix).normalize();
+    return rebound.startsWith(root)?rebound:null;
+   }
+   Path candidate=Path.of(portable);
+   Path resolved=candidate.isAbsolute()?candidate.toAbsolutePath().normalize():workspaceRoot().resolve(candidate).normalize();
+   return resolved.startsWith(root)?resolved:null;
+  }catch(Exception ex){return null;}
+ }
  private void deleteSupersededManagedReference(String oldRef,String newRef){if(oldRef==null||oldRef.isBlank()||Objects.equals(oldRef,newRef))return;deleteManagedReferenceQuietly(oldRef);}
  private void deleteManagedReferenceQuietly(String ref){try{Path p=resolveAttachmentReference(ref);Path root=attachmentRoot().toAbsolutePath().normalize();if(p!=null&&p.toAbsolutePath().normalize().startsWith(root))Files.deleteIfExists(p);}catch(Exception ignored){}}
  private void deleteReferenceQuietly(String ref){deleteManagedReferenceQuietly(ref);}

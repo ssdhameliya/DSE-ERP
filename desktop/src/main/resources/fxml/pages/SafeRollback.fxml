@@ -15,7 +15,7 @@
                         <StackPane fx:id="headerIconHolder" styleClass="safe-rollback-header-icon"/>
                         <VBox spacing="4">
                             <Label text="Safe Rollback" styleClass="safe-rollback-title"/>
-                            <Label text="Return to a previous DSE ERP application version while preserving the current production database and workspace data."
+                            <Label text="Return to a previous application version while preserving the current production database and workspace data."
                                    wrapText="true" styleClass="safe-rollback-subtitle"/>
                         </VBox>
                         <Region HBox.hgrow="ALWAYS"/>

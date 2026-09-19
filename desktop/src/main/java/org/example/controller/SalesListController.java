@@ -301,74 +301,93 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
 
     private void configurePaging(){cmbPageSize.getItems().setAll(10,25,50,100);cmbPageSize.setValue(25);cmbPageSize.valueProperty().addListener((o,a,b)->{pageState.reset();reloadPage(false);});}
     private void configureActions(){
+        // One lightweight button per visible row and one shared menu for the whole register.
+        // Building a complete MenuButton + 12 MenuItems for every virtualized table cell was
+        // expensive during scroll/layout and could leave the popup bound to a row other than
+        // the table selection. The shared menu is rebound only when the user opens Actions.
+        final ContextMenu sharedMenu = new ContextMenu();
+        final javafx.beans.property.ObjectProperty<Sales> target = new javafx.beans.property.SimpleObjectProperty<>();
+
+        MenuItem view = salesActionItem("View Sale", "view", () -> viewSale(requireSalesActionTarget(target)));
+        MenuItem audit = salesActionItem("Audit Trail", "history", () -> {
+            Sales row=requireSalesActionTarget(target);
+            org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",row.getId(),row.getInvoiceNo());
+        });
+        MenuItem edit = salesActionItem("Edit Sale", "edit", () -> edit(requireSalesActionTarget(target)));
+        MenuItem duplicate = salesActionItem("Duplicate Sale", "copy", () -> duplicate(requireSalesActionTarget(target)));
+        MenuItem print = salesActionItem("View / Print Tax Invoice", "print", () -> openPdf(requireSalesActionTarget(target)));
+        MenuItem excel = salesActionItem("View / Download Excel", "excel", () -> openExcel(requireSalesActionTarget(target)));
+        MenuItem email = salesActionItem("Send Email", "email", () -> sendEmail(requireSalesActionTarget(target)));
+        MenuItem whatsapp = salesActionItem("Send WhatsApp", "whatsapp", () -> sendWhatsapp(requireSalesActionTarget(target)));
+        MenuItem payment = salesActionItem("View / Record Payments", "payment", () -> openPayment(requireSalesActionTarget(target)));
+        MenuItem createReturn = salesActionItem("Create Sales Return", "return", () -> createReturn(requireSalesActionTarget(target)));
+        MenuItem cancel = salesActionItem("Cancel Sale", "cancel", () -> cancelSale(requireSalesActionTarget(target)));
+        MenuItem delete = salesActionItem("Delete Sale", "delete", () -> delete(requireSalesActionTarget(target)));
+        delete.getStyleClass().add("danger-menu-item");
+        sharedMenu.getItems().setAll(view,audit,edit,duplicate,print,excel,email,whatsapp,payment,createReturn,cancel,delete);
+        IconFactory.decorateActionMenu(sharedMenu);
+
+        java.util.function.Consumer<Sales> updateAvailability = current -> {
+            boolean missing=current==null;
+            String status=missing?"":safe(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
+            boolean inactive=missing||"CANCELLED".equals(status)||"DELETED".equals(status);
+            boolean locked=!missing&&isFinanciallyLocked(current);
+            edit.setDisable(inactive);
+            payment.setDisable(inactive||(!missing&&isApprovalLocked(current)));
+            createReturn.setDisable(missing||!isReturnEligible(current));
+            cancel.setDisable(missing||locked||inactive);
+            delete.setDisable(missing||locked||"DELETED".equals(status));
+            cancel.setVisible(true);
+            delete.setVisible(true);
+        };
+        sharedMenu.setOnHidden(event -> target.set(null));
+
         colAction.setCellFactory(c -> new TableCell<>() {
-            final MenuButton menu = new MenuButton();
-            final MenuItem edit;
-            final MenuItem payment;
-            final MenuItem createReturn;
-            final MenuItem cancel;
-            final MenuItem delete;
+            final Button button = new Button("Actions");
             {
-                menu.getProperties().put("erp.icon.semantic", "actions");
-                menu.setGraphic(IconFactory.compactIcon("actions", 15));
-                add("View Sale", "view", e -> viewSale(row()));
-                add("Audit Trail", "history", e -> org.example.util.ActivityTimelineDialog.show(tableSales,"SALE",row().getId(),row().getInvoiceNo()));
-                edit = add("Edit Sale", "edit", e -> edit(row()));
-                add("Duplicate Sale", "copy", e -> duplicate(row()));
-                add("View / Print Tax Invoice", "print", e -> openPdf(row()));
-                add("View / Download Excel", "excel", e -> openExcel(row()));
-                add("Send Email", "email", e -> sendEmail(row()));
-                add("Send WhatsApp", "whatsapp", e -> sendWhatsapp(row()));
-                payment = add("View / Record Payments", "payment", e -> openPayment(row()));
-                createReturn = add("Create Sales Return", "return", e -> createReturn(row()));
-                cancel = add("Cancel Sale", "cancel", e -> cancelSale(row()));
-                delete = add("Delete Sale", "delete", e -> delete(row()));
-                delete.getStyleClass().add("danger-menu-item");
-                menu.setOnShowing(e -> updateActionAvailability());
-                menu.getStyleClass().add("row-actions");
-                menu.setGraphic(IconFactory.compactIcon("actions",16));
-                menu.setText("Actions");
-                menu.setContentDisplay(ContentDisplay.LEFT);
-                menu.setGraphicTextGap(6);
-                menu.setTooltip(new Tooltip("Actions"));IconFactory.decorateActionMenu(menu);
-            }
-            private void updateActionAvailability(){
-                Sales current = getTableRow()==null ? null : getTableRow().getItem();
-                if(current==null){
-                    edit.setDisable(true);payment.setDisable(true);createReturn.setDisable(true);cancel.setDisable(true);delete.setDisable(true);return;
-                }
-                String status=safe(current.getDocumentStatus()).trim().toUpperCase(java.util.Locale.ROOT);
-                boolean inactive="CANCELLED".equals(status)||"DELETED".equals(status);
-                boolean locked=isFinanciallyLocked(current);
-                edit.setDisable(inactive);
-                payment.setDisable(inactive||isApprovalLocked(current));
-                createReturn.setDisable(!isReturnEligible(current));
-                cancel.setDisable(locked||inactive);
-                delete.setDisable(locked||"DELETED".equals(status));
-                // Cancel/Delete stay visible after payment so users can understand the
-                // lifecycle rule; disabled state prevents the unsafe operation.
-                cancel.setVisible(true);
-                delete.setVisible(true);
-            }
-            private Sales row(){
-                Sales value=getTableRow()==null?null:getTableRow().getItem();
-                if(value==null)throw new IllegalStateException("This sales row is no longer available. Refresh the register and try again.");
-                return value;
-            }
-            private MenuItem add(String text,String icon,javafx.event.EventHandler<ActionEvent> handler){
-                MenuItem item=new MenuItem(text);
-                item.getProperties().put("erp.icon.semantic",icon);
-                item.setGraphic(IconFactory.compactIcon(icon,16));
-                item.setOnAction(event->{try{handler.handle(event);}catch(Throwable failure){error(failure);}});
-                menu.getItems().add(item);
-                return item;
+                button.getProperties().put("erp.icon.semantic", "actions");
+                button.setGraphic(IconFactory.compactIcon("actions",16));
+                button.getStyleClass().add("row-actions");
+                button.setContentDisplay(ContentDisplay.LEFT);
+                button.setGraphicTextGap(6);
+                button.setTooltip(new Tooltip("Actions"));
+                button.setOnAction(event -> {
+                    Sales row = getTableRow()==null ? null : getTableRow().getItem();
+                    if(row==null)return;
+                    // Action invocation always makes this exact row the selected record first.
+                    getTableView().getSelectionModel().select(getIndex());
+                    getTableView().scrollTo(getIndex());
+                    target.set(row);
+                    updateAvailability.accept(row);
+                    if(sharedMenu.isShowing())sharedMenu.hide();
+                    sharedMenu.show(button, javafx.geometry.Side.BOTTOM, 0, 0);
+                });
             }
             @Override protected void updateItem(Void value,boolean empty){
                 super.updateItem(value,empty);
-                setGraphic(empty?null:menu);
-                setAlignment(Pos.CENTER);
+                if(empty){
+                    if(sharedMenu.isShowing() && target.get()!=null && getTableRow()!=null && getTableRow().getItem()==target.get())sharedMenu.hide();
+                    setGraphic(null);
+                } else {
+                    setGraphic(button);
+                    setAlignment(Pos.CENTER);
+                }
             }
         });
+    }
+
+    private MenuItem salesActionItem(String text,String icon,Runnable handler){
+        MenuItem item=new MenuItem(text);
+        item.getProperties().put("erp.icon.semantic",icon);
+        item.setGraphic(IconFactory.compactIcon(icon,16));
+        item.setOnAction(event->{try{handler.run();}catch(Throwable failure){error(failure);}});
+        return item;
+    }
+
+    private Sales requireSalesActionTarget(javafx.beans.property.ObjectProperty<Sales> target){
+        Sales value=target==null?null:target.get();
+        if(value==null)throw new IllegalStateException("This sales row is no longer available. Refresh the register and try again.");
+        return value;
     }
 
     @FXML public void refresh(){reloadPage(true);}
@@ -569,7 +588,7 @@ private TableCell<Sales,Double> moneyCell(){return new TableCell<>(){protected v
         },this::error);
     }
     private void openExcel(Sales sale){try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");Path excel=ExcelOutputService.sales(full);if(java.awt.Desktop.isDesktopSupported())java.awt.Desktop.getDesktop().open(excel.toFile());else info("Excel file created: "+excel);log("SALE",sale.getId(),"EXCEL_OPENED",sale.getInvoiceNo());}catch(Exception e){error(e);}}
-    private void sendEmail(Sales sale){String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=ManagedInvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.config.ConfigManager.get("company.name","DSE ERP"),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}
+    private void sendEmail(Sales sale){String stage="loading the sales invoice";try{Sales full=service.getByInvoice(sale.getInvoiceNo());if(full==null)throw new IllegalStateException("Sales invoice "+sale.getInvoiceNo()+" was not found. Refresh the register and try again.");if(full.getCustomer()==null)throw new IllegalStateException("No customer is linked to "+full.getInvoiceNo()+".");String recipient=safe(full.getCustomer().getEmail()).trim();if(recipient.isBlank())throw new IllegalStateException("Customer email is missing for "+full.getCustomer().getName()+". Update Customer Master and try again.");stage="generating the sales invoice PDF";Path pdf=ManagedInvoicePdfService.sales(full);stage="sending the email";EmailService.send(recipient,"Sales Invoice "+full.getInvoiceNo(),"Dear "+safe(full.getCustomer().getName())+",\n\nPlease find your sales invoice attached.\n\nRegards,\n"+org.example.service.BrandingService.companyName(),pdf);service.markEmailSent(full.getId());communication("SALE",full.getId(),"EMAIL",recipient,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();info("Invoice emailed successfully to "+recipient+".");}catch(Exception failure){String recipient=sale.getCustomer()==null?"":safe(sale.getCustomer().getEmail());communication("SALE",sale.getId(),"EMAIL",recipient,"Sales Invoice "+sale.getInvoiceNo(),"FAILED",stage+": "+rootMessage(failure));error(new IllegalStateException("Email failed while "+stage+".\n\n"+rootMessage(failure),failure));}}
     private void sendWhatsapp(Sales sale){if(isApprovalLocked(sale)){warning("Admin approval is required before sharing this Sale document.");return;}try{Sales full=service.getByInvoice(sale.getInvoiceNo());String phone=digits(full.getCustomer().getPhone());if(phone.length()==10)phone="91"+phone;if(phone.isBlank()){warning("Customer mobile number is not available. Update it in Customer Master.");return;}String missing=PaymentMessageService.missingPaymentConfiguration();if(missing!=null)warning(missing+" The invoice can still be shared without a payment link.");Path pdf=ManagedInvoicePdfService.sales(full);WhatsappService.openWhatsappWithMessage(phone,PaymentMessageService.salesMessage(full),pdf,PaymentMessageService.configuredQrPath());info("WhatsApp is ready. The invoice and configured UPI QR are on the clipboard for attachment.");support.markWhatsapp("SALE",full.getId());communication("SALE",full.getId(),"WHATSAPP",phone,"Sales Invoice "+full.getInvoiceNo(),"SENT",null);refresh();}catch(Exception e){error(e);}}
     private void recordPayment(Sales sale){
         if(sale.getBalanceAmount()<=0){info("This invoice is already fully paid.");return;}

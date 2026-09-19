@@ -25,7 +25,7 @@ public final class EmailFailureMessages {
         }
         if (root instanceof ConnectException || lower.contains("connection refused") || lower.contains("could not connect")
                 || lower.contains("unknown host")) {
-            return "DSE ERP could not connect to the SMTP server. Check the SMTP host/port, internet connection and firewall.";
+            return BrandingService.applicationName() + " could not connect to the SMTP server. Check the SMTP host/port, internet connection and firewall.";
         }
         return "Email delivery failed. Check the sender address, SMTP host/port and app password, then try Test Email again.";
     }

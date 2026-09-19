@@ -1,20 +1,25 @@
 package org.example.update;
 
+import org.example.service.BrandingService;
+
 /**
- * Small offline fallback for the in-app What's New dialog. The published
- * GitHub Release body remains the authoritative release notes when online.
+ * Small offline fallback for the in-app What's New dialog. Running-build release notes are
+ * application-owned so LOCAL/UAT/PROD show the same user-facing summary.
  */
 public final class ReleaseHighlights {
     private ReleaseHighlights() { }
 
     public static String forVersion(String version) {
         if (BuildInfo.version().equals(version)) {
-            return "DSE ERP " + version + " — Single-Run UAT/PROD Release & Private Update Delivery\n\n" + """
-                    • Runs one tagged GitHub release pipeline through build/test/package, UAT deployment, protected PROD deployment and final stable promotion.
-                    • Requires UAT health and private-update gateway verification before the production job can begin; the production environment can still require an explicit GitHub approval in the same workflow run.
-                    • Streams separate UAT and PROD DSE_GITHUB_UPDATE_TOKEN secrets from protected GitHub Environments to the matching Oracle environment file without exposing the credential in source, desktop configuration, command arguments or logs.
-                    • Deploys the same canonical server JAR to UAT and PROD and verifies the PROD copy against the published GitHub Release checksum before deployment.
-                    • Retains the separate Deploy PROD workflow only as a manual recovery/fallback path and preserves existing business logic, database behavior, mobile compatibility policy and rollback protections.
+            return BrandingService.applicationName() + " " + version + " — Runtime, Settings, Recovery & Branding\n\n" + """
+                    • Sales Register scrolling and row actions are optimized with one lazy shared action menu while preserving semantic action colours and selecting the action row correctly.
+                    • Payment History proof viewing supports managed relative paths and compatible legacy Windows references, with clean unavailable-file handling instead of a generic server failure.
+                    • Safe Rollback discovery and package verification run away from the JavaFX UI thread so the screen opens responsively while rollback verification remains protected.
+                    • Settings now save independently page by page; Company, Payment and Invoice image changes are staged until that page is saved, and long Address / Ship Address / Terms fields remain fully usable.
+                    • Full Recovery includes portable application settings and branding assets while excluding machine-specific server endpoints and database credentials.
+                    • Customer-facing branding now follows Company Name centrally across the application shell, reports, PDFs and email surfaces while technical DSE package/API/database identifiers remain unchanged.
+                    • The persistent shell shows the active screen with a centralized semantic colour and the native window title follows Company Name + environment + current screen.
+                    • What's New for this running build is packaged with the application so LOCAL, UAT and PROD show the same release summary instead of substituting GitHub PR/changelog text.
                     """;
         }
         if ("9.0.88".equals(version)) {
@@ -822,14 +827,21 @@ public final class ReleaseHighlights {
                     • Added an in-app What's New view so release changes remain easy to review.
                     """.strip();
         }
-        return "DSE ERP " + version + "\n\nRelease notes are unavailable offline for this version.";
+        return BrandingService.applicationName() + " " + version + "\n\nRelease notes are unavailable offline for this version.";
     }
 
     public static String resolve(String version, String onlineNotes) {
         String fallback = forVersion(version);
+        // The currently running client owns its user-facing What's New content. GitHub release
+        // bodies are deployment metadata and may contain only PR/changelog links.
+        if (BuildInfo.version().equals(version)) return fallback;
         String online = onlineNotes == null ? "" : onlineNotes.strip();
-        long meaningfulLines = online.lines().map(String::strip).filter(s -> !s.isBlank()).count();
-        if (online.isBlank() || meaningfulLines < 3) return fallback;
+        long meaningfulLines = online.lines().map(String::strip).filter(value -> !value.isBlank()).count();
+        String lower = online.toLowerCase(java.util.Locale.ROOT);
+        boolean generatedGitHubSummary = lower.contains("## what's changed")
+                || lower.contains("**full changelog**")
+                || (lower.contains("github.com/") && lower.contains("/pull/"));
+        if (online.isBlank() || meaningfulLines < 3 || generatedGitHubSummary) return fallback;
         return online;
     }
 

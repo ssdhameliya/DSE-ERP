@@ -52,7 +52,8 @@ class CriticalReleaseRegressionTest {
     @Test void rollbackSeparatesSchemaCompatibilityFromInstallerTrust() throws Exception {
         String service = Files.readString(Path.of("src/main/java/org/example/rollback/RollbackService.java"));
         assertTrue(service.contains("Database compatibility and installer authenticity are deliberately separate"));
-        assertTrue(service.contains("verifyOfficialPackage(refreshed.installer(), refreshed.version())"));
+        assertTrue(service.contains("refreshed = verifyBeforeRollback(refreshed)"));
+        assertTrue(service.contains("return verifyOfficialPackage(installer, candidate.version())"));
         assertTrue(service.contains("ChecksumVerifier.verify(installer, expected)"));
         assertTrue(service.contains("GITHUB_VERIFIED"));
         assertFalse(service.contains("isManagedRollbackPackage(installer)"));
@@ -142,7 +143,28 @@ class CriticalReleaseRegressionTest {
         assertTrue(enhancer.contains("updateSelectionVisual()"));
         assertTrue(layout.contains("Always coalesce width/item/skin changes into one next-pulse pass"));
         assertTrue(layout.contains("RENDERED_ACTION_WIDTH"));
+        assertTrue(layout.contains("requestSettledLayout(table)"),
+                "Content/skin changes must receive a later central settle pass so tables cannot retain a right-edge filler gap.");
         assertFalse(layout.contains("region.applyCss();"));
+    }
+
+
+    @Test void salesRegisterSemanticHeadersRetainDistinctBusinessColours() throws Exception {
+        String registry = Files.readString(Path.of("src/main/resources/ui/semantic-registry.properties"));
+        assertTrue(registry.contains("header.invoice=invoice"));
+        assertTrue(registry.contains("semantic.invoice.colour=blue"));
+        assertTrue(registry.contains("header.date=date"));
+        assertTrue(registry.contains("semantic.date.colour=purple"));
+        assertTrue(registry.contains("header.mobile=phone"));
+        assertTrue(registry.contains("semantic.phone.colour=teal"));
+        assertTrue(registry.contains("header.gstin=gstin"));
+        assertTrue(registry.contains("semantic.gstin.colour=orange"));
+        assertTrue(registry.contains("header.amount=amount"));
+        assertTrue(registry.contains("semantic.amount.colour=green"));
+        assertTrue(registry.contains("header.pending=pending"));
+        assertTrue(registry.contains("semantic.pending.colour=orange"));
+        assertTrue(registry.contains("header.actions=actions"));
+        assertTrue(registry.contains("semantic.actions.colour=purple"));
     }
 
     @Test void genericSectionsAreNotAutomaticallyPromotedToShadowedSurfaces() throws Exception {
@@ -174,7 +196,7 @@ class CriticalReleaseRegressionTest {
         String settings = Files.readString(Path.of("src/main/java/org/example/controller/SettingsController.java"));
         assertTrue(settings.contains("effectiveLoadedDeploymentMode()"));
         assertTrue(settings.contains("WorkspaceManager.updateManagedSharedClientConnection"));
-        assertTrue(settings.contains("Settings could not be saved:"));
+        assertTrue(settings.contains("saveLabel(section) + \" could not be saved: \""));
         assertTrue(settings.contains("deploymentRestartRequired = true"));
     }
 
@@ -388,7 +410,7 @@ class CriticalReleaseRegressionTest {
 
         String whatsapp = sales.substring(whatsappStart, sales.indexOf("private void recordPayment", whatsappStart));
         assertTrue(whatsapp.contains("isApprovalLocked"), "WhatsApp approval policy must remain unchanged.");
-        assertTrue(sales.contains("payment.setDisable(inactive||isApprovalLocked(current))"), "Payment approval policy must remain unchanged.");
+        assertTrue(sales.contains("payment.setDisable(inactive||(!missing&&isApprovalLocked(current)))"), "Payment approval policy must remain unchanged and remain null-safe for the shared action menu.");
     }
 
     private static int count(String value, String needle) {

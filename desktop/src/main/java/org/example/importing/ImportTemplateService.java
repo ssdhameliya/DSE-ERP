@@ -16,13 +16,13 @@ public final class ImportTemplateService {
             Sheet sheet = workbook.createSheet("Import Template");
             Sheet instructions = workbook.createSheet("Instructions");
             String[][] guidance = {
-                {"DSE ERP " + appVersion + " Import Template", "Keep identifier and header names unchanged."},
+                {org.example.service.BrandingService.companyName() + " " + appVersion + " Import Template", "Keep identifier and header names unchanged."},
                 {"Recommended mode", "Update non-blank fields: blank spreadsheet cells preserve existing master data."},
                 {"Create new only", "Existing identifiers are skipped; only new records are created."},
                 {"Create or update", "Existing master records are replaced with supplied values."},
                 {"Skip existing", "Existing identifiers are never changed."},
                 {"Financial documents", "Existing posted Sales and Purchase invoices are always protected and skipped."},
-                {"GST / IGST", "For Sales/Purchases use gst_type = GST for intra-state or IGST for inter-state. Enter gst_percent only; DSE ERP calculates tax amounts from line values."},
+                {"GST / IGST", "For Sales/Purchases use gst_type = GST for intra-state or IGST for inter-state. Enter gst_percent only; " + org.example.service.BrandingService.applicationName() + " calculates tax amounts from line values."},
                 {"GST calculation", "GST is calculated as CGST + SGST (equal halves); IGST applies the full GST rate as IGST. Do not enter tax amounts manually."},
                 {"Unlimited Purchase charges", "Purchases may use additional_charges with entries separated by semicolons. Each entry is Type|Amount|Taxable|GSTPercent, for example Freight|250|true|18;Packing|100|false|0."},
                 {"Multiple Purchase attachments", "Use attachment_files for semicolon-separated file paths. Paths may be absolute or relative to the import workbook. The older attachment_file column remains supported."},

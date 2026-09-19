@@ -30,6 +30,11 @@ public final class SettingsAssetService {
         return new Selection(normalized, BrandAssetPolicy.inspect(normalized, role));
     }
 
+    public static Preview previewSelection(Selection selection, BrandAssetPolicy.Role role) throws Exception {
+        if (selection == null || selection.path() == null) return new Preview(null, null, null);
+        return new Preview(loadPreviewImage(selection.path(), role), selection.path(), selection.inspection());
+    }
+
     public static Stored store(
             String configKey,
             String baseName,

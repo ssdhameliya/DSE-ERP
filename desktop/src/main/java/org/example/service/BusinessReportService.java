@@ -138,7 +138,7 @@ public final class BusinessReportService {
         c.setNonStrokingColor(new Color(20, 54, 92));
         c.addRect(0, 760, 595, 82);
         c.fill();
-        text(c, BOLD, 20, Color.WHITE, 42, 800, ConfigManager.get("company.name", "JavaApp ERP"));
+        text(c, BOLD, 20, Color.WHITE, 42, 800, org.example.service.BrandingService.companyName());
         text(c, REGULAR, 10, Color.WHITE, 42, 781, "Business Performance Report | " + BusinessClock.formatDate(from) + " to " + BusinessClock.formatDate(to));
     }
 

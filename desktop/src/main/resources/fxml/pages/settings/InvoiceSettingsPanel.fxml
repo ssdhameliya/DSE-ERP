@@ -24,7 +24,7 @@
 
                                     <Label text="Company Address" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtCompanyAddress" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
+                                    <TextArea fx:id="txtCompanyAddress" prefRowCount="4" minHeight="100" prefHeight="118" maxHeight="Infinity" VBox.vgrow="ALWAYS" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
@@ -32,7 +32,7 @@
 
                                     <Label text="Default Ship-to Address" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtShipAddress" prefRowCount="2" wrapText="true" styleClass="approved-input"/>
+                                    <TextArea fx:id="txtShipAddress" prefRowCount="4" minHeight="100" prefHeight="118" maxHeight="Infinity" VBox.vgrow="ALWAYS" wrapText="true" styleClass="approved-input"/>
 
                                 </VBox>
 
@@ -88,7 +88,7 @@
 
                                     <Label text="Invoice Terms" styleClass="settings-form-label"/>
 
-                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="3" minHeight="70" prefHeight="78" maxHeight="92" wrapText="true" styleClass="approved-input,settings-invoice-terms"/>
+                                    <TextArea fx:id="txtInvoiceTerms" prefRowCount="5" minHeight="120" prefHeight="150" maxHeight="Infinity" VBox.vgrow="ALWAYS" wrapText="true" styleClass="approved-input,settings-invoice-terms"/>
 
                                 </VBox>
 

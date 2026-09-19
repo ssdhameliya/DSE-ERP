@@ -47,6 +47,7 @@ public final class DynamicTableLayoutManager {
     private static final String NATURAL_FLOOR = "erp.table.dynamic-layout.natural-floor";
     private static final String RENDERED_ACTION_WIDTH = "erp.table.dynamic-layout.rendered-action-width";
     private static final String SAMPLED_CONTENT_WIDTH = "erp.table.dynamic-layout.sampled-content-width";
+    private static final String SETTLE_PASSES = "erp.table.dynamic-layout.settle-passes";
     private static final double ACTION_CONTROL_MIN_WIDTH = 132.0;
     private static final double DENSE_ACTION_MIN_WIDTH = 118.0;
     private static final int SAMPLE_LIMIT = 48;
@@ -130,6 +131,14 @@ public final class DynamicTableLayoutManager {
             Platform.runLater(() -> runScheduledLayout(table));
             return;
         }
+        Object settle = table.getProperties().get(SETTLE_PASSES);
+        int remaining = settle instanceof Number number ? number.intValue() : 0;
+        if (remaining > 0) {
+            table.getProperties().put(SETTLE_PASSES, remaining - 1);
+            Platform.runLater(() -> runScheduledLayout(table));
+            return;
+        }
+        table.getProperties().remove(SETTLE_PASSES);
         table.getProperties().remove(PENDING);
     }
 
@@ -206,12 +215,26 @@ public final class DynamicTableLayoutManager {
         if (newItems != null) {
             ListChangeListener listener = change -> {
                 invalidateContentMeasures(table);
-                requestLayout(table);
+                requestSettledLayout(table);
             };
             newItems.addListener(listener);
             table.getProperties().put(ITEM_LISTENER, listener);
         }
         invalidateContentMeasures(table);
+        requestSettledLayout(table);
+    }
+
+    /**
+     * Data replacement and first-skin creation can complete one JavaFX pulse after
+     * the outer TableView has already obtained its final width. Schedule one
+     * deliberately later reconciliation so the shared width authority closes any
+     * temporary right-edge filler without forcing individual register controllers
+     * to know about JavaFX skin timing. This runs only after content binding/change,
+     * never on scroll, so it does not add work to normal virtualized scrolling.
+     */
+    private static void requestSettledLayout(TableView<?> table) {
+        if (table == null) return;
+        table.getProperties().put(SETTLE_PASSES, 1);
         requestLayout(table);
     }
 
@@ -506,9 +529,15 @@ public final class DynamicTableLayoutManager {
         // clipped when a detail drawer reduces the viewport. The header fallback
         // remains content-derived rather than an FXML/controller pixel width.
         double renderedControl = renderedCellControlWidth(table, column);
+        // Any direct cell action (View/Edit/etc.) owns enough width for its real
+        // rendered icon + label. Menu-based Actions retains the larger canonical
+        // floor. This prevents a generic dynamic-layout pass from clipping one
+        // action type differently from another.
+        if (renderedControl > 0) content = Math.max(content, renderedControl);
         if ("actions".equals(semantic)) content = Math.max(content, Math.max(ACTION_CONTROL_MIN_WIDTH, Math.max(renderedControl, header + 38.0)));
 
         double minimum = readableMinimum(semantic, heading, header);
+        if (renderedControl > 0) minimum = Math.max(minimum, renderedControl);
         if ("actions".equals(semantic)) minimum = Math.max(minimum, Math.max(ACTION_CONTROL_MIN_WIDTH, renderedControl));
         double natural = Math.max(minimum, Math.max(header, content));
 

@@ -26,6 +26,29 @@ public final class UiActionIcons {
         apply(button, semantic, null);
     }
 
+    /**
+     * Canonical icon + visible-label treatment for direct actions rendered inside
+     * a TableCell (for example View/Edit). Unlike icon-only shell controls, this
+     * method guarantees that the business action label remains visible and lets
+     * DynamicTableLayoutManager measure the rendered control as the width owner.
+     */
+    public static void applyLabeledTableAction(ButtonBase button, String label, String semantic, String tooltipText) {
+        if (button == null) return;
+        String visible = label == null ? "" : label.trim();
+        button.setText(visible);
+        button.getStyleClass().removeAll("approved-icon-button", "icon-button", "erp-button-icon");
+        if (!button.getStyleClass().contains("approved-button")) button.getStyleClass().add("approved-button");
+        if (!button.getStyleClass().contains("approved-secondary-button")) button.getStyleClass().add("approved-secondary-button");
+        if (!button.getStyleClass().contains("table-action-button")) button.getStyleClass().add("table-action-button");
+        apply(button, semantic, tooltipText);
+        // apply()/IconFactory may choose variants from the now-visible text, but
+        // no icon-only class is allowed to reclaim presentation ownership.
+        button.getStyleClass().removeAll("approved-icon-button", "icon-button", "erp-button-icon");
+        button.setContentDisplay(ContentDisplay.LEFT);
+        button.setGraphicTextGap(DEFAULT_GRAPHIC_GAP);
+        if (!visible.isBlank()) button.setText(visible);
+    }
+
     public static void apply(ButtonBase button, String semantic, String tooltipText) {
         if (button == null || semantic == null || semantic.isBlank()) return;
 

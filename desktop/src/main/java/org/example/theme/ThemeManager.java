@@ -2,6 +2,7 @@ package org.example.theme;
 
 import javafx.scene.Scene;
 import javafx.stage.Window;
+import javafx.stage.Stage;
 import javafx.scene.control.DialogPane;
 import org.example.util.PlatformUiSupport;
 import javafx.collections.ListChangeListener;
@@ -26,26 +27,39 @@ public final class ThemeManager {
     }
 
     public static void applyTheme(Scene scene) {
-        installWindowHook();
+        applyTheme(scene, null);
+    }
 
-        // 9.0.49 Phase 2 CSS ownership contract: exactly one canonical theme
-        // stylesheet is active. Each theme now contains the previously reviewed
-        // layout, component, palette and scoped page CSS in the same effective
-        // cascade order, so switching theme changes presentation without stacking
-        // multiple author stylesheets or rebuilding the view.
-        String activeTheme = currentTheme == Theme.DARK
-                ? "/css/dark-theme.css"
-                : "/css/light-theme.css";
-        String themeUrl = org.example.util.ResourceLocator.require(activeTheme).toExternalForm();
+    /** Applies the exact active owner theme to child/dialog scenes before they are shown. */
+    public static void applyTheme(Scene scene, Window owner) {
+        if (scene == null) return;
+        installWindowHook();
+        String themeUrl = ownerThemeUrl(owner);
+        if (themeUrl == null) themeUrl = activeThemeUrl();
+        applyResolvedTheme(scene, themeUrl);
+    }
+
+    private static String activeThemeUrl() {
+        String activeTheme = currentTheme == Theme.DARK ? "/css/dark-theme.css" : "/css/light-theme.css";
+        return org.example.util.ResourceLocator.require(activeTheme).toExternalForm();
+    }
+
+    private static String ownerThemeUrl(Window owner) {
+        if (owner == null || owner.getScene() == null) return null;
+        for (String stylesheet : owner.getScene().getStylesheets()) {
+            if (stylesheet.endsWith("/css/light-theme.css") || stylesheet.endsWith("/css/dark-theme.css")
+                    || stylesheet.endsWith("light-theme.css") || stylesheet.endsWith("dark-theme.css")) return stylesheet;
+        }
+        return null;
+    }
+
+    private static void applyResolvedTheme(Scene scene, String themeUrl) {
         Object alreadyApplied = scene.getProperties().get(APPLIED_THEME_KEY);
         if (!themeUrl.equals(alreadyApplied) || scene.getStylesheets().size() != 1
                 || !themeUrl.equals(scene.getStylesheets().getFirst())) {
             scene.getStylesheets().setAll(themeUrl);
             scene.getProperties().put(APPLIED_THEME_KEY, themeUrl);
         }
-
-        // Theme switches must not rebuild tables, icons or page structure.
-        // Only responsive classes and the active color palette are refreshed.
         if (scene.getRoot() != null) {
             PlatformUiSupport.installResponsiveClasses(scene);
             if (scene.getRoot() instanceof DialogPane pane
@@ -56,7 +70,6 @@ public final class ThemeManager {
                 pane.getStyleClass().add("erp-modern-dialog");
             }
         }
-
     }
 
     private static synchronized void installWindowHook() {
@@ -66,10 +79,14 @@ public final class ThemeManager {
             while (change.next()) if (change.wasAdded()) for (Window window : change.getAddedSubList()) {
                 window.showingProperty().addListener((o, oldValue, showing) -> {
                     if (showing && window.getScene() != null) {
-                        applyTheme(window.getScene());
+                        Window owner = window instanceof Stage stage ? stage.getOwner() : null;
+                        applyTheme(window.getScene(), owner);
                     }
                 });
-                if (window.getScene() != null) applyTheme(window.getScene());
+                if (window.getScene() != null) {
+                    Window owner = window instanceof Stage stage ? stage.getOwner() : null;
+                    applyTheme(window.getScene(), owner);
+                }
             }
         });
     }

@@ -97,6 +97,8 @@ public class SettingsController implements ScreenLifecycle {
     private boolean rootInitialized;
     private boolean fragmentLoading;
     private final EnumMap<Section, VBox> loadedPanels = new EnumMap<>(Section.class);
+    private final Map<String, PendingAsset> pendingAssets = new LinkedHashMap<>();
+    private Section activeSection = Section.COMPANY;
     private final EnumMap<Action, String> shortcutDraftValues = new EnumMap<>(Action.class);
     private final EnumMap<Action, ShortcutRegistry.Scope> shortcutDraftScopes = new EnumMap<>(Action.class);
     private Action selectedShortcutAction;
@@ -106,6 +108,10 @@ public class SettingsController implements ScreenLifecycle {
     public static void requestSection(Section section) {
         requestedSection = section == null ? Section.COMPANY : section;
     }
+
+    private record PendingAsset(String baseName, BrandAssetPolicy.Role role,
+                                SettingsAssetService.Selection selection,
+                                String previousConfiguredPath, boolean remove) { }
 
 
     @FXML private StackPane panelHost;
@@ -440,7 +446,7 @@ public class SettingsController implements ScreenLifecycle {
         if (fragmentLoading || rootInitialized) return;
         rootInitialized = true;
         if(btnTestEmail!=null) org.example.util.UiActionIcons.apply(btnTestEmail,"email","Test Email");
-        if(btnSaveSettings!=null) org.example.util.UiActionIcons.apply(btnSaveSettings,"save","Save Settings");
+        if(btnSaveSettings!=null) org.example.util.UiActionIcons.apply(btnSaveSettings,"save","Save Company");
         showRequestedSection();
     }
 
@@ -484,9 +490,9 @@ public class SettingsController implements ScreenLifecycle {
                 txtEmail.setText(ConfigManager.get("company.email", ""));
                 txtGstin.setText(ConfigManager.get("company.gstin", ""));
                 txtCompanyPan.setText(ConfigManager.get("company.pan", ""));
-                txtApplicationName.setText(ConfigManager.get("application.displayName", "DSE ERP"));
+                txtApplicationName.setText(org.example.service.BrandingService.companyName());
                 txtApplicationTagline.setText(ConfigManager.get("application.tagline", "Business Management Suite"));
-                txtApplicationStartingText.setText(ConfigManager.get("application.startingText", "Starting DSE ERP..."));
+                txtApplicationStartingText.setText(org.example.service.BrandingService.startingText());
                 selectComboValue(cmbBusinessType, ConfigManager.get("company.businessType", "Proprietorship"));
                 selectComboValue(cmbIndustry, ConfigManager.get("company.industry", "Manufacturing"));
                 dpFinancialYearStart.setValue(parseDate(ConfigManager.get("company.financialYearStart", "")));
@@ -752,6 +758,13 @@ public class SettingsController implements ScreenLifecycle {
     }
     private void previewConfiguredAsset(String configKey, String label) {
         try {
+            PendingAsset pending = pendingAssets.get(configKey);
+            if (pending != null) {
+                if (pending.remove() || pending.selection() == null) throw new IllegalStateException("No " + label + " is attached in the current unsaved page.");
+                if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Preview is not supported on this computer.");
+                Desktop.getDesktop().open(pending.selection().path().toFile());
+                return;
+            }
             SettingsAssetService.openConfigured(configKey, label);
         } catch (Exception error) {
             showError(safeMessage(error));
@@ -778,6 +791,7 @@ public class SettingsController implements ScreenLifecycle {
 
         Path selectedPath = selected.toPath().toAbsolutePath().normalize();
         UiTaskExecutor.cancel("settings-asset-store-" + configKey);
+        UiTaskExecutor.cancel("settings-asset-stage-" + configKey);
         String taskKey = "settings-asset-inspect-" + configKey;
         UiTaskExecutor.submitLatest(
             taskKey,
@@ -803,17 +817,19 @@ public class SettingsController implements ScreenLifecycle {
         BrandAssetPolicy.Role role,
         SettingsAssetService.Selection selection
     ) {
+        // Stage only. The selected Settings page owns the commit transaction and a different
+        // Settings page must never persist this image as a side effect of its Save action.
         String previousConfiguredPath = ConfigManager.get(configKey, "");
-        String taskKey = "settings-asset-store-" + configKey;
-        UiTaskExecutor.submitAction(
+        String taskKey = "settings-asset-stage-" + configKey;
+        UiTaskExecutor.submitLatest(
             taskKey,
-            () -> SettingsAssetService.store(configKey, baseName, role, selection, previousConfiguredPath),
-            result -> {
-                ++assetPreviewRevision; // invalidate an older queued preview refresh
-                applyImagePreview(result.path(), result.previewImage(), result.inspection(),
-                        imageView, placeholder, fileLabel);
+            () -> SettingsAssetService.previewSelection(selection, role),
+            preview -> {
+                pendingAssets.put(configKey, new PendingAsset(baseName, role, selection, previousConfiguredPath, false));
+                ++assetPreviewRevision;
+                applyImagePreview(preview.path(), preview.image(), preview.inspection(), imageView, placeholder, fileLabel);
             },
-            error -> showError("The image could not be saved: " + safeMessage(error))
+            error -> showError("The image could not be staged: " + safeMessage(error))
         );
     }
     private boolean confirmImageWarnings(BrandAssetPolicy.Role role, BrandAssetPolicy.Inspection inspection) {
@@ -839,17 +855,10 @@ public class SettingsController implements ScreenLifecycle {
 
         UiTaskExecutor.cancel("settings-asset-inspect-" + configKey);
         UiTaskExecutor.cancel("settings-asset-store-" + configKey);
+        UiTaskExecutor.cancel("settings-asset-stage-" + configKey);
 
-        String configuredPath =
-            ConfigManager.get(
-                configKey,
-                ""
-            );
-
-        putSetting(
-            configKey,
-            ""
-        );
+        String configuredPath = ConfigManager.get(configKey, "");
+        pendingAssets.put(configKey, new PendingAsset("", null, null, configuredPath, true));
 
         imageView.setImage(null);
 
@@ -863,7 +872,7 @@ public class SettingsController implements ScreenLifecycle {
             "No image selected"
         );
 
-        SettingsAssetService.deleteConfiguredFile(configuredPath);
+        // The configured asset is intentionally kept until this page is explicitly saved.
     }
 
     private void refreshAllAssetPreviewsAsync() {
@@ -978,7 +987,9 @@ private record AssetPreviewRequest(
     /* =========================================================
        TAB NAVIGATION
        ========================================================= */
-    private void selectSection(HBox selectedNavigation, VBox selectedPanel) {
+    private void selectSection(Section section, HBox selectedNavigation, VBox selectedPanel) {
+        activeSection = section == null ? Section.COMPANY : section;
+        updateSaveButtonLabel();
         HBox[] navigationItems = {navCompany, navPayment, navInvoice, navNotifications, navEmail, navWorkspace, navUpdates};
         for (HBox item : navigationItems) if (item != null) item.getStyleClass().remove("settings-navigation-item-selected");
         if (selectedNavigation != null && !selectedNavigation.getStyleClass().contains("settings-navigation-item-selected")) {
@@ -994,18 +1005,36 @@ private record AssetPreviewRequest(
             Platform.runLater(() -> panelScroll.setVvalue(0.0));
         }
     }
-    @FXML private void showCompany() { selectSection(navCompany, ensureSectionLoaded(Section.COMPANY)); }
-    @FXML private void showPayment() { selectSection(navPayment, ensureSectionLoaded(Section.PAYMENT)); }
-    @FXML private void showInvoice() { selectSection(navInvoice, ensureSectionLoaded(Section.INVOICE)); }
-    @FXML private void showNotifications() { selectSection(navNotifications, ensureSectionLoaded(Section.NOTIFICATIONS)); }
-    @FXML private void showEmail() { selectSection(navEmail, ensureSectionLoaded(Section.EMAIL)); }
-    @FXML private void showSecurity() { selectSection(null, ensureSectionLoaded(Section.SECURITY)); }
+    private void updateSaveButtonLabel() {
+        if (btnSaveSettings == null) return;
+        String label = switch (activeSection) {
+            case COMPANY -> "Save Company";
+            case PAYMENT -> "Save Payment";
+            case INVOICE -> "Save Invoice";
+            case NOTIFICATIONS -> "Save Notifications";
+            case EMAIL -> "Save Email";
+            case SECURITY -> "Save Security";
+            case WORKSPACE -> "Save Workspace";
+            case SHORTCUTS -> "Save Shortcuts";
+            case UPDATES -> "Save Updates";
+        };
+        btnSaveSettings.setText(label);
+        btnSaveSettings.setAccessibleText(label);
+        btnSaveSettings.setTooltip(new Tooltip(label + " only"));
+    }
+
+    @FXML private void showCompany() { selectSection(Section.COMPANY, navCompany, ensureSectionLoaded(Section.COMPANY)); }
+    @FXML private void showPayment() { selectSection(Section.PAYMENT, navPayment, ensureSectionLoaded(Section.PAYMENT)); }
+    @FXML private void showInvoice() { selectSection(Section.INVOICE, navInvoice, ensureSectionLoaded(Section.INVOICE)); }
+    @FXML private void showNotifications() { selectSection(Section.NOTIFICATIONS, navNotifications, ensureSectionLoaded(Section.NOTIFICATIONS)); }
+    @FXML private void showEmail() { selectSection(Section.EMAIL, navEmail, ensureSectionLoaded(Section.EMAIL)); }
+    @FXML private void showSecurity() { selectSection(Section.SECURITY, null, ensureSectionLoaded(Section.SECURITY)); }
 
 
 
     @FXML
     private void showWorkspace() {
-        selectSection(navWorkspace, ensureSectionLoaded(Section.WORKSPACE));
+        selectSection(Section.WORKSPACE, navWorkspace, ensureSectionLoaded(Section.WORKSPACE));
         refreshWorkspacePanel();
     }
 
@@ -1109,7 +1138,7 @@ private record AssetPreviewRequest(
     @FXML
     private void selectExistingWorkspace() {
         DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Select Existing DSE ERP Workspace");
+        chooser.setTitle("Select Existing " + org.example.service.BrandingService.applicationName() + " Workspace");
         try {
             File current = WorkspaceManager.getWorkspaceRoot().toFile();
             if (current.isDirectory()) chooser.setInitialDirectory(current);
@@ -1121,7 +1150,7 @@ private record AssetPreviewRequest(
         Path current = WorkspaceManager.getWorkspaceRoot().toAbsolutePath().normalize();
         if (chosen.equals(current)) {
             org.example.util.ToastManager.info(panelWorkspace, "Workspace unchanged",
-                    "The selected folder is already the active DSE ERP workspace.");
+                    "The selected folder is already the active application workspace.");
             return;
         }
 
@@ -1135,7 +1164,7 @@ private record AssetPreviewRequest(
         OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
                 "Current workspace:\n" + current +
                 "\n\nSelected existing workspace:\n" + inspection.root() +
-                "\n\nDSE ERP will validate and save this existing workspace without copying or overwriting its business data. " +
+                "\n\n" + org.example.service.BrandingService.applicationName() + " will validate and save this existing workspace without copying or overwriting its business data. " +
                 "The application will then close so every database connection, service and screen can reopen cleanly against the selected workspace.",
                 ButtonType.CANCEL, switchWorkspace);
         confirmation.setHeaderText("Switch to existing workspace?");
@@ -1144,11 +1173,11 @@ private record AssetPreviewRequest(
         try {
             WorkspaceSettingsService.configureExisting(inspection.root());
             lblWorkspacePath.setText(inspection.root().toString());
-            lblWorkspaceStatus.setText("Existing workspace selected. Reopen DSE ERP to connect using this workspace.");
+            lblWorkspaceStatus.setText("Existing workspace selected. Reopen " + org.example.service.BrandingService.applicationName() + " to connect using this workspace.");
             lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
             lblWorkspaceStatus.getStyleClass().add("workspace-status-warning");
             OwnedAlert done = new OwnedAlert(Alert.AlertType.INFORMATION,
-                    "The existing workspace has been selected successfully.\n\nDSE ERP will close now. Reopen the application to start with:\n" + inspection.root(),
+                    "The existing workspace has been selected successfully.\n\n" + org.example.service.BrandingService.applicationName() + " will close now. Reopen the application to start with:\n" + inspection.root(),
                     ButtonType.OK);
             done.setHeaderText("Workspace selected");
             done.showAndWait();
@@ -1161,17 +1190,17 @@ private record AssetPreviewRequest(
     @FXML
     private void moveWorkspace() {
         DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Choose New DSE ERP Workspace");
+        chooser.setTitle("Choose New Application Workspace");
         File selected = chooser.showDialog(panelWorkspace.getScene().getWindow());
         if (selected == null) return;
         try {
             WorkspaceSettingsService.stageMove(selected.toPath());
-            lblWorkspaceStatus.setText("Move scheduled. Close and reopen DSE ERP to copy and verify the workspace. The current workspace will be retained as a recovery copy.");
+            lblWorkspaceStatus.setText("Move scheduled. Close and reopen " + org.example.service.BrandingService.applicationName() + " to copy and verify the workspace. The current workspace will be retained as a recovery copy.");
             lblWorkspaceStatus.getStyleClass().removeAll("workspace-status-ok", "workspace-status-warning");
             lblWorkspaceStatus.getStyleClass().add("workspace-status-warning");
             new OwnedAlert(Alert.AlertType.INFORMATION,
                     "The workspace move is scheduled for the next application start.\n\n" +
-                    "DSE ERP will copy the workspace while managed services are stopped, verify the destination, and retain the current workspace as a safety copy.",
+                    org.example.service.BrandingService.applicationName() + " will copy the workspace while managed services are stopped, verify the destination, and retain the current workspace as a safety copy.",
                     ButtonType.OK).showAndWait();
         } catch (Exception exception) {
             showError("The workspace move could not be scheduled: " + exception.getMessage());
@@ -1271,7 +1300,7 @@ private record AssetPreviewRequest(
 
     @FXML
     private void showShortcuts() {
-        selectSection(null, ensureSectionLoaded(Section.SHORTCUTS));
+        selectSection(Section.SHORTCUTS, null, ensureSectionLoaded(Section.SHORTCUTS));
         refreshShortcutValidation();
     }
 
@@ -1292,7 +1321,7 @@ private record AssetPreviewRequest(
 
     @FXML
     private void showUpdates() {
-        selectSection(navUpdates, ensureSectionLoaded(Section.UPDATES));
+        selectSection(Section.UPDATES, navUpdates, ensureSectionLoaded(Section.UPDATES));
         refreshUpdateSummary();
     }
 
@@ -1791,14 +1820,15 @@ private record AssetPreviewRequest(
 
     @FXML
     private void save() {
+        Section section = activeSection == null ? Section.COMPANY : activeSection;
         try {
-            if (!saveValues()) return;
+            if (!saveValues(section)) return;
 
-            if (deploymentRestartRequired) {
+            if (section == Section.WORKSPACE && deploymentRestartRequired) {
                 OwnedAlert done = new OwnedAlert(Alert.AlertType.INFORMATION,
                         "This PC is now configured to use the verified company server.\n\n"
                                 + "The previous local workspace was not modified and remains available as a recovery copy. "
-                                + "DSE ERP will close now so the next start uses only the saved company-server profile.",
+                                + org.example.service.BrandingService.applicationName() + " will close now so the next start uses only the saved company-server profile.",
                         ButtonType.OK);
                 done.setHeaderText("Company-server connection saved");
                 done.showAndWait();
@@ -1807,58 +1837,96 @@ private record AssetPreviewRequest(
             }
 
             SharedApplicationFooter.refreshAll();
-
-            if (chkNotifications != null && chkNotifications.isSelected()) {
-                NotificationService.add("Application settings were updated.");
+            if (section == Section.COMPANY) {
+                org.example.util.SceneManager.refreshApplicationTitle();
+                DashboardController.refreshBranding();
             }
-
-            org.example.util.ToastManager.success(panelHost, "Settings saved", "Settings saved successfully.");
+            if (section == Section.NOTIFICATIONS && chkNotifications != null && chkNotifications.isSelected()) {
+                NotificationService.add("Notification settings were updated.");
+            }
+            org.example.util.ToastManager.success(panelHost, "Settings saved", saveLabel(section) + " saved successfully.");
         } catch (Exception exception) {
-            deploymentRestartRequired = false;
-            localToSharedConnectionConfirmed = false;
-            showError("Settings could not be saved: " + safeMessage(exception));
+            if (section == Section.WORKSPACE) {
+                deploymentRestartRequired = false;
+                localToSharedConnectionConfirmed = false;
+            }
+            showError(saveLabel(section) + " could not be saved: " + safeMessage(exception));
         }
     }
 
-    private boolean saveValues() {
+    private String saveLabel(Section section) {
+        return switch (section) {
+            case COMPANY -> "Company settings";
+            case PAYMENT -> "Payment settings";
+            case INVOICE -> "Invoice settings";
+            case NOTIFICATIONS -> "Notification settings";
+            case EMAIL -> "Email settings";
+            case SECURITY -> "Security settings";
+            case WORKSPACE -> "Workspace settings";
+            case SHORTCUTS -> "Shortcut settings";
+            case UPDATES -> "Update settings";
+        };
+    }
 
-        if (!validateSettings()) {
-            return false;
-        }
+    private boolean saveValues(Section section) {
+        if (!validateSettings(section)) return false;
 
-        boolean connectExistingServerOnly = localToSharedConnectionConfirmed
+        boolean connectExistingServerOnly = section == Section.WORKSPACE
+                && localToSharedConnectionConfirmed
                 && effectiveLoadedDeploymentMode() == DeploymentMode.LOCAL
                 && cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
 
         batchingSettingsSave = true;
         try {
             if (connectExistingServerOnly) {
-                // Connecting a LOCAL workstation to an already-existing company server is a
-                // deployment-only transition. Do not upload or overwrite any local company,
-                // storage, email or business settings as a side effect of pressing Save.
                 saveDeploymentSettings();
                 ConfigManager.save();
                 return true;
             }
 
-            if (loadedPanels.containsKey(Section.COMPANY)) saveCompanyDetails();
-            if (loadedPanels.containsKey(Section.PAYMENT)) savePaymentDetails();
-            if (loadedPanels.containsKey(Section.INVOICE)) saveInvoiceIdentity();
-            if (loadedPanels.containsKey(Section.EMAIL)) saveEmailSettings();
-            if (loadedPanels.containsKey(Section.NOTIFICATIONS)) saveNotificationSettings();
-            if (loadedPanels.containsKey(Section.SECURITY)) saveSecuritySettings();
-            if (loadedPanels.containsKey(Section.WORKSPACE)) {
-                saveDeploymentSettings();
-                saveStorageRetentionSettings();
+            switch (section) {
+                case COMPANY -> { saveCompanyDetails(); commitPendingAssets(Section.COMPANY); }
+                case PAYMENT -> { savePaymentDetails(); commitPendingAssets(Section.PAYMENT); }
+                case INVOICE -> { saveInvoiceIdentity(); commitPendingAssets(Section.INVOICE); }
+                case NOTIFICATIONS -> saveNotificationSettings();
+                case EMAIL -> saveEmailSettings();
+                case SECURITY -> saveSecuritySettings();
+                case WORKSPACE -> { saveDeploymentSettings(); saveStorageRetentionSettings(); }
+                case SHORTCUTS -> saveShortcutSettings();
+                case UPDATES -> saveUpdateSettings();
             }
-            if (loadedPanels.containsKey(Section.SHORTCUTS)) saveShortcutSettings();
-            if (loadedPanels.containsKey(Section.UPDATES)) saveUpdateSettings();
             ConfigManager.save();
         } finally {
             batchingSettingsSave = false;
         }
-
         return true;
+    }
+
+    private void commitPendingAssets(Section section) {
+        for (String key : assetKeys(section)) {
+            PendingAsset pending = pendingAssets.get(key);
+            if (pending == null) continue;
+            try {
+                if (pending.remove()) {
+                    putSetting(key, "");
+                    SettingsAssetService.deleteConfiguredFile(pending.previousConfiguredPath());
+                } else {
+                    SettingsAssetService.store(key, pending.baseName(), pending.role(), pending.selection(), pending.previousConfiguredPath());
+                }
+                pendingAssets.remove(key);
+            } catch (Exception error) {
+                throw new IllegalStateException("Unable to save the staged image for " + key + ": " + safeMessage(error), error);
+            }
+        }
+    }
+
+    private List<String> assetKeys(Section section) {
+        return switch (section) {
+            case COMPANY -> List.of(APPLICATION_BRAND_PATH_KEY, APPLICATION_MARK_PATH_KEY);
+            case PAYMENT -> List.of(QR_PATH_KEY);
+            case INVOICE -> List.of(LOGO_PATH_KEY, SIGNATURE_PATH_KEY);
+            default -> List.of();
+        };
     }
 
     private void saveSecuritySettings() {
@@ -1932,8 +2000,8 @@ private record AssetPreviewRequest(
             localToSharedConnectionConfirmed = false;
         }
         if (lblCompanyServerStatus != null) lblCompanyServerStatus.setText(deploymentRestartRequired
-                ? "Connection saved. DSE ERP will close so the next start uses the company server."
-                : "Saved. Restart DSE ERP to apply the deployment change.");
+                ? "Connection saved. " + org.example.service.BrandingService.applicationName() + " will close so the next start uses the company server."
+                : "Saved. Restart " + org.example.service.BrandingService.applicationName() + " to apply the deployment change.");
     }
 
     private DeploymentMode effectiveDeploymentMode() {
@@ -2005,7 +2073,7 @@ private record AssetPreviewRequest(
         putSetting("company.businessType", valueOrEmpty(cmbBusinessType));
         putSetting("company.industry", valueOrEmpty(cmbIndustry));
         putSetting("company.financialYearStart", dpFinancialYearStart.getValue() == null ? "" : dpFinancialYearStart.getValue().toString());
-        putSetting("application.displayName", text(txtApplicationName));
+        putSetting("application.displayName", text(txtCompanyName));
         putSetting("application.tagline", text(txtApplicationTagline));
         putSetting("application.startingText", text(txtApplicationStartingText));
     }
@@ -2151,7 +2219,7 @@ private record AssetPreviewRequest(
     @FXML
     private void testEmail() {
         ensureSectionLoaded(Section.EMAIL);
-        if (!saveValues()) {
+        if (!saveValues(Section.EMAIL)) {
             return;
         }
 
@@ -2177,8 +2245,8 @@ private record AssetPreviewRequest(
             } else {
                 EmailService.send(
                     recipient,
-                    "DSE ERP email test",
-                    "Your DSE ERP email configuration is working correctly."
+                    org.example.service.BrandingService.applicationName() + " email test",
+                    "Your " + org.example.service.BrandingService.applicationName() + " email configuration is working correctly."
                 );
             }
 
@@ -2195,8 +2263,8 @@ private record AssetPreviewRequest(
        VALIDATION
        ========================================================= */
 
-    private boolean validateSettings() {
-        if (SessionService.isAdmin() && loadedPanels.containsKey(Section.WORKSPACE) && cmbDeploymentMode != null) {
+    private boolean validateSettings(Section section) {
+        if (SessionService.isAdmin() && section == Section.WORKSPACE && cmbDeploymentMode != null) {
             boolean requestedShared = cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1;
             DeploymentMode currentMode = effectiveDeploymentMode();
             if (currentMode == DeploymentMode.LOCAL && requestedShared) {
@@ -2211,7 +2279,7 @@ private record AssetPreviewRequest(
                 ButtonType connect = new ButtonType("Connect to Existing Server", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
                 ButtonType cancel = new ButtonType("Cancel", javafx.scene.control.ButtonBar.ButtonData.CANCEL_CLOSE);
                 OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
-                        "This PC already has a local DSE ERP company.\n\n"
+                        "This PC already has a local " + org.example.service.BrandingService.applicationName() + " company.\n\n"
                                 + "Connect to Existing Server will NOT upload or overwrite the local company. "
                                 + "The local workspace is preserved as a recovery copy, and after restart this PC will use the verified company server only.\n\n"
                                 + "If this local company should become the server company instead, choose Cancel and complete the Local to Server promotion process first.",
@@ -2226,7 +2294,7 @@ private record AssetPreviewRequest(
                 return false;
             }
         }
-        if (SessionService.isAdmin() && loadedPanels.containsKey(Section.WORKSPACE)
+        if (SessionService.isAdmin() && section == Section.WORKSPACE
                 && cmbDeploymentMode != null && cmbDeploymentMode.getSelectionModel().getSelectedIndex() == 1) {
             try {
                 String normalized = DeploymentConnectionService.normalize(txtCompanyServerUrl.getText());
@@ -2241,7 +2309,7 @@ private record AssetPreviewRequest(
                 return false;
             }
         }
-        if (SessionService.isAdmin() && loadedPanels.containsKey(Section.SECURITY) && txtSessionTimeoutMinutes != null) {
+        if (SessionService.isAdmin() && section == Section.SECURITY && txtSessionTimeoutMinutes != null) {
             try {
                 int timeout = Integer.parseInt(txtSessionTimeoutMinutes.getText().trim());
                 int warning = Integer.parseInt(txtSessionWarningMinutes.getText().trim());
@@ -2253,15 +2321,15 @@ private record AssetPreviewRequest(
                 warn(e.getMessage()); showSecurity(); return false;
             }
         }
-        if (loadedPanels.containsKey(Section.PAYMENT) && !validatePaymentDetails()) {
+        if (section == Section.PAYMENT && !validatePaymentDetails()) {
             showPayment();
             return false;
         }
-        if (loadedPanels.containsKey(Section.EMAIL) && !validateEmailSettings()) {
+        if (section == Section.EMAIL && !validateEmailSettings()) {
             showEmail();
             return false;
         }
-        if (loadedPanels.containsKey(Section.SHORTCUTS) && !validateShortcutSettings()) {
+        if (section == Section.SHORTCUTS && !validateShortcutSettings()) {
             showShortcuts();
             return false;
         }

@@ -4,7 +4,14 @@ import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.geometry.Bounds;
 import javafx.scene.Scene;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.control.Label;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogEvent;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
@@ -12,10 +19,13 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.css.PseudoClass;
 import javafx.stage.Stage;
+import org.kordamp.ikonli.javafx.FontIcon;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -270,6 +280,259 @@ class CentralUiRuntimeRegressionTest {
             assertTrue(fx(() -> label.getStyleClass().stream().anyMatch(x -> x.startsWith("erp-field-label-colour-"))),
                     "semantic field colour class must reach JavaFX logical content");
         }
+    }
+
+
+    @Test
+    void shellIconGeometryAndSemanticTableHeaderColoursRemainVisibleAcrossThemes() throws Exception {
+        AtomicReference<List<Button>> iconButtonsRef = new AtomicReference<>();
+        AtomicReference<ToggleButton> themeButtonRef = new AtomicReference<>();
+        AtomicReference<TableView<String>> tableRef = new AtomicReference<>();
+        AtomicReference<Scene> sceneRef = new AtomicReference<>();
+
+        fx(() -> {
+            Button menu = shellIconButton("menu");
+            Button reminder = shellIconButton("reminder");
+            Button notification = shellIconButton("notification");
+            Button email = shellIconButton("email");
+            Button whatsapp = shellIconButton("whatsapp");
+            Button shortcut = shellIconButton("shortcut");
+            ToggleButton theme = new ToggleButton("Light");
+            theme.getStyleClass().add("theme-switch");
+            UiActionIcons.apply(theme, "sun", "Light theme");
+
+            HBox top = new HBox(10, menu, reminder, notification, email, whatsapp, shortcut, theme);
+            top.getStyleClass().add("erp-topbar");
+            TableView<String> table = sampleTable();
+            VBox root = new VBox(12, top, table);
+            root.getStyleClass().add("erp-ui-standard");
+            VBox.setVgrow(table, Priority.ALWAYS);
+            ProfessionalUiEnhancer.enhance(root);
+
+            stage = new Stage();
+            Scene scene = new Scene(root, 1280, 720);
+            stage.setScene(scene);
+            scene.getStylesheets().setAll(ResourceLocator.require("/css/light-theme.css").toExternalForm());
+            stage.show();
+
+            iconButtonsRef.set(List.of(menu, reminder, notification, email, whatsapp, shortcut));
+            themeButtonRef.set(theme);
+            tableRef.set(table);
+            sceneRef.set(scene);
+            return null;
+        });
+        settle(10);
+
+        assertShellGraphicsFit(iconButtonsRef.get(), themeButtonRef.get());
+        assertHeaderColourFamilies(tableRef.get(), 5);
+
+        fx(() -> {
+            sceneRef.get().getStylesheets().setAll(ResourceLocator.require("/css/dark-theme.css").toExternalForm());
+            return null;
+        });
+        settle(6);
+        assertShellGraphicsFit(iconButtonsRef.get(), themeButtonRef.get());
+        assertHeaderColourFamilies(tableRef.get(), 5);
+    }
+
+
+    @Test
+    void labeledAuditViewActionKeepsEyeAndTextVisibleAndFitsItsColumn() throws Exception {
+        AtomicReference<TableView<String>> tableRef = new AtomicReference<>();
+        AtomicReference<Button> buttonRef = new AtomicReference<>();
+        AtomicReference<TableColumn<String, Void>> columnRef = new AtomicReference<>();
+
+        fx(() -> {
+            TableView<String> table = new TableView<>();
+            TableColumn<String, String> ref = new TableColumn<>("Reference");
+            ref.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue()));
+            TableColumn<String, Void> view = new TableColumn<>("View");
+            view.setCellFactory(c -> new javafx.scene.control.TableCell<>() {
+                final Button b = new Button();
+                {
+                    UiActionIcons.applyLabeledTableAction(b, "View", "view", "View audit details");
+                    buttonRef.set(b);
+                }
+                @Override protected void updateItem(Void item, boolean empty) {
+                    super.updateItem(item, empty);
+                    setGraphic(empty ? null : b);
+                }
+            });
+            table.getColumns().setAll(ref, view);
+            table.getItems().setAll("JI/25-2026/0110");
+            ProfessionalUiEnhancer.enhance(table);
+            DynamicTableLayoutManager.install(table);
+            VBox root = new VBox(table);
+            VBox.setVgrow(table, Priority.ALWAYS);
+            stage = new Stage();
+            Scene scene = new Scene(root, 720, 320);
+            scene.getStylesheets().setAll(ResourceLocator.require("/css/light-theme.css").toExternalForm());
+            stage.setScene(scene);
+            stage.show();
+            tableRef.set(table);
+            columnRef.set(view);
+            return null;
+        });
+        settle(10);
+
+        Button button = fx(() -> tableRef.get().lookupAll(".table-action-button").stream()
+                .filter(Node::isVisible)
+                .filter(Button.class::isInstance)
+                .map(Button.class::cast)
+                .findFirst().orElse(null));
+        assertNotNull(button, "Visible Audit View action must be realized");
+        assertEquals("View", fx(button::getText), "Audit action must retain visible View label");
+        assertNotNull(fx(button::getGraphic), "Audit action must retain eye icon");
+        double buttonWidth = fx(button::getWidth);
+        double prefWidth = fx(() -> button.prefWidth(-1));
+        assertTrue(buttonWidth > 55, "Audit View icon+label must have usable width; width=" + buttonWidth + " pref=" + prefWidth);
+        assertTrue(fx(columnRef.get()::getWidth) + 0.5 >= buttonWidth,
+                "Dynamic table layout must measure direct action controls so View does not clip");
+    }
+
+    @Test
+    void ownerThemeResendHoverAndReminderDrawerRemainStableInRealJavaFx() throws Exception {
+        AtomicReference<Scene> ownerSceneRef = new AtomicReference<>();
+        AtomicReference<Dialog<Void>> dialogRef = new AtomicReference<>();
+        AtomicReference<String> themeAtShowing = new AtomicReference<>();
+        AtomicReference<Button> resendRef = new AtomicReference<>();
+        AtomicReference<VBox> drawerRef = new AtomicReference<>();
+        AtomicReference<Button> editRef = new AtomicReference<>();
+        AtomicReference<Button> completeRef = new AtomicReference<>();
+
+        fx(() -> {
+            Button ownerAnchor = new Button("Owner");
+            Button resend = new Button("Re-send");
+            resend.getStyleClass().addAll("approved-button", "approved-secondary-button", "communication-resend-button");
+            UiActionIcons.apply(resend, "refresh", "Resend email");
+
+            TableView<String> table = sampleTable();
+            Button edit = new Button("Edit Reminder");
+            Button complete = new Button("Mark Complete");
+            edit.setMaxWidth(Double.MAX_VALUE);
+            complete.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(edit, Priority.ALWAYS);
+            HBox.setHgrow(complete, Priority.ALWAYS);
+            HBox actionRow = new HBox(9, edit, complete);
+            VBox drawer = new VBox(12, new Label("Reminder Details"),
+                    new Label("REF-2026-000123456789"), new Label("High priority customer follow-up"), actionRow);
+            drawer.getStyleClass().addAll("erp-detail-drawer-card", "reminder-detail-panel");
+            drawer.setMinWidth(360); drawer.setPrefWidth(390); drawer.setMaxWidth(430);
+            drawer.setManaged(false); drawer.setVisible(false);
+
+            SplitPane split = new SplitPane(table, drawer);
+            VBox root = new VBox(10, ownerAnchor, resend, split);
+            root.getStyleClass().add("erp-ui-standard");
+            VBox.setVgrow(split, Priority.ALWAYS);
+
+            stage = new Stage();
+            Scene ownerScene = new Scene(root, 1280, 760);
+            ownerScene.getStylesheets().setAll(ResourceLocator.require("/css/light-theme.css").toExternalForm());
+            stage.setScene(ownerScene);
+            stage.show();
+            RegisterUiSupport.showDrawer(drawer, split, 0.64);
+
+            OwnedDialog<Void> dialog = new OwnedDialog<>(ownerAnchor);
+            dialog.setTitle("Audit Trail");
+            dialog.getDialogPane().setContent(new VBox(new Label("Audit Trail"), new Label("Record change details")));
+            dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+            dialog.addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
+                Scene scene = dialog.getDialogPane().getScene();
+                if (scene != null && !scene.getStylesheets().isEmpty()) themeAtShowing.set(scene.getStylesheets().getFirst());
+            });
+            dialog.show();
+
+            ownerSceneRef.set(ownerScene);
+            dialogRef.set(dialog);
+            resendRef.set(resend);
+            drawerRef.set(drawer);
+            editRef.set(edit);
+            completeRef.set(complete);
+            return null;
+        });
+        settle(8);
+
+        String lightUrl = ResourceLocator.require("/css/light-theme.css").toExternalForm();
+        assertEquals(lightUrl, themeAtShowing.get(), "record audit dialog must inherit owner theme before first visible frame");
+        assertEquals(lightUrl, fx(() -> dialogRef.get().getDialogPane().getScene().getStylesheets().getFirst()),
+                "record audit dialog theme must not snap after showing");
+
+        String baseLight = fx(() -> backgroundColour(resendRef.get()));
+        assertTrue(!"0x16a34aff".equalsIgnoreCase(baseLight), "Re-send must not use the legacy dark green override");
+        fx(() -> {
+            resendRef.get().pseudoClassStateChanged(PseudoClass.getPseudoClass("hover"), true);
+            resendRef.get().applyCss();
+            return null;
+        });
+        settle(2);
+        String hoverLight = fx(() -> backgroundColour(resendRef.get()));
+        assertTrue(!"0x16a34aff".equalsIgnoreCase(hoverLight), "Re-send hover must remain under approved secondary styling");
+
+        assertTrue(fx(() -> drawerRef.get().getWidth()) >= 350, "Reminder detail drawer must not collapse below readable width");
+        assertTrue(fx(() -> editRef.get().getWidth()) >= 130, "Edit Reminder action must not clip");
+        assertTrue(fx(() -> completeRef.get().getWidth()) >= 130, "Mark Complete action must not clip");
+
+        fx(() -> {
+            dialogRef.get().close();
+            ownerSceneRef.get().getStylesheets().setAll(ResourceLocator.require("/css/dark-theme.css").toExternalForm());
+            resendRef.get().pseudoClassStateChanged(PseudoClass.getPseudoClass("hover"), false);
+            return null;
+        });
+        settle(4);
+        String baseDark = fx(() -> backgroundColour(resendRef.get()));
+        assertTrue(!"0x16a34aff".equalsIgnoreCase(baseDark), "Dark theme Re-send must not resurrect the legacy green override");
+    }
+
+    private static String backgroundColour(Button button) {
+        if (button.getBackground() == null || button.getBackground().getFills().isEmpty()) return "";
+        return String.valueOf(button.getBackground().getFills().getFirst().getFill());
+    }
+
+    private static Button shellIconButton(String semantic) {
+        Button button = new Button();
+        button.getStyleClass().addAll("top-icon", "approved-button", "approved-secondary-button", "approved-icon-button");
+        UiActionIcons.apply(button, semantic, semantic);
+        return button;
+    }
+
+    private static void assertShellGraphicsFit(List<Button> buttons, ToggleButton theme) throws Exception {
+        for (Button button : buttons) {
+            assertNotNull(fx(button::getGraphic), "shell icon graphic must exist");
+            assertTrue(fx(() -> button.getGraphic().isVisible()), "shell icon graphic must be visible");
+            double graphicWidth = fx(() -> button.getGraphic().getLayoutBounds().getWidth());
+            double buttonWidth = fx(button::getWidth);
+            assertTrue(graphicWidth > 8, "shell icon graphic must have rendered width");
+            assertTrue(graphicWidth <= buttonWidth - 2,
+                    "shell icon graphic must fit the 44px control: graphic=" + graphicWidth + " button=" + buttonWidth);
+        }
+        assertNotNull(fx(theme::getGraphic), "theme switch icon must exist");
+        double themeGraphic = fx(() -> theme.getGraphic().getLayoutBounds().getWidth());
+        assertTrue(themeGraphic > 8 && themeGraphic < theme.getWidth() - 20,
+                "theme glyph must remain visible beside Light/Dark text");
+    }
+
+    private static void assertHeaderColourFamilies(TableView<?> table, int minimumDistinct) throws Exception {
+        java.util.Set<String> colours = fx(() -> {
+            java.util.Set<String> found = new java.util.LinkedHashSet<>();
+            for (TableColumn<?, ?> column : table.getVisibleLeafColumns()) {
+                FontIcon icon = findFontIcon(column.getGraphic());
+                if (icon != null && icon.getIconColor() != null) found.add(icon.getIconColor().toString());
+            }
+            return found;
+        });
+        assertTrue(colours.size() >= minimumDistinct,
+                "semantic table headers must not collapse to one blue family; colours=" + colours);
+    }
+
+    private static FontIcon findFontIcon(Node node) {
+        if (node instanceof FontIcon icon) return icon;
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                FontIcon found = findFontIcon(child);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private static TableView<String> sampleTable() {

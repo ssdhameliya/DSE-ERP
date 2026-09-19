@@ -5,6 +5,7 @@ import org.example.util.OwnedAlert;
 
 
 import org.example.util.IconFactory;
+import org.example.util.UiActionIcons;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -88,8 +89,8 @@ public class CommunicationCenterController implements ScreenLifecycle {
     private void configureActions(){
         if(colActions==null)return;
         colActions.setCellFactory(c->new TableCell<>(){
-            final Button resend=new Button("Re-send",IconFactory.compactIcon("refresh",15));
-            {resend.getProperties().put("erp.icon.skip", true);resend.getProperties().put("erp-icon-preserve",true);resend.getProperties().put("erp.icon.semantic","refresh");resend.getStyleClass().addAll("approved-button","communication-resend-button");resend.setTooltip(new Tooltip("Resend email with the original document PDF"));resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
+            final Button resend=new Button("Re-send");
+            {resend.getStyleClass().addAll("approved-button","approved-secondary-button","communication-resend-button");UiActionIcons.apply(resend,"refresh","Resend email with the original document PDF");resend.setOnAction(e->{Row row=getTableRow().getItem();if(row!=null)resend(row);});}
             @Override protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);Row row=empty?null:getTableRow().getItem();setGraphic(row==null||!"EMAIL".equalsIgnoreCase(row.channel.get())?null:resend);setAlignment(Pos.CENTER);}
         });
     }
@@ -101,7 +102,7 @@ public class CommunicationCenterController implements ScreenLifecycle {
             String subject=row.subject.get().isBlank()?row.entity.get():row.subject.get();
             Path attachment=originalDocumentPdf(row);
             if("EMAIL".equalsIgnoreCase(channel)){
-                String body="Please find the original document attached.\n\nResent from DSE ERP Communication Center.";
+                String body="Please find the original document attached.\n\nResent from " + org.example.service.BrandingService.applicationName() + " Communication Center.";
                 if(attachment!=null) EmailService.resend(recipient,subject,body,attachment);
                 else EmailService.resend(recipient,subject,body,null);
             } else {

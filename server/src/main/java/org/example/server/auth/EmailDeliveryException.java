@@ -44,7 +44,7 @@ public final class EmailDeliveryException extends RuntimeException {
             admin = "The SMTP server did not respond in time. Verify the SMTP host/port, internet connection, firewall, and provider availability.";
         } else if (root instanceof ConnectException || lower.contains("connection refused") || lower.contains("could not connect")
                 || lower.contains("unknown host")) {
-            admin = "DSE ERP could not connect to the SMTP server. Verify the SMTP host/port, internet connection, firewall, and provider availability.";
+            admin = "The application could not connect to the SMTP server. Verify the SMTP host/port, internet connection, firewall, and provider availability.";
         } else {
             admin = "The SMTP provider rejected or could not complete the email request. Verify the sender, SMTP host/port and app password, then use Test Email again.";
         }

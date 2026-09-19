@@ -127,7 +127,7 @@
         </VBox>
 
         <!-- Details card -->
-        <VBox fx:id="reminderDetailPanel" managed="false" visible="false" minWidth="280" prefWidth="300" maxWidth="320" minHeight="0"
+        <VBox fx:id="reminderDetailPanel" managed="false" visible="false" minWidth="360" prefWidth="390" maxWidth="430" minHeight="0"
               spacing="0" styleClass="detail-drawer,erp-detail-drawer-card,reminder-detail-panel">
             <HBox alignment="CENTER_LEFT" spacing="8" styleClass="reminder-detail-fixed-header">
                 <VBox spacing="3" HBox.hgrow="ALWAYS">
@@ -157,13 +157,13 @@
                             <Label fx:id="lblDetailReference" GridPane.columnIndex="1" wrapText="true" styleClass="reminder-detail-value"/>
 
                             <Label text="Due Date" GridPane.rowIndex="1" styleClass="metric-title,reminder-detail-label"/>
-                            <Label fx:id="lblDetailDue" GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="reminder-detail-value"/>
+                            <Label fx:id="lblDetailDue" GridPane.rowIndex="1" GridPane.columnIndex="1" wrapText="true" maxWidth="Infinity" styleClass="reminder-detail-value"/>
 
                             <Label text="Priority" GridPane.rowIndex="2" styleClass="metric-title,reminder-detail-label"/>
-                            <Label fx:id="lblDetailPriority" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="reminder-detail-badge"/>
+                            <Label fx:id="lblDetailPriority" GridPane.rowIndex="2" GridPane.columnIndex="1" wrapText="true" maxWidth="Infinity" styleClass="reminder-detail-badge"/>
 
                             <Label text="Status" GridPane.rowIndex="3" styleClass="metric-title,reminder-detail-label"/>
-                            <Label fx:id="lblDetailStatus" GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="reminder-detail-badge"/>
+                            <Label fx:id="lblDetailStatus" GridPane.rowIndex="3" GridPane.columnIndex="1" wrapText="true" maxWidth="Infinity" styleClass="reminder-detail-badge"/>
                         </GridPane>
 
                         <VBox spacing="7">

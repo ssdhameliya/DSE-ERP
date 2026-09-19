@@ -57,7 +57,7 @@ public final class WorkspaceManager {
             // offers "Use Existing Workspace" so an upgrade never forces data recreation.
             workspaceRoot = null;
         } catch (IOException exception) {
-            throw new IllegalStateException("Unable to initialize the DSE ERP workspace.", exception);
+            throw new IllegalStateException("Unable to initialize the application workspace.", exception);
         }
     }
 
@@ -82,7 +82,7 @@ public final class WorkspaceManager {
      */
     public static synchronized ExistingWorkspaceInspection inspectExisting(Path selectedRoot) {
         if (selectedRoot == null) return new ExistingWorkspaceInspection(false, null,
-                "Select the folder that contains your existing DSE ERP workspace.", false, false, false);
+                "Select the folder that contains your existing application workspace.", false, false, false);
         Path normalized = selectedRoot.toAbsolutePath().normalize();
         if (!Files.isDirectory(normalized)) return new ExistingWorkspaceInspection(false, normalized,
                 "The selected folder does not exist or is not accessible. No files were changed.", false, false, false);
@@ -94,11 +94,11 @@ public final class WorkspaceManager {
         boolean hasPostgres = Files.isRegularFile(pgVersion);
         if (!hasConfig || !hasDatabase) {
             return new ExistingWorkspaceInspection(false, normalized,
-                    "This folder is not a valid DSE ERP workspace. Expected Config/config.properties and Database. No files were changed.",
+                    "This folder is not a valid application workspace. Expected Config/config.properties and Database. No files were changed.",
                     hasConfig, hasDatabase, hasPostgres);
         }
         return new ExistingWorkspaceInspection(true, normalized,
-                "Existing DSE ERP workspace structure detected.", hasConfig, hasDatabase, hasPostgres);
+                "Existing application workspace structure detected.", hasConfig, hasDatabase, hasPostgres);
     }
 
     /**
@@ -117,7 +117,7 @@ public final class WorkspaceManager {
 
     /** Repairs only the local setup marker after the server proves the database already has users/admin. */
     public static synchronized void markSetupComplete() throws IOException {
-        if (!isConfigured()) throw new IllegalStateException("DSE ERP workspace has not been configured yet.");
+        if (!isConfigured()) throw new IllegalStateException("Application workspace has not been configured yet.");
         Path config = workspaceRoot.resolve("Config").resolve("config.properties");
         Properties properties = Files.isRegularFile(config) ? readProperties(config) : new Properties();
         properties.setProperty("setup.completed", "true");
@@ -129,7 +129,7 @@ public final class WorkspaceManager {
 
     public static synchronized Path getWorkspaceRoot() {
         if (!isConfigured()) {
-            throw new IllegalStateException("DSE ERP workspace has not been configured yet.");
+            throw new IllegalStateException("Application workspace has not been configured yet.");
         }
         return workspaceRoot;
     }
@@ -221,7 +221,7 @@ public final class WorkspaceManager {
      */
     public static synchronized LocalRecoveryTargetInspection inspectLocalRecoveryTarget(Path selectedRoot) {
         if (selectedRoot == null) return new LocalRecoveryTargetInspection(false, null, false,
-                "Choose a new folder or an existing LOCAL DSE ERP workspace.");
+                "Choose a new folder or an existing LOCAL application workspace.");
         Path root = selectedRoot.toAbsolutePath().normalize();
         if (root.equals(MANAGED_SHARED_ROOT)) return new LocalRecoveryTargetInspection(false, root, false,
                 "The managed Shared Client folder cannot become a LOCAL company workspace.");
@@ -237,7 +237,7 @@ public final class WorkspaceManager {
             }
             Path config = root.resolve("Config").resolve("config.properties");
             if (!Files.isRegularFile(config)) return new LocalRecoveryTargetInspection(false, root, false,
-                    "The folder is not empty and is not an existing DSE ERP LOCAL workspace.");
+                    "The folder is not empty and is not an existing LOCAL application workspace.");
             Properties properties = readProperties(config);
             if (DeploymentMode.parse(properties.getProperty("deployment.mode", "LOCAL")) != DeploymentMode.LOCAL) {
                 return new LocalRecoveryTargetInspection(false, root, false,

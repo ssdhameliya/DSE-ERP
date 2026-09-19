@@ -34,7 +34,7 @@ public final class BrandedRegisterPdfService {
              Document document = new Document(pdf, PageSize.A4.rotate())) {
             document.setMargins(28, 28, 28, 28);
             Table banner = new Table(new float[]{3, 2}).useAllAvailableWidth();
-            banner.addCell(headerCell(ConfigManager.get("company.name", "DSE Engineers") +
+            banner.addCell(headerCell(org.example.service.BrandingService.companyName() +
                 "\n" + ConfigManager.get("company.tagline", "ERP Solutions"), 16));
             banner.addCell(headerCell(title.toUpperCase() + "\nGenerated " + BusinessClock.today(), 15)
                 .setTextAlignment(TextAlignment.RIGHT));
@@ -65,7 +65,7 @@ public final class BrandedRegisterPdfService {
                     .setTextAlignment(TextAlignment.CENTER).setPadding(16));
             }
             document.add(table);
-            document.add(new Paragraph("Powered by DSE ERP 2.0").setFontSize(8)
+            document.add(new Paragraph("Prepared for " + org.example.service.BrandingService.companyName()).setFontSize(8)
                 .setFontColor(BLUE).setTextAlignment(TextAlignment.RIGHT));
         }
     }

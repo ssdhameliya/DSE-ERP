@@ -153,7 +153,7 @@ public final class ScheduledReportExportService {
     private void addHeader(Document doc, ReportResult result) {
         Table header = new Table(UnitValue.createPercentArray(new float[]{60, 40})).useAllAvailableWidth();
         Cell company = new Cell().setBorder(null).setPadding(0);
-        company.add(new Paragraph(setting("company.name", "DSE ERP")).setBold().setFontSize(14).setFontColor(NAVY));
+        company.add(new Paragraph(setting("company.name", "Company")).setBold().setFontSize(14).setFontColor(NAVY));
         String address = setting("company.address", "").trim(); if (!address.isBlank()) company.add(new Paragraph(address).setFontSize(7));
         String gst = setting("company.gstin", "").trim(); if (!gst.isBlank()) company.add(new Paragraph("GSTIN: " + gst).setFontSize(7).setBold());
         String contact = join(setting("company.phone", ""), setting("company.email", ""), setting("company.website", ""));
@@ -211,14 +211,14 @@ public final class ScheduledReportExportService {
         doc.add(table);
     }
 
-    private static void stampFooter(Path source, Path target, ReportResult result) throws IOException {
+    private void stampFooter(Path source, Path target, ReportResult result) throws IOException {
         try (PdfDocument pdf = new PdfDocument(new PdfReader(source.toFile()), new PdfWriter(target.toFile()))) {
             int pages = pdf.getNumberOfPages();
             for (int i = 1; i <= pages; i++) {
                 var page = pdf.getPage(i);
                 PdfCanvas canvasData = new PdfCanvas(page.newContentStreamAfter(), page.getResources(), pdf);
                 try (Canvas canvas = new Canvas(canvasData, page.getPageSize())) {
-                    String left = "DSE ERP | " + result.title() + " | Generated " + result.generatedAt();
+                    String left = setting("company.name", "Company") + " | " + result.title() + " | Generated " + result.generatedAt();
                     canvas.showTextAligned(new Paragraph(left).setFontSize(6.5f).setFontColor(new DeviceRgb(90,100,112)),
                             page.getPageSize().getLeft()+28, page.getPageSize().getBottom()+15, TextAlignment.LEFT);
                     canvas.showTextAligned(new Paragraph("Page " + i + " of " + pages).setFontSize(6.5f).setFontColor(new DeviceRgb(90,100,112)),

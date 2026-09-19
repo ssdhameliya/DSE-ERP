@@ -221,8 +221,7 @@ public class DashboardController {
         String landingPath = PermissionService.allowed("DASHBOARD.VIEW") ? "/fxml/pages/DashboardHome.fxml" : "/fxml/pages/Profile.fxml";
         String landingTitle = PermissionService.allowed("DASHBOARD.VIEW") ? "Dashboard" : "My Profile";
         if (navigationManager.loadPage(landingPath)) {
-            lblPageTitle.setText(landingTitle);
-            updateShellPageIcon(landingTitle);
+            applyScreenIdentity(landingTitle);
             selectMenu("Dashboard".equals(landingTitle) ? btnDashboard : null);
         }
         updateThemeButton();
@@ -362,7 +361,7 @@ public class DashboardController {
     /** Refreshes the shell footer from the current company configuration. */
     private void refreshCompanyFooter() {
         if (lblCompanyFooter == null) return;
-        String company = ConfigManager.get("company.name", "DSE ERP").trim();
+        String company = org.example.service.BrandingService.companyName();
         String phone = ConfigManager.get("company.phone", "").trim();
         String email = ConfigManager.get("company.email", "").trim();
         String website = ConfigManager.get("company.website", "").trim();
@@ -440,17 +439,15 @@ public class DashboardController {
         if (sidebarRoot != null) {
             for (Node node : sidebarRoot.lookupAll(".button")) if (node instanceof Button b) applyIcon(b);
         }
-        if (topBar != null) {
-            for (Node node : topBar.lookupAll(".button")) if (node instanceof Button b) applyIcon(b);
-        }
+        // The top bar is icon-density constrained and must never receive the larger
+        // navigation/KPI tile graphics.  Earlier generic applyIcon(...) calls installed
+        // 32px tiles into 44px buttons whose padding left less than 20px of content,
+        // so JavaFX clipped Reminder/Notification/Email/WhatsApp/Menu graphics entirely.
+        // Keep shell actions explicit and compact; sidebar navigation continues to use tiles.
+        applyShellSemanticIcons();
         for (Node node : contentPane.getScene().getRoot().lookupAll(".toolbar-menu")) {
-            if (node instanceof Button button) button.setGraphic(IconFactory.icon("menu"));
+            if (node instanceof Button button) UiActionIcons.apply(button, "menu", "Menu");
         }
-        if (btnReminderTop != null) btnReminderTop.setGraphic(IconFactory.icon("reminder"));
-        if (btnNotifications != null) btnNotifications.setGraphic(IconFactory.icon("notification"));
-        if (btnEmailCenter != null) btnEmailCenter.setGraphic(IconFactory.icon("email"));
-        if (btnWhatsappCenter != null) btnWhatsappCenter.setGraphic(IconFactory.icon("whatsapp"));
-        if (btnShortcutInfo != null) btnShortcutInfo.setGraphic(IconFactory.icon("info"));
         refreshSidebarTogglePresentation();
         if (btnDocumentStudio != null) {
             btnDocumentStudio.setGraphic(IconFactory.icon("document", 18));
@@ -458,14 +455,30 @@ public class DashboardController {
             btnDocumentStudio.setContentDisplay(ContentDisplay.LEFT);
             btnDocumentStudio.setGraphicTextGap(10);
         }
-        menuUser.setGraphic(IconFactory.icon("user"));
+    }
+
+    /**
+     * Single owner for persistent top-bar icon semantics.  Shell actions use compact
+     * glyphs so their geometry remains stable at 100-200% display scaling; large
+     * coloured tiles remain reserved for navigation, KPI and page identity surfaces.
+     */
+    private void applyShellSemanticIcons() {
+        UiActionIcons.apply(btnSidebarToggle, "menu", "Toggle navigation");
+        UiActionIcons.apply(shellNewSale, "add", "Create sale");
+        UiActionIcons.apply(btnReminderTop, "reminder", "Reminder Center");
+        UiActionIcons.apply(btnNotifications, "notification", "Notifications");
+        UiActionIcons.apply(btnEmailCenter, "email", "Email centre");
+        UiActionIcons.apply(btnWhatsappCenter, "whatsapp", "WhatsApp activity");
+        UiActionIcons.apply(btnShortcutInfo, "shortcut", "Keyboard shortcuts");
+        UiActionIcons.apply(menuUser, "user", "User menu");
+        updateThemeButton();
     }
 
     @FXML
     private void showShortcutInfo() {
         Dialog<ButtonType> dialog = new OwnedDialog<>();
         dialog.setTitle("Keyboard Shortcuts");
-        dialog.setHeaderText("Quick navigation from anywhere in DSE ERP");
+        dialog.setHeaderText("Quick navigation from anywhere in " + org.example.service.BrandingService.applicationName() + "");
         if (btnShortcutInfo != null && btnShortcutInfo.getScene() != null
                 && btnShortcutInfo.getScene().getWindow() != null) {
             dialog.initOwner(btnShortcutInfo.getScene().getWindow());
@@ -655,7 +668,7 @@ public class DashboardController {
         boolean dark = ThemeManager.getCurrentTheme() == ThemeManager.Theme.DARK;
         btnTheme.setSelected(dark);
         btnTheme.setText(dark ? "Dark" : "Light");
-        btnTheme.setGraphic(IconFactory.icon(dark ? "moon" : "sun"));
+        UiActionIcons.apply(btnTheme, dark ? "moon" : "sun", dark ? "Dark theme" : "Light theme");
     }
 
 
@@ -692,7 +705,7 @@ public class DashboardController {
     private void refreshSidebarTogglePresentation() {
         if (btnSidebarToggle == null) return;
         boolean visible = sidebarRoot == null || sidebarRoot.isManaged();
-        btnSidebarToggle.setGraphic(IconFactory.icon("menu"));
+        UiActionIcons.apply(btnSidebarToggle, "menu", visible ? "Hide navigation" : "Show navigation");
         btnSidebarToggle.setAccessibleText(visible ? "Hide navigation" : "Show navigation");
         if (btnSidebarToggle.getTooltip() != null) {
             String shortcut = ShortcutRegistry.display(Action.TOGGLE_SIDEBAR);
@@ -906,6 +919,27 @@ public class DashboardController {
         shellPageIcon.getChildren().setAll(IconFactory.icon(semantic, 28));
     }
 
+    /** Applies one centrally owned company/environment/screen identity to the persistent shell. */
+    private void applyScreenIdentity(String pageTitle) {
+        String title = pageTitle == null || pageTitle.isBlank() ? "Dashboard" : pageTitle.trim();
+        if (lblPageTitle != null) {
+            lblPageTitle.setText(title);
+            lblPageTitle.getStyleClass().removeIf(style -> style != null && style.startsWith("screen-title-"));
+            String semantic = org.example.util.ScreenIdentity.styleClass(title);
+            if (!lblPageTitle.getStyleClass().contains(semantic)) lblPageTitle.getStyleClass().add(semantic);
+        }
+        updateShellPageIcon(title);
+        if (lblBreadcrumb != null) {
+            String company = org.example.service.BrandingService.companyName();
+            String environment = ConfigManager.getDeploymentEnvironment();
+            String identity = "LOCAL".equals(environment) ? company : company + " • " + environment;
+            lblBreadcrumb.setText(title.equals("Dashboard")
+                    ? identity + " • Welcome back, " + currentUserName() + "!"
+                    : identity + " • ERP  >  " + title);
+        }
+        org.example.util.SceneManager.updateScreenTitle(title);
+    }
+
     private void openPage(Button button,
                           String pageTitle,
                           String fxmlPath) {
@@ -921,13 +955,7 @@ public class DashboardController {
             synchronizeSidebar(group);
             selectMenu(selectedButton);
             markGroupActive(group);
-            lblPageTitle.setText(pageTitle);
-            updateShellPageIcon(pageTitle);
-            if (lblBreadcrumb != null) {
-                lblBreadcrumb.setText(pageTitle.equals("Dashboard")
-                    ? "Welcome back, " + currentUserName() + "!"
-                    : "ERP  >  " + pageTitle);
-            }
+            applyScreenIdentity(pageTitle);
         }
     }
 
@@ -1049,6 +1077,16 @@ public class DashboardController {
 
     @FXML private void openReconSupplier() {
         openPage(btnReconSupplier, "Recon Supplier", "/fxml/pages/ReconSupplier.fxml");
+    }
+
+    /** Refreshes company/environment identity after Company Settings are saved. */
+    public static void refreshBranding() {
+        DashboardController c = CURRENT;
+        if (c == null) return;
+        javafx.application.Platform.runLater(() -> {
+            c.refreshCompanyFooter();
+            c.applyScreenIdentity(c.lblPageTitle == null ? "Dashboard" : c.lblPageTitle.getText());
+        });
     }
 
     /** Lets administration child pages navigate inside the existing ERP shell. */

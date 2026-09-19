@@ -27,6 +27,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.DoubleConsumer;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -45,6 +46,7 @@ public final class RollbackService {
     private static final Pattern VERSION = Pattern.compile("(?<!\\d)(\\d+\\.\\d+\\.\\d+)(?!\\d)");
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS")
             .withZone(ZoneId.systemDefault());
+    private static final Map<String,String> CHECKSUM_CACHE = new ConcurrentHashMap<>();
 
     private final UpdateService updateService = new UpdateService();
 
@@ -173,12 +175,10 @@ public final class RollbackService {
             throw new IllegalStateException(refreshed.compatibility().message());
         }
         // Database compatibility and installer authenticity are deliberately separate.
-        // Legacy installers retained in Updates can have a safely inferred schema even when
-        // they pre-date rollback sidecar metadata. Before any backup/launch activity, require
-        // the package itself to be cryptographically tied to the official release checksum delivered by the company update service.
-        if (!refreshed.packageVerification().verified()) {
-            refreshed = verifyOfficialPackage(refreshed.installer(), refreshed.version());
-        }
+        // The page-level scan may use the metadata-keyed checksum cache for responsiveness,
+        // but rollback preparation always performs a fresh cryptographic verification before
+        // any backup/launch activity.
+        refreshed = verifyBeforeRollback(refreshed);
         if (!refreshed.packageVerification().verified()) {
             throw new SecurityException(refreshed.packageVerification().message());
         }
@@ -329,7 +329,7 @@ public final class RollbackService {
         String expected = manifest.getProperty("sha256", "").trim();
         if (("SERVER_VERIFIED".equalsIgnoreCase(source) || "GITHUB_VERIFIED".equalsIgnoreCase(source) || "UPDATER_VERIFIED".equalsIgnoreCase(source))
                 && !expected.isBlank()) {
-            String actual = checksumQuietly(installer);
+            String actual = checksumCached(installer);
             if (!actual.isBlank() && actual.equalsIgnoreCase(expected)) {
                 return new PackageVerification(true, "Verified",
                         "Installer SHA-256 matches the previously verified package metadata.");
@@ -348,7 +348,7 @@ public final class RollbackService {
     private boolean wasVerifiedByUpdater(Path installer) {
         String fileName = installer == null ? "" : installer.getFileName().toString();
         if (fileName.isBlank() || !Files.isRegularFile(installer)) return false;
-        String actual = checksumQuietly(installer);
+        String actual = checksumCached(installer);
         if (actual.isBlank()) return false;
         return UpdateHistoryStore.read().stream().anyMatch(entry -> {
             if (!("VERIFIED".equalsIgnoreCase(entry.result())
@@ -359,6 +359,22 @@ public final class RollbackService {
             Matcher sha = Pattern.compile("(?i)(?:SHA256|SHA-256)=([0-9a-f]{64})").matcher(detail);
             return sha.find() && actual.equalsIgnoreCase(sha.group(1));
         });
+    }
+
+    private Candidate verifyBeforeRollback(Candidate candidate) throws Exception {
+        Path installer = candidate.installer();
+        Properties manifest = readPackageManifest(installer);
+        String source = manifest.getProperty("source", "").trim();
+        String expected = manifest.getProperty("sha256", "").trim();
+        boolean trustedSidecar = ("SERVER_VERIFIED".equalsIgnoreCase(source)
+                || "GITHUB_VERIFIED".equalsIgnoreCase(source)
+                || "UPDATER_VERIFIED".equalsIgnoreCase(source)) && !expected.isBlank();
+        if (trustedSidecar) {
+            ChecksumVerifier.verify(installer, expected);
+            cacheVerifiedChecksum(installer, expected);
+            return candidateFor(installer, candidate.version());
+        }
+        return verifyOfficialPackage(installer, candidate.version());
     }
 
     /** Verifies any legacy/imported package against the canonical release checksum through the company update service. */
@@ -506,6 +522,30 @@ public final class RollbackService {
         try { return Files.size(path); } catch (IOException ignored) { return 0L; }
     }
 
+    private static String checksumCached(Path path) {
+        String key = checksumCacheKey(path);
+        if (key.isBlank()) return "";
+        String cached = CHECKSUM_CACHE.get(key);
+        if (cached != null) return cached;
+        String actual = checksumQuietly(path);
+        if (!actual.isBlank()) CHECKSUM_CACHE.put(key, actual);
+        return actual;
+    }
+
+    private static void cacheVerifiedChecksum(Path path, String checksum) {
+        String key = checksumCacheKey(path);
+        if (!key.isBlank() && checksum != null && !checksum.isBlank()) CHECKSUM_CACHE.put(key, checksum.toLowerCase(Locale.ROOT));
+    }
+
+    private static String checksumCacheKey(Path path) {
+        if (path == null || !Files.isRegularFile(path)) return "";
+        try {
+            return path.toAbsolutePath().normalize() + "|" + Files.size(path) + "|" + Files.getLastModifiedTime(path).toMillis();
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
     private static String checksumQuietly(Path path) {
         if (path == null || !Files.isRegularFile(path)) return "";
         try (InputStream input = Files.newInputStream(path)) {
@@ -513,7 +553,9 @@ public final class RollbackService {
             byte[] buffer = new byte[131072];
             int read;
             while ((read = input.read(buffer)) >= 0) if (read > 0) digest.update(buffer, 0, read);
-            return HexFormat.of().formatHex(digest.digest());
+            String actual = HexFormat.of().formatHex(digest.digest());
+            cacheVerifiedChecksum(path, actual);
+            return actual;
         } catch (Exception ignored) {
             return "";
         }
