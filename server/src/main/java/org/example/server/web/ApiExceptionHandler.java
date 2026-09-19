@@ -42,6 +42,15 @@ public class ApiExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(AttachmentUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> attachmentUnavailable(AttachmentUnavailableException error) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+            "status", HttpStatus.NOT_FOUND.value(),
+            "code", "ATTACHMENT_UNAVAILABLE",
+            "message", message(error, "The attachment file is not available in managed storage")
+        ));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> badRequest(IllegalArgumentException error) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(

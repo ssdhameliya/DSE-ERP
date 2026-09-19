@@ -72,7 +72,7 @@ public class EmailSettingsController {
         if(ConfigManager.isSharedClient()){message("Sign in as Admin to test company-server email settings.",true);return;}
         if(!validateAndPersist())return;
         try{
-            EmailService.send(txtSmtpEmail.getText().trim(),"DSE ERP email test","Your DSE ERP email configuration is working correctly.");
+            EmailService.send(txtSmtpEmail.getText().trim(), BrandingService.applicationName() + " email test", "Your " + BrandingService.applicationName() + " email configuration is working correctly.");
             message("Test email sent successfully.",false);
         }catch(RuntimeException failure){message(failure.getMessage()==null?"Test email failed. Check the SMTP settings and try again.":failure.getMessage(),true);}
     }

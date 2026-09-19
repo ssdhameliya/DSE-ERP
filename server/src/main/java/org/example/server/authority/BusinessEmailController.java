@@ -51,7 +51,7 @@ public class BusinessEmailController {
         requireAdmin();
         String recipient = request == null ? null : request.recipient();
         try {
-            mail.sendBusiness(recipient, "DSE ERP email test", "Your DSE ERP company-server email configuration is working correctly.", null, null);
+            mail.sendBusiness(recipient, mail.companyName() + " email test", "Your " + mail.companyName() + " company-server email configuration is working correctly.", null, null);
             return new Result(true, "Test email sent successfully");
         } catch (EmailDeliveryException failure) {
             throw new IllegalStateException(failure.adminMessage(), failure);

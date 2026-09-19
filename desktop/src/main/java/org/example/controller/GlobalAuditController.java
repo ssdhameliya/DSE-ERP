@@ -13,6 +13,7 @@ import org.example.util.DynamicTableLayoutManager;
 import org.example.util.RealtimeSearchSupport;
 import org.example.util.ResponsiveKpiLayoutManager;
 import org.example.util.UiTaskExecutor;
+import org.example.util.UiActionIcons;
 import java.util.*;
 
 public final class GlobalAuditController {
@@ -34,7 +35,7 @@ public final class GlobalAuditController {
         ResponsiveKpiLayoutManager.install(auditKpiGrid);
         DynamicTableLayoutManager.install(table);
         RealtimeSearchSupport.installRemote(txtSearch, () -> { page=0; load(); });
-        colView.setCellFactory(c->new TableCell<>(){final Button b=new Button("View");{b.getStyleClass().add("secondary-button");b.setOnAction(e->{Row r=getTableRow()==null?null:getTableRow().getItem();if(r!=null)ActivityTimelineDialog.show(table,r.entityType(),(int)r.entityId(),r.reference());});}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:b);}});
+        colView.setCellFactory(c->new TableCell<>(){final Button b=new Button();{UiActionIcons.applyLabeledTableAction(b,"View","view","View audit details");b.setAccessibleText("View audit details");b.setOnAction(e->{Row r=getTableRow()==null?null:getTableRow().getItem();if(r!=null)ActivityTimelineDialog.show(table,r.entityType(),(int)r.entityId(),r.reference());});}protected void updateItem(Void v,boolean empty){super.updateItem(v,empty);setGraphic(empty?null:b);setAlignment(javafx.geometry.Pos.CENTER);}});
         refresh();
     }
     private void bind(TableColumn<Row,String> c,java.util.function.Function<Row,String> f){c.setCellValueFactory(x->new SimpleStringProperty(f.apply(x.getValue())));}

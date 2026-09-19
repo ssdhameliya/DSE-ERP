@@ -16,6 +16,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.*;
 import org.example.backup.BackupManager;
+import org.example.service.BrandingService;
 import org.example.config.ConfigManager;
 
 import java.nio.file.Path;
@@ -61,7 +62,7 @@ public final class UpdateDialogs {
             notes.setMaxHeight(Double.MAX_VALUE);
             notes.setMaxWidth(Double.MAX_VALUE);
             VBox.setVgrow(notes, Priority.ALWAYS);
-            VBox content = new VBox(10, new Label("What’s New in DSE ERP " + version), notes);
+            VBox content = new VBox(10, new Label("What’s New in " + BrandingService.applicationName() + " " + version), notes);
             content.setFillWidth(true);
             content.setMinHeight(440);
             content.setPadding(new Insets(8));
@@ -102,7 +103,7 @@ public final class UpdateDialogs {
         org.example.service.PermissionService.require("APPLICATION_UPDATES.CHECK", "check for application updates");
         UpdateService service = new UpdateService();
         ProgressIndicator indicator = new ProgressIndicator();
-        Label message = new Label("Checking the company update service for the latest DSE ERP version...");
+        Label message = new Label("Checking the company update service for the latest " + BrandingService.applicationName() + " version...");
         VBox content = new VBox(18, indicator, message);
         content.setAlignment(javafx.geometry.Pos.CENTER);
         content.setPadding(new Insets(28));
@@ -118,7 +119,7 @@ public final class UpdateDialogs {
             UpdateState.recordSuccess(release);
             if (stateChanged != null) stateChanged.run();
             if (service.isNewer(release)) showRelease(owner, service, release);
-            else if (!quietWhenCurrent) info(owner, "You are up to date", "DSE ERP " + service.currentVersion() + " is the latest available version.");
+            else if (!quietWhenCurrent) info(owner, "You are up to date", BrandingService.applicationName() + " " + service.currentVersion() + " is the latest available version.");
         });
         task.setOnFailed(e -> {
             checking.close();
@@ -133,7 +134,7 @@ public final class UpdateDialogs {
 
     public static void showRelease(Window owner, UpdateService service, UpdateRelease release) {
         Label badge = new Label("NEW RELEASE"); badge.getStyleClass().add("update-badge");
-        Label title = new Label("DSE ERP " + release.version()); title.getStyleClass().add("update-release-title");
+        Label title = new Label(BrandingService.applicationName() + " " + release.version()); title.getStyleClass().add("update-release-title");
         TextArea notes = new TextArea(ReleaseHighlights.resolve(release.version().toString(), release.notes()));
         notes.setEditable(false); notes.setWrapText(true); notes.setPrefRowCount(9);
         String size = PlatformPackage.select(release).map(a -> humanSize(a.size())).orElse("Installer not found");
@@ -197,8 +198,8 @@ public final class UpdateDialogs {
         if (version.isBlank()) {
             error(owner, required ? "Update required" : "Update available",
                     required
-                            ? "The company server requires a newer DSE ERP desktop, but its version could not be determined."
-                            : "The company server has a newer compatible DSE ERP desktop, but its version could not be determined.");
+                            ? "The company server requires a newer " + BrandingService.applicationName() + " desktop, but its version could not be determined."
+                            : "The company server has a newer compatible " + BrandingService.applicationName() + " desktop, but its version could not be determined.");
             runIfPresent(fallback);
             return;
         }
@@ -211,13 +212,13 @@ public final class UpdateDialogs {
         String header;
         if (required) {
             header = "Desktop update required";
-            message = "The company server is running DSE ERP " + version + ", but this desktop is "
+            message = "The company server is running " + BrandingService.applicationName() + " " + version + ", but this desktop is "
                     + BuildInfo.version() + ".\n\n"
                     + "This desktop is below the server's supported compatibility range. "
-                    + "DSE ERP must be updated before login.";
+                    + BrandingService.applicationName() + " must be updated before login.";
         } else {
             header = "Desktop update available";
-            message = "The company server is running DSE ERP " + version + ", while this desktop is "
+            message = "The company server is running " + BrandingService.applicationName() + " " + version + ", while this desktop is "
                     + BuildInfo.version() + ".\n\n"
                     + (minimum.isBlank() ? "The server confirms this desktop is still compatible."
                     : "The server currently supports desktop " + minimum + " or newer.")
@@ -238,7 +239,7 @@ public final class UpdateDialogs {
 
     private static void loadPreLoginRelease(Window owner, String version, boolean required, Runnable onNoUpdate) {
         ProgressIndicator indicator = new ProgressIndicator();
-        Label message = new Label("Loading the official DSE ERP " + version + " release...");
+        Label message = new Label("Loading the official " + BrandingService.applicationName() + " " + version + " release...");
         VBox content = new VBox(18, indicator, message);
         content.setAlignment(javafx.geometry.Pos.CENTER);
         content.setPadding(new Insets(28));
@@ -315,9 +316,9 @@ public final class UpdateDialogs {
             ButtonType cancel = new ButtonType(required ? "Exit" : "Not Now", ButtonBar.ButtonData.CANCEL_CLOSE);
             ButtonType install = new ButtonType("Install & Restart", ButtonBar.ButtonData.OK_DONE);
             Alert ready = new OwnedAlert(Alert.AlertType.CONFIRMATION,
-                    "The official DSE ERP " + release.version() + " installer was downloaded and SHA-256 verified.\n\n"
+                    "The official " + BrandingService.applicationName() + " " + release.version() + " installer was downloaded and SHA-256 verified.\n\n"
                             + (required
-                            ? "DSE ERP must close and install this version before login."
+                            ? BrandingService.applicationName() + " must close and install this version before login."
                             : "Install now, or choose Not Now to continue to login with the currently supported desktop."),
                     cancel, install);
             if (owner != null) ready.initOwner(owner);
@@ -391,8 +392,8 @@ public final class UpdateDialogs {
             dialog.close();
             Path installer = task.getValue();
             Alert ready = new OwnedAlert(Alert.AlertType.CONFIRMATION);
-            ready.initOwner(owner); ready.setTitle("Update Ready to Install"); ready.setHeaderText("DSE ERP " + release.version() + " is ready");
-            ready.setContentText("A verified installer and safety backup are ready. DSE ERP will close, install the update automatically, and restart.\n\nInstaller: " + installer.getFileName());
+            ready.initOwner(owner); ready.setTitle("Update Ready to Install"); ready.setHeaderText(BrandingService.applicationName() + " " + release.version() + " is ready");
+            ready.setContentText("A verified installer and safety backup are ready. " + BrandingService.applicationName() + " will close, install the update automatically, and restart.\n\nInstaller: " + installer.getFileName());
             ButtonType install = new ButtonType("Install & Restart", ButtonBar.ButtonData.OK_DONE);
             ready.getButtonTypes().setAll(ButtonType.CANCEL, install);
             ready.showAndWait().ifPresent(b -> {
@@ -448,7 +449,7 @@ public final class UpdateDialogs {
 
     public static void showOfflineUpdate(Window owner) {
         org.example.service.PermissionService.require("APPLICATION_UPDATES.INSTALL", "install an offline update package");
-        FileChooser chooser = new FileChooser(); chooser.setTitle("Select DSE ERP Update Package");
+        FileChooser chooser = new FileChooser(); chooser.setTitle("Select Application Update Package");
         chooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Installer packages", "*.exe", "*.msi", "*.dmg", "*.pkg"), new FileChooser.ExtensionFilter("All files", "*.*"));
         java.io.File selected = chooser.showOpenDialog(owner); if (selected == null) return;
         TextInputDialog checksumDialog = new OwnedTextInputDialog(); checksumDialog.initOwner(owner); checksumDialog.setTitle("Verify Offline Update"); checksumDialog.setHeaderText("Optional SHA-256 checksum"); checksumDialog.setContentText("Paste the published SHA-256 checksum, or leave blank only for a trusted local package:");

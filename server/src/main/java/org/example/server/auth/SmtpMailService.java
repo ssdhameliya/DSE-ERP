@@ -59,6 +59,23 @@ public class SmtpMailService {
 
     public Settings currentSettings() { return settings(); }
 
+    /** Customer-facing company identity used by server-generated email surfaces. */
+    public String companyName() {
+        if (!configFile.isBlank()) {
+            try {
+                Path path = Path.of(configFile).toAbsolutePath().normalize();
+                if (Files.isRegularFile(path)) {
+                    Properties values = new Properties();
+                    try (InputStream input = Files.newInputStream(path)) { values.load(input); }
+                    String configured = values.getProperty("company.name", "").trim();
+                    if (!configured.isBlank()) return configured;
+                }
+            } catch (Exception ignored) { }
+        }
+        String configured = setting("company.name", "Company").trim();
+        return configured.isBlank() ? "Company" : configured;
+    }
+
     @Transactional
     public Settings saveSettings(String email, String password, String host, Integer port) {
         String cleanedEmail = email == null ? "" : email.trim();
@@ -115,8 +132,8 @@ public class SmtpMailService {
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(settings.email()));
             message.setRecipient(Message.RecipientType.TO, destination);
-            message.setSubject("DSE ERP " + purpose + " code");
-            message.setText("Your DSE ERP verification code is " + code
+            message.setSubject(companyName() + " " + purpose + " code");
+            message.setText("Your " + companyName() + " verification code is " + code
                     + ". It expires in 10 minutes. If you did not request this, ignore this email.");
             Transport.send(message);
         } catch (Exception exception) {
@@ -143,7 +160,7 @@ public class SmtpMailService {
             MimeMessage message = new MimeMessage(session);
             message.setFrom(new InternetAddress(settings.email()));
             message.setRecipient(Message.RecipientType.TO, new InternetAddress(recipient, true));
-            message.setSubject(subject == null ? "DSE ERP document" : subject);
+            message.setSubject(subject == null ? companyName() + " document" : subject);
             List<Attachment> files = attachments == null ? List.of() : attachments.stream()
                     .filter(a -> a != null && a.data() != null && a.data().length > 0).toList();
             if (files.isEmpty()) message.setText(body == null ? "" : body);

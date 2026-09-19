@@ -114,7 +114,7 @@ public final class PaymentMessageService {
     }
 
     private static String build(MessageData data) {
-        String company = ConfigManager.get("company.name", "DSE Engineers").trim();
+        String company = org.example.service.BrandingService.companyName().trim();
         String upi = ConfigManager.get("payment.upiId", "").trim();
         StringBuilder message = new StringBuilder();
         message.append("Hello *").append(safe(data.party())).append("* ").append(WAVE).append("\n\n")

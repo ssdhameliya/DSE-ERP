@@ -123,7 +123,7 @@ public final class Main {
             if (recoveryFiles.failure() != null) DesktopLog.error("Main", "LOCAL_RECOVERY_FILES_FAILED", recoveryFiles.message(), recoveryFiles.failure());
             Platform.runLater(() -> showStartupFailureWithWorkspaceRecovery(stage,
                     "LOCAL disaster recovery incomplete",
-                    recoveryFiles.message() + "\n\nDSE ERP will not open the recovered LOCAL company until its business files are consistent."));
+                    recoveryFiles.message() + "\n\n" + BrandingService.applicationName() + " will not open the recovered LOCAL company until its business files are consistent."));
             return;
         }
         RuntimeApiClient.RuntimeStatus startupRuntime;
@@ -214,7 +214,7 @@ public final class Main {
             ButtonType configure = new ButtonType("Configure Server", ButtonBar.ButtonData.OTHER);
             ButtonType recover = new ButtonType("Recover from Package", ButtonBar.ButtonData.OTHER);
             Alert alert = new OwnedAlert(Alert.AlertType.ERROR,
-                    message + "\n\nThis PC remains in Shared Client mode. DSE ERP will not silently switch to an older LOCAL database.",
+                    message + "\n\nThis PC remains in Shared Client mode. " + BrandingService.applicationName() + " will not silently switch to an older LOCAL database.",
                     retry, configure, recover, exit);
             alert.setHeaderText(header);
             ButtonType choice = alert.showAndWait().orElse(exit);
@@ -327,7 +327,7 @@ public final class Main {
             OwnedAlert saved = new OwnedAlert(Alert.AlertType.INFORMATION,
                     "The verified company-server connection was saved.\n\n"
                             + "This PC remains in Shared Client mode and the previous LOCAL workspace was not modified. "
-                            + "DSE ERP will close now; reopen it to connect using the repaired profile.",
+                            + BrandingService.applicationName() + " will close now; reopen it to connect using the repaired profile.",
                     ButtonType.OK);
             saved.setHeaderText("Company server connection repaired");
             saved.showAndWait();
@@ -347,8 +347,8 @@ public final class Main {
 
     private boolean prepareOfflineLocalRecovery(Stage stage) {
         FileChooser packageChooser = new FileChooser();
-        packageChooser.setTitle("Choose DSE ERP Recovery Package");
-        packageChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DSE ERP recovery package (*.zip)", "*.zip"));
+        packageChooser.setTitle("Choose Application Recovery Package");
+        packageChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Application recovery package (*.zip)", "*.zip"));
         File packageFile = packageChooser.showOpenDialog(stage);
         if (packageFile == null) return false;
 
@@ -370,7 +370,7 @@ public final class Main {
         OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.WARNING,
                 "Recovery package: " + packageFile.getAbsolutePath() + "\n\n"
                         + "LOCAL workspace: " + target + "\n\n"
-                        + "The package checksum and contents will be validated before this PC is switched. The company server will not be modified. After preparation DSE ERP will close; on the next start the database is restored before login and business files are applied only after the database restore succeeds.",
+                        + "The package checksum and contents will be validated before this PC is switched. The company server will not be modified. After preparation " + BrandingService.applicationName() + " will close; on the next start the database is restored before login and business files are applied only after the database restore succeeds.",
                 cancel, recover);
         confirmation.setHeaderText("Explicit offline LOCAL disaster recovery");
         if (confirmation.showAndWait().orElse(cancel) != recover) return false;
@@ -382,7 +382,7 @@ public final class Main {
                     "The recovery package was verified and staged successfully.\n\n"
                             + "Source: " + staged.sourceEnvironment() + " • " + staged.sourceVersion() + " • " + staged.databaseName() + "\n"
                             + "LOCAL workspace: " + staged.workspace() + "\n\n"
-                            + "DSE ERP will now close. Start it again to complete the LOCAL database and business-file recovery before login.");
+                            + BrandingService.applicationName() + " will now close. Start it again to complete the LOCAL database and business-file recovery before login.");
             ready.setHeaderText("LOCAL recovery prepared");
             ready.showAndWait();
             Platform.exit();

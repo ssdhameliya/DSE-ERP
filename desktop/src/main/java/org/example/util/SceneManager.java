@@ -17,6 +17,7 @@ import java.io.IOException;
 public class SceneManager {
 
     public static Stage primaryStage;
+    private static volatile String activeScreenTitle = "";
 
 
 
@@ -33,6 +34,7 @@ public class SceneManager {
 
 
     public static void showSetupWizard(Runnable onCompleted) {
+        activeScreenTitle = "";
         try {
             var url = ResourceLocator.require("/fxml/pages/SetupWizard.fxml");
             FXMLLoader loader = new FXMLLoader(url);
@@ -56,6 +58,7 @@ public class SceneManager {
 
     /** Shows the approved full startup dashboard while configuration/database services initialize. */
     public static void showSplash() {
+        activeScreenTitle = "";
         if (primaryStage != null) {
             javafx.geometry.Rectangle2D usable = WindowUtilsFx.visualBoundsFor(primaryStage);
             primaryStage.setWidth(usable.getWidth());
@@ -68,6 +71,7 @@ public class SceneManager {
     }
 
     public static void showLogin() {
+        activeScreenTitle = "";
         SessionActivityManager.stop();
         load("/fxml/pages/Login.fxml");
     }
@@ -117,7 +121,7 @@ public class SceneManager {
         return 1;
     }
 
-    public static void showRegistration() {load("/fxml/pages/Registration.fxml");}
+    public static void showRegistration() { activeScreenTitle = ""; load("/fxml/pages/Registration.fxml");}
     public static void loadEmailSettings() { load("/fxml/pages/EmailSettings.fxml"); }
 
 
@@ -169,10 +173,26 @@ public class SceneManager {
 
     }
 
-    private static String applicationTitle() {
+    public static void updateScreenTitle(String screenTitle) {
+        activeScreenTitle = screenTitle == null ? "" : screenTitle.trim();
+        if (primaryStage != null) primaryStage.setTitle(applicationTitle());
+    }
+
+    public static void refreshApplicationTitle() {
+        if (primaryStage != null) primaryStage.setTitle(applicationTitle());
+    }
+
+    /** Customer-facing window title. Technical package/service identifiers remain unchanged elsewhere. */
+    public static String brandedWindowTitle(String screenTitle) {
         String base = BrandingService.applicationName();
         String env = ConfigManager.getDeploymentEnvironment();
-        return "LOCAL".equals(env) ? base : base + " [" + env + "]";
+        String identity = "LOCAL".equals(env) ? base : base + " [" + env + "]";
+        String screen = screenTitle == null ? "" : screenTitle.trim();
+        return screen.isBlank() ? identity : identity + " — " + screen;
+    }
+
+    private static String applicationTitle() {
+        return brandedWindowTitle(activeScreenTitle);
     }
 
     public static void showPurchaseList() {

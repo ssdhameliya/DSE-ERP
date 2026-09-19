@@ -134,7 +134,7 @@ public final class SessionActivityManager {
         OwnedDialog<ButtonType> dialog = new OwnedDialog<>();
         warning = dialog;
         dialog.setTitle("Session Expiring");
-        dialog.setHeaderText("Your DSE ERP session is about to expire");
+        dialog.setHeaderText("Your " + BrandingService.applicationName() + " session is about to expire");
         dialog.getDialogPane().getStyleClass().addAll("modern-dialog", "session-timeout-dialog", "approved-dialog");
         warningCountdown = new Label();
         warningCountdown.getStyleClass().add("session-timeout-countdown");

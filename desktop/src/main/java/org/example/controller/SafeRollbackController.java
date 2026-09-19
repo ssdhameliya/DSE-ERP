@@ -18,6 +18,7 @@ import org.example.update.BuildInfo;
 import org.example.util.IconFactory;
 import org.example.util.BusinessClock;
 import org.example.util.OwnedAlert;
+import org.example.util.UiTaskExecutor;
 
 import java.awt.Desktop;
 import java.nio.file.Files;
@@ -161,28 +162,38 @@ public class SafeRollbackController {
 
     @FXML
     private void refresh() {
-        try {
-            var candidates = service.candidates();
-            candidateTable.getItems().setAll(candidates);
-            lblPackageCount.setText(Integer.toString(candidates.size()));
-            var history = service.history();
-            historyTable.getItems().setAll(history);
-            lblHistoryCount.setText(history.size() + (history.size() == 1 ? " event" : " events"));
-            lblRecoveryPoint.setText(service.latestRecoveryPoint()
-                    .map(path -> path.getFileName().toString())
-                    .orElse("No rollback recovery point yet"));
-            lblStatus.setText(candidates.isEmpty()
-                    ? "No previous installer is currently retained. Import one or download a published version."
-                    : "Select a compatible previous version. The current PostgreSQL database will be preserved.");
-        } catch (Exception error) {
-            lblStatus.setText("Rollback status could not be refreshed: " + rootMessage(error));
-        }
+        // Never scan/hash retained installers on the JavaFX application thread. The screen
+        // must paint immediately; verification may continue in the background.
+        lblStatus.setText("Loading rollback packages...");
+        UiTaskExecutor.submitLatest("safe-rollback-refresh",
+                () -> new RollbackSnapshot(service.candidates(), service.history(), service.latestRecoveryPoint().orElse(null)),
+                this::applyRollbackSnapshot,
+                error -> lblStatus.setText("Rollback status could not be refreshed: " + rootMessage(error)));
     }
+
+    private void applyRollbackSnapshot(RollbackSnapshot snapshot) {
+        var candidates = snapshot.candidates();
+        candidateTable.getItems().setAll(candidates);
+        lblPackageCount.setText(Integer.toString(candidates.size()));
+        var history = snapshot.history();
+        historyTable.getItems().setAll(history);
+        lblHistoryCount.setText(history.size() + (history.size() == 1 ? " event" : " events"));
+        lblRecoveryPoint.setText(snapshot.recoveryPoint() == null
+                ? "No rollback recovery point yet"
+                : snapshot.recoveryPoint().getFileName().toString());
+        lblStatus.setText(candidates.isEmpty()
+                ? "No previous installer is currently retained. Import one or download a published version."
+                : "Select a compatible previous version. The current PostgreSQL database will be preserved.");
+    }
+
+    private record RollbackSnapshot(java.util.List<RollbackService.Candidate> candidates,
+                                    java.util.List<RollbackService.HistoryEntry> history,
+                                    Path recoveryPoint) { }
 
     @FXML
     private void importPreviousInstaller() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Import Previous DSE ERP Installer");
+        chooser.setTitle("Import Previous " + org.example.service.BrandingService.applicationName() + " Installer");
         chooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("DSE ERP installers", "*.exe", "*.msi", "*.dmg", "*.pkg"),
                 new FileChooser.ExtensionFilter("All files", "*.*"));
@@ -190,7 +201,7 @@ public class SafeRollbackController {
         if (selected == null) return;
         runTask("Importing rollback package...", () -> service.importPackage(selected.toPath()), candidate -> {
             refresh();
-            info("Previous version retained", "DSE ERP " + candidate.version() + " is now available in Safe Rollback.\n\n" + candidateMessage(candidate));
+            info("Previous version retained", org.example.service.BrandingService.applicationName() + " " + candidate.version() + " is now available in Safe Rollback.\n\n" + candidateMessage(candidate));
         });
     }
 
@@ -204,18 +215,18 @@ public class SafeRollbackController {
             ChoiceDialog<RollbackService.PublishedVersion> prompt = new ChoiceDialog<>(versions.getFirst(), versions);
             if (owner() != null) prompt.initOwner(owner());
             prompt.setTitle("Download Previous Release");
-            prompt.setHeaderText("Choose a verified DSE ERP release");
+            prompt.setHeaderText("Choose a verified application release");
             prompt.setContentText("Version:");
             prompt.showAndWait().ifPresent(selected -> {
                 if (!selected.compatibility().safe()) {
                     error("Rollback blocked", selected.compatibility().message());
                     return;
                 }
-                runTask("Downloading and verifying DSE ERP " + selected.version() + "...",
+                runTask("Downloading and verifying " + org.example.service.BrandingService.applicationName() + " " + selected.version() + "...",
                         () -> service.downloadPublishedVersion(selected.version(), ignored -> { }),
                         candidate -> {
                             refresh();
-                            info("Rollback package ready", "DSE ERP " + candidate.version() + " was downloaded and SHA-256 verified.\n\n" + candidateMessage(candidate));
+                            info("Rollback package ready", org.example.service.BrandingService.applicationName() + " " + candidate.version() + " was downloaded and SHA-256 verified.\n\n" + candidateMessage(candidate));
                         });
             });
         });
@@ -240,7 +251,7 @@ public class SafeRollbackController {
         Alert confirm = new OwnedAlert(Alert.AlertType.CONFIRMATION);
         if (owner() != null) confirm.initOwner(owner());
         confirm.setTitle("Safe Application Rollback");
-        confirm.setHeaderText("Roll back DSE ERP " + BuildInfo.version() + " → " + candidate.version() + "?");
+        confirm.setHeaderText("Roll back " + org.example.service.BrandingService.applicationName() + " " + BuildInfo.version() + " → " + candidate.version() + "?");
         confirm.setContentText("Your CURRENT business data will be preserved.\n\n"
                 + "✓ PostgreSQL transactions stay current\n"
                 + "✓ Sales, purchases, payments and inventory stay current\n"
@@ -261,7 +272,7 @@ public class SafeRollbackController {
                     ready.setHeaderText("Safety checks completed successfully");
                     ready.setContentText("Recovery point: " + preparation.id()
                             + "\nDatabase backup: " + preparation.databaseBackup().getFileName()
-                            + "\n\nDSE ERP will close, install version " + preparation.targetVersion()
+                            + "\n\n" + org.example.service.BrandingService.applicationName() + " will close, install version " + preparation.targetVersion()
                             + ", and restart while keeping the current database.");
                     ButtonType restart = new ButtonType("Roll Back & Restart", ButtonBar.ButtonData.OK_DONE);
                     ready.getButtonTypes().setAll(ButtonType.CANCEL, restart);

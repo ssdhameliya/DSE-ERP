@@ -615,7 +615,7 @@ public final class PurchasePaymentController implements ScreenLifecycle {
             stage = "sending the email";
             EmailService.send(recipient, subject,
                     "Dear " + safe(purchase.getSupplier().getName()) + ",\n\nPlease find the purchase invoice attached.\n\nRegards,\n" +
-                            ConfigManager.get("company.name", "DSE ERP"), pdf);
+                            org.example.service.BrandingService.companyName(), pdf);
             purchaseService.markEmailSent(purchase.getId());
             logCommunication(recipient, subject, "SENT", null);
             org.example.util.ToastManager.success(amount, "Email sent", "Purchase invoice emailed successfully.");

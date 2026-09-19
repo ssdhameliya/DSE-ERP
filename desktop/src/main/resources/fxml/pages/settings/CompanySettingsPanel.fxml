@@ -88,8 +88,9 @@
 
                                 <!-- Application identity is intentionally kept at the bottom of the primary Company & Billing form. -->
                                 <VBox spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="2">
-                                    <Label text="Application Name" styleClass="settings-form-label"/>
-                                    <TextField fx:id="txtApplicationName" promptText="DSE ERP" styleClass="approved-input"/>
+                                    <Label text="Application Display Name" styleClass="settings-form-label"/>
+                                    <TextField fx:id="txtApplicationName" promptText="Uses Company Name" editable="false" focusTraversable="false" styleClass="approved-input,readonly-field"/>
+                                    <Label text="Uses Company Name automatically across the customer-facing application." wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
 
                                 <VBox spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="2">
@@ -99,7 +100,7 @@
 
                                 <VBox spacing="5" GridPane.columnIndex="2" GridPane.columnSpan="2" GridPane.rowIndex="2">
                                     <Label text="Startup Message" styleClass="settings-form-label"/>
-                                    <TextField fx:id="txtApplicationStartingText" promptText="Starting DSE ERP..." styleClass="approved-input"/>
+                                    <TextField fx:id="txtApplicationStartingText" promptText="Starting your company..." styleClass="approved-input"/>
                                     <Label text="Used on splash and sign-in screens; document branding remains independent." wrapText="true" styleClass="settings-help-text"/>
                                 </VBox>
 

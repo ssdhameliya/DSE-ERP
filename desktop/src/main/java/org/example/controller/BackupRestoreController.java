@@ -389,7 +389,7 @@ public class BackupRestoreController {
         }
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Save Disaster Recovery Package");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("DSE ERP recovery package (*.zip)", "*.zip"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Application recovery package (*.zip)", "*.zip"));
         chooser.setInitialFileName("DSE-ERP-Recovery-" + java.time.LocalDate.now() + ".zip");
         File selected = chooser.showSaveDialog(backupTable.getScene().getWindow());
         if (selected == null) return;
@@ -422,8 +422,8 @@ public class BackupRestoreController {
         ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
         OwnedAlert warning = new OwnedAlert(Alert.AlertType.WARNING,
                 "Use this only for a planned server-to-local move or a serious cloud/server incident.\n\n"
-                        + "Before continuing, stop business activity on every other DSE ERP PC. The recovery package is a point-in-time copy; changes made on the company server after this package is created will not be merged automatically.\n\n"
-                        + "DSE ERP will create a fresh verified server database snapshot, include server-owned Attachments, Documents and Templates, stage them into a LOCAL workspace, and then close this Shared Client. No automatic stale-local fallback is used.",
+                        + "Before continuing, stop business activity on every other " + org.example.service.BrandingService.applicationName() + " PC. The recovery package is a point-in-time copy; changes made on the company server after this package is created will not be merged automatically.\n\n"
+                        + org.example.service.BrandingService.applicationName() + " will create a fresh verified server database snapshot, include server-owned Attachments, Documents and Templates, stage them into a LOCAL workspace, and then close this Shared Client. No automatic stale-local fallback is used.",
                 cancel, continueRecovery);
         warning.setHeaderText("Server to LOCAL recovery");
         if (warning.showAndWait().orElse(cancel) != continueRecovery) return;
@@ -441,7 +441,7 @@ public class BackupRestoreController {
 
         OwnedAlert confirmation = new OwnedAlert(Alert.AlertType.CONFIRMATION,
                 "Recovery target:\n" + target + "\n\n" + inspection.message() + "\n\n"
-                        + "After preparation, DSE ERP will close. On the next start this PC will open the LOCAL workspace, restore the server snapshot before login, and only then apply the staged business files.\n\n"
+                        + "After preparation, " + org.example.service.BrandingService.applicationName() + " will close. On the next start this PC will open the LOCAL workspace, restore the server snapshot before login, and only then apply the staged business files.\n\n"
                         + "Continue?",
                 cancel, continueRecovery);
         confirmation.setHeaderText(inspection.existingLocal() ? "Recover into preserved LOCAL workspace" : "Create new LOCAL recovery workspace");
@@ -464,7 +464,7 @@ public class BackupRestoreController {
                             + "Source: " + staged.sourceEnvironment() + " • " + staged.sourceVersion() + " • " + staged.databaseName() + "\n"
                             + "LOCAL workspace: " + staged.workspace() + "\n"
                             + "Off-PC/server recovery package retained at: " + staged.retainedPackage() + "\n\n"
-                            + "The current Shared Client session will now close. Start DSE ERP again to perform the LOCAL database restore before login. The existing company-server data is not modified by this recovery preparation.");
+                            + "The current Shared Client session will now close. Start " + org.example.service.BrandingService.applicationName() + " again to perform the LOCAL database restore before login. The existing company-server data is not modified by this recovery preparation.");
             ready.setHeaderText("LOCAL recovery prepared");
             ready.showAndWait();
             Platform.exit();
@@ -474,7 +474,7 @@ public class BackupRestoreController {
     @FXML
     private void createBackup() {
         org.example.service.PermissionService.require("BACKUP.CREATE", "create a database backup");
-        if (!confirm("Create database backup", "Create a new verified DSE ERP database backup now?")) return;
+        if (!confirm("Create database backup", "Create a new verified " + org.example.service.BrandingService.applicationName() + " database backup now?")) return;
         if (ConfigManager.isSharedClient()) {
             runOperation("Creating a company-server database backup...", serverBackups::create, target -> {
                 NotificationService.add("Company-server backup created: " + target.name());
@@ -528,16 +528,16 @@ public class BackupRestoreController {
                     boolean shared = ConfigManager.isSharedClient();
                     String detail = shared
                             ? "The restore has been staged safely on the company server.\n\n"
-                            + "Apply the staged restore through the DSE ERP Company Server restore procedure, then restart the company server. "
+                            + "Apply the staged restore through the " + org.example.service.BrandingService.applicationName() + " Company Server restore procedure, then restart the company server. "
                             + "Restarting this workstation alone does not replace the shared database."
                             : "The restore has been staged safely.\n\n"
-                            + "Close DSE ERP and start it again. A verified safety backup of the current "
+                            + "Close " + org.example.service.BrandingService.applicationName() + " and start it again. A verified safety backup of the current "
                             + "database will be created automatically before the staged restore is applied.";
                     Alert staged = new OwnedAlert(Alert.AlertType.INFORMATION, detail);
                     staged.setHeaderText(shared ? "Restore staged on company server" : "Restore ready for next startup");
                     staged.showAndWait();
                     setStatus(shared ? "Server restore staged. Apply it during the company-server restart procedure."
-                            : "Restore staged. Restart DSE ERP to apply it.");
+                            : "Restore staged. Restart " + org.example.service.BrandingService.applicationName() + " to apply it.");
                 }
         );
     }
@@ -545,7 +545,7 @@ public class BackupRestoreController {
     @FXML
     private void browseBackup() {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle("Select DSE ERP Backup");
+        chooser.setTitle("Select Application Backup");
         chooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("ERP backup", "*.db", "*.pgbackup")
         );
@@ -580,7 +580,7 @@ public class BackupRestoreController {
     private void importBackup(Path file) {
         org.example.service.PermissionService.require("BACKUP.CREATE", "import a database backup");
         if (file == null) return;
-        if (!confirm("Import database backup", "Validate and import " + file.getFileName() + " into DSE ERP backup history?")) return;
+        if (!confirm("Import database backup", "Validate and import " + file.getFileName() + " into " + org.example.service.BrandingService.applicationName() + " backup history?")) return;
         if (ConfigManager.isSharedClient()) {
             runOperation("Uploading, validating and importing backup on the company server...", () -> serverBackups.importBackup(file), target -> {
                 NotificationService.add("External backup imported to company server: " + target.name());

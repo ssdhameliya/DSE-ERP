@@ -15,7 +15,7 @@ public final class EmailService {
     }
 
     public static void sendOtp(String recipient, String otp) {
-        send(recipient, "JavaApp ERP verification code", "Your verification code is " + otp + ". It expires in 10 minutes. Do not share this code.");
+        send(recipient, BrandingService.applicationName() + " verification code", "Your verification code is " + otp + ". It expires in 10 minutes. Do not share this code.");
     }
 
     public static void send(String recipient, String subject, String body) {

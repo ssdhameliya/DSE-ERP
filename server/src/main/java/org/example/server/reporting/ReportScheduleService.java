@@ -248,7 +248,7 @@ public class ReportScheduleService {
                 if (recipients.isEmpty()) throw new IllegalStateException("Scheduled Report email recipient is missing");
                 List<SmtpMailService.Attachment> attachments = new ArrayList<>();
                 for (Path file : files) attachments.add(new SmtpMailService.Attachment(file.getFileName().toString(), contentType(file), Files.readAllBytes(file)));
-                String subject = "DSE ERP Scheduled Report - " + result.title();
+                String subject = mail.companyName() + " Scheduled Report - " + result.title();
                 String body = "Scheduled Report: " + schedule.name() + "\nReport: " + result.title()
                         + "\nPeriod: " + result.periodFrom() + " to " + result.periodTo()
                         + "\nGenerated: " + result.generatedAt() + "\nRows: " + result.totalRows();

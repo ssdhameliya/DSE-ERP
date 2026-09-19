@@ -30,7 +30,7 @@
 
                             <VBox spacing="14" styleClass="settings-information-card">
                                 <Label text="Company Update Service" styleClass="settings-subsection-title"/>
-                                <Label text="Release metadata and installers are delivered through the configured DSE ERP server. Private GitHub credentials remain on the server and are never stored in the desktop client." wrapText="true" styleClass="settings-help-text"/>
+                                <Label text="Release metadata and installers are delivered through the configured company server. Private GitHub credentials remain on the server and are never stored in the desktop client." wrapText="true" styleClass="settings-help-text"/>
                                 <GridPane hgap="18" vgap="14">
                                     <columnConstraints>
                                         <ColumnConstraints percentWidth="50" hgrow="ALWAYS"/>

@@ -72,7 +72,7 @@ public class SetupWizardController {
 
     @FXML private void browseWorkspace() {
         DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Choose DSE ERP Workspace");
+        chooser.setTitle("Choose Application Workspace");
         File current = new File(txtWorkspace.getText().trim());
         if (current.isDirectory()) chooser.setInitialDirectory(current);
         File selected = chooser.showDialog(btnBrowse.getScene().getWindow());
@@ -87,7 +87,7 @@ public class SetupWizardController {
     @FXML private void useExistingWorkspace() {
         clearError();
         DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Select Existing DSE ERP Workspace");
+        chooser.setTitle("Select Existing Application Workspace");
         try {
             File current = new File(txtWorkspace.getText() == null ? "" : txtWorkspace.getText().trim());
             if (current.isDirectory()) chooser.setInitialDirectory(current);
@@ -114,12 +114,12 @@ public class SetupWizardController {
                     RuntimeBootstrapper.ensureServerReady();
                 }
                 if (new SetupApiClient().requiresSetup()) {
-                    throw new IllegalStateException("This workspace does not contain an initialized DSE ERP company/admin database. Select another existing workspace or create a new one.");
+                    throw new IllegalStateException("This workspace does not contain an initialized " + org.example.service.BrandingService.applicationName() + " company/admin database. Select another existing workspace or create a new one.");
                 }
                 WorkspaceManager.markSetupComplete();
                 ConfigManager.load();
                 Platform.runLater(() -> {
-                    lblError.setText("Existing workspace verified. Opening DSE ERP...");
+                    lblError.setText("Existing workspace verified. Opening " + org.example.service.BrandingService.applicationName() + "...");
                     if (onCompleted != null) onCompleted.run(); else SceneManager.showLogin();
                 });
             } catch (Exception exception) {
@@ -170,13 +170,13 @@ public class SetupWizardController {
         }
         String[] titles = {"Choose how this PC connects", "Company information", "Email delivery", "Administrator account", "Ready to start"};
         String[] descriptions = {
-                "Use a local workspace on this PC, or connect directly to an existing DSE ERP company server.",
+                "Use a local workspace on this PC, or connect directly to an existing " + org.example.service.BrandingService.applicationName() + " company server.",
                 "These details appear on invoices, reports and customer communication.",
                 "Optional: configure Yahoo or another SMTP account now, or do it later in Settings.",
                 "Create the primary administrator who will manage users, roles and permissions.",
                 isShared()
                         ? "Review the company-server connection. No local business workspace or local PostgreSQL database will be created."
-                        : "Review your setup. DSE ERP will create the workspace and initialize the local database."
+                        : "Review your setup. " + org.example.service.BrandingService.applicationName() + " will create the workspace and initialize the local database."
         };
         lblStep.setText("Step " + (index + 1) + " of " + steps.size());
         lblTitle.setText(titles[index]);

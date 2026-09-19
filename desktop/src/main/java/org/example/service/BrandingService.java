@@ -9,12 +9,38 @@ import java.nio.file.Path;
 
 /** Workspace-aware branding with safe built-in fallbacks for first launch. */
 public final class BrandingService {
+    private static final String TECHNICAL_PRODUCT_NAME = "DSE ERP";
+
     private BrandingService() { }
 
-    public static String companyName() { return value("company.name", "DSE ERP"); }
-    public static String applicationName() { return value("application.displayName", "DSE ERP"); }
-    public static String tagline() { return value("application.tagline", "Business Management Suite"); }
-    public static String startingText() { return value("application.startingText", "Starting " + applicationName() + "..."); }
+    /** Stable internal product identity used only where a technical product name is required. */
+    public static String technicalProductName() { return TECHNICAL_PRODUCT_NAME; }
+
+    /** Canonical customer-facing identity. Shared clients resolve company.* from the company server after login. */
+    public static String companyName() {
+        String company = value("company.name", "");
+        if (!company.isBlank()) return company;
+        String legacyApplicationName = value("application.displayName", "");
+        return legacyApplicationName.isBlank() ? TECHNICAL_PRODUCT_NAME : legacyApplicationName;
+    }
+
+    /**
+     * Backward-compatible UI accessor. Customer-facing surfaces must follow company.name rather
+     * than a workstation-local application.displayName that can drift from UAT/PROD company data.
+     */
+    public static String applicationName() { return companyName(); }
+
+    public static String tagline() { return value("application.tagline", value("company.tagline", "Business Management Suite")); }
+
+    public static String startingText() {
+        String configured = value("application.startingText", "");
+        if (configured.isBlank() || configured.equalsIgnoreCase("Starting DSE ERP...")
+                || configured.equalsIgnoreCase("Starting DSE ERP…")) {
+            return "Starting " + applicationName() + "...";
+        }
+        return configured.replace(TECHNICAL_PRODUCT_NAME, applicationName());
+    }
+
     public static String loginDescription() { return "Role-aware secure access to " + applicationName(); }
 
     /** Application UI banner used by Splash/Login/Registration/Email screens. */

@@ -88,7 +88,7 @@ public final class PlatformUiSupport {
         } else {
             stage.initModality(Modality.APPLICATION_MODAL);
         }
-        stage.setTitle(title == null ? "DSE ERP" : title);
+        stage.setTitle(SceneManager.brandedWindowTitle(title));
         stage.setResizable(resizable);
         stage.setOnShown(event -> Platform.runLater(() -> {
             installResponsiveClasses(stage.getScene());
@@ -97,11 +97,21 @@ public final class PlatformUiSupport {
                     stage.getScene().getRoot().getStyleClass().add("erp-modal-window-root");
                 }
                 ProfessionalUiEnhancer.enhance(stage.getScene().getRoot());
+                applyScreenTitleSemantic(stage.getScene().getRoot(), title);
             }
             WindowUtilsFx.fitDialogToOwnerScreen(stage, owner);
         }));
     }
 
+
+    private static void applyScreenTitleSemantic(Node root, String title) {
+        if (root == null) return;
+        String semantic = ScreenIdentity.styleClass(title);
+        for (Node node : root.lookupAll(".entity-dialog-title")) {
+            node.getStyleClass().removeIf(style -> style != null && style.startsWith("screen-title-"));
+            if (!node.getStyleClass().contains(semantic)) node.getStyleClass().add(semantic);
+        }
+    }
 
     private static void setVisibleManaged(Node node, boolean visible) {
         if (node == null) return;

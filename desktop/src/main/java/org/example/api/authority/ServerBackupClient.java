@@ -57,6 +57,9 @@ public final class ServerBackupClient {
             if (bytes == null || bytes.length < 128) throw new IllegalStateException("The company server returned an empty recovery package.");
             Files.createDirectories(target.toAbsolutePath().getParent());
             Files.write(target, bytes);
+            // Layer portable workstation preferences/branding onto the server-created package.
+            // Machine-specific deployment identity and credentials are intentionally excluded.
+            org.example.backup.PortableRecoverySettings.augment(target);
             return new RecoveryPackage(target,
                     response.headers().firstValue("X-DSE-Recovery-Database-SHA256").orElse(""),
                     response.headers().firstValue("X-DSE-Recovery-Environment").orElse(""),

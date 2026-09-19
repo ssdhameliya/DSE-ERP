@@ -51,7 +51,13 @@ public final class DialogPresentation {
         pane.getProperties().put(CUSTOM, true);
         if (Boolean.TRUE.equals(pane.getProperties().get(INSTALLED))) return;
         pane.getProperties().put(INSTALLED, true);
-        dialog.addEventHandler(DialogEvent.DIALOG_SHOWING, event -> render(dialog));
+        pane.sceneProperty().addListener((obs, oldScene, scene) -> {
+            if (scene != null) applyOwnerTheme(dialog, scene);
+        });
+        dialog.addEventHandler(DialogEvent.DIALOG_SHOWING, event -> {
+            if (pane.getScene() != null) applyOwnerTheme(dialog, pane.getScene());
+            render(dialog);
+        });
         dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> Platform.runLater(() -> finish(dialog)));
     }
 
@@ -132,7 +138,7 @@ public final class DialogPresentation {
         pane.setContent(createShell(dialog, semantic, title, heading, message, customContent, workspace, textInput));
         pane.getProperties().put(PRESENTED, true);
         if (pane.getScene() != null) {
-            ThemeManager.applyTheme(pane.getScene());
+            applyOwnerTheme(dialog, pane.getScene());
             PlatformUiSupport.installResponsiveClasses(pane.getScene());
         }
         normalizeActionLabels(pane, semantic);
@@ -345,12 +351,20 @@ public final class DialogPresentation {
         };
     }
 
+    private static void applyOwnerTheme(Dialog<?> dialog, Scene scene) {
+        if (scene == null) return;
+        javafx.stage.Window owner = null;
+        if (scene.getWindow() instanceof Stage stage) owner = stage.getOwner();
+        if (owner == null) owner = DialogOwnerResolver.resolve();
+        ThemeManager.applyTheme(scene, owner);
+    }
+
     private static void finish(Dialog<?> dialog) {
         DialogPane pane = dialog.getDialogPane();
         Scene scene = pane.getScene();
         if (scene != null) {
             if (!PlatformUiSupport.isMac()) scene.setFill(Color.TRANSPARENT);
-            ThemeManager.applyTheme(scene);
+            applyOwnerTheme(dialog, scene);
             PlatformUiSupport.installResponsiveClasses(scene);
             if (scene.getRoot() != null) {
                 ProfessionalUiEnhancer.enhance(scene.getRoot());
@@ -465,7 +479,7 @@ public final class DialogPresentation {
             case "restore" -> "Restore";
             case "backup" -> "Backup";
             case "complete" -> "Completed";
-            default -> "DSE ERP";
+            default -> org.example.service.BrandingService.applicationName();
         };
     }
 

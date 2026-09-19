@@ -547,7 +547,7 @@ public final class ProfessionalDocumentRenderer {
         Cell brand = plainCell().setPaddingLeft(5).setPaddingTop(2).setPaddingRight(16);
         addLogo(brand, logo, accent, 150, 58);
         addPdfIconLine(brand, "company.png",
-            config("company.name", "DSE ERP SOLUTIONS PVT. LTD."), accent, true);
+            config("company.name", "Company"), accent, true);
         addPdfIconLine(brand, "location.png",
             config("company.address", "Configure company address in Settings"), accent, false);
         addPdfIconLine(brand, "phone.png", config("company.phone", ""), accent, false);
@@ -755,7 +755,7 @@ public final class ProfessionalDocumentRenderer {
         Table body = new Table(UnitValue.createPercentArray(new float[]{18, 82})).useAllAvailableWidth().setMarginTop(4);
         Cell icon = plainCell().setPadding(5); addResourceIcon(icon, "ship-to.png", 24, 24); body.addCell(icon);
         Cell details = plainCell().setPadding(3);
-        details.add(new Paragraph(config("company.name", "DSE ERP SOLUTIONS PVT. LTD.") + " - Warehouse")
+        details.add(new Paragraph(config("company.name", "Company") + " - Warehouse")
             .setBold().setFontSize(7.1f).setMargin(0));
         details.add(new Paragraph(present(config("company.shipTo", config("company.address", ""))))
             .setFontSize(6.6f).setMultipliedLeading(1.18f).setMarginTop(3));
@@ -985,7 +985,7 @@ public final class ProfessionalDocumentRenderer {
         if (!data.refund) addConfiguredQr(qr, data, pdf);
         payment.addCell(qr);
         Cell sign = plainCell().setTextAlignment(TextAlignment.CENTER)
-            .add(new Paragraph("FOR " + config("company.name", "DSE ERP SOLUTIONS PVT. LTD.")).setBold().setFontColor(accent).setFontSize(6.5f));
+            .add(new Paragraph("FOR " + config("company.name", "Company")).setBold().setFontColor(accent).setFontSize(6.5f));
         Path sig = configuredAsset("company.signaturePath");
         if (sig != null) try {
             var signatureData = configuredAssetImageData(sig, 360);
@@ -1269,7 +1269,7 @@ public final class ProfessionalDocumentRenderer {
         try {
             BarcodeQRCode code = new BarcodeQRCode(
                 "upi://pay?pa=" + upi +
-                    "&pn=" + url(config("payment.accountHolder", config("company.name", "DSE ERP"))) +
+                    "&pn=" + url(config("payment.accountHolder", config("company.name", "Company"))) +
                     "&am=" + String.format(Locale.US, "%.2f", data.total) + "&cu=INR");
             cell.add(new Image(code.createFormXObject(pdf))
                 .setWidth(54).setHeight(54)

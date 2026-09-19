@@ -1,5 +1,7 @@
 package org.example.update;
 
+import org.example.service.BrandingService;
+
 import org.example.util.OwnedAlert;
 
 import javafx.application.Platform;
@@ -27,8 +29,8 @@ public final class UpdateLifecycle {
                 Platform.runLater(() -> org.example.util.ToastManager.success(owner,
                     sharedClient ? "Client updated" : "Update completed",
                     sharedClient
-                            ? "DSE ERP " + buildVersion + " client is ready for the company server."
-                            : "DSE ERP " + buildVersion + " is installed. Database schema: " + migration.toVersion()));
+                            ? BrandingService.applicationName() + " " + buildVersion + " client is ready for the company server."
+                            : BrandingService.applicationName() + " " + buildVersion + " is installed. Database schema: " + migration.toVersion()));
             }
         } catch (Exception exception) {
             UpdateHistoryStore.append(BuildInfo.version(), ConfigManager.getEffectiveUpdateChannel(), "MIGRATION_FAILED", exception.getMessage());

@@ -94,7 +94,7 @@
         <HBox spacing="8" alignment="CENTER_LEFT" styleClass="bank-recon-how-panel">
           <StackPane fx:id="howIcon" styleClass="bank-recon-how-icon"/>
           <Label text="How Matching Works" styleClass="bank-recon-how-title"/>
-          <Label text="Match Transaction  →  DSE ERP searches automatically  →  Review the suggestion  →  Confirm or find another  →  linked Bank / Expense Entry is stored." wrapText="true" styleClass="bank-recon-how-text"/>
+          <Label text="Match Transaction  →  the application searches automatically  →  Review the suggestion  →  Confirm or find another  →  linked Bank / Expense Entry is stored." wrapText="true" styleClass="bank-recon-how-text"/>
         </HBox>
       </VBox>
 

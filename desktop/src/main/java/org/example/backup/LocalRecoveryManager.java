@@ -30,6 +30,7 @@ public final class LocalRecoveryManager {
     private static final String DATABASE_FAILED = "recovery.database.failed";
     private static final String STAGED_FILES = "local-recovery-files";
     private static final String STAGED_MANIFEST = "local-recovery-manifest.properties";
+    private static final String STAGED_SETTINGS = "local-recovery-settings";
     private static final List<String> FILE_ROOTS = List.of("Attachments", "Documents", "Templates");
 
     private LocalRecoveryManager() {}
@@ -68,6 +69,10 @@ public final class LocalRecoveryManager {
                 if (Files.isDirectory(source)) copyTree(source, stagedFiles.resolve(rootName));
                 else Files.createDirectories(stagedFiles.resolve(rootName));
             }
+            Path stagedSettings = target.resolve("Temp").resolve(STAGED_SETTINGS);
+            deleteTree(stagedSettings);
+            Path extractedSettings = extract.resolve("settings");
+            if (Files.isDirectory(extractedSettings)) copyTree(extractedSettings, stagedSettings);
 
             try (OutputStream out = Files.newOutputStream(target.resolve("Temp").resolve(STAGED_MANIFEST),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
@@ -135,6 +140,9 @@ public final class LocalRecoveryManager {
                 throw applyFailure;
             }
 
+            Path stagedSettings = workspace.resolve("Temp").resolve(STAGED_SETTINGS);
+            PortableRecoverySettings.applyStaged(stagedSettings, workspace);
+            deleteTree(stagedSettings);
             deleteTree(staged);
             Files.deleteIfExists(workspace.resolve("Temp").resolve(STAGED_MANIFEST));
             ConfigManager.remove(FILES_PENDING);
@@ -176,8 +184,9 @@ public final class LocalRecoveryManager {
                 }
                 boolean businessFile = FILE_ROOTS.stream().anyMatch(root ->
                         name.equals("workspace/" + root) || name.startsWith("workspace/" + root + "/"));
+                boolean portableSetting = name.equals("settings/") || name.startsWith(PortableRecoverySettings.SETTINGS_PREFIX);
                 if (!(name.equals("manifest.properties") || name.equals("database.pgbackup")
-                        || name.equals("workspace/") || businessFile)) {
+                        || name.equals("workspace/") || businessFile || portableSetting)) {
                     throw new IllegalStateException("Unexpected recovery package entry: " + name);
                 }
                 Path normalizedRoot = extractRoot.toAbsolutePath().normalize();

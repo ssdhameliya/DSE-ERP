@@ -185,7 +185,7 @@ public class AuthService {
         if(users.existsByEmailIgnoreCase(email)||openRegistrationExists("email",email))throw new IllegalArgumentException("Email is already registered or awaiting approval");
         var setup=totp.createSetup(username,email);
         Long id=db.queryForObject("INSERT INTO registration_request(username,password_hash,full_name,email,requested_role,totp_secret_enc,email_verified,mfa_verified,status,requested_at,row_version) VALUES(?,?,?,?,?,?,1,0,'MFA_ENROLLMENT_PENDING',CURRENT_TIMESTAMP,0) RETURNING id",Long.class,username,passwords.encode(request.password()),request.fullName().trim(),email,role,setup.encryptedSecret());
-        return new AuthDtos.RegistrationMfaSetupResponse(true,id,setup.manualSecret(),setup.provisioningUri(),"Email verified. Add DSE ERP to Google Authenticator or Microsoft Authenticator, then enter the current 6-digit code.");
+        return new AuthDtos.RegistrationMfaSetupResponse(true,id,setup.manualSecret(),setup.provisioningUri(),"Email verified. Add " + mail.companyName() + " to Google Authenticator or Microsoft Authenticator, then enter the current 6-digit code.");
     }
 
     @Transactional
