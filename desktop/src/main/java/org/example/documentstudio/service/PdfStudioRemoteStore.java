@@ -19,6 +19,9 @@ import java.util.zip.ZipOutputStream;
 
 /** Synchronizes PDF Studio 3 working/published/active snapshots with the company server. */
 final class PdfStudioRemoteStore {
+    private static final int MAX_ZIP_ENTRIES = 2000;
+    private static final long MAX_SINGLE_ENTRY_BYTES = 64L * 1024 * 1024;
+    private static final long MAX_EXPANDED_BYTES = 256L * 1024 * 1024;
     private PdfStudioRemoteStore() {}
 
     static void refresh(Path root) throws IOException {
@@ -81,12 +84,21 @@ final class PdfStudioRemoteStore {
         Path parent = folder.getParent();
         Path temp = Files.createTempDirectory(parent, "pdf-studio-server-");
         boolean moved = false;
+        int entries=0; long total=0; Set<String> names=new HashSet<>();
         try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip))) {
             for (ZipEntry entry; (entry = in.getNextEntry()) != null;) {
-                Path target = temp.resolve(entry.getName()).normalize();
+                if (++entries > MAX_ZIP_ENTRIES) throw new IOException("PDF Studio archive contains too many entries");
+                String name=entry.getName().replace('\\','/');
+                if (!names.add(name)) throw new IOException("PDF Studio archive contains duplicate entry: "+name);
+                if (name.startsWith("/") || name.matches("^[A-Za-z]:/.*") || java.util.Arrays.asList(name.split("/")).contains(".."))
+                    throw new IOException("Unsafe PDF Studio template archive path: "+name);
+                Path target = temp.resolve(name).normalize();
                 if (!target.startsWith(temp)) throw new IOException("Unsafe PDF Studio template archive");
                 if (entry.isDirectory()) Files.createDirectories(target);
-                else { Files.createDirectories(target.getParent()); Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING); }
+                else {
+                    Files.createDirectories(target.getParent());
+                    try (var out=Files.newOutputStream(target)) { byte[] buffer=new byte[16*1024]; long entryTotal=0; for(int read;(read=in.read(buffer))>=0;){if(read==0)continue;entryTotal+=read;total+=read;if(entryTotal>MAX_SINGLE_ENTRY_BYTES||total>MAX_EXPANDED_BYTES)throw new IOException("PDF Studio archive expands beyond the allowed size");out.write(buffer,0,read);} }
+                }
             }
             deleteTree(folder);
             Files.move(temp, folder, StandardCopyOption.REPLACE_EXISTING);

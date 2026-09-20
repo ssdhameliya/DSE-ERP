@@ -664,12 +664,25 @@ jobs:
           print(f"PROD_DEPLOYMENT_OK version={version} database={database} desktopMin={min_desktop} android={r.get('minimumSupportedAndroidVersion')}..{r.get('latestAndroidVersion')} ios={r.get('minimumSupportedIosVersion')}..{r.get('latestIosVersion')} mobilePolicy=preserved")
           PY
 
+      - name: Promote health-verified GitHub release to STABLE
+        id: promote
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --repo '${{ github.repository }}' --prerelease=false
+          PRERELEASE="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.prerelease')"
+          [[ "$PRERELEASE" == "false" ]] || { echo "GitHub release $TAG was not promoted to STABLE" >&2; exit 1; }
+          echo "RELEASE_PROMOTED_TO_STABLE tag=$TAG"
+
       - name: Verify PROD private GitHub update gateway
+        id: prod_gateway
         shell: bash
         run: |
           set -euo pipefail
           UPDATE_BASE="${PROD_HEALTH_URL%/api/runtime/health}"
-          UPDATE_URL="${UPDATE_BASE}/api/updates/releases/latest?includePrerelease=true"
+          # PROD intentionally rejects prerelease access. Verify only after promotion,
+          # through the stable endpoint that real PROD desktops use.
+          UPDATE_URL="${UPDATE_BASE}/api/updates/releases/latest"
           BODY="$(curl --fail --silent --show-error --max-time 30 "$UPDATE_URL")"
           python3 - "$VERSION" "$BODY" <<'PY'
           import json,sys
@@ -678,7 +691,7 @@ jobs:
           tag=str(r.get('tagName','')).lstrip('vV')
           assets=r.get('assets')
           if tag != version:
-              raise SystemExit(f'Private PROD update gateway returned unexpected release: {r}')
+              raise SystemExit(f'Private PROD update gateway returned unexpected stable release: {r}')
           if not isinstance(assets,list) or not assets:
               raise SystemExit(f'Private PROD update gateway returned no release assets: {r}')
           for asset in assets:
@@ -688,14 +701,13 @@ jobs:
           print(f'PROD_PRIVATE_UPDATE_GATEWAY_OK version={version} assets={len(assets)}')
           PY
 
-      - name: Promote verified GitHub release to STABLE
+      - name: Demote release if PROD update gateway verification fails
+        if: failure() && steps.promote.outcome == 'success' && steps.prod_gateway.outcome == 'failure'
         shell: bash
         run: |
           set -euo pipefail
-          gh release edit "$TAG" --repo '${{ github.repository }}' --prerelease=false
-          PRERELEASE="$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq '.prerelease')"
-          [[ "$PRERELEASE" == "false" ]] || { echo "GitHub release $TAG was not promoted to STABLE" >&2; exit 1; }
-          echo "RELEASE_PROMOTED_TO_STABLE tag=$TAG"
+          gh release edit "$TAG" --repo '${{ github.repository }}' --prerelease=true
+          echo "RELEASE_DEMOTED_TO_PRERELEASE tag=$TAG reason=prod-update-gateway-verification"
 
       - name: Clean remote upload staging
         if: always() && steps.ssh.outcome == 'success'

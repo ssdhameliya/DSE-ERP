@@ -8,6 +8,7 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
@@ -47,6 +48,8 @@ public final class PdfStudioRenderer {
      */
     private static final ThreadLocal<EnumMap<Standard14Fonts.FontName, PDFont>> RENDER_FONTS =
             ThreadLocal.withInitial(() -> new EnumMap<>(Standard14Fonts.FontName.class));
+    private static final ThreadLocal<PDDocument> CURRENT_DOCUMENT = new ThreadLocal<>();
+    private static final ThreadLocal<Map<String, PDFont>> UNICODE_FONTS = ThreadLocal.withInitial(HashMap::new);
 
     private PdfStudioRenderer() {}
 
@@ -59,6 +62,7 @@ public final class PdfStudioRenderer {
         Objects.requireNonNull(data, "data");
         Objects.requireNonNull(output, "output");
         RENDER_FONTS.get().clear();
+        UNICODE_FONTS.get().clear();
         data = enrichPartyLocationData(ErpDocumentJsonService.normalize(template.getDocumentType(), enrichPdfData(data)));
         Path source = TemplateStorageService.sourcePdf(template);
         Path parent = output.toAbsolutePath().normalize().getParent();
@@ -66,6 +70,7 @@ public final class PdfStudioRenderer {
 
         List<TemplateElement> elements = template.getElements();
         try (PDDocument sourceDoc = Loader.loadPDF(source.toFile()); PDDocument targetDoc = new PDDocument()) {
+            CURRENT_DOCUMENT.set(targetDoc);
             if (sourceDoc.getNumberOfPages() == 0) throw new IOException("Template PDF has no pages.");
 
             TaxInvoicePdfGenerator.SalesLayoutPlan salesLayout = null;
@@ -177,6 +182,10 @@ public final class PdfStudioRenderer {
                 }
             }
             targetDoc.save(output.toFile());
+        } finally {
+            CURRENT_DOCUMENT.remove();
+            UNICODE_FONTS.get().clear();
+            RENDER_FONTS.get().clear();
         }
         if (Files.size(output) < 100) throw new IOException("Template renderer produced an invalid PDF.");
         return output;
@@ -521,7 +530,7 @@ public final class PdfStudioRenderer {
                 return new WrappedTextFit(size, size * spacing, lines);
         }
         List<String> minimumLines = wrap(text, font, minimumSize, width);
-        return new WrappedTextFit(minimumSize, minimumSize * compactSpacing, minimumLines);
+        throw new IOException("Mapped text does not fit inside its PDF Studio box at the minimum readable size; text was not clipped: " + abbreviateForError(text));
     }
 
     private static float wrappedHeight(float size, float spacing, int lineCount) {
@@ -993,21 +1002,37 @@ public final class PdfStudioRenderer {
     private static void drawCellTextAligned(PDPageContentStream cs, PDFont font, float fontSize,
                                             String text, float x, float y, float width, float height,
                                             String color, String alignment) throws IOException {
+        String safe = safePdfText(text);
+        PDFont effectiveFont = fontForText(font, safe);
+        float size = Math.max(4f, fontSize);
+        List<String> lines = wrap(safe, effectiveFont, size, Math.max(5, width));
+        while (!wrappedCellFits(effectiveFont, lines, size, width, height) && size > 4.01f) {
+            size = Math.max(4f, size - .25f);
+            lines = wrap(safe, effectiveFont, size, Math.max(5, width));
+        }
+        if (!wrappedCellFits(effectiveFont, lines, size, width, height))
+            throw new IOException("Table cell text does not fit at the minimum readable size; text was not discarded: " + abbreviateForError(safe));
         setNonStroke(cs, color);
-        List<String> lines = wrap(safePdfText(text), font, fontSize, Math.max(5, width));
-        float lineHeight = fontSize * 1.12f, cy = y + height - fontSize;
+        float lineHeight = size * 1.08f, cy = y + height - size;
         for (String line : lines) {
-            if (cy < y) break;
-            float drawX = alignedX(font, fontSize, line, x, width, alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT));
-            cs.beginText(); cs.setFont(font, fontSize); cs.newLineAtOffset(drawX, cy); cs.showText(line); cs.endText();
+            float drawX = alignedX(effectiveFont, size, line, x, width, alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT));
+            cs.beginText(); cs.setFont(effectiveFont, size); cs.newLineAtOffset(drawX, cy); cs.showText(line); cs.endText();
             cy -= lineHeight;
         }
+    }
+
+    private static boolean wrappedCellFits(PDFont font, List<String> lines, float size, float width, float height) throws IOException {
+        if (lines == null || lines.isEmpty()) return true;
+        if (size + Math.max(0, lines.size()-1) * size * 1.08f > height + .01f) return false;
+        for (String line : lines) if (textWidth(font, size, line) > width + .01f) return false;
+        return true;
     }
 
     private static void drawSingleLineCentered(PDPageContentStream cs, PDFont font, float fontSize,
                                                String text, float x, float bottomY, float width, float height,
                                                String color, String alignment) throws IOException {
         String line = safePdfText(text == null ? "" : text);
+        font = fontForText(font, line);
         setNonStroke(cs, color);
         String effectiveAlignment = alignment == null ? "LEFT" : alignment.toUpperCase(Locale.ROOT);
         float drawX = alignedX(font, fontSize, line, x, width, effectiveAlignment);
@@ -1059,13 +1084,40 @@ public final class PdfStudioRenderer {
     private static String safePdfText(String value) {
         if (value == null) return "";
         StringBuilder out = new StringBuilder();
-        for (char c : value.toCharArray()) {
-            if (c == '\n' || c == '\r' || c == '\t') out.append(c == '\t' ? ' ' : c);
-            else if (c >= 32 && c <= 126) out.append(c);
-            else if (c == '\u20b9') out.append("Rs.");
-            else out.append('?');
-        }
+        value.codePoints().forEach(cp -> {
+            if (cp == '\t') out.append(' ');
+            else if (cp == '\r') out.append('\n');
+            else if (cp == '\n' || cp >= 32) out.appendCodePoint(cp);
+        });
         return out.toString();
+    }
+
+    private static PDFont fontForText(PDFont fallback, String text) throws IOException {
+        if (text == null || text.codePoints().allMatch(cp -> cp == '\n' || cp == '\r' || cp == '\t' || (cp >= 32 && cp <= 126))) return fallback;
+        PDDocument doc = CURRENT_DOCUMENT.get();
+        if (doc == null) throw new IOException("Unicode PDF font requested outside an active render.");
+        String key = "unicode-regular";
+        PDFont cached = UNICODE_FONTS.get().get(key);
+        if (cached != null) return cached;
+        for (String candidate : List.of(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                "C:/Windows/Fonts/arial.ttf",
+                "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+                "/System/Library/Fonts/Supplemental/Arial.ttf")) {
+            Path path = Path.of(candidate);
+            if (!Files.isRegularFile(path)) continue;
+            PDFont loaded = PDType0Font.load(doc, path.toFile());
+            UNICODE_FONTS.get().put(key, loaded);
+            return loaded;
+        }
+        throw new IOException("Unicode text is present but no supported Unicode font is installed; text was not replaced with question marks.");
+    }
+
+    private static String abbreviateForError(String text) {
+        String one=(text==null?"":text).replace('\n',' ').trim();
+        return one.length()<=80?one:one.substring(0,77)+"...";
     }
 
     private static String money(double value) { return String.format(Locale.ENGLISH, "%,.2f", value); }
@@ -1073,6 +1125,7 @@ public final class PdfStudioRenderer {
         if (Math.rint(value) == value) return Long.toString(Math.round(value));
         return String.format(Locale.ENGLISH, "%.2f", value).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
+
     private static String quantityNumber(double value) {
         double quantity = DocumentCalculationEngine.quantity(value);
         return java.math.BigDecimal.valueOf(quantity).stripTrailingZeros().toPlainString();
@@ -1416,7 +1469,7 @@ public final class PdfStudioRenderer {
             double bodyTop = item.getY() + Math.max(0, item.getHeaderHeight());
             double originalBottom = item.getY() + item.getHeight();
             double closingTop = elements.stream()
-                    .filter(e -> e != item && e.isVisible() && "LAST".equals(e.getPageRule()) && e.getY() > bodyTop + 1)
+                    .filter(e -> e != item && e.isVisible() && ("LAST".equals(e.getPageRule()) || e.getType() == ElementType.CHARGE_TABLE) && e.getY() > bodyTop + 1)
                     .mapToDouble(TemplateElement::getY).min().orElse(originalBottom + 4.0);
             double finalBottom = Math.max(originalBottom, closingTop - 4.0);
             double finalBody = Math.max(1.0, finalBottom - bodyTop);
@@ -1498,8 +1551,11 @@ public final class PdfStudioRenderer {
                         salesLayout.totalPages(), 0, salesLayout, fixed);
             }
             if (item != null && fixed != null) {
-                int pages = fixed.pagesFor(data.items() == null ? 0 : data.items().size());
-                return new FlowPlan(item, charge, pages, 0, pages, 0, null, fixed);
+                int itemPages = fixed.pagesFor(data.items() == null ? 0 : data.items().size());
+                int chargePages = charge == null || data.charges() == null || data.charges().isEmpty() ? 0 : requiredPages(charge, data.charges().size());
+                int start = Math.max(0, itemPages - 1);
+                int total = chargePages <= 0 ? itemPages : Math.max(itemPages, start + chargePages);
+                return new FlowPlan(item, charge, itemPages, chargePages, Math.max(1,total), start, null, fixed);
             }
             int ip = item == null ? 0 : requiredPages(item, data.items().size());
             int cp = charge == null ? 0 : requiredPages(charge, data.charges().size());
@@ -1514,7 +1570,7 @@ public final class PdfStudioRenderer {
         TemplateElement primaryTable() { return itemTable != null ? itemTable : chargeTable; }
         boolean drawItemTable(int part) { return itemTable != null && part < Math.max(1, itemPages); }
         boolean drawChargeTable(int part) {
-            if (salesLayout != null || flowFixed != null) return false;
+            if (salesLayout != null) return false;
             if (chargeTable == null) return false;
             int chargePart = part - chargeStartPart;
             return chargePart >= 0 && chargePart < Math.max(1, chargePages);
@@ -1528,7 +1584,7 @@ public final class PdfStudioRenderer {
                 return items.subList(from, to);
             }
             if (flowFixed != null) {
-                int[] range = flowFixed.rangeFor(items.size(), part, totalCopies);
+                int[] range = flowFixed.rangeFor(items.size(), part, Math.max(1,itemPages));
                 return items.subList(range[0], range[1]);
             }
             int rows = rowsPerPage(itemTable), from = Math.min(items.size(), part * rows), to = Math.min(items.size(), from + rows);

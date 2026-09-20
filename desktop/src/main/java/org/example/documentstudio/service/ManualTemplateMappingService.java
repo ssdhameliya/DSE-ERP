@@ -33,6 +33,17 @@ public final class ManualTemplateMappingService {
         } else {
             if (element.getType() == ElementType.TEXT) element.setType(ElementType.FIELD);
             element.setText("{{" + field.key() + "}}");
+            configureMultilineMapping(element, field.key());
+        }
+    }
+
+    /** Multiline fields wrap inside the user-defined box; mapping never grows the box into neighbouring artwork. */
+    public static void configureMultilineMapping(TemplateElement element, String fieldKey) {
+        if (element == null || fieldKey == null) return;
+        String key = fieldKey.toLowerCase(java.util.Locale.ROOT);
+        if (key.contains("address") || key.contains("paymentterms") || key.endsWith(".terms") || key.contains("termsandconditions")) {
+            element.setTextFit("WRAP");
+            element.setLineSpacing(Math.max(1.05, element.getLineSpacing()));
         }
     }
 

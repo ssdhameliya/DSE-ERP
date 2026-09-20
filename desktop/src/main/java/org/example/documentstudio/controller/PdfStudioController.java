@@ -3,9 +3,12 @@ package org.example.documentstudio.controller;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.event.EventHandler;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -102,6 +105,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private final Map<Integer,Image> sourcePageImages = new HashMap<>();
     private final Set<Integer> loadingPages = new HashSet<>();
     private final AtomicInteger renderSequence = new AtomicInteger();
+    private final AtomicInteger previewLoadGeneration = new AtomicInteger();
 
     private final PdfStudioHistory history = new PdfStudioHistory(50);
     private TemplateElement formatClipboard;
@@ -114,6 +118,8 @@ public class PdfStudioController implements ScreenLifecycle {
     private final Map<String,double[]> dragOrigins = new HashMap<>();
     private TextArea inlineEditor;
     private final List<Line> smartGuideLines = new ArrayList<>();
+    private Scene shortcutScene;
+    private EventHandler<KeyEvent> shortcutHandler;
 
     private enum Handle { NW, N, NE, E, SE, S, SW, W }
 
@@ -179,12 +185,18 @@ public class PdfStudioController implements ScreenLifecycle {
     }
 
     @Override public void onScreenShown(boolean reused) {
+        installKeyboardShortcuts();
         if (template != null) {
             refreshMeta();
             refreshRequirementUi();
             renderCanvas();
             ensurePageObjects(pageIndex);
         }
+    }
+
+    @Override public void onScreenHidden() {
+        previewLoadGeneration.incrementAndGet();
+        detachKeyboardShortcuts();
     }
 
     // ---------------------------------------------------------------------
@@ -615,7 +627,11 @@ public class PdfStudioController implements ScreenLifecycle {
     private void installKeyboardShortcuts() {
         Platform.runLater(() -> {
             if (root == null || root.getScene() == null) return;
-            root.getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            Scene scene = root.getScene();
+            if (scene == shortcutScene && shortcutHandler != null) return;
+            detachKeyboardShortcuts();
+            shortcutScene = scene;
+            shortcutHandler = event -> {
                 if (isTextInput(event.getTarget())) return;
                 if (ShortcutRegistry.matches(event, Action.PDF_UNDO)) { undo(); event.consume(); return; }
                 if (ShortcutRegistry.matches(event, Action.PDF_REDO)) { redo(); event.consume(); return; }
@@ -628,8 +644,16 @@ public class PdfStudioController implements ScreenLifecycle {
                 if (!selectedIds.isEmpty() && Set.of(KeyCode.LEFT,KeyCode.RIGHT,KeyCode.UP,KeyCode.DOWN).contains(event.getCode())) {
                     nudgeSelection(event.getCode(), event.isShiftDown() ? 10 : 1); event.consume();
                 }
-            });
+            };
+            scene.addEventFilter(KeyEvent.KEY_PRESSED, shortcutHandler);
         });
+    }
+
+    private void detachKeyboardShortcuts() {
+        if (shortcutScene != null && shortcutHandler != null)
+            shortcutScene.removeEventFilter(KeyEvent.KEY_PRESSED, shortcutHandler);
+        shortcutScene = null;
+        shortcutHandler = null;
     }
 
     private boolean isTextInput(Object target) { return target instanceof TextInputControl || target instanceof ComboBoxBase<?>; }
@@ -644,19 +668,28 @@ public class PdfStudioController implements ScreenLifecycle {
     }
 
     private void loadPreviewData(DocumentSample sample, boolean allowAutoApply) {
+        int generation = previewLoadGeneration.incrementAndGet();
+        currentPreviewData = null;
         if (sample == null) {
             currentPreviewData = DocumentDataService.sample(template.getDocumentType());
             analyzeMapping(allowAutoApply);
             if(dataPreviewMode)renderCanvas();
             return;
         }
-        CompletableFuture.supplyAsync(() -> DocumentDataService.load(template.getDocumentType(), sample.id()))
+        String requestedId = sample.id();
+        CompletableFuture.supplyAsync(() -> DocumentDataService.load(template.getDocumentType(), requestedId))
                 .thenAccept(data -> Platform.runLater(() -> {
+                    DocumentSample selected = cmbSampleDocument.getValue();
+                    if (generation != previewLoadGeneration.get() || selected == null || !Objects.equals(selected.id(), requestedId)) return;
                     currentPreviewData = data;
                     analyzeMapping(allowAutoApply);
                     if(dataPreviewMode)renderCanvas();
                 }))
-                .exceptionally(error -> { Platform.runLater(() -> ModernDialog.error(root, "Record could not be loaded", "PDF Studio", rootMessage(error))); return null; });
+                .exceptionally(error -> { Platform.runLater(() -> {
+                    if (generation != previewLoadGeneration.get()) return;
+                    currentPreviewData = null;
+                    ModernDialog.error(root, "Record could not be loaded", "PDF Studio", rootMessage(error));
+                }); return null; });
     }
 
     private void analyzeMapping(boolean allowAutoApply) {
@@ -992,24 +1025,24 @@ public class PdfStudioController implements ScreenLifecycle {
         wrapper.getProperties().put("templateElementId", e.getId());
         wrapper.getStyleClass().addAll("pdf-v2-object", "pdf-v2-object-" + e.getType().name().toLowerCase(Locale.ROOT));
         if (selectedIds.contains(e.getId())) wrapper.getStyleClass().add("pdf-v2-object-selected");
-        if (e.isLocked()) wrapper.getStyleClass().add("pdf-v2-object-locked");
+        if (geometryLocked(e)) wrapper.getStyleClass().add("pdf-v2-object-locked");
         if (e.getX() < 0 || e.getY() < 0 || e.getX()+e.getWidth() > pageWidth || e.getY()+e.getHeight() > pageHeight)
             wrapper.getStyleClass().add("pdf-v2-object-outside");
         place(wrapper, e.getX(), e.getY(), e.getWidth(), e.getHeight());
         wrapper.setRotate(e.getRotation());
         wrapper.setOpacity(PdfStyleResolver.effective(template, e).getOpacity());
 
-        if (selectedIds.contains(e.getId()) && !e.isLocked()) addResizeHandles(wrapper, e);
+        if (selectedIds.contains(e.getId()) && !geometryLocked(e)) addResizeHandles(wrapper, e);
         wrapper.setOnMousePressed(event -> {
             if (event.getButton() != MouseButton.PRIMARY) return;
             if (event.isShiftDown()) toggleSelection(e); else if (!selectedIds.contains(e.getId())) selectOnly(e);
-            if (!e.isLocked() && event.getClickCount() < 2) startDrag(event);
+            if (!geometryLocked(e) && event.getClickCount() < 2) startDrag(event);
             event.consume();
         });
         wrapper.setOnMouseDragged(event -> { if (dragging) dragSelection(event); event.consume(); });
         wrapper.setOnMouseReleased(event -> { if (dragging) { dragging=false; autosave(); renderCanvas(); } event.consume(); });
         wrapper.setOnMouseClicked(event -> {
-            if (event.getClickCount() >= 2 && isTextLike(e) && !e.isLocked()) beginInlineEdit(e);
+            if (event.getClickCount() >= 2 && isTextLike(e) && !geometryLocked(e)) beginInlineEdit(e);
             event.consume();
         });
         return wrapper;
@@ -1044,6 +1077,13 @@ public class PdfStudioController implements ScreenLifecycle {
             double innerW = Math.max(1,(e.getWidth()-style.getPaddingLeft()-style.getPaddingRight())*scale);
             double innerH = Math.max(1,(e.getHeight()-style.getPaddingTop()-style.getPaddingBottom())*scale);
             view.setFitWidth(innerW); view.setFitHeight(innerH);
+            if ("FILL".equals(e.getImageFit()) && view.getImage() != null) {
+                double iw=view.getImage().getWidth(), ih=view.getImage().getHeight();
+                double target=innerW/innerH, source=iw/ih;
+                if (source > target) { double vw=ih*target; view.setViewport(new Rectangle2D((iw-vw)/2.0,0,vw,ih)); }
+                else { double vh=iw/target; view.setViewport(new Rectangle2D(0,(ih-vh)/2.0,iw,vh)); }
+                view.setPreserveRatio(false);
+            }
             StackPane box = new StackPane(view);
             box.setStyle(styleFor(e));
             box.setPadding(new javafx.geometry.Insets(style.getPaddingTop()*scale,style.getPaddingRight()*scale,style.getPaddingBottom()*scale,style.getPaddingLeft()*scale));
@@ -1071,6 +1111,7 @@ public class PdfStudioController implements ScreenLifecycle {
         if (e.getType()==ElementType.ITEM_TABLE) return "ITEM REPEATER\n" + e.getTableColumns().stream().map(String::toUpperCase).collect(Collectors.joining("  |  "));
         if (e.getType()==ElementType.CHARGE_TABLE) return "CHARGE REPEATER\n" + e.getTableColumns().stream().map(String::toUpperCase).collect(Collectors.joining("  |  "));
         if (e.getType()==ElementType.RECTANGLE) return "";
+        if (e.getType()==ElementType.BLOCK && "DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId())) return "FINANCIAL SUMMARY\nAutomatic GST / IGST / Charges";
         if (e.getType()==ElementType.BLOCK) return selectedIds.contains(e.getId()) ? "Section / Group" : "";
         if (e.getType()==ElementType.WHITEOUT) return "";
         String text = e.getText();
@@ -1108,6 +1149,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private Cursor cursorFor(Handle h) { return switch (h) { case NW,SE->Cursor.NW_RESIZE; case NE,SW->Cursor.NE_RESIZE; case N,S->Cursor.V_RESIZE; case E,W->Cursor.H_RESIZE; }; }
 
     private void resizeElementFromHandle(TemplateElement e, Handle h, MouseEvent event, Region handle) {
+        if (geometryLocked(e)) return;
         double sx=(double)handle.getProperties().get("sx"), sy=(double)handle.getProperties().get("sy");
         double ox=(double)handle.getProperties().get("x"), oy=(double)handle.getProperties().get("y"), ow=(double)handle.getProperties().get("w"), oh=(double)handle.getProperties().get("h");
         double dx=(event.getSceneX()-sx)/scale, dy=(event.getSceneY()-sy)/scale;
@@ -1306,7 +1348,13 @@ public class PdfStudioController implements ScreenLifecycle {
             e.setFontFamily(cmbFontFamily.getValue()); e.setTextFit(cmbTextFit.getValue()); e.setTextAlignment(cmbTextAlignment.getValue());
             e.setFontSize(parse(txtFontSize,e.getFontSize())); e.setLineSpacing(parse(txtLineSpacing,e.getLineSpacing())); e.setBold(chkBold.isSelected()); e.setItalic(chkItalic.isSelected());
             e.setTextColor(hex(colorText.getValue())); e.setFillColor(hex(colorFill.getValue())); e.setStrokeColor(hex(colorStroke.getValue()));
-            e.setX(parse(txtX,e.getX())); e.setY(parse(txtY,e.getY())); e.setWidth(parse(txtWidth,e.getWidth())); e.setHeight(parse(txtHeight,e.getHeight())); e.setRotation(parse(txtRotation,e.getRotation())); e.setOpacity(parse(txtOpacity,e.getOpacity()*100)/100.0);
+            double oldX=e.getX(), oldY=e.getY();
+            if (!geometryLocked(e)) {
+                e.setX(parse(txtX,e.getX())); e.setY(parse(txtY,e.getY())); e.setWidth(parse(txtWidth,e.getWidth())); e.setHeight(parse(txtHeight,e.getHeight())); e.setRotation(parse(txtRotation,e.getRotation()));
+            }
+            e.setOpacity(parse(txtOpacity,e.getOpacity()*100)/100.0);
+            if (e.getType()==ElementType.BLOCK && !geometryLocked(e) && (Math.abs(e.getX()-oldX)>.0001 || Math.abs(e.getY()-oldY)>.0001))
+                translateDescendants(e, e.getX()-oldX, e.getY()-oldY);
             e.setStrokeWidth(parse(txtStrokeWidth,e.getStrokeWidth())); e.setBorderRadius(parse(txtRadius,e.getBorderRadius()));
             double top=parse(txtPadTop,e.getPaddingTop());
             if (chkPaddingLinked.isSelected()) { e.setPaddingTop(top);e.setPaddingRight(top);e.setPaddingBottom(top);e.setPaddingLeft(top); }
@@ -1373,13 +1421,31 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private TemplateElement addSourceTextReplacement(List<TemplateElement> list, PdfTextRegion region, String expression, String fieldKey) {
         String key=sourceKey(region);String group="replace-"+UUID.randomUUID();
-        TemplateElement mask=sourceMask(region,key);mask.setReplacementGroupId(group);list.add(mask);
-        TemplateElement text=TemplateElement.of(ElementType.TEXT,region.pageIndex(),region.x(),region.y(),region.width(),Math.max(region.height(),region.fontSize()*1.25));
-        text.setText(expression);text.setFieldKey(fieldKey);text.setFontSize(region.fontSize());text.setFontFamily(fontHint(region.fontName()));text.setBold(region.bold());text.setItalic(region.italic());text.setTextColor(region.textColor());text.setRotation(region.rotation());text.setFillEnabled(false);text.setStrokeEnabled(false);text.setTextFit("SHRINK");text.setReplacementGroupId(group);text.setReplacementSourceKey(key);list.add(text);return text;
+        PdfTextRegion valueRegion=valueOnlyRegion(region,fieldKey);
+        TemplateElement mask=sourceMask(valueRegion,key);mask.setReplacementGroupId(group);list.add(mask);
+        TemplateElement text=TemplateElement.of(ElementType.TEXT,valueRegion.pageIndex(),valueRegion.x(),valueRegion.y(),valueRegion.width(),Math.max(valueRegion.height(),valueRegion.fontSize()*1.25));
+        text.setText(expression);text.setFieldKey(fieldKey);text.setFontSize(valueRegion.fontSize());text.setFontFamily(fontHint(valueRegion.fontName()));text.setBold(valueRegion.bold());text.setItalic(valueRegion.italic());text.setTextColor(valueRegion.textColor());text.setRotation(valueRegion.rotation());text.setFillEnabled(false);text.setStrokeEnabled(false);text.setTextFit("SHRINK");text.setReplacementGroupId(group);text.setReplacementSourceKey(key);list.add(text);return text;
+    }
+
+    /** Preserve fixed labels such as GST-IN : while replacing only the printed value. */
+    private PdfTextRegion valueOnlyRegion(PdfTextRegion region,String fieldKey){
+        if(region==null||fieldKey==null)return region;
+        String k=fieldKey.toLowerCase(Locale.ROOT), raw=region.text()==null?"":region.text();
+        if((k.endsWith("gstin")||k.endsWith(".gstin")) && raw.contains(":")){
+            int colon=raw.indexOf(':');
+            int valueStart=colon+1; while(valueStart<raw.length()&&Character.isWhitespace(raw.charAt(valueStart)))valueStart++;
+            if(valueStart<raw.length()){
+                double ratio=Math.min(.82,Math.max(.12,valueStart/(double)Math.max(1,raw.length())));
+                double offset=region.width()*ratio;
+                return new PdfTextRegion(region.pageIndex(),raw.substring(valueStart),region.x()+offset,region.y(),Math.max(8,region.width()-offset),region.height(),region.fontSize(),region.fontName(),region.bold(),region.italic(),region.textColor(),region.rotation());
+            }
+        }
+        return region;
     }
 
     private TemplateElement sourceMask(PdfTextRegion region,String key){
-        TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,region.pageIndex(),region.x()-1,region.y()-1,region.width()+2,region.height()+2);
+        double inset=Math.min(.65,Math.max(.15,Math.min(region.width(),region.height())*.04));
+        TemplateElement mask=TemplateElement.of(ElementType.WHITEOUT,region.pageIndex(),region.x()+inset,region.y()+inset,Math.max(1,region.width()-inset*2),Math.max(1,region.height()-inset*2));
         mask.setFillColor(sampleBackgroundColor(region.pageIndex(), region.x(), region.y(), region.width(), region.height()));mask.setStrokeColor(mask.getFillColor());mask.setStrokeWidth(0);mask.setLocked(true);mask.setReplacementSourceKey(key);return mask;
     }
 
@@ -1423,8 +1489,9 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void addHideArea(){TemplateElement e=newElement(ElementType.WHITEOUT,180,80);e.setText("");e.setFillColor("#FFFFFF");e.setStrokeColor("#FFFFFF");e.setFillEnabled(true);e.setStrokeEnabled(false);addElement(e,null);}
     @FXML private void addLine(){TemplateElement e=newElement(ElementType.LINE,180,1);e.setFillEnabled(false);e.setStrokeEnabled(true);addElement(e,null);}
     @FXML private void addImage(){chooseImageForNewObject();}
-    @FXML private void addItemRepeater(){TemplateElement e=newElement(ElementType.ITEM_TABLE,Math.max(300,pageWidth-50),220);e.setTableColumns(List.of("serial","hsn","descriptionWithRemarks","quantity","rate","unit","taxable"));e.setUseSourceTableDesign(false);e.setFontSize(8);addElement(e,null);}
+    @FXML private void addItemRepeater(){TemplateElement e=newElement(ElementType.ITEM_TABLE,Math.max(300,pageWidth-50),220);e.setTableColumns(List.of());e.setUseSourceTableDesign(false);e.setFontSize(8);addElement(e,null);if(lblInspectorHint!=null)lblInspectorHint.setText("Item Table created. Drag Item ERP fields onto it in the same left-to-right order as the PDF columns.");}
     @FXML private void addChargeRepeater(){TemplateElement e=newElement(ElementType.CHARGE_TABLE,Math.max(250,pageWidth*.48),120);e.setTableColumns(List.of("type","amount","gstPercent","taxAmount","total"));e.setUseSourceTableDesign(false);e.setFontSize(8);addElement(e,null);}
+    @FXML private void addFinancialSummary(){TemplateElement e=newElement(ElementType.BLOCK,Math.max(180,pageWidth*.32),150);e.setReplacementGroupId("DYNAMIC_FINANCIAL_SUMMARY");e.setPageRule("LAST");e.setFillEnabled(true);e.setFillColor("#FFFFFF");e.setStrokeEnabled(true);e.setStrokeColor("#AFC2D8");addElement(e,null);if(lblInspectorHint!=null)lblInspectorHint.setText("Financial Summary uses the Sale tax mode automatically: CGST+SGST, IGST, or no tax. Place it over the calculation box on the final page.");}
 
     @FXML private void dragCreateText(MouseEvent e){startCreateDrag(e,"TEXT");}
     @FXML private void dragCreateHeading(MouseEvent e){startCreateDrag(e,"HEADING");}
@@ -1446,7 +1513,7 @@ public class PdfStudioController implements ScreenLifecycle {
             case "HIDE_AREA"->{TemplateElement e=elementAt(ElementType.WHITEOUT,x,y,180,80);e.setFillColor("#FFFFFF");e.setStrokeColor("#FFFFFF");e.setFillEnabled(true);e.setStrokeEnabled(false);addElement(e,null);}
             case "LINE"->addElement(elementAt(ElementType.LINE,x,y,180,1),null);
             case "IMAGE"->{TemplateElement e=elementAt(ElementType.IMAGE,x,y,180,100);e.setFillEnabled(false);addElement(e,null);selectOnly(e);replaceSelectedImage();}
-            case "ITEMS"->{TemplateElement e=elementAt(ElementType.ITEM_TABLE,x,y,Math.max(300,pageWidth-x-15),220);e.setTableColumns(List.of("serial","hsn","descriptionWithRemarks","quantity","rate","unit","taxable"));addElement(e,null);}
+            case "ITEMS"->{TemplateElement e=elementAt(ElementType.ITEM_TABLE,x,y,Math.max(300,pageWidth-x-15),220);e.setTableColumns(List.of());addElement(e,null);if(lblInspectorHint!=null)lblInspectorHint.setText("Drag Item ERP fields onto the Item Table to map each repeated column once.");}
             case "CHARGES"->{TemplateElement e=elementAt(ElementType.CHARGE_TABLE,x,y,Math.max(250,pageWidth-x-15),120);e.setTableColumns(List.of("type","amount","gstPercent","taxAmount","total"));addElement(e,null);}
         }
     }
@@ -1481,7 +1548,7 @@ public class PdfStudioController implements ScreenLifecycle {
             }
         }
         PdfTextRegion source=findSourceTextAt(x,y);
-        if(source!=null && !field.image()){checkpoint();List<TemplateElement> list=new ArrayList<>(template.getElements());String expr=source.text();if(!expr.contains("{{"))expr=expr+" {{"+field.key()+"}}";TemplateElement e=addSourceTextReplacement(list,source,expr,field.key());template.setElements(list);autosave();selectOnlyWithoutRender(e);populateInspector(e);renderCanvas();return;}
+        if(source!=null && !field.image()){checkpoint();List<TemplateElement> list=new ArrayList<>(template.getElements());TemplateElement e=addSourceTextReplacement(list,source,"{{"+field.key()+"}}",field.key());ManualTemplateMappingService.configureMultilineMapping(e, field.key());template.setElements(list);autosave();selectOnlyWithoutRender(e);populateInspector(e);renderCanvas();return;}
         TemplateElement e=elementAt(field.image()?ElementType.IMAGE_FIELD:ElementType.TEXT,x-60,y-12,field.image()?150:140,field.image()?80:28);e.setFieldKey(field.key());e.setText(field.image()?field.label():"{{"+field.key()+"}}");e.setFillEnabled(false);e.setStrokeEnabled(false);addElement(e,null);
     }
 
@@ -1532,7 +1599,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private void dragSelection(MouseEvent event){
         double dx=(event.getSceneX()-dragSceneX)/scale,dy=(event.getSceneY()-dragSceneY)/scale;
         for(Map.Entry<String,double[]> entry:dragOrigins.entrySet()){
-            TemplateElement e=findById(entry.getKey());if(e==null||e.isLocked())continue;double[] o=entry.getValue();
+            TemplateElement e=findById(entry.getKey());if(e==null||geometryLocked(e))continue;double[] o=entry.getValue();
             e.setX(chkSnap.isSelected()?snap(o[0]+dx):o[0]+dx);e.setY(chkSnap.isSelected()?snap(o[1]+dy):o[1]+dy);
         }
         if(chkSnap.isSelected())applySmartGuides();else clearSmartGuides();
@@ -1541,7 +1608,7 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private void applySmartGuides(){
         clearSmartGuides();
-        List<TemplateElement> selected=selectedElementsWithDescendants().stream().filter(e->!e.isLocked()).toList();
+        List<TemplateElement> selected=selectedElementsWithDescendants().stream().filter(e->!geometryLocked(e)).toList();
         if(selected.isEmpty())return;
         TemplateElement primary=selected.getFirst();
         Set<String> movingIds=idsWithDescendants(selectedIds);
@@ -1568,7 +1635,7 @@ public class PdfStudioController implements ScreenLifecycle {
     private void clearSmartGuides(){canvasPane.getChildren().removeAll(smartGuideLines);smartGuideLines.clear();}
     private double snap(double v){return Math.round(v/4.0)*4.0;}
 
-    private void nudgeSelection(KeyCode code,double step){if(selectedIds.isEmpty()||previewMode)return;checkpoint();for(TemplateElement e:selectedElementsWithDescendants()){if(e.isLocked())continue;if(code==KeyCode.LEFT)e.setX(e.getX()-step);if(code==KeyCode.RIGHT)e.setX(e.getX()+step);if(code==KeyCode.UP)e.setY(e.getY()-step);if(code==KeyCode.DOWN)e.setY(e.getY()+step);}autosave();renderCanvas();}
+    private void nudgeSelection(KeyCode code,double step){if(selectedIds.isEmpty()||previewMode)return;checkpoint();for(TemplateElement e:selectedElementsWithDescendants()){if(geometryLocked(e))continue;if(code==KeyCode.LEFT)e.setX(e.getX()-step);if(code==KeyCode.RIGHT)e.setX(e.getX()+step);if(code==KeyCode.UP)e.setY(e.getY()-step);if(code==KeyCode.DOWN)e.setY(e.getY()+step);}autosave();renderCanvas();}
 
     @FXML private void duplicateSelected(){
         if(selectedIds.isEmpty()||previewMode)return;
@@ -1628,9 +1695,9 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void ungroupSelected(){if(selectedIds.isEmpty())return;checkpoint();Set<String> parentIds=new HashSet<>();for(TemplateElement e:selectedElements())if(e.getType()==ElementType.BLOCK)parentIds.add(e.getId());for(TemplateElement e:template.getElements())if(parentIds.contains(e.getParentId())){if(e.isInheritParentStyle())PdfStyleResolver.freezeEffectiveStyle(template,e);e.setParentId("");e.setInheritParentStyle(false);e.clearStyleOverrides();}autosave();renderCanvas();}
 
     @FXML private void alignLeft(){alignSelected("LEFT");}@FXML private void alignCenter(){alignSelected("CENTER_H");}@FXML private void alignRight(){alignSelected("RIGHT");}@FXML private void alignTop(){alignSelected("TOP");}@FXML private void alignMiddle(){alignSelected("CENTER_V");}@FXML private void alignBottom(){alignSelected("BOTTOM");}
-    private void alignSelected(String mode){List<TemplateElement> list=selectedElements();if(list.isEmpty())return;checkpoint();double minX=list.stream().mapToDouble(TemplateElement::getX).min().orElse(0),maxX=list.stream().mapToDouble(e->e.getX()+e.getWidth()).max().orElse(pageWidth),minY=list.stream().mapToDouble(TemplateElement::getY).min().orElse(0),maxY=list.stream().mapToDouble(e->e.getY()+e.getHeight()).max().orElse(pageHeight);for(TemplateElement e:list){switch(mode){case"LEFT"->e.setX(minX);case"RIGHT"->e.setX(maxX-e.getWidth());case"CENTER_H"->e.setX((minX+maxX-e.getWidth())/2);case"TOP"->e.setY(minY);case"BOTTOM"->e.setY(maxY-e.getHeight());case"CENTER_V"->e.setY((minY+maxY-e.getHeight())/2);}}autosave();renderCanvas();}
+    private void alignSelected(String mode){List<TemplateElement> list=selectedRootElements().stream().filter(e->!geometryLocked(e)).toList();if(list.isEmpty())return;checkpoint();double minX=list.stream().mapToDouble(TemplateElement::getX).min().orElse(0),maxX=list.stream().mapToDouble(e->e.getX()+e.getWidth()).max().orElse(pageWidth),minY=list.stream().mapToDouble(TemplateElement::getY).min().orElse(0),maxY=list.stream().mapToDouble(e->e.getY()+e.getHeight()).max().orElse(pageHeight);for(TemplateElement e:list){double ox=e.getX(),oy=e.getY();double nx=ox,ny=oy;switch(mode){case"LEFT"->nx=minX;case"RIGHT"->nx=maxX-e.getWidth();case"CENTER_H"->nx=(minX+maxX-e.getWidth())/2;case"TOP"->ny=minY;case"BOTTOM"->ny=maxY-e.getHeight();case"CENTER_V"->ny=(minY+maxY-e.getHeight())/2;}translateTree(e,nx-ox,ny-oy);}autosave();renderCanvas();}
     @FXML private void distributeHorizontal(){distribute(true);}@FXML private void distributeVertical(){distribute(false);}
-    private void distribute(boolean horizontal){List<TemplateElement> list=new ArrayList<>(selectedElements());if(list.size()<3)return;checkpoint();if(horizontal){list.sort(Comparator.comparingDouble(TemplateElement::getX));double start=list.getFirst().getX(),end=list.getLast().getX()+list.getLast().getWidth(),total=list.stream().mapToDouble(TemplateElement::getWidth).sum(),gap=(end-start-total)/(list.size()-1);double cursor=start;for(TemplateElement e:list){e.setX(cursor);cursor+=e.getWidth()+gap;}}else{list.sort(Comparator.comparingDouble(TemplateElement::getY));double start=list.getFirst().getY(),end=list.getLast().getY()+list.getLast().getHeight(),total=list.stream().mapToDouble(TemplateElement::getHeight).sum(),gap=(end-start-total)/(list.size()-1);double cursor=start;for(TemplateElement e:list){e.setY(cursor);cursor+=e.getHeight()+gap;}}autosave();renderCanvas();}
+    private void distribute(boolean horizontal){List<TemplateElement> list=new ArrayList<>(selectedRootElements().stream().filter(e->!geometryLocked(e)).toList());if(list.size()<3)return;checkpoint();if(horizontal){list.sort(Comparator.comparingDouble(TemplateElement::getX));double start=list.getFirst().getX(),end=list.getLast().getX()+list.getLast().getWidth(),total=list.stream().mapToDouble(TemplateElement::getWidth).sum(),gap=(end-start-total)/(list.size()-1);double cursor=start;for(TemplateElement e:list){double dx=cursor-e.getX();translateTree(e,dx,0);cursor+=e.getWidth()+gap;}}else{list.sort(Comparator.comparingDouble(TemplateElement::getY));double start=list.getFirst().getY(),end=list.getLast().getY()+list.getLast().getHeight(),total=list.stream().mapToDouble(TemplateElement::getHeight).sum(),gap=(end-start-total)/(list.size()-1);double cursor=start;for(TemplateElement e:list){double dy=cursor-e.getY();translateTree(e,0,dy);cursor+=e.getHeight()+gap;}}autosave();renderCanvas();}
 
     @FXML private void bringToFront(){reorder(Integer.MAX_VALUE);}@FXML private void sendToBack(){reorder(Integer.MIN_VALUE);}@FXML private void moveForward(){reorder(1);}@FXML private void moveBackward(){reorder(-1);}
     private void reorder(int direction){if(selectedIds.isEmpty())return;checkpoint();List<TemplateElement> list=new ArrayList<>(template.getElements());List<TemplateElement> selected=selectedElementsSnapshotFrom(list);list.removeAll(selected);if(direction==Integer.MAX_VALUE)list.addAll(selected);else if(direction==Integer.MIN_VALUE)list.addAll(0,selected);else{int anchor=direction>0?Math.min(list.size(),Math.max(0,highestOriginalIndex(selected)+direction)):Math.max(0,lowestOriginalIndex(selected)+direction);list.addAll(Math.min(anchor,list.size()),selected);}template.setElements(list);autosave();renderCanvas();}
@@ -1639,7 +1706,7 @@ public class PdfStudioController implements ScreenLifecycle {
     @FXML private void toggleVisibility(){if(selectedIds.isEmpty())return;checkpoint();boolean show=selectedElements().stream().anyMatch(e->!e.isVisible());for(TemplateElement e:selectedElements())e.setVisible(show);autosave();refreshSelectionInspector();renderCanvas();}
 
     private void beginInlineEdit(TemplateElement e){
-        if(e==null||!isTextLike(e)||e.isLocked()||previewMode)return;closeInlineEditor(false);inlineEditor=new TextArea(e.getText());inlineEditor.setWrapText(true);inlineEditor.getStyleClass().add("pdf-v2-inline-editor");inlineEditor.setLayoutX(e.getX()*scale);inlineEditor.setLayoutY(e.getY()*scale);inlineEditor.setPrefSize(Math.max(60,e.getWidth()*scale),Math.max(30,e.getHeight()*scale));inlineEditor.setStyle(styleFor(e));inlineEditor.focusedProperty().addListener((obs,old,focused)->{if(!focused&&old)closeInlineEditor(true);});inlineEditor.setOnKeyPressed(event->{if(event.getCode()==KeyCode.ESCAPE){closeInlineEditor(false);event.consume();}else if(event.getCode()==KeyCode.ENTER&&(event.isControlDown()||event.isMetaDown())){closeInlineEditor(true);event.consume();}});canvasPane.getChildren().add(inlineEditor);Platform.runLater(()->inlineEditor.requestFocus());
+        if(e==null||!isTextLike(e)||geometryLocked(e)||previewMode)return;closeInlineEditor(false);inlineEditor=new TextArea(e.getText());inlineEditor.setWrapText(true);inlineEditor.getStyleClass().add("pdf-v2-inline-editor");inlineEditor.setLayoutX(e.getX()*scale);inlineEditor.setLayoutY(e.getY()*scale);inlineEditor.setPrefSize(Math.max(60,e.getWidth()*scale),Math.max(30,e.getHeight()*scale));inlineEditor.setStyle(styleFor(e));inlineEditor.focusedProperty().addListener((obs,old,focused)->{if(!focused&&old)closeInlineEditor(true);});inlineEditor.setOnKeyPressed(event->{if(event.getCode()==KeyCode.ESCAPE){closeInlineEditor(false);event.consume();}else if(event.getCode()==KeyCode.ENTER&&(event.isControlDown()||event.isMetaDown())){closeInlineEditor(true);event.consume();}});canvasPane.getChildren().add(inlineEditor);Platform.runLater(()->inlineEditor.requestFocus());
     }
     private void closeInlineEditor(boolean commit){if(inlineEditor==null)return;TextArea editor=inlineEditor;inlineEditor=null;TemplateElement e=selectedElement();if(commit&&e!=null){checkpoint();e.setText(editor.getText());autosave();}canvasPane.getChildren().remove(editor);if(commit)renderCanvas();}
 
@@ -1855,11 +1922,11 @@ public class PdfStudioController implements ScreenLifecycle {
 
     @FXML private void exportPdf(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EXPORT_PDF", "export PDF output");if(template==null)return;FileChooser chooser=new FileChooser();chooser.setTitle("Export PDF");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files","*.pdf"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._-]","-")+".pdf");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;try{PdfStudioRenderer.render(template,previewData(),file.toPath());ModernDialog.success(root,"Test PDF exported",file.getAbsolutePath()+" • Production templates were not changed.");}catch(Exception e){ModernDialog.error(root,"Export failed","PDF Studio",rootMessage(e));}}
 
-    private TemplateData previewData(){DocumentSample sample=cmbSampleDocument.getValue();if(sample==null)return currentPreviewData==null?DocumentDataService.sample(template.getDocumentType()):currentPreviewData;try{return DocumentDataService.load(template.getDocumentType(),sample.id());}catch(Exception e){return currentPreviewData==null?DocumentDataService.sample(template.getDocumentType()):currentPreviewData;}}
+    private TemplateData previewData(){DocumentSample sample=cmbSampleDocument.getValue();if(sample==null)return currentPreviewData==null?DocumentDataService.sample(template.getDocumentType()):currentPreviewData;try{TemplateData data=DocumentDataService.load(template.getDocumentType(),sample.id());currentPreviewData=data;return data;}catch(Exception e){currentPreviewData=null;throw new IllegalStateException("Selected ERP record "+sample.id()+" could not be loaded. Preview/export cancelled.",e);}}
 
-    @FXML private void appendBlankPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}try{sourcePageCount=TemplateStorageService.appendBlankPage(template,pageIndex);configurePages(sourcePageCount);pageIndex=sourcePageCount-1;lstPages.getSelectionModel().select(pageIndex);clearObjectCaches();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be added","PDF Studio",rootMessage(e));}}
-    @FXML private void deleteCurrentPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}if(!ModernDialog.confirm(root,"Delete Page","Delete page "+(pageIndex+1)+"?","Only the workspace template copy is changed."))return;try{sourcePageCount=TemplateStorageService.deletePage(template,pageIndex);pageIndex=Math.max(0,Math.min(pageIndex,sourcePageCount-1));configurePages(sourcePageCount);clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be deleted","PDF Studio",rootMessage(e));}}
-    @FXML private void rotatePageLeft(){rotate(-90);}@FXML private void rotatePageRight(){rotate(90);}private void rotate(int degrees){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page rotation cannot be changed; import a new PDF template instead.");return;}try{TemplateStorageService.rotatePage(template,pageIndex,degrees);var size=PdfPreviewSupport.pageSize(sourcePdf,pageIndex);pageWidth=size.width();pageHeight=size.height();clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be rotated","PDF Studio",rootMessage(e));}}
+    @FXML private void appendBlankPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}try{sourcePageCount=TemplateStorageService.appendBlankPage(template,pageIndex);history.clear();configurePages(sourcePageCount);pageIndex=sourcePageCount-1;lstPages.getSelectionModel().select(pageIndex);clearObjectCaches();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be added","PDF Studio",rootMessage(e));}}
+    @FXML private void deleteCurrentPage(){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page structure cannot be changed; import a new PDF template instead.");return;}if(!ModernDialog.confirm(root,"Delete Page","Delete page "+(pageIndex+1)+"?","Only the workspace template copy is changed."))return;try{sourcePageCount=TemplateStorageService.deletePage(template,pageIndex);history.clear();pageIndex=Math.max(0,Math.min(pageIndex,sourcePageCount-1));configurePages(sourcePageCount);clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be deleted","PDF Studio",rootMessage(e));}}
+    @FXML private void rotatePageLeft(){rotate(-90);}@FXML private void rotatePageRight(){rotate(90);}private void rotate(int degrees){if(previewMode)return;if(template!=null&&template.isStrictFixedLayout()){ModernDialog.info(root,"Fixed PDF layout","PDF Studio","This template is STRICT FIXED. Page rotation cannot be changed; import a new PDF template instead.");return;}try{TemplateStorageService.rotatePage(template,pageIndex,degrees);history.clear();var size=PdfPreviewSupport.pageSize(sourcePdf,pageIndex);pageWidth=size.width();pageHeight=size.height();clearObjectCaches();clearSelection();renderCanvas();ensurePageObjects(pageIndex);}catch(Exception e){ModernDialog.error(root,"Page could not be rotated","PDF Studio",rootMessage(e));}}
 
     @FXML private void fitWidth(){Platform.runLater(()->{double available=Math.max(260,canvasScroll.getViewportBounds().getWidth()-70);setZoomForScale(available/Math.max(1,pageWidth));});}
     @FXML private void fitPage(){Platform.runLater(()->{double w=Math.max(260,canvasScroll.getViewportBounds().getWidth()-70),h=Math.max(260,canvasScroll.getViewportBounds().getHeight()-70);setZoomForScale(Math.min(w/Math.max(1,pageWidth),h/Math.max(1,pageHeight)));});}
@@ -1910,7 +1977,7 @@ public class PdfStudioController implements ScreenLifecycle {
     }
     private void updatePageWarning(){if(template==null)return;long outside=template.getElements().stream().filter(e->e.getPageIndex()==pageIndex&&PdfStyleResolver.effectivelyVisible(template,e)).filter(e->e.getX()<0||e.getY()<0||e.getX()+e.getWidth()>pageWidth||e.getY()+e.getHeight()>pageHeight).count();lblPageWarning.setText(outside==0?"":outside+" object(s) extend outside page • export will clip");}
     private void clearObjectCaches(){textCache.clear();imageCache.clear();vectorCache.clear();sourcePageImages.clear();loadingPages.clear();}
-    private String displayName(TemplateElement e){if(e==null)return "Object";return switch(e.getType()){case TEXT->"Text • "+abbreviate(e.getText(),28);case FIELD->"ERP Field • "+e.getFieldKey();case IMAGE->"Image";case IMAGE_FIELD->"ERP Image • "+e.getFieldKey();case BLOCK->"Section / Group";case RECTANGLE->"Rectangle";case WHITEOUT->"Source Mask";case LINE->"Line";case PATH->"Vector Path";case ITEM_TABLE->"Item Repeater";case CHARGE_TABLE->"Charge Repeater";};}
+    private String displayName(TemplateElement e){if(e==null)return "Object";return switch(e.getType()){case TEXT->"Text • "+abbreviate(e.getText(),28);case FIELD->"ERP Field • "+e.getFieldKey();case IMAGE->"Image";case IMAGE_FIELD->"ERP Image • "+e.getFieldKey();case BLOCK->"DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId())?"Financial Summary":"Section / Group";case RECTANGLE->"Rectangle";case WHITEOUT->"Source Mask";case LINE->"Line";case PATH->"Vector Path";case ITEM_TABLE->"Item Repeater";case CHARGE_TABLE->"Charge Repeater";};}
     private boolean isTextLike(TemplateElement e){return e!=null&&(e.getType()==ElementType.TEXT||e.getType()==ElementType.FIELD);}
     private boolean isImageLike(TemplateElement e){return e!=null&&(e.getType()==ElementType.IMAGE||e.getType()==ElementType.IMAGE_FIELD);}
     private boolean isRepeater(TemplateElement e){return e!=null&&(e.getType()==ElementType.ITEM_TABLE||e.getType()==ElementType.CHARGE_TABLE);}
@@ -1924,6 +1991,21 @@ public class PdfStudioController implements ScreenLifecycle {
     private String rootMessage(Throwable error){Throwable t=error;while(t.getCause()!=null&&t.getCause()!=t)t=t.getCause();String m=t.getMessage();return m==null||m.isBlank()?t.getClass().getSimpleName():m;}
 
 
+    private boolean geometryLocked(TemplateElement e){return PdfStyleResolver.effectivelyLocked(template,e);}
+    private List<TemplateElement> selectedRootElements(){
+        Set<String> ids=new LinkedHashSet<>(selectedIds);
+        return selectedElements().stream().filter(e->e.getParentId().isBlank()||!ids.contains(e.getParentId())).toList();
+    }
+    private void translateTree(TemplateElement root,double dx,double dy){
+        if(root==null||geometryLocked(root)||(Math.abs(dx)<.0001&&Math.abs(dy)<.0001))return;
+        Set<String> ids=idsWithDescendants(Set.of(root.getId()));
+        for(TemplateElement e:template.getElements())if(ids.contains(e.getId())&&!geometryLocked(e)){e.setX(e.getX()+dx);e.setY(e.getY()+dy);}
+    }
+    private void translateDescendants(TemplateElement root,double dx,double dy){
+        if(root==null)return; Set<String> ids=idsWithDescendants(Set.of(root.getId())); ids.remove(root.getId());
+        for(TemplateElement e:template.getElements())if(ids.contains(e.getId())&&!geometryLocked(e)){e.setX(e.getX()+dx);e.setY(e.getY()+dy);}
+    }
+
     private String sampleBackgroundColor(int page, double x, double y, double width, double height) {
         Image image = sourcePageImages.get(page);
         if (image == null || image.getPixelReader() == null || pageWidth <= 0 || pageHeight <= 0) return "#FFFFFF";
@@ -1932,11 +2014,15 @@ public class PdfStudioController implements ScreenLifecycle {
         int left=clampInt((int)Math.floor(x/pageWidth*iw),0,iw-1), right=clampInt((int)Math.ceil((x+width)/pageWidth*iw),0,iw-1);
         int top=clampInt((int)Math.floor(y/pageHeight*ih),0,ih-1), bottom=clampInt((int)Math.ceil((y+height)/pageHeight*ih),0,ih-1);
         int margin=Math.max(2,(int)Math.round(iw/pageWidth*2.0)); Map<Integer,Integer> colors=new HashMap<>();
+        List<Integer> samples=new ArrayList<>();
         for(int py=Math.max(0,top-margin);py<=Math.min(ih-1,bottom+margin);py++) for(int px=Math.max(0,left-margin);px<=Math.min(iw-1,right+margin);px++) {
-            boolean ring=px<left||px>right||py<top||py>bottom; if(!ring)continue; int argb=reader.getArgb(px,py);
+            boolean ring=px<left||px>right||py<top||py>bottom; if(!ring)continue; int argb=reader.getArgb(px,py); samples.add(argb);
             int r=((argb>>16)&0xFF)/16*16,g=((argb>>8)&0xFF)/16*16,b=(argb&0xFF)/16*16,key=(r<<16)|(g<<8)|b;colors.merge(key,1,Integer::sum);
         }
-        int rgb=colors.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(0xFFFFFF);
+        int bucket=colors.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(0xFFFFFF);
+        long rs=0,gs=0,bs=0,count=0;
+        for(int argb:samples){int r=(argb>>16)&0xFF,g=(argb>>8)&0xFF,b=argb&0xFF;int key=((r/16*16)<<16)|((g/16*16)<<8)|(b/16*16);if(key==bucket){rs+=r;gs+=g;bs+=b;count++;}}
+        int rgb=count==0?0xFFFFFF:(((int)(rs/count))<<16)|(((int)(gs/count))<<8)|((int)(bs/count));
         return String.format(Locale.ROOT,"#%06X",rgb&0xFFFFFF);
     }
     private int clampInt(int value,int min,int max){return PdfStudioGeometryPolicy.clamp(value,min,max);}

@@ -2,6 +2,7 @@ package org.example.documentstudio.service;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.example.documentstudio.model.*;
 import org.example.invoice.model.TaxInvoiceItem;
 
@@ -43,6 +44,24 @@ final class PdfDefaultCertification {
                             if (lineCount == 25 && pages > 3) {
                                 throw new IOException("25 items generated " + pages + " pages. The Item Table is not using the shared continuation-page flow");
                             }
+                            String text = new PDFTextStripper().getText(pdf);
+                            requireText(text, data.value("document.number"), "document number");
+                            requireText(text, data.value("party.name"), "party name");
+                            requireText(text, "CERT ITEM 01", "first item row");
+                            requireText(text, data.value("party.billingGstin"), "party GSTIN value");
+                            if ("IGST".equals(taxMode)) {
+                                requireText(text, "IGST", "IGST tax row");
+                                // A Financial Summary deliberately masks and redraws the complete source
+                                // calculation region. PDF text extraction still sees covered background text,
+                                // so stale-token extraction is meaningful only when no such structural mask exists.
+                                if (!hasDynamicFinancialSummary(template) && (containsToken(text,"CGST") || containsToken(text,"SGST")))
+                                    throw new IOException("IGST scenario still contains stale CGST/SGST labels from the source PDF");
+                            } else {
+                                requireText(text, "CGST", "CGST tax row");
+                                requireText(text, "SGST", "SGST tax row");
+                            }
+                            if (TemplateMappingValidationService.mappedFields(template).contains("document.paymentTerms"))
+                                requireText(text, "CERT-PAYMENT-TERMS", "payment terms");
                         }
                     } catch (Exception error) {
                         throw new IOException(template.getDocumentType().label() + " default certification failed for " +
@@ -64,6 +83,30 @@ final class PdfDefaultCertification {
 
     private static TemplateData scenario(TemplateData base, DocumentType type, String taxMode, int lineCount, int chargeCount) {
         var values = new LinkedHashMap<>(base.values());
+        String certNumber = "CERT-" + taxMode + "-" + lineCount + "-" + chargeCount;
+        String certParty = "CERT PARTY " + taxMode;
+        String billingAddress = "CERT-ADDRESS-ALPHA First line\nCERT-ADDRESS-BETA Second line\nCERT-ADDRESS-GAMMA Third line";
+        String deliveryAddress = "CERT-DELIVERY-ALPHA First line\nCERT-DELIVERY-BETA Second line";
+        String certGstin = "24CERTGSTIN0001Z";
+        // Set canonical values and the document-specific aliases that normalize() treats as
+        // authoritative. Otherwise sample alias values can overwrite certification sentinels.
+        values.put("document.number", certNumber);
+        values.put("sales.number", certNumber);
+        values.put("party.name", certParty);
+        values.put("customer.name", certParty);
+        values.put("party.billingAddress", billingAddress);
+        values.put("sales.billingAddress", billingAddress);
+        values.put("customer.address", billingAddress);
+        values.put("party.deliveryAddress", deliveryAddress);
+        values.put("sales.deliveryAddress", deliveryAddress);
+        values.put("party.billingGstin", certGstin);
+        values.put("sales.billingGstin", certGstin);
+        values.put("sales.gstin", certGstin);
+        values.put("customer.gstin", certGstin);
+        values.put("party.deliveryGstin", certGstin);
+        values.put("sales.deliveryGstin", certGstin);
+        values.put("document.paymentTerms", "CERT-PAYMENT-TERMS\nSecond payment line\nThird payment line");
+        values.put("sales.paymentTerms", "CERT-PAYMENT-TERMS\nSecond payment line\nThird payment line");
         values.put("sales.gstType", taxMode);
         values.put("purchase.gstType", taxMode);
         values.put("totals.cgstAmount", "GST".equals(taxMode) ? "2,250.00" : "0.00");
@@ -81,11 +124,11 @@ final class PdfDefaultCertification {
         List<TaxInvoiceItem> items = new ArrayList<>();
         for (int i=1;i<=lineCount;i++) {
             String description = i % 4 == 0
-                    ? seed.getDescription()+" - extended production description used to certify wrapping and pagination safety"
-                    : seed.getDescription()+" "+String.format("%02d",i);
-            String remarks = i % 5 == 0
+                    ? "CERT ITEM "+String.format("%02d",i)+" - extended production description used to certify wrapping and pagination safety"
+                    : "CERT ITEM "+String.format("%02d",i)+" "+seed.getDescription();
+            String remarks = "CERT ITEM "+String.format("%02d",i)+" " + (i % 5 == 0
                     ? "Extended technical remark line for PDF Studio default certification and continuation-page validation"
-                    : seed.getRemarks();
+                    : seed.getRemarks());
             items.add(new TaxInvoiceItem(i,seed.getHsn(),description,remarks,1+(i%3),seed.getUnit(),seed.getRate(),
                     seed.getDiscountPercent(),seed.getGstPercent(),seed.getItemCode(),seed.getCategory(),seed.getBrand(),
                     seed.getMaterial(),seed.getSize(),seed.getLocation(),seed.getPurchasePrice(),seed.getSellingPrice(),
@@ -98,5 +141,18 @@ final class PdfDefaultCertification {
     }
 
     private static TemplateCharge charge(String type,double amount){double tax=amount*.18;return new TemplateCharge(type,amount,true,18,tax,amount+tax);}
+    private static void requireText(String body,String expected,String label) throws IOException {
+        if(expected==null||expected.isBlank())return;
+        String normalized=(body==null?"":body).replaceAll("\\s+"," ");
+        String needle=expected.replaceAll("\\s+"," ").trim();
+        if(!normalized.contains(needle)) throw new IOException("required rendered "+label+" is missing: "+needle);
+    }
+    private static boolean hasDynamicFinancialSummary(DocumentTemplate template) {
+        return template != null && template.getElements().stream().anyMatch(e -> e != null
+                && e.getType() == ElementType.BLOCK
+                && PdfStyleResolver.effectivelyVisible(template, e)
+                && "DYNAMIC_FINANCIAL_SUMMARY".equals(e.getReplacementGroupId()));
+    }
+    private static boolean containsToken(String body,String token){return java.util.regex.Pattern.compile("(?i)\\b"+java.util.regex.Pattern.quote(token)+"\\b").matcher(body==null?"":body).find();}
     private static String root(Throwable error){Throwable r=error;while(r.getCause()!=null&&r.getCause()!=r)r=r.getCause();String m=r.getMessage();return m==null||m.isBlank()?r.getClass().getSimpleName():m;}
 }

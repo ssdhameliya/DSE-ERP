@@ -263,7 +263,7 @@ public final class PdfAutoMappingService {
                 candidate = LABEL_ALIASES.entrySet().stream().anyMatch(e -> allowed.contains(e.getKey())
                         && e.getValue().stream().anyMatch(a -> n.contains(normalize(a))));
             }
-            if (candidate && seen.add(Math.round(r.x()) + ":" + Math.round(r.y()) + ":" + n)) count++;
+            if (candidate && seen.add(r.pageIndex() + ":" + Math.round(r.x()) + ":" + Math.round(r.y()) + ":" + n)) count++;
         }
         if (detectItemHeader(regions).isPresent()) count++;
         if (detectChargeRegion(regions, data).isPresent()) count++;
@@ -273,7 +273,7 @@ public final class PdfAutoMappingService {
     private static PdfTextRegion nearestValueRegion(PdfTextRegion label, List<PdfTextRegion> all, Set<PdfTextRegion> used) {
         PdfTextRegion best = null; double bestScore = Double.MAX_VALUE;
         for (PdfTextRegion candidate : all) {
-            if (candidate == label || used.contains(candidate)) continue;
+            if (candidate == label || used.contains(candidate) || candidate.pageIndex() != label.pageIndex()) continue;
             double dy = Math.abs((candidate.y() + candidate.height()/2) - (label.y() + label.height()/2));
             double dx = candidate.x() - (label.x() + label.width());
             boolean right = dx >= -3 && dx <= 260 && dy <= Math.max(16, label.height() * 1.8);

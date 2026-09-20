@@ -151,13 +151,24 @@ need(prod.count('valid_mobile_policy') >= 2 and 'mobilePolicy=environment-owned'
 
 need('--prerelease' in release,
      'GitHub release is not published as a prerelease for UAT validation')
-need('Promote verified GitHub release to STABLE' in release and '--prerelease=false' in release
-     and 'RELEASE_PROMOTED_TO_STABLE' in release,
-     'same-run PROD job does not promote the exact verified release from prerelease to stable')
-need(release.find('PROD_DEPLOYMENT_OK') < release.find('PROD_PRIVATE_UPDATE_GATEWAY_OK') < release.find('RELEASE_PROMOTED_TO_STABLE'),
-     'release promotion can occur before PROD health/private-gateway verification')
-need('gh release edit "$TAG"' in prod and '--prerelease=false' in prod and 'RELEASE_PROMOTED_TO_STABLE' in prod,
-     'manual PROD fallback does not promote the exact approved release from prerelease to stable')
+need('Promote health-verified GitHub release to STABLE' in release and '--prerelease=false' in release
+     and 'RELEASE_PROMOTED_TO_STABLE' in release and 'gh release edit "$TAG"' in release,
+     'same-run PROD job does not promote the exact health-verified release from prerelease to stable')
+need(release.find('PROD_DEPLOYMENT_OK') < release.find('RELEASE_PROMOTED_TO_STABLE') < release.find('PROD_PRIVATE_UPDATE_GATEWAY_OK'),
+     'PROD sequence must verify public health, then promote the exact release, then verify the stable private gateway')
+need('/api/updates/releases/latest?includePrerelease=true' not in release[release.find('deploy-prod:'):]
+     and 'UPDATE_URL="${UPDATE_BASE}/api/updates/releases/latest"' in release[release.find('deploy-prod:'):],
+     'PROD update verification must use the stable gateway and must not request prerelease access')
+need('Demote release if PROD update gateway verification fails' in release
+     and "steps.promote.outcome == 'success'" in release and "steps.prod_gateway.outcome == 'failure'" in release
+     and '--prerelease=true' in release and 'RELEASE_DEMOTED_TO_PRERELEASE' in release,
+     'same-run PROD workflow does not demote a promoted release when stable-gateway verification fails')
+need('gh release edit "$TAG"' in prod and '--prerelease=false' in prod and 'RELEASE_PROMOTED_TO_STABLE' in prod
+     and prod.find('PROD_DEPLOYMENT_OK') < prod.find('RELEASE_PROMOTED_TO_STABLE') < prod.find('PROD_PRIVATE_UPDATE_GATEWAY_OK'),
+     'manual PROD fallback does not use health -> promote -> stable-gateway ordering for the exact approved release')
+need('Demote release if PROD update gateway verification fails' in prod and '--prerelease=true' in prod
+     and 'RELEASE_DEMOTED_TO_PRERELEASE' in prod,
+     'manual PROD fallback does not roll the GitHub release back to prerelease after post-promotion gateway failure')
 
 for token in ('sha256sum', 'pg_dump', 'pg_restore', 'PreUpgrade', 'previous-release',
               'ln -sfn', 'systemctl', '/api/runtime/health', 'rollback_binary', 'wait_for_health'):

@@ -217,7 +217,7 @@ final class BuiltInModernSalesTemplateInstaller {
         TemplateElement table = TemplateElement.of(ElementType.ITEM_TABLE,0,13.0,261.0,568.0,65.0);
         table.setHeaderHeight(22.0); table.setRowHeight(8.0); table.setFontSize(5.8);
         table.setTextColor("#000000"); table.setUseSourceTableDesign(true); table.setFillEnabled(false); table.setStrokeEnabled(false);
-        table.setTableColumns(List.of("serial","code","description","quantity","rate","discountPercent","gstPercent","total"));
+        table.setTableColumns(List.of("serial","hsn","description","quantity","rate","discountPercent","gstPercent","total"));
         table.setTableColumnWidths(List.of(24.0,69.0,179.0,47.0,62.0,54.0,44.0,89.0));
         table.setTableColumnAlignments(List.of("CENTER","LEFT","LEFT","RIGHT","RIGHT","RIGHT","RIGHT","RIGHT"));
         e.add(table);
