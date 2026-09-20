@@ -64,9 +64,14 @@ final class PdfDefaultCertification {
                                 requireText(text, "CERT-PAYMENT-TERMS", "payment terms");
                         }
                     } catch (Exception error) {
+                        String cause = root(error);
+                        String lower = cause.toLowerCase(java.util.Locale.ROOT);
+                        String fix = (lower.contains("payment") || lower.contains("cert-payment-terms"))
+                                ? "Fix: keep Payment Terms in its bounded multiline financial-summary area; it must wrap without clipping before making this template Default."
+                                : "Fix: open Item Table, increase the dynamic row area or reduce row height, and preview the 25-item case before making this template Default.";
                         throw new IOException(template.getDocumentType().label() + " default certification failed for " +
                                 taxMode + " / " + lineCount + " items" + (chargeCount > 0 ? " / " + chargeCount + " charges" : "") +
-                                ": " + root(error) + ". Fix: open Item Table, increase the dynamic row area or reduce row height, and preview the 25-item case before making this template Default.", error);
+                                ": " + cause + ". " + fix, error);
                     } finally {
                         Files.deleteIfExists(output);
                     }

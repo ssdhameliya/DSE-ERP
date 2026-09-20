@@ -1255,20 +1255,27 @@ public final class PdfStudioRenderer {
         addIfValue(bankRows, "PAYMENT MODE", data.value("payment.mode"));
         bankRows.add(new String[]{"PAYMENT TERMS", blankAs(data.value("document.paymentTerms"), "NA")});
         List<String[]> totals = dynamicTotalsRows(data);
-        // Match Standard Sales: both sides keep their natural compact row rhythm and
-        // begin at the top of the financial card. The card itself grows to the taller
-        // side, but the shorter side must NOT stretch its rows to fill that height.
-        int naturalFinancialRows = Math.max(1, Math.max(bankRows.size(), totals.size()));
+        // Give multiline Payment Terms as many natural row units as its wrapped value needs.
+        // This mirrors the standard Sales table and removes OS/font-mapper dependent failures.
+        float bankValueWidth = leftW * .69f - 7f;
+        String paymentValue = ":  " + bankRows.get(bankRows.size()-1)[1];
+        PDFont bankFont = fontForText(font(Standard14Fonts.FontName.HELVETICA), safePdfText(paymentValue));
+        int paymentUnits = Math.max(1, wrap(safePdfText(paymentValue), bankFont, 6.1f, Math.max(5, bankValueWidth)).size());
+        int bankUnits = Math.max(1, bankRows.size()-1 + paymentUnits);
+        int naturalFinancialRows = Math.max(1, Math.max(bankUnits, totals.size()));
         float naturalRowH = financialH / naturalFinancialRows;
-        float bankRowH = naturalRowH;
+        float bankTop = financialTop;
         for (int i = 0; i < bankRows.size(); i++) {
-            float topY = financialTop + i * bankRowH;
             String[] row = bankRows.get(i);
+            int rowUnits = i == bankRows.size()-1 ? paymentUnits : 1;
+            float bankRowH = naturalRowH * rowUnits;
+            float contentH = Math.max(1f, bankRowH - 2f);
             drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA_BOLD), 6.1f, row[0], left + 6f,
-                    toPdfY(page, topY + bankRowH - 2.0f), leftW * .31f - 8f, bankRowH - 2f, "#000000");
+                    toPdfY(page, bankTop + bankRowH - 2.0f), leftW * .31f - 8f, contentH, "#000000");
             drawCellText(cs, font(Standard14Fonts.FontName.HELVETICA), 6.1f, ":  " + row[1], left + leftW * .31f,
-                    toPdfY(page, topY + bankRowH - 2.0f), leftW * .69f - 7f, bankRowH - 2f,
+                    toPdfY(page, bankTop + bankRowH - 2.0f), bankValueWidth, contentH,
                     (i == 0 || i == bankRows.size() - 1) ? navy : "#000000");
+            bankTop += bankRowH;
         }
 
         float calcX = left + leftW + gapW;

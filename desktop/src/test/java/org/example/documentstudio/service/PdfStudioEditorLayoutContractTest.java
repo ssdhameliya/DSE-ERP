@@ -62,4 +62,14 @@ class PdfStudioEditorLayoutContractTest {
                 "JSON viewer styling belongs to the centralized light/dark themes");
     }
 
+    @Test
+    void selectedRecordPreviewUsesTheRealRendererInsteadOfOverlayingSourceValues() throws Exception {
+        String controller = Files.readString(Path.of("src/main/java/org/example/documentstudio/controller/PdfStudioController.java"));
+        assertTrue(controller.contains("pdf-studio-v3-record-preview-"));
+        assertTrue(controller.contains("PdfStudioRenderer.render(template,previewData(),previewPdf)"));
+        assertTrue(controller.contains("previewMode=true; dataPreviewMode=true"));
+        assertTrue(controller.contains("Source regions: "));
+        assertTrue(controller.contains("lblMappingPercent.setText(\"Source \" + pct + \"%\")"));
+    }
+
 }

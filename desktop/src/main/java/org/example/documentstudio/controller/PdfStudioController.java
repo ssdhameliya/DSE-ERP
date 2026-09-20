@@ -448,6 +448,7 @@ public class PdfStudioController implements ScreenLifecycle {
         }
         selectedBindingKey = field.key();
         TemplateMappingValidationService.Result before = TemplateMappingValidationService.evaluate(template);
+        PdfTextRegion mappedSourceText = selectedSourceText;
         TemplateElement e = editableSelectionFromSource();
         boolean compatible = e != null && (field.image() ? isImageLike(e) : isTextLike(e));
         if (!compatible) {
@@ -461,6 +462,7 @@ public class PdfStudioController implements ScreenLifecycle {
         }
         checkpoint();
         ManualTemplateMappingService.mapField(e, field);
+        if (mappedSourceText != null && !field.image()) remapSourceTextGeometry(e, mappedSourceText, field.key());
         autosave();
         TemplateMappingValidationService.Result after = TemplateMappingValidationService.evaluate(template);
         populateInspector(e);
@@ -888,8 +890,8 @@ public class PdfStudioController implements ScreenLifecycle {
         int unmapped = Math.max(0, analysis.detected() - mapped - review);
         int pct = (int) Math.round(mapped * 100.0 / Math.max(1, analysis.detected()));
         mappingProgress.setProgress(pct / 100.0);
-        lblMappingPercent.setText(pct + "%");
-        lblMappingSummary.setText(mapped + " mapped • " + review + " review • " + unmapped + " unmapped");
+        lblMappingPercent.setText("Source " + pct + "%");
+        lblMappingSummary.setText("Source regions: " + mapped + " mapped • " + review + " review • " + unmapped + " untouched");
     }
 
     // ---------------------------------------------------------------------
@@ -1421,10 +1423,74 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private TemplateElement addSourceTextReplacement(List<TemplateElement> list, PdfTextRegion region, String expression, String fieldKey) {
         String key=sourceKey(region);String group="replace-"+UUID.randomUUID();
-        PdfTextRegion valueRegion=valueOnlyRegion(region,fieldKey);
-        TemplateElement mask=sourceMask(valueRegion,key);mask.setReplacementGroupId(group);list.add(mask);
+        List<PdfTextRegion> replacementRegions=replacementTextRegions(region,fieldKey);
+        PdfTextRegion valueRegion=combinedReplacementRegion(region,replacementRegions,fieldKey);
+        for(PdfTextRegion source:replacementRegions){
+            PdfTextRegion maskRegion=valueOnlyRegion(source,fieldKey);
+            TemplateElement mask=sourceMask(maskRegion,sourceKey(source));mask.setReplacementGroupId(group);list.add(mask);
+        }
         TemplateElement text=TemplateElement.of(ElementType.TEXT,valueRegion.pageIndex(),valueRegion.x(),valueRegion.y(),valueRegion.width(),Math.max(valueRegion.height(),valueRegion.fontSize()*1.25));
         text.setText(expression);text.setFieldKey(fieldKey);text.setFontSize(valueRegion.fontSize());text.setFontFamily(fontHint(valueRegion.fontName()));text.setBold(valueRegion.bold());text.setItalic(valueRegion.italic());text.setTextColor(valueRegion.textColor());text.setRotation(valueRegion.rotation());text.setFillEnabled(false);text.setStrokeEnabled(false);text.setTextFit("SHRINK");text.setReplacementGroupId(group);text.setReplacementSourceKey(key);list.add(text);return text;
+    }
+
+    /** Rebuild source masks after the user chooses the field so labels/borders stay protected. */
+    private void remapSourceTextGeometry(TemplateElement element,PdfTextRegion source,String fieldKey){
+        if(element==null||source==null||fieldKey==null||element.getReplacementGroupId()==null)return;
+        String group=element.getReplacementGroupId();
+        List<TemplateElement> list=new ArrayList<>(template.getElements());
+        list.removeIf(candidate->candidate.getType()==ElementType.WHITEOUT&&group.equals(candidate.getReplacementGroupId()));
+        List<PdfTextRegion> regions=replacementTextRegions(source,fieldKey);
+        int insert=Math.max(0,list.indexOf(element));
+        for(PdfTextRegion printed:regions){
+            PdfTextRegion maskRegion=valueOnlyRegion(printed,fieldKey);
+            TemplateElement mask=sourceMask(maskRegion,sourceKey(printed));mask.setReplacementGroupId(group);list.add(insert++,mask);
+        }
+        PdfTextRegion box=combinedReplacementRegion(source,regions,fieldKey);
+        element.setX(box.x());element.setY(box.y());element.setWidth(box.width());element.setHeight(Math.max(box.height(),box.fontSize()*1.25));
+        element.setReplacementSourceKey(sourceKey(source));
+        ManualTemplateMappingService.configureMultilineMapping(element,fieldKey);
+        template.setElements(list);
+    }
+
+    private List<PdfTextRegion> replacementTextRegions(PdfTextRegion selected,String fieldKey){
+        if(selected==null)return List.of();
+        String key=fieldKey==null?"":fieldKey.toLowerCase(Locale.ROOT);
+        if(!key.contains("address")||key.contains("gstin"))return List.of(selected);
+        List<PdfTextRegion> pageRegions=textCache.computeIfAbsent(selected.pageIndex(),page->{
+            try{return PdfTextExtractionService.extract(sourcePdf,page);}catch(Exception ignored){return List.of();}
+        });
+        double effectivePageWidth=pageWidth;
+        try{effectivePageWidth=PdfPreviewSupport.pageSize(sourcePdf,selected.pageIndex()).width();}catch(Exception ignored){}
+        final double pageW=Math.max(1,effectivePageWidth);
+        final boolean selectedLeft=selected.x()+selected.width()/2.0<pageW/2.0;
+        java.util.function.Predicate<PdfTextRegion> sameColumn=r->{
+            double center=r.x()+r.width()/2.0;
+            return selectedLeft?center<pageW/2.0:center>=pageW/2.0;
+        };
+        double maxScan=selected.y()+Math.max(90.0,selected.height()*6.0);
+        double gstY=pageRegions.stream().filter(sameColumn)
+                .filter(r->r.y()>=selected.y()-0.5&&r.y()<maxScan)
+                .filter(r->{String t=PdfAutoMappingService.normalize(r.text());return t.contains("gst in")||t.contains("gstin");})
+                .mapToDouble(PdfTextRegion::y).min().orElse(maxScan);
+        final double cutoff=gstY;
+        List<PdfTextRegion> fragments=pageRegions.stream().filter(sameColumn)
+                .filter(r->r.y()>=selected.y()-0.5&&r.y()+r.height()<=cutoff+0.25)
+                .filter(r->{String t=PdfAutoMappingService.normalize(r.text());return !(t.contains("billing address")||t.contains("delivery address")||t.contains("gst in")||t.contains("gstin")||t.startsWith("transporter")||t.startsWith("transport"));})
+                .sorted(Comparator.comparingDouble(PdfTextRegion::y).thenComparingDouble(PdfTextRegion::x)).toList();
+        if(fragments.isEmpty())return List.of(selected);
+        List<PdfTextRegion> bounded=fragments.stream().filter(r->r.y()+0.5>=selected.y()).toList();
+        return bounded.isEmpty()?List.of(selected):bounded;
+    }
+
+    private PdfTextRegion combinedReplacementRegion(PdfTextRegion selected,List<PdfTextRegion> regions,String fieldKey){
+        if(selected==null)return null;
+        String key=fieldKey==null?"":fieldKey.toLowerCase(Locale.ROOT);
+        if(!key.contains("address")||regions==null||regions.size()<=1)return valueOnlyRegion(selected,fieldKey);
+        double minX=regions.stream().mapToDouble(PdfTextRegion::x).min().orElse(selected.x());
+        double minY=regions.stream().mapToDouble(PdfTextRegion::y).min().orElse(selected.y());
+        double maxX=regions.stream().mapToDouble(r->r.x()+r.width()).max().orElse(selected.x()+selected.width());
+        double maxY=regions.stream().mapToDouble(r->r.y()+r.height()).max().orElse(selected.y()+selected.height());
+        return new PdfTextRegion(selected.pageIndex(),selected.text(),minX,minY,Math.max(8,maxX-minX),Math.max(selected.height(),maxY-minY),selected.fontSize(),selected.fontName(),selected.bold(),selected.italic(),selected.textColor(),selected.rotation());
     }
 
     /** Preserve fixed labels such as GST-IN : while replacing only the printed value. */
@@ -1896,8 +1962,18 @@ public class PdfStudioController implements ScreenLifecycle {
 
     @FXML private void showDataPreviewMode(){
         if(template==null)return;
-        previewMode=false; dataPreviewMode=true; previewPdf=null;
-        configurePages(sourcePageCount); clearSelection(); updateModeButtons(); renderCanvas(); ensurePageObjects(pageIndex);
+        try{
+            // Show the actual renderer output for the selected ERP record. Painting live values
+            // over the protected source PDF leaves stale address/GSTIN fragments visible.
+            previewPdf=WorkspaceManager.getTempFolder().resolve("pdf-studio-v3-record-preview-"+template.getId()+".pdf");
+            PdfStudioRenderer.render(template,previewData(),previewPdf);
+            previewMode=true; dataPreviewMode=true;
+            var size=PdfPreviewSupport.pageSize(previewPdf,0);
+            configurePages(size.pageCount()); clearSelection(); updateModeButtons(); renderCanvas();
+        }catch(Exception e){
+            previewMode=false; dataPreviewMode=false; previewPdf=null; updateModeButtons();
+            ModernDialog.error(root,"Record preview failed","PDF Studio",rootMessage(e));
+        }
     }
 
     @FXML private void showFinalMode(){
@@ -1916,8 +1992,8 @@ public class PdfStudioController implements ScreenLifecycle {
 
     private void updateModeButtons(){
         if(btnDesignMode!=null)btnDesignMode.setDisable(!previewMode&&!dataPreviewMode);
-        if(btnDataPreviewMode!=null)btnDataPreviewMode.setDisable(dataPreviewMode&&!previewMode);
-        if(btnFinalMode!=null)btnFinalMode.setDisable(previewMode);
+        if(btnDataPreviewMode!=null)btnDataPreviewMode.setDisable(dataPreviewMode);
+        if(btnFinalMode!=null)btnFinalMode.setDisable(previewMode&&!dataPreviewMode);
     }
 
     @FXML private void exportPdf(){org.example.service.PermissionService.require("DOCUMENT_STUDIO.EXPORT_PDF", "export PDF output");if(template==null)return;FileChooser chooser=new FileChooser();chooser.setTitle("Export PDF");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF files","*.pdf"));chooser.setInitialFileName(template.getName().replaceAll("[^A-Za-z0-9._-]","-")+".pdf");var file=chooser.showSaveDialog(root.getScene().getWindow());if(file==null)return;try{PdfStudioRenderer.render(template,previewData(),file.toPath());ModernDialog.success(root,"Test PDF exported",file.getAbsolutePath()+" • Production templates were not changed.");}catch(Exception e){ModernDialog.error(root,"Export failed","PDF Studio",rootMessage(e));}}
